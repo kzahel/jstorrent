@@ -1,34 +1,34 @@
 {
-  "name": "jstorrent-monorepo",
-  "private": true,
-  "type": "module",
-  "workspaces": [
-    "extension",
-    "native-host",
-    "packages/*",
-    "apps/*",
-    "website"
-  ],
-  "scripts": {
-    "lint": "eslint .",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "@typescript-eslint/eslint-plugin": "^8.47.0",
-    "@typescript-eslint/parser": "^8.47.0",
-    "eslint": "^9.39.1",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.4.24",
-    "globals": "^16.5.0",
-    "prettier": "^3.6.2",
-    "typescript-eslint": "^8.47.0"
-  },
-  "packageManager": "pnpm@9.1.0",
-  "engines": {
-    "node": ">=20",
-    "pnpm": ">=9"
-  }
+    "name": "jstorrent-monorepo",
+    "private": true,
+    "type": "module",
+    "workspaces": [
+        "extension",
+        "native-host",
+        "packages/*",
+        "apps/*",
+        "website"
+    ],
+    "scripts": {
+        "lint": "eslint .",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.39.1",
+        "@typescript-eslint/eslint-plugin": "^8.47.0",
+        "@typescript-eslint/parser": "^8.47.0",
+        "eslint": "^9.39.1",
+        "eslint-plugin-react": "^7.37.5",
+        "eslint-plugin-react-hooks": "^7.0.1",
+        "eslint-plugin-react-refresh": "^0.4.24",
+        "globals": "^16.5.0",
+        "prettier": "^3.6.2",
+        "typescript-eslint": "^8.47.0"
+    },
+    "packageManager": "pnpm@9.1.0",
+    "engines": {
+        "node": ">=20",
+        "pnpm": ">=9"
+    }
 }
