@@ -3,6 +3,8 @@ name: Extension CI
 on:
   push:
     branches: [main]
+    tags:
+      - 'extension-v*'
     paths:
       - 'extension/**'
       - 'packages/**'
