@@ -1,0 +1,60 @@
+# Tasks - Installer Implementation
+
+- [x] Project Structure <!-- id: 0 -->
+    - [x] Create `installers/` directory structure <!-- id: 1 -->
+    - [x] Create `manifests/` directory and template <!-- id: 2 -->
+    - [x] Create `ci/` directory structure <!-- id: 3 -->
+- [x] Windows Installer (Inno Setup) <!-- id: 4 -->
+    - [x] Create `installers/windows/jstorrent.iss` <!-- id: 5 -->
+    - [x] Add placeholder icon <!-- id: 6 -->
+- [x] macOS Installer (pkg) <!-- id: 7 -->
+    - [x] Create `installers/macos/scripts/preinstall.sh` <!-- id: 8 -->
+    - [x] Create `installers/macos/scripts/postinstall.sh` <!-- id: 9 -->
+    - [x] Create `installers/macos/scripts/uninstall.sh` <!-- id: 10 -->
+    - [x] Create `installers/macos/pkg/distribution.xml` (optional) <!-- id: 11 -->
+- [x] Linux Installer (Shell) <!-- id: 12 -->
+    - [x] Create `installers/linux/install.sh` <!-- id: 13 -->
+    - [x] Create `installers/linux/uninstall.sh` <!-- id: 14 -->
+- [x] CI/CD (GitHub Actions) <!-- id: 15 -->
+    - [x] Create `ci/github-actions/build-and-package.yml` <!-- id: 16 -->
+- [x] Verification <!-- id: 17 -->
+    - [x] Verify directory structure <!-- id: 18 -->
+    - [x] Verify script syntax (shellcheck if available, or visual) <!-- id: 19 -->
+- [ ] Release Management <!-- id: 20 -->
+    - [x] Create `release-management.md` <!-- id: 21 -->
+    - [x] Update CI for Release Automation <!-- id: 22 -->
+- [x] One-Line Installer <!-- id: 23 -->
+    - [x] Create `docs/install.sh` <!-- id: 24 -->
+    - [x] Update `README.md` with install instructions <!-- id: 25 -->
+- [x] GitHub Pages Setup <!-- id: 26 -->
+    - [x] Create `docs/index.html` <!-- id: 27 -->
+    - [x] Create `deploy-pages.yml` workflow <!-- id: 28 -->
+- [x] Installer Renaming <!-- id: 29 -->
+    - [x] Update Windows artifact name <!-- id: 30 -->
+    - [x] Update macOS artifact name <!-- id: 31 -->
+    - [x] Update README instructions <!-- id: 32 -->
+    - [x] Add `-install` to filenames <!-- id: 33 -->
+- [ ] Magnet Handler Implementation <!-- id: 34 -->
+    - [ ] **Host Changes** <!-- id: 35 -->
+- [x] Magnet Handler Implementation <!-- id: 34 -->
+    - [x] **Host Changes** <!-- id: 35 -->
+        - [x] Add HTTP server dependencies <!-- id: 36 -->
+        - [x] Implement `RpcInfo` and discovery file writing <!-- id: 37 -->
+        - [x] Implement HTTP RPC server (`health`, `add-magnet`) <!-- id: 38 -->
+        - [x] Integrate RPC with main event loop <!-- id: 39 -->
+    - [x] **Stub Implementation** <!-- id: 40 -->
+        - [x] Create `jstorrent-magnet-stub` binary <!-- id: 41 -->
+        - [x] Implement `rpc-info` discovery and validation <!-- id: 42 -->
+        - [x] Implement RPC client <!-- id: 43 -->
+        - [x] Implement browser launch fallback <!-- id: 44 -->
+    - [x] **Verification** <!-- id: 52 -->
+        - [x] Verify build passes <!-- id: 53 -->
+        - [x] Verify integration test (`verify_magnet.py`) <!-- id: 54 -->
+        - [x] Verify installers (manual) <!-- id: 55 -->
+    - [x] **Installer Updates** <!-- id: 45 -->
+        - [x] Windows: Register `magnet:` protocol, install stub <!-- id: 46 -->
+        - [x] macOS: Bundle stub, register URL type <!-- id: 47 -->
+        - [x] Linux: Install stub, `.desktop` file, `xdg-mime` <!-- id: 48 -->
+    - [x] **CI Updates** <!-- id: 49 -->
+        - [x] Build stub binary <!-- id: 50 -->
+        - [x] Include stub in packages <!-- id: 51 -->

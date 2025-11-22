@@ -1,0 +1,22 @@
+# Tasks
+
+- [/] Project Setup <!-- id: 0 -->
+    - [x] Initialize Rust project <!-- id: 1 -->
+    - [x] Add dependencies (tokio, serde, etc.) <!-- id: 2 -->
+- [/] IPC & Protocol <!-- id: 3 -->
+    - [x] Implement message framing (length-prefixed JSON) <!-- id: 4 -->
+    - [x] Define protocol types (Requests, Responses, Events) <!-- id: 5 -->
+- [/] Core Runtime <!-- id: 6 -->
+    - [x] Implement main event loop <!-- id: 7 -->
+    - [x] Implement resource management (Socket maps, etc.) <!-- id: 8 -->
+- [/] Feature Implementation <!-- id: 9 -->
+    - [x] TCP Operations <!-- id: 10 -->
+    - [x] UDP Operations <!-- id: 11 -->
+    - [x] File I/O Operations <!-- id: 12 -->
+    - [x] Path Safety & Canonicalization <!-- id: 13 -->
+    - [x] Atomic Move <!-- id: 14 -->
+    - [x] Folder Picker <!-- id: 15 -->
+    - [x] Hashing <!-- id: 16 -->
+- [/] Verification <!-- id: 17 -->
+    - [x] Unit Tests <!-- id: 18 -->
+    - [x] Integration Tests <!-- id: 19 -->

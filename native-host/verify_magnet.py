@@ -1,0 +1,125 @@
+import sys
+import json
+import struct
+import subprocess
+import time
+import os
+import requests
+import shutil
+
+# Configuration
+HOST_BINARY = "./target/debug/jstorrent-host"
+STUB_BINARY = "./target/debug/jstorrent-link-handler"
+CONFIG_DIR = os.path.expanduser("~/.config/jstorrent-native-host")
+
+def setup():
+    # Clean config dir
+    if os.path.exists(CONFIG_DIR):
+        shutil.rmtree(CONFIG_DIR)
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+
+def read_message(proc):
+    raw_length = proc.stdout.read(4)
+    if not raw_length:
+        return None
+    msg_length = struct.unpack('=I', raw_length)[0]
+    msg = proc.stdout.read(msg_length)
+    return json.loads(msg)
+
+def send_message(proc, msg):
+    msg_json = json.dumps(msg)
+    msg_bytes = msg_json.encode('utf-8')
+    header = struct.pack('=I', len(msg_bytes))
+    proc.stdin.write(header + msg_bytes)
+    proc.stdin.flush()
+
+def test_magnet_flow():
+    print("Starting Host...")
+    host_proc = subprocess.Popen(
+        [HOST_BINARY],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=sys.stderr,
+        bufsize=0
+    )
+
+    try:
+        # Wait for host to initialize and write discovery file
+        time.sleep(2)
+        
+        # Verify discovery file exists
+        files = os.listdir(CONFIG_DIR)
+        rpc_files = [f for f in files if f.startswith("rpc-info-")]
+        if not rpc_files:
+            print("FAIL: No discovery file found")
+            return False
+        
+        print(f"Found discovery file: {rpc_files[0]}")
+        
+        with open(os.path.join(CONFIG_DIR, rpc_files[0]), 'r') as f:
+            info = json.load(f)
+            
+        port = info['port']
+        token = info['token']
+        print(f"RPC Server running on port {port} with token {token}")
+        
+        # Test Health Check
+        resp = requests.get(f"http://127.0.0.1:{port}/health?token={token}")
+        if resp.status_code != 200:
+            print(f"FAIL: Health check failed: {resp.status_code}")
+            return False
+        print("Health check passed")
+        
+        # Test Stub
+        magnet_link = "magnet:?xt=urn:btih:1234567890abcdef1234567890abcdef12345678&dn=Test"
+        print(f"Running stub with magnet link: {magnet_link}")
+        
+        stub_proc = subprocess.run(
+            [STUB_BINARY, magnet_link],
+            capture_output=True,
+            text=True
+        )
+        
+        if stub_proc.returncode != 0:
+            print(f"FAIL: Stub failed with code {stub_proc.returncode}")
+            print("Stderr:", stub_proc.stderr)
+            return False
+            
+        print("Stub executed successfully")
+        
+        # Verify Host received the event
+        # We need to read from host stdout. 
+        # The host should emit a MagnetAdded event.
+        
+        # We might have missed it if it happened too fast? 
+        # No, the host writes to stdout which is a pipe. We can read it.
+        
+        # Note: The host loop reads stdin. If we don't send anything, it blocks on read_message.
+        # But the RPC handler sends to event_tx, which the main loop selects on.
+        # So it should wake up and write to stdout.
+        
+        print("Waiting for event from host...")
+        msg = read_message(host_proc)
+        print("Received message:", msg)
+        
+        if msg and msg.get('event') == 'magnetAdded':
+            if msg.get('link') == magnet_link:
+                print("SUCCESS: Host received magnet link!")
+                return True
+            else:
+                print(f"FAIL: Link mismatch. Expected {magnet_link}, got {msg.get('link')}")
+                return False
+        else:
+            print("FAIL: Unexpected message or no message")
+            return False
+
+    finally:
+        host_proc.terminate()
+        host_proc.wait()
+
+if __name__ == "__main__":
+    setup()
+    if test_magnet_flow():
+        sys.exit(0)
+    else:
+        sys.exit(1)

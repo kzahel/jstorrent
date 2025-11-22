@@ -1,0 +1,45 @@
+name: Extension CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'extension/**'
+      - 'packages/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'extension/**'
+      - 'packages/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run check_fast
+        run: npm run check_fast
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npm run test:e2e

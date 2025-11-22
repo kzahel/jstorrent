@@ -1,0 +1,11 @@
+dist
+node_modules
+coverage
+test-results
+playwright-report
+blob-report
+*.json
+!package.json
+!tsconfig.json
+!.eslintrc.cjs
+!manifest.json

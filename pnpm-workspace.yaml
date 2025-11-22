@@ -1,0 +1,6 @@
+packages:
+  - 'extension'
+  - 'native-host'
+  - 'packages/*'
+  - 'apps/*'
+  - 'website'

@@ -1,0 +1,22 @@
+# General
+.DS_Store
+*.log
+
+# Node
+node_modules
+dist
+coverage
+.env
+.env.local
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+
+# Rust
+target/
+**/*.rs.bk
+
+# monorepo migration
+old-repositories

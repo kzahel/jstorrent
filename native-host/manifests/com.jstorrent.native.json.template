@@ -1,0 +1,10 @@
+{
+  "name": "com.jstorrent.native",
+  "description": "JSTorrent Native Messaging Host",
+  "path": "HOST_PATH_PLACEHOLDER",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://bnceafpojmnimbnhamaeedgomdcgnbjk/",
+    "chrome-extension://opkmhecbhgngcbglpcdfmnomkffenapc/"
+  ]
+}
