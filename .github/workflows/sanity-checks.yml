@@ -1,0 +1,35 @@
+name: Repository Sanity Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  sanity-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Check root dependencies
+        run: scripts/check-root-deps.sh
+
+      - name: Lint check
+        run: pnpm run lint
+
+      - name: Format check
+        run: pnpm run format:check
