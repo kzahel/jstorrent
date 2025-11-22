@@ -38,8 +38,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Run check_fast
-        run: pnpm run check_fast
 
       - name: Build extension
         run: pnpm run build

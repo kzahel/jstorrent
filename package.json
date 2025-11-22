@@ -11,8 +11,12 @@
   ],
   "scripts": {
     "lint": "eslint .",
-    "format": "prettier --write . --log-level=error",
-    "format:check": "prettier --check ."
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm --recursive test",
+    "typecheck": "pnpm --recursive typecheck",
+    "build": "pnpm --recursive build"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

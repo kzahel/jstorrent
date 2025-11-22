@@ -6,15 +6,12 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
-    "lint": "eslint src",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test -c e2e/playwright.config.ts",
     "test:real": "echo 'Real E2E not implemented yet'",
-    "check_fast": "npm-run-all --parallel lint format:check typecheck test"
+    "check_fast": "npm-run-all --parallel typecheck test"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -30,7 +27,6 @@
     "@vitejs/plugin-react": "^5.1.1",
     "happy-dom": "^20.0.10",
     "npm-run-all": "^4.1.5",
-    "prettier": "^3.1.0",
     "typescript": "^5.2.2",
     "vite": "^7.2.4",
     "vitest": "^4.0.13"
