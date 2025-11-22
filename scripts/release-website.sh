@@ -8,6 +8,11 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
+if [[ ! "$VERSION" =~ ^[0-9] ]]; then
+  echo "Error: Version must start with a number (e.g., 1.0.0, not v1.0.0)"
+  exit 1
+fi
+
 TAG="website-v${VERSION}"
 
 git tag "$TAG"

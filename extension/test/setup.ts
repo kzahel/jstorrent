@@ -1,4 +1,5 @@
 import { mockChrome } from './mocks/mock-chrome.ts'
 
 // Mock global chrome object
-global.chrome = mockChrome as any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(global as any).chrome = mockChrome as any

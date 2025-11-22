@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
@@ -23,22 +23,16 @@
   "devDependencies": {
     "@playwright/test": "^1.40.0",
     "@testing-library/react": "^14.1.0",
-    "@types/chrome": "^0.0.253",
+    "@types/chrome": "^0.1.31",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
-    "@typescript-eslint/eslint-plugin": "^8.47.0",
-    "@typescript-eslint/parser": "^8.47.0",
-    "@vitejs/plugin-react": "^4.2.0",
-    "eslint": "^8.53.0",
-    "eslint-plugin-react": "^7.33.2",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.24",
-    "happy-dom": "^12.10.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "happy-dom": "^20.0.10",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.1.0",
     "typescript": "^5.2.2",
-    "vite": "^5.0.0",
-    "vitest": "^0.34.6"
+    "vite": "^7.2.4",
+    "vitest": "^4.0.13"
   }
 }

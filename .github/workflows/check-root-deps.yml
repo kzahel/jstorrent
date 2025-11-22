@@ -1,0 +1,15 @@
+name: Enforce Root Dependency Policy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  check-root-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run root dependency check
+        run: scripts/check-root-deps.sh
