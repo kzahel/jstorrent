@@ -54,13 +54,32 @@ jobs:
       - name: Verify Installer
         shell: pwsh
         run: |
-          # Run installer silently
-          ./installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+          # Run installer silently with logging
+          $InstallerPath = ".\installers\windows\Output\jstorrent-native-host-install-windows-x86_64.exe"
+          Start-Process -FilePath $InstallerPath -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LOG=install.log" -Wait -NoNewWindow
 
           # Verify files
           $InstallDir = "$env:LOCALAPPDATA\JSTorrent"
           if (-not (Test-Path "$InstallDir\jstorrent-native-host.exe")) {
             Write-Error "Native host binary not found at $InstallDir\jstorrent-native-host.exe"
+            
+            Write-Host "Listing LOCALAPPDATA:"
+            Get-ChildItem "$env:LOCALAPPDATA" | Select-Object Name
+            
+            if (Test-Path "$InstallDir") {
+                Write-Host "Listing InstallDir:"
+                Get-ChildItem "$InstallDir"
+            } else {
+                Write-Host "InstallDir does not exist."
+            }
+            
+            if (Test-Path "install.log") {
+                Write-Host "Installer Log Content:"
+                Get-Content "install.log"
+            } else {
+                Write-Host "No install.log found."
+            }
+            
             exit 1
           }
           if (-not (Test-Path "$InstallDir\com.jstorrent.native.json")) {
