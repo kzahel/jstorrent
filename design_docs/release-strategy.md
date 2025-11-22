@@ -6,10 +6,10 @@
 
 JSTorrent uses a monorepo containing multiple independently-versioned components:
 
-* `extension/`
-* `native-host/`
-* `website/`
-* future: `apps/` (mobile)
+- `extension/`
+- `native-host/`
+- `website/`
+- future: `apps/` (mobile)
 
 Releases for each component must be isolated so that publishing one does not affect any others. GitHub Actions should build and publish artifacts only when explicitly requested, and the release process should require minimal overhead.
 
@@ -38,10 +38,10 @@ website-v0.3.1
 
 ### Benefits
 
-* **Complete independence:** releasing one component never triggers workflows for other components.
-* **Simple CI filtering:** GitHub Actions selects workflows using tag patterns.
-* **No central version file:** version numbers live in tags only, avoiding merge conflicts.
-* **Supports GitHub UI releases:** maintainers can cut releases from the “Draft Release” interface by choosing the correct tag name.
+- **Complete independence:** releasing one component never triggers workflows for other components.
+- **Simple CI filtering:** GitHub Actions selects workflows using tag patterns.
+- **No central version file:** version numbers live in tags only, avoiding merge conflicts.
+- **Supports GitHub UI releases:** maintainers can cut releases from the “Draft Release” interface by choosing the correct tag name.
 
 ---
 
@@ -183,8 +183,8 @@ CI builds and uploads the appropriate artifact to a GitHub Release.
 
 1. Navigate to **Releases → Draft new release**
    `native-v0.0.7`
-3. Publish release
-4. CI builds and attaches artifacts automatically
+2. Publish release
+3. CI builds and attaches artifacts automatically
 
 Both methods work interchangeably.
 

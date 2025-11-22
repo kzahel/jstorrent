@@ -1,31 +1,31 @@
 # Tasks - Installer Implementation
 
 - [x] Project Structure <!-- id: 0 -->
-    - [x] Create `installers/` directory structure <!-- id: 1 -->
-    - [x] Create `manifests/` directory and template <!-- id: 2 -->
-    - [x] Create `ci/` directory structure <!-- id: 3 -->
+  - [x] Create `installers/` directory structure <!-- id: 1 -->
+  - [x] Create `manifests/` directory and template <!-- id: 2 -->
+  - [x] Create `ci/` directory structure <!-- id: 3 -->
 - [x] Windows Installer (Inno Setup) <!-- id: 4 -->
-    - [x] Create `installers/windows/jstorrent.iss` <!-- id: 5 -->
-    - [x] Add placeholder icon <!-- id: 6 -->
+  - [x] Create `installers/windows/jstorrent.iss` <!-- id: 5 -->
+  - [x] Add placeholder icon <!-- id: 6 -->
 - [x] macOS Installer (pkg) <!-- id: 7 -->
-    - [x] Create `installers/macos/scripts/preinstall.sh` <!-- id: 8 -->
-    - [x] Create `installers/macos/scripts/postinstall.sh` <!-- id: 9 -->
-    - [x] Create `installers/macos/scripts/uninstall.sh` <!-- id: 10 -->
-    - [x] Create `installers/macos/pkg/distribution.xml` (optional) <!-- id: 11 -->
+  - [x] Create `installers/macos/scripts/preinstall.sh` <!-- id: 8 -->
+  - [x] Create `installers/macos/scripts/postinstall.sh` <!-- id: 9 -->
+  - [x] Create `installers/macos/scripts/uninstall.sh` <!-- id: 10 -->
+  - [x] Create `installers/macos/pkg/distribution.xml` (optional) <!-- id: 11 -->
 - [x] Linux Installer (Shell) <!-- id: 12 -->
-    - [x] Create `installers/linux/install.sh` <!-- id: 13 -->
-    - [x] Create `installers/linux/uninstall.sh` <!-- id: 14 -->
+  - [x] Create `installers/linux/install.sh` <!-- id: 13 -->
+  - [x] Create `installers/linux/uninstall.sh` <!-- id: 14 -->
 - [x] CI/CD (GitHub Actions) <!-- id: 15 -->
-    - [x] Create `ci/github-actions/build-and-package.yml` <!-- id: 16 -->
+  - [x] Create `ci/github-actions/build-and-package.yml` <!-- id: 16 -->
 - [x] Verification <!-- id: 17 -->
-    - [x] Verify directory structure <!-- id: 18 -->
-    - [x] Verify script syntax (shellcheck if available, or visual) <!-- id: 19 -->
+  - [x] Verify directory structure <!-- id: 18 -->
+  - [x] Verify script syntax (shellcheck if available, or visual) <!-- id: 19 -->
 - [ ] Release Management <!-- id: 20 -->
-    - [x] Create `release-management.md` <!-- id: 21 -->
-    - [x] Update CI for Release Automation <!-- id: 22 -->
+  - [x] Create `release-management.md` <!-- id: 21 -->
+  - [x] Update CI for Release Automation <!-- id: 22 -->
 - [x] One-Line Installer <!-- id: 23 -->
-    - [x] Create `docs/install.sh` <!-- id: 24 -->
-    - [x] Update `README.md` with install instructions <!-- id: 25 -->
+  - [x] Create `docs/install.sh` <!-- id: 24 -->
+  - [x] Update `README.md` with install instructions <!-- id: 25 -->
 - [x] GitHub Pages Setup <!-- id: 26 -->
-    - [x] Create `docs/index.html` <!-- id: 27 -->
-    - [x] Create `deploy-pages.yml` workflow <!-- id: 28 -->
+  - [x] Create `docs/index.html` <!-- id: 27 -->
+  - [x] Create `deploy-pages.yml` workflow <!-- id: 28 -->

@@ -38,24 +38,29 @@ ci/
 ### Component Details
 
 #### [NEW] [manifests/com.jstorrent.native.json.template](file:///home/kgraehl/code/jstorrent-host/manifests/com.jstorrent.native.json.template)
+
 - Template for the Chrome Native Messaging manifest.
 - Placeholders: `PATH` (to be replaced by installer), `ALLOWED_ORIGINS`.
 
 #### [NEW] [installers/windows/jstorrent.iss](file:///home/kgraehl/code/jstorrent-host/installers/windows/jstorrent.iss)
+
 - Inno Setup script.
 - Installs to `%LOCALAPPDATA%\JSTorrent`.
 - Writes registry keys.
 - Generates manifest from template (or writes it directly).
 
-#### [NEW] [installers/macos/scripts/*.sh](file:///home/kgraehl/code/jstorrent-host/installers/macos/scripts/)
+#### [NEW] [installers/macos/scripts/\*.sh](file:///home/kgraehl/code/jstorrent-host/installers/macos/scripts/)
+
 - `postinstall.sh`: Creates directories, copies binary, substitutes manifest template, sets permissions.
 - `uninstall.sh`: Removes binary and manifest.
 
-#### [NEW] [installers/linux/*.sh](file:///home/kgraehl/code/jstorrent-host/installers/linux/)
+#### [NEW] [installers/linux/\*.sh](file:///home/kgraehl/code/jstorrent-host/installers/linux/)
+
 - `install.sh`: Installs to `~/.local/lib/jstorrent-native`, creates manifest in `~/.config/...`.
 - `uninstall.sh`: Removes installed files.
 
 #### [NEW] [ci/github-actions/build-and-package.yml](file:///home/kgraehl/code/jstorrent-host/ci/github-actions/build-and-package.yml)
+
 - Matrix build: Windows, macOS, Ubuntu.
 - Windows: Build release, run `iscc`, upload artifacts.
 - macOS: Build release, run `pkgbuild`/`productbuild`, upload artifacts.
@@ -64,8 +69,10 @@ ci/
 ## Verification Plan
 
 ### Automated Verification
+
 - **CI Pipeline**: The GitHub Actions workflow itself is the primary verification. It will fail if scripts are missing or build commands fail.
 - **Syntax Check**: I will visually verify the scripts.
 
 ### Manual Verification
+
 - The user will need to run the generated installers on their respective platforms to fully verify functionality (registry keys, permissions, etc.).

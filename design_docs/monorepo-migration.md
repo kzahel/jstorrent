@@ -85,10 +85,10 @@ mv old-repositories/old-jstorrent-extension/* extension/
 
 Clean up unnecessary files:
 
-* old README
-* old `.github/`
-* old build artifacts
-* old node_modules
+- old README
+- old `.github/`
+- old build artifacts
+- old node_modules
 
 ### B. Native host → `native-host/`
 
@@ -106,13 +106,13 @@ Keep the old directories in `old-repositories/` as an archive or delete after va
 
 Inside the extension:
 
-* Update references to native host paths if hardcoded
-* Normalize tooling so it expects local paths consistent with the monorepo
+- Update references to native host paths if hardcoded
+- Normalize tooling so it expects local paths consistent with the monorepo
 
 Inside the native host:
 
-* Adjust installer scripts so they no longer assume repo root is the native host repo
-* Move platform-specific installers to `native-host/installers/{windows,mac,linux}`
+- Adjust installer scripts so they no longer assume repo root is the native host repo
+- Move platform-specific installers to `native-host/installers/{windows,mac,linux}`
 
 ---
 
@@ -131,13 +131,12 @@ The most important rule:
    ```
 
 2. Rename workflows to reflect components:
-
-   * `extension-ci.yml`
-   * `native-host-ci.yml`
-   * `website-ci.yml` (future)
-   * `mobile-ci.yml` (future RN)
-   * `release.yml`
-   * `deploy-pages.yml`
+   - `extension-ci.yml`
+   - `native-host-ci.yml`
+   - `website-ci.yml` (future)
+   - `mobile-ci.yml` (future RN)
+   - `release.yml`
+   - `deploy-pages.yml`
 
 3. Strip obsolete steps (paths that no longer exist, or repo-specific actions).
 
@@ -151,7 +150,7 @@ name: Extension CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'extension/**'
       - 'packages/shared-ts/**'
@@ -179,7 +178,7 @@ name: Native Host CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'native-host/**'
       - 'packages/proto/**'
@@ -203,7 +202,7 @@ jobs:
 ```yaml
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'website/**'
       - 'packages/shared-ts/**'
@@ -257,9 +256,9 @@ Define clear ownership boundaries:
 
 ### Option A — Prefix tags per component
 
-* `extension-v1.2.0`
-* `native-v0.4.0`
-* `mobile-v0.1.0`
+- `extension-v1.2.0`
+- `native-v0.4.0`
+- `mobile-v0.1.0`
 
 Workflows trigger by tag pattern:
 
@@ -267,7 +266,7 @@ Workflows trigger by tag pattern:
 on:
   push:
     tags:
-      - "extension-v*"
+      - 'extension-v*'
 ```
 
 ### Option B — Use a changeset or monorepo versioning tool
@@ -280,36 +279,36 @@ Later, if needed.
 
 ### A. Repo structure
 
-* [ ] Create target folder layout
-* [ ] Move legacy code into appropriate folders
-* [ ] Remove redundant configs and node_modules
-* [ ] Add `pnpm` workspace configuration
+- [ ] Create target folder layout
+- [ ] Move legacy code into appropriate folders
+- [ ] Remove redundant configs and node_modules
+- [ ] Add `pnpm` workspace configuration
 
 ### B. CI
 
-* [ ] Extract old `.github/workflows` from both legacy repos
-* [ ] Rewrite them into one `.github/workflows` directory
-* [ ] Add `paths:` filters
-* [ ] Add shared workflows if useful
-* [ ] Validate CI on a test PR
+- [ ] Extract old `.github/workflows` from both legacy repos
+- [ ] Rewrite them into one `.github/workflows` directory
+- [ ] Add `paths:` filters
+- [ ] Add shared workflows if useful
+- [ ] Validate CI on a test PR
 
 ### C. Build + install scripts
 
-* [ ] Update installer scripts in `native-host/installers/`
-* [ ] Update extension build commands to new folder structure
+- [ ] Update installer scripts in `native-host/installers/`
+- [ ] Update extension build commands to new folder structure
 
 ### D. Documentation
 
-* [ ] Rewrite root `README.md` with monorepo explanation
-* [ ] Add `extension/README.md`
-* [ ] Add `native-host/README.md`
-* [ ] Add `packages/shared-ts/README.md`
+- [ ] Rewrite root `README.md` with monorepo explanation
+- [ ] Add `extension/README.md`
+- [ ] Add `native-host/README.md`
+- [ ] Add `packages/shared-ts/README.md`
 
 ### E. Future expansion support
 
-* [ ] Add placeholders for `apps/mobile`, `apps/android`, `apps/ios`
-* [ ] Add placeholder shared TypeScript library in `packages/shared-ts`
-* [ ] Add placeholder API folder in `infra/api`
+- [ ] Add placeholders for `apps/mobile`, `apps/android`, `apps/ios`
+- [ ] Add placeholder shared TypeScript library in `packages/shared-ts`
+- [ ] Add placeholder API folder in `infra/api`
 
 ---
 
@@ -317,9 +316,9 @@ Later, if needed.
 
 The plan covers:
 
-* Moving old repos into a clean monorepo layout
-* Consolidating all CI into a single `.github`
-* Using `paths:` to emulate per-repo workflows
-* Preparing for future platforms (website, server, RN apps)
-* Ensuring component isolation but shared code where expected
-* Allowing later growth without structural changes
+- Moving old repos into a clean monorepo layout
+- Consolidating all CI into a single `.github`
+- Using `paths:` to emulate per-repo workflows
+- Preparing for future platforms (website, server, RN apps)
+- Ensuring component isolation but shared code where expected
+- Allowing later growth without structural changes

@@ -2,14 +2,14 @@ name: Native Host CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     tags:
       - 'native-v*'
     paths:
       - 'native-host/**'
       - 'packages/**'
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'native-host/**'
       - 'packages/**'
@@ -25,110 +25,110 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-        
-    - name: Build Release
-      run: cargo build --release
-      
-    - name: Compile Installer
-      run: |
-        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installers\windows\jstorrent.iss
-        
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-installer
-        path: native-host/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe
+      - uses: actions/checkout@v4
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: native-host/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Compile Installer
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installers\windows\jstorrent.iss
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: native-host/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: native-host/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe
 
   build-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-        
-    - name: Build Release
-      run: cargo build --release
-      
-    - name: Prepare PKG Root
-      run: |
-        # Native Host
-        mkdir -p pkgroot/usr/local/lib/jstorrent-native
-        cp target/release/jstorrent-host pkgroot/usr/local/lib/jstorrent-native/jstorrent-native-host
-        cp installers/macos/scripts/uninstall.sh pkgroot/usr/local/lib/jstorrent-native/
-        cp manifests/com.jstorrent.native.json.template pkgroot/usr/local/lib/jstorrent-native/
-        
-        # Magnet Handler App
-        mkdir -p pkgroot/Applications/JSTorrentMagnetHandler.app/Contents/MacOS
-        cp target/release/jstorrent-link-handler pkgroot/Applications/JSTorrentMagnetHandler.app/Contents/MacOS/jstorrent-link-handler
-        cp installers/macos/Info.plist pkgroot/Applications/JSTorrentMagnetHandler.app/Contents/
-        
-    - name: Build PKG
-      run: |
-        pkgbuild --root pkgroot \
-                 --identifier com.jstorrent.native \
-                 --version 0.1.0 \
-                 --scripts installers/macos/scripts \
-                 jstorrent-native-host-install-macos-x86_64.pkg
-                 
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-installer
-        path: native-host/jstorrent-native-host-install-macos-x86_64.pkg
+      - uses: actions/checkout@v4
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: native-host/jstorrent-native-host-install-macos-x86_64.pkg
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Prepare PKG Root
+        run: |
+          # Native Host
+          mkdir -p pkgroot/usr/local/lib/jstorrent-native
+          cp target/release/jstorrent-host pkgroot/usr/local/lib/jstorrent-native/jstorrent-native-host
+          cp installers/macos/scripts/uninstall.sh pkgroot/usr/local/lib/jstorrent-native/
+          cp manifests/com.jstorrent.native.json.template pkgroot/usr/local/lib/jstorrent-native/
+
+          # Magnet Handler App
+          mkdir -p pkgroot/Applications/JSTorrentMagnetHandler.app/Contents/MacOS
+          cp target/release/jstorrent-link-handler pkgroot/Applications/JSTorrentMagnetHandler.app/Contents/MacOS/jstorrent-link-handler
+          cp installers/macos/Info.plist pkgroot/Applications/JSTorrentMagnetHandler.app/Contents/
+
+      - name: Build PKG
+        run: |
+          pkgbuild --root pkgroot \
+                   --identifier com.jstorrent.native \
+                   --version 0.1.0 \
+                   --scripts installers/macos/scripts \
+                   jstorrent-native-host-install-macos-x86_64.pkg
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: native-host/jstorrent-native-host-install-macos-x86_64.pkg
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: native-host/jstorrent-native-host-install-macos-x86_64.pkg
 
   build-linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-        
-    - name: Build Release
-      run: cargo build --release
-      
-    - name: Create Tarball
-      run: |
-        mkdir -p dist
-        cp target/release/jstorrent-host dist/jstorrent-native-host
-        cp target/release/jstorrent-link-handler dist/jstorrent-link-handler
-        cp installers/linux/install.sh dist/
-        cp installers/linux/uninstall.sh dist/
-        mkdir -p dist/manifests
-        cp manifests/com.jstorrent.native.json.template dist/manifests/
-        
-        tar -czvf jstorrent-native-host-install-linux-x86_64.tar.gz -C dist .
-        
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-installer
-        path: native-host/jstorrent-native-host-install-linux-x86_64.tar.gz
+      - uses: actions/checkout@v4
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: native-host/jstorrent-native-host-install-linux-x86_64.tar.gz
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Create Tarball
+        run: |
+          mkdir -p dist
+          cp target/release/jstorrent-host dist/jstorrent-native-host
+          cp target/release/jstorrent-link-handler dist/jstorrent-link-handler
+          cp installers/linux/install.sh dist/
+          cp installers/linux/uninstall.sh dist/
+          mkdir -p dist/manifests
+          cp manifests/com.jstorrent.native.json.template dist/manifests/
+
+          tar -czvf jstorrent-native-host-install-linux-x86_64.tar.gz -C dist .
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installer
+          path: native-host/jstorrent-native-host-install-linux-x86_64.tar.gz
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: native-host/jstorrent-native-host-install-linux-x86_64.tar.gz

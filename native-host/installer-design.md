@@ -1,16 +1,16 @@
 Below is a **complete design document** for installer creation for **Windows**, **macOS**, and **Linux**, using a **single repository** that contains both the Rust project and all installer scaffolding.
 It incorporates:
 
-* suggested repo structure
-* Inno Setup for Windows
-* pkgbuild/productbuild for macOS
-* shell scripts for Linux
-* uninstallation strategy
-* CI automation via GitHub Actions
-* support for signed installers + unsigned fallback builds
-* update strategy (reinstall = update)
+- suggested repo structure
+- Inno Setup for Windows
+- pkgbuild/productbuild for macOS
+- shell scripts for Linux
+- uninstallation strategy
+- CI automation via GitHub Actions
+- support for signed installers + unsigned fallback builds
+- update strategy (reinstall = update)
 
-This document describes *exactly* how the packaging pipeline should be structured going forward.
+This document describes _exactly_ how the packaging pipeline should be structured going forward.
 
 ---
 
@@ -20,19 +20,19 @@ This document describes *exactly* how the packaging pipeline should be structure
 
 This document specifies how to create, sign, package, and distribute installers for the **JSTorrent Native Messaging Host** on:
 
-* Windows (Inno Setup)
-* macOS (.pkg installer)
-* Linux (shell install/uninstall script)
+- Windows (Inno Setup)
+- macOS (.pkg installer)
+- Linux (shell install/uninstall script)
 
 The goals:
 
-* Install the binary in a platform-appropriate location
-* Install the Chrome Native Messaging manifest
-* Provide an uninstall method (Windows = system-managed, macOS/Linux = script)
-* Generate installers via **GitHub Actions**
-* Support **signed installers** when signing keys become available
-* Support **unsigned installers** for local testing
-* Keep everything in a **single repository**
+- Install the binary in a platform-appropriate location
+- Install the Chrome Native Messaging manifest
+- Provide an uninstall method (Windows = system-managed, macOS/Linux = script)
+- Generate installers via **GitHub Actions**
+- Support **signed installers** when signing keys become available
+- Support **unsigned installers** for local testing
+- Keep everything in a **single repository**
 
 ---
 
@@ -131,8 +131,8 @@ HKCU\Software\Google\Chrome\NativeMessagingHosts\com.jstorrent.native
 
 Inno Setup automatically provides an uninstaller entry in:
 
-* “Apps & Features”
-* “Add/Remove Programs”
+- “Apps & Features”
+- “Add/Remove Programs”
 
 ---
 
@@ -174,15 +174,16 @@ Installation/uninstallation is handled purely by shell scripts.
 
 ### Installer Responsibilities
 
-* Install the binary into `%LOCALAPPDATA%\JSTorrent\`
-* Write the manifest file (with substituted absolute path)
-* Write registry key to:
+- Install the binary into `%LOCALAPPDATA%\JSTorrent\`
+- Write the manifest file (with substituted absolute path)
+- Write registry key to:
 
   ```
   HKCU\Software\Google\Chrome\NativeMessagingHosts\com.jstorrent.native
   ```
-* Provide uninstall entry automatically
-* Remove directory and manifest on uninstall
+
+- Provide uninstall entry automatically
+- Remove directory and manifest on uninstall
 
 ### Repository Files
 
@@ -202,9 +203,9 @@ installers/windows/assets/icon.ico
 
 If signing is not configured:
 
-* Build installer unsigned
-* Emit a CI warning
-* Produce `.exe` anyway (works for local testing; Windows SmartScreen warnings will appear)
+- Build installer unsigned
+- Emit a CI warning
+- Produce `.exe` anyway (works for local testing; Windows SmartScreen warnings will appear)
 
 ---
 
@@ -212,16 +213,16 @@ If signing is not configured:
 
 ### Installer Responsibilities
 
-* Install binary into `/usr/local/lib/jstorrent-native/`
-* Install manifest file into the user’s Chrome Native Messaging directory
-* Install uninstall script to same binary directory
-* Ensure correct permissions:
+- Install binary into `/usr/local/lib/jstorrent-native/`
+- Install manifest file into the user’s Chrome Native Messaging directory
+- Install uninstall script to same binary directory
+- Ensure correct permissions:
+  - binary: 755
+  - manifest: 644
+  - script: 755
 
-  * binary: 755
-  * manifest: 644
-  * script: 755
-* Support signed + notarized builds (future)
-* Support unsigned builds for local testing (PKG can still run with warning dialogs)
+- Support signed + notarized builds (future)
+- Support unsigned builds for local testing (PKG can still run with warning dialogs)
 
 ### Required Scripts
 
@@ -233,17 +234,17 @@ installers/macos/scripts/uninstall.sh
 
 `postinstall.sh`:
 
-* Creates jstorrent-native directory
-* Writes final manifest file (substitution from template)
-* Ensures permissions
+- Creates jstorrent-native directory
+- Writes final manifest file (substitution from template)
+- Ensures permissions
 
 `preinstall.sh`:
 
-* Optional cleanup of older versions
+- Optional cleanup of older versions
 
 `uninstall.sh`:
 
-* Removes binary + manifest
+- Removes binary + manifest
 
 ### Build Steps
 
@@ -254,6 +255,7 @@ Using `pkgbuild` and `productbuild`:
    ```
    pkgroot/usr/local/lib/jstorrent-native/
    ```
+
 2. Copy binary and uninstall.sh into staging directory.
 3. `pkgbuild --root pkgroot ...`
 4. `productbuild ...` to produce final `.pkg`
@@ -262,10 +264,10 @@ Using `pkgbuild` and `productbuild`:
 
 If codesigning identity missing:
 
-* Build unsigned `.pkg`
-* Print warning during CI
-* Upload unsigned `.pkg` artifact
-* User will receive Gatekeeper warnings; but can right-click → "Open"
+- Build unsigned `.pkg`
+- Print warning during CI
+- Upload unsigned `.pkg` artifact
+- User will receive Gatekeeper warnings; but can right-click → "Open"
 
 ---
 
@@ -275,15 +277,15 @@ If codesigning identity missing:
 
 `install.sh`:
 
-* Creates `$HOME/.local/lib/jstorrent-native/`
-* Installs binary + manifest
-* Sets permissions
-* Prints uninstall instructions
+- Creates `$HOME/.local/lib/jstorrent-native/`
+- Installs binary + manifest
+- Sets permissions
+- Prints uninstall instructions
 
 `uninstall.sh`:
 
-* Removes above files
-* Provides a clean removal
+- Removes above files
+- Provides a clean removal
 
 ### No signing required.
 
@@ -299,18 +301,18 @@ manifests/com.jstorrent.native.json.template
 
 Fields to substitute:
 
-* `"path"` → absolute path to installed binary
-* `"allowed_origins"` → list of extension IDs (hardcoded or CI-injected)
+- `"path"` → absolute path to installed binary
+- `"allowed_origins"` → list of extension IDs (hardcoded or CI-injected)
 
-allowed_origins list initially is bnceafpojmnimbnhamaeedgomdcgnbjk 
-and 
+allowed_origins list initially is bnceafpojmnimbnhamaeedgomdcgnbjk
+and
 opkmhecbhgngcbglpcdfmnomkffenapc
 
 ### Example substitution mechanism:
 
-* macOS: `sed` or small Rust tool
-* Windows: Inno Setup Preprocessor (`#define`) or installer-time file generation
-* Linux: shell script using `sed`
+- macOS: `sed` or small Rust tool
+- Windows: Inno Setup Preprocessor (`#define`) or installer-time file generation
+- Linux: shell script using `sed`
 
 ---
 
@@ -334,9 +336,9 @@ runs-on: [windows-latest, macos-latest, ubuntu-latest]
 
 Each job:
 
-* Installs Rust stable
-* `cargo build --release`
-* Collect binary from `target/release` directory
+- Installs Rust stable
+- `cargo build --release`
+- Collect binary from `target/release` directory
 
 ---
 
@@ -349,15 +351,15 @@ Each job:
    ```
    iscc installers/windows/jstorrent.iss
    ```
-4. Upload artifacts:
 
-   * `jstorrent-native-host.exe` (signed/unsigned)
-   * `jstorrent-installer.exe` (signed/unsigned)
+4. Upload artifacts:
+   - `jstorrent-native-host.exe` (signed/unsigned)
+   - `jstorrent-installer.exe` (signed/unsigned)
 
 If cert missing:
 
-* Emit warning
-* Continue with unsigned installer
+- Emit warning
+- Continue with unsigned installer
 
 ---
 
@@ -366,14 +368,13 @@ If cert missing:
 1. Build Rust binary
 2. Try to `codesign` (fails gracefully if keys absent)
 3. Build `.pkg`:
+   - `pkgbuild`
+   - `productbuild`
 
-   * `pkgbuild`
-   * `productbuild`
 4. Attempt notarization; on failure, produce unsigned `.pkg`
 5. Upload:
-
-   * Signed `.pkg` if fully successful
-   * Unsigned `.pkg` if not
+   - Signed `.pkg` if fully successful
+   - Unsigned `.pkg` if not
 
 ---
 
@@ -385,6 +386,7 @@ If cert missing:
    ```
    jstorrent-native-host-linux-x86_64.tar.gz
    ```
+
 3. Include the install/uninstall scripts
 4. Upload tarball
 
@@ -396,9 +398,9 @@ If cert missing:
 
 The extension can:
 
-* check host version
-* prompt user to download installer
-* reinstall (overwrites existing files)
+- check host version
+- prompt user to download installer
+- reinstall (overwrites existing files)
 
 No auto-updater needed.
 
@@ -410,8 +412,8 @@ No auto-updater needed.
 
 Handled automatically by Inno Setup:
 
-* appears in “Apps & Features”
-* removes binary, manifest, registry keys
+- appears in “Apps & Features”
+- removes binary, manifest, registry keys
 
 ## **7.2 macOS**
 
@@ -423,9 +425,9 @@ User runs:
 
 Script removes:
 
-* binary
-* directory
-* user-level native messaging manifest
+- binary
+- directory
+- user-level native messaging manifest
 
 ## **7.3 Linux**
 
@@ -441,9 +443,9 @@ User runs:
 
 Each installer must be testable manually:
 
-* Windows: run `.exe`, verify manifest path in registry, run uninstaller
-* macOS: run `.pkg`, verify binary + manifest installed, run uninstall script
-* Linux: run install.sh + uninstall.sh
+- Windows: run `.exe`, verify manifest path in registry, run uninstaller
+- macOS: run `.pkg`, verify binary + manifest installed, run uninstall script
+- Linux: run install.sh + uninstall.sh
 
 Unsigned builds must be easy to test locally for developer workflows.
 
@@ -453,16 +455,16 @@ Unsigned builds must be easy to test locally for developer workflows.
 
 This design provides:
 
-* A unified repository with installers and binary
-* Consistent directory layout per platform
-* Inno Setup on Windows
-* pkgbuild/productbuild on macOS
-* shell scripts on Linux
-* Code signing + notarization scaffolding, but not required initially
-* GitHub Actions automation for building and packaging
-* A simple reinstall-based update model
-* Script-based uninstallers for macOS/Linux
-* unsigned fallback installers for local testing
+- A unified repository with installers and binary
+- Consistent directory layout per platform
+- Inno Setup on Windows
+- pkgbuild/productbuild on macOS
+- shell scripts on Linux
+- Code signing + notarization scaffolding, but not required initially
+- GitHub Actions automation for building and packaging
+- A simple reinstall-based update model
+- Script-based uninstallers for macOS/Linux
+- unsigned fallback installers for local testing
 
 This structure will enable seamless packaging and professional distribution of the JSTorrent Native Host across all major platforms.
 

@@ -11,8 +11,8 @@ Only `devDependencies` for tooling (eslint, prettier, typescript, turbo, pnpm, e
 
 **Behavior:**
 
-* Use `jq` to count objects in `.dependencies`
-* If non-zero, print a clear message with a link to the repo’s README section.
+- Use `jq` to count objects in `.dependencies`
+- If non-zero, print a clear message with a link to the repo’s README section.
 
 **Script Outline:**
 
@@ -44,7 +44,7 @@ name: Enforce Root Dependency Policy
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
 
 jobs:
@@ -61,6 +61,6 @@ jobs:
 
 ## Result
 
-* Any runtime dependencies added to the root will fail CI instantly.
-* PR authors receive a clear explanation and a link to the policy.
-* No chance of accidental pollution of the root workspace.
+- Any runtime dependencies added to the root will fail CI instantly.
+- PR authors receive a clear explanation and a link to the policy.
+- No chance of accidental pollution of the root workspace.

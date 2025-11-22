@@ -43,37 +43,44 @@ I will add the following dependencies to `Cargo.toml`:
 ### Component Details
 
 #### [NEW] [main.rs](file:///home/kgraehl/code/jstorrent-host/src/main.rs)
+
 - Sets up the Tokio runtime.
 - Reads from `stdin` in a loop using `ipc::read_message`.
 - Dispatches requests to appropriate handlers.
 - Writes responses/events to `stdout` using `ipc::write_message`.
 
 #### [NEW] [ipc.rs](file:///home/kgraehl/code/jstorrent-host/src/ipc.rs)
+
 - `read_message`: Reads 4 bytes length, then reads N bytes, decodes JSON.
 - `write_message`: Encodes JSON, writes 4 bytes length, then bytes.
 
 #### [NEW] [protocol.rs](file:///home/kgraehl/code/jstorrent-host/src/protocol.rs)
+
 - Defines `Request`, `Response`, `Event` enums/structs.
 
 #### [NEW] [path_safety.rs](file:///home/kgraehl/code/jstorrent-host/src/path_safety.rs)
+
 - Implements `validate_path(path, root)` to ensure `path` is within `root`.
 
 #### [NEW] [tcp.rs](file:///home/kgraehl/code/jstorrent-host/src/tcp.rs) / [udp.rs](file:///home/kgraehl/code/jstorrent-host/src/udp.rs)
+
 - Manages `TcpStream` / `UdpSocket` instances.
 - Spawns read tasks that emit events back to the main loop via a channel.
 
 ## Verification Plan
 
 ### Automated Tests
+
 - **Unit Tests**: I will write unit tests for:
-    - `ipc.rs`: Verify framing logic.
-    - `path_safety.rs`: Verify confinement (e.g., `..` traversal attempts).
-    - `protocol.rs`: Verify JSON serialization/deserialization.
+  - `ipc.rs`: Verify framing logic.
+  - `path_safety.rs`: Verify confinement (e.g., `..` traversal attempts).
+  - `protocol.rs`: Verify JSON serialization/deserialization.
 - **Integration Test Script**: I will create a Python script `verify_host.py` that:
-    - Spawns the host binary.
-    - Sends handshake/requests via stdin.
-    - Asserts on responses from stdout.
-    - Tests TCP echo by spawning a local TCP server and having the host connect to it.
+  - Spawns the host binary.
+  - Sends handshake/requests via stdin.
+  - Asserts on responses from stdout.
+  - Tests TCP echo by spawning a local TCP server and having the host connect to it.
 
 ### Manual Verification
+
 - Run `cargo run` and manually pipe JSON to it to see if it responds (basic sanity check).

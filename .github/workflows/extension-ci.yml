@@ -22,7 +22,6 @@ jobs:
         working-directory: extension
 
     steps:
-    steps:
       - uses: actions/checkout@v4
 
       - name: Install pnpm

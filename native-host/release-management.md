@@ -5,6 +5,7 @@ This document outlines how to manage releases for the JSTorrent Native Host usin
 ## 1. Release Strategy
 
 We support two types of releases:
+
 1.  **Stable Releases**: Triggered by pushing a tag (e.g., `v0.1.0`). These are permanent releases with attached binaries.
 2.  **Bleeding Edge (Nightly)**: The latest build from the `main` branch. These artifacts are available in the "Actions" tab but expire after a retention period (default 90 days).
 
@@ -15,6 +16,7 @@ To create a stable release, you simply need to push a tag. The CI pipeline will 
 ### Steps:
 
 1.  **Tag the commit**:
+
     ```bash
     git tag v0.1.0
     git push origin v0.1.0
@@ -24,9 +26,9 @@ To create a stable release, you simply need to push a tag. The CI pipeline will 
     - The `build-and-package.yml` workflow will trigger.
     - It will build for Windows, macOS, and Linux.
     - It will create a "Draft" release (or publish immediately, depending on config) and upload the artifacts:
-        - `windows-installer.zip` (or `.exe`)
-        - `macos-installer.pkg`
-        - `linux-installer.tar.gz`
+      - `windows-installer.zip` (or `.exe`)
+      - `macos-installer.pkg`
+      - `linux-installer.tar.gz`
 
 3.  **Publish**:
     - Go to the "Releases" tab on GitHub.
@@ -50,6 +52,7 @@ The GitHub Actions workflow (`.github/workflows/build-and-package.yml`) needs to
 ### Recommended Configuration
 
 We will update the workflow to:
+
 1.  Trigger on `push` to `main` (for testing/bleeding edge).
 2.  Trigger on `push` of tags starting with `v*` (for releases).
 3.  Use `softprops/action-gh-release` to upload artifacts when a tag is pushed.
