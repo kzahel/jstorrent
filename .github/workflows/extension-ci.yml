@@ -43,6 +43,13 @@ jobs:
       - name: Build extension
         run: pnpm run build
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Native Host
+        working-directory: native-host
+        run: ./scripts/install-local-linux.sh
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
 
