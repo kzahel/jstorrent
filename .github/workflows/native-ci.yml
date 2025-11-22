@@ -53,7 +53,7 @@ jobs:
         shell: pwsh
         run: |
           # Run installer silently
-          ./native-host/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+          ./installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 
           # Verify files
           $InstallDir = "$env:LOCALAPPDATA\JSTorrent"
@@ -115,7 +115,7 @@ jobs:
       - name: Verify Installer
         run: |
           # Install PKG
-          sudo installer -pkg native-host/jstorrent-native-host-install-macos-x86_64.pkg -target /
+          sudo installer -pkg jstorrent-native-host-install-macos-x86_64.pkg -target /
 
           # Verify files
           if [ ! -f "/usr/local/lib/jstorrent-native/jstorrent-native-host" ]; then
@@ -174,7 +174,7 @@ jobs:
         run: |
           # Simulate download and install
           mkdir -p test_install
-          tar -xzf native-host/jstorrent-native-host-install-linux-x86_64.tar.gz -C test_install
+          tar -xzf jstorrent-native-host-install-linux-x86_64.tar.gz -C test_install
           cd test_install
 
           # Mock Chrome config dir
