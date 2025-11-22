@@ -5,7 +5,7 @@ set -e
 if [[ "$(uname -s)" != "Linux" ]]; then
   echo "Error: This script is for Linux only."
   echo "For Windows and macOS, please download the installer from:"
-  echo "https://github.com/kzahel/jstorrent-native-host/releases/latest"
+  echo "https://github.com/kzahel/jstorrent-monorepo/releases/latest"
   exit 1
 fi
 
@@ -21,7 +21,7 @@ echo "Downloading JSTorrent Native Host..."
 TMP_DIR=$(mktemp -d)
 cd "$TMP_DIR"
 
-ASSET_URL="https://github.com/kzahel/jstorrent-native-host/releases/latest/download/jstorrent-native-host-install-linux-x86_64.tar.gz"
+ASSET_URL="https://github.com/kzahel/jstorrent-monorepo/releases/latest/download/jstorrent-native-host-install-linux-x86_64.tar.gz"
 
 if ! curl -fsSL "$ASSET_URL" -o jstorrent.tar.gz; then
   echo "Error: Failed to download release."
