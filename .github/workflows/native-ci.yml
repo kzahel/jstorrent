@@ -8,11 +8,13 @@ on:
     paths:
       - 'native-host/**'
       - 'packages/**'
+      - '.github/workflows/native-ci.yml'
   pull_request:
     branches: [main]
     paths:
       - 'native-host/**'
       - 'packages/**'
+      - '.github/workflows/native-ci.yml'
 
 permissions:
   contents: write

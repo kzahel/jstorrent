@@ -8,11 +8,13 @@ on:
     paths:
       - 'extension/**'
       - 'packages/**'
+      - '.github/workflows/extension-ci.yml'
   pull_request:
     branches: [main]
     paths:
       - 'extension/**'
       - 'packages/**'
+      - '.github/workflows/extension-ci.yml'
 
 jobs:
   build:
