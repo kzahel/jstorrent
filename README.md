@@ -83,6 +83,22 @@ cd native-host
 cargo test
 ```
 
+#### Local Installation
+
+To install the native host locally for development (e.g., to test with a local Chrome extension):
+
+**Linux:**
+```bash
+./native-host/scripts/install-local-linux.sh
+```
+This builds the release binaries, creates the installer, and installs it to `~/.local/lib/jstorrent-native`. It also kills any running host process.
+
+**macOS:**
+```bash
+./native-host/scripts/install-local-macos.sh
+```
+This builds the release binaries, creates the installer package, and installs it (requires `sudo`).
+
 ## CI/CD
 
 Continuous Integration is handled via GitHub Actions. Workflows are located in `.github/workflows/`.

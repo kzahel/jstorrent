@@ -184,7 +184,7 @@ async fn add_torrent_handler(
 
 pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<()> {
     let config_dir = dirs::config_dir().ok_or_else(|| anyhow::anyhow!("No config dir"))?;
-    let app_dir = config_dir.join("jstorrent-native-host");
+    let app_dir = config_dir.join("jstorrent-native");
     fs::create_dir_all(&app_dir)?;
     
     let filename = format!("rpc-info-{}.json", info.browser.profile_id);

@@ -86,6 +86,12 @@ pub enum Operation {
         offset: u64,
         length: usize,
     },
+
+    // Handshake
+    Handshake {
+        #[serde(rename = "extensionId")]
+        extension_id: String,
+    },
 }
 
 #[derive(Debug, Serialize)]

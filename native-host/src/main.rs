@@ -10,6 +10,7 @@ mod rpc;
 mod state;
 mod tcp;
 mod udp;
+mod logging;
 
 use anyhow::{Context, Result};
 use protocol::{Event, Operation, Request, Response, ResponsePayload};
@@ -21,6 +22,9 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    logging::init("jstorrent-native-host.log");
+    log!("Native Host started. PID: {}", std::process::id());
+
     let mut stdin = io::stdin();
     let mut stdout = io::stdout();
 
@@ -33,6 +37,75 @@ async fn main() -> Result<()> {
     // Start RPC server
     let (port, token) = rpc::start_server(state.clone()).await;
     
+    // Initialize system info to find parent process (the browser)
+    let mut system = sysinfo::System::new_all();
+    system.refresh_all();
+    
+    let mut current_pid = sysinfo::Pid::from(std::process::id() as usize);
+    let mut browser_binary = String::new();
+    let mut browser_name = "Unknown".to_string();
+
+    // Walk up the process tree to find the best candidate
+    // Priority:
+    // 1. Known browser (Chrome, Firefox, etc.)
+    // 2. First parent that is NOT the native host itself (or a wrapper)
+    
+    let mut fallback_binary = String::new();
+    let mut fallback_name = String::new();
+
+    for _ in 0..10 { // Increase depth to 10 just in case
+        if let Some(process) = system.process(current_pid) {
+            if let Some(parent) = process.parent() {
+                current_pid = parent;
+                if let Some(parent_proc) = system.process(current_pid) {
+                    let name = parent_proc.name().to_lowercase();
+                    let exe = parent_proc.exe().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+                    
+                    // Check if this is likely the host itself or a wrapper
+                    let is_host_or_wrapper = name.contains("jstorrent") || name.contains("native-host") || exe.contains("jstorrent") || exe.contains("native-host");
+                    
+                    if !is_host_or_wrapper {
+                        // Check for known browsers
+                        if name.contains("chrome") || name.contains("firefox") || name.contains("brave") || name.contains("edge") || name.contains("safari") || name.contains("opera") || name.contains("vivaldi") || name.contains("arc") {
+                            browser_binary = exe;
+                            browser_name = parent_proc.name().to_string();
+                            break;
+                        }
+                        
+                        // If we haven't found a fallback yet, this is our first non-host parent
+                        if fallback_binary.is_empty() && !exe.is_empty() {
+                            fallback_binary = exe;
+                            fallback_name = parent_proc.name().to_string();
+                        }
+                    }
+                }
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    // If we didn't find a known browser, use the fallback
+    if browser_binary.is_empty() && !fallback_binary.is_empty() {
+        browser_binary = fallback_binary;
+        browser_name = fallback_name;
+    }
+
+    // Extract extension ID from args (if present)
+    // Chrome passes origin as first argument: chrome-extension://<id>/
+    let mut extension_id = None;
+    for arg in std::env::args().skip(1) {
+        if arg.starts_with("chrome-extension://") {
+            extension_id = arg.trim_start_matches("chrome-extension://")
+                .trim_end_matches('/')
+                .to_string()
+                .into();
+            break;
+        }
+    }
+
     // Write discovery file
     let info = rpc::RpcInfo {
         version: 1,
@@ -42,13 +115,18 @@ async fn main() -> Result<()> {
         started: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
         last_used: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
         browser: rpc::BrowserInfo {
-            name: "Unknown".to_string(), // TODO: Infer from parent process?
-            binary: std::env::current_exe().unwrap_or_default().to_string_lossy().to_string(),
+            name: browser_name,
+            binary: browser_binary,
             profile_id: "Default".to_string(), // TODO: Infer from args/env
             profile_path: None,
-            extension_id: None, // TODO: Infer
+            extension_id: extension_id.clone(),
         },
     };
+    
+    // Store info in state so we can update it later (e.g. on handshake)
+    if let Ok(mut info_guard) = state.rpc_info.lock() {
+        *info_guard = Some(info.clone());
+    }
     
     if let Err(e) = rpc::write_discovery_file(info) {
         eprintln!("Failed to write discovery file: {}", e);
@@ -66,23 +144,28 @@ async fn main() -> Result<()> {
                         let req: Request = match serde_json::from_slice(&msg_bytes) {
                             Ok(req) => req,
                             Err(e) => {
-                                eprintln!("Failed to parse request: {}", e);
+                                log!("Failed to parse request: {}", e);
                                 continue;
                             }
                         };
+                        
+                        log!("Received request: {:?}", req);
 
                         let response = handle_request(&state, req, event_tx.clone()).await;
+                        log!("Sending response: {:?}", response);
+                        
                         if let Err(e) = ipc::write_message(&mut stdout, &response).await {
-                            eprintln!("Failed to write response: {}", e);
+                            log!("Failed to write response: {}", e);
                             break;
                         }
                     }
                     Ok(None) => {
                         // EOF
+                        log!("Stdin EOF received. Exiting.");
                         break;
                     }
                     Err(e) => {
-                        eprintln!("Error reading message: {}", e);
+                        log!("Error reading message: {}", e);
                         break;
                     }
                 }
@@ -95,8 +178,16 @@ async fn main() -> Result<()> {
                     break;
                 }
             }
+
+            // Handle shutdown signal
+            _ = tokio::signal::ctrl_c() => {
+                log!("Received Ctrl-C, shutting down...");
+                break;
+            }
         }
     }
+
+    log!("Native Host finished.");
 
     Ok(())
 }
@@ -127,6 +218,26 @@ async fn handle_request(
         
         Operation::HashSha1 { data } => hashing::hash_sha1(data).await,
         Operation::HashFile { path, offset, length } => hashing::hash_file(state, path, offset, length).await,
+        
+        Operation::Handshake { extension_id } => {
+            // Update extension ID in state and rewrite discovery file
+            let mut success = false;
+            if let Ok(mut info_guard) = state.rpc_info.lock() {
+                if let Some(info) = info_guard.as_mut() {
+                    info.browser.extension_id = Some(extension_id);
+                    if let Err(e) = crate::rpc::write_discovery_file(info.clone()) {
+                        eprintln!("Failed to update discovery file on handshake: {}", e);
+                    } else {
+                        success = true;
+                    }
+                }
+            }
+            if success {
+                Ok(ResponsePayload::Empty)
+            } else {
+                Err(anyhow::anyhow!("Failed to update extension ID"))
+            }
+        }
     };
 
     match result {

@@ -1,0 +1,13 @@
+# Build artifacts
+target/
+dist/
+build_staging/
+*.tar.gz
+
+# Local configuration
+launcher.env
+jstorrent-native.env
+*.log
+
+# IDE
+.vscode/

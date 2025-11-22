@@ -22,7 +22,6 @@ cp "uninstall.sh" "$INSTALL_DIR/"
 chmod 755 "$INSTALL_DIR/uninstall.sh"
 
 # Create manifest
-# Create manifest
 # Ensure manifests directory exists in tarball or use template directly if flat
 if [ -f "manifests/com.jstorrent.native.json.template" ]; then
     TEMPLATE="manifests/com.jstorrent.native.json.template"
@@ -30,8 +29,26 @@ else
     # Fallback if flat
     TEMPLATE="com.jstorrent.native.json.template"
 fi
-sed "s|HOST_PATH_PLACEHOLDER|$INSTALL_DIR/jstorrent-native-host|g" "$TEMPLATE" > "$MANIFEST_DIR/com.jstorrent.native.json"
-chmod 644 "$MANIFEST_DIR/com.jstorrent.native.json"
+
+# List of browser config directories to install manifest to
+BROWSERS=(
+    "$HOME/.config/google-chrome"
+    "$HOME/.config/chromium"
+    "$HOME/.config/BraveSoftware/Brave-Browser"
+    "$HOME/.config/microsoft-edge"
+)
+
+for BROWSER_DIR in "${BROWSERS[@]}"; do
+    # If the browser config directory exists (or we just want to force support), 
+    # create the NativeMessagingHosts directory.
+    # For now, let's just create it.
+    MANIFEST_DIR="$BROWSER_DIR/NativeMessagingHosts"
+    mkdir -p "$MANIFEST_DIR"
+    
+    sed "s|HOST_PATH_PLACEHOLDER|$INSTALL_DIR/jstorrent-native-host|g" "$TEMPLATE" > "$MANIFEST_DIR/com.jstorrent.native.json"
+    chmod 644 "$MANIFEST_DIR/com.jstorrent.native.json"
+    echo "Installed manifest to $MANIFEST_DIR"
+done
 
 # Create Desktop Entry for Magnet Handler
 DESKTOP_FILE="$HOME/.local/share/applications/jstorrent-magnet.desktop"
@@ -42,11 +59,12 @@ cat > "$DESKTOP_FILE" <<EOF
 Name=JSTorrent Link Handler
 Exec="$INSTALL_DIR/jstorrent-link-handler" %u
 Type=Application
-MimeType=x-scheme-handler/magnet;
+MimeType=x-scheme-handler/magnet;application/x-bittorrent;
 NoDisplay=true
 EOF
 
 # Register mime type
 xdg-mime default jstorrent-magnet.desktop x-scheme-handler/magnet
+xdg-mime default jstorrent-magnet.desktop application/x-bittorrent
 
 echo "Installation complete."

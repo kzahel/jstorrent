@@ -15,6 +15,7 @@ pub struct State {
     pub udp_sockets: Mutex<HashMap<u32, UdpState>>,
     pub next_socket_id: AtomicU32,
     pub event_sender: Option<mpsc::Sender<Event>>,
+    pub rpc_info: Mutex<Option<crate::rpc::RpcInfo>>,
 }
 
 impl State {
@@ -25,6 +26,7 @@ impl State {
             udp_sockets: Mutex::new(HashMap::new()),
             next_socket_id: AtomicU32::new(1),
             event_sender,
+            rpc_info: Mutex::new(None),
         }
     }
 

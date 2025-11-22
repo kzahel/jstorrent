@@ -11,6 +11,23 @@ function App() {
     })
   }
 
+  const handleLaunch = async () => {
+    const EXTENSION_ID = 'bnceafpojmnimbnhamaeedgomdcgnbjk' // Local ID
+    try {
+      // @ts-expect-error - chrome is not defined in standard web types
+      if (window.chrome && window.chrome.runtime) {
+        // @ts-expect-error - sendMessage is valid
+        window.chrome.runtime.sendMessage(EXTENSION_ID, { type: 'launch-ping' }, (response) => {
+          console.log('Extension response:', response)
+        })
+      } else {
+        console.warn('Chrome runtime not available')
+      }
+    } catch (e) {
+      console.error('Failed to message extension:', e)
+    }
+  }
+
   return (
     <div className="container">
       <h1>JSTorrent Native Host</h1>
@@ -33,6 +50,12 @@ function App() {
           </svg>
         </button>
         {copied && <div className="tooltip show">Copied!</div>}
+      </div>
+
+      <div style={{ marginTop: '2rem' }}>
+        <button onClick={handleLaunch} style={{ padding: '10px 20px', fontSize: '1.2rem' }}>
+          Launch JSTorrent
+        </button>
       </div>
     </div>
   )

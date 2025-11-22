@@ -60,16 +60,36 @@ struct HealthResponse {
     version: u32,
 }
 
+#[path = "../logging.rs"]
+mod logging;
+
 fn main() {
-    if let Err(e) = run() {
-        show_error(&format!("JSTorrent could not process your link.\n\nReason: {}", e));
+    logging::init("jstorrent-log-handler.log");
+    log!("Link Handler started. PID: {}", std::process::id());
+
+    // Set up signal handler
+    if let Err(e) = ctrlc::set_handler(move || {
+        log!("Received signal, shutting down...");
+        std::process::exit(0);
+    }) {
+        log!("Error setting Ctrl-C handler: {}", e);
+    }
+
+    let args = Args::parse();
+    let target = args.target.clone();
+
+    if let Err(e) = run(args) {
+        show_error(&format!("JSTorrent could not process your link.\n\nReason: {}", e), Some(&target));
         std::process::exit(1);
     }
+
+    log!("Link Handler finished successfully.");
 }
 
-fn run() -> Result<()> {
-    let args = Args::parse();
+fn run(args: Args) -> Result<()> {
     let target = args.target;
+    log!("DEBUG: Starting JSTorrent Link Handler");
+    log!("DEBUG: Target: {}", target);
 
     // 1. Parse Input
     let mode = if target.starts_with("magnet:") {
@@ -90,27 +110,34 @@ fn run() -> Result<()> {
     };
 
     // 2. Check for existing host
+    log!("DEBUG: Checking for running host...");
     let mut host_info = find_running_host();
 
     // 3. If not found, launch browser
     if host_info.is_none() {
+        log!("DEBUG: No running host found. Launching browser...");
         launch_browser()?;
         
         // 4. Poll for host startup
+        log!("DEBUG: Waiting for host to start...");
         host_info = wait_for_host()?;
+    } else {
+        log!("DEBUG: Found running host.");
     }
 
     let info = host_info.ok_or_else(|| anyhow::anyhow!("Failed to connect to JSTorrent Native Host"))?;
 
     // 5. Send Payload
+    log!("DEBUG: Sending payload to host at port {}...", info.port);
     send_payload(&info, &mode)?;
+    log!("DEBUG: Payload sent successfully.");
 
     Ok(())
 }
 
 fn find_running_host() -> Option<RpcInfo> {
     let config_dir = dirs::config_dir()?;
-    let app_dir = config_dir.join("jstorrent-native-host");
+    let app_dir = config_dir.join("jstorrent-native");
     
     if !app_dir.exists() {
         return None;
@@ -169,18 +196,33 @@ fn check_health(info: &RpcInfo) -> Result<()> {
     }
 }
 
-fn get_launch_url() -> String {
-    // Check for launcher.env override
+fn get_launcher_env_path() -> Option<PathBuf> {
+    // 1. Check ~/.config/jstorrent-native/jstorrent-native.env
+    if let Some(config_dir) = dirs::config_dir() {
+        let env_path = config_dir.join("jstorrent-native").join("jstorrent-native.env");
+        if env_path.exists() {
+            return Some(env_path);
+        }
+    }
+
+    // 2. Fallback to executable directory
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(dir) = exe_path.parent() {
-            let env_path = dir.join("launcher.env");
+            let env_path = dir.join("jstorrent-native.env");
             if env_path.exists() {
-                if let Ok(content) = fs::read_to_string(env_path) {
-                    for line in content.lines() {
-                        if let Some(url) = line.strip_prefix("LAUNCH_URL=") {
-                            return url.trim().to_string();
-                        }
-                    }
+                return Some(env_path);
+            }
+        }
+    }
+    None
+}
+
+fn get_launch_url() -> String {
+    if let Some(env_path) = get_launcher_env_path() {
+        if let Ok(content) = fs::read_to_string(env_path) {
+            for line in content.lines() {
+                if let Some(url) = line.strip_prefix("LAUNCH_URL=") {
+                    return url.trim().to_string();
                 }
             }
         }
@@ -190,6 +232,7 @@ fn get_launch_url() -> String {
 
 fn launch_browser() -> Result<()> {
     let url = get_launch_url();
+    log!("DEBUG: Launch URL: {}", url);
     
     // Try to find browser from previous runs (rpc-info files, even if dead)
     // For simplicity, we'll just use system default open for now, or fallback to known browsers if needed.
@@ -199,24 +242,39 @@ fn launch_browser() -> Result<()> {
     let binary = find_previous_browser_binary();
     
     if let Some(bin) = binary {
+        log!("DEBUG: Found previous browser binary: {}", bin);
         // Try launching specific binary
         if Command::new(&bin).arg(&url).spawn().is_ok() {
+            log!("DEBUG: Launched using previous binary.");
             return Ok(());
+        } else {
+            log!("DEBUG: Failed to launch using previous binary. Falling back to system default.");
         }
+    } else {
+        log!("DEBUG: No previous browser binary found.");
     }
 
     // Fallback to system open
     #[cfg(target_os = "linux")]
     {
-        Command::new("xdg-open").arg(&url).spawn()?;
+        log!("DEBUG: Attempting xdg-open...");
+        if Command::new("xdg-open").arg(&url).spawn().is_err() {
+             return Err(anyhow::anyhow!("Could not launch browser. Please open JSTorrent manually: {}", url));
+        }
     }
     #[cfg(target_os = "macos")]
     {
-        Command::new("open").arg(&url).spawn()?;
+        log!("DEBUG: Attempting open...");
+        if Command::new("open").arg(&url).spawn().is_err() {
+             return Err(anyhow::anyhow!("Could not launch browser. Please open JSTorrent manually: {}", url));
+        }
     }
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd").args(["/C", "start", &url]).spawn()?;
+        log!("DEBUG: Attempting cmd /C start...");
+        if Command::new("cmd").args(["/C", "start", &url]).spawn().is_err() {
+             return Err(anyhow::anyhow!("Could not launch browser. Please open JSTorrent manually: {}", url));
+        }
     }
 
     Ok(())
@@ -224,7 +282,7 @@ fn launch_browser() -> Result<()> {
 
 fn find_previous_browser_binary() -> Option<String> {
     let config_dir = dirs::config_dir()?;
-    let app_dir = config_dir.join("jstorrent-native-host");
+    let app_dir = config_dir.join("jstorrent-native");
     
     if !app_dir.exists() {
         return None;
@@ -245,7 +303,20 @@ fn find_previous_browser_binary() -> Option<String> {
         }
     }
     
-    best_info.map(|i| i.browser.binary)
+    best_info.map(|i| i.browser.binary).filter(|b| {
+        let b_lower = b.to_lowercase();
+        !b.is_empty() 
+        && !b.contains("jstorrent-host")
+        && !b_lower.contains("python")
+        && !b_lower.contains("cargo")
+        && !b_lower.contains("sh") // This might be too aggressive if "sh" is part of a valid name, but usually binaries are "bash", "zsh", "sh"
+        && !b_lower.ends_with("/sh")
+        && !b_lower.ends_with("/bash")
+        && !b_lower.ends_with("/zsh")
+        && !b_lower.ends_with("/fish")
+        && !b_lower.contains("terminal")
+        && !b_lower.contains("console")
+    })
 }
 
 fn send_payload(info: &RpcInfo, mode: &Mode) -> Result<()> {
@@ -263,6 +334,7 @@ fn send_payload(info: &RpcInfo, mode: &Mode) -> Result<()> {
         ),
     };
 
+    log!("DEBUG: Posting to URL: {}", url);
     let resp = client.post(&url).json(&body).send()?;
 
     if resp.status().is_success() {
@@ -272,11 +344,20 @@ fn send_payload(info: &RpcInfo, mode: &Mode) -> Result<()> {
     }
 }
 
-fn show_error(msg: &str) {
+fn show_error(msg: &str, link: Option<&str>) {
+    let full_msg = if let Some(l) = link {
+        format!("{}\n\nLink: {}", msg, l)
+    } else {
+        msg.to_string()
+    };
+
+    // Always print to stderr for debugging/logging
+    log!("{}", full_msg);
+
     #[cfg(target_os = "windows")]
     {
         unsafe {
-            let wide_msg: Vec<u16> = OsStr::new(msg).encode_wide().chain(std::iter::once(0)).collect();
+            let wide_msg: Vec<u16> = OsStr::new(&full_msg).encode_wide().chain(std::iter::once(0)).collect();
             let wide_title: Vec<u16> = OsStr::new("JSTorrent Error").encode_wide().chain(std::iter::once(0)).collect();
             MessageBoxW(0, wide_msg.as_ptr(), wide_title.as_ptr(), MB_ICONERROR | MB_OK);
         }
@@ -284,15 +365,29 @@ fn show_error(msg: &str) {
 
     #[cfg(target_os = "macos")]
     {
-        let script = format!("display alert \"JSTorrent Error\" message \"{}\"", msg.replace("\"", "\\\""));
+        let script = format!("display alert \"JSTorrent Error\" message \"{}\"", full_msg.replace("\"", "\\\""));
         let _ = Command::new("osascript").arg("-e").arg(script).output();
     }
 
     #[cfg(target_os = "linux")]
     {
-        if Command::new("zenity").arg("--error").arg(format!("--text={}", msg)).output().is_err() {
-             if Command::new("kdialog").arg("--error").arg(msg).output().is_err() {
-                 eprintln!("{}", msg);
+        let zenity_ok = Command::new("zenity")
+            .arg("--error")
+            .arg(format!("--text={}", full_msg))
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+
+        if !zenity_ok {
+             let kdialog_ok = Command::new("kdialog")
+                 .arg("--error")
+                 .arg(&full_msg)
+                 .output()
+                 .map(|o| o.status.success())
+                 .unwrap_or(false);
+                 
+             if !kdialog_ok {
+                 log!("{}", full_msg);
              }
         }
     }

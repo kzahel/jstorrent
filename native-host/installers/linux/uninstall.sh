@@ -2,14 +2,32 @@
 # Uninstall script for JSTorrent Native Host
 
 INSTALL_DIR="$HOME/.local/lib/jstorrent-native"
-MANIFEST_DEST="$HOME/.config/google-chrome/NativeMessagingHosts/com.jstorrent.native.json"
+# List of browser config directories to remove manifest from
+BROWSERS=(
+    "$HOME/.config/google-chrome"
+    "$HOME/.config/chromium"
+    "$HOME/.config/BraveSoftware/Brave-Browser"
+    "$HOME/.config/microsoft-edge"
+)
 
-echo "Uninstalling JSTorrent Native Host..."
+for BROWSER_DIR in "${BROWSERS[@]}"; do
+    MANIFEST_DEST="$BROWSER_DIR/NativeMessagingHosts/com.jstorrent.native.json"
+    if [ -f "$MANIFEST_DEST" ]; then
+        rm "$MANIFEST_DEST"
+        echo "Removed manifest: $MANIFEST_DEST"
+    fi
+done
 
-# Remove manifest
-if [ -f "$MANIFEST_DEST" ]; then
-    rm "$MANIFEST_DEST"
-    echo "Removed manifest: $MANIFEST_DEST"
+
+
+# Remove desktop entry
+DESKTOP_FILE="$HOME/.local/share/applications/jstorrent-magnet.desktop"
+if [ -f "$DESKTOP_FILE" ]; then
+    # Try to update mime database
+    xdg-mime uninstall "$DESKTOP_FILE" || true
+    
+    rm "$DESKTOP_FILE"
+    echo "Removed desktop entry: $DESKTOP_FILE"
 fi
 
 # Remove install directory
