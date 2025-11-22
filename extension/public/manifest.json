@@ -3,7 +3,7 @@
   "name": "JSTorrent Extension",
   "version": "0.0.1",
   "description": "JSTorrent MV3 Extension",
-  "permissions": ["offscreen", "nativeMessaging", "storage"],
+  "permissions": ["offscreen", "nativeMessaging", "storage", "notifications"],
   "background": {
     "service_worker": "sw.js",
     "type": "module"
@@ -15,5 +15,14 @@
     "16": "icons/js-16.png",
     "32": "icons/js-32.png",
     "128": "icons/js-128.png"
-  }
+  },
+  "externally_connectable": {
+    "matches": ["https://new.jstorrent.com/*", "https://jstorrent.com/*"]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/offscreen/offscreen.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

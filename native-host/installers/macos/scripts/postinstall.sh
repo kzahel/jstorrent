@@ -21,7 +21,7 @@ sed "s|HOST_PATH_PLACEHOLDER|$BINARY_PATH|g" "$MANIFEST_TEMPLATE" > "$MANIFEST_D
 chmod 644 "$MANIFEST_DEST"
 
 # Register the magnet handler app
-APP_PATH="/Applications/JSTorrentMagnetHandler.app"
+APP_PATH="/Applications/JSTorrent Link Handler.app"
 if [ -d "$APP_PATH" ]; then
     # Ensure binary is executable
     chmod 755 "$APP_PATH/Contents/MacOS/jstorrent-link-handler"
