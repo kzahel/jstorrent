@@ -1,184 +1,182 @@
 <!doctype html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JSTorrent Native Host</title>
     <style>
+      :root {
+        --bg-color: #f6f8fa;
+        --text-color: #24292f;
+        --container-bg: #ffffff;
+        --link-color: #0969da;
+        --code-bg: #f6f8fa;
+        --border-color: #d0d7de;
+        --icon-color: #57606a;
+        --icon-hover-bg: #ebf0f4;
+      }
+
+      @media (prefers-color-scheme: dark) {
         :root {
-            --bg-color: #f6f8fa;
-            --text-color: #24292f;
-            --container-bg: #ffffff;
-            --link-color: #0969da;
-            --code-bg: #f6f8fa;
-            --border-color: #d0d7de;
-            --icon-color: #57606a;
-            --icon-hover-bg: #ebf0f4;
+          --bg-color: #0d1117;
+          --text-color: #c9d1d9;
+          --container-bg: #161b22;
+          --link-color: #58a6ff;
+          --code-bg: #21262d;
+          --border-color: #30363d;
+          --icon-color: #8b949e;
+          --icon-hover-bg: #30363d;
         }
+      }
 
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg-color: #0d1117;
-                --text-color: #c9d1d9;
-                --container-bg: #161b22;
-                --link-color: #58a6ff;
-                --code-bg: #21262d;
-                --border-color: #30363d;
-                --icon-color: #8b949e;
-                --icon-hover-bg: #30363d;
-            }
-        }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        transition:
+          background-color 0.3s,
+          color 0.3s;
+      }
 
-        body {
-            font-family:
-                -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            transition:
-                background-color 0.3s,
-                color 0.3s;
-        }
+      .container {
+        text-align: center;
+        padding: 2.5rem;
+        background: var(--container-bg);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border-color);
+        max-width: 650px;
+        width: 90%;
+      }
 
-        .container {
-            text-align: center;
-            padding: 2.5rem;
-            background: var(--container-bg);
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            border: 1px solid var(--border-color);
-            max-width: 650px;
-            width: 90%;
-        }
+      h1 {
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+      }
 
-        h1 {
-            margin-top: 0;
-            margin-bottom: 1.5rem;
-        }
+      a {
+        color: var(--link-color);
+        text-decoration: none;
+        font-weight: 500;
+      }
 
-        a {
-            color: var(--link-color);
-            text-decoration: none;
-            font-weight: 500;
-        }
+      a:hover {
+        text-decoration: underline;
+      }
 
-        a:hover {
-            text-decoration: underline;
-        }
+      .command-box {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background-color: var(--code-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        margin-top: 1.5rem;
+        text-align: left;
+        position: relative;
+      }
 
-        .command-box {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background-color: var(--code-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 0.75rem 1rem;
-            margin-top: 1.5rem;
-            text-align: left;
-            position: relative;
-        }
+      code {
+        font-family:
+          ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+        font-size: 0.9rem;
+        overflow-x: auto;
+        white-space: nowrap;
+        margin-right: 1rem;
+        color: var(--text-color);
+      }
 
-        code {
-            font-family:
-                ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-            font-size: 0.9rem;
-            overflow-x: auto;
-            white-space: nowrap;
-            margin-right: 1rem;
-            color: var(--text-color);
-        }
+      .copy-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 4px;
+        color: var(--icon-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s;
+      }
 
-        .copy-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 6px;
-            border-radius: 4px;
-            color: var(--icon-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.2s;
-        }
+      .copy-btn:hover {
+        background-color: var(--icon-hover-bg);
+      }
 
-        .copy-btn:hover {
-            background-color: var(--icon-hover-bg);
-        }
+      .copy-btn svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+      }
 
-        .copy-btn svg {
-            width: 16px;
-            height: 16px;
-            fill: currentColor;
-        }
+      .tooltip {
+        position: absolute;
+        top: -30px;
+        right: 0;
+        background-color: var(--text-color);
+        color: var(--bg-color);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
+      }
 
-        .tooltip {
-            position: absolute;
-            top: -30px;
-            right: 0;
-            background-color: var(--text-color);
-            color: var(--bg-color);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.2s;
-            pointer-events: none;
-        }
-
-        .tooltip.show {
-            opacity: 1;
-        }
+      .tooltip.show {
+        opacity: 1;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <div class="container">
-        <h1>JSTorrent Native Host</h1>
-        <p>
-            Please visit the
-            <a href="https://github.com/kzahel/jstorrent-monorepo/releases">GitHub Repository</a> for
-            installation instructions.
-        </p>
-        <p>To install on Linux:</p>
-        <div class="command-box">
-            <code id="install-command">curl -fsSL https://new.jstorrent.com/install.sh | bash</code>
-            <button class="copy-btn" onclick="copyToClipboard()" aria-label="Copy to clipboard">
-                <svg viewBox="0 0 16 16" version="1.1">
-                    <path
-                        d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z">
-                    </path>
-                    <path
-                        d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z">
-                    </path>
-                </svg>
-            </button>
-            <div id="tooltip" class="tooltip">Copied!</div>
-        </div>
+      <h1>JSTorrent Native Host</h1>
+      <p>
+        Please visit the
+        <a href="https://github.com/kzahel/jstorrent-monorepo/releases">GitHub Repository</a> for
+        installation instructions.
+      </p>
+      <p>To install on Linux:</p>
+      <div class="command-box">
+        <code id="install-command">curl -fsSL https://new.jstorrent.com/install.sh | bash</code>
+        <button class="copy-btn" onclick="copyToClipboard()" aria-label="Copy to clipboard">
+          <svg viewBox="0 0 16 16" version="1.1">
+            <path
+              d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"
+            ></path>
+            <path
+              d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"
+            ></path>
+          </svg>
+        </button>
+        <div id="tooltip" class="tooltip">Copied!</div>
+      </div>
     </div>
 
     <script>
-        function copyToClipboard() {
-            const command = document.getElementById('install-command').innerText
-            navigator.clipboard
-                .writeText(command)
-                .then(() => {
-                    const tooltip = document.getElementById('tooltip')
-                    tooltip.classList.add('show')
-                    setTimeout(() => {
-                        tooltip.classList.remove('show')
-                    }, 2000)
-                })
-                .catch((err) => {
-                    console.error('Failed to copy: ', err)
-                })
-        }
+      function copyToClipboard() {
+        const command = document.getElementById('install-command').innerText
+        navigator.clipboard
+          .writeText(command)
+          .then(() => {
+            const tooltip = document.getElementById('tooltip')
+            tooltip.classList.add('show')
+            setTimeout(() => {
+              tooltip.classList.remove('show')
+            }, 2000)
+          })
+          .catch((err) => {
+            console.error('Failed to copy: ', err)
+          })
+      }
     </script>
-</body>
-
+  </body>
 </html>
