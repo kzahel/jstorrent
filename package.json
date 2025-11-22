@@ -11,7 +11,7 @@
     ],
     "scripts": {
         "lint": "eslint .",
-        "format": "prettier --write .",
+        "format": "prettier --write . --log-level=error",
         "format:check": "prettier --check ."
     },
     "devDependencies": {
