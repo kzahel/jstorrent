@@ -12,43 +12,56 @@ This repository contains the source code for JSTorrent, including the Chrome ext
 - `infra/`: Infrastructure and API backend.
 - `scripts/`: Utility scripts.
 
-## Getting Started
-
-### Prerequisites
-
-- **Node.js**: v20 or later
-- **Rust**: Stable toolchain
-- **pnpm**: Recommended for package management (optional but good for monorepos)
-
-### Extension
-
-The Chrome extension is located in the `extension/` directory.
-
-#### Build
-
-```bash
-cd extension
-npm install
-npm run build
-```
-
-The build artifacts will be in `extension/dist`.
-
-#### Test
-
-To run unit tests and checks:
-
-```bash
-cd extension
-npm run check_fast
-```
-
-To run end-to-end tests (Playwright):
-
-```bash
-cd extension
-npm run test:e2e
-```
+### Getting Started
+ 
+ 1. **Install dependencies**:
+    ```bash
+    pnpm install
+    ```
+ 
+ 2. **Run checks**:
+    ```bash
+    pnpm checkall
+    ```
+ 
+ ### Development Commands
+ 
+ Run these commands from the repository root:
+ 
+ - **`pnpm lint`**: Lint all files (ESLint).
+ - **`pnpm format`**: Format all files (Prettier).
+ - **`pnpm test`**: Run unit tests for all packages.
+ - **`pnpm typecheck`**: Run TypeScript checks for all packages.
+ - **`pnpm build`**: Build all packages.
+ - **`pnpm checkall`**: Run lint, format check, typecheck, and tests in parallel.
+ 
+ ### Extension
+ 
+ The Chrome extension is located in the `extension/` directory.
+ 
+ #### Build
+ 
+ ```bash
+ pnpm build
+ # or specifically for extension:
+ pnpm --filter extension build
+ ```
+ 
+ The build artifacts will be in `extension/dist`.
+ 
+ #### Test
+ 
+ ```bash
+ pnpm test
+ # or specifically for extension:
+ pnpm --filter extension test
+ ```
+ 
+ To run end-to-end tests (Playwright):
+ 
+ ```bash
+ pnpm --filter extension test:e2e
+ ```
 
 ### Native Host
 
