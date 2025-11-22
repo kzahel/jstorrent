@@ -17,7 +17,11 @@
     "128": "icons/js-128.png"
   },
   "externally_connectable": {
-    "matches": ["https://new.jstorrent.com/*", "https://jstorrent.com/*"]
+    "matches": [
+      "https://new.jstorrent.com/*",
+      "https://jstorrent.com/*",
+      "http://local.jstorrent.com:3000/*"
+    ]
   },
   "web_accessible_resources": [
     {
