@@ -299,7 +299,7 @@ Also ensure a proper `URL Protocol` key under `HKEY_CLASSES_ROOT\magnet`.
 
 ```ini
 [Desktop Entry]
-Name=JSTorrent Magnet Handler
+Name=JSTorrent Link Handler
 Exec=/usr/local/bin/jstorrent-magnet-stub %u
 Type=Application
 MimeType=x-scheme-handler/magnet;

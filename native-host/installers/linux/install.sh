@@ -39,8 +39,8 @@ mkdir -p "$HOME/.local/share/applications"
 
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
-Name=JSTorrent Magnet Handler
-Exec=$INSTALL_DIR/jstorrent-link-handler %u
+Name=JSTorrent Link Handler
+Exec="$INSTALL_DIR/jstorrent-link-handler" %u
 Type=Application
 MimeType=x-scheme-handler/magnet;
 NoDisplay=true

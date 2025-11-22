@@ -109,9 +109,9 @@ jobs:
           cp manifests/com.jstorrent.native.json.template pkgroot/usr/local/lib/jstorrent-native/
 
           # Magnet Handler App
-          mkdir -p pkgroot/Applications/JSTorrentMagnetHandler.app/Contents/MacOS
-          cp target/release/jstorrent-link-handler pkgroot/Applications/JSTorrentMagnetHandler.app/Contents/MacOS/jstorrent-link-handler
-          cp installers/macos/Info.plist pkgroot/Applications/JSTorrentMagnetHandler.app/Contents/
+          mkdir -p pkgroot/Applications/JSTorrentLinkHandler.app/Contents/MacOS
+          cp target/release/jstorrent-link-handler pkgroot/Applications/JSTorrentLinkHandler.app/Contents/MacOS/jstorrent-link-handler
+          cp installers/macos/Info.plist pkgroot/Applications/JSTorrentLinkHandler.app/Contents/
 
       - name: Build PKG
         run: |
@@ -144,7 +144,7 @@ jobs:
             exit 1
           fi
 
-          if [ ! -d "/Applications/JSTorrentMagnetHandler.app" ]; then
+          if [ ! -d "/Applications/JSTorrentLinkHandler.app" ]; then
             echo "Error: Magnet Handler app not found in /Applications/"
             exit 1
           fi
