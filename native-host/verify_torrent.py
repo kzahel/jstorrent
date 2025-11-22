@@ -11,7 +11,7 @@ import base64
 # Configuration
 HOST_BINARY = "./target/debug/jstorrent-host"
 STUB_BINARY = "./target/debug/jstorrent-link-handler"
-CONFIG_DIR = os.path.expanduser("~/.config/jstorrent-native-host")
+CONFIG_DIR = os.path.expanduser("~/.config/jstorrent-native")
 TEST_TORRENT_FILE = "test.torrent"
 
 def setup():

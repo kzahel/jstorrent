@@ -98,11 +98,11 @@ New requirements:
 We’ll use a **per-user config directory**, with one file per Chrome profile.
 
 - Windows:
-  `%LOCALAPPDATA%\jstorrent-native-host\rpc-info-<profile-id>.json`
+  `%LOCALAPPDATA%\jstorrent-native\rpc-info-<profile-id>.json`
 - macOS:
-  `~/Library/Application Support/jstorrent-native-host/rpc-info-<profile-id>.json`
+  `~/Library/Application Support/jstorrent-native/rpc-info-<profile-id>.json`
 - Linux:
-  `~/.config/jstorrent-native-host/rpc-info-<profile-id>.json`
+  `~/.config/jstorrent-native/rpc-info-<profile-id>.json`
 
 > `<profile-id>` is a stable identifier for the Chrome profile, e.g. `"Default"`, `"Profile 1"`, `"Work"`. Derived from environment or parent process command line.
 

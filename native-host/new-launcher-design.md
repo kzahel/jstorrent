@@ -117,7 +117,7 @@ argv[1] is a filesystem path
 Look for:
 
 ```
-~/.config/jstorrent-native-host/rpc-info-*.json
+~/.config/jstorrent-native/rpc-info-*.json
 ```
 
 Or platform-specific equivalents.

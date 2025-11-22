@@ -13,7 +13,7 @@ def main():
     host_binary = "./native-host/target/debug/jstorrent-host"
     
     # Clean up old rpc-info files
-    config_dir = os.path.expanduser("~/.config/jstorrent-native-host")
+    config_dir = os.path.expanduser("~/.config/jstorrent-native")
     if os.path.exists(config_dir):
         for f in glob.glob(os.path.join(config_dir, "rpc-info-*.json")):
             os.remove(f)

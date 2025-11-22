@@ -20,7 +20,7 @@ def main():
     os.chmod(wrapper_path, 0o755)
 
     # Clean up old rpc-info
-    config_dir = os.path.expanduser("~/.config/jstorrent-native-host")
+    config_dir = os.path.expanduser("~/.config/jstorrent-native")
     if os.path.exists(config_dir):
         for f in glob.glob(os.path.join(config_dir, "rpc-info-*.json")):
             os.remove(f)

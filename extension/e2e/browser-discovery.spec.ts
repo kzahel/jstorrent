@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const EXTENSION_PATH = path.resolve(__dirname, '../dist')
-const NATIVE_HOST_CONFIG_DIR = path.join(os.homedir(), '.config/jstorrent-native-host')
+const NATIVE_HOST_CONFIG_DIR = path.join(os.homedir(), '.config/jstorrent-native')
 
 test('browser discovery works with extension', async () => {
   // 1. Clean up old rpc-info files

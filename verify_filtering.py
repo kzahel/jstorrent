@@ -11,7 +11,7 @@ def main():
     subprocess.check_call(["cargo", "build", "--bin", "jstorrent-link-handler"], cwd="native-host")
 
     # Ensure we have an rpc-info file with python as the browser
-    config_dir = os.path.expanduser("~/.config/jstorrent-native-host")
+    config_dir = os.path.expanduser("~/.config/jstorrent-native")
     files = glob.glob(os.path.join(config_dir, "rpc-info-*.json"))
     if not files:
         print("Error: No rpc-info file found. Run verify_discovery.py first.")

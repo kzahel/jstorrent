@@ -10,7 +10,7 @@ import shutil
 # Configuration
 HOST_BINARY = "./target/debug/jstorrent-host"
 STUB_BINARY = "./target/debug/jstorrent-link-handler"
-CONFIG_DIR = os.path.expanduser("~/.config/jstorrent-native-host")
+CONFIG_DIR = os.path.expanduser("~/.config/jstorrent-native")
 
 def setup():
     # Clean config dir
