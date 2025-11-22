@@ -3,11 +3,17 @@ import ReactDOM from 'react-dom/client'
 
 import { useEffect, useState } from 'react'
 
+interface TorrentEvent {
+  event: string
+  timestamp: string
+  [key: string]: unknown
+}
+
 export const App = () => {
-  const [events, setEvents] = useState<any[]>([])
+  const [events, setEvents] = useState<TorrentEvent[]>([])
 
   useEffect(() => {
-    const handleMessage = (message: any) => {
+    const handleMessage = (message: TorrentEvent) => {
       console.log('UI received message:', message)
       if (message.event === 'magnetAdded' || message.event === 'torrentAdded') {
         setEvents((prev) => [...prev, { ...message, timestamp: new Date().toISOString() }])

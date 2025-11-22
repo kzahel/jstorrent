@@ -70,7 +70,7 @@ test('browser discovery works with extension', async () => {
     if (!worker) {
       try {
         worker = await context.waitForEvent('serviceworker', { timeout: 10000 })
-      } catch (e) {
+      } catch (_e) {
         console.log('No service worker found in time. Checking targets...')
         const pages = context.pages()
         console.log(`Open pages: ${pages.length}`)
@@ -82,7 +82,7 @@ test('browser discovery works with extension', async () => {
       console.log(`Found worker: ${worker.url()}`)
       // Extract ID from worker URL: chrome-extension://<id>/sw.js
       const workerUrl = worker.url()
-      const match = workerUrl.match(/chrome-extension:\/\/([^\/]+)\//)
+      const match = workerUrl.match(/chrome-extension:\/\/([^/]+)\//)
       if (match) {
         extensionId = match[1]
         console.log(`Detected Extension ID: ${extensionId}`)
@@ -111,8 +111,8 @@ test('browser discovery works with extension', async () => {
             // The host doesn't send anything on connect, but we can check if it disconnects immediately
             setTimeout(() => resolve({ success: true, status: 'Connected (timeout)' }), 1000)
           })
-        } catch (e: any) {
-          return { success: false, error: e.toString() }
+        } catch (e: unknown) {
+          return { success: false, error: String(e) }
         }
       })
       console.log('Manual connection result:', result)

@@ -1,6 +1,6 @@
 console.log('Offscreen document loaded')
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
   console.log('Offscreen received message:', message)
   if (message.type === 'start-native-host') {
     console.log('Starting native host connection...')

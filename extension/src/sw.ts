@@ -17,7 +17,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 })
 
 // Listen for messages from offscreen or UI
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, _sendResponse) => {
   console.log('Received internal message:', message, sender)
   if (message.event === 'magnetAdded' || message.event === 'torrentAdded') {
     openUiTab()
