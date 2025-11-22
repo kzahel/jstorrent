@@ -49,6 +49,25 @@ jobs:
         with:
           files: native-host/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe
 
+      - name: Verify Installer
+        shell: pwsh
+        run: |
+          # Run installer silently
+          ./native-host/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+
+          # Verify files
+          $InstallDir = "$env:LOCALAPPDATA\JSTorrent"
+          if (-not (Test-Path "$InstallDir\jstorrent-native-host.exe")) {
+            Write-Error "Native host binary not found at $InstallDir\jstorrent-native-host.exe"
+            exit 1
+          }
+          if (-not (Test-Path "$InstallDir\com.jstorrent.native.json")) {
+            Write-Error "Manifest not found at $InstallDir\com.jstorrent.native.json"
+            exit 1
+          }
+
+          Write-Host "Installer verification passed!"
+
   build-macos:
     runs-on: macos-latest
     steps:
@@ -93,6 +112,24 @@ jobs:
         with:
           files: native-host/jstorrent-native-host-install-macos-x86_64.pkg
 
+      - name: Verify Installer
+        run: |
+          # Install PKG
+          sudo installer -pkg native-host/jstorrent-native-host-install-macos-x86_64.pkg -target /
+
+          # Verify files
+          if [ ! -f "/usr/local/lib/jstorrent-native/jstorrent-native-host" ]; then
+            echo "Error: Native host binary not found in /usr/local/lib/jstorrent-native/"
+            exit 1
+          fi
+
+          if [ ! -d "/Applications/JSTorrentMagnetHandler.app" ]; then
+            echo "Error: Magnet Handler app not found in /Applications/"
+            exit 1
+          fi
+
+          echo "Installer verification passed!"
+
   build-linux:
     runs-on: ubuntu-latest
     steps:
@@ -132,3 +169,29 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: native-host/jstorrent-native-host-install-linux-x86_64.tar.gz
+
+      - name: Verify Installer
+        run: |
+          # Simulate download and install
+          mkdir -p test_install
+          tar -xzf native-host/jstorrent-native-host-install-linux-x86_64.tar.gz -C test_install
+          cd test_install
+
+          # Mock Chrome config dir
+          mkdir -p $HOME/.config/google-chrome/NativeMessagingHosts
+
+          # Run install
+          ./install.sh
+
+          # Verify files
+          if [ ! -f "$HOME/.local/lib/jstorrent-native/jstorrent-native-host" ]; then
+            echo "Error: Native host binary not found after install"
+            exit 1
+          fi
+
+          if [ ! -f "$HOME/.config/google-chrome/NativeMessagingHosts/com.jstorrent.native.json" ]; then
+            echo "Error: Manifest not found after install"
+            exit 1
+          fi
+
+          echo "Installer verification passed!"

@@ -10,17 +10,27 @@ BINARY_NAME="jstorrent-native-host"
 mkdir -p "$INSTALL_DIR"
 
 # Install binaries
-cp "target/release/jstorrent-host" "$INSTALL_DIR/jstorrent-native-host"
-cp "target/release/jstorrent-link-handler" "$INSTALL_DIR/"
+# Assume we are running from the extracted tarball root
+cp "jstorrent-native-host" "$INSTALL_DIR/"
+cp "jstorrent-link-handler" "$INSTALL_DIR/"
 chmod 755 "$INSTALL_DIR/jstorrent-native-host"
 chmod 755 "$INSTALL_DIR/jstorrent-link-handler"
 
 # Install uninstall script
-cp "installers/linux/uninstall.sh" "$INSTALL_DIR/"
+# Install uninstall script
+cp "uninstall.sh" "$INSTALL_DIR/"
 chmod 755 "$INSTALL_DIR/uninstall.sh"
 
 # Create manifest
-sed "s|HOST_PATH_PLACEHOLDER|$INSTALL_DIR/jstorrent-native-host|g" "manifests/com.jstorrent.native.json.template" > "$MANIFEST_DIR/com.jstorrent.native.json"
+# Create manifest
+# Ensure manifests directory exists in tarball or use template directly if flat
+if [ -f "manifests/com.jstorrent.native.json.template" ]; then
+    TEMPLATE="manifests/com.jstorrent.native.json.template"
+else
+    # Fallback if flat
+    TEMPLATE="com.jstorrent.native.json.template"
+fi
+sed "s|HOST_PATH_PLACEHOLDER|$INSTALL_DIR/jstorrent-native-host|g" "$TEMPLATE" > "$MANIFEST_DIR/com.jstorrent.native.json"
 chmod 644 "$MANIFEST_DIR/com.jstorrent.native.json"
 
 # Create Desktop Entry for Magnet Handler
@@ -30,7 +40,7 @@ mkdir -p "$HOME/.local/share/applications"
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Name=JSTorrent Magnet Handler
-Exec=$INSTALL_DIR/jstorrent-magnet-stub %u
+Exec=$INSTALL_DIR/jstorrent-link-handler %u
 Type=Application
 MimeType=x-scheme-handler/magnet;
 NoDisplay=true

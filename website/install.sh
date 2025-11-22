@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -xe
 
 # Detect OS
 if [[ "$(uname -s)" != "Linux" ]]; then
