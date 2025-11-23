@@ -6,8 +6,8 @@ export interface DaemonInfo {
 
 export interface INativeHostConnection {
   connect(): Promise<void>
-  send(msg: any): void
-  onMessage(cb: (msg: any) => void): void
+  send(msg: unknown): void
+  onMessage(cb: (msg: unknown) => void): void
   onDisconnect(cb: () => void): void
 }
 
@@ -29,11 +29,11 @@ export class NativeHostConnection implements INativeHostConnection {
     })
   }
 
-  send(msg: any) {
+  send(msg: unknown) {
     this.port?.postMessage(msg)
   }
 
-  onMessage(cb: (msg: any) => void) {
+  onMessage(cb: (msg: unknown) => void) {
     this.port?.onMessage.addListener(cb)
   }
 

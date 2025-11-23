@@ -19,13 +19,13 @@ export interface ISockets {
 
 // Opcodes
 const OP_TCP_CONNECT = 0x10
-const OP_TCP_CONNECTED = 0x11
+// const OP_TCP_CONNECTED = 0x11
 const OP_TCP_SEND = 0x12
 const OP_TCP_RECV = 0x13
 const OP_TCP_CLOSE = 0x14
 
 const OP_UDP_BIND = 0x20
-const OP_UDP_BOUND = 0x21
+// const OP_UDP_BOUND = 0x21
 const OP_UDP_SEND = 0x22
 const OP_UDP_RECV = 0x23
 const OP_UDP_CLOSE = 0x24
@@ -36,7 +36,7 @@ export class Sockets implements ISockets {
   private nextSocketId = 1
   private pendingRequests = new Map<
     number,
-    { resolve: (v: any) => void; reject: (e: Error) => void }
+    { resolve: (v: Uint8Array) => void; reject: (e: Error) => void }
   >()
   private socketHandlers = new Map<number, (payload: Uint8Array, msgType: number) => void>()
 
@@ -133,7 +133,7 @@ export class Sockets implements ISockets {
 
   private waitForResponse(reqId: number): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
-      this.pendingRequests.set(reqId, { resolve, reject })
+      this.pendingRequests.set(reqId, { resolve: resolve as (v: Uint8Array) => void, reject })
     })
   }
 

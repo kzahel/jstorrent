@@ -39,10 +39,15 @@ export class Client {
 
   private waitForDaemonInfo(): Promise<DaemonInfo> {
     return new Promise((resolve) => {
-      const handler = (msg: any) => {
-        if (msg.type === 'DaemonInfo') {
+      const handler = (msg: unknown) => {
+        if (
+          typeof msg === 'object' &&
+          msg !== null &&
+          'type' in msg &&
+          (msg as { type: string }).type === 'DaemonInfo'
+        ) {
           // this.native.onMessage.removeListener(handler) // Ideally remove listener
-          resolve(msg.payload as DaemonInfo)
+          resolve((msg as unknown as { payload: DaemonInfo }).payload)
         }
       }
       this.native.onMessage(handler)

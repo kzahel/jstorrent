@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import { test as base, chromium, type BrowserContext } from '@playwright/test'
 import path from 'path'
 import fs from 'fs'
@@ -8,13 +9,12 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const EXTENSION_PATH = path.resolve(__dirname, '../dist')
-const NATIVE_HOST_CONFIG_DIR = path.join(os.homedir(), '.config/jstorrent-native')
 
 export const test = base.extend<{
   context: BrowserContext
   extensionId: string
 }>({
-  context: async ({}, use) => {
+  context: async (_, use) => {
     const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jstorrent-e2e-'))
 
     // Install Native Host Manifest into userDataDir
@@ -79,7 +79,7 @@ export const test = base.extend<{
     if (!worker) {
       try {
         worker = await context.waitForEvent('serviceworker', { timeout: 5000 })
-      } catch (e) {
+      } catch (_e) {
         // Ignore
       }
     }

@@ -49,14 +49,14 @@ import { NativeHostConnection } from './lib/native-connection'
 const client = new Client(new NativeHostConnection())
 
 // Expose for testing
-// @ts-ignore
+// @ts-expect-error -- exposing client for testing
 self.client = client
 
 async function init() {
   try {
     console.log('Initializing Client...')
-    const sockets = await client.ensureDaemonReady()
-    console.log('Client initialized, sockets ready')
+    await client.ensureDaemonReady()
+    console.log('Connected to IO Daemon')
 
     // Example usage:
     // const tcp = await sockets.createTcpSocket('google.com', 80)

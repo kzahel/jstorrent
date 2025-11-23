@@ -19,7 +19,7 @@ test('Extension connects to IO Daemon', async ({ context, extensionId }) => {
   expect(sw).toBeTruthy()
 
   const isReady = await sw.evaluate(async () => {
-    // @ts-ignore
+    // @ts-expect-error -- client is exposed on self
     const client = self.client
 
     // Wait for ready
@@ -39,7 +39,7 @@ test('Extension connects to IO Daemon', async ({ context, extensionId }) => {
 
   // Test TCP Socket
   await sw.evaluate(async () => {
-    // @ts-ignore
+    // @ts-expect-error -- client is exposed on self
     const client = self.client
     const sockets = await client.ensureDaemonReady()
 
@@ -63,7 +63,7 @@ test('Extension connects to IO Daemon', async ({ context, extensionId }) => {
 
     // Wait for data
     await new Promise<void>((resolve, reject) => {
-      socket.onData((chunk) => {
+      socket.onData((chunk: Uint8Array) => {
         console.log('Received data:', new TextDecoder().decode(chunk))
         resolve()
       })
