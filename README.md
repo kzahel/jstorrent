@@ -83,7 +83,7 @@ The binaries will be located at:
 
 ```bash
 cd native-host
-cargo test
+cargo test --workspace
 ```
 
 #### Verification Scripts
