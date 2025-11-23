@@ -47,7 +47,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         app: resolve(__dirname, 'src/ui/app.html'),
-        offscreen: resolve(__dirname, 'src/offscreen/offscreen.html'),
         magnet: resolve(__dirname, 'src/magnet/magnet-handler.html'),
         sw: resolve(__dirname, 'src/sw.ts'),
       },

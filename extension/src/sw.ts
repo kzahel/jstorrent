@@ -1,10 +1,7 @@
 console.log('Service Worker loaded')
 
-const OFFSCREEN_PATH = 'src/offscreen/offscreen.html'
-
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Extension installed')
-  ensureOffscreenDocument()
 })
 
 // Listen for messages from the website (externally_connectable)
@@ -16,7 +13,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   }
 })
 
-// Listen for messages from offscreen or UI
+// Listen for messages from UI
 chrome.runtime.onMessage.addListener((message, sender, _sendResponse) => {
   console.log('Received internal message:', message, sender)
   if (message.event === 'magnetAdded' || message.event === 'torrentAdded') {
@@ -25,9 +22,8 @@ chrome.runtime.onMessage.addListener((message, sender, _sendResponse) => {
 })
 
 async function handleLaunchPing() {
-  await ensureOffscreenDocument()
-  // Tell offscreen to start native host
-  chrome.runtime.sendMessage({ type: 'start-native-host' })
+  // Native host is already connected on startup
+  // We can just ensure UI is open
   await openUiTab()
 }
 
@@ -44,23 +40,6 @@ async function openUiTab() {
   }
 }
 
-async function ensureOffscreenDocument() {
-  // Check if an offscreen document already exists
-  const existingContexts = await chrome.runtime.getContexts({
-    contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
-  })
-
-  if (existingContexts.length > 0) {
-    return
-  }
-
-  await chrome.offscreen.createDocument({
-    url: OFFSCREEN_PATH,
-    reasons: [chrome.offscreen.Reason.BLOBS],
-    justification: 'BitTorrent engine needs persistent page for blob handling',
-  })
-}
-
 // Native Host Connection
 let nativePort: chrome.runtime.Port | null = null
 
@@ -71,8 +50,16 @@ function connectToNativeHost() {
 
     nativePort.onMessage.addListener((message) => {
       console.log('Received message from native host:', message)
-      // Broadcast to all parts of the extension (UI, Offscreen)
-      chrome.runtime.sendMessage(message)
+      // Broadcast to all parts of the extension (UI)
+      // Suppress "Receiving end does not exist" error if no UI is open
+      chrome.runtime.sendMessage(message).catch(() => {
+        // Ignore error if no receivers are active
+      })
+
+      // If the message is about adding a torrent, ensure the UI is open
+      if (message.event === 'magnetAdded' || message.event === 'torrentAdded') {
+        openUiTab()
+      }
     })
 
     nativePort.onDisconnect.addListener(() => {

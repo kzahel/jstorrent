@@ -103,8 +103,11 @@ async fn add_magnet_handler(
     Json(payload): Json<AddMagnetRequest>,
 ) -> Result<Json<StatusResponse>, StatusCode> {
     if query.token != server_token {
+        crate::log!("Refused add-magnet request: Invalid token");
         return Err(StatusCode::FORBIDDEN);
     }
+
+    crate::log!("Received add-magnet request: {}", payload.magnet);
 
     // Forward to main loop via mpsc channel in state? 
     // Actually, State doesn't have a sender to the main loop yet.
@@ -141,6 +144,8 @@ async fn add_magnet_handler(
          let _ = sender.send(event).await;
     }
 
+    crate::log!("Magnet link queued successfully");
+
     Ok(Json(StatusResponse {
         status: "queued".to_string(),
         message: "Magnet link queued".to_string(),
@@ -153,8 +158,11 @@ async fn add_torrent_handler(
     Json(payload): Json<AddTorrentRequest>,
 ) -> Result<Json<StatusResponse>, StatusCode> {
     if query.token != server_token {
+        crate::log!("Refused add-torrent request: Invalid token");
         return Err(StatusCode::FORBIDDEN);
     }
+
+    crate::log!("Received add-torrent request: {} ({} bytes)", payload.file_name, payload.contents_base64.len());
 
     if let Some(sender) = &state.event_sender {
         // We don't parse the torrent here, we just forward it to the extension.
@@ -175,6 +183,8 @@ async fn add_torrent_handler(
         
         let _ = sender.send(event).await;
     }
+
+    crate::log!("Torrent file queued successfully");
 
     Ok(Json(StatusResponse {
         status: "queued".to_string(),
