@@ -3,12 +3,15 @@ import subprocess
 import sys
 import time
 
+import glob
+import os
+
+# Dynamically find all verify_*.py scripts in the current directory
 SCRIPTS = [
-    "verify_host.py",
-    "verify_magnet.py",
-    "verify_torrent.py",
-    "verify_refactor.py"
+    f for f in glob.glob("verify_*.py")
+    if f != "verify_all.py"
 ]
+SCRIPTS.sort()
 
 def run_script(script_name):
     print(f"==================================================")

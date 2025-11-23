@@ -8,7 +8,7 @@ import glob
 def main():
     # Build stub
     print("Building stub...")
-    subprocess.check_call(["cargo", "build", "--bin", "jstorrent-link-handler"], cwd="native-host")
+    subprocess.check_call(["cargo", "build", "--bin", "jstorrent-link-handler"])
 
     # Ensure we have an rpc-info file with python as the browser
     config_dir = os.path.expanduser("~/.config/jstorrent-native")
@@ -38,7 +38,7 @@ def main():
     env = os.environ.copy()
     # We can set LAUNCH_URL to something safe
     
-    cmd = ["./native-host/target/debug/jstorrent-link-handler", "magnet:?xt=urn:btih:1234567890abcdef1234567890abcdef12345678"]
+    cmd = ["./target/debug/jstorrent-link-handler", "magnet:?xt=urn:btih:1234567890abcdef1234567890abcdef12345678"]
     
     # We expect it to NOT use python.
     # If it uses python, it would execute `python <url>`, which would fail with "No such file or directory" (as it treats url as script)

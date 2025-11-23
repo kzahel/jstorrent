@@ -1,0 +1,41 @@
+# Task: Extract Core Torrent Engine Logic
+
+- [x] Analyze legacy codebase and design docs <!-- id: 0 -->
+    - [x] Read `packages/legacy-jstorrent-engine/refactoring_plan.md` <!-- id: 1 -->
+    - [x] Read `packages/legacy-jstorrent-engine/architecture_analysis.md` <!-- id: 2 -->
+    - [x] Read `packages/legacy-jstorrent-engine/interfaces_draft.md` <!-- id: 3 -->
+    - [x] Read `design_docs/io-daemon-design.md` <!-- id: 4 -->
+    - [x] Review `extension/src/lib/sockets.ts` for `ISocket` interface <!-- id: 5 -->
+- [x] Create Implementation Plan <!-- id: 6 -->
+    - [x] Define directory structure for new engine <!-- id: 7 -->
+    - [x] Define core interfaces (FileSystem, Socket) <!-- id: 8 -->
+    - [x] Plan initial component migration (e.g., Bitfield, Peer) <!-- id: 9 -->
+- [x] Set up new package `packages/jstorrent-engine` <!-- id: 10 -->
+    - [x] Initialize `package.json` <!-- id: 11 -->
+    - [x] Configure TypeScript <!-- id: 12 -->
+    - [x] Configure Vitest <!-- id: 13 -->
+- [x] Implement Core Abstractions <!-- id: 14 -->
+    - [x] `ISocket` and `ITcpSocket` interfaces <!-- id: 15 -->
+    - [x] `IFileSystem` interface <!-- id: 16 -->
+- [x] Implement and Test Components <!-- id: 17 -->
+    - [x] `BitField` utility and tests <!-- id: 18 -->
+    - [x] `PeerWireProtocol` and tests <!-- id: 19 -->
+    - [x] `PeerConnection` logic and tests <!-- id: 20 -->
+    - [x] `PieceManager` logic and tests <!-- id: 21 -->
+    - [x] `DiskManager` logic and tests <!-- id: 22 -->
+    - [x] `Torrent` orchestration and tests <!-- id: 23 -->
+- [x] Node.js Adapters & Integration <!-- id: 24 -->
+    - [x] `NodeTcpSocket` implementation <!-- id: 25 -->
+    - [x] `NodeFileSystem` implementation <!-- id: 26 -->
+    - [x] `NodeFileSystem` implementation <!-- id: 26 -->
+    - [x] Integration test (`node-download.spec.ts`) <!-- id: 27 -->
+- [x] Trackers & PEX (Phase 5) <!-- id: 28 -->
+    - [x] `ITracker` interface <!-- id: 29 -->
+    - [x] `HttpTracker` implementation and tests <!-- id: 30 -->
+    - [x] `UdpTracker` implementation and tests <!-- id: 31 -->
+    - [x] `TrackerManager` implementation <!-- id: 32 -->
+    - [x] PEX protocol support and tests <!-- id: 33 -->
+- [x] Client & Session Management (Phase 6) <!-- id: 34 -->
+    - [x] `Client` class implementation <!-- id: 35 -->
+    - [x] `SessionManager` implementation <!-- id: 36 -->
+    - [x] Unit tests for Client and Session <!-- id: 37 -->

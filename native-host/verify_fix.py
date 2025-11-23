@@ -9,8 +9,8 @@ import shutil
 def main():
     # Build host
     print("Building host...")
-    subprocess.check_call(["cargo", "build", "--bin", "jstorrent-host"], cwd="native-host")
-    host_binary = os.path.abspath("native-host/target/debug/jstorrent-host")
+    subprocess.check_call(["cargo", "build", "--bin", "jstorrent-host"])
+    host_binary = os.path.abspath("target/debug/jstorrent-host")
 
     # Create a wrapper script that mimics a "bad" parent
     # We'll call it "jstorrent-native-host-wrapper" to see if it gets picked up

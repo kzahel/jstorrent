@@ -1,0 +1,26 @@
+{
+  "name": "@jstorrent/engine",
+  "version": "0.0.1",
+  "description": "Core BitTorrent engine for JSTorrent",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "bittorrent",
+    "torrent",
+    "p2p"
+  ],
+  "author": "JSTorrent Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}

@@ -12,10 +12,21 @@ if [ -f "$MANIFEST_DEST" ]; then
     echo "Removed manifest: $MANIFEST_DEST"
 fi
 
-# Remove install directory
+# Remove installed binaries and scripts
 if [ -d "$INSTALL_DIR" ]; then
-    rm -rf "$INSTALL_DIR"
-    echo "Removed installation directory: $INSTALL_DIR"
+    rm -f "$INSTALL_DIR/jstorrent-native-host"
+    rm -f "$INSTALL_DIR/jstorrent-link-handler"
+    rm -f "$INSTALL_DIR/jstorrent-io-daemon"
+    rm -f "$INSTALL_DIR/uninstall.sh"
+    echo "Removed binaries from: $INSTALL_DIR"
+
+    # Only remove directory if empty
+    if [ -z "$(ls -A "$INSTALL_DIR")" ]; then
+        rmdir "$INSTALL_DIR"
+        echo "Removed empty installation directory: $INSTALL_DIR"
+    else
+        echo "Preserving installation directory (contains other files): $INSTALL_DIR"
+    fi
 fi
 
 echo "Uninstallation complete."

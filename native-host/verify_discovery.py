@@ -8,9 +8,9 @@ import glob
 def main():
     # Build first
     print("Building...")
-    subprocess.check_call(["cargo", "build", "--bin", "jstorrent-host"], cwd="native-host")
+    subprocess.check_call(["cargo", "build", "--bin", "jstorrent-host"])
 
-    host_binary = "./native-host/target/debug/jstorrent-host"
+    host_binary = "./target/debug/jstorrent-host"
     
     # Clean up old rpc-info files
     config_dir = os.path.expanduser("~/.config/jstorrent-native")

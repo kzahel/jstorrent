@@ -13,3 +13,4 @@ pnpm-lock.yaml
 package-lock.json
 yarn.lock
 *.md
+packages/legacy-jstorrent-engine/**/*.js
