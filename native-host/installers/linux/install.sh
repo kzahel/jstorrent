@@ -13,8 +13,10 @@ mkdir -p "$INSTALL_DIR"
 # Assume we are running from the extracted tarball root
 cp "jstorrent-native-host" "$INSTALL_DIR/"
 cp "jstorrent-link-handler" "$INSTALL_DIR/"
+cp "jstorrent-io-daemon" "$INSTALL_DIR/"
 chmod 755 "$INSTALL_DIR/jstorrent-native-host"
 chmod 755 "$INSTALL_DIR/jstorrent-link-handler"
+chmod 755 "$INSTALL_DIR/jstorrent-io-daemon"
 
 # Install uninstall script
 # Install uninstall script

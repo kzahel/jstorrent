@@ -17,6 +17,7 @@ mkdir -p "$STAGING_DIR"
 
 cp target/release/jstorrent-host "$STAGING_DIR/jstorrent-native-host"
 cp target/release/jstorrent-link-handler "$STAGING_DIR/jstorrent-link-handler"
+cp target/release/jstorrent-io-daemon "$STAGING_DIR/jstorrent-io-daemon"
 cp installers/linux/install.sh "$STAGING_DIR/"
 cp installers/linux/uninstall.sh "$STAGING_DIR/"
 mkdir -p "$STAGING_DIR/manifests"

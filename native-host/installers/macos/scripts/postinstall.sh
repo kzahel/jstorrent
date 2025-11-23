@@ -8,6 +8,7 @@ BINARY_PATH="$INSTALL_DIR/jstorrent-native-host"
 
 # Ensure binary is executable
 chmod 755 "$BINARY_PATH"
+chmod 755 "$INSTALL_DIR/jstorrent-io-daemon"
 chmod 755 "$INSTALL_DIR/uninstall.sh"
 
 # Create Chrome NativeMessagingHosts directory if it doesn't exist

@@ -15,6 +15,7 @@ rm -rf pkgroot
 # Native Host
 mkdir -p pkgroot/usr/local/lib/jstorrent-native
 cp target/release/jstorrent-host pkgroot/usr/local/lib/jstorrent-native/jstorrent-native-host
+cp target/release/jstorrent-io-daemon pkgroot/usr/local/lib/jstorrent-native/jstorrent-io-daemon
 cp installers/macos/scripts/uninstall.sh pkgroot/usr/local/lib/jstorrent-native/
 cp manifests/com.jstorrent.native.json.template pkgroot/usr/local/lib/jstorrent-native/
 

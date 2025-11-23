@@ -3,6 +3,9 @@ name = "jstorrent-host"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members = ["io-daemon"]
+
 [dependencies]
 tokio = { version = "1.32", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -11,17 +14,13 @@ byteorder = "1.4"
 thiserror = "1.0"
 anyhow = "1.0"
 rfd = "0.12"
-sha1 = "0.10"
 base64 = "0.21"
-hex = "0.4"
 axum = "0.7"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 sysinfo = "0.30"
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 clap = { version = "4.4", features = ["derive"] }
 dirs = "5.0"
-urlencoding = "2.1"
-
 tempfile = "3.8"
 chrono = "0.4.42"
 lazy_static = "1.5.0"

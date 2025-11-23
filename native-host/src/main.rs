@@ -1,18 +1,14 @@
 
-mod atomic_move;
 mod folder_picker;
-mod fs;
-mod hashing;
 mod ipc;
 mod path_safety;
 mod protocol;
 mod rpc;
 mod state;
-mod tcp;
-mod udp;
 mod logging;
+mod daemon_manager;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use protocol::{Event, Operation, Request, Response, ResponsePayload};
 use state::State;
 use tokio::io::{self, AsyncWriteExt};
@@ -34,7 +30,16 @@ async fn main() -> Result<()> {
     let download_root = dirs::download_dir().unwrap_or_else(|| PathBuf::from("."));
     let state = Arc::new(State::new(download_root, Some(event_tx.clone())));
 
-    // Start RPC server
+    // Start Daemon
+    let mut daemon_manager = daemon_manager::DaemonManager::new(state.clone());
+    if let Err(e) = daemon_manager.start().await {
+        log!("Failed to start daemon: {}", e);
+        // We continue, but the extension might fail to connect
+    }
+
+    // Start RPC server (Legacy? Or still needed for link-handler?)
+    // The design doc says link-handler talks to native-host via "minimal RPC".
+    // So we keep rpc.rs.
     let (port, token) = rpc::start_server(state.clone()).await;
     
     // Initialize system info to find parent process (the browser)
@@ -133,7 +138,7 @@ async fn main() -> Result<()> {
     }
 
     // Spawn a task to read from stdin
-    let (req_tx, mut req_rx) = mpsc::channel::<Event>(100);
+
 
     loop {
         tokio::select! {
@@ -151,7 +156,7 @@ async fn main() -> Result<()> {
                         
                         log!("Received request: {:?}", req);
 
-                        let response = handle_request(&state, req, event_tx.clone()).await;
+                        let response = handle_request(&state, req, event_tx.clone(), &mut daemon_manager).await;
                         log!("Sending response: {:?}", response);
                         
                         if let Err(e) = ipc::write_message(&mut stdout, &response).await {
@@ -187,6 +192,9 @@ async fn main() -> Result<()> {
         }
     }
 
+    // Stop daemon
+    daemon_manager.stop().await;
+
     log!("Native Host finished.");
 
     Ok(())
@@ -195,31 +203,14 @@ async fn main() -> Result<()> {
 async fn handle_request(
     state: &State,
     req: Request,
-    event_tx: mpsc::Sender<Event>,
+    _event_tx: mpsc::Sender<Event>,
+    daemon_manager: &mut daemon_manager::DaemonManager,
 ) -> Response {
     let result = match req.op {
-        Operation::OpenTcp { host, port } => tcp::open_tcp(state, host, port, event_tx).await,
-        Operation::WriteTcp { socket_id, data } => tcp::write_tcp(state, socket_id, data).await,
-        Operation::CloseTcp { socket_id } => tcp::close_tcp(state, socket_id).await,
-        
-        Operation::OpenUdp { bind_host, bind_port } => udp::open_udp(state, bind_host, bind_port, event_tx).await,
-        Operation::SendUdp { socket_id, remote_host, remote_port, data } => udp::send_udp(state, socket_id, remote_host, remote_port, data).await,
-        Operation::CloseUdp { socket_id } => udp::close_udp(state, socket_id).await,
-
-        Operation::SetDownloadRoot { path } => fs::set_download_root(state, path).await,
-        Operation::EnsureDir { path } => fs::ensure_dir(state, path).await,
-        Operation::ReadFile { path, offset, length } => fs::read_file(state, path, offset, length).await,
-        Operation::WriteFile { path, offset, data } => fs::write_file(state, path, offset, data).await,
-        Operation::StatFile { path } => fs::stat_file(state, path).await,
-
-        Operation::AtomicMove { from, to, overwrite } => atomic_move::atomic_move(state, from, to, overwrite).await,
-        
         Operation::PickDownloadDirectory => folder_picker::pick_download_directory(state).await,
         
-        Operation::HashSha1 { data } => hashing::hash_sha1(data).await,
-        Operation::HashFile { path, offset, length } => hashing::hash_file(state, path, offset, length).await,
-        
         Operation::Handshake { extension_id } => {
+            log!("Handling Handshake for {}", extension_id);
             // Update extension ID in state and rewrite discovery file
             let mut success = false;
             if let Ok(mut info_guard) = state.rpc_info.lock() {
@@ -232,9 +223,18 @@ async fn handle_request(
                     }
                 }
             }
+            
+            // Return daemon info
             if success {
-                Ok(ResponsePayload::Empty)
+                log!("Handshake success, checking daemon info: {:?} {:?}", daemon_manager.port, daemon_manager.token);
+                if let (Some(port), Some(token)) = (daemon_manager.port, daemon_manager.token.clone()) {
+                     Ok(ResponsePayload::DaemonInfo { port, token })
+                } else {
+                     log!("Daemon info missing");
+                     Err(anyhow::anyhow!("Daemon not running"))
+                }
             } else {
+                log!("Handshake failed to update state");
                 Err(anyhow::anyhow!("Failed to update extension ID"))
             }
         }

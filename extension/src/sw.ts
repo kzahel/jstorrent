@@ -40,48 +40,30 @@ async function openUiTab() {
   }
 }
 
-// Native Host Connection
-let nativePort: chrome.runtime.Port | null = null
+import { Client } from './lib/client'
+import { NativeHostConnection } from './lib/native-connection'
 
-function connectToNativeHost() {
+// ... existing code ...
+
+// Initialize Client
+const client = new Client(new NativeHostConnection())
+
+// Expose for testing
+// @ts-ignore
+self.client = client
+
+async function init() {
   try {
-    console.log('Connecting to native host...')
-    nativePort = chrome.runtime.connectNative('com.jstorrent.native')
+    console.log('Initializing Client...')
+    const sockets = await client.ensureDaemonReady()
+    console.log('Client initialized, sockets ready')
 
-    nativePort.onMessage.addListener((message) => {
-      console.log('Received message from native host:', message)
-      // Broadcast to all parts of the extension (UI)
-      // Suppress "Receiving end does not exist" error if no UI is open
-      chrome.runtime.sendMessage(message).catch(() => {
-        // Ignore error if no receivers are active
-      })
-
-      // If the message is about adding a torrent, ensure the UI is open
-      if (message.event === 'magnetAdded' || message.event === 'torrentAdded') {
-        openUiTab()
-      }
-    })
-
-    nativePort.onDisconnect.addListener(() => {
-      console.log('Native host disconnected')
-      nativePort = null
-      if (chrome.runtime.lastError) {
-        console.error('Native host error:', chrome.runtime.lastError.message)
-      }
-    })
-
-    console.log('Native host connected')
-
-    // Send handshake with extension ID
-    nativePort.postMessage({
-      op: 'handshake',
-      extensionId: chrome.runtime.id,
-      id: crypto.randomUUID(),
-    })
+    // Example usage:
+    // const tcp = await sockets.createTcpSocket('google.com', 80)
+    // tcp.close()
   } catch (e) {
-    console.error('Failed to connect to native host:', e)
+    console.error('Client initialization failed:', e)
   }
 }
 
-// Connect on startup
-connectToNativeHost()
+init()
