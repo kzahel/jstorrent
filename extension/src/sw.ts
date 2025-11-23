@@ -22,8 +22,13 @@ chrome.runtime.onMessage.addListener((message, sender, _sendResponse) => {
 })
 
 async function handleLaunchPing() {
-  // Native host is already connected on startup
-  // We can just ensure UI is open
+  console.log('Handling launch ping...')
+  try {
+    await client.ensureDaemonReady()
+    console.log('Client initialized from launch ping')
+  } catch (e) {
+    console.error('Failed to initialize client from launch ping:', e)
+  }
   await openUiTab()
 }
 
@@ -51,19 +56,3 @@ const client = new Client(new NativeHostConnection())
 // Expose for testing
 // @ts-expect-error -- exposing client for testing
 self.client = client
-
-async function init() {
-  try {
-    console.log('Initializing Client...')
-    await client.ensureDaemonReady()
-    console.log('Connected to IO Daemon')
-
-    // Example usage:
-    // const tcp = await sockets.createTcpSocket('google.com', 80)
-    // tcp.close()
-  } catch (e) {
-    console.error('Client initialization failed:', e)
-  }
-}
-
-init()

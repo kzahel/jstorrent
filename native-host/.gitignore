@@ -5,7 +5,6 @@ build_staging/
 *.tar.gz
 
 # Local configuration
-launcher.env
 jstorrent-native.env
 *.log
 

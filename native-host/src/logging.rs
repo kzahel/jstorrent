@@ -36,12 +36,12 @@ fn check_and_init_log(env_path: &PathBuf, filename: &str) -> bool {
                     // But if we use config dir, maybe we should log there?
                     // The requirement was "same directory as the executable".
                     // Let's stick to that for now, OR log next to the env file if found there?
-                    // If I put launcher.env in .config, I probably want logs there too or in .local/state?
+                    // If I put jstorrent-native.env in .config, I probably want logs there too or in .local/state?
                     // The user said: "If that whole folder gets removed upon uninstall, does that mean we should move it to the .config folder instead"
                     // implying they want persistence.
                     // However, the original requirement was "same directory as the executable".
                     // Let's keep the log file in the executable directory for now to satisfy the original requirement,
-                    // UNLESS the user explicitly asked to move logs. They only asked to move launcher.env lookup.
+                    // UNLESS the user explicitly asked to move logs. They only asked to move jstorrent-native.env lookup.
                     // Wait, if I use config dir for env, I might not have write access to exe dir if installed in /usr/lib (though here it is ~/.local/lib).
                     // Let's assume logs should go to the same dir as the executable for now, as originally requested.
                     
