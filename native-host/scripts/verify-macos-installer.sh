@@ -42,7 +42,13 @@ if [ ! -f "/usr/local/lib/jstorrent-native/jstorrent-io-daemon" ]; then
 fi
 
 if [ ! -d "/Applications/JSTorrent Link Handler.app" ]; then
-    echo "Error: Magnet Handler app not found in /Applications/"
+    echo "Error: JSTorrent Link Handler app not found in /Applications/"
+    exit 1
+fi
+
+# Verify io-daemon permissions
+if [ ! -x "/usr/local/lib/jstorrent-native/jstorrent-io-daemon" ]; then
+    echo "Error: io-daemon is not executable in /usr/local/lib/jstorrent-native/"
     exit 1
 fi
 

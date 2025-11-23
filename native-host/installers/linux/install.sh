@@ -52,7 +52,7 @@ for BROWSER_DIR in "${BROWSERS[@]}"; do
     echo "Installed manifest to $MANIFEST_DIR"
 done
 
-# Create Desktop Entry for Magnet Handler
+# Create Desktop Entry for Link Handler
 DESKTOP_FILE="$HOME/.local/share/applications/jstorrent-magnet.desktop"
 mkdir -p "$HOME/.local/share/applications"
 

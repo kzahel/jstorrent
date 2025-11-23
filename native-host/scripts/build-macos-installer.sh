@@ -19,7 +19,7 @@ cp target/release/jstorrent-io-daemon pkgroot/usr/local/lib/jstorrent-native/jst
 cp installers/macos/scripts/uninstall.sh pkgroot/usr/local/lib/jstorrent-native/
 cp manifests/com.jstorrent.native.json.template pkgroot/usr/local/lib/jstorrent-native/
 
-# Magnet Handler App
+# Link Handler App
 mkdir -p "pkgroot/Applications/JSTorrent Link Handler.app/Contents/MacOS"
 cp target/release/jstorrent-link-handler "pkgroot/Applications/JSTorrent Link Handler.app/Contents/MacOS/jstorrent-link-handler"
 cp installers/macos/Info.plist "pkgroot/Applications/JSTorrent Link Handler.app/Contents/"
