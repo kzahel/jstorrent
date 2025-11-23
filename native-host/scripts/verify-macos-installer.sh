@@ -36,6 +36,11 @@ if [ ! -f "/usr/local/lib/jstorrent-native/jstorrent-native-host" ]; then
     exit 1
 fi
 
+if [ ! -f "/usr/local/lib/jstorrent-native/jstorrent-io-daemon" ]; then
+    echo "Error: IO Daemon binary not found in /usr/local/lib/jstorrent-native/"
+    exit 1
+fi
+
 if [ ! -d "/Applications/JSTorrent Link Handler.app" ]; then
     echo "Error: Magnet Handler app not found in /Applications/"
     exit 1

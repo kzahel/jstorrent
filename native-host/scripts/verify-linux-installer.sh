@@ -59,6 +59,11 @@ if [ ! -f "$HOME/.local/lib/jstorrent-native/jstorrent-native-host" ]; then
     exit 1
 fi
 
+if [ ! -f "$HOME/.local/lib/jstorrent-native/jstorrent-io-daemon" ]; then
+    echo "Error: IO Daemon binary not found after install"
+    exit 1
+fi
+
 if [ ! -f "$HOME/.config/google-chrome/NativeMessagingHosts/com.jstorrent.native.json" ]; then
     echo "Error: Chrome manifest not found after install"
     exit 1

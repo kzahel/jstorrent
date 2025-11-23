@@ -33,7 +33,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build Release
-        run: cargo build --release
+        run: cargo build --release --workspace
 
       - name: Compile Installer
         run: |
@@ -80,6 +80,10 @@ jobs:
                 Write-Host "No install.log found."
             }
             
+            exit 1
+          }
+          if (-not (Test-Path "$InstallDir\jstorrent-io-daemon.exe")) {
+            Write-Error "IO Daemon binary not found at $InstallDir\jstorrent-io-daemon.exe"
             exit 1
           }
           if (-not (Test-Path "$InstallDir\com.jstorrent.native.json")) {
