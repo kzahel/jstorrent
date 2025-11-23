@@ -94,21 +94,22 @@ def test_torrent_flow():
         msg = read_message(host_proc)
         print("Received message:", msg)
         
-        if msg and msg.get('event') == 'torrentAdded':
-            if msg.get('name') == TEST_TORRENT_FILE:
+        if msg and msg.get('event') == 'TorrentAdded':
+            payload = msg.get('payload', {})
+            if payload.get('name') == TEST_TORRENT_FILE:
                 print("SUCCESS: Host received torrent file!")
                 # Verify contents
                 with open(TEST_TORRENT_FILE, "rb") as f:
                     expected_contents = base64.b64encode(f.read()).decode('utf-8')
                 
-                if msg.get('contentsBase64') == expected_contents:
+                if payload.get('contentsBase64') == expected_contents:
                      print("SUCCESS: Contents match!")
                      return True
                 else:
                      print("FAIL: Contents mismatch")
                      return False
             else:
-                print(f"FAIL: Name mismatch. Expected {TEST_TORRENT_FILE}, got {msg.get('name')}")
+                print(f"FAIL: Name mismatch. Expected {TEST_TORRENT_FILE}, got {payload.get('name')}")
                 return False
         else:
             print("FAIL: Unexpected message or no message")

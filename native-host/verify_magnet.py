@@ -102,12 +102,13 @@ def test_magnet_flow():
         msg = read_message(host_proc)
         print("Received message:", msg)
         
-        if msg and msg.get('event') == 'magnetAdded':
-            if msg.get('link') == magnet_link:
+        if msg and msg.get('event') == 'MagnetAdded':
+            payload = msg.get('payload', {})
+            if payload.get('link') == magnet_link:
                 print("SUCCESS: Host received magnet link!")
                 return True
             else:
-                print(f"FAIL: Link mismatch. Expected {magnet_link}, got {msg.get('link')}")
+                print(f"FAIL: Link mismatch. Expected {magnet_link}, got {payload.get('link')}")
                 return False
         else:
             print("FAIL: Unexpected message or no message")

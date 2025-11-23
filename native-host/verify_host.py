@@ -67,139 +67,18 @@ def main():
     )
 
     try:
-        # 1. Set Download Root
-        print("Testing SetDownloadRoot...")
+        # 1. Handshake
+        print("Testing Handshake...")
         send_message(proc, {
             "id": "1",
-            "op": "setDownloadRoot",
-            "path": DOWNLOAD_ROOT
+            "op": "handshake",
+            "extensionId": "test-extension-id"
         })
         resp = read_message(proc)
         assert resp['id'] == "1"
         assert resp['ok'] == True
-
-        # 2. Ensure Dir
-        print("Testing EnsureDir...")
-        send_message(proc, {
-            "id": "2",
-            "op": "ensureDir",
-            "path": "subdir"
-        })
-        resp = read_message(proc)
-        assert resp['ok'] == True
-        assert os.path.exists(os.path.join(DOWNLOAD_ROOT, "subdir"))
-
-        # 3. Write File
-        print("Testing WriteFile...")
-        data = b"Hello World"
-        data_b64 = base64.b64encode(data).decode('utf-8')
-        send_message(proc, {
-            "id": "3",
-            "op": "writeFile",
-            "path": "subdir/test.txt",
-            "offset": 0,
-            "data": data_b64
-        })
-        resp = read_message(proc)
-        assert resp['ok'] == True
-        
-        with open(os.path.join(DOWNLOAD_ROOT, "subdir/test.txt"), "rb") as f:
-            assert f.read() == data
-
-        # 4. Read File
-        print("Testing ReadFile...")
-        send_message(proc, {
-            "id": "4",
-            "op": "readFile",
-            "path": "subdir/test.txt",
-            "offset": 0,
-            "length": len(data)
-        })
-        resp = read_message(proc)
-        assert resp['ok'] == True
-        assert resp['data'] == data_b64
-
-        # 5. Stat File
-        print("Testing StatFile...")
-        send_message(proc, {
-            "id": "5",
-            "op": "statFile",
-            "path": "subdir/test.txt"
-        })
-        resp = read_message(proc)
-        assert resp['ok'] == True
-        assert resp['size'] == len(data)
-
-        # 6. Atomic Move
-        print("Testing AtomicMove...")
-        send_message(proc, {
-            "id": "6",
-            "op": "atomicMove",
-            "from": "subdir/test.txt",
-            "to": "subdir/moved.txt",
-            "overwrite": False
-        })
-        resp = read_message(proc)
-        assert resp['ok'] == True
-        assert not os.path.exists(os.path.join(DOWNLOAD_ROOT, "subdir/test.txt"))
-        assert os.path.exists(os.path.join(DOWNLOAD_ROOT, "subdir/moved.txt"))
-
-        # 7. Hashing
-        print("Testing HashSha1...")
-        send_message(proc, {
-            "id": "7",
-            "op": "hashSha1",
-            "data": data_b64
-        })
-        resp = read_message(proc)
-        assert resp['ok'] == True
-        # SHA1 of "Hello World" is 0a4d55a8d778e5022fab701977c5d840bbc486d0
-        assert resp['hash'] == "0a4d55a8d778e5022fab701977c5d840bbc486d0"
-
-        # 8. TCP Echo
-        print("Testing TCP Echo...")
-        port, server_thread = test_tcp_echo()
-        
-        # Open TCP
-        send_message(proc, {
-            "id": "8",
-            "op": "openTcp",
-            "host": "127.0.0.1",
-            "port": port
-        })
-        resp = read_message(proc)
-        assert resp['ok'] == True
-        socket_id = resp['socketId']
-
-        # Write TCP
-        send_message(proc, {
-            "id": "9",
-            "op": "writeTcp",
-            "socketId": socket_id,
-            "data": data_b64
-        })
-        resp = read_message(proc)
-        assert resp['ok'] == True
-
-        # Read Event (Echo)
-        # We might get multiple chunks or one.
-        # Wait for event
-        event = read_message(proc)
-        # It should be a tcpData event
-        assert event['event'] == 'tcpData'
-        assert event['socketId'] == socket_id
-        assert event['data'] == data_b64
-
-        # Close TCP
-        send_message(proc, {
-            "id": "10",
-            "op": "closeTcp",
-            "socketId": socket_id
-        })
-        resp = read_message(proc)
-        assert resp['ok'] == True
-        
-        server_thread.join()
+        assert resp['type'] == 'DaemonInfo'
+        print("Handshake success:", resp)
 
         print("All tests passed!")
 

@@ -71,16 +71,29 @@ The native messaging host is located in the `native-host/` directory.
 
 ```bash
 cd native-host
-cargo build --release
+cargo build --release --workspace
 ```
 
-The binary will be located at `native-host/target/release/jstorrent-host`.
+The binaries will be located at:
+- `native-host/target/release/jstorrent-native-host`
+- `native-host/target/release/jstorrent-io-daemon`
+- `native-host/target/release/jstorrent-link-handler`
 
 #### Test
 
 ```bash
 cd native-host
 cargo test
+```
+
+#### Verification Scripts
+
+There are several Python scripts in `native-host/` to verify the native components in isolation (simulating the browser extension).
+
+To run all verification scripts at once:
+```bash
+cd native-host
+python3 verify_all.py
 ```
 
 #### Local Installation
