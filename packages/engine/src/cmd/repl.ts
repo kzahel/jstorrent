@@ -148,7 +148,7 @@ rl.on('line', async (line) => {
 
         // Calculate total length
         let totalLength = 0
-        let files: TorrentFile[] = []
+        const files: TorrentFile[] = []
 
         if (infoDict['files']) {
           // Multi-file

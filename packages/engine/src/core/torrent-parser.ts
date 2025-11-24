@@ -1,5 +1,6 @@
 import { Bencode } from '../utils/bencode'
 import { TorrentFile } from './torrent-file'
+import * as crypto from 'crypto'
 
 export interface ParsedTorrent {
   infoHash: Uint8Array
@@ -36,9 +37,6 @@ export class TorrentParser {
     // Actually, `Bencode.getRawInfo` returns the buffer. The caller might want to hash it.
     // But `ParsedTorrent` should probably contain the hash.
     // Let's use `createHash` from `crypto`.
-
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const crypto = require('crypto')
     const infoHash = crypto.createHash('sha1').update(infoBuffer).digest()
 
     const name = new TextDecoder().decode(info.name)
@@ -54,7 +52,7 @@ export class TorrentParser {
       pieces.push(piecesBuffer.slice(i, i + 20))
     }
 
-    let files: TorrentFile[] = []
+    const files: TorrentFile[] = []
     let totalLength = 0
 
     if (info.files) {

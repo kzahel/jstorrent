@@ -25,7 +25,7 @@ export class Client extends EventEmitter {
     //this.socketFactory = options.socketFactory
   }
 
-  async addTorrent(magnetOrBuffer: string | Uint8Array, _options: any = {}): Promise<Torrent> {
+  async addTorrent(magnetOrBuffer: string | Uint8Array, _options: unknown = {}): Promise<Torrent> {
     let parsed
     if (magnetOrBuffer instanceof Uint8Array) {
       parsed = TorrentParser.parse(magnetOrBuffer)
