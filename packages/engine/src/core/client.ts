@@ -3,12 +3,12 @@ import { Torrent } from './torrent'
 import { ISocketFactory } from '../interfaces/socket'
 import { IFileSystem } from '../interfaces/filesystem'
 import { TorrentParser } from './torrent-parser'
+import { Bencode } from '../utils/bencode'
 import { FileSystemStorageHandle } from '../io/filesystem-storage-handle'
 import { areInfoHashesEqual, toInfoHashString } from '../utils/infohash'
 import { parseMagnet } from '../utils/magnet'
 import { PieceManager } from './piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
-import { BitField } from '../utils/bitfield'
 
 export interface ClientOptions {
   downloadPath: string
@@ -53,7 +53,7 @@ export class Client extends EventEmitter {
       const contentStorage = new TorrentContentStorage(storageHandle)
       await contentStorage.open(parsed.files, parsed.pieceLength)
 
-      const bitfield = new BitField(pieceManager.getPieceCount())
+      const bitfield = pieceManager.getBitField()
 
       const torrent = new Torrent(
         parsed.infoHash,
@@ -62,6 +62,10 @@ export class Client extends EventEmitter {
         bitfield,
         parsed.announce,
       )
+
+      if (parsed.infoBuffer) {
+        torrent.setMetadata(parsed.infoBuffer)
+      }
 
       this.torrents.push(torrent)
       this.emit('torrent', torrent)
@@ -90,6 +94,54 @@ export class Client extends EventEmitter {
 
       torrent.on('error', (err) => {
         this.emit('error', err)
+      })
+
+      torrent.on('metadata', async (metadataBuffer: Uint8Array) => {
+        try {
+          console.error('Client: Metadata received, initializing torrent')
+          const info = Bencode.decode(metadataBuffer)
+          const parsed = TorrentParser.parseInfoDictionary(
+            info,
+            torrent.infoHash,
+            undefined,
+            undefined,
+          )
+
+          // Initialize PieceManager
+          const pieceManager = new PieceManager(
+            Math.ceil(parsed.length / parsed.pieceLength),
+            parsed.pieceLength,
+            parsed.length % parsed.pieceLength || parsed.pieceLength,
+            parsed.pieces,
+          )
+
+          // Initialize ContentStorage
+          const storageHandle = new FileSystemStorageHandle(this.fileSystem)
+          const contentStorage = new TorrentContentStorage(storageHandle)
+          await contentStorage.open(parsed.files, parsed.pieceLength)
+
+          const bitfield = pieceManager.getBitField()
+
+          // Update torrent
+          torrent.pieceManager = pieceManager
+          torrent.contentStorage = contentStorage
+          torrent.bitfield = bitfield
+
+          // If we had announce URLs from magnet, we keep them.
+          // If metadata has announce, we might want to merge or prefer magnet?
+          // Usually magnet takes precedence or we merge.
+          // For now, keep existing.
+
+          console.error('Client: Torrent initialized from metadata')
+          this.emit('torrent-ready', torrent) // New event?
+
+          // Start verification or download?
+          // We should probably check existing files if any.
+          await torrent.recheckData()
+        } catch (err) {
+          console.error('Client: Error initializing torrent from metadata', err)
+          this.emit('error', err)
+        }
       })
 
       return torrent

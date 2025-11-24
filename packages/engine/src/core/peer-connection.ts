@@ -22,6 +22,13 @@ export interface PeerConnection {
   on(event: 'piece', listener: (index: number, begin: number, data: Uint8Array) => void): this
   on(event: 'cancel', listener: (index: number, begin: number, length: number) => void): this
   on(event: 'interested', listener: () => void): this
+  on(event: 'extension_handshake', listener: (payload: Record<string, unknown>) => void): this
+  on(event: 'metadata_request', listener: (piece: number) => void): this
+  on(
+    event: 'metadata_data',
+    listener: (piece: number, totalSize: number, data: Uint8Array) => void,
+  ): this
+  on(event: 'metadata_reject', listener: (piece: number) => void): this
 
   close(): void
 }
@@ -37,6 +44,8 @@ export class PeerConnection extends EventEmitter {
   public amInterested = false
   public peerExtensions = false
   public requestsPending = 0 // Number of outstanding requests
+  public peerMetadataId: number | null = null
+  public myMetadataId = 1 // Our ID for ut_metadata
 
   public peerId: Uint8Array | null = null
   public infoHash: Uint8Array | null = null
@@ -94,6 +103,32 @@ export class PeerConnection extends EventEmitter {
   sendExtendedMessage(id: number, payload: Uint8Array) {
     const message = PeerWireProtocol.createExtendedMessage(id, payload)
     this.socket.send(message)
+  }
+
+  sendExtendedHandshake() {
+    // Simple dictionary: { m: { ut_metadata: 1 } }
+    // We construct it manually as bencoded string
+    // d1:md11:ut_metadatai1eee
+    const payload = new TextEncoder().encode(`d1:md11:ut_metadatai${this.myMetadataId}eee`)
+    this.sendExtendedMessage(0, payload)
+  }
+
+  sendMetadataRequest(piece: number) {
+    if (this.peerMetadataId === null) return
+    const msg = PeerWireProtocol.createMetadataRequest(this.peerMetadataId, piece)
+    this.socket.send(msg)
+  }
+
+  sendMetadataData(piece: number, totalSize: number, data: Uint8Array) {
+    if (this.peerMetadataId === null) return
+    const msg = PeerWireProtocol.createMetadataData(this.peerMetadataId, piece, totalSize, data)
+    this.socket.send(msg)
+  }
+
+  sendMetadataReject(piece: number) {
+    if (this.peerMetadataId === null) return
+    const msg = PeerWireProtocol.createMetadataReject(this.peerMetadataId, piece)
+    this.socket.send(msg)
   }
 
   close() {
@@ -182,13 +217,24 @@ export class PeerConnection extends EventEmitter {
         }
         break
       case MessageType.EXTENDED:
-        console.error(
-          'PeerConnection: Handling EXTENDED message',
-          message.extendedId,
-          message.extendedPayload?.length,
-        )
+        // console.error(
+        //   'PeerConnection: Handling EXTENDED message',
+        //   message.extendedId,
+        //   message.extendedPayload?.length,
+        // )
         if (message.extendedId !== undefined && message.extendedPayload) {
+          // Always emit 'extended' event so extensions (like PexHandler) can process it
           this.emit('extended', message.extendedId, message.extendedPayload)
+
+          if (message.extendedId === 0) {
+            // Extended Handshake
+            this.handleExtendedHandshake(message.extendedPayload)
+          } else {
+            // Also try to handle as metadata if ID matches
+            if (this.peerMetadataId !== null && message.extendedId === this.peerMetadataId) {
+              this.handleMetadataMessage(message.extendedPayload)
+            }
+          }
         }
         break
       case MessageType.REQUEST:
@@ -214,6 +260,82 @@ export class PeerConnection extends EventEmitter {
           this.emit('cancel', message.index, message.begin, message.length)
         }
         break
+    }
+  }
+
+  private handleExtendedHandshake(payload: Uint8Array) {
+    try {
+      // Decode bencoded dictionary
+      // For now, simple regex parsing or string search since we know the structure
+      // We look for "ut_metadata" and the integer following it
+      const str = new TextDecoder().decode(payload)
+      // console.error('PeerConnection: Extended Handshake payload:', str)
+
+      // Very naive parsing for "ut_metadata"i{id}e
+      const match = str.match(/ut_metadatai(\d+)e/)
+      if (match) {
+        this.peerMetadataId = parseInt(match[1], 10)
+        // console.error('PeerConnection: Peer supports ut_metadata with ID', this.peerMetadataId)
+      }
+
+      // Emit generic event (we might want to parse more properly later)
+      this.emit('extension_handshake', { raw: str })
+    } catch (err) {
+      console.error('PeerConnection: Error parsing extended handshake', err)
+    }
+  }
+
+  private handleMetadataMessage(payload: Uint8Array) {
+    try {
+      // Payload is bencoded dictionary + optional data
+      // d8:msg_typei{type}e5:piecei{piece}e...e + data
+
+      // Find end of dictionary 'ee'
+      // This is tricky without a real decoder.
+      // But for the specific messages we expect:
+      // REQUEST: d8:msg_typei0e5:piecei{piece}ee
+      // REJECT: d8:msg_typei2e5:piecei{piece}ee
+      // DATA: d8:msg_typei1e5:piecei{piece}e10:total_sizei{size}ee...data...
+
+      const str = new TextDecoder().decode(payload)
+      const typeMatch = str.match(/msg_typei(\d+)e/)
+      const pieceMatch = str.match(/piecei(\d+)e/)
+
+      if (typeMatch && pieceMatch) {
+        const type = parseInt(typeMatch[1], 10)
+        const piece = parseInt(pieceMatch[1], 10)
+
+        if (type === 0) {
+          // REQUEST
+          this.emit('metadata_request', piece)
+        } else if (type === 2) {
+          // REJECT
+          this.emit('metadata_reject', piece)
+        } else if (type === 1) {
+          // DATA
+          const sizeMatch = str.match(/total_sizei(\d+)e/)
+          if (sizeMatch) {
+            const totalSize = parseInt(sizeMatch[1], 10)
+            // We need to find where the dictionary ends to get the data
+            // The dictionary ends with 'ee'.
+            // But 'ee' might appear in other places? No, integers end with 'e'.
+            // The outer dictionary ends with 'e'.
+            // Let's assume the dictionary is contiguous at the start.
+            // We can find the last 'ee' that closes the dictionary?
+            // Or just scan for 'ee' after the known keys?
+
+            // Hacky way: find the index of "total_sizei...e" and then the next "e"
+            const sizeIndex = str.indexOf(`total_sizei${totalSize}e`)
+            const dictEnd = str.indexOf('e', sizeIndex + `total_sizei${totalSize}e`.length) + 1
+
+            // The data starts after dictEnd
+            const data = payload.slice(dictEnd)
+            this.emit('metadata_data', piece, totalSize, data)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('PeerConnection: Error parsing metadata message', err)
     }
   }
 }

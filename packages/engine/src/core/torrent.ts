@@ -14,6 +14,13 @@ export class Torrent extends EventEmitter {
   public bitfield?: BitField
   public announce: string[] = []
 
+  // Metadata Phase
+  public metadataSize: number | null = null
+  public metadataBuffer: Uint8Array | null = null
+  public metadataComplete = false
+  public metadataPiecesReceived = new Set<number>()
+  private metadataRaw: Uint8Array | null = null // The full info dictionary buffer
+
   constructor(
     infoHash: Uint8Array,
     pieceManager?: PieceManager,
@@ -49,16 +56,51 @@ export class Torrent extends EventEmitter {
     // In a real scenario, we might wait for connection or it might be already connected
     // For now, assume we trigger handshake
     // peer.sendHandshake(this.infoHash, this.peerId); // We need a local peerId
+
+    // Send Extended Handshake immediately if we are connected
+    // In real implementation, this happens after handshake.
+    // But since we hook into 'handshake' event below, we can do it there.
   }
 
   private setupPeerListeners(peer: PeerConnection) {
-    peer.on('handshake', (_infoHash, _peerId) => {
-      console.error('Torrent: Handshake received')
+    peer.on('handshake', (_infoHash, _peerId, extensions) => {
+      // console.error('Torrent: Handshake received')
       // Verify infoHash matches
+
+      if (extensions) {
+        peer.sendExtendedHandshake()
+      }
+
       // Send BitField
       if (this.bitfield) {
         peer.sendMessage(MessageType.BITFIELD, this.bitfield.toBuffer())
       }
+    })
+
+    peer.on('extension_handshake', (_payload) => {
+      // Check if we need metadata and peer has it
+      if (!this.metadataComplete && peer.peerMetadataId !== null) {
+        // Request metadata size?
+        // Actually, the extended handshake usually contains 'metadata_size' in the 'm' dictionary or top level?
+        // BEP 9: "The handshake dictionary will also contain a key "metadata_size" (integer)."
+        // We need to parse that from the payload.
+        // For now, let's assume we request piece 0 and see what happens or rely on parsing.
+        // Our current parser in PeerConnection is very simple.
+        // Let's just try to request piece 0 if we don't have it.
+        this.requestMetadata(peer)
+      }
+    })
+
+    peer.on('metadata_request', (piece) => {
+      this.handleMetadataRequest(peer, piece)
+    })
+
+    peer.on('metadata_data', (piece, totalSize, data) => {
+      this.handleMetadataData(peer, piece, totalSize, data)
+    })
+
+    peer.on('metadata_reject', (piece) => {
+      console.error(`Torrent: Metadata piece ${piece} rejected by peer`)
     })
 
     peer.on('bitfield', (_bf) => {
@@ -337,5 +379,117 @@ export class Torrent extends EventEmitter {
     }
     this.emit('checked')
     console.error(`Torrent: Recheck complete for ${this.infoHashStr}`)
+    console.error(`Torrent: Recheck complete for ${this.infoHashStr}`)
+  }
+
+  // Metadata Logic
+
+  private requestMetadata(peer: PeerConnection) {
+    if (this.metadataComplete) return
+    // Request piece 0 first.
+    // Block size is usually 16KB.
+    // We don't know total size yet unless we parsed it from handshake.
+    // Let's just request 0.
+    if (!this.metadataPiecesReceived.has(0)) {
+      peer.sendMetadataRequest(0)
+    }
+  }
+
+  private handleMetadataRequest(peer: PeerConnection, piece: number) {
+    if (!this.metadataRaw) {
+      peer.sendMetadataReject(piece)
+      return
+    }
+
+    const METADATA_BLOCK_SIZE = 16 * 1024
+    const start = piece * METADATA_BLOCK_SIZE
+    if (start >= this.metadataRaw.length) {
+      peer.sendMetadataReject(piece)
+      return
+    }
+
+    const end = Math.min(start + METADATA_BLOCK_SIZE, this.metadataRaw.length)
+    const data = this.metadataRaw.slice(start, end)
+    peer.sendMetadataData(piece, this.metadataRaw.length, data)
+  }
+
+  private handleMetadataData(
+    peer: PeerConnection,
+    piece: number,
+    totalSize: number,
+    data: Uint8Array,
+  ) {
+    if (this.metadataComplete) return
+
+    if (this.metadataSize === null) {
+      this.metadataSize = totalSize
+      this.metadataBuffer = new Uint8Array(totalSize)
+    }
+
+    if (this.metadataSize !== totalSize) {
+      console.error('Torrent: Metadata size mismatch')
+      return
+    }
+
+    const METADATA_BLOCK_SIZE = 16 * 1024
+    const start = piece * METADATA_BLOCK_SIZE
+
+    if (start + data.length > this.metadataSize) {
+      console.error('Torrent: Metadata data overflow')
+      return
+    }
+
+    if (this.metadataBuffer) {
+      this.metadataBuffer.set(data, start)
+      this.metadataPiecesReceived.add(piece)
+
+      // Check if complete
+      const totalPieces = Math.ceil(this.metadataSize / METADATA_BLOCK_SIZE)
+      if (this.metadataPiecesReceived.size === totalPieces) {
+        this.verifyMetadata()
+      } else {
+        // Request next piece
+        const nextPiece = piece + 1
+        if (nextPiece < totalPieces && !this.metadataPiecesReceived.has(nextPiece)) {
+          peer.sendMetadataRequest(nextPiece)
+        }
+      }
+    }
+  }
+
+  private verifyMetadata() {
+    if (!this.metadataBuffer) return
+
+    // SHA1 hash of metadataBuffer should match infoHash
+    const hash = crypto.createHash('sha1').update(this.metadataBuffer).digest()
+    if (Buffer.compare(hash, this.infoHash) === 0) {
+      console.error('Torrent: Metadata verified successfully!')
+      this.metadataComplete = true
+      this.metadataRaw = this.metadataBuffer
+      this.emit('metadata', this.metadataBuffer)
+
+      // Initialize PieceManager and Storage if not already
+      // We need to parse the info dictionary.
+      // Since we don't have the parser imported here (circular dependency?),
+      // we emit the event and let the Client handle the parsing and initialization?
+      // Or we import TorrentParser here.
+      // Client.ts handles 'torrent' event.
+      // Maybe we should emit 'metadata' and let Client do the rest?
+      // But Torrent needs PieceManager to function.
+      // Let's emit 'metadata' and expect the listener (Client) to call a method to initialize?
+      // Or we can import TorrentParser.
+    } else {
+      console.error('Torrent: Metadata hash mismatch')
+      this.metadataPiecesReceived.clear()
+      this.metadataBuffer = new Uint8Array(this.metadataSize!)
+      // Retry?
+    }
+  }
+
+  // Called by Client when metadata is provided initially (e.g. .torrent file)
+  public setMetadata(infoBuffer: Uint8Array) {
+    this.metadataRaw = infoBuffer
+    this.metadataComplete = true
+    this.metadataSize = infoBuffer.length
   }
 }

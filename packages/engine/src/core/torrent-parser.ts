@@ -10,6 +10,7 @@ export interface ParsedTorrent {
   files: TorrentFile[]
   length: number
   announce: string[]
+  infoBuffer?: Uint8Array
 }
 
 export class TorrentParser {
@@ -38,7 +39,23 @@ export class TorrentParser {
     // But `ParsedTorrent` should probably contain the hash.
     // Let's use `createHash` from `crypto`.
     const infoHash = crypto.createHash('sha1').update(infoBuffer).digest()
+    return this.parseInfoDictionary(
+      info,
+      infoHash,
+      decoded['announce-list'],
+      decoded.announce,
+      infoBuffer,
+    )
+  }
 
+  static parseInfoDictionary(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    info: any,
+    infoHash: Uint8Array,
+    announceList?: Uint8Array[][],
+    announceUrl?: Uint8Array,
+    infoBuffer?: Uint8Array,
+  ): ParsedTorrent {
     const name = new TextDecoder().decode(info.name)
     const pieceLength = info['piece length']
 
@@ -81,14 +98,14 @@ export class TorrentParser {
     }
 
     const announce: string[] = []
-    if (decoded['announce-list']) {
-      for (const tier of decoded['announce-list']) {
+    if (announceList) {
+      for (const tier of announceList) {
         for (const url of tier) {
           announce.push(new TextDecoder().decode(url))
         }
       }
-    } else if (decoded.announce) {
-      announce.push(new TextDecoder().decode(decoded.announce))
+    } else if (announceUrl) {
+      announce.push(new TextDecoder().decode(announceUrl))
     }
 
     return {
@@ -99,6 +116,7 @@ export class TorrentParser {
       files,
       length: totalLength,
       announce,
+      infoBuffer,
     }
   }
 }

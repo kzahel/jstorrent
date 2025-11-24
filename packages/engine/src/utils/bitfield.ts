@@ -77,4 +77,8 @@ export class BitField {
     }
     return count
   }
+
+  cardinality(): number {
+    return this.count()
+  }
 }

@@ -120,4 +120,10 @@ export class InMemoryFileSystem implements IFileSystem {
     }
     return Array.from(entries)
   }
+
+  async readFile(path: string): Promise<Uint8Array> {
+    const file = this.files.get(path)
+    if (!file) throw new Error(`File not found: ${path}`)
+    return file
+  }
 }

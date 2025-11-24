@@ -8,7 +8,6 @@ export class PexHandler {
 
   constructor(private peer: PeerConnection) {
     this.peer.on('handshake', (_infoHash, _peerId, extensions) => {
-      console.error('PexHandler: Handshake received, extensions:', extensions)
       if (extensions) {
         this.sendExtendedHandshake()
       }

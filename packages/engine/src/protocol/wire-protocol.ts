@@ -13,6 +13,14 @@ export enum MessageType {
   HANDSHAKE = -2, // Internal representation
 }
 
+export enum MetadataMsgType {
+  REQUEST = 0,
+  DATA = 1,
+  REJECT = 2,
+}
+
+export const EXTENDED_HANDSHAKE_ID = 0
+
 export interface WireMessage {
   type: MessageType
   payload?: Uint8Array
@@ -30,11 +38,11 @@ export class PeerWireProtocol {
     buffer: Uint8Array,
   ): { infoHash: Uint8Array; peerId: Uint8Array; protocol: string; extensions: boolean } | null {
     if (buffer.length < 68) {
-      console.error(`PeerWireProtocol: buffer too short ${buffer.length}`)
-      console.error('Buffer:', buffer)
+      // console.error(`PeerWireProtocol: buffer too short ${buffer.length}`)
+      // console.error('Buffer:', buffer)
       return null
     }
-    console.error('Buffer start:', buffer.slice(0, 20))
+    // console.error('Buffer start:', buffer.slice(0, 20))
     const pstrlen = buffer[0]
     if (pstrlen !== 19) {
       console.error(`PeerWireProtocol: invalid pstrlen ${pstrlen}`)
@@ -90,6 +98,8 @@ export class PeerWireProtocol {
 
     const id = buffer[4]
     const payload = buffer.slice(5, 4 + length)
+
+    // require('fs').appendFileSync('debug.log', `PeerWireProtocol: Parsing message id=${id} len=${length}\n`)
 
     const message: WireMessage = { type: id, payload }
 
@@ -168,5 +178,38 @@ export class PeerWireProtocol {
     buf[0] = id
     buf.set(payload, 1)
     return this.createMessage(MessageType.EXTENDED, buf)
+  }
+
+  static createMetadataRequest(metadataId: number, piece: number): Uint8Array {
+    // We need a bencoder. For now, let's construct simple bencoded dictionary manually or use a library if available.
+    // Since we don't have a bencoder imported here, let's assume the caller handles encoding or we implement a simple one.
+    // Wait, we should probably keep this class low-level.
+    // Let's just return the payload structure and let the caller encode it?
+    // No, createMessage returns Uint8Array.
+    // I'll assume we can use a simple manual encoding for this specific message as it's small.
+    // d8:msg_typei0e5:piecei{piece}ee
+    const str = `d8:msg_typei${MetadataMsgType.REQUEST}e5:piecei${piece}ee`
+    return this.createExtendedMessage(metadataId, new TextEncoder().encode(str))
+  }
+
+  static createMetadataReject(metadataId: number, piece: number): Uint8Array {
+    const str = `d8:msg_typei${MetadataMsgType.REJECT}e5:piecei${piece}ee`
+    return this.createExtendedMessage(metadataId, new TextEncoder().encode(str))
+  }
+
+  static createMetadataData(
+    metadataId: number,
+    piece: number,
+    totalSize: number,
+    data: Uint8Array,
+  ): Uint8Array {
+    // d8:msg_typei1e5:piecei{piece}e10:total_sizei{totalSize}ee + data (but data is NOT part of bencoded dict in standard ut_metadata?)
+    // BEP 9: "The dictionary is bencoded. The data follows the dictionary."
+    const dictStr = `d8:msg_typei${MetadataMsgType.DATA}e5:piecei${piece}e10:total_sizei${totalSize}ee`
+    const dictBytes = new TextEncoder().encode(dictStr)
+    const payload = new Uint8Array(dictBytes.length + data.length)
+    payload.set(dictBytes)
+    payload.set(data, dictBytes.length)
+    return this.createExtendedMessage(metadataId, payload)
   }
 }
