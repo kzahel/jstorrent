@@ -1,16 +1,23 @@
-import { IFileSystem, IFileHandle } from '../interfaces/filesystem'
+import { IStorageHandle } from '../io/storage-handle'
+import { IFileHandle } from '../interfaces/filesystem'
 import { TorrentFile } from './torrent-file'
 
 export class DiskManager {
   private files: TorrentFile[] = []
   private fileHandles: Map<string, IFileHandle> = new Map()
+  private openingFiles: Map<string, Promise<IFileHandle>> = new Map()
   private pieceLength: number = 0
 
-  constructor(private fs: IFileSystem) {}
+  private id = Math.random().toString(36).slice(2, 7)
+
+  constructor(private storageHandle: IStorageHandle) {
+    console.error(`DiskManager: Created instance ${this.id} for storage ${storageHandle.name}`)
+  }
 
   async open(files: TorrentFile[], pieceLength: number) {
     this.files = files
     this.pieceLength = pieceLength
+    console.error(`DiskManager ${this.id}: Opened with ${files.length} files`)
 
     // Pre-open files or open on demand? Let's open on demand for now to save resources,
     // but for simplicity in this phase, we might just open them all if the list is small.
@@ -18,18 +25,47 @@ export class DiskManager {
   }
 
   async close() {
-    for (const handle of this.fileHandles.values()) {
+    console.error(`DiskManager ${this.id}: Closing all files`)
+    // Wait for any pending opens?
+    // Ideally we should wait, but for now just close what we have.
+    for (const [path, handle] of this.fileHandles) {
+      console.error(`DiskManager ${this.id}: Closing file ${path}`)
       await handle.close()
     }
     this.fileHandles.clear()
+    this.openingFiles.clear()
   }
 
   private async getFileHandle(path: string): Promise<IFileHandle> {
-    if (!this.fileHandles.has(path)) {
-      const handle = await this.fs.open(path, 'r+')
-      this.fileHandles.set(path, handle)
+    if (this.fileHandles.has(path)) {
+      return this.fileHandles.get(path)!
     }
-    return this.fileHandles.get(path)!
+
+    if (this.openingFiles.has(path)) {
+      // console.error(`DiskManager ${this.id}: Waiting for pending open '${path}'`)
+      return this.openingFiles.get(path)!
+    }
+
+    console.error(
+      `DiskManager ${this.id}: Opening file '${path}' (cache miss). Current keys: ${Array.from(this.fileHandles.keys())}`,
+    )
+
+    const openPromise = (async () => {
+      try {
+        const fs = this.storageHandle.getFileSystem()
+        const handle = await fs.open(path, 'r+')
+        this.fileHandles.set(path, handle)
+        console.error(
+          `DiskManager ${this.id}: Set handle for '${path}'. Keys now: ${Array.from(this.fileHandles.keys())}`,
+        )
+        return handle
+      } finally {
+        this.openingFiles.delete(path)
+      }
+    })()
+
+    this.openingFiles.set(path, openPromise)
+    return openPromise
   }
 
   async write(index: number, begin: number, data: Uint8Array): Promise<void> {

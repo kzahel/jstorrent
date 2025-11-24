@@ -43,9 +43,14 @@ describe('Torrent', () => {
 
   beforeEach(async () => {
     fs = new MemoryFileSystem()
-    dm = new DiskManager(fs)
+    const mockStorageHandle = {
+      id: 'test',
+      name: 'test',
+      getFileSystem: () => fs,
+    }
+    dm = new DiskManager(mockStorageHandle)
     await dm.open([{ path: 'test', length: 100, offset: 0 }], 10)
-    pm = new PieceManager(10)
+    pm = new PieceManager(10, 10, 10)
     torrent = new Torrent(infoHash, pm, dm, new BitField(10))
   })
 

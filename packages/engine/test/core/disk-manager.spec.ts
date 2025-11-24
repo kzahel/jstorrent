@@ -10,7 +10,12 @@ describe('DiskManager', () => {
 
   beforeEach(() => {
     fs = new MemoryFileSystem()
-    dm = new DiskManager(fs)
+    const mockStorageHandle = {
+      id: 'test',
+      name: 'test',
+      getFileSystem: () => fs,
+    }
+    dm = new DiskManager(mockStorageHandle)
   })
 
   it('should write and read from a single file', async () => {

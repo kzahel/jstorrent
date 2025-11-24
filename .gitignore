@@ -1,6 +1,7 @@
 # General
 .DS_Store
 *.log
+*.bin
 
 # Node
 node_modules
@@ -19,4 +20,6 @@ target/
 **/*.rs.bk
 
 # monorepo migration
-old-repositories
+
+# TypeScript
+*.tsbuildinfo

@@ -30,19 +30,20 @@ export class PeerWireProtocol {
     buffer: Uint8Array,
   ): { infoHash: Uint8Array; peerId: Uint8Array; protocol: string; extensions: boolean } | null {
     if (buffer.length < 68) {
-      console.error('Handshake too short:', buffer.length)
+      console.error(`PeerWireProtocol: buffer too short ${buffer.length}`)
+      console.error('Buffer:', buffer)
       return null
     }
-
+    console.error('Buffer start:', buffer.slice(0, 20))
     const pstrlen = buffer[0]
     if (pstrlen !== 19) {
-      console.error('Invalid pstrlen:', pstrlen)
+      console.error(`PeerWireProtocol: invalid pstrlen ${pstrlen}`)
       return null
     }
 
     const pstr = new TextDecoder().decode(buffer.slice(1, 20))
     if (pstr !== 'BitTorrent protocol') {
-      console.error('Invalid pstr:', pstr)
+      console.error(`PeerWireProtocol: invalid pstr ${pstr}`)
       return null
     }
 

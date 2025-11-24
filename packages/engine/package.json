@@ -9,7 +9,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "repl": "tsx src/cmd/repl.ts"
   },
   "keywords": [
     "bittorrent",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@types/node": "^20.10.0",
     "typescript": "^5.0.0",
-    "vitest": "^1.0.0"
+    "vitest": "^1.0.0",
+    "tsx": "^4.0.0"
   }
 }

@@ -30,7 +30,22 @@ describe('SessionManager', () => {
       socketFactory: {} as any,
       fileSystem: fileSystem,
     })
-    sessionManager = new SessionManager(client, fileSystem)
+
+    const mockStorageHandle = {
+      id: 'session',
+      name: 'session',
+      getFileSystem: () => fileSystem,
+    }
+
+    const mockStorageManager = {
+      register: vi.fn(),
+      get: vi.fn(),
+    }
+
+    // @ts-expect-error Mocking interfaces
+    sessionManager = new SessionManager(client, mockStorageHandle, mockStorageManager, {
+      profile: 'default',
+    })
   })
 
   it('should save session state', async () => {
@@ -68,8 +83,8 @@ describe('SessionManager', () => {
     await handle.write(data, 0, data.length, 0)
     await handle.close()
 
-    // Spy on console.log to verify resume
-    const logSpy = vi.spyOn(console, 'log')
+    // Spy on console.error to verify resume
+    const logSpy = vi.spyOn(console, 'error')
 
     await sessionManager.load()
 
@@ -80,11 +95,8 @@ describe('SessionManager', () => {
   })
 
   it('should handle missing session file gracefully', async () => {
-    const logSpy = vi.spyOn(console, 'log')
+    const logSpy = vi.spyOn(console, 'error')
     await sessionManager.load()
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('No session file found'),
-      expect.anything(),
-    )
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('No session file found'))
   })
 })

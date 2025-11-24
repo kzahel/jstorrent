@@ -17,6 +17,14 @@ export class Torrent extends EventEmitter {
     super()
   }
 
+  get infoHashStr(): string {
+    return Buffer.from(this.infoHash).toString('hex')
+  }
+
+  get numPeers(): number {
+    return this.peers.length
+  }
+
   addPeer(peer: PeerConnection) {
     this.peers.push(peer)
     peer.bitfield = new BitField(this.pieceManager.getPieceCount())
@@ -30,21 +38,25 @@ export class Torrent extends EventEmitter {
 
   private setupPeerListeners(peer: PeerConnection) {
     peer.on('handshake', (_infoHash, _peerId) => {
+      console.error('Torrent: Handshake received')
       // Verify infoHash matches
       // Send BitField
       peer.sendMessage(MessageType.BITFIELD, this.bitfield.toBuffer())
     })
 
     peer.on('bitfield', (_bf) => {
+      console.error('Torrent: Bitfield received')
       // Update interest
       this.updateInterest(peer)
     })
 
     peer.on('have', (_index) => {
+      console.error(`Torrent: Have received ${_index}`)
       this.updateInterest(peer)
     })
 
     peer.on('unchoke', () => {
+      console.error('Torrent: Unchoke received')
       this.requestPieces(peer)
     })
 
@@ -53,6 +65,23 @@ export class Torrent extends EventEmitter {
         this.handlePiece(peer, msg)
       }
     })
+
+    peer.on('error', (err) => {
+      console.error(`Torrent: Peer error: ${err.message}`)
+      this.removePeer(peer)
+    })
+
+    peer.on('close', () => {
+      console.error('Torrent: Peer closed')
+      this.removePeer(peer)
+    })
+  }
+
+  private removePeer(peer: PeerConnection) {
+    const index = this.peers.indexOf(peer)
+    if (index !== -1) {
+      this.peers.splice(index, 1)
+    }
   }
 
   private updateInterest(peer: PeerConnection) {
@@ -62,6 +91,7 @@ export class Torrent extends EventEmitter {
       // Better: check intersection of peer.bitfield and ~this.bitfield
       const interested = true // Placeholder for logic
       if (interested && !peer.amInterested) {
+        console.error('Torrent: Sending INTERESTED')
         peer.sendMessage(MessageType.INTERESTED)
         peer.amInterested = true
       }
@@ -78,40 +108,61 @@ export class Torrent extends EventEmitter {
       return
     }
 
-    // Simple strategy: request first missing piece that peer has
+    // Simple strategy: request missing blocks from pieces that peer has
     const missing = this.pieceManager.getMissingPieces()
+    // console.error(`Torrent: Missing pieces: ${missing.length}`)
     for (const index of missing) {
       if (peer.bitfield?.get(index)) {
-        // Request whole piece (simplified, usually blocks)
-        // We need piece length here. Assume we know it or request blocks.
-        // For this phase, let's assume 1 piece = 1 block for simplicity of the test,
-        // or just request a block.
-        peer.sendRequest(index, 0, 16384) // Request first block
-        break // One at a time for now
-      } else {
-        // Peer does not have piece
+        const neededBlocks = this.pieceManager.getNeededBlocks(index)
+        if (neededBlocks.length > 0) {
+          // console.error(`Torrent: Requesting blocks for piece ${index}, needed: ${neededBlocks.length}`)
+          for (const block of neededBlocks) {
+            // TODO: Check if already requested from other peers (PieceManager tracks this now)
+            // But we need to be careful not to request same block from multiple peers unless needed (endgame)
+            // For now, PieceManager.addRequested marks it as requested globally.
+            // We should probably track *who* we requested it from to handle timeouts/disconnects.
+            // But for this phase (single peer download), global tracking is enough.
+
+            peer.sendRequest(index, block.begin, block.length)
+            this.pieceManager.addRequested(index, block.begin)
+
+            // Limit requests per peer?
+            // if (peer.requestsPending > 10) break
+          }
+          // Break after requesting one piece's blocks to avoid flooding?
+          // break
+        }
       }
     }
   }
 
   private async handlePiece(peer: PeerConnection, msg: WireMessage) {
     if (msg.index !== undefined && msg.begin !== undefined && msg.block) {
+      // console.error(`Torrent: Received piece ${msg.index} begin ${msg.begin}`)
       await this.diskManager.write(msg.index, msg.begin, msg.block)
 
-      // Update piece manager (simplified: assume 1 block = 1 piece or we track blocks)
-      // Real implementation needs BlockManager.
-      // For now, mark piece as done if we got a block (TESTING ONLY)
-      this.pieceManager.setPiece(msg.index, true)
-      this.emit('piece', msg.index)
+      this.pieceManager.addReceived(msg.index, msg.begin)
+
+      if (this.pieceManager.isPieceComplete(msg.index)) {
+        console.error(`Torrent: Piece ${msg.index} complete`)
+        this.emit('piece', msg.index)
+        // Send HAVE message to all peers
+        for (const p of this.peers) {
+          if (p.handshakeReceived) {
+            p.sendHave(msg.index)
+          }
+        }
+      }
 
       // Continue requesting
       this.requestPieces(peer)
     }
   }
-  stop() {
+  async stop() {
+    console.error('Torrent: Stopping')
     this.peers.forEach((peer) => peer.close())
     this.peers = []
-    this.diskManager.close()
+    await this.diskManager.close()
     this.emit('stopped')
   }
 }

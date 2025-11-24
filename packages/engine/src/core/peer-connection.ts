@@ -28,7 +28,7 @@ export interface PeerConnection {
 export class PeerConnection extends EventEmitter {
   private socket: ITcpSocket
   private buffer: Uint8Array = new Uint8Array(0)
-  private handshakeReceived = false
+  public handshakeReceived = false
 
   public peerChoking = true
   public peerInterested = false
@@ -67,13 +67,21 @@ export class PeerConnection extends EventEmitter {
     this.socket.send(message)
   }
 
-  sendExtendedMessage(id: number, payload: Uint8Array) {
-    const message = PeerWireProtocol.createExtendedMessage(id, payload)
+  sendRequest(index: number, begin: number, length: number) {
+    const message = PeerWireProtocol.createRequest(index, begin, length)
     this.socket.send(message)
   }
 
-  sendRequest(index: number, begin: number, length: number) {
-    const message = PeerWireProtocol.createRequest(index, begin, length)
+  sendHave(index: number) {
+    // HAVE message payload is just the index (4 bytes)
+    const payload = new Uint8Array(4)
+    const view = new DataView(payload.buffer)
+    view.setUint32(0, index, false)
+    this.sendMessage(MessageType.HAVE, payload)
+  }
+
+  sendExtendedMessage(id: number, payload: Uint8Array) {
+    const message = PeerWireProtocol.createExtendedMessage(id, payload)
     this.socket.send(message)
   }
 
@@ -82,12 +90,13 @@ export class PeerConnection extends EventEmitter {
   }
 
   private handleData(data: Uint8Array) {
-    console.error('PeerConnection: handleData called, length:', data.length)
-    // Append new data to buffer
+    console.error(`PeerConnection: Received ${data.length} bytes`)
+    // Append to buffer
     const newBuffer = new Uint8Array(this.buffer.length + data.length)
     newBuffer.set(this.buffer)
     newBuffer.set(data, this.buffer.length)
     this.buffer = newBuffer
+
     this.processBuffer()
   }
 
@@ -99,7 +108,7 @@ export class PeerConnection extends EventEmitter {
         this.infoHash = result.infoHash
         this.peerId = result.peerId
         this.peerExtensions = result.extensions
-        console.log('PeerConnection: Handshake parsed, extensions:', this.peerExtensions)
+        console.error('PeerConnection: Handshake parsed, extensions:', this.peerExtensions)
         this.buffer = this.buffer.slice(68)
         this.emit('handshake', this.infoHash, this.peerId, this.peerExtensions)
         // Continue processing in case there are more messages

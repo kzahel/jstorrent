@@ -8,7 +8,8 @@ import { PieceManager } from '../../src/core/piece-manager'
 import { DiskManager } from '../../src/core/disk-manager'
 import { BitField } from '../../src/utils/bitfield'
 import { NodeSocketFactory } from '../../src/io/node/node-socket'
-import { NodeFileSystem } from '../../src/io/node/node-filesystem'
+// import { NodeFileSystem } from '../../src/io/node/node-filesystem'
+import { NodeStorageHandle } from '../../src/io/node/node-storage-handle'
 import { PeerConnection } from '../../src/core/peer-connection'
 import { PeerWireProtocol, MessageType } from '../../src/protocol/wire-protocol'
 
@@ -90,13 +91,14 @@ describe('Node.js Integration Download', () => {
 
   it('should download a piece from a local TCP peer', { timeout: 15000 }, async () => {
     const socketFactory = new NodeSocketFactory()
-    const fileSystem = new NodeFileSystem()
+    // const fileSystem = new NodeFileSystem() // Not used directly anymore
 
-    const diskManager = new DiskManager(fileSystem)
-    const filePath = path.join(tmpDir, 'download.dat')
+    const storageHandle = new NodeStorageHandle('test', 'Downloads', tmpDir)
+    const diskManager = new DiskManager(storageHandle)
+    const filePath = 'download.dat' // Relative path
     await diskManager.open([{ path: filePath, length: 16384, offset: 0 }], 16384)
 
-    const pieceManager = new PieceManager(1) // 1 piece
+    const pieceManager = new PieceManager(1, 16384, 16384) // 1 piece
     const bitfield = new BitField(1)
 
     const torrent = new Torrent(infoHash, pieceManager, diskManager, bitfield)
@@ -129,7 +131,7 @@ describe('Node.js Integration Download', () => {
     })
 
     // Verify file content
-    const content = await fs.readFile(filePath)
+    const content = await fs.readFile(path.join(tmpDir, filePath))
     expect(new Uint8Array(content)).toEqual(pieceData)
 
     // Cleanup

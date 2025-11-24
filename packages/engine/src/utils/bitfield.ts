@@ -63,4 +63,14 @@ export class BitField {
   toBuffer(): Uint8Array {
     return this.buffer
   }
+
+  count(): number {
+    let count = 0
+    for (let i = 0; i < this.length; i++) {
+      if (this.get(i)) {
+        count++
+      }
+    }
+    return count
+  }
 }

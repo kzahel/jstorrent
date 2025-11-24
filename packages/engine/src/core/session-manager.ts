@@ -1,12 +1,17 @@
 import { Client } from './client'
-import { IFileSystem } from '../interfaces/filesystem'
+import { IStorageHandle } from '../io/storage-handle'
+// import { StorageManager } from '../io/storage-manager'
+
+export interface SessionConfig {
+  profile: string
+  basePath?: string
+}
 
 export interface TorrentState {
   infoHash: string
   name?: string
   savePath: string
   paused: boolean
-  // We might need more info to resume, like magnet link or path to .torrent file
   magnetLink?: string
   torrentFilePath?: string
 }
@@ -20,8 +25,12 @@ export class SessionManager {
 
   constructor(
     private client: Client,
-    private fileSystem: IFileSystem,
-  ) {}
+    private metadataStorage: IStorageHandle,
+    // private _storageManager: StorageManager,
+    _config: SessionConfig,
+  ) {
+    console.error(`SessionManager initialized with profile: ${_config.profile}`)
+  }
 
   async save() {
     const state: SessionState = {
@@ -31,22 +40,29 @@ export class SessionManager {
           .join('')
         return {
           infoHash: hex,
-          savePath: '/downloads', // Placeholder, Torrent should have savePath
-          paused: false, // Placeholder
+          savePath: '/downloads', // Placeholder
+          paused: false,
         }
       }),
     }
 
     const data = new TextEncoder().encode(JSON.stringify(state, null, 2))
-    const handle = await this.fileSystem.open(this.stateFile, 'w')
+    const fs = this.metadataStorage.getFileSystem()
+    const handle = await fs.open(this.stateFile, 'w')
     await handle.write(data, 0, data.length, 0)
     await handle.close()
   }
 
   async load() {
     try {
-      const stat = await this.fileSystem.stat(this.stateFile)
-      const handle = await this.fileSystem.open(this.stateFile, 'r')
+      const fs = this.metadataStorage.getFileSystem()
+      if (!(await fs.exists(this.stateFile))) {
+        console.error('No session file found')
+        return
+      }
+
+      const stat = await fs.stat(this.stateFile)
+      const handle = await fs.open(this.stateFile, 'r')
       const data = new Uint8Array(stat.size)
       await handle.read(data, 0, stat.size, 0)
       await handle.close()
@@ -55,14 +71,11 @@ export class SessionManager {
       const state: SessionState = JSON.parse(json)
 
       for (const tState of state.torrents) {
-        // Resume torrent
-        // We need addTorrent to support resuming from state
-        // For now, we just log
-        console.log('Resuming torrent', tState.infoHash)
+        console.error('Resuming torrent', tState.infoHash)
+        // TODO: Reconstruct torrents using storageManager to resolve savePath
       }
     } catch (err) {
-      // Ignore error if file doesn't exist
-      console.log('No session file found or error loading', err)
+      console.error('Error loading session', err)
     }
   }
 }
