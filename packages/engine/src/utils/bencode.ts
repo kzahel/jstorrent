@@ -9,12 +9,40 @@ export class Bencode {
     const encoder = new BencodeEncoder()
     return encoder.encode(data)
   }
+  static getRawInfo(data: Uint8Array): Uint8Array | null {
+    const decoder = new BencodeDecoder(data)
+    // We want to find the 'info' key in the root dictionary
+    if (data[0] !== 0x64) return null // Must be dictionary
+    decoder.pos++ // skip 'd'
+
+    while (decoder.pos < data.length && data[decoder.pos] !== 0x65) {
+      // Decode key
+      const key = decoder.decode()
+
+      // Check if key was "info"
+      // "info" is 4 bytes: 0x69, 0x6e, 0x66, 0x6f
+      if (key instanceof Uint8Array && key.length === 4 &&
+        key[0] === 0x69 && key[1] === 0x6e && key[2] === 0x66 && key[3] === 0x6f) {
+        // Found info key. The next value is the info dict.
+        const valStart = decoder.pos
+        console.error(`Bencode: Found info key at ${valStart}`)
+        decoder.decode() // Advance past the value
+        const valEnd = decoder.pos
+        console.error(`Bencode: Info value ends at ${valEnd}, length ${valEnd - valStart}`)
+        return data.slice(valStart, valEnd)
+      }
+
+      // Skip value
+      decoder.decode()
+    }
+    return null
+  }
 }
 
 class BencodeDecoder {
-  private pos = 0
+  public pos = 0
 
-  constructor(private data: Uint8Array) {}
+  constructor(private data: Uint8Array) { }
 
   decode(): any {
     if (this.pos >= this.data.length) return null

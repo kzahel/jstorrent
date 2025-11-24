@@ -64,6 +64,10 @@ export class BitField {
     return this.buffer
   }
 
+  toHex(): string {
+    return Buffer.from(this.buffer).toString('hex')
+  }
+
   count(): number {
     let count = 0
     for (let i = 0; i < this.length; i++) {

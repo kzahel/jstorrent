@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { DiskManager } from '../../src/core/disk-manager'
+import { TorrentContentStorage } from '../../src/core/torrent-content-storage'
 import { MemoryFileSystem } from '../mocks/memory-filesystem'
 import { TorrentFile } from '../../src/core/torrent-file'
 
-describe('DiskManager', () => {
+describe('TorrentContentStorage', () => {
   let fs: MemoryFileSystem
-  let dm: DiskManager
+  let dm: TorrentContentStorage
   const pieceLength = 10
 
   beforeEach(() => {
@@ -15,7 +15,7 @@ describe('DiskManager', () => {
       name: 'test',
       getFileSystem: () => fs,
     }
-    dm = new DiskManager(mockStorageHandle)
+    dm = new TorrentContentStorage(mockStorageHandle)
   })
 
   it('should write and read from a single file', async () => {

@@ -2,7 +2,7 @@ import { IStorageHandle } from '../io/storage-handle'
 import { IFileHandle } from '../interfaces/filesystem'
 import { TorrentFile } from './torrent-file'
 
-export class DiskManager {
+export class TorrentContentStorage {
   private files: TorrentFile[] = []
   private fileHandles: Map<string, IFileHandle> = new Map()
   private openingFiles: Map<string, Promise<IFileHandle>> = new Map()
@@ -11,7 +11,9 @@ export class DiskManager {
   private id = Math.random().toString(36).slice(2, 7)
 
   constructor(private storageHandle: IStorageHandle) {
-    console.error(`DiskManager: Created instance ${this.id} for storage ${storageHandle.name}`)
+    console.error(
+      `TorrentContentStorage: Created instance ${this.id} for storage ${storageHandle.name}`,
+    )
   }
 
   async open(files: TorrentFile[], pieceLength: number) {
@@ -83,6 +85,10 @@ export class DiskManager {
         // We found the starting file
         const fileRelativeOffset = currentTorrentOffset - file.offset
         const bytesToWrite = Math.min(remaining, file.length - fileRelativeOffset)
+
+        console.error(
+          `DiskManager: Writing to ${file.path}, fileRelOffset=${fileRelativeOffset}, bytes=${bytesToWrite}, dataOffset=${dataOffset}`,
+        )
 
         const handle = await this.getFileHandle(file.path)
         await handle.write(data, dataOffset, bytesToWrite, fileRelativeOffset)

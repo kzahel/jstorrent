@@ -5,7 +5,7 @@ import * as path from 'path'
 import * as os from 'os'
 import { Torrent } from '../../src/core/torrent'
 import { PieceManager } from '../../src/core/piece-manager'
-import { DiskManager } from '../../src/core/disk-manager'
+import { TorrentContentStorage } from '../../src/core/torrent-content-storage'
 import { BitField } from '../../src/utils/bitfield'
 import { NodeSocketFactory } from '../../src/io/node/node-socket'
 // import { NodeFileSystem } from '../../src/io/node/node-filesystem'
@@ -94,14 +94,14 @@ describe('Node.js Integration Download', () => {
     // const fileSystem = new NodeFileSystem() // Not used directly anymore
 
     const storageHandle = new NodeStorageHandle('test', 'Downloads', tmpDir)
-    const diskManager = new DiskManager(storageHandle)
+    const contentStorage = new TorrentContentStorage(storageHandle)
     const filePath = 'download.dat' // Relative path
-    await diskManager.open([{ path: filePath, length: 16384, offset: 0 }], 16384)
+    await contentStorage.open([{ path: filePath, length: 16384, offset: 0 }], 16384)
 
     const pieceManager = new PieceManager(1, 16384, 16384) // 1 piece
     const bitfield = new BitField(1)
 
-    const torrent = new Torrent(infoHash, pieceManager, diskManager, bitfield)
+    const torrent = new Torrent(infoHash, pieceManager, contentStorage, bitfield)
 
     // Connect to peer
     const socket = await socketFactory.createTcpSocket('127.0.0.1', serverPort)

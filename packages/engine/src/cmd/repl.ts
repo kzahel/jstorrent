@@ -1,17 +1,20 @@
 import * as readline from 'readline'
-import { Torrent } from '../core/torrent'
-import { PeerConnection } from '../core/peer-connection'
-import { DiskManager } from '../core/disk-manager'
-import { PieceManager } from '../core/piece-manager'
-import { BitField } from '../utils/bitfield'
-import { NodeSocketFactory, NodeTcpSocket } from '../io/node/node-socket'
-// import { NodeFileSystem } from '../io/node/node-filesystem'
-import { NodeStorageHandle } from '../io/node/node-storage-handle'
-import { SessionManager } from '../core/session-manager'
-import { StorageManager } from '../io/storage-manager'
+import * as net from 'net'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import * as net from 'net'
+import * as crypto from 'crypto'
+import { Torrent } from '../core/torrent'
+import { PieceManager } from '../core/piece-manager'
+import { TorrentContentStorage } from '../core/torrent-content-storage'
+import { NodeStorageHandle } from '../io/node/node-storage-handle'
+import { NodeSocketFactory, NodeTcpSocket } from '../io/node/node-socket'
+import { PeerConnection } from '../core/peer-connection'
+import { BitField } from '../utils/bitfield'
+import { SessionManager } from '../core/session-manager'
+import { StorageManager } from '../io/storage-manager'
+import { Bencode } from '../utils/bencode'
+import { TorrentFile } from '../core/torrent-file'
+// import { NodeFileSystem } from '../io/node/node-filesystem'
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -39,7 +42,7 @@ let downloadDir = '/tmp'
 let listenPort = 0
 const torrents: Map<string, Torrent> = new Map()
 const socketFactory = new NodeSocketFactory()
-// const fileSystem = new NodeFileSystem()
+let sessionManager: SessionManager
 
 // Debug logger
 const logFile = 'engine_debug.log'
@@ -100,29 +103,17 @@ rl.on('line', async (line) => {
         break
 
       case 'add_torrent_file': {
-        // const torrentPath = req.params.path
-        // const torrentData = await fs.readFile(torrentPath)
-        // TODO: Parse torrent file to get infoHash and pieces
-        // For Phase 1 handshake test, we might mock or use a simple parser if available
-        // But we need a real Torrent object to accept peers.
-
-        // Mocking for Phase 1 Handshake Test since we don't have full .torrent parsing yet
-        // In a real scenario we would use a bdecode parser here.
-        // Let's assume the test passes info_hash in params for now or we parse it.
-        // Actually, let's try to read the infoHash from params if provided, else fail.
-
         // Create storage manager and register default handle
         const storageManager = new StorageManager()
         const defaultHandle = new NodeStorageHandle('default', 'Downloads', downloadDir)
         storageManager.register(defaultHandle)
 
-        // Create session storage handle (e.g. ~/.config/jstorrent/default)
-        // For testing, we'll use a subdir in downloadDir for now to keep it self-contained
+        // Create session storage handle
         const sessionDir = req.params.session_dir || path.join(downloadDir, '.session')
         await fs.mkdir(sessionDir, { recursive: true })
         const sessionHandle = new NodeStorageHandle('session', 'Session', sessionDir)
 
-        const sessionManager = new SessionManager(
+        sessionManager = new SessionManager(
           // @ts-expect-error Client not fully implemented yet
           { torrents: [] },
           sessionHandle,
@@ -131,52 +122,117 @@ rl.on('line', async (line) => {
         )
         await sessionManager.load()
 
-        const infoHashHex = req.params.info_hash
-        if (!infoHashHex) {
-          throw new Error('info_hash param required for Phase 1')
-        }
-        const infoHash = new Uint8Array(Buffer.from(infoHashHex, 'hex'))
+        const torrentPath = req.params.path
+        if (!torrentPath) throw new Error('path param required')
 
-        // Parse metadata from params (mocking bdecode for now)
-        const pieceLength = req.params.piece_length || 16384
-        const totalLength = req.params.total_length || 16384
-        const piecesCount = Math.ceil(totalLength / pieceLength)
+        const torrentData = await fs.readFile(torrentPath)
+        const torrentMeta = Bencode.decode(new Uint8Array(torrentData))
+
+        // Calculate infoHash
+        const infoBuffer = Bencode.getRawInfo(new Uint8Array(torrentData))
+        if (!infoBuffer) throw new Error('Could not find info dict in torrent file')
+
+        console.error(`REPL: Info buffer length: ${infoBuffer.length}`)
+        const infoHash = new Uint8Array(await crypto.subtle.digest('SHA-1', infoBuffer))
+        const infoHashHex = Buffer.from(infoHash).toString('hex')
+        console.error(`REPL: Calculated infoHash: ${infoHashHex}`)
+
+        const infoDict = torrentMeta['info']
+
+        console.error(`REPL: Parsed torrent ${torrentPath}, infoHash: ${infoHashHex}`)
+
+        // Parse metadata
+        const pieceLength = infoDict['piece length']
+        const piecesBlob = infoDict['pieces'] // Uint8Array
+        const piecesCount = Math.floor(piecesBlob.length / 20)
+
+        // Calculate total length
+        let totalLength = 0
+        let files: TorrentFile[] = []
+
+        if (infoDict['files']) {
+          // Multi-file
+          let offset = 0
+          for (const file of infoDict['files']) {
+            const length = file['length']
+            const pathParts = file['path'].map((p: Uint8Array) => new TextDecoder().decode(p))
+            const filePath = path.join(...pathParts)
+            files.push({
+              path: filePath,
+              length,
+              offset
+            })
+            offset += length
+            totalLength += length
+          }
+        } else {
+          // Single file
+          const length = infoDict['length']
+          const name = new TextDecoder().decode(infoDict['name'])
+          files.push({
+            path: name,
+            length,
+            offset: 0
+          })
+          totalLength = length
+        }
+
         const lastPieceLength = totalLength % pieceLength || pieceLength
 
-        const pieceManager = new PieceManager(piecesCount, pieceLength, lastPieceLength)
-        const bitfield = new BitField(piecesCount)
-        if (req.params.seed_mode) {
-          for (let i = 0; i < piecesCount; i++) {
-            bitfield.set(i, true)
-            // pieceManager.addReceived(i, 0) // Not strictly needed if we don't check PieceManager for sending
+        // Parse pieces
+        const pieceHashes: Uint8Array[] = []
+        for (let i = 0; i < piecesCount; i++) {
+          const hash = piecesBlob.slice(i * 20, (i + 1) * 20)
+          pieceHashes.push(hash)
+        }
+
+        // Load resume data
+        let bitfield: BitField
+        const resumeData = await sessionManager.loadTorrentResume(infoHashHex)
+        if (resumeData) {
+          console.error(`REPL: Loaded resume data for ${infoHashHex}`)
+          bitfield = new BitField(new Uint8Array(Buffer.from(resumeData.bitfield, 'hex')))
+        } else {
+          bitfield = new BitField(piecesCount)
+          if (req.params.seed_mode || req.params.files) {
+            for (let i = 0; i < piecesCount; i++) {
+              bitfield.set(i, true)
+            }
           }
         }
 
-        // Create storage handle for download dir
-        // We use the downloadDir from init, or a default
-        const storageHandle = new NodeStorageHandle('default', 'Downloads', downloadDir)
-        const diskManager = new DiskManager(storageHandle)
+        const pieceManager = new PieceManager(
+          piecesCount,
+          pieceLength,
+          lastPieceLength,
+          pieceHashes,
+          bitfield,
+        )
 
-        // Mock file list (single file)
-        const fileName = req.params.name || 'test_payload.bin'
-        const files = [
-          {
+        // Create storage handle for download dir
+        const storageHandle = new NodeStorageHandle('default', 'Downloads', downloadDir)
+        const contentStorage = new TorrentContentStorage(storageHandle)
+
+        // Mock file list
+        let mockFiles = req.params.files
+        if (!mockFiles) {
+          const fileName = req.params.name || 'test_payload.bin'
+          mockFiles = [{
             path: fileName,
             length: totalLength,
-            offset: 0,
-          },
-        ]
-        await diskManager.open(files, pieceLength)
+            offset: 0
+          }]
+        }
+        await contentStorage.open(files.length > 0 ? files : mockFiles, pieceLength)
 
-        const torrent = new Torrent(infoHash, pieceManager, diskManager, bitfield)
+        const torrent = new Torrent(infoHash, pieceManager, contentStorage, bitfield)
+
+        // Listen for verification to save resume data
+        torrent.on('verified', (data: { bitfield: string }) => {
+          sessionManager.saveTorrentResume(infoHashHex, { bitfield: data.bitfield })
+        })
+
         torrents.set(infoHashHex, torrent)
-
-        // Start listening for peers?
-        // The engine currently doesn't have a "Server" component exposed in Torrent class
-        // The test harness might need to connect TO the engine or vice versa.
-        // Usually the engine should listen.
-        // For Phase 1, let's assume we just create the torrent and wait for incoming connections
-        // But we need a TCP server.
 
         const server = socketFactory.createTcpServer()
         server.on('connection', (socket: net.Socket) => {
@@ -193,6 +249,30 @@ rl.on('line', async (line) => {
         response.port = address.port
 
         response.torrent_id = infoHashHex
+        break
+      }
+
+      case 'save_resume_data': {
+        const infoHashStr = req.params.info_hash
+        console.error(`REPL: save_resume_data for ${infoHashStr}`)
+        const torrent = torrents.get(infoHashStr)
+        if (!torrent) throw new Error(`Torrent not found: ${infoHashStr}`)
+
+        await sessionManager.saveTorrentResume(infoHashStr, { bitfield: torrent.bitfield.toHex() })
+        console.error(`REPL: Saved resume data for ${infoHashStr}`)
+        break
+      }
+
+      case 'recheck_torrent': {
+        const infoHashStr = req.params.info_hash
+        console.error(`REPL: recheck_torrent for ${infoHashStr}`)
+        const torrent = torrents.get(infoHashStr)
+        if (!torrent) throw new Error(`Torrent not found: ${infoHashStr}`)
+
+        // Run in background, don't await? Or await?
+        // The user might want to know when it's done.
+        // For now, we await it to keep the test simple.
+        await torrent.recheckData()
         break
       }
 

@@ -36,6 +36,7 @@ export class PeerConnection extends EventEmitter {
   public amChoking = true
   public amInterested = false
   public peerExtensions = false
+  public requestsPending = 0 // Number of outstanding requests
 
   public peerId: Uint8Array | null = null
   public infoHash: Uint8Array | null = null
@@ -100,7 +101,7 @@ export class PeerConnection extends EventEmitter {
   }
 
   private handleData(data: Uint8Array) {
-    console.error(`PeerConnection: Received ${data.length} bytes`)
+    // console.error(`PeerConnection: Received ${data.length} bytes`)
     // Append to buffer
     const newBuffer = new Uint8Array(this.buffer.length + data.length)
     newBuffer.set(this.buffer)
@@ -118,7 +119,7 @@ export class PeerConnection extends EventEmitter {
         this.infoHash = result.infoHash
         this.peerId = result.peerId
         this.peerExtensions = result.extensions
-        console.error('PeerConnection: Handshake parsed, extensions:', this.peerExtensions)
+        // console.error('PeerConnection: Handshake parsed, extensions:', this.peerExtensions)
         this.buffer = this.buffer.slice(68)
         this.emit('handshake', this.infoHash, this.peerId, this.peerExtensions)
         // Continue processing in case there are more messages
@@ -132,19 +133,16 @@ export class PeerConnection extends EventEmitter {
       const length = view.getUint32(0, false)
       const totalLength = 4 + length
 
-      const message = PeerWireProtocol.parseMessage(this.buffer)
-      if (message) {
-        // We need to know the length of the message to slice the buffer
-        // PeerWireProtocol.parseMessage doesn't return consumed bytes.
-        // I should probably update PeerWireProtocol to return consumed bytes or calculate it.
-        // For now, I'll calculate it based on the message type and payload.
-        // Actually, parseMessage reads the length prefix.
-
-        if (this.buffer.length >= totalLength) {
-          this.handleMessage(message)
-          this.buffer = this.buffer.slice(totalLength)
-        } else {
-          break // Wait for more data
+      if (this.buffer.length >= totalLength) {
+        const message = this.buffer.slice(0, totalLength)
+        this.buffer = this.buffer.slice(totalLength)
+        try {
+          const msg = PeerWireProtocol.parseMessage(message)
+          if (msg) this.handleMessage(msg)
+        } catch (err) {
+          console.error('Error parsing message:', err)
+          this.close()
+          return
         }
       } else {
         break // Wait for more data

@@ -2,6 +2,8 @@ import { EventEmitter } from 'events'
 import { Torrent } from './torrent'
 import { ISocketFactory } from '../interfaces/socket'
 import { IFileSystem } from '../interfaces/filesystem'
+import { TorrentParser } from './torrent-parser'
+import { FileSystemStorageHandle } from '../io/filesystem-storage-handle'
 
 export interface ClientOptions {
   downloadPath: string
@@ -14,26 +16,61 @@ export interface ClientOptions {
 
 export class Client extends EventEmitter {
   public torrents: Torrent[] = []
+  private fileSystem: IFileSystem
+  //private socketFactory: ISocketFactory
 
-  constructor(_options: ClientOptions) {
+  constructor(options: ClientOptions) {
     super()
+    this.fileSystem = options.fileSystem
+    //this.socketFactory = options.socketFactory
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async addTorrent(_magnetOrBuffer: string | Uint8Array, _options: any = {}): Promise<Torrent> {
-    // For now, we assume magnet link or buffer is handled by Torrent constructor or a factory
-    // But Torrent constructor takes infoHash, etc.
-    // We need a way to parse metadata first.
-    // For this phase, let's assume we pass a Torrent instance or enough info to create one.
-    // Actually, `Torrent` class currently takes `peerId`, `infoHash`, `pieceManager`, `diskManager`, `socketFactory`.
-    // The Client should probably orchestrate the creation of these dependencies.
+  async addTorrent(magnetOrBuffer: string | Uint8Array, _options: any = {}): Promise<Torrent> {
+    let parsed
+    if (magnetOrBuffer instanceof Uint8Array) {
+      parsed = TorrentParser.parse(magnetOrBuffer)
+    } else if (typeof magnetOrBuffer === 'string' && magnetOrBuffer.startsWith('magnet:')) {
+      throw new Error('Magnet links not yet supported')
+    } else {
+      throw new Error('Invalid torrent source')
+    }
 
-    // We need a Metadata parser (magnet or .torrent file).
-    // That's missing from our current implementation plan/codebase.
-    // For now, I'll create a placeholder for adding a torrent where we pass pre-calculated infoHash and piece count.
-    // In a real app, we'd parse the .torrent file here.
+    const { PieceManager } = await import('./piece-manager')
+    const { TorrentContentStorage } = await import('./torrent-content-storage')
+    const { BitField } = await import('../utils/bitfield')
 
-    throw new Error('Not implemented: Metadata parsing needed')
+    const pieceManager = new PieceManager(
+      Math.ceil(parsed.length / parsed.pieceLength),
+      parsed.pieceLength,
+      parsed.length % parsed.pieceLength || parsed.pieceLength,
+      parsed.pieces
+    )
+
+    const storageHandle = new FileSystemStorageHandle(this.fileSystem)
+    const contentStorage = new TorrentContentStorage(storageHandle)
+    await contentStorage.open(parsed.files, parsed.pieceLength)
+
+    const bitfield = new BitField(pieceManager.getPieceCount())
+
+    const torrent = new Torrent(
+      parsed.infoHash,
+      pieceManager,
+      contentStorage,
+      bitfield
+    )
+
+    this.torrents.push(torrent)
+    this.emit('torrent', torrent)
+
+    torrent.on('complete', () => {
+      this.emit('torrent-complete', torrent)
+    })
+
+    torrent.on('error', (err) => {
+      this.emit('error', err)
+    })
+
+    return torrent
   }
 
   // Simplified add for testing/verification with existing components

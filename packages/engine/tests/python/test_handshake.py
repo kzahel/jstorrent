@@ -49,10 +49,7 @@ def test_handshake(temp_dir):
 
         # Add torrent
         resp = engine.send_command("add_torrent_file", {
-            "path": torrent_path,
-            "info_hash": info_hash,
-            "piece_length": piece_length,
-            "total_length": file_size
+            "path": torrent_path
         })
         assert resp["ok"]
         engine_port = resp["port"]
@@ -79,6 +76,8 @@ def test_handshake(temp_dir):
             resp = engine.send_command("get_status")
             assert resp["ok"]
             torrents = resp["torrents"]
+            print(f"Torrents keys: {list(torrents.keys())}")
+            print(f"Target info_hash: {info_hash}")
             
             engine_connected = False
             if info_hash in torrents:

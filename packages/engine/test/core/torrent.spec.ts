@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Torrent } from '../../src/core/torrent'
 import { PieceManager } from '../../src/core/piece-manager'
-import { DiskManager } from '../../src/core/disk-manager'
+import { TorrentContentStorage } from '../../src/core/torrent-content-storage'
 import { MemoryFileSystem } from '../mocks/memory-filesystem'
 import { BitField } from '../../src/utils/bitfield'
 import { PeerConnection } from '../../src/core/peer-connection'
@@ -37,7 +37,7 @@ class MockSocket implements ITcpSocket {
 describe('Torrent', () => {
   let torrent: Torrent
   let pm: PieceManager
-  let dm: DiskManager
+  let dm: TorrentContentStorage
   let fs: MemoryFileSystem
   const infoHash = new Uint8Array(20).fill(1)
 
@@ -48,7 +48,7 @@ describe('Torrent', () => {
       name: 'test',
       getFileSystem: () => fs,
     }
-    dm = new DiskManager(mockStorageHandle)
+    dm = new TorrentContentStorage(mockStorageHandle)
     await dm.open([{ path: 'test', length: 100, offset: 0 }], 10)
     pm = new PieceManager(10, 10, 10)
     torrent = new Torrent(infoHash, pm, dm, new BitField(10))

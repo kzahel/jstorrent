@@ -4,26 +4,16 @@ import { Client } from '../../src/core/client'
 import { Torrent } from '../../src/core/torrent'
 import { MemoryFileSystem } from '../mocks/memory-filesystem'
 import { ISocketFactory } from '../../src/interfaces/socket'
+import { Bencode } from '../../src/utils/bencode'
+import { PieceManager } from '../../src/core/piece-manager'
+import { TorrentContentStorage } from '../../src/core/torrent-content-storage'
+import { BitField } from '../../src/utils/bitfield'
 
 // Mock dependencies
 const mockSocketFactory: ISocketFactory = {
   createTcpSocket: vi.fn(),
   createUdpSocket: vi.fn(),
 }
-
-// Mock Torrent
-vi.mock('../../src/core/torrent', () => {
-  return {
-    Torrent: class MockTorrent {
-      public infoHash: Uint8Array
-      public on = vi.fn()
-      public stop = vi.fn()
-      constructor(infoHash: Uint8Array) {
-        this.infoHash = infoHash
-      }
-    },
-  }
-})
 
 describe('Client', () => {
   let client: Client
@@ -38,9 +28,50 @@ describe('Client', () => {
     })
   })
 
-  it('should add a torrent instance', () => {
+  it('should add a torrent from a buffer', async () => {
+    // Create a mock torrent file buffer
+    const info = {
+      name: 'test-torrent',
+      'piece length': 16384,
+      pieces: new Uint8Array(20), // One piece (SHA1 hash length)
+      length: 1000,
+    }
+
+    const torrentDict = {
+      announce: 'http://tracker.example.com',
+      info: info,
+    }
+
+    const buffer = Bencode.encode(torrentDict)
+
+    const torrent = await client.addTorrent(buffer)
+
+    expect(torrent).toBeDefined()
+    expect(client.torrents).toContain(torrent)
+    expect(torrent.pieceManager).toBeDefined()
+    expect(torrent.pieceManager.getPieceCount()).toBe(1)
+    expect(torrent.contentStorage).toBeDefined()
+    expect(torrent.infoHash).toBeDefined()
+    expect(torrent.infoHash.length).toBe(20)
+  })
+
+  it('should throw on invalid buffer', async () => {
+    const buffer = new Uint8Array([0, 1, 2, 3]) // Not bencoded
+    await expect(client.addTorrent(buffer)).rejects.toThrow()
+  })
+
+  it('should throw on magnet link (not implemented)', async () => {
+    await expect(client.addTorrent('magnet:?xt=urn:btih:123')).rejects.toThrow('Magnet links not yet supported')
+  })
+
+  it('should add a torrent instance (manual)', () => {
     const infoHash = new Uint8Array(20).fill(1)
-    const torrent = new Torrent(infoHash, {} as any, {} as any, {} as any)
+    // Create dependencies for manual Torrent creation
+    const pieceManager = new PieceManager(1, 16384, 1000)
+    const contentStorage = new TorrentContentStorage({} as any)
+    const bitfield = new BitField(1)
+
+    const torrent = new Torrent(infoHash, pieceManager, contentStorage, bitfield)
 
     client.addTorrentInstance(torrent)
     expect(client.torrents).toContain(torrent)
@@ -48,7 +79,11 @@ describe('Client', () => {
 
   it('should get a torrent by infoHash', () => {
     const infoHash = new Uint8Array(20).fill(0xab)
-    const torrent = new Torrent(infoHash, {} as any, {} as any, {} as any)
+    const pieceManager = new PieceManager(1, 16384, 1000)
+    const contentStorage = new TorrentContentStorage({} as any)
+    const bitfield = new BitField(1)
+    const torrent = new Torrent(infoHash, pieceManager, contentStorage, bitfield)
+
     client.addTorrentInstance(torrent)
 
     const hex = Buffer.from(infoHash).toString('hex')
@@ -58,7 +93,14 @@ describe('Client', () => {
 
   it('should remove a torrent', () => {
     const infoHash = new Uint8Array(20).fill(2)
-    const torrent = new Torrent(infoHash, {} as any, {} as any, {} as any)
+    const pieceManager = new PieceManager(1, 16384, 1000)
+    const contentStorage = new TorrentContentStorage({} as any)
+    const bitfield = new BitField(1)
+    const torrent = new Torrent(infoHash, pieceManager, contentStorage, bitfield)
+
+    // Mock stop method
+    torrent.stop = vi.fn()
+
     client.addTorrentInstance(torrent)
 
     client.removeTorrent(torrent)
@@ -67,8 +109,12 @@ describe('Client', () => {
   })
 
   it('should destroy client and stop all torrents', () => {
-    const t1 = new Torrent(new Uint8Array(20).fill(1), {} as any, {} as any, {} as any)
-    const t2 = new Torrent(new Uint8Array(20).fill(2), {} as any, {} as any, {} as any)
+    const t1 = new Torrent(new Uint8Array(20).fill(1), new PieceManager(1, 100, 100), {} as any, new BitField(1))
+    const t2 = new Torrent(new Uint8Array(20).fill(2), new PieceManager(1, 100, 100), {} as any, new BitField(1))
+
+    t1.stop = vi.fn()
+    t2.stop = vi.fn()
+
     client.addTorrentInstance(t1)
     client.addTorrentInstance(t2)
 

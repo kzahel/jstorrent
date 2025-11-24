@@ -52,10 +52,18 @@ export class PieceManager {
   private bitfield: BitField
   private piecesCount: number
   private completedPieces: number = 0
+  private pieceHashes: Uint8Array[] = []
 
-  constructor(piecesCount: number, pieceLength: number, lastPieceLength: number) {
+  constructor(
+    piecesCount: number,
+    pieceLength: number,
+    lastPieceLength: number,
+    pieceHashes: Uint8Array[] = [],
+    bitfield?: BitField,
+  ) {
     this.piecesCount = piecesCount
-    this.bitfield = new BitField(piecesCount)
+    this.pieceHashes = pieceHashes
+    this.bitfield = bitfield || new BitField(piecesCount)
 
     for (let i = 0; i < piecesCount; i++) {
       const length = i === piecesCount - 1 ? lastPieceLength : pieceLength
@@ -63,8 +71,16 @@ export class PieceManager {
     }
   }
 
+  getPieceHash(index: number): Uint8Array | undefined {
+    return this.pieceHashes[index]
+  }
+
   getPieceCount(): number {
     return this.piecesCount
+  }
+
+  getPieceLength(index: number): number {
+    return this.pieces[index].length
   }
 
   hasPiece(index: number): boolean {
@@ -95,9 +111,25 @@ export class PieceManager {
     const piece = this.pieces[index]
     if (piece) {
       piece.setBlock(blockIndex, true)
-      if (piece.isComplete) {
-        this.setPiece(index, true)
-      }
+      // We don't set global bitfield here anymore.
+      // We wait for verification.
+    }
+  }
+
+  markVerified(index: number) {
+    this.setPiece(index, true)
+  }
+
+  resetPiece(index: number) {
+    const piece = this.pieces[index]
+    if (piece) {
+      // Reset blocks
+      piece.blocks = new BitField(piece.blocksCount)
+      piece.isComplete = false
+      // Reset requested?
+      piece.requested = new BitField(piece.blocksCount)
+      // Ensure bitfield is false
+      this.setPiece(index, false)
     }
   }
 
@@ -107,6 +139,15 @@ export class PieceManager {
     if (piece) {
       piece.setRequested(blockIndex, true)
     }
+  }
+
+  isBlockRequested(index: number, begin: number): boolean {
+    const blockIndex = Math.floor(begin / BLOCK_SIZE)
+    const piece = this.pieces[index]
+    if (piece) {
+      return piece.isRequested(blockIndex)
+    }
+    return false
   }
 
   isPieceComplete(index: number): boolean {

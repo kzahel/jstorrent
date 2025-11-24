@@ -70,6 +70,37 @@ class LibtorrentSession:
         info_hash = str(info.info_hash())
         return torrent_path, str(info_hash)
 
+    def create_multi_file_torrent(self, dir_name: str, files: list[Tuple[str, int]], piece_length: int = 0) -> Tuple[str, str]:
+        """
+        Creates a multi-file torrent.
+        files: list of (filename, size) tuples.
+        Returns (torrent_path, info_hash_hex).
+        """
+        base_path = os.path.join(self.root_dir, dir_name)
+        os.makedirs(base_path, exist_ok=True)
+        
+        fs = lt.file_storage()
+        
+        for name, size in files:
+            file_path = os.path.join(base_path, name)
+            # Ensure subdirectories exist if name contains path separators
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, "wb") as f:
+                f.write(os.urandom(size))
+            fs.add_file(os.path.join(dir_name, name), size)
+
+        t = lt.create_torrent(fs, piece_size=piece_length)
+        t.set_creator('libtorrent_test')
+        lt.set_piece_hashes(t, self.root_dir) # set_piece_hashes expects the parent dir of the content
+        
+        torrent_path = os.path.join(self.root_dir, dir_name + ".torrent")
+        with open(torrent_path, "wb") as f:
+            f.write(lt.bencode(t.generate()))
+            
+        info = lt.torrent_info(torrent_path)
+        info_hash = str(info.info_hash())
+        return torrent_path, str(info_hash)
+
     def add_torrent(self, torrent_path: str, save_path: str, seed_mode: bool = False):
         params = lt.add_torrent_params()
         params.ti = lt.torrent_info(torrent_path)
