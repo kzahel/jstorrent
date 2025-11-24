@@ -61,7 +61,9 @@ describe('Client', () => {
   })
 
   it('should throw on magnet link (not implemented)', async () => {
-    await expect(client.addTorrent('magnet:?xt=urn:btih:123')).rejects.toThrow('Magnet links not yet supported')
+    await expect(client.addTorrent('magnet:?xt=urn:btih:123')).rejects.toThrow(
+      'Magnet links not yet supported',
+    )
   })
 
   it('should add a torrent instance (manual)', () => {
@@ -109,8 +111,18 @@ describe('Client', () => {
   })
 
   it('should destroy client and stop all torrents', () => {
-    const t1 = new Torrent(new Uint8Array(20).fill(1), new PieceManager(1, 100, 100), {} as any, new BitField(1))
-    const t2 = new Torrent(new Uint8Array(20).fill(2), new PieceManager(1, 100, 100), {} as any, new BitField(1))
+    const t1 = new Torrent(
+      new Uint8Array(20).fill(1),
+      new PieceManager(1, 100, 100),
+      {} as any,
+      new BitField(1),
+    )
+    const t2 = new Torrent(
+      new Uint8Array(20).fill(2),
+      new PieceManager(1, 100, 100),
+      {} as any,
+      new BitField(1),
+    )
 
     t1.stop = vi.fn()
     t2.stop = vi.fn()

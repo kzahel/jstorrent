@@ -43,7 +43,7 @@ export class Client extends EventEmitter {
       Math.ceil(parsed.length / parsed.pieceLength),
       parsed.pieceLength,
       parsed.length % parsed.pieceLength || parsed.pieceLength,
-      parsed.pieces
+      parsed.pieces,
     )
 
     const storageHandle = new FileSystemStorageHandle(this.fileSystem)
@@ -52,12 +52,7 @@ export class Client extends EventEmitter {
 
     const bitfield = new BitField(pieceManager.getPieceCount())
 
-    const torrent = new Torrent(
-      parsed.infoHash,
-      pieceManager,
-      contentStorage,
-      bitfield
-    )
+    const torrent = new Torrent(parsed.infoHash, pieceManager, contentStorage, bitfield)
 
     this.torrents.push(torrent)
     this.emit('torrent', torrent)

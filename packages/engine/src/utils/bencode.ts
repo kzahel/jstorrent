@@ -21,8 +21,14 @@ export class Bencode {
 
       // Check if key was "info"
       // "info" is 4 bytes: 0x69, 0x6e, 0x66, 0x6f
-      if (key instanceof Uint8Array && key.length === 4 &&
-        key[0] === 0x69 && key[1] === 0x6e && key[2] === 0x66 && key[3] === 0x6f) {
+      if (
+        key instanceof Uint8Array &&
+        key.length === 4 &&
+        key[0] === 0x69 &&
+        key[1] === 0x6e &&
+        key[2] === 0x66 &&
+        key[3] === 0x6f
+      ) {
         // Found info key. The next value is the info dict.
         const valStart = decoder.pos
         console.error(`Bencode: Found info key at ${valStart}`)
@@ -42,7 +48,7 @@ export class Bencode {
 class BencodeDecoder {
   public pos = 0
 
-  constructor(private data: Uint8Array) { }
+  constructor(private data: Uint8Array) {}
 
   decode(): any {
     if (this.pos >= this.data.length) return null

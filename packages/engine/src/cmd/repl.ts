@@ -160,7 +160,7 @@ rl.on('line', async (line) => {
             files.push({
               path: filePath,
               length,
-              offset
+              offset,
             })
             offset += length
             totalLength += length
@@ -172,7 +172,7 @@ rl.on('line', async (line) => {
           files.push({
             path: name,
             length,
-            offset: 0
+            offset: 0,
           })
           totalLength = length
         }
@@ -217,11 +217,13 @@ rl.on('line', async (line) => {
         let mockFiles = req.params.files
         if (!mockFiles) {
           const fileName = req.params.name || 'test_payload.bin'
-          mockFiles = [{
-            path: fileName,
-            length: totalLength,
-            offset: 0
-          }]
+          mockFiles = [
+            {
+              path: fileName,
+              length: totalLength,
+              offset: 0,
+            },
+          ]
         }
         await contentStorage.open(files.length > 0 ? files : mockFiles, pieceLength)
 
