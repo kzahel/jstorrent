@@ -4,6 +4,11 @@ import { ISocketFactory } from '../interfaces/socket'
 import { IFileSystem } from '../interfaces/filesystem'
 import { TorrentParser } from './torrent-parser'
 import { FileSystemStorageHandle } from '../io/filesystem-storage-handle'
+import { areInfoHashesEqual, toInfoHashString } from '../utils/infohash'
+import { parseMagnet } from '../utils/magnet'
+import { PieceManager } from './piece-manager'
+import { TorrentContentStorage } from './torrent-content-storage'
+import { BitField } from '../utils/bitfield'
 
 export interface ClientOptions {
   downloadPath: string
@@ -27,45 +32,70 @@ export class Client extends EventEmitter {
 
   async addTorrent(magnetOrBuffer: string | Uint8Array, _options: unknown = {}): Promise<Torrent> {
     let parsed
+    let magnetInfo
     if (magnetOrBuffer instanceof Uint8Array) {
       parsed = TorrentParser.parse(magnetOrBuffer)
     } else if (typeof magnetOrBuffer === 'string' && magnetOrBuffer.startsWith('magnet:')) {
-      throw new Error('Magnet links not yet supported')
+      magnetInfo = parseMagnet(magnetOrBuffer)
     } else {
       throw new Error('Invalid torrent source')
     }
 
-    const { PieceManager } = await import('./piece-manager')
-    const { TorrentContentStorage } = await import('./torrent-content-storage')
-    const { BitField } = await import('../utils/bitfield')
+    if (parsed) {
+      const pieceManager = new PieceManager(
+        Math.ceil(parsed.length / parsed.pieceLength),
+        parsed.pieceLength,
+        parsed.length % parsed.pieceLength || parsed.pieceLength,
+        parsed.pieces,
+      )
 
-    const pieceManager = new PieceManager(
-      Math.ceil(parsed.length / parsed.pieceLength),
-      parsed.pieceLength,
-      parsed.length % parsed.pieceLength || parsed.pieceLength,
-      parsed.pieces,
-    )
+      const storageHandle = new FileSystemStorageHandle(this.fileSystem)
+      const contentStorage = new TorrentContentStorage(storageHandle)
+      await contentStorage.open(parsed.files, parsed.pieceLength)
 
-    const storageHandle = new FileSystemStorageHandle(this.fileSystem)
-    const contentStorage = new TorrentContentStorage(storageHandle)
-    await contentStorage.open(parsed.files, parsed.pieceLength)
+      const bitfield = new BitField(pieceManager.getPieceCount())
 
-    const bitfield = new BitField(pieceManager.getPieceCount())
+      const torrent = new Torrent(
+        parsed.infoHash,
+        pieceManager,
+        contentStorage,
+        bitfield,
+        parsed.announce,
+      )
 
-    const torrent = new Torrent(parsed.infoHash, pieceManager, contentStorage, bitfield)
+      this.torrents.push(torrent)
+      this.emit('torrent', torrent)
 
-    this.torrents.push(torrent)
-    this.emit('torrent', torrent)
+      torrent.on('complete', () => {
+        this.emit('torrent-complete', torrent)
+      })
 
-    torrent.on('complete', () => {
-      this.emit('torrent-complete', torrent)
-    })
+      torrent.on('error', (err) => {
+        this.emit('error', err)
+      })
 
-    torrent.on('error', (err) => {
-      this.emit('error', err)
-    })
+      return torrent
+    } else if (magnetInfo) {
+      const infoHashBuffer = Buffer.from(magnetInfo.infoHash, 'hex')
+      const torrent = new Torrent(
+        infoHashBuffer,
+        undefined,
+        undefined,
+        undefined,
+        magnetInfo.announce,
+      )
 
-    return torrent
+      this.torrents.push(torrent)
+      this.emit('torrent', torrent)
+
+      torrent.on('error', (err) => {
+        this.emit('error', err)
+      })
+
+      return torrent
+    }
+
+    throw new Error('Should not happen')
   }
 
   // Simplified add for testing/verification with existing components
@@ -91,13 +121,18 @@ export class Client extends EventEmitter {
     }
   }
 
+  removeTorrentByHash(infoHash: string) {
+    const torrent = this.getTorrent(infoHash)
+    if (torrent) {
+      this.removeTorrent(torrent)
+    }
+  }
+
   getTorrent(infoHash: string): Torrent | undefined {
     // infoHash string hex
     return this.torrents.find((t) => {
-      const hex = Array.from(t.infoHash)
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('')
-      return hex === infoHash
+      const hex = toInfoHashString(t.infoHash)
+      return areInfoHashesEqual(hex, infoHash)
     })
   }
 

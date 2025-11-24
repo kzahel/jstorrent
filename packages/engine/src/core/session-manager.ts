@@ -1,6 +1,7 @@
 import { Client } from './client'
 import { IStorageHandle } from '../io/storage-handle'
-// import { StorageManager } from '../io/storage-manager'
+import { StorageManager } from '../io/storage-manager'
+import { toInfoHashString } from '../utils/infohash'
 
 export interface SessionConfig {
   profile: string
@@ -26,7 +27,7 @@ export class SessionManager {
   constructor(
     private client: Client,
     private metadataStorage: IStorageHandle,
-    // private _storageManager: StorageManager,
+    private storageManager: StorageManager,
     _config: SessionConfig,
   ) {
     console.error(`SessionManager initialized with profile: ${_config.profile}`)
@@ -35,12 +36,12 @@ export class SessionManager {
   async save() {
     const state: SessionState = {
       torrents: this.client.torrents.map((t) => {
-        const hex = Array.from(t.infoHash)
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join('')
+        const hex = toInfoHashString(t.infoHash)
+        // Use the 'default' storage handle ID if available, otherwise fallback to first available or empty
+        const defaultHandle = this.storageManager.get('default') || this.storageManager.getAll()[0]
         return {
           infoHash: hex,
-          savePath: '/downloads', // Placeholder
+          savePath: defaultHandle ? defaultHandle.id : '',
           paused: false,
         }
       }),

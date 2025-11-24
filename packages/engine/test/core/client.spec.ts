@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Client } from '../../src/core/client'
 import { Torrent } from '../../src/core/torrent'
-import { MemoryFileSystem } from '../mocks/memory-filesystem'
+import { InMemoryFileSystem } from '../../src/io/memory/memory-filesystem'
 import { ISocketFactory } from '../../src/interfaces/socket'
 import { Bencode } from '../../src/utils/bencode'
 import { PieceManager } from '../../src/core/piece-manager'
@@ -16,11 +16,11 @@ const mockSocketFactory: ISocketFactory = {
 }
 
 describe('Client', () => {
+  let fileSystem: InMemoryFileSystem
   let client: Client
-  let fileSystem: MemoryFileSystem
 
   beforeEach(() => {
-    fileSystem = new MemoryFileSystem()
+    fileSystem = new InMemoryFileSystem()
     client = new Client({
       downloadPath: '/downloads',
       socketFactory: mockSocketFactory,
@@ -49,7 +49,7 @@ describe('Client', () => {
     expect(torrent).toBeDefined()
     expect(client.torrents).toContain(torrent)
     expect(torrent.pieceManager).toBeDefined()
-    expect(torrent.pieceManager.getPieceCount()).toBe(1)
+    expect(torrent.pieceManager?.getPieceCount()).toBe(1)
     expect(torrent.contentStorage).toBeDefined()
     expect(torrent.infoHash).toBeDefined()
     expect(torrent.infoHash.length).toBe(20)
@@ -60,10 +60,19 @@ describe('Client', () => {
     await expect(client.addTorrent(buffer)).rejects.toThrow()
   })
 
-  it('should throw on magnet link (not implemented)', async () => {
-    await expect(client.addTorrent('magnet:?xt=urn:btih:123')).rejects.toThrow(
-      'Magnet links not yet supported',
+  it('should add a torrent from a magnet link', async () => {
+    const magnetLink =
+      'magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn=Test+Torrent&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce'
+    const torrent = await client.addTorrent(magnetLink)
+
+    expect(torrent).toBeDefined()
+    expect(client.torrents).toContain(torrent)
+    expect(Buffer.from(torrent.infoHash).toString('hex')).toBe(
+      'c12fe1c06bba254a9dc9f519b335aa7c1367a88a',
     )
+    expect(torrent.announce).toContain('udp://tracker.opentrackr.org:1337/announce')
+    expect(torrent.pieceManager).toBeUndefined()
+    expect(torrent.contentStorage).toBeUndefined()
   })
 
   it('should add a torrent instance (manual)', () => {

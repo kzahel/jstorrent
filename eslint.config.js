@@ -42,4 +42,16 @@ export default tseslint.config(
       },
     },
   },
+  {
+    files: ['packages/engine/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ImportExpression',
+          message: 'Dynamic imports are banned in the engine package.',
+        },
+      ],
+    },
+  },
 )

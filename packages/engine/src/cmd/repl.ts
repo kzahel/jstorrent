@@ -117,7 +117,7 @@ rl.on('line', async (line) => {
           // @ts-expect-error Client not fully implemented yet
           { torrents: [] },
           sessionHandle,
-          // storageManager,
+          storageManager,
           { profile: 'default' },
         )
         await sessionManager.load()
@@ -260,7 +260,13 @@ rl.on('line', async (line) => {
         const torrent = torrents.get(infoHashStr)
         if (!torrent) throw new Error(`Torrent not found: ${infoHashStr}`)
 
-        await sessionManager.saveTorrentResume(infoHashStr, { bitfield: torrent.bitfield.toHex() })
+        if (torrent.bitfield) {
+          await sessionManager.saveTorrentResume(infoHashStr, {
+            bitfield: torrent.bitfield.toHex(),
+          })
+        } else {
+          console.error(`REPL: No bitfield to save for ${infoHashStr}`)
+        }
         console.error(`REPL: Saved resume data for ${infoHashStr}`)
         break
       }

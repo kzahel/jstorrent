@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SessionManager } from '../../src/core/session-manager'
 import { Client } from '../../src/core/client'
-import { MemoryFileSystem } from '../mocks/memory-filesystem'
+import { InMemoryFileSystem } from '../../src/io/memory/memory-filesystem'
 import { Torrent } from '../../src/core/torrent'
 
 // Mock Torrent
@@ -20,11 +20,11 @@ vi.mock('../../src/core/torrent', () => {
 
 describe('SessionManager', () => {
   let client: Client
-  let fileSystem: MemoryFileSystem
+  let fileSystem: InMemoryFileSystem
   let sessionManager: SessionManager
 
   beforeEach(() => {
-    fileSystem = new MemoryFileSystem()
+    fileSystem = new InMemoryFileSystem()
     client = new Client({
       downloadPath: '/downloads',
       socketFactory: {} as any,
@@ -40,6 +40,7 @@ describe('SessionManager', () => {
     const mockStorageManager = {
       register: vi.fn(),
       get: vi.fn(),
+      getAll: vi.fn().mockReturnValue([]),
     }
 
     // @ts-expect-error Mocking interfaces

@@ -4,25 +4,29 @@ import { PieceManager } from './piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 import { BitField } from '../utils/bitfield'
 import { MessageType, WireMessage } from '../protocol/wire-protocol'
+import * as crypto from 'crypto'
 
 export class Torrent extends EventEmitter {
   private peers: PeerConnection[] = []
   public infoHash: Uint8Array
-  public pieceManager: PieceManager
-  public contentStorage: TorrentContentStorage
-  public bitfield: BitField
+  public pieceManager?: PieceManager
+  public contentStorage?: TorrentContentStorage
+  public bitfield?: BitField
+  public announce: string[] = []
 
   constructor(
     infoHash: Uint8Array,
-    pieceManager: PieceManager,
-    contentStorage: TorrentContentStorage,
-    bitfield: BitField,
+    pieceManager?: PieceManager,
+    contentStorage?: TorrentContentStorage,
+    bitfield?: BitField,
+    announce: string[] = [],
   ) {
     super()
     this.infoHash = infoHash
     this.pieceManager = pieceManager
     this.contentStorage = contentStorage
     this.bitfield = bitfield
+    this.announce = announce
   }
 
   get infoHashStr(): string {
@@ -35,7 +39,10 @@ export class Torrent extends EventEmitter {
 
   addPeer(peer: PeerConnection) {
     this.peers.push(peer)
-    peer.bitfield = new BitField(this.pieceManager.getPieceCount())
+    this.peers.push(peer)
+    if (this.pieceManager) {
+      peer.bitfield = new BitField(this.pieceManager.getPieceCount())
+    }
     this.setupPeerListeners(peer)
 
     // Send handshake
@@ -49,7 +56,9 @@ export class Torrent extends EventEmitter {
       console.error('Torrent: Handshake received')
       // Verify infoHash matches
       // Send BitField
-      peer.sendMessage(MessageType.BITFIELD, this.bitfield.toBuffer())
+      if (this.bitfield) {
+        peer.sendMessage(MessageType.BITFIELD, this.bitfield.toBuffer())
+      }
     })
 
     peer.on('bitfield', (_bf) => {
@@ -107,10 +116,12 @@ export class Torrent extends EventEmitter {
       return
     }
 
-    if (!this.bitfield.get(index)) {
+    if (!this.bitfield || !this.bitfield.get(index)) {
       // We don't have this piece
       return
     }
+
+    if (!this.contentStorage) return
 
     try {
       const block = await this.contentStorage.read(index, begin, length)
@@ -157,6 +168,7 @@ export class Torrent extends EventEmitter {
     }
 
     // Simple strategy: request missing blocks from pieces that peer has
+    if (!this.pieceManager) return
     const missing = this.pieceManager.getMissingPieces()
     // console.error(`Torrent: Missing pieces: ${ missing.length } `)
 
@@ -201,7 +213,7 @@ export class Torrent extends EventEmitter {
 
             peer.sendRequest(index, block.begin, block.length)
             peer.requestsPending++
-            this.pieceManager.addRequested(index, block.begin)
+            this.pieceManager?.addRequested(index, block.begin)
           }
         }
       }
@@ -213,22 +225,26 @@ export class Torrent extends EventEmitter {
       // console.error(`Torrent: Received piece ${ msg.index } begin ${ msg.begin } `)
       if (peer.requestsPending > 0) peer.requestsPending--
 
-      await this.contentStorage.write(msg.index, msg.begin, msg.block)
+      if (this.contentStorage) {
+        await this.contentStorage.write(msg.index, msg.begin, msg.block)
+      }
 
-      this.pieceManager.addReceived(msg.index, msg.begin)
+      this.pieceManager?.addReceived(msg.index, msg.begin)
 
-      if (this.pieceManager.isPieceComplete(msg.index)) {
+      if (this.pieceManager?.isPieceComplete(msg.index)) {
         // Verify hash
         const isValid = await this.verifyPiece(msg.index)
         if (isValid) {
           console.error(`Torrent: Piece ${msg.index} verified and complete`)
-          this.pieceManager.markVerified(msg.index)
+          this.pieceManager?.markVerified(msg.index)
           this.emit('piece', msg.index)
 
           // Emit verified event for persistence
-          this.emit('verified', {
-            bitfield: this.bitfield.toHex(),
-          })
+          if (this.bitfield) {
+            this.emit('verified', {
+              bitfield: this.bitfield.toHex(),
+            })
+          }
 
           // Send HAVE message to all peers
           for (const p of this.peers) {
@@ -238,7 +254,7 @@ export class Torrent extends EventEmitter {
           }
         } else {
           console.error(`Torrent: Piece ${msg.index} failed hash check`)
-          this.pieceManager.resetPiece(msg.index)
+          this.pieceManager?.resetPiece(msg.index)
         }
       }
 
@@ -248,6 +264,7 @@ export class Torrent extends EventEmitter {
   }
 
   private async verifyPiece(index: number): Promise<boolean> {
+    if (!this.pieceManager || !this.contentStorage) return false
     const expectedHash = this.pieceManager.getPieceHash(index)
     if (!expectedHash) {
       // If no hashes provided (e.g. Phase 1), assume valid
@@ -259,7 +276,7 @@ export class Torrent extends EventEmitter {
     const data = await this.contentStorage.read(index, 0, pieceLength)
 
     // Calculate SHA1
-    const crypto = await import('crypto')
+
     const hash = crypto.createHash('sha1').update(data).digest()
 
     // Compare
@@ -269,7 +286,9 @@ export class Torrent extends EventEmitter {
     console.error('Torrent: Stopping')
     this.peers.forEach((peer) => peer.close())
     this.peers = []
-    await this.contentStorage.close()
+    if (this.contentStorage) {
+      await this.contentStorage.close()
+    }
     this.emit('stopped')
   }
 
@@ -280,6 +299,8 @@ export class Torrent extends EventEmitter {
     // We iterate through all pieces and verify them.
     // We don't clear the bitfield upfront because we want to keep what we have if it's valid.
     // But if we find an invalid piece that was marked valid, we must reset it.
+
+    if (!this.pieceManager) return
 
     const piecesCount = this.pieceManager.getPieceCount()
     for (let i = 0; i < piecesCount; i++) {
@@ -311,7 +332,9 @@ export class Torrent extends EventEmitter {
     }
 
     // Trigger save of resume data
-    this.emit('verified', { bitfield: this.bitfield.toHex() })
+    if (this.bitfield) {
+      this.emit('verified', { bitfield: this.bitfield.toHex() })
+    }
     this.emit('checked')
     console.error(`Torrent: Recheck complete for ${this.infoHashStr}`)
   }

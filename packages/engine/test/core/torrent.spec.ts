@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { Torrent } from '../../src/core/torrent'
 import { PieceManager } from '../../src/core/piece-manager'
 import { TorrentContentStorage } from '../../src/core/torrent-content-storage'
-import { MemoryFileSystem } from '../mocks/memory-filesystem'
+import { InMemoryFileSystem } from '../../src/io/memory/memory-filesystem'
 import { BitField } from '../../src/utils/bitfield'
 import { PeerConnection } from '../../src/core/peer-connection'
 import { ITcpSocket } from '../../src/interfaces/socket'
@@ -37,21 +37,21 @@ class MockSocket implements ITcpSocket {
 describe('Torrent', () => {
   let torrent: Torrent
   let pm: PieceManager
-  let dm: TorrentContentStorage
-  let fs: MemoryFileSystem
+  let fileSystem: InMemoryFileSystem
+  let contentStorage: TorrentContentStorage
   const infoHash = new Uint8Array(20).fill(1)
 
   beforeEach(async () => {
-    fs = new MemoryFileSystem()
+    fileSystem = new InMemoryFileSystem()
     const mockStorageHandle = {
       id: 'test',
       name: 'test',
-      getFileSystem: () => fs,
+      getFileSystem: () => fileSystem,
     }
-    dm = new TorrentContentStorage(mockStorageHandle)
-    await dm.open([{ path: 'test', length: 100, offset: 0 }], 10)
+    contentStorage = new TorrentContentStorage(mockStorageHandle)
+    await contentStorage.open([{ path: 'test', length: 100, offset: 0 }], 10)
     pm = new PieceManager(10, 10, 10)
-    torrent = new Torrent(infoHash, pm, dm, new BitField(10))
+    torrent = new Torrent(infoHash, pm, contentStorage, new BitField(10))
   })
 
   it('should handle piece from peer', async () => {
@@ -72,7 +72,7 @@ describe('Torrent', () => {
       torrent.on('piece', async (_index) => {
         try {
           // Verify disk has data
-          const readBack = await dm.read(0, 0, 10)
+          const readBack = await contentStorage.read(0, 0, 10)
           expect(readBack).toEqual(block)
 
           // Verify piece manager updated
