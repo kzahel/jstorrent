@@ -1,16 +1,12 @@
 import { ITracker } from '../interfaces/tracker'
 import { EventEmitter } from 'events'
 import { Bencode } from '../utils/bencode'
-// We might need a cross-platform fetch or abstract HTTP
-// Since we are in 'engine', we should probably use 'fetch' if available (Node 18+ / Browser)
-// or abstract it. For now, let's assume global fetch is available or use a polyfill if needed.
-// But `http` module is Node specific.
-// The plan said "Node.js Adapters" for Phase 4.
-// For Phase 5, `HttpTracker` should ideally be platform agnostic.
-// We can use `fetch`.
+import { ISocketFactory } from '../interfaces/socket'
+import { MinimalHttpClient } from '../utils/minimal-http-client'
 
 export class HttpTracker extends EventEmitter implements ITracker {
   private _interval: number = 1800
+  private httpClient: MinimalHttpClient
 
   get interval(): number {
     return this._interval
@@ -21,45 +17,41 @@ export class HttpTracker extends EventEmitter implements ITracker {
     private announceUrl: string,
     private infoHash: Uint8Array,
     private peerId: Uint8Array,
+    socketFactory: ISocketFactory,
     private port: number = 6881,
   ) {
     super()
+    this.httpClient = new MinimalHttpClient(socketFactory)
   }
 
   async announce(event: 'started' | 'stopped' | 'completed' | 'update' = 'started'): Promise<void> {
-    const params = new URLSearchParams()
-    params.set('info_hash', this.escapeInfoHash(this.infoHash))
-    params.set('peer_id', new TextDecoder().decode(this.peerId)) // This might be binary, need careful encoding
-    // Actually, URLSearchParams encodes values. But info_hash needs to be %-encoded bytes.
-    // Standard URLSearchParams might not handle binary strings correctly if they contain invalid UTF-8.
-    // We usually need to manually construct the query string for binary data.
-
-    // Let's implement a custom query builder for binary data
     const query = this.buildQuery(event)
     const url = `${this.announceUrl}?${query}`
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = (await fetch(url)) as any
-      if (!response.ok) {
-        throw new Error(`Tracker returned ${response.status}`)
-      }
-      const buffer = await response.arrayBuffer()
-      const data = new Uint8Array(buffer)
-
-      // Parse Bencoded response
-      // We need a Bencode parser!
-      // I haven't implemented a Bencode parser yet in this plan.
-      // I should have.
-      // Let's assume I need to implement a Bencode parser first or use a simple one here.
-      // For now, I'll implement a basic Bencode parser in `utils/bencode.ts`.
-
-      const parsed = Bencode.decode(data)
-      this.handleResponse(parsed)
+      const responseBody = await this.httpClient.get(url)
+      this.handleBody(responseBody)
     } catch (err) {
-      this.emit('error', err)
+      this.emit(
+        'warning',
+        `Tracker announce failed: ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
   }
+
+  private handleBody(bodyBuffer: Buffer) {
+    try {
+      const parsed = Bencode.decode(new Uint8Array(bodyBuffer))
+      this.handleResponse(parsed)
+    } catch (err) {
+      this.emit(
+        'warning',
+        `Failed to decode tracker response: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+  }
+
+  // Removed handleRawResponse as it is replaced by streaming logic above
 
   private escapeInfoHash(buffer: Uint8Array): string {
     return Array.from(buffer)

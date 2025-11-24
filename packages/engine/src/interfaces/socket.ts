@@ -69,4 +69,16 @@ export interface ISocketFactory {
    * Create a new UDP socket bound to the specified address and port.
    */
   createUdpSocket(bindAddr?: string, bindPort?: number): Promise<IUdpSocket>
+
+  /**
+   * Create a TCP server.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createTcpServer(): any
+
+  /**
+   * Wrap a native socket into ITcpSocket.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  wrapTcpSocket(socket: any): ITcpSocket
 }

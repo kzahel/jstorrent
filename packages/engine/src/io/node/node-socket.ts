@@ -1,4 +1,5 @@
 import * as net from 'net'
+import * as dgram from 'dgram'
 import { ITcpSocket, ISocketFactory, IUdpSocket } from '../../interfaces/socket'
 
 export class NodeTcpSocket implements ITcpSocket {
@@ -10,12 +11,12 @@ export class NodeTcpSocket implements ITcpSocket {
 
   connect(port: number, host: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      console.error(`NodeTcpSocket: Connecting to ${host}:${port}`)
+      // console.error(`NodeTcpSocket: Connecting to ${host}:${port}`)
       const socket = new net.Socket()
       this.socket = socket
 
       socket.connect(port, host, () => {
-        console.error(`NodeTcpSocket: Connected to ${host}:${port}`)
+        // console.error(`NodeTcpSocket: Connected to ${host}:${port}`)
         resolve()
       })
 
@@ -23,16 +24,10 @@ export class NodeTcpSocket implements ITcpSocket {
         console.error(`NodeTcpSocket: Error connecting: ${err.message}`)
         reject(err)
       })
-
-      // We must attach a data listener or pause/resume to ensure we don't lose data?
-      // Node sockets start in paused mode if no data listener?
-      // Actually, if we don't attach 'data', it might flow if we don't pause?
-      // "The socket is created in 'paused' mode."
     })
   }
 
   send(data: Uint8Array): void {
-    // console.error(`NodeTcpSocket: Sending ${data.length} bytes`)
     if (this.socket.destroyed || !this.socket.writable) {
       console.error('NodeTcpSocket: Socket not writable, skipping send')
       return
@@ -51,9 +46,9 @@ export class NodeTcpSocket implements ITcpSocket {
   }
 
   onData(cb: (data: Uint8Array) => void): void {
-    console.error('NodeTcpSocket: Registering onData listener')
+    // console.error('NodeTcpSocket: Registering onData listener')
     this.socket.on('data', (data) => {
-      console.error(`NodeTcpSocket: Received ${data.length} bytes from net.Socket`)
+      // console.error(`NodeTcpSocket: Received ${data.length} bytes from net.Socket`)
       cb(new Uint8Array(data))
     })
   }
@@ -67,8 +62,34 @@ export class NodeTcpSocket implements ITcpSocket {
   }
 
   close(): void {
-    console.error('NodeTcpSocket: Closing socket')
+    // console.error('NodeTcpSocket: Closing socket')
     this.socket.destroy()
+  }
+}
+
+export class NodeUdpSocket implements IUdpSocket {
+  private socket: dgram.Socket
+
+  constructor(socket?: dgram.Socket) {
+    this.socket = socket || dgram.createSocket('udp4')
+  }
+
+  send(addr: string, port: number, data: Uint8Array): void {
+    this.socket.send(data, port, addr, (err) => {
+      if (err) {
+        console.error(`NodeUdpSocket: Error sending data: ${err.message}`)
+      }
+    })
+  }
+
+  onMessage(cb: (src: { addr: string; port: number }, data: Uint8Array) => void): void {
+    this.socket.on('message', (msg, rinfo) => {
+      cb({ addr: rinfo.address, port: rinfo.port }, new Uint8Array(msg))
+    })
+  }
+
+  close(): void {
+    this.socket.close()
   }
 }
 
@@ -82,10 +103,15 @@ export class NodeSocketFactory implements ISocketFactory {
   }
 
   async createUdpSocket(_bindAddr?: string, _bindPort?: number): Promise<IUdpSocket> {
-    throw new Error('UDP not implemented for Node adapter yet')
+    return new NodeUdpSocket()
   }
 
   createTcpServer(): net.Server {
     return net.createServer()
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  wrapTcpSocket(socket: any): ITcpSocket {
+    return new NodeTcpSocket(socket)
   }
 }

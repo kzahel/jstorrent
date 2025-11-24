@@ -43,6 +43,7 @@ let listenPort = 0
 const torrents: Map<string, Torrent> = new Map()
 const socketFactory = new NodeSocketFactory()
 let sessionManager: SessionManager
+const peerId = Buffer.concat([Buffer.from('-JS0001-'), crypto.randomBytes(12)])
 
 // Debug logger
 const logFile = 'engine_debug.log'
@@ -227,7 +228,15 @@ rl.on('line', async (line) => {
         }
         await contentStorage.open(files.length > 0 ? files : mockFiles, pieceLength)
 
-        const torrent = new Torrent(infoHash, pieceManager, contentStorage, bitfield)
+        const torrent = new Torrent(
+          infoHash,
+          peerId,
+          socketFactory,
+          listenPort,
+          pieceManager,
+          contentStorage,
+          bitfield,
+        )
 
         // Listen for verification to save resume data
         torrent.on('verified', (data: { bitfield: string }) => {

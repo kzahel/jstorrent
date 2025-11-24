@@ -27,7 +27,13 @@ describe('SessionManager', () => {
     fileSystem = new InMemoryFileSystem()
     client = new Client({
       downloadPath: '/downloads',
-      socketFactory: {} as any,
+      socketFactory: {
+        createTcpServer: vi.fn().mockReturnValue({
+          on: vi.fn(),
+          listen: vi.fn(),
+          address: vi.fn().mockReturnValue({ port: 0 }),
+        }),
+      } as any,
       fileSystem: fileSystem,
     })
 

@@ -5,14 +5,21 @@ import { TorrentContentStorage } from './torrent-content-storage'
 import { BitField } from '../utils/bitfield'
 import { MessageType, WireMessage } from '../protocol/wire-protocol'
 import * as crypto from 'crypto'
+import { TrackerManager } from '../tracker/tracker-manager'
+import { ISocketFactory } from '../interfaces/socket'
+import { PeerInfo } from '../interfaces/tracker'
 
 export class Torrent extends EventEmitter {
   private peers: PeerConnection[] = []
   public infoHash: Uint8Array
+  public peerId: Uint8Array
+  public socketFactory: ISocketFactory
+  public port: number
   public pieceManager?: PieceManager
   public contentStorage?: TorrentContentStorage
   public bitfield?: BitField
   public announce: string[] = []
+  public trackerManager?: TrackerManager
 
   // Metadata Phase
   public metadataSize: number | null = null
@@ -23,6 +30,9 @@ export class Torrent extends EventEmitter {
 
   constructor(
     infoHash: Uint8Array,
+    peerId: Uint8Array,
+    socketFactory: ISocketFactory,
+    port: number,
     pieceManager?: PieceManager,
     contentStorage?: TorrentContentStorage,
     bitfield?: BitField,
@@ -30,10 +40,84 @@ export class Torrent extends EventEmitter {
   ) {
     super()
     this.infoHash = infoHash
+    this.peerId = peerId
+    this.socketFactory = socketFactory
+    this.port = port
     this.pieceManager = pieceManager
     this.contentStorage = contentStorage
     this.bitfield = bitfield
     this.announce = announce
+
+    if (this.announce.length > 0) {
+      // Group announce URLs into tiers (for now just one tier per URL or all in one)
+      // TrackerManager expects string[][]
+      const tiers = [this.announce]
+      this.trackerManager = new TrackerManager(
+        tiers,
+        this.infoHash,
+        this.peerId,
+        this.socketFactory,
+        this.port,
+      )
+
+      this.trackerManager.on('peer', (peer: PeerInfo) => {
+        // TODO: Connect to peer
+        console.error(`Torrent: Discovered peer ${peer.ip}:${peer.port}`)
+        // We need to initiate connection.
+        // But PeerConnection usually wraps an existing socket or initiates one?
+        // PeerConnection currently takes a socket.
+        // We need to create a socket and connect.
+        this.connectToPeer(peer)
+      })
+
+      this.trackerManager.on('warning', (msg) => {
+        console.warn(`Torrent: Tracker warning: ${msg}`)
+      })
+
+      this.trackerManager.on('error', (err) => {
+        console.error(`Torrent: Tracker error: ${err.message}`)
+      })
+    }
+  }
+
+  async start() {
+    if (this.trackerManager) {
+      console.error('Torrent: Starting tracker announce')
+      await this.trackerManager.announce('started')
+    }
+  }
+
+  private async connectToPeer(peerInfo: PeerInfo) {
+    // Check if already connected
+    // This is a simple check, ideally we check against known peers map
+    const alreadyConnected = this.peers.some(
+      (p) => p.remoteAddress === peerInfo.ip && p.remotePort === peerInfo.port,
+    )
+    if (alreadyConnected) return
+
+    try {
+      console.error(`Torrent: Connecting to ${peerInfo.ip}:${peerInfo.port}`)
+      const socket = await this.socketFactory.createTcpSocket(peerInfo.ip, peerInfo.port)
+
+      // Wait for connection? createTcpSocket with args usually connects.
+      // But let's assume it returns a connected socket or one that connects.
+      // If it's the interface from extension, it might need explicit connect if not handled by factory?
+      // The interface says: createTcpSocket(host, port) -> Promise<ITcpSocket>
+      // So it should be connected.
+
+      const peer = new PeerConnection(socket, {
+        remoteAddress: peerInfo.ip,
+        remotePort: peerInfo.port,
+      })
+
+      // We need to set up the peer
+      this.addPeer(peer)
+
+      // Initiate handshake
+      peer.sendHandshake(this.infoHash, this.peerId)
+    } catch (err) {
+      console.error(`Torrent: Failed to connect to peer ${peerInfo.ip}:${peerInfo.port}`, err)
+    }
   }
 
   get infoHashStr(): string {
@@ -46,26 +130,20 @@ export class Torrent extends EventEmitter {
 
   addPeer(peer: PeerConnection) {
     this.peers.push(peer)
-    this.peers.push(peer)
     if (this.pieceManager) {
       peer.bitfield = new BitField(this.pieceManager.getPieceCount())
     }
     this.setupPeerListeners(peer)
-
-    // Send handshake
-    // In a real scenario, we might wait for connection or it might be already connected
-    // For now, assume we trigger handshake
-    // peer.sendHandshake(this.infoHash, this.peerId); // We need a local peerId
-
-    // Send Extended Handshake immediately if we are connected
-    // In real implementation, this happens after handshake.
-    // But since we hook into 'handshake' event below, we can do it there.
   }
 
   private setupPeerListeners(peer: PeerConnection) {
     peer.on('handshake', (_infoHash, _peerId, extensions) => {
       // console.error('Torrent: Handshake received')
       // Verify infoHash matches
+
+      // If we initiated connection, we sent handshake first.
+      // If they initiated, they sent handshake first.
+      // PeerConnection handles the handshake exchange logic mostly.
 
       if (extensions) {
         peer.sendExtendedHandshake()
@@ -212,7 +290,7 @@ export class Torrent extends EventEmitter {
     // Simple strategy: request missing blocks from pieces that peer has
     if (!this.pieceManager) return
     const missing = this.pieceManager.getMissingPieces()
-    // console.error(`Torrent: Missing pieces: ${ missing.length } `)
+    console.log(`Torrent: Missing pieces: ${missing.length}`)
 
     // Count pending requests for this peer
     // We need to track this on the peer object or calculate it.
@@ -232,7 +310,10 @@ export class Torrent extends EventEmitter {
     for (const index of missing) {
       if (peer.requestsPending >= MAX_PIPELINE) break
 
-      if (peer.bitfield?.get(index)) {
+      const hasPiece = peer.bitfield?.get(index)
+      // console.log(`Torrent: Checking piece ${index}, peer has: ${hasPiece}`)
+
+      if (hasPiece) {
         const neededBlocks = this.pieceManager.getNeededBlocks(index)
         if (neededBlocks.length > 0) {
           for (const block of neededBlocks) {
@@ -264,7 +345,7 @@ export class Torrent extends EventEmitter {
 
   private async handlePiece(peer: PeerConnection, msg: WireMessage) {
     if (msg.index !== undefined && msg.begin !== undefined && msg.block) {
-      // console.error(`Torrent: Received piece ${ msg.index } begin ${ msg.begin } `)
+      // console.error(`Torrent: Received piece ${msg.index} begin ${msg.begin} `)
       if (peer.requestsPending > 0) peer.requestsPending--
 
       if (this.contentStorage) {
@@ -272,6 +353,8 @@ export class Torrent extends EventEmitter {
       }
 
       this.pieceManager?.addReceived(msg.index, msg.begin)
+
+      this.emit('download', msg.block.length)
 
       if (this.pieceManager?.isPieceComplete(msg.index)) {
         // Verify hash
@@ -294,6 +377,8 @@ export class Torrent extends EventEmitter {
               p.sendHave(msg.index)
             }
           }
+
+          this.checkCompletion()
         } else {
           console.error(`Torrent: Piece ${msg.index} failed hash check`)
           this.pieceManager?.resetPiece(msg.index)
@@ -326,6 +411,10 @@ export class Torrent extends EventEmitter {
   }
   async stop() {
     console.error('Torrent: Stopping')
+    if (this.trackerManager) {
+      await this.trackerManager.announce('stopped')
+      this.trackerManager.destroy()
+    }
     this.peers.forEach((peer) => peer.close())
     this.peers = []
     if (this.contentStorage) {
@@ -380,6 +469,15 @@ export class Torrent extends EventEmitter {
     this.emit('checked')
     console.error(`Torrent: Recheck complete for ${this.infoHashStr}`)
     console.error(`Torrent: Recheck complete for ${this.infoHashStr}`)
+    this.checkCompletion()
+  }
+
+  private checkCompletion() {
+    if (this.pieceManager?.isComplete()) {
+      console.log('Torrent: Download complete!')
+      this.emit('done')
+      this.emit('complete')
+    }
   }
 
   // Metadata Logic

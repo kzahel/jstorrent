@@ -1,32 +1,47 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { HttpTracker } from '../../src/tracker/http-tracker'
 import { Bencode } from '../../src/utils/bencode'
+import { MinimalHttpClient } from '../../src/utils/minimal-http-client'
 
-// Mock fetch
-const fetchMock = vi.fn()
-global.fetch = fetchMock
+// Mock MinimalHttpClient
+vi.mock('../../src/utils/minimal-http-client', () => {
+  return {
+    MinimalHttpClient: vi.fn().mockImplementation(() => {
+      return {
+        get: vi.fn(),
+      }
+    }),
+  }
+})
 
 describe('HttpTracker', () => {
   const announceUrl = 'http://tracker.example.com/announce'
   const infoHash = new Uint8Array(20).fill(1)
   const peerId = new Uint8Array(20).fill(2)
   let tracker: HttpTracker
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockHttpClient: any
 
   beforeEach(() => {
-    tracker = new HttpTracker(announceUrl, infoHash, peerId)
-    fetchMock.mockReset()
+    // Reset mocks
+    vi.clearAllMocks()
+
+    // Create tracker (this will instantiate MockMinimalHttpClient)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tracker = new HttpTracker(announceUrl, infoHash, peerId, {} as any)
+
+    // Get the mock instance
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockHttpClient = (MinimalHttpClient as any).mock.results[0].value
   })
 
   it('should construct correct announce URL', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      arrayBuffer: async () => Bencode.encode({ interval: 1800, peers: [] }),
-    })
+    mockHttpClient.get.mockResolvedValue(Buffer.from(Bencode.encode({ interval: 1800, peers: [] })))
 
     await tracker.announce('started')
 
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    const url = new URL(fetchMock.mock.calls[0][0])
+    expect(mockHttpClient.get).toHaveBeenCalledTimes(1)
+    const url = new URL(mockHttpClient.get.mock.calls[0][0])
     expect(url.origin + url.pathname).toBe(announceUrl)
     expect(url.searchParams.get('port')).toBe('6881')
     expect(url.searchParams.get('compact')).toBe('1')
@@ -34,7 +49,7 @@ describe('HttpTracker', () => {
 
     // Check info_hash encoding manually as URLSearchParams might decode it
     // The query string in the mock call should contain the encoded info_hash
-    const fullUrl = fetchMock.mock.calls[0][0] as string
+    const fullUrl = mockHttpClient.get.mock.calls[0][0] as string
     expect(fullUrl).toContain(
       'info_hash=%01%01%01%01%01%01%01%01%01%01%01%01%01%01%01%01%01%01%01%01',
     )
@@ -48,10 +63,7 @@ describe('HttpTracker', () => {
       peers: peersCompact,
     }
 
-    fetchMock.mockResolvedValue({
-      ok: true,
-      arrayBuffer: async () => Bencode.encode(response),
-    })
+    mockHttpClient.get.mockResolvedValue(Buffer.from(Bencode.encode(response)))
 
     const peerSpy = vi.fn()
     tracker.on('peer', peerSpy)
@@ -62,10 +74,9 @@ describe('HttpTracker', () => {
   })
 
   it('should handle tracker errors', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      arrayBuffer: async () => Bencode.encode({ 'failure reason': 'Invalid info_hash' }),
-    })
+    mockHttpClient.get.mockResolvedValue(
+      Buffer.from(Bencode.encode({ 'failure reason': 'Invalid info_hash' })),
+    )
 
     const errorSpy = vi.fn()
     tracker.on('error', errorSpy)

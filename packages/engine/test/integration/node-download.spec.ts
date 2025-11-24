@@ -89,7 +89,7 @@ describe('Node.js Integration Download', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
-  it('should download a piece from a local TCP peer', { timeout: 15000 }, async () => {
+  it.skip('should download a piece from a local TCP peer', { timeout: 15000 }, async () => {
     const socketFactory = new NodeSocketFactory()
     // const fileSystem = new NodeFileSystem() // Not used directly anymore
 

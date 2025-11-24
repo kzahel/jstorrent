@@ -9,6 +9,8 @@ import { areInfoHashesEqual, toInfoHashString } from '../utils/infohash'
 import { parseMagnet } from '../utils/magnet'
 import { PieceManager } from './piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
+import { PeerConnection } from './peer-connection'
+import * as crypto from 'crypto'
 
 export interface ClientOptions {
   downloadPath: string
@@ -17,17 +19,92 @@ export interface ClientOptions {
   maxConnections?: number
   maxDownloadSpeed?: number
   maxUploadSpeed?: number
+  peerId?: string // Optional custom peerId
+  port?: number // Listening port to announce
 }
 
 export class Client extends EventEmitter {
   public torrents: Torrent[] = []
   private fileSystem: IFileSystem
-  //private socketFactory: ISocketFactory
+  private socketFactory: ISocketFactory
+  public peerId: Uint8Array
+  public port: number
 
   constructor(options: ClientOptions) {
     super()
     this.fileSystem = options.fileSystem
-    //this.socketFactory = options.socketFactory
+    this.socketFactory = options.socketFactory
+    this.port = options.port || 6881
+
+    if (options.peerId) {
+      this.peerId = Buffer.from(options.peerId)
+    } else {
+      // Generate random peerId: -JS0001- + 12 random bytes
+      const prefix = '-JS0001-'
+      const random = crypto.randomBytes(12)
+      this.peerId = Buffer.concat([Buffer.from(prefix), random])
+    }
+
+    this.startServer()
+  }
+
+  private startServer() {
+    try {
+      const server = this.socketFactory.createTcpServer()
+      if (server && typeof server.listen === 'function') {
+        server.listen(this.port, () => {
+          console.log(`Client listening on port ${this.port}`)
+        })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        server.on('connection', (socket: any) => {
+          this.handleIncomingConnection(socket)
+        })
+      }
+    } catch (err) {
+      console.warn('Failed to start server:', err)
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private handleIncomingConnection(nativeSocket: any) {
+    try {
+      const socket = this.socketFactory.wrapTcpSocket(nativeSocket)
+      // We don't know the remote address/port easily from ITcpSocket interface if not exposed.
+      // But PeerConnection might need it.
+      // NodeTcpSocket doesn't expose it.
+      // However, PeerConnection uses it for logging mostly.
+      // Let's try to extract it if possible or use placeholders.
+      const remoteAddress = nativeSocket.remoteAddress || 'unknown'
+      const remotePort = nativeSocket.remotePort || 0
+
+      const peer = new PeerConnection(socket, {
+        remoteAddress,
+        remotePort,
+      })
+
+      // Wait for handshake
+      peer.on('handshake', (infoHash: Uint8Array, _peerId: Uint8Array) => {
+        const hex = toInfoHashString(infoHash)
+        const torrent = this.getTorrent(hex)
+        if (torrent) {
+          console.log(`Client: Incoming connection for torrent ${hex}`)
+          torrent.addPeer(peer)
+          // Send handshake back
+          peer.sendHandshake(torrent.infoHash, torrent.peerId)
+          // Send bitfield
+          if (torrent.bitfield) {
+            peer.sendMessage(5, torrent.bitfield.toBuffer()) // 5 = BITFIELD
+          }
+        } else {
+          console.warn(`Client: Incoming connection for unknown torrent ${hex}`)
+          peer.close()
+        }
+      })
+
+      // Timeout if no handshake?
+    } catch (err) {
+      console.error('Client: Error handling incoming connection', err)
+    }
   }
 
   async addTorrent(magnetOrBuffer: string | Uint8Array, _options: unknown = {}): Promise<Torrent> {
@@ -57,6 +134,9 @@ export class Client extends EventEmitter {
 
       const torrent = new Torrent(
         parsed.infoHash,
+        this.peerId,
+        this.socketFactory,
+        this.port,
         pieceManager,
         contentStorage,
         bitfield,
@@ -78,11 +158,17 @@ export class Client extends EventEmitter {
         this.emit('error', err)
       })
 
+      // Start the torrent (starts tracker)
+      torrent.start()
+
       return torrent
     } else if (magnetInfo) {
       const infoHashBuffer = Buffer.from(magnetInfo.infoHash, 'hex')
       const torrent = new Torrent(
         infoHashBuffer,
+        this.peerId,
+        this.socketFactory,
+        this.port,
         undefined,
         undefined,
         undefined,
@@ -144,6 +230,9 @@ export class Client extends EventEmitter {
         }
       })
 
+      // Start the torrent (starts tracker)
+      torrent.start()
+
       return torrent
     }
 
@@ -162,6 +251,9 @@ export class Client extends EventEmitter {
     torrent.on('error', (err) => {
       this.emit('error', err)
     })
+
+    // Start if not already started?
+    // torrent.start()
   }
 
   removeTorrent(torrent: Torrent) {

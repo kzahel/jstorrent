@@ -32,6 +32,12 @@ class MockSocketFactory implements ISocketFactory {
   createUdpSocket = vi.fn(async (_bindAddr?: string, _bindPort?: number) => {
     return this.socket
   })
+  createTcpServer = vi.fn().mockReturnValue({
+    on: vi.fn(),
+    listen: vi.fn(),
+    address: vi.fn().mockReturnValue({ port: 0 }),
+  })
+  wrapTcpSocket = vi.fn()
 }
 
 describe('UdpTracker', () => {
@@ -77,18 +83,13 @@ describe('UdpTracker', () => {
     const annView = new DataView(announceReq.buffer)
     expect(annView.getBigUint64(0, false)).toBe(0x1234567890n) // Connection ID
     expect(annView.getUint32(8, false)).toBe(1) // Action Announce
-    expect(annView.getUint32(12, false)).toBe(txId) // Tx ID (reused? usually new one)
-    // My implementation reuses txId for simplicity or generates new one?
-    // In code: `this.transactionId = Math.floor(...)` in connect.
-    // In sendAnnounce: `view.setUint32(12, this.transactionId, false);`
-    // It reuses the same ID. This is technically allowed but usually new ID per transaction.
-    // For this test it matches.
+    const announceTxId = annView.getUint32(12, false) // Tx ID
 
     // Simulate announce response with peers
     const announceResp = new Uint8Array(26) // 20 header + 6 peer
     const annRespView = new DataView(announceResp.buffer)
     annRespView.setUint32(0, 1, false) // Action Announce
-    annRespView.setUint32(4, txId, false)
+    annRespView.setUint32(4, announceTxId, false)
     annRespView.setUint32(8, 1800, false) // Interval
     annRespView.setUint32(12, 10, false) // Leechers
     annRespView.setUint32(16, 5, false) // Seeders

@@ -50,10 +50,16 @@ export class PeerConnection extends EventEmitter {
   public peerId: Uint8Array | null = null
   public infoHash: Uint8Array | null = null
   public bitfield: BitField | null = null
+  public remoteAddress?: string
+  public remotePort?: number
 
-  constructor(socket: ITcpSocket) {
+  constructor(socket: ITcpSocket, options?: { remoteAddress?: string; remotePort?: number }) {
     super()
     this.socket = socket
+    if (options) {
+      this.remoteAddress = options.remoteAddress
+      this.remotePort = options.remotePort
+    }
 
     this.socket.onData((data) => this.handleData(data))
     // Assuming ITcpSocket will be updated to support these or we wrap it
@@ -173,7 +179,9 @@ export class PeerConnection extends EventEmitter {
         this.buffer = this.buffer.slice(totalLength)
         try {
           const msg = PeerWireProtocol.parseMessage(message)
-          if (msg) this.handleMessage(msg)
+          if (msg) {
+            this.handleMessage(msg)
+          }
         } catch (err) {
           console.error('Error parsing message:', err)
           this.close()

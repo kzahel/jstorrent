@@ -28,7 +28,13 @@ export class TrackerManager extends EventEmitter {
         try {
           let tracker: ITracker | null = null
           if (url.startsWith('http')) {
-            tracker = new HttpTracker(url, this.infoHash, this.peerId, this.port)
+            tracker = new HttpTracker(
+              url,
+              this.infoHash,
+              this.peerId,
+              this.socketFactory,
+              this.port,
+            )
           } else if (url.startsWith('udp')) {
             tracker = new UdpTracker(url, this.infoHash, this.peerId, this.socketFactory, this.port)
           }

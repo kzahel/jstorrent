@@ -13,6 +13,12 @@ import { BitField } from '../../src/utils/bitfield'
 const mockSocketFactory: ISocketFactory = {
   createTcpSocket: vi.fn(),
   createUdpSocket: vi.fn(),
+  createTcpServer: vi.fn().mockReturnValue({
+    on: vi.fn(),
+    listen: vi.fn(),
+    address: vi.fn().mockReturnValue({ port: 0 }),
+  }),
+  wrapTcpSocket: vi.fn(),
 }
 
 describe('Client', () => {
@@ -82,7 +88,15 @@ describe('Client', () => {
     const contentStorage = new TorrentContentStorage({} as any)
     const bitfield = new BitField(1)
 
-    const torrent = new Torrent(infoHash, pieceManager, contentStorage, bitfield)
+    const torrent = new Torrent(
+      infoHash,
+      new Uint8Array(20).fill(0),
+      mockSocketFactory,
+      0,
+      pieceManager,
+      contentStorage,
+      bitfield,
+    )
 
     client.addTorrentInstance(torrent)
     expect(client.torrents).toContain(torrent)
@@ -93,7 +107,15 @@ describe('Client', () => {
     const pieceManager = new PieceManager(1, 16384, 1000)
     const contentStorage = new TorrentContentStorage({} as any)
     const bitfield = new BitField(1)
-    const torrent = new Torrent(infoHash, pieceManager, contentStorage, bitfield)
+    const torrent = new Torrent(
+      infoHash,
+      new Uint8Array(20).fill(0),
+      mockSocketFactory,
+      0,
+      pieceManager,
+      contentStorage,
+      bitfield,
+    )
 
     client.addTorrentInstance(torrent)
 
@@ -107,7 +129,15 @@ describe('Client', () => {
     const pieceManager = new PieceManager(1, 16384, 1000)
     const contentStorage = new TorrentContentStorage({} as any)
     const bitfield = new BitField(1)
-    const torrent = new Torrent(infoHash, pieceManager, contentStorage, bitfield)
+    const torrent = new Torrent(
+      infoHash,
+      new Uint8Array(20).fill(0),
+      mockSocketFactory,
+      0,
+      pieceManager,
+      contentStorage,
+      bitfield,
+    )
 
     // Mock stop method
     torrent.stop = vi.fn()
@@ -122,12 +152,18 @@ describe('Client', () => {
   it('should destroy client and stop all torrents', () => {
     const t1 = new Torrent(
       new Uint8Array(20).fill(1),
+      new Uint8Array(20).fill(0),
+      mockSocketFactory,
+      0,
       new PieceManager(1, 100, 100),
       {} as any,
       new BitField(1),
     )
     const t2 = new Torrent(
       new Uint8Array(20).fill(2),
+      new Uint8Array(20).fill(0),
+      mockSocketFactory,
+      0,
       new PieceManager(1, 100, 100),
       {} as any,
       new BitField(1),
