@@ -21,6 +21,7 @@ export interface PeerConnection {
   on(event: 'request', listener: (index: number, begin: number, length: number) => void): this
   on(event: 'piece', listener: (index: number, begin: number, data: Uint8Array) => void): this
   on(event: 'cancel', listener: (index: number, begin: number, length: number) => void): this
+  on(event: 'interested', listener: () => void): this
 
   close(): void
 }
@@ -78,6 +79,15 @@ export class PeerConnection extends EventEmitter {
     const view = new DataView(payload.buffer)
     view.setUint32(0, index, false)
     this.sendMessage(MessageType.HAVE, payload)
+  }
+
+  sendPiece(index: number, begin: number, block: Uint8Array) {
+    const payload = new Uint8Array(8 + block.length)
+    const view = new DataView(payload.buffer)
+    view.setUint32(0, index, false)
+    view.setUint32(4, begin, false)
+    payload.set(block, 8)
+    this.sendMessage(MessageType.PIECE, payload)
   }
 
   sendExtendedMessage(id: number, payload: Uint8Array) {
@@ -156,6 +166,7 @@ export class PeerConnection extends EventEmitter {
         break
       case MessageType.INTERESTED:
         this.peerInterested = true
+        this.emit('interested')
         break
       case MessageType.NOT_INTERESTED:
         this.peerInterested = false

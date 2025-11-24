@@ -145,6 +145,12 @@ rl.on('line', async (line) => {
 
         const pieceManager = new PieceManager(piecesCount, pieceLength, lastPieceLength)
         const bitfield = new BitField(piecesCount)
+        if (req.params.seed_mode) {
+          for (let i = 0; i < piecesCount; i++) {
+            bitfield.set(i, true)
+            // pieceManager.addReceived(i, 0) // Not strictly needed if we don't check PieceManager for sending
+          }
+        }
 
         // Create storage handle for download dir
         // We use the downloadDir from init, or a default

@@ -60,10 +60,19 @@ export class Torrent extends EventEmitter {
       this.requestPieces(peer)
     })
 
+    peer.on('interested', () => {
+      console.error('Torrent: Interested received')
+      this.handleInterested(peer)
+    })
+
     peer.on('message', (msg) => {
       if (msg.type === MessageType.PIECE) {
         this.handlePiece(peer, msg)
       }
+    })
+
+    peer.on('request', (index, begin, length) => {
+      this.handleRequest(peer, index, begin, length)
     })
 
     peer.on('error', (err) => {
@@ -81,6 +90,37 @@ export class Torrent extends EventEmitter {
     const index = this.peers.indexOf(peer)
     if (index !== -1) {
       this.peers.splice(index, 1)
+    }
+  }
+
+  private async handleRequest(peer: PeerConnection, index: number, begin: number, length: number) {
+    if (peer.amChoking) {
+      // We are choking the peer, ignore request
+      return
+    }
+
+    if (!this.bitfield.get(index)) {
+      // We don't have this piece
+      return
+    }
+
+    try {
+      const block = await this.diskManager.read(index, begin, length)
+      peer.sendPiece(index, begin, block)
+    } catch (err) {
+      console.error(
+        `Torrent: Error handling request: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+  }
+
+  private handleInterested(peer: PeerConnection) {
+    peer.peerInterested = true
+    // Simple unchoke strategy: always unchoke interested peers
+    if (peer.amChoking) {
+      console.error('Torrent: Unchoking peer')
+      peer.amChoking = false
+      peer.sendMessage(MessageType.UNCHOKE)
     }
   }
 
