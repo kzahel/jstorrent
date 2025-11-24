@@ -87,4 +87,8 @@ export class NodeFileSystem implements IFileSystem {
       return false
     }
   }
+
+  async readdir(dirPath: string): Promise<string[]> {
+    return fs.readdir(dirPath)
+  }
 }

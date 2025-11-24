@@ -66,4 +66,10 @@ export interface IFileSystem {
    * Check if a path exists.
    */
   exists(path: string): Promise<boolean>
+
+  /**
+   * Read directory contents.
+   * Returns list of filenames (not full paths).
+   */
+  readdir(path: string): Promise<string[]>
 }
