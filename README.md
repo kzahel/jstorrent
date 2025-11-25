@@ -69,6 +69,22 @@ This repository contains the source code for JSTorrent, including the Chrome ext
 
 The native messaging host is located in the `native-host/` directory.
 
+#### Prerequisites
+
+To build the Rust components, you need to have Rust and Cargo installed.
+
+**macOS:**
+```bash
+brew install rust
+```
+
+**Linux:**
+```bash
+sudo apt install cargo
+```
+
+On linux you may need `libgtk-3-dev` installed with apt
+
 #### Build
 
 ```bash
