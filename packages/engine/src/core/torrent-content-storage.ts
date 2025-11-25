@@ -26,6 +26,10 @@ export class TorrentContentStorage {
     // Let's stick to open-on-demand logic implicitly in read/write.
   }
 
+  get filesList(): TorrentFile[] {
+    return this.files
+  }
+
   async close() {
     console.error(`DiskManager ${this.id}: Closing all files`)
     // Wait for any pending opens?

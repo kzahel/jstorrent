@@ -8,6 +8,8 @@ import * as crypto from 'crypto'
 import { TrackerManager } from '../tracker/tracker-manager'
 import { ISocketFactory } from '../interfaces/socket'
 import { PeerInfo } from '../interfaces/tracker'
+import { TorrentFileInfo } from './torrent-file-info'
+
 
 export class Torrent extends EventEmitter {
   private peers: PeerConnection[] = []
@@ -20,6 +22,7 @@ export class Torrent extends EventEmitter {
   public bitfield?: BitField
   public announce: string[] = []
   public trackerManager?: TrackerManager
+  private _files: TorrentFileInfo[] = []
 
   // Metadata Phase
   public metadataSize: number | null = null
@@ -126,6 +129,31 @@ export class Torrent extends EventEmitter {
 
   get numPeers(): number {
     return this.peers.length
+  }
+
+  get files(): TorrentFileInfo[] {
+    if (this._files.length > 0) return this._files
+
+    if (this.contentStorage && this.pieceManager) {
+      const rawFiles = this.contentStorage.filesList
+      const pieceLength = this.pieceManager.getPieceLength(0) // Assuming constant piece length for now, or use pieceManager property
+      // pieceManager doesn't expose pieceLength directly as a property, but getPieceLength(index).
+      // We can use index 0.
+
+      this._files = rawFiles.map(
+        (f) => new TorrentFileInfo(f, this.pieceManager!, pieceLength),
+      )
+      return this._files
+    }
+    return []
+  }
+
+  get progress(): number {
+    return this.pieceManager?.getProgress() || 0
+  }
+
+  get name(): string {
+    return `Torrent-${this.infoHashStr.substring(0, 8)}...`
   }
 
   addPeer(peer: PeerConnection) {
