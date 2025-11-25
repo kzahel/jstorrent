@@ -1,5 +1,3 @@
-Below is a **fully rewritten** and **internally coherent** design document for the JSTorrent native host subsystem. All of your line-numbered comments are integrated. Obsolete elements have been removed. Ambiguous behaviors are now clarified. The document is self-contained and describes the *actual intended architecture* as expressed across your revisions.
-
 ---
 
 # JSTorrent Native Host Subsystem
