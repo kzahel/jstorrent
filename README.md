@@ -48,7 +48,9 @@ This repository contains the source code for JSTorrent, including the Chrome ext
  ```
  
  The build artifacts will be in `extension/dist`.
- 
+
+ Load as an unpacked extension in chrome://extensions from the extension/dist folder.
+
  #### Test
  
  ```bash

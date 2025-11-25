@@ -3,6 +3,7 @@ import tseslint from 'typescript-eslint'
 import reactPlugin from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import prettierConfig from 'eslint-config-prettier'
 import globals from 'globals'
 
 export default tseslint.config(
@@ -54,4 +55,7 @@ export default tseslint.config(
       ],
     },
   },
+  // IMPORTANT: Keep this last to disable formatting rules that conflict with Prettier
+  // This must come after all other configs to properly override formatting rules
+  prettierConfig,
 )
