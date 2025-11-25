@@ -13,12 +13,12 @@
     "dev": "pnpm --recursive --parallel dev",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "format": "prettier --check .",
     "test": "pnpm --recursive test",
     "typecheck": "pnpm --recursive typecheck",
     "build": "pnpm --recursive build",
-    "checkall": "npm-run-all --parallel lint format:check typecheck test",
+    "checkall": "npm-run-all --parallel lint format typecheck test",
     "prepare": "husky"
   },
   "devDependencies": {

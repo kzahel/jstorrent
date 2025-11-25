@@ -1,1 +1,0 @@
-- ci should test uninstallers too
