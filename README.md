@@ -83,7 +83,7 @@ brew install rust
 sudo apt install cargo
 ```
 
-On linux you may need `libgtk-3-dev` installed with apt
+On ubuntu you may need `libgtk-3-dev` installed with apt
 
 #### Build
 
