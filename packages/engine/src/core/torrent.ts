@@ -10,7 +10,6 @@ import { ISocketFactory } from '../interfaces/socket'
 import { PeerInfo } from '../interfaces/tracker'
 import { TorrentFileInfo } from './torrent-file-info'
 
-
 export class Torrent extends EventEmitter {
   private peers: PeerConnection[] = []
   public infoHash: Uint8Array
@@ -140,9 +139,7 @@ export class Torrent extends EventEmitter {
       // pieceManager doesn't expose pieceLength directly as a property, but getPieceLength(index).
       // We can use index 0.
 
-      this._files = rawFiles.map(
-        (f) => new TorrentFileInfo(f, this.pieceManager!, pieceLength),
-      )
+      this._files = rawFiles.map((f) => new TorrentFileInfo(f, this.pieceManager!, pieceLength))
       return this._files
     }
     return []
