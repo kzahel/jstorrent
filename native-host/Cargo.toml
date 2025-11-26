@@ -6,6 +6,10 @@ edition = "2021"
 [workspace]
 members = ["io-daemon"]
 
+[lib]
+name = "jstorrent_common"
+path = "src/lib.rs"
+
 [dependencies]
 tokio = { version = "1.32", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }

@@ -1,8 +1,41 @@
 console.log('Service Worker loaded')
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
   console.log('Extension installed')
+  const installId = await getOrGenerateInstallId()
+  console.log('Generated/Retrieved Install ID:', installId)
+
+  // Perform immediate handshake to register install ID with native host
+  try {
+    const port = chrome.runtime.connectNative('com.jstorrent.native')
+    port.postMessage({
+      op: 'handshake',
+      extensionId: chrome.runtime.id,
+      installId,
+      id: crypto.randomUUID(),
+    })
+    console.log('Sent initial handshake to native host')
+
+    // Disconnect after a short delay to allow message to be sent
+    // (Native host might need a moment to process)
+    setTimeout(() => {
+      port.disconnect()
+      console.log('Disconnected initial handshake port')
+    }, 100)
+  } catch (e) {
+    console.error('Failed to perform initial handshake:', e)
+  }
 })
+
+async function getOrGenerateInstallId(): Promise<string> {
+  const result = await chrome.storage.local.get('installId')
+  if (result.installId) {
+    return result.installId as string
+  }
+  const newId = crypto.randomUUID()
+  await chrome.storage.local.set({ installId: newId })
+  return newId
+}
 
 // Listen for messages from the website (externally_connectable)
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {

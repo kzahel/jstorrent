@@ -8,6 +8,7 @@ use std::process::Command;
 use std::thread;
 use std::time::Duration;
 use sysinfo::{Pid, System};
+use jstorrent_common::{UnifiedRpcInfo, ProfileEntry, BrowserInfo, DownloadRoot, get_config_dir};
 
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
@@ -31,46 +32,6 @@ enum Mode {
         file_name: String,
         contents_base64: String,
     },
-}
-
-#[derive(Deserialize, Debug)]
-struct UnifiedRpcInfo {
-    version: u32,
-    profiles: Vec<ProfileEntry>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct ProfileEntry {
-    profile_dir: String,
-    extension_id: Option<String>,
-    install_id: Option<String>,
-    salt: String,
-    pid: u32,
-    port: u16,
-    token: String,
-    started: u64,
-    last_used: u64,
-    browser: BrowserInfo,
-    download_roots: Vec<DownloadRoot>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct DownloadRoot {
-    token: String,
-    path: String,
-    display_name: String,
-    removable: bool,
-    last_stat_ok: bool,
-    last_checked: u64,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct BrowserInfo {
-    name: String,
-    binary: String,
-    profile_id: String,
-    profile_path: Option<String>,
-    extension_id: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -156,7 +117,7 @@ fn run(args: Args) -> Result<()> {
 }
 
 fn find_running_host() -> Option<ProfileEntry> {
-    let config_dir = dirs::config_dir()?;
+    let config_dir = get_config_dir()?;
     let app_dir = config_dir.join("jstorrent-native");
     let rpc_file = app_dir.join("rpc-info.json");
     
@@ -213,8 +174,8 @@ fn check_health(info: &ProfileEntry) -> Result<()> {
 }
 
 fn get_launcher_env_path() -> Option<PathBuf> {
-    // 1. Check ~/.config/jstorrent-native/jstorrent-native.env
-    if let Some(config_dir) = dirs::config_dir() {
+    // 1. Check ~/.config/jstorrent-native/jstorrent-native.env (or env override)
+    if let Some(config_dir) = get_config_dir() {
         let env_path = config_dir.join("jstorrent-native").join("jstorrent-native.env");
         if env_path.exists() {
             return Some(env_path);
@@ -295,7 +256,7 @@ fn launch_browser() -> Result<()> {
 }
 
 fn find_previous_browser_binary() -> Option<String> {
-    let config_dir = dirs::config_dir()?;
+    let config_dir = get_config_dir()?;
     let app_dir = config_dir.join("jstorrent-native");
     let rpc_file = app_dir.join("rpc-info.json");
     

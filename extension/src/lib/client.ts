@@ -17,7 +17,7 @@ export class Client {
 
     await this.native.connect()
 
-    const installId = await this.getOrGenerateInstallId()
+    const installId = await this.getInstallId()
 
     // Send handshake to get DaemonInfo
     this.native.send({
@@ -62,11 +62,12 @@ export class Client {
     this.ready = false
   }
 
-  private async getOrGenerateInstallId(): Promise<string> {
+  private async getInstallId(): Promise<string> {
     const result = await chrome.storage.local.get('installId')
     if (result.installId) {
       return result.installId as string
     }
+    // Fallback if onInstalled didn't run or storage was cleared
     const newId = crypto.randomUUID()
     await chrome.storage.local.set({ installId: newId })
     return newId

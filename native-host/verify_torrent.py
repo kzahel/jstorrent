@@ -7,19 +7,15 @@ import os
 import requests
 import shutil
 import base64
+import tempfile
 
 # Configuration
 HOST_BINARY = "./target/debug/jstorrent-host"
 STUB_BINARY = "./target/debug/jstorrent-link-handler"
-CONFIG_DIR = os.path.expanduser("~/.config/jstorrent-native")
+# CONFIG_DIR will be set dynamically
 TEST_TORRENT_FILE = "test.torrent"
 
 def setup():
-    # Clean config dir
-    if os.path.exists(CONFIG_DIR):
-        shutil.rmtree(CONFIG_DIR)
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-    
     # Create dummy torrent file
     with open(TEST_TORRENT_FILE, "wb") as f:
         f.write(b"d8:announce35:udp://tracker.openbittorrent.com:8013:creation datei1327049827e4:infod6:lengthi12345e4:name10:test.files12:piece lengthi262144e6:pieces20:01234567890123456789ee")
@@ -36,14 +32,18 @@ def read_message(proc):
     msg = proc.stdout.read(msg_length)
     return json.loads(msg)
 
-def test_torrent_flow():
+def test_torrent_flow(config_dir):
+    print("Building binaries...")
+    subprocess.check_call(["cargo", "build", "--workspace"])
+
     print("Starting Host...")
     host_proc = subprocess.Popen(
         [HOST_BINARY],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=sys.stderr,
-        bufsize=0
+        bufsize=0,
+        env=os.environ
     )
 
     try:
@@ -51,7 +51,7 @@ def test_torrent_flow():
         time.sleep(2)
         
         # Verify discovery file exists
-        rpc_file = os.path.join(CONFIG_DIR, "rpc-info.json")
+        rpc_file = os.path.join(config_dir, "rpc-info.json")
         if not os.path.exists(rpc_file):
             print("FAIL: No discovery file found")
             return False
@@ -85,7 +85,8 @@ def test_torrent_flow():
         stub_proc = subprocess.run(
             [STUB_BINARY, TEST_TORRENT_FILE],
             capture_output=True,
-            text=True
+            text=True,
+            env=os.environ
         )
         
         if stub_proc.returncode != 0:
@@ -128,9 +129,14 @@ def test_torrent_flow():
 if __name__ == "__main__":
     setup()
     try:
-        if test_torrent_flow():
-            sys.exit(0)
-        else:
-            sys.exit(1)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            print(f"Using temp config dir: {temp_dir}")
+            os.environ["JSTORRENT_CONFIG_DIR"] = temp_dir
+            config_dir = os.path.join(temp_dir, "jstorrent-native")
+            
+            if test_torrent_flow(config_dir):
+                sys.exit(0)
+            else:
+                sys.exit(1)
     finally:
         cleanup()

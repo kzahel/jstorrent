@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use axum::{
     routing::{get, post},
@@ -11,38 +11,9 @@ use std::fs;
 use std::io::Write;
 use sysinfo::{Pid, System};
 use crate::state::State as AppState;
-use crate::protocol::{Event, ResponsePayload};
+use crate::protocol::Event;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UnifiedRpcInfo {
-    pub version: u32,
-    pub profiles: Vec<ProfileEntry>,
-}
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ProfileEntry {
-    pub profile_dir: String,
-    pub extension_id: Option<String>,
-    pub install_id: Option<String>,
-    pub salt: String,
-    pub pid: u32,
-    pub port: u16,
-    pub token: String,
-    pub started: u64,
-    pub last_used: u64,
-    pub browser: BrowserInfo,
-    pub download_roots: Vec<DownloadRoot>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct DownloadRoot {
-    pub token: String,
-    pub path: String,
-    pub display_name: String,
-    pub removable: bool,
-    pub last_stat_ok: bool,
-    pub last_checked: u64,
-}
 
 // Legacy struct used by main.rs, updated to carry necessary info
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -62,14 +33,7 @@ pub struct RpcInfo {
     pub install_id: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct BrowserInfo {
-    pub name: String,
-    pub binary: String,
-    pub profile_id: String,
-    pub profile_path: Option<String>,
-    pub extension_id: Option<String>,
-}
+
 
 #[derive(Deserialize)]
 pub struct TokenQuery {
@@ -190,59 +154,63 @@ async fn add_torrent_handler(
     }))
 }
 
+pub use jstorrent_common::{UnifiedRpcInfo, ProfileEntry, DownloadRoot, BrowserInfo, get_config_dir};
 pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<()> {
-    let config_dir = dirs::config_dir().ok_or_else(|| anyhow::anyhow!("No config dir"))?;
+    let config_dir = get_config_dir().ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?;
     let app_dir = config_dir.join("jstorrent-native");
-    fs::create_dir_all(&app_dir)?;
     
-    let path = app_dir.join("rpc-info.json");
-    
-    // Read existing file
-    let mut unified_info = if path.exists() {
-        match fs::File::open(&path) {
-            Ok(file) => {
-                match serde_json::from_reader::<_, UnifiedRpcInfo>(file) {
-                    Ok(mut u) => {
-                        // Clean up old profiles? 
-                        // For now, just keep them.
-                        u
-                    },
-                    Err(_) => {
-                        // If parse fails, start fresh
-                        UnifiedRpcInfo {
-                            version: 1,
-                            profiles: Vec::new(),
-                        }
-                    }
-                }
-            },
-            Err(_) => UnifiedRpcInfo {
-                version: 1,
-                profiles: Vec::new(),
-            }
-        }
+    if !app_dir.exists() {
+        fs::create_dir_all(&app_dir)?;
+    }
+
+    let rpc_file = app_dir.join("rpc-info.json");
+
+    // Lock file? For now just read-modify-write.
+    // In a real scenario we might want file locking, but atomic write helps.
+
+    let mut unified_info = if rpc_file.exists() {
+        let file = fs::File::open(&rpc_file)?;
+        serde_json::from_reader(file).unwrap_or_else(|_| UnifiedRpcInfo {
+            version: 1,
+            profiles: Vec::new(),
+        })
     } else {
         UnifiedRpcInfo {
             version: 1,
             profiles: Vec::new(),
         }
     };
-    
-    // Update or insert profile
-    // Logic:
-    // 1. If info.install_id is Some, try to find entry with same install_id.
-    // 2. If not found (or info.install_id is None), try to find entry with same PID (temp entry).
+
+    // Find existing entry
+    // Strategy:
+    // 1. Find by install_id (persistent identity)
+    // 2. Find by PID (temporary identity for this run)
     
     let mut found_idx = None;
     
-    if let Some(ref install_id) = info.install_id {
-        found_idx = unified_info.profiles.iter().position(|p| p.install_id.as_ref() == Some(install_id));
+    if let Some(ref iid) = info.install_id {
+        found_idx = unified_info.profiles.iter().position(|p| p.install_id.as_ref() == Some(iid));
     }
     
     if found_idx.is_none() {
-        found_idx = unified_info.profiles.iter().position(|p| p.pid == info.pid);
+        // If not found by install_id, look for PID.
+        // This handles the case where we started (wrote PID entry) and then received handshake (now have install_id).
+        // We want to update the PID entry.
+        // Verification: Ensure extension_id matches if present in both.
+        found_idx = unified_info.profiles.iter().position(|p| {
+            if p.pid == info.pid {
+                // Check extension_id match
+                if let (Some(ref a), Some(ref b)) = (&p.extension_id, &info.browser.extension_id) {
+                    if a != b {
+                        return false; // PID match but extension ID mismatch? Should be rare/impossible for same process, but safe to ignore.
+                    }
+                }
+                return true;
+            }
+            false
+        });
     }
-    
+
     if let Some(idx) = found_idx {
         // Update existing entry, preserving salt and download_roots
         let mut entry = unified_info.profiles[idx].clone();
@@ -254,7 +222,7 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<()> {
         entry.browser = info.browser.clone();
         entry.extension_id = info.browser.extension_id.clone();
         
-        // Update install_id if we have one and entry doesn't (or even if it does)
+        // Update install_id if we have one
         if info.install_id.is_some() {
             entry.install_id = info.install_id.clone();
         }
@@ -262,10 +230,21 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<()> {
         // salt and download_roots are preserved from `entry`
         
         unified_info.profiles[idx] = entry;
+
+        // Cleanup: Remove any other entries with the same PID (temporary entries)
+        if info.install_id.is_some() {
+             unified_info.profiles.retain(|p| {
+                 // Remove if PID matches current PID AND it has no install_id (temp entry)
+                 if p.pid == info.pid && p.install_id.is_none() {
+                     return false;
+                 }
+                 true
+             });
+        }
     } else {
         // New entry
         let new_entry = ProfileEntry {
-            profile_dir: info.browser.profile_id.clone(),
+            // Removed profile_dir
             extension_id: info.browser.extension_id.clone(),
             install_id: info.install_id.clone(),
             salt: info.salt.clone(),
@@ -279,11 +258,11 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<()> {
         };
         unified_info.profiles.push(new_entry);
     }
-    
+
     // Atomic write
     let temp_file = tempfile::NamedTempFile::new_in(&app_dir)?;
     serde_json::to_writer(&temp_file, &unified_info)?;
-    temp_file.persist(path)?;
-    
+    temp_file.persist(&rpc_file).map_err(|e| e.error)?;
+
     Ok(())
 }

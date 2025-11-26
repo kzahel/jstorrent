@@ -122,8 +122,6 @@ async fn main() -> Result<()> {
         browser: rpc::BrowserInfo {
             name: browser_name,
             binary: browser_binary,
-            profile_id: "Default".to_string(), // TODO: Infer from args/env
-            profile_path: None,
             extension_id: extension_id.clone(),
         },
         salt: uuid::Uuid::new_v4().to_string(),
