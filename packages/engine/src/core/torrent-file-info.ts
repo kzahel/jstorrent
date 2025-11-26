@@ -2,6 +2,8 @@ import { TorrentFile } from './torrent-file'
 import { PieceManager } from './piece-manager'
 
 export class TorrentFileInfo {
+  private _priority: number = 2 // Default to normal priority (0=skip, 1=low, 2=normal, 3=high)
+
   constructor(
     private file: TorrentFile,
     private pieceManager: PieceManager,
@@ -58,6 +60,11 @@ export class TorrentFileInfo {
   }
 
   get priority(): number {
-    return 0 // TODO: Implement priority
+    return this._priority
+  }
+
+  set priority(value: number) {
+    // Clamp priority to valid range: 0 (skip) to 3 (high)
+    this._priority = Math.max(0, Math.min(3, Math.floor(value)))
   }
 }

@@ -1,0 +1,14 @@
+{
+  "readOnlyDirectories": [
+    "packages/legacy-jstorrent-engine"
+  ],
+  "rules": {
+    "packages/legacy-jstorrent-engine": {
+      "readOnly": true,
+      "reason": "Legacy code that should not be modified. This is the original JSTorrent engine and should remain unchanged.",
+      "allowedOperations": ["read", "grep", "glob"],
+      "blockedOperations": ["write", "edit", "delete"]
+    }
+  },
+  "notes": "This configuration file tells Claude Code which directories are read-only and should never be modified."
+}
