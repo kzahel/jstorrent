@@ -12,7 +12,7 @@ import { TorrentContentStorage } from './torrent-content-storage'
 import { PeerConnection } from './peer-connection'
 import * as crypto from 'crypto'
 
-export interface ClientOptions {
+export interface BtEngineOptions {
   downloadPath: string
   socketFactory: ISocketFactory
   fileSystem: IFileSystem
@@ -23,14 +23,14 @@ export interface ClientOptions {
   port?: number // Listening port to announce
 }
 
-export class Client extends EventEmitter {
+export class BtEngine extends EventEmitter {
   public torrents: Torrent[] = []
   private fileSystem: IFileSystem
   private socketFactory: ISocketFactory
   public peerId: Uint8Array
   public port: number
 
-  constructor(options: ClientOptions) {
+  constructor(options: BtEngineOptions) {
     super()
     this.fileSystem = options.fileSystem
     this.socketFactory = options.socketFactory
@@ -53,7 +53,7 @@ export class Client extends EventEmitter {
       const server = this.socketFactory.createTcpServer()
       if (server && typeof server.listen === 'function') {
         server.listen(this.port, () => {
-          console.log(`Client listening on port ${this.port}`)
+          console.log(`BtEngine listening on port ${this.port}`)
         })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         server.on('connection', (socket: any) => {
@@ -87,7 +87,7 @@ export class Client extends EventEmitter {
         const hex = toInfoHashString(infoHash)
         const torrent = this.getTorrent(hex)
         if (torrent) {
-          console.log(`Client: Incoming connection for torrent ${hex}`)
+          console.log(`BtEngine: Incoming connection for torrent ${hex}`)
           torrent.addPeer(peer)
           // Send handshake back
           peer.sendHandshake(torrent.infoHash, torrent.peerId)
@@ -96,14 +96,14 @@ export class Client extends EventEmitter {
             peer.sendMessage(5, torrent.bitfield.toBuffer()) // 5 = BITFIELD
           }
         } else {
-          console.warn(`Client: Incoming connection for unknown torrent ${hex}`)
+          console.warn(`BtEngine: Incoming connection for unknown torrent ${hex}`)
           peer.close()
         }
       })
 
       // Timeout if no handshake?
     } catch (err) {
-      console.error('Client: Error handling incoming connection', err)
+      console.error('BtEngine: Error handling incoming connection', err)
     }
   }
 
@@ -184,7 +184,7 @@ export class Client extends EventEmitter {
 
       torrent.on('metadata', async (metadataBuffer: Uint8Array) => {
         try {
-          console.error('Client: Metadata received, initializing torrent')
+          console.error('BtEngine: Metadata received, initializing torrent')
           const info = Bencode.decode(metadataBuffer)
           const parsed = TorrentParser.parseInfoDictionary(
             info,
@@ -218,14 +218,14 @@ export class Client extends EventEmitter {
           // Usually magnet takes precedence or we merge.
           // For now, keep existing.
 
-          console.error('Client: Torrent initialized from metadata')
+          console.error('BtEngine: Torrent initialized from metadata')
           this.emit('torrent-ready', torrent) // New event?
 
           // Start verification or download?
           // We should probably check existing files if any.
           await torrent.recheckData()
         } catch (err) {
-          console.error('Client: Error initializing torrent from metadata', err)
+          console.error('BtEngine: Error initializing torrent from metadata', err)
           this.emit('error', err)
         }
       })

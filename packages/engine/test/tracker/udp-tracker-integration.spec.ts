@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { Client } from '../../src/core/client'
+import { BtEngine } from '../../src/core/bt-engine'
 import { TorrentCreator } from '../../src/core/torrent-creator'
 import { ScopedNodeFileSystem } from '../../src/io/node/scoped-node-filesystem'
 import { NodeSocketFactory } from '../../src/io/node/node-socket'
@@ -58,7 +58,7 @@ describe('UDP Tracker Integration', () => {
     })
 
     // Client A (Seeder)
-    const clientA = new Client({
+    const clientA = new BtEngine({
       socketFactory,
       fileSystem: new ScopedNodeFileSystem(tmpDir),
       downloadPath: tmpDir,
@@ -69,7 +69,7 @@ describe('UDP Tracker Integration', () => {
     const downloadDir = path.join(tmpDir, 'download')
     fs.mkdirSync(downloadDir, { recursive: true })
 
-    const clientB = new Client({
+    const clientB = new BtEngine({
       socketFactory,
       fileSystem: new ScopedNodeFileSystem(downloadDir),
       downloadPath: downloadDir,

@@ -594,12 +594,12 @@ export class Torrent extends EventEmitter {
       // Initialize PieceManager and Storage if not already
       // We need to parse the info dictionary.
       // Since we don't have the parser imported here (circular dependency?),
-      // we emit the event and let the Client handle the parsing and initialization?
+      // we emit the event and let the BtEngine handle the parsing and initialization?
       // Or we import TorrentParser here.
-      // Client.ts handles 'torrent' event.
-      // Maybe we should emit 'metadata' and let Client do the rest?
+      // BtEngine.ts handles 'torrent' event.
+      // Maybe we should emit 'metadata' and let BtEngine do the rest?
       // But Torrent needs PieceManager to function.
-      // Let's emit 'metadata' and expect the listener (Client) to call a method to initialize?
+      // Let's emit 'metadata' and expect the listener (BtEngine) to call a method to initialize?
       // Or we can import TorrentParser.
     } else {
       console.error('Torrent: Metadata hash mismatch')
@@ -609,7 +609,7 @@ export class Torrent extends EventEmitter {
     }
   }
 
-  // Called by Client when metadata is provided initially (e.g. .torrent file)
+  // Called by BtEngine when metadata is provided initially (e.g. .torrent file)
   public setMetadata(infoBuffer: Uint8Array) {
     this.metadataRaw = infoBuffer
     this.metadataComplete = true

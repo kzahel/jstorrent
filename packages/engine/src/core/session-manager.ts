@@ -1,4 +1,4 @@
-import { Client } from './client'
+import { BtEngine } from './bt-engine'
 import { IStorageHandle } from '../io/storage-handle'
 import { StorageManager } from '../io/storage-manager'
 import { toInfoHashString } from '../utils/infohash'
@@ -25,7 +25,7 @@ export class SessionManager {
   private stateFile = 'session.json'
 
   constructor(
-    private client: Client,
+    private client: BtEngine,
     private metadataStorage: IStorageHandle,
     private storageManager: StorageManager,
     _config: SessionConfig,

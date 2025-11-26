@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { Client } from '../../src/core/client'
+import { BtEngine } from '../../src/core/bt-engine'
 // import { Torrent } from '../../src/core/torrent'
 import { ScopedNodeFileSystem } from '../../src/io/node/scoped-node-filesystem'
 // @ts-expect-error - no types for bittorrent-tracker
@@ -92,8 +92,8 @@ describe('Tracker Integration', () => {
   let trackerServer: Server
   let trackerPort: number
   let trackerUrl: string
-  let clientA: Client
-  let clientB: Client
+  let clientA: BtEngine
+  let clientB: BtEngine
   let tmpDir: string
   let serverA: net.Server
   let portA: number
@@ -139,7 +139,7 @@ describe('Tracker Integration', () => {
     // Setup Client A
     const socketFactoryA = new NodeSocketFactory()
     const fsA = new ScopedNodeFileSystem(path.join(tmpDir, 'A'))
-    clientA = new Client({
+    clientA = new BtEngine({
       downloadPath: path.join(tmpDir, 'A'),
       socketFactory: socketFactoryA,
       fileSystem: fsA,
@@ -150,7 +150,7 @@ describe('Tracker Integration', () => {
     // Setup Client B
     const socketFactoryB = new NodeSocketFactory()
     const fsB = new ScopedNodeFileSystem(path.join(tmpDir, 'B'))
-    clientB = new Client({
+    clientB = new BtEngine({
       downloadPath: path.join(tmpDir, 'B'),
       socketFactory: socketFactoryB,
       fileSystem: fsB,

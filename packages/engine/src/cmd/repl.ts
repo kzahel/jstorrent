@@ -115,7 +115,7 @@ rl.on('line', async (line) => {
         const sessionHandle = new NodeStorageHandle('session', 'Session', sessionDir)
 
         sessionManager = new SessionManager(
-          // @ts-expect-error Client not fully implemented yet
+          // @ts-expect-error BtEngine not fully implemented yet
           { torrents: [] },
           sessionHandle,
           storageManager,

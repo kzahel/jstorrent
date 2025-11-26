@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
-import { Client } from '../src/core/client'
+import { BtEngine } from '../src/core/bt-engine'
 import { ScopedNodeFileSystem } from '../src/io/node/scoped-node-filesystem'
 import { NodeSocketFactory } from '../src/io/node/node-socket'
 
@@ -28,11 +28,11 @@ async function main() {
     const fileSystem = new ScopedNodeFileSystem(downloadPath)
     const socketFactory = new NodeSocketFactory()
 
-    // 4. Initialize Client
-    const client = new Client({
-      downloadPath: downloadPath, // Client options might not use this directly if we pass fileSystem, but interface might require it or we can pass it.
-      // Looking at ClientOptions in client.ts:
-      // export interface ClientOptions {
+    // 4. Initialize BtEngine
+    const client = new BtEngine({
+      downloadPath: downloadPath, // BtEngine options might not use this directly if we pass fileSystem, but interface might require it or we can pass it.
+      // Looking at BtEngineOptions in bt-engine.ts:
+      // export interface BtEngineOptions {
       //   downloadPath: string
       //   socketFactory: ISocketFactory
       //   fileSystem: IFileSystem

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { Client } from '../../src/core/client'
+import { BtEngine } from '../../src/core/bt-engine'
 import { MemorySocketFactory } from '../../src/io/memory/memory-socket'
 import { InMemoryFileSystem } from '../../src/io/memory/memory-filesystem'
 import { TorrentCreator } from '../../src/core/torrent-creator'
@@ -33,8 +33,8 @@ class MockSocketFactory implements ISocketFactory {
 }
 
 describe('Memory Swarm Integration', () => {
-  let clientA: Client
-  let clientB: Client
+  let clientA: BtEngine
+  let clientB: BtEngine
   let fsA: InMemoryFileSystem
   let fsB: InMemoryFileSystem
 
@@ -42,13 +42,13 @@ describe('Memory Swarm Integration', () => {
     fsA = new InMemoryFileSystem()
     fsB = new InMemoryFileSystem()
 
-    clientA = new Client({
+    clientA = new BtEngine({
       downloadPath: '/downloads',
       fileSystem: fsA,
       socketFactory: new MockSocketFactory(),
     })
 
-    clientB = new Client({
+    clientB = new BtEngine({
       downloadPath: '/downloads',
       fileSystem: fsB,
       socketFactory: new MockSocketFactory(),
@@ -115,7 +115,7 @@ describe('Memory Swarm Integration', () => {
     // Actually we added it above, let's redo.
 
     // Reset client A for clean state
-    clientA = new Client({
+    clientA = new BtEngine({
       downloadPath: '/downloads',
       fileSystem: fsA,
       socketFactory: new MockSocketFactory(),
@@ -190,7 +190,7 @@ describe('Memory Swarm Integration', () => {
     })
 
     // Verify data on B
-    // Note: Client doesn't currently prepend downloadPath to files, so it writes to root (or relative path in torrent)
+    // Note: BtEngine doesn't currently prepend downloadPath to files, so it writes to root (or relative path in torrent)
     const downloadedContent = await fsB.readFile('test.txt')
     expect(downloadedContent).toEqual(fileContent)
   }, 10000)

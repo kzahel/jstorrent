@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SessionManager } from '../../src/core/session-manager'
-import { Client } from '../../src/core/client'
+import { BtEngine } from '../../src/core/bt-engine'
 import { InMemoryFileSystem } from '../../src/io/memory/memory-filesystem'
 import { Torrent } from '../../src/core/torrent'
 
@@ -19,13 +19,13 @@ vi.mock('../../src/core/torrent', () => {
 })
 
 describe('SessionManager', () => {
-  let client: Client
+  let client: BtEngine
   let fileSystem: InMemoryFileSystem
   let sessionManager: SessionManager
 
   beforeEach(() => {
     fileSystem = new InMemoryFileSystem()
-    client = new Client({
+    client = new BtEngine({
       downloadPath: '/downloads',
       socketFactory: {
         createTcpServer: vi.fn().mockReturnValue({
