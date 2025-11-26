@@ -23,7 +23,7 @@ export interface TorrentStatus {
 export class EngineController {
   private engine: BtEngine | null = null
 
-  constructor() { }
+  constructor() {}
 
   startEngine(config: Partial<BtEngineOptions> = {}): void {
     if (this.engine) {
@@ -60,7 +60,11 @@ export class EngineController {
     }
   }
 
-  async addTorrent(params: { type: string; data: string; storagePath?: string }): Promise<{ ok: boolean; id: string }> {
+  async addTorrent(params: {
+    type: string
+    data: string
+    storagePath?: string
+  }): Promise<{ ok: boolean; id: string }> {
     if (!this.engine) {
       throw new Error('EngineNotRunning')
     }
