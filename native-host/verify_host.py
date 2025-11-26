@@ -72,7 +72,8 @@ def main():
         send_message(proc, {
             "id": "1",
             "op": "handshake",
-            "extensionId": "test-extension-id"
+            "extensionId": "test-extension-id",
+            "installId": "test-install-id-123"
         })
         resp = read_message(proc)
         assert resp['id'] == "1"

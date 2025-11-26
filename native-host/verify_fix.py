@@ -22,8 +22,9 @@ def main():
     # Clean up old rpc-info
     config_dir = os.path.expanduser("~/.config/jstorrent-native")
     if os.path.exists(config_dir):
-        for f in glob.glob(os.path.join(config_dir, "rpc-info-*.json")):
-            os.remove(f)
+        rpc_file = os.path.join(config_dir, "rpc-info.json")
+        if os.path.exists(rpc_file):
+            os.remove(rpc_file)
 
     print("Launching host via wrapper...")
     # We launch the wrapper. The process tree will be:
@@ -42,13 +43,12 @@ def main():
     try:
         time.sleep(2)
         
-        files = glob.glob(os.path.join(config_dir, "rpc-info-*.json"))
-        if not files:
+        rpc_file = os.path.join(config_dir, "rpc-info.json")
+        if not os.path.exists(rpc_file):
             print("Error: No rpc-info file found")
             sys.exit(1)
             
-        latest_file = max(files, key=os.path.getctime)
-        with open(latest_file, 'r') as f:
+        with open(rpc_file, 'r') as f:
             info = json.load(f)
             
         binary = info.get('browser', {}).get('binary', '')

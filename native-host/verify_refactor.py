@@ -153,7 +153,8 @@ def main():
         handshake_req = {
             "id": "1",
             "op": "handshake",
-            "extensionId": "test-extension-id"
+            "extensionId": "test-extension-id",
+            "installId": "test-install-id-123"
         }
         send_message(proc, handshake_req)
         resp = read_message(proc)
