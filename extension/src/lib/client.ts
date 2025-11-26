@@ -17,10 +17,13 @@ export class Client {
 
     await this.native.connect()
 
+    const installId = await this.getOrGenerateInstallId()
+
     // Send handshake to get DaemonInfo
     this.native.send({
       op: 'handshake',
       extensionId: chrome.runtime.id,
+      installId,
       id: crypto.randomUUID(),
     })
 
@@ -57,5 +60,15 @@ export class Client {
   shutdown() {
     this.daemon?.close()
     this.ready = false
+  }
+
+  private async getOrGenerateInstallId(): Promise<string> {
+    const result = await chrome.storage.local.get('installId')
+    if (result.installId) {
+      return result.installId as string
+    }
+    const newId = crypto.randomUUID()
+    await chrome.storage.local.set({ installId: newId })
+    return newId
   }
 }

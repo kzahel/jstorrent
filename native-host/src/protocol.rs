@@ -17,6 +17,8 @@ pub enum Operation {
     Handshake {
         #[serde(rename = "extensionId")]
         extension_id: String,
+        #[serde(rename = "installId")]
+        install_id: String,
     },
 }
 

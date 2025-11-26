@@ -126,6 +126,9 @@ async fn main() -> Result<()> {
             profile_path: None,
             extension_id: extension_id.clone(),
         },
+        salt: uuid::Uuid::new_v4().to_string(),
+        download_roots: Vec::new(),
+        install_id: None,
     };
     
     // Store info in state so we can update it later (e.g. on handshake)
@@ -209,13 +212,14 @@ async fn handle_request(
     let result = match req.op {
         Operation::PickDownloadDirectory => folder_picker::pick_download_directory(state).await,
         
-        Operation::Handshake { extension_id } => {
-            log!("Handling Handshake for {}", extension_id);
-            // Update extension ID in state and rewrite discovery file
+        Operation::Handshake { extension_id, install_id } => {
+            log!("Handling Handshake for extension_id: {}, install_id: {}", extension_id, install_id);
+            // Update extension ID and install ID in state and rewrite discovery file
             let mut success = false;
             if let Ok(mut info_guard) = state.rpc_info.lock() {
                 if let Some(info) = info_guard.as_mut() {
                     info.browser.extension_id = Some(extension_id);
+                    info.install_id = Some(install_id); // Update install_id
                     if let Err(e) = crate::rpc::write_discovery_file(info.clone()) {
                         eprintln!("Failed to update discovery file on handshake: {}", e);
                     } else {
@@ -235,7 +239,7 @@ async fn handle_request(
                 }
             } else {
                 log!("Handshake failed to update state");
-                Err(anyhow::anyhow!("Failed to update extension ID"))
+                Err(anyhow::anyhow!("Failed to update extension ID or install ID"))
             }
         }
     };

@@ -32,24 +32,44 @@ def main():
         time.sleep(2)
         
         # Find the new rpc-info file
-        files = glob.glob(os.path.join(config_dir, "rpc-info-*.json"))
-        if not files:
-            print("Error: No rpc-info file found")
+        rpc_file = os.path.join(config_dir, "rpc-info.json")
+        if not os.path.exists(rpc_file):
+            print("Error: rpc-info.json not found")
             sys.exit(1)
             
-        latest_file = max(files, key=os.path.getctime)
-        print(f"Found info file: {latest_file}")
+        print(f"Found info file: {rpc_file}")
         
-        with open(latest_file, 'r') as f:
+        with open(rpc_file, 'r') as f:
             info = json.load(f)
             
         print("RPC Info:", json.dumps(info, indent=2))
         
-        browser_binary = info.get('browser', {}).get('binary', '')
-        browser_name = info.get('browser', {}).get('name', '')
+        # Find our profile
+        my_pid = proc.pid
+        profile = None
+        for p in info.get('profiles', []):
+            if p.get('pid') == my_pid: # Note: proc.pid might not match if it's a wrapper, but here we started it directly
+                 # Actually, native-host writes its own PID.
+                 # Let's assume the last updated one or just check if any matches.
+                 profile = p
+                 break
+        
+        # If we can't match PID exactly (maybe because of how we launched it?), take the most recent one
+        if not profile and info.get('profiles'):
+             profile = info['profiles'][0] # Should be sorted? No, we didn't sort in writer.
+             # Writer appends or updates.
+        
+        if not profile:
+             print("Error: No profile found in rpc-info.json")
+             sys.exit(1)
+
+        browser_binary = profile.get('browser', {}).get('binary', '')
+        browser_name = profile.get('browser', {}).get('name', '')
+        install_id = profile.get('install_id')
         
         print(f"Detected Browser Binary: {browser_binary}")
         print(f"Detected Browser Name: {browser_name}")
+        print(f"Install ID: {install_id}")
 
         # Since we launched from python, and python is not in the browser list,
         # it should fall back to the immediate parent, which is python.

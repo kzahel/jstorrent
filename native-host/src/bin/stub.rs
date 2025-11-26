@@ -34,17 +34,37 @@ enum Mode {
 }
 
 #[derive(Deserialize, Debug)]
-struct RpcInfo {
+struct UnifiedRpcInfo {
     version: u32,
+    profiles: Vec<ProfileEntry>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+struct ProfileEntry {
+    profile_dir: String,
+    extension_id: Option<String>,
+    install_id: Option<String>,
+    salt: String,
     pid: u32,
     port: u16,
     token: String,
     started: u64,
     last_used: u64,
     browser: BrowserInfo,
+    download_roots: Vec<DownloadRoot>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
+struct DownloadRoot {
+    token: String,
+    path: String,
+    display_name: String,
+    removable: bool,
+    last_stat_ok: bool,
+    last_checked: u64,
+}
+
+#[derive(Deserialize, Debug, Clone)]
 struct BrowserInfo {
     name: String,
     binary: String,
@@ -135,30 +155,29 @@ fn run(args: Args) -> Result<()> {
     Ok(())
 }
 
-fn find_running_host() -> Option<RpcInfo> {
+fn find_running_host() -> Option<ProfileEntry> {
     let config_dir = dirs::config_dir()?;
     let app_dir = config_dir.join("jstorrent-native");
+    let rpc_file = app_dir.join("rpc-info.json");
     
-    if !app_dir.exists() {
+    if !rpc_file.exists() {
         return None;
     }
 
     let mut system = System::new_all();
     system.refresh_all();
 
-    if let Ok(entries) = fs::read_dir(app_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Some(filename) = path.file_name().and_then(|s| s.to_str()) {
-                    if filename.starts_with("rpc-info-") {
-                        if let Ok(file) = fs::File::open(&path) {
-                            if let Ok(info) = serde_json::from_reader::<_, RpcInfo>(file) {
-                                if system.process(Pid::from(info.pid as usize)).is_some() {
-                                    return Some(info);
-                                }
-                            }
-                        }
+    if let Ok(file) = fs::File::open(&rpc_file) {
+        if let Ok(mut info) = serde_json::from_reader::<_, UnifiedRpcInfo>(file) {
+            // Sort profiles by last_used descending
+            info.profiles.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+            
+            for profile in info.profiles {
+                // Check if PID is running
+                if system.process(Pid::from(profile.pid as usize)).is_some() {
+                    // Check health
+                    if check_health(&profile).is_ok() {
+                        return Some(profile);
                     }
                 }
             }
@@ -167,17 +186,14 @@ fn find_running_host() -> Option<RpcInfo> {
     None
 }
 
-fn wait_for_host() -> Result<Option<RpcInfo>> {
+fn wait_for_host() -> Result<Option<ProfileEntry>> {
     let timeout = Duration::from_secs(10);
     let start = std::time::Instant::now();
     let poll_interval = Duration::from_millis(200);
 
     while start.elapsed() < timeout {
         if let Some(info) = find_running_host() {
-            // Verify health
-            if check_health(&info).is_ok() {
-                return Ok(Some(info));
-            }
+            return Ok(Some(info));
         }
         thread::sleep(poll_interval);
     }
@@ -185,7 +201,7 @@ fn wait_for_host() -> Result<Option<RpcInfo>> {
     Err(anyhow::anyhow!("Timed out waiting for native host to start"))
 }
 
-fn check_health(info: &RpcInfo) -> Result<()> {
+fn check_health(info: &ProfileEntry) -> Result<()> {
     let client = Client::builder().timeout(Duration::from_secs(1)).build()?;
     let url = format!("http://127.0.0.1:{}/health?token={}", info.port, info.token);
     let resp = client.get(&url).send()?;
@@ -235,8 +251,6 @@ fn launch_browser() -> Result<()> {
     log!("DEBUG: Launch URL: {}", url);
     
     // Try to find browser from previous runs (rpc-info files, even if dead)
-    // For simplicity, we'll just use system default open for now, or fallback to known browsers if needed.
-    // The design doc says: "If previous rpc-info has browser binary -> try that first."
     
     // Let's try to find a previous binary
     let binary = find_previous_browser_binary();
@@ -283,33 +297,33 @@ fn launch_browser() -> Result<()> {
 fn find_previous_browser_binary() -> Option<String> {
     let config_dir = dirs::config_dir()?;
     let app_dir = config_dir.join("jstorrent-native");
+    let rpc_file = app_dir.join("rpc-info.json");
     
-    if !app_dir.exists() {
+    if !rpc_file.exists() {
         return None;
     }
 
-    let mut best_info: Option<RpcInfo> = None;
+    let mut best_binary: Option<String> = None;
+    let mut best_time = 0;
     
-    if let Ok(entries) = fs::read_dir(app_dir) {
-        for entry in entries.flatten() {
-             let path = entry.path();
-             if let Ok(file) = fs::File::open(&path) {
-                 if let Ok(info) = serde_json::from_reader::<_, RpcInfo>(file) {
-                     if best_info.is_none() || info.last_used > best_info.as_ref().unwrap().last_used {
-                         best_info = Some(info);
-                     }
+    if let Ok(file) = fs::File::open(&rpc_file) {
+         if let Ok(info) = serde_json::from_reader::<_, UnifiedRpcInfo>(file) {
+             for profile in info.profiles {
+                 if profile.last_used > best_time {
+                     best_time = profile.last_used;
+                     best_binary = Some(profile.browser.binary);
                  }
              }
-        }
+         }
     }
     
-    best_info.map(|i| i.browser.binary).filter(|b| {
+    best_binary.filter(|b| {
         let b_lower = b.to_lowercase();
         !b.is_empty() 
         && !b.contains("jstorrent-host")
         && !b_lower.contains("python")
         && !b_lower.contains("cargo")
-        && !b_lower.contains("sh") // This might be too aggressive if "sh" is part of a valid name, but usually binaries are "bash", "zsh", "sh"
+        && !b_lower.contains("sh")
         && !b_lower.ends_with("/sh")
         && !b_lower.ends_with("/bash")
         && !b_lower.ends_with("/zsh")
@@ -319,7 +333,7 @@ fn find_previous_browser_binary() -> Option<String> {
     })
 }
 
-fn send_payload(info: &RpcInfo, mode: &Mode) -> Result<()> {
+fn send_payload(info: &ProfileEntry, mode: &Mode) -> Result<()> {
     let client = Client::new();
     let base_url = format!("http://127.0.0.1:{}", info.port);
 

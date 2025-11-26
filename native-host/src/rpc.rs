@@ -14,14 +14,52 @@ use crate::state::State as AppState;
 use crate::protocol::{Event, ResponsePayload};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct RpcInfo {
+pub struct UnifiedRpcInfo {
     pub version: u32,
+    pub profiles: Vec<ProfileEntry>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ProfileEntry {
+    pub profile_dir: String,
+    pub extension_id: Option<String>,
+    pub install_id: Option<String>,
+    pub salt: String,
     pub pid: u32,
     pub port: u16,
     pub token: String,
     pub started: u64,
     pub last_used: u64,
     pub browser: BrowserInfo,
+    pub download_roots: Vec<DownloadRoot>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DownloadRoot {
+    pub token: String,
+    pub path: String,
+    pub display_name: String,
+    pub removable: bool,
+    pub last_stat_ok: bool,
+    pub last_checked: u64,
+}
+
+// Legacy struct used by main.rs, updated to carry necessary info
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RpcInfo {
+    // version is now file-level, but we keep it here for compatibility or remove it?
+    // main.rs sets it to 1.
+    pub version: u32, 
+    pub pid: u32,
+    pub port: u16,
+    pub token: String,
+    pub started: u64,
+    pub last_used: u64,
+    pub browser: BrowserInfo,
+    // New fields
+    pub salt: String,
+    pub download_roots: Vec<DownloadRoot>,
+    pub install_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -109,38 +147,8 @@ async fn add_magnet_handler(
 
     crate::log!("Received add-magnet request: {}", payload.magnet);
 
-    // Forward to main loop via mpsc channel in state? 
-    // Actually, State doesn't have a sender to the main loop yet.
-    // We need to add a sender to AppState or handle it differently.
-    // For now, let's assume we can send an event.
-    
-    // TODO: We need a way to send events to the main loop.
-    // The current State struct only holds sockets and paths.
-    // We should probably add a `tokio::sync::mpsc::Sender<Event>` to State?
-    // Or maybe just `Sender<Request>`?
-    
-    // Let's assume we'll add `event_sender` to State.
-    
     if let Some(sender) = &state.event_sender {
-         // Construct a fake "Request" or special internal event?
-         // The main loop handles `Request` from stdin.
-         // We might need to inject a `Request` into the stream or have a separate channel.
-         
-         // Let's send a custom event or handle it directly.
-         // Actually, the main loop selects on `rx` (from stdin) and `event_rx` (from internal tasks).
-         // `event_rx` receives `Event` which are sent to stdout.
-         // We want to trigger an ACTION, effectively simulating a Request.
-         
-         // But `Event` is for outgoing messages to Chrome.
-         // We want to tell the host to "do something" (add magnet).
-         // If we want to send a message TO Chrome, we can use `event_sender`.
-         
-         // If the extension expects a specific event for "add magnet", we can send it.
-         // Let's assume we send an event `MagnetAdded { link: ... }` to Chrome, 
-         // and Chrome then handles it (e.g. adds to torrent engine).
-         
          let event = Event::MagnetAdded { link: payload.magnet.clone() };
-         
          let _ = sender.send(event).await;
     }
 
@@ -165,16 +173,6 @@ async fn add_torrent_handler(
     crate::log!("Received add-torrent request: {} ({} bytes)", payload.file_name, payload.contents_base64.len());
 
     if let Some(sender) = &state.event_sender {
-        // We don't parse the torrent here, we just forward it to the extension.
-        // The extension (JS) will handle parsing and adding to the engine.
-        // We'll use a placeholder infohash for now or empty string since we don't parse it here.
-        // Actually, the design doc says "Use metadata as authoritative... Infohash...".
-        // If the host is supposed to parse it, we'd need a bencode parser.
-        // But `jstorrent-host` seems to be a dumb pipe.
-        // Let's check `Cargo.toml` for bencode deps.
-        // No bencode deps. So we probably shouldn't parse it here.
-        // We'll send it to the extension.
-        
         let event = Event::TorrentAdded {
             name: payload.file_name,
             infohash: "".to_string(), // Extension will calculate this
@@ -197,12 +195,94 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<()> {
     let app_dir = config_dir.join("jstorrent-native");
     fs::create_dir_all(&app_dir)?;
     
-    let filename = format!("rpc-info-{}.json", info.browser.profile_id);
-    let path = app_dir.join(filename);
+    let path = app_dir.join("rpc-info.json");
+    
+    // Read existing file
+    let mut unified_info = if path.exists() {
+        match fs::File::open(&path) {
+            Ok(file) => {
+                match serde_json::from_reader::<_, UnifiedRpcInfo>(file) {
+                    Ok(mut u) => {
+                        // Clean up old profiles? 
+                        // For now, just keep them.
+                        u
+                    },
+                    Err(_) => {
+                        // If parse fails, start fresh
+                        UnifiedRpcInfo {
+                            version: 1,
+                            profiles: Vec::new(),
+                        }
+                    }
+                }
+            },
+            Err(_) => UnifiedRpcInfo {
+                version: 1,
+                profiles: Vec::new(),
+            }
+        }
+    } else {
+        UnifiedRpcInfo {
+            version: 1,
+            profiles: Vec::new(),
+        }
+    };
+    
+    // Update or insert profile
+    // Logic:
+    // 1. If info.install_id is Some, try to find entry with same install_id.
+    // 2. If not found (or info.install_id is None), try to find entry with same PID (temp entry).
+    
+    let mut found_idx = None;
+    
+    if let Some(ref install_id) = info.install_id {
+        found_idx = unified_info.profiles.iter().position(|p| p.install_id.as_ref() == Some(install_id));
+    }
+    
+    if found_idx.is_none() {
+        found_idx = unified_info.profiles.iter().position(|p| p.pid == info.pid);
+    }
+    
+    if let Some(idx) = found_idx {
+        // Update existing entry, preserving salt and download_roots
+        let mut entry = unified_info.profiles[idx].clone();
+        entry.pid = info.pid;
+        entry.port = info.port;
+        entry.token = info.token.clone();
+        entry.started = info.started;
+        entry.last_used = info.last_used;
+        entry.browser = info.browser.clone();
+        entry.extension_id = info.browser.extension_id.clone();
+        
+        // Update install_id if we have one and entry doesn't (or even if it does)
+        if info.install_id.is_some() {
+            entry.install_id = info.install_id.clone();
+        }
+        
+        // salt and download_roots are preserved from `entry`
+        
+        unified_info.profiles[idx] = entry;
+    } else {
+        // New entry
+        let new_entry = ProfileEntry {
+            profile_dir: info.browser.profile_id.clone(),
+            extension_id: info.browser.extension_id.clone(),
+            install_id: info.install_id.clone(),
+            salt: info.salt.clone(),
+            pid: info.pid,
+            port: info.port,
+            token: info.token.clone(),
+            started: info.started,
+            last_used: info.last_used,
+            browser: info.browser.clone(),
+            download_roots: info.download_roots.clone(),
+        };
+        unified_info.profiles.push(new_entry);
+    }
     
     // Atomic write
     let temp_file = tempfile::NamedTempFile::new_in(&app_dir)?;
-    serde_json::to_writer(&temp_file, &info)?;
+    serde_json::to_writer(&temp_file, &unified_info)?;
     temp_file.persist(path)?;
     
     Ok(())

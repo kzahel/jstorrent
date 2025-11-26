@@ -51,19 +51,25 @@ def test_torrent_flow():
         time.sleep(2)
         
         # Verify discovery file exists
-        files = os.listdir(CONFIG_DIR)
-        rpc_files = [f for f in files if f.startswith("rpc-info-")]
-        if not rpc_files:
+        rpc_file = os.path.join(CONFIG_DIR, "rpc-info.json")
+        if not os.path.exists(rpc_file):
             print("FAIL: No discovery file found")
             return False
         
-        print(f"Found discovery file: {rpc_files[0]}")
+        print(f"Found discovery file: {rpc_file}")
         
-        with open(os.path.join(CONFIG_DIR, rpc_files[0]), 'r') as f:
+        with open(rpc_file, 'r') as f:
             info = json.load(f)
             
-        port = info['port']
-        token = info['token']
+        if not info.get('profiles'):
+            print("FAIL: No profiles in discovery file")
+            return False
+            
+        # Use the first profile
+        profile = info['profiles'][0]
+            
+        port = profile['port']
+        token = profile['token']
         print(f"RPC Server running on port {port} with token {token}")
         
         # Test Health Check
