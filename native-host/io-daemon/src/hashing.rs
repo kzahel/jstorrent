@@ -22,14 +22,17 @@ pub fn routes() -> Router<Arc<AppState>> {
 struct HashParams {
     offset: Option<u64>,
     length: Option<u64>,
+    root_token: String,
 }
+
 
 async fn hash_sha1(
     State(state): State<Arc<AppState>>,
     Path(path): Path<String>,
     axum::extract::Query(params): axum::extract::Query<HashParams>,
 ) -> Result<String, (StatusCode, String)> {
-    let full_path = crate::files::validate_path(&state.root, &path)?;
+    let full_path = crate::files::validate_path(&state, &params.root_token, &path)?;
+
     
     let mut file = File::open(&full_path).await
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
@@ -64,7 +67,8 @@ async fn hash_sha256(
     Path(path): Path<String>,
     axum::extract::Query(params): axum::extract::Query<HashParams>,
 ) -> Result<String, (StatusCode, String)> {
-    let full_path = crate::files::validate_path(&state.root, &path)?;
+    let full_path = crate::files::validate_path(&state, &params.root_token, &path)?;
+
     
     let mut file = File::open(&full_path).await
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;

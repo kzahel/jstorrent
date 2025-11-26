@@ -14,6 +14,10 @@ mod files;
 mod hashing;
 mod http;
 mod ws;
+mod config;
+
+
+
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -30,15 +34,16 @@ struct Args {
     #[arg(long)]
     parent_pid: Option<u32>,
 
-    /// Download root directory
-    #[arg(long, default_value = ".")]
-    root: std::path::PathBuf,
+    /// Installation ID
+    #[arg(long)]
+    install_id: String,
 }
 
 #[derive(Clone)]
 pub struct AppState {
     pub token: String,
-    pub root: std::path::PathBuf,
+    pub install_id: String,
+    pub download_roots: Arc<std::sync::RwLock<Vec<jstorrent_common::DownloadRoot>>>,
 }
 
 #[tokio::main]
@@ -46,9 +51,17 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     let args = Args::parse();
+    
+    // Load initial config
+    let roots = config::load_config(&args.install_id).unwrap_or_else(|e| {
+        tracing::warn!("Failed to load initial config: {}", e);
+        Vec::new()
+    });
+
     let state = Arc::new(AppState {
         token: args.token.clone(),
-        root: args.root.clone(),
+        install_id: args.install_id.clone(),
+        download_roots: Arc::new(std::sync::RwLock::new(roots)),
     });
 
     // Monitor parent process if specified
@@ -64,6 +77,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(hashing::routes())
         .merge(ws::routes())
         .merge(control::routes())
+        .merge(config::routes())
         .layer(axum::middleware::from_fn_with_state(state.clone(), auth::middleware))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
@@ -83,6 +97,7 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
 
 async fn monitor_parent(pid: u32) {
     use tokio::time::{sleep, Duration};

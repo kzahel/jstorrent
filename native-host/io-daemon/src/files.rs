@@ -11,6 +11,8 @@ use tokio::fs::{self, File};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt};
 use std::io::SeekFrom;
 use crate::AppState;
+use jstorrent_common::DownloadRoot;
+
 
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -22,14 +24,17 @@ pub fn routes() -> Router<Arc<AppState>> {
 struct ReadParams {
     offset: Option<u64>,
     length: Option<u64>,
+    root_token: String,
 }
+
 
 async fn read_file(
     State(state): State<Arc<AppState>>,
     Path(path): Path<String>,
     axum::extract::Query(params): axum::extract::Query<ReadParams>,
 ) -> Result<Vec<u8>, (StatusCode, String)> {
-    let full_path = validate_path(&state.root, &path)?;
+    let full_path = validate_path(&state, &params.root_token, &path)?;
+
 
     let mut file = File::open(&full_path).await
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
@@ -56,7 +61,9 @@ async fn read_file(
 #[derive(Deserialize)]
 struct WriteParams {
     offset: Option<u64>,
+    root_token: String,
 }
+
 
 async fn write_file(
     State(state): State<Arc<AppState>>,
@@ -64,7 +71,8 @@ async fn write_file(
     axum::extract::Query(params): axum::extract::Query<WriteParams>,
     body: axum::body::Bytes,
 ) -> Result<(), (StatusCode, String)> {
-    let full_path = validate_path(&state.root, &path)?;
+    let full_path = validate_path(&state, &params.root_token, &path)?;
+
 
     // Ensure parent directory exists
     if let Some(parent) = full_path.parent() {
@@ -92,19 +100,29 @@ async fn write_file(
 #[derive(Deserialize)]
 struct EnsureDirParams {
     path: String,
+    root_token: String,
 }
+
 
 async fn ensure_dir(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<EnsureDirParams>,
 ) -> Result<(), (StatusCode, String)> {
-    let full_path = validate_path(&state.root, &payload.path)?;
+    let full_path = validate_path(&state, &payload.root_token, &payload.path)?;
+
     fs::create_dir_all(full_path).await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(())
 }
 
-pub fn validate_path(root: &PathBuf, path: &str) -> Result<PathBuf, (StatusCode, String)> {
+pub fn validate_path(state: &AppState, root_token: &str, path: &str) -> Result<PathBuf, (StatusCode, String)> {
+    // Find root by token
+    let roots = state.download_roots.read().map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Lock poisoned".to_string()))?;
+    let root = roots.iter().find(|r| r.token == root_token)
+        .ok_or_else(|| (StatusCode::FORBIDDEN, "Invalid root token".to_string()))?;
+    
+    let root_path = PathBuf::from(&root.path);
+
     // Prevent directory traversal
     if path.contains("..") {
         return Err((StatusCode::BAD_REQUEST, "Invalid path".to_string()));
@@ -114,5 +132,6 @@ pub fn validate_path(root: &PathBuf, path: &str) -> Result<PathBuf, (StatusCode,
     let clean_path = path.replace('\\', "/");
     let clean_path = clean_path.trim_start_matches('/');
 
-    Ok(root.join(clean_path))
+    Ok(root_path.join(clean_path))
 }
+

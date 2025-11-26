@@ -1121,6 +1121,7 @@ dependencies = [
  "clap",
  "futures",
  "hex",
+ "jstorrent-host",
  "serde",
  "serde_json",
  "sha1",

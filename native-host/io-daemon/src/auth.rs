@@ -18,12 +18,18 @@ pub async fn middleware(
         return Ok(next.run(req).await);
     }
 
-    let auth_header = req.headers()
+    let token = req.headers()
         .get("X-JST-Auth")
-        .and_then(|value| value.to_str().ok());
+        .and_then(|value| value.to_str().ok())
+        .or_else(|| {
+            req.headers()
+                .get("Authorization")
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.strip_prefix("Bearer "))
+        });
 
-    match auth_header {
-        Some(token) if token == state.token => {
+    match token {
+        Some(t) if t == state.token => {
             Ok(next.run(req).await)
         }
         _ => {

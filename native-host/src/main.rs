@@ -31,11 +31,13 @@ async fn main() -> Result<()> {
     let state = Arc::new(State::new(download_root, Some(event_tx.clone())));
 
     // Start Daemon
+    // Start Daemon - DELAYED until Handshake
     let mut daemon_manager = daemon_manager::DaemonManager::new(state.clone());
-    if let Err(e) = daemon_manager.start().await {
-        log!("Failed to start daemon: {}", e);
-        // We continue, but the extension might fail to connect
-    }
+    // if let Err(e) = daemon_manager.start().await {
+    //     log!("Failed to start daemon: {}", e);
+    //     // We continue, but the extension might fail to connect
+    // }
+
 
     // Start RPC server (Legacy? Or still needed for link-handler?)
     // The design doc says link-handler talks to native-host via "minimal RPC".
@@ -208,7 +210,17 @@ async fn handle_request(
     daemon_manager: &mut daemon_manager::DaemonManager,
 ) -> Response {
     let result = match req.op {
-        Operation::PickDownloadDirectory => folder_picker::pick_download_directory(state).await,
+        Operation::PickDownloadDirectory => {
+            let res = folder_picker::pick_download_directory(state).await;
+            if let Ok(_) = res {
+                 // If successful, refresh daemon config
+                 if let Err(e) = daemon_manager.refresh_config().await {
+                     log!("Failed to refresh daemon config: {}", e);
+                 }
+            }
+            res
+        },
+
         
         Operation::Handshake { extension_id, install_id } => {
             log!("Handling Handshake for extension_id: {}, install_id: {}", extension_id, install_id);
@@ -217,7 +229,7 @@ async fn handle_request(
             if let Ok(mut info_guard) = state.rpc_info.lock() {
                 if let Some(info) = info_guard.as_mut() {
                     info.browser.extension_id = Some(extension_id);
-                    info.install_id = Some(install_id); // Update install_id
+                    info.install_id = Some(install_id.clone()); // Update install_id
                     if let Err(e) = crate::rpc::write_discovery_file(info.clone()) {
                         eprintln!("Failed to update discovery file on handshake: {}", e);
                     } else {
@@ -226,14 +238,26 @@ async fn handle_request(
                 }
             }
             
-            // Return daemon info
             if success {
-                log!("Handshake success, checking daemon info: {:?} {:?}", daemon_manager.port, daemon_manager.token);
-                if let (Some(port), Some(token)) = (daemon_manager.port, daemon_manager.token.clone()) {
-                     Ok(ResponsePayload::DaemonInfo { port, token })
+                let start_result = if daemon_manager.port.is_none() {
+                     log!("Starting daemon with install_id: {}", install_id);
+                     daemon_manager.start(&install_id).await
                 } else {
-                     log!("Daemon info missing");
-                     Err(anyhow::anyhow!("Daemon not running"))
+                    let _ = daemon_manager.refresh_config().await;
+                    Ok(())
+                };
+
+                if let Err(e) = start_result {
+                    log!("Failed to start daemon: {}", e);
+                    Err(anyhow::anyhow!("Failed to start daemon"))
+                } else {
+                    log!("Handshake success, checking daemon info: {:?} {:?}", daemon_manager.port, daemon_manager.token);
+                    if let (Some(port), Some(token)) = (daemon_manager.port, daemon_manager.token.clone()) {
+                         Ok(ResponsePayload::DaemonInfo { port, token })
+                    } else {
+                         log!("Daemon info missing");
+                         Err(anyhow::anyhow!("Daemon not running"))
+                    }
                 }
             } else {
                 log!("Handshake failed to update state");
