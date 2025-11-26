@@ -12,10 +12,15 @@ import { TorrentContentStorage } from './torrent-content-storage'
 import { PeerConnection } from './peer-connection'
 import * as crypto from 'crypto'
 
+export interface StorageResolver {
+  resolve(rootKey: string, torrentId: string): string
+}
+
 export interface BtEngineOptions {
   downloadPath: string
   socketFactory: ISocketFactory
   fileSystem: IFileSystem
+  storageResolver?: StorageResolver
   maxConnections?: number
   maxDownloadSpeed?: number
   maxUploadSpeed?: number
