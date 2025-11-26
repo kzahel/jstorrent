@@ -8,6 +8,7 @@
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:python": "python3 tests/python/test_btengine_http_rpc.py",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "repl": "tsx src/cmd/repl.ts"

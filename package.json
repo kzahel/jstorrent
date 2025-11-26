@@ -16,6 +16,7 @@
     "format:fix": "prettier --write .",
     "format": "prettier --check .",
     "test": "pnpm --recursive test",
+    "test:python": "pnpm --filter @jstorrent/engine test:python",
     "typecheck": "pnpm --recursive typecheck",
     "build": "pnpm --recursive build",
     "checkall": "npm-run-all --parallel lint format typecheck test",
