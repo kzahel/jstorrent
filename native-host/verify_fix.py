@@ -19,26 +19,28 @@ def main():
         f.write(f"#!/bin/sh\n{host_binary} \"$@\"\n")
     os.chmod(wrapper_path, 0o755)
 
-    # Clean up old rpc-info
-    config_dir = os.path.expanduser("~/.config/jstorrent-native")
-    if os.path.exists(config_dir):
-        rpc_file = os.path.join(config_dir, "rpc-info.json")
-        if os.path.exists(rpc_file):
-            os.remove(rpc_file)
+    # Use temp config dir
+    import tempfile
+    with tempfile.TemporaryDirectory() as temp_dir:
+        print(f"Using temp config dir: {temp_dir}")
+        env = os.environ.copy()
+        env["JSTORRENT_CONFIG_DIR"] = temp_dir
+        config_dir = os.path.join(temp_dir, "jstorrent-native")
 
-    print("Launching host via wrapper...")
-    # We launch the wrapper. The process tree will be:
-    # python (this script) -> sh (wrapper) -> jstorrent-host
-    #
-    # Current behavior (bug): It might pick up "sh" or "jstorrent-native-host-wrapper.sh" as the browser because it's the immediate parent and not a "known browser".
-    # Desired behavior: It should ignore the wrapper and find python (or at least not the wrapper).
-    
-    proc = subprocess.Popen(
-        [wrapper_path],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=sys.stderr
-    )
+        print("Launching host via wrapper...")
+        # We launch the wrapper. The process tree will be:
+        # python (this script) -> sh (wrapper) -> jstorrent-host
+        #
+        # Current behavior (bug): It might pick up "sh" or "jstorrent-native-host-wrapper.sh" as the browser because it's the immediate parent and not a "known browser".
+        # Desired behavior: It should ignore the wrapper and find python (or at least not the wrapper).
+        
+        proc = subprocess.Popen(
+            [wrapper_path],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=sys.stderr,
+            env=env
+        )
 
     try:
         time.sleep(2)

@@ -31,11 +31,40 @@ def run_script(script_name):
 def main():
     print("Starting all verification scripts...\n")
     
+    # Check global config
+    config_dir = os.path.expanduser("~/.config/jstorrent-native")
+    rpc_file = os.path.join(config_dir, "rpc-info.json")
+    
+    initial_mtime = None
+    if os.path.exists(rpc_file):
+        initial_mtime = os.path.getmtime(rpc_file)
+        print(f"Global config exists at {rpc_file}. mtime: {initial_mtime}")
+    else:
+        print(f"Global config does not exist at {rpc_file}")
+
     failed = []
     for script in SCRIPTS:
         if not run_script(script):
             failed.append(script)
     
+    # Verify global config hasn't changed
+    if os.path.exists(rpc_file):
+        final_mtime = os.path.getmtime(rpc_file)
+        if initial_mtime is None:
+             print(f"❌ FAILURE: Global config was created during tests! ({rpc_file})")
+             failed.append("GLOBAL_CONFIG_LEAK")
+        elif final_mtime != initial_mtime:
+             print(f"❌ FAILURE: Global config was modified during tests! ({rpc_file})")
+             print(f"Initial: {initial_mtime}, Final: {final_mtime}")
+             failed.append("GLOBAL_CONFIG_LEAK")
+        else:
+             print(f"✅ Global config was NOT modified.")
+    elif initial_mtime is not None:
+        print(f"❌ FAILURE: Global config was deleted during tests! ({rpc_file})")
+        failed.append("GLOBAL_CONFIG_LEAK")
+    else:
+        print(f"✅ Global config still does not exist.")
+
     print("==================================================")
     if failed:
         print(f"❌ Verification FAILED. The following scripts failed:")

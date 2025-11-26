@@ -58,13 +58,21 @@ def main():
         shutil.rmtree(DOWNLOAD_ROOT)
     os.makedirs(DOWNLOAD_ROOT)
 
-    # Start host
-    proc = subprocess.Popen(
-        [HOST_BINARY],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=sys.stderr
-    )
+    # Use temp config dir
+    import tempfile
+    with tempfile.TemporaryDirectory() as temp_dir:
+        print(f"Using temp config dir: {temp_dir}")
+        env = os.environ.copy()
+        env["JSTORRENT_CONFIG_DIR"] = temp_dir
+
+        # Start host
+        proc = subprocess.Popen(
+            [HOST_BINARY],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=sys.stderr,
+            env=env
+        )
 
     try:
         # 1. Handshake

@@ -134,18 +134,23 @@ def read_message(proc):
 
 def main():
     # Start native host
-    env = os.environ.copy()
-    # Mock extension ID
-    args = ["./target/release/jstorrent-host", "chrome-extension://test-extension-id/"]
-    
-    print("Starting Native Host...")
-    proc = subprocess.Popen(
-        args,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=sys.stderr,
-        env=env
-    )
+    import tempfile
+    with tempfile.TemporaryDirectory() as temp_dir:
+        print(f"Using temp config dir: {temp_dir}")
+        env = os.environ.copy()
+        env["JSTORRENT_CONFIG_DIR"] = temp_dir
+        
+        # Mock extension ID
+        args = ["./target/release/jstorrent-host", "chrome-extension://test-extension-id/"]
+        
+        print("Starting Native Host...")
+        proc = subprocess.Popen(
+            args,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=sys.stderr,
+            env=env
+        )
 
     try:
         # 1. Handshake with Native Host
