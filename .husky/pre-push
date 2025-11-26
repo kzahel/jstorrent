@@ -18,4 +18,4 @@ esac
 
 
 
-pnpm run format:check
+pnpm run format
