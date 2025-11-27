@@ -53,16 +53,23 @@ class JSTEngine:
         cmd = ["pnpm", "exec", "tsx"]
         
         # Support Node.js inspector for Chrome DevTools debugging
-        # Set NODE_INSPECT=1 to enable on default port (9229)
-        # Set NODE_INSPECT=9230 (or other valid port 1024-65535) for specific port
-        node_inspect = os.environ.get("NODE_INSPECT")
-        if node_inspect:
+        # NODE_INSPECT=true     - Enable inspector (auto-picks available port)
+        # NODE_INSPECT=9229     - Enable inspector on specific port (1024-65535)
+        # NODE_INSPECT_BRK=true - Enable inspector and break on first line (waits for debugger)
+        # Use Chrome's chrome://inspect → "Open dedicated DevTools for Node" to connect
+        node_inspect_brk = os.environ.get("NODE_INSPECT_BRK", "")
+        node_inspect = os.environ.get("NODE_INSPECT", "")
+        
+        if node_inspect_brk or node_inspect:
+            inspect_flag = "--inspect-brk" if node_inspect_brk else "--inspect"
+            port_value = node_inspect_brk or node_inspect
+            
             # If it's a valid port number (1024-65535), use that port
-            if node_inspect.isdigit() and 1024 <= int(node_inspect) <= 65535:
-                cmd.append(f"--inspect={node_inspect}")
+            if port_value.isdigit() and 1024 <= int(port_value) <= 65535:
+                cmd.append(f"{inspect_flag}={port_value}")
             else:
-                # Any other truthy value (like "1", "true", "yes") uses default port
-                cmd.append("--inspect")
+                # Any other truthy value uses port 0 (auto-assign)
+                cmd.append(f"{inspect_flag}=0")
         
         cmd.append(rpc_script)
         
@@ -205,6 +212,12 @@ class JSTEngine:
             return self._req("GET", "/engine/status")
         except RPCError:
              return {"ok": True, "running": False}
+
+    @property
+    def bt_port(self):
+        """Get the BitTorrent listening port (auto-assigned if port=0 was used)."""
+        status = self.status()
+        return status.get("port", 0)
 
     # -----------------------------
     # Torrent management

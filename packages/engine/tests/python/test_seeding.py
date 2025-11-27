@@ -48,9 +48,9 @@ def test_seeding(tmp_path, engine_factory, piece_length):
     # Add torrent file
     tid = engine.add_torrent_file(torrent_path)
 
-    # Get engine's listening port from status
-    # For now we use the configured port
-    engine_port = 6881  # Default BtEngine port
+    # Get engine's actual listening port (auto-assigned)
+    engine_port = engine.bt_port
+    assert engine_port > 0, "Engine port should be assigned"
 
     # 3. Start Libtorrent (Leecher)
     lt_session = LibtorrentSession(lt_leecher_dir, port=50001)

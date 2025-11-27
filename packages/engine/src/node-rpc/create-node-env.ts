@@ -23,6 +23,7 @@ export function createNodeEngineEnvironment(
     socketFactory: new NodeSocketFactory(),
     fileSystem: new NodeFileSystem(),
     storageResolver: overrides.storageResolver || new DefaultStorageResolver(downloadPath),
+    port: 0, // Default to auto-assign port for testing; override with specific port if needed
     ...overrides,
   }
 }

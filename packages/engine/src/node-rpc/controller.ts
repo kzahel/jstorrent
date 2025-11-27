@@ -7,6 +7,7 @@ export interface EngineStatus {
   ok: boolean
   running: boolean
   version?: string
+  port?: number
   torrents?: Array<{ id: string; state: string }>
 }
 
@@ -56,6 +57,7 @@ export class EngineController {
       ok: true,
       running: true,
       version: '1.0.0', // Placeholder
+      port: this.engine.port,
       torrents,
     }
   }

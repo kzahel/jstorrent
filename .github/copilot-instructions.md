@@ -149,3 +149,5 @@ python3 verify_all.py                       # Integration tests (simulates exten
 When making changes, check relevant design docs for architectural constraints before implementation.
 
 When editing Python files, ensure that the resulting file passes python3 -m py_compile and uses consistent 4-space indentation.
+
+Before making any changes, please confirm the plan with the user to ensure it aligns with their expectations and requirements, and to give them an opportunity to provide additional context or constraints.

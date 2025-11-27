@@ -39,7 +39,7 @@ export class BtEngine extends EventEmitter {
     super()
     this.fileSystem = options.fileSystem
     this.socketFactory = options.socketFactory
-    this.port = options.port || 6881
+    this.port = options.port ?? 6881  // Use nullish coalescing to allow port 0
 
     if (options.peerId) {
       this.peerId = Buffer.from(options.peerId)
@@ -58,6 +58,11 @@ export class BtEngine extends EventEmitter {
       const server = this.socketFactory.createTcpServer()
       if (server && typeof server.listen === 'function') {
         server.listen(this.port, () => {
+          // Get the actual bound port (important when port was 0 for auto-assign)
+          const addr = server.address()
+          if (addr && typeof addr === 'object' && 'port' in addr) {
+            this.port = addr.port
+          }
           console.log(`BtEngine listening on port ${this.port}`)
         })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

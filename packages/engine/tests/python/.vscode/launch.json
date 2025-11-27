@@ -10,6 +10,40 @@
                 "${file}"
             ],
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Debug pytest + Node.js (current file)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "${file}",
+                "-v"
+            ],
+            "console": "integratedTerminal",
+            "env": {
+                "NODE_INSPECT": "true"
+            }
+        },
+        {
+            "name": "Attach to Node.js (JSTEngine)",
+            "type": "node",
+            "request": "attach",
+            "port": 9229,
+            "restart": true,
+            "skipFiles": [
+                "<node_internals>/**"
+            ]
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Debug Python + TypeScript (compound)",
+            "configurations": [
+                "Debug pytest + Node.js (current file)",
+                "Attach to Node.js (JSTEngine)"
+            ],
+            "stopAll": true
         }
     ]
 }
