@@ -351,6 +351,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   }
 
   destroy() {
+    for (const torrent of this.torrents) {
+      torrent.stop()
+    }
     this.torrents = []
   }
 
