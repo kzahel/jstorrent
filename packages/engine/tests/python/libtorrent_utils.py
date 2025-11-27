@@ -10,7 +10,7 @@ class LibtorrentSession:
         self.port = port
         
         settings = {
-            'listen_interfaces': '0.0.0.0:%d' % port,
+            'listen_interfaces': '127.0.0.1:%d' % port,
             'enable_dht': False,
             'enable_lsd': False,
             'enable_upnp': False,
@@ -22,7 +22,8 @@ class LibtorrentSession:
             'enable_outgoing_utp': False,
             'prefer_rc4': False,
             'user_agent': 'libtorrent_test',
-            'alert_mask': lt.alert.category_t.all_categories
+            'alert_mask': lt.alert.category_t.all_categories,
+            'allow_multiple_connections_per_ip': True
         }
         
         params = lt.session_params()
@@ -50,7 +51,7 @@ class LibtorrentSession:
         print(f"DEBUG: in_enc_policy={applied.get('in_enc_policy')}")
         print(f"DEBUG: allowed_enc_level={applied.get('allowed_enc_level')}")
         
-    def create_dummy_torrent(self, name: str, size: int = 1024 * 1024, piece_length: int = 0) -> Tuple[str, str]:
+    def create_dummy_torrent(self, name: str, size: int = 1024 * 1024, piece_length: int = 0, tracker_url: str = None) -> Tuple[str, str]:
         """Creates a dummy file and a .torrent file for it. Returns (torrent_path, info_hash_hex)."""
         file_path = os.path.join(self.root_dir, name)
         with open(file_path, "wb") as f:
@@ -60,6 +61,8 @@ class LibtorrentSession:
         lt.add_files(fs, file_path)
         t = lt.create_torrent(fs, piece_size=piece_length)
         t.set_creator('libtorrent_test')
+        if tracker_url:
+            t.add_tracker(tracker_url)
         lt.set_piece_hashes(t, self.root_dir)
         torrent_path = os.path.join(self.root_dir, name + ".torrent")
         
@@ -70,7 +73,7 @@ class LibtorrentSession:
         info_hash = str(info.info_hash())
         return torrent_path, str(info_hash)
 
-    def create_multi_file_torrent(self, dir_name: str, files: list[Tuple[str, int]], piece_length: int = 0) -> Tuple[str, str]:
+    def create_multi_file_torrent(self, dir_name: str, files: list[Tuple[str, int]], piece_length: int = 0, tracker_url: str = None) -> Tuple[str, str]:
         """
         Creates a multi-file torrent.
         files: list of (filename, size) tuples.
@@ -91,6 +94,8 @@ class LibtorrentSession:
 
         t = lt.create_torrent(fs, piece_size=piece_length)
         t.set_creator('libtorrent_test')
+        if tracker_url:
+            t.add_tracker(tracker_url)
         lt.set_piece_hashes(t, self.root_dir) # set_piece_hashes expects the parent dir of the content
         
         torrent_path = os.path.join(self.root_dir, dir_name + ".torrent")
@@ -124,3 +129,8 @@ class LibtorrentSession:
         # libtorrent session doesn't strictly need a stop method in python bindings, 
         # but good for cleanup if needed
         pass
+
+    def print_alerts(self):
+        alerts = self.session.pop_alerts()
+        for a in alerts:
+            print(f"Libtorrent Alert: {a.message()}")

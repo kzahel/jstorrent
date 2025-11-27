@@ -1,6 +1,7 @@
 dist
 node_modules
 coverage
+.venv
 test-results
 playwright-report
 blob-report
