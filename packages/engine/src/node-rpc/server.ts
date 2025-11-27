@@ -59,7 +59,7 @@ export class HttpRpcServer {
         // Stop engine if running
         try {
           this.controller.stopEngine()
-        } catch (e) {
+        } catch (_e) {
           // ignore if not running
         }
         this.sendJson(res, { ok: true })
@@ -100,18 +100,20 @@ export class HttpRpcServer {
         res.writeHead(404)
         this.sendJson(res, { ok: false, error: 'Not Found' })
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
       const code =
-        err.message === 'EngineNotRunning' ||
-        err.message === 'EngineAlreadyRunning' ||
-        err.message === 'TorrentNotFound'
+        message === 'EngineNotRunning' ||
+        message === 'EngineAlreadyRunning' ||
+        message === 'TorrentNotFound'
           ? 400
           : 500
       res.writeHead(code)
-      this.sendJson(res, { ok: false, error: err.message })
+      this.sendJson(res, { ok: false, error: message })
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readBody(req: http.IncomingMessage): Promise<any> {
     return new Promise((resolve, reject) => {
       let body = ''
@@ -129,7 +131,7 @@ export class HttpRpcServer {
     })
   }
 
-  private sendJson(res: http.ServerResponse, data: any) {
+  private sendJson(res: http.ServerResponse, data: unknown) {
     if (!res.headersSent) {
       res.setHeader('Content-Type', 'application/json')
     }
