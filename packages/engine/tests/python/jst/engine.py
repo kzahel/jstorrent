@@ -12,8 +12,9 @@ from .errors import (
 )
 
 class JSTEngine:
-    def __init__(self, port=0, config=None, **kwargs):
+    def __init__(self, port=0, config=None, verbose=False, **kwargs):
         self.port = port
+        self.verbose = verbose
         self.rpc_port = None  # Will be set after server starts
         self.base = None  # Will be set after we know the port
         self.session = requests.Session()
@@ -87,13 +88,20 @@ class JSTEngine:
             cwd=engine_root,
             env=env,
             stdout=subprocess.PIPE,
-            stderr=sys.stderr,
+            stderr=subprocess.PIPE,
             text=True,
             bufsize=1  # Line buffered
         )
 
     def _wait_for_rpc(self, timeout=10):
         start = time.time()
+        
+        # Start a thread to forward stderr immediately
+        import threading
+        def forward_stderr():
+            for line in self.proc.stderr:
+                print(line, end='', file=sys.stderr)
+        threading.Thread(target=forward_stderr, daemon=True).start()
         
         # First, read stdout to get the actual port
         while time.time() - start < timeout:
@@ -102,7 +110,8 @@ class JSTEngine:
             
             line = self.proc.stdout.readline()
             if line:
-                print(line, end='')  # Forward to our stdout
+                if self.verbose:
+                    print(line, end='')  # Forward to our stdout
                 match = re.match(r'RPC_PORT=(\d+)', line)
                 if match:
                     self.rpc_port = int(match.group(1))
@@ -117,10 +126,10 @@ class JSTEngine:
             try:
                 self._req("GET", "/engine/status")
                 # Start a thread to forward remaining stdout
-                import threading
                 def forward_stdout():
                     for line in self.proc.stdout:
-                        print(line, end='')
+                        if self.verbose:
+                            print(line, end='')
                 threading.Thread(target=forward_stdout, daemon=True).start()
                 return
             except (requests.exceptions.ConnectionError, RPCError):

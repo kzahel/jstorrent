@@ -1,0 +1,1 @@
+if you're trying to run a python script, check the current folder for a .venv and use that for running python. always try and use a .venv instead of using global python packages
