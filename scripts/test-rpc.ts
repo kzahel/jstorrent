@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as http from 'http'
 import { spawn } from 'child_process'
 import * as path from 'path'
@@ -29,7 +30,7 @@ function request(method: string, path: string, body?: any): Promise<any> {
         try {
           const json = JSON.parse(data)
           resolve({ status: res.statusCode, body: json })
-        } catch (e) {
+        } catch (_e) {
           resolve({ status: res.statusCode, body: data })
         }
       })

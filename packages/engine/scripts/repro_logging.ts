@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { BtEngine } from './src/core/bt-engine'
 import { InMemoryFileSystem } from './src/io/memory/memory-filesystem'
 

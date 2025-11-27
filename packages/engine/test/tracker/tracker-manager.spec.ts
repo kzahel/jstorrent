@@ -42,6 +42,7 @@ describe('TrackerManager', () => {
         debug: vi.fn(),
       }),
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     manager = new TrackerManager(mockEngine as any, announceList, infoHash, peerId, socketFactory)
   })
 

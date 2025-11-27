@@ -2,11 +2,12 @@ import { EventEmitter } from 'events'
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
+// Logger interface uses `unknown[]` for variadic args - callers can pass anything
 export interface Logger {
-  debug(message: string, ...args: any[]): void
-  info(message: string, ...args: any[]): void
-  warn(message: string, ...args: any[]): void
-  error(message: string, ...args: any[]): void
+  debug(message: string, ...args: unknown[]): void
+  info(message: string, ...args: unknown[]): void
+  warn(message: string, ...args: unknown[]): void
+  error(message: string, ...args: unknown[]): void
 }
 
 export interface EngineLoggingConfig {
@@ -19,7 +20,17 @@ export interface EngineLoggingConfig {
   excludePeerIds?: string[]
 }
 
-export type ShouldLogFn = (level: LogLevel, context: any) => boolean
+// Context passed to filtering functions
+export interface LogContext {
+  component: string
+  name: string
+  clientId: string
+  instanceKey?: string
+  instanceValue?: string | Uint8Array
+  peerId?: string | Uint8Array
+}
+
+export type ShouldLogFn = (level: LogLevel, context: LogContext) => boolean
 
 export interface ILoggableComponent {
   getLogName(): string
@@ -56,7 +67,7 @@ export class EngineComponent extends EventEmitter implements ILoggableComponent 
     super()
     this.engine = engine
 
-    const cls = this.constructor as any
+    const cls = this.constructor as { logName?: string; name?: string }
     if (!cls.logName) {
       const name = cls.name || '<unknown>'
       throw new Error(`EngineComponent subclass missing static logName: ${name} `)
@@ -71,11 +82,11 @@ export class EngineComponent extends EventEmitter implements ILoggableComponent 
   }
 
   getLogName(): string {
-    return this.instanceLogName ?? (this.constructor as any).logName
+    return this.instanceLogName ?? (this.constructor as unknown as { logName: string }).logName
   }
 
   getStaticLogName(): string {
-    return (this.constructor as any).logName
+    return (this.constructor as unknown as { logName: string }).logName
   }
 }
 
@@ -91,8 +102,8 @@ export function buildComponentScope(component: ILoggableComponent): string {
   return `${name}:${cid} `
 }
 
-export function buildInjectedContext(component: ILoggableComponent, userCtx?: object): object {
-  const ctx: any = {
+export function buildInjectedContext(component: ILoggableComponent, userCtx?: object): LogContext {
+  const ctx: LogContext = {
     component: component.getStaticLogName(),
     name: component.getLogName(),
     clientId: component.engineInstance.clientId,
@@ -127,8 +138,8 @@ export function createFilter(cfg: EngineLoggingConfig): ShouldLogFn {
     if (!passesLevel(level, cfg.level)) return false
 
     const comp = ctx.component
-    const inst = ctx.instanceValue
-    const pid = ctx.peerId
+    const inst = typeof ctx.instanceValue === 'string' ? ctx.instanceValue : undefined
+    const pid = typeof ctx.peerId === 'string' ? ctx.peerId : undefined
 
     if (cfg.excludeComponents?.includes(comp)) return false
     if (cfg.includeComponents && !cfg.includeComponents.includes(comp)) return false
@@ -185,7 +196,7 @@ export function withScopeAndFiltering(
      * 3. Async logging:
      *    - Problem: Loses stack context completely and can be confusing.
      */
-    return (base[level] as Function).bind(base, prefix)
+    return (base[level] as (...args: unknown[]) => void).bind(base, prefix)
   }
 
   return {
@@ -208,7 +219,7 @@ export function basicLogger(): Logger {
   return console as unknown as Logger
 }
 
-function formatPrefix(ctx: any): string {
+function formatPrefix(ctx: LogContext): string {
   const parts: string[] = []
 
   if (ctx.clientId) {
@@ -218,7 +229,7 @@ function formatPrefix(ctx: any): string {
   if (ctx.name && ctx.name !== ctx.component) {
     parts.push(ctx.name)
   } else if (ctx.component) {
-    let compStr = ctx.component
+    let compStr: string = ctx.component
     // Capitalize component name
     compStr = compStr.charAt(0).toUpperCase() + compStr.slice(1)
 
