@@ -105,6 +105,38 @@ export class HttpRpcServer {
         const id = url.split('/')[2]
         await this.controller.recheckTorrent(id)
         this.sendJson(res, { ok: true })
+      } else if (url?.startsWith('/torrent/') && url?.endsWith('/peers') && method === 'GET') {
+        const id = url.split('/')[2]
+        const result = this.controller.getPeerInfo(id)
+        this.sendJson(res, result)
+      } else if (
+        url?.startsWith('/torrent/') &&
+        url?.endsWith('/availability') &&
+        method === 'GET'
+      ) {
+        const id = url.split('/')[2]
+        const result = this.controller.getPieceAvailability(id)
+        this.sendJson(res, result)
+      } else if (url?.startsWith('/torrent/') && url?.endsWith('/settings') && method === 'POST') {
+        const id = url.split('/')[2]
+        const body = await this.readBody(req)
+        const result = this.controller.setTorrentSettings(id, body)
+        this.sendJson(res, result)
+      } else if (
+        url?.startsWith('/torrent/') &&
+        url?.endsWith('/disconnect-peer') &&
+        method === 'POST'
+      ) {
+        const id = url.split('/')[2]
+        const body = await this.readBody(req)
+        const result = this.controller.disconnectPeer(id, body.ip, body.port)
+        this.sendJson(res, result)
+      } else if (url?.startsWith('/logs') && method === 'GET') {
+        const urlObj = new URL(url, `http://localhost:${this.port}`)
+        const level = urlObj.searchParams.get('level') || 'info'
+        const limit = parseInt(urlObj.searchParams.get('limit') || '100', 10)
+        const result = this.controller.getLogs(level, limit)
+        this.sendJson(res, result)
       } else {
         res.writeHead(404)
         this.sendJson(res, { ok: false, error: 'Not Found' })

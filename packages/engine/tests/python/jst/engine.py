@@ -276,6 +276,31 @@ class JSTEngine:
         """Trigger piece recheck for a torrent."""
         self._req("POST", f"/torrent/{tid}/recheck")
 
+    def get_peer_info(self, tid):
+        """Get detailed peer information."""
+        return self._req("GET", f"/torrent/{tid}/peers")
+
+    def get_download_rate(self, tid):
+        """Get current download rate in bytes/sec."""
+        status = self.get_torrent_status(tid)
+        return status.get("downloadRate", 0)
+
+    def set_max_peers(self, tid, max_peers):
+        """Set maximum peers for a torrent."""
+        return self._req("POST", f"/torrent/{tid}/settings", json={"maxPeers": max_peers})
+
+    def get_piece_availability(self, tid):
+        """Get piece availability map (which peers have which pieces)."""
+        return self._req("GET", f"/torrent/{tid}/availability")
+
+    def force_disconnect_peer(self, tid, ip, port):
+        """Force disconnect a specific peer."""
+        return self._req("POST", f"/torrent/{tid}/disconnect-peer", json={"ip": ip, "port": port})
+
+    def get_logs(self, level="info", limit=100):
+        """Get recent engine logs."""
+        return self._req("GET", f"/logs?level={level}&limit={limit}")
+
     # -----------------------------
     # Test helpers
     # -----------------------------

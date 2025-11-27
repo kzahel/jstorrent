@@ -2,6 +2,7 @@ import { BtEngine, BtEngineOptions } from '../core/bt-engine'
 import { Torrent } from '../core/torrent'
 import { toInfoHashString } from '../utils/infohash'
 import { createNodeEngineEnvironment } from './create-node-env'
+import { globalLogStore, LogLevel } from '../logging/logger'
 
 export interface EngineStatus {
   ok: boolean
@@ -141,5 +142,42 @@ export class EngineController {
     if (!torrent) throw new Error('TorrentNotFound')
 
     await torrent.recheckData()
+  }
+
+  getPeerInfo(id: string) {
+    if (!this.engine) throw new Error('EngineNotRunning')
+    const torrent = this.engine.getTorrent(id)
+    if (!torrent) throw new Error('TorrentNotFound')
+    return { ok: true, peers: torrent.getPeerInfo() }
+  }
+
+  getPieceAvailability(id: string) {
+    if (!this.engine) throw new Error('EngineNotRunning')
+    const torrent = this.engine.getTorrent(id)
+    if (!torrent) throw new Error('TorrentNotFound')
+    return { ok: true, availability: torrent.getPieceAvailability() }
+  }
+
+  disconnectPeer(id: string, ip: string, port: number) {
+    if (!this.engine) throw new Error('EngineNotRunning')
+    const torrent = this.engine.getTorrent(id)
+    if (!torrent) throw new Error('TorrentNotFound')
+    torrent.disconnectPeer(ip, port)
+    return { ok: true }
+  }
+
+  setTorrentSettings(id: string, settings: { maxPeers?: number }) {
+    if (!this.engine) throw new Error('EngineNotRunning')
+    const torrent = this.engine.getTorrent(id)
+    if (!torrent) throw new Error('TorrentNotFound')
+    if (settings.maxPeers !== undefined) {
+      torrent.setMaxPeers(settings.maxPeers)
+    }
+    return { ok: true }
+  }
+
+  getLogs(level: string = 'info', limit: number = 100) {
+    const logs = globalLogStore.get(level as LogLevel, limit)
+    return { ok: true, logs }
   }
 }

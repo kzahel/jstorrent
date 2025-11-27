@@ -251,8 +251,63 @@ function formatPrefix(ctx: LogContext): string {
   return parts.length > 0 ? `[${parts.join(':')}]` : ''
 }
 
+export interface LogEntry {
+  timestamp: number
+  level: LogLevel
+  message: string
+  args: unknown[]
+}
+
+export class LogStore {
+  private logs: LogEntry[] = []
+  private maxLogs: number = 1000
+
+  add(level: LogLevel, message: string, args: unknown[]) {
+    this.logs.push({
+      timestamp: Date.now(),
+      level,
+      message,
+      args,
+    })
+    if (this.logs.length > this.maxLogs) {
+      this.logs.shift()
+    }
+  }
+
+  get(level?: LogLevel, limit: number = 100): LogEntry[] {
+    let filtered = this.logs
+    if (level) {
+      filtered = filtered.filter((l) => LEVEL_PRIORITY[l.level] >= LEVEL_PRIORITY[level])
+    }
+    return filtered.slice(-limit)
+  }
+}
+
+export const globalLogStore = new LogStore()
+
+export function capturingLogger(base: Logger = basicLogger()): Logger {
+  return {
+    debug: (msg, ...args) => {
+      globalLogStore.add('debug', msg, args)
+      base.debug(msg, ...args)
+    },
+    info: (msg, ...args) => {
+      globalLogStore.add('info', msg, args)
+      base.info(msg, ...args)
+    },
+    warn: (msg, ...args) => {
+      globalLogStore.add('warn', msg, args)
+      base.warn(msg, ...args)
+    },
+    error: (msg, ...args) => {
+      globalLogStore.add('error', msg, args)
+      base.error(msg, ...args)
+    },
+  }
+}
+
 export function defaultLogger(): Logger {
-  return basicLogger()
+  return capturingLogger(basicLogger())
 }
 
 export function randomClientId(): string {

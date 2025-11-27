@@ -208,6 +208,48 @@ export class Torrent extends EngineComponent {
     return this.peers.reduce((acc, peer) => acc + peer.uploadSpeed, 0)
   }
 
+  getPeerInfo() {
+    return this.peers.map((peer) => ({
+      ip: peer.remoteAddress,
+      port: peer.remotePort,
+      client: peer.peerId ? Buffer.from(peer.peerId).toString('utf-8') : 'unknown',
+      peerId: peer.peerId ? Buffer.from(peer.peerId).toString('hex') : null,
+      downloaded: peer.downloaded,
+      uploaded: peer.uploaded,
+      downloadSpeed: peer.downloadSpeed,
+      uploadSpeed: peer.uploadSpeed,
+      percent: peer.bitfield ? peer.bitfield.count() / peer.bitfield.size : 0,
+      choking: peer.peerChoking,
+      interested: peer.peerInterested,
+    }))
+  }
+
+  getPieceAvailability(): number[] {
+    if (!this.pieceManager) return []
+    const counts = new Array(this.pieceManager.getPieceCount()).fill(0)
+    for (const peer of this.peers) {
+      if (peer.bitfield) {
+        for (let i = 0; i < counts.length; i++) {
+          if (peer.bitfield.get(i)) {
+            counts[i]++
+          }
+        }
+      }
+    }
+    return counts
+  }
+
+  disconnectPeer(ip: string, port: number) {
+    const peer = this.peers.find((p) => p.remoteAddress === ip && p.remotePort === port)
+    if (peer) {
+      peer.close()
+    }
+  }
+
+  setMaxPeers(max: number) {
+    this.maxPeers = max
+  }
+
   addPeer(peer: PeerConnection) {
     if (this.numPeers >= this.maxPeers) {
       this.logger.warn('Rejecting peer, max peers reached')

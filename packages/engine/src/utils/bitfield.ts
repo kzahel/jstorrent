@@ -12,6 +12,10 @@ export class BitField {
     }
   }
 
+  get size(): number {
+    return this.length
+  }
+
   get(index: number): boolean {
     if (index < 0 || index >= this.length) {
       return false
