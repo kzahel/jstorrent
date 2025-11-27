@@ -134,16 +134,18 @@ python3 verify_all.py                       # Integration tests (simulates exten
 
 ## Code Reading Entry Points
 
-- Extension architecture: `extension/DESIGN.md`, `extension/WALKTHROUGH.md`
+- Extension architecture: `extension/DESIGN.md`, `extension/DESIGN.md`
 - Native components: `native-host/DESIGN.md`, `design_docs/native-components.md`
 - Monorepo migration: `design_docs/monorepo-migration.md`
 - Engine package: `packages/engine/` (core BitTorrent logic, no browser/node deps)
 
 ## Key Design Documents
 
-- `native-host/DESIGN-latest.md`: Complete native stack architecture (lifecycle, auth, download roots)
+- `native-host/DESIGN.md`: Complete native stack architecture (lifecycle, auth, download roots)
 - `extension/DESIGN.md`: Build system, test framework, MV3 constraints
 - `design_docs/io-daemon-websocket-detail.md`: WebSocket protocol for socket operations
 - `packages/engine/docs/ARCHITECTURE-current.md`: BitTorrent engine architecture and roadmap
 
 When making changes, check relevant design docs for architectural constraints before implementation.
+
+When editing Python files, ensure that the resulting file passes python3 -m py_compile and uses consistent 4-space indentation.

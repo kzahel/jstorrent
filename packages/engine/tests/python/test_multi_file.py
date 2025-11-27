@@ -3,7 +3,7 @@ import os
 import time
 import hashlib
 from libtorrent_utils import LibtorrentSession
-from jst import JSTEngine
+
 
 def calculate_sha1(file_path):
     sha1 = hashlib.sha1()
@@ -15,7 +15,8 @@ def calculate_sha1(file_path):
             sha1.update(data)
     return sha1.hexdigest()
 
-def test_multi_file_download(tmp_path):
+
+def test_multi_file_download(tmp_path, engine_factory):
     # Setup directories
     temp_dir = str(tmp_path)
     seeder_dir = os.path.join(temp_dir, "seeder_multi")
@@ -60,57 +61,52 @@ def test_multi_file_download(tmp_path):
     assert lt_handle.status().is_seeding
 
     # 2. Start JSTEngine
-    engine = JSTEngine(port=3002, download_dir=leecher_dir)
+    engine = engine_factory(download_dir=leecher_dir)
 
-    try:
-        # Add torrent file
-        tid = engine.add_torrent_file(torrent_path)
+    # Add torrent file
+    tid = engine.add_torrent_file(torrent_path)
 
-        # 3. Connect to peer
-        engine.add_peer(tid, "127.0.0.1", 50002)
+    # 3. Connect to peer
+    engine.add_peer(tid, "127.0.0.1", 50002)
 
-        # 4. Wait for Download
-        print("Waiting for download to complete...")
-        downloaded = False
-        for i in range(60): # 30 seconds
-            status = engine.get_torrent_status(tid)
-            progress = status.get("progress", 0)
-            print(f"Progress: {progress * 100:.1f}%")
+    # 4. Wait for Download
+    print("Waiting for download to complete...")
+    downloaded = False
+    for i in range(60): # 30 seconds
+        status = engine.get_torrent_status(tid)
+        progress = status.get("progress", 0)
+        print(f"Progress: {progress * 100:.1f}%")
+        
+        if progress >= 1.0:
+            downloaded = True
+            print("Download complete per engine status!")
+            break
+        
+        # Also check files as backup
+        all_exist = True
+        for name, size in files:
+            expected_path = os.path.join(leecher_dir, torrent_name, name)
             
-            if progress >= 1.0:
-                downloaded = True
-                print("Download complete per engine status!")
+            if not os.path.exists(expected_path) or os.path.getsize(expected_path) != size:
+                all_exist = False
                 break
-            
-            # Also check files as backup
-            all_exist = True
+        
+        if all_exist:
+            # Verify hashes
+            hashes_match = True
             for name, size in files:
-                expected_path = os.path.join(leecher_dir, torrent_name, name)
-                
-                if not os.path.exists(expected_path) or os.path.getsize(expected_path) != size:
-                    all_exist = False
+                src_path = os.path.join(seeder_dir, torrent_name, name)
+                dst_path = os.path.join(leecher_dir, torrent_name, name)
+                if calculate_sha1(src_path) != calculate_sha1(dst_path):
+                    print(f"Hash mismatch for {name}")
+                    hashes_match = False
                     break
             
-            if all_exist:
-                # Verify hashes
-                hashes_match = True
-                for name, size in files:
-                    src_path = os.path.join(seeder_dir, torrent_name, name)
-                    dst_path = os.path.join(leecher_dir, torrent_name, name)
-                    if calculate_sha1(src_path) != calculate_sha1(dst_path):
-                        print(f"Hash mismatch for {name}")
-                        hashes_match = False
-                        break
-                
-                if hashes_match:
-                    downloaded = True
-                    print("Download verified via file check!")
-                    break
-            
-            time.sleep(0.5)
+            if hashes_match:
+                downloaded = True
+                print("Download verified via file check!")
+                break
+        
+        time.sleep(0.5)
 
-        assert downloaded, "Download failed or timed out"
-
-    finally:
-        engine.close()
-        lt_session.stop()
+    assert downloaded, "Download failed or timed out"

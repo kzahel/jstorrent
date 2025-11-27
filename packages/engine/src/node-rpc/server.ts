@@ -5,20 +5,29 @@ export class HttpRpcServer {
   private server: http.Server
   private controller: EngineController
   private port: number
+  private actualPort: number = 0
 
-  constructor(port: number = 3000) {
+  constructor(port: number = 0) {
     this.port = port
     this.controller = new EngineController()
     this.server = http.createServer((req, res) => this.handleRequest(req, res))
   }
 
-  start(): Promise<void> {
+  start(): Promise<number> {
     return new Promise((resolve) => {
       this.server.listen(this.port, () => {
-        console.log(`HTTP RPC Server listening on port ${this.port}`)
-        resolve()
+        const addr = this.server.address()
+        this.actualPort = typeof addr === 'object' && addr ? addr.port : this.port
+        // Output in a parseable format for the Python test harness
+        console.log(`RPC_PORT=${this.actualPort}`)
+        console.log(`HTTP RPC Server listening on port ${this.actualPort}`)
+        resolve(this.actualPort)
       })
     })
+  }
+
+  getPort(): number {
+    return this.actualPort
   }
 
   stop(): Promise<void> {

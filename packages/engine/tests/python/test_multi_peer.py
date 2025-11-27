@@ -4,7 +4,7 @@ import time
 import hashlib
 import shutil
 from libtorrent_utils import LibtorrentSession
-from jst import JSTEngine
+
 
 def calculate_sha1(file_path):
     sha1 = hashlib.sha1()
@@ -16,7 +16,8 @@ def calculate_sha1(file_path):
             sha1.update(data)
     return sha1.hexdigest()
 
-def test_multi_peer_download(tmp_path):
+
+def test_multi_peer_download(tmp_path, engine_factory):
     # Setup directories
     temp_dir = str(tmp_path)
     leecher_dir = os.path.join(temp_dir, "leecher_multi_peer")
@@ -65,46 +66,40 @@ def test_multi_peer_download(tmp_path):
     expected_hash = calculate_sha1(os.path.join(seeder0_dir, "multi_peer_payload.bin"))
 
     # 2. Start JSTEngine
-    engine = JSTEngine(port=3002, download_dir=leecher_dir)
+    engine = engine_factory(download_dir=leecher_dir)
 
-    try:
-        # Add torrent file
-        tid = engine.add_torrent_file(torrent_path)
+    # Add torrent file
+    tid = engine.add_torrent_file(torrent_path)
 
-        # 3. Connect to all Peers
-        for port in ports:
-            engine.add_peer(tid, "127.0.0.1", port)
+    # 3. Connect to all Peers
+    for port in ports:
+        engine.add_peer(tid, "127.0.0.1", port)
 
-        # 4. Wait for Download
-        print("Waiting for download to complete...")
-        downloaded = False
-        start_time = time.time()
-        for i in range(60): # 30 seconds
-            status = engine.get_torrent_status(tid)
-            progress = status.get("progress", 0)
-            peers = status.get("peers", 0)
-            print(f"Progress: {progress * 100:.1f}%, Peers: {peers}")
+    # 4. Wait for Download
+    print("Waiting for download to complete...")
+    downloaded = False
+    start_time = time.time()
+    for i in range(60): # 30 seconds
+        status = engine.get_torrent_status(tid)
+        progress = status.get("progress", 0)
+        peers = status.get("peers", 0)
+        print(f"Progress: {progress * 100:.1f}%, Peers: {peers}")
+        
+        if progress >= 1.0:
+            downloaded = True
+            print(f"Download complete! Time: {time.time() - start_time:.2f}s")
+            break
             
-            if progress >= 1.0:
-                downloaded = True
-                print(f"Download complete! Time: {time.time() - start_time:.2f}s")
-                break
-                
-            # Also check file as backup
-            download_path = os.path.join(leecher_dir, "multi_peer_payload.bin")
-            if os.path.exists(download_path):
-                current_size = os.path.getsize(download_path)
-                if current_size == file_size:
-                    print("Verifying hash...")
-                    if calculate_sha1(download_path) == expected_hash:
-                        downloaded = True
-                        print(f"Download verified! Time: {time.time() - start_time:.2f}s")
-                        break
-            time.sleep(0.5)
+        # Also check file as backup
+        download_path = os.path.join(leecher_dir, "multi_peer_payload.bin")
+        if os.path.exists(download_path):
+            current_size = os.path.getsize(download_path)
+            if current_size == file_size:
+                print("Verifying hash...")
+                if calculate_sha1(download_path) == expected_hash:
+                    downloaded = True
+                    print(f"Download verified! Time: {time.time() - start_time:.2f}s")
+                    break
+        time.sleep(0.5)
 
-        assert downloaded, "Download failed or timed out"
-
-    finally:
-        engine.close()
-        for s in seeders:
-            s.stop()
+    assert downloaded, "Download failed or timed out"

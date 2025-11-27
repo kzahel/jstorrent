@@ -1,0 +1,14 @@
+[project]
+name = "jstorrent-python-tests"
+version = "0.1.0"
+description = "Python integration tests for JSTorrent engine"
+requires-python = ">=3.10"
+dependencies = [
+    "pytest",
+    "requests",
+    "libtorrent",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+python_files = ["test_*.py", "verify_*.py"]

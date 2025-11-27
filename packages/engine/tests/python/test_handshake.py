@@ -1,16 +1,12 @@
 import pytest
 import os
 import time
-import shutil
-from jst import JSTEngine
 from libtorrent_utils import LibtorrentSession
 
-@pytest.fixture
-def temp_dir(tmp_path):
-    return str(tmp_path)
 
-def test_handshake(temp_dir):
+def test_handshake(tmp_path, engine_factory):
     # Setup directories
+    temp_dir = str(tmp_path)
     seeder_dir = os.path.join(temp_dir, "seeder")
     leecher_dir = os.path.join(temp_dir, "leecher")
     os.makedirs(seeder_dir)
@@ -36,41 +32,36 @@ def test_handshake(temp_dir):
     assert lt_handle.status().is_seeding
 
     # 2. Start JSTEngine
-    engine = JSTEngine(port=3002, download_dir=leecher_dir)
+    engine = engine_factory(download_dir=leecher_dir)
 
-    try:
-        # Add torrent file
-        tid = engine.add_torrent_file(torrent_path)
+    # Add torrent file
+    tid = engine.add_torrent_file(torrent_path)
 
-        # 3. Connect to Libtorrent peer
-        engine.add_peer(tid, "127.0.0.1", 50001)
+    # 3. Connect to Libtorrent peer
+    engine.add_peer(tid, "127.0.0.1", 50001)
 
-        # 4. Verify Handshake
-        # Poll for connection
-        connected = False
-        lt_saw_peer = False
-        
-        for _ in range(20):
-            # Check JSTEngine torrent status
-            status = engine.get_torrent_status(tid)
-            engine_connected = status.get("peers", 0) > 0
+    # 4. Verify Handshake
+    # Poll for connection
+    connected = False
+    lt_saw_peer = False
+    
+    for _ in range(20):
+        # Check JSTEngine torrent status
+        status = engine.get_torrent_status(tid)
+        engine_connected = status.get("peers", 0) > 0
 
-            # Check libtorrent status
-            s = lt_handle.status()
-            if s.num_peers > 0:
-                lt_saw_peer = True
-                
-            print(f"LT Peers: {s.num_peers}, Connect Candidates: {s.connect_candidates}")
-            print(f"Engine peers: {status.get('peers', 0)}")
+        # Check libtorrent status
+        s = lt_handle.status()
+        if s.num_peers > 0:
+            lt_saw_peer = True
+            
+        print(f"LT Peers: {s.num_peers}, Connect Candidates: {s.connect_candidates}")
+        print(f"Engine peers: {status.get('peers', 0)}")
 
-            if engine_connected and lt_saw_peer:
-                connected = True
-                break
+        if engine_connected and lt_saw_peer:
+            connected = True
+            break
 
-            time.sleep(0.5)
+        time.sleep(0.5)
 
-        assert connected, "Handshake failed: Engine or Libtorrent did not see the peer"
-
-    finally:
-        engine.close()
-        lt_session.stop()
+    assert connected, "Handshake failed: Engine or Libtorrent did not see the peer"

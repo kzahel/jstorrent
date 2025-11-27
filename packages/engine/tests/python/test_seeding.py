@@ -3,9 +3,8 @@ import os
 import time
 import shutil
 import hashlib
-import json
 from libtorrent_utils import LibtorrentSession
-from jst import JSTEngine
+
 
 def calculate_sha1(file_path):
     sha1 = hashlib.sha1()
@@ -17,8 +16,9 @@ def calculate_sha1(file_path):
             sha1.update(data)
     return sha1.hexdigest()
 
+
 @pytest.mark.parametrize("piece_length", [16384])
-def test_seeding(tmp_path, piece_length):
+def test_seeding(tmp_path, engine_factory, piece_length):
     # Setup directories
     temp_dir = str(tmp_path)
     engine_dir = os.path.join(temp_dir, "engine_seeder")
@@ -43,51 +43,45 @@ def test_seeding(tmp_path, piece_length):
     # 2. Start JSTEngine (Seeder)
     # Note: JSTEngine currently doesn't support seed_mode directly,
     # this test will need to be updated once seeding is properly supported
-    engine = JSTEngine(port=3002, download_dir=engine_dir)
+    engine = engine_factory(download_dir=engine_dir)
 
-    try:
-        # Add torrent file
-        tid = engine.add_torrent_file(torrent_path)
+    # Add torrent file
+    tid = engine.add_torrent_file(torrent_path)
 
-        # Get engine's listening port from status
-        # For now we use the configured port
-        engine_port = 6881  # Default BtEngine port
+    # Get engine's listening port from status
+    # For now we use the configured port
+    engine_port = 6881  # Default BtEngine port
 
-        # 3. Start Libtorrent (Leecher)
-        lt_session = LibtorrentSession(lt_leecher_dir, port=50001)
-        # Add torrent to libtorrent (standard mode, it will check and find nothing)
-        lt_handle = lt_session.add_torrent(torrent_path, lt_leecher_dir)
+    # 3. Start Libtorrent (Leecher)
+    lt_session = LibtorrentSession(lt_leecher_dir, port=50001)
+    # Add torrent to libtorrent (standard mode, it will check and find nothing)
+    lt_handle = lt_session.add_torrent(torrent_path, lt_leecher_dir)
 
-        # 4. Connect Peers
-        # Connect Libtorrent to Engine
-        print(f"Connecting Libtorrent to Engine at 127.0.0.1:{engine_port}")
-        lt_handle.connect_peer(("127.0.0.1", engine_port))
+    # 4. Connect Peers
+    # Connect Libtorrent to Engine
+    print(f"Connecting Libtorrent to Engine at 127.0.0.1:{engine_port}")
+    lt_handle.connect_peer(("127.0.0.1", engine_port))
+    
+    # Also try reverse connection for robustness
+    engine.add_peer(tid, "127.0.0.1", 50001)
+
+    # 5. Wait for Download
+    print("Waiting for Libtorrent to download...")
+    downloaded = False
+    for i in range(60): # 30 seconds
+        s = lt_handle.status()
+        print(f"LT Status: {s.state}, Progress: {s.progress}, Peers: {s.num_peers}")
         
-        # Also try reverse connection for robustness
-        engine.add_peer(tid, "127.0.0.1", 50001)
-
-        # 5. Wait for Download
-        print("Waiting for Libtorrent to download...")
-        downloaded = False
-        for i in range(60): # 30 seconds
-            s = lt_handle.status()
-            print(f"LT Status: {s.state}, Progress: {s.progress}, Peers: {s.num_peers}")
-            
-            if s.is_seeding:
-                downloaded = True
-                print("Libtorrent finished downloading!")
-                break
-            
-            time.sleep(0.5)
-
-        assert downloaded, "Libtorrent failed to download from Engine"
+        if s.is_seeding:
+            downloaded = True
+            print("Libtorrent finished downloading!")
+            break
         
-        # Verify file integrity
-        downloaded_file = os.path.join(lt_leecher_dir, "test_payload.bin")
-        assert os.path.exists(downloaded_file)
-        assert calculate_sha1(downloaded_file) == expected_hash
+        time.sleep(0.5)
 
-    finally:
-        engine.close()
-        if 'lt_session' in locals():
-            lt_session.stop()
+    assert downloaded, "Libtorrent failed to download from Engine"
+        
+    # Verify file integrity
+    downloaded_file = os.path.join(lt_leecher_dir, "test_payload.bin")
+    assert os.path.exists(downloaded_file)
+    assert calculate_sha1(downloaded_file) == expected_hash

@@ -5,15 +5,17 @@ import subprocess
 import os
 import sys
 import atexit
+import re
 from .errors import (
     EngineNotRunning, EngineAlreadyRunning,
     TorrentNotFound, RPCError
 )
 
 class JSTEngine:
-    def __init__(self, port=3002, config=None, **kwargs):
+    def __init__(self, port=0, config=None, **kwargs):
         self.port = port
-        self.base = f"http://localhost:{port}"
+        self.rpc_port = None  # Will be set after server starts
+        self.base = None  # Will be set after we know the port
         self.session = requests.Session()
         self.proc = None
         
@@ -28,7 +30,7 @@ class JSTEngine:
         # Spawn the process
         self._spawn_process()
         
-        # Wait for RPC server to be ready
+        # Wait for RPC server to be ready (this also discovers the port)
         self._wait_for_rpc()
         
         # Start the engine
@@ -53,20 +55,47 @@ class JSTEngine:
         env = os.environ.copy()
         env["PORT"] = str(self.port)
 
-        # We pipe stdout/stderr to inherit so we can see logs
+        # Capture stdout to parse the port, but also forward to our stdout
         self.proc = subprocess.Popen(
             cmd,
             cwd=engine_root,
             env=env,
-            stdout=sys.stdout,
-            stderr=sys.stderr
+            stdout=subprocess.PIPE,
+            stderr=sys.stderr,
+            text=True,
+            bufsize=1  # Line buffered
         )
 
     def _wait_for_rpc(self, timeout=10):
         start = time.time()
+        
+        # First, read stdout to get the actual port
+        while time.time() - start < timeout:
+            if self.proc.poll() is not None:
+                raise RuntimeError(f"RPC server process exited early with code {self.proc.returncode}")
+            
+            line = self.proc.stdout.readline()
+            if line:
+                print(line, end='')  # Forward to our stdout
+                match = re.match(r'RPC_PORT=(\d+)', line)
+                if match:
+                    self.rpc_port = int(match.group(1))
+                    self.base = f"http://localhost:{self.rpc_port}"
+                    break
+        
+        if self.rpc_port is None:
+            raise RuntimeError("Failed to discover RPC port from server output")
+        
+        # Now wait for the server to actually respond
         while time.time() - start < timeout:
             try:
                 self._req("GET", "/engine/status")
+                # Start a thread to forward remaining stdout
+                import threading
+                def forward_stdout():
+                    for line in self.proc.stdout:
+                        print(line, end='')
+                threading.Thread(target=forward_stdout, daemon=True).start()
                 return
             except (requests.exceptions.ConnectionError, RPCError):
                 time.sleep(0.1)
