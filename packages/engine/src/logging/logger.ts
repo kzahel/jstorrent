@@ -3,10 +3,10 @@ import { EventEmitter } from 'events'
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 export interface Logger {
-    debug(message: string, context?: object): void
-    info(message: string, context?: object): void
-    warn(message: string, context?: object): void
-    error(message: string, context?: object): void
+    debug(message: string, ...args: any[]): void
+    info(message: string, ...args: any[]): void
+    warn(message: string, ...args: any[]): void
+    error(message: string, ...args: any[]): void
 }
 
 export interface EngineLoggingConfig {
@@ -94,6 +94,7 @@ export function buildComponentScope(component: ILoggableComponent): string {
 export function buildInjectedContext(component: ILoggableComponent, userCtx?: object): object {
     const ctx: any = {
         component: component.getStaticLogName(),
+        name: component.getLogName(),
         clientId: component.engineInstance.clientId,
         ...userCtx,
     }
@@ -146,39 +147,65 @@ export function createFilter(cfg: EngineLoggingConfig): ShouldLogFn {
     }
 }
 
+const NOOP = () => { }
+
 export function withScopeAndFiltering(
     base: Logger,
     component: ILoggableComponent,
     shouldLog: ShouldLogFn,
 ): Logger {
-    const scope = buildComponentScope(component)
+    const getLogger = (level: LogLevel) => {
+        const ctx = buildInjectedContext(component)
+        if (!shouldLog(level, ctx)) return NOOP
+
+        const prefix = formatPrefix(ctx)
+
+        /**
+         * BIND TRICK FOR CALL SITE VISIBILITY
+         *
+         * Goal: We want the browser DevTools to show the original call site (e.g. torrent.ts:123)
+         * instead of pointing to this logger wrapper (logger.ts:160).
+         *
+         * Solution: We return a bound function of the base logger (usually console).
+         * `(console.info).bind(console, prefix)` creates a new function that, when called,
+         * executes `console.info(prefix, ...args)`.
+         *
+         * Why it works:
+         * 1. `bind` returns a native bound function. Browsers often treat these transparently
+         *    or attribute the call to the invoker of the bound function.
+         * 2. We are returning the function to the caller (via the getter), so the actual invocation
+         *    happens in the caller's stack frame (e.g. `this.logger.info(...)` in torrent.ts).
+         *
+         * Alternatives considered:
+         * 1. Wrapper function: `log(msg) { console.log(prefix, msg) }`
+         *    - Problem: DevTools shows logger.ts as the source.
+         * 2. Error.captureStackTrace:
+         *    - Problem: Expensive, brittle, and only affects the stack trace object,
+         *      not the "source" link in the console UI.
+         * 3. Async logging:
+         *    - Problem: Loses stack context completely and can be confusing.
+         */
+        return (base[level] as Function).bind(base, prefix)
+    }
+
     return {
-        debug(msg, ctx) {
-            const fullCtx = { ...buildInjectedContext(component, ctx), scope }
-            if (shouldLog('debug', fullCtx)) base.debug(msg, fullCtx)
+        get debug() {
+            return getLogger('debug')
         },
-        info(msg, ctx) {
-            const fullCtx = { ...buildInjectedContext(component, ctx), scope }
-            if (shouldLog('info', fullCtx)) base.info(msg, fullCtx)
+        get info() {
+            return getLogger('info')
         },
-        warn(msg, ctx) {
-            const fullCtx = { ...buildInjectedContext(component, ctx), scope }
-            if (shouldLog('warn', fullCtx)) base.warn(msg, fullCtx)
+        get warn() {
+            return getLogger('warn')
         },
-        error(msg, ctx) {
-            const fullCtx = { ...buildInjectedContext(component, ctx), scope }
-            if (shouldLog('error', fullCtx)) base.error(msg, fullCtx)
+        get error() {
+            return getLogger('error')
         },
     }
 }
 
 export function basicLogger(): Logger {
-    return {
-        debug: (msg, ctx) => console.debug(msg, ctx),
-        info: (msg, ctx) => console.info(msg, ctx),
-        warn: (msg, ctx) => console.warn(msg, ctx),
-        error: (msg, ctx) => console.error(msg, ctx),
-    }
+    return console as unknown as Logger
 }
 
 function formatPrefix(ctx: any): string {
@@ -188,7 +215,9 @@ function formatPrefix(ctx: any): string {
         parts.push(`Client[${ctx.clientId.slice(0, 4)}]`)
     }
 
-    if (ctx.component) {
+    if (ctx.name && ctx.name !== ctx.component) {
+        parts.push(ctx.name)
+    } else if (ctx.component) {
         let compStr = ctx.component
         // Capitalize component name
         compStr = compStr.charAt(0).toUpperCase() + compStr.slice(1)
@@ -208,38 +237,11 @@ function formatPrefix(ctx: any): string {
         }
     }
 
-    return parts.join(':')
-}
-
-function formatContext(ctx: any): object | undefined {
-    const { clientId, component, instanceKey, instanceValue, scope, ...rest } = ctx
-    if (Object.keys(rest).length === 0) return undefined
-    return rest
+    return parts.length > 0 ? `[${parts.join(':')}]` : ''
 }
 
 export function defaultLogger(): Logger {
-    const log = (level: keyof Console, msg: string, ctx?: object) => {
-        if (!ctx) {
-            (console[level] as Function)(msg)
-            return
-        }
-        const prefix = formatPrefix(ctx)
-        const cleanCtx = formatContext(ctx)
-        const finalMsg = prefix ? `${prefix} ${msg}` : msg
-
-        if (cleanCtx) {
-            (console[level] as Function)(finalMsg, cleanCtx)
-        } else {
-            (console[level] as Function)(finalMsg)
-        }
-    }
-
-    return {
-        debug: (msg, ctx) => log('debug', msg, ctx),
-        info: (msg, ctx) => log('info', msg, ctx),
-        warn: (msg, ctx) => log('warn', msg, ctx),
-        error: (msg, ctx) => log('error', msg, ctx),
-    }
+    return basicLogger()
 }
 
 export function randomClientId(): string {

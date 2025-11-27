@@ -12,19 +12,19 @@ import {
 
 // Mock Logger to capture logs
 class MockLogger implements Logger {
-    logs: { level: string; message: string; context: any }[] = []
+    logs: { level: string; message: string; args: any[] }[] = []
 
-    debug(message: string, context?: object) {
-        this.logs.push({ level: 'debug', message, context })
+    debug(message: string, ...args: any[]) {
+        this.logs.push({ level: 'debug', message, args })
     }
-    info(message: string, context?: object) {
-        this.logs.push({ level: 'info', message, context })
+    info(message: string, ...args: any[]) {
+        this.logs.push({ level: 'info', message, args })
     }
-    warn(message: string, context?: object) {
-        this.logs.push({ level: 'warn', message, context })
+    warn(message: string, ...args: any[]) {
+        this.logs.push({ level: 'warn', message, args })
     }
-    error(message: string, context?: object) {
-        this.logs.push({ level: 'error', message, context })
+    error(message: string, ...args: any[]) {
+        this.logs.push({ level: 'error', message, args })
     }
 }
 
@@ -85,11 +85,10 @@ describe('Logger System', () => {
         const mockLogger = client.rootLogger as MockLogger
         expect(mockLogger.logs).toHaveLength(1)
         const log = mockLogger.logs[0]
-        expect(log.message).toBe('doing something')
-        expect(log.context.component).toBe('torrent')
-        expect(log.context.instanceKey).toBe('infoHash')
-        expect(log.context.instanceValue).toBe('deadbeefcafef00d')
-        expect(log.context.scope).toContain(`t:deadbe:${client.clientId}:deadbeefcafef00d`)
+        // log.message is the prefix now because of bind(prefix)
+        // log.args[0] is the actual message
+        expect(log.message).toContain(`t:deadbe`) // Prefix
+        expect(log.args[0]).toBe('doing something')
     })
 
     it('should filter logs based on level', () => {
@@ -101,7 +100,7 @@ describe('Logger System', () => {
 
         const mockLogger = client.rootLogger as MockLogger
         expect(mockLogger.logs).toHaveLength(1)
-        expect(mockLogger.logs[0].message).toBe('should show')
+        expect(mockLogger.logs[0].args[0]).toBe('should show')
     })
 
     it('should filter logs based on component', () => {
@@ -114,7 +113,7 @@ describe('Logger System', () => {
 
         const mockLogger = client.rootLogger as MockLogger
         expect(mockLogger.logs).toHaveLength(1)
-        expect(mockLogger.logs[0].message).toBe('torrent log')
+        expect(mockLogger.logs[0].args[0]).toBe('torrent log')
     })
 
     it('should filter logs based on instance value', () => {
@@ -127,14 +126,10 @@ describe('Logger System', () => {
 
         const mockLogger = client.rootLogger as MockLogger
         expect(mockLogger.logs).toHaveLength(1)
-        expect(mockLogger.logs[0].message).toBe('t1')
+        expect(mockLogger.logs[0].args[0]).toBe('t1')
     })
 
     it('should format logs with smart logger', () => {
-        // We can't easily spy on console.log in this environment without affecting output
-        // But we can verify the logic by importing the functions if we exported them
-        // Or we can just trust the implementation for now as it's visual.
-        // Let's at least ensure it doesn't crash.
         const logger = defaultLogger()
 
         // Mock console methods
@@ -143,24 +138,32 @@ describe('Logger System', () => {
         console.info = infoSpy
 
         try {
-            logger.info('test message', {
-                component: 'torrent',
-                clientId: 'abcdef123456',
-                instanceValue: new Uint8Array([0xde, 0xad, 0xbe, 0xef]),
-                other: 'data'
-            })
+            // defaultLogger is now just console, so it doesn't do prefixing by itself
+            // prefixing is done by withScopeAndFiltering
+            // But we can test withScopeAndFiltering with console as base
+
+            // Let's create a dummy component
+            const component = {
+                getLogName: () => 'test',
+                getStaticLogName: () => 'test',
+                engineInstance: { clientId: 'abcdef123456' } as any,
+                infoHash: new Uint8Array([0xde, 0xad, 0xbe, 0xef])
+            }
+
+            const scoped = withScopeAndFiltering(logger, component, () => true)
+
+            scoped.info('test message', { other: 'data' })
 
             expect(infoSpy).toHaveBeenCalled()
             const call = infoSpy.mock.calls[0]
-            const msg = call[0]
-            const ctx = call[1]
+            // call: [prefix, msg, ctx]
+            const prefix = call[0]
+            const msg = call[1]
+            const ctx = call[2]
 
-            expect(msg).toContain('Client[abcd]:Torrent[dead]')
-            expect(msg).toContain('test message')
+            expect(prefix).toContain('Client[abcd]:Test[dead]')
+            expect(msg).toBe('test message')
             expect(ctx).toEqual({ other: 'data' })
-            expect(ctx).not.toHaveProperty('clientId')
-            expect(ctx).not.toHaveProperty('component')
-            expect(ctx).not.toHaveProperty('instanceValue')
         } finally {
             console.info = originalInfo
         }
