@@ -50,7 +50,10 @@ class JSTEngine:
         if not os.path.exists(rpc_script):
              raise RuntimeError(f"Could not find run-rpc.ts at {rpc_script}")
 
-        cmd = ["pnpm", "exec", "tsx"]
+        # Use node --import tsx to run TypeScript directly
+        # This ensures source maps work correctly with the Node.js inspector
+        # (unlike tsx CLI or pnpm exec tsx which add indirection)
+        cmd = ["node"]
         
         # Support Node.js inspector for Chrome DevTools debugging
         # NODE_INSPECT=true     - Enable inspector (auto-picks available port)
@@ -71,7 +74,9 @@ class JSTEngine:
                 # Any other truthy value uses port 0 (auto-assign)
                 cmd.append(f"{inspect_flag}=0")
         
-        cmd.append(rpc_script)
+        # Use --import tsx to load the tsx loader, then run the script directly
+        # This makes node run YOUR script (not tsx's cli), so debugger breakpoints work
+        cmd.extend(["--import", "tsx", rpc_script])
         
         env = os.environ.copy()
         env["PORT"] = str(self.port)
