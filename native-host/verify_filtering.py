@@ -47,17 +47,17 @@ def main():
                 
             print(f"Current rpc-info browser: {info.get('browser', {}).get('binary')}")
             
-            # Run stub with a magnet link.
-            print("Running stub...")
+            # Run link handler with a magnet link.
+            print("Running link handler...")
             cmd = ["./target/debug/jstorrent-link-handler", "magnet:?xt=urn:btih:1234567890abcdef1234567890abcdef12345678"]
             
             # We expect it to NOT use python.
             try:
-                stub_proc = subprocess.run(cmd, capture_output=True, text=True, timeout=5, env=env)
-                print("Stdout:", stub_proc.stdout)
-                print("Stderr:", stub_proc.stderr)
+                link_handler_proc = subprocess.run(cmd, capture_output=True, text=True, timeout=5, env=env)
+                print("Stdout:", link_handler_proc.stdout)
+                print("Stderr:", link_handler_proc.stderr)
                 
-                if "python" in stub_proc.stderr.lower():
+                if "python" in link_handler_proc.stderr.lower():
                      print("FAILURE: It seems to have tried to use python?")
                      sys.exit(1)
                 else:

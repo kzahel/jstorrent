@@ -128,7 +128,7 @@ export class EngineController {
     if (!this.engine) throw new Error('EngineNotRunning')
     const torrent = this.engine.getTorrent(torrentId)
     if (!torrent) throw new Error('TorrentNotFound')
-    
+
     // Connect to peer
     await torrent.connectToPeer({ ip, port })
   }
@@ -137,7 +137,7 @@ export class EngineController {
     if (!this.engine) throw new Error('EngineNotRunning')
     const torrent = this.engine.getTorrent(id)
     if (!torrent) throw new Error('TorrentNotFound')
-    
+
     await torrent.recheckData()
   }
 }

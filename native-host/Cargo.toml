@@ -39,6 +39,6 @@ path = "src/main.rs"
 
 [[bin]]
 name = "jstorrent-link-handler"
-path = "src/bin/stub.rs"
+path = "src/bin/link-handler.rs"
 
 

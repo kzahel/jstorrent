@@ -10,7 +10,7 @@ import tempfile
 
 # Configuration
 HOST_BINARY = "./target/debug/jstorrent-host"
-STUB_BINARY = "./target/debug/jstorrent-link-handler"
+LINK_HANDLER_BINARY = "./target/debug/jstorrent-link-handler"
 # CONFIG_DIR will be set dynamically
 
 def read_message(proc):
@@ -75,23 +75,23 @@ def test_magnet_flow(config_dir):
             return False
         print("Health check passed")
         
-        # Test Stub
+        # Test Link Handler
         magnet_link = "magnet:?xt=urn:btih:1234567890abcdef1234567890abcdef12345678&dn=Test"
-        print(f"Running stub with magnet link: {magnet_link}")
+        print(f"Running link handler with magnet link: {magnet_link}")
         
-        stub_proc = subprocess.run(
-            [STUB_BINARY, magnet_link],
+        link_handler_proc = subprocess.run(
+            [LINK_HANDLER_BINARY, magnet_link],
             capture_output=True,
             text=True,
             env=os.environ
         )
         
-        if stub_proc.returncode != 0:
-            print(f"FAIL: Stub failed with code {stub_proc.returncode}")
-            print("Stderr:", stub_proc.stderr)
+        if link_handler_proc.returncode != 0:
+            print(f"FAIL: Link handler failed with code {link_handler_proc.returncode}")
+            print("Stderr:", link_handler_proc.stderr)
             return False
             
-        print("Stub executed successfully")
+        print("Link handler executed successfully")
         
         # Verify Host received the event
         print("Waiting for event from host...")
