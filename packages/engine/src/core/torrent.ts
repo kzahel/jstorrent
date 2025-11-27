@@ -52,6 +52,9 @@ export class Torrent extends EngineComponent {
   public metadataPiecesReceived = new Set<number>()
   private metadataRaw: Uint8Array | null = null // The full info dictionary buffer
 
+  public totalDownloaded = 0
+  public totalUploaded = 0
+
   // We need to re-implement EventEmitter methods if we don't extend it.
   // Or I can modify EngineComponent to extend EventEmitter.
   // Let's modify EngineComponent first.
@@ -197,6 +200,14 @@ export class Torrent extends EngineComponent {
     return `Torrent-${this.infoHashStr.substring(0, 8)}...`
   }
 
+  get downloadSpeed(): number {
+    return this.peers.reduce((acc, peer) => acc + peer.downloadSpeed, 0)
+  }
+
+  get uploadSpeed(): number {
+    return this.peers.reduce((acc, peer) => acc + peer.uploadSpeed, 0)
+  }
+
   addPeer(peer: PeerConnection) {
     if (this.numPeers >= this.maxPeers) {
       this.logger.warn('Rejecting peer, max peers reached')
@@ -303,6 +314,19 @@ export class Torrent extends EngineComponent {
     peer.on('close', () => {
       this.logger.debug('Peer closed')
       this.removePeer(peer)
+    })
+
+    peer.on('bytesDownloaded', (bytes) => {
+      this.totalDownloaded += bytes
+      this.emit('download', bytes) // Re-emit or keep existing 'download' event usage?
+      // Existing 'download' event was emitted in handlePiece, but that's for valid pieces?
+      // No, handlePiece emitted 'download' with block length.
+      // Let's check handlePiece.
+    })
+
+    peer.on('bytesUploaded', (bytes) => {
+      this.totalUploaded += bytes
+      this.emit('upload', bytes)
     })
   }
 
@@ -438,7 +462,9 @@ export class Torrent extends EngineComponent {
 
       this.pieceManager?.addReceived(msg.index, msg.begin)
 
-      this.emit('download', msg.block.length)
+      this.pieceManager?.addReceived(msg.index, msg.begin)
+
+      // this.emit('download', msg.block.length) // Handled by bytesDownloaded event now
 
       if (this.pieceManager?.isPieceComplete(msg.index)) {
         // Verify hash

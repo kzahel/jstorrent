@@ -3,6 +3,7 @@ import { ITcpSocket } from '../interfaces/socket'
 import { PeerWireProtocol, MessageType, WireMessage } from '../protocol/wire-protocol'
 import { BitField } from '../utils/bitfield'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
+import { SpeedCalculator } from '../utils/speed-calculator'
 
 export interface PeerConnection {
   on(event: 'connect', listener: () => void): this
@@ -29,6 +30,8 @@ export interface PeerConnection {
     listener: (piece: number, totalSize: number, data: Uint8Array) => void,
   ): this
   on(event: 'metadata_reject', listener: (piece: number) => void): this
+  on(event: 'bytesDownloaded', listener: (bytes: number) => void): this
+  on(event: 'bytesUploaded', listener: (bytes: number) => void): this
 
   close(): void
 }
@@ -40,6 +43,13 @@ export class PeerConnection extends EngineComponent {
   private buffer: Uint8Array = new Uint8Array(0)
   public handshakeReceived = false
 
+  private send(data: Uint8Array) {
+    this.socket.send(data)
+    this.uploaded += data.length
+    this.uploadSpeedCalculator.addBytes(data.length)
+    this.emit('bytesUploaded', data.length)
+  }
+
   public peerChoking = true
   public peerInterested = false
   public amChoking = true
@@ -48,6 +58,11 @@ export class PeerConnection extends EngineComponent {
   public requestsPending = 0 // Number of outstanding requests
   public peerMetadataId: number | null = null
   public myMetadataId = 1 // Our ID for ut_metadata
+
+  public uploaded = 0
+  public downloaded = 0
+  public uploadSpeedCalculator = new SpeedCalculator()
+  public downloadSpeedCalculator = new SpeedCalculator()
 
   public peerId: Uint8Array | undefined = undefined
   public infoHash: Uint8Array | undefined = undefined
@@ -82,17 +97,17 @@ export class PeerConnection extends EngineComponent {
 
   sendHandshake(infoHash: Uint8Array, peerId: Uint8Array, extensions: boolean = true) {
     const handshake = PeerWireProtocol.createHandshake(infoHash, peerId, extensions)
-    this.socket.send(handshake)
+    this.send(handshake)
   }
 
   sendMessage(type: MessageType, payload?: Uint8Array) {
     const message = PeerWireProtocol.createMessage(type, payload)
-    this.socket.send(message)
+    this.send(message)
   }
 
   sendRequest(index: number, begin: number, length: number) {
     const message = PeerWireProtocol.createRequest(index, begin, length)
-    this.socket.send(message)
+    this.send(message)
   }
 
   sendHave(index: number) {
@@ -114,7 +129,7 @@ export class PeerConnection extends EngineComponent {
 
   sendExtendedMessage(id: number, payload: Uint8Array) {
     const message = PeerWireProtocol.createExtendedMessage(id, payload)
-    this.socket.send(message)
+    this.send(message)
   }
 
   sendExtendedHandshake() {
@@ -128,19 +143,19 @@ export class PeerConnection extends EngineComponent {
   sendMetadataRequest(piece: number) {
     if (this.peerMetadataId === null) return
     const msg = PeerWireProtocol.createMetadataRequest(this.peerMetadataId, piece)
-    this.socket.send(msg)
+    this.send(msg)
   }
 
   sendMetadataData(piece: number, totalSize: number, data: Uint8Array) {
     if (this.peerMetadataId === null) return
     const msg = PeerWireProtocol.createMetadataData(this.peerMetadataId, piece, totalSize, data)
-    this.socket.send(msg)
+    this.send(msg)
   }
 
   sendMetadataReject(piece: number) {
     if (this.peerMetadataId === null) return
     const msg = PeerWireProtocol.createMetadataReject(this.peerMetadataId, piece)
-    this.socket.send(msg)
+    this.send(msg)
   }
 
   close() {
@@ -154,6 +169,10 @@ export class PeerConnection extends EngineComponent {
     newBuffer.set(this.buffer)
     newBuffer.set(data, this.buffer.length)
     this.buffer = newBuffer
+
+    this.downloaded += data.length
+    this.downloadSpeedCalculator.addBytes(data.length)
+    this.emit('bytesDownloaded', data.length)
 
     this.processBuffer()
   }
@@ -351,5 +370,13 @@ export class PeerConnection extends EngineComponent {
     } catch (err) {
       this.logger.error('Error parsing metadata message', { err })
     }
+  }
+
+  get uploadSpeed(): number {
+    return this.uploadSpeedCalculator.getSpeed()
+  }
+
+  get downloadSpeed(): number {
+    return this.downloadSpeedCalculator.getSpeed()
   }
 }
