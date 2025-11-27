@@ -20,7 +20,7 @@ import {
   randomClientId,
   withScopeAndFiltering,
   EngineComponent,
-  ShouldLogFn
+  ShouldLogFn,
 } from '../logging/logger'
 
 export interface StorageResolver {

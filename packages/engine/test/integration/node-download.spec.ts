@@ -112,7 +112,7 @@ describe('Node.js Integration Download', () => {
       0,
       pieceManager,
       contentStorage,
-      bitfield
+      bitfield,
     )
 
     // Connect to peer

@@ -58,7 +58,7 @@ export class PeerConnection extends EngineComponent {
   constructor(
     engine: ILoggingEngine,
     socket: ITcpSocket,
-    options?: { remoteAddress?: string; remotePort?: number }
+    options?: { remoteAddress?: string; remotePort?: number },
   ) {
     super(engine)
     this.socket = socket

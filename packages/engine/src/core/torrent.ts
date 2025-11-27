@@ -301,7 +301,7 @@ export class Torrent extends EngineComponent {
     } catch (err) {
       this.logger.error(
         `Error handling request: ${err instanceof Error ? err.message : String(err)}`,
-        { err }
+        { err },
       )
     }
   }

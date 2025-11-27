@@ -75,8 +75,8 @@ class NodeSocketFactory implements ISocketFactory {
 
   createTcpServer() {
     return {
-      on: () => { },
-      listen: () => { },
+      on: () => {},
+      listen: () => {},
       address: () => ({ port: 0 }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any

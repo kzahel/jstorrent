@@ -117,7 +117,7 @@ describe('PexHandler', () => {
     pexMsg.set(pexPayload, 6)
 
     const pexSpy = vi.fn()
-      ; (peer as any).on('pex_peer', pexSpy)
+    ;(peer as any).on('pex_peer', pexSpy)
 
     socket.emitData(pexMsg)
 

@@ -17,10 +17,10 @@ class MockSocketFactory implements ISocketFactory {
   }
   createTcpServer() {
     return {
-      on: () => { },
-      listen: () => { },
+      on: () => {},
+      listen: () => {},
       address: () => ({ port: 0 }),
-      close: () => { },
+      close: () => {},
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as unknown as any // Cast to any to satisfy strict interface if needed, but we want to avoid explicit any error.
     // Actually, let's just use 'as any' with disable comment if we must, or better, return a partial mock.
