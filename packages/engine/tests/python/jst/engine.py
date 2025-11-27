@@ -50,7 +50,21 @@ class JSTEngine:
         if not os.path.exists(rpc_script):
              raise RuntimeError(f"Could not find run-rpc.ts at {rpc_script}")
 
-        cmd = ["pnpm", "exec", "tsx", rpc_script]
+        cmd = ["pnpm", "exec", "tsx"]
+        
+        # Support Node.js inspector for Chrome DevTools debugging
+        # Set NODE_INSPECT=1 to enable on default port (9229)
+        # Set NODE_INSPECT=9230 (or other valid port 1024-65535) for specific port
+        node_inspect = os.environ.get("NODE_INSPECT")
+        if node_inspect:
+            # If it's a valid port number (1024-65535), use that port
+            if node_inspect.isdigit() and 1024 <= int(node_inspect) <= 65535:
+                cmd.append(f"--inspect={node_inspect}")
+            else:
+                # Any other truthy value (like "1", "true", "yes") uses default port
+                cmd.append("--inspect")
+        
+        cmd.append(rpc_script)
         
         env = os.environ.copy()
         env["PORT"] = str(self.port)
