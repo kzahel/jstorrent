@@ -67,7 +67,9 @@ test('browser discovery works with extension', async ({ context, extensionId, co
   const rpcInfoPath = path.join(nativeDir, 'rpc-info.json')
 
   console.log(`Looking for rpc-info.json at: ${rpcInfoPath}`)
-  console.log(`Config dir contents: ${fs.existsSync(configDir) ? fs.readdirSync(configDir) : 'dir not found'}`)
+  console.log(
+    `Config dir contents: ${fs.existsSync(configDir) ? fs.readdirSync(configDir) : 'dir not found'}`,
+  )
   if (fs.existsSync(nativeDir)) {
     console.log(`Native dir contents: ${fs.readdirSync(nativeDir)}`)
   }
