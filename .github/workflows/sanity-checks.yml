@@ -37,6 +37,9 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
+      - name: Rebuild native modules
+        run: pnpm rebuild node-datachannel
+
       - name: Test
         run: pnpm run test
 
