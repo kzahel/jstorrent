@@ -42,6 +42,8 @@ export class Torrent extends EngineComponent {
   public announce: string[] = []
   public trackerManager?: TrackerManager
   private _files: TorrentFileInfo[] = []
+  public maxPeers: number = 50
+  public globalLimitCheck: () => boolean = () => true
 
   // Metadata Phase
   public metadataSize: number | null = null
@@ -64,6 +66,8 @@ export class Torrent extends EngineComponent {
     contentStorage?: TorrentContentStorage,
     bitfield?: BitField,
     announce: string[] = [],
+    maxPeers: number = 50,
+    globalLimitCheck: () => boolean = () => true,
   ) {
     super(engine)
     this.infoHash = infoHash
@@ -74,6 +78,8 @@ export class Torrent extends EngineComponent {
     this.contentStorage = contentStorage
     this.bitfield = bitfield
     this.announce = announce
+    this.maxPeers = maxPeers
+    this.globalLimitCheck = globalLimitCheck
 
     this.instanceLogName = `t:${Buffer.from(infoHash).toString('hex').slice(0, 6)}`
 
@@ -124,6 +130,16 @@ export class Torrent extends EngineComponent {
       (p) => p.remoteAddress === peerInfo.ip && p.remotePort === peerInfo.port,
     )
     if (alreadyConnected) return
+
+    if (this.numPeers >= this.maxPeers) {
+      this.logger.debug(`Skipping peer ${peerInfo.ip}, max peers reached`)
+      return
+    }
+
+    if (!this.globalLimitCheck()) {
+      this.logger.debug(`Skipping peer ${peerInfo.ip}, global max connections reached`)
+      return
+    }
 
     try {
       this.logger.info(`Connecting to ${peerInfo.ip}:${peerInfo.port}`)
@@ -182,6 +198,20 @@ export class Torrent extends EngineComponent {
   }
 
   addPeer(peer: PeerConnection) {
+    if (this.numPeers >= this.maxPeers) {
+      this.logger.warn('Rejecting peer, max peers reached')
+      peer.close()
+      return
+    }
+    // Note: global limit for incoming is handled by BtEngine, but if we add manually we should check?
+    // BtEngine calls addPeer for incoming.
+    // If we call addPeer manually (e.g. from tests), we should check.
+    if (!this.globalLimitCheck()) {
+      this.logger.warn('Rejecting peer, global max connections reached')
+      peer.close()
+      return
+    }
+
     this.peers.push(peer)
     if (this.pieceManager) {
       peer.bitfield = new BitField(this.pieceManager.getPieceCount())

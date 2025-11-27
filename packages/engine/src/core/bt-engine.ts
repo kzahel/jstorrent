@@ -38,6 +38,7 @@ export interface BtEngineOptions {
   peerId?: string // Optional custom peerId
   port?: number // Listening port to announce
   logging?: EngineLoggingConfig
+  maxPeers?: number
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -51,6 +52,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   private rootLogger: Logger
   private logger: Logger
   private filterFn: ShouldLogFn
+  public maxConnections: number
+  public maxPeers: number
 
   // ILoggableComponent implementation
   static logName = 'client'
@@ -73,6 +76,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.clientId = randomClientId()
     this.rootLogger = defaultLogger()
     this.filterFn = createFilter(options.logging ?? { level: 'info' })
+    this.maxConnections = options.maxConnections ?? 100
+    this.maxPeers = options.maxPeers ?? 50
 
     // Initialize logger for BtEngine itself
     this.logger = this.scopedLoggerFor(this)
@@ -118,6 +123,13 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handleIncomingConnection(nativeSocket: any) {
     try {
+      if (this.numConnections >= this.maxConnections) {
+        this.logger.warn('BtEngine: Rejecting incoming connection, max connections reached')
+        if (nativeSocket.destroy) nativeSocket.destroy()
+        else if (nativeSocket.end) nativeSocket.end()
+        return
+      }
+
       const socket = this.socketFactory.wrapTcpSocket(nativeSocket)
       // We don't know the remote address/port easily from ITcpSocket interface if not exposed.
       // But PeerConnection might need it.
@@ -193,6 +205,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         contentStorage,
         bitfield,
         parsed.announce,
+        this.maxPeers,
+        () => this.numConnections < this.maxConnections,
       )
 
       if (parsed.infoBuffer) {
@@ -226,6 +240,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         undefined,
         undefined,
         magnetInfo.announce,
+        this.maxPeers,
+        () => this.numConnections < this.maxConnections,
       )
 
       this.torrents.push(torrent)
@@ -335,7 +351,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   }
 
   destroy() {
-    this.torrents.forEach((t) => t.stop())
     this.torrents = []
+  }
+
+  get numConnections(): number {
+    return this.torrents.reduce((acc, t) => acc + t.numPeers, 0)
   }
 }
