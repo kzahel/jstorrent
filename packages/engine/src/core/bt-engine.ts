@@ -39,7 +39,7 @@ export class BtEngine extends EventEmitter {
     super()
     this.fileSystem = options.fileSystem
     this.socketFactory = options.socketFactory
-    this.port = options.port ?? 6881  // Use nullish coalescing to allow port 0
+    this.port = options.port ?? 6881 // Use nullish coalescing to allow port 0
 
     if (options.peerId) {
       this.peerId = Buffer.from(options.peerId)
