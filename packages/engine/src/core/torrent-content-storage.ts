@@ -12,7 +12,10 @@ export class TorrentContentStorage extends EngineComponent {
 
   private id = Math.random().toString(36).slice(2, 7)
 
-  constructor(engine: ILoggingEngine, private storageHandle: IStorageHandle) {
+  constructor(
+    engine: ILoggingEngine,
+    private storageHandle: IStorageHandle,
+  ) {
     super(engine)
     this.logger.debug(
       `TorrentContentStorage: Created instance ${this.id} for storage ${storageHandle.name}`,

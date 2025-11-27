@@ -51,9 +51,7 @@ export class TrackerManager extends EngineComponent {
           if (tracker) {
             this.trackers.push(tracker)
             tracker.on('peer', (peer) => this.handlePeer(peer))
-            tracker.on('error', (err) =>
-              this.logger.warn(`Tracker ${url} error: ${err.message}`),
-            )
+            tracker.on('error', (err) => this.logger.warn(`Tracker ${url} error: ${err.message}`))
           }
         } catch (_err) {
           // Invalid URL or unsupported protocol

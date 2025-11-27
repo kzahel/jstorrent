@@ -15,8 +15,8 @@ class MockUdpSocket implements IUdpSocket {
   onMessage(cb: (src: { addr: string; port: number }, data: Uint8Array) => void): void {
     this.onMessageCb = cb
   }
-  close() { }
-  bind() { }
+  close() {}
+  bind() {}
 
   // Helper to simulate incoming message
   emitMessage(data: Uint8Array) {

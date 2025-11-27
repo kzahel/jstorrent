@@ -54,9 +54,15 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   // ILoggableComponent implementation
   static logName = 'client'
-  getLogName(): string { return BtEngine.logName }
-  getStaticLogName(): string { return BtEngine.logName }
-  get engineInstance(): ILoggingEngine { return this }
+  getLogName(): string {
+    return BtEngine.logName
+  }
+  getStaticLogName(): string {
+    return BtEngine.logName
+  }
+  get engineInstance(): ILoggingEngine {
+    return this
+  }
 
   constructor(options: BtEngineOptions) {
     super()

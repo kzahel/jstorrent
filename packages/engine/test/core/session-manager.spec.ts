@@ -101,10 +101,9 @@ describe('SessionManager', () => {
 
     await sessionManager.load()
 
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      'Resuming torrent',
-      { infoHash: 'abababababababababababababababababababab' },
-    )
+    expect(mockLogger.info).toHaveBeenCalledWith('Resuming torrent', {
+      infoHash: 'abababababababababababababababababababab',
+    })
   })
 
   it('should handle missing session file gracefully', async () => {
