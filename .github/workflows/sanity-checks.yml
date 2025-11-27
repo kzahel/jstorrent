@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Rebuild native modules
+        run: pnpm rebuild
+
       - name: Check root dependencies
         run: scripts/check-root-deps.sh
 
@@ -36,9 +39,6 @@ jobs:
 
       - name: Typecheck
         run: pnpm run typecheck
-
-      - name: Rebuild native modules
-        run: pnpm rebuild node-datachannel
 
       - name: Test
         run: pnpm run test
