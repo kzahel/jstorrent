@@ -11,6 +11,17 @@ import { PieceManager } from './piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 import { PeerConnection } from './peer-connection'
 import * as crypto from 'crypto'
+import {
+  ILoggingEngine,
+  Logger,
+  EngineLoggingConfig,
+  defaultLogger,
+  createFilter,
+  randomClientId,
+  withScopeAndFiltering,
+  EngineComponent,
+  ShouldLogFn
+} from '../logging/logger'
 
 export interface StorageResolver {
   resolve(rootKey: string, torrentId: string): string
@@ -26,20 +37,29 @@ export interface BtEngineOptions {
   maxUploadSpeed?: number
   peerId?: string // Optional custom peerId
   port?: number // Listening port to announce
+  logging?: EngineLoggingConfig
 }
 
-export class BtEngine extends EventEmitter {
+export class BtEngine extends EventEmitter implements ILoggingEngine {
   public torrents: Torrent[] = []
   private fileSystem: IFileSystem
   private socketFactory: ISocketFactory
   public peerId: Uint8Array
   public port: number
 
+  public readonly clientId: string
+  private rootLogger: Logger
+  private filterFn: ShouldLogFn
+
   constructor(options: BtEngineOptions) {
     super()
     this.fileSystem = options.fileSystem
     this.socketFactory = options.socketFactory
     this.port = options.port ?? 6881 // Use nullish coalescing to allow port 0
+
+    this.clientId = randomClientId()
+    this.rootLogger = defaultLogger()
+    this.filterFn = createFilter(options.logging ?? { level: 'info' })
 
     if (options.peerId) {
       this.peerId = Buffer.from(options.peerId)
@@ -51,6 +71,10 @@ export class BtEngine extends EventEmitter {
     }
 
     this.startServer()
+  }
+
+  scopedLoggerFor(component: EngineComponent): Logger {
+    return withScopeAndFiltering(this.rootLogger, component, this.filterFn)
   }
 
   private startServer() {
@@ -87,7 +111,7 @@ export class BtEngine extends EventEmitter {
       const remoteAddress = nativeSocket.remoteAddress || 'unknown'
       const remotePort = nativeSocket.remotePort || 0
 
-      const peer = new PeerConnection(socket, {
+      const peer = new PeerConnection(this, socket, {
         remoteAddress,
         remotePort,
       })
@@ -130,6 +154,7 @@ export class BtEngine extends EventEmitter {
 
     if (parsed) {
       const pieceManager = new PieceManager(
+        this,
         Math.ceil(parsed.length / parsed.pieceLength),
         parsed.pieceLength,
         parsed.length % parsed.pieceLength || parsed.pieceLength,
@@ -143,6 +168,7 @@ export class BtEngine extends EventEmitter {
       const bitfield = pieceManager.getBitField()
 
       const torrent = new Torrent(
+        this,
         parsed.infoHash,
         this.peerId,
         this.socketFactory,
@@ -175,6 +201,7 @@ export class BtEngine extends EventEmitter {
     } else if (magnetInfo) {
       const infoHashBuffer = Buffer.from(magnetInfo.infoHash, 'hex')
       const torrent = new Torrent(
+        this,
         infoHashBuffer,
         this.peerId,
         this.socketFactory,
@@ -205,6 +232,7 @@ export class BtEngine extends EventEmitter {
 
           // Initialize PieceManager
           const pieceManager = new PieceManager(
+            this,
             Math.ceil(parsed.length / parsed.pieceLength),
             parsed.pieceLength,
             parsed.length % parsed.pieceLength || parsed.pieceLength,

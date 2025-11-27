@@ -11,7 +11,7 @@ vi.mock('../../src/core/torrent', () => {
     Torrent: class MockTorrent {
       public infoHash: Uint8Array
       public on = vi.fn()
-      constructor(infoHash: Uint8Array) {
+      constructor(_engine: any, infoHash: Uint8Array) {
         this.infoHash = infoHash
       }
     },
@@ -57,7 +57,7 @@ describe('SessionManager', () => {
 
   it('should save session state', async () => {
     const infoHash = new Uint8Array(20).fill(0xab)
-    const torrent = new Torrent(infoHash, {} as any, {} as any, {} as any)
+    const torrent = new Torrent(client, infoHash, {} as any, {} as any, {} as any)
     client.addTorrentInstance(torrent)
 
     await sessionManager.save()

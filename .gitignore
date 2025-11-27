@@ -1,8 +1,12 @@
 # General
 .DS_Store
+
+# just dont want these checked in, but its fine for agents to access
+# so comment them out to help antigravity debug faster
 *.log
-*.bin
 *.txt
+
+*.bin
 
 # Node
 node_modules

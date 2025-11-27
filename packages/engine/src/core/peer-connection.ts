@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-declaration-merging */
-import { EventEmitter } from 'events'
 import { ITcpSocket } from '../interfaces/socket'
 import { PeerWireProtocol, MessageType, WireMessage } from '../protocol/wire-protocol'
 import { BitField } from '../utils/bitfield'
+import { EngineComponent, ILoggingEngine } from '../logging/logger'
 
 export interface PeerConnection {
   on(event: 'connect', listener: () => void): this
@@ -33,7 +33,9 @@ export interface PeerConnection {
   close(): void
 }
 
-export class PeerConnection extends EventEmitter {
+export class PeerConnection extends EngineComponent {
+  static logName = 'peer'
+
   private socket: ITcpSocket
   private buffer: Uint8Array = new Uint8Array(0)
   public handshakeReceived = false
@@ -53,8 +55,12 @@ export class PeerConnection extends EventEmitter {
   public remoteAddress?: string
   public remotePort?: number
 
-  constructor(socket: ITcpSocket, options?: { remoteAddress?: string; remotePort?: number }) {
-    super()
+  constructor(
+    engine: ILoggingEngine,
+    socket: ITcpSocket,
+    options?: { remoteAddress?: string; remotePort?: number }
+  ) {
+    super(engine)
     this.socket = socket
     if (options) {
       this.remoteAddress = options.remoteAddress
@@ -142,7 +148,7 @@ export class PeerConnection extends EventEmitter {
   }
 
   private handleData(data: Uint8Array) {
-    // console.error(`PeerConnection: Received ${data.length} bytes`)
+    // this.logger.debug(`Received ${data.length} bytes`)
     // Append to buffer
     const newBuffer = new Uint8Array(this.buffer.length + data.length)
     newBuffer.set(this.buffer)
@@ -160,7 +166,7 @@ export class PeerConnection extends EventEmitter {
         this.infoHash = result.infoHash
         this.peerId = result.peerId
         this.peerExtensions = result.extensions
-        // console.error('PeerConnection: Handshake parsed, extensions:', this.peerExtensions)
+        // this.logger.debug('Handshake parsed, extensions:', this.peerExtensions)
         this.buffer = this.buffer.slice(68)
         this.emit('handshake', this.infoHash, this.peerId, this.peerExtensions)
         // Continue processing in case there are more messages
@@ -183,7 +189,7 @@ export class PeerConnection extends EventEmitter {
             this.handleMessage(msg)
           }
         } catch (err) {
-          console.error('Error parsing message:', err)
+          this.logger.error('Error parsing message:', { err })
           this.close()
           return
         }
@@ -225,8 +231,8 @@ export class PeerConnection extends EventEmitter {
         }
         break
       case MessageType.EXTENDED:
-        // console.error(
-        //   'PeerConnection: Handling EXTENDED message',
+        // this.logger.debug(
+        //   'Handling EXTENDED message',
         //   message.extendedId,
         //   message.extendedPayload?.length,
         // )
@@ -277,19 +283,19 @@ export class PeerConnection extends EventEmitter {
       // For now, simple regex parsing or string search since we know the structure
       // We look for "ut_metadata" and the integer following it
       const str = new TextDecoder().decode(payload)
-      // console.error('PeerConnection: Extended Handshake payload:', str)
+      // this.logger.debug('Extended Handshake payload:', str)
 
       // Very naive parsing for "ut_metadata"i{id}e
       const match = str.match(/ut_metadatai(\d+)e/)
       if (match) {
         this.peerMetadataId = parseInt(match[1], 10)
-        // console.error('PeerConnection: Peer supports ut_metadata with ID', this.peerMetadataId)
+        // this.logger.debug('Peer supports ut_metadata with ID', this.peerMetadataId)
       }
 
       // Emit generic event (we might want to parse more properly later)
       this.emit('extension_handshake', { raw: str })
     } catch (err) {
-      console.error('PeerConnection: Error parsing extended handshake', err)
+      this.logger.error('Error parsing extended handshake', { err })
     }
   }
 
@@ -343,7 +349,7 @@ export class PeerConnection extends EventEmitter {
         }
       }
     } catch (err) {
-      console.error('PeerConnection: Error parsing metadata message', err)
+      this.logger.error('Error parsing metadata message', { err })
     }
   }
 }

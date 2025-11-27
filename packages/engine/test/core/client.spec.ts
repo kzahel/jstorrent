@@ -84,11 +84,12 @@ describe('BtEngine', () => {
   it('should add a torrent instance (manual)', () => {
     const infoHash = new Uint8Array(20).fill(1)
     // Create dependencies for manual Torrent creation
-    const pieceManager = new PieceManager(1, 16384, 1000)
+    const pieceManager = new PieceManager(client, 1, 16384, 1000)
     const contentStorage = new TorrentContentStorage({} as any)
     const bitfield = new BitField(1)
 
     const torrent = new Torrent(
+      client,
       infoHash,
       new Uint8Array(20).fill(0),
       mockSocketFactory,
@@ -104,10 +105,11 @@ describe('BtEngine', () => {
 
   it('should get a torrent by infoHash', () => {
     const infoHash = new Uint8Array(20).fill(0xab)
-    const pieceManager = new PieceManager(1, 16384, 1000)
+    const pieceManager = new PieceManager(client, 1, 16384, 1000)
     const contentStorage = new TorrentContentStorage({} as any)
     const bitfield = new BitField(1)
     const torrent = new Torrent(
+      client,
       infoHash,
       new Uint8Array(20).fill(0),
       mockSocketFactory,
@@ -130,6 +132,7 @@ describe('BtEngine', () => {
     const contentStorage = new TorrentContentStorage({} as any)
     const bitfield = new BitField(1)
     const torrent = new Torrent(
+      client,
       infoHash,
       new Uint8Array(20).fill(0),
       mockSocketFactory,
@@ -151,20 +154,22 @@ describe('BtEngine', () => {
 
   it('should destroy client and stop all torrents', () => {
     const t1 = new Torrent(
+      client,
       new Uint8Array(20).fill(1),
       new Uint8Array(20).fill(0),
       mockSocketFactory,
       0,
-      new PieceManager(1, 100, 100),
+      new PieceManager(client, 1, 100, 100),
       {} as any,
       new BitField(1),
     )
     const t2 = new Torrent(
+      client,
       new Uint8Array(20).fill(2),
       new Uint8Array(20).fill(0),
       mockSocketFactory,
       0,
-      new PieceManager(1, 100, 100),
+      new PieceManager(client, 1, 100, 100),
       {} as any,
       new BitField(1),
     )

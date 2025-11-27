@@ -8,6 +8,7 @@ import { BitField } from '../../src/utils/bitfield'
 import { PeerConnection } from '../../src/core/peer-connection'
 import { ITcpSocket } from '../../src/interfaces/socket'
 import { PeerWireProtocol } from '../../src/protocol/wire-protocol'
+import { MockEngine } from '../utils/mock-engine'
 
 // Mock Socket
 class MockSocket implements ITcpSocket {
@@ -28,7 +29,7 @@ class MockSocket implements ITcpSocket {
   onError(cb: any) {
     this.onErrorCb = cb
   }
-  close() {}
+  close() { }
   emitData(data: Uint8Array) {
     if (this.onDataCb) this.onDataCb(data)
   }
@@ -39,9 +40,11 @@ describe('Torrent', () => {
   let pm: PieceManager
   let fileSystem: InMemoryFileSystem
   let contentStorage: TorrentContentStorage
+  let engine: MockEngine
   const infoHash = new Uint8Array(20).fill(1)
 
   beforeEach(async () => {
+    engine = new MockEngine()
     fileSystem = new InMemoryFileSystem()
     const mockStorageHandle = {
       id: 'test',
@@ -50,13 +53,27 @@ describe('Torrent', () => {
     }
     contentStorage = new TorrentContentStorage(mockStorageHandle)
     await contentStorage.open([{ path: 'test', length: 100, offset: 0 }], 10)
-    pm = new PieceManager(10, 10, 10)
-    torrent = new Torrent(infoHash, pm, contentStorage, new BitField(10))
+    pm = new PieceManager(engine, 10, 10, 10)
+
+    const peerId = new Uint8Array(20).fill(0)
+    const socketFactory = { createTcpSocket: () => { }, createTcpServer: () => { } } as any
+    const port = 0
+
+    torrent = new Torrent(
+      engine,
+      infoHash,
+      peerId,
+      socketFactory,
+      port,
+      pm,
+      contentStorage,
+      new BitField(10)
+    )
   })
 
   it.skip('should handle piece from peer', async () => {
     const socket = new MockSocket()
-    const peer = new PeerConnection(socket)
+    const peer = new PeerConnection(engine, socket)
     torrent.addPeer(peer)
 
     // Simulate handshake to setup state

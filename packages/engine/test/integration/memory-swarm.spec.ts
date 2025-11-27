@@ -17,10 +17,10 @@ class MockSocketFactory implements ISocketFactory {
   }
   createTcpServer() {
     return {
-      on: () => {},
-      listen: () => {},
+      on: () => { },
+      listen: () => { },
       address: () => ({ port: 0 }),
-      close: () => {},
+      close: () => { },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as unknown as any // Cast to any to satisfy strict interface if needed, but we want to avoid explicit any error.
     // Actually, let's just use 'as any' with disable comment if we must, or better, return a partial mock.
@@ -137,8 +137,8 @@ describe('Memory Swarm Integration', () => {
     // 4. Connect A and B
     const [socketA, socketB] = MemorySocketFactory.createPair()
 
-    const peerA = new PeerConnection(socketA) // Connection FROM A TO B? No, socketA is A's end.
-    const peerB = new PeerConnection(socketB) // Connection FROM B TO A.
+    const peerA = new PeerConnection(clientA, socketA) // Connection FROM A TO B? No, socketA is A's end.
+    const peerB = new PeerConnection(clientB, socketB) // Connection FROM B TO A.
 
     // Add peers to torrents
     // We need to simulate incoming connection or outgoing.

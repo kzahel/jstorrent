@@ -1,4 +1,5 @@
 import { BitField } from '../utils/bitfield'
+import { EngineComponent, ILoggingEngine } from '../logging/logger'
 
 export const BLOCK_SIZE = 16384
 
@@ -47,7 +48,9 @@ class Piece {
   }
 }
 
-export class PieceManager {
+export class PieceManager extends EngineComponent {
+  static logName = 'piece-manager'
+
   private pieces: Piece[] = []
   private bitfield: BitField
   private piecesCount: number
@@ -55,12 +58,14 @@ export class PieceManager {
   private pieceHashes: Uint8Array[] = []
 
   constructor(
+    engine: ILoggingEngine,
     piecesCount: number,
     pieceLength: number,
     lastPieceLength: number,
     pieceHashes: Uint8Array[] = [],
     bitfield?: BitField,
   ) {
+    super(engine)
     this.piecesCount = piecesCount
     this.pieceHashes = pieceHashes
     this.bitfield = bitfield || new BitField(piecesCount)

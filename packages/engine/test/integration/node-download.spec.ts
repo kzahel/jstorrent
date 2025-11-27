@@ -12,6 +12,7 @@ import { NodeSocketFactory } from '../../src/io/node/node-socket'
 import { NodeStorageHandle } from '../../src/io/node/node-storage-handle'
 import { PeerConnection } from '../../src/core/peer-connection'
 import { PeerWireProtocol, MessageType } from '../../src/protocol/wire-protocol'
+import { MockEngine } from '../utils/mock-engine'
 
 describe('Node.js Integration Download', () => {
   let server: net.Server
@@ -98,14 +99,25 @@ describe('Node.js Integration Download', () => {
     const filePath = 'download.dat' // Relative path
     await contentStorage.open([{ path: filePath, length: 16384, offset: 0 }], 16384)
 
-    const pieceManager = new PieceManager(1, 16384, 16384) // 1 piece
+    const engine = new MockEngine()
+    const pieceManager = new PieceManager(engine, 1, 16384, 16384) // 1 piece
     const bitfield = new BitField(1)
+    const myPeerId = new Uint8Array(20).fill(3)
 
-    const torrent = new Torrent(infoHash, pieceManager, contentStorage, bitfield)
+    const torrent = new Torrent(
+      engine,
+      infoHash,
+      myPeerId,
+      socketFactory,
+      0,
+      pieceManager,
+      contentStorage,
+      bitfield
+    )
 
     // Connect to peer
     const socket = await socketFactory.createTcpSocket('127.0.0.1', serverPort)
-    const peer = new PeerConnection(socket)
+    const peer = new PeerConnection(engine, socket)
 
     // We need to manually trigger handshake send in this setup as Torrent doesn't auto-connect yet
     // But Torrent.addPeer expects a connected peer (mostly)

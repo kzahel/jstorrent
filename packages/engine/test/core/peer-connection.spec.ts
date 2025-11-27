@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { PeerConnection } from '../../src/core/peer-connection'
 import { ITcpSocket } from '../../src/interfaces/socket'
 import { PeerWireProtocol, MessageType } from '../../src/protocol/wire-protocol'
+import { MockEngine } from '../utils/mock-engine'
 
 class MockSocket implements ITcpSocket {
   public sentData: Uint8Array[] = []
@@ -38,12 +39,14 @@ class MockSocket implements ITcpSocket {
 describe('PeerConnection', () => {
   let socket: MockSocket
   let connection: PeerConnection
+  let engine: MockEngine
   const infoHash = new Uint8Array(20).fill(1)
   const peerId = new Uint8Array(20).fill(2)
 
   beforeEach(() => {
     socket = new MockSocket()
-    connection = new PeerConnection(socket)
+    engine = new MockEngine()
+    connection = new PeerConnection(engine, socket)
   })
 
   it('should send handshake', () => {

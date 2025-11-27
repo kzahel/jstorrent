@@ -1,4 +1,3 @@
-import { EventEmitter } from 'events'
 import { PeerConnection } from './peer-connection'
 import { PieceManager } from './piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
@@ -9,8 +8,29 @@ import { TrackerManager } from '../tracker/tracker-manager'
 import { ISocketFactory } from '../interfaces/socket'
 import { PeerInfo } from '../interfaces/tracker'
 import { TorrentFileInfo } from './torrent-file-info'
+import { EngineComponent, ILoggingEngine } from '../logging/logger'
 
-export class Torrent extends EventEmitter {
+export class Torrent extends EngineComponent {
+  static logName = 'torrent'
+
+  // EventEmitter is mixed in via EngineComponent? No, EngineComponent doesn't extend EventEmitter.
+  // BtEngine extends EventEmitter.
+  // Torrent extends EventEmitter in original code.
+  // TypeScript doesn't support multiple inheritance.
+  // I should make EngineComponent extend EventEmitter?
+  // Or make Torrent implement EventEmitter interface and use composition or mixin?
+  // Or just make EngineComponent extend EventEmitter.
+  // The design doc says "class BtEngine extends EventEmitter".
+  // "All engine components extend EngineComponent".
+  // It doesn't say EngineComponent extends EventEmitter.
+  // But Torrent needs to emit events.
+  // I will make EngineComponent extend EventEmitter in logger.ts first?
+  // Or I can just manually implement EventEmitter methods on Torrent or use a property.
+  // Actually, many components might want to emit events.
+  // Let's check if EngineComponent should extend EventEmitter.
+  // If I change EngineComponent to extend EventEmitter, I need to update logger.ts.
+  // Let's assume for now I can change EngineComponent.
+
   private peers: PeerConnection[] = []
   public infoHash: Uint8Array
   public peerId: Uint8Array
@@ -30,7 +50,12 @@ export class Torrent extends EventEmitter {
   public metadataPiecesReceived = new Set<number>()
   private metadataRaw: Uint8Array | null = null // The full info dictionary buffer
 
+  // We need to re-implement EventEmitter methods if we don't extend it.
+  // Or I can modify EngineComponent to extend EventEmitter.
+  // Let's modify EngineComponent first.
+
   constructor(
+    engine: ILoggingEngine,
     infoHash: Uint8Array,
     peerId: Uint8Array,
     socketFactory: ISocketFactory,
@@ -40,7 +65,7 @@ export class Torrent extends EventEmitter {
     bitfield?: BitField,
     announce: string[] = [],
   ) {
-    super()
+    super(engine)
     this.infoHash = infoHash
     this.peerId = peerId
     this.socketFactory = socketFactory
@@ -49,6 +74,8 @@ export class Torrent extends EventEmitter {
     this.contentStorage = contentStorage
     this.bitfield = bitfield
     this.announce = announce
+
+    this.instanceLogName = `t:${Buffer.from(infoHash).toString('hex').slice(0, 6)}`
 
     if (this.announce.length > 0) {
       // Group announce URLs into tiers (for now just one tier per URL or all in one)
@@ -64,7 +91,7 @@ export class Torrent extends EventEmitter {
 
       this.trackerManager.on('peer', (peer: PeerInfo) => {
         // TODO: Connect to peer
-        console.error(`Torrent: Discovered peer ${peer.ip}:${peer.port}`)
+        this.logger.info(`Discovered peer ${peer.ip}:${peer.port}`)
         // We need to initiate connection.
         // But PeerConnection usually wraps an existing socket or initiates one?
         // PeerConnection currently takes a socket.
@@ -73,18 +100,18 @@ export class Torrent extends EventEmitter {
       })
 
       this.trackerManager.on('warning', (msg) => {
-        console.warn(`Torrent: Tracker warning: ${msg}`)
+        this.logger.warn(`Tracker warning: ${msg}`)
       })
 
       this.trackerManager.on('error', (err) => {
-        console.error(`Torrent: Tracker error: ${err.message}`)
+        this.logger.error(`Tracker error: ${err.message}`)
       })
     }
   }
 
   async start() {
     if (this.trackerManager) {
-      console.error('Torrent: Starting tracker announce')
+      this.logger.info('Starting tracker announce')
       await this.trackerManager.announce('started')
     }
   }
@@ -98,7 +125,7 @@ export class Torrent extends EventEmitter {
     if (alreadyConnected) return
 
     try {
-      console.error(`Torrent: Connecting to ${peerInfo.ip}:${peerInfo.port}`)
+      this.logger.info(`Connecting to ${peerInfo.ip}:${peerInfo.port}`)
       const socket = await this.socketFactory.createTcpSocket(peerInfo.ip, peerInfo.port)
 
       // Wait for connection? createTcpSocket with args usually connects.
@@ -107,7 +134,7 @@ export class Torrent extends EventEmitter {
       // The interface says: createTcpSocket(host, port) -> Promise<ITcpSocket>
       // So it should be connected.
 
-      const peer = new PeerConnection(socket, {
+      const peer = new PeerConnection(this.engineInstance, socket, {
         remoteAddress: peerInfo.ip,
         remotePort: peerInfo.port,
       })
@@ -118,7 +145,7 @@ export class Torrent extends EventEmitter {
       // Initiate handshake
       peer.sendHandshake(this.infoHash, this.peerId)
     } catch (err) {
-      console.error(`Torrent: Failed to connect to peer ${peerInfo.ip}:${peerInfo.port}`, err)
+      this.logger.error(`Failed to connect to peer ${peerInfo.ip}:${peerInfo.port}`, { err })
     }
   }
 
@@ -203,27 +230,27 @@ export class Torrent extends EventEmitter {
     })
 
     peer.on('metadata_reject', (piece) => {
-      console.error(`Torrent: Metadata piece ${piece} rejected by peer`)
+      this.logger.warn(`Metadata piece ${piece} rejected by peer`)
     })
 
     peer.on('bitfield', (_bf) => {
-      console.error('Torrent: Bitfield received')
+      this.logger.debug('Bitfield received')
       // Update interest
       this.updateInterest(peer)
     })
 
     peer.on('have', (_index) => {
-      console.error(`Torrent: Have received ${_index} `)
+      this.logger.debug(`Have received ${_index}`)
       this.updateInterest(peer)
     })
 
     peer.on('unchoke', () => {
-      console.error('Torrent: Unchoke received')
+      this.logger.debug('Unchoke received')
       this.requestPieces(peer)
     })
 
     peer.on('interested', () => {
-      console.error('Torrent: Interested received')
+      this.logger.debug('Interested received')
       this.handleInterested(peer)
     })
 
@@ -238,12 +265,12 @@ export class Torrent extends EventEmitter {
     })
 
     peer.on('error', (err) => {
-      console.error(`Torrent: Peer error: ${err.message} `)
+      this.logger.error(`Peer error: ${err.message}`)
       this.removePeer(peer)
     })
 
     peer.on('close', () => {
-      console.error('Torrent: Peer closed')
+      this.logger.debug('Peer closed')
       this.removePeer(peer)
     })
   }
@@ -272,8 +299,9 @@ export class Torrent extends EventEmitter {
       const block = await this.contentStorage.read(index, begin, length)
       peer.sendPiece(index, begin, block)
     } catch (err) {
-      console.error(
-        `Torrent: Error handling request: ${err instanceof Error ? err.message : String(err)} `,
+      this.logger.error(
+        `Error handling request: ${err instanceof Error ? err.message : String(err)}`,
+        { err }
       )
     }
   }
@@ -282,7 +310,7 @@ export class Torrent extends EventEmitter {
     peer.peerInterested = true
     // Simple unchoke strategy: always unchoke interested peers
     if (peer.amChoking) {
-      console.error('Torrent: Unchoking peer')
+      this.logger.debug('Unchoking peer')
       peer.amChoking = false
       peer.sendMessage(MessageType.UNCHOKE)
     }
@@ -295,7 +323,7 @@ export class Torrent extends EventEmitter {
       // Better: check intersection of peer.bitfield and ~this.bitfield
       const interested = true // Placeholder for logic
       if (interested && !peer.amInterested) {
-        console.error('Torrent: Sending INTERESTED')
+        this.logger.debug('Sending INTERESTED')
         peer.sendMessage(MessageType.INTERESTED)
         peer.amInterested = true
       }
@@ -315,7 +343,7 @@ export class Torrent extends EventEmitter {
     // Simple strategy: request missing blocks from pieces that peer has
     if (!this.pieceManager) return
     const missing = this.pieceManager.getMissingPieces()
-    console.log(`Torrent: Missing pieces: ${missing.length}`)
+    this.logger.debug(`Missing pieces: ${missing.length}`)
 
     // Count pending requests for this peer
     // We need to track this on the peer object or calculate it.
@@ -385,7 +413,7 @@ export class Torrent extends EventEmitter {
         // Verify hash
         const isValid = await this.verifyPiece(msg.index)
         if (isValid) {
-          console.error(`Torrent: Piece ${msg.index} verified and complete`)
+          this.logger.info(`Piece ${msg.index} verified and complete`)
           this.pieceManager?.markVerified(msg.index)
           this.emit('piece', msg.index)
 
@@ -405,7 +433,7 @@ export class Torrent extends EventEmitter {
 
           this.checkCompletion()
         } else {
-          console.error(`Torrent: Piece ${msg.index} failed hash check`)
+          this.logger.warn(`Piece ${msg.index} failed hash check`)
           this.pieceManager?.resetPiece(msg.index)
         }
       }
@@ -435,7 +463,7 @@ export class Torrent extends EventEmitter {
     return Buffer.compare(hash, expectedHash) === 0
   }
   async stop() {
-    console.error('Torrent: Stopping')
+    this.logger.info('Stopping')
     if (this.trackerManager) {
       await this.trackerManager.announce('stopped')
       this.trackerManager.destroy()
@@ -449,7 +477,7 @@ export class Torrent extends EventEmitter {
   }
 
   async recheckData() {
-    console.error(`Torrent: Rechecking data for ${this.infoHashStr}`)
+    this.logger.info(`Rechecking data for ${this.infoHashStr}`)
     // TODO: Pause peers?
 
     // We iterate through all pieces and verify them.
@@ -464,19 +492,19 @@ export class Torrent extends EventEmitter {
         const isValid = await this.verifyPiece(i)
         if (isValid) {
           if (!this.pieceManager.hasPiece(i)) {
-            console.error(`Torrent: Piece ${i} found valid during recheck`)
+            this.logger.debug(`Piece ${i} found valid during recheck`)
             this.pieceManager.markVerified(i)
           }
         } else {
           if (this.pieceManager.hasPiece(i)) {
-            console.error(`Torrent: Piece ${i} found invalid during recheck`)
+            this.logger.warn(`Piece ${i} found invalid during recheck`)
             this.pieceManager.resetPiece(i)
           }
         }
       } catch (err) {
         // Read error or other issue
         if (this.pieceManager.hasPiece(i)) {
-          console.error(`Torrent: Piece ${i} error during recheck:`, err)
+          this.logger.error(`Piece ${i} error during recheck:`, { err })
           this.pieceManager.resetPiece(i)
         }
       }
@@ -492,14 +520,13 @@ export class Torrent extends EventEmitter {
       this.emit('verified', { bitfield: this.bitfield.toHex() })
     }
     this.emit('checked')
-    console.error(`Torrent: Recheck complete for ${this.infoHashStr}`)
-    console.error(`Torrent: Recheck complete for ${this.infoHashStr}`)
+    this.logger.info(`Recheck complete for ${this.infoHashStr}`)
     this.checkCompletion()
   }
 
   private checkCompletion() {
     if (this.pieceManager?.isComplete()) {
-      console.log('Torrent: Download complete!')
+      this.logger.info('Download complete!')
       this.emit('done')
       this.emit('complete')
     }
@@ -550,7 +577,7 @@ export class Torrent extends EventEmitter {
     }
 
     if (this.metadataSize !== totalSize) {
-      console.error('Torrent: Metadata size mismatch')
+      this.logger.error('Metadata size mismatch')
       return
     }
 
@@ -558,7 +585,7 @@ export class Torrent extends EventEmitter {
     const start = piece * METADATA_BLOCK_SIZE
 
     if (start + data.length > this.metadataSize) {
-      console.error('Torrent: Metadata data overflow')
+      this.logger.error('Metadata data overflow')
       return
     }
 
@@ -586,7 +613,7 @@ export class Torrent extends EventEmitter {
     // SHA1 hash of metadataBuffer should match infoHash
     const hash = crypto.createHash('sha1').update(this.metadataBuffer).digest()
     if (Buffer.compare(hash, this.infoHash) === 0) {
-      console.error('Torrent: Metadata verified successfully!')
+      this.logger.info('Metadata verified successfully!')
       this.metadataComplete = true
       this.metadataRaw = this.metadataBuffer
       this.emit('metadata', this.metadataBuffer)
@@ -602,7 +629,7 @@ export class Torrent extends EventEmitter {
       // Let's emit 'metadata' and expect the listener (BtEngine) to call a method to initialize?
       // Or we can import TorrentParser.
     } else {
-      console.error('Torrent: Metadata hash mismatch')
+      this.logger.warn('Metadata hash mismatch')
       this.metadataPiecesReceived.clear()
       this.metadataBuffer = new Uint8Array(this.metadataSize!)
       // Retry?

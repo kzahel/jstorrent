@@ -5,6 +5,7 @@ import { PeerConnection } from '../../src/core/peer-connection'
 import { ITcpSocket } from '../../src/interfaces/socket'
 import { Bencode } from '../../src/utils/bencode'
 import { MessageType } from '../../src/protocol/wire-protocol'
+import { MockEngine } from '../utils/mock-engine'
 
 // Mock Socket
 class MockSocket implements ITcpSocket {
@@ -33,10 +34,12 @@ class MockSocket implements ITcpSocket {
 describe('PexHandler', () => {
   let socket: MockSocket
   let peer: PeerConnection
+  let engine: MockEngine
 
   beforeEach(() => {
     socket = new MockSocket()
-    peer = new PeerConnection(socket)
+    engine = new MockEngine()
+    peer = new PeerConnection(engine, socket)
     new PexHandler(peer)
     // Add spy to verify listener is attached? No, just modify src file.
   })
@@ -114,7 +117,7 @@ describe('PexHandler', () => {
     pexMsg.set(pexPayload, 6)
 
     const pexSpy = vi.fn()
-    ;(peer as any).on('pex_peer', pexSpy)
+      ; (peer as any).on('pex_peer', pexSpy)
 
     socket.emitData(pexMsg)
 

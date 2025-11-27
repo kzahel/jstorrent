@@ -75,8 +75,8 @@ class NodeSocketFactory implements ISocketFactory {
 
   createTcpServer() {
     return {
-      on: () => {},
-      listen: () => {},
+      on: () => { },
+      listen: () => { },
       address: () => ({ port: 0 }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any
@@ -166,7 +166,7 @@ describe('Tracker Integration', () => {
     serverA.on('connection', (socket) => {
       console.log('Client A received connection')
       const peerSocket = new NodeTcpSocket(socket)
-      const peer = new PeerConnection(peerSocket)
+      const peer = new PeerConnection(clientA, peerSocket)
       torrentA.addPeer(peer)
 
       // We need to handle handshake on A side too
