@@ -4,7 +4,7 @@ import time
 import shutil
 import hashlib
 import json
-from harness.libtorrent_utils import LibtorrentSession
+from libtorrent_utils import LibtorrentSession
 from jst import JSTEngine
 
 def calculate_sha1(file_path):
@@ -17,7 +17,7 @@ def calculate_sha1(file_path):
             sha1.update(data)
     return sha1.hexdigest()
 
-# @pytest.mark.parametrize("piece_length", [16384, 32768, 65536]) # Test varying piece sizes
+@pytest.mark.parametrize("piece_length", [16384, 32768, 65536]) # Test varying piece sizes
 def test_download(tmp_path, piece_length):
     # Setup directories
     temp_dir = str(tmp_path)

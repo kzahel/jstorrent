@@ -4,7 +4,7 @@ import time
 import shutil
 import hashlib
 import json
-from harness.libtorrent_utils import LibtorrentSession
+from libtorrent_utils import LibtorrentSession
 from jst import JSTEngine
 
 def calculate_sha1(file_path):

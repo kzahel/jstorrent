@@ -2,15 +2,18 @@
 
 ## Setup
 
-1. Create a virtual environment:
+1. Create a virtual environment and install dependencies:
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate
+   pip install -e .
    ```
 
-2. Install dependencies:
+   Or with `uv` (faster):
    ```bash
-   pip install -r requirements.txt
+   uv venv .venv
+   source .venv/bin/activate
+   uv pip install -e .
    ```
 
    *Note: `libtorrent` might require system-level installation or building from source if a wheel is not available for your platform.*

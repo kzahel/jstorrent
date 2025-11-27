@@ -3,7 +3,7 @@ import os
 import time
 import shutil
 from jst import JSTEngine
-from harness.libtorrent_utils import LibtorrentSession
+from libtorrent_utils import LibtorrentSession
 
 @pytest.fixture
 def temp_dir(tmp_path):
