@@ -19,8 +19,8 @@ import {
   createFilter,
   randomClientId,
   withScopeAndFiltering,
-  EngineComponent,
   ShouldLogFn,
+  ILoggableComponent,
 } from '../logging/logger'
 
 export interface StorageResolver {
@@ -40,16 +40,23 @@ export interface BtEngineOptions {
   logging?: EngineLoggingConfig
 }
 
-export class BtEngine extends EventEmitter implements ILoggingEngine {
+export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
+  public readonly fileSystem: IFileSystem
+  public readonly socketFactory: ISocketFactory
   public torrents: Torrent[] = []
-  private fileSystem: IFileSystem
-  private socketFactory: ISocketFactory
-  public peerId: Uint8Array
   public port: number
+  public peerId: Uint8Array
 
   public readonly clientId: string
   private rootLogger: Logger
+  private logger: Logger
   private filterFn: ShouldLogFn
+
+  // ILoggableComponent implementation
+  static logName = 'client'
+  getLogName(): string { return BtEngine.logName }
+  getStaticLogName(): string { return BtEngine.logName }
+  get engineInstance(): ILoggingEngine { return this }
 
   constructor(options: BtEngineOptions) {
     super()
@@ -60,6 +67,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine {
     this.clientId = randomClientId()
     this.rootLogger = defaultLogger()
     this.filterFn = createFilter(options.logging ?? { level: 'info' })
+
+    // Initialize logger for BtEngine itself
+    this.logger = this.scopedLoggerFor(this)
 
     if (options.peerId) {
       this.peerId = Buffer.from(options.peerId)
@@ -73,7 +83,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine {
     this.startServer()
   }
 
-  scopedLoggerFor(component: EngineComponent): Logger {
+  scopedLoggerFor(component: ILoggableComponent): Logger {
     return withScopeAndFiltering(this.rootLogger, component, this.filterFn)
   }
 
@@ -87,7 +97,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine {
           if (addr && typeof addr === 'object' && 'port' in addr) {
             this.port = addr.port
           }
-          console.log(`BtEngine listening on port ${this.port}`)
+          this.logger.info(`BtEngine listening on port ${this.port}`)
         })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         server.on('connection', (socket: any) => {
@@ -95,7 +105,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine {
         })
       }
     } catch (err) {
-      console.warn('Failed to start server:', err)
+      this.logger.warn('Failed to start server:', { error: err })
     }
   }
 
@@ -121,7 +131,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine {
         const hex = toInfoHashString(infoHash)
         const torrent = this.getTorrent(hex)
         if (torrent) {
-          console.log(`BtEngine: Incoming connection for torrent ${hex}`)
+          this.logger.info(`BtEngine: Incoming connection for torrent ${hex}`)
           torrent.addPeer(peer)
           // Send handshake back
           peer.sendHandshake(torrent.infoHash, torrent.peerId)
@@ -130,14 +140,14 @@ export class BtEngine extends EventEmitter implements ILoggingEngine {
             peer.sendMessage(5, torrent.bitfield.toBuffer()) // 5 = BITFIELD
           }
         } else {
-          console.warn(`BtEngine: Incoming connection for unknown torrent ${hex}`)
+          this.logger.warn(`BtEngine: Incoming connection for unknown torrent ${hex}`)
           peer.close()
         }
       })
 
       // Timeout if no handshake?
     } catch (err) {
-      console.error('BtEngine: Error handling incoming connection', err)
+      this.logger.error('BtEngine: Error handling incoming connection', { error: err })
     }
   }
 
@@ -162,7 +172,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine {
       )
 
       const storageHandle = new FileSystemStorageHandle(this.fileSystem)
-      const contentStorage = new TorrentContentStorage(storageHandle)
+      const contentStorage = new TorrentContentStorage(this, storageHandle)
       await contentStorage.open(parsed.files, parsed.pieceLength)
 
       const bitfield = pieceManager.getBitField()
@@ -221,7 +231,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine {
 
       torrent.on('metadata', async (metadataBuffer: Uint8Array) => {
         try {
-          console.error('BtEngine: Metadata received, initializing torrent')
+          this.logger.info('BtEngine: Metadata received, initializing torrent')
           const info = Bencode.decode(metadataBuffer)
           const parsed = TorrentParser.parseInfoDictionary(
             info,
@@ -241,7 +251,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine {
 
           // Initialize ContentStorage
           const storageHandle = new FileSystemStorageHandle(this.fileSystem)
-          const contentStorage = new TorrentContentStorage(storageHandle)
+          const contentStorage = new TorrentContentStorage(this, storageHandle)
           await contentStorage.open(parsed.files, parsed.pieceLength)
 
           const bitfield = pieceManager.getBitField()
@@ -256,14 +266,14 @@ export class BtEngine extends EventEmitter implements ILoggingEngine {
           // Usually magnet takes precedence or we merge.
           // For now, keep existing.
 
-          console.error('BtEngine: Torrent initialized from metadata')
+          this.logger.info('BtEngine: Torrent initialized from metadata')
           this.emit('torrent-ready', torrent) // New event?
 
           // Start verification or download?
           // We should probably check existing files if any.
           await torrent.recheckData()
         } catch (err) {
-          console.error('BtEngine: Error initializing torrent from metadata', err)
+          this.logger.error('BtEngine: Error initializing torrent from metadata', { error: err })
           this.emit('error', err)
         }
       })

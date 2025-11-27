@@ -2,6 +2,7 @@ import { BtEngine } from './bt-engine'
 import { IStorageHandle } from '../io/storage-handle'
 import { StorageManager } from '../io/storage-manager'
 import { toInfoHashString } from '../utils/infohash'
+import { EngineComponent } from '../logging/logger'
 
 export interface SessionConfig {
   profile: string
@@ -21,7 +22,8 @@ export interface SessionState {
   torrents: TorrentState[]
 }
 
-export class SessionManager {
+export class SessionManager extends EngineComponent {
+  static logName = 'session-manager'
   private stateFile = 'session.json'
 
   constructor(
@@ -30,7 +32,8 @@ export class SessionManager {
     private storageManager: StorageManager,
     _config: SessionConfig,
   ) {
-    console.error(`SessionManager initialized with profile: ${_config.profile}`)
+    super(client)
+    this.logger.info(`SessionManager initialized with profile: ${_config.profile}`)
   }
 
   async save() {
@@ -58,7 +61,7 @@ export class SessionManager {
     try {
       const fs = this.metadataStorage.getFileSystem()
       if (!(await fs.exists(this.stateFile))) {
-        console.error('No session file found')
+        this.logger.info('No session file found')
         return
       }
 
@@ -72,11 +75,11 @@ export class SessionManager {
       const state: SessionState = JSON.parse(json)
 
       for (const tState of state.torrents) {
-        console.error('Resuming torrent', tState.infoHash)
+        this.logger.info('Resuming torrent', { infoHash: tState.infoHash })
         // TODO: Reconstruct torrents using storageManager to resolve savePath
       }
     } catch (err) {
-      console.error('Error loading session', err)
+      this.logger.error('Error loading session', { err })
     }
   }
 
@@ -104,9 +107,9 @@ export class SessionManager {
       const handle = await fs.open(filePath, 'w')
       await handle.write(buffer, 0, buffer.length, 0)
       await handle.close()
-      // console.error(`SessionManager: Saved resume data for ${infoHash}`)
+      // this.logger.debug(`SessionManager: Saved resume data for ${infoHash}`)
     } catch (err) {
-      console.error(`SessionManager: Error saving resume data for ${infoHash}`, err)
+      this.logger.error(`SessionManager: Error saving resume data for ${infoHash}`, { err })
     }
   }
 
@@ -125,7 +128,7 @@ export class SessionManager {
       const json = new TextDecoder().decode(buffer)
       return JSON.parse(json) as TorrentResumeData
     } catch (err) {
-      console.error(`SessionManager: Error loading resume data for ${infoHash}`, err)
+      this.logger.error(`SessionManager: Error loading resume data for ${infoHash}`, { err })
       return null
     }
   }

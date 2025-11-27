@@ -82,6 +82,7 @@ export class Torrent extends EngineComponent {
       // TrackerManager expects string[][]
       const tiers = [this.announce]
       this.trackerManager = new TrackerManager(
+        this.engine,
         tiers,
         this.infoHash,
         this.peerId,

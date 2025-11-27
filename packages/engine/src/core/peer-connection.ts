@@ -49,8 +49,8 @@ export class PeerConnection extends EngineComponent {
   public peerMetadataId: number | null = null
   public myMetadataId = 1 // Our ID for ut_metadata
 
-  public peerId: Uint8Array | null = null
-  public infoHash: Uint8Array | null = null
+  public peerId: Uint8Array | undefined = undefined
+  public infoHash: Uint8Array | undefined = undefined
   public bitfield: BitField | null = null
   public remoteAddress?: string
   public remotePort?: number

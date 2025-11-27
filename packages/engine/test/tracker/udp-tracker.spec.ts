@@ -15,8 +15,8 @@ class MockUdpSocket implements IUdpSocket {
   onMessage(cb: (src: { addr: string; port: number }, data: Uint8Array) => void): void {
     this.onMessageCb = cb
   }
-  close() {}
-  bind() {}
+  close() { }
+  bind() { }
 
   // Helper to simulate incoming message
   emitMessage(data: Uint8Array) {
@@ -49,7 +49,15 @@ describe('UdpTracker', () => {
 
   beforeEach(() => {
     factory = new MockSocketFactory()
-    tracker = new UdpTracker(announceUrl, infoHash, peerId, factory)
+    const mockEngine = {
+      scopedLoggerFor: vi.fn().mockReturnValue({
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
+      }),
+    }
+    tracker = new UdpTracker(mockEngine as any, announceUrl, infoHash, peerId, factory)
   })
 
   it('should connect and announce', async () => {

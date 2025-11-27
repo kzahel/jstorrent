@@ -2,11 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { TorrentContentStorage } from '../../src/core/torrent-content-storage'
 import { InMemoryFileSystem } from '../../src/io/memory/memory-filesystem'
 import { TorrentFile } from '../../src/core/torrent-file'
+import { MockEngine } from '../utils/mock-engine'
 
 describe('TorrentContentStorage', () => {
   let fileSystem: InMemoryFileSystem
   let contentStorage: TorrentContentStorage
   const pieceLength = 10
+  const mockEngine = new MockEngine()
 
   beforeEach(() => {
     fileSystem = new InMemoryFileSystem()
@@ -15,7 +17,7 @@ describe('TorrentContentStorage', () => {
       name: 'test',
       getFileSystem: () => fileSystem,
     }
-    contentStorage = new TorrentContentStorage(mockStorageHandle)
+    contentStorage = new TorrentContentStorage(mockEngine, mockStorageHandle)
   })
 
   it('should write and read from a single file', async () => {

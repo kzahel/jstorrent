@@ -34,7 +34,15 @@ describe('TrackerManager', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    manager = new TrackerManager(announceList, infoHash, peerId, socketFactory)
+    const mockEngine = {
+      scopedLoggerFor: vi.fn().mockReturnValue({
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
+      }),
+    }
+    manager = new TrackerManager(mockEngine as any, announceList, infoHash, peerId, socketFactory)
   })
 
   it('should initialize trackers from announce list', () => {

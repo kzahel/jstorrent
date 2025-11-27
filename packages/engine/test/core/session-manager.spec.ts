@@ -22,6 +22,7 @@ describe('SessionManager', () => {
   let client: BtEngine
   let fileSystem: InMemoryFileSystem
   let sessionManager: SessionManager
+  let mockLogger: any
 
   beforeEach(() => {
     fileSystem = new InMemoryFileSystem()
@@ -36,6 +37,14 @@ describe('SessionManager', () => {
       } as any,
       fileSystem: fileSystem,
     })
+
+    mockLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      warn: vi.fn(),
+    }
+    vi.spyOn(client, 'scopedLoggerFor').mockReturnValue(mockLogger)
 
     const mockStorageHandle = {
       id: 'session',
@@ -90,20 +99,16 @@ describe('SessionManager', () => {
     await handle.write(data, 0, data.length, 0)
     await handle.close()
 
-    // Spy on console.error to verify resume
-    const logSpy = vi.spyOn(console, 'error')
-
     await sessionManager.load()
 
-    expect(logSpy).toHaveBeenCalledWith(
+    expect(mockLogger.info).toHaveBeenCalledWith(
       'Resuming torrent',
-      'abababababababababababababababababababab',
+      { infoHash: 'abababababababababababababababababababab' },
     )
   })
 
   it('should handle missing session file gracefully', async () => {
-    const logSpy = vi.spyOn(console, 'error')
     await sessionManager.load()
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('No session file found'))
+    expect(mockLogger.info).toHaveBeenCalledWith('No session file found')
   })
 })

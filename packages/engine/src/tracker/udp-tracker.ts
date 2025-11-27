@@ -1,6 +1,6 @@
 import { ITracker, TrackerAnnounceEvent } from '../interfaces/tracker'
 import { IUdpSocket, ISocketFactory } from '../interfaces/socket'
-import { EventEmitter } from 'events'
+import { EngineComponent, ILoggingEngine } from '../logging/logger'
 
 // BEP 15 Constants
 const PROTOCOL_ID = 0x41727101980n // Magic constant
@@ -8,7 +8,8 @@ const ACTION_CONNECT = 0
 const ACTION_ANNOUNCE = 1
 const ACTION_ERROR = 3
 
-export class UdpTracker extends EventEmitter implements ITracker {
+export class UdpTracker extends EngineComponent implements ITracker {
+  static logName = 'udp-tracker'
   private socket: IUdpSocket | null = null
   private connectionId: bigint | null = null
   private connectionIdTime: number = 0
@@ -21,13 +22,14 @@ export class UdpTracker extends EventEmitter implements ITracker {
   private timer: NodeJS.Timeout | null = null
 
   constructor(
+    engine: ILoggingEngine,
     private announceUrl: string,
-    private infoHash: Uint8Array,
-    private peerId: Uint8Array,
+    readonly infoHash: Uint8Array,
+    readonly peerId: Uint8Array,
     private socketFactory: ISocketFactory,
     private port: number = 6881,
   ) {
-    super()
+    super(engine)
   }
 
   async announce(event: TrackerAnnounceEvent = 'started'): Promise<void> {
@@ -134,18 +136,18 @@ export class UdpTracker extends EventEmitter implements ITracker {
     } else if (action === ACTION_ANNOUNCE) {
       const interval = view.getUint32(8, false)
       this._interval = interval
-      console.log('UdpTracker: Announce response received', { interval })
+      this.logger.info('UdpTracker: Announce response received', { interval })
 
       for (let i = 20; i < msg.length; i += 6) {
         if (i + 6 > msg.length) break
         const ip = `${msg[i]}.${msg[i + 1]}.${msg[i + 2]}.${msg[i + 3]}`
         const port = (msg[i + 4] << 8) | msg[i + 5]
-        console.log(`UdpTracker: Discovered peer ${ip}:${port}`)
+        this.logger.debug(`UdpTracker: Discovered peer ${ip}:${port}`)
         this.emit('peer', { ip, port })
       }
     } else if (action === ACTION_ERROR) {
       const errorMsg = new TextDecoder().decode(msg.slice(8))
-      console.error(`UdpTracker: Error response: ${errorMsg}`)
+      this.logger.error(`UdpTracker: Error response: ${errorMsg}`)
       this.emit('error', new Error(errorMsg))
       if (this.connectPromise) {
         this.connectPromise.reject(new Error(errorMsg))

@@ -29,7 +29,7 @@ class MockSocket implements ITcpSocket {
   onError(cb: any) {
     this.onErrorCb = cb
   }
-  close() {}
+  close() { }
   emitData(data: Uint8Array) {
     if (this.onDataCb) this.onDataCb(data)
   }
@@ -51,12 +51,12 @@ describe('Torrent', () => {
       name: 'test',
       getFileSystem: () => fileSystem,
     }
-    contentStorage = new TorrentContentStorage(mockStorageHandle)
+    contentStorage = new TorrentContentStorage(engine, mockStorageHandle)
     await contentStorage.open([{ path: 'test', length: 100, offset: 0 }], 10)
     pm = new PieceManager(engine, 10, 10, 10)
 
     const peerId = new Uint8Array(20).fill(0)
-    const socketFactory = { createTcpSocket: () => {}, createTcpServer: () => {} } as any
+    const socketFactory = { createTcpSocket: () => { }, createTcpServer: () => { } } as any
     const port = 0
 
     torrent = new Torrent(

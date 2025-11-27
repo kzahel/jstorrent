@@ -1,8 +1,10 @@
 import { IStorageHandle } from '../io/storage-handle'
 import { IFileHandle } from '../interfaces/filesystem'
 import { TorrentFile } from './torrent-file'
+import { EngineComponent, ILoggingEngine } from '../logging/logger'
 
-export class TorrentContentStorage {
+export class TorrentContentStorage extends EngineComponent {
+  static logName = 'content-storage'
   private files: TorrentFile[] = []
   private fileHandles: Map<string, IFileHandle> = new Map()
   private openingFiles: Map<string, Promise<IFileHandle>> = new Map()
@@ -10,8 +12,9 @@ export class TorrentContentStorage {
 
   private id = Math.random().toString(36).slice(2, 7)
 
-  constructor(private storageHandle: IStorageHandle) {
-    console.error(
+  constructor(engine: ILoggingEngine, private storageHandle: IStorageHandle) {
+    super(engine)
+    this.logger.debug(
       `TorrentContentStorage: Created instance ${this.id} for storage ${storageHandle.name}`,
     )
   }
@@ -19,7 +22,7 @@ export class TorrentContentStorage {
   async open(files: TorrentFile[], pieceLength: number) {
     this.files = files
     this.pieceLength = pieceLength
-    console.error(`DiskManager ${this.id}: Opened with ${files.length} files`)
+    this.logger.debug(`DiskManager ${this.id}: Opened with ${files.length} files`)
 
     // Pre-open files or open on demand? Let's open on demand for now to save resources,
     // but for simplicity in this phase, we might just open them all if the list is small.
@@ -31,11 +34,11 @@ export class TorrentContentStorage {
   }
 
   async close() {
-    console.error(`DiskManager ${this.id}: Closing all files`)
+    this.logger.debug(`DiskManager ${this.id}: Closing all files`)
     // Wait for any pending opens?
     // Ideally we should wait, but for now just close what we have.
     for (const [path, handle] of this.fileHandles) {
-      console.error(`DiskManager ${this.id}: Closing file ${path}`)
+      this.logger.debug(`DiskManager ${this.id}: Closing file ${path}`)
       await handle.close()
     }
     this.fileHandles.clear()
@@ -48,11 +51,11 @@ export class TorrentContentStorage {
     }
 
     if (this.openingFiles.has(path)) {
-      // console.error(`DiskManager ${this.id}: Waiting for pending open '${path}'`)
+      // this.logger.debug(`DiskManager ${this.id}: Waiting for pending open '${path}'`)
       return this.openingFiles.get(path)!
     }
 
-    console.error(
+    this.logger.debug(
       `DiskManager ${this.id}: Opening file '${path}' (cache miss). Current keys: ${Array.from(this.fileHandles.keys())}`,
     )
 
@@ -61,7 +64,7 @@ export class TorrentContentStorage {
         const fs = this.storageHandle.getFileSystem()
         const handle = await fs.open(path, 'r+')
         this.fileHandles.set(path, handle)
-        console.error(
+        this.logger.debug(
           `DiskManager ${this.id}: Set handle for '${path}'. Keys now: ${Array.from(this.fileHandles.keys())}`,
         )
         return handle
@@ -90,7 +93,7 @@ export class TorrentContentStorage {
         const fileRelativeOffset = currentTorrentOffset - file.offset
         const bytesToWrite = Math.min(remaining, file.length - fileRelativeOffset)
 
-        console.error(
+        this.logger.debug(
           `DiskManager: Writing to ${file.path}, fileRelOffset=${fileRelativeOffset}, bytes=${bytesToWrite}, dataOffset=${dataOffset}`,
         )
 
