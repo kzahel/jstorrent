@@ -24,3 +24,6 @@ target/
 
 # TypeScript
 *.tsbuildinfo
+
+# agent crap?
+**/.pad

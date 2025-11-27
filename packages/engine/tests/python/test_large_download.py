@@ -3,7 +3,7 @@ import os
 import time
 import hashlib
 from harness.libtorrent_utils import LibtorrentSession
-from harness.engine_rpc import EngineRPC
+from jst import JSTEngine
 
 def calculate_sha1(file_path):
     sha1 = hashlib.sha1()
@@ -48,42 +48,15 @@ def test_large_download(tmp_path):
         time.sleep(0.1)
     assert lt_handle.status().is_seeding
 
-    # 2. Start TS Engine
-    engine = EngineRPC()
-    engine.start()
+    # 2. Start JSTEngine
+    engine = JSTEngine(port=3002, download_dir=leecher_dir)
 
     try:
-        # Init engine
-        resp = engine.send_command("init", {
-            "listen_port": 0,
-            "download_dir": leecher_dir
-        })
-        assert resp["ok"]
+        # Add torrent file
+        tid = engine.add_torrent_file(torrent_path)
 
-        # Add torrent
-        import libtorrent as lt
-        info = lt.torrent_info(torrent_path)
-        pieces = b""
-        for i in range(info.num_pieces()):
-            pieces += info.hash_for_piece(i)
-
-        resp = engine.send_command("add_torrent_file", {
-            "path": torrent_path,
-            "info_hash": info_hash,
-            "piece_length": piece_length,
-            "total_length": file_size,
-            "name": "large_payload.bin",
-            "pieces": pieces.hex()
-        })
-        assert resp["ok"]
-        engine_port = resp["port"]
-
-        # 3. Connect Peers
-        resp = engine.send_command("add_peer", {
-            "info_hash": info_hash,
-            "ip": "127.0.0.1",
-            "port": 50003
-        })
+        # 3. Connect to peer
+        engine.add_peer(tid, "127.0.0.1", 50003)
 
         # 4. Wait for Download
         print("Waiting for download to complete...")
@@ -93,12 +66,24 @@ def test_large_download(tmp_path):
         # 100MB / 10MB/s = 10s.
         # Give it 60s.
         for i in range(120): # 60 seconds
-            # Check file existence and size
+            status = engine.get_torrent_status(tid)
+            progress = status.get("progress", 0)
+            peers = status.get("peers", 0)
+            
+            if i % 10 == 0:
+                print(f"Progress: {progress * 100:.1f}%, Peers: {peers}")
+            
+            if progress >= 1.0:
+                downloaded = True
+                print(f"Download complete! Time: {time.time() - start_time:.2f}s")
+                break
+            
+            # Also check file existence and size as backup
             download_path = os.path.join(leecher_dir, "large_payload.bin")
             if os.path.exists(download_path):
                 current_size = os.path.getsize(download_path)
                 if i % 10 == 0:
-                    print(f"Progress: {current_size / (1024*1024):.2f} MB / {file_size / (1024*1024):.2f} MB")
+                    print(f"File size: {current_size / (1024*1024):.2f} MB / {file_size / (1024*1024):.2f} MB")
                 
                 if current_size == file_size:
                     # Verify hash
@@ -110,9 +95,6 @@ def test_large_download(tmp_path):
                         break
                     else:
                         print(f"Hash mismatch! Expected {expected_hash}, got {current_hash}")
-                        # Don't break immediately, maybe it's still writing? 
-                        # But size matched.
-                        # If size matched and hash mismatch, it's a failure.
                         break
             
             time.sleep(0.5)
@@ -120,5 +102,5 @@ def test_large_download(tmp_path):
         assert downloaded, "Download failed or timed out"
 
     finally:
-        engine.stop()
+        engine.close()
         lt_session.stop()

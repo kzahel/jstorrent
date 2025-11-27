@@ -2,8 +2,9 @@ import pytest
 import os
 import time
 import hashlib
+import shutil
 from harness.libtorrent_utils import LibtorrentSession
-from harness.engine_rpc import EngineRPC
+from jst import JSTEngine
 
 def calculate_sha1(file_path):
     sha1 = hashlib.sha1()
@@ -39,7 +40,6 @@ def test_multi_peer_download(tmp_path):
         if i > 0:
             os.makedirs(dir_path)
             # Copy payload
-            import shutil
             shutil.copy(os.path.join(seeder0_dir, "multi_peer_payload.bin"), os.path.join(dir_path, "multi_peer_payload.bin"))
             # Copy torrent file
             shutil.copy(torrent_path, os.path.join(dir_path, "multi_peer_payload.bin.torrent"))
@@ -64,48 +64,33 @@ def test_multi_peer_download(tmp_path):
 
     expected_hash = calculate_sha1(os.path.join(seeder0_dir, "multi_peer_payload.bin"))
 
-    # 2. Start TS Engine
-    engine = EngineRPC()
-    engine.start()
+    # 2. Start JSTEngine
+    engine = JSTEngine(port=3002, download_dir=leecher_dir)
 
     try:
-        # Init engine
-        resp = engine.send_command("init", {
-            "listen_port": 0,
-            "download_dir": leecher_dir
-        })
-        assert resp["ok"]
+        # Add torrent file
+        tid = engine.add_torrent_file(torrent_path)
 
-        # Add torrent
-        import libtorrent as lt
-        info = lt.torrent_info(torrent_path)
-        pieces = b""
-        for i in range(info.num_pieces()):
-            pieces += info.hash_for_piece(i)
-
-        resp = engine.send_command("add_torrent_file", {
-            "path": torrent_path,
-            "info_hash": info_hash,
-            "piece_length": piece_length,
-            "total_length": file_size,
-            "name": "multi_peer_payload.bin",
-            "pieces": pieces.hex()
-        })
-        assert resp["ok"]
-
-        # 3. Connect Peers
+        # 3. Connect to all Peers
         for port in ports:
-            resp = engine.send_command("add_peer", {
-                "info_hash": info_hash,
-                "ip": "127.0.0.1",
-                "port": port
-            })
+            engine.add_peer(tid, "127.0.0.1", port)
 
         # 4. Wait for Download
         print("Waiting for download to complete...")
         downloaded = False
         start_time = time.time()
         for i in range(60): # 30 seconds
+            status = engine.get_torrent_status(tid)
+            progress = status.get("progress", 0)
+            peers = status.get("peers", 0)
+            print(f"Progress: {progress * 100:.1f}%, Peers: {peers}")
+            
+            if progress >= 1.0:
+                downloaded = True
+                print(f"Download complete! Time: {time.time() - start_time:.2f}s")
+                break
+                
+            # Also check file as backup
             download_path = os.path.join(leecher_dir, "multi_peer_payload.bin")
             if os.path.exists(download_path):
                 current_size = os.path.getsize(download_path)
@@ -120,6 +105,6 @@ def test_multi_peer_download(tmp_path):
         assert downloaded, "Download failed or timed out"
 
     finally:
-        engine.stop()
+        engine.close()
         for s in seeders:
             s.stop()

@@ -87,6 +87,15 @@ export class HttpRpcServer {
         const id = url.split('/')[2]
         this.controller.removeTorrent(id)
         this.sendJson(res, { ok: true })
+      } else if (url?.startsWith('/torrent/') && url?.endsWith('/add-peer') && method === 'POST') {
+        const id = url.split('/')[2]
+        const body = await this.readBody(req)
+        await this.controller.addPeer(id, body.ip, body.port)
+        this.sendJson(res, { ok: true })
+      } else if (url?.startsWith('/torrent/') && url?.endsWith('/recheck') && method === 'POST') {
+        const id = url.split('/')[2]
+        await this.controller.recheckTorrent(id)
+        this.sendJson(res, { ok: true })
       } else {
         res.writeHead(404)
         this.sendJson(res, { ok: false, error: 'Not Found' })

@@ -89,7 +89,7 @@ export class Torrent extends EventEmitter {
     }
   }
 
-  private async connectToPeer(peerInfo: PeerInfo) {
+  async connectToPeer(peerInfo: PeerInfo) {
     // Check if already connected
     // This is a simple check, ideally we check against known peers map
     const alreadyConnected = this.peers.some(

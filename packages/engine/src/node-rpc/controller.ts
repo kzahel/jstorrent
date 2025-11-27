@@ -93,15 +93,15 @@ export class EngineController {
       throw new Error('TorrentNotFound')
     }
 
-    // Simplified status mapping
+    // Get actual status from torrent
     return {
       ok: true,
       id,
-      state: 'downloading', // Placeholder
-      progress: 0, // Placeholder
-      downloadRate: 0, // Placeholder
-      uploadRate: 0, // Placeholder
-      peers: 0, // Placeholder
+      state: torrent.progress >= 1.0 ? 'seeding' : 'downloading',
+      progress: torrent.progress,
+      downloadRate: 0, // TODO: implement actual rate tracking
+      uploadRate: 0, // TODO: implement actual rate tracking
+      peers: torrent.numPeers,
     }
   }
 
@@ -122,5 +122,22 @@ export class EngineController {
   removeTorrent(id: string): void {
     if (!this.engine) throw new Error('EngineNotRunning')
     this.engine.removeTorrentByHash(id)
+  }
+
+  async addPeer(torrentId: string, ip: string, port: number): Promise<void> {
+    if (!this.engine) throw new Error('EngineNotRunning')
+    const torrent = this.engine.getTorrent(torrentId)
+    if (!torrent) throw new Error('TorrentNotFound')
+    
+    // Connect to peer
+    await torrent.connectToPeer({ ip, port })
+  }
+
+  async recheckTorrent(id: string): Promise<void> {
+    if (!this.engine) throw new Error('EngineNotRunning')
+    const torrent = this.engine.getTorrent(id)
+    if (!torrent) throw new Error('TorrentNotFound')
+    
+    await torrent.recheckData()
   }
 }

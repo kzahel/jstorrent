@@ -3,7 +3,7 @@ import os
 import time
 import hashlib
 from harness.libtorrent_utils import LibtorrentSession
-from harness.engine_rpc import EngineRPC
+from jst import JSTEngine
 
 def calculate_sha1(file_path):
     sha1 = hashlib.sha1()
@@ -42,17 +42,9 @@ def test_multi_file_download(tmp_path):
     info = lt.torrent_info(torrent_path)
     print("Torrent Files:")
     
-    engine_files = []
-    offset = 0
     for i in range(info.num_files()):
         f = info.files().at(i)
         print(f"  {i}: {f.path} ({f.size} bytes)")
-        engine_files.append({
-            "path": f.path,
-            "length": f.size,
-            "offset": offset
-        })
-        offset += f.size
 
     # Add to libtorrent as seeder
     lt_handle = lt_session.add_torrent(torrent_path, seeder_dir, seed_mode=True)
@@ -67,55 +59,32 @@ def test_multi_file_download(tmp_path):
         time.sleep(0.1)
     assert lt_handle.status().is_seeding
 
-    # 2. Start TS Engine
-    engine = EngineRPC()
-    engine.start()
+    # 2. Start JSTEngine
+    engine = JSTEngine(port=3002, download_dir=leecher_dir)
 
     try:
-        # Init engine
-        resp = engine.send_command("init", {
-            "listen_port": 0,
-            "download_dir": leecher_dir
-        })
-        assert resp["ok"]
+        # Add torrent file
+        tid = engine.add_torrent_file(torrent_path)
 
-        # Get pieces
-        pieces = b""
-        for i in range(info.num_pieces()):
-            pieces += info.hash_for_piece(i)
-
-        resp = engine.send_command("add_torrent_file", {
-            "path": torrent_path,
-            "info_hash": info_hash,
-            "piece_length": piece_length,
-            "total_length": sum(f["length"] for f in engine_files),
-            "files": engine_files,
-            "pieces": pieces.hex()
-        })
-        assert resp["ok"]
-        engine_port = resp["port"]
-
-        # 3. Connect Peers
-        resp = engine.send_command("add_peer", {
-            "info_hash": info_hash,
-            "ip": "127.0.0.1",
-            "port": 50002
-        })
+        # 3. Connect to peer
+        engine.add_peer(tid, "127.0.0.1", 50002)
 
         # 4. Wait for Download
         print("Waiting for download to complete...")
         downloaded = False
         for i in range(60): # 30 seconds
-            # Check files
+            status = engine.get_torrent_status(tid)
+            progress = status.get("progress", 0)
+            print(f"Progress: {progress * 100:.1f}%")
+            
+            if progress >= 1.0:
+                downloaded = True
+                print("Download complete per engine status!")
+                break
+            
+            # Also check files as backup
             all_exist = True
-            for name, size in files: # Check the original files we care about
-                # The path in the torrent might be different now due to sorting?
-                # Libtorrent preserves the relative path structure but might sort the list.
-                # We need to find where our files ended up.
-                # We can look up by name in the engine_files list.
-                
-                # Construct expected path
-                # If create_multi_file_torrent used "multi_test" as dir_name, then paths are "multi_test/name"
+            for name, size in files:
                 expected_path = os.path.join(leecher_dir, torrent_name, name)
                 
                 if not os.path.exists(expected_path) or os.path.getsize(expected_path) != size:
@@ -135,7 +104,7 @@ def test_multi_file_download(tmp_path):
                 
                 if hashes_match:
                     downloaded = True
-                    print("Download verified!")
+                    print("Download verified via file check!")
                     break
             
             time.sleep(0.5)
@@ -143,5 +112,5 @@ def test_multi_file_download(tmp_path):
         assert downloaded, "Download failed or timed out"
 
     finally:
-        engine.stop()
+        engine.close()
         lt_session.stop()

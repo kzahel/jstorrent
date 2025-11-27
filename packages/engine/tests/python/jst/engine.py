@@ -17,6 +17,14 @@ class JSTEngine:
         self.session = requests.Session()
         self.proc = None
         
+        # Normalize config - translate Python-style keys to JS-style keys
+        final_config = config.copy() if config else {}
+        final_config.update(kwargs)
+        
+        # Translate download_dir to downloadPath
+        if 'download_dir' in final_config:
+            final_config['downloadPath'] = final_config.pop('download_dir')
+        
         # Spawn the process
         self._spawn_process()
         
@@ -24,7 +32,7 @@ class JSTEngine:
         self._wait_for_rpc()
         
         # Start the engine
-        self.start_engine(config or kwargs)
+        self.start_engine(final_config)
         
         # Ensure cleanup on exit
         atexit.register(self.close)
@@ -189,6 +197,14 @@ class JSTEngine:
 
     def remove(self, tid):
         self._req("POST", f"/torrent/{tid}/remove")
+
+    def add_peer(self, tid, ip, port):
+        """Connect to a specific peer by IP and port."""
+        self._req("POST", f"/torrent/{tid}/add-peer", json={"ip": ip, "port": port})
+
+    def recheck(self, tid):
+        """Trigger piece recheck for a torrent."""
+        self._req("POST", f"/torrent/{tid}/recheck")
 
     # -----------------------------
     # Test helpers

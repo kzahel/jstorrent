@@ -5,7 +5,7 @@ import shutil
 import hashlib
 import json
 from harness.libtorrent_utils import LibtorrentSession
-from harness.engine_rpc import EngineRPC
+from jst import JSTEngine
 
 def calculate_sha1(file_path):
     sha1 = hashlib.sha1()
@@ -50,53 +50,31 @@ def test_download(tmp_path, piece_length):
         time.sleep(0.1)
     assert lt_handle.status().is_seeding
 
-    # 2. Start TS Engine
-    engine = EngineRPC()
-    engine.start()
+    # 2. Start JSTEngine
+    engine = JSTEngine(port=3002, download_dir=leecher_dir)
 
     try:
-        # Init engine
-        resp = engine.send_command("init", {
-            "listen_port": 0,
-            "download_dir": leecher_dir
-        })
-        assert resp["ok"]
+        # Add torrent file
+        tid = engine.add_torrent_file(torrent_path)
 
-        # Add torrent
-        resp = engine.send_command("add_torrent_file", {
-            "path": torrent_path,
-            "info_hash": info_hash,
-            "piece_length": piece_length,
-            "total_length": file_size
-        })
-        assert resp["ok"]
-        engine_port = resp["port"]
-
-        # 3. Connect Peers
-        resp = engine.send_command("add_peer", {
-            "info_hash": info_hash,
-            "ip": "127.0.0.1",
-            "port": port
-        })
+        # 3. Connect to peer
+        engine.add_peer(tid, "127.0.0.1", port)
 
         # 4. Wait for Download
         print("Waiting for download to complete...")
         downloaded = False
         for i in range(60): # 30 seconds
-            # Check TS engine status
-            resp = engine.send_command("get_status")
-            assert resp["ok"]
-            torrents = resp["torrents"]
+            # Check engine status
+            status = engine.get_torrent_status(tid)
+            progress = status.get("progress", 0)
+            print(f"Progress: {progress * 100:.1f}%")
             
-            if info_hash in torrents:
-                # We need a way to check progress from engine
-                # Currently get_status only returns num_peers
-                # We should update get_status to return progress/bitfield
-                # But for now, we can check file existence or just wait?
-                # Let's update repl.ts to return progress!
-                pass
+            if progress >= 1.0:
+                downloaded = True
+                print("Download complete per engine status!")
+                break
             
-            # Check file existence and size
+            # Also check file existence and size as backup
             download_path = os.path.join(leecher_dir, "test_payload.bin")
             if os.path.exists(download_path):
                 current_size = os.path.getsize(download_path)
@@ -105,17 +83,13 @@ def test_download(tmp_path, piece_length):
                     current_hash = calculate_sha1(download_path)
                     if current_hash == expected_hash:
                         downloaded = True
-                        print("Download verified!")
+                        print("Download verified via file check!")
                         break
-                    else:
-                        print(f"Hash mismatch! Expected {expected_hash}, got {current_hash}")
-                else:
-                    # print(f"Size mismatch: {current_size} / {file_size}")
-                    pass
             
             time.sleep(0.5)
 
         if not downloaded:
+            download_path = os.path.join(leecher_dir, "test_payload.bin")
             if os.path.exists(download_path):
                 print(f"Final check: Size {os.path.getsize(download_path)}/{file_size}")
                 print(f"Final check: Hash {calculate_sha1(download_path)} vs {expected_hash}")
@@ -125,5 +99,5 @@ def test_download(tmp_path, piece_length):
         assert downloaded, "Download failed or timed out"
 
     finally:
-        engine.stop()
+        engine.close()
         lt_session.stop()

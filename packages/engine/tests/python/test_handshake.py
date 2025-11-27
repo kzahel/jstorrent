@@ -2,7 +2,7 @@ import pytest
 import os
 import time
 import shutil
-from harness.engine_rpc import EngineRPC
+from jst import JSTEngine
 from harness.libtorrent_utils import LibtorrentSession
 
 @pytest.fixture
@@ -35,36 +35,15 @@ def test_handshake(temp_dir):
         time.sleep(0.1)
     assert lt_handle.status().is_seeding
 
-    # 2. Start TS Engine
-    engine = EngineRPC()
-    engine.start()
+    # 2. Start JSTEngine
+    engine = JSTEngine(port=3002, download_dir=leecher_dir)
 
     try:
-        # Init engine
-        resp = engine.send_command("init", {
-            "listen_port": 0, # Let OS pick port
-            "download_dir": leecher_dir
-        })
-        assert resp["ok"]
+        # Add torrent file
+        tid = engine.add_torrent_file(torrent_path)
 
-        # Add torrent
-        resp = engine.send_command("add_torrent_file", {
-            "path": torrent_path
-        })
-        assert resp["ok"]
-        engine_port = resp["port"]
-
-        # 3. Connect Peers
-        # Try connecting from TS Engine to Libtorrent (since we added add_peer)
-        # This might avoid the encryption issue if Libtorrent accepts plaintext incoming.
-        resp = engine.send_command("add_peer", {
-            "info_hash": info_hash,
-            "ip": "127.0.0.1",
-            "port": 50001
-        })
-        
-        # Also try connecting from Libtorrent to TS Engine as backup/dual check
-        # lt_handle.connect_peer(("127.0.0.1", engine_port))
+        # 3. Connect to Libtorrent peer
+        engine.add_peer(tid, "127.0.0.1", 50001)
 
         # 4. Verify Handshake
         # Poll for connection
@@ -72,17 +51,9 @@ def test_handshake(temp_dir):
         lt_saw_peer = False
         
         for _ in range(20):
-            # Check TS engine status
-            resp = engine.send_command("get_status")
-            assert resp["ok"]
-            torrents = resp["torrents"]
-            print(f"Torrents keys: {list(torrents.keys())}")
-            print(f"Target info_hash: {info_hash}")
-            
-            engine_connected = False
-            if info_hash in torrents:
-                if torrents[info_hash]["num_connected"] > 0:
-                    engine_connected = True
+            # Check JSTEngine torrent status
+            status = engine.get_torrent_status(tid)
+            engine_connected = status.get("peers", 0) > 0
 
             # Check libtorrent status
             s = lt_handle.status()
@@ -90,7 +61,7 @@ def test_handshake(temp_dir):
                 lt_saw_peer = True
                 
             print(f"LT Peers: {s.num_peers}, Connect Candidates: {s.connect_candidates}")
-            print(f"Engine Connected: {torrents[info_hash]['num_connected'] if info_hash in torrents else 0}")
+            print(f"Engine peers: {status.get('peers', 0)}")
 
             if engine_connected and lt_saw_peer:
                 connected = True
@@ -101,5 +72,5 @@ def test_handshake(temp_dir):
         assert connected, "Handshake failed: Engine or Libtorrent did not see the peer"
 
     finally:
-        engine.stop()
+        engine.close()
         lt_session.stop()

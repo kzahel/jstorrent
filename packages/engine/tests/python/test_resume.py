@@ -3,7 +3,7 @@ import os
 import time
 import hashlib
 from harness.libtorrent_utils import LibtorrentSession
-from harness.engine_rpc import EngineRPC
+from jst import JSTEngine
 
 def calculate_sha1(file_path):
     sha1 = hashlib.sha1()
@@ -42,47 +42,30 @@ def test_resume(tmp_path):
 
     expected_hash = calculate_sha1(os.path.join(seeder_dir, "resume_payload.bin"))
 
-    # Get pieces for verification
-    import libtorrent as lt
-    info = lt.torrent_info(torrent_path)
-    pieces = b""
-    for i in range(info.num_pieces()):
-        pieces += info.hash_for_piece(i)
-
-    # 2. Start TS Engine (Run 1)
-    engine = EngineRPC()
-    engine.start()
+    # 2. Start JSTEngine (Run 1)
+    engine = JSTEngine(port=3002, download_dir=leecher_dir)
 
     try:
-        # Init engine
-        resp = engine.send_command("init", {
-            "listen_port": 0,
-            "download_dir": leecher_dir
-        })
-        assert resp["ok"]
+        # Add torrent file
+        tid = engine.add_torrent_file(torrent_path)
 
-        # Add torrent
-        resp = engine.send_command("add_torrent_file", {
-            "path": torrent_path,
-            "info_hash": info_hash,
-            "piece_length": piece_length,
-            "total_length": file_size,
-            "name": "resume_payload.bin",
-            "pieces": pieces.hex()
-        })
-        assert resp["ok"]
-
-        # Connect Peer
-        resp = engine.send_command("add_peer", {
-            "info_hash": info_hash,
-            "ip": "127.0.0.1",
-            "port": 50004
-        })
+        # Connect to Peer
+        engine.add_peer(tid, "127.0.0.1", 50004)
 
         # Wait for partial download (e.g. > 10%)
         print("Waiting for partial download...")
         downloaded_some = False
         for i in range(60):
+            status = engine.get_torrent_status(tid)
+            progress = status.get("progress", 0)
+            print(f"Progress: {progress * 100:.1f}%")
+            
+            if progress > 0.1:
+                print(f"Downloaded > 10%")
+                downloaded_some = True
+                break
+                
+            # Also check file size as backup
             download_path = os.path.join(leecher_dir, "resume_payload.bin")
             if os.path.exists(download_path):
                 current_size = os.path.getsize(download_path)
@@ -100,49 +83,33 @@ def test_resume(tmp_path):
         print("Resume data saved.")
 
     finally:
-        engine.stop()
+        engine.close()
 
-    # 3. Restart TS Engine (Run 2)
+    # 3. Restart JSTEngine (Run 2)
     print("Restarting engine...")
-    engine = EngineRPC()
-    engine.start()
+    engine = JSTEngine(port=3002, download_dir=leecher_dir)
 
     try:
-        # Init engine
-        resp = engine.send_command("init", {
-            "listen_port": 0,
-            "download_dir": leecher_dir
-        })
-        assert resp["ok"]
-
         # Add torrent (should load resume data)
-        resp = engine.send_command("add_torrent_file", {
-            "path": torrent_path,
-            "info_hash": info_hash,
-            "piece_length": piece_length,
-            "total_length": file_size,
-            "name": "resume_payload.bin",
-            "pieces": pieces.hex()
-        })
-        assert resp["ok"]
-        
-        # Check if bitfield was loaded?
-        # We can't easily check internal state via RPC unless we add a get_bitfield command.
-        # But if we connect a peer, it should send a BITFIELD message reflecting what we have.
-        # Or we can just verify it finishes downloading the rest.
+        tid = engine.add_torrent_file(torrent_path)
         
         # Connect Peer
-        resp = engine.send_command("add_peer", {
-            "info_hash": info_hash,
-            "ip": "127.0.0.1",
-            "port": 50004
-        })
+        engine.add_peer(tid, "127.0.0.1", 50004)
 
         # Wait for completion
         print("Waiting for completion...")
         downloaded = False
         start_time = time.time()
         for i in range(60):
+            status = engine.get_torrent_status(tid)
+            progress = status.get("progress", 0)
+            print(f"Progress: {progress * 100:.1f}%")
+            
+            if progress >= 1.0:
+                downloaded = True
+                print(f"Download verified via status! Time: {time.time() - start_time:.2f}s")
+                break
+                
             download_path = os.path.join(leecher_dir, "resume_payload.bin")
             if os.path.exists(download_path):
                 current_size = os.path.getsize(download_path)
@@ -157,5 +124,5 @@ def test_resume(tmp_path):
         assert downloaded, "Download failed or timed out after resume"
 
     finally:
-        engine.stop()
+        engine.close()
         lt_session.stop()

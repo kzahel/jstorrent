@@ -5,7 +5,7 @@ import shutil
 import hashlib
 import json
 from harness.libtorrent_utils import LibtorrentSession
-from harness.engine_rpc import EngineRPC
+from jst import JSTEngine
 
 def calculate_sha1(file_path):
     sha1 = hashlib.sha1()
@@ -40,28 +40,18 @@ def test_seeding(tmp_path, piece_length):
     expected_hash = calculate_sha1(source_file)
     gen_session.stop()
 
-    # 2. Start TS Engine (Seeder)
-    engine = EngineRPC()
-    engine.start()
+    # 2. Start JSTEngine (Seeder)
+    # Note: JSTEngine currently doesn't support seed_mode directly,
+    # this test will need to be updated once seeding is properly supported
+    engine = JSTEngine(port=3002, download_dir=engine_dir)
 
     try:
-        # Init engine
-        resp = engine.send_command("init", {
-            "listen_port": 0,
-            "download_dir": engine_dir
-        })
-        assert resp["ok"]
+        # Add torrent file
+        tid = engine.add_torrent_file(torrent_path)
 
-        # Add torrent in SEED MODE
-        resp = engine.send_command("add_torrent_file", {
-            "path": torrent_path,
-            "info_hash": info_hash,
-            "piece_length": piece_length,
-            "total_length": file_size,
-            "seed_mode": True
-        })
-        assert resp["ok"]
-        engine_port = resp["port"]
+        # Get engine's listening port from status
+        # For now we use the configured port
+        engine_port = 6881  # Default BtEngine port
 
         # 3. Start Libtorrent (Leecher)
         lt_session = LibtorrentSession(lt_leecher_dir, port=50001)
@@ -74,11 +64,7 @@ def test_seeding(tmp_path, piece_length):
         lt_handle.connect_peer(("127.0.0.1", engine_port))
         
         # Also try reverse connection for robustness
-        engine.send_command("add_peer", {
-            "info_hash": info_hash,
-            "ip": "127.0.0.1",
-            "port": 50001
-        })
+        engine.add_peer(tid, "127.0.0.1", 50001)
 
         # 5. Wait for Download
         print("Waiting for Libtorrent to download...")
@@ -102,6 +88,6 @@ def test_seeding(tmp_path, piece_length):
         assert calculate_sha1(downloaded_file) == expected_hash
 
     finally:
-        engine.stop()
+        engine.close()
         if 'lt_session' in locals():
             lt_session.stop()
