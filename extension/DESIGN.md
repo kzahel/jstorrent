@@ -1,471 +1,423 @@
-Below is a **complete, end-to-end repository design document** that defines:
+# JSTorrent Extension — Architecture Document
 
-- Repository layout
-- Build setup (Vite, TS, React, MV3)
-- Linting + Prettier
-- Unit tests (Vitest + happy-dom + RTL)
-- Integration tests (Playwright, “new headless” mode)
-- GitHub Actions CI setup
-- Command structure (including `npm run check_fast`)
+**Last Updated**: November 2025  
+**Status**: Current implementation overview
 
-This document is written so a coding agent—or future contributors—can implement everything with zero ambiguity.
+This document describes the Chrome MV3 extension component of the JSTorrent monorepo, including its architecture, build system, and integration with the native host stack.
 
 ---
 
-# **JSTorrent MV3 Extension — Repository Design Document**
+## 1. Overview
 
-This describes the entire development environment, build system, test framework, and CI workflow for the JSTorrent MV3 browser extension.
+The JSTorrent extension is a Chrome Manifest V3 extension that serves as the frontend and coordination layer for the JSTorrent BitTorrent client. It communicates with native Rust binaries via Chrome's native messaging API to perform privileged I/O operations (networking, filesystem access).
 
-This is intended as a **blueprint** for building the repository from scratch.
-
----
-
-# **1. Goals**
-
-The repository must:
-
-- Be minimal, readable, and maintainable
-- Produce a Chrome MV3 extension using:
-  - TypeScript
-  - React (UI)
-  - Vite (multi-entry, no HMR)
-  - Strict linting + formatting
-
-- Support unit, integration, and optional real-device E2E tests
-- Run all fast checks in a single command (`npm run check_fast`)
-- Run full test suite (including Playwright integration tests) in GitHub Actions
-- Produce a zip of `/dist` ready for Chrome Web Store submission
+**Key Characteristics:**
+- MV3-compliant (service worker-based, no persistent background page)
+- TypeScript + React for UI
+- Vite for bundling (no HMR due to MV3 CSP constraints)
+- Part of pnpm monorepo workspace
 
 ---
 
-# **2. Repository Structure**
+## 2. Repository Location
 
 ```
-jstorrent-extension/
-  package.json
-  tsconfig.json
-  vite.config.js
-  eslintrc.cjs
-  .prettierrc
-  .prettierignore
-
-  public/
-    manifest.json
-    icons/
-      icon16.png
-      icon32.png
-      icon128.png
-
-  src/
-    sw.ts                          (MV3 service worker)
-    shared/                        (shared utilities)
-
-    ui/
-      app.html
-      app.tsx
-      components/
-        ...
-
-    offscreen/
-      offscreen.html
-      offscreen.ts                 (connects to native host)
-
-    magnet/
-      magnet-handler.html
-      magnet-handler.ts
-
-  test/                            (unit tests + mocks)
-    setup.ts                       (global test setup)
-    mocks/
-      mock-chrome.ts               (chrome.* mock)
-      mock-native-host.ts          (fake host for unit tests)
-    unit/
-      example.unit.test.ts
-
-  e2e/                             (Playwright integration tests)
-    extension.spec.ts              (load extension, test UI)
-    playwright.config.ts
-
-  dist/                            (output)
+jstorrent-monorepo/
+└── extension/           ← This component
+    ├── src/
+    ├── public/
+    ├── test/
+    ├── e2e/
+    ├── package.json
+    └── DESIGN.md        ← This file
 ```
+
+The extension is a workspace package in the monorepo. Use `pnpm --filter extension <command>` to run commands.
 
 ---
 
-# **3. Build System (Vite)**
+## 3. Architecture
 
-### Requirements:
-
-- Multi-entry bundling
-- No dev server, no HMR
-- Sourcemaps + non-minified output
-- MV3–compatible CSP (no inline scripts)
-- Build pages individually:
-  - `/ui/app.html`
-  - `/offscreen/offscreen.html`
-  - `/magnet/magnet-handler.html`
-  - `/sw.ts`
-
-### Single build command:
+### 3.1 High-Level Component Diagram
 
 ```
-npm run build
+┌─────────────────────────────────────────────────────────────┐
+│                     Chrome Extension                         │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐  │
+│  │   sw.ts     │───▶│  Client     │───▶│ NativeHost      │  │
+│  │ (Service    │    │  (lib/)     │    │ Connection      │  │
+│  │  Worker)    │    │             │    │ (lib/)          │  │
+│  └─────────────┘    └──────┬──────┘    └────────┬────────┘  │
+│                            │                     │           │
+│                            │              chrome.runtime.    │
+│                            │              connectNative()    │
+│                            ▼                     │           │
+│                    ┌───────────────┐             │           │
+│                    │ Daemon        │             │           │
+│                    │ Connection    │◀────────────┘           │
+│                    │ (lib/)        │    DaemonInfo           │
+│                    └───────┬───────┘    (port, token)        │
+│                            │                                 │
+│                            │ WebSocket                       │
+│                            ▼                                 │
+│                    ┌───────────────┐                         │
+│                    │ Sockets       │                         │
+│                    │ (lib/)        │                         │
+│                    └───────────────┘                         │
+└─────────────────────────────────────────────────────────────┘
+                             │
+                             │ Binary WebSocket frames
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Native Stack (Rust)                       │
+│  ┌─────────────────┐         ┌─────────────────────────┐    │
+│  │ jstorrent-      │────────▶│ jstorrent-io-daemon     │    │
+│  │ native-host     │ spawns  │ (WebSocket + HTTP)      │    │
+│  │ (native msg)    │         └─────────────────────────┘    │
+│  └─────────────────┘                                        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Watch mode for local development:
+### 3.2 Key Components
 
-```
-npm run dev   // vite build --watch
-```
+#### Service Worker (`src/sw.ts`)
+- Entry point for the extension
+- Handles installation, external messages
+- Instantiates and holds the `Client` instance
+- Opens UI tab when torrents are added
+
+#### Client (`src/lib/client.ts`)
+- Main orchestrator class
+- Manages connection lifecycle
+- Coordinates native host → daemon flow:
+  1. Connect to native host
+  2. Send handshake with install ID
+  3. Receive DaemonInfo (port + token)
+  4. Connect to io-daemon WebSocket
+  5. Initialize Sockets abstraction
+
+#### NativeHostConnection (`src/lib/native-connection.ts`)
+- Wraps `chrome.runtime.connectNative('com.jstorrent.native')`
+- Simple message passing interface
+- Used only for handshake and coordination (not data transfer)
+
+#### DaemonConnection (`src/lib/daemon-connection.ts`)
+- WebSocket connection to io-daemon
+- Implements binary protocol handshake (CLIENT_HELLO → SERVER_HELLO → AUTH → AUTH_RESULT)
+- Handles frame-based communication
+
+#### Sockets (`src/lib/sockets.ts`)
+- High-level TCP/UDP socket abstraction
+- Multiplexes multiple sockets over single WebSocket
+- Implements the protocol defined in `design_docs/io-daemon-websocket-detail.md`
+- Provides `ITcpSocket` and `IUdpSocket` interfaces
+
+#### UI (`src/ui/app.tsx`)
+- Currently a minimal debug interface
+- Displays event log for development
+- Will be expanded to full torrent management UI
 
 ---
 
-# **4. TypeScript Configuration**
-
-### Requirements:
-
-- Strict mode
-- TS-only transforms (Vite handles bundling)
-- JSX via React 17+ transform (`react-jsx`)
-- Skip library checking for speed
-- Support for DOM + ES modules
-
-### Important choices:
-
-- `"strict": true`
-- `"noUnusedLocals": true`
-- `"noImplicitAny": true`
-- `"skipLibCheck": true` (massive speed improvement)
-
----
-
-# **5. Linting (ESLint)**
-
-### Requirements:
-
-- TypeScript-aware
-- React-aware
-- MV3 extension-friendly
-- Warn, not fail, on stylistic issues
-- Must be included in `check_fast`
-
-### ESLint configuration includes:
-
-- `parser: @typescript-eslint/parser`
-- Plugins:
-  - `@typescript-eslint`
-  - `react`
-  - `react-hooks`
-
-- Rules:
-  - `"react/react-in-jsx-scope": "off"`
-  - `"@typescript-eslint/no-unused-vars": "warn"`
-  - MV3 globals allowed (via env: webextensions)
-
----
-
-# **6. Prettier Setup**
-
-### Requirements:
-
-- Enforce formatting
-- Run in `check_fast`
-- Do not run during build
-
-Prettier settings:
-
-- Semi: false
-- Singles quotes
-- Trailing commas: all
-- Print width: 100
-
----
-
-# **7. Testing Setup**
-
-## **7.1 Unit Tests (Vitest)**
-
-### Requirements:
-
-- Fast
-- No browser required
-- Full TS + ESM support
-- happy-dom for React components
-- Mocks for chrome.\* and native host
-
-### Technologies:
-
-- Vitest
-- React Testing Library
-- happy-dom
-- Manual mocks in `/test/mocks`
-
-### Running unit tests:
+## 4. File Structure
 
 ```
-npm run test
-```
-
-or:
-
-```
-npm run test:watch
+extension/
+├── src/
+│   ├── sw.ts                    # Service worker entry point
+│   ├── lib/
+│   │   ├── client.ts            # Main client orchestrator
+│   │   ├── daemon-connection.ts # WebSocket to io-daemon
+│   │   ├── native-connection.ts # Native messaging wrapper
+│   │   └── sockets.ts           # TCP/UDP socket abstraction
+│   ├── ui/
+│   │   ├── app.html             # UI page HTML
+│   │   └── app.tsx              # React UI component
+│   └── magnet/
+│       ├── magnet-handler.html  # Magnet link handler page
+│       └── magnet-handler.ts    # Magnet handler logic (stub)
+├── public/
+│   ├── manifest.json            # MV3 manifest
+│   ├── icons/                   # Extension icons
+│   └── images/                  # Additional images
+├── test/
+│   ├── setup.ts                 # Vitest global setup
+│   ├── mocks/
+│   │   ├── mock-chrome.ts       # Chrome API mocks
+│   │   └── mock-native-host.ts  # Native host mocks
+│   └── unit/
+│       └── example.unit.test.ts # Example unit test
+├── e2e/
+│   ├── playwright.config.ts     # Playwright configuration
+│   ├── fixtures.ts              # Test fixtures
+│   ├── extension.spec.ts        # Basic extension tests
+│   ├── io-daemon.spec.ts        # Daemon integration tests
+│   └── browser-discovery.spec.ts # Browser discovery tests
+├── package.json
+├── tsconfig.json
+├── vite.config.js
+└── vitest.config.ts
 ```
 
 ---
 
-## **7.2 Integration Tests (Playwright)**
+## 5. Build System
 
-### Requirements:
+### 5.1 Vite Configuration
 
-- Run Chromium in “new headless” mode
-- Load extension via:
+The extension uses Vite for bundling with these characteristics:
+- Multi-entry build (service worker + HTML pages)
+- No dev server or HMR (MV3 CSP incompatible)
+- Sourcemaps enabled
+- Non-minified output for debugging
 
-  ```
-  --disable-extensions-except=dist
-  --load-extension=dist
-  ```
+### 5.2 Commands
 
-- Test extension pages:
-  - popup UI
-  - offscreen behavior
-  - message passing
-
-### Not in `check_fast`, but included in full CI test.
-
-### Run:
-
-```
-npm run test:e2e
+**From monorepo root:**
+```bash
+pnpm install                     # Install all dependencies
+pnpm --filter extension build    # Build extension
+pnpm --filter extension dev      # Watch mode
+pnpm --filter extension test     # Unit tests
+pnpm --filter extension test:e2e # Playwright tests
 ```
 
-This will:
+**Or from `extension/` directory:**
+```bash
+pnpm build        # Build to dist/
+pnpm dev          # Watch mode (vite build --watch)
+pnpm test         # Vitest unit tests
+pnpm test:e2e     # Playwright integration tests
+```
 
-1. Build extension
-2. Launch Chromium with extension
-3. Run tests invisibly (headless)
-4. Assert UI and extension state
+### 5.3 Loading in Chrome
+
+1. Build the extension: `pnpm build`
+2. Open `chrome://extensions`
+3. Enable "Developer mode"
+4. Click "Load unpacked"
+5. Select `extension/dist/`
 
 ---
 
-## **7.3 Optional Real E2E Tests**
+## 6. Manifest Configuration
 
-(not included in CI)
+Key manifest.json settings:
 
-Real E2E tests require:
-
-- Native host installed
-- A seeded torrent via Transmission
-- Real IPC between offscreen <-> native host
-- Real downloads + completion signals
-
-Run manually:
-
+```json
+{
+  "manifest_version": 3,
+  "permissions": [
+    "nativeMessaging",   // Connect to native host
+    "storage",           // Store install ID, preferences
+    "tabs"               // Open/focus UI tab
+  ],
+  "background": {
+    "service_worker": "sw.js",
+    "type": "module"     // ESM support
+  },
+  "externally_connectable": {
+    "matches": [
+      "https://jstorrent.com/*",
+      "https://new.jstorrent.com/*"
+    ]
+  }
+}
 ```
-npm run test:real
-```
+
+The `externally_connectable` setting allows the JSTorrent website to:
+- Detect if the extension is installed
+- Send "launch-ping" messages to wake the extension
+- Trigger torrent additions from the website
 
 ---
 
-# **8. NPM Script Command Table**
+## 7. Data Flow
 
-| Command          | Purpose                    | Fast?   |
-| ---------------- | -------------------------- | ------- |
-| **build**        | Build extension            | Yes     |
-| **dev**          | Watch-mode build           | Yes     |
-| **lint**         | Run ESLint                 | Yes     |
-| **format**       | Format files with Prettier | Yes     |
-| **format:check** | Verify formatting only     | Yes     |
-| **test**         | Unit tests                 | Yes     |
-| **test:e2e**     | Playwright extension tests | ~Medium |
-| **test:real**    | Real full-flow tests       | Slow    |
-| **check_fast**   | Run all fast checks        | Yes     |
-
-### `check_fast` must include:
-
-- Lint
-- Prettier check
-- TypeScript type check
-- Unit tests
-
-Example:
+### 7.1 Extension Initialization (on launch-ping)
 
 ```
-npm run check_fast
+Website                    Extension                    Native Stack
+   │                           │                            │
+   │ ──launch-ping────────────▶│                            │
+   │                           │                            │
+   │                           │ connectNative()            │
+   │                           │ ─────────────────────────▶ │ native-host
+   │                           │                            │
+   │                           │ { op: "handshake" }        │
+   │                           │ ─────────────────────────▶ │
+   │                           │                            │
+   │                           │    DaemonInfo              │ spawns
+   │                           │ ◀───────────────────────── │ io-daemon
+   │                           │                            │
+   │                           │ WebSocket connect          │
+   │                           │ ─────────────────────────▶ │ io-daemon
+   │                           │                            │
+   │                           │ AUTH handshake             │
+   │                           │ ◀─────────────────────────▶│
+   │                           │                            │
+   │ ◀─── { ok: true } ────────│                            │
+   │                           │                            │
 ```
 
-Runs:
+### 7.2 Socket Operation (e.g., TCP connect to peer)
 
 ```
-eslint src
-prettier --check .
-tsc --noEmit
-vitest run
-```
-
-All within ~1–2 seconds.
-
----
-
-# **9. GitHub Actions CI Setup**
-
-### Requirements:
-
-- Ubuntu runner (`ubuntu-latest`)
-- Install Node + dependencies
-- Build extension
-- Run `check_fast`
-- Run Playwright integration tests (`npm run test:e2e`)
-
-### Full workflow:
-
-```
-.github/workflows/ci.yml
-```
-
-### Steps performed:
-
-1. **Checkout**
-2. **Setup Node.js**
-3. **Install dependencies**
-4. **Run check_fast**
-5. **Build extension**
-6. **Install Playwright browsers**
-7. **Run Playwright E2E tests**
-
-### E2E runs headless but fully supports MV3 extension loading.
-
----
-
-# **10. File-by-File Requirements for a Coding Agent**
-
-Below is what the coding agent must generate:
-
-### 10.1 Root configuration files:
-
-- `package.json`
-- `vite.config.js`
-- `tsconfig.json`
-- `eslintrc.cjs`
-- `.prettierrc`
-- `.prettierignore`
-
-### 10.2 Extension files:
-
-- `public/manifest.json`
-- `public/icons/*.png`
-- `src/sw.ts`
-- `src/offscreen/offscreen.ts`
-- `src/offscreen/offscreen.html`
-- `src/magnet/magnet-handler.ts`
-- `src/magnet/magnet-handler.html`
-- `src/ui/app.tsx`
-- `src/ui/app.html`
-- `src/shared/*` (optional utility files)
-
-### 10.3 Unit test framework:
-
-- `test/setup.ts`
-- `test/mocks/mock-chrome.ts`
-- `test/mocks/mock-native-host.ts`
-- `test/unit/example.unit.test.ts`
-
-### 10.4 Integration test framework:
-
-- `e2e/playwright.config.ts`
-- `e2e/extension.spec.ts`
-
-### 10.5 GitHub Actions CI:
-
-- `.github/workflows/ci.yml`
-
----
-
-# **11. Development Workflows**
-
-## **Local dev loop (fast)**
-
-```
-npm install
-npm run dev     # watch mode
-# edit TS/React files
-npm run check_fast
-```
-
-## **Before commit:**
-
-```
-npm run check_fast
-```
-
-## **Before release:**
-
-```
-npm run build
-zip -r jstorrent-extension.zip dist/
-```
-
-## **Full validation (not fast):**
-
-```
-npm run test:e2e
-```
-
-## **Real-world torrent E2E:**
-
-```
-npm run test:real
+Extension                              io-daemon
+    │                                      │
+    │ TCP_CONNECT (socketId, host, port)   │
+    │ ────────────────────────────────────▶│
+    │                                      │
+    │ TCP_CONNECTED (socketId, status)     │
+    │ ◀────────────────────────────────────│
+    │                                      │
+    │ TCP_SEND (socketId, data)            │
+    │ ────────────────────────────────────▶│
+    │                                      │
+    │ TCP_RECV (socketId, data)            │
+    │ ◀────────────────────────────────────│
+    │                                      │
 ```
 
 ---
 
-# **12. Performance Expectations**
+## 8. Testing Strategy
 
-### Check_fast:
+### 8.1 Unit Tests
 
-< 2 seconds
+- **Framework**: Vitest with happy-dom
+- **Location**: `test/unit/`
+- **Mocks**: Chrome APIs mocked in `test/mocks/`
+- **Run**: `pnpm test`
 
-### Build:
+### 8.2 Integration Tests (Playwright)
 
-~200–500 ms
+- **Framework**: Playwright with Chromium
+- **Location**: `e2e/`
+- **Requirements**: Native host must be installed locally
+- **Run**: `pnpm test:e2e`
 
-### Unit tests:
+Playwright loads the extension using:
+```
+--load-extension=dist
+--disable-extensions-except=dist
+```
 
-100–400 ms
+### 8.3 Manual Testing
 
-### Integration tests:
-
-1–3 seconds
-
-### Real E2E (optional):
-
-5–15 seconds depending on torrent size
-
----
-
-# **13. Guiding Principles**
-
-- Every component is testable in isolation
-- No HMR or dev server → simpler, predictable build
-- Tests never appear onscreen (Playwright new headless)
-- Linting, formatting, type checking always run before merge
-- CI mimics local environment closely
-- Optional real tests test the entire native-host + torrent stack
-- Code stays readable (no minify)
+1. Build and load extension
+2. Install native host locally:
+   - Linux: `./native-host/scripts/install-local-linux.sh`
+   - macOS: `./native-host/scripts/install-local-macos.sh`
+3. Navigate to `https://new.jstorrent.com/launch`
+4. Click to send launch-ping
+5. Extension UI should open showing event log
 
 ---
 
-# **14. Final Summary**
+## 9. Current Implementation State
 
-This design document defines:
+### Implemented ✅
+- Service worker with external message handling
+- Native host connection and handshake
+- io-daemon WebSocket connection with AUTH
+- Binary protocol framing
+- TCP/UDP socket abstraction
+- Basic event-log UI
+- E2E test infrastructure
 
-- Directory layout
-- Build tooling
-- Lint/format rules
-- Unit test strategy
-- Integration test strategy
-- Real-world test strategy
-- CI pipeline
-- NPM script structure including `check_fast`
-- Deliverables required from contributors or automation
+### In Progress 🚧
+- Full torrent management UI
+- BitTorrent engine integration (from `packages/engine`)
+- Download progress display
+- Settings/preferences UI
 
-This is the **complete blueprint** for the modern JSTorrent MV3 extension repository.
+### Planned 📋
+- Magnet link handling (via link-handler → website → extension)
+- .torrent file handling
+- Download root selection UI
+- Notification support
+- Multiple torrent management
+
+---
+
+## 10. Integration with Monorepo
+
+### 10.1 Workspace Dependencies
+
+The extension can depend on other workspace packages:
+- `@jstorrent/engine` - Core BitTorrent engine (planned)
+- `@jstorrent/shared-ts` - Shared types and utilities (planned)
+
+### 10.2 Shared Configuration
+
+- ESLint: Uses root `eslint.config.js`
+- TypeScript: Extends root `tsconfig.json`
+- Prettier: Uses root `.prettierrc`
+
+### 10.3 CI/CD
+
+Extension CI runs on changes to:
+- `extension/**`
+- `packages/**`
+
+See `.github/workflows/extension-ci.yml`
+
+---
+
+## 11. Security Considerations
+
+### 11.1 Native Messaging Security
+
+- Native host registered via Chrome's native messaging manifest
+- Host validates extension ID before responding
+- Install ID provides per-profile isolation
+
+### 11.2 io-daemon Security
+
+- Binds to localhost only (127.0.0.1)
+- Requires auth token for all operations
+- Token communicated via native messaging (not over network)
+
+### 11.3 Download Roots
+
+- Opaque tokens (SHA1-based) instead of raw paths
+- Token verified by io-daemon on every operation
+- Path traversal prevented by native host validation
+
+---
+
+## 12. Related Documentation
+
+- `native-host/DESIGN-latest.md` - Native stack architecture
+- `design_docs/io-daemon-websocket-detail.md` - Binary protocol spec
+- `packages/engine/docs/ARCHITECTURE-current.md` - BitTorrent engine
+- `.github/copilot-instructions.md` - AI coding context
+- `first-roundtrip.md` - End-to-end flow design
+
+---
+
+## Appendix: Message Types
+
+### External Messages (from website)
+
+```typescript
+{ type: "launch-ping" }  // Wake extension, init native stack
+```
+
+### Internal Messages (SW ↔ UI)
+
+```typescript
+{ event: "magnetAdded", ... }   // Magnet link added
+{ event: "torrentAdded", ... }  // Torrent file added
+```
+
+### Native Host Messages
+
+```typescript
+// Extension → Native Host
+{ op: "handshake", extensionId, installId, id }
+
+// Native Host → Extension
+{ type: "DaemonInfo", payload: { port, token, version } }
+```
