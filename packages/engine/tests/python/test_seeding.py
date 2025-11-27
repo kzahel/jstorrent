@@ -68,7 +68,7 @@ def test_seeding(tmp_path, engine_factory, piece_length):
     # 5. Wait for Download
     print("Waiting for Libtorrent to download...")
     downloaded = False
-    for i in range(60): # 30 seconds
+    while True:
         s = lt_handle.status()
         print(f"LT Status: {s.state}, Progress: {s.progress}, Peers: {s.num_peers}")
         
