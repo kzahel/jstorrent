@@ -23,6 +23,9 @@ import {
   ILoggableComponent,
 } from '../logging/logger'
 
+import { ISessionStore } from '../interfaces/session-store'
+import { MemorySessionStore } from '../adapters/memory/memory-session-store'
+
 export interface StorageResolver {
   resolve(rootKey: string, torrentId: string): string
 }
@@ -31,6 +34,7 @@ export interface BtEngineOptions {
   downloadPath: string
   socketFactory: ISocketFactory
   fileSystem: IFileSystem
+  sessionStore?: ISessionStore
   storageResolver?: StorageResolver
   maxConnections?: number
   maxDownloadSpeed?: number
@@ -44,6 +48,7 @@ export interface BtEngineOptions {
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
   public readonly fileSystem: IFileSystem
   public readonly socketFactory: ISocketFactory
+  public readonly sessionStore: ISessionStore
   public torrents: Torrent[] = []
   public port: number
   public peerId: Uint8Array
@@ -71,6 +76,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     super()
     this.fileSystem = options.fileSystem
     this.socketFactory = options.socketFactory
+    this.sessionStore = options.sessionStore ?? new MemorySessionStore()
     this.port = options.port ?? 6881 // Use nullish coalescing to allow port 0
 
     this.clientId = randomClientId()

@@ -1,4 +1,5 @@
 export { NodeFileSystem } from './node-filesystem'
 export { NodeSocketFactory, NodeTcpSocket, NodeUdpSocket } from './node-socket'
+export { JsonFileSessionStore } from './json-file-session-store'
 export { NodeStorageHandle } from './node-storage-handle'
 export { ScopedNodeFileSystem } from './scoped-node-filesystem'

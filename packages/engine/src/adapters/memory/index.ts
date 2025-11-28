@@ -1,2 +1,3 @@
 export { InMemoryFileSystem } from './memory-filesystem'
-export { MemorySocket, MemorySocketFactory } from './memory-socket'
+export { MemorySocketFactory } from './memory-socket'
+export { MemorySessionStore } from './memory-session-store'

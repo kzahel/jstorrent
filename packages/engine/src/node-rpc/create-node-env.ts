@@ -1,9 +1,9 @@
 import { BtEngineOptions, StorageResolver } from '../core/bt-engine'
-import { NodeSocketFactory, NodeFileSystem } from '../adapters/node'
+import { NodeSocketFactory, ScopedNodeFileSystem } from '../adapters/node'
 import * as path from 'path'
 
 class DefaultStorageResolver implements StorageResolver {
-  constructor(private root: string) {}
+  constructor(private root: string) { }
 
   resolve(_rootKey: string, torrentId: string): string {
     // Simple implementation: join root with torrentId (or rootKey if provided)
@@ -20,7 +20,7 @@ export function createNodeEngineEnvironment(
   return {
     downloadPath,
     socketFactory: new NodeSocketFactory(),
-    fileSystem: new NodeFileSystem(),
+    fileSystem: new ScopedNodeFileSystem(downloadPath),
     storageResolver: overrides.storageResolver || new DefaultStorageResolver(downloadPath),
     port: 0, // Default to auto-assign port for testing; override with specific port if needed
     ...overrides,
