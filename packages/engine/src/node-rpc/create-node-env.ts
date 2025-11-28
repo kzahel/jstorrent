@@ -1,6 +1,5 @@
 import { BtEngineOptions, StorageResolver } from '../core/bt-engine'
-import { NodeSocketFactory } from '../io/node/node-socket'
-import { NodeFileSystem } from '../io/node/node-filesystem'
+import { NodeSocketFactory, NodeFileSystem } from '../adapters/node'
 import * as path from 'path'
 
 class DefaultStorageResolver implements StorageResolver {
