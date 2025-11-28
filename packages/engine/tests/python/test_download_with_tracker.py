@@ -11,15 +11,16 @@ from test_download import calculate_sha1
 def tracker_url():
     """Starts a local bittorrent-tracker and yields its announce URL."""
     # Path to the node script
-    script_path = os.path.join(os.path.dirname(__file__), 'run_tracker.mjs')
+    script_path = os.path.join(os.path.dirname(__file__), 'run_simple_tracker.ts')
     
     # Start the tracker process
-    # We assume 'node' is in the PATH and bittorrent-tracker is installed in packages/engine/node_modules
+    # We assume 'tsx' is in the PATH (via node_modules/.bin or global)
     # We need to set the CWD to packages/engine so it finds node_modules
     cwd = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
     
+    # Use npx tsx to run the typescript file
     process = subprocess.Popen(
-        ['node', script_path],
+        ['npx', 'tsx', script_path],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=cwd,
