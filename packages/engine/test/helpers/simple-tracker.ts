@@ -377,9 +377,12 @@ class HttpTrackerServer {
     }
 
     const encoded = Bencode.encode(response)
+    // CRITICAL: MinimalHttpClient requires explicit Content-Length and Connection: close
+    // It does NOT support Transfer-Encoding: chunked or Content-Encoding
     res.writeHead(200, {
       'Content-Type': 'text/plain',
       'Content-Length': encoded.length.toString(),
+      Connection: 'close',
     })
     res.end(Buffer.from(encoded))
   }
@@ -435,6 +438,7 @@ class HttpTrackerServer {
     res.writeHead(200, {
       'Content-Type': 'text/plain',
       'Content-Length': encoded.length.toString(),
+      Connection: 'close',
     })
     res.end(Buffer.from(encoded))
   }
@@ -486,6 +490,7 @@ class HttpTrackerServer {
     res.writeHead(200, {
       'Content-Type': 'text/plain',
       'Content-Length': encoded.length.toString(),
+      Connection: 'close',
     })
     res.end(Buffer.from(encoded))
   }
