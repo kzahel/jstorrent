@@ -11,7 +11,7 @@ At the end of every completed task:
    - `task-list.md` (if exists)
    - `implementation-plan.md` (if exists)
    - `walkthrough.md` (if exists)
-   - `prompts.md` (prompts throughout the process)
+   - `prompts.md` (user's prompts throughout the process)
 
 3. Add a README.md with:
    - High-level summary of changes and the date the task

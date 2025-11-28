@@ -80,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(config::routes())
         .layer(axum::middleware::from_fn_with_state(state.clone(), auth::middleware))
         .layer(TraceLayer::new_for_http())
-        .with_state(state);
+        .with_state(state.clone());
 
     let addr = SocketAddr::from(([127, 0, 0, 1], args.port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
