@@ -22,14 +22,15 @@ sed "s|HOST_PATH_PLACEHOLDER|$BINARY_PATH|g" "$MANIFEST_TEMPLATE" > "$MANIFEST_D
 chmod 644 "$MANIFEST_DEST"
 
 # Move Link Handler app from staging to /Applications
-STAGING_APP="$INSTALL_DIR/JSTorrent Link Handler.app"
+# Staging uses no-space name, final installation uses proper name with spaces
+STAGING_APP="$INSTALL_DIR/JSTorrentLinkHandler.app"
 APP_PATH="/Applications/JSTorrent Link Handler.app"
 
 if [ -d "$STAGING_APP" ]; then
     # Remove old version if it exists
     rm -rf "$APP_PATH"
 
-    # Move app to /Applications
+    # Move and rename app to /Applications with proper name
     mv "$STAGING_APP" "$APP_PATH"
 
     # Ensure binary is executable
@@ -41,6 +42,8 @@ if [ -d "$STAGING_APP" ]; then
     echo "JSTorrent Link Handler app installed to $APP_PATH"
 else
     echo "Warning: Link Handler app not found in staging location: $STAGING_APP"
+    echo "Contents of $INSTALL_DIR:"
+    ls -la "$INSTALL_DIR" || true
 fi
 
 exit 0
