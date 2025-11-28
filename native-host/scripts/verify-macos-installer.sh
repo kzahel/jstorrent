@@ -16,11 +16,6 @@ fi
 
 echo "Verifying macOS Installer..."
 
-# List package contents for debugging
-echo "Package contents:"
-pkgutil --payload-files "$INSTALLER_PKG" | grep -i "jstorrent" | head -20 || true
-echo ""
-
 # Note: This requires sudo and modifies the system.
 # In CI, this is fine. Locally, we should warn the user.
 
@@ -32,21 +27,10 @@ fi
 
 # Install PKG
 echo "Installing PKG..."
-sudo installer -pkg "$INSTALLER_PKG" -target / -verbose
-
-# Check installer log for postinstall output
-echo ""
-echo "Recent installer log entries:"
-sudo tail -50 /var/log/install.log | grep -i jstorrent || echo "No JSTorrent entries in install.log"
-echo ""
+sudo installer -pkg "$INSTALLER_PKG" -target /
 
 # Verify files
 echo "Verifying installed files..."
-
-# First check what was actually installed
-echo "Contents of /usr/local/lib/jstorrent-native/:"
-ls -la /usr/local/lib/jstorrent-native/ || echo "Directory not found!"
-echo ""
 
 if [ ! -f "/usr/local/lib/jstorrent-native/jstorrent-native-host" ]; then
     echo "Error: Native host binary not found in /usr/local/lib/jstorrent-native/"
@@ -60,11 +44,6 @@ fi
 
 if [ ! -d "/Applications/JSTorrent Link Handler.app" ]; then
     echo "Error: JSTorrent Link Handler app not found in /Applications/"
-    echo "Listing /Applications/ contents:"
-    ls -la "/Applications/" | head -20
-    echo ""
-    echo "Checking if app was installed elsewhere:"
-    find /usr/local /Library -name "*JSTorrent*" -o -name "*jstorrent*" 2>/dev/null || true
     exit 1
 fi
 
