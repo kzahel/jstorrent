@@ -26,9 +26,9 @@ def test_download(tmp_path, engine_factory, piece_length):
     os.makedirs(leecher_dir)
 
     # 1. Start Libtorrent Seeder
-    # Use a unique port based on piece_length to avoid TIME_WAIT issues
-    port = 50000 + (piece_length // 1000) 
-    lt_session = LibtorrentSession(seeder_dir, port=port)
+    # Use port 0 for random available port
+    lt_session = LibtorrentSession(seeder_dir, port=0)
+    port = lt_session.listen_port()
     file_size = 1024 * 512 # 512KB
     torrent_path, info_hash = lt_session.create_dummy_torrent("test_payload.bin", size=file_size, piece_length=piece_length)
     

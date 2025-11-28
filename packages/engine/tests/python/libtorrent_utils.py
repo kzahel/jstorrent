@@ -134,3 +134,6 @@ class LibtorrentSession:
         alerts = self.session.pop_alerts()
         for a in alerts:
             print(f"Libtorrent Alert: {a.message()}")
+
+    def listen_port(self) -> int:
+        return self.session.listen_port()
