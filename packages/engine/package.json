@@ -21,7 +21,6 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "bittorrent-tracker": "^11.2.2",
     "ts-node": "^10.9.2",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",

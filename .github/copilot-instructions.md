@@ -110,13 +110,38 @@ python3 verify_all.py                       # Integration tests (simulates exten
 - **Extension CI** (`.github/workflows/extension-ci.yml`):
   - Triggers on `extension/**` or `packages/**` changes
   - Builds extension, installs native-host, runs Playwright tests
-  
+
 - **Native CI** (`.github/workflows/native-ci.yml`):
   - Separate jobs for Windows/macOS/Linux
   - Builds installers, uploads artifacts, verifies installation
   - Releases on tags like `native-v1.0.0`, `extension-v1.0.0`
 
 - **Path filters**: Each workflow only runs when relevant files change
+
+## AI Assistant Guidelines
+
+**Before creating pull requests or pushing commits:**
+
+1. **Always run `pnpm run checkall`** from the monorepo root to verify:
+   - Linting passes (`pnpm lint`)
+   - TypeScript type checking passes (`pnpm typecheck`)
+   - Prettier formatting passes (`pnpm format`)
+   - All tests pass (`pnpm test`)
+
+2. Fix any errors or warnings before proceeding with commits
+
+3. If working in a specific package, use `pnpm --filter <package> <command>` for targeted checks
+
+**Example workflow:**
+```bash
+# Make changes
+pnpm run checkall          # Verify all checks pass
+git add .
+git commit -m "..."
+git push
+```
+
+This ensures CI will pass and prevents wasted pipeline cycles.
 
 ## Common Gotchas
 
