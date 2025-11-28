@@ -4,33 +4,8 @@ import { MemorySocketFactory } from '../../src/adapters/memory'
 import { InMemoryFileSystem } from '../../src/adapters/memory'
 import { TorrentCreator } from '../../src/core/torrent-creator'
 import { PeerConnection } from '../../src/core/peer-connection'
-import { ISocketFactory, ITcpSocket, IUdpSocket } from '../../src/interfaces/socket'
 import { FileSystemStorageHandle } from '../../src/io/filesystem-storage-handle'
-
-// Mock Socket Factory for Client (though we manually connect peers in this test)
-class MockSocketFactory implements ISocketFactory {
-  createTcpSocket(_host?: string, _port?: number): Promise<ITcpSocket> {
-    throw new Error('Method not implemented.')
-  }
-  createUdpSocket(_bindAddr?: string, _bindPort?: number): Promise<IUdpSocket> {
-    throw new Error('Method not implemented.')
-  }
-  createTcpServer() {
-    return {
-      on: () => {},
-      listen: () => {},
-      address: () => ({ port: 0 }),
-      close: () => {},
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as unknown as any // Cast to any to satisfy strict interface if needed, but we want to avoid explicit any error.
-    // Actually, let's just use 'as any' with disable comment if we must, or better, return a partial mock.
-    // The interface expects a Server.
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  wrapTcpSocket(_socket: any): ITcpSocket {
-    throw new Error('Method not implemented.')
-  }
-}
+import { createMemoryEngine } from '../../src/presets/memory'
 
 describe('Memory Swarm Integration', () => {
   let clientA: BtEngine
@@ -39,20 +14,14 @@ describe('Memory Swarm Integration', () => {
   let fsB: InMemoryFileSystem
 
   beforeEach(() => {
-    fsA = new InMemoryFileSystem()
-    fsB = new InMemoryFileSystem()
+    clientA = createMemoryEngine()
+    clientB = createMemoryEngine()
 
-    clientA = new BtEngine({
-      downloadPath: '/downloads',
-      fileSystem: fsA,
-      socketFactory: new MockSocketFactory(),
-    })
-
-    clientB = new BtEngine({
-      downloadPath: '/downloads',
-      fileSystem: fsB,
-      socketFactory: new MockSocketFactory(),
-    })
+    // Access the filesystems created by the preset
+    // Note: createMemoryEngine uses StorageRootManager which creates InMemoryFileSystem on demand.
+    // We need to get the filesystem for the default root.
+    fsA = clientA.storageRootManager.getFileSystemForTorrent('any') as InMemoryFileSystem
+    fsB = clientB.storageRootManager.getFileSystemForTorrent('any') as InMemoryFileSystem
   })
 
   it('should transfer metadata and pieces between two in-memory clients', async () => {
@@ -114,12 +83,8 @@ describe('Memory Swarm Integration', () => {
     // We need to clear previous add if any (but we haven't added yet in this flow)
     // Actually we added it above, let's redo.
 
-    // Reset client A for clean state
-    clientA = new BtEngine({
-      downloadPath: '/downloads',
-      fileSystem: fsA,
-      socketFactory: new MockSocketFactory(),
-    })
+    // We don't need to reset client A, as that would wipe the in-memory filesystem created by the preset.
+    // Just add the torrent.
 
     const torrentA2 = await clientA.addTorrent(torrentBuffer2)
 
