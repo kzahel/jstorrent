@@ -25,15 +25,18 @@ import {
 
 import { ISessionStore } from '../interfaces/session-store'
 import { MemorySessionStore } from '../adapters/memory/memory-session-store'
+import { StorageRootManager } from '../storage/storage-root-manager'
 
+/** @deprecated Use StorageRootManager instead */
 export interface StorageResolver {
   resolve(rootKey: string, torrentId: string): string
 }
 
 export interface BtEngineOptions {
-  downloadPath: string
+  downloadPath?: string
   socketFactory: ISocketFactory
-  fileSystem: IFileSystem
+  fileSystem?: IFileSystem
+  storageRootManager?: StorageRootManager
   sessionStore?: ISessionStore
   storageResolver?: StorageResolver
   maxConnections?: number
@@ -46,7 +49,7 @@ export interface BtEngineOptions {
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
-  public readonly fileSystem: IFileSystem
+  public readonly storageRootManager: StorageRootManager
   public readonly socketFactory: ISocketFactory
   public readonly sessionStore: ISessionStore
   public torrents: Torrent[] = []
@@ -74,8 +77,22 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   constructor(options: BtEngineOptions) {
     super()
-    this.fileSystem = options.fileSystem
     this.socketFactory = options.socketFactory
+
+    if (options.storageRootManager) {
+      this.storageRootManager = options.storageRootManager
+    } else if (options.fileSystem && options.downloadPath) {
+      // Legacy support: wrap single filesystem in StorageRootManager
+      this.storageRootManager = new StorageRootManager(() => options.fileSystem!)
+      this.storageRootManager.addRoot({
+        token: 'default',
+        label: 'Default',
+        path: options.downloadPath
+      })
+      this.storageRootManager.setDefaultRoot('default')
+    } else {
+      throw new Error('BtEngine requires storageRootManager or fileSystem + downloadPath')
+    }
     this.sessionStore = options.sessionStore ?? new MemorySessionStore()
     this.port = options.port ?? 6881 // Use nullish coalescing to allow port 0
 
@@ -175,7 +192,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
   }
 
-  async addTorrent(magnetOrBuffer: string | Uint8Array, _options: unknown = {}): Promise<Torrent> {
+  async addTorrent(magnetOrBuffer: string | Uint8Array, options: { storageToken?: string } = {}): Promise<Torrent> {
     let parsed
     let magnetInfo
     if (magnetOrBuffer instanceof Uint8Array) {
@@ -195,7 +212,14 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         parsed.pieces,
       )
 
-      const storageHandle = new FileSystemStorageHandle(this.fileSystem)
+      const infoHashStr = Buffer.from(parsed.infoHash).toString('hex')
+
+      if (options.storageToken) {
+        this.storageRootManager.setRootForTorrent(infoHashStr, options.storageToken)
+      }
+
+      const fileSystem = this.storageRootManager.getFileSystemForTorrent(infoHashStr)
+      const storageHandle = new FileSystemStorageHandle(fileSystem)
       const contentStorage = new TorrentContentStorage(this, storageHandle)
       await contentStorage.open(parsed.files, parsed.pieceLength)
 
@@ -236,6 +260,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       return torrent
     } else if (magnetInfo) {
       const infoHashBuffer = Buffer.from(magnetInfo.infoHash, 'hex')
+
+      if (options.storageToken) {
+        this.storageRootManager.setRootForTorrent(magnetInfo.infoHash, options.storageToken)
+      }
+
       const torrent = new Torrent(
         this,
         infoHashBuffer,
@@ -278,7 +307,15 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
           )
 
           // Initialize ContentStorage
-          const storageHandle = new FileSystemStorageHandle(this.fileSystem)
+          const infoHashStr = Buffer.from(torrent.infoHash).toString('hex')
+
+          // Note: storageToken from options is not available here in the callback easily unless we capture it.
+          // But we set it in setRootForTorrent above if provided.
+          // Wait, we didn't set it for magnet flow yet.
+          // We should set it before creating torrent.
+
+          const fileSystem = this.storageRootManager.getFileSystemForTorrent(infoHashStr)
+          const storageHandle = new FileSystemStorageHandle(fileSystem)
           const contentStorage = new TorrentContentStorage(this, storageHandle)
           await contentStorage.open(parsed.files, parsed.pieceLength)
 
