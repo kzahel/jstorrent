@@ -7,8 +7,10 @@ dependencies = [
     "pytest",
     "requests",
     "libtorrent",
+    "pytest-timeout",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["."]
 python_files = ["test_*.py", "verify_*.py"]
+timeout = 10
