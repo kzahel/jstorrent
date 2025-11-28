@@ -316,23 +316,22 @@ class HttpTrackerServer {
   }
 
   private handleAnnounce(url: URL, req: http.IncomingMessage, res: http.ServerResponse) {
-    // info_hash comes as raw bytes in query string - need to handle URL encoding
-    const infoHashRaw = url.searchParams.get('info_hash')
-    if (!infoHashRaw) {
+    // Parse raw query string to avoid UTF-8 corruption of binary data
+    const query = url.search.substring(1) // Remove leading '?'
+    const params = this.parseQueryStringBinary(query)
+
+    if (!params.info_hash) {
       this.sendError(res, 'missing info_hash')
       return
     }
 
-    // Decode URL-encoded binary info_hash
-    const infoHash = this.decodeUrlEncodedBinary(infoHashRaw)
+    const infoHash = params.info_hash
+    const peerId = params.peer_id || Buffer.alloc(20)
 
-    const peerIdRaw = url.searchParams.get('peer_id') || ''
-    const peerId = this.decodeUrlEncodedBinary(peerIdRaw)
-
-    const port = parseInt(url.searchParams.get('port') || '0', 10)
-    const left = parseInt(url.searchParams.get('left') || '0', 10)
-    const event = url.searchParams.get('event') || ''
-    const compact = url.searchParams.get('compact') === '1'
+    const port = parseInt((params.port as string) || '0', 10)
+    const left = parseInt((params.left as string) || '0', 10)
+    const event = (params.event as string) || ''
+    const compact = (params.compact as string) === '1'
 
     // Get client IP
     const ip = (req.socket.remoteAddress || '127.0.0.1').replace('::ffff:', '')
@@ -377,22 +376,52 @@ class HttpTrackerServer {
       }
     }
 
-    res.writeHead(200, { 'Content-Type': 'text/plain' })
-    res.end(Buffer.from(Bencode.encode(response)))
+    const encoded = Bencode.encode(response)
+    res.writeHead(200, {
+      'Content-Type': 'text/plain',
+      'Content-Length': encoded.length.toString(),
+    })
+    res.end(Buffer.from(encoded))
   }
 
   private handleScrape(url: URL, res: http.ServerResponse) {
-    const infoHashesRaw = url.searchParams.getAll('info_hash')
+    // Parse raw query string to get all info_hash values
+    const query = url.search.substring(1)
+    const infoHashes: Buffer[] = []
 
-    if (infoHashesRaw.length === 0) {
+    // Parse all info_hash parameters
+    const pairs = query.split('&')
+    for (const pair of pairs) {
+      const eqIdx = pair.indexOf('=')
+      if (eqIdx === -1) continue
+
+      const key = pair.substring(0, eqIdx)
+      if (key === 'info_hash') {
+        const value = pair.substring(eqIdx + 1)
+        const bytes: number[] = []
+        let i = 0
+        while (i < value.length) {
+          if (value[i] === '%' && i + 2 < value.length) {
+            const hex = value.substring(i + 1, i + 3)
+            bytes.push(parseInt(hex, 16))
+            i += 3
+          } else {
+            bytes.push(value.charCodeAt(i))
+            i++
+          }
+        }
+        infoHashes.push(Buffer.from(bytes))
+      }
+    }
+
+    if (infoHashes.length === 0) {
       this.sendError(res, 'missing info_hash')
       return
     }
 
     const files: any = {}
 
-    for (const infoHashRaw of infoHashesRaw) {
-      const infoHash = this.decodeUrlEncodedBinary(infoHashRaw)
+    for (const infoHash of infoHashes) {
       const stats = this.peerStore.scrape(infoHash)
       files[infoHash.toString('binary')] = {
         complete: stats.complete,
@@ -402,8 +431,12 @@ class HttpTrackerServer {
     }
 
     const response = { files }
-    res.writeHead(200, { 'Content-Type': 'text/plain' })
-    res.end(Buffer.from(Bencode.encode(response)))
+    const encoded = Bencode.encode(response)
+    res.writeHead(200, {
+      'Content-Type': 'text/plain',
+      'Content-Length': encoded.length.toString(),
+    })
+    res.end(Buffer.from(encoded))
   }
 
   private decodeUrlEncodedBinary(str: string): Buffer {
@@ -414,9 +447,47 @@ class HttpTrackerServer {
     return Buffer.from(decoded, 'binary')
   }
 
+  private parseQueryStringBinary(query: string): { [key: string]: Buffer | string } {
+    const params: { [key: string]: Buffer | string } = {}
+    const pairs = query.split('&')
+
+    for (const pair of pairs) {
+      const eqIdx = pair.indexOf('=')
+      if (eqIdx === -1) continue
+
+      const key = pair.substring(0, eqIdx)
+      const value = pair.substring(eqIdx + 1)
+
+      // info_hash and peer_id are binary, decode them carefully
+      if (key === 'info_hash' || key === 'peer_id') {
+        const bytes: number[] = []
+        let i = 0
+        while (i < value.length) {
+          if (value[i] === '%' && i + 2 < value.length) {
+            const hex = value.substring(i + 1, i + 3)
+            bytes.push(parseInt(hex, 16))
+            i += 3
+          } else {
+            bytes.push(value.charCodeAt(i))
+            i++
+          }
+        }
+        params[key] = Buffer.from(bytes)
+      } else {
+        params[key] = decodeURIComponent(value)
+      }
+    }
+
+    return params
+  }
+
   private sendError(res: http.ServerResponse, message: string) {
-    res.writeHead(200, { 'Content-Type': 'text/plain' })
-    res.end(Buffer.from(Bencode.encode({ 'failure reason': message })))
+    const encoded = Bencode.encode({ 'failure reason': message })
+    res.writeHead(200, {
+      'Content-Type': 'text/plain',
+      'Content-Length': encoded.length.toString(),
+    })
+    res.end(Buffer.from(encoded))
   }
 
   close(): Promise<void> {

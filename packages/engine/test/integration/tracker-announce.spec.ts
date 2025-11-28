@@ -87,9 +87,7 @@ class NodeSocketFactory implements ISocketFactory {
   }
 }
 
-// This test has issues with peer discovery that are unrelated to the tracker implementation
-// The UDP tracker integration test (udp-tracker-integration.spec.ts) validates the tracker works correctly
-describe.skip('Tracker Integration', () => {
+describe('Tracker Integration', () => {
   let trackerServer: SimpleTracker
   let trackerPort: number
   let trackerUrl: string
@@ -131,7 +129,6 @@ describe.skip('Tracker Integration', () => {
   it('should announce and discover peers', async () => {
     const infoHash = crypto.randomBytes(20)
     const infoHashHex = infoHash.toString('hex')
-    console.log('Test started with infoHash:', infoHashHex)
 
     // Setup Client A
     const socketFactoryA = new NodeSocketFactory()
@@ -199,58 +196,41 @@ describe.skip('Tracker Integration', () => {
 
     // Wait for A to announce to tracker
     await new Promise<void>((resolve, reject) => {
-      let attempts = 0
       const check = setInterval(() => {
-        attempts++
-        const swarmCount = trackerServer.getSwarmCount()
-        console.log(
-          `Waiting for Client A announce... attempt ${attempts}, swarmCount: ${swarmCount}`,
-        )
-        if (swarmCount > 0) {
+        if (trackerServer.getSwarmCount() > 0) {
           clearInterval(check)
           resolve()
         }
-        if (attempts > 100) {
-          // 10 seconds
-          clearInterval(check)
-          reject(new Error('Client A did not announce to tracker'))
-        }
       }, 100)
+
+      setTimeout(() => {
+        clearInterval(check)
+        reject(new Error('Client A did not announce to tracker'))
+      }, 10000) // 10 second timeout
     })
-    console.log('Client A announced')
 
     // Now add to Client B
     console.log('Adding torrent to Client B')
     const torrentB = await clientB.addTorrent(magnetLink)
 
     // Wait for B to connect to A and handshake to complete
-    const handshakeComplete = new Promise<void>((resolve, reject) => {
-      let attempts = 0
+    await new Promise<void>((resolve, reject) => {
       const check = setInterval(() => {
-        attempts++
-        console.log(`Handshake check attempt ${attempts}, numPeers: ${torrentB.numPeers}`)
         if (torrentB.numPeers > 0) {
           // @ts-expect-error - accessing private property for test
           const peers = torrentB.peers
-          console.log(`  peers.length: ${peers.length}`)
-          if (peers.length > 0) {
-            console.log(`  peer[0].handshakeReceived: ${peers[0].handshakeReceived}`)
-            if (peers[0].handshakeReceived) {
-              clearInterval(check)
-              resolve()
-            }
+          if (peers.length > 0 && peers[0].handshakeReceived) {
+            clearInterval(check)
+            resolve()
           }
         }
-        if (attempts > 200) {
-          // 20 seconds
-          clearInterval(check)
-          reject(new Error(`Handshake did not complete after ${attempts} attempts`))
-        }
       }, 100)
-    })
 
-    await handshakeComplete
-    console.log('Handshake complete between A and B')
+      setTimeout(() => {
+        clearInterval(check)
+        reject(new Error('Handshake did not complete'))
+      }, 20000) // 20 second timeout
+    })
 
     // Verify
     // @ts-expect-error - accessing private property for test
