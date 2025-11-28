@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SessionManager } from '../../src/core/session-manager'
 import { BtEngine } from '../../src/core/bt-engine'
-import { InMemoryFileSystem } from '../../src/io/memory/memory-filesystem'
+import { InMemoryFileSystem } from '../../src/adapters/memory'
 import { Torrent } from '../../src/core/torrent'
 
 // Mock Torrent
