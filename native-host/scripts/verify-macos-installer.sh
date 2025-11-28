@@ -32,7 +32,13 @@ fi
 
 # Install PKG
 echo "Installing PKG..."
-sudo installer -pkg "$INSTALLER_PKG" -target /
+sudo installer -pkg "$INSTALLER_PKG" -target / -verbose
+
+# Check installer log for postinstall output
+echo ""
+echo "Recent installer log entries:"
+sudo tail -50 /var/log/install.log | grep -i jstorrent || echo "No JSTorrent entries in install.log"
+echo ""
 
 # Verify files
 echo "Verifying installed files..."
