@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { BtEngine } from '../../src/core/bt-engine'
 import { Torrent } from '../../src/core/torrent'
-import { InMemoryFileSystem } from '../../src/io/memory/memory-filesystem'
+import { InMemoryFileSystem } from '../../src/adapters/memory'
 import { ISocketFactory } from '../../src/interfaces/socket'
 import { Bencode } from '../../src/utils/bencode'
 import { PieceManager } from '../../src/core/piece-manager'

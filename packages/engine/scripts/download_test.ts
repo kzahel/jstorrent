@@ -2,8 +2,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 import { BtEngine } from '../src/core/bt-engine'
-import { ScopedNodeFileSystem } from '../src/io/node/scoped-node-filesystem'
-import { NodeSocketFactory } from '../src/io/node/node-socket'
+import { ScopedNodeFileSystem } from '../src/adapters/node'
+import { NodeSocketFactory } from '../src/adapters/node'
 
 async function main() {
   try {

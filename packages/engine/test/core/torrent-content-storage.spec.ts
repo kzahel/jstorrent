@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { TorrentContentStorage } from '../../src/core/torrent-content-storage'
-import { InMemoryFileSystem } from '../../src/io/memory/memory-filesystem'
+import { InMemoryFileSystem } from '../../src/adapters/memory'
 import { TorrentFile } from '../../src/core/torrent-file'
 import { MockEngine } from '../utils/mock-engine'
 

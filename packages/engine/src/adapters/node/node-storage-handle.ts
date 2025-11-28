@@ -1,4 +1,4 @@
-import { IStorageHandle } from '../storage-handle'
+import { IStorageHandle } from '../../io/storage-handle'
 import { IFileSystem } from '../../interfaces/filesystem'
 import { NodeFileSystem } from './node-filesystem'
 import { ScopedNodeFileSystem } from './scoped-node-filesystem'

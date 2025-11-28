@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BtEngine } from './src/core/bt-engine'
-import { InMemoryFileSystem } from './src/io/memory/memory-filesystem'
+import { InMemoryFileSystem } from './src/adapters/memory'
 
 // Mock SocketFactory if needed, or use a simple one
 const mockSocketFactory = {
