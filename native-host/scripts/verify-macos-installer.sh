@@ -36,6 +36,12 @@ sudo installer -pkg "$INSTALLER_PKG" -target /
 
 # Verify files
 echo "Verifying installed files..."
+
+# First check what was actually installed
+echo "Contents of /usr/local/lib/jstorrent-native/:"
+ls -la /usr/local/lib/jstorrent-native/ || echo "Directory not found!"
+echo ""
+
 if [ ! -f "/usr/local/lib/jstorrent-native/jstorrent-native-host" ]; then
     echo "Error: Native host binary not found in /usr/local/lib/jstorrent-native/"
     exit 1
