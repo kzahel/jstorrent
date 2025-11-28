@@ -2,8 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { BtEngine } from '../../src/core/bt-engine'
 // import { Torrent } from '../../src/core/torrent'
 import { ScopedNodeFileSystem } from '../../src/io/node/scoped-node-filesystem'
-// @ts-expect-error - no types for bittorrent-tracker
-import { Server } from 'bittorrent-tracker'
+import { SimpleTracker } from '../helpers/simple-tracker'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
@@ -89,7 +88,7 @@ class NodeSocketFactory implements ISocketFactory {
 }
 
 describe('Tracker Integration', () => {
-  let trackerServer: Server
+  let trackerServer: SimpleTracker
   let trackerPort: number
   let trackerUrl: string
   let clientA: BtEngine
@@ -100,16 +99,11 @@ describe('Tracker Integration', () => {
 
   beforeAll(async () => {
     // Setup Tracker
-    trackerServer = new Server({ http: true, udp: false, ws: false })
-
-    await new Promise<void>((resolve) => {
-      trackerServer.listen(0, () => {
-        trackerPort = trackerServer.http.address().port
-        trackerUrl = `http://127.0.0.1:${trackerPort}/announce`
-        console.log(`Tracker listening on ${trackerUrl}`)
-        resolve()
-      })
-    })
+    trackerServer = new SimpleTracker({ httpPort: 0 })
+    const ports = await trackerServer.start()
+    trackerPort = ports.httpPort!
+    trackerUrl = `http://127.0.0.1:${trackerPort}/announce`
+    console.log(`Tracker listening on ${trackerUrl}`)
 
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jstorrent-test-'))
 
@@ -124,8 +118,8 @@ describe('Tracker Integration', () => {
     })
   })
 
-  afterAll(() => {
-    trackerServer.close()
+  afterAll(async () => {
+    await trackerServer.close()
     if (serverA) serverA.close()
     if (clientA) clientA.destroy()
     if (clientB) clientB.destroy()
@@ -200,40 +194,29 @@ describe('Tracker Integration', () => {
       peer.sendHandshake(torrentA.infoHash, clientA.peerId)
     })
 
-    // Wait for A to announce
-    const peerAAnnounced = new Promise<void>((resolve) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      trackerServer.on('start', (_addr: any) => {
-        resolve()
-      })
-    })
+    // Wait for A to announce to tracker
+    await new Promise<void>((resolve, reject) => {
+      const check = setInterval(() => {
+        if (trackerServer.getSwarmCount() > 0) {
+          clearInterval(check)
+          resolve()
+        }
+      }, 100)
 
-    await peerAAnnounced
-    console.log('Client A announced')
+      setTimeout(() => {
+        clearInterval(check)
+        reject(new Error('Client A did not announce to tracker'))
+      }, 10000) // 10 second timeout
+    })
 
     // Now add to Client B
     console.log('Adding torrent to Client B')
     const torrentB = await clientB.addTorrent(magnetLink)
 
     // Wait for B to connect to A and handshake to complete
-    const handshakeComplete = new Promise<void>((resolve) => {
-      // We can check if B has peers
+    await new Promise<void>((resolve, reject) => {
       const check = setInterval(() => {
         if (torrentB.numPeers > 0) {
-          // Check if handshake completed
-          // We don't have easy access to peers list state from here without iterating
-          // But `numPeers` increments when `addPeer` is called.
-          // `addPeer` is called when tracker discovers peer.
-          // Connection happens after.
-          // Handshake happens after connection.
-          //
-          // We can listen to 'peer' event on torrentB? No, 'peer' event isn't emitted by Torrent for new peers.
-          // But we can check `torrentB.peers[0].handshakeReceived`
-          //
-          // Actually, let's add a listener to torrentB for verification?
-          // Torrent doesn't emit 'handshake'.
-          //
-          // Let's just wait for B to have 1 peer and that peer to have handshakeReceived = true
           // @ts-expect-error - accessing private property for test
           const peers = torrentB.peers
           if (peers.length > 0 && peers[0].handshakeReceived) {
@@ -242,10 +225,12 @@ describe('Tracker Integration', () => {
           }
         }
       }, 100)
-    })
 
-    await handshakeComplete
-    console.log('Handshake complete between A and B')
+      setTimeout(() => {
+        clearInterval(check)
+        reject(new Error('Handshake did not complete'))
+      }, 20000) // 20 second timeout
+    })
 
     // Verify
     // @ts-expect-error - accessing private property for test
@@ -269,5 +254,5 @@ describe('Tracker Integration', () => {
         Buffer.from(p.peerId).toString('hex') === Buffer.from(clientB.peerId).toString('hex'),
     )
     expect(peerA).toBeDefined()
-  })
+  }, 30000) // 30 second timeout
 })

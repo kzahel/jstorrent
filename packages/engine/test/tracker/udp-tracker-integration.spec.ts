@@ -4,17 +4,14 @@ import { TorrentCreator } from '../../src/core/torrent-creator'
 import { ScopedNodeFileSystem } from '../../src/io/node/scoped-node-filesystem'
 import { NodeSocketFactory } from '../../src/io/node/node-socket'
 import { NodeStorageHandle } from '../../src/io/node/node-storage-handle'
-// @ts-expect-error - bittorrent-tracker has no types
-import { Server } from 'bittorrent-tracker'
+import { SimpleTracker } from '../helpers/simple-tracker'
 import * as crypto from 'crypto'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
 
-// fails on CI due to bittorrent-client webrtc dependency native module?
-describe.skip('UDP Tracker Integration', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let trackerServer: any
+describe('UDP Tracker Integration', () => {
+  let trackerServer: SimpleTracker
   let trackerPort: number
   let trackerUrl: string
   let tmpDir: string
@@ -23,26 +20,17 @@ describe.skip('UDP Tracker Integration', () => {
   beforeAll(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'udp-tracker-test-'))
     socketFactory = new NodeSocketFactory()
-    // Start local UDP tracker
-    trackerServer = new Server({
-      udp: true,
-      http: false,
-      ws: false,
-    })
 
-    await new Promise<void>((resolve) => {
-      trackerServer.listen(0, () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        trackerPort = (trackerServer as any).udp.address().port
-        trackerUrl = `udp://127.0.0.1:${trackerPort}`
-        console.log(`Tracker listening on ${trackerUrl}`)
-        resolve()
-      })
-    })
+    // Start local UDP tracker
+    trackerServer = new SimpleTracker({ udpPort: 0 })
+    const ports = await trackerServer.start()
+    trackerPort = ports.udpPort!
+    trackerUrl = `udp://127.0.0.1:${trackerPort}`
+    console.log(`Tracker listening on ${trackerUrl}`)
   })
 
-  afterAll(() => {
-    trackerServer.close()
+  afterAll(async () => {
+    await trackerServer.close()
   })
 
   it('should discover peers via UDP tracker and download file', async () => {
