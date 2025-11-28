@@ -4,7 +4,7 @@ import { StorageRootManager } from '../storage/storage-root-manager'
 import * as path from 'path'
 
 class DefaultStorageResolver implements StorageResolver {
-  constructor(private root: string) { }
+  constructor(private root: string) {}
 
   resolve(_rootKey: string, torrentId: string): string {
     // Simple implementation: join root with torrentId (or rootKey if provided)
@@ -25,7 +25,7 @@ export function createNodeEngineEnvironment(
   storageRootManager.addRoot({
     token: downloadPath,
     label: 'Downloads',
-    path: downloadPath
+    path: downloadPath,
   })
   storageRootManager.setDefaultRoot(downloadPath)
 
