@@ -19,20 +19,19 @@ cp target/release/jstorrent-io-daemon pkgroot/usr/local/lib/jstorrent-native/jst
 cp installers/macos/scripts/uninstall.sh pkgroot/usr/local/lib/jstorrent-native/
 cp manifests/com.jstorrent.native.json.template pkgroot/usr/local/lib/jstorrent-native/
 
-# Link Handler App - Install to staging location first
-# Use a name without spaces to avoid installer issues, rename in postinstall
-mkdir -p "pkgroot/usr/local/lib/jstorrent-native/JSTorrentLinkHandler.app/Contents/MacOS"
-mkdir -p "pkgroot/usr/local/lib/jstorrent-native/JSTorrentLinkHandler.app/Contents/Resources"
+# Link Handler binary and Info.plist - package separately, build .app in postinstall
+# This avoids macOS installer filtering out .app bundles from non-/Applications locations
+mkdir -p "pkgroot/usr/local/lib/jstorrent-native/link-handler-resources"
 
-# Copy and set executable
-cp target/release/jstorrent-link-handler "pkgroot/usr/local/lib/jstorrent-native/JSTorrentLinkHandler.app/Contents/MacOS/jstorrent-link-handler"
-chmod 755 "pkgroot/usr/local/lib/jstorrent-native/JSTorrentLinkHandler.app/Contents/MacOS/jstorrent-link-handler"
+# Copy binary
+cp target/release/jstorrent-link-handler "pkgroot/usr/local/lib/jstorrent-native/link-handler-resources/jstorrent-link-handler"
+chmod 755 "pkgroot/usr/local/lib/jstorrent-native/link-handler-resources/jstorrent-link-handler"
 
-# Copy Info.plist
-cp installers/macos/Info.plist "pkgroot/usr/local/lib/jstorrent-native/JSTorrentLinkHandler.app/Contents/"
+# Copy resources that will be used to build the .app bundle
+cp installers/macos/Info.plist "pkgroot/usr/local/lib/jstorrent-native/link-handler-resources/"
 
-# Create PkgInfo file (contains package type and signature)
-echo -n "APPL????" > "pkgroot/usr/local/lib/jstorrent-native/JSTorrentLinkHandler.app/Contents/PkgInfo"
+# Create PkgInfo file
+echo -n "APPL????" > "pkgroot/usr/local/lib/jstorrent-native/link-handler-resources/PkgInfo"
 
 OUTPUT_FILE="jstorrent-native-host-install-macos-x86_64.pkg"
 pkgbuild --root pkgroot \
