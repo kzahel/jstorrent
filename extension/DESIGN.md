@@ -389,11 +389,10 @@ See `.github/workflows/extension-ci.yml`
 
 ## 12. Related Documentation
 
-- `native-host/DESIGN-latest.md` - Native stack architecture
+- `native-host/DESIGN.md` - Native stack architecture
 - `design_docs/io-daemon-websocket-detail.md` - Binary protocol spec
 - `packages/engine/docs/ARCHITECTURE-current.md` - BitTorrent engine
 - `.github/copilot-instructions.md` - AI coding context
-- `first-roundtrip.md` - End-to-end flow design
 
 ---
 
