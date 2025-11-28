@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { BtEngine } from '../../src/core/bt-engine'
 // import { Torrent } from '../../src/core/torrent'
-import { ScopedNodeFileSystem } from '../../src/io/node/scoped-node-filesystem'
+import { ScopedNodeFileSystem } from '../../src/adapters/node'
 import { SimpleTracker } from '../helpers/simple-tracker'
 import path from 'path'
 import fs from 'fs'

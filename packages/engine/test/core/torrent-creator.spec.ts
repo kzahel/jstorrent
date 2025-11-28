@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { TorrentCreator } from '../../src/core/torrent-creator'
-import { InMemoryFileSystem } from '../../src/io/memory/memory-filesystem'
+import { InMemoryFileSystem } from '../../src/adapters/memory'
 import { IStorageHandle } from '../../src/io/storage-handle'
 import { Bencode } from '../../src/utils/bencode'
 import { sha1 } from '../../src/utils/hash'
