@@ -19,7 +19,9 @@
     "test:python": "pnpm --filter @jstorrent/engine test:python",
     "typecheck": "pnpm --recursive typecheck",
     "build": "pnpm --recursive build",
-    "checkall": "npm-run-all --parallel lint format typecheck test test:python",
+    "check:static": "npm-run-all --parallel lint format typecheck",
+    "check:test": "npm-run-all --parallel test test:python",
+    "checkall": "npm-run-all check:static check:test",
     "prepare": "husky"
   },
   "devDependencies": {

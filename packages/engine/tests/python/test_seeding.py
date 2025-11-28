@@ -29,7 +29,9 @@ def test_seeding(tmp_path, engine_factory, piece_length):
 
     # 1. Generate Content (using Libtorrent helper)
     # We use a temporary session just to generate the file and torrent
-    gen_session = LibtorrentSession(temp_dir, port=50000)
+    # 1. Generate Content (using Libtorrent helper)
+    # We use a temporary session just to generate the file and torrent
+    gen_session = LibtorrentSession(temp_dir, port=0)
     file_size = 1024 * 512 # 512KB
     torrent_path, info_hash = gen_session.create_dummy_torrent("test_payload.bin", size=file_size, piece_length=piece_length)
     
@@ -54,7 +56,8 @@ def test_seeding(tmp_path, engine_factory, piece_length):
     assert engine_port > 0, "Engine port should be assigned"
 
     # 3. Start Libtorrent (Leecher)
-    lt_session = LibtorrentSession(lt_leecher_dir, port=50001)
+    lt_session = LibtorrentSession(lt_leecher_dir, port=0)
+    lt_port = lt_session.listen_port()
     # Add torrent to libtorrent (standard mode, it will check and find nothing)
     lt_handle = lt_session.add_torrent(torrent_path, lt_leecher_dir)
 
@@ -64,7 +67,7 @@ def test_seeding(tmp_path, engine_factory, piece_length):
     lt_handle.connect_peer(("127.0.0.1", engine_port))
     
     # Also try reverse connection for robustness
-    engine.add_peer(tid, "127.0.0.1", 50001)
+    engine.add_peer(tid, "127.0.0.1", lt_port)
 
     # 5. Wait for Download
     print("Waiting for Libtorrent to download...")
