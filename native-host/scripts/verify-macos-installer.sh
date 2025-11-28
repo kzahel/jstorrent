@@ -16,6 +16,11 @@ fi
 
 echo "Verifying macOS Installer..."
 
+# List package contents for debugging
+echo "Package contents:"
+pkgutil --payload-files "$INSTALLER_PKG" | grep -i "jstorrent" | head -20 || true
+echo ""
+
 # Note: This requires sudo and modifies the system.
 # In CI, this is fine. Locally, we should warn the user.
 
@@ -43,6 +48,11 @@ fi
 
 if [ ! -d "/Applications/JSTorrent Link Handler.app" ]; then
     echo "Error: JSTorrent Link Handler app not found in /Applications/"
+    echo "Listing /Applications/ contents:"
+    ls -la "/Applications/" | head -20
+    echo ""
+    echo "Checking if app was installed elsewhere:"
+    find /usr/local /Library -name "*JSTorrent*" -o -name "*jstorrent*" 2>/dev/null || true
     exit 1
 fi
 

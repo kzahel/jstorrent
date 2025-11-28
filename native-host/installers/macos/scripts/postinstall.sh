@@ -21,14 +21,26 @@ sed "s|HOST_PATH_PLACEHOLDER|$BINARY_PATH|g" "$MANIFEST_TEMPLATE" > "$MANIFEST_D
 # Set permissions for manifest
 chmod 644 "$MANIFEST_DEST"
 
-# Register the magnet handler app
+# Move Link Handler app from staging to /Applications
+STAGING_APP="$INSTALL_DIR/JSTorrent Link Handler.app"
 APP_PATH="/Applications/JSTorrent Link Handler.app"
-if [ -d "$APP_PATH" ]; then
+
+if [ -d "$STAGING_APP" ]; then
+    # Remove old version if it exists
+    rm -rf "$APP_PATH"
+
+    # Move app to /Applications
+    mv "$STAGING_APP" "$APP_PATH"
+
     # Ensure binary is executable
     chmod 755 "$APP_PATH/Contents/MacOS/jstorrent-link-handler"
-    
+
     # Force registration with LaunchServices
     /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH"
+
+    echo "JSTorrent Link Handler app installed to $APP_PATH"
+else
+    echo "Warning: Link Handler app not found in staging location: $STAGING_APP"
 fi
 
 exit 0
