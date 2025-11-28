@@ -19,6 +19,7 @@ if [ -d "$INSTALL_DIR" ]; then
     rm -f "$INSTALL_DIR/jstorrent-io-daemon"
     rm -f "$INSTALL_DIR/uninstall.sh"
     rm -f "$INSTALL_DIR/com.jstorrent.native.json.template"
+    rm -rf "$INSTALL_DIR/link-handler-resources"
     echo "Removed binaries from: $INSTALL_DIR"
 
     # Only remove directory if empty
