@@ -87,7 +87,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       this.storageRootManager.addRoot({
         token: 'default',
         label: 'Default',
-        path: options.downloadPath
+        path: options.downloadPath,
       })
       this.storageRootManager.setDefaultRoot('default')
     } else {
@@ -192,7 +192,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
   }
 
-  async addTorrent(magnetOrBuffer: string | Uint8Array, options: { storageToken?: string } = {}): Promise<Torrent> {
+  async addTorrent(
+    magnetOrBuffer: string | Uint8Array,
+    options: { storageToken?: string } = {},
+  ): Promise<Torrent> {
     let parsed
     let magnetInfo
     if (magnetOrBuffer instanceof Uint8Array) {
