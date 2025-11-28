@@ -18,6 +18,8 @@ if [ -d "$INSTALL_DIR" ]; then
     rm -f "$INSTALL_DIR/jstorrent-link-handler"
     rm -f "$INSTALL_DIR/jstorrent-io-daemon"
     rm -f "$INSTALL_DIR/uninstall.sh"
+    rm -f "$INSTALL_DIR/com.jstorrent.native.json.template"
+    rm -rf "$INSTALL_DIR/link-handler-resources"
     echo "Removed binaries from: $INSTALL_DIR"
 
     # Only remove directory if empty
@@ -27,6 +29,13 @@ if [ -d "$INSTALL_DIR" ]; then
     else
         echo "Preserving installation directory (contains other files): $INSTALL_DIR"
     fi
+fi
+
+# Remove Link Handler app from /Applications
+APP_PATH="/Applications/JSTorrent Link Handler.app"
+if [ -d "$APP_PATH" ]; then
+    rm -rf "$APP_PATH"
+    echo "Removed app: $APP_PATH"
 fi
 
 echo "Uninstallation complete."
