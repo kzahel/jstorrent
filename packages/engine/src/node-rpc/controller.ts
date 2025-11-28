@@ -1,7 +1,7 @@
-import { BtEngine, BtEngineOptions } from '../core/bt-engine'
+import { BtEngine } from '../core/bt-engine'
 import { Torrent } from '../core/torrent'
 import { toInfoHashString } from '../utils/infohash'
-import { createNodeEngineEnvironment } from './create-node-env'
+import { createNodeEngine, NodeEngineConfig } from '../presets/node'
 import { globalLogStore, LogLevel } from '../logging/logger'
 
 export interface EngineStatus {
@@ -27,13 +27,23 @@ export class EngineController {
 
   constructor() {}
 
-  startEngine(config: Partial<BtEngineOptions> = {}): void {
+  startEngine(config: Partial<NodeEngineConfig> = {}): void {
     if (this.engine) {
       throw new Error('EngineAlreadyRunning')
     }
 
-    const options = createNodeEngineEnvironment(config)
-    this.engine = new BtEngine(options)
+    const engineConfig: NodeEngineConfig = {
+      downloadPath: config.downloadPath || process.cwd(),
+      port: 0, // Default to 0 (random)
+      ...config,
+    }
+
+    // Ensure port is 0 if undefined in config (because ...config might overwrite with undefined)
+    if (engineConfig.port === undefined) {
+      engineConfig.port = 0
+    }
+
+    this.engine = createNodeEngine(engineConfig)
   }
 
   stopEngine(): void {

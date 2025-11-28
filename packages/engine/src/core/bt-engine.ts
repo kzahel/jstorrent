@@ -21,6 +21,7 @@ import {
   withScopeAndFiltering,
   ShouldLogFn,
   ILoggableComponent,
+  LogEntry,
 } from '../logging/logger'
 
 import { ISessionStore } from '../interfaces/session-store'
@@ -46,6 +47,7 @@ export interface BtEngineOptions {
   port?: number // Listening port to announce
   logging?: EngineLoggingConfig
   maxPeers?: number
+  onLog?: (entry: LogEntry) => void
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -97,7 +99,32 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.port = options.port ?? 6881 // Use nullish coalescing to allow port 0
 
     this.clientId = randomClientId()
-    this.rootLogger = defaultLogger()
+
+    let logger = defaultLogger()
+    if (options.onLog) {
+      const base = logger
+      const onLog = options.onLog
+      logger = {
+        debug: (msg, ...args) => {
+          onLog({ timestamp: Date.now(), level: 'debug', message: msg, args })
+          base.debug(msg, ...args)
+        },
+        info: (msg, ...args) => {
+          onLog({ timestamp: Date.now(), level: 'info', message: msg, args })
+          base.info(msg, ...args)
+        },
+        warn: (msg, ...args) => {
+          onLog({ timestamp: Date.now(), level: 'warn', message: msg, args })
+          base.warn(msg, ...args)
+        },
+        error: (msg, ...args) => {
+          onLog({ timestamp: Date.now(), level: 'error', message: msg, args })
+          base.error(msg, ...args)
+        },
+      }
+    }
+    this.rootLogger = logger
+
     this.filterFn = createFilter(options.logging ?? { level: 'info' })
     this.maxConnections = options.maxConnections ?? 100
     this.maxPeers = options.maxPeers ?? 50

@@ -1,4 +1,4 @@
-import { ITcpSocket } from '../../interfaces/socket'
+import { ISocketFactory, ITcpSocket, IUdpSocket } from '../../interfaces/socket'
 
 export class MemorySocket implements ITcpSocket {
   public connected = false
@@ -80,10 +80,35 @@ export class MemorySocket implements ITcpSocket {
   }
 }
 
-export class MemorySocketFactory {
+export class MemorySocketFactory implements ISocketFactory {
   static createPair(): [MemorySocket, MemorySocket] {
     const a = new MemorySocket()
     const b = new MemorySocket(a)
     return [a, b]
+  }
+
+  async createTcpSocket(_host?: string, _port?: number): Promise<ITcpSocket> {
+    // Return a disconnected socket? Or simulate connection?
+    // For now, return a disconnected socket.
+    return new MemorySocket()
+  }
+
+  async createUdpSocket(_bindAddr?: string, _bindPort?: number): Promise<IUdpSocket> {
+    throw new Error('UDP not supported in MemorySocketFactory yet')
+  }
+
+  createTcpServer() {
+    return {
+      on: () => {},
+      listen: () => {},
+      address: () => ({ port: 0 }),
+      close: () => {},
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  wrapTcpSocket(socket: any): ITcpSocket {
+    return socket as ITcpSocket
   }
 }
