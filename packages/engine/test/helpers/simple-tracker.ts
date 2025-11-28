@@ -18,13 +18,6 @@ const PROTOCOL_ID = 0x41727101980n
 const ACTION_CONNECT = 0
 const ACTION_ANNOUNCE = 1
 const ACTION_SCRAPE = 2
-const ACTION_ERROR = 3
-
-// Event codes
-const EVENT_NONE = 0
-const EVENT_COMPLETED = 1
-const EVENT_STARTED = 2
-const EVENT_STOPPED = 3
 
 interface Peer {
   ip: string
@@ -344,10 +337,13 @@ class HttpTrackerServer {
         peerId,
         seeding: left === 0,
       },
-      event as any,
+      event,
     )
 
-    let response: any
+    let response: {
+      interval: number
+      peers: Buffer | Array<{ 'peer id': Buffer; ip: string; port: number }>
+    }
 
     if (compact) {
       // BEP 23: compact peer list (6 bytes each)
@@ -422,7 +418,7 @@ class HttpTrackerServer {
       return
     }
 
-    const files: any = {}
+    const files: Record<string, { complete: number; downloaded: number; incomplete: number }> = {}
 
     for (const infoHash of infoHashes) {
       const stats = this.peerStore.scrape(infoHash)
