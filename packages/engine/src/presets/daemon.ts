@@ -36,7 +36,7 @@ export async function createDaemonEngine(config: DaemonEngineConfig): Promise<Bt
 
   return new BtEngine({
     socketFactory: new DaemonSocketFactory(connection),
-    // storageRootManager,
+    storageRootManager,
     sessionStore: config.sessionStore,
     port: config.port,
     onLog: config.onLog,
