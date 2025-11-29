@@ -433,13 +433,13 @@ const entries = logger.getEntries({
 - Multi-file torrents
 - Piece verification
 - Basic download from libtorrent seeders (verified by Python tests)
-
-### Needs Implementation
 - StorageRootManager (new)
 - ISessionStore interface and implementations
 - DaemonFileSystem adapter
 - Preset functions
 - Peer connection limits
+
+### Needs Implementation
 - Rate tracking
 - Choking algorithm (tit-for-tat)
 - Rarest-first piece selection
