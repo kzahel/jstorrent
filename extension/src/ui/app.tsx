@@ -1,19 +1,22 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { LogViewer } from './components/LogViewer'
 import { DownloadRootsManager } from './components/DownloadRootsManager'
+import { useEngineState } from './hooks/useEngineState'
 
-interface TorrentEvent {
-  event: string
-  timestamp: string
-  [key: string]: unknown
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
 export const App = () => {
-  const [events, setEvents] = useState<TorrentEvent[]>([])
   const [activeTab, setActiveTab] = useState<'torrents' | 'logs' | 'settings'>('torrents')
   const [magnetInput, setMagnetInput] = useState('')
+  const { state, error, loading } = useEngineState(1000)
 
   const handleAddTorrent = () => {
     if (!magnetInput) return
@@ -22,18 +25,6 @@ export const App = () => {
       setMagnetInput('')
     })
   }
-
-  useEffect(() => {
-    const handleMessage = (message: TorrentEvent) => {
-      console.log('UI received message:', message)
-      if (message.event === 'magnetAdded' || message.event === 'torrentAdded') {
-        setEvents((prev) => [...prev, { ...message, timestamp: new Date().toISOString() }])
-      }
-    }
-
-    chrome.runtime.onMessage.addListener(handleMessage)
-    return () => chrome.runtime.onMessage.removeListener(handleMessage)
-  }, [])
 
   return (
     <div
@@ -104,8 +95,6 @@ export const App = () => {
       <div style={{ flex: 1, overflow: 'hidden' }}>
         {activeTab === 'torrents' && (
           <div style={{ padding: '20px' }}>
-            <h2>Torrents</h2>
-
             <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
               <input
                 type="text"
@@ -124,32 +113,63 @@ export const App = () => {
               </button>
             </div>
 
-            {events.length === 0 ? (
-              <p>No torrents yet. Add a magnet link to get started.</p>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                {events.map((event, i) => (
-                  <li
-                    key={i}
-                    style={{
-                      border: '1px solid #ccc',
-                      margin: '10px 0',
-                      padding: '10px',
-                      borderRadius: '4px',
-                    }}
-                  >
-                    <div>
-                      <strong>Event:</strong> {event.event}
-                    </div>
-                    <div>
-                      <strong>Time:</strong> {event.timestamp}
-                    </div>
-                    <pre style={{ background: '#f0f0f0', padding: '10px', overflowX: 'auto' }}>
-                      {JSON.stringify(event, null, 2)}
-                    </pre>
-                  </li>
-                ))}
-              </ul>
+            {loading && <p>Loading...</p>}
+            {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+
+            {state && (
+              <>
+                <div style={{ marginBottom: '16px', color: '#666' }}>
+                  {state.torrents.length} torrents | {state.engine.currentConnections} connections |{' '}
+                  {formatBytes(state.globalStats.totalDownloadRate)}/s |{' '}
+                  {formatBytes(state.globalStats.totalUploadRate)}/s
+                </div>
+
+                {state.torrents.length === 0 ? (
+                  <p>No torrents. Add a magnet link to get started.</p>
+                ) : (
+                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                    {state.torrents.map((torrent) => (
+                      <li
+                        key={torrent.infoHash}
+                        style={{
+                          border: '1px solid #ccc',
+                          borderRadius: '4px',
+                          padding: '12px',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        <div style={{ fontWeight: 'bold' }}>{torrent.name}</div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          {torrent.state} | {(torrent.progress * 100).toFixed(1)}% |{' '}
+                          {torrent.connectedPeers} peers | {torrent.files.length} files |{' '}
+                          {formatBytes(torrent.totalSize)}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          {formatBytes(torrent.downloadRate)}/s | {formatBytes(torrent.uploadRate)}
+                          /s
+                        </div>
+                        <div
+                          style={{
+                            height: '4px',
+                            background: '#eee',
+                            borderRadius: '2px',
+                            marginTop: '8px',
+                          }}
+                        >
+                          <div
+                            style={{
+                              height: '100%',
+                              width: `${torrent.progress * 100}%`,
+                              background: torrent.state === 'seeding' ? '#4CAF50' : '#2196F3',
+                              borderRadius: '2px',
+                            }}
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
           </div>
         )}

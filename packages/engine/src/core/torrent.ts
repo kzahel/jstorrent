@@ -61,6 +61,12 @@ export class Torrent extends EngineComponent {
   public totalDownloaded = 0
   public totalUploaded = 0
 
+  // State
+  public isPaused: boolean = false
+  public isPrivate: boolean = false
+  public creationDate?: number
+  public completedAt?: number
+
   // For session persistence
   public magnetLink?: string // Original magnet if added via magnet
   public torrentFileBase64?: string // Base64 .torrent file if added via file
