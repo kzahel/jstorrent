@@ -6,7 +6,7 @@ import {
   DaemonFileSystem,
   BtEngine,
   StorageRootManager,
-  MemorySessionStore,
+  ChromeStorageSessionStore,
   RingBufferLogger,
   LogEntry,
 } from '@jstorrent/engine'
@@ -46,7 +46,7 @@ export class Client {
     const conn = new DaemonConnection(daemonInfo.port, daemonInfo.token)
     await conn.connectWebSocket()
     const factory = new DaemonSocketFactory(conn)
-    const store = new MemorySessionStore()
+    const store = new ChromeStorageSessionStore(chrome.storage.local, 'session:')
 
     // Create StorageRootManager with factory that creates DaemonFileSystem per root
     const srm = new StorageRootManager((root) => new DaemonFileSystem(conn, root.token))
