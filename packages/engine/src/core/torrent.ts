@@ -13,6 +13,7 @@ import { ISocketFactory } from '../interfaces/socket'
 import { PeerInfo } from '../interfaces/tracker'
 import { TorrentFileInfo } from './torrent-file-info'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
+import type { BtEngine } from './bt-engine'
 
 export class Torrent extends EngineComponent {
   static logName = 'torrent'
@@ -59,6 +60,11 @@ export class Torrent extends EngineComponent {
 
   public totalDownloaded = 0
   public totalUploaded = 0
+
+  // For session persistence
+  public magnetLink?: string // Original magnet if added via magnet
+  public torrentFileBase64?: string // Base64 .torrent file if added via file
+  public addedAt: number = Date.now()
 
   // We need to re-implement EventEmitter methods if we don't extend it.
   // Or I can modify EngineComponent to extend EventEmitter.
@@ -643,6 +649,10 @@ export class Torrent extends EngineComponent {
         bitfield: this.bitfield.toHex(),
       })
     }
+
+    // Persist state (debounced to avoid excessive writes)
+    const btEngine = this.engine as BtEngine
+    btEngine.sessionPersistence?.saveTorrentStateDebounced(this)
 
     // Send HAVE message to all peers
     for (const p of this.peers) {

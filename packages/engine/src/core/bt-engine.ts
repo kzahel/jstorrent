@@ -20,6 +20,7 @@ import {
 import { ISessionStore } from '../interfaces/session-store'
 import { MemorySessionStore } from '../adapters/memory/memory-session-store'
 import { StorageRootManager } from '../storage/storage-root-manager'
+import { SessionPersistence } from './session-persistence'
 import { Torrent } from './torrent'
 import { PeerConnection } from './peer-connection'
 import { parseMagnet } from '../utils/magnet'
@@ -53,6 +54,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public readonly storageRootManager: StorageRootManager
   public readonly socketFactory: ISocketFactory
   public readonly sessionStore: ISessionStore
+  public readonly sessionPersistence: SessionPersistence
   public torrents: Torrent[] = []
   public port: number
   public peerId: Uint8Array
@@ -95,6 +97,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       throw new Error('BtEngine requires storageRootManager or fileSystem + downloadPath')
     }
     this.sessionStore = options.sessionStore ?? new MemorySessionStore()
+    this.sessionPersistence = new SessionPersistence(this.sessionStore, this)
     this.port = options.port ?? 6881 // Use nullish coalescing to allow port 0
 
     this.clientId = randomClientId()
@@ -190,18 +193,21 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   async addTorrent(
     magnetOrBuffer: string | Uint8Array,
-    options: { storageToken?: string } = {},
+    options: { storageToken?: string; skipPersist?: boolean; paused?: boolean } = {},
   ): Promise<Torrent | null> {
     let infoHash: Uint8Array
     let announce: string[] = []
     // let name: string | undefined
     let infoBuffer: Uint8Array | undefined
     let parsedTorrent: ParsedTorrent | undefined
+    let magnetLink: string | undefined
+    let torrentFileBase64: string | undefined
 
     if (typeof magnetOrBuffer === 'string') {
       const parsed = parseMagnet(magnetOrBuffer)
       infoHash = fromHex(parsed.infoHash)
       announce = parsed.announce || []
+      magnetLink = magnetOrBuffer
       // name = parsed.name
     } else {
       parsedTorrent = await TorrentParser.parse(magnetOrBuffer)
@@ -210,6 +216,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       announce = parsedTorrent.announce
       // name = parsedTorrent.name
       infoBuffer = parsedTorrent.infoBuffer
+      torrentFileBase64 = this.uint8ArrayToBase64(magnetOrBuffer)
     }
 
     const infoHashStr = toHex(infoHash)
@@ -292,6 +299,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       }
     })
 
+    // Store origin info for persistence
+    torrent.magnetLink = magnetLink
+    torrent.torrentFileBase64 = torrentFileBase64
+
     this.torrents.push(torrent)
     this.emit('torrent', torrent)
 
@@ -309,7 +320,15 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       // torrent.recheckData()
     }
 
-    await torrent.start()
+    // Start the torrent unless paused (used during session restore)
+    if (!options.paused) {
+      await torrent.start()
+    }
+
+    // Persist torrent list (unless restoring from session)
+    if (!options.skipPersist) {
+      await this.sessionPersistence.saveTorrentList()
+    }
 
     return torrent
   }
@@ -318,6 +337,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     const index = this.torrents.indexOf(torrent)
     if (index !== -1) {
       this.torrents.splice(index, 1)
+      const infoHash = toHex(torrent.infoHash)
+
+      // Remove persisted state
+      await this.sessionPersistence.removeTorrentState(infoHash)
+      await this.sessionPersistence.saveTorrentList()
+
       await torrent.stop()
       this.emit('torrent-removed', torrent)
     }
@@ -336,6 +361,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   async destroy() {
     this.logger.info('Destroying engine')
+
+    // Flush any pending persistence saves
+    await this.sessionPersistence.flushPendingSaves()
+
     // Stop all torrents
     await Promise.all(this.torrents.map((t) => t.stop()))
     this.torrents = []
@@ -347,7 +376,26 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     // For now, just clearing torrents satisfies the test.
   }
 
+  /**
+   * Restore torrents from session storage.
+   * Call this after engine is initialized.
+   */
+  async restoreSession(): Promise<number> {
+    this.logger.info('Restoring session...')
+    const count = await this.sessionPersistence.restoreSession()
+    this.logger.info(`Restored ${count} torrents`)
+    return count
+  }
+
   get numConnections(): number {
     return this.torrents.reduce((acc, t) => acc + t.numPeers, 0)
+  }
+
+  private uint8ArrayToBase64(bytes: Uint8Array): string {
+    let binary = ''
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i])
+    }
+    return btoa(binary)
   }
 }

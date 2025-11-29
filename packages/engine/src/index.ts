@@ -1,6 +1,8 @@
 // Core
 export { BtEngine } from './core/bt-engine'
 export { Torrent } from './core/torrent'
+export { SessionPersistence } from './core/session-persistence'
+export type { TorrentSessionData, TorrentStateData } from './core/session-persistence'
 
 // Interfaces
 export type { IFileSystem, IFileHandle, IFileStat } from './interfaces/filesystem'
