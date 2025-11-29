@@ -5,6 +5,7 @@ use axum::{
 use clap::Parser;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::signal;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
@@ -77,6 +78,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // CORS layer - restrict to Chrome extension origin if available
+    // max_age caches preflight responses for 24 hours to reduce OPTIONS requests
     let cors = if let Some(ref ext_id) = extension_id {
         let origin = format!("chrome-extension://{}", ext_id);
         tracing::info!("CORS: Restricting to extension origin: {}", origin);
@@ -84,12 +86,14 @@ async fn main() -> anyhow::Result<()> {
             .allow_origin(origin.parse::<axum::http::HeaderValue>().unwrap())
             .allow_methods(tower_http::cors::Any)
             .allow_headers(tower_http::cors::Any)
+            .max_age(Duration::from_secs(86400))
     } else {
         tracing::warn!("CORS: No extension_id found, allowing any origin");
         CorsLayer::new()
             .allow_origin(tower_http::cors::Any)
             .allow_methods(tower_http::cors::Any)
             .allow_headers(tower_http::cors::Any)
+            .max_age(Duration::from_secs(86400))
     };
 
     let app = Router::new()

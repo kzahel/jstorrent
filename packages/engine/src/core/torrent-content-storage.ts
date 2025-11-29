@@ -116,6 +116,14 @@ export class TorrentContentStorage extends EngineComponent {
     }
   }
 
+  /**
+   * Write a complete piece (all data at once).
+   * More efficient than multiple write() calls for small blocks.
+   */
+  async writePiece(pieceIndex: number, data: Uint8Array): Promise<void> {
+    await this.write(pieceIndex, 0, data)
+  }
+
   async read(index: number, begin: number, length: number): Promise<Uint8Array> {
     const buffer = new Uint8Array(length)
     const torrentOffset = index * this.pieceLength + begin

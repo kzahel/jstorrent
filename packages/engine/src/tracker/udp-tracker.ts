@@ -56,8 +56,6 @@ export class UdpTracker extends EngineComponent implements ITracker {
       await this.sendAnnounce(event)
       this.logger.debug('UdpTracker: Announce packet sent')
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err)
-      this.logger.error(`UdpTracker: Announce failed: ${errMsg}`)
       this.emit('error', err)
     }
   }

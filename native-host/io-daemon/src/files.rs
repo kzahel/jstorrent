@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{DefaultBodyLimit, Path, State},
     http::StatusCode,
     routing::{get, post},
     Json, Router,
@@ -13,6 +13,8 @@ use std::io::SeekFrom;
 use crate::AppState;
 use jstorrent_common::DownloadRoot;
 
+// 32MB limit for piece writes (must match MAX_PIECE_SIZE in engine)
+const MAX_BODY_SIZE: usize = 32 * 1024 * 1024;
 
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -22,6 +24,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/ops/list", get(list_dir))
         .route("/ops/delete", post(delete_file))
         .route("/ops/truncate", post(truncate_file))
+        .layer(DefaultBodyLimit::max(MAX_BODY_SIZE))
 }
 
 #[derive(Deserialize)]

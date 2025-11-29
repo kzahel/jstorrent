@@ -1,5 +1,7 @@
 import { PeerConnection } from './peer-connection'
 import { PieceManager } from './piece-manager'
+import { PieceBuffer } from './piece-buffer'
+import { PieceBufferManager } from './piece-buffer-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 import { BitField } from '../utils/bitfield'
 import { MessageType, WireMessage } from '../protocol/wire-protocol'
@@ -39,6 +41,7 @@ export class Torrent extends EngineComponent {
   public socketFactory: ISocketFactory
   public port: number
   public pieceManager?: PieceManager
+  private pieceBufferManager?: PieceBufferManager
   public contentStorage?: TorrentContentStorage
   public bitfield?: BitField
   public announce: string[] = []
@@ -165,7 +168,7 @@ export class Torrent extends EngineComponent {
 
       // Initiate handshake
       peer.sendHandshake(this.infoHash, this.peerId)
-    } catch (err) {
+    } catch (_err) {
       // very common to happen, don't log
       // this.logger.error(`Failed to connect to peer ${peerInfo.ip}:${peerInfo.port}`, { err })
     }
@@ -515,11 +518,8 @@ export class Torrent extends EngineComponent {
    * - Piece: A fixed-size segment of the torrent (e.g., 256KB) with a SHA1 hash
    * - Block: A smaller chunk (typically 16KB) transferred in a single PIECE message
    *
-   * This method:
-   * 1. Writes the block to disk
-   * 2. Marks the block as received in the piece manager
-   * 3. When all blocks for a piece are received, verifies the piece hash
-   * 4. If valid, marks piece as complete and notifies peers
+   * This method buffers blocks in memory until the piece is complete,
+   * then verifies the hash and writes the complete piece to storage.
    */
   private async handleBlock(peer: PeerConnection, msg: WireMessage) {
     if (msg.index === undefined || msg.begin === undefined || !msg.block) {
@@ -528,74 +528,130 @@ export class Torrent extends EngineComponent {
 
     if (peer.requestsPending > 0) peer.requestsPending--
 
-    // Must have storage and piece manager to process blocks
-    if (!this.contentStorage || !this.pieceManager) {
+    // Initialize buffer manager if needed (lazy init after pieceManager is set)
+    if (!this.pieceBufferManager && this.pieceManager) {
+      const pieceLength = this.pieceManager.getPieceLength(0)
+      const lastPieceLength = this.pieceManager.getPieceLength(this.pieceManager.getPieceCount() - 1)
+      this.pieceBufferManager = new PieceBufferManager(
+        pieceLength,
+        lastPieceLength,
+        this.pieceManager.getPieceCount(),
+        { maxActivePieces: 20, staleTimeoutMs: 60000 },
+      )
+    }
+
+    if (!this.pieceBufferManager) {
       this.logger.warn(
-        `Received block ${msg.index}:${msg.begin} but storage not initialized (metadata not yet received?)`,
+        `Received block ${msg.index}:${msg.begin} but buffer manager not initialized (metadata not yet received?)`,
       )
       return
     }
 
-    // Write block to disk
-    try {
-      await this.contentStorage.write(msg.index, msg.begin, msg.block)
-    } catch (err) {
-      this.logger.error(
-        `Failed to write block ${msg.index}:${msg.begin}: ${err instanceof Error ? err.message : String(err)}`,
-      )
+    // Get or create buffer for this piece
+    const buffer = this.pieceBufferManager.getOrCreate(msg.index)
+    if (!buffer) {
+      this.logger.debug(`Cannot buffer piece ${msg.index} - at capacity`)
       return
     }
 
-    // Mark block as received
-    this.pieceManager.addReceived(msg.index, msg.begin)
+    // Get peer ID for tracking
+    const peerId = peer.peerId ? toHex(peer.peerId) : 'unknown'
 
-    // Check if piece is complete (all blocks received)
-    if (this.pieceManager.isPieceComplete(msg.index)) {
-      // Verify SHA1 hash of the complete piece
-      const isValid = await this.verifyPiece(msg.index)
-      if (isValid) {
-        this.pieceManager.markVerified(msg.index)
+    // Add block to buffer
+    const isNew = buffer.addBlock(msg.begin, msg.block, peerId)
+    if (!isNew) {
+      this.logger.debug(`Duplicate block ${msg.index}:${msg.begin}`)
+    }
 
-        const pieceCount = this.pieceManager.getPieceCount()
-        const completedPieces = this.pieceManager.getCompletedCount()
-        const progressPct = pieceCount > 0 ? ((completedPieces / pieceCount) * 100).toFixed(1) : '0'
+    // Update piece manager tracking
+    this.pieceManager?.addReceived(msg.index, msg.begin)
 
-        this.logger.info(`Piece ${msg.index} verified [${completedPieces}/${pieceCount}] ${progressPct}%`)
-
-        this.emit('piece', msg.index)
-
-        // Emit progress event with detailed info
-        this.emit('progress', {
-          pieceIndex: msg.index,
-          completedPieces,
-          totalPieces: pieceCount,
-          progress: completedPieces / pieceCount,
-          downloaded: this.totalDownloaded,
-        })
-
-        // Emit verified event for persistence
-        if (this.bitfield) {
-          this.emit('verified', {
-            bitfield: this.bitfield.toHex(),
-          })
-        }
-
-        // Send HAVE message to all peers
-        for (const p of this.peers) {
-          if (p.handshakeReceived) {
-            p.sendHave(msg.index)
-          }
-        }
-
-        this.checkCompletion()
-      } else {
-        this.logger.warn(`Piece ${msg.index} failed hash check, resetting`)
-        this.pieceManager.resetPiece(msg.index)
-      }
+    // Check if piece is complete
+    if (buffer.isComplete()) {
+      await this.finalizePiece(msg.index, buffer)
     }
 
     // Continue requesting more pieces
     this.requestPieces(peer)
+  }
+
+  /**
+   * Finalize a complete piece: verify hash and write to storage.
+   */
+  private async finalizePiece(index: number, buffer: PieceBuffer): Promise<void> {
+    // Assemble the complete piece
+    const pieceData = buffer.assemble()
+
+    // Verify hash BEFORE writing to disk
+    const expectedHash = this.pieceManager?.getPieceHash(index)
+    if (expectedHash) {
+      const actualHash = await sha1(pieceData)
+
+      if (compare(actualHash, expectedHash) !== 0) {
+        // Hash failed - track suspicious peers
+        const contributors = buffer.getContributingPeers()
+        this.logger.warn(
+          `Piece ${index} failed hash check. Contributors: ${Array.from(contributors).join(', ')}`,
+        )
+
+        // TODO: Increment suspicion count for these peers
+        // TODO: Ban peers with too many failed pieces
+
+        // Reset piece state
+        this.pieceManager?.resetPiece(index)
+        this.pieceBufferManager?.remove(index)
+        return
+      }
+    }
+
+    // Hash verified - write to storage
+    if (this.contentStorage) {
+      try {
+        await this.contentStorage.writePiece(index, pieceData)
+      } catch (e) {
+        this.logger.error(`Failed to write piece ${index}:`, e)
+        this.pieceManager?.resetPiece(index)
+        this.pieceBufferManager?.remove(index)
+        return
+      }
+    }
+
+    // Mark as verified
+    this.pieceManager?.markVerified(index)
+    this.pieceBufferManager?.remove(index)
+
+    const pieceCount = this.pieceManager?.getPieceCount() ?? 0
+    const completedPieces = this.pieceManager?.getCompletedCount() ?? 0
+    const progressPct = pieceCount > 0 ? ((completedPieces / pieceCount) * 100).toFixed(1) : '0'
+
+    this.logger.info(`Piece ${index} verified [${completedPieces}/${pieceCount}] ${progressPct}%`)
+
+    this.emit('piece', index)
+
+    // Emit progress event with detailed info
+    this.emit('progress', {
+      pieceIndex: index,
+      completedPieces,
+      totalPieces: pieceCount,
+      progress: pieceCount > 0 ? completedPieces / pieceCount : 0,
+      downloaded: this.totalDownloaded,
+    })
+
+    // Emit verified event for persistence
+    if (this.bitfield) {
+      this.emit('verified', {
+        bitfield: this.bitfield.toHex(),
+      })
+    }
+
+    // Send HAVE message to all peers
+    for (const p of this.peers) {
+      if (p.handshakeReceived) {
+        p.sendHave(index)
+      }
+    }
+
+    this.checkCompletion()
   }
 
   private async verifyPiece(index: number): Promise<boolean> {
@@ -620,6 +676,10 @@ export class Torrent extends EngineComponent {
   }
   async stop() {
     this.logger.info('Stopping')
+
+    // Cleanup buffer manager
+    this.pieceBufferManager?.destroy()
+
     if (this.trackerManager) {
       await this.trackerManager.announce('stopped')
       this.trackerManager.destroy()
