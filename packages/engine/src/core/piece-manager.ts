@@ -202,4 +202,25 @@ export class PieceManager extends EngineComponent {
   isComplete(): boolean {
     return this.completedPieces === this.piecesCount
   }
+
+  /**
+   * Restore bitfield from hex string (for session restore).
+   */
+  restoreFromHex(hex: string): void {
+    this.bitfield = BitField.fromHex(hex, this.piecesCount)
+
+    // Update completed count and piece states
+    this.completedPieces = 0
+    for (let i = 0; i < this.piecesCount; i++) {
+      if (this.bitfield.get(i)) {
+        this.completedPieces++
+        // Mark all blocks as received for this piece
+        const piece = this.pieces[i]
+        piece.isComplete = true
+        for (let j = 0; j < piece.blocksCount; j++) {
+          piece.setBlock(j, true)
+        }
+      }
+    }
+  }
 }

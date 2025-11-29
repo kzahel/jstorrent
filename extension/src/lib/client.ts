@@ -91,6 +91,10 @@ export class Client {
 
     console.log('Daemon Engine initialized')
 
+    // Restore previous session
+    const restored = await this.engine.restoreSession()
+    console.log(`Restored ${restored} torrents from session`)
+
     // Adapt engine socket factory to ISockets interface
     this.sockets = this.engine.socketFactory as unknown as ISockets
     this.ready = true

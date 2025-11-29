@@ -1,8 +1,19 @@
-import { toHex } from './buffer'
+import { toHex, fromHex } from './buffer'
 
 export class BitField {
   private buffer: Uint8Array
   private length: number
+
+  static fromHex(hex: string, length: number): BitField {
+    const bf = new BitField(length)
+    const bytes = fromHex(hex)
+    // Copy bytes into the bitfield's buffer (up to its size)
+    const copyLen = Math.min(bytes.length, bf.buffer.length)
+    for (let i = 0; i < copyLen; i++) {
+      bf.buffer[i] = bytes[i]
+    }
+    return bf
+  }
 
   constructor(lengthOrBuffer: number | Uint8Array) {
     if (typeof lengthOrBuffer === 'number') {
