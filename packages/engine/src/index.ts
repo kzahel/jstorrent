@@ -15,6 +15,7 @@ export type { LogFilter } from './logging/ring-buffer-logger'
 
 // Adapters
 export { MemorySessionStore } from './adapters/memory/memory-session-store'
+export { ChromeStorageSessionStore } from './adapters/browser/chrome-storage-session-store'
 export { DaemonConnection } from './adapters/daemon/daemon-connection'
 export { DaemonSocketFactory } from './adapters/daemon/daemon-socket-factory'
 export { DaemonFileSystem } from './adapters/daemon/daemon-filesystem'

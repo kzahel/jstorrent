@@ -26,12 +26,20 @@ function fromBase64(base64: string): Uint8Array {
 declare const chrome: any
 
 export class ChromeStorageSessionStore implements ISessionStore {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor(private storageArea: any = chrome.storage.local) {}
+  constructor(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private storageArea: any = chrome.storage.local,
+    private prefix: string = 'session:'
+  ) {}
+
+  private prefixKey(key: string): string {
+    return this.prefix + key
+  }
 
   async get(key: string): Promise<Uint8Array | null> {
-    const result = await this.storageArea.get(key)
-    const value = result[key]
+    const prefixedKey = this.prefixKey(key)
+    const result = await this.storageArea.get(prefixedKey)
+    const value = result[prefixedKey]
     if (typeof value === 'string') {
       return fromBase64(value)
     }
@@ -39,26 +47,32 @@ export class ChromeStorageSessionStore implements ISessionStore {
   }
 
   async set(key: string, value: Uint8Array): Promise<void> {
-    await this.storageArea.set({ [key]: toBase64(value) })
+    await this.storageArea.set({ [this.prefixKey(key)]: toBase64(value) })
   }
 
   async delete(key: string): Promise<void> {
-    await this.storageArea.remove(key)
+    await this.storageArea.remove(this.prefixKey(key))
   }
 
   async keys(prefix?: string): Promise<string[]> {
-    // chrome.storage doesn't support getting just keys efficiently,
-    // we have to get everything. This might be slow for large stores.
-    // Ideally we'd maintain a separate index of keys if needed.
     const all = await this.storageArea.get(null)
-    const keys = Object.keys(all)
+    const allKeys = Object.keys(all)
+
+    // Filter to only our namespace
+    const ourKeys = allKeys
+      .filter((k) => k.startsWith(this.prefix))
+      .map((k) => k.slice(this.prefix.length))
+
     if (prefix) {
-      return keys.filter((k) => k.startsWith(prefix))
+      return ourKeys.filter((k) => k.startsWith(prefix))
     }
-    return keys
+    return ourKeys
   }
 
   async clear(): Promise<void> {
-    await this.storageArea.clear()
+    // Only clear keys in our namespace, not all extension storage
+    const keys = await this.keys()
+    const prefixedKeys = keys.map((k) => this.prefixKey(k))
+    await this.storageArea.remove(prefixedKeys)
   }
 }
