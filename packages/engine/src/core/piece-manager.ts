@@ -5,7 +5,6 @@ export const BLOCK_SIZE = 16384
 
 class Piece {
   public blocks: BitField
-  public requested: BitField
   public blocksCount: number
   public isComplete: boolean = false
 
@@ -15,7 +14,6 @@ class Piece {
   ) {
     this.blocksCount = Math.ceil(length / BLOCK_SIZE)
     this.blocks = new BitField(this.blocksCount)
-    this.requested = new BitField(this.blocksCount)
   }
 
   hasBlock(blockIndex: number): boolean {
@@ -27,14 +25,6 @@ class Piece {
     if (this.blocks.count() === this.blocksCount) {
       this.isComplete = true
     }
-  }
-
-  isRequested(blockIndex: number): boolean {
-    return this.requested.get(blockIndex)
-  }
-
-  setRequested(blockIndex: number, requested: boolean = true) {
-    this.requested.set(blockIndex, requested)
   }
 
   getMissingBlocks(): number[] {
@@ -116,8 +106,6 @@ export class PieceManager extends EngineComponent {
     const piece = this.pieces[index]
     if (piece) {
       piece.setBlock(blockIndex, true)
-      // Clear the requested flag since we received the block
-      piece.setRequested(blockIndex, false)
       // We don't set global bitfield here anymore.
       // We wait for verification.
     }
@@ -133,69 +121,13 @@ export class PieceManager extends EngineComponent {
       // Reset blocks
       piece.blocks = new BitField(piece.blocksCount)
       piece.isComplete = false
-      // Reset requested?
-      piece.requested = new BitField(piece.blocksCount)
       // Ensure bitfield is false
       this.setPiece(index, false)
     }
   }
 
-  addRequested(index: number, begin: number) {
-    const blockIndex = Math.floor(begin / BLOCK_SIZE)
-    const piece = this.pieces[index]
-    if (piece) {
-      piece.setRequested(blockIndex, true)
-    }
-  }
-
-  isBlockRequested(index: number, begin: number): boolean {
-    const blockIndex = Math.floor(begin / BLOCK_SIZE)
-    const piece = this.pieces[index]
-    if (piece) {
-      return piece.isRequested(blockIndex)
-    }
-    return false
-  }
-
-  /**
-   * Clear all requested state for all pieces.
-   * Call this when peers disconnect to allow re-requesting blocks.
-   */
-  clearAllRequested(): void {
-    for (const piece of this.pieces) {
-      piece.requested = new BitField(piece.blocksCount)
-    }
-  }
-
-  /**
-   * Clear requested state for a specific piece.
-   */
-  clearRequestedForPiece(index: number): void {
-    const piece = this.pieces[index]
-    if (piece) {
-      piece.requested = new BitField(piece.blocksCount)
-    }
-  }
-
   isPieceComplete(index: number): boolean {
     return this.pieces[index].isComplete
-  }
-
-  getNeededBlocks(index: number): { begin: number; length: number }[] {
-    const piece = this.pieces[index]
-    if (!piece) return []
-
-    const needed: { begin: number; length: number }[] = []
-    const missingBlocks = piece.getMissingBlocks()
-
-    for (const blockIndex of missingBlocks) {
-      if (!piece.isRequested(blockIndex)) {
-        const begin = blockIndex * BLOCK_SIZE
-        const length = blockIndex === piece.blocksCount - 1 ? piece.length - begin : BLOCK_SIZE
-        needed.push({ begin, length })
-      }
-    }
-    return needed
   }
 
   getBitField(): BitField {
