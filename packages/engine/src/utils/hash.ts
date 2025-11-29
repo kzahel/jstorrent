@@ -1,9 +1,17 @@
-import * as crypto from 'crypto'
-
 export async function sha1(data: Uint8Array): Promise<Uint8Array> {
-  // Use Node's crypto for now as we are in the engine package which runs in Node/Electron
-  // If we need browser support later, we can switch to crypto.subtle
-  const hash = crypto.createHash('sha1')
-  hash.update(data)
-  return new Uint8Array(hash.digest())
+  if (globalThis.crypto && globalThis.crypto.subtle) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const buffer = await globalThis.crypto.subtle.digest('SHA-1', data as any)
+    return new Uint8Array(buffer)
+  }
+  throw new Error('Crypto API not available')
+}
+
+export function randomBytes(size: number): Uint8Array {
+  if (globalThis.crypto && globalThis.crypto.getRandomValues) {
+    const array = new Uint8Array(size)
+    globalThis.crypto.getRandomValues(array)
+    return array
+  }
+  throw new Error('Crypto API not available')
 }

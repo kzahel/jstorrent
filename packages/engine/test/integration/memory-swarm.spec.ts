@@ -14,8 +14,12 @@ describe('Memory Swarm Integration', () => {
   let fsB: InMemoryFileSystem
 
   beforeEach(() => {
-    clientA = createMemoryEngine()
-    clientB = createMemoryEngine()
+    clientA = createMemoryEngine({
+      onLog: (e) => console.log(`[A] ${e.level}: ${e.message}`, ...e.args),
+    })
+    clientB = createMemoryEngine({
+      onLog: (e) => console.log(`[B] ${e.level}: ${e.message}`, ...e.args),
+    })
 
     // Access the filesystems created by the preset
     // Note: createMemoryEngine uses StorageRootManager which creates InMemoryFileSystem on demand.
@@ -46,6 +50,7 @@ describe('Memory Swarm Integration', () => {
 
     // 2. Add torrent to Client A (Seeder)
     const torrentA = await clientA.addTorrent(torrentBuffer)
+    if (!torrentA) throw new Error('Failed to add torrent A')
     expect(torrentA.infoHash).toBeDefined()
 
     // Verify A has data
@@ -80,13 +85,8 @@ describe('Memory Swarm Integration', () => {
     })
 
     // Add torrent to Client A
-    // We need to clear previous add if any (but we haven't added yet in this flow)
-    // Actually we added it above, let's redo.
-
-    // We don't need to reset client A, as that would wipe the in-memory filesystem created by the preset.
-    // Just add the torrent.
-
     const torrentA2 = await clientA.addTorrent(torrentBuffer2)
+    if (!torrentA2) throw new Error('Failed to add torrent A2')
 
     // Now verify data
     await torrentA2.recheckData()
@@ -95,11 +95,13 @@ describe('Memory Swarm Integration', () => {
     // 3. Add torrent to Client B via Magnet (Leecher)
     const magnetLink = `magnet:?xt=urn:btih:${torrentA2.infoHashStr}&tr=http://tracker.local`
     const torrentB = await clientB.addTorrent(magnetLink)
+    if (!torrentB) throw new Error('Failed to add torrent B')
 
     expect(torrentB.metadataComplete).toBe(false)
     expect(torrentB.pieceManager).toBeUndefined()
 
     // 4. Connect A and B
+    console.log('Test: Calling MemorySocketFactory.createPair()')
     const [socketA, socketB] = MemorySocketFactory.createPair()
 
     const peerA = new PeerConnection(clientA, socketA) // Connection FROM A TO B? No, socketA is A's end.
@@ -122,15 +124,12 @@ describe('Memory Swarm Integration', () => {
     peerA.sendHandshake(torrentA2.infoHash, new Uint8Array(20).fill(1)) // PeerID A
     peerB.sendHandshake(torrentB.infoHash, new Uint8Array(20).fill(2)) // PeerID B
 
-    // Wait for metadata transfer
-    console.log('Waiting for metadata...')
+    // Wait for metadata and initialization
     await new Promise<void>((resolve) => {
-      if (torrentB.metadataComplete) resolve()
-      torrentB.on('metadata', () => {
-        console.log('Metadata received!')
-        resolve()
-      })
+      if (torrentB.pieceManager) resolve()
+      torrentB.on('ready', () => resolve())
     })
+    console.log('Metadata received and torrent ready!')
 
     expect(torrentB.metadataComplete).toBe(true)
     expect(torrentB.pieceManager).toBeDefined()

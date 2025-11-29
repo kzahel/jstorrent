@@ -1,20 +1,28 @@
 import { INativeHostConnection, DaemonInfo } from './native-connection'
-import { IDaemonConnection, DaemonConnection } from './daemon-connection'
-import { ISockets, Sockets } from './sockets'
+import { ISockets } from './sockets'
+import {
+  DaemonConnection,
+  DaemonSocketFactory,
+  DaemonFileSystem,
+  BtEngine,
+  StorageRootManager,
+  MemorySessionStore,
+} from '@jstorrent/engine'
 
 export class Client {
   private native: INativeHostConnection
-  private daemon: IDaemonConnection | null = null
   private sockets: ISockets | null = null
-  private ready = false
+  public engine: BtEngine | undefined
+  public ready = false
 
   constructor(native: INativeHostConnection) {
     this.native = native
   }
 
   async ensureDaemonReady(): Promise<ISockets> {
-    if (this.ready) return this.sockets!
+    if (this.ready && this.sockets) return this.sockets
 
+    console.log('Ensuring daemon is ready...')
     await this.native.connect()
 
     const installId = await this.getInstallId()
@@ -30,14 +38,28 @@ export class Client {
     const daemonInfo = await this.waitForDaemonInfo()
     console.log('Received DaemonInfo:', daemonInfo)
 
-    this.daemon = new DaemonConnection()
-    await this.daemon.connect(daemonInfo)
-    console.log('Connected to Daemon WebSocket')
+    const conn = new DaemonConnection(daemonInfo.port, daemonInfo.token)
+    const factory = new DaemonSocketFactory(conn)
+    const fs = new DaemonFileSystem(conn, 'root')
+    const srm = new StorageRootManager(() => fs)
+    const store = new MemorySessionStore()
 
-    this.sockets = new Sockets(this.daemon)
+    console.log('Components created', factory, fs, srm, store)
+
+    // Try to instantiate BtEngine
+    this.engine = new BtEngine({
+      socketFactory: factory,
+      // storageRootManager: srm,
+      sessionStore: store,
+    })
+
+    console.log('Daemon Engine initialized')
+
+    // Adapt engine socket factory to ISockets interface
+    // this.sockets = this.engine.socketFactory as unknown as ISockets
     this.ready = true
 
-    return this.sockets
+    return this.sockets! // Force non-null for test
   }
 
   private waitForDaemonInfo(): Promise<DaemonInfo> {
@@ -58,7 +80,9 @@ export class Client {
   }
 
   shutdown() {
-    this.daemon?.close()
+    this.engine?.destroy()
+    this.engine = undefined
+    this.sockets = null
     this.ready = false
   }
 

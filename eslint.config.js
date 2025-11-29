@@ -5,9 +5,10 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import prettierConfig from 'eslint-config-prettier'
 import globals from 'globals'
+import importPlugin from 'eslint-plugin-import'
 
 export default tseslint.config(
-  { ignores: ['dist', '.eslintrc.cjs', 'packages/legacy-jstorrent-engine/**/*.js'] },
+  { ignores: ['dist', '.eslintrc.cjs', 'packages/legacy-jstorrent-engine/**/*.js', '**/dist/**'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
@@ -53,6 +54,25 @@ export default tseslint.config(
           message: 'Dynamic imports are banned in the engine package.',
         },
       ],
+    },
+  },
+  {
+    files: ['packages/engine/src/**/*.{ts,tsx}'],
+    plugins: {
+      import: importPlugin,
+    },
+    rules: {
+      'import/no-nodejs-modules': 'error',
+    },
+  },
+  {
+    files: [
+      'packages/engine/src/adapters/node/**/*.{ts,tsx}',
+      'packages/engine/src/node-rpc/**/*.{ts,tsx}',
+      'packages/engine/test/**/*.{ts,tsx}',
+    ],
+    rules: {
+      'import/no-nodejs-modules': 'off',
     },
   },
   // IMPORTANT: Keep this last to disable formatting rules that conflict with Prettier

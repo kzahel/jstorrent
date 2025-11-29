@@ -5,7 +5,9 @@
     "rootDir": "./src",
     "composite": true,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "noEmit": false,
+    "allowImportingTsExtensions": false
   },
   "include": ["src"],
   "exclude": ["test", "dist", "node_modules"]

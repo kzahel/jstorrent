@@ -67,7 +67,7 @@ describe('SessionManager', () => {
   it('should save session state', async () => {
     const infoHash = new Uint8Array(20).fill(0xab)
     const torrent = new Torrent(client, infoHash, {} as any, {} as any, {} as any)
-    client.addTorrentInstance(torrent)
+    client.torrents.push(torrent)
 
     await sessionManager.save()
 

@@ -1,6 +1,6 @@
 import { Bencode } from '../utils/bencode'
 import { TorrentFile } from './torrent-file'
-import * as crypto from 'crypto'
+import { sha1 } from '../utils/hash'
 
 export interface ParsedTorrent {
   infoHash: Uint8Array
@@ -14,7 +14,7 @@ export interface ParsedTorrent {
 }
 
 export class TorrentParser {
-  static parse(buffer: Uint8Array): ParsedTorrent {
+  static async parse(buffer: Uint8Array): Promise<ParsedTorrent> {
     const decoded = Bencode.decode(buffer)
     const info = decoded.info
     if (!info) {
@@ -38,7 +38,7 @@ export class TorrentParser {
     // Actually, `Bencode.getRawInfo` returns the buffer. The caller might want to hash it.
     // But `ParsedTorrent` should probably contain the hash.
     // Let's use `createHash` from `crypto`.
-    const infoHash = crypto.createHash('sha1').update(infoBuffer).digest()
+    const infoHash = await sha1(infoBuffer)
     return this.parseInfoDictionary(
       info,
       infoHash,
@@ -46,6 +46,12 @@ export class TorrentParser {
       decoded.announce,
       infoBuffer,
     )
+  }
+
+  static async parseInfoBuffer(infoBuffer: Uint8Array): Promise<ParsedTorrent> {
+    const info = Bencode.decode(infoBuffer)
+    const infoHash = await sha1(infoBuffer)
+    return this.parseInfoDictionary(info, infoHash, undefined, undefined, infoBuffer)
   }
 
   static parseInfoDictionary(

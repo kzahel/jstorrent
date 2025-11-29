@@ -82,7 +82,7 @@ export class EngineController {
       throw new Error('EngineNotRunning')
     }
 
-    let torrent: Torrent
+    let torrent: Torrent | null
     if (params.type === 'magnet') {
       torrent = await this.engine.addTorrent(params.data)
     } else if (params.type === 'file') {
@@ -91,6 +91,10 @@ export class EngineController {
       torrent = await this.engine.addTorrent(buffer)
     } else {
       throw new Error('Invalid torrent type')
+    }
+
+    if (!torrent) {
+      throw new Error('Failed to add torrent')
     }
 
     return { ok: true, id: toInfoHashString(torrent.infoHash) }
