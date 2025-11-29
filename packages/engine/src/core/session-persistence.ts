@@ -144,12 +144,18 @@ export class SessionPersistence {
    * Load state for a specific torrent.
    */
   async loadTorrentState(infoHash: string): Promise<TorrentStateData | null> {
+    console.error(`SessionPersistence.loadTorrentState: Loading state for ${infoHash}`)
     const data = await this.store.get(TORRENT_PREFIX + infoHash)
-    if (!data) return null
+    if (!data) {
+      console.error(`SessionPersistence.loadTorrentState: No data found for ${infoHash}`)
+      return null
+    }
 
     try {
       const json = new TextDecoder().decode(data)
-      return JSON.parse(json) as TorrentStateData
+      const parsed = JSON.parse(json) as TorrentStateData
+      console.error(`SessionPersistence.loadTorrentState: Found state for ${infoHash}, bitfield length=${parsed.bitfield?.length}`)
+      return parsed
     } catch (e) {
       console.error(`Failed to parse torrent state for ${infoHash}:`, e)
       return null
@@ -204,9 +210,13 @@ export class SessionPersistence {
           const state = await this.loadTorrentState(data.infoHash)
           if (state && torrent.pieceManager) {
             // Restore bitfield
+            console.error(`SessionPersistence: Restoring bitfield for ${data.infoHash}, state.bitfield length=${state.bitfield?.length}`)
             torrent.pieceManager.restoreFromHex(state.bitfield)
             // Also update the torrent's bitfield reference
             torrent.bitfield = torrent.pieceManager.getBitField()
+            console.error(`SessionPersistence: Restored bitfield, completedPieces=${torrent.pieceManager.getCompletedCount()}`)
+          } else {
+            console.error(`SessionPersistence: No state to restore for ${data.infoHash} (state=${!!state}, pieceManager=${!!torrent.pieceManager})`)
           }
 
           restoredCount++

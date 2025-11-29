@@ -50,6 +50,8 @@ export class JsonFileSessionStore implements ISessionStore {
     await this.ensureLoaded()
     this.data.set(key, value)
     this.dirty = true
+    // Immediately flush to ensure persistence across restarts
+    await this.flush()
   }
 
   async delete(key: string): Promise<void> {

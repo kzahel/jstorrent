@@ -1,9 +1,9 @@
 import { BtEngine, BtEngineOptions } from '../core/bt-engine'
-import { NodeSocketFactory, ScopedNodeFileSystem } from '../adapters/node'
-import { MemorySessionStore } from '../adapters/memory'
+import { NodeSocketFactory, ScopedNodeFileSystem, JsonFileSessionStore } from '../adapters/node'
 import { StorageRootManager } from '../storage/storage-root-manager'
 import { ISessionStore } from '../interfaces/session-store'
 import { LogEntry } from '../logging/logger'
+import * as path from 'path'
 
 export interface NodeEngineConfig extends Partial<BtEngineOptions> {
   downloadPath: string
@@ -13,7 +13,9 @@ export interface NodeEngineConfig extends Partial<BtEngineOptions> {
 }
 
 export function createNodeEngine(config: NodeEngineConfig): BtEngine {
-  const sessionStore = config.sessionStore ?? new MemorySessionStore()
+  // Use file-based session store by default, located in the download directory
+  const sessionStorePath = path.join(config.downloadPath, '.jstorrent-session.json')
+  const sessionStore = config.sessionStore ?? new JsonFileSessionStore(sessionStorePath)
 
   const storageRootManager = new StorageRootManager((root) => {
     return new ScopedNodeFileSystem(root.path)

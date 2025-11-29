@@ -453,7 +453,7 @@ export class Torrent extends EngineComponent {
 
   private setupPeerListeners(peer: PeerConnection) {
     const onHandshake = (_infoHash: Uint8Array, _peerId: Uint8Array, extensions: boolean) => {
-      console.log(`Torrent: Handshake received. Bitfield present: ${!!this.bitfield}`)
+      this.logger.debug('Handshake received')
       // Verify infoHash matches
 
       // If we initiated connection, we sent handshake first.
@@ -563,9 +563,34 @@ export class Torrent extends EngineComponent {
   }
 
   private removePeer(peer: PeerConnection) {
+    console.error(`removePeer: Removing peer, peers remaining: ${this.peers.length - 1}`)
     const index = this.peers.indexOf(peer)
     if (index !== -1) {
       this.peers.splice(index, 1)
+    }
+
+    // When a peer disconnects, clear requested state for pieces in buffer
+    // This allows re-requesting blocks that were pending from this peer
+    // Without this, blocks marked as "requested" would never be re-requested
+    if (this.pieceBufferManager && this.pieceManager) {
+      const activePieces = this.pieceBufferManager.getActivePieces()
+      for (const pieceIndex of activePieces) {
+        const buffer = this.pieceBufferManager.get(pieceIndex)
+        // Only clear if piece is incomplete (still needs blocks)
+        if (buffer && !buffer.isComplete()) {
+          this.pieceManager.clearRequestedForPiece(pieceIndex)
+        }
+      }
+      this.logger.debug(`Peer disconnected, cleared requested state for ${activePieces.length} buffered pieces`)
+    }
+
+    // If we still have peers, try to request more pieces
+    if (this.peers.length > 0) {
+      for (const remainingPeer of this.peers) {
+        if (!remainingPeer.peerChoking) {
+          this.requestPieces(remainingPeer)
+        }
+      }
     }
   }
 
@@ -625,64 +650,83 @@ export class Torrent extends EngineComponent {
 
   private requestPieces(peer: PeerConnection) {
     if (peer.peerChoking) {
-      console.log('Torrent: Peer is choking, cannot request')
+      console.error(`requestPieces: Peer is choking us`)
       return
     }
 
     // Simple strategy: request missing blocks from pieces that peer has
-    if (!this.pieceManager) return
+    if (!this.pieceManager) {
+      this.logger.warn('requestPieces: No pieceManager')
+      return
+    }
     const missing = this.pieceManager.getMissingPieces()
-    this.logger.debug(`Missing pieces: ${missing.length}`)
-
-    // Count pending requests for this peer
-    // We need to track this on the peer object or calculate it.
-    // For now, let's just limit the loop iterations if we assume we call this frequently.
-    // But we don't track pending requests per peer yet.
-    // Let's add a simple counter to PeerConnection?
-    // Or just rely on the fact that we only call this on unchoke and piece receive.
-
-    // Pipelining: Keep a certain number of requests in flight.
-    // We need to know how many are already in flight.
-    // Since we don't track per-peer requests yet, let's just limit the *new* requests we send in this batch.
-    // But if we already have 100 pending, we shouldn't send more.
-    // We need to add `requestsPending` to PeerConnection.
+    console.error(`requestPieces: ${missing.length} missing pieces, peer.bitfield=${!!peer.bitfield}, peerPending=${peer.requestsPending}`)
+    const currentlyBuffered = this.pieceBufferManager?.activeCount || 0
 
     const MAX_PIPELINE = 200
+    const MAX_ACTIVE_PIECES = 20 // Match PieceBufferManager limit
 
+    // Track how many distinct NEW pieces we'd be starting
+    let newPiecesStarted = 0
+
+    let requestsMade = 0
+    let skippedComplete = 0
+    let skippedCapacity = 0
+    let skippedPeerLacks = 0
+    let skippedNoNeeded = 0
     for (const index of missing) {
-      if (peer.requestsPending >= MAX_PIPELINE) break
+      if (peer.requestsPending >= MAX_PIPELINE) {
+        this.logger.debug(`requestPieces: Hit MAX_PIPELINE limit`)
+        break
+      }
 
-      const hasPiece = peer.bitfield?.get(index)
-      // console.log(`Torrent: Checking piece ${index}, peer has: ${hasPiece}`)
+      // Skip pieces that are complete in buffer (waiting for hash/flush)
+      // This is the equivalent of legacy's "curPiece.haveData" check
+      const existingBuffer = this.pieceBufferManager?.get(index)
+      if (existingBuffer?.isComplete()) {
+        skippedComplete++
+        continue // Already have all data, just waiting for finalization
+      }
 
-      if (hasPiece) {
-        const neededBlocks = this.pieceManager.getNeededBlocks(index)
-        if (neededBlocks.length > 0) {
-          for (const block of neededBlocks) {
-            if (peer.requestsPending >= MAX_PIPELINE) break
-
-            // Check if already requested (global check)
-            // This is a bit weak for multi-peer but okay for single peer.
-            // Ideally we check if *anyone* requested it.
-            // pieceManager.getNeededBlocks already filters out requested blocks?
-            // No, getNeededBlocks returns blocks that are not received.
-            // We need to check if they are requested.
-            // pieceManager.addRequested marks them.
-            // We should check isRequested inside getNeededBlocks or here.
-            // pieceManager.getNeededBlocks DOES NOT check requested status in current implementation?
-            // Let's check PieceManager.
-
-            // Assuming getNeededBlocks returns un-requested blocks or we need to check.
-            // Let's assume we need to check.
-            if (this.pieceManager.isBlockRequested(index, block.begin)) continue
-
-            peer.sendRequest(index, block.begin, block.length)
-            peer.requestsPending++
-            this.pieceManager?.addRequested(index, block.begin)
-          }
+      // Check if starting this piece would exceed buffer capacity
+      const isNewPiece = !existingBuffer
+      if (isNewPiece) {
+        if (currentlyBuffered + newPiecesStarted >= MAX_ACTIVE_PIECES) {
+          skippedCapacity++
+          continue // Would exceed buffer limit
         }
       }
+
+      const hasPiece = peer.bitfield?.get(index)
+
+      if (!hasPiece) {
+        skippedPeerLacks++
+        continue
+      }
+
+      const neededBlocks = this.pieceManager.getNeededBlocks(index)
+      if (neededBlocks.length === 0) {
+        skippedNoNeeded++
+        continue
+      }
+
+      if (isNewPiece) {
+        newPiecesStarted++
+      }
+
+      for (const block of neededBlocks) {
+        if (peer.requestsPending >= MAX_PIPELINE) break
+
+        if (this.pieceManager.isBlockRequested(index, block.begin)) continue
+
+        peer.sendRequest(index, block.begin, block.length)
+        peer.requestsPending++
+        requestsMade++
+        this.pieceManager?.addRequested(index, block.begin)
+      }
     }
+    console.error(`requestPieces: Made ${requestsMade} requests, skipped: complete=${skippedComplete}, capacity=${skippedCapacity}, peerLacks=${skippedPeerLacks}, noNeeded=${skippedNoNeeded}`)
+
   }
 
   /**

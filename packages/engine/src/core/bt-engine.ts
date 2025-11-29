@@ -326,6 +326,14 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         parsedTorrent.pieces,
       )
       torrent.pieceManager = pieceManager
+
+      // Check for existing saved state (resume data) and restore bitfield
+      const savedState = await this.sessionPersistence.loadTorrentState(infoHashStr)
+      if (savedState?.bitfield) {
+        console.error(`BtEngine: Restoring bitfield from saved state for ${infoHashStr}`)
+        pieceManager.restoreFromHex(savedState.bitfield)
+      }
+
       torrent.bitfield = pieceManager.getBitField()
 
       // Initialize ContentStorage
