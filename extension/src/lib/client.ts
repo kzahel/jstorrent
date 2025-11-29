@@ -49,7 +49,7 @@ export class Client {
     // Try to instantiate BtEngine
     this.engine = new BtEngine({
       socketFactory: factory,
-      // storageRootManager: srm,
+      storageRootManager: srm,
       sessionStore: store,
     })
 

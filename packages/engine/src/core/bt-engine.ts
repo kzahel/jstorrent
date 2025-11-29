@@ -29,18 +29,13 @@ import { TorrentContentStorage } from './torrent-content-storage'
 import { toHex, fromHex } from '../utils/buffer'
 import { IStorageHandle } from '../io/storage-handle'
 
-/** @deprecated Use StorageRootManager instead */
-export interface StorageResolver {
-  resolve(rootKey: string, torrentId: string): string
-}
-
 export interface BtEngineOptions {
   downloadPath?: string
   socketFactory: ISocketFactory
   fileSystem?: IFileSystem
   storageRootManager?: StorageRootManager
   sessionStore?: ISessionStore
-  storageResolver?: StorageResolver
+
   maxConnections?: number
   maxDownloadSpeed?: number
   maxUploadSpeed?: number
@@ -303,25 +298,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     return torrent
   }
-
-  /*
-  // Simplified add for testing/verification with existing components
-  addTorrentInstance(torrent: Torrent) {
-    this.torrents.push(torrent)
-    this.emit('torrent', torrent)
-  
-    torrent.on('complete', () => {
-      this.emit('torrent-complete', torrent)
-    })
-  
-    torrent.on('error', (err) => {
-      this.emit('error', err)
-    })
-  
-    // Start if not already started?
-    // torrent.start()
-  }
-  */
 
   async removeTorrent(torrent: Torrent) {
     const index = this.torrents.indexOf(torrent)

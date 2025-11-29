@@ -59,4 +59,39 @@ describe('StorageRootManager', () => {
     expect(fs1).toBe(fs2)
     expect(fsFactory).toHaveBeenCalledTimes(1)
   })
+
+  it('should throw when setting default to non-existent root', () => {
+    expect(() => manager.setDefaultRoot('nonexistent')).toThrow('not found')
+  })
+
+  it('should throw when setting torrent root to non-existent token', () => {
+    expect(() => manager.setRootForTorrent('abc', 'nonexistent')).toThrow('not found')
+  })
+
+  it('should throw when getting filesystem with no root configured', () => {
+    expect(() => manager.getFileSystemForTorrent('abc')).toThrow('No storage root found')
+  })
+
+  it('should remove root and clear default if it was default', () => {
+    const root = { token: 'test', label: 'Test', path: '/test' }
+    manager.addRoot(root)
+    manager.setDefaultRoot('test')
+    manager.removeRoot('test')
+
+    expect(manager.getRoots()).toHaveLength(0)
+    expect(manager.getRootForTorrent('any')).toBeNull()
+  })
+
+  it('should normalize torrent IDs to lowercase', () => {
+    const root = { token: 'test', label: 'Test', path: '/test' }
+    manager.addRoot(root)
+    manager.setDefaultRoot('test')
+
+    manager.setRootForTorrent('ABCDEF', 'test')
+
+    // Should find it regardless of case
+    expect(manager.getRootForTorrent('abcdef')).toBe(root)
+    expect(manager.getRootForTorrent('ABCDEF')).toBe(root)
+    expect(manager.getRootForTorrent('AbCdEf')).toBe(root)
+  })
 })
