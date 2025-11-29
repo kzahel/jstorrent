@@ -14,6 +14,7 @@ export class Client {
   private sockets: ISockets | null = null
   public engine: BtEngine | undefined
   public ready = false
+  public daemonInfo: DaemonInfo | undefined
 
   constructor(native: INativeHostConnection) {
     this.native = native
@@ -37,6 +38,7 @@ export class Client {
 
     const daemonInfo = await this.waitForDaemonInfo()
     console.log('Received DaemonInfo:', daemonInfo)
+    this.daemonInfo = daemonInfo
 
     const conn = new DaemonConnection(daemonInfo.port, daemonInfo.token)
     const factory = new DaemonSocketFactory(conn)
@@ -56,7 +58,7 @@ export class Client {
     console.log('Daemon Engine initialized')
 
     // Adapt engine socket factory to ISockets interface
-    // this.sockets = this.engine.socketFactory as unknown as ISockets
+    this.sockets = this.engine.socketFactory as unknown as ISockets
     this.ready = true
 
     return this.sockets! // Force non-null for test
