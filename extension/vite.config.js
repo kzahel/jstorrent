@@ -43,7 +43,7 @@ export default defineConfig({
   plugins: [react(), injectPublicKey()],
   resolve: {
     alias: {
-      '@jstorrent/engine': resolve(__dirname, '../packages/engine/dist'),
+      '@jstorrent/engine': resolve(__dirname, '../packages/engine/src/index.ts'),
     },
   },
   build: {
