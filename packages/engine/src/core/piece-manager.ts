@@ -116,6 +116,8 @@ export class PieceManager extends EngineComponent {
     const piece = this.pieces[index]
     if (piece) {
       piece.setBlock(blockIndex, true)
+      // Clear the requested flag since we received the block
+      piece.setRequested(blockIndex, false)
       // We don't set global bitfield here anymore.
       // We wait for verification.
     }
@@ -153,6 +155,26 @@ export class PieceManager extends EngineComponent {
       return piece.isRequested(blockIndex)
     }
     return false
+  }
+
+  /**
+   * Clear all requested state for all pieces.
+   * Call this when peers disconnect to allow re-requesting blocks.
+   */
+  clearAllRequested(): void {
+    for (const piece of this.pieces) {
+      piece.requested = new BitField(piece.blocksCount)
+    }
+  }
+
+  /**
+   * Clear requested state for a specific piece.
+   */
+  clearRequestedForPiece(index: number): void {
+    const piece = this.pieces[index]
+    if (piece) {
+      piece.requested = new BitField(piece.blocksCount)
+    }
   }
 
   isPieceComplete(index: number): boolean {

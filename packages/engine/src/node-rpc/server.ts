@@ -59,7 +59,7 @@ export class HttpRpcServer {
         this.controller.startEngine(body.config)
         this.sendJson(res, { ok: true })
       } else if (url === '/engine/stop' && method === 'POST') {
-        this.controller.stopEngine()
+        await this.controller.stopEngine()
         this.sendJson(res, { ok: true })
       } else if (url === '/engine/status' && method === 'GET') {
         const status = this.controller.getEngineStatus()
@@ -67,7 +67,7 @@ export class HttpRpcServer {
       } else if (url === '/shutdown' && method === 'POST') {
         // Stop engine if running
         try {
-          this.controller.stopEngine()
+          await this.controller.stopEngine()
         } catch (_e) {
           // ignore if not running
         }

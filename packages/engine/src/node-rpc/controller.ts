@@ -46,11 +46,11 @@ export class EngineController {
     this.engine = createNodeEngine(engineConfig)
   }
 
-  stopEngine(): void {
+  async stopEngine(): Promise<void> {
     if (!this.engine) {
       throw new Error('EngineNotRunning')
     }
-    this.engine.destroy()
+    await this.engine.destroy()
     this.engine = null
   }
 
