@@ -2,28 +2,72 @@ use crate::protocol::ResponsePayload;
 use crate::state::State;
 use anyhow::{anyhow, Result};
 use rfd::AsyncFileDialog;
+use jstorrent_common::DownloadRoot;
+use std::time::{SystemTime, UNIX_EPOCH};
+use sha2::{Sha256, Digest};
 
 pub async fn pick_download_directory(state: &State) -> Result<ResponsePayload> {
     let task = AsyncFileDialog::new()
         .set_title("Select Download Directory")
         .pick_folder();
 
-    // rfd's pick_folder is async but might block the thread if not careful on some backends?
-    // On Linux/GTK it should be fine.
-    
     let handle = task.await;
 
     match handle {
         Some(path_handle) => {
             let path = path_handle.path().to_path_buf();
-            // Canonicalize to ensure we have a clean absolute path
-            let canonical = path.canonicalize().unwrap_or(path);
+            let canonical = path.canonicalize().unwrap_or(path.clone());
             let path_str = canonical.to_string_lossy().to_string();
             
-            // Update state
-            *state.download_root.lock().unwrap() = canonical;
-            
-            Ok(ResponsePayload::Path { path: path_str })
+            // Generate display name from folder name
+            let display_name = path.file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| path_str.clone());
+
+            // Get salt from rpc_info to generate stable token
+            let salt = if let Ok(info_guard) = state.rpc_info.lock() {
+                info_guard.as_ref().map(|i| i.salt.clone()).unwrap_or_default()
+            } else {
+                String::new()
+            };
+
+            // Generate stable token: sha256(salt + path)
+            let mut hasher = Sha256::new();
+            hasher.update(salt.as_bytes());
+            hasher.update(path_str.as_bytes());
+            let token = hex::encode(hasher.finalize());
+
+            // Create new root with unique token
+            let new_root = DownloadRoot {
+                token,
+                path: path_str.clone(),
+                display_name,
+                removable: false,
+                last_stat_ok: true,
+                last_checked: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as u64,
+            };
+
+            // Add to rpc_info.download_roots
+            if let Ok(mut info_guard) = state.rpc_info.lock() {
+                if let Some(ref mut info) = *info_guard {
+                    // Check if path already exists
+                    let exists = info.download_roots.iter().any(|r| r.path == path_str);
+                    if !exists {
+                        info.download_roots.push(new_root.clone());
+                    } else {
+                        // If exists, return the existing root (maybe update timestamp?)
+                        // For now just return the new_root which has the same token/path
+                    }
+                }
+            }
+
+            // Note: The caller (main.rs) calls daemon_manager.refresh_config() 
+            // which should persist changes. If not, we need to save rpc_info here.
+
+            Ok(ResponsePayload::RootAdded { root: new_root })
         }
         None => Err(anyhow!("User cancelled folder selection")),
     }

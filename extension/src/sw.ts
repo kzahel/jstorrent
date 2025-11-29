@@ -115,6 +115,36 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     })
     return true
   }
+
+  if (message.type === 'GET_ROOTS') {
+    client.ensureDaemonReady().then(() => {
+      const roots = client.getRoots()
+      client.getDefaultRootToken().then((defaultToken) => {
+        sendResponse({ roots, defaultToken })
+      })
+    })
+    return true
+  }
+
+  if (message.type === 'PICK_DOWNLOAD_FOLDER') {
+    client.ensureDaemonReady().then(async () => {
+      const root = await client.pickDownloadFolder()
+      sendResponse({ root })
+    })
+    return true
+  }
+
+  if (message.type === 'SET_DEFAULT_ROOT') {
+    client.ensureDaemonReady().then(async () => {
+      try {
+        await client.setDefaultRoot(message.token)
+        sendResponse({ ok: true })
+      } catch (e) {
+        sendResponse({ ok: false, error: String(e) })
+      }
+    })
+    return true
+  }
 })
 
 // Forward new log entries to UI via broadcast

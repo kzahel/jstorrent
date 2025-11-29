@@ -1,4 +1,4 @@
-import { INativeHostConnection, DaemonInfo } from './native-connection'
+import { INativeHostConnection, DaemonInfo, DownloadRoot } from './native-connection'
 import { ISockets } from './sockets'
 import {
   DaemonConnection,
@@ -59,8 +59,18 @@ export class Client {
           path: root.path,
         })
       }
-      // Set first root as default (TODO: load user preference)
-      srm.setDefaultRoot(daemonInfo.roots[0].token)
+      // Load saved default, or use first root
+      const savedDefault = await chrome.storage.local.get('defaultRootToken')
+      const defaultToken = savedDefault.defaultRootToken
+
+      // Verify saved default still exists
+      const validDefault = daemonInfo.roots.some((r) => r.token === defaultToken)
+
+      if (validDefault && typeof defaultToken === 'string') {
+        srm.setDefaultRoot(defaultToken)
+      } else if (daemonInfo.roots.length > 0) {
+        srm.setDefaultRoot(daemonInfo.roots[0].token)
+      }
       console.log('Registered', daemonInfo.roots.length, 'download roots')
     } else {
       console.warn('No download roots configured! Downloads will fail.')
@@ -120,5 +130,78 @@ export class Client {
     const newId = crypto.randomUUID()
     await chrome.storage.local.set({ installId: newId })
     return newId
+  }
+
+  /**
+   * Open OS folder picker to add a new download root.
+   * Returns the newly added root, or null if cancelled.
+   */
+  async pickDownloadFolder(): Promise<DownloadRoot | null> {
+    return new Promise((resolve) => {
+      const requestId = crypto.randomUUID()
+
+      const handler = (msg: unknown) => {
+        if (typeof msg !== 'object' || msg === null) return
+        const response = msg as {
+          id?: string
+          ok?: boolean
+          type?: string
+          payload?: { root?: DownloadRoot }
+          error?: string
+        }
+
+        if (response.id !== requestId) return
+
+        if (response.ok && response.type === 'RootAdded' && response.payload?.root) {
+          const root = response.payload.root
+          // Register with StorageRootManager
+          if (this.engine) {
+            this.engine.storageRootManager.addRoot({
+              token: root.token,
+              label: root.display_name,
+              path: root.path,
+            })
+            console.log('Added new download root:', root)
+          }
+          resolve(root)
+        } else {
+          console.log('Folder picker cancelled or failed:', response.error)
+          resolve(null)
+        }
+      }
+
+      this.native.onMessage(handler)
+      this.native.send({
+        op: 'pickDownloadDirectory',
+        id: requestId,
+      })
+    })
+  }
+
+  /**
+   * Get current download roots.
+   */
+  getRoots(): Array<{ token: string; label: string; path: string }> {
+    if (!this.engine) return []
+    return this.engine.storageRootManager.getRoots()
+  }
+
+  /**
+   * Get the current default root token.
+   */
+  async getDefaultRootToken(): Promise<string | null> {
+    const result = await chrome.storage.local.get('defaultRootToken')
+    return (result.defaultRootToken as string) || null
+  }
+
+  /**
+   * Set the default download root.
+   */
+  async setDefaultRoot(token: string): Promise<void> {
+    if (!this.engine) {
+      throw new Error('Engine not initialized')
+    }
+    this.engine.storageRootManager.setDefaultRoot(token)
+    await chrome.storage.local.set({ defaultRootToken: token })
   }
 }
