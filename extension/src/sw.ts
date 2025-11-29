@@ -89,3 +89,19 @@ const client = new Client(new NativeHostConnection())
 // Expose for testing
 // @ts-expect-error -- exposing client for testing
 self.client = client
+
+// Handle requests for log entries from UI
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type === 'GET_LOGS') {
+    const entries = client.logBuffer.getRecent(message.limit || 100, message.filter)
+    sendResponse({ entries })
+    return true // Keep channel open for async response
+  }
+})
+
+// Forward new log entries to UI via broadcast
+client.logBuffer.subscribe((entry) => {
+  chrome.runtime.sendMessage({ type: 'LOG_ENTRY', entry }).catch(() => {
+    // UI might not be open, ignore errors
+  })
+})
