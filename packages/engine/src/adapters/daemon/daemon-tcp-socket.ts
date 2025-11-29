@@ -26,6 +26,11 @@ export class DaemonTcpSocket implements ITcpSocket {
         if (this.onDataCb) {
           this.onDataCb(payload.slice(4))
         }
+      } else if (msgType === OP_TCP_CLOSE) {
+        if (this.onCloseCb) {
+          this.onCloseCb(false)
+        }
+        this.manager.unregisterHandler(this.id)
       }
     })
   }
