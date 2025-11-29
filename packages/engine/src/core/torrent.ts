@@ -1,7 +1,7 @@
 import { PeerConnection } from './peer-connection'
-import { PieceManager } from './piece-manager'
-import { PieceBuffer } from './piece-buffer'
-import { PieceBufferManager } from './piece-buffer-manager'
+import { PieceManager, BLOCK_SIZE } from './piece-manager'
+import { ActivePiece } from './active-piece'
+import { ActivePieceManager } from './active-piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 import { BitField } from '../utils/bitfield'
 import { MessageType, WireMessage } from '../protocol/wire-protocol'
@@ -43,7 +43,7 @@ export class Torrent extends EngineComponent {
   public socketFactory: ISocketFactory
   public port: number
   public pieceManager?: PieceManager
-  private pieceBufferManager?: PieceBufferManager
+  private activePieces?: ActivePieceManager
   public contentStorage?: TorrentContentStorage
   public bitfield?: BitField
   public announce: string[] = []
@@ -569,19 +569,13 @@ export class Torrent extends EngineComponent {
       this.peers.splice(index, 1)
     }
 
-    // When a peer disconnects, clear requested state for pieces in buffer
-    // This allows re-requesting blocks that were pending from this peer
-    // Without this, blocks marked as "requested" would never be re-requested
-    if (this.pieceBufferManager && this.pieceManager) {
-      const activePieces = this.pieceBufferManager.getActivePieces()
-      for (const pieceIndex of activePieces) {
-        const buffer = this.pieceBufferManager.get(pieceIndex)
-        // Only clear if piece is incomplete (still needs blocks)
-        if (buffer && !buffer.isComplete()) {
-          this.pieceManager.clearRequestedForPiece(pieceIndex)
-        }
-      }
-      this.logger.debug(`Peer disconnected, cleared requested state for ${activePieces.length} buffered pieces`)
+    // THE KEY FIX: Clear requests for this peer so blocks can be re-requested
+    // Unlike the old approach (clearing all requests for affected pieces),
+    // this surgically removes only the requests from the disconnected peer
+    const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
+    const cleared = this.activePieces?.clearRequestsForPeer(peerId) || 0
+    if (cleared > 0) {
+      this.logger.debug(`Peer ${peerId} disconnected, cleared ${cleared} pending requests`)
     }
 
     // If we still have peers, try to request more pieces
@@ -654,79 +648,88 @@ export class Torrent extends EngineComponent {
       return
     }
 
-    // Simple strategy: request missing blocks from pieces that peer has
     if (!this.pieceManager) {
       this.logger.warn('requestPieces: No pieceManager')
       return
     }
+
+    // Initialize activePieces if needed (lazy init after pieceManager is set)
+    if (!this.activePieces) {
+      this.activePieces = new ActivePieceManager(
+        this.engineInstance,
+        (index) => this.pieceManager!.getPieceLength(index),
+        { requestTimeoutMs: 30000, maxActivePieces: 20, maxBufferedBytes: 16 * 1024 * 1024 },
+      )
+    }
+
+    const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
     const missing = this.pieceManager.getMissingPieces()
-    console.error(`requestPieces: ${missing.length} missing pieces, peer.bitfield=${!!peer.bitfield}, peerPending=${peer.requestsPending}`)
-    const currentlyBuffered = this.pieceBufferManager?.activeCount || 0
+    console.error(
+      `requestPieces: ${missing.length} missing pieces, peer.bitfield=${!!peer.bitfield}, peerPending=${peer.requestsPending}`,
+    )
 
     const MAX_PIPELINE = 200
-    const MAX_ACTIVE_PIECES = 20 // Match PieceBufferManager limit
-
-    // Track how many distinct NEW pieces we'd be starting
-    let newPiecesStarted = 0
 
     let requestsMade = 0
     let skippedComplete = 0
     let skippedCapacity = 0
     let skippedPeerLacks = 0
     let skippedNoNeeded = 0
+
     for (const index of missing) {
       if (peer.requestsPending >= MAX_PIPELINE) {
         this.logger.debug(`requestPieces: Hit MAX_PIPELINE limit`)
         break
       }
 
-      // Skip pieces that are complete in buffer (waiting for hash/flush)
-      // This is the equivalent of legacy's "curPiece.haveData" check
-      const existingBuffer = this.pieceBufferManager?.get(index)
-      if (existingBuffer?.isComplete()) {
-        skippedComplete++
-        continue // Already have all data, just waiting for finalization
-      }
-
-      // Check if starting this piece would exceed buffer capacity
-      const isNewPiece = !existingBuffer
-      if (isNewPiece) {
-        if (currentlyBuffered + newPiecesStarted >= MAX_ACTIVE_PIECES) {
-          skippedCapacity++
-          continue // Would exceed buffer limit
-        }
-      }
-
-      const hasPiece = peer.bitfield?.get(index)
-
-      if (!hasPiece) {
+      // Check peer has this piece
+      if (!peer.bitfield?.get(index)) {
         skippedPeerLacks++
         continue
       }
 
-      const neededBlocks = this.pieceManager.getNeededBlocks(index)
+      // Get or create active piece
+      let piece = this.activePieces.get(index)
+
+      // If piece has all blocks, skip (waiting for hash/flush)
+      if (piece?.haveAllBlocks) {
+        skippedComplete++
+        continue
+      }
+
+      // Try to create if doesn't exist
+      if (!piece) {
+        const newPiece = this.activePieces.getOrCreate(index)
+        if (!newPiece) {
+          skippedCapacity++
+          continue // At capacity
+        }
+        piece = newPiece
+      }
+
+      // Get blocks we can request from this piece
+      const neededBlocks = piece.getNeededBlocks(MAX_PIPELINE - peer.requestsPending)
       if (neededBlocks.length === 0) {
         skippedNoNeeded++
         continue
       }
 
-      if (isNewPiece) {
-        newPiecesStarted++
-      }
-
       for (const block of neededBlocks) {
         if (peer.requestsPending >= MAX_PIPELINE) break
-
-        if (this.pieceManager.isBlockRequested(index, block.begin)) continue
 
         peer.sendRequest(index, block.begin, block.length)
         peer.requestsPending++
         requestsMade++
-        this.pieceManager?.addRequested(index, block.begin)
+
+        // Track request in ActivePiece (tied to this peer)
+        const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
+        piece.addRequest(blockIndex, peerId)
       }
     }
-    console.error(`requestPieces: Made ${requestsMade} requests, skipped: complete=${skippedComplete}, capacity=${skippedCapacity}, peerLacks=${skippedPeerLacks}, noNeeded=${skippedNoNeeded}`)
 
+    console.error(
+      `requestPieces: Made ${requestsMade} requests, skipped: complete=${skippedComplete}, capacity=${skippedCapacity}, peerLacks=${skippedPeerLacks}, noNeeded=${skippedNoNeeded}`,
+    )
   }
 
   /**
@@ -746,49 +749,47 @@ export class Torrent extends EngineComponent {
 
     if (peer.requestsPending > 0) peer.requestsPending--
 
-    // Initialize buffer manager if needed (lazy init after pieceManager is set)
-    if (!this.pieceBufferManager && this.pieceManager) {
-      const pieceLength = this.pieceManager.getPieceLength(0)
-      const lastPieceLength = this.pieceManager.getPieceLength(
-        this.pieceManager.getPieceCount() - 1,
-      )
-      this.pieceBufferManager = new PieceBufferManager(
-        pieceLength,
-        lastPieceLength,
-        this.pieceManager.getPieceCount(),
-        { maxActivePieces: 20, staleTimeoutMs: 60000 },
+    // Initialize activePieces if needed (lazy init after pieceManager is set)
+    if (!this.activePieces && this.pieceManager) {
+      this.activePieces = new ActivePieceManager(
+        this.engineInstance,
+        (index) => this.pieceManager!.getPieceLength(index),
+        { requestTimeoutMs: 30000, maxActivePieces: 20, maxBufferedBytes: 16 * 1024 * 1024 },
       )
     }
 
-    if (!this.pieceBufferManager) {
+    if (!this.activePieces) {
       this.logger.warn(
-        `Received block ${msg.index}:${msg.begin} but buffer manager not initialized (metadata not yet received?)`,
+        `Received block ${msg.index}:${msg.begin} but activePieces not initialized (metadata not yet received?)`,
       )
       return
     }
 
-    // Get or create buffer for this piece
-    const buffer = this.pieceBufferManager.getOrCreate(msg.index)
-    if (!buffer) {
-      this.logger.debug(`Cannot buffer piece ${msg.index} - at capacity`)
-      return
+    // Get or create active piece (may receive unsolicited blocks or from different peer)
+    let piece = this.activePieces.get(msg.index)
+    if (!piece) {
+      // Try to create it - could be an unsolicited block or from a peer we just connected
+      const newPiece = this.activePieces.getOrCreate(msg.index)
+      if (!newPiece) {
+        this.logger.debug(`Cannot buffer piece ${msg.index} - at capacity`)
+        return
+      }
+      piece = newPiece
     }
 
     // Get peer ID for tracking
     const peerId = peer.peerId ? toHex(peer.peerId) : 'unknown'
+    const blockIndex = Math.floor(msg.begin / BLOCK_SIZE)
 
-    // Add block to buffer
-    const isNew = buffer.addBlock(msg.begin, msg.block, peerId)
+    // Add block to piece
+    const isNew = piece.addBlock(blockIndex, msg.block, peerId)
     if (!isNew) {
       this.logger.debug(`Duplicate block ${msg.index}:${msg.begin}`)
     }
 
-    // Update piece manager tracking
-    this.pieceManager?.addReceived(msg.index, msg.begin)
-
     // Check if piece is complete
-    if (buffer.isComplete()) {
-      await this.finalizePiece(msg.index, buffer)
+    if (piece.haveAllBlocks) {
+      await this.finalizePiece(msg.index, piece)
     }
 
     // Continue requesting more pieces
@@ -798,9 +799,9 @@ export class Torrent extends EngineComponent {
   /**
    * Finalize a complete piece: verify hash and write to storage.
    */
-  private async finalizePiece(index: number, buffer: PieceBuffer): Promise<void> {
+  private async finalizePiece(index: number, piece: ActivePiece): Promise<void> {
     // Assemble the complete piece
-    const pieceData = buffer.assemble()
+    const pieceData = piece.assemble()
 
     // Verify hash BEFORE writing to disk
     const expectedHash = this.pieceManager?.getPieceHash(index)
@@ -809,7 +810,7 @@ export class Torrent extends EngineComponent {
 
       if (compare(actualHash, expectedHash) !== 0) {
         // Hash failed - track suspicious peers
-        const contributors = buffer.getContributingPeers()
+        const contributors = piece.getContributingPeers()
         this.logger.warn(
           `Piece ${index} failed hash check. Contributors: ${Array.from(contributors).join(', ')}`,
         )
@@ -819,7 +820,7 @@ export class Torrent extends EngineComponent {
 
         // Reset piece state
         this.pieceManager?.resetPiece(index)
-        this.pieceBufferManager?.remove(index)
+        this.activePieces?.remove(index)
         return
       }
     }
@@ -831,14 +832,14 @@ export class Torrent extends EngineComponent {
       } catch (e) {
         this.logger.error(`Failed to write piece ${index}:`, e)
         this.pieceManager?.resetPiece(index)
-        this.pieceBufferManager?.remove(index)
+        this.activePieces?.remove(index)
         return
       }
     }
 
     // Mark as verified
     this.pieceManager?.markVerified(index)
-    this.pieceBufferManager?.remove(index)
+    this.activePieces?.remove(index)
 
     const pieceCount = this.pieceManager?.getPieceCount() ?? 0
     const completedPieces = this.pieceManager?.getCompletedCount() ?? 0
@@ -901,8 +902,8 @@ export class Torrent extends EngineComponent {
   async stop() {
     this.logger.info('Stopping')
 
-    // Cleanup buffer manager
-    this.pieceBufferManager?.destroy()
+    // Cleanup active pieces manager
+    this.activePieces?.destroy()
 
     if (this.trackerManager) {
       await this.trackerManager.announce('stopped')
