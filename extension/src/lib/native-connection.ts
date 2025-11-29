@@ -1,7 +1,17 @@
+export interface DownloadRoot {
+  token: string
+  path: string
+  display_name: string
+  removable: boolean
+  last_stat_ok: boolean
+  last_checked: number
+}
+
 export interface DaemonInfo {
   port: number
   token: string
   version?: number
+  roots: DownloadRoot[]
 }
 
 export interface INativeHostConnection {

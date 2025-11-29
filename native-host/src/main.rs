@@ -136,8 +136,16 @@ async fn main() -> Result<()> {
         *info_guard = Some(info.clone());
     }
     
-    if let Err(e) = rpc::write_discovery_file(info) {
-        eprintln!("Failed to write discovery file: {}", e);
+    match rpc::write_discovery_file(info) {
+        Ok(roots) => {
+            // Update roots in state
+            if let Ok(mut info_guard) = state.rpc_info.lock() {
+                if let Some(info) = info_guard.as_mut() {
+                    info.download_roots = roots;
+                }
+            }
+        },
+        Err(e) => eprintln!("Failed to write discovery file: {}", e),
     }
 
     // Spawn a task to read from stdin
@@ -230,10 +238,12 @@ async fn handle_request(
                 if let Some(info) = info_guard.as_mut() {
                     info.browser.extension_id = Some(extension_id);
                     info.install_id = Some(install_id.clone()); // Update install_id
-                    if let Err(e) = crate::rpc::write_discovery_file(info.clone()) {
-                        eprintln!("Failed to update discovery file on handshake: {}", e);
-                    } else {
-                        success = true;
+                    match crate::rpc::write_discovery_file(info.clone()) {
+                        Ok(roots) => {
+                            info.download_roots = roots;
+                            success = true;
+                        },
+                        Err(e) => eprintln!("Failed to update discovery file on handshake: {}", e),
                     }
                 }
             }
@@ -253,7 +263,13 @@ async fn handle_request(
                 } else {
                     log!("Handshake success, checking daemon info: {:?} {:?}", daemon_manager.port, daemon_manager.token);
                     if let (Some(port), Some(token)) = (daemon_manager.port, daemon_manager.token.clone()) {
-                         Ok(ResponsePayload::DaemonInfo { port, token })
+                         // Get roots from rpc_info
+                         let roots = state.rpc_info.lock().unwrap()
+                             .as_ref()
+                             .map(|info| info.download_roots.clone())
+                             .unwrap_or_default();
+                         
+                         Ok(ResponsePayload::DaemonInfo { port, token, roots })
                     } else {
                          log!("Daemon info missing");
                          Err(anyhow::anyhow!("Daemon not running"))
