@@ -79,21 +79,26 @@ export class Client {
 
     console.log('Components created', factory, srm, store)
 
-    // Try to instantiate BtEngine
+    // Create engine in suspended state so we can restore session before starting
     this.engine = new BtEngine({
       socketFactory: factory,
       storageRootManager: srm,
       sessionStore: store,
+      startSuspended: true, // Don't start networking until session is restored
       onLog: (entry: LogEntry) => {
         this.logBuffer.add(entry)
       },
     })
 
-    console.log('Daemon Engine initialized')
+    console.log('Daemon Engine initialized (suspended)')
 
-    // Restore previous session
+    // Restore session BEFORE resuming
     const restored = await this.engine.restoreSession()
     console.log(`Restored ${restored} torrents from session`)
+
+    // NOW resume - torrents with userState 'active' will start
+    this.engine.resume()
+    console.log('Engine resumed')
 
     // Adapt engine socket factory to ISockets interface
     this.sockets = this.engine.socketFactory as unknown as ISockets
@@ -208,5 +213,39 @@ export class Client {
     }
     this.engine.storageRootManager.setDefaultRoot(token)
     await chrome.storage.local.set({ defaultRootToken: token })
+  }
+
+  /**
+   * Start a torrent (set userState to 'active').
+   */
+  startTorrent(infoHash: string): void {
+    const torrent = this.engine?.getTorrent(infoHash)
+    if (torrent) {
+      torrent.userStart()
+    }
+  }
+
+  /**
+   * Stop a torrent (set userState to 'stopped').
+   */
+  stopTorrent(infoHash: string): void {
+    const torrent = this.engine?.getTorrent(infoHash)
+    if (torrent) {
+      torrent.userStop()
+    }
+  }
+
+  /**
+   * Pause all torrents (suspend engine).
+   */
+  pauseAll(): void {
+    this.engine?.suspend()
+  }
+
+  /**
+   * Resume all torrents (resume engine).
+   */
+  resumeAll(): void {
+    this.engine?.resume()
   }
 }

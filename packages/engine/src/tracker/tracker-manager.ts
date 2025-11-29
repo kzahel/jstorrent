@@ -8,6 +8,7 @@ export class TrackerManager extends EngineComponent {
   static logName = 'tracker-manager'
   private trackers: ITracker[] = []
   private knownPeers: Set<string> = new Set()
+  private _stopped: boolean = false
 
   constructor(
     engine: ILoggingEngine,
@@ -88,6 +89,30 @@ export class TrackerManager extends EngineComponent {
       this.knownPeers.add(key)
       this.emit('peer', peer)
     }
+  }
+
+  /**
+   * Stop announcing to trackers.
+   * Sends 'stopped' event and prevents future announces.
+   */
+  stop(): void {
+    if (this._stopped) return
+    this._stopped = true
+    this.announce('stopped').catch((err) => {
+      this.logger.warn(`Failed to send stopped announce: ${err}`)
+    })
+  }
+
+  /**
+   * Resume announcing to trackers.
+   * Sends 'started' event.
+   */
+  start(): void {
+    if (!this._stopped) return
+    this._stopped = false
+    this.announce('started').catch((err) => {
+      this.logger.warn(`Failed to send started announce: ${err}`)
+    })
   }
 
   destroy() {

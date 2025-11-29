@@ -163,6 +163,38 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       })
     return true
   }
+
+  if (message.type === 'START_TORRENT') {
+    client.ensureDaemonReady().then(() => {
+      client.startTorrent(message.infoHash)
+      sendResponse({ ok: true })
+    })
+    return true
+  }
+
+  if (message.type === 'STOP_TORRENT') {
+    client.ensureDaemonReady().then(() => {
+      client.stopTorrent(message.infoHash)
+      sendResponse({ ok: true })
+    })
+    return true
+  }
+
+  if (message.type === 'PAUSE_ALL') {
+    client.ensureDaemonReady().then(() => {
+      client.pauseAll()
+      sendResponse({ ok: true })
+    })
+    return true
+  }
+
+  if (message.type === 'RESUME_ALL') {
+    client.ensureDaemonReady().then(() => {
+      client.resumeAll()
+      sendResponse({ ok: true })
+    })
+    return true
+  }
 })
 
 // Forward new log entries to UI via broadcast

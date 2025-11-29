@@ -2,6 +2,7 @@ import { ISessionStore } from '../interfaces/session-store'
 import { BtEngine } from './bt-engine'
 import { Torrent } from './torrent'
 import { toHex } from '../utils/buffer'
+import { TorrentUserState } from './torrent-state'
 
 const TORRENTS_KEY = 'torrents'
 const TORRENT_PREFIX = 'torrent:'
@@ -16,6 +17,10 @@ export interface TorrentSessionData {
   name?: string // Torrent name (from metadata)
   storageToken?: string // Which download root to use
   addedAt: number // Timestamp when added
+
+  // User state
+  userState: TorrentUserState
+  queuePosition?: number
 }
 
 /**
@@ -160,14 +165,14 @@ export class SessionPersistence {
 
   /**
    * Restore all torrents from storage.
-   * Call this on engine startup.
-   * Torrents are added in paused state, bitfields restored, then all started together.
+   * Call this on engine startup while engine is suspended.
+   * Torrents are added with their saved userState and bitfields restored.
+   * Network activity will only start when engine.resume() is called.
    */
   async restoreSession(): Promise<number> {
     const torrentsData = await this.loadTorrentList()
-    const restoredTorrents: Torrent[] = []
+    let restoredCount = 0
 
-    // Phase 1: Add all torrents in paused state and restore their bitfields
     for (const data of torrentsData) {
       try {
         let torrent: Torrent | null = null
@@ -176,7 +181,7 @@ export class SessionPersistence {
           torrent = await this.engine.addTorrent(data.magnetLink, {
             storageToken: data.storageToken,
             skipPersist: true, // Don't re-save while restoring
-            paused: true, // Don't start yet
+            userState: data.userState || 'active', // Restore user state
           })
         } else if (data.torrentFile) {
           // Decode base64 torrent file
@@ -184,7 +189,7 @@ export class SessionPersistence {
           torrent = await this.engine.addTorrent(buffer, {
             storageToken: data.storageToken,
             skipPersist: true, // Don't re-save while restoring
-            paused: true, // Don't start yet
+            userState: data.userState || 'active', // Restore user state
           })
         }
 
@@ -192,31 +197,29 @@ export class SessionPersistence {
           // Restore addedAt timestamp
           torrent.addedAt = data.addedAt
 
+          // Restore queue position
+          torrent.queuePosition = data.queuePosition
+
           // Load saved state (bitfield)
           const state = await this.loadTorrentState(data.infoHash)
           if (state && torrent.pieceManager) {
-            // Restore bitfield before starting
+            // Restore bitfield
             torrent.pieceManager.restoreFromHex(state.bitfield)
             // Also update the torrent's bitfield reference
             torrent.bitfield = torrent.pieceManager.getBitField()
           }
-          restoredTorrents.push(torrent)
+
+          restoredCount++
         }
       } catch (e) {
         console.error(`Failed to restore torrent ${data.infoHash}:`, e)
       }
     }
 
-    // Phase 2: Start all torrents after bitfields are restored
-    for (const torrent of restoredTorrents) {
-      try {
-        await torrent.start()
-      } catch (e) {
-        console.error(`Failed to start restored torrent ${toHex(torrent.infoHash)}:`, e)
-      }
-    }
+    // Note: Torrents will NOT start yet because engine is suspended.
+    // Caller should call engine.resume() after restore completes.
 
-    return restoredTorrents.length
+    return restoredCount
   }
 
   private torrentToSessionData(torrent: Torrent): TorrentSessionData {
@@ -233,6 +236,10 @@ export class SessionPersistence {
       name: torrent.name,
       storageToken,
       addedAt: torrent.addedAt || Date.now(),
+
+      // Persist user state
+      userState: torrent.userState,
+      queuePosition: torrent.queuePosition,
     }
   }
 
