@@ -6,8 +6,8 @@ The `packages/engine` implements a modern, platform-agnostic BitTorrent client i
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   Client Layer                          │
-│  Client (main entry) + SessionManager (persistence)     │
+│                   BtEngine Layer                        │
+│  BtEngine (main entry) + SessionManager (persistence)   │
 └─────────────────────────────────────────────────────────┘
                           │
 ┌─────────────────────────────────────────────────────────┐
@@ -25,9 +25,9 @@ The `packages/engine` implements a modern, platform-agnostic BitTorrent client i
 
 ## Core Components
 
-### 1. **Client Layer**
+### 1. **BtEngine Layer**
 
-#### **Client** (`core/client.ts`)
+#### **BtEngine** (`core/bt-engine.ts`)
 - **Role**: Top-level coordinator and entry point
 - **Responsibilities**:
   - Manages multiple torrents
@@ -224,7 +224,7 @@ The `packages/engine` implements a modern, platform-agnostic BitTorrent client i
 
 ### **Adding a Torrent File**
 ```
-Client.addTorrent(buffer)
+BtEngine.addTorrent(buffer)
   → TorrentParser.parse(buffer)
   → Create PieceManager, TorrentContentStorage
   → Create Torrent instance
@@ -237,7 +237,7 @@ Client.addTorrent(buffer)
 
 ### **Adding a Magnet Link**
 ```
-Client.addMagnet(link)
+BtEngine.addMagnet(link)
   → parseMagnet(link) → extract infoHash
   → Create Torrent (no PieceManager yet)
   → TrackerManager.announce('started')
@@ -270,7 +270,7 @@ Torrent: Determine needed piece
 According to `ENGINE_ANALYSIS.md`, the engine is a **functional skeleton** with critical gaps:
 
 ### ✅ **Implemented**
-- Core data structures (Client, Torrent, PieceManager, PeerConnection)
+- Core data structures (BtEngine, Torrent, PieceManager, PeerConnection)
 - Wire protocol encoding/decoding
 - Tracker support (HTTP/UDP)
 - File I/O abstraction (not end to end tested)
@@ -313,51 +313,75 @@ This allows the same core engine code to run on:
 - Browser Extension (using Chrome FileSystem API wrappers, chrome.sockets API)
 - In-memory testing (using `InMemoryFileSystem`, `MemorySocket`)
 
-## File Structure
+## Package Structure
 
 ```
-packages/engine/src/
-├── core/                    # Core BitTorrent logic
-│   ├── client.ts           # Main client entry point
-│   ├── torrent.ts          # Per-torrent state machine
-│   ├── peer-connection.ts  # Peer wire protocol handler
-│   ├── piece-manager.ts    # Piece/block state tracking
-│   ├── torrent-content-storage.ts  # Disk I/O manager
-│   ├── session-manager.ts  # Session persistence
-│   ├── torrent-parser.ts   # .torrent file parser
-│   ├── torrent-creator.ts  # .torrent file creator
-│   ├── torrent-file.ts     # File metadata interface
-│   └── torrent-file-info.ts # File info wrapper
-├── protocol/               # Wire protocol implementation
-│   └── wire-protocol.ts    # Message encoding/decoding
-├── tracker/                # Tracker implementations
-│   ├── tracker-manager.ts  # Multi-tracker coordinator
-│   ├── http-tracker.ts     # HTTP/HTTPS tracker
-│   └── udp-tracker.ts      # UDP tracker
-├── io/                     # Storage abstraction
-│   ├── storage-handle.ts   # Storage location interface
-│   ├── storage-manager.ts  # Storage registry
-│   ├── filesystem-storage-handle.ts
-│   ├── node/               # Node.js implementations
+@jstorrent/engine
+├── src/
+│   ├── core/                    # Platform-agnostic engine
+│   │   ├── bt-engine.ts         # Main entry point
+│   │   ├── torrent.ts           # Per-torrent state machine
+│   │   ├── peer-connection.ts   # Wire protocol handler
+│   │   ├── piece-manager.ts     # Block/piece tracking
+│   │   └── torrent-content-storage.ts
+│   │
+│   ├── interfaces/              # Abstract contracts
+│   │   ├── filesystem.ts        # IFileSystem, IFileHandle
+│   │   ├── socket.ts            # ISocketFactory, ITcpSocket, IUdpSocket
+│   │   └── session-store.ts     # ISessionStore
+│   │
+│   ├── storage/
+│   │   └── storage-root-manager.ts  # Manages download locations
+│   │
+│   ├── protocol/                # BitTorrent protocol implementation
+│   │   ├── wire-protocol.ts     # Message parsing/creation
+│   │   ├── bencode.ts           # Bencoding
+│   │   └── metadata-exchange.ts # BEP 9/10
+│   │
+│   ├── tracker/
+│   │   ├── tracker-manager.ts
+│   │   ├── http-tracker.ts
+│   │   └── udp-tracker.ts
+│   │
+│   ├── logging/
+│   │   ├── logger.ts            # EngineComponent, scoped logging
+│   │   └── ring-buffer-logger.ts
+│   │
+│   └── index.ts                 # Core exports only
+│
+├── adapters/
+│   ├── daemon/                  # io-daemon integration
+│   │   ├── daemon-connection.ts
+│   │   ├── daemon-filesystem.ts
+│   │   ├── daemon-socket-factory.ts
+│   │   └── index.ts
+│   │
+│   ├── node/                    # Node.js native
 │   │   ├── node-filesystem.ts
-│   │   ├── node-socket.ts
-│   │   └── node-storage-handle.ts
-│   └── memory/             # In-memory testing implementations
-│       ├── memory-filesystem.ts
-│       └── memory-socket.ts
-├── interfaces/             # Platform abstraction interfaces
-│   ├── filesystem.ts       # IFileSystem, IFileHandle
-│   ├── socket.ts           # ISocketFactory, ITcpSocket, IUdpSocket
-│   └── tracker.ts          # ITracker, PeerInfo
-├── utils/                  # Utilities
-│   ├── bencode.ts          # Bencode encoder/decoder
-│   ├── bitfield.ts         # Bit array implementation
-│   ├── hash.ts             # Hashing utilities
-│   ├── infohash.ts         # InfoHash utilities
-│   ├── magnet.ts           # Magnet link parser
-│   └── minimal-http-client.ts
-└── extensions/             # Protocol extensions
-    └── pex-handler.ts      # Peer Exchange (BEP 11)
+│   │   ├── node-socket-factory.ts
+│   │   └── index.ts
+│   │
+│   ├── memory/                  # Testing
+│   │   ├── in-memory-filesystem.ts
+│   │   ├── memory-socket-factory.ts
+│   │   ├── memory-session-store.ts
+│   │   └── index.ts
+│   │
+│   └── browser/                 # Browser APIs
+│       ├── opfs-filesystem.ts
+│       ├── indexeddb-session-store.ts
+│       ├── chrome-storage-session-store.ts
+│       └── index.ts
+│
+├── presets/
+│   ├── daemon.ts                # createDaemonEngine()
+│   ├── daemon-opfs.ts           # createDaemonWithOPFSEngine()
+│   ├── node.ts                  # createNodeEngine()
+│   └── memory.ts                # createMemoryEngine()
+│
+└── node-rpc/                    # HTTP RPC server (for testing)
+    ├── server.ts
+    └── controller.ts
 ```
 
 ## Key Dependencies
@@ -377,7 +401,7 @@ The engine includes several test categories:
    - Use mock implementations (MemorySocket, InMemoryFileSystem)
 
 2. **Integration Tests** (`test/integration/`)
-   - `memory-swarm.spec.ts` - Two clients in same process
+   - `memory-swarm.spec.ts` - Two engines in same process
    - `tracker-announce.spec.ts` - Real tracker communication
    - `node-download.spec.ts` - Full download scenario
 
