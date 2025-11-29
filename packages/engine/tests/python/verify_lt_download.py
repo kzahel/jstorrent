@@ -4,6 +4,7 @@ import time
 import shutil
 import sys
 import hashlib
+import tempfile
 
 def create_session(port):
     settings = {
@@ -42,11 +43,9 @@ def create_session(port):
 def verify_download():
     print("Verifying Libtorrent <-> Libtorrent Download")
     
-    # Setup paths
-    root = os.path.abspath("lt_download_verify_tmp")
-    if os.path.exists(root):
-        shutil.rmtree(root)
-    os.makedirs(root)
+    root_obj = tempfile.TemporaryDirectory()
+    root = root_obj.name
+    print(f"Created temporary directory: {root}")
     
     seeder_dir = os.path.join(root, "seeder")
     leecher_dir = os.path.join(root, "leecher")
@@ -150,7 +149,8 @@ def verify_download():
     # Cleanup
     del ses1
     del ses2
-    shutil.rmtree(root)
+    # shutil.rmtree(root) - handled by tempfile
+    root_obj.cleanup()
     
     if not completed:
         sys.exit(1)
