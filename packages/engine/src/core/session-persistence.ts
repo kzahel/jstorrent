@@ -45,7 +45,7 @@ export class SessionPersistence {
 
   constructor(
     private store: ISessionStore,
-    private engine: BtEngine
+    private engine: BtEngine,
   ) {}
 
   /**

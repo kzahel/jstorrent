@@ -49,8 +49,7 @@ export class PieceBufferManager {
     }
 
     // Create new buffer
-    const length =
-      pieceIndex === this.totalPieces - 1 ? this.lastPieceLength : this.pieceLength
+    const length = pieceIndex === this.totalPieces - 1 ? this.lastPieceLength : this.pieceLength
 
     buffer = new PieceBuffer(pieceIndex, length)
     this.buffers.set(pieceIndex, buffer)

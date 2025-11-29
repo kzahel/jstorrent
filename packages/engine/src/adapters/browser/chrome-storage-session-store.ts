@@ -29,7 +29,7 @@ export class ChromeStorageSessionStore implements ISessionStore {
   constructor(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private storageArea: any = chrome.storage.local,
-    private prefix: string = 'session:'
+    private prefix: string = 'session:',
   ) {}
 
   private prefixKey(key: string): string {

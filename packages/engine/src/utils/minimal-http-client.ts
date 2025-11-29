@@ -13,7 +13,9 @@ export class MinimalHttpClient {
     const port = urlObj.port ? parseInt(urlObj.port, 10) : urlObj.protocol === 'https:' ? 443 : 80
     const path = urlObj.pathname + urlObj.search
 
-    this.logger?.debug(`MinimalHttpClient: GET ${urlObj.protocol}//${host}:${port}${urlObj.pathname}`)
+    this.logger?.debug(
+      `MinimalHttpClient: GET ${urlObj.protocol}//${host}:${port}${urlObj.pathname}`,
+    )
 
     const socket = await this.socketFactory.createTcpSocket(host, port)
 

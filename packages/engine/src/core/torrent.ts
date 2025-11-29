@@ -543,7 +543,9 @@ export class Torrent extends EngineComponent {
     // Initialize buffer manager if needed (lazy init after pieceManager is set)
     if (!this.pieceBufferManager && this.pieceManager) {
       const pieceLength = this.pieceManager.getPieceLength(0)
-      const lastPieceLength = this.pieceManager.getPieceLength(this.pieceManager.getPieceCount() - 1)
+      const lastPieceLength = this.pieceManager.getPieceLength(
+        this.pieceManager.getPieceCount() - 1,
+      )
       this.pieceBufferManager = new PieceBufferManager(
         pieceLength,
         lastPieceLength,
@@ -797,7 +799,9 @@ export class Torrent extends EngineComponent {
     totalSize: number,
     data: Uint8Array,
   ) {
-    this.logger.info(`Received metadata piece ${piece}, totalSize=${totalSize}, dataLen=${data.length}`)
+    this.logger.info(
+      `Received metadata piece ${piece}, totalSize=${totalSize}, dataLen=${data.length}`,
+    )
     if (this.metadataComplete) return
 
     if (this.metadataSize === null) {
