@@ -34,23 +34,25 @@ export const App = () => {
     return () => chrome.runtime.onMessage.removeListener(handleMessage)
   }, [])
 
-
-
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      fontFamily: 'sans-serif'
-    }}>
-      {/* Header */}
-      <div style={{
-        padding: '12px 20px',
-        borderBottom: '1px solid #ccc',
+    <div
+      style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: '20px'
-      }}>
+        flexDirection: 'column',
+        height: '100vh',
+        fontFamily: 'sans-serif',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: '12px 20px',
+          borderBottom: '1px solid #ccc',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '20px',
+        }}
+      >
         <h1 style={{ margin: 0, fontSize: '20px' }}>JSTorrent</h1>
 
         {/* Tabs */}
@@ -63,7 +65,7 @@ export const App = () => {
               color: activeTab === 'torrents' ? 'white' : 'black',
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             Torrents
@@ -76,7 +78,7 @@ export const App = () => {
               color: activeTab === 'logs' ? 'white' : 'black',
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             Logs
@@ -103,10 +105,7 @@ export const App = () => {
                 placeholder="Enter magnet link or URL"
                 style={{ flex: 1, padding: '8px' }}
               />
-              <button
-                onClick={handleAddTorrent}
-                style={{ padding: '8px 16px', cursor: 'pointer' }}
-              >
+              <button onClick={handleAddTorrent} style={{ padding: '8px 16px', cursor: 'pointer' }}>
                 Add
               </button>
             </div>
@@ -125,8 +124,12 @@ export const App = () => {
                       borderRadius: '4px',
                     }}
                   >
-                    <div><strong>Event:</strong> {event.event}</div>
-                    <div><strong>Time:</strong> {event.timestamp}</div>
+                    <div>
+                      <strong>Event:</strong> {event.event}
+                    </div>
+                    <div>
+                      <strong>Time:</strong> {event.timestamp}
+                    </div>
                     <pre style={{ background: '#f0f0f0', padding: '10px', overflowX: 'auto' }}>
                       {JSON.stringify(event, null, 2)}
                     </pre>
@@ -137,9 +140,7 @@ export const App = () => {
           </div>
         )}
 
-        {activeTab === 'logs' && (
-          <LogViewer />
-        )}
+        {activeTab === 'logs' && <LogViewer />}
       </div>
     </div>
   )
