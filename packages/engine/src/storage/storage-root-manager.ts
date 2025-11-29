@@ -33,6 +33,10 @@ export class StorageRootManager {
     return Array.from(this.roots.values())
   }
 
+  getDefaultRoot(): string | undefined {
+    return this.defaultToken ?? undefined
+  }
+
   setDefaultRoot(token: string): void {
     if (!this.roots.has(token)) {
       throw new Error(`Storage root with token ${token} not found`)

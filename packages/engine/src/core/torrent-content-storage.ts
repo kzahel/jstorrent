@@ -36,6 +36,10 @@ export class TorrentContentStorage extends EngineComponent {
     return this.files
   }
 
+  getTotalSize(): number {
+    return this.files.reduce((sum, f) => sum + f.length, 0)
+  }
+
   async close() {
     this.logger.debug(`DiskManager ${this.id}: Closing all files`)
     // Wait for any pending opens?

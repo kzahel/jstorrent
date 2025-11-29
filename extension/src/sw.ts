@@ -85,6 +85,7 @@ chrome.action.onClicked.addListener(() => {
 
 import { Client } from './lib/client'
 import { NativeHostConnection } from './lib/native-connection'
+import { getEngineState } from '@jstorrent/engine'
 
 // ... existing code ...
 
@@ -143,6 +144,23 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse({ ok: false, error: String(e) })
       }
     })
+    return true
+  }
+
+  if (message.type === 'GET_STATE') {
+    client
+      .ensureDaemonReady()
+      .then(() => {
+        if (!client.engine) {
+          sendResponse({ error: 'Engine not initialized' })
+          return
+        }
+        const state = getEngineState(client.engine)
+        sendResponse({ state })
+      })
+      .catch((e) => {
+        sendResponse({ error: String(e) })
+      })
     return true
   }
 })
