@@ -33,8 +33,10 @@ export class UdpTracker extends EngineComponent implements ITracker {
   }
 
   async announce(event: TrackerAnnounceEvent = 'started'): Promise<void> {
+    this.logger.info(`UdpTracker: Announcing '${event}' to ${this.announceUrl}`)
     try {
       if (!this.socket) {
+        this.logger.debug('UdpTracker: Creating UDP socket')
         this.socket = await this.socketFactory.createUdpSocket()
         this.socket.onMessage((rinfo, msg) => {
           this.onMessage(msg, rinfo)
@@ -46,11 +48,16 @@ export class UdpTracker extends EngineComponent implements ITracker {
         const url = new URL(this.announceUrl)
         const host = url.hostname
         const port = parseInt(url.port, 10) || 80
+        this.logger.debug(`UdpTracker: Connecting to ${host}:${port}`)
         await this.connect(host, port)
+        this.logger.debug('UdpTracker: Connection established')
       }
 
       await this.sendAnnounce(event)
+      this.logger.debug('UdpTracker: Announce packet sent')
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      this.logger.error(`UdpTracker: Announce failed: ${errMsg}`)
       this.emit('error', err)
     }
   }
@@ -142,7 +149,7 @@ export class UdpTracker extends EngineComponent implements ITracker {
         if (i + 6 > msg.length) break
         const ip = `${msg[i]}.${msg[i + 1]}.${msg[i + 2]}.${msg[i + 3]}`
         const port = (msg[i + 4] << 8) | msg[i + 5]
-        this.logger.debug(`UdpTracker: Discovered peer ${ip}:${port}`)
+        // this.logger.debug(`UdpTracker: Discovered peer ${ip}:${port}`)
         this.emit('peer', { ip, port })
       }
     } else if (action === ACTION_ERROR) {

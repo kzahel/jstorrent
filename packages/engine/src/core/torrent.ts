@@ -102,8 +102,7 @@ export class Torrent extends EngineComponent {
       )
 
       this.trackerManager.on('peer', (peer: PeerInfo) => {
-        // TODO: Connect to peer
-        this.logger.info(`Discovered peer ${peer.ip}:${peer.port}`)
+        // this.logger.info(`Discovered peer ${peer.ip}:${peer.port}`)
         // We need to initiate connection.
         // But PeerConnection usually wraps an existing socket or initiates one?
         // PeerConnection currently takes a socket.
@@ -167,7 +166,8 @@ export class Torrent extends EngineComponent {
       // Initiate handshake
       peer.sendHandshake(this.infoHash, this.peerId)
     } catch (err) {
-      this.logger.error(`Failed to connect to peer ${peerInfo.ip}:${peerInfo.port}`, { err })
+      // very common to happen, don't log
+      // this.logger.error(`Failed to connect to peer ${peerInfo.ip}:${peerInfo.port}`, { err })
     }
   }
 
@@ -304,10 +304,17 @@ export class Torrent extends EngineComponent {
     }
 
     peer.on('extension_handshake', (_payload) => {
+      this.logger.info(
+        `Extension handshake received. metadataComplete=${this.metadataComplete}, peerMetadataId=${peer.peerMetadataId}`,
+      )
       // Check if we need metadata and peer has it
       if (!this.metadataComplete && peer.peerMetadataId !== null) {
-        this.logger.debug('Peer supports metadata, requesting...')
+        // this.logger.info('Peer supports metadata, requesting piece 0...')
         peer.sendMetadataRequest(0)
+      } else if (this.metadataComplete) {
+        this.logger.debug('Already have metadata, not requesting')
+      } else if (peer.peerMetadataId === null) {
+        this.logger.warn('Peer does not support ut_metadata extension')
       }
     })
 
@@ -346,7 +353,7 @@ export class Torrent extends EngineComponent {
 
     peer.on('message', (msg) => {
       if (msg.type === MessageType.PIECE) {
-        this.handlePiece(peer, msg)
+        this.handleBlock(peer, msg)
       }
     })
 
@@ -501,53 +508,94 @@ export class Torrent extends EngineComponent {
     }
   }
 
-  private async handlePiece(peer: PeerConnection, msg: WireMessage) {
-    if (msg.index !== undefined && msg.begin !== undefined && msg.block) {
-      // console.error(`Torrent: Received piece ${msg.index} begin ${msg.begin} `)
-      if (peer.requestsPending > 0) peer.requestsPending--
-
-      if (this.contentStorage) {
-        await this.contentStorage.write(msg.index, msg.begin, msg.block)
-      }
-
-      this.pieceManager?.addReceived(msg.index, msg.begin)
-
-      this.pieceManager?.addReceived(msg.index, msg.begin)
-
-      // this.emit('download', msg.block.length) // Handled by bytesDownloaded event now
-
-      if (this.pieceManager?.isPieceComplete(msg.index)) {
-        // Verify hash
-        const isValid = await this.verifyPiece(msg.index)
-        if (isValid) {
-          this.logger.info(`Piece ${msg.index} verified and complete`)
-          this.pieceManager?.markVerified(msg.index)
-          this.emit('piece', msg.index)
-
-          // Emit verified event for persistence
-          if (this.bitfield) {
-            this.emit('verified', {
-              bitfield: this.bitfield.toHex(),
-            })
-          }
-
-          // Send HAVE message to all peers
-          for (const p of this.peers) {
-            if (p.handshakeReceived) {
-              p.sendHave(msg.index)
-            }
-          }
-
-          this.checkCompletion()
-        } else {
-          this.logger.warn(`Piece ${msg.index} failed hash check`)
-          this.pieceManager?.resetPiece(msg.index)
-        }
-      }
-
-      // Continue requesting
-      this.requestPieces(peer)
+  /**
+   * Handle a received block from the wire protocol PIECE message.
+   *
+   * BitTorrent terminology:
+   * - Piece: A fixed-size segment of the torrent (e.g., 256KB) with a SHA1 hash
+   * - Block: A smaller chunk (typically 16KB) transferred in a single PIECE message
+   *
+   * This method:
+   * 1. Writes the block to disk
+   * 2. Marks the block as received in the piece manager
+   * 3. When all blocks for a piece are received, verifies the piece hash
+   * 4. If valid, marks piece as complete and notifies peers
+   */
+  private async handleBlock(peer: PeerConnection, msg: WireMessage) {
+    if (msg.index === undefined || msg.begin === undefined || !msg.block) {
+      return
     }
+
+    if (peer.requestsPending > 0) peer.requestsPending--
+
+    // Must have storage and piece manager to process blocks
+    if (!this.contentStorage || !this.pieceManager) {
+      this.logger.warn(
+        `Received block ${msg.index}:${msg.begin} but storage not initialized (metadata not yet received?)`,
+      )
+      return
+    }
+
+    // Write block to disk
+    try {
+      await this.contentStorage.write(msg.index, msg.begin, msg.block)
+    } catch (err) {
+      this.logger.error(
+        `Failed to write block ${msg.index}:${msg.begin}: ${err instanceof Error ? err.message : String(err)}`,
+      )
+      return
+    }
+
+    // Mark block as received
+    this.pieceManager.addReceived(msg.index, msg.begin)
+
+    // Check if piece is complete (all blocks received)
+    if (this.pieceManager.isPieceComplete(msg.index)) {
+      // Verify SHA1 hash of the complete piece
+      const isValid = await this.verifyPiece(msg.index)
+      if (isValid) {
+        this.pieceManager.markVerified(msg.index)
+
+        const pieceCount = this.pieceManager.getPieceCount()
+        const completedPieces = this.pieceManager.getCompletedCount()
+        const progressPct = pieceCount > 0 ? ((completedPieces / pieceCount) * 100).toFixed(1) : '0'
+
+        this.logger.info(`Piece ${msg.index} verified [${completedPieces}/${pieceCount}] ${progressPct}%`)
+
+        this.emit('piece', msg.index)
+
+        // Emit progress event with detailed info
+        this.emit('progress', {
+          pieceIndex: msg.index,
+          completedPieces,
+          totalPieces: pieceCount,
+          progress: completedPieces / pieceCount,
+          downloaded: this.totalDownloaded,
+        })
+
+        // Emit verified event for persistence
+        if (this.bitfield) {
+          this.emit('verified', {
+            bitfield: this.bitfield.toHex(),
+          })
+        }
+
+        // Send HAVE message to all peers
+        for (const p of this.peers) {
+          if (p.handshakeReceived) {
+            p.sendHave(msg.index)
+          }
+        }
+
+        this.checkCompletion()
+      } else {
+        this.logger.warn(`Piece ${msg.index} failed hash check, resetting`)
+        this.pieceManager.resetPiece(msg.index)
+      }
+    }
+
+    // Continue requesting more pieces
+    this.requestPieces(peer)
   }
 
   private async verifyPiece(index: number): Promise<boolean> {
@@ -673,11 +721,13 @@ export class Torrent extends EngineComponent {
     totalSize: number,
     data: Uint8Array,
   ) {
+    this.logger.info(`Received metadata piece ${piece}, totalSize=${totalSize}, dataLen=${data.length}`)
     if (this.metadataComplete) return
 
     if (this.metadataSize === null) {
       this.metadataSize = totalSize
       this.metadataBuffer = new Uint8Array(totalSize)
+      this.logger.info(`Initialized metadata buffer for ${totalSize} bytes`)
     }
 
     if (this.metadataSize !== totalSize) {

@@ -1,13 +1,19 @@
 import { ISocketFactory } from '../interfaces/socket'
+import { Logger } from '../logging/logger'
 
 export class MinimalHttpClient {
-  constructor(private socketFactory: ISocketFactory) {}
+  constructor(
+    private socketFactory: ISocketFactory,
+    private logger?: Logger,
+  ) {}
 
   async get(url: string, headers: Record<string, string> = {}): Promise<Buffer> {
     const urlObj = new URL(url)
     const host = urlObj.hostname
     const port = urlObj.port ? parseInt(urlObj.port, 10) : urlObj.protocol === 'https:' ? 443 : 80
     const path = urlObj.pathname + urlObj.search
+
+    this.logger?.debug(`MinimalHttpClient: GET ${urlObj.protocol}//${host}:${port}${urlObj.pathname}`)
 
     const socket = await this.socketFactory.createTcpSocket(host, port)
 
@@ -42,6 +48,7 @@ export class MinimalHttpClient {
       const fail = (err: Error) => {
         if (!resolved) {
           resolved = true
+          this.logger?.error(`MinimalHttpClient: Request failed: ${err.message}`)
           cleanup()
           reject(err)
         }
@@ -50,6 +57,7 @@ export class MinimalHttpClient {
       const succeed = (body: Buffer) => {
         if (!resolved) {
           resolved = true
+          this.logger?.debug(`MinimalHttpClient: Response received, ${body.length} bytes`)
           cleanup()
           resolve(body)
         }

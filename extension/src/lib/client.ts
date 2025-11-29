@@ -44,6 +44,7 @@ export class Client {
     this.daemonInfo = daemonInfo
 
     const conn = new DaemonConnection(daemonInfo.port, daemonInfo.token)
+    await conn.connectWebSocket()
     const factory = new DaemonSocketFactory(conn)
     const store = new MemorySessionStore()
 
