@@ -1,3 +1,5 @@
+import { toHex } from './buffer'
+
 export class BitField {
   private buffer: Uint8Array
   private length: number
@@ -69,7 +71,7 @@ export class BitField {
   }
 
   toHex(): string {
-    return Buffer.from(this.buffer).toString('hex')
+    return toHex(this.buffer)
   }
 
   count(): number {

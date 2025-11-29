@@ -29,6 +29,9 @@ import { TorrentContentStorage } from './torrent-content-storage'
 import { toHex, fromHex } from '../utils/buffer'
 import { IStorageHandle } from '../io/storage-handle'
 
+// Maximum piece size supported by the io-daemon (must match DefaultBodyLimit in io-daemon)
+export const MAX_PIECE_SIZE = 32 * 1024 * 1024 // 32MB
+
 export interface BtEngineOptions {
   downloadPath?: string
   socketFactory: ISocketFactory
@@ -238,6 +241,18 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       if (torrent.pieceManager) return // Already initialized
 
       const parsedTorrent = preParsed || (await TorrentParser.parseInfoBuffer(infoBuffer))
+
+      // Check piece size limit
+      if (parsedTorrent.pieceLength > MAX_PIECE_SIZE) {
+        const sizeMB = (parsedTorrent.pieceLength / (1024 * 1024)).toFixed(1)
+        const maxMB = (MAX_PIECE_SIZE / (1024 * 1024)).toFixed(0)
+        const error = new Error(
+          `Torrent piece size (${sizeMB}MB) exceeds maximum supported size (${maxMB}MB)`,
+        )
+        torrent.emit('error', error)
+        this.emit('error', error)
+        throw error
+      }
 
       // Initialize PieceManager
       const pieceManager = new PieceManager(
