@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-
 import { useEffect, useState } from 'react'
+import { LogViewer } from './components/LogViewer'
 
 interface TorrentEvent {
   event: string
@@ -11,6 +11,7 @@ interface TorrentEvent {
 
 export const App = () => {
   const [events, setEvents] = useState<TorrentEvent[]>([])
+  const [activeTab, setActiveTab] = useState<'torrents' | 'logs'>('logs')
 
   useEffect(() => {
     const handleMessage = (message: TorrentEvent) => {
@@ -24,37 +25,91 @@ export const App = () => {
     return () => chrome.runtime.onMessage.removeListener(handleMessage)
   }, [])
 
+
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>JSTorrent Extension</h1>
-      <h2>Event Log</h2>
-      {events.length === 0 ? (
-        <p>No events yet. Launch from website to test.</p>
-      ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {events.map((event, i) => (
-            <li
-              key={i}
-              style={{
-                border: '1px solid #ccc',
-                margin: '10px 0',
-                padding: '10px',
-                borderRadius: '4px',
-              }}
-            >
-              <div>
-                <strong>Event:</strong> {event.event}
-              </div>
-              <div>
-                <strong>Time:</strong> {event.timestamp}
-              </div>
-              <pre style={{ background: '#f0f0f0', padding: '10px', overflowX: 'auto' }}>
-                {JSON.stringify(event, null, 2)}
-              </pre>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      fontFamily: 'sans-serif'
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '12px 20px',
+        borderBottom: '1px solid #ccc',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '20px'
+      }}>
+        <h1 style={{ margin: 0, fontSize: '20px' }}>JSTorrent</h1>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => setActiveTab('torrents')}
+            style={{
+              padding: '8px 16px',
+              background: activeTab === 'torrents' ? '#2196F3' : '#eee',
+              color: activeTab === 'torrents' ? 'white' : 'black',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Torrents
+          </button>
+          <button
+            onClick={() => setActiveTab('logs')}
+            style={{
+              padding: '8px 16px',
+              background: activeTab === 'logs' ? '#2196F3' : '#eee',
+              color: activeTab === 'logs' ? 'white' : 'black',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Logs
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        {activeTab === 'torrents' && (
+          <div style={{ padding: '20px' }}>
+            <h2>Torrents</h2>
+            {events.length === 0 ? (
+              <p>No torrents yet. Add a magnet link to get started.</p>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                {events.map((event, i) => (
+                  <li
+                    key={i}
+                    style={{
+                      border: '1px solid #ccc',
+                      margin: '10px 0',
+                      padding: '10px',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    <div><strong>Event:</strong> {event.event}</div>
+                    <div><strong>Time:</strong> {event.timestamp}</div>
+                    <pre style={{ background: '#f0f0f0', padding: '10px', overflowX: 'auto' }}>
+                      {JSON.stringify(event, null, 2)}
+                    </pre>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'logs' && (
+          <LogViewer />
+        )}
+      </div>
     </div>
   )
 }

@@ -10,6 +10,8 @@ export type { ISessionStore } from './interfaces/session-store'
 // Logging
 export type { Logger, LogEntry, LogLevel } from './logging/logger'
 export { defaultLogger } from './logging/logger'
+export { RingBufferLogger } from './logging/ring-buffer-logger'
+export type { LogFilter } from './logging/ring-buffer-logger'
 
 // Adapters
 export { MemorySessionStore } from './adapters/memory/memory-session-store'

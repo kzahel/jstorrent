@@ -7,6 +7,8 @@ import {
   BtEngine,
   StorageRootManager,
   MemorySessionStore,
+  RingBufferLogger,
+  LogEntry,
 } from '@jstorrent/engine'
 
 export class Client {
@@ -15,6 +17,7 @@ export class Client {
   public engine: BtEngine | undefined
   public ready = false
   public daemonInfo: DaemonInfo | undefined
+  public logBuffer: RingBufferLogger = new RingBufferLogger(500)
 
   constructor(native: INativeHostConnection) {
     this.native = native
@@ -53,6 +56,9 @@ export class Client {
       socketFactory: factory,
       storageRootManager: srm,
       sessionStore: store,
+      onLog: (entry: LogEntry) => {
+        this.logBuffer.add(entry)
+      },
     })
 
     console.log('Daemon Engine initialized')
