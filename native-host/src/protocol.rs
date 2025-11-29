@@ -44,6 +44,7 @@ pub enum ResponsePayload {
         roots: Vec<DownloadRoot>,
     },
     Path { path: String },
+    RootAdded { root: DownloadRoot },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

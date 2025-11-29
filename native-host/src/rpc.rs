@@ -155,7 +155,7 @@ async fn add_torrent_handler(
 }
 
 pub use jstorrent_common::{UnifiedRpcInfo, ProfileEntry, DownloadRoot, BrowserInfo, get_config_dir};
-pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> {
+pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<(Vec<DownloadRoot>, String)> {
     let config_dir = get_config_dir().ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?;
     let app_dir = config_dir.join("jstorrent-native");
     
@@ -212,9 +212,10 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
     }
 
     let active_roots;
+    let active_salt;
 
     if let Some(idx) = found_idx {
-        // Update existing entry, preserving salt and download_roots
+        // Update existing entry
         let mut entry = unified_info.profiles[idx].clone();
         entry.pid = info.pid;
         entry.port = info.port;
@@ -229,8 +230,16 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
             entry.install_id = info.install_id.clone();
         }
         
-        // salt and download_roots are preserved from `entry`
+        // Check if we have the correct salt (meaning we are the owner/have loaded state)
+        if entry.salt == info.salt {
+            // We have the correct salt, so we trust our roots
+            entry.download_roots = info.download_roots.clone();
+        } else {
+            // Salt mismatch (likely startup), preserve disk roots
+        }
+        
         active_roots = entry.download_roots.clone();
+        active_salt = entry.salt.clone();
         
         unified_info.profiles[idx] = entry;
 
@@ -260,6 +269,7 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
             download_roots: info.download_roots.clone(),
         };
         active_roots = new_entry.download_roots.clone();
+        active_salt = new_entry.salt.clone();
         unified_info.profiles.push(new_entry);
     }
 
@@ -268,5 +278,5 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
     serde_json::to_writer(&temp_file, &unified_info)?;
     temp_file.persist(&rpc_file).map_err(|e| e.error)?;
 
-    Ok(active_roots)
+    Ok((active_roots, active_salt))
 }

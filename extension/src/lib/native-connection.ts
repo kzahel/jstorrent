@@ -14,6 +14,22 @@ export interface DaemonInfo {
   roots: DownloadRoot[]
 }
 
+// Response types from native host
+export interface NativeResponse {
+  id: string
+  ok: boolean
+  error?: string
+  type?: string
+  payload?: unknown
+}
+
+export interface RootAddedResponse extends NativeResponse {
+  type: 'RootAdded'
+  payload: {
+    root: DownloadRoot
+  }
+}
+
 export interface INativeHostConnection {
   connect(): Promise<void>
   send(msg: unknown): void

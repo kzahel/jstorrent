@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { useEffect, useState } from 'react'
 import { LogViewer } from './components/LogViewer'
+import { DownloadRootsManager } from './components/DownloadRootsManager'
 
 interface TorrentEvent {
   event: string
@@ -11,7 +12,7 @@ interface TorrentEvent {
 
 export const App = () => {
   const [events, setEvents] = useState<TorrentEvent[]>([])
-  const [activeTab, setActiveTab] = useState<'torrents' | 'logs'>('torrents')
+  const [activeTab, setActiveTab] = useState<'torrents' | 'logs' | 'settings'>('torrents')
   const [magnetInput, setMagnetInput] = useState('')
 
   const handleAddTorrent = () => {
@@ -83,6 +84,19 @@ export const App = () => {
           >
             Logs
           </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            style={{
+              padding: '8px 16px',
+              background: activeTab === 'settings' ? '#2196F3' : '#eee',
+              color: activeTab === 'settings' ? 'white' : 'black',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            Settings
+          </button>
         </div>
       </div>
 
@@ -141,6 +155,8 @@ export const App = () => {
         )}
 
         {activeTab === 'logs' && <LogViewer />}
+
+        {activeTab === 'settings' && <DownloadRootsManager />}
       </div>
     </div>
   )

@@ -137,11 +137,12 @@ async fn main() -> Result<()> {
     }
     
     match rpc::write_discovery_file(info) {
-        Ok(roots) => {
-            // Update roots in state
+        Ok((roots, salt)) => {
+            // Update roots and salt in state
             if let Ok(mut info_guard) = state.rpc_info.lock() {
                 if let Some(info) = info_guard.as_mut() {
                     info.download_roots = roots;
+                    info.salt = salt;
                 }
             }
         },
@@ -221,6 +222,15 @@ async fn handle_request(
         Operation::PickDownloadDirectory => {
             let res = folder_picker::pick_download_directory(state).await;
             if let Ok(_) = res {
+                 // Persist changes to rpc-info.json
+                 if let Ok(info_guard) = state.rpc_info.lock() {
+                     if let Some(info) = info_guard.as_ref() {
+                         if let Err(e) = crate::rpc::write_discovery_file(info.clone()) {
+                             log!("Failed to persist rpc-info after adding root: {}", e);
+                         }
+                     }
+                 }
+
                  // If successful, refresh daemon config
                  if let Err(e) = daemon_manager.refresh_config().await {
                      log!("Failed to refresh daemon config: {}", e);
@@ -239,8 +249,9 @@ async fn handle_request(
                     info.browser.extension_id = Some(extension_id);
                     info.install_id = Some(install_id.clone()); // Update install_id
                     match crate::rpc::write_discovery_file(info.clone()) {
-                        Ok(roots) => {
+                        Ok((roots, salt)) => {
                             info.download_roots = roots;
+                            info.salt = salt;
                             success = true;
                         },
                         Err(e) => eprintln!("Failed to update discovery file on handshake: {}", e),

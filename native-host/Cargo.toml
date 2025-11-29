@@ -29,6 +29,8 @@ tempfile = "3.8"
 chrono = "0.4.42"
 lazy_static = "1.5.0"
 ctrlc = "3.5.1"
+sha2 = "0.10"
+hex = "0.4"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.52", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
