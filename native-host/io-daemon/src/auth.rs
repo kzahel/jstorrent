@@ -18,6 +18,11 @@ pub async fn middleware(
         return Ok(next.run(req).await);
     }
 
+    // Allow CORS preflight requests without auth
+    if req.method() == axum::http::Method::OPTIONS {
+        return Ok(next.run(req).await);
+    }
+
     let token = req.headers()
         .get("X-JST-Auth")
         .and_then(|value| value.to_str().ok())

@@ -263,8 +263,8 @@ export class PeerConnection extends EngineComponent {
             // Extended Handshake
             this.handleExtendedHandshake(message.extendedPayload)
           } else {
-            // Also try to handle as metadata if ID matches
-            if (this.peerMetadataId !== null && message.extendedId === this.peerMetadataId) {
+            // Handle metadata messages - peer uses OUR ID (myMetadataId) when sending to us
+            if (message.extendedId === this.myMetadataId) {
               this.handleMetadataMessage(message.extendedPayload)
             }
           }
@@ -302,13 +302,21 @@ export class PeerConnection extends EngineComponent {
       // For now, simple regex parsing or string search since we know the structure
       // We look for "ut_metadata" and the integer following it
       const str = new TextDecoder().decode(payload)
-      // this.logger.debug('Extended Handshake payload:', str)
+      this.logger.debug('Extended Handshake payload:', str)
 
       // Very naive parsing for "ut_metadata"i{id}e
       const match = str.match(/ut_metadatai(\d+)e/)
       if (match) {
         this.peerMetadataId = parseInt(match[1], 10)
-        // this.logger.debug('Peer supports ut_metadata with ID', this.peerMetadataId)
+        // this.logger.info(`Peer supports ut_metadata with ID ${this.peerMetadataId}`)
+      } else {
+        this.logger.warn('Peer does not support ut_metadata')
+      }
+
+      // Also check for metadata_size
+      const sizeMatch = str.match(/metadata_sizei(\d+)e/)
+      if (sizeMatch) {
+        // this.logger.info(`Peer reports metadata_size: ${sizeMatch[1]}`)
       }
 
       // Emit generic event (we might want to parse more properly later)
@@ -331,6 +339,7 @@ export class PeerConnection extends EngineComponent {
       // DATA: d8:msg_typei1e5:piecei{piece}e10:total_sizei{size}ee...data...
 
       const str = new TextDecoder().decode(payload)
+      this.logger.debug(`Received metadata message: ${str.substring(0, 100)}...`)
       const typeMatch = str.match(/msg_typei(\d+)e/)
       const pieceMatch = str.match(/piecei(\d+)e/)
 

@@ -194,6 +194,11 @@ export class PieceManager extends EngineComponent {
     if (this.piecesCount === 0) return 0
     return this.completedPieces / this.piecesCount
   }
+
+  getCompletedCount(): number {
+    return this.completedPieces
+  }
+
   isComplete(): boolean {
     return this.completedPieces === this.piecesCount
   }

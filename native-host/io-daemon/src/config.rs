@@ -16,7 +16,13 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/api/read-rpc-info-from-disk", post(refresh_handler))
 }
 
-pub fn load_config(install_id: &str) -> Result<Vec<DownloadRoot>> {
+/// Profile configuration loaded from rpc-info.json
+pub struct ProfileConfig {
+    pub download_roots: Vec<DownloadRoot>,
+    pub extension_id: Option<String>,
+}
+
+pub fn load_config(install_id: &str) -> Result<ProfileConfig> {
     let config_dir = get_config_dir().context("Could not find config directory")?;
     let rpc_file = config_dir.join("jstorrent-native").join("rpc-info.json");
 
@@ -32,7 +38,10 @@ pub fn load_config(install_id: &str) -> Result<Vec<DownloadRoot>> {
     let profile = info.profiles.iter().find(|p| p.install_id.as_deref() == Some(install_id));
 
     match profile {
-        Some(p) => Ok(p.download_roots.clone()),
+        Some(p) => Ok(ProfileConfig {
+            download_roots: p.download_roots.clone(),
+            extension_id: p.extension_id.clone(),
+        }),
         None => {
             // If install_id not found, maybe return empty or error.
             // Design says: "Logs a warning, Returns a 404-like failure code"
@@ -46,19 +55,8 @@ async fn refresh_handler(
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     tracing::info!("Received refresh request");
 
-    // We need to reload config and update state.
-    // Since AppState is Arc, we need interior mutability for the roots if we want to update them in place.
-    // However, AppState currently has `root: PathBuf` which seems to be a single root.
-    // The design says "Supports multiple independent download roots; each request specifies which root to operate on."
-    // So we should probably store the list of allowed roots in AppState.
-    
-    // For now, let's assume we update the list of roots.
-    // But wait, AppState definition in main.rs needs to change to hold Vec<DownloadRoot> or similar.
-    // And it needs a Mutex/RwLock to be updatable.
-
-    // Let's reload and print for now, and we'll fix AppState in main.rs next.
-    let roots = match load_config(&state.install_id) {
-        Ok(r) => r,
+    let config = match load_config(&state.install_id) {
+        Ok(c) => c,
         Err(e) => {
             tracing::error!("Failed to reload config: {}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
@@ -67,7 +65,12 @@ async fn refresh_handler(
 
     {
         let mut roots_guard = state.download_roots.write().unwrap();
-        *roots_guard = roots;
+        *roots_guard = config.download_roots;
+    }
+
+    {
+        let mut ext_guard = state.extension_id.write().unwrap();
+        *ext_guard = config.extension_id;
     }
 
     tracing::info!("Config reloaded successfully");

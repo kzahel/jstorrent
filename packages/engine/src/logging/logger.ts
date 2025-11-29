@@ -1,4 +1,5 @@
 import { EventEmitter } from '../utils/event-emitter'
+import { toHex } from '../utils/buffer'
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
@@ -236,7 +237,7 @@ function formatPrefix(ctx: LogContext): string {
     if (ctx.instanceValue) {
       let valStr = ''
       if (ctx.instanceValue instanceof Uint8Array) {
-        valStr = Buffer.from(ctx.instanceValue).toString('hex').slice(0, 4)
+        valStr = toHex(ctx.instanceValue).slice(0, 4)
       } else if (typeof ctx.instanceValue === 'string') {
         valStr = ctx.instanceValue.slice(0, 4)
       } else {

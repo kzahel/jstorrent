@@ -1,11 +1,12 @@
 use axum::{
-    routing::{get, post},
+    routing::get,
     Router,
 };
 use clap::Parser;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::signal;
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
 mod auth;
@@ -43,6 +44,7 @@ struct Args {
 pub struct AppState {
     pub token: String,
     pub install_id: String,
+    pub extension_id: Arc<std::sync::RwLock<Option<String>>>,
     pub download_roots: Arc<std::sync::RwLock<Vec<jstorrent_common::DownloadRoot>>>,
 }
 
@@ -51,16 +53,19 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     let args = Args::parse();
-    
-    // Load initial config
-    let roots = config::load_config(&args.install_id).unwrap_or_else(|e| {
-        tracing::warn!("Failed to load initial config: {}", e);
-        Vec::new()
-    });
+
+    // Load initial config from rpc-info.json
+    let (roots, extension_id) = config::load_config(&args.install_id)
+        .map(|c| (c.download_roots, c.extension_id))
+        .unwrap_or_else(|e| {
+            tracing::warn!("Failed to load initial config: {}", e);
+            (Vec::new(), None)
+        });
 
     let state = Arc::new(AppState {
         token: args.token.clone(),
         install_id: args.install_id.clone(),
+        extension_id: Arc::new(std::sync::RwLock::new(extension_id.clone())),
         download_roots: Arc::new(std::sync::RwLock::new(roots)),
     });
 
@@ -71,6 +76,22 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // CORS layer - restrict to Chrome extension origin if available
+    let cors = if let Some(ref ext_id) = extension_id {
+        let origin = format!("chrome-extension://{}", ext_id);
+        tracing::info!("CORS: Restricting to extension origin: {}", origin);
+        CorsLayer::new()
+            .allow_origin(origin.parse::<axum::http::HeaderValue>().unwrap())
+            .allow_methods(tower_http::cors::Any)
+            .allow_headers(tower_http::cors::Any)
+    } else {
+        tracing::warn!("CORS: No extension_id found, allowing any origin");
+        CorsLayer::new()
+            .allow_origin(tower_http::cors::Any)
+            .allow_methods(tower_http::cors::Any)
+            .allow_headers(tower_http::cors::Any)
+    };
+
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
         .merge(files::routes())
@@ -80,6 +101,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(config::routes())
         .layer(axum::middleware::from_fn_with_state(state.clone(), auth::middleware))
         .layer(TraceLayer::new_for_http())
+        .layer(cors)
         .with_state(state.clone());
 
     let addr = SocketAddr::from(([127, 0, 0, 1], args.port));
