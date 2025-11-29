@@ -45,11 +45,28 @@ export class Client {
 
     const conn = new DaemonConnection(daemonInfo.port, daemonInfo.token)
     const factory = new DaemonSocketFactory(conn)
-    const fs = new DaemonFileSystem(conn, 'root')
-    const srm = new StorageRootManager(() => fs)
     const store = new MemorySessionStore()
 
-    console.log('Components created', factory, fs, srm, store)
+    // Create StorageRootManager with factory that creates DaemonFileSystem per root
+    const srm = new StorageRootManager((root) => new DaemonFileSystem(conn, root.token))
+
+    // Register download roots from daemon handshake
+    if (daemonInfo.roots && daemonInfo.roots.length > 0) {
+      for (const root of daemonInfo.roots) {
+        srm.addRoot({
+          token: root.token,
+          label: root.display_name,
+          path: root.path,
+        })
+      }
+      // Set first root as default (TODO: load user preference)
+      srm.setDefaultRoot(daemonInfo.roots[0].token)
+      console.log('Registered', daemonInfo.roots.length, 'download roots')
+    } else {
+      console.warn('No download roots configured! Downloads will fail.')
+    }
+
+    console.log('Components created', factory, srm, store)
 
     // Try to instantiate BtEngine
     this.engine = new BtEngine({

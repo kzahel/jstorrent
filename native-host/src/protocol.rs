@@ -32,11 +32,17 @@ pub struct Response {
     pub payload: ResponsePayload,
 }
 
+use jstorrent_common::DownloadRoot;
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload")]
 pub enum ResponsePayload {
     Empty,
-    DaemonInfo { port: u16, token: String },
+    DaemonInfo {
+        port: u16,
+        token: String,
+        roots: Vec<DownloadRoot>,
+    },
     Path { path: String },
 }
 

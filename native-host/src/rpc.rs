@@ -155,7 +155,7 @@ async fn add_torrent_handler(
 }
 
 pub use jstorrent_common::{UnifiedRpcInfo, ProfileEntry, DownloadRoot, BrowserInfo, get_config_dir};
-pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<()> {
+pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> {
     let config_dir = get_config_dir().ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?;
     let app_dir = config_dir.join("jstorrent-native");
     
@@ -211,6 +211,8 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<()> {
         });
     }
 
+    let active_roots;
+
     if let Some(idx) = found_idx {
         // Update existing entry, preserving salt and download_roots
         let mut entry = unified_info.profiles[idx].clone();
@@ -228,6 +230,7 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<()> {
         }
         
         // salt and download_roots are preserved from `entry`
+        active_roots = entry.download_roots.clone();
         
         unified_info.profiles[idx] = entry;
 
@@ -256,6 +259,7 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<()> {
             browser: info.browser.clone(),
             download_roots: info.download_roots.clone(),
         };
+        active_roots = new_entry.download_roots.clone();
         unified_info.profiles.push(new_entry);
     }
 
@@ -264,5 +268,5 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<()> {
     serde_json::to_writer(&temp_file, &unified_info)?;
     temp_file.persist(&rpc_file).map_err(|e| e.error)?;
 
-    Ok(())
+    Ok(active_roots)
 }

@@ -1,6 +1,8 @@
 # General
 .DS_Store
 
+magnet_link.txt
+
 # just dont want these checked in, but its fine for agents to access
 # so comment them out to help antigravity debug faster
 #*.log
