@@ -1,23 +1,27 @@
-import pytest
+#!/usr/bin/env python3
+"""Test download with tracker for peer discovery (no manual add_peer)."""
+import sys
 import subprocess
 import time
 import os
-import sys
 import re
-from libtorrent_utils import LibtorrentSession
-from test_download import calculate_sha1
+from contextlib import contextmanager
+from test_helpers import (
+    test_dirs, test_engine, libtorrent_seeder,
+    wait_for_seeding, wait_for,
+    fail, passed, sha1_file
+)
 
-@pytest.fixture
-def tracker_url():
+
+@contextmanager
+def local_tracker():
     """Starts a local bittorrent-tracker and yields its announce URL."""
     # Path to the node script
     script_path = os.path.join(os.path.dirname(__file__), 'run_simple_tracker.ts')
-    
-    # Start the tracker process
-    # We assume 'tsx' is in the PATH (via node_modules/.bin or global)
+
     # We need to set the CWD to packages/engine so it finds node_modules
     cwd = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-    
+
     # Use npx tsx to run the typescript file
     process = subprocess.Popen(
         ['npx', 'tsx', script_path],
@@ -27,10 +31,9 @@ def tracker_url():
         text=True,
         bufsize=1
     )
-    
-    port = None
+
     url = None
-    
+
     try:
         # Read stdout to find the port
         start_time = time.time()
@@ -41,19 +44,19 @@ def tracker_url():
                     break
                 time.sleep(0.1)
                 continue
-                
+
             print(f"Tracker: {line.strip()}")
             match = re.search(r'TRACKER_PORT=(\d+)', line)
             if match:
                 port = int(match.group(1))
                 url = f"http://127.0.0.1:{port}/announce"
                 break
-        
+
         if not url:
             raise RuntimeError("Failed to start tracker: Could not get port")
-            
+
         yield url
-        
+
     finally:
         process.terminate()
         try:
@@ -61,96 +64,76 @@ def tracker_url():
         except subprocess.TimeoutExpired:
             process.kill()
 
-def test_tracker_announce_and_peer_discovery(tmp_path, engine_factory, tracker_url):
-    """Test complete tracker flow without manual add_peer."""
-    print(f"Using tracker at: {tracker_url}")
-    
-    # Setup directories
-    temp_dir = str(tmp_path)
-    seeder_dir = os.path.join(temp_dir, "seeder")
-    leecher_dir = os.path.join(temp_dir, "leecher")
-    os.makedirs(seeder_dir)
-    os.makedirs(leecher_dir)
 
-    # 1. Start Libtorrent Seeder
-    # Use a random port
-    lt_session = LibtorrentSession(seeder_dir, port=0)
-    file_size = 1024 * 512 # 512KB
-    torrent_path, info_hash = lt_session.create_dummy_torrent(
-        "test_tracker_payload.bin", 
-        size=file_size, 
-        piece_length=16384,
-        tracker_url=tracker_url
-    )
-    
-    # Calculate expected hash
-    source_file = os.path.join(seeder_dir, "test_tracker_payload.bin")
-    expected_hash = calculate_sha1(source_file)
+def main() -> int:
+    with local_tracker() as tracker_url:
+        print(f"Using tracker at: {tracker_url}")
 
-    # Add to libtorrent as seeder
-    lt_handle = lt_session.add_torrent(torrent_path, seeder_dir, seed_mode=True)
+        with test_dirs() as (seeder_dir, leecher_dir):
+            with libtorrent_seeder(seeder_dir) as lt_session:
+                file_size = 1024 * 512  # 512KB
+                torrent_path, info_hash = lt_session.create_dummy_torrent(
+                    "test_tracker_payload.bin",
+                    size=file_size,
+                    piece_length=16384,
+                    tracker_url=tracker_url
+                )
 
-    # Wait for libtorrent to be ready and announce to tracker
-    print("Waiting for Libtorrent seeder to be ready...")
-    for _ in range(50):
-        s = lt_handle.status()
-        if s.is_seeding:
-            print(f"Libtorrent seeder is ready on port {lt_session.session.listen_port()}.")
-            break
-        time.sleep(0.1)
-    assert lt_handle.status().is_seeding
-    
-    # Give it a moment to announce
-    time.sleep(2)
+                # Calculate expected hash
+                source_file = os.path.join(seeder_dir, "test_tracker_payload.bin")
+                expected_hash = sha1_file(source_file)
 
-    # 2. Start JSTEngine
-    engine = engine_factory(download_dir=leecher_dir)
+                # Add to libtorrent as seeder
+                lt_handle = lt_session.add_torrent(torrent_path, seeder_dir, seed_mode=True)
 
-    # Add torrent file
-    tid = engine.add_torrent_file(torrent_path)
-    
-    # We do NOT manually add peer here. We expect discovery via tracker.
+                # Wait for libtorrent to be ready and announce to tracker
+                print("Waiting for Libtorrent seeder to be ready...")
+                if not wait_for_seeding(lt_handle):
+                    return fail("Libtorrent didn't enter seeding state")
+                print(f"Libtorrent seeder is ready on port {lt_session.listen_port()}")
 
-    # 3. Wait for Download
-    print("Waiting for download to complete...")
-    downloaded = False
-    for i in range(60): # 30 seconds
-        # Check engine status
-        status = engine.get_torrent_status(tid)
-        progress = status.get("progress", 0)
-        peers = status.get("numPeers", 0)
-        
-        if i % 5 == 0:
-            print(f"Progress: {progress * 100:.1f}%, Peers: {peers}")
-        
-        if progress >= 1.0:
-            downloaded = True
-            print("Download complete per engine status!")
-            break
-        
-        # Also check file existence and size as backup
-        download_path = os.path.join(leecher_dir, "test_tracker_payload.bin")
-        if os.path.exists(download_path):
-            current_size = os.path.getsize(download_path)
-            if current_size == file_size:
-                # Verify hash
-                current_hash = calculate_sha1(download_path)
-                if current_hash == expected_hash:
-                    downloaded = True
-                    print("Download verified via file check!")
-                    break
-        
-        time.sleep(0.5)
+                # Give it a moment to announce
+                time.sleep(2)
 
-    if not downloaded:
-        download_path = os.path.join(leecher_dir, "test_tracker_payload.bin")
-        if os.path.exists(download_path):
-            print(f"Final check: Size {os.path.getsize(download_path)}/{file_size}")
-            print(f"Final check: Hash {calculate_sha1(download_path)} vs {expected_hash}")
-        else:
-            print("Final check: File not found")
-            
-        # Debug info
-        print("Engine Status:", engine.get_torrent_status(tid))
+                with test_engine(leecher_dir) as engine:
+                    # Add torrent file
+                    tid = engine.add_torrent_file(torrent_path)
 
-    assert downloaded, "Download failed or timed out"
+                    # We do NOT manually add peer here. We expect discovery via tracker.
+
+                    # Wait for Download
+                    print("Waiting for download to complete...")
+                    iteration = [0]
+
+                    def check_progress():
+                        status = engine.get_torrent_status(tid)
+                        progress = status.get("progress", 0)
+                        peers = status.get("numPeers", 0)
+
+                        iteration[0] += 1
+                        if iteration[0] % 5 == 0:
+                            print(f"Progress: {progress * 100:.1f}%, Peers: {peers}")
+
+                        return progress >= 1.0
+
+                    if not wait_for(check_progress, timeout=30, interval=0.5, description="download"):
+                        download_path = os.path.join(leecher_dir, "test_tracker_payload.bin")
+                        if os.path.exists(download_path):
+                            print(f"Final: Size {os.path.getsize(download_path)}/{file_size}")
+                            print(f"Final: Hash {sha1_file(download_path)} vs {expected_hash}")
+                        else:
+                            print("Final: File not found")
+                        print("Engine Status:", engine.get_torrent_status(tid))
+                        return fail("Download failed or timed out")
+
+                    # Verify hash
+                    download_path = os.path.join(leecher_dir, "test_tracker_payload.bin")
+                    actual_hash = sha1_file(download_path)
+                    if actual_hash != expected_hash:
+                        return fail(f"Hash mismatch: expected {expected_hash}, got {actual_hash}")
+
+    return passed("Tracker-based download completed")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -2,28 +2,31 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug pytest (current file)",
+            "name": "Debug Python test (current file)",
             "type": "debugpy",
             "request": "launch",
-            "module": "pytest",
-            "args": [
-                "${file}"
-            ],
-            "console": "integratedTerminal"
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
         },
         {
-            "name": "Debug pytest + Node.js (current file)",
+            "name": "Debug Python test + Node.js (current file)",
             "type": "debugpy",
             "request": "launch",
-            "module": "pytest",
-            "args": [
-                "${file}",
-                "-v"
-            ],
+            "program": "${file}",
             "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
             "env": {
                 "NODE_INSPECT": "true"
             }
+        },
+        {
+            "name": "Run all tests",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/run_tests.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
         },
         {
             "name": "Attach to Node.js (JSTEngine)",
@@ -40,7 +43,7 @@
         {
             "name": "Debug Python + TypeScript (compound)",
             "configurations": [
-                "Debug pytest + Node.js (current file)",
+                "Debug Python test + Node.js (current file)",
                 "Attach to Node.js (JSTEngine)"
             ],
             "stopAll": true
