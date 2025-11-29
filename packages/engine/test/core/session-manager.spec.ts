@@ -10,6 +10,7 @@ vi.mock('../../src/core/torrent', () => {
   return {
     Torrent: class MockTorrent {
       public infoHash: Uint8Array
+      public userState: string = 'active'
       public on = vi.fn()
       constructor(_engine: any, infoHash: Uint8Array) {
         this.infoHash = infoHash
@@ -89,7 +90,7 @@ describe('SessionManager', () => {
         {
           infoHash: 'abababababababababababababababababababab',
           savePath: '/downloads',
-          paused: false,
+          userState: 'active',
         },
       ],
     }

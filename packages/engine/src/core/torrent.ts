@@ -14,6 +14,7 @@ import { PeerInfo } from '../interfaces/tracker'
 import { TorrentFileInfo } from './torrent-file-info'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
 import type { BtEngine } from './bt-engine'
+import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
 
 export class Torrent extends EngineComponent {
   static logName = 'torrent'
@@ -62,7 +63,31 @@ export class Torrent extends EngineComponent {
   public totalUploaded = 0
 
   // State
-  public isPaused: boolean = false
+  /**
+   * User's intent for this torrent - persisted.
+   */
+  public userState: TorrentUserState = 'active'
+
+  /**
+   * Queue position when userState is 'queued'.
+   */
+  public queuePosition?: number
+
+  /**
+   * Whether the torrent is currently checking data.
+   */
+  private _isChecking: boolean = false
+
+  /**
+   * Current error message if any.
+   */
+  public errorMessage?: string
+
+  /**
+   * Whether network is currently active for this torrent.
+   */
+  private _networkActive: boolean = false
+
   public isPrivate: boolean = false
   public creationDate?: number
   public completedAt?: number
@@ -136,6 +161,18 @@ export class Torrent extends EngineComponent {
   }
 
   async start() {
+    if ((this.engine as BtEngine).isSuspended) {
+      this.logger.debug('Engine suspended, not starting')
+      return
+    }
+
+    if (this.userState !== 'active') {
+      this.logger.debug('User state is not active, not starting')
+      return
+    }
+
+    this._networkActive = true
+
     if (this.trackerManager) {
       this.logger.info('Starting tracker announce')
       await this.trackerManager.announce('started')
@@ -223,6 +260,131 @@ export class Torrent extends EngineComponent {
 
   get uploadSpeed(): number {
     return this.peers.reduce((acc, peer) => acc + peer.uploadSpeed, 0)
+  }
+
+  /**
+   * Get the current activity state (derived, not persisted).
+   */
+  get activityState(): TorrentActivityState {
+    return computeActivityState(
+      this.userState,
+      (this.engine as BtEngine).isSuspended,
+      this.hasMetadata,
+      this._isChecking,
+      this.progress,
+      !!this.errorMessage,
+    )
+  }
+
+  /**
+   * Whether this torrent has metadata (piece info, files, etc).
+   */
+  get hasMetadata(): boolean {
+    return !!this.pieceManager
+  }
+
+  /**
+   * User action: Start the torrent.
+   * Changes userState to 'active' and starts networking if engine allows.
+   */
+  userStart(): void {
+    this.logger.info('User starting torrent')
+    this.userState = 'active'
+    this.errorMessage = undefined
+
+    if (!(this.engine as BtEngine).isSuspended) {
+      this.resumeNetwork()
+    }
+
+    // Persist state change
+    ;(this.engine as BtEngine).sessionPersistence?.saveTorrentList()
+  }
+
+  /**
+   * User action: Stop the torrent.
+   * Changes userState to 'stopped' and stops all networking.
+   */
+  userStop(): void {
+    this.logger.info('User stopping torrent')
+    this.userState = 'stopped'
+    this.suspendNetwork()
+
+    // Persist state change
+    ;(this.engine as BtEngine).sessionPersistence?.saveTorrentList()
+  }
+
+  /**
+   * Internal: Suspend network activity.
+   * Called by engine.suspend() or userStop().
+   */
+  suspendNetwork(): void {
+    if (!this._networkActive) return
+
+    this.logger.debug('Suspending network')
+    this._networkActive = false
+
+    // Stop tracker announces
+    if (this.trackerManager) {
+      this.trackerManager.stop()
+    }
+
+    // Close all peer connections
+    for (const peer of this.peers) {
+      peer.close()
+    }
+    this.peers = []
+  }
+
+  /**
+   * Internal: Resume network activity.
+   * Called by engine.resume() (for active torrents) or userStart().
+   */
+  resumeNetwork(): void {
+    if (this._networkActive) return
+    if ((this.engine as BtEngine).isSuspended) return
+    if (this.userState !== 'active') return
+
+    this.logger.debug('Resuming network')
+    this._networkActive = true
+
+    // Start tracker announces
+    if (this.trackerManager) {
+      this.trackerManager.start()
+    } else if (this.announce.length > 0) {
+      // Initialize tracker manager if we have announces but no manager yet
+      this.initTrackerManager()
+    }
+
+    // Note: Peer connections will come from tracker responses
+  }
+
+  /**
+   * Initialize the tracker manager.
+   */
+  private initTrackerManager(): void {
+    if (this.trackerManager) return
+
+    const tiers = [this.announce]
+    this.trackerManager = new TrackerManager(
+      this.engineInstance,
+      tiers,
+      this.infoHash,
+      this.peerId,
+      this.socketFactory,
+      this.port,
+    )
+
+    this.trackerManager.on('peer', (peer: PeerInfo) => {
+      this.connectToPeer(peer)
+    })
+
+    this.trackerManager.on('warning', (msg) => {
+      this.logger.warn(`Tracker warning: ${msg}`)
+    })
+
+    this.trackerManager.on('error', (err) => {
+      this.logger.error(`Tracker error: ${err.message}`)
+    })
   }
 
   getPeerInfo() {

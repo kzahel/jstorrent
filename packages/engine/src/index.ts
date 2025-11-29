@@ -4,6 +4,10 @@ export { Torrent } from './core/torrent'
 export { SessionPersistence } from './core/session-persistence'
 export type { TorrentSessionData, TorrentStateData } from './core/session-persistence'
 
+// Torrent state
+export type { TorrentUserState, TorrentActivityState } from './core/torrent-state'
+export { computeActivityState } from './core/torrent-state'
+
 // Interfaces
 export type { IFileSystem, IFileHandle, IFileStat } from './interfaces/filesystem'
 export type { ISocketFactory, ITcpSocket, IUdpSocket } from './interfaces/socket'

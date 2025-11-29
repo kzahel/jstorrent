@@ -3,6 +3,7 @@ import { IStorageHandle } from '../io/storage-handle'
 import { StorageManager } from '../io/storage-manager'
 import { toInfoHashString } from '../utils/infohash'
 import { EngineComponent } from '../logging/logger'
+import { TorrentUserState } from './torrent-state'
 
 export interface SessionConfig {
   profile: string
@@ -13,7 +14,7 @@ export interface TorrentState {
   infoHash: string
   name?: string
   savePath: string
-  paused: boolean
+  userState: TorrentUserState
   magnetLink?: string
   torrentFilePath?: string
 }
@@ -45,7 +46,7 @@ export class SessionManager extends EngineComponent {
         return {
           infoHash: hex,
           savePath: defaultHandle ? defaultHandle.id : '',
-          paused: false,
+          userState: t.userState,
         }
       }),
     }

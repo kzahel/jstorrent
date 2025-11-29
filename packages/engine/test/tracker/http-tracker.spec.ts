@@ -21,14 +21,24 @@ describe('HttpTracker', () => {
   let tracker: HttpTracker
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockHttpClient: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mockEngine: any = {
+    scopedLoggerFor: vi.fn().mockReturnValue({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    }),
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mockSocketFactory: any = {}
 
   beforeEach(() => {
     // Reset mocks
     vi.clearAllMocks()
 
     // Create tracker (this will instantiate MockMinimalHttpClient)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tracker = new HttpTracker(announceUrl, infoHash, peerId, {} as any)
+    tracker = new HttpTracker(mockEngine, announceUrl, infoHash, peerId, mockSocketFactory)
 
     // Get the mock instance
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

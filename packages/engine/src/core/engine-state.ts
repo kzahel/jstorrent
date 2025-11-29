@@ -1,6 +1,7 @@
 import { BtEngine } from './bt-engine'
 import { Torrent } from './torrent'
 import { toHex } from '../utils/buffer'
+import { TorrentUserState, TorrentActivityState } from './torrent-state'
 
 /**
  * Complete snapshot of engine state for UI consumption.
@@ -19,6 +20,7 @@ export interface EngineInfo {
   currentConnections: number
   downloadRoots: RootInfo[]
   defaultRoot: string | null
+  isSuspended: boolean
 }
 
 export interface RootInfo {
@@ -39,7 +41,10 @@ export interface GlobalStats {
 export interface TorrentInfo {
   infoHash: string
   name: string
-  state: TorrentState
+  state: TorrentState // Legacy - derived from activityState for backwards compatibility
+  userState: TorrentUserState // User's intent - 'active' | 'stopped' | 'queued'
+  activityState: TorrentActivityState // What's actually happening
+  queuePosition?: number
   progress: number
 
   // Size info
@@ -182,6 +187,7 @@ function getEngineInfo(engine: BtEngine): EngineInfo {
       path: r.path,
     })),
     defaultRoot: engine.storageRootManager.getDefaultRoot() || null,
+    isSuspended: engine.isSuspended,
   }
 }
 
@@ -199,10 +205,10 @@ function getGlobalStats(engine: BtEngine): GlobalStats {
     totalDownloaded += t.totalDownloaded
     totalUploaded += t.totalUploaded
 
-    if (t.isPaused) {
-      pausedTorrents++
-    } else {
+    if (t.userState === 'active') {
       activeTorrents++
+    } else {
+      pausedTorrents++
     }
   }
 
@@ -220,14 +226,32 @@ function getTorrentInfo(torrent: Torrent, engine: BtEngine): TorrentInfo {
   const infoHash = toHex(torrent.infoHash)
   const hasMetadata = !!torrent.pieceManager
 
-  // Determine state
-  let state: TorrentState = 'downloading'
-  if (!hasMetadata) {
-    state = 'downloading_metadata'
-  } else if (torrent.progress >= 1) {
-    state = 'seeding'
-  } else if (torrent.isPaused) {
-    state = 'paused'
+  // Get the new activity state
+  const activityState = torrent.activityState
+
+  // Map activity state to legacy TorrentState for backwards compatibility
+  let state: TorrentState
+  switch (activityState) {
+    case 'stopped':
+      state = 'paused'
+      break
+    case 'checking':
+      state = 'checking'
+      break
+    case 'downloading_metadata':
+      state = 'downloading_metadata'
+      break
+    case 'downloading':
+      state = 'downloading'
+      break
+    case 'seeding':
+      state = 'seeding'
+      break
+    case 'error':
+      state = 'error'
+      break
+    default:
+      state = 'downloading'
   }
 
   // Get file info
@@ -312,6 +336,9 @@ function getTorrentInfo(torrent: Torrent, engine: BtEngine): TorrentInfo {
     infoHash,
     name: torrent.name || infoHash.slice(0, 8),
     state,
+    userState: torrent.userState,
+    activityState,
+    queuePosition: torrent.queuePosition,
     progress: torrent.progress,
 
     totalSize,

@@ -29,6 +29,7 @@ import { PieceManager } from './piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 import { toHex, fromHex } from '../utils/buffer'
 import { IStorageHandle } from '../io/storage-handle'
+import { TorrentUserState } from './torrent-state'
 
 // Maximum piece size supported by the io-daemon (must match DefaultBodyLimit in io-daemon)
 export const MAX_PIECE_SIZE = 32 * 1024 * 1024 // 32MB
@@ -48,6 +49,13 @@ export interface BtEngineOptions {
   logging?: EngineLoggingConfig
   maxPeers?: number
   onLog?: (entry: LogEntry) => void
+
+  /**
+   * Start the engine in suspended state (no network activity).
+   * Use this when you need to restore session before starting networking.
+   * Call resume() after setup/restore is complete.
+   */
+  startSuspended?: boolean
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -65,6 +73,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   private filterFn: ShouldLogFn
   public maxConnections: number
   public maxPeers: number
+
+  /**
+   * Whether the engine is suspended (no network activity).
+   * By default, engine starts active. Pass `startSuspended: true` to start suspended.
+   */
+  private _suspended: boolean = false
 
   // ILoggableComponent implementation
   static logName = 'client'
@@ -130,6 +144,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.filterFn = createFilter(options.logging ?? { level: 'info' })
     this.maxConnections = options.maxConnections ?? 100
     this.maxPeers = options.maxPeers ?? 50
+    this._suspended = options.startSuspended ?? false
 
     // Initialize logger for BtEngine itself
     this.logger = this.scopedLoggerFor(this)
@@ -148,6 +163,47 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   scopedLoggerFor(component: ILoggableComponent): Logger {
     return withScopeAndFiltering(this.rootLogger, component, this.filterFn)
+  }
+
+  /**
+   * Whether the engine is suspended (no network activity).
+   */
+  get isSuspended(): boolean {
+    return this._suspended
+  }
+
+  /**
+   * Suspend all network activity.
+   * Torrents remain in their user state but stop all networking.
+   * Use this during session restore or for "pause all" functionality.
+   */
+  suspend(): void {
+    if (this._suspended) return
+
+    this.logger.info('Suspending engine - stopping all network activity')
+    this._suspended = true
+
+    for (const torrent of this.torrents) {
+      torrent.suspendNetwork()
+    }
+  }
+
+  /**
+   * Resume network activity.
+   * Torrents with userState 'active' will start networking.
+   * Torrents with userState 'stopped' or 'queued' remain stopped.
+   */
+  resume(): void {
+    if (!this._suspended) return
+
+    this.logger.info('Resuming engine - starting active torrents')
+    this._suspended = false
+
+    for (const torrent of this.torrents) {
+      if (torrent.userState === 'active') {
+        torrent.resumeNetwork()
+      }
+    }
   }
 
   private startServer() {
@@ -193,7 +249,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   async addTorrent(
     magnetOrBuffer: string | Uint8Array,
-    options: { storageToken?: string; skipPersist?: boolean; paused?: boolean } = {},
+    options: { storageToken?: string; skipPersist?: boolean; userState?: TorrentUserState } = {},
   ): Promise<Torrent | null> {
     let infoHash: Uint8Array
     let announce: string[] = []
@@ -303,6 +359,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     torrent.magnetLink = magnetLink
     torrent.torrentFileBase64 = torrentFileBase64
 
+    // Set initial user state
+    torrent.userState = options.userState ?? 'active'
+
     this.torrents.push(torrent)
     this.emit('torrent', torrent)
 
@@ -320,8 +379,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       // torrent.recheckData()
     }
 
-    // Start the torrent unless paused (used during session restore)
-    if (!options.paused) {
+    // Only start if engine not suspended AND user wants it active
+    if (!this._suspended && torrent.userState === 'active') {
       await torrent.start()
     }
 
