@@ -78,6 +78,11 @@ async function openUiTab() {
   }
 }
 
+// Handle extension icon click
+chrome.action.onClicked.addListener(() => {
+  openUiTab()
+})
+
 import { Client } from './lib/client'
 import { NativeHostConnection } from './lib/native-connection'
 
@@ -91,11 +96,24 @@ const client = new Client(new NativeHostConnection())
 self.client = client
 
 // Handle requests for log entries from UI
+// Handle requests for log entries from UI
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'GET_LOGS') {
     const entries = client.logBuffer.getRecent(message.limit || 100, message.filter)
     sendResponse({ entries })
     return true // Keep channel open for async response
+  }
+  if (message.type === 'ADD_TORRENT') {
+    client.ensureDaemonReady().then(async () => {
+      try {
+        await client.engine?.addTorrent(message.magnet)
+        sendResponse({ ok: true })
+      } catch (e) {
+        console.error('Failed to add torrent:', e)
+        sendResponse({ ok: false, error: String(e) })
+      }
+    })
+    return true
   }
 })
 

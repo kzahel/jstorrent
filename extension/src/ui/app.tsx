@@ -11,7 +11,16 @@ interface TorrentEvent {
 
 export const App = () => {
   const [events, setEvents] = useState<TorrentEvent[]>([])
-  const [activeTab, setActiveTab] = useState<'torrents' | 'logs'>('logs')
+  const [activeTab, setActiveTab] = useState<'torrents' | 'logs'>('torrents')
+  const [magnetInput, setMagnetInput] = useState('')
+
+  const handleAddTorrent = () => {
+    if (!magnetInput) return
+    chrome.runtime.sendMessage({ type: 'ADD_TORRENT', magnet: magnetInput }, (response) => {
+      console.log('Add torrent response:', response)
+      setMagnetInput('')
+    })
+  }
 
   useEffect(() => {
     const handleMessage = (message: TorrentEvent) => {
@@ -80,6 +89,28 @@ export const App = () => {
         {activeTab === 'torrents' && (
           <div style={{ padding: '20px' }}>
             <h2>Torrents</h2>
+
+            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+              <input
+                type="text"
+                value={magnetInput}
+                onChange={(e) => setMagnetInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAddTorrent()
+                  }
+                }}
+                placeholder="Enter magnet link or URL"
+                style={{ flex: 1, padding: '8px' }}
+              />
+              <button
+                onClick={handleAddTorrent}
+                style={{ padding: '8px 16px', cursor: 'pointer' }}
+              >
+                Add
+              </button>
+            </div>
+
             {events.length === 0 ? (
               <p>No torrents yet. Add a magnet link to get started.</p>
             ) : (
