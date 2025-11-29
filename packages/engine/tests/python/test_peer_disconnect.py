@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Test that download continues after peer disconnect.
 
@@ -5,162 +6,180 @@ This is the core test for the ActivePiece refactoring. The bug was:
 - Peer A requests blocks for piece P
 - Peer A disconnects before sending data
 - Blocks marked as "requested" stay that way forever
-- No other peer will request those blocks → stall
+- No other peer will request those blocks -> stall
 
 The fix: Track which peer made each request. When peer disconnects,
 clear only that peer's requests so blocks become available for other peers.
 """
-import pytest
+import sys
 import os
 import time
+import shutil
+from test_helpers import (
+    temp_directory, test_engine, wait_for_seeding, wait_for,
+    fail, passed
+)
 from libtorrent_utils import LibtorrentSession
 
 
-def test_peer_disconnect_allows_rerequest(tmp_path, engine_factory):
+def test_peer_disconnect_allows_rerequest() -> bool:
     """
     Test that disconnecting a peer allows blocks to be re-requested from another peer.
 
     Strategy: Connect to two seeders, disconnect one mid-download, verify the
     download completes from the remaining seeder.
     """
-    temp_dir = str(tmp_path)
-    seeder1_dir = os.path.join(temp_dir, "seeder1")
-    seeder2_dir = os.path.join(temp_dir, "seeder2")
-    leecher_dir = os.path.join(temp_dir, "leecher")
-    os.makedirs(seeder1_dir)
-    os.makedirs(seeder2_dir)
-    os.makedirs(leecher_dir)
+    print("\n=== Testing Peer Disconnect Allows Re-request ===")
 
-    # Use a larger file so we have time to disconnect mid-download
-    piece_length = 16384
-    file_size = 1024 * 1024  # 1MB = 64 pieces
+    with temp_directory() as temp_dir:
+        seeder1_dir = os.path.join(temp_dir, "seeder1")
+        seeder2_dir = os.path.join(temp_dir, "seeder2")
+        leecher_dir = os.path.join(temp_dir, "leecher")
+        os.makedirs(seeder1_dir)
+        os.makedirs(seeder2_dir)
+        os.makedirs(leecher_dir)
 
-    # Create seeder1 with the data
-    lt_session1 = LibtorrentSession(seeder1_dir, port=50101)
-    torrent_path, info_hash = lt_session1.create_dummy_torrent(
-        "test_data.bin", size=file_size, piece_length=piece_length
-    )
-    lt_handle1 = lt_session1.add_torrent(torrent_path, seeder1_dir, seed_mode=True)
+        # Use a larger file so we have time to disconnect mid-download
+        piece_length = 16384
+        file_size = 1024 * 1024  # 1MB = 64 pieces
 
-    # Wait for seeder1 to be ready
-    for _ in range(50):
-        if lt_handle1.status().is_seeding:
-            break
-        time.sleep(0.1)
-    assert lt_handle1.status().is_seeding, "Seeder1 not ready"
+        # Create seeder1 with the data
+        lt_session1 = LibtorrentSession(seeder1_dir, port=0)
+        torrent_path, info_hash = lt_session1.create_dummy_torrent(
+            "test_data.bin", size=file_size, piece_length=piece_length
+        )
+        lt_handle1 = lt_session1.add_torrent(torrent_path, seeder1_dir, seed_mode=True)
 
-    # Create seeder2 with the same data (copy the file)
-    import shutil
-    shutil.copy(
-        os.path.join(seeder1_dir, "test_data.bin"),
-        os.path.join(seeder2_dir, "test_data.bin")
-    )
-    lt_session2 = LibtorrentSession(seeder2_dir, port=50102)
-    lt_handle2 = lt_session2.add_torrent(torrent_path, seeder2_dir, seed_mode=True)
+        # Wait for seeder1 to be ready
+        if not wait_for_seeding(lt_handle1):
+            print("FAIL: Seeder1 not ready")
+            return False
 
-    # Wait for seeder2 to be ready
-    for _ in range(50):
-        if lt_handle2.status().is_seeding:
-            break
-        time.sleep(0.1)
-    assert lt_handle2.status().is_seeding, "Seeder2 not ready"
+        port1 = lt_session1.listen_port()
 
-    # Start JSTEngine leecher
-    engine = engine_factory(download_dir=leecher_dir)
-    tid = engine.add_torrent_file(torrent_path)
+        # Create seeder2 with the same data (copy the file)
+        shutil.copy(
+            os.path.join(seeder1_dir, "test_data.bin"),
+            os.path.join(seeder2_dir, "test_data.bin")
+        )
+        lt_session2 = LibtorrentSession(seeder2_dir, port=0)
+        lt_handle2 = lt_session2.add_torrent(torrent_path, seeder2_dir, seed_mode=True)
 
-    # Connect to BOTH seeders
-    engine.add_peer(tid, "127.0.0.1", 50101)
-    engine.add_peer(tid, "127.0.0.1", 50102)
+        # Wait for seeder2 to be ready
+        if not wait_for_seeding(lt_handle2):
+            print("FAIL: Seeder2 not ready")
+            return False
 
-    # Wait for connections to establish
-    time.sleep(0.3)
+        port2 = lt_session2.listen_port()
 
-    # Disconnect seeder1 while download is in progress
-    # This should clear seeder1's requests, allowing seeder2 to fulfill them
-    engine.force_disconnect_peer(tid, "127.0.0.1", 50101)
-    print("Disconnected seeder1")
+        # Start JSTEngine leecher
+        with test_engine(leecher_dir) as engine:
+            tid = engine.add_torrent_file(torrent_path)
 
-    # Download should continue and complete from seeder2
-    # The key fix ensures that blocks requested from seeder1 are now
-    # available to be requested from seeder2
-    for i in range(50):
-        status = engine.get_torrent_status(tid)
-        progress = status.get("progress", 0)
-        print(f"Tick {i}: Progress: {progress:.1%}")
-        if progress >= 1.0:
+            # Connect to BOTH seeders
+            engine.add_peer(tid, "127.0.0.1", port1)
+            engine.add_peer(tid, "127.0.0.1", port2)
+
+            # Wait for connections to establish
+            time.sleep(0.3)
+
+            # Disconnect seeder1 while download is in progress
+            engine.force_disconnect_peer(tid, "127.0.0.1", port1)
+            print("Disconnected seeder1")
+
+            # Download should continue and complete from seeder2
+            def check_complete():
+                status = engine.get_torrent_status(tid)
+                progress = status.get("progress", 0)
+                print(f"Progress: {progress:.1%}")
+                return progress >= 1.0
+
+            if not wait_for(check_complete, timeout=10, interval=0.1, description="download"):
+                final_status = engine.get_torrent_status(tid)
+                print(f"FAIL: Download stalled at {final_status['progress']:.1%} after peer disconnect")
+                return False
+
             print("Download complete!")
-            break
-        time.sleep(0.1)
 
-    final_status = engine.get_torrent_status(tid)
-    assert final_status["progress"] >= 1.0, (
-        f"Download stalled at {final_status['progress']:.1%} after peer disconnect. "
-        "This suggests the ActivePiece request clearing isn't working."
-    )
+    print("OK: Peer disconnect re-request test passed")
+    return True
 
 
-def test_single_peer_disconnect_and_reconnect(tmp_path, engine_factory):
+def test_single_peer_disconnect_and_reconnect() -> bool:
     """
     Test the scenario where we have only one peer, disconnect it, reconnect it,
     and verify download continues.
-
-    This tests that requests from a disconnected peer are properly cleared
-    and can be re-requested when the same peer reconnects.
     """
-    temp_dir = str(tmp_path)
-    seeder_dir = os.path.join(temp_dir, "seeder")
-    leecher_dir = os.path.join(temp_dir, "leecher")
-    os.makedirs(seeder_dir)
-    os.makedirs(leecher_dir)
+    print("\n=== Testing Single Peer Disconnect and Reconnect ===")
 
-    piece_length = 16384
-    file_size = 512 * 1024  # 512KB = 32 pieces
+    with temp_directory() as temp_dir:
+        seeder_dir = os.path.join(temp_dir, "seeder")
+        leecher_dir = os.path.join(temp_dir, "leecher")
+        os.makedirs(seeder_dir)
+        os.makedirs(leecher_dir)
 
-    # Create seeder
-    lt_session = LibtorrentSession(seeder_dir, port=50103)
-    torrent_path, info_hash = lt_session.create_dummy_torrent(
-        "test_data.bin", size=file_size, piece_length=piece_length
-    )
-    lt_handle = lt_session.add_torrent(torrent_path, seeder_dir, seed_mode=True)
+        piece_length = 16384
+        file_size = 512 * 1024  # 512KB = 32 pieces
 
-    for _ in range(50):
-        if lt_handle.status().is_seeding:
-            break
-        time.sleep(0.1)
-    assert lt_handle.status().is_seeding, "Seeder not ready"
+        # Create seeder
+        lt_session = LibtorrentSession(seeder_dir, port=0)
+        torrent_path, info_hash = lt_session.create_dummy_torrent(
+            "test_data.bin", size=file_size, piece_length=piece_length
+        )
+        lt_handle = lt_session.add_torrent(torrent_path, seeder_dir, seed_mode=True)
 
-    # Start leecher
-    engine = engine_factory(download_dir=leecher_dir)
-    tid = engine.add_torrent_file(torrent_path)
+        if not wait_for_seeding(lt_handle):
+            print("FAIL: Seeder not ready")
+            return False
 
-    # Connect and wait for some progress
-    engine.add_peer(tid, "127.0.0.1", 50103)
-    time.sleep(0.2)
+        port = lt_session.listen_port()
 
-    # Disconnect while download in progress
-    engine.force_disconnect_peer(tid, "127.0.0.1", 50103)
-    print("Disconnected peer")
+        # Start leecher
+        with test_engine(leecher_dir) as engine:
+            tid = engine.add_torrent_file(torrent_path)
 
-    progress_at_disconnect = engine.get_torrent_status(tid).get("progress", 0)
-    print(f"Progress at disconnect: {progress_at_disconnect:.1%}")
+            # Connect and wait for some progress
+            engine.add_peer(tid, "127.0.0.1", port)
+            time.sleep(0.2)
 
-    # Reconnect to the same peer
-    engine.add_peer(tid, "127.0.0.1", 50103)
-    print("Reconnected peer")
+            # Disconnect while download in progress
+            engine.force_disconnect_peer(tid, "127.0.0.1", port)
+            print("Disconnected peer")
 
-    # Download should continue from where it left off
-    for i in range(50):
-        status = engine.get_torrent_status(tid)
-        progress = status.get("progress", 0)
-        print(f"After reconnect {i}: Progress: {progress:.1%}")
-        if progress >= 1.0:
+            progress_at_disconnect = engine.get_torrent_status(tid).get("progress", 0)
+            print(f"Progress at disconnect: {progress_at_disconnect:.1%}")
+
+            # Reconnect to the same peer
+            engine.add_peer(tid, "127.0.0.1", port)
+            print("Reconnected peer")
+
+            # Download should continue from where it left off
+            def check_complete():
+                status = engine.get_torrent_status(tid)
+                progress = status.get("progress", 0)
+                print(f"After reconnect: Progress: {progress:.1%}")
+                return progress >= 1.0
+
+            if not wait_for(check_complete, timeout=10, interval=0.1, description="download"):
+                final_status = engine.get_torrent_status(tid)
+                print(f"FAIL: Download stalled at {final_status['progress']:.1%} after reconnect")
+                return False
+
             print("Download complete!")
-            break
-        time.sleep(0.1)
 
-    final_status = engine.get_torrent_status(tid)
-    assert final_status["progress"] >= 1.0, (
-        f"Download stalled at {final_status['progress']:.1%} after reconnect. "
-        "This suggests request clearing on disconnect isn't working."
-    )
+    print("OK: Single peer disconnect/reconnect test passed")
+    return True
+
+
+def main() -> int:
+    if not test_peer_disconnect_allows_rerequest():
+        return fail("Peer disconnect re-request test failed")
+
+    if not test_single_peer_disconnect_and_reconnect():
+        return fail("Single peer disconnect/reconnect test failed")
+
+    return passed("All peer disconnect tests passed")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

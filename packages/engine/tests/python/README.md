@@ -21,8 +21,20 @@
 ## Running Tests
 
 ```bash
-pytest
+# Run all tests
+python run_tests.py
+
+# Run specific test
+python test_download.py
+
+# Run tests matching pattern
+python run_tests.py -k resume
+
+# Run specific test with arguments (e.g., piece length)
+python test_download.py 32768
 ```
+
+Each test is a standalone script that can be run directly.
 
 ## Debugging the Node.js Engine
 
@@ -40,14 +52,11 @@ The `JSTEngine` class supports Node.js inspector flags for debugging with Chrome
 ### Usage
 
 ```bash
-# Run a single test with inspector on default port (recommended for single test)
-NODE_INSPECT=9229 pytest test_recheck.py -v
-
-# Run with auto-assigned port (for multiple tests)
-NODE_INSPECT=true pytest .
+# Run a single test with inspector on default port
+NODE_INSPECT=9229 python test_recheck.py
 
 # Pause execution until debugger attaches (useful for debugging startup)
-NODE_INSPECT_BRK=9229 pytest test_recheck.py -v
+NODE_INSPECT_BRK=9229 python test_recheck.py
 ```
 
 ### Connecting Chrome DevTools
@@ -63,7 +72,7 @@ NODE_INSPECT_BRK=9229 pytest test_recheck.py -v
 
 When using `NODE_INSPECT=true` (auto-port), Chrome won't auto-discover the target:
 1. Look for "Debugger listening on ws://127.0.0.1:**PORT**/..." in the test output
-2. In `chrome://inspect`, click **"Configure..."** 
+2. In `chrome://inspect`, click **"Configure..."**
 3. Add `localhost:<PORT>` to the list
 4. Or click **"Open dedicated DevTools for Node"** which may auto-discover local processes
 
