@@ -15,6 +15,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": true
+    "noImplicitAny": true,
+    "baseUrl": ".",
+    "paths": {
+      "@jstorrent/engine/*": ["./packages/engine/src/*"],
+      "@jstorrent/engine": ["./packages/engine/src/index.ts"]
+    }
   }
 }

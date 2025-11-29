@@ -3,7 +3,9 @@ import { PieceManager } from './piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 import { BitField } from '../utils/bitfield'
 import { MessageType, WireMessage } from '../protocol/wire-protocol'
-import * as crypto from 'crypto'
+// import * as crypto from 'crypto'
+import { sha1 } from '../utils/hash'
+import { toHex, toString, compare } from '../utils/buffer'
 import { TrackerManager } from '../tracker/tracker-manager'
 import { ISocketFactory } from '../interfaces/socket'
 import { PeerInfo } from '../interfaces/tracker'
@@ -84,7 +86,7 @@ export class Torrent extends EngineComponent {
     this.maxPeers = maxPeers
     this.globalLimitCheck = globalLimitCheck
 
-    this.instanceLogName = `t:${Buffer.from(infoHash).toString('hex').slice(0, 6)}`
+    this.instanceLogName = `t:${toHex(infoHash).slice(0, 6)}`
 
     if (this.announce.length > 0) {
       // Group announce URLs into tiers (for now just one tier per URL or all in one)
@@ -170,7 +172,7 @@ export class Torrent extends EngineComponent {
   }
 
   get infoHashStr(): string {
-    return Buffer.from(this.infoHash).toString('hex')
+    return toHex(this.infoHash)
   }
 
   get numPeers(): number {
@@ -212,8 +214,8 @@ export class Torrent extends EngineComponent {
     return this.peers.map((peer) => ({
       ip: peer.remoteAddress,
       port: peer.remotePort,
-      client: peer.peerId ? Buffer.from(peer.peerId).toString('utf-8') : 'unknown',
-      peerId: peer.peerId ? Buffer.from(peer.peerId).toString('hex') : null,
+      client: peer.peerId ? toString(peer.peerId) : 'unknown',
+      peerId: peer.peerId ? toHex(peer.peerId) : null,
       downloaded: peer.downloaded,
       uploaded: peer.uploaded,
       downloadSpeed: peer.downloadSpeed,
@@ -273,8 +275,8 @@ export class Torrent extends EngineComponent {
   }
 
   private setupPeerListeners(peer: PeerConnection) {
-    peer.on('handshake', (_infoHash, _peerId, extensions) => {
-      // console.error('Torrent: Handshake received')
+    const onHandshake = (_infoHash: Uint8Array, _peerId: Uint8Array, extensions: boolean) => {
+      console.log(`Torrent: Handshake received. Bitfield present: ${!!this.bitfield}`)
       // Verify infoHash matches
 
       // If we initiated connection, we sent handshake first.
@@ -287,21 +289,25 @@ export class Torrent extends EngineComponent {
 
       // Send BitField
       if (this.bitfield) {
+        this.logger.debug('Sending BitField to peer')
         peer.sendMessage(MessageType.BITFIELD, this.bitfield.toBuffer())
+      } else {
+        console.log('Torrent: No bitfield to send')
       }
-    })
+    }
+
+    peer.on('handshake', onHandshake)
+
+    // If handshake already received (e.g. incoming connection handled by BtEngine), trigger logic immediately
+    if (peer.handshakeReceived && peer.infoHash && peer.peerId) {
+      onHandshake(peer.infoHash, peer.peerId, peer.peerExtensions)
+    }
 
     peer.on('extension_handshake', (_payload) => {
       // Check if we need metadata and peer has it
       if (!this.metadataComplete && peer.peerMetadataId !== null) {
-        // Request metadata size?
-        // Actually, the extended handshake usually contains 'metadata_size' in the 'm' dictionary or top level?
-        // BEP 9: "The handshake dictionary will also contain a key "metadata_size" (integer)."
-        // We need to parse that from the payload.
-        // For now, let's assume we request piece 0 and see what happens or rely on parsing.
-        // Our current parser in PeerConnection is very simple.
-        // Let's just try to request piece 0 if we don't have it.
-        this.requestMetadata(peer)
+        this.logger.debug('Peer supports metadata, requesting...')
+        peer.sendMetadataRequest(0)
       }
     })
 
@@ -419,6 +425,7 @@ export class Torrent extends EngineComponent {
       // For now, just set interested if they have anything (naive)
       // Better: check intersection of peer.bitfield and ~this.bitfield
       const interested = true // Placeholder for logic
+      // console.log(`Torrent: Checking interest for peer. Interested: ${interested}, AmInterested: ${peer.amInterested}`)
       if (interested && !peer.amInterested) {
         this.logger.debug('Sending INTERESTED')
         peer.sendMessage(MessageType.INTERESTED)
@@ -434,6 +441,7 @@ export class Torrent extends EngineComponent {
 
   private requestPieces(peer: PeerConnection) {
     if (peer.peerChoking) {
+      console.log('Torrent: Peer is choking, cannot request')
       return
     }
 
@@ -556,10 +564,11 @@ export class Torrent extends EngineComponent {
 
     // Calculate SHA1
 
-    const hash = crypto.createHash('sha1').update(data).digest()
+    // Calculate SHA1
+    const hash = await sha1(data)
 
     // Compare
-    return Buffer.compare(hash, expectedHash) === 0
+    return compare(hash, expectedHash) === 0
   }
   async stop() {
     this.logger.info('Stopping')
@@ -631,18 +640,14 @@ export class Torrent extends EngineComponent {
     }
   }
 
-  // Metadata Logic
-
-  private requestMetadata(peer: PeerConnection) {
-    if (this.metadataComplete) return
-    // Request piece 0 first.
-    // Block size is usually 16KB.
-    // We don't know total size yet unless we parsed it from handshake.
-    // Let's just request 0.
-    if (!this.metadataPiecesReceived.has(0)) {
-      peer.sendMetadataRequest(0)
+  public recheckPeers() {
+    this.logger.debug('Rechecking all peers')
+    for (const peer of this.peers) {
+      this.updateInterest(peer)
     }
   }
+
+  // Metadata Logic
 
   private handleMetadataRequest(peer: PeerConnection, piece: number) {
     if (!this.metadataRaw) {
@@ -662,7 +667,7 @@ export class Torrent extends EngineComponent {
     peer.sendMetadataData(piece, this.metadataRaw.length, data)
   }
 
-  private handleMetadataData(
+  private async handleMetadataData(
     peer: PeerConnection,
     piece: number,
     totalSize: number,
@@ -695,7 +700,7 @@ export class Torrent extends EngineComponent {
       // Check if complete
       const totalPieces = Math.ceil(this.metadataSize / METADATA_BLOCK_SIZE)
       if (this.metadataPiecesReceived.size === totalPieces) {
-        this.verifyMetadata()
+        await this.verifyMetadata()
       } else {
         // Request next piece
         const nextPiece = piece + 1
@@ -706,12 +711,12 @@ export class Torrent extends EngineComponent {
     }
   }
 
-  private verifyMetadata() {
+  private async verifyMetadata() {
     if (!this.metadataBuffer) return
 
     // SHA1 hash of metadataBuffer should match infoHash
-    const hash = crypto.createHash('sha1').update(this.metadataBuffer).digest()
-    if (Buffer.compare(hash, this.infoHash) === 0) {
+    const hash = await sha1(this.metadataBuffer)
+    if (compare(hash, this.infoHash) === 0) {
       this.logger.info('Metadata verified successfully!')
       this.metadataComplete = true
       this.metadataRaw = this.metadataBuffer

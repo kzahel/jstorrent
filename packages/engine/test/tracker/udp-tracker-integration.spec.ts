@@ -52,6 +52,7 @@ describe('UDP Tracker Integration', () => {
       fileSystem: new ScopedNodeFileSystem(tmpDir),
       downloadPath: tmpDir,
       port: 6882,
+      logging: { level: 'debug' },
     })
 
     // Client B (Leecher)
@@ -63,16 +64,19 @@ describe('UDP Tracker Integration', () => {
       fileSystem: new ScopedNodeFileSystem(downloadDir),
       downloadPath: downloadDir,
       port: 6883,
+      logging: { level: 'debug' },
     })
 
     // Add torrent to Client A (Seeding)
     const torrentA = await clientA.addTorrent(torrentBuffer)
+    if (!torrentA) throw new Error('Failed to add torrent A')
     console.log('Client A added torrent, rechecking data...')
     await torrentA.recheckData()
     console.log('Client A recheck complete')
 
     // Add torrent to Client B (Leeching)
     const torrentB = await clientB.addTorrent(torrentBuffer)
+    if (!torrentB) throw new Error('Failed to add torrent B')
     console.log('Client B added torrent')
 
     torrentB.on('wire', () => console.log('Client B: Wire connected'))

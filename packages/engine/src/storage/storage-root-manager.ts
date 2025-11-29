@@ -1,4 +1,5 @@
 import { IFileSystem } from '../interfaces/filesystem'
+export type { StorageRoot } from './types'
 import { StorageRoot } from './types'
 
 export class StorageRootManager {

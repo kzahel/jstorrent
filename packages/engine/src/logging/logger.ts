@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events'
+import { EventEmitter } from '../utils/event-emitter'
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 

@@ -41,6 +41,11 @@ function injectPublicKey() {
 
 export default defineConfig({
   plugins: [react(), injectPublicKey()],
+  resolve: {
+    alias: {
+      '@jstorrent/engine': resolve(__dirname, '../packages/engine/dist'),
+    },
+  },
   build: {
     sourcemap: true,
     minify: false,

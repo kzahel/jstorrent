@@ -1,5 +1,5 @@
 import { ITracker } from '../interfaces/tracker'
-import { EventEmitter } from 'events'
+import { EventEmitter } from '../utils/event-emitter'
 import { Bencode } from '../utils/bencode'
 import { ISocketFactory } from '../interfaces/socket'
 import { MinimalHttpClient } from '../utils/minimal-http-client'

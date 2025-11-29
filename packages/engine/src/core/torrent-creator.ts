@@ -2,7 +2,7 @@ import { IStorageHandle } from '../io/storage-handle'
 import { Bencode } from '../utils/bencode'
 import { sha1 } from '../utils/hash'
 import { IFileHandle } from '../interfaces/filesystem'
-import * as path from 'path'
+import * as path from '../utils/path'
 
 import { IFileSystem } from '../interfaces/filesystem'
 

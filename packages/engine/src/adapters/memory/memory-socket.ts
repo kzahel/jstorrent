@@ -9,21 +9,25 @@ export class MemorySocket implements ITcpSocket {
   private onConnectCb: (() => void) | null = null
 
   constructor(peer?: MemorySocket) {
+    console.log('MemorySocket: constructor called. Peer provided:', !!peer)
     if (peer) {
       this.peer = peer
       peer.peer = this
       this.connected = true
       peer.connected = true
+      console.log('MemorySocket: linked and connected')
     }
   }
 
   connect(_port: number, _host: string): Promise<void> {
+    console.log('MemorySocket: connect called')
     // In a real scenario, we might look up a peer by address.
     // For this simple implementation, we assume the socket is already paired or will be paired manually.
     // If we want to simulate connection delay:
     return new Promise((resolve) => {
       setTimeout(() => {
         this.connected = true
+        console.log('MemorySocket: connected')
         if (this.onConnectCb) this.onConnectCb()
         resolve()
       }, 10)
@@ -32,7 +36,16 @@ export class MemorySocket implements ITcpSocket {
 
   send(data: Uint8Array): void {
     if (!this.connected || !this.peer) {
-      console.warn('MemorySocket: Attempting to send data on disconnected socket')
+      console.warn(
+        'MemorySocket: Attempting to send data on disconnected socket. Connected:',
+        this.connected,
+        'Peer:',
+        !!this.peer,
+      )
+      // Emit error so caller knows it failed
+      if (this.onErrorCb) {
+        this.onErrorCb(new Error('Socket not connected'))
+      }
       return
     }
     // Simulate network delay?
@@ -65,6 +78,7 @@ export class MemorySocket implements ITcpSocket {
   }
 
   close(): void {
+    console.log('MemorySocket: close called')
     if (this.connected) {
       this.connected = false
       if (this.onCloseCb) this.onCloseCb(false)
@@ -82,12 +96,14 @@ export class MemorySocket implements ITcpSocket {
 
 export class MemorySocketFactory implements ISocketFactory {
   static createPair(): [MemorySocket, MemorySocket] {
+    console.log('MemorySocketFactory: createPair called')
     const a = new MemorySocket()
     const b = new MemorySocket(a)
     return [a, b]
   }
 
   async createTcpSocket(_host?: string, _port?: number): Promise<ITcpSocket> {
+    console.log('MemorySocketFactory: createTcpSocket called')
     // Return a disconnected socket? Or simulate connection?
     // For now, return a disconnected socket.
     return new MemorySocket()

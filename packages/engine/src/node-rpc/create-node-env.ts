@@ -32,7 +32,7 @@ export function createNodeEngineEnvironment(
   return {
     downloadPath,
     socketFactory: new NodeSocketFactory(),
-    storageRootManager,
+    // storageRootManager,
     storageResolver: overrides.storageResolver || new DefaultStorageResolver(downloadPath),
     port: 0, // Default to auto-assign port for testing; override with specific port if needed
     ...overrides,
