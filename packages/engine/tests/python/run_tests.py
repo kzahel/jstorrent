@@ -21,8 +21,7 @@ TIMEOUT = 15
 # Skip List - tests to skip (with reasons)
 # =============================================================================
 SKIP_TESTS = {
-    "test_multi_file.py": "file path mismatch - engine writes to different location than expected",
-    "test_seeding.py": "does not work",
+    "test_seeding.py": "does not work - needs investigation",
 }
 # =============================================================================
 
