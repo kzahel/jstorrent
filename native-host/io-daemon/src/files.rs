@@ -54,9 +54,8 @@ async fn read_file(
     let mut buffer = Vec::new();
     if let Some(len) = params.length {
         buffer.resize(len as usize, 0);
-        let n = file.read(&mut buffer).await
+        file.read_exact(&mut buffer).await
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-        buffer.truncate(n);
     } else {
         file.read_to_end(&mut buffer).await
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
