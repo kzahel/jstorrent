@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm-run-all --parallel dev:extension dev:web",
     "dev:extension": "vite build --watch",
-    "dev:web": "vite --open /src/ui/app.html",
+    "dev:web": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
