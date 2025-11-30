@@ -16,10 +16,10 @@
   --border-light: #dddddd;
   --border-warning: #ffc107;
 
-  --accent-primary: #2196F3;
-  --accent-success: #4CAF50;
-  --accent-error: #F44336;
-  --accent-warning: #FF9800;
+  --accent-primary: #2196f3;
+  --accent-success: #4caf50;
+  --accent-error: #f44336;
+  --accent-warning: #ff9800;
 
   --button-bg: #eeeeee;
   --button-text: #000000;
@@ -71,7 +71,9 @@ body {
   color: var(--text-primary);
 }
 
-input, select, button {
+input,
+select,
+button {
   color-scheme: inherit;
   background-color: var(--input-bg);
   color: var(--text-primary);

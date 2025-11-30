@@ -82,7 +82,8 @@ export const DownloadRootsManager: React.FC = () => {
                 border: '1px solid var(--border-light)',
                 borderRadius: '4px',
                 marginBottom: '8px',
-                background: root.token === defaultToken ? 'var(--bg-highlight)' : 'var(--bg-secondary)',
+                background:
+                  root.token === defaultToken ? 'var(--bg-highlight)' : 'var(--bg-secondary)',
               }}
             >
               <div style={{ flex: 1 }}>
