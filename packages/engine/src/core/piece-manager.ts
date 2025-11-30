@@ -1,5 +1,6 @@
 import { BitField } from '../utils/bitfield'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
+import type { Torrent } from './torrent'
 
 export const BLOCK_SIZE = 16384
 
@@ -42,28 +43,35 @@ export class PieceManager extends EngineComponent {
   static logName = 'piece-manager'
 
   private pieces: Piece[] = []
-  private bitfield: BitField
+  private torrent: Torrent
   private piecesCount: number
   private completedPieces: number = 0
   private pieceHashes: Uint8Array[] = []
 
   constructor(
     engine: ILoggingEngine,
+    torrent: Torrent,
     piecesCount: number,
     pieceLength: number,
     lastPieceLength: number,
     pieceHashes: Uint8Array[] = [],
-    bitfield?: BitField,
   ) {
     super(engine)
+    this.torrent = torrent
     this.piecesCount = piecesCount
     this.pieceHashes = pieceHashes
-    this.bitfield = bitfield || new BitField(piecesCount)
 
     for (let i = 0; i < piecesCount; i++) {
       const length = i === piecesCount - 1 ? lastPieceLength : pieceLength
       this.pieces.push(new Piece(i, length))
     }
+  }
+
+  /**
+   * Get the bitfield from the owning torrent.
+   */
+  private get bitfield(): BitField {
+    return this.torrent.bitfield!
   }
 
   getPieceHash(index: number): Uint8Array | undefined {
@@ -159,9 +167,10 @@ export class PieceManager extends EngineComponent {
 
   /**
    * Restore bitfield from hex string (for session restore).
+   * Restores data into the torrent's bitfield in-place.
    */
   restoreFromHex(hex: string): void {
-    this.bitfield = BitField.fromHex(hex, this.piecesCount)
+    this.bitfield.restoreFromHex(hex)
 
     // Update completed count and piece states
     this.completedPieces = 0

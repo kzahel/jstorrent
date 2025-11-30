@@ -14,7 +14,6 @@ export interface TorrentSessionData {
   infoHash: string // Hex string
   magnetLink?: string // Original magnet link if added via magnet
   torrentFile?: string // Base64 encoded .torrent file if added via file
-  name?: string // Torrent name (from metadata)
   storageToken?: string // Which download root to use
   addedAt: number // Timestamp when added
 
@@ -31,6 +30,7 @@ export interface TorrentStateData {
   uploaded: number // Total bytes uploaded
   downloaded: number // Total bytes downloaded (verified)
   updatedAt: number // Last update timestamp
+  infoBuffer?: string // Base64-encoded info dictionary (for magnet links that have received metadata)
 }
 
 /**
@@ -67,13 +67,13 @@ export class SessionPersistence {
   }
 
   /**
-   * Save state for a specific torrent (bitfield, stats).
+   * Save state for a specific torrent (bitfield, stats, metadata).
    */
   async saveTorrentState(torrent: Torrent): Promise<void> {
     const infoHash = toHex(torrent.infoHash)
-    const bitfield = torrent.pieceManager?.getBitField()
+    const bitfield = torrent.bitfield
 
-    if (!bitfield) return // No piece manager yet
+    if (!bitfield) return // No bitfield yet (no metadata)
 
     const state: TorrentStateData = {
       bitfield: bitfield.toHex(),
@@ -82,8 +82,21 @@ export class SessionPersistence {
       updatedAt: Date.now(),
     }
 
+    // Save the info buffer (metadata) so we don't need to re-fetch from peers
+    if (torrent.metadataRaw) {
+      state.infoBuffer = this.uint8ArrayToBase64(torrent.metadataRaw)
+    }
+
     const json = JSON.stringify(state)
     await this.store.set(TORRENT_PREFIX + infoHash, new TextEncoder().encode(json))
+  }
+
+  private uint8ArrayToBase64(bytes: Uint8Array): string {
+    let binary = ''
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i])
+    }
+    return btoa(binary)
   }
 
   /**
@@ -174,7 +187,7 @@ export class SessionPersistence {
   /**
    * Restore all torrents from storage.
    * Call this on engine startup while engine is suspended.
-   * Torrents are added with their saved userState and bitfields restored.
+   * Torrents are added with their saved userState, metadata, bitfields, and stats restored.
    * Network activity will only start when engine.resume() is called.
    */
   async restoreSession(): Promise<number> {
@@ -183,6 +196,9 @@ export class SessionPersistence {
 
     for (const data of torrentsData) {
       try {
+        // Load saved state FIRST - we need infoBuffer before adding torrent for magnet links
+        const state = await this.loadTorrentState(data.infoHash)
+
         let torrent: Torrent | null = null
 
         if (data.magnetLink) {
@@ -208,23 +224,31 @@ export class SessionPersistence {
           // Restore queue position
           torrent.queuePosition = data.queuePosition
 
-          // Load saved state (bitfield)
-          const state = await this.loadTorrentState(data.infoHash)
-          if (state && torrent.pieceManager) {
-            // Restore bitfield
+          // If we have saved metadata (info buffer), initialize the torrent with it
+          // This is crucial for magnet links - avoids needing to re-fetch metadata from peers
+          if (state?.infoBuffer && !torrent.pieceManager) {
+            const infoBuffer = this.base64ToUint8Array(state.infoBuffer)
+            console.error(
+              `SessionPersistence: Initializing torrent ${data.infoHash} from saved metadata`,
+            )
+            await this.engine.initTorrentFromSavedMetadata(torrent, infoBuffer)
+          }
+
+          // Restore bitfield if we have saved state and pieceManager is now available
+          if (state?.bitfield && torrent.pieceManager) {
             console.error(
               `SessionPersistence: Restoring bitfield for ${data.infoHash}, state.bitfield length=${state.bitfield?.length}`,
             )
             torrent.pieceManager.restoreFromHex(state.bitfield)
-            // Also update the torrent's bitfield reference
-            torrent.bitfield = torrent.pieceManager.getBitField()
             console.error(
               `SessionPersistence: Restored bitfield, completedPieces=${torrent.pieceManager.getCompletedCount()}`,
             )
-          } else {
-            console.error(
-              `SessionPersistence: No state to restore for ${data.infoHash} (state=${!!state}, pieceManager=${!!torrent.pieceManager})`,
-            )
+          }
+
+          // Restore upload/download stats
+          if (state) {
+            torrent.totalDownloaded = state.downloaded
+            torrent.totalUploaded = state.uploaded
           }
 
           restoredCount++
@@ -251,7 +275,6 @@ export class SessionPersistence {
       infoHash,
       magnetLink: torrent.magnetLink,
       torrentFile: torrent.torrentFileBase64,
-      name: torrent.name,
       storageToken,
       addedAt: torrent.addedAt || Date.now(),
 

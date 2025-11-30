@@ -241,12 +241,14 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     let magnetLink: string | undefined
     let torrentFileBase64: string | undefined
 
+    let magnetDisplayName: string | undefined
+
     if (typeof magnetOrBuffer === 'string') {
       const parsed = parseMagnet(magnetOrBuffer)
       infoHash = fromHex(parsed.infoHash)
       announce = parsed.announce || []
       magnetLink = magnetOrBuffer
-      // name = parsed.name
+      magnetDisplayName = parsed.name
     } else {
       parsedTorrent = await TorrentParser.parse(magnetOrBuffer, this.hasher)
       infoHash = parsedTorrent.infoHash
@@ -276,11 +278,15 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       this.port,
       undefined, // pieceManager
       undefined, // contentStorage
-      undefined, // bitfield
       announce,
       this.maxPeers,
       () => this.numConnections < this.maxConnections,
     )
+
+    // Store magnet display name for fallback naming
+    if (magnetDisplayName) {
+      torrent._magnetDisplayName = magnetDisplayName
+    }
 
     const initComponents = async (infoBuffer: Uint8Array, preParsed?: ParsedTorrent) => {
       if (torrent.pieceManager) return // Already initialized
@@ -300,9 +306,13 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         throw error
       }
 
-      // Initialize PieceManager
+      // Initialize bitfield on torrent first (torrent owns the bitfield)
+      torrent.initBitfield(parsedTorrent.pieces.length)
+
+      // Initialize PieceManager with torrent reference
       const pieceManager = new PieceManager(
         this,
+        torrent,
         parsedTorrent.pieces.length,
         parsedTorrent.pieceLength,
         parsedTorrent.length % parsedTorrent.pieceLength || parsedTorrent.pieceLength,
@@ -316,8 +326,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         console.error(`BtEngine: Restoring bitfield from saved state for ${infoHashStr}`)
         pieceManager.restoreFromHex(savedState.bitfield)
       }
-
-      torrent.bitfield = pieceManager.getBitField()
 
       // Initialize ContentStorage
       const storageHandle: IStorageHandle = {
@@ -407,6 +415,60 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   getTorrent(infoHash: string): Torrent | undefined {
     return this.torrents.find((t) => toHex(t.infoHash) === infoHash)
+  }
+
+  /**
+   * Initialize a torrent from saved metadata (info dict).
+   * Used during session restore when we have the metadata buffer saved.
+   * This avoids needing to re-fetch metadata from peers.
+   */
+  async initTorrentFromSavedMetadata(torrent: Torrent, infoBuffer: Uint8Array): Promise<void> {
+    if (torrent.pieceManager) return // Already initialized
+
+    const infoHashStr = toHex(torrent.infoHash)
+
+    // Set the metadata on the torrent
+    torrent.setMetadata(infoBuffer)
+
+    // Parse the info buffer
+    const parsedTorrent = await TorrentParser.parseInfoBuffer(infoBuffer, this.hasher)
+
+    // Check piece size limit
+    if (parsedTorrent.pieceLength > MAX_PIECE_SIZE) {
+      const sizeMB = (parsedTorrent.pieceLength / (1024 * 1024)).toFixed(1)
+      const maxMB = (MAX_PIECE_SIZE / (1024 * 1024)).toFixed(0)
+      const error = new Error(
+        `Torrent piece size (${sizeMB}MB) exceeds maximum supported size (${maxMB}MB)`,
+      )
+      torrent.emit('error', error)
+      this.emit('error', error)
+      throw error
+    }
+
+    // Initialize bitfield on torrent first (torrent owns the bitfield)
+    torrent.initBitfield(parsedTorrent.pieces.length)
+
+    // Initialize PieceManager with torrent reference
+    const pieceManager = new PieceManager(
+      this,
+      torrent,
+      parsedTorrent.pieces.length,
+      parsedTorrent.pieceLength,
+      parsedTorrent.length % parsedTorrent.pieceLength || parsedTorrent.pieceLength,
+      parsedTorrent.pieces,
+    )
+    torrent.pieceManager = pieceManager
+
+    // Initialize ContentStorage
+    const storageHandle: IStorageHandle = {
+      id: infoHashStr,
+      name: parsedTorrent.name || infoHashStr,
+      getFileSystem: () => this.storageRootManager.getFileSystemForTorrent(infoHashStr),
+    }
+
+    const contentStorage = new TorrentContentStorage(this, storageHandle)
+    await contentStorage.open(parsedTorrent.files, parsedTorrent.pieceLength)
+    torrent.contentStorage = contentStorage
   }
 
   async destroy() {

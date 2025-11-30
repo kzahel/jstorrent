@@ -6,6 +6,7 @@ import { TorrentContentStorage } from './torrent-content-storage'
 import { BitField } from '../utils/bitfield'
 import { MessageType, WireMessage } from '../protocol/wire-protocol'
 import { toHex, toString, compare } from '../utils/buffer'
+import { Bencode } from '../utils/bencode'
 import { TrackerManager } from '../tracker/tracker-manager'
 import { ISocketFactory } from '../interfaces/socket'
 import { PeerInfo } from '../interfaces/tracker'
@@ -26,7 +27,7 @@ export class Torrent extends EngineComponent {
   public pieceManager?: PieceManager
   private activePieces?: ActivePieceManager
   public contentStorage?: TorrentContentStorage
-  public bitfield?: BitField
+  private _bitfield?: BitField
   public announce: string[] = []
   public trackerManager?: TrackerManager
   private _files: TorrentFileInfo[] = []
@@ -38,7 +39,41 @@ export class Torrent extends EngineComponent {
   public metadataBuffer: Uint8Array | null = null
   public metadataComplete = false
   public metadataPiecesReceived = new Set<number>()
-  private metadataRaw: Uint8Array | null = null // The full info dictionary buffer
+  private _metadataRaw: Uint8Array | null = null // The full info dictionary buffer
+
+  /**
+   * The raw info dictionary buffer (verified via SHA1 against infoHash).
+   * This is the bencoded "info" dictionary from the .torrent file.
+   * Available for session persistence.
+   */
+  get metadataRaw(): Uint8Array | null {
+    return this._metadataRaw
+  }
+
+  // Cached parsed info dictionary (to avoid repeated bencode parsing)
+  private _cachedInfoDict?: Record<string, unknown>
+
+  /**
+   * The parsed info dictionary (decoded from metadataRaw).
+   * This is the official BitTorrent "info dict" containing name, piece hashes, files, etc.
+   * Lazily parsed and cached to avoid repeated bencode decoding.
+   */
+  get infoDict(): Record<string, unknown> | undefined {
+    if (this._cachedInfoDict) return this._cachedInfoDict
+
+    if (this._metadataRaw) {
+      try {
+        this._cachedInfoDict = Bencode.decode(this._metadataRaw) as Record<string, unknown>
+        return this._cachedInfoDict
+      } catch {
+        // Ignore decode errors
+      }
+    }
+    return undefined
+  }
+
+  // Magnet display name (dn parameter) - fallback when info dict isn't available yet
+  public _magnetDisplayName?: string
 
   public totalDownloaded = 0
   public totalUploaded = 0
@@ -90,7 +125,6 @@ export class Torrent extends EngineComponent {
     port: number,
     pieceManager?: PieceManager,
     contentStorage?: TorrentContentStorage,
-    bitfield?: BitField,
     announce: string[] = [],
     maxPeers: number = 50,
     globalLimitCheck: () => boolean = () => true,
@@ -103,7 +137,6 @@ export class Torrent extends EngineComponent {
     this.port = port
     this.pieceManager = pieceManager
     this.contentStorage = contentStorage
-    this.bitfield = bitfield
     this.announce = announce
     this.maxPeers = maxPeers
     this.globalLimitCheck = globalLimitCheck
@@ -209,6 +242,18 @@ export class Torrent extends EngineComponent {
     return toHex(this.infoHash)
   }
 
+  get bitfield(): BitField | undefined {
+    return this._bitfield
+  }
+
+  /**
+   * Initialize the bitfield with the given piece count.
+   * Called when metadata is available and we know how many pieces there are.
+   */
+  initBitfield(pieceCount: number): void {
+    this._bitfield = new BitField(pieceCount)
+  }
+
   get numPeers(): number {
     return this.peers.length
   }
@@ -233,6 +278,16 @@ export class Torrent extends EngineComponent {
   }
 
   get name(): string {
+    // Try to get from info dict (cached, avoids repeated parsing)
+    const info = this.infoDict
+    if (info?.name) {
+      return toString(info.name as Uint8Array)
+    }
+
+    // Fallback to magnet display name
+    if (this._magnetDisplayName) return this._magnetDisplayName
+
+    // Final fallback to truncated infohash
     return `Torrent-${this.infoHashStr.substring(0, 8)}...`
   }
 
@@ -1040,7 +1095,7 @@ export class Torrent extends EngineComponent {
     if (compare(hash, this.infoHash) === 0) {
       this.logger.info('Metadata verified successfully!')
       this.metadataComplete = true
-      this.metadataRaw = this.metadataBuffer
+      this._metadataRaw = this.metadataBuffer
       this.emit('metadata', this.metadataBuffer)
 
       // Initialize PieceManager and Storage if not already
@@ -1061,9 +1116,10 @@ export class Torrent extends EngineComponent {
     }
   }
 
-  // Called by BtEngine when metadata is provided initially (e.g. .torrent file)
+  // Called by BtEngine when metadata is provided initially (e.g. .torrent file or restored from session)
   public setMetadata(infoBuffer: Uint8Array) {
-    this.metadataRaw = infoBuffer
+    this._metadataRaw = infoBuffer
+    this._cachedInfoDict = undefined // Clear cache so infoDict getter re-parses
     this.metadataComplete = true
     this.metadataSize = infoBuffer.length
   }
