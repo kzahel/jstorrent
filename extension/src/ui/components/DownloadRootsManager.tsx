@@ -13,16 +13,15 @@ export const DownloadRootsManager: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
 
-  const loadRoots = async () => {
-    const loadedRoots = engineManager.getRoots()
-    const loadedDefaultToken = await engineManager.getDefaultRootToken()
-    setRoots(loadedRoots)
-    setDefaultToken(loadedDefaultToken)
-    setLoading(false)
-  }
-
   useEffect(() => {
-    loadRoots()
+    const loadRoots = async () => {
+      const loadedRoots = engineManager.getRoots()
+      const loadedDefaultToken = await engineManager.getDefaultRootToken()
+      setRoots(loadedRoots)
+      setDefaultToken(loadedDefaultToken)
+      setLoading(false)
+    }
+    void loadRoots()
   }, [])
 
   const handleAddRoot = async () => {
@@ -31,7 +30,10 @@ export const DownloadRootsManager: React.FC = () => {
     setAdding(false)
     if (root) {
       // Reload roots list
-      await loadRoots()
+      const loadedRoots = engineManager.getRoots()
+      const loadedDefaultToken = await engineManager.getDefaultRootToken()
+      setRoots(loadedRoots)
+      setDefaultToken(loadedDefaultToken)
       // If this is the first root, set it as default
       if (roots.length === 0) {
         await handleSetDefault(root.token)

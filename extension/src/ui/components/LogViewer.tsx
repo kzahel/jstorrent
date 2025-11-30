@@ -16,11 +16,10 @@ export const LogViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Get initial logs from local buffer
+    // Get initial logs from local buffer and subscribe to new logs
     const initialLogs = engineManager.logBuffer.getRecent(100, filter)
-    setEntries(initialLogs.reverse())
 
-    // Subscribe to new logs
+    // Subscribe to new logs (setState in callback is fine)
     const unsubscribe = engineManager.logBuffer.subscribe((entry) => {
       // Check filter
       if (filter.level) {
@@ -38,6 +37,10 @@ export const LogViewer: React.FC = () => {
         return updated
       })
     })
+
+    // Set initial entries after subscribing
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEntries(initialLogs.reverse())
 
     return () => {
       unsubscribe()
