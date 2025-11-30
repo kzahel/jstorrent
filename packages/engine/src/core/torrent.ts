@@ -360,9 +360,11 @@ export class Torrent extends EngineComponent {
     this.logger.debug('Suspending network')
     this._networkActive = false
 
-    // Stop tracker announces
+    // Send stopped announce to trackers
     if (this.trackerManager) {
-      this.trackerManager.stop()
+      this.trackerManager.announce('stopped').catch((err) => {
+        this.logger.warn(`Failed to send stopped announce: ${err}`)
+      })
     }
 
     // Close all peer connections
@@ -386,7 +388,9 @@ export class Torrent extends EngineComponent {
 
     // Start tracker announces
     if (this.trackerManager) {
-      this.trackerManager.start()
+      this.trackerManager.announce('started').catch((err) => {
+        this.logger.warn(`Failed to send started announce: ${err}`)
+      })
     } else if (this.announce.length > 0) {
       // Initialize tracker manager if we have announces but no manager yet
       this.initTrackerManager()

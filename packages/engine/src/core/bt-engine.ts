@@ -231,7 +231,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   async addTorrent(
     magnetOrBuffer: string | Uint8Array,
-    options: { storageToken?: string; skipPersist?: boolean; userState?: TorrentUserState } = {},
+    options: {
+      storageToken?: string
+      /** Whether this torrent is being restored from session or added by user action. Default: 'user' */
+      source?: 'user' | 'restore'
+      userState?: TorrentUserState
+    } = {},
   ): Promise<Torrent | null> {
     let infoHash: Uint8Array
     let announce: string[] = []
@@ -384,7 +389,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     // Persist torrent list (unless restoring from session)
-    if (!options.skipPersist) {
+    if (options.source !== 'restore') {
       await this.sessionPersistence.saveTorrentList()
     }
 
