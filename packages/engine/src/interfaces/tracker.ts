@@ -19,7 +19,7 @@ export interface ITracker extends EventEmitter {
   destroy(): void
 
   // Events
-  on(event: 'peer', listener: (peer: PeerInfo) => void): this
+  on(event: 'peersDiscovered', listener: (peers: PeerInfo[]) => void): this
   on(event: 'error', listener: (err: Error) => void): this
   on(event: 'warning', listener: (msg: string) => void): this
 }

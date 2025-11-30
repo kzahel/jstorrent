@@ -75,12 +75,12 @@ describe('HttpTracker', () => {
 
     mockHttpClient.get.mockResolvedValue(Buffer.from(Bencode.encode(response)))
 
-    const peerSpy = vi.fn()
-    tracker.on('peer', peerSpy)
+    const peersSpy = vi.fn()
+    tracker.on('peersDiscovered', peersSpy)
 
     await tracker.announce('started')
 
-    expect(peerSpy).toHaveBeenCalledWith({ ip: '1.2.3.4', port: 8080 })
+    expect(peersSpy).toHaveBeenCalledWith([{ ip: '1.2.3.4', port: 8080 }])
   })
 
   it('should handle tracker errors', async () => {

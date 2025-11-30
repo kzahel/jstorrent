@@ -56,7 +56,7 @@ export class TrackerManager extends EngineComponent {
 
           if (tracker) {
             this.trackers.push(tracker)
-            tracker.on('peer', (peer) => this.handlePeer(peer))
+            tracker.on('peersDiscovered', (peers) => this.handlePeersDiscovered(peers))
             tracker.on('error', (err) => this.logger.warn(`Tracker ${url} error: ${err.message}`))
           }
         } catch (_err) {
@@ -82,11 +82,20 @@ export class TrackerManager extends EngineComponent {
     this.logger.debug('TrackerManager: All announces completed')
   }
 
-  private handlePeer(peer: PeerInfo) {
-    const key = `${peer.ip}:${peer.port}`
-    if (!this.knownPeers.has(key)) {
-      this.knownPeers.add(key)
-      this.emit('peer', peer)
+  private handlePeersDiscovered(peers: PeerInfo[]) {
+    const newPeers: PeerInfo[] = []
+    for (const peer of peers) {
+      const key = `${peer.ip}:${peer.port}`
+      if (!this.knownPeers.has(key)) {
+        this.knownPeers.add(key)
+        newPeers.push(peer)
+      }
+    }
+    if (newPeers.length > 0) {
+      this.logger.debug(
+        `Discovered ${newPeers.length} new peers (${peers.length - newPeers.length} duplicates)`,
+      )
+      this.emit('peersDiscovered', newPeers)
     }
   }
 

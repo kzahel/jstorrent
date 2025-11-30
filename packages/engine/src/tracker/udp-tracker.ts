@@ -1,4 +1,4 @@
-import { ITracker, TrackerAnnounceEvent } from '../interfaces/tracker'
+import { ITracker, TrackerAnnounceEvent, PeerInfo } from '../interfaces/tracker'
 import { IUdpSocket, ISocketFactory } from '../interfaces/socket'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
 
@@ -143,12 +143,14 @@ export class UdpTracker extends EngineComponent implements ITracker {
       this._interval = interval
       this.logger.info('UdpTracker: Announce response received', { interval })
 
-      for (let i = 20; i < msg.length; i += 6) {
-        if (i + 6 > msg.length) break
+      const peers: PeerInfo[] = []
+      for (let i = 20; i + 6 <= msg.length; i += 6) {
         const ip = `${msg[i]}.${msg[i + 1]}.${msg[i + 2]}.${msg[i + 3]}`
         const port = (msg[i + 4] << 8) | msg[i + 5]
-        // this.logger.debug(`UdpTracker: Discovered peer ${ip}:${port}`)
-        this.emit('peer', { ip, port })
+        peers.push({ ip, port })
+      }
+      if (peers.length > 0) {
+        this.emit('peersDiscovered', peers)
       }
     } else if (action === ACTION_ERROR) {
       const errorMsg = new TextDecoder().decode(msg.slice(8))
