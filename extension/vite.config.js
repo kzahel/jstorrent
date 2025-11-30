@@ -125,6 +125,10 @@ export default defineConfig({
     'import.meta.env.DEV_EXTENSION_ID': JSON.stringify(
       process.env.DEV_EXTENSION_ID || DEFAULT_EXTENSION_ID,
     ),
+    // Share URL for generating shareable torrent links
+    'import.meta.env.SHARE_URL': JSON.stringify(
+      process.env.SHARE_URL || `http://${DEV_HOST}:3001/src/ui/share.html`,
+    ),
   },
   server: {
     // Dev mode: serve on local.jstorrent.com:3001
@@ -149,6 +153,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         app: resolve(__dirname, 'src/ui/app.html'),
+        share: resolve(__dirname, 'src/ui/share.html'),
         magnet: resolve(__dirname, 'src/magnet/magnet-handler.html'),
         sw: resolve(__dirname, 'src/sw.ts'),
       },

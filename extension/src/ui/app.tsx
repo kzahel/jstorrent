@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { useState, useRef } from 'react'
-import { Torrent } from '@jstorrent/engine'
+import { Torrent, generateMagnet, createTorrentBuffer } from '@jstorrent/engine'
 import { LogViewer } from './components/LogViewer'
 import { DownloadRootsManager } from './components/DownloadRootsManager'
 import { TorrentItem } from './components/TorrentItem'
@@ -63,6 +63,48 @@ function AppContent() {
   const handleDeleteTorrent = async (torrent: Torrent) => {
     if (!engine) return
     await engine.removeTorrent(torrent)
+  }
+
+  const handleRecheckTorrent = async (torrent: Torrent) => {
+    await torrent.recheckData()
+  }
+
+  const handleResetTorrent = async (torrent: Torrent) => {
+    if (!engine) return
+
+    // Prefer using metadata if available (avoids re-fetching from peers)
+    const metadataRaw = torrent.metadataRaw
+    let torrentData: string | Uint8Array
+
+    if (metadataRaw) {
+      // Create torrent buffer from metadata - preserves infodict
+      torrentData = createTorrentBuffer({
+        metadataRaw,
+        announce: torrent.announce,
+      })
+    } else {
+      // Fall back to magnet link if no metadata
+      torrentData = generateMagnet({
+        infoHash: torrent.infoHashStr,
+        name: torrent.name,
+        announce: torrent.announce,
+      })
+    }
+
+    // Remove torrent (files stay on disk)
+    await engine.removeTorrent(torrent)
+    // Re-add in stopped state
+    await engine.addTorrent(torrentData, { userState: 'stopped' })
+  }
+
+  const handleShareTorrent = (torrent: Torrent) => {
+    const magnetUri = generateMagnet({
+      infoHash: torrent.infoHashStr,
+      name: torrent.name,
+      announce: torrent.announce,
+    })
+    const shareUrl = `${import.meta.env.SHARE_URL}#magnet=${encodeURIComponent(magnetUri)}`
+    window.open(shareUrl, '_blank')
   }
 
   return (
@@ -181,6 +223,9 @@ function AppContent() {
                         onStart={handleStartTorrent}
                         onStop={handleStopTorrent}
                         onDelete={handleDeleteTorrent}
+                        onRecheck={handleRecheckTorrent}
+                        onReset={handleResetTorrent}
+                        onShare={handleShareTorrent}
                       />
                     ))}
                   </ul>
