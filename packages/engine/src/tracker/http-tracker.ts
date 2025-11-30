@@ -48,9 +48,9 @@ export class HttpTracker extends EngineComponent implements ITracker {
     }
   }
 
-  private handleBody(bodyBuffer: Buffer) {
+  private handleBody(bodyBuffer: Uint8Array) {
     try {
-      const parsed = Bencode.decode(new Uint8Array(bodyBuffer))
+      const parsed = Bencode.decode(bodyBuffer)
       this.handleResponse(parsed)
     } catch (err) {
       const errMsg = `Failed to decode tracker response: ${err instanceof Error ? err.message : String(err)}`

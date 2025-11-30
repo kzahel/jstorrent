@@ -1,5 +1,21 @@
 import { ISocketFactory } from '../interfaces/socket'
 import { Logger } from '../logging/logger'
+import { concat, fromString, toString } from './buffer'
+
+/**
+ * Find the index of a byte sequence within a Uint8Array
+ */
+function findSequence(buffer: Uint8Array, sequence: Uint8Array): number {
+  outer: for (let i = 0; i <= buffer.length - sequence.length; i++) {
+    for (let j = 0; j < sequence.length; j++) {
+      if (buffer[i + j] !== sequence[j]) continue outer
+    }
+    return i
+  }
+  return -1
+}
+
+const CRLF_CRLF = new Uint8Array([13, 10, 13, 10]) // \r\n\r\n
 
 export class MinimalHttpClient {
   constructor(
@@ -7,7 +23,7 @@ export class MinimalHttpClient {
     private logger?: Logger,
   ) {}
 
-  async get(url: string, headers: Record<string, string> = {}): Promise<Buffer> {
+  async get(url: string, headers: Record<string, string> = {}): Promise<Uint8Array> {
     const urlObj = new URL(url)
     const host = urlObj.hostname
     const port = urlObj.port ? parseInt(urlObj.port, 10) : urlObj.protocol === 'https:' ? 443 : 80
@@ -19,7 +35,7 @@ export class MinimalHttpClient {
 
     const socket = await this.socketFactory.createTcpSocket(host, port)
 
-    return new Promise<Buffer>((resolve, reject) => {
+    return new Promise<Uint8Array>((resolve, reject) => {
       const requestLines = [
         `GET ${path} HTTP/1.1`,
         `Host: ${host}`,
@@ -35,7 +51,7 @@ export class MinimalHttpClient {
       requestLines.push('', '') // Double CRLF
       const request = requestLines.join('\r\n')
 
-      let buffer = Buffer.alloc(0)
+      let buffer: Uint8Array = new Uint8Array(0)
       let headersParsed = false
       let contentLength: number | null = null
       let connectionClose = false
@@ -56,7 +72,7 @@ export class MinimalHttpClient {
         }
       }
 
-      const succeed = (body: Buffer) => {
+      const succeed = (body: Uint8Array) => {
         if (!resolved) {
           resolved = true
           this.logger?.debug(`MinimalHttpClient: Response received, ${body.length} bytes`)
@@ -67,10 +83,10 @@ export class MinimalHttpClient {
 
       const processBuffer = () => {
         if (!headersParsed) {
-          const separatorIndex = buffer.indexOf('\r\n\r\n')
+          const separatorIndex = findSequence(buffer, CRLF_CRLF)
           if (separatorIndex !== -1) {
             const headerBuffer = buffer.subarray(0, separatorIndex)
-            const headerString = headerBuffer.toString('utf-8')
+            const headerString = toString(headerBuffer)
             bodyStart = separatorIndex + 4
 
             // Parse Status Line
@@ -98,7 +114,7 @@ export class MinimalHttpClient {
               statusCode === 204 ||
               statusCode === 304
             ) {
-              succeed(Buffer.alloc(0))
+              succeed(new Uint8Array(0))
               return
             }
 
@@ -162,7 +178,7 @@ export class MinimalHttpClient {
       }
 
       socket.onData((data) => {
-        buffer = Buffer.concat([buffer, data])
+        buffer = concat([buffer, data])
         processBuffer()
       })
 
@@ -195,7 +211,7 @@ export class MinimalHttpClient {
         fail(new Error(`Socket error: ${err.message}`))
       })
 
-      socket.send(Buffer.from(request))
+      socket.send(fromString(request))
     })
   }
 }
