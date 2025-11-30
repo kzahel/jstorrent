@@ -831,11 +831,11 @@ export class Torrent extends EngineComponent {
 
     const MAX_PIPELINE = 200
 
-    let requestsMade = 0
-    let skippedComplete = 0
-    let skippedCapacity = 0
-    let skippedPeerLacks = 0
-    let skippedNoNeeded = 0
+    let _requestsMade = 0
+    let _skippedComplete = 0
+    let _skippedCapacity = 0
+    let _skippedPeerLacks = 0
+    let _skippedNoNeeded = 0
 
     for (const index of missing) {
       if (peer.requestsPending >= MAX_PIPELINE) {
@@ -845,7 +845,7 @@ export class Torrent extends EngineComponent {
 
       // Check peer has this piece
       if (!peer.bitfield?.get(index)) {
-        skippedPeerLacks++
+        _skippedPeerLacks++
         continue
       }
 
@@ -854,7 +854,7 @@ export class Torrent extends EngineComponent {
 
       // If piece has all blocks, skip (waiting for hash/flush)
       if (piece?.haveAllBlocks) {
-        skippedComplete++
+        _skippedComplete++
         continue
       }
 
@@ -862,7 +862,7 @@ export class Torrent extends EngineComponent {
       if (!piece) {
         const newPiece = this.activePieces.getOrCreate(index)
         if (!newPiece) {
-          skippedCapacity++
+          _skippedCapacity++
           continue // At capacity
         }
         piece = newPiece
@@ -871,7 +871,7 @@ export class Torrent extends EngineComponent {
       // Get blocks we can request from this piece
       const neededBlocks = piece.getNeededBlocks(MAX_PIPELINE - peer.requestsPending)
       if (neededBlocks.length === 0) {
-        skippedNoNeeded++
+        _skippedNoNeeded++
         continue
       }
 
@@ -880,7 +880,7 @@ export class Torrent extends EngineComponent {
 
         peer.sendRequest(index, block.begin, block.length)
         peer.requestsPending++
-        requestsMade++
+        _requestsMade++
 
         // Track request in ActivePiece (tied to this peer)
         const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
@@ -890,7 +890,7 @@ export class Torrent extends EngineComponent {
 
     /*
     console.error(
-      `requestPieces: Made ${requestsMade} requests, skipped: complete=${skippedComplete}, capacity=${skippedCapacity}, peerLacks=${skippedPeerLacks}, noNeeded=${skippedNoNeeded}`,
+      `requestPieces: Made ${_requestsMade} requests, skipped: complete=${_skippedComplete}, capacity=${_skippedCapacity}, peerLacks=${_skippedPeerLacks}, noNeeded=${_skippedNoNeeded}`,
     )
       */
   }

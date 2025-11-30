@@ -54,6 +54,7 @@ After editing TypeScript files, run the following checks in order:
 
 1. `pnpm run typecheck` - Verify type correctness
 2. `pnpm run test` - Run unit tests
+3. `pnpm run lint` - Check lint rules
 
 **IMPORTANT**: Only after all edits are complete and tests pass, run as the final step:
 
