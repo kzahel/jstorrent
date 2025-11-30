@@ -10,23 +10,19 @@ const DEV_HOST = 'local.jstorrent.com'
 if (process.env.npm_lifecycle_event !== 'build') {
   dns.lookup(DEV_HOST, (err) => {
     if (err && err.code === 'ENOTFOUND') {
-      console.error(`
-\x1b[31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m
-\x1b[31m  ERROR: Cannot resolve '${DEV_HOST}'\x1b[0m
+      console.log(`
+ERROR: Cannot resolve '${DEV_HOST}'
 
-  The dev server requires '${DEV_HOST}' to point to localhost.
+The dev server requires '${DEV_HOST}' to point to localhost.
+Add this line to your /etc/hosts file:
 
-  \x1b[33mTo fix, add this line to your /etc/hosts file:\x1b[0m
+  127.0.0.1 ${DEV_HOST}
 
-    127.0.0.1 ${DEV_HOST}
+On Linux/Mac:
+  echo "127.0.0.1 ${DEV_HOST}" | sudo tee -a /etc/hosts
 
-  \x1b[36mOn Linux/Mac:\x1b[0m
-    echo "127.0.0.1 ${DEV_HOST}" | sudo tee -a /etc/hosts
-
-  \x1b[36mOn Windows (run as Administrator):\x1b[0m
-    echo 127.0.0.1 ${DEV_HOST} >> C:\\Windows\\System32\\drivers\\etc\\hosts
-
-\x1b[31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m
+On Windows (run as Administrator):
+  echo 127.0.0.1 ${DEV_HOST} >> C:\\Windows\\System32\\drivers\\etc\\hosts
 `)
       process.exit(1)
     }
@@ -58,6 +54,29 @@ function sourcemapIgnoreLogger() {
           }
         }
       }
+    },
+  }
+}
+
+function printDevUrls() {
+  return {
+    name: 'print-dev-urls',
+    configureServer(server) {
+      server.httpServer?.once('listening', () => {
+        const extensionId = process.env.VITE_EXTENSION_ID || 'bnceafpojmnimbnhamaeedgomdcgnbjk'
+        console.log(`
+Development URLs:
+
+  HMR Dev Server (standalone):
+    http://${DEV_HOST}:3001/src/ui/app.html
+
+  Chrome Extension UI:
+    chrome-extension://${extensionId}/src/ui/app.html
+
+  Website:
+    http://${DEV_HOST}:3000/
+`)
+      })
     },
   }
 }
@@ -98,7 +117,7 @@ function injectPublicKey() {
 }
 
 export default defineConfig({
-  plugins: [react(), injectPublicKey(), sourcemapIgnoreLogger()],
+  plugins: [react(), printDevUrls(), injectPublicKey(), sourcemapIgnoreLogger()],
   server: {
     // Dev mode: serve on local.jstorrent.com:3001
     // Requires: 127.0.0.1 local.jstorrent.com in /etc/hosts
