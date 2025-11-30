@@ -68,11 +68,12 @@ export class TorrentParser {
     let totalLength = 0
 
     if (info.files) {
-      // Multi-file
+      // Multi-file torrent: info.name is the root directory
       let offset = 0
       for (const file of info.files) {
         const pathParts = file.path.map((p: Uint8Array) => new TextDecoder().decode(p))
-        const path = pathParts.join('/')
+        // Path includes torrent name as root directory per BT spec
+        const path = name + '/' + pathParts.join('/')
         const length = file.length
         files.push({
           path,
