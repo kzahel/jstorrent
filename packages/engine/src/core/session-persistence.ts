@@ -1,6 +1,6 @@
 import { ISessionStore } from '../interfaces/session-store'
 import { BtEngine } from './bt-engine'
-import { Torrent } from './torrent'
+import { Torrent, TorrentPersistedState } from './torrent'
 import { toHex } from '../utils/buffer'
 import { TorrentUserState } from './torrent-state'
 import { Logger } from '../logging/logger'
@@ -84,20 +84,23 @@ export class SessionPersistence {
    */
   async saveTorrentState(torrent: Torrent): Promise<void> {
     const infoHash = toHex(torrent.infoHash)
-    const bitfield = torrent.bitfield
 
-    if (!bitfield) return // No bitfield yet (no metadata)
+    if (!torrent.bitfield) return // No bitfield yet (no metadata)
 
+    // Get persisted state from torrent
+    const persistedState = torrent.getPersistedState()
+
+    // Convert to storage format (TorrentStateData)
     const state: TorrentStateData = {
-      bitfield: bitfield.toHex(),
-      uploaded: torrent.totalUploaded,
-      downloaded: torrent.totalDownloaded,
+      bitfield: torrent.bitfield.toHex(),
+      uploaded: persistedState.totalUploaded,
+      downloaded: persistedState.totalDownloaded,
       updatedAt: Date.now(),
     }
 
     // Save the info buffer (metadata) so we don't need to re-fetch from peers
-    if (torrent.metadataRaw) {
-      state.infoBuffer = this.uint8ArrayToBase64(torrent.metadataRaw)
+    if (persistedState.infoBuffer) {
+      state.infoBuffer = this.uint8ArrayToBase64(persistedState.infoBuffer)
     }
 
     const json = JSON.stringify(state)
@@ -229,21 +232,28 @@ export class SessionPersistence {
         }
 
         if (torrent) {
-          // Restore addedAt timestamp
-          torrent.addedAt = data.addedAt
-
-          // Restore queue position
-          torrent.queuePosition = data.queuePosition
+          // Build persisted state from saved data
+          const persistedState: TorrentPersistedState = {
+            magnetLink: data.magnetLink,
+            torrentFileBase64: data.torrentFile,
+            addedAt: data.addedAt,
+            userState: data.userState || 'active',
+            queuePosition: data.queuePosition,
+            totalDownloaded: state?.downloaded ?? 0,
+            totalUploaded: state?.uploaded ?? 0,
+            completedPieces: [], // Will be restored from bitfield below
+            infoBuffer: state?.infoBuffer ? this.base64ToUint8Array(state.infoBuffer) : undefined,
+          }
 
           // If we have saved metadata (info buffer), initialize the torrent with it
           // This is crucial for magnet links - avoids needing to re-fetch metadata from peers
-          if (state?.infoBuffer && !torrent.hasMetadata) {
-            const infoBuffer = this.base64ToUint8Array(state.infoBuffer)
+          if (persistedState.infoBuffer && !torrent.hasMetadata) {
             this.logger.debug(`Initializing torrent ${data.infoHash} from saved metadata`)
-            await this.engine.initTorrentFromSavedMetadata(torrent, infoBuffer)
+            await this.engine.initTorrentFromSavedMetadata(torrent, persistedState.infoBuffer)
           }
 
           // Restore bitfield if we have saved state and metadata is now available
+          // Note: We still use hex bitfield for storage efficiency, but restore via restoreBitfieldFromHex
           if (state?.bitfield && torrent.hasMetadata) {
             this.logger.debug(
               `Restoring bitfield for ${data.infoHash}, length=${state.bitfield?.length}`,
@@ -252,11 +262,12 @@ export class SessionPersistence {
             this.logger.debug(`Restored bitfield, completedPieces=${torrent.completedPiecesCount}`)
           }
 
-          // Restore upload/download stats
-          if (state) {
-            torrent.totalDownloaded = state.downloaded
-            torrent.totalUploaded = state.uploaded
-          }
+          // Restore the rest of the persisted state (stats, timestamps, etc.)
+          // Don't overwrite bitfield since we just restored it from hex
+          torrent.addedAt = persistedState.addedAt
+          torrent.queuePosition = persistedState.queuePosition
+          torrent.totalDownloaded = persistedState.totalDownloaded
+          torrent.totalUploaded = persistedState.totalUploaded
 
           restoredCount++
         }
@@ -273,6 +284,7 @@ export class SessionPersistence {
 
   private torrentToSessionData(torrent: Torrent): TorrentSessionData {
     const infoHash = toHex(torrent.infoHash)
+    const persistedState = torrent.getPersistedState()
 
     // Get storage token for this torrent
     const root = this.engine.storageRootManager.getRootForTorrent(infoHash)
@@ -280,14 +292,14 @@ export class SessionPersistence {
 
     return {
       infoHash,
-      magnetLink: torrent.magnetLink,
-      torrentFile: torrent.torrentFileBase64,
+      magnetLink: persistedState.magnetLink,
+      torrentFile: persistedState.torrentFileBase64,
       storageToken,
-      addedAt: torrent.addedAt || Date.now(),
+      addedAt: persistedState.addedAt,
 
       // Persist user state
-      userState: torrent.userState,
-      queuePosition: torrent.queuePosition,
+      userState: persistedState.userState,
+      queuePosition: persistedState.queuePosition,
     }
   }
 

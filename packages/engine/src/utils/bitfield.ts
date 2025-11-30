@@ -109,4 +109,18 @@ export class BitField {
   cardinality(): number {
     return this.count()
   }
+
+  /**
+   * Get indices of all set bits.
+   * Used for persistence to store completed pieces as an array.
+   */
+  getSetIndices(): number[] {
+    const indices: number[] = []
+    for (let i = 0; i < this.length; i++) {
+      if (this.get(i)) {
+        indices.push(i)
+      }
+    }
+    return indices
+  }
 }
