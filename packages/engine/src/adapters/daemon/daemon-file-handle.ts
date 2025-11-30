@@ -20,6 +20,12 @@ export class DaemonFileHandle implements IFileHandle {
       root_token: this.rootToken,
     })
 
+    if (data.length !== length) {
+      throw new Error(
+        `Short read from daemon: requested ${length} bytes at position ${position}, got ${data.length}`,
+      )
+    }
+
     buffer.set(data, offset)
     return { bytesRead: data.length }
   }

@@ -90,4 +90,37 @@ describe('DaemonFileSystem Integration', () => {
     const stats = await fs2.stat('truncate.txt')
     expect(stats.size).toBe(5)
   })
+
+  it('should read large files completely (regression test for short reads)', async () => {
+    // This test verifies that large reads return the full requested data.
+    // Previously, file.read() in Rust would return partial data for large buffers.
+    const size = 8 * 1024 * 1024 // 8MB - typical piece size
+    const data = new Uint8Array(size)
+
+    // Fill with a repeating pattern for verification
+    for (let i = 0; i < size; i++) {
+      data[i] = i % 256
+    }
+
+    // Write the large file
+    const writeHandle = await fs1.open('large.bin', 'w')
+    await writeHandle.write(data, 0, size, 0)
+    await writeHandle.close()
+
+    // Read it back
+    const readHandle = await fs1.open('large.bin', 'r')
+    const readBuffer = new Uint8Array(size)
+    const { bytesRead } = await readHandle.read(readBuffer, 0, size, 0)
+    await readHandle.close()
+
+    // Verify we got all the data
+    expect(bytesRead).toBe(size)
+
+    // Verify content matches
+    for (let i = 0; i < size; i++) {
+      if (readBuffer[i] !== data[i]) {
+        throw new Error(`Mismatch at byte ${i}: expected ${data[i]}, got ${readBuffer[i]}`)
+      }
+    }
+  })
 })
