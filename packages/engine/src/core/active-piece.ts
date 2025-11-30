@@ -1,4 +1,4 @@
-import { BLOCK_SIZE } from './piece-manager'
+export const BLOCK_SIZE = 16384
 
 export interface RequestInfo {
   peerId: string

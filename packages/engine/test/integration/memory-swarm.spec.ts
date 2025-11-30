@@ -95,7 +95,7 @@ describe('Memory Swarm Integration', () => {
 
     // Now verify data
     await torrentA2.recheckData()
-    expect(torrentA2.bitfield?.cardinality()).toBe(torrentA2.pieceManager?.getPieceCount())
+    expect(torrentA2.bitfield?.cardinality()).toBe(torrentA2.piecesCount)
 
     // 3. Add torrent to Client B via Magnet (Leecher)
     const magnetLink = `magnet:?xt=urn:btih:${torrentA2.infoHashStr}&tr=http://tracker.local`
@@ -103,7 +103,7 @@ describe('Memory Swarm Integration', () => {
     if (!torrentB) throw new Error('Failed to add torrent B')
 
     expect(torrentB.metadataComplete).toBe(false)
-    expect(torrentB.pieceManager).toBeUndefined()
+    expect(torrentB.hasMetadata).toBe(false)
 
     // 4. Connect A and B
     console.log('Test: Calling MemorySocketFactory.createPair()')
@@ -131,13 +131,13 @@ describe('Memory Swarm Integration', () => {
 
     // Wait for metadata and initialization
     await new Promise<void>((resolve) => {
-      if (torrentB.pieceManager) resolve()
+      if (torrentB.hasMetadata) resolve()
       torrentB.on('ready', () => resolve())
     })
     console.log('Metadata received and torrent ready!')
 
     expect(torrentB.metadataComplete).toBe(true)
-    expect(torrentB.pieceManager).toBeDefined()
+    expect(torrentB.hasMetadata).toBe(true)
     expect(torrentB.metadataSize).toBeGreaterThan(0)
 
     // 5. Verify Piece Transfer
@@ -150,11 +150,11 @@ describe('Memory Swarm Integration', () => {
     await new Promise<void>((resolve) => {
       const check = () => {
         const received = torrentB.bitfield?.cardinality()
-        const total = torrentB.pieceManager?.getPieceCount()
+        const total = torrentB.piecesCount
         console.log(`Progress: ${received}/${total}`)
         if (received === total) resolve()
       }
-      if (torrentB.bitfield?.cardinality() === torrentB.pieceManager?.getPieceCount()) resolve()
+      if (torrentB.bitfield?.cardinality() === torrentB.piecesCount) resolve()
       torrentB.on('piece', check)
     })
 

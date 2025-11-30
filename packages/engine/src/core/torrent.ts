@@ -1,6 +1,5 @@
 import { PeerConnection } from './peer-connection'
-import { PieceManager, BLOCK_SIZE } from './piece-manager'
-import { ActivePiece } from './active-piece'
+import { ActivePiece, BLOCK_SIZE } from './active-piece'
 import { ActivePieceManager } from './active-piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 import { BitField } from '../utils/bitfield'
@@ -25,8 +24,13 @@ export class Torrent extends EngineComponent {
   public peerId: Uint8Array
   public socketFactory: ISocketFactory
   public port: number
-  public pieceManager?: PieceManager
   private activePieces?: ActivePieceManager
+
+  // Piece info (moved from PieceManager)
+  public pieceHashes: Uint8Array[] = []
+  public pieceLength: number = 0
+  public lastPieceLength: number = 0
+  public piecesCount: number = 0
   public contentStorage?: TorrentContentStorage
   private _bitfield?: BitField
   public announce: string[] = []
@@ -124,7 +128,6 @@ export class Torrent extends EngineComponent {
     peerId: Uint8Array,
     socketFactory: ISocketFactory,
     port: number,
-    pieceManager?: PieceManager,
     contentStorage?: TorrentContentStorage,
     announce: string[] = [],
     maxPeers: number = 50,
@@ -136,7 +139,6 @@ export class Torrent extends EngineComponent {
     this.peerId = peerId
     this.socketFactory = socketFactory
     this.port = port
-    this.pieceManager = pieceManager
     this.contentStorage = contentStorage
     this.announce = announce
     this.maxPeers = maxPeers
@@ -263,31 +265,95 @@ export class Torrent extends EngineComponent {
     this._bitfield = new BitField(pieceCount)
   }
 
+  // --- Piece Info Initialization ---
+
+  /**
+   * Initialize piece info from parsed torrent metadata.
+   * Called when metadata becomes available.
+   */
+  initPieceInfo(pieceHashes: Uint8Array[], pieceLength: number, lastPieceLength: number): void {
+    this.pieceHashes = pieceHashes
+    this.pieceLength = pieceLength
+    this.lastPieceLength = lastPieceLength
+    this.piecesCount = pieceHashes.length
+  }
+
+  // --- Piece Metadata ---
+
+  getPieceHash(index: number): Uint8Array | undefined {
+    return this.pieceHashes[index]
+  }
+
+  getPieceLength(index: number): number {
+    if (index === this.piecesCount - 1) {
+      return this.lastPieceLength
+    }
+    return this.pieceLength
+  }
+
+  // --- Bitfield Helpers ---
+
+  hasPiece(index: number): boolean {
+    return this._bitfield?.get(index) ?? false
+  }
+
+  markPieceVerified(index: number): void {
+    this._bitfield?.set(index, true)
+  }
+
+  resetPiece(index: number): void {
+    this._bitfield?.set(index, false)
+  }
+
+  getMissingPieces(): number[] {
+    if (!this._bitfield) return []
+    const missing: number[] = []
+    for (let i = 0; i < this.piecesCount; i++) {
+      if (!this._bitfield.get(i)) {
+        missing.push(i)
+      }
+    }
+    return missing
+  }
+
+  // --- Progress ---
+
+  get completedPiecesCount(): number {
+    return this._bitfield?.count() ?? 0
+  }
+
+  get isDownloadComplete(): boolean {
+    return this.piecesCount > 0 && this.completedPiecesCount === this.piecesCount
+  }
+
+  // --- Session Restore ---
+
+  restoreBitfieldFromHex(hex: string): void {
+    this._bitfield?.restoreFromHex(hex)
+  }
+
   get numPeers(): number {
     return this.peers.length
   }
 
   get isComplete(): boolean {
-    return this.pieceManager?.isComplete() ?? false
+    return this.isDownloadComplete
   }
 
   get files(): TorrentFileInfo[] {
     if (this._files.length > 0) return this._files
 
-    if (this.contentStorage && this.pieceManager) {
+    if (this.contentStorage && this.hasMetadata) {
       const rawFiles = this.contentStorage.filesList
-      const pieceLength = this.pieceManager.getPieceLength(0) // Assuming constant piece length for now, or use pieceManager property
-      // pieceManager doesn't expose pieceLength directly as a property, but getPieceLength(index).
-      // We can use index 0.
-
-      this._files = rawFiles.map((f) => new TorrentFileInfo(f, this.pieceManager!, pieceLength))
+      this._files = rawFiles.map((f) => new TorrentFileInfo(f, this))
       return this._files
     }
     return []
   }
 
   get progress(): number {
-    return this.pieceManager?.getProgress() || 0
+    if (this.piecesCount === 0) return 0
+    return this.completedPiecesCount / this.piecesCount
   }
 
   get name(): string {
@@ -330,7 +396,7 @@ export class Torrent extends EngineComponent {
    * Whether this torrent has metadata (piece info, files, etc).
    */
   get hasMetadata(): boolean {
-    return !!this.pieceManager
+    return this.piecesCount > 0
   }
 
   /**
@@ -459,8 +525,8 @@ export class Torrent extends EngineComponent {
   }
 
   getPieceAvailability(): number[] {
-    if (!this.pieceManager) return []
-    const counts = new Array(this.pieceManager.getPieceCount()).fill(0)
+    if (!this.hasMetadata) return []
+    const counts = new Array(this.piecesCount).fill(0)
     for (const peer of this.peers) {
       if (peer.bitfield) {
         for (let i = 0; i < counts.length; i++) {
@@ -500,8 +566,8 @@ export class Torrent extends EngineComponent {
     }
 
     this.peers.push(peer)
-    if (this.pieceManager) {
-      peer.bitfield = new BitField(this.pieceManager.getPieceCount())
+    if (this.hasMetadata) {
+      peer.bitfield = new BitField(this.piecesCount)
     }
     this.setupPeerListeners(peer)
   }
@@ -738,22 +804,21 @@ export class Torrent extends EngineComponent {
       return
     }
 
-    if (!this.pieceManager) {
-      // this.logger.warn('requestPieces: No pieceManager')
+    if (!this.hasMetadata) {
       return
     }
 
-    // Initialize activePieces if needed (lazy init after pieceManager is set)
+    // Initialize activePieces if needed (lazy init after metadata is available)
     if (!this.activePieces) {
       this.activePieces = new ActivePieceManager(
         this.engineInstance,
-        (index) => this.pieceManager!.getPieceLength(index),
+        (index) => this.getPieceLength(index),
         { requestTimeoutMs: 30000, maxActivePieces: 20, maxBufferedBytes: 16 * 1024 * 1024 },
       )
     }
 
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
-    const missing = this.pieceManager.getMissingPieces()
+    const missing = this.getMissingPieces()
     /*
     console.error(
       `requestPieces: ${missing.length} missing pieces, peer.bitfield=${!!peer.bitfield}, peerPending=${peer.requestsPending}`,
@@ -843,11 +908,11 @@ export class Torrent extends EngineComponent {
 
     if (peer.requestsPending > 0) peer.requestsPending--
 
-    // Initialize activePieces if needed (lazy init after pieceManager is set)
-    if (!this.activePieces && this.pieceManager) {
+    // Initialize activePieces if needed (lazy init after metadata is available)
+    if (!this.activePieces && this.hasMetadata) {
       this.activePieces = new ActivePieceManager(
         this.engineInstance,
-        (index) => this.pieceManager!.getPieceLength(index),
+        (index) => this.getPieceLength(index),
         { requestTimeoutMs: 30000, maxActivePieces: 20, maxBufferedBytes: 16 * 1024 * 1024 },
       )
     }
@@ -898,7 +963,7 @@ export class Torrent extends EngineComponent {
     const pieceData = piece.assemble()
 
     // Verify hash BEFORE writing to disk
-    const expectedHash = this.pieceManager?.getPieceHash(index)
+    const expectedHash = this.getPieceHash(index)
     if (expectedHash) {
       const actualHash = await this.btEngine.hasher.sha1(pieceData)
 
@@ -913,7 +978,7 @@ export class Torrent extends EngineComponent {
         // TODO: Ban peers with too many failed pieces
 
         // Reset piece state
-        this.pieceManager?.resetPiece(index)
+        this.resetPiece(index)
         this.activePieces?.remove(index)
         return
       }
@@ -925,30 +990,31 @@ export class Torrent extends EngineComponent {
         await this.contentStorage.writePiece(index, pieceData)
       } catch (e) {
         this.logger.error(`Failed to write piece ${index}:`, e)
-        this.pieceManager?.resetPiece(index)
+        this.resetPiece(index)
         this.activePieces?.remove(index)
         return
       }
     }
 
     // Mark as verified
-    this.pieceManager?.markVerified(index)
+    this.markPieceVerified(index)
     this.activePieces?.remove(index)
 
-    const pieceCount = this.pieceManager?.getPieceCount() ?? 0
-    const completedPieces = this.pieceManager?.getCompletedCount() ?? 0
-    const progressPct = pieceCount > 0 ? ((completedPieces / pieceCount) * 100).toFixed(1) : '0'
+    const progressPct =
+      this.piecesCount > 0 ? ((this.completedPiecesCount / this.piecesCount) * 100).toFixed(1) : '0'
 
-    this.logger.info(`Piece ${index} verified [${completedPieces}/${pieceCount}] ${progressPct}%`)
+    this.logger.info(
+      `Piece ${index} verified [${this.completedPiecesCount}/${this.piecesCount}] ${progressPct}%`,
+    )
 
     this.emit('piece', index)
 
     // Emit progress event with detailed info
     this.emit('progress', {
       pieceIndex: index,
-      completedPieces,
-      totalPieces: pieceCount,
-      progress: pieceCount > 0 ? completedPieces / pieceCount : 0,
+      completedPieces: this.completedPiecesCount,
+      totalPieces: this.piecesCount,
+      progress: this.progress,
       downloaded: this.totalDownloaded,
     })
 
@@ -974,15 +1040,15 @@ export class Torrent extends EngineComponent {
   }
 
   private async verifyPiece(index: number): Promise<boolean> {
-    if (!this.pieceManager || !this.contentStorage) return false
-    const expectedHash = this.pieceManager.getPieceHash(index)
+    if (!this.hasMetadata || !this.contentStorage) return false
+    const expectedHash = this.getPieceHash(index)
     if (!expectedHash) {
       // If no hashes provided (e.g. Phase 1), assume valid
       return true
     }
 
     // Read full piece from disk
-    const pieceLength = this.pieceManager.getPieceLength(index)
+    const pieceLength = this.getPieceLength(index)
     const data = await this.contentStorage.read(index, 0, pieceLength)
 
     // Calculate SHA1
@@ -1017,34 +1083,33 @@ export class Torrent extends EngineComponent {
     // We don't clear the bitfield upfront because we want to keep what we have if it's valid.
     // But if we find an invalid piece that was marked valid, we must reset it.
 
-    if (!this.pieceManager) return
+    if (!this.hasMetadata) return
 
-    const piecesCount = this.pieceManager.getPieceCount()
-    for (let i = 0; i < piecesCount; i++) {
+    for (let i = 0; i < this.piecesCount; i++) {
       try {
         const isValid = await this.verifyPiece(i)
         if (isValid) {
-          if (!this.pieceManager.hasPiece(i)) {
+          if (!this.hasPiece(i)) {
             this.logger.debug(`Piece ${i} found valid during recheck`)
-            this.pieceManager.markVerified(i)
+            this.markPieceVerified(i)
           }
         } else {
-          if (this.pieceManager.hasPiece(i)) {
+          if (this.hasPiece(i)) {
             this.logger.warn(`Piece ${i} found invalid during recheck`)
-            this.pieceManager.resetPiece(i)
+            this.resetPiece(i)
           }
         }
       } catch (err) {
         // Read error or other issue
-        if (this.pieceManager.hasPiece(i)) {
+        if (this.hasPiece(i)) {
           this.logger.error(`Piece ${i} error during recheck:`, { err })
-          this.pieceManager.resetPiece(i)
+          this.resetPiece(i)
         }
       }
 
       // Emit progress?
       if (i % 10 === 0) {
-        // console.error(`Torrent: Recheck progress ${i}/${piecesCount}`)
+        // console.error(`Torrent: Recheck progress ${i}/${this.piecesCount}`)
       }
     }
 
@@ -1058,7 +1123,7 @@ export class Torrent extends EngineComponent {
   }
 
   private checkCompletion() {
-    if (this.pieceManager?.isComplete()) {
+    if (this.isDownloadComplete) {
       this.logger.info('Download complete!')
       this.emit('done')
       this.emit('complete')

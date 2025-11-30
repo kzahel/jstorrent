@@ -54,8 +54,8 @@ describe('BtEngine', () => {
 
     expect(torrent).toBeDefined()
     expect(client.torrents).toContain(torrent)
-    expect(torrent.pieceManager).toBeDefined()
-    expect(torrent.pieceManager?.getPieceCount()).toBe(1)
+    expect(torrent.hasMetadata).toBe(true)
+    expect(torrent.piecesCount).toBe(1)
     expect(torrent.contentStorage).toBeDefined()
     expect(torrent.infoHash).toBeDefined()
     expect(torrent.infoHash.length).toBe(20)
@@ -78,8 +78,7 @@ describe('BtEngine', () => {
       'c12fe1c06bba254a9dc9f519b335aa7c1367a88a',
     )
     expect(torrent.announce).toContain('udp://tracker.opentrackr.org:1337/announce')
-    expect(torrent.pieceManager).toBeUndefined()
-    expect(torrent.pieceManager).toBeUndefined()
+    expect(torrent.hasMetadata).toBe(false)
     expect(torrent.contentStorage).toBeUndefined()
   }, 10000)
 

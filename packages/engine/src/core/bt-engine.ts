@@ -27,7 +27,6 @@ import { Torrent } from './torrent'
 import { PeerConnection } from './peer-connection'
 import { parseMagnet } from '../utils/magnet'
 import { TorrentParser, ParsedTorrent } from './torrent-parser'
-import { PieceManager } from './piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 import { toHex, fromHex } from '../utils/buffer'
 import { IStorageHandle } from '../io/storage-handle'
@@ -281,7 +280,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       this.peerId,
       this.socketFactory,
       this.port,
-      undefined, // pieceManager
       undefined, // contentStorage
       announce,
       this.maxPeers,
@@ -294,7 +292,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     const initComponents = async (infoBuffer: Uint8Array, preParsed?: ParsedTorrent) => {
-      if (torrent.pieceManager) return // Already initialized
+      if (torrent.hasMetadata) return // Already initialized
 
       const parsedTorrent =
         preParsed || (await TorrentParser.parseInfoBuffer(infoBuffer, this.hasher))
@@ -314,22 +312,16 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       // Initialize bitfield on torrent first (torrent owns the bitfield)
       torrent.initBitfield(parsedTorrent.pieces.length)
 
-      // Initialize PieceManager with torrent reference
-      const pieceManager = new PieceManager(
-        this,
-        torrent,
-        parsedTorrent.pieces.length,
-        parsedTorrent.pieceLength,
-        parsedTorrent.length % parsedTorrent.pieceLength || parsedTorrent.pieceLength,
-        parsedTorrent.pieces,
-      )
-      torrent.pieceManager = pieceManager
+      // Initialize piece info on torrent
+      const lastPieceLength =
+        parsedTorrent.length % parsedTorrent.pieceLength || parsedTorrent.pieceLength
+      torrent.initPieceInfo(parsedTorrent.pieces, parsedTorrent.pieceLength, lastPieceLength)
 
       // Check for existing saved state (resume data) and restore bitfield
       const savedState = await this.sessionPersistence.loadTorrentState(infoHashStr)
       if (savedState?.bitfield) {
         console.error(`BtEngine: Restoring bitfield from saved state for ${infoHashStr}`)
-        pieceManager.restoreFromHex(savedState.bitfield)
+        torrent.restoreBitfieldFromHex(savedState.bitfield)
       }
 
       // Initialize ContentStorage
@@ -428,7 +420,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    * This avoids needing to re-fetch metadata from peers.
    */
   async initTorrentFromSavedMetadata(torrent: Torrent, infoBuffer: Uint8Array): Promise<void> {
-    if (torrent.pieceManager) return // Already initialized
+    if (torrent.hasMetadata) return // Already initialized
 
     const infoHashStr = toHex(torrent.infoHash)
 
@@ -453,16 +445,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     // Initialize bitfield on torrent first (torrent owns the bitfield)
     torrent.initBitfield(parsedTorrent.pieces.length)
 
-    // Initialize PieceManager with torrent reference
-    const pieceManager = new PieceManager(
-      this,
-      torrent,
-      parsedTorrent.pieces.length,
-      parsedTorrent.pieceLength,
-      parsedTorrent.length % parsedTorrent.pieceLength || parsedTorrent.pieceLength,
-      parsedTorrent.pieces,
-    )
-    torrent.pieceManager = pieceManager
+    // Initialize piece info on torrent
+    const lastPieceLength =
+      parsedTorrent.length % parsedTorrent.pieceLength || parsedTorrent.pieceLength
+    torrent.initPieceInfo(parsedTorrent.pieces, parsedTorrent.pieceLength, lastPieceLength)
 
     // Initialize ContentStorage
     const storageHandle: IStorageHandle = {

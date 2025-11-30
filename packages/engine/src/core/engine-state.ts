@@ -224,7 +224,7 @@ function getGlobalStats(engine: BtEngine): GlobalStats {
 
 function getTorrentInfo(torrent: Torrent, engine: BtEngine): TorrentInfo {
   const infoHash = toHex(torrent.infoHash)
-  const hasMetadata = !!torrent.pieceManager
+  const hasMetadata = torrent.hasMetadata
 
   // Get the new activity state
   const activityState = torrent.activityState
@@ -348,9 +348,9 @@ function getTorrentInfo(torrent: Torrent, engine: BtEngine): TorrentInfo {
     downloadRate: torrent.downloadSpeed,
     uploadRate: torrent.uploadSpeed,
 
-    pieceCount: torrent.pieceManager?.getPieceCount() || 0,
-    pieceLength: torrent.pieceManager?.getPieceLength(0) || 0,
-    completedPieces: torrent.pieceManager?.getCompletedCount() || 0,
+    pieceCount: torrent.piecesCount,
+    pieceLength: torrent.pieceLength,
+    completedPieces: torrent.completedPiecesCount,
 
     connectedPeers: torrent.numPeers,
     maxPeers: torrent.maxPeers,
