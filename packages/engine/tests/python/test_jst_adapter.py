@@ -21,15 +21,8 @@ def main() -> int:
             except EngineAlreadyRunning:
                 pass  # Expected
 
-            # Test add magnet
-            magnet = (
-                "magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel&"
-                "tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&"
-                "tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&"
-                "tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&"
-                "tr=udp%3A%2F%2Fexplodie.org%3A6969&"
-                "tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337"
-            )
+            # Test add magnet (fake hash, no trackers to avoid real network traffic)
+            magnet = "magnet:?xt=urn:btih:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&dn=TestTorrent"
             tid = engine.add_magnet(magnet)
             if not tid:
                 return fail("No torrent ID returned")
