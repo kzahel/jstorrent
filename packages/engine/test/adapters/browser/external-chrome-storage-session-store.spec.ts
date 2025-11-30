@@ -19,9 +19,11 @@ describe('ExternalChromeStorageSessionStore', () => {
     const testData = new Uint8Array([1, 2, 3, 4])
     const base64 = btoa(String.fromCharCode(...testData))
 
-    mockSendMessage.mockImplementation((_id: string, _msg: unknown, cb: (response: any) => void) => {
-      cb({ ok: true, value: base64 })
-    })
+    mockSendMessage.mockImplementation(
+      (_id: string, _msg: unknown, cb: (response: any) => void) => {
+        cb({ ok: true, value: base64 })
+      },
+    )
 
     const store = new ExternalChromeStorageSessionStore('test-ext-id')
     const result = await store.get('test-key')
@@ -35,9 +37,11 @@ describe('ExternalChromeStorageSessionStore', () => {
   })
 
   it('get() returns null when value is not found', async () => {
-    mockSendMessage.mockImplementation((_id: string, _msg: unknown, cb: (response: any) => void) => {
-      cb({ ok: true, value: null })
-    })
+    mockSendMessage.mockImplementation(
+      (_id: string, _msg: unknown, cb: (response: any) => void) => {
+        cb({ ok: true, value: null })
+      },
+    )
 
     const store = new ExternalChromeStorageSessionStore('test-ext-id')
     const result = await store.get('nonexistent-key')
@@ -46,9 +50,11 @@ describe('ExternalChromeStorageSessionStore', () => {
   })
 
   it('set() encodes to base64 and sends KV_SET', async () => {
-    mockSendMessage.mockImplementation((_id: string, _msg: unknown, cb: (response: any) => void) => {
-      cb({ ok: true })
-    })
+    mockSendMessage.mockImplementation(
+      (_id: string, _msg: unknown, cb: (response: any) => void) => {
+        cb({ ok: true })
+      },
+    )
 
     const store = new ExternalChromeStorageSessionStore('test-ext-id')
     const testData = new Uint8Array([5, 6, 7, 8])
@@ -66,9 +72,11 @@ describe('ExternalChromeStorageSessionStore', () => {
   })
 
   it('delete() sends KV_DELETE', async () => {
-    mockSendMessage.mockImplementation((_id: string, _msg: unknown, cb: (response: any) => void) => {
-      cb({ ok: true })
-    })
+    mockSendMessage.mockImplementation(
+      (_id: string, _msg: unknown, cb: (response: any) => void) => {
+        cb({ ok: true })
+      },
+    )
 
     const store = new ExternalChromeStorageSessionStore('test-ext-id')
     await store.delete('test-key')
@@ -81,9 +89,11 @@ describe('ExternalChromeStorageSessionStore', () => {
   })
 
   it('keys() sends KV_KEYS with optional prefix', async () => {
-    mockSendMessage.mockImplementation((_id: string, _msg: unknown, cb: (response: any) => void) => {
-      cb({ ok: true, keys: ['torrent:abc', 'torrent:def'] })
-    })
+    mockSendMessage.mockImplementation(
+      (_id: string, _msg: unknown, cb: (response: any) => void) => {
+        cb({ ok: true, keys: ['torrent:abc', 'torrent:def'] })
+      },
+    )
 
     const store = new ExternalChromeStorageSessionStore('test-ext-id')
     const result = await store.keys('torrent:')
@@ -97,9 +107,11 @@ describe('ExternalChromeStorageSessionStore', () => {
   })
 
   it('clear() sends KV_CLEAR', async () => {
-    mockSendMessage.mockImplementation((_id: string, _msg: unknown, cb: (response: any) => void) => {
-      cb({ ok: true })
-    })
+    mockSendMessage.mockImplementation(
+      (_id: string, _msg: unknown, cb: (response: any) => void) => {
+        cb({ ok: true })
+      },
+    )
 
     const store = new ExternalChromeStorageSessionStore('test-ext-id')
     await store.clear()
@@ -112,16 +124,18 @@ describe('ExternalChromeStorageSessionStore', () => {
   })
 
   it('getMulti() batches multiple keys', async () => {
-    mockSendMessage.mockImplementation((_id: string, _msg: unknown, cb: (response: any) => void) => {
-      cb({
-        ok: true,
-        values: {
-          key1: btoa('value1'),
-          key2: btoa('value2'),
-          key3: null,
-        },
-      })
-    })
+    mockSendMessage.mockImplementation(
+      (_id: string, _msg: unknown, cb: (response: any) => void) => {
+        cb({
+          ok: true,
+          values: {
+            key1: btoa('value1'),
+            key2: btoa('value2'),
+            key3: null,
+          },
+        })
+      },
+    )
 
     const store = new ExternalChromeStorageSessionStore('test-ext-id')
     const result = await store.getMulti(['key1', 'key2', 'key3'])
@@ -154,10 +168,12 @@ describe('ExternalChromeStorageSessionStore', () => {
   })
 
   it('throws error when chrome.runtime.lastError is set', async () => {
-    mockSendMessage.mockImplementation((_id: string, _msg: unknown, cb: (response: any) => void) => {
-      ;(globalThis as any).chrome.runtime.lastError = { message: 'Connection failed' }
-      cb(null)
-    })
+    mockSendMessage.mockImplementation(
+      (_id: string, _msg: unknown, cb: (response: any) => void) => {
+        ;(globalThis as any).chrome.runtime.lastError = { message: 'Connection failed' }
+        cb(null)
+      },
+    )
 
     const store = new ExternalChromeStorageSessionStore('test-ext-id')
 
@@ -165,9 +181,11 @@ describe('ExternalChromeStorageSessionStore', () => {
   })
 
   it('throws error when no response is received', async () => {
-    mockSendMessage.mockImplementation((_id: string, _msg: unknown, cb: (response: any) => void) => {
-      cb(null)
-    })
+    mockSendMessage.mockImplementation(
+      (_id: string, _msg: unknown, cb: (response: any) => void) => {
+        cb(null)
+      },
+    )
 
     const store = new ExternalChromeStorageSessionStore('test-ext-id')
 
@@ -177,12 +195,16 @@ describe('ExternalChromeStorageSessionStore', () => {
   })
 
   it('throws error when response indicates failure', async () => {
-    mockSendMessage.mockImplementation((_id: string, _msg: unknown, cb: (response: any) => void) => {
-      cb({ ok: false, error: 'Storage quota exceeded' })
-    })
+    mockSendMessage.mockImplementation(
+      (_id: string, _msg: unknown, cb: (response: any) => void) => {
+        cb({ ok: false, error: 'Storage quota exceeded' })
+      },
+    )
 
     const store = new ExternalChromeStorageSessionStore('test-ext-id')
 
-    await expect(store.set('test-key', new Uint8Array([1]))).rejects.toThrow('Storage quota exceeded')
+    await expect(store.set('test-key', new Uint8Array([1]))).rejects.toThrow(
+      'Storage quota exceeded',
+    )
   })
 })

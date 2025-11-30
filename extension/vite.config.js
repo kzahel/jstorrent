@@ -123,7 +123,7 @@ export default defineConfig({
   define: {
     // Provide default extension ID if not set via env var
     'import.meta.env.DEV_EXTENSION_ID': JSON.stringify(
-      process.env.DEV_EXTENSION_ID || DEFAULT_EXTENSION_ID
+      process.env.DEV_EXTENSION_ID || DEFAULT_EXTENSION_ID,
     ),
   },
   server: {
