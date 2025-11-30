@@ -90,6 +90,17 @@ export class TrackerManager extends EngineComponent {
     }
   }
 
+  /**
+   * Get all known peers discovered from trackers.
+   * Used for peer slot refilling when connections drop.
+   */
+  getKnownPeers(): PeerInfo[] {
+    return Array.from(this.knownPeers).map((key) => {
+      const [ip, portStr] = key.split(':')
+      return { ip, port: parseInt(portStr, 10) }
+    })
+  }
+
   destroy() {
     for (const tracker of this.trackers) {
       tracker.destroy()
