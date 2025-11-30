@@ -644,12 +644,12 @@ export class Torrent extends EngineComponent {
 
   private requestPieces(peer: PeerConnection) {
     if (peer.peerChoking) {
-      console.error(`requestPieces: Peer is choking us`)
+      // console.error(`requestPieces: Peer is choking us`)
       return
     }
 
     if (!this.pieceManager) {
-      this.logger.warn('requestPieces: No pieceManager')
+      // this.logger.warn('requestPieces: No pieceManager')
       return
     }
 
@@ -664,9 +664,11 @@ export class Torrent extends EngineComponent {
 
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
     const missing = this.pieceManager.getMissingPieces()
+    /*
     console.error(
       `requestPieces: ${missing.length} missing pieces, peer.bitfield=${!!peer.bitfield}, peerPending=${peer.requestsPending}`,
     )
+      */
 
     const MAX_PIPELINE = 200
 
@@ -678,7 +680,7 @@ export class Torrent extends EngineComponent {
 
     for (const index of missing) {
       if (peer.requestsPending >= MAX_PIPELINE) {
-        this.logger.debug(`requestPieces: Hit MAX_PIPELINE limit`)
+        //this.logger.debug(`requestPieces: Hit MAX_PIPELINE limit`)
         break
       }
 
@@ -727,9 +729,11 @@ export class Torrent extends EngineComponent {
       }
     }
 
+    /*
     console.error(
       `requestPieces: Made ${requestsMade} requests, skipped: complete=${skippedComplete}, capacity=${skippedCapacity}, peerLacks=${skippedPeerLacks}, noNeeded=${skippedNoNeeded}`,
     )
+      */
   }
 
   /**
