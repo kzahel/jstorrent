@@ -499,6 +499,15 @@ export class Torrent extends EngineComponent {
     })
   }
 
+  /**
+   * Get information about all connected peers.
+   *
+   * Choking/Interest fields follow BitTorrent wire protocol semantics:
+   * - peerChoking: Peer is choking us (we cannot download from them)
+   * - peerInterested: Peer wants to download from us
+   * - amChoking: We are choking peer (blocking their downloads)
+   * - amInterested: We want to download from peer
+   */
   getPeerInfo() {
     return this.peers.map((peer) => ({
       ip: peer.remoteAddress,
@@ -510,8 +519,12 @@ export class Torrent extends EngineComponent {
       downloadSpeed: peer.downloadSpeed,
       uploadSpeed: peer.uploadSpeed,
       percent: peer.bitfield ? peer.bitfield.count() / peer.bitfield.size : 0,
-      choking: peer.peerChoking,
-      interested: peer.peerInterested,
+      peerChoking: peer.peerChoking,
+      peerInterested: peer.peerInterested,
+      amChoking: peer.amChoking,
+      amInterested: peer.amInterested,
+      piecesHave: peer.bitfield?.count() ?? 0,
+      connectionType: peer.isIncoming ? ('incoming' as const) : ('outgoing' as const),
     }))
   }
 
