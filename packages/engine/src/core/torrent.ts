@@ -147,29 +147,7 @@ export class Torrent extends EngineComponent {
     this.instanceLogName = `t:${toHex(infoHash).slice(0, 6)}`
 
     if (this.announce.length > 0) {
-      // Group announce URLs into tiers (for now just one tier per URL or all in one)
-      // TrackerManager expects string[][]
-      const tiers = [this.announce]
-      this.trackerManager = new TrackerManager(
-        this.engine,
-        tiers,
-        this.infoHash,
-        this.peerId,
-        this.socketFactory,
-        this.port,
-      )
-
-      this.trackerManager.on('peersDiscovered', () => {
-        this.fillPeerSlots()
-      })
-
-      this.trackerManager.on('warning', (msg) => {
-        this.logger.warn(`Tracker warning: ${msg}`)
-      })
-
-      this.trackerManager.on('error', (err) => {
-        this.logger.error(`Tracker error: ${err.message}`)
-      })
+      this.initTrackerManager()
     }
   }
 
