@@ -3,7 +3,8 @@ import { TorrentCreator } from '../../src/core/torrent-creator'
 import { InMemoryFileSystem } from '../../src/adapters/memory'
 import { IStorageHandle } from '../../src/io/storage-handle'
 import { Bencode } from '../../src/utils/bencode'
-import { sha1 } from '../../src/utils/hash'
+import { SubtleCryptoHasher } from '../../src/adapters/browser/subtle-crypto-hasher'
+import { IHasher } from '../../src/interfaces/hasher'
 
 class MockStorageHandle implements IStorageHandle {
   id = 'mock-storage'
@@ -17,17 +18,19 @@ class MockStorageHandle implements IStorageHandle {
 describe('TorrentCreator', () => {
   let fs: InMemoryFileSystem
   let storage: MockStorageHandle
+  let hasher: IHasher
 
   beforeEach(() => {
     fs = new InMemoryFileSystem()
     storage = new MockStorageHandle(fs)
+    hasher = new SubtleCryptoHasher()
   })
 
   it('should create a single file torrent', async () => {
     const content = new Uint8Array([1, 2, 3, 4, 5])
     fs.files.set('/test.txt', content)
 
-    const torrentData = await TorrentCreator.create(storage, '/test.txt', {
+    const torrentData = await TorrentCreator.create(storage, '/test.txt', hasher, {
       pieceLength: 2,
       createdBy: 'JSTorrent Test',
     })
@@ -42,9 +45,9 @@ describe('TorrentCreator', () => {
     // Piece 1: [1, 2] -> sha1
     // Piece 2: [3, 4] -> sha1
     // Piece 3: [5] -> sha1
-    const p1 = await sha1(content.slice(0, 2))
-    const p2 = await sha1(content.slice(2, 4))
-    const p3 = await sha1(content.slice(4, 5))
+    const p1 = await hasher.sha1(content.slice(0, 2))
+    const p2 = await hasher.sha1(content.slice(2, 4))
+    const p3 = await hasher.sha1(content.slice(4, 5))
 
     const expectedPieces = Buffer.concat([p1, p2, p3])
     expect(Buffer.compare(torrent.info.pieces, expectedPieces)).toBe(0)
@@ -59,7 +62,7 @@ describe('TorrentCreator', () => {
     // We need to ensure directory structure exists for readdir to work in our naive memory fs?
     // Our naive readdir just filters keys, so it should work fine without explicit mkdir.
 
-    const torrentData = await TorrentCreator.create(storage, '/dir', {
+    const torrentData = await TorrentCreator.create(storage, '/dir', hasher, {
       pieceLength: 2,
       name: 'My Torrent',
     })
@@ -99,7 +102,7 @@ describe('TorrentCreator', () => {
     const content = new Uint8Array([1, 2, 3])
     fs.files.set('/test.txt', content)
 
-    const torrentData = await TorrentCreator.create(storage, '/test.txt', {
+    const torrentData = await TorrentCreator.create(storage, '/test.txt', hasher, {
       forceMultiFile: true,
       name: 'Single Multi',
     })
@@ -126,7 +129,7 @@ describe('TorrentCreator', () => {
     const content = new Uint8Array([1])
     fs.files.set('/private.txt', content)
 
-    const torrentData = await TorrentCreator.create(storage, '/private.txt', {
+    const torrentData = await TorrentCreator.create(storage, '/private.txt', hasher, {
       private: true,
     })
 

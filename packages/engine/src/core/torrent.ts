@@ -5,38 +5,19 @@ import { ActivePieceManager } from './active-piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 import { BitField } from '../utils/bitfield'
 import { MessageType, WireMessage } from '../protocol/wire-protocol'
-// import * as crypto from 'crypto'
-import { sha1 } from '../utils/hash'
 import { toHex, toString, compare } from '../utils/buffer'
 import { TrackerManager } from '../tracker/tracker-manager'
 import { ISocketFactory } from '../interfaces/socket'
 import { PeerInfo } from '../interfaces/tracker'
 import { TorrentFileInfo } from './torrent-file-info'
-import { EngineComponent, ILoggingEngine } from '../logging/logger'
+import { EngineComponent } from '../logging/logger'
 import type { BtEngine } from './bt-engine'
 import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
 
 export class Torrent extends EngineComponent {
   static logName = 'torrent'
 
-  // EventEmitter is mixed in via EngineComponent? No, EngineComponent doesn't extend EventEmitter.
-  // BtEngine extends EventEmitter.
-  // Torrent extends EventEmitter in original code.
-  // TypeScript doesn't support multiple inheritance.
-  // I should make EngineComponent extend EventEmitter?
-  // Or make Torrent implement EventEmitter interface and use composition or mixin?
-  // Or just make EngineComponent extend EventEmitter.
-  // The design doc says "class BtEngine extends EventEmitter".
-  // "All engine components extend EngineComponent".
-  // It doesn't say EngineComponent extends EventEmitter.
-  // But Torrent needs to emit events.
-  // I will make EngineComponent extend EventEmitter in logger.ts first?
-  // Or I can just manually implement EventEmitter methods on Torrent or use a property.
-  // Actually, many components might want to emit events.
-  // Let's check if EngineComponent should extend EventEmitter.
-  // If I change EngineComponent to extend EventEmitter, I need to update logger.ts.
-  // Let's assume for now I can change EngineComponent.
-
+  private btEngine: BtEngine
   private peers: PeerConnection[] = []
   public infoHash: Uint8Array
   public peerId: Uint8Array
@@ -102,7 +83,7 @@ export class Torrent extends EngineComponent {
   // Let's modify EngineComponent first.
 
   constructor(
-    engine: ILoggingEngine,
+    engine: BtEngine,
     infoHash: Uint8Array,
     peerId: Uint8Array,
     socketFactory: ISocketFactory,
@@ -115,6 +96,7 @@ export class Torrent extends EngineComponent {
     globalLimitCheck: () => boolean = () => true,
   ) {
     super(engine)
+    this.btEngine = engine
     this.infoHash = infoHash
     this.peerId = peerId
     this.socketFactory = socketFactory
@@ -810,7 +792,7 @@ export class Torrent extends EngineComponent {
     // Verify hash BEFORE writing to disk
     const expectedHash = this.pieceManager?.getPieceHash(index)
     if (expectedHash) {
-      const actualHash = await sha1(pieceData)
+      const actualHash = await this.btEngine.hasher.sha1(pieceData)
 
       if (compare(actualHash, expectedHash) !== 0) {
         // Hash failed - track suspicious peers
@@ -896,9 +878,7 @@ export class Torrent extends EngineComponent {
     const data = await this.contentStorage.read(index, 0, pieceLength)
 
     // Calculate SHA1
-
-    // Calculate SHA1
-    const hash = await sha1(data)
+    const hash = await this.btEngine.hasher.sha1(data)
 
     // Compare
     return compare(hash, expectedHash) === 0
@@ -1056,7 +1036,7 @@ export class Torrent extends EngineComponent {
     if (!this.metadataBuffer) return
 
     // SHA1 hash of metadataBuffer should match infoHash
-    const hash = await sha1(this.metadataBuffer)
+    const hash = await this.btEngine.hasher.sha1(this.metadataBuffer)
     if (compare(hash, this.infoHash) === 0) {
       this.logger.info('Metadata verified successfully!')
       this.metadataComplete = true

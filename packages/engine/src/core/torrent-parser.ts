@@ -1,6 +1,6 @@
 import { Bencode } from '../utils/bencode'
 import { TorrentFile } from './torrent-file'
-import { sha1 } from '../utils/hash'
+import { IHasher } from '../interfaces/hasher'
 
 export interface ParsedTorrent {
   infoHash: Uint8Array
@@ -14,7 +14,7 @@ export interface ParsedTorrent {
 }
 
 export class TorrentParser {
-  static async parse(buffer: Uint8Array): Promise<ParsedTorrent> {
+  static async parse(buffer: Uint8Array, hasher: IHasher): Promise<ParsedTorrent> {
     const decoded = Bencode.decode(buffer)
     const info = decoded.info
     if (!info) {
@@ -27,18 +27,7 @@ export class TorrentParser {
       throw new Error('Invalid torrent: could not extract raw info for hashing')
     }
 
-    // We need crypto for SHA1.
-    // Since this is likely running in Node or an environment with crypto, we can use it.
-    // However, to be safe and consistent with other parts, we might want to use a subtle crypto wrapper or just require('crypto').
-    // The Torrent class uses `await import('crypto')`. We should probably do the same or use a synchronous version if possible.
-    // For parsing, we usually want it synchronous.
-    // Let's assume Node.js 'crypto' is available for now.
-    // If this runs in browser, we'll need a polyfill or async API.
-    // Given the synchronous signature, let's try to use require('crypto') if available, or throw.
-    // Actually, `Bencode.getRawInfo` returns the buffer. The caller might want to hash it.
-    // But `ParsedTorrent` should probably contain the hash.
-    // Let's use `createHash` from `crypto`.
-    const infoHash = await sha1(infoBuffer)
+    const infoHash = await hasher.sha1(infoBuffer)
     return this.parseInfoDictionary(
       info,
       infoHash,
@@ -48,9 +37,9 @@ export class TorrentParser {
     )
   }
 
-  static async parseInfoBuffer(infoBuffer: Uint8Array): Promise<ParsedTorrent> {
+  static async parseInfoBuffer(infoBuffer: Uint8Array, hasher: IHasher): Promise<ParsedTorrent> {
     const info = Bencode.decode(infoBuffer)
-    const infoHash = await sha1(infoBuffer)
+    const infoHash = await hasher.sha1(infoBuffer)
     return this.parseInfoDictionary(info, infoHash, undefined, undefined, infoBuffer)
   }
 

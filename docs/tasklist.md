@@ -6,6 +6,10 @@ descriptions. or this is automated somehow. for now this is just an append only 
 
 improvement idea: use the summary the agent creates at end of execution and put into bottom of each file, or alongside the file.
 
+question: sometimes when manually verifying there's a natural small follow-up task that does not require a design document. how do i record those interactions?
+(it makes sense to do it in the same thread because relevant context is already available automatically without having to update the chat agent with the current state of the repo by uploading a zip file again)
+
+
 basically my workflow currently is:
 
 1. chat with claude.ai on web, upload recent zip file of repo. talk to it about feature or what i want. we spar for a while until i'm satisfied with its design document. claude.ai on web is best for this because it has liberal network access and can research topics at depth when i ask it to. (read actual BEP docs etc)

@@ -4,6 +4,7 @@ import { TorrentCreator } from '../../src/core/torrent-creator'
 import { ScopedNodeFileSystem } from '../../src/adapters/node'
 import { NodeSocketFactory } from '../../src/adapters/node'
 import { NodeStorageHandle } from '../../src/adapters/node'
+import { NodeHasher } from '../../src/adapters/node'
 import { SimpleTracker } from '../helpers/simple-tracker'
 import * as crypto from 'crypto'
 import path from 'path'
@@ -41,7 +42,8 @@ describe('UDP Tracker Integration', () => {
 
     // Create torrent
     const storage = new NodeStorageHandle('test', 'test', tmpDir)
-    const torrentBuffer = await TorrentCreator.create(storage, 'test.txt', {
+    const hasher = new NodeHasher()
+    const torrentBuffer = await TorrentCreator.create(storage, 'test.txt', hasher, {
       announceList: [[trackerUrl]], // Use local UDP tracker
       pieceLength: 16 * 1024,
     })

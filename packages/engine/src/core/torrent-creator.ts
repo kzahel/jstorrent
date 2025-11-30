@@ -1,10 +1,8 @@
 import { IStorageHandle } from '../io/storage-handle'
 import { Bencode } from '../utils/bencode'
-import { sha1 } from '../utils/hash'
-import { IFileHandle } from '../interfaces/filesystem'
+import { IFileHandle, IFileSystem } from '../interfaces/filesystem'
+import { IHasher } from '../interfaces/hasher'
 import * as path from '../utils/path'
-
-import { IFileSystem } from '../interfaces/filesystem'
 
 export interface TorrentCreationOptions {
   pieceLength?: number
@@ -31,6 +29,7 @@ export class TorrentCreator {
   static async create(
     storage: IStorageHandle,
     rootPath: string,
+    hasher: IHasher,
     options: TorrentCreationOptions = {},
   ): Promise<Uint8Array> {
     const fs = storage.getFileSystem()
@@ -55,7 +54,7 @@ export class TorrentCreator {
     totalSize = files.reduce((acc, f) => acc + f.length, 0)
 
     const pieceLength = options.pieceLength || this.calculatePieceLength(totalSize)
-    const pieces = await this.hashFiles(fs, files, pieceLength)
+    const pieces = await this.hashFiles(fs, files, pieceLength, hasher)
 
     const info: Record<string, unknown> = {
       'piece length': pieceLength,
@@ -151,6 +150,7 @@ export class TorrentCreator {
     fs: IFileSystem,
     files: FileInfo[],
     pieceLength: number,
+    hasher: IHasher,
   ): Promise<Uint8Array> {
     const pieceHashes: Uint8Array[] = []
     const buffer = new Uint8Array(pieceLength)
@@ -173,7 +173,7 @@ export class TorrentCreator {
           remaining -= bytesRead
 
           if (bufferOffset === pieceLength) {
-            pieceHashes.push(await sha1(buffer))
+            pieceHashes.push(await hasher.sha1(buffer))
             bufferOffset = 0
           }
         }
@@ -184,7 +184,7 @@ export class TorrentCreator {
 
     // Hash last partial piece
     if (bufferOffset > 0) {
-      pieceHashes.push(await sha1(buffer.slice(0, bufferOffset)))
+      pieceHashes.push(await hasher.sha1(buffer.slice(0, bufferOffset)))
     }
 
     // Concatenate all hashes

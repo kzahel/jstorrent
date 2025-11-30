@@ -1,5 +1,5 @@
 import { BtEngine, BtEngineOptions } from '../core/bt-engine'
-import { NodeSocketFactory, ScopedNodeFileSystem, JsonFileSessionStore } from '../adapters/node'
+import { NodeSocketFactory, ScopedNodeFileSystem, JsonFileSessionStore, NodeHasher } from '../adapters/node'
 import { StorageRootManager } from '../storage/storage-root-manager'
 import { ISessionStore } from '../interfaces/session-store'
 import { LogEntry } from '../logging/logger'
@@ -33,6 +33,7 @@ export function createNodeEngine(config: NodeEngineConfig): BtEngine {
     socketFactory: new NodeSocketFactory(),
     storageRootManager,
     sessionStore,
+    hasher: new NodeHasher(),
     ...config, // Pass through other options like maxConnections, peerId, etc.
     port: config.port,
     onLog: config.onLog,
