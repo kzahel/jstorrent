@@ -20,6 +20,7 @@ export class Torrent extends EngineComponent {
 
   private btEngine: BtEngine
   private peers: PeerConnection[] = []
+  private pendingConnections: Set<string> = new Set() // Track in-flight connection attempts
   public infoHash: Uint8Array
   public peerId: Uint8Array
   public socketFactory: ISocketFactory
@@ -195,15 +196,23 @@ export class Torrent extends EngineComponent {
   }
 
   async connectToPeer(peerInfo: PeerInfo) {
+    const peerKey = `${peerInfo.ip}:${peerInfo.port}`
+
     // Check if already connected
-    // This is a simple check, ideally we check against known peers map
     const alreadyConnected = this.peers.some(
       (p) => p.remoteAddress === peerInfo.ip && p.remotePort === peerInfo.port,
     )
     if (alreadyConnected) return
 
-    if (this.numPeers >= this.maxPeers) {
-      this.logger.debug(`Skipping peer ${peerInfo.ip}, max peers reached`)
+    // Check if connection already in progress
+    if (this.pendingConnections.has(peerKey)) return
+
+    // Check limits (include pending connections in count)
+    const totalConnections = this.numPeers + this.pendingConnections.size
+    if (totalConnections >= this.maxPeers) {
+      this.logger.debug(
+        `Skipping peer ${peerInfo.ip}, max peers reached (${totalConnections}/${this.maxPeers})`,
+      )
       return
     }
 
@@ -212,15 +221,12 @@ export class Torrent extends EngineComponent {
       return
     }
 
+    // Mark as pending before starting async connection
+    this.pendingConnections.add(peerKey)
+
     try {
       this.logger.info(`Connecting to ${peerInfo.ip}:${peerInfo.port}`)
       const socket = await this.socketFactory.createTcpSocket(peerInfo.ip, peerInfo.port)
-
-      // Wait for connection? createTcpSocket with args usually connects.
-      // But let's assume it returns a connected socket or one that connects.
-      // If it's the interface from extension, it might need explicit connect if not handled by factory?
-      // The interface says: createTcpSocket(host, port) -> Promise<ITcpSocket>
-      // So it should be connected.
 
       const peer = new PeerConnection(this.engineInstance, socket, {
         remoteAddress: peerInfo.ip,
@@ -235,6 +241,9 @@ export class Torrent extends EngineComponent {
     } catch (_err) {
       // very common to happen, don't log
       // this.logger.error(`Failed to connect to peer ${peerInfo.ip}:${peerInfo.port}`, { err })
+    } finally {
+      // Always remove from pending, whether success or failure
+      this.pendingConnections.delete(peerKey)
     }
   }
 
@@ -372,6 +381,7 @@ export class Torrent extends EngineComponent {
       peer.close()
     }
     this.peers = []
+    this.pendingConnections.clear()
   }
 
   /**
