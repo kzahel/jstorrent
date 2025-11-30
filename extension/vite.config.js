@@ -71,10 +71,11 @@ function injectPublicKey() {
 export default defineConfig({
   plugins: [react(), injectPublicKey(), sourcemapIgnoreLogger()],
   server: {
-    // Dev mode: serve on local.jstorrent.com:3000
+    // Dev mode: serve on local.jstorrent.com:3001
     // Requires: 127.0.0.1 local.jstorrent.com in /etc/hosts
+    // Port 3001 to avoid conflict with website on 3000
     host: 'local.jstorrent.com',
-    port: 3000,
+    port: 3001,
     sourcemapIgnoreList: (relativeSourcePath) => {
       return relativeSourcePath.includes('node_modules') || relativeSourcePath.includes('/logging/')
     },
