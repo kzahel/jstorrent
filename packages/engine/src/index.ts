@@ -36,3 +36,7 @@ export { StorageRootManager } from './storage/storage-root-manager'
 
 // Presets
 export { createDaemonEngine } from './presets/daemon'
+
+// Utils
+export { generateMagnet, parseMagnet, createTorrentBuffer } from './utils/magnet'
+export type { GenerateMagnetOptions, ParsedMagnet } from './utils/magnet'
