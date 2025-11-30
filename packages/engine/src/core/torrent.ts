@@ -301,10 +301,6 @@ export class Torrent extends EngineComponent {
     this._bitfield?.set(index, true)
   }
 
-  resetPiece(index: number): void {
-    this._bitfield?.set(index, false)
-  }
-
   getMissingPieces(): number[] {
     if (!this._bitfield) return []
     const missing: number[] = []
@@ -977,8 +973,7 @@ export class Torrent extends EngineComponent {
         // TODO: Increment suspicion count for these peers
         // TODO: Ban peers with too many failed pieces
 
-        // Reset piece state
-        this.resetPiece(index)
+        // Discard the failed piece data
         this.activePieces?.remove(index)
         return
       }
@@ -990,7 +985,6 @@ export class Torrent extends EngineComponent {
         await this.contentStorage.writePiece(index, pieceData)
       } catch (e) {
         this.logger.error(`Failed to write piece ${index}:`, e)
-        this.resetPiece(index)
         this.activePieces?.remove(index)
         return
       }
@@ -1096,14 +1090,14 @@ export class Torrent extends EngineComponent {
         } else {
           if (this.hasPiece(i)) {
             this.logger.warn(`Piece ${i} found invalid during recheck`)
-            this.resetPiece(i)
+            this._bitfield?.set(i, false)
           }
         }
       } catch (err) {
         // Read error or other issue
         if (this.hasPiece(i)) {
           this.logger.error(`Piece ${i} error during recheck:`, { err })
-          this.resetPiece(i)
+          this._bitfield?.set(i, false)
         }
       }
 
