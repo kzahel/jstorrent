@@ -627,6 +627,37 @@ export class Torrent extends EngineComponent {
         }
       }
     }
+
+    // Fill the vacated peer slot with a known peer
+    this.fillPeerSlots()
+  }
+
+  /**
+   * Connect to known peers from the tracker pool to fill available connection slots.
+   */
+  private fillPeerSlots(): void {
+    if (!this._networkActive || !this.trackerManager) return
+
+    const slotsAvailable = this.maxPeers - this.numPeers
+    if (slotsAvailable <= 0) return
+
+    const knownPeers = this.trackerManager.getKnownPeers()
+    this.logger.debug(
+      `Filling peer slots: ${slotsAvailable} available, ${knownPeers.length} known peers`,
+    )
+
+    for (const peer of knownPeers) {
+      if (this.numPeers >= this.maxPeers) break
+      if (!this.globalLimitCheck()) break
+
+      // Skip if already connected
+      const alreadyConnected = this.peers.some(
+        (p) => p.remoteAddress === peer.ip && p.remotePort === peer.port,
+      )
+      if (alreadyConnected) continue
+
+      this.connectToPeer(peer)
+    }
   }
 
   private async handleRequest(peer: PeerConnection, index: number, begin: number, length: number) {
