@@ -47,3 +47,16 @@ git config user.email "user@email.com"
 4. Proceed with commits and pushes
 
 This ensures proper commit history attribution across all work.
+
+## TypeScript Editing Workflow
+
+After editing TypeScript files, run the following checks in order:
+
+1. `pnpm run typecheck` - Verify type correctness
+2. `pnpm run test` - Run unit tests
+
+**IMPORTANT**: Only after all edits are complete and tests pass, run as the final step:
+
+3. `pnpm format:fix` - Fix formatting issues
+
+Run `format:fix` last because fixing type errors or tests may introduce formatting issues that need to be cleaned up at the very end.
