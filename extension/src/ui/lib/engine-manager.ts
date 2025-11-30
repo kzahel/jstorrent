@@ -5,7 +5,7 @@ import {
   DaemonFileSystem,
   StorageRootManager,
   ChromeStorageSessionStore,
-  LocalStorageSessionStore,
+  ExternalChromeStorageSessionStore,
   RingBufferLogger,
   LogEntry,
   ISessionStore,
@@ -16,25 +16,21 @@ import { getBridge } from './extension-bridge'
 const DEFAULT_ROOT_TOKEN_KEY = 'settings:defaultRootToken'
 
 /**
- * Check if we're running inside a Chrome extension context.
- */
-function isExtensionContext(): boolean {
-  return (
-    typeof chrome !== 'undefined' &&
-    typeof chrome.storage !== 'undefined' &&
-    typeof chrome.storage.local !== 'undefined'
-  )
-}
-
-/**
  * Create the appropriate session store based on context.
  */
 function createSessionStore(): ISessionStore {
-  if (isExtensionContext()) {
+  const bridge = getBridge()
+
+  if (!bridge.isDevMode) {
+    // Inside extension - use direct chrome.storage.local
     return new ChromeStorageSessionStore(chrome.storage.local, 'session:')
   }
-  // Dev mode - use localStorage (TODO: replace with IndexedDB for better perf)
-  return new LocalStorageSessionStore('jstorrent:session:')
+
+  // External (jstorrent.com or localhost) - relay through extension
+  if (!bridge.extensionId) {
+    throw new Error('Extension ID required for external session store')
+  }
+  return new ExternalChromeStorageSessionStore(bridge.extensionId)
 }
 
 export interface DaemonInfo {

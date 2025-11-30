@@ -4,4 +4,7 @@ export interface ISessionStore {
   delete(key: string): Promise<void>
   keys(prefix?: string): Promise<string[]>
   clear(): Promise<void>
+
+  // Optional batch operation (for performance)
+  getMulti?(keys: string[]): Promise<Map<string, Uint8Array>>
 }
