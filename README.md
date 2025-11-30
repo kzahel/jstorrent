@@ -34,7 +34,48 @@ This repository contains the source code for JSTorrent, including the Chrome ext
  - **`pnpm typecheck`**: Run TypeScript checks for all packages.
  - **`pnpm build`**: Build all packages.
  - **`pnpm checkall`**: Run lint, format check, typecheck, and tests in parallel.
- 
+
+ ### Dev Mode Setup
+
+ Running `pnpm dev` starts three processes in parallel:
+
+ | Server | URL | Purpose |
+ |--------|-----|---------|
+ | website | http://localhost:3000 | Landing page, protocol handler |
+ | extension dev:web | http://local.jstorrent.com:3001 | App UI with HMR |
+ | extension dev:extension | - | Build watch for chrome://extensions |
+
+ #### Prerequisites
+
+ 1. **Add local.jstorrent.com to /etc/hosts**:
+    ```bash
+    echo "127.0.0.1 local.jstorrent.com" | sudo tee -a /etc/hosts
+    ```
+
+ 2. **Configure DEV_ORIGINS for CORS** (after installing native host):
+    ```bash
+    mkdir -p ~/.config/jstorrent-native
+    echo "DEV_ORIGINS=http://local.jstorrent.com:3001" >> ~/.config/jstorrent-native/jstorrent-native.env
+    ```
+    Then restart the native host (close and reopen the extension).
+
+ 3. **Load extension in Chrome**:
+    - Build once: `pnpm build`
+    - Go to `chrome://extensions`, enable Developer mode
+    - Click "Load unpacked" and select `extension/dist`
+
+ #### Running Dev Mode
+
+ ```bash
+ pnpm dev
+ ```
+
+ This starts:
+ - **Extension build watch**: Rebuilds on file changes (reload extension in Chrome to see changes)
+ - **Web dev server with HMR**: Open http://local.jstorrent.com:3001/src/ui/app.html for hot-reloading UI development
+
+ The web dev server communicates with the extension via `chrome.runtime.sendMessage` (using `externally_connectable`), so the extension must be installed and running.
+
  ### Extension
  
  The Chrome extension is located in the `extension/` directory.

@@ -77,7 +77,10 @@ Current implementation (unchanged):
   Authored **exclusively** by `jstorrent-native-host`. Stores discovery information
 
 * **`jstorrent-native.env`**
-  Developer overrides (e.g., logging, LAUNCH_URL override for local development).
+  Developer overrides. Supported variables:
+  * `DEV_ORIGINS` - Comma-separated list of origins allowed for CORS in io-daemon (e.g., `http://local.jstorrent.com:3001`). Used for localhost dev server with HMR.
+  * `LAUNCH_URL` - Override for local development.
+  * Logging configuration.
 
 * **Download root metadata file**
 (Not yet implemented)
