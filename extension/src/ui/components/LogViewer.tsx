@@ -90,7 +90,7 @@ export const LogViewer: React.FC = () => {
       <div
         style={{
           padding: '8px',
-          borderBottom: '1px solid #ccc',
+          borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           gap: '16px',
           alignItems: 'center',

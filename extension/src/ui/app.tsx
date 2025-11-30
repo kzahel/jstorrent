@@ -42,7 +42,7 @@ function AppContent() {
       <div
         style={{
           padding: '12px 20px',
-          borderBottom: '1px solid #ccc',
+          borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           gap: '20px',
@@ -56,8 +56,8 @@ function AppContent() {
             onClick={() => setActiveTab('torrents')}
             style={{
               padding: '8px 16px',
-              background: activeTab === 'torrents' ? '#2196F3' : '#eee',
-              color: activeTab === 'torrents' ? 'white' : 'black',
+              background: activeTab === 'torrents' ? 'var(--accent-primary)' : 'var(--button-bg)',
+              color: activeTab === 'torrents' ? 'white' : 'var(--button-text)',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',
@@ -69,8 +69,8 @@ function AppContent() {
             onClick={() => setActiveTab('logs')}
             style={{
               padding: '8px 16px',
-              background: activeTab === 'logs' ? '#2196F3' : '#eee',
-              color: activeTab === 'logs' ? 'white' : 'black',
+              background: activeTab === 'logs' ? 'var(--accent-primary)' : 'var(--button-bg)',
+              color: activeTab === 'logs' ? 'white' : 'var(--button-text)',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',
@@ -82,8 +82,8 @@ function AppContent() {
             onClick={() => setActiveTab('settings')}
             style={{
               padding: '8px 16px',
-              background: activeTab === 'settings' ? '#2196F3' : '#eee',
-              color: activeTab === 'settings' ? 'white' : 'black',
+              background: activeTab === 'settings' ? 'var(--accent-primary)' : 'var(--button-bg)',
+              color: activeTab === 'settings' ? 'white' : 'var(--button-text)',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',
@@ -117,11 +117,11 @@ function AppContent() {
             </div>
 
             {loading && <p>Loading...</p>}
-            {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+            {error && <p style={{ color: 'var(--accent-error)' }}>Error: {error}</p>}
 
             {engine && (
               <>
-                <div style={{ marginBottom: '16px', color: '#666' }}>
+                <div style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
                   {torrents.length} torrents | {engine.numConnections} connections |{' '}
                   {formatBytes(globalStats.totalDownloadRate)}/s |{' '}
                   {formatBytes(globalStats.totalUploadRate)}/s
@@ -137,7 +137,7 @@ function AppContent() {
                           .map((b) => b.toString(16).padStart(2, '0'))
                           .join('')}
                         style={{
-                          border: '1px solid #ccc',
+                          border: '1px solid var(--border-color)',
                           borderRadius: '4px',
                           padding: '12px',
                           marginBottom: '8px',
@@ -146,19 +146,19 @@ function AppContent() {
                         <div style={{ fontWeight: 'bold' }}>
                           {torrent.name || 'Loading metadata...'}
                         </div>
-                        <div style={{ fontSize: '12px', color: '#666' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                           {torrent.activityState} | {(torrent.progress * 100).toFixed(1)}% |{' '}
                           {torrent.numPeers} peers | {torrent.files.length} files |{' '}
                           {formatBytes(torrent.contentStorage?.getTotalSize() || 0)}
                         </div>
-                        <div style={{ fontSize: '12px', color: '#666' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                           {formatBytes(torrent.downloadSpeed)}/s |{' '}
                           {formatBytes(torrent.uploadSpeed)}/s
                         </div>
                         <div
                           style={{
                             height: '4px',
-                            background: '#eee',
+                            background: 'var(--progress-bg)',
                             borderRadius: '2px',
                             marginTop: '8px',
                           }}
@@ -168,7 +168,7 @@ function AppContent() {
                               height: '100%',
                               width: `${torrent.progress * 100}%`,
                               background:
-                                torrent.activityState === 'seeding' ? '#4CAF50' : '#2196F3',
+                                torrent.activityState === 'seeding' ? 'var(--accent-success)' : 'var(--accent-primary)',
                               borderRadius: '2px',
                             }}
                           />

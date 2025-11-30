@@ -58,8 +58,8 @@ export const DownloadRootsManager: React.FC = () => {
         <div
           style={{
             padding: '20px',
-            background: '#fff3cd',
-            border: '1px solid #ffc107',
+            background: 'var(--bg-warning)',
+            border: '1px solid var(--border-warning)',
             borderRadius: '4px',
             marginBottom: '16px',
           }}
@@ -79,22 +79,22 @@ export const DownloadRootsManager: React.FC = () => {
                 alignItems: 'center',
                 gap: '12px',
                 padding: '12px',
-                border: '1px solid #ddd',
+                border: '1px solid var(--border-light)',
                 borderRadius: '4px',
                 marginBottom: '8px',
-                background: root.token === defaultToken ? '#e3f2fd' : 'white',
+                background: root.token === defaultToken ? 'var(--bg-highlight)' : 'var(--bg-secondary)',
               }}
             >
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 'bold' }}>{root.label}</div>
-                <div style={{ fontSize: '12px', color: '#666' }}>{root.path}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{root.path}</div>
               </div>
 
               {root.token === defaultToken ? (
                 <span
                   style={{
                     padding: '4px 8px',
-                    background: '#2196F3',
+                    background: 'var(--accent-primary)',
                     color: 'white',
                     borderRadius: '4px',
                     fontSize: '12px',
@@ -125,7 +125,7 @@ export const DownloadRootsManager: React.FC = () => {
         style={{
           padding: '8px 16px',
           cursor: adding ? 'not-allowed' : 'pointer',
-          background: '#4CAF50',
+          background: 'var(--accent-success)',
           color: 'white',
           border: 'none',
           borderRadius: '4px',
