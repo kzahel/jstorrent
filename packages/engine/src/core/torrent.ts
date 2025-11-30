@@ -159,13 +159,8 @@ export class Torrent extends EngineComponent {
         this.port,
       )
 
-      this.trackerManager.on('peer', (peer: PeerInfo) => {
-        // this.logger.info(`Discovered peer ${peer.ip}:${peer.port}`)
-        // We need to initiate connection.
-        // But PeerConnection usually wraps an existing socket or initiates one?
-        // PeerConnection currently takes a socket.
-        // We need to create a socket and connect.
-        this.connectToPeer(peer)
+      this.trackerManager.on('peer', () => {
+        this.fillPeerSlots()
       })
 
       this.trackerManager.on('warning', (msg) => {
@@ -491,8 +486,8 @@ export class Torrent extends EngineComponent {
       this.port,
     )
 
-    this.trackerManager.on('peer', (peer: PeerInfo) => {
-      this.connectToPeer(peer)
+    this.trackerManager.on('peer', () => {
+      this.fillPeerSlots()
     })
 
     this.trackerManager.on('warning', (msg) => {
