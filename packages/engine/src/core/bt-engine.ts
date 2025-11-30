@@ -285,7 +285,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     const initComponents = async (infoBuffer: Uint8Array, preParsed?: ParsedTorrent) => {
       if (torrent.pieceManager) return // Already initialized
 
-      const parsedTorrent = preParsed || (await TorrentParser.parseInfoBuffer(infoBuffer, this.hasher))
+      const parsedTorrent =
+        preParsed || (await TorrentParser.parseInfoBuffer(infoBuffer, this.hasher))
 
       // Check piece size limit
       if (parsedTorrent.pieceLength > MAX_PIECE_SIZE) {
