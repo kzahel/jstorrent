@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { BitField } from '../../src/utils/bitfield'
 import { Torrent } from '../../src/core/torrent'
+import type { Engine } from '../../src/core/engine'
+import type { SocketFactory } from '../../src/types'
 import { MockEngine } from '../utils/mock-engine'
 
 // Mock socket factory for Torrent constructor
@@ -21,10 +22,10 @@ describe('Torrent piece management', () => {
     const peerId = new Uint8Array(20).fill(2)
 
     torrent = new Torrent(
-      engine as any,
+      engine as unknown as Engine,
       infoHash,
       peerId,
-      mockSocketFactory as any,
+      mockSocketFactory as unknown as SocketFactory,
       6881,
       undefined, // contentStorage
       [], // announce

@@ -42,7 +42,7 @@ export function handleKVMessage(
       .then((result) => {
         const values: Record<string, string | null> = {}
         for (const key of message.keys!) {
-          values[key] = result[prefixKey(key)] ?? null
+          values[key] = (result[prefixKey(key)] as string | undefined) ?? null
         }
         sendResponse({ ok: true, values })
       })
