@@ -594,7 +594,7 @@ export class Torrent extends EngineComponent {
         this.logger.debug('Sending BitField to peer')
         peer.sendMessage(MessageType.BITFIELD, this.bitfield.toBuffer())
       } else {
-        console.log('Torrent: No bitfield to send')
+        this.logger.debug('No bitfield to send')
       }
     }
 
@@ -688,7 +688,7 @@ export class Torrent extends EngineComponent {
   }
 
   private removePeer(peer: PeerConnection) {
-    console.error(`removePeer: Removing peer, peers remaining: ${this.peers.length - 1}`)
+    this.logger.debug(`Removing peer, peers remaining: ${this.peers.length - 1}`)
     const index = this.peers.indexOf(peer)
     if (index !== -1) {
       this.peers.splice(index, 1)
