@@ -34,20 +34,5 @@ export { DaemonHasher } from './adapters/daemon/daemon-hasher'
 // Storage
 export { StorageRootManager } from './storage/storage-root-manager'
 
-// State
-export { getEngineState } from './core/engine-state'
-export type {
-  EngineStateSnapshot,
-  EngineInfo,
-  TorrentInfo,
-  TorrentState,
-  FileInfo,
-  PeerInfo,
-  SwarmPeerInfo,
-  TrackerInfo,
-  GlobalStats,
-  RootInfo,
-} from './core/engine-state'
-
 // Presets
 export { createDaemonEngine } from './presets/daemon'
