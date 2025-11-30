@@ -204,16 +204,16 @@ export class SessionPersistence {
         if (data.magnetLink) {
           torrent = await this.engine.addTorrent(data.magnetLink, {
             storageToken: data.storageToken,
-            skipPersist: true, // Don't re-save while restoring
-            userState: data.userState || 'active', // Restore user state
+            source: 'restore',
+            userState: data.userState || 'active',
           })
         } else if (data.torrentFile) {
           // Decode base64 torrent file
           const buffer = this.base64ToUint8Array(data.torrentFile)
           torrent = await this.engine.addTorrent(buffer, {
             storageToken: data.storageToken,
-            skipPersist: true, // Don't re-save while restoring
-            userState: data.userState || 'active', // Restore user state
+            source: 'restore',
+            userState: data.userState || 'active',
           })
         }
 
