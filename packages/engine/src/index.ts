@@ -12,6 +12,7 @@ export { computeActivityState } from './core/torrent-state'
 export type { IFileSystem, IFileHandle, IFileStat } from './interfaces/filesystem'
 export type { ISocketFactory, ITcpSocket, IUdpSocket } from './interfaces/socket'
 export type { ISessionStore } from './interfaces/session-store'
+export type { IHasher } from './interfaces/hasher'
 
 // Logging
 export type { Logger, LogEntry, LogLevel } from './logging/logger'
@@ -24,9 +25,11 @@ export { MemorySessionStore } from './adapters/memory/memory-session-store'
 export { ChromeStorageSessionStore } from './adapters/browser/chrome-storage-session-store'
 export { LocalStorageSessionStore } from './adapters/browser/local-storage-session-store'
 export { ExternalChromeStorageSessionStore } from './adapters/browser/external-chrome-storage-session-store'
+export { SubtleCryptoHasher } from './adapters/browser/subtle-crypto-hasher'
 export { DaemonConnection } from './adapters/daemon/daemon-connection'
 export { DaemonSocketFactory } from './adapters/daemon/daemon-socket-factory'
 export { DaemonFileSystem } from './adapters/daemon/daemon-filesystem'
+export { DaemonHasher } from './adapters/daemon/daemon-hasher'
 
 // Storage
 export { StorageRootManager } from './storage/storage-root-manager'

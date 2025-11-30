@@ -3,6 +3,7 @@ import {
   DaemonConnection,
   DaemonSocketFactory,
   DaemonFileSystem,
+  DaemonHasher,
   StorageRootManager,
   ChromeStorageSessionStore,
   ExternalChromeStorageSessionStore,
@@ -139,10 +140,12 @@ class EngineManager {
     }
 
     // 5. Create engine (suspended)
+    const hasher = new DaemonHasher(this.daemonConnection)
     this.engine = new BtEngine({
       socketFactory: new DaemonSocketFactory(this.daemonConnection),
       storageRootManager: srm,
       sessionStore: this.sessionStore,
+      hasher,
       startSuspended: true,
       onLog: (entry: LogEntry) => {
         this.logBuffer.add(entry)
