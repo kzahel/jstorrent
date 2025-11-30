@@ -14,6 +14,48 @@ import { EngineComponent } from '../logging/logger'
 import type { BtEngine } from './bt-engine'
 import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
 
+/**
+ * All persisted fields for a torrent.
+ * Adding a new persisted field = add to this interface + add getter/setter in Torrent.
+ */
+export interface TorrentPersistedState {
+  // === Origin (at least one set) ===
+  magnetLink?: string // Original magnet URI
+  torrentFileBase64?: string // Base64-encoded .torrent file
+
+  // Info dict - for magnet, fetched from peers
+  // For .torrent, can extract from torrentFile but cache here
+  infoBuffer?: Uint8Array
+
+  // === Timestamps ===
+  addedAt: number
+  completedAt?: number
+
+  // === User Intent ===
+  userState: TorrentUserState
+  queuePosition?: number
+
+  // === Stats ===
+  totalDownloaded: number
+  totalUploaded: number
+
+  // === Progress ===
+  completedPieces: number[] // Indices of verified pieces
+}
+
+/**
+ * Create default persisted state for new torrents.
+ */
+export function createDefaultPersistedState(): TorrentPersistedState {
+  return {
+    addedAt: Date.now(),
+    userState: 'active',
+    totalDownloaded: 0,
+    totalUploaded: 0,
+    completedPieces: [],
+  }
+}
+
 export class Torrent extends EngineComponent {
   static logName = 'torrent'
 
@@ -80,19 +122,65 @@ export class Torrent extends EngineComponent {
   // Magnet display name (dn parameter) - fallback when info dict isn't available yet
   public _magnetDisplayName?: string
 
-  public totalDownloaded = 0
-  public totalUploaded = 0
+  // === Centralized persisted state ===
+  private _persisted: TorrentPersistedState = createDefaultPersistedState()
 
-  // State
-  /**
-   * User's intent for this torrent - persisted.
-   */
-  public userState: TorrentUserState = 'active'
+  // === Persisted state getters ===
+  get totalDownloaded(): number {
+    return this._persisted.totalDownloaded
+  }
+  set totalDownloaded(value: number) {
+    this._persisted.totalDownloaded = value
+  }
 
-  /**
-   * Queue position when userState is 'queued'.
-   */
-  public queuePosition?: number
+  get totalUploaded(): number {
+    return this._persisted.totalUploaded
+  }
+  set totalUploaded(value: number) {
+    this._persisted.totalUploaded = value
+  }
+
+  get userState(): TorrentUserState {
+    return this._persisted.userState
+  }
+  set userState(value: TorrentUserState) {
+    this._persisted.userState = value
+  }
+
+  get queuePosition(): number | undefined {
+    return this._persisted.queuePosition
+  }
+  set queuePosition(value: number | undefined) {
+    this._persisted.queuePosition = value
+  }
+
+  get addedAt(): number {
+    return this._persisted.addedAt
+  }
+  set addedAt(value: number) {
+    this._persisted.addedAt = value
+  }
+
+  get completedAt(): number | undefined {
+    return this._persisted.completedAt
+  }
+  set completedAt(value: number | undefined) {
+    this._persisted.completedAt = value
+  }
+
+  get magnetLink(): string | undefined {
+    return this._persisted.magnetLink
+  }
+  set magnetLink(value: string | undefined) {
+    this._persisted.magnetLink = value
+  }
+
+  get torrentFileBase64(): string | undefined {
+    return this._persisted.torrentFileBase64
+  }
+  set torrentFileBase64(value: string | undefined) {
+    this._persisted.torrentFileBase64 = value
+  }
 
   /**
    * Whether the torrent is currently checking data.
@@ -111,12 +199,6 @@ export class Torrent extends EngineComponent {
 
   public isPrivate: boolean = false
   public creationDate?: number
-  public completedAt?: number
-
-  // For session persistence
-  public magnetLink?: string // Original magnet if added via magnet
-  public torrentFileBase64?: string // Base64 .torrent file if added via file
-  public addedAt: number = Date.now()
 
   // We need to re-implement EventEmitter methods if we don't extend it.
   // Or I can modify EngineComponent to extend EventEmitter.
@@ -1233,5 +1315,60 @@ export class Torrent extends EngineComponent {
     this._cachedInfoDict = undefined // Clear cache so infoDict getter re-parses
     this.metadataComplete = true
     this.metadataSize = infoBuffer.length
+  }
+
+  // === Persistence API ===
+
+  /**
+   * Get all persisted state for this torrent.
+   * Used by SessionPersistence to save torrent state.
+   */
+  getPersistedState(): TorrentPersistedState {
+    return {
+      ...this._persisted,
+      // Always sync bitfield → completedPieces
+      completedPieces: this._bitfield?.getSetIndices() ?? [],
+      // Always sync metadataRaw → infoBuffer
+      infoBuffer: this._metadataRaw ?? undefined,
+    }
+  }
+
+  /**
+   * Restore persisted state for this torrent.
+   * Used by SessionPersistence to restore torrent state.
+   */
+  restorePersistedState(state: TorrentPersistedState): void {
+    this._persisted = { ...state }
+
+    // Restore bitfield from completedPieces
+    if (state.completedPieces.length && this._bitfield) {
+      for (const i of state.completedPieces) {
+        this._bitfield.set(i, true)
+      }
+    }
+
+    // Restore metadata
+    if (state.infoBuffer) {
+      this._metadataRaw = state.infoBuffer
+      this._cachedInfoDict = undefined // Clear cache so infoDict getter re-parses
+      this.metadataComplete = true
+      this.metadataSize = state.infoBuffer.length
+    }
+  }
+
+  // === Initialization helpers ===
+
+  /**
+   * Initialize torrent from a magnet link.
+   */
+  initFromMagnet(magnetLink: string): void {
+    this._persisted.magnetLink = magnetLink
+  }
+
+  /**
+   * Initialize torrent from a .torrent file.
+   */
+  initFromTorrentFile(torrentFileBase64: string): void {
+    this._persisted.torrentFileBase64 = torrentFileBase64
   }
 }

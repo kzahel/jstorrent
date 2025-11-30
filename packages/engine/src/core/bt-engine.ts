@@ -352,9 +352,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       }
     })
 
-    // Store origin info for persistence
-    torrent.magnetLink = magnetLink
-    torrent.torrentFileBase64 = torrentFileBase64
+    // Store origin info for persistence using init methods
+    if (magnetLink) {
+      torrent.initFromMagnet(magnetLink)
+    } else if (torrentFileBase64) {
+      torrent.initFromTorrentFile(torrentFileBase64)
+    }
 
     // Set initial user state
     torrent.userState = options.userState ?? 'active'
