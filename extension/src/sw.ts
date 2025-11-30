@@ -2,6 +2,7 @@ console.log('Service Worker loaded')
 
 import { DaemonLifecycleManager } from './lib/daemon-lifecycle-manager'
 import { NativeHostConnection } from './lib/native-connection'
+import { handleKVMessage } from './lib/kv-handlers'
 
 const daemonManager = new DaemonLifecycleManager(() => new NativeHostConnection())
 
@@ -73,9 +74,14 @@ chrome.action.onClicked.addListener(() => {
 type SendResponse = (response: unknown) => void
 
 function handleMessage(
-  message: { type?: string; event?: string },
+  message: { type?: string; event?: string; key?: string; keys?: string[]; value?: string; prefix?: string },
   sendResponse: SendResponse,
 ): boolean {
+  // KV operations (external session store)
+  if (message.type?.startsWith('KV_')) {
+    return handleKVMessage(message, sendResponse)
+  }
+
   // UI startup: get daemon connection info
   if (message.type === 'GET_DAEMON_INFO') {
     daemonManager
