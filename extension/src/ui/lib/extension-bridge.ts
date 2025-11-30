@@ -96,8 +96,8 @@ const EXTENSION_ID_KEY = 'jstorrent_extension_id'
  */
 function getExtensionId(): string | null {
   // 1. Check Vite env variable
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_EXTENSION_ID) {
-    return import.meta.env.VITE_EXTENSION_ID
+  if (typeof import.meta !== 'undefined' && import.meta.env?.DEV_EXTENSION_ID) {
+    return import.meta.env.DEV_EXTENSION_ID
   }
 
   // 2. Check localStorage (previously saved)
@@ -186,7 +186,7 @@ To connect to the extension from localhost:
 
 2. Provide the extension ID via one of:
    - URL param: ?extensionId=YOUR_EXTENSION_ID
-   - Env var: VITE_EXTENSION_ID=YOUR_EXTENSION_ID npm run dev
+   - Env var: DEV_EXTENSION_ID=YOUR_EXTENSION_ID npm run dev
    - localStorage: localStorage.setItem('jstorrent_extension_id', 'YOUR_EXTENSION_ID')
 
 3. Make sure the extension's manifest.json has your dev origin in externally_connectable:
