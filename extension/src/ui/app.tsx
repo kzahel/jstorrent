@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { useState } from 'react'
 import { LogViewer } from './components/LogViewer'
 import { DownloadRootsManager } from './components/DownloadRootsManager'
+import { EngineProvider } from './context/EngineContext'
 import { useEngineState } from './hooks/useEngineState'
 
 function formatBytes(bytes: number): string {
@@ -13,17 +14,19 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
-export const App = () => {
+function AppContent() {
   const [activeTab, setActiveTab] = useState<'torrents' | 'logs' | 'settings'>('torrents')
   const [magnetInput, setMagnetInput] = useState('')
-  const { state, error, loading } = useEngineState(1000)
+  const { engine, loading, error, torrents, globalStats } = useEngineState()
 
-  const handleAddTorrent = () => {
-    if (!magnetInput) return
-    chrome.runtime.sendMessage({ type: 'ADD_TORRENT', magnet: magnetInput }, (response) => {
-      console.log('Add torrent response:', response)
+  const handleAddTorrent = async () => {
+    if (!magnetInput || !engine) return
+    try {
+      await engine.addTorrent(magnetInput)
       setMagnetInput('')
-    })
+    } catch (e) {
+      console.error('Failed to add torrent:', e)
+    }
   }
 
   return (
@@ -116,21 +119,23 @@ export const App = () => {
             {loading && <p>Loading...</p>}
             {error && <p style={{ color: 'red' }}>Error: {error}</p>}
 
-            {state && (
+            {engine && (
               <>
                 <div style={{ marginBottom: '16px', color: '#666' }}>
-                  {state.torrents.length} torrents | {state.engine.currentConnections} connections |{' '}
-                  {formatBytes(state.globalStats.totalDownloadRate)}/s |{' '}
-                  {formatBytes(state.globalStats.totalUploadRate)}/s
+                  {torrents.length} torrents | {engine.numConnections} connections |{' '}
+                  {formatBytes(globalStats.totalDownloadRate)}/s |{' '}
+                  {formatBytes(globalStats.totalUploadRate)}/s
                 </div>
 
-                {state.torrents.length === 0 ? (
+                {torrents.length === 0 ? (
                   <p>No torrents. Add a magnet link to get started.</p>
                 ) : (
                   <ul style={{ listStyle: 'none', padding: 0 }}>
-                    {state.torrents.map((torrent) => (
+                    {torrents.map((torrent) => (
                       <li
-                        key={torrent.infoHash}
+                        key={Array.from(torrent.infoHash)
+                          .map((b) => b.toString(16).padStart(2, '0'))
+                          .join('')}
                         style={{
                           border: '1px solid #ccc',
                           borderRadius: '4px',
@@ -138,15 +143,17 @@ export const App = () => {
                           marginBottom: '8px',
                         }}
                       >
-                        <div style={{ fontWeight: 'bold' }}>{torrent.name}</div>
-                        <div style={{ fontSize: '12px', color: '#666' }}>
-                          {torrent.state} | {(torrent.progress * 100).toFixed(1)}% |{' '}
-                          {torrent.connectedPeers} peers | {torrent.files.length} files |{' '}
-                          {formatBytes(torrent.totalSize)}
+                        <div style={{ fontWeight: 'bold' }}>
+                          {torrent.name || 'Loading metadata...'}
                         </div>
                         <div style={{ fontSize: '12px', color: '#666' }}>
-                          {formatBytes(torrent.downloadRate)}/s | {formatBytes(torrent.uploadRate)}
-                          /s
+                          {torrent.activityState} | {(torrent.progress * 100).toFixed(1)}% |{' '}
+                          {torrent.numPeers} peers | {torrent.files.length} files |{' '}
+                          {formatBytes(torrent.contentStorage?.getTotalSize() || 0)}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          {formatBytes(torrent.downloadSpeed)}/s |{' '}
+                          {formatBytes(torrent.uploadSpeed)}/s
                         </div>
                         <div
                           style={{
@@ -160,7 +167,8 @@ export const App = () => {
                             style={{
                               height: '100%',
                               width: `${torrent.progress * 100}%`,
-                              background: torrent.state === 'seeding' ? '#4CAF50' : '#2196F3',
+                              background:
+                                torrent.activityState === 'seeding' ? '#4CAF50' : '#2196F3',
                               borderRadius: '2px',
                             }}
                           />
@@ -179,6 +187,14 @@ export const App = () => {
         {activeTab === 'settings' && <DownloadRootsManager />}
       </div>
     </div>
+  )
+}
+
+export const App = () => {
+  return (
+    <EngineProvider>
+      <AppContent />
+    </EngineProvider>
   )
 }
 

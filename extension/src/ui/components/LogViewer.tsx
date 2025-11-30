@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { LogEntry, LogLevel, LogFilter } from '@jstorrent/engine'
+import { engineManager } from '../lib/engine-manager'
 
 const levelColors: Record<LogLevel, string> = {
   debug: '#888',
@@ -15,50 +16,31 @@ export const LogViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Check if we are in a context that supports message passing (e.g. popup/page)
-    // or if we have direct access to the buffer (e.g. debugging)
-    // For now, we'll try message passing first as per plan
+    // Get initial logs from local buffer
+    const initialLogs = engineManager.logBuffer.getRecent(100, filter)
+    setEntries(initialLogs.reverse())
 
-    const fetchLogs = () => {
-      chrome.runtime.sendMessage({ type: 'GET_LOGS', limit: 100, filter }, (response) => {
-        if (chrome.runtime.lastError) {
-          // Ignore - might be no listener yet
+    // Subscribe to new logs
+    const unsubscribe = engineManager.logBuffer.subscribe((entry) => {
+      // Check filter
+      if (filter.level) {
+        const levels: LogLevel[] = ['debug', 'info', 'warn', 'error']
+        if (levels.indexOf(entry.level) < levels.indexOf(filter.level)) {
           return
         }
-        if (response?.entries) {
-          setEntries(response.entries.reverse())
-        }
-      })
-    }
-
-    fetchLogs()
-    const interval = setInterval(fetchLogs, 1000) // Fallback polling if no subscription
-
-    const handleMessage = (message: { type: string; entry: LogEntry }) => {
-      if (message.type === 'LOG_ENTRY') {
-        setEntries((prev) => {
-          // Check filter
-          if (filter.level) {
-            const levels: LogLevel[] = ['debug', 'info', 'warn', 'error']
-            if (levels.indexOf(message.entry.level) < levels.indexOf(filter.level)) {
-              return prev
-            }
-          }
-
-          const updated = [...prev, message.entry]
-          if (updated.length > 100) {
-            return updated.slice(-100)
-          }
-          return updated
-        })
       }
-    }
 
-    chrome.runtime.onMessage.addListener(handleMessage)
+      setEntries((prev) => {
+        const updated = [...prev, entry]
+        if (updated.length > 100) {
+          return updated.slice(-100)
+        }
+        return updated
+      })
+    })
 
     return () => {
-      clearInterval(interval)
-      chrome.runtime.onMessage.removeListener(handleMessage)
+      unsubscribe()
     }
   }, [filter])
 
