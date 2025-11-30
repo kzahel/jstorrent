@@ -26,7 +26,7 @@
     "matches": [
       "https://new.jstorrent.com/*",
       "https://jstorrent.com/*",
-      "http://local.jstorrent.com:3000/*"
+      "http://local.jstorrent.com/*"
     ]
   }
 }

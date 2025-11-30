@@ -47,8 +47,9 @@ export const TorrentItem: React.FC<TorrentItemProps> = ({ torrent, onStart, onSt
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 'bold' }}>{torrent.name || 'Loading metadata...'}</div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            {torrent.activityState} | {(torrent.progress * 100).toFixed(1)}% | {torrent.numPeers} peers |{' '}
-            {torrent.files.length} files | {formatBytes(torrent.contentStorage?.getTotalSize() || 0)}
+            {torrent.activityState} | {(torrent.progress * 100).toFixed(1)}% | {torrent.numPeers}{' '}
+            peers | {torrent.files.length} files |{' '}
+            {formatBytes(torrent.contentStorage?.getTotalSize() || 0)}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
             {formatBytes(torrent.downloadSpeed)}/s | {formatBytes(torrent.uploadSpeed)}/s
@@ -56,19 +57,11 @@ export const TorrentItem: React.FC<TorrentItemProps> = ({ torrent, onStart, onSt
         </div>
         <div style={{ display: 'flex', gap: '4px' }}>
           {isStopped ? (
-            <button
-              style={iconButtonStyle}
-              onClick={() => onStart?.(torrent)}
-              title="Start"
-            >
+            <button style={iconButtonStyle} onClick={() => onStart?.(torrent)} title="Start">
               ▶
             </button>
           ) : (
-            <button
-              style={iconButtonStyle}
-              onClick={() => onStop?.(torrent)}
-              title="Stop"
-            >
+            <button style={iconButtonStyle} onClick={() => onStop?.(torrent)} title="Stop">
               ⏸
             </button>
           )}
@@ -94,7 +87,9 @@ export const TorrentItem: React.FC<TorrentItemProps> = ({ torrent, onStart, onSt
             height: '100%',
             width: `${torrent.progress * 100}%`,
             background:
-              torrent.activityState === 'seeding' ? 'var(--accent-success)' : 'var(--accent-primary)',
+              torrent.activityState === 'seeding'
+                ? 'var(--accent-success)'
+                : 'var(--accent-primary)',
             borderRadius: '2px',
           }}
         />

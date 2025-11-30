@@ -68,22 +68,14 @@ chrome.action.onClicked.addListener(() => {
 })
 
 // ============================================================================
-// External messages (from jstorrent.com launch page)
+// Message Handler (shared between internal and external)
 // ============================================================================
-chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
-  console.log('Received external message:', message, sender)
-  if (message.type === 'launch-ping') {
-    openUiTab().then(() => sendResponse({ ok: true }))
-    return true
-  }
-})
+type SendResponse = (response: unknown) => void
 
-// ============================================================================
-// Internal messages (from UI)
-// ============================================================================
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  console.log('Received internal message:', message.type)
-
+function handleMessage(
+  message: { type?: string; event?: string },
+  sendResponse: SendResponse,
+): boolean {
   // UI startup: get daemon connection info
   if (message.type === 'GET_DAEMON_INFO') {
     daemonManager
@@ -114,4 +106,31 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     openUiTab()
     return false
   }
+
+  return false
+}
+
+// ============================================================================
+// External messages (from jstorrent.com launch page or localhost dev server)
+// ============================================================================
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  console.log('Received external message:', message, 'from:', sender.origin)
+
+  // Launch ping from website
+  if (message.type === 'launch-ping') {
+    openUiTab().then(() => sendResponse({ ok: true }))
+    return true
+  }
+
+  // Handle other messages (GET_DAEMON_INFO, UI_CLOSING, PICK_DOWNLOAD_FOLDER)
+  // This allows the dev server on localhost to communicate with the extension
+  return handleMessage(message, sendResponse)
+})
+
+// ============================================================================
+// Internal messages (from extension UI)
+// ============================================================================
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  console.log('Received internal message:', message.type)
+  return handleMessage(message, sendResponse)
 })
