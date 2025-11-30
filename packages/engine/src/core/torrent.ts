@@ -267,6 +267,10 @@ export class Torrent extends EngineComponent {
     return this.peers.length
   }
 
+  get isComplete(): boolean {
+    return this.pieceManager?.isComplete() ?? false
+  }
+
   get files(): TorrentFileInfo[] {
     if (this._files.length > 0) return this._files
 
@@ -644,9 +648,13 @@ export class Torrent extends EngineComponent {
 
   /**
    * Connect to known peers from the tracker pool to fill available connection slots.
+   * Only runs if the torrent is still downloading (not complete).
    */
   private fillPeerSlots(): void {
     if (!this._networkActive || !this.trackerManager) return
+
+    // Don't seek new peers if download is complete
+    if (this.isComplete) return
 
     const slotsAvailable = this.maxPeers - this.numPeers
     if (slotsAvailable <= 0) return
