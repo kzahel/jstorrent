@@ -8,6 +8,7 @@ import {
   RingBufferLogger,
   LogEntry,
 } from '@jstorrent/engine'
+import { getBridge } from './extension-bridge'
 
 export interface DaemonInfo {
   port: number
@@ -63,11 +64,14 @@ class EngineManager {
     console.log('[EngineManager] Initializing...')
 
     // 1. Get daemon info from service worker
-    const response = await chrome.runtime.sendMessage({ type: 'GET_DAEMON_INFO' })
+    const bridge = getBridge()
+    const response = await bridge.sendMessage<{ ok: boolean; daemonInfo?: DaemonInfo; error?: string }>(
+      { type: 'GET_DAEMON_INFO' },
+    )
     if (!response.ok) {
       throw new Error(`Failed to get daemon info: ${response.error}`)
     }
-    const daemonInfo: DaemonInfo = response.daemonInfo
+    const daemonInfo: DaemonInfo = response.daemonInfo!
     console.log('[EngineManager] Got daemon info:', daemonInfo)
 
     // 2. Create direct WebSocket connection to daemon
@@ -143,9 +147,7 @@ class EngineManager {
     console.log('[EngineManager] Shutting down...')
 
     // Notify service worker
-    chrome.runtime.sendMessage({ type: 'UI_CLOSING' }).catch(() => {
-      // SW might already be inactive, ignore
-    })
+    getBridge().postMessage({ type: 'UI_CLOSING' })
 
     // Clean up engine
     if (this.engine) {
@@ -167,7 +169,9 @@ class EngineManager {
    * Returns the new root, or null if cancelled.
    */
   async pickDownloadFolder(): Promise<DownloadRoot | null> {
-    const response = await chrome.runtime.sendMessage({ type: 'PICK_DOWNLOAD_FOLDER' })
+    const response = await getBridge().sendMessage<{ ok: boolean; root?: DownloadRoot; error?: string }>(
+      { type: 'PICK_DOWNLOAD_FOLDER' },
+    )
     if (!response.ok || !response.root) {
       return null
     }
