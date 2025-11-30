@@ -61,7 +61,6 @@ export interface BtEngineOptions {
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
   public readonly storageRootManager: StorageRootManager
   public readonly socketFactory: ISocketFactory
-  public readonly sessionStore: ISessionStore
   public readonly sessionPersistence: SessionPersistence
   public torrents: Torrent[] = []
   public port: number
@@ -110,8 +109,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     } else {
       throw new Error('BtEngine requires storageRootManager or fileSystem + downloadPath')
     }
-    this.sessionStore = options.sessionStore ?? new MemorySessionStore()
-    this.sessionPersistence = new SessionPersistence(this.sessionStore, this)
+    const sessionStore = options.sessionStore ?? new MemorySessionStore()
+    this.sessionPersistence = new SessionPersistence(sessionStore, this)
     this.port = options.port ?? 6881 // Use nullish coalescing to allow port 0
 
     this.clientId = randomClientId()
