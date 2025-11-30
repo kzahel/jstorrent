@@ -41,7 +41,9 @@ export const TorrentItem: React.FC<TorrentItemProps> = ({ torrent, onStart, onSt
         borderRadius: '4px',
         padding: '12px',
         marginBottom: '8px',
+        cursor: 'pointer',
       }}
+      onClick={() => console.log(torrent)}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
         <div style={{ flex: 1 }}>
