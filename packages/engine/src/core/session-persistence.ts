@@ -226,7 +226,7 @@ export class SessionPersistence {
 
           // If we have saved metadata (info buffer), initialize the torrent with it
           // This is crucial for magnet links - avoids needing to re-fetch metadata from peers
-          if (state?.infoBuffer && !torrent.pieceManager) {
+          if (state?.infoBuffer && !torrent.hasMetadata) {
             const infoBuffer = this.base64ToUint8Array(state.infoBuffer)
             console.error(
               `SessionPersistence: Initializing torrent ${data.infoHash} from saved metadata`,
@@ -234,14 +234,14 @@ export class SessionPersistence {
             await this.engine.initTorrentFromSavedMetadata(torrent, infoBuffer)
           }
 
-          // Restore bitfield if we have saved state and pieceManager is now available
-          if (state?.bitfield && torrent.pieceManager) {
+          // Restore bitfield if we have saved state and metadata is now available
+          if (state?.bitfield && torrent.hasMetadata) {
             console.error(
               `SessionPersistence: Restoring bitfield for ${data.infoHash}, state.bitfield length=${state.bitfield?.length}`,
             )
-            torrent.pieceManager.restoreFromHex(state.bitfield)
+            torrent.restoreBitfieldFromHex(state.bitfield)
             console.error(
-              `SessionPersistence: Restored bitfield, completedPieces=${torrent.pieceManager.getCompletedCount()}`,
+              `SessionPersistence: Restored bitfield, completedPieces=${torrent.completedPiecesCount}`,
             )
           }
 

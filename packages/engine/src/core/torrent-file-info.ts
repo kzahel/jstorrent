@@ -1,11 +1,10 @@
 import { TorrentFile } from './torrent-file'
-import { PieceManager } from './piece-manager'
+import type { Torrent } from './torrent'
 
 export class TorrentFileInfo {
   constructor(
     private file: TorrentFile,
-    private pieceManager: PieceManager,
-    private pieceLength: number,
+    private torrent: Torrent,
   ) {}
 
   get path(): string {
@@ -17,17 +16,18 @@ export class TorrentFileInfo {
   }
 
   get downloaded(): number {
-    if (!this.pieceManager) return 0
+    if (!this.torrent.bitfield) return 0
 
     let downloaded = 0
-    const startPiece = Math.floor(this.file.offset / this.pieceLength)
-    const endPiece = Math.floor((this.file.offset + this.file.length - 1) / this.pieceLength)
+    const pieceLength = this.torrent.pieceLength
+    const startPiece = Math.floor(this.file.offset / pieceLength)
+    const endPiece = Math.floor((this.file.offset + this.file.length - 1) / pieceLength)
 
     for (let i = startPiece; i <= endPiece; i++) {
-      if (this.pieceManager.hasPiece(i)) {
+      if (this.torrent.hasPiece(i)) {
         // Entire piece is present
-        const pieceStart = i * this.pieceLength
-        const pieceEnd = pieceStart + this.pieceManager.getPieceLength(i)
+        const pieceStart = i * pieceLength
+        const pieceEnd = pieceStart + this.torrent.getPieceLength(i)
 
         const fileStart = this.file.offset
         const fileEnd = this.file.offset + this.file.length
@@ -38,11 +38,6 @@ export class TorrentFileInfo {
         if (overlapEnd > overlapStart) {
           downloaded += overlapEnd - overlapStart
         }
-      } else {
-        // Check blocks if we want more precision?
-        // For now, just counting full pieces is safer/faster unless we expose block-level info publicly.
-        // PieceManager doesn't easily expose block-level info for external query without iterating everything.
-        // We can improve this later.
       }
     }
     return downloaded
