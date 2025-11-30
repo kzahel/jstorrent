@@ -77,6 +77,16 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("io-daemon starting, logging to {:?}", log_dir.join("io-daemon.log"));
 
+    // Log binary mtime to help diagnose stale binary issues
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Ok(metadata) = std::fs::metadata(&exe_path) {
+            if let Ok(mtime) = metadata.modified() {
+                let datetime: chrono::DateTime<chrono::Local> = mtime.into();
+                tracing::info!("binary: {:?}, mtime: {}", exe_path, datetime.format("%Y-%m-%d %H:%M:%S"));
+            }
+        }
+    }
+
     let args = Args::parse();
 
     // Load initial config from rpc-info.json
