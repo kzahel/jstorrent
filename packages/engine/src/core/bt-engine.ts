@@ -220,6 +220,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         this.logger.info(`Incoming connection for torrent ${infoHashStr}`)
         // Send our handshake back FIRST
         peer.sendHandshake(torrent.infoHash, torrent.peerId)
+        peer.isIncoming = true
         torrent.addPeer(peer)
       } else {
         this.logger.warn(`Incoming connection for unknown torrent ${infoHashStr}`)

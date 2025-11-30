@@ -69,6 +69,7 @@ export class PeerConnection extends EngineComponent {
   public bitfield: BitField | null = null
   public remoteAddress?: string
   public remotePort?: number
+  public isIncoming = false
 
   constructor(
     engine: ILoggingEngine,
