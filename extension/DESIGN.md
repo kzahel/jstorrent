@@ -14,7 +14,8 @@ The JSTorrent extension is a Chrome Manifest V3 extension that serves as the fro
 **Key Characteristics:**
 - MV3-compliant (service worker-based, no persistent background page)
 - TypeScript + React for UI
-- Vite for bundling (no HMR due to MV3 CSP constraints)
+- Vite for bundling
+- HMR available via localhost dev server (see main README for dev mode setup)
 - Part of pnpm monorepo workspace
 
 ---
@@ -42,59 +43,52 @@ The extension is a workspace package in the monorepo. Use `pnpm --filter extensi
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Chrome Extension                         │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐  │
-│  │   sw.ts     │───▶│  Client     │───▶│ NativeHost      │  │
-│  │ (Service    │    │  (lib/)     │    │ Connection      │  │
-│  │  Worker)    │    │             │    │ (lib/)          │  │
-│  └─────────────┘    └──────┬──────┘    └────────┬────────┘  │
-│                            │                     │           │
-│                            │              chrome.runtime.    │
-│                            │              connectNative()    │
-│                            ▼                     │           │
-│                    ┌───────────────┐             │           │
-│                    │ Daemon        │             │           │
-│                    │ Connection    │◀────────────┘           │
-│                    │ (lib/)        │    DaemonInfo           │
-│                    └───────┬───────┘    (port, token)        │
-│                            │                                 │
-│                            │ WebSocket                       │
-│                            ▼                                 │
-│                    ┌───────────────┐                         │
-│                    │ Sockets       │                         │
-│                    │ (lib/)        │                         │
-│                    └───────────────┘                         │
+│                    Service Worker Thread                     │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ DaemonLifecycleManager                                  ││
+│  │  - Keeps connectNative alive while UI tabs exist        ││
+│  │  - Returns DaemonInfo on request                        ││
+│  │  - Handles pickDownloadFolder (needs native host)       ││
+│  └─────────────────────────────────────────────────────────┘│
+│       │                                                      │
+│       │ connectNative (open only while UI exists)            │
+│       ▼                                                      │
+│  ┌────────────────┐               ┌──────────────────────┐  │
+│  │ native-host    │──subprocess──▶│ io-daemon            │  │
+│  └────────────────┘               └──────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
-                             │
-                             │ Binary WebSocket frames
-                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Native Stack (Rust)                       │
-│  ┌─────────────────┐         ┌─────────────────────────┐    │
-│  │ jstorrent-      │────────▶│ jstorrent-io-daemon     │    │
-│  │ native-host     │ spawns  │ (WebSocket + HTTP)      │    │
-│  │ (native msg)    │         └─────────────────────────┘    │
-│  └─────────────────┘                                        │
+         ▲                                     ▲
+         │ GET_DAEMON_INFO (once)              │ WebSocket (direct)
+         │ UI_CLOSING                          │
+         │ PICK_DOWNLOAD_FOLDER                │
+┌────────┼─────────────────────────────────────┼──────────────┐
+│        │            UI Thread (Tab)          │              │
+│        ▼                                     │              │
+│  ┌──────────────┐   ┌────────────┐   ┌──────┴───────────┐  │
+│  │ React UI     │◀──│ BTEngine   │──▶│ DaemonConnection │  │
+│  └──────────────┘   └────────────┘   └──────────────────┘  │
+│        ▲                  │                                 │
+│        └──────────────────┘                                 │
+│         Same heap - zero serialization                      │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**Note:** BTEngine runs in the UI thread (not service worker) for better performance.
+See `docs/design/move-btengine-to-ui-thread.md` for the detailed design rationale.
 
 ### 3.2 Key Components
 
 #### Service Worker (`src/sw.ts`)
 - Entry point for the extension
 - Handles installation, external messages
-- Instantiates and holds the `Client` instance
+- Manages daemon lifecycle via `DaemonLifecycleManager`
 - Opens UI tab when torrents are added
 
-#### Client (`src/lib/client.ts`)
-- Main orchestrator class
-- Manages connection lifecycle
-- Coordinates native host → daemon flow:
-  1. Connect to native host
-  2. Send handshake with install ID
-  3. Receive DaemonInfo (port + token)
-  4. Connect to io-daemon WebSocket
-  5. Initialize Sockets abstraction
+#### DaemonLifecycleManager (`src/lib/daemon-lifecycle-manager.ts`)
+- Keeps `connectNative` alive while UI tabs exist
+- Returns DaemonInfo (port, token, roots) to UI
+- Handles `pickDownloadFolder` (requires native host)
+- Closes native connection after grace period when all UIs close
 
 #### NativeHostConnection (`src/lib/native-connection.ts`)
 - Wraps `chrome.runtime.connectNative('com.jstorrent.native')`
@@ -167,7 +161,7 @@ extension/
 
 The extension uses Vite for bundling with these characteristics:
 - Multi-entry build (service worker + HTML pages)
-- No dev server or HMR (MV3 CSP incompatible)
+- Dev server with HMR available on `http://local.jstorrent.com:3001`
 - Sourcemaps enabled
 - Non-minified output for debugging
 
@@ -177,18 +171,22 @@ The extension uses Vite for bundling with these characteristics:
 ```bash
 pnpm install                     # Install all dependencies
 pnpm --filter extension build    # Build extension
-pnpm --filter extension dev      # Watch mode
+pnpm --filter extension dev      # Watch mode + dev server
 pnpm --filter extension test     # Unit tests
 pnpm --filter extension test:e2e # Playwright tests
 ```
 
 **Or from `extension/` directory:**
 ```bash
-pnpm build        # Build to dist/
-pnpm dev          # Watch mode (vite build --watch)
-pnpm test         # Vitest unit tests
-pnpm test:e2e     # Playwright integration tests
+pnpm build          # Build to dist/
+pnpm dev            # Both: extension watch + web dev server
+pnpm dev:extension  # Extension build watch only
+pnpm dev:web        # Web dev server with HMR only
+pnpm test           # Vitest unit tests
+pnpm test:e2e       # Playwright integration tests
 ```
+
+**Dev Mode Setup:** See main README for prerequisites (hosts file, DEV_ORIGINS).
 
 ### 5.3 Loading in Chrome
 
@@ -219,16 +217,16 @@ Key manifest.json settings:
   "externally_connectable": {
     "matches": [
       "https://jstorrent.com/*",
-      "https://new.jstorrent.com/*"
+      "https://new.jstorrent.com/*",
+      "http://local.jstorrent.com/*"
     ]
   }
 }
 ```
 
-The `externally_connectable` setting allows the JSTorrent website to:
-- Detect if the extension is installed
-- Send "launch-ping" messages to wake the extension
-- Trigger torrent additions from the website
+The `externally_connectable` setting allows:
+- JSTorrent website: Detect extension, send "launch-ping", trigger torrent additions
+- Dev server (`http://local.jstorrent.com:3001`): Run UI with HMR for development
 
 ---
 
@@ -389,6 +387,7 @@ See `.github/workflows/extension-ci.yml`
 
 ## 12. Related Documentation
 
+- `docs/design/move-btengine-to-ui-thread.md` - BTEngine in UI thread design
 - `native-host/DESIGN.md` - Native stack architecture
 - `design_docs/io-daemon-websocket-detail.md` - Binary protocol spec
 - `packages/engine/docs/ARCHITECTURE-current.md` - BitTorrent engine
