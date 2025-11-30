@@ -39,6 +39,9 @@ def main() -> int:
             # Add torrent file
             tid = engine.add_torrent_file(torrent_path)
 
+            # Recheck to discover existing pieces on disk
+            engine.recheck(tid)
+
             # Get engine's actual listening port
             engine_port = engine.bt_port
             if not engine_port or engine_port <= 0:
