@@ -7,6 +7,8 @@ import fs from 'fs'
 
 // Check if local.jstorrent.com resolves (needed for dev server)
 const DEV_HOST = 'local.jstorrent.com'
+// Default extension ID from pubkey.txt - can be overridden via VITE_EXTENSION_ID env var
+const DEFAULT_EXTENSION_ID = 'bnceafpojmnimbnhamaeedgomdcgnbjk'
 if (process.env.npm_lifecycle_event !== 'build') {
   dns.lookup(DEV_HOST, (err) => {
     if (err && err.code === 'ENOTFOUND') {
@@ -63,7 +65,7 @@ function printDevUrls() {
     name: 'print-dev-urls',
     configureServer(server) {
       server.httpServer?.once('listening', () => {
-        const extensionId = process.env.VITE_EXTENSION_ID || 'bnceafpojmnimbnhamaeedgomdcgnbjk'
+        const extensionId = process.env.DEV_EXTENSION_ID || DEFAULT_EXTENSION_ID
         console.log(`
 Development URLs:
 
@@ -118,6 +120,12 @@ function injectPublicKey() {
 
 export default defineConfig({
   plugins: [react(), printDevUrls(), injectPublicKey(), sourcemapIgnoreLogger()],
+  define: {
+    // Provide default extension ID if not set via env var
+    'import.meta.env.DEV_EXTENSION_ID': JSON.stringify(
+      process.env.DEV_EXTENSION_ID || DEFAULT_EXTENSION_ID
+    ),
+  },
   server: {
     // Dev mode: serve on local.jstorrent.com:3001
     // Requires: 127.0.0.1 local.jstorrent.com in /etc/hosts
