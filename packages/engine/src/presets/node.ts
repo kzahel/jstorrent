@@ -1,5 +1,10 @@
 import { BtEngine, BtEngineOptions } from '../core/bt-engine'
-import { NodeSocketFactory, ScopedNodeFileSystem, JsonFileSessionStore, NodeHasher } from '../adapters/node'
+import {
+  NodeSocketFactory,
+  ScopedNodeFileSystem,
+  JsonFileSessionStore,
+  NodeHasher,
+} from '../adapters/node'
 import { StorageRootManager } from '../storage/storage-root-manager'
 import { ISessionStore } from '../interfaces/session-store'
 import { LogEntry } from '../logging/logger'

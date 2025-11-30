@@ -79,10 +79,15 @@ describe('Memory Swarm Integration', () => {
     // That matches what Client expects (name in torrent).
 
     // Re-create torrent from the file in /downloads
-    const torrentBuffer2 = await TorrentCreator.create(storageHandle, '/downloads/test.txt', clientA.hasher, {
-      pieceLength: 16384,
-      announceList: [['http://tracker.local']],
-    })
+    const torrentBuffer2 = await TorrentCreator.create(
+      storageHandle,
+      '/downloads/test.txt',
+      clientA.hasher,
+      {
+        pieceLength: 16384,
+        announceList: [['http://tracker.local']],
+      },
+    )
 
     // Add torrent to Client A
     const torrentA2 = await clientA.addTorrent(torrentBuffer2)
