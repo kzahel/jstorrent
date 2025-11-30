@@ -1,8 +1,37 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
+import dns from 'dns'
 
 import fs from 'fs'
+
+// Check if local.jstorrent.com resolves (needed for dev server)
+const DEV_HOST = 'local.jstorrent.com'
+if (process.env.npm_lifecycle_event !== 'build') {
+  dns.lookup(DEV_HOST, (err) => {
+    if (err && err.code === 'ENOTFOUND') {
+      console.error(`
+\x1b[31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m
+\x1b[31m  ERROR: Cannot resolve '${DEV_HOST}'\x1b[0m
+
+  The dev server requires '${DEV_HOST}' to point to localhost.
+
+  \x1b[33mTo fix, add this line to your /etc/hosts file:\x1b[0m
+
+    127.0.0.1 ${DEV_HOST}
+
+  \x1b[36mOn Linux/Mac:\x1b[0m
+    echo "127.0.0.1 ${DEV_HOST}" | sudo tee -a /etc/hosts
+
+  \x1b[36mOn Windows (run as Administrator):\x1b[0m
+    echo 127.0.0.1 ${DEV_HOST} >> C:\\Windows\\System32\\drivers\\etc\\hosts
+
+\x1b[31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m
+`)
+      process.exit(1)
+    }
+  })
+}
 
 function sourcemapIgnoreLogger() {
   return {
