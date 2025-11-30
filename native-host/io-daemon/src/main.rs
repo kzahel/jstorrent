@@ -77,23 +77,47 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
-    // CORS layer - restrict to Chrome extension origin if available
+    // CORS layer - allow extension origin + dev origins from environment
     // max_age caches preflight responses for 24 hours to reduce OPTIONS requests
-    let cors = if let Some(ref ext_id) = extension_id {
-        let origin = format!("chrome-extension://{}", ext_id);
-        tracing::info!("CORS: Restricting to extension origin: {}", origin);
-        CorsLayer::new()
-            .allow_origin(origin.parse::<axum::http::HeaderValue>().unwrap())
-            .allow_methods(tower_http::cors::Any)
-            .allow_headers(tower_http::cors::Any)
-            .max_age(Duration::from_secs(86400))
-    } else {
-        tracing::warn!("CORS: No extension_id found, allowing any origin");
-        CorsLayer::new()
-            .allow_origin(tower_http::cors::Any)
-            .allow_methods(tower_http::cors::Any)
-            .allow_headers(tower_http::cors::Any)
-            .max_age(Duration::from_secs(86400))
+    let cors = {
+        let mut allowed_origins: Vec<axum::http::HeaderValue> = vec![];
+
+        // Add Chrome extension origin if available
+        if let Some(ref ext_id) = extension_id {
+            let origin = format!("chrome-extension://{}", ext_id);
+            tracing::info!("CORS: Adding extension origin: {}", origin);
+            if let Ok(val) = origin.parse() {
+                allowed_origins.push(val);
+            }
+        }
+
+        // Add dev origins from environment (set by native-host from jstorrent-native.env)
+        if let Ok(dev_origins) = std::env::var("JSTORRENT_DEV_ORIGINS") {
+            for origin in dev_origins.split(',') {
+                let origin = origin.trim();
+                if !origin.is_empty() {
+                    tracing::info!("CORS: Adding dev origin: {}", origin);
+                    if let Ok(val) = origin.parse() {
+                        allowed_origins.push(val);
+                    }
+                }
+            }
+        }
+
+        if allowed_origins.is_empty() {
+            tracing::warn!("CORS: No origins configured, allowing any");
+            CorsLayer::new()
+                .allow_origin(tower_http::cors::Any)
+                .allow_methods(tower_http::cors::Any)
+                .allow_headers(tower_http::cors::Any)
+                .max_age(Duration::from_secs(86400))
+        } else {
+            CorsLayer::new()
+                .allow_origin(allowed_origins)
+                .allow_methods(tower_http::cors::Any)
+                .allow_headers(tower_http::cors::Any)
+                .max_age(Duration::from_secs(86400))
+        }
     };
 
     let app = Router::new()

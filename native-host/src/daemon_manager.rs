@@ -32,8 +32,10 @@ impl DaemonManager {
         let token = uuid::Uuid::new_v4().to_string();
         self.token = Some(token.clone());
 
-        let mut child = Command::new(daemon_path)
-            .arg("--port")
+        // TODO: Pass token via stdin or temp file instead of command line arg.
+        // Command line args are visible in `ps aux` output which is a security concern.
+        let mut cmd = Command::new(daemon_path);
+        cmd.arg("--port")
             .arg("0") // Let OS pick port
             .arg("--token")
             .arg(&token)
@@ -42,9 +44,14 @@ impl DaemonManager {
             .arg("--install-id")
             .arg(install_id)
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .context("Failed to spawn io-daemon")?;
+            .stderr(Stdio::inherit());
+
+        // Pass DEV_ORIGINS from env file if set (for CORS in dev mode)
+        if let Some(dev_origins) = jstorrent_common::read_env_value("DEV_ORIGINS") {
+            cmd.env("JSTORRENT_DEV_ORIGINS", dev_origins);
+        }
+
+        let mut child = cmd.spawn().context("Failed to spawn io-daemon")?;
 
         // Read port from stdout
         if let Some(stdout) = child.stdout.take() {
