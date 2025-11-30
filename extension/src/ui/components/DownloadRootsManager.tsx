@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { engineManager } from '../lib/engine-manager'
 
 interface DownloadRoot {
   token: string
@@ -12,41 +13,35 @@ export const DownloadRootsManager: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
 
-  const loadRoots = () => {
-    chrome.runtime.sendMessage({ type: 'GET_ROOTS' }, (response) => {
-      if (response) {
-        setRoots(response.roots || [])
-        setDefaultToken(response.defaultToken || null)
-      }
-      setLoading(false)
-    })
+  const loadRoots = async () => {
+    const loadedRoots = engineManager.getRoots()
+    const loadedDefaultToken = await engineManager.getDefaultRootToken()
+    setRoots(loadedRoots)
+    setDefaultToken(loadedDefaultToken)
+    setLoading(false)
   }
 
   useEffect(() => {
     loadRoots()
   }, [])
 
-  const handleAddRoot = () => {
+  const handleAddRoot = async () => {
     setAdding(true)
-    chrome.runtime.sendMessage({ type: 'PICK_DOWNLOAD_FOLDER' }, (response) => {
-      setAdding(false)
-      if (response?.root) {
-        // Reload roots list
-        loadRoots()
-        // If this is the first root, set it as default
-        if (roots.length === 0) {
-          handleSetDefault(response.root.token)
-        }
+    const root = await engineManager.pickDownloadFolder()
+    setAdding(false)
+    if (root) {
+      // Reload roots list
+      await loadRoots()
+      // If this is the first root, set it as default
+      if (roots.length === 0) {
+        await handleSetDefault(root.token)
       }
-    })
+    }
   }
 
-  const handleSetDefault = (token: string) => {
-    chrome.runtime.sendMessage({ type: 'SET_DEFAULT_ROOT', token }, (response) => {
-      if (response?.ok) {
-        setDefaultToken(token)
-      }
-    })
+  const handleSetDefault = async (token: string) => {
+    await engineManager.setDefaultRoot(token)
+    setDefaultToken(token)
   }
 
   if (loading) {
@@ -67,7 +62,7 @@ export const DownloadRootsManager: React.FC = () => {
             marginBottom: '16px',
           }}
         >
-          <strong>⚠️ No download location configured</strong>
+          <strong>No download location configured</strong>
           <p style={{ margin: '8px 0 0 0' }}>
             You need to select a download folder before you can add torrents.
           </p>
