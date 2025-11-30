@@ -85,6 +85,17 @@ export class BitField {
     return toHex(this.buffer)
   }
 
+  /**
+   * Restore bitfield data from hex string in-place.
+   */
+  restoreFromHex(hex: string): void {
+    const bytes = fromHex(hex)
+    const copyLen = Math.min(bytes.length, this.buffer.length)
+    for (let i = 0; i < copyLen; i++) {
+      this.buffer[i] = bytes[i]
+    }
+  }
+
   count(): number {
     let count = 0
     for (let i = 0; i < this.length; i++) {
