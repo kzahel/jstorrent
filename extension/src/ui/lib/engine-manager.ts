@@ -67,6 +67,7 @@ class EngineManager {
   logBuffer: RingBufferLogger = new RingBufferLogger(500)
   private sessionStore: ISessionStore | null = null
   private initPromise: Promise<BtEngine> | null = null
+  private swPort: chrome.runtime.Port | null = null
 
   /**
    * Initialize the engine. Safe to call multiple times - returns cached engine.
@@ -166,6 +167,9 @@ class EngineManager {
       this.shutdown()
     })
 
+    // 9. Connect to SW for real-time events (TorrentAdded, MagnetAdded, etc.)
+    this.connectToServiceWorker()
+
     return this.engine
   }
 
@@ -250,6 +254,122 @@ class EngineManager {
     }
     const bytes = await this.sessionStore.get(DEFAULT_ROOT_TOKEN_KEY)
     return bytes ? new TextDecoder().decode(bytes) : null
+  }
+
+  private swReconnectAttempts = 0
+  private readonly SW_MAX_RECONNECTS = 3
+  private readonly SW_RECONNECT_DELAY = 1000
+
+  /**
+   * Connect to service worker via persistent port for real-time events.
+   */
+  private connectToServiceWorker(): void {
+    const bridge = getBridge()
+
+    // Check reconnect limit
+    if (this.swReconnectAttempts >= this.SW_MAX_RECONNECTS) {
+      console.error(
+        `[EngineManager] SW reconnect limit (${this.SW_MAX_RECONNECTS}) reached, giving up`,
+      )
+      return
+    }
+
+    try {
+      // In dev mode, connect with extension ID; in extension context, connect directly
+      if (bridge.isDevMode && bridge.extensionId) {
+        this.swPort = chrome.runtime.connect(bridge.extensionId, { name: 'ui' })
+      } else {
+        this.swPort = chrome.runtime.connect({ name: 'ui' })
+      }
+
+      // Check for connection error
+      if (chrome.runtime.lastError) {
+        throw new Error(chrome.runtime.lastError.message)
+      }
+
+      this.swPort.onMessage.addListener(
+        (msg: { type?: string; event?: string; payload?: unknown }) => {
+          console.log('[EngineManager] Received from SW:', msg)
+
+          // Reset reconnect counter on first message (proves connection is stable)
+          this.swReconnectAttempts = 0
+
+          // Handle CLOSE message (single UI enforcement)
+          if (msg.type === 'CLOSE') {
+            console.log('[EngineManager] Received CLOSE, closing window')
+            window.close()
+            return
+          }
+
+          // Handle native events
+          if (msg.event) {
+            this.handleNativeEvent(msg.event, msg.payload)
+          }
+        },
+      )
+
+      this.swPort.onDisconnect.addListener(() => {
+        console.log('[EngineManager] SW port disconnected')
+        this.swPort = null
+
+        // Only attempt reconnect if engine is still running
+        if (this.engine) {
+          this.swReconnectAttempts++
+          console.log(
+            `[EngineManager] Will retry SW connection (${this.swReconnectAttempts}/${this.SW_MAX_RECONNECTS})...`,
+          )
+          setTimeout(() => this.connectToServiceWorker(), this.SW_RECONNECT_DELAY)
+        }
+      })
+
+      console.log('[EngineManager] Connected to SW via port')
+    } catch (e) {
+      console.error('[EngineManager] Failed to connect to SW:', e)
+      this.swPort = null
+
+      // Retry connection
+      if (this.engine) {
+        this.swReconnectAttempts++
+        if (this.swReconnectAttempts < this.SW_MAX_RECONNECTS) {
+          console.log(
+            `[EngineManager] Retrying SW connection (${this.swReconnectAttempts}/${this.SW_MAX_RECONNECTS})...`,
+          )
+          setTimeout(() => this.connectToServiceWorker(), this.SW_RECONNECT_DELAY)
+        } else {
+          console.error('[EngineManager] Max retries reached, SW port not connected')
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle native events forwarded from service worker.
+   */
+  private async handleNativeEvent(event: string, payload: unknown): Promise<void> {
+    if (!this.engine) {
+      console.warn('[EngineManager] Received event but engine not ready:', event)
+      return
+    }
+
+    if (event === 'TorrentAdded') {
+      const p = payload as { name: string; infohash: string; contentsBase64: string }
+      console.log('[EngineManager] Adding torrent:', p.name)
+      try {
+        const bytes = Uint8Array.from(atob(p.contentsBase64), (c) => c.charCodeAt(0))
+        await this.engine.addTorrent(bytes)
+      } catch (e) {
+        console.error('[EngineManager] Failed to add torrent:', e)
+      }
+    } else if (event === 'MagnetAdded') {
+      const p = payload as { link: string }
+      console.log('[EngineManager] Adding magnet:', p.link)
+      try {
+        // addTorrent accepts both magnet links and torrent buffers
+        await this.engine.addTorrent(p.link)
+      } catch (e) {
+        console.error('[EngineManager] Failed to add magnet:', e)
+      }
+    }
   }
 }
 

@@ -1,10 +1,94 @@
 console.log('Service Worker loaded')
 
-import { DaemonLifecycleManager } from './lib/daemon-lifecycle-manager'
+import { DaemonLifecycleManager, NativeEvent } from './lib/daemon-lifecycle-manager'
 import { NativeHostConnection } from './lib/native-connection'
 import { handleKVMessage } from './lib/kv-handlers'
 
-const daemonManager = new DaemonLifecycleManager(() => new NativeHostConnection())
+// ============================================================================
+// UI Port Management (single UI enforcement)
+// ============================================================================
+let primaryUIPort: chrome.runtime.Port | null = null
+
+// Store pending event in chrome.storage.session so it survives SW restarts
+const PENDING_EVENT_KEY = 'pending:nativeEvent'
+
+async function sendToUI(event: NativeEvent): Promise<void> {
+  if (primaryUIPort) {
+    primaryUIPort.postMessage(event)
+  } else {
+    // Buffer event in storage until UI connects (survives SW termination)
+    console.log('[SW] No UI connected, storing pending event:', event.event)
+    await chrome.storage.session.set({ [PENDING_EVENT_KEY]: event })
+  }
+}
+
+function handleUIPortConnect(port: chrome.runtime.Port): void {
+  console.log('[SW] UI connected via port')
+
+  // Close existing UI if any (single UI enforcement)
+  if (primaryUIPort) {
+    console.log('[SW] Closing existing UI')
+    try {
+      primaryUIPort.postMessage({ type: 'CLOSE' })
+    } catch {
+      // Port may already be disconnected
+    }
+  }
+
+  primaryUIPort = port
+
+  // Send pending event if any (from storage)
+  chrome.storage.session
+    .get(PENDING_EVENT_KEY)
+    .then((result) => {
+      const pendingEvent = result[PENDING_EVENT_KEY] as NativeEvent | undefined
+      if (pendingEvent) {
+        console.log('[SW] Sending pending event from storage:', pendingEvent.event)
+        port.postMessage(pendingEvent)
+        chrome.storage.session.remove(PENDING_EVENT_KEY)
+      }
+    })
+    .catch((e) => {
+      console.error('[SW] Failed to get pending event from storage:', e)
+    })
+
+  port.onDisconnect.addListener(() => {
+    console.log('[SW] UI port disconnected')
+    if (primaryUIPort === port) {
+      primaryUIPort = null
+    }
+  })
+}
+
+// Internal port connections (from extension UI)
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'ui') {
+    handleUIPortConnect(port)
+  }
+})
+
+// External port connections (from dev server on localhost)
+chrome.runtime.onConnectExternal.addListener((port) => {
+  if (port.name === 'ui') {
+    console.log('[SW] External UI connected from:', port.sender?.origin)
+    handleUIPortConnect(port)
+  }
+})
+
+// ============================================================================
+// Daemon Manager with event forwarding
+// ============================================================================
+const daemonManager = new DaemonLifecycleManager(
+  () => new NativeHostConnection(),
+  (event) => {
+    console.log('[SW] Native event received:', event.event)
+    sendToUI(event)
+    // Open UI tab if needed
+    if (event.event === 'TorrentAdded' || event.event === 'MagnetAdded') {
+      openUiTab()
+    }
+  },
+)
 
 // ============================================================================
 // Installation handler - generate install ID
