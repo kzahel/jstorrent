@@ -5,10 +5,37 @@ import {
   DaemonFileSystem,
   StorageRootManager,
   ChromeStorageSessionStore,
+  LocalStorageSessionStore,
   RingBufferLogger,
   LogEntry,
+  ISessionStore,
 } from '@jstorrent/engine'
 import { getBridge } from './extension-bridge'
+
+// Session store key for default root token
+const DEFAULT_ROOT_TOKEN_KEY = 'settings:defaultRootToken'
+
+/**
+ * Check if we're running inside a Chrome extension context.
+ */
+function isExtensionContext(): boolean {
+  return (
+    typeof chrome !== 'undefined' &&
+    typeof chrome.storage !== 'undefined' &&
+    typeof chrome.storage.local !== 'undefined'
+  )
+}
+
+/**
+ * Create the appropriate session store based on context.
+ */
+function createSessionStore(): ISessionStore {
+  if (isExtensionContext()) {
+    return new ChromeStorageSessionStore(chrome.storage.local, 'session:')
+  }
+  // Dev mode - use localStorage (TODO: replace with IndexedDB for better perf)
+  return new LocalStorageSessionStore('jstorrent:session:')
+}
 
 export interface DaemonInfo {
   port: number
@@ -41,6 +68,7 @@ class EngineManager {
   engine: BtEngine | null = null
   daemonConnection: DaemonConnection | null = null
   logBuffer: RingBufferLogger = new RingBufferLogger(500)
+  private sessionStore: ISessionStore | null = null
   private initPromise: Promise<BtEngine> | null = null
 
   /**
@@ -65,9 +93,11 @@ class EngineManager {
 
     // 1. Get daemon info from service worker
     const bridge = getBridge()
-    const response = await bridge.sendMessage<{ ok: boolean; daemonInfo?: DaemonInfo; error?: string }>(
-      { type: 'GET_DAEMON_INFO' },
-    )
+    const response = await bridge.sendMessage<{
+      ok: boolean
+      daemonInfo?: DaemonInfo
+      error?: string
+    }>({ type: 'GET_DAEMON_INFO' })
     if (!response.ok) {
       throw new Error(`Failed to get daemon info: ${response.error}`)
     }
@@ -84,6 +114,9 @@ class EngineManager {
       (root) => new DaemonFileSystem(this.daemonConnection!, root.token),
     )
 
+    // 4. Create session store (before registering roots so we can load default)
+    this.sessionStore = createSessionStore()
+
     // Register download roots from daemon
     if (daemonInfo.roots && daemonInfo.roots.length > 0) {
       for (const root of daemonInfo.roots) {
@@ -94,12 +127,12 @@ class EngineManager {
         })
       }
 
-      // Load saved default root
-      const savedDefault = await chrome.storage.local.get('defaultRootToken')
-      const defaultToken = savedDefault.defaultRootToken
-      const validDefault = daemonInfo.roots.some((r) => r.token === defaultToken)
+      // Load saved default root from session store
+      const savedDefaultBytes = await this.sessionStore.get(DEFAULT_ROOT_TOKEN_KEY)
+      const defaultToken = savedDefaultBytes ? new TextDecoder().decode(savedDefaultBytes) : null
+      const validDefault = defaultToken && daemonInfo.roots.some((r) => r.token === defaultToken)
 
-      if (validDefault && typeof defaultToken === 'string') {
+      if (validDefault) {
         srm.setDefaultRoot(defaultToken)
       } else if (daemonInfo.roots.length > 0) {
         srm.setDefaultRoot(daemonInfo.roots[0].token)
@@ -109,14 +142,11 @@ class EngineManager {
       console.warn('[EngineManager] No download roots configured!')
     }
 
-    // 4. Create session store
-    const sessionStore = new ChromeStorageSessionStore(chrome.storage.local, 'session:')
-
     // 5. Create engine (suspended)
     this.engine = new BtEngine({
       socketFactory: new DaemonSocketFactory(this.daemonConnection),
       storageRootManager: srm,
-      sessionStore,
+      sessionStore: this.sessionStore,
       startSuspended: true,
       onLog: (entry: LogEntry) => {
         this.logBuffer.add(entry)
@@ -169,9 +199,11 @@ class EngineManager {
    * Returns the new root, or null if cancelled.
    */
   async pickDownloadFolder(): Promise<DownloadRoot | null> {
-    const response = await getBridge().sendMessage<{ ok: boolean; root?: DownloadRoot; error?: string }>(
-      { type: 'PICK_DOWNLOAD_FOLDER' },
-    )
+    const response = await getBridge().sendMessage<{
+      ok: boolean
+      root?: DownloadRoot
+      error?: string
+    }>({ type: 'PICK_DOWNLOAD_FOLDER' })
     if (!response.ok || !response.root) {
       return null
     }
@@ -197,7 +229,9 @@ class EngineManager {
       throw new Error('Engine not initialized')
     }
     this.engine.storageRootManager.setDefaultRoot(token)
-    await chrome.storage.local.set({ defaultRootToken: token })
+    if (this.sessionStore) {
+      await this.sessionStore.set(DEFAULT_ROOT_TOKEN_KEY, new TextEncoder().encode(token))
+    }
   }
 
   /**
@@ -212,8 +246,11 @@ class EngineManager {
    * Get current default root token.
    */
   async getDefaultRootToken(): Promise<string | null> {
-    const result = await chrome.storage.local.get('defaultRootToken')
-    return (result.defaultRootToken as string) || null
+    if (!this.sessionStore) {
+      return null
+    }
+    const bytes = await this.sessionStore.get(DEFAULT_ROOT_TOKEN_KEY)
+    return bytes ? new TextDecoder().decode(bytes) : null
   }
 }
 
