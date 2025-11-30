@@ -8,40 +8,23 @@ import {
   createFilter,
   withScopeAndFiltering,
   randomClientId,
-  defaultLogger,
+  LogEntry,
 } from '../../src/logging/logger'
-
-// Mock Logger to capture logs
-class MockLogger implements Logger {
-  logs: { level: string; message: string; args: any[] }[] = []
-
-  debug(message: string, ...args: any[]) {
-    this.logs.push({ level: 'debug', message, args })
-  }
-  info(message: string, ...args: any[]) {
-    this.logs.push({ level: 'info', message, args })
-  }
-  warn(message: string, ...args: any[]) {
-    this.logs.push({ level: 'warn', message, args })
-  }
-  error(message: string, ...args: any[]) {
-    this.logs.push({ level: 'error', message, args })
-  }
-}
 
 class TestClient implements ILoggingEngine {
   clientId: string
-  rootLogger: Logger
   filterFn: any
+  logs: LogEntry[] = []
 
   constructor(config: EngineLoggingConfig = { level: 'debug' }) {
     this.clientId = randomClientId()
-    this.rootLogger = new MockLogger()
     this.filterFn = createFilter(config)
   }
 
   scopedLoggerFor(component: EngineComponent): Logger {
-    return withScopeAndFiltering(this.rootLogger, component, this.filterFn)
+    return withScopeAndFiltering(component, this.filterFn, {
+      onCapture: (entry) => this.logs.push(entry),
+    })
   }
 }
 
@@ -83,13 +66,10 @@ describe('Logger System', () => {
 
     torrent.doSomething()
 
-    const mockLogger = client.rootLogger as MockLogger
-    expect(mockLogger.logs).toHaveLength(1)
-    const log = mockLogger.logs[0]
-    // log.message is the prefix now because of bind(prefix)
-    // log.args[0] is the actual message
-    expect(log.message).toContain(`t:deadbe`) // Prefix
-    expect(log.args[0]).toBe('doing something')
+    expect(client.logs).toHaveLength(1)
+    const log = client.logs[0]
+    expect(log.message).toBe('doing something')
+    expect(log.level).toBe('info')
   })
 
   it('should filter logs based on level', () => {
@@ -99,9 +79,8 @@ describe('Logger System', () => {
     ;(torrent as any).logger.info('should not show')
     ;(torrent as any).logger.warn('should show')
 
-    const mockLogger = client.rootLogger as MockLogger
-    expect(mockLogger.logs).toHaveLength(1)
-    expect(mockLogger.logs[0].args[0]).toBe('should show')
+    expect(client.logs).toHaveLength(1)
+    expect(client.logs[0].message).toBe('should show')
   })
 
   it('should filter logs based on component', () => {
@@ -112,9 +91,8 @@ describe('Logger System', () => {
     ;(torrent as any).logger.info('torrent log')
     ;(peer as any).logger.info('peer log')
 
-    const mockLogger = client.rootLogger as MockLogger
-    expect(mockLogger.logs).toHaveLength(1)
-    expect(mockLogger.logs[0].args[0]).toBe('torrent log')
+    expect(client.logs).toHaveLength(1)
+    expect(client.logs[0].message).toBe('torrent log')
   })
 
   it('should filter logs based on instance value', () => {
@@ -125,24 +103,17 @@ describe('Logger System', () => {
     ;(t1 as any).logger.info('t1')
     ;(t2 as any).logger.info('t2')
 
-    const mockLogger = client.rootLogger as MockLogger
-    expect(mockLogger.logs).toHaveLength(1)
-    expect(mockLogger.logs[0].args[0]).toBe('t1')
+    expect(client.logs).toHaveLength(1)
+    expect(client.logs[0].message).toBe('t1')
   })
 
   it('should format logs with smart logger', () => {
-    const logger = defaultLogger()
-
     // Mock console methods
     const originalInfo = console.info
     const infoSpy = vi.fn()
     console.info = infoSpy
 
     try {
-      // defaultLogger is now just console, so it doesn't do prefixing by itself
-      // prefixing is done by withScopeAndFiltering
-      // But we can test withScopeAndFiltering with console as base
-
       // Let's create a dummy component
       const component = {
         getLogName: () => 'test',
@@ -151,7 +122,7 @@ describe('Logger System', () => {
         infoHash: new Uint8Array([0xde, 0xad, 0xbe, 0xef]),
       }
 
-      const scoped = withScopeAndFiltering(logger, component, () => true)
+      const scoped = withScopeAndFiltering(component, () => true)
 
       scoped.info('test message', { other: 'data' })
 

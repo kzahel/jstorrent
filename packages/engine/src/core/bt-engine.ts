@@ -8,13 +8,13 @@ import {
   ILoggingEngine,
   Logger,
   EngineLoggingConfig,
-  defaultLogger,
   createFilter,
   randomClientId,
   withScopeAndFiltering,
   ShouldLogFn,
   ILoggableComponent,
   LogEntry,
+  globalLogStore,
 } from '../logging/logger'
 
 import { ISessionStore } from '../interfaces/session-store'
@@ -67,9 +67,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public peerId: Uint8Array
 
   public readonly clientId: string
-  private rootLogger: Logger
   private logger: Logger
   private filterFn: ShouldLogFn
+  private onLogCallback?: (entry: LogEntry) => void
   public maxConnections: number
   public maxPeers: number
 
@@ -114,32 +114,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.port = options.port ?? 6881 // Use nullish coalescing to allow port 0
 
     this.clientId = randomClientId()
-
-    let logger = defaultLogger()
-    if (options.onLog) {
-      const base = logger
-      const onLog = options.onLog
-      logger = {
-        debug: (msg, ...args) => {
-          onLog({ timestamp: Date.now(), level: 'debug', message: msg, args })
-          base.debug(msg, ...args)
-        },
-        info: (msg, ...args) => {
-          onLog({ timestamp: Date.now(), level: 'info', message: msg, args })
-          base.info(msg, ...args)
-        },
-        warn: (msg, ...args) => {
-          onLog({ timestamp: Date.now(), level: 'warn', message: msg, args })
-          base.warn(msg, ...args)
-        },
-        error: (msg, ...args) => {
-          onLog({ timestamp: Date.now(), level: 'error', message: msg, args })
-          base.error(msg, ...args)
-        },
-      }
-    }
-    this.rootLogger = logger
-
+    this.onLogCallback = options.onLog
     this.filterFn = createFilter(options.logging ?? { level: 'info' })
     this.maxConnections = options.maxConnections ?? 100
     this.maxPeers = options.maxPeers ?? 50
@@ -161,7 +136,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   }
 
   scopedLoggerFor(component: ILoggableComponent): Logger {
-    return withScopeAndFiltering(this.rootLogger, component, this.filterFn)
+    return withScopeAndFiltering(component, this.filterFn, {
+      onLog: this.onLogCallback,
+      onCapture: (entry) => globalLogStore.add(entry.level, entry.message, entry.args),
+    })
   }
 
   /**

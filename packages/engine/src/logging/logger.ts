@@ -161,10 +161,21 @@ export function createFilter(cfg: EngineLoggingConfig): ShouldLogFn {
 
 const NOOP = () => {}
 
+/**
+ * Creates a scoped logger with filtering and optional callbacks.
+ *
+ * CALL SITE VISIBILITY:
+ * This file (logger.ts) is in the x_google_ignoreList in source maps.
+ * DevTools will skip over this file when showing the call site for console logs,
+ * displaying the actual caller (e.g., torrent.ts:308) instead of this wrapper.
+ *
+ * All logging side-effects (onLog callback, log capturing) happen here so that
+ * there are no intermediate wrapper files in the call stack that aren't ignored.
+ */
 export function withScopeAndFiltering(
-  base: Logger,
   component: ILoggableComponent,
   shouldLog: ShouldLogFn,
+  callbacks?: LogCallbacks,
 ): Logger {
   const getLogger = (level: LogLevel) => {
     const ctx = buildInjectedContext(component)
@@ -172,32 +183,17 @@ export function withScopeAndFiltering(
 
     const prefix = formatPrefix(ctx)
 
-    /**
-     * BIND TRICK FOR CALL SITE VISIBILITY
-     *
-     * Goal: We want the browser DevTools to show the original call site (e.g. torrent.ts:123)
-     * instead of pointing to this logger wrapper (logger.ts:160).
-     *
-     * Solution: We return a bound function of the base logger (usually console).
-     * `(console.info).bind(console, prefix)` creates a new function that, when called,
-     * executes `console.info(prefix, ...args)`.
-     *
-     * Why it works:
-     * 1. `bind` returns a native bound function. Browsers often treat these transparently
-     *    or attribute the call to the invoker of the bound function.
-     * 2. We are returning the function to the caller (via the getter), so the actual invocation
-     *    happens in the caller's stack frame (e.g. `this.logger.info(...)` in torrent.ts).
-     *
-     * Alternatives considered:
-     * 1. Wrapper function: `log(msg) { console.log(prefix, msg) }`
-     *    - Problem: DevTools shows logger.ts as the source.
-     * 2. Error.captureStackTrace:
-     *    - Problem: Expensive, brittle, and only affects the stack trace object,
-     *      not the "source" link in the console UI.
-     * 3. Async logging:
-     *    - Problem: Loses stack context completely and can be confusing.
-     */
-    return (base[level] as (...args: unknown[]) => void).bind(base, prefix)
+    // Return a wrapper that does ALL side effects, then calls console directly.
+    // This wrapper is in logger.ts which is in the ignore list, so DevTools
+    // will skip it and show the actual caller.
+    return (msg: string, ...args: unknown[]) => {
+      if (callbacks?.onLog || callbacks?.onCapture) {
+        const entry: LogEntry = { timestamp: Date.now(), level, message: msg, args }
+        callbacks.onLog?.(entry)
+        callbacks.onCapture?.(entry)
+      }
+      ;(console[level] as (...a: unknown[]) => void)(prefix, msg, ...args)
+    }
   }
 
   return {
@@ -257,6 +253,16 @@ export interface LogEntry {
   level: LogLevel
   message: string
   args: unknown[]
+}
+
+/**
+ * Callbacks for logging side-effects.
+ * These are called from within logger.ts (which is in x_google_ignoreList)
+ * so that DevTools shows the actual call site, not intermediate wrappers.
+ */
+export interface LogCallbacks {
+  onLog?: (entry: LogEntry) => void
+  onCapture?: (entry: LogEntry) => void
 }
 
 export class LogStore {

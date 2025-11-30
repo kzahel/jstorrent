@@ -1,4 +1,5 @@
 use axum::{
+    http::{header::{AUTHORIZATION, CONTENT_TYPE}, HeaderName, Method},
     routing::get,
     Router,
 };
@@ -51,7 +52,30 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
+    // Set up logging to both stderr and file
+    let log_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+
+    let file_appender = tracing_appender::rolling::never(&log_dir, "io-daemon.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+    use tracing_subscriber::EnvFilter;
+
+    // Default to INFO level, but allow override via RUST_LOG env var
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info"));
+
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
+        .with(tracing_subscriber::fmt::layer().with_writer(non_blocking).with_ansi(false))
+        .init();
+
+    tracing::info!("io-daemon starting, logging to {:?}", log_dir.join("io-daemon.log"));
 
     let args = Args::parse();
 
@@ -84,15 +108,23 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("CORS: Restricting to extension origin: {}", origin);
         CorsLayer::new()
             .allow_origin(origin.parse::<axum::http::HeaderValue>().unwrap())
-            .allow_methods(tower_http::cors::Any)
-            .allow_headers(tower_http::cors::Any)
+            .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+            .allow_headers([
+                CONTENT_TYPE,
+                AUTHORIZATION,
+                HeaderName::from_static("x-jst-auth"),
+            ])
             .max_age(Duration::from_secs(86400))
     } else {
         tracing::warn!("CORS: No extension_id found, allowing any origin");
         CorsLayer::new()
             .allow_origin(tower_http::cors::Any)
-            .allow_methods(tower_http::cors::Any)
-            .allow_headers(tower_http::cors::Any)
+            .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+            .allow_headers([
+                CONTENT_TYPE,
+                AUTHORIZATION,
+                HeaderName::from_static("x-jst-auth"),
+            ])
             .max_age(Duration::from_secs(86400))
     };
 
