@@ -95,7 +95,7 @@ describe('Torrent piece management', () => {
     expect(torrent.getPieceLength(4)).toBe(8192) // Last piece
   })
 
-  it('should reset piece correctly', () => {
+  it('should clear piece via bitfield correctly', () => {
     const pieceHashes = Array.from({ length: 5 }, () => new Uint8Array(20))
 
     torrent.initBitfield(5)
@@ -104,7 +104,8 @@ describe('Torrent piece management', () => {
     torrent.markPieceVerified(0)
     expect(torrent.hasPiece(0)).toBe(true)
 
-    torrent.resetPiece(0)
+    // Direct bitfield manipulation (used internally for recheck failures)
+    torrent.bitfield?.set(0, false)
     expect(torrent.hasPiece(0)).toBe(false)
   })
 
