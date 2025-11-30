@@ -1,27 +1,36 @@
 import { test, expect } from './fixtures'
 
 test('Extension initializes Daemon Engine', async ({ context, extensionId }) => {
-  let worker = context.serviceWorkers()[0]
-  if (!worker) {
+  // Wait for service worker (still need it running)
+  if (!context.serviceWorkers()[0]) {
     await context.waitForEvent('serviceworker')
-    worker = context.serviceWorkers()[0]
   }
 
+  // Open extension page to trigger initialization
   const page = await context.newPage()
   await page.goto(`chrome-extension://${extensionId}/src/ui/app.html`)
 
-  const sw = context.serviceWorkers()[0]
-  expect(sw).toBeTruthy()
-
-  const engineState = await sw.evaluate(async () => {
-    // @ts-expect-error -- client is exposed on self
-    const client = self.client
-
-    if (!client.ready) {
-      await client.ensureDaemonReady()
+  // Wait for engine to initialize (EngineManager.init() is called on page load)
+  // Use page.evaluate to access window.engineManager in UI thread
+  const engineState = await page.evaluate(async () => {
+    // window.engineManager is exposed for debugging in engine-manager.ts
+    const em = (window as unknown as { engineManager: unknown }).engineManager as {
+      engine: {
+        peerId?: unknown
+        storageRootManager?: unknown
+        socketFactory?: unknown
+        torrents?: unknown[]
+      } | null
     }
 
-    const engine = client.engine
+    // Wait for engine to be ready (it initializes async on page load)
+    let retries = 0
+    while (!em.engine && retries < 50) {
+      await new Promise((r) => setTimeout(r, 100))
+      retries++
+    }
+
+    const engine = em.engine
     return {
       hasEngine: !!engine,
       hasPeerId: !!engine?.peerId,
