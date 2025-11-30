@@ -90,7 +90,6 @@ export class TrackerManager extends EngineComponent {
     }
   }
 
-
   destroy() {
     for (const tracker of this.trackers) {
       tracker.destroy()
