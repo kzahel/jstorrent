@@ -1,8 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { useState } from 'react'
+import { Torrent } from '@jstorrent/engine'
 import { LogViewer } from './components/LogViewer'
 import { DownloadRootsManager } from './components/DownloadRootsManager'
+import { TorrentItem } from './components/TorrentItem'
 import { EngineProvider } from './context/EngineContext'
 import { useEngineState } from './hooks/useEngineState'
 
@@ -27,6 +29,19 @@ function AppContent() {
     } catch (e) {
       console.error('Failed to add torrent:', e)
     }
+  }
+
+  const handleStartTorrent = (torrent: Torrent) => {
+    torrent.userStart()
+  }
+
+  const handleStopTorrent = (torrent: Torrent) => {
+    torrent.userStop()
+  }
+
+  const handleDeleteTorrent = async (torrent: Torrent) => {
+    if (!engine) return
+    await engine.removeTorrent(torrent)
   }
 
   return (
@@ -132,48 +147,13 @@ function AppContent() {
                 ) : (
                   <ul style={{ listStyle: 'none', padding: 0 }}>
                     {torrents.map((torrent) => (
-                      <li
-                        key={Array.from(torrent.infoHash)
-                          .map((b) => b.toString(16).padStart(2, '0'))
-                          .join('')}
-                        style={{
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '4px',
-                          padding: '12px',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        <div style={{ fontWeight: 'bold' }}>
-                          {torrent.name || 'Loading metadata...'}
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          {torrent.activityState} | {(torrent.progress * 100).toFixed(1)}% |{' '}
-                          {torrent.numPeers} peers | {torrent.files.length} files |{' '}
-                          {formatBytes(torrent.contentStorage?.getTotalSize() || 0)}
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          {formatBytes(torrent.downloadSpeed)}/s |{' '}
-                          {formatBytes(torrent.uploadSpeed)}/s
-                        </div>
-                        <div
-                          style={{
-                            height: '4px',
-                            background: 'var(--progress-bg)',
-                            borderRadius: '2px',
-                            marginTop: '8px',
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: '100%',
-                              width: `${torrent.progress * 100}%`,
-                              background:
-                                torrent.activityState === 'seeding' ? 'var(--accent-success)' : 'var(--accent-primary)',
-                              borderRadius: '2px',
-                            }}
-                          />
-                        </div>
-                      </li>
+                      <TorrentItem
+                        key={torrent.infoHashStr}
+                        torrent={torrent}
+                        onStart={handleStartTorrent}
+                        onStop={handleStopTorrent}
+                        onDelete={handleDeleteTorrent}
+                      />
                     ))}
                   </ul>
                 )}
