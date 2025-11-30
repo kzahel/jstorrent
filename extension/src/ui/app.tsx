@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Torrent } from '@jstorrent/engine'
 import { LogViewer } from './components/LogViewer'
 import { DownloadRootsManager } from './components/DownloadRootsManager'
@@ -20,9 +20,30 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<'torrents' | 'logs' | 'settings'>('torrents')
   const [magnetInput, setMagnetInput] = useState('')
   const { engine, loading, error, torrents, globalStats } = useEngineState()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !engine) return
+    try {
+      const buffer = await file.arrayBuffer()
+      await engine.addTorrent(new Uint8Array(buffer))
+    } catch (err) {
+      console.error('Failed to add torrent file:', err)
+    }
+    // Reset input so same file can be selected again
+    e.target.value = ''
+  }
 
   const handleAddTorrent = async () => {
-    if (!magnetInput || !engine) return
+    if (!engine) return
+
+    if (!magnetInput) {
+      // Empty input - open file picker
+      fileInputRef.current?.click()
+      return
+    }
+
     try {
       await engine.addTorrent(magnetInput)
       setMagnetInput('')
@@ -114,6 +135,13 @@ function AppContent() {
         {activeTab === 'torrents' && (
           <div style={{ padding: '20px' }}>
             <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept=".torrent"
+                style={{ display: 'none' }}
+              />
               <input
                 type="text"
                 value={magnetInput}
