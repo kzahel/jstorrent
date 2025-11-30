@@ -3,6 +3,7 @@ import { BtEngine } from './bt-engine'
 import { Torrent } from './torrent'
 import { toHex } from '../utils/buffer'
 import { TorrentUserState } from './torrent-state'
+import { Logger } from '../logging/logger'
 
 const TORRENTS_KEY = 'torrents'
 const TORRENT_PREFIX = 'torrent:'
@@ -47,11 +48,23 @@ export interface TorrentListData {
 export class SessionPersistence {
   private saveTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
   private readonly DEBOUNCE_MS = 2000 // Save at most every 2 seconds per torrent
+  private _logger: Logger | null = null
 
   constructor(
     private store: ISessionStore,
     private engine: BtEngine,
   ) {}
+
+  private get logger(): Logger {
+    if (!this._logger) {
+      this._logger = this.engine.scopedLoggerFor({
+        getLogName: () => 'session',
+        getStaticLogName: () => 'session',
+        engineInstance: this.engine,
+      })
+    }
+    return this._logger
+  }
 
   /**
    * Save the current list of torrents.
@@ -148,7 +161,7 @@ export class SessionPersistence {
       const parsed: TorrentListData = JSON.parse(json)
       return parsed.torrents || []
     } catch (e) {
-      console.error('Failed to parse torrent list:', e)
+      this.logger.error('Failed to parse torrent list:', e)
       return []
     }
   }
@@ -157,22 +170,20 @@ export class SessionPersistence {
    * Load state for a specific torrent.
    */
   async loadTorrentState(infoHash: string): Promise<TorrentStateData | null> {
-    console.error(`SessionPersistence.loadTorrentState: Loading state for ${infoHash}`)
+    this.logger.debug(`Loading state for ${infoHash}`)
     const data = await this.store.get(TORRENT_PREFIX + infoHash)
     if (!data) {
-      console.error(`SessionPersistence.loadTorrentState: No data found for ${infoHash}`)
+      this.logger.debug(`No saved state found for ${infoHash}`)
       return null
     }
 
     try {
       const json = new TextDecoder().decode(data)
       const parsed = JSON.parse(json) as TorrentStateData
-      console.error(
-        `SessionPersistence.loadTorrentState: Found state for ${infoHash}, bitfield length=${parsed.bitfield?.length}`,
-      )
+      this.logger.debug(`Found state for ${infoHash}, bitfield length=${parsed.bitfield?.length}`)
       return parsed
     } catch (e) {
-      console.error(`Failed to parse torrent state for ${infoHash}:`, e)
+      this.logger.error(`Failed to parse torrent state for ${infoHash}:`, e)
       return null
     }
   }
@@ -228,21 +239,17 @@ export class SessionPersistence {
           // This is crucial for magnet links - avoids needing to re-fetch metadata from peers
           if (state?.infoBuffer && !torrent.hasMetadata) {
             const infoBuffer = this.base64ToUint8Array(state.infoBuffer)
-            console.error(
-              `SessionPersistence: Initializing torrent ${data.infoHash} from saved metadata`,
-            )
+            this.logger.debug(`Initializing torrent ${data.infoHash} from saved metadata`)
             await this.engine.initTorrentFromSavedMetadata(torrent, infoBuffer)
           }
 
           // Restore bitfield if we have saved state and metadata is now available
           if (state?.bitfield && torrent.hasMetadata) {
-            console.error(
-              `SessionPersistence: Restoring bitfield for ${data.infoHash}, state.bitfield length=${state.bitfield?.length}`,
+            this.logger.debug(
+              `Restoring bitfield for ${data.infoHash}, length=${state.bitfield?.length}`,
             )
             torrent.restoreBitfieldFromHex(state.bitfield)
-            console.error(
-              `SessionPersistence: Restored bitfield, completedPieces=${torrent.completedPiecesCount}`,
-            )
+            this.logger.debug(`Restored bitfield, completedPieces=${torrent.completedPiecesCount}`)
           }
 
           // Restore upload/download stats
@@ -254,7 +261,7 @@ export class SessionPersistence {
           restoredCount++
         }
       } catch (e) {
-        console.error(`Failed to restore torrent ${data.infoHash}:`, e)
+        this.logger.error(`Failed to restore torrent ${data.infoHash}:`, e)
       }
     }
 

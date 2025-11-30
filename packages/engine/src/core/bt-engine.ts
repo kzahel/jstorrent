@@ -321,7 +321,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       // Check for existing saved state (resume data) and restore bitfield
       const savedState = await this.sessionPersistence.loadTorrentState(infoHashStr)
       if (savedState?.bitfield) {
-        console.error(`BtEngine: Restoring bitfield from saved state for ${infoHashStr}`)
+        this.logger.debug(`Restoring bitfield from saved state for ${infoHashStr}`)
         torrent.restoreBitfieldFromHex(savedState.bitfield)
       }
 
