@@ -1,5 +1,11 @@
 import { INativeHostConnection, DaemonInfo, DownloadRoot } from './native-connection'
 
+/** Push event from native host (TorrentAdded, MagnetAdded, etc.) */
+export interface NativeEvent {
+  event: string
+  payload: unknown
+}
+
 /**
  * Manages daemon lifecycle in the service worker.
  * Keeps connectNative alive while UI tabs exist, closes it after grace period.
@@ -11,9 +17,11 @@ export class DaemonLifecycleManager {
   private gracePeriodTimer: ReturnType<typeof setTimeout> | null = null
   private readonly GRACE_PERIOD_MS = 5000
   private nativeFactory: () => INativeHostConnection
+  private onEvent?: (event: NativeEvent) => void
 
-  constructor(nativeFactory: () => INativeHostConnection) {
+  constructor(nativeFactory: () => INativeHostConnection, onEvent?: (event: NativeEvent) => void) {
     this.nativeFactory = nativeFactory
+    this.onEvent = onEvent
   }
 
   /**
@@ -49,6 +57,16 @@ export class DaemonLifecycleManager {
 
     this.daemonInfo = await this.waitForDaemonInfo()
     console.log('[DaemonLifecycleManager] Daemon ready:', this.daemonInfo)
+
+    // Set up event listener for push events (TorrentAdded, MagnetAdded, etc.)
+    if (this.onEvent) {
+      this.nativeConn.onMessage((msg) => {
+        if (typeof msg === 'object' && msg !== null && 'event' in msg) {
+          console.log('[DaemonLifecycleManager] Received push event:', (msg as NativeEvent).event)
+          this.onEvent!(msg as NativeEvent)
+        }
+      })
+    }
 
     // Set up disconnect handler
     this.nativeConn.onDisconnect(() => {
