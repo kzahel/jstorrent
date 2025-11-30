@@ -13,8 +13,8 @@ use std::io::SeekFrom;
 use crate::AppState;
 use jstorrent_common::DownloadRoot;
 
-// 32MB limit for piece writes (must match MAX_PIECE_SIZE in engine)
-const MAX_BODY_SIZE: usize = 32 * 1024 * 1024;
+// 64MB limit for piece writes (must match MAX_PIECE_SIZE in engine)
+pub const MAX_BODY_SIZE: usize = 64 * 1024 * 1024;
 
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()

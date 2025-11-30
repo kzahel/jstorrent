@@ -1,11 +1,12 @@
 use axum::{
     body::Bytes,
-    extract::{Path, State},
+    extract::{DefaultBodyLimit, Path, State},
     http::{header, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Router,
 };
+use crate::files::MAX_BODY_SIZE;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use sha2::Sha256;
@@ -22,6 +23,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         // Bytes-based hash endpoints (return raw bytes)
         .route("/hash/sha1", post(hash_sha1_bytes))
         .route("/hash/sha256", post(hash_sha256_bytes))
+        .layer(DefaultBodyLimit::max(MAX_BODY_SIZE))
 }
 
 #[derive(Deserialize)]
