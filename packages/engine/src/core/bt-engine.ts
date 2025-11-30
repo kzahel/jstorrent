@@ -248,7 +248,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       magnetLink = magnetOrBuffer
       // name = parsed.name
     } else {
-      parsedTorrent = await TorrentParser.parse(magnetOrBuffer)
+      parsedTorrent = await TorrentParser.parse(magnetOrBuffer, this.hasher)
       infoHash = parsedTorrent.infoHash
       announce = parsedTorrent.announce
       announce = parsedTorrent.announce
@@ -285,7 +285,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     const initComponents = async (infoBuffer: Uint8Array, preParsed?: ParsedTorrent) => {
       if (torrent.pieceManager) return // Already initialized
 
-      const parsedTorrent = preParsed || (await TorrentParser.parseInfoBuffer(infoBuffer))
+      const parsedTorrent = preParsed || (await TorrentParser.parseInfoBuffer(infoBuffer, this.hasher))
 
       // Check piece size limit
       if (parsedTorrent.pieceLength > MAX_PIECE_SIZE) {

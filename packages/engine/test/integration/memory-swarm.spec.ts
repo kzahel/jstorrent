@@ -43,7 +43,7 @@ describe('Memory Swarm Integration', () => {
     await fileHandle.close()
 
     const storageHandle = new FileSystemStorageHandle(fsA)
-    const torrentBuffer = await TorrentCreator.create(storageHandle, filename, {
+    const torrentBuffer = await TorrentCreator.create(storageHandle, filename, clientA.hasher, {
       pieceLength: 16384,
       announceList: [['http://tracker.local']],
     })
@@ -79,7 +79,7 @@ describe('Memory Swarm Integration', () => {
     // That matches what Client expects (name in torrent).
 
     // Re-create torrent from the file in /downloads
-    const torrentBuffer2 = await TorrentCreator.create(storageHandle, '/downloads/test.txt', {
+    const torrentBuffer2 = await TorrentCreator.create(storageHandle, '/downloads/test.txt', clientA.hasher, {
       pieceLength: 16384,
       announceList: [['http://tracker.local']],
     })
