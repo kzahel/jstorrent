@@ -1,10 +1,16 @@
 #!/bin/bash
+set -e  # Exit on error
 # Install script for JSTorrent Native Host
 
 INSTALL_DIR="$HOME/.local/lib/jstorrent-native"
 MANIFEST_DIR="$HOME/.config/google-chrome/NativeMessagingHosts"
 MANIFEST_TEMPLATE="manifests/com.jstorrent.native.json.template"
 BINARY_NAME="jstorrent-native-host"
+
+# Kill running processes if they exist (prevents "Text file busy" error)
+pkill -f jstorrent-io-daemon 2>/dev/null || true
+pkill -f jstorrent-native-host 2>/dev/null || true
+sleep 1.5  # io-daemon polls parent every 1s
 
 # Create install directory
 mkdir -p "$INSTALL_DIR"

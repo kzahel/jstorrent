@@ -19,8 +19,10 @@ fi
 
 echo "Installing locally..."
 
-# Kill running host if exists
+# Kill running processes if they exist
+pkill -f jstorrent-io-daemon || true
 pkill -f jstorrent-native-host || true
+sleep 1.5  # Give processes time to exit (io-daemon polls parent every 1s)
 
 # Create a temporary directory for extraction
 TEMP_DIR=$(mktemp -d)
