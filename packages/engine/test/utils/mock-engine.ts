@@ -2,17 +2,18 @@ import {
   ILoggingEngine,
   Logger,
   EngineComponent,
-  defaultLogger,
   createFilter,
   withScopeAndFiltering,
+  globalLogStore,
 } from '../../src/logging/logger'
 
 export class MockEngine implements ILoggingEngine {
   clientId = 'mock-client'
-  rootLogger = defaultLogger()
   filterFn = createFilter({ level: 'debug' })
 
   scopedLoggerFor(component: EngineComponent): Logger {
-    return withScopeAndFiltering(this.rootLogger, component, this.filterFn)
+    return withScopeAndFiltering(component, this.filterFn, {
+      onCapture: (entry) => globalLogStore.add(entry.level, entry.message, entry.args),
+    })
   }
 }

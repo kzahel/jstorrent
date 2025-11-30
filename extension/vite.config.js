@@ -4,6 +4,35 @@ import { resolve } from 'path'
 
 import fs from 'fs'
 
+function sourcemapIgnoreLogger() {
+  return {
+    name: 'sourcemap-ignore-logger',
+    writeBundle(options, bundle) {
+      const outDir = options.dir || 'dist'
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (chunk.type === 'chunk' && fileName.endsWith('.js')) {
+          const mapPath = resolve(outDir, fileName + '.map')
+          try {
+            const mapContent = fs.readFileSync(mapPath, 'utf-8')
+            const map = JSON.parse(mapContent)
+            const sources = map.sources || []
+            const ignoreList = []
+            sources.forEach((source, index) => {
+              if (source.includes('node_modules') || source.includes('/logging/')) {
+                ignoreList.push(index)
+              }
+            })
+            map.x_google_ignoreList = ignoreList
+            fs.writeFileSync(mapPath, JSON.stringify(map))
+          } catch (e) {
+            // Map file might not exist for some chunks
+          }
+        }
+      }
+    },
+  }
+}
+
 function injectPublicKey() {
   return {
     name: 'inject-public-key',
@@ -40,7 +69,12 @@ function injectPublicKey() {
 }
 
 export default defineConfig({
-  plugins: [react(), injectPublicKey()],
+  plugins: [react(), injectPublicKey(), sourcemapIgnoreLogger()],
+  server: {
+    sourcemapIgnoreList: (relativeSourcePath) => {
+      return relativeSourcePath.includes('node_modules') || relativeSourcePath.includes('/logging/')
+    },
+  },
   resolve: {
     alias: {
       '@jstorrent/engine': resolve(__dirname, '../packages/engine/src/index.ts'),
@@ -49,6 +83,8 @@ export default defineConfig({
   build: {
     sourcemap: true,
     minify: false,
+    // Note: sourcemapIgnoreList doesn't work in Vite 7, using plugin instead
+    sourcemapIgnoreList: false,
     rollupOptions: {
       input: {
         app: resolve(__dirname, 'src/ui/app.html'),
