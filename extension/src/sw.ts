@@ -74,7 +74,14 @@ chrome.action.onClicked.addListener(() => {
 type SendResponse = (response: unknown) => void
 
 function handleMessage(
-  message: { type?: string; event?: string; key?: string; keys?: string[]; value?: string; prefix?: string },
+  message: {
+    type?: string
+    event?: string
+    key?: string
+    keys?: string[]
+    value?: string
+    prefix?: string
+  },
   sendResponse: SendResponse,
 ): boolean {
   // KV operations (external session store)
