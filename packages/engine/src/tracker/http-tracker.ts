@@ -1,4 +1,4 @@
-import { ITracker } from '../interfaces/tracker'
+import { ITracker, PeerInfo } from '../interfaces/tracker'
 import { Bencode } from '../utils/bencode'
 import { ISocketFactory } from '../interfaces/socket'
 import { MinimalHttpClient } from '../utils/minimal-http-client'
@@ -91,19 +91,31 @@ export class HttpTracker extends EngineComponent implements ITracker {
     }
 
     if (data['peers']) {
-      const peers = data['peers']
-      if (peers instanceof Uint8Array) {
-        // Compact response
-        for (let i = 0; i < peers.length; i += 6) {
-          const ip = `${peers[i]}.${peers[i + 1]}.${peers[i + 2]}.${peers[i + 3]}`
-          const port = (peers[i + 4] << 8) | peers[i + 5]
-          this.emit('peer', { ip, port })
-        }
-      } else if (Array.isArray(peers)) {
-        // Dictionary list
-        // ...
+      const peers = this.parsePeers(data['peers'])
+      if (peers.length > 0) {
+        this.emit('peersDiscovered', peers)
       }
     }
+  }
+
+  private parsePeers(peersData: unknown): PeerInfo[] {
+    const peers: PeerInfo[] = []
+    if (peersData instanceof Uint8Array) {
+      // Compact format: 6 bytes per peer (4 IP + 2 port)
+      for (let i = 0; i + 6 <= peersData.length; i += 6) {
+        const ip = `${peersData[i]}.${peersData[i + 1]}.${peersData[i + 2]}.${peersData[i + 3]}`
+        const port = (peersData[i + 4] << 8) | peersData[i + 5]
+        peers.push({ ip, port })
+      }
+    } else if (Array.isArray(peersData)) {
+      // Dictionary format (rare)
+      for (const p of peersData) {
+        if (p.ip && p.port) {
+          peers.push({ ip: String(p.ip), port: Number(p.port) })
+        }
+      }
+    }
+    return peers
   }
 
   destroy(): void {

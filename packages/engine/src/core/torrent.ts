@@ -159,7 +159,7 @@ export class Torrent extends EngineComponent {
         this.port,
       )
 
-      this.trackerManager.on('peer', () => {
+      this.trackerManager.on('peersDiscovered', () => {
         this.fillPeerSlots()
       })
 
@@ -486,7 +486,7 @@ export class Torrent extends EngineComponent {
       this.port,
     )
 
-    this.trackerManager.on('peer', () => {
+    this.trackerManager.on('peersDiscovered', () => {
       this.fillPeerSlots()
     })
 
@@ -706,6 +706,7 @@ export class Torrent extends EngineComponent {
   /**
    * Connect to known peers from the tracker pool to fill available connection slots.
    * Only runs if the torrent is still downloading (not complete).
+   * Shuffles peers for fairness (don't always connect to first N).
    */
   private fillPeerSlots(): void {
     if (!this._networkActive || !this.trackerManager) return
@@ -721,8 +722,11 @@ export class Torrent extends EngineComponent {
       `Filling peer slots: ${slotsAvailable} available, ${knownPeers.length} known peers`,
     )
 
-    for (const peer of knownPeers) {
-      if (this.numPeers >= this.maxPeers) break
+    // Shuffle for fairness (don't always connect to first N)
+    const shuffled = this.shuffleArray(knownPeers)
+
+    for (const peer of shuffled) {
+      if (this.numPeers + this.pendingConnections.size >= this.maxPeers) break
       if (!this.globalLimitCheck()) break
 
       // Skip if already connected
@@ -733,6 +737,15 @@ export class Torrent extends EngineComponent {
 
       this.connectToPeer(peer)
     }
+  }
+
+  private shuffleArray<T>(array: T[]): T[] {
+    const result = [...array]
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[result[i], result[j]] = [result[j], result[i]]
+    }
+    return result
   }
 
   private async handleRequest(peer: PeerConnection, index: number, begin: number, length: number) {

@@ -106,13 +106,13 @@ describe('UdpTracker', () => {
     announceResp.set([1, 2, 3, 4], 20)
     announceResp.set([0x1f, 0x90], 24)
 
-    const peerSpy = vi.fn()
-    tracker.on('peer', peerSpy)
+    const peersSpy = vi.fn()
+    tracker.on('peersDiscovered', peersSpy)
 
     factory.socket.emitMessage(announceResp)
 
     await announcePromise
 
-    expect(peerSpy).toHaveBeenCalledWith({ ip: '1.2.3.4', port: 8080 })
+    expect(peersSpy).toHaveBeenCalledWith([{ ip: '1.2.3.4', port: 8080 }])
   })
 })

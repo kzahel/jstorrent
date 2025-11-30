@@ -52,38 +52,44 @@ describe('TrackerManager', () => {
   })
 
   it('should aggregate peers and dedup', () => {
-    const peerSpy = vi.fn()
-    manager.on('peer', peerSpy)
+    const peersSpy = vi.fn()
+    manager.on('peersDiscovered', peersSpy)
 
     // Get instances
     const httpTracker = vi.mocked(HttpTracker).mock.instances[0]
     const udpTracker = vi.mocked(UdpTracker).mock.instances[0]
 
-    // Emit peer from HTTP
-    // We need to simulate the 'peer' event emission from the mock
-    // Since we mocked the class, we need to ensure the mock implementation extends EventEmitter or we can simulate it.
-    // The mock created by vi.mock is a spy, but instances are objects.
-    // We can manually trigger the event handler if we captured it.
-    // Or simpler: just check if `on` was called and call the callback.
+    // Check if `on` was called with peersDiscovered
+    expect(httpTracker.on).toHaveBeenCalledWith('peersDiscovered', expect.any(Function))
+    const httpPeersHandler = vi
+      .mocked(httpTracker.on)
+      .mock.calls.find((c) => c[0] === 'peersDiscovered')![1]
 
-    // Check if `on` was called
-    expect(httpTracker.on).toHaveBeenCalledWith('peer', expect.any(Function))
-    const httpPeerHandler = vi.mocked(httpTracker.on).mock.calls.find((c) => c[0] === 'peer')![1]
+    // Emit batch of peers from HTTP
+    httpPeersHandler([{ ip: '1.1.1.1', port: 1000 }])
+    expect(peersSpy).toHaveBeenCalledWith([{ ip: '1.1.1.1', port: 1000 }])
 
-    httpPeerHandler({ ip: '1.1.1.1', port: 1000 })
-    expect(peerSpy).toHaveBeenCalledWith({ ip: '1.1.1.1', port: 1000 })
+    // Emit same peer from UDP - should be deduped
+    expect(udpTracker.on).toHaveBeenCalledWith('peersDiscovered', expect.any(Function))
+    const udpPeersHandler = vi
+      .mocked(udpTracker.on)
+      .mock.calls.find((c) => c[0] === 'peersDiscovered')![1]
 
-    // Emit same peer from UDP
-    expect(udpTracker.on).toHaveBeenCalledWith('peer', expect.any(Function))
-    const udpPeerHandler = vi.mocked(udpTracker.on).mock.calls.find((c) => c[0] === 'peer')![1]
-
-    udpPeerHandler({ ip: '1.1.1.1', port: 1000 })
-    expect(peerSpy).toHaveBeenCalledTimes(1) // Should be deduped
+    udpPeersHandler([{ ip: '1.1.1.1', port: 1000 }])
+    expect(peersSpy).toHaveBeenCalledTimes(1) // Should be deduped (no new peers)
 
     // Emit new peer
-    udpPeerHandler({ ip: '2.2.2.2', port: 2000 })
-    expect(peerSpy).toHaveBeenCalledTimes(2)
-    expect(peerSpy).toHaveBeenCalledWith({ ip: '2.2.2.2', port: 2000 })
+    udpPeersHandler([{ ip: '2.2.2.2', port: 2000 }])
+    expect(peersSpy).toHaveBeenCalledTimes(2)
+    expect(peersSpy).toHaveBeenCalledWith([{ ip: '2.2.2.2', port: 2000 }])
+
+    // Emit mixed batch - one new, one duplicate
+    udpPeersHandler([
+      { ip: '2.2.2.2', port: 2000 },
+      { ip: '3.3.3.3', port: 3000 },
+    ])
+    expect(peersSpy).toHaveBeenCalledTimes(3)
+    expect(peersSpy).toHaveBeenLastCalledWith([{ ip: '3.3.3.3', port: 3000 }])
   })
 
   it('should announce to all trackers', async () => {
