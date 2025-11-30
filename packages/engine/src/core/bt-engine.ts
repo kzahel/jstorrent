@@ -18,6 +18,8 @@ import {
 } from '../logging/logger'
 
 import { ISessionStore } from '../interfaces/session-store'
+import { IHasher } from '../interfaces/hasher'
+import { SubtleCryptoHasher } from '../adapters/browser/subtle-crypto-hasher'
 import { MemorySessionStore } from '../adapters/memory/memory-session-store'
 import { StorageRootManager } from '../storage/storage-root-manager'
 import { SessionPersistence } from './session-persistence'
@@ -40,6 +42,7 @@ export interface BtEngineOptions {
   fileSystem?: IFileSystem
   storageRootManager?: StorageRootManager
   sessionStore?: ISessionStore
+  hasher?: IHasher
 
   maxConnections?: number
   maxDownloadSpeed?: number
@@ -62,6 +65,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public readonly storageRootManager: StorageRootManager
   public readonly socketFactory: ISocketFactory
   public readonly sessionPersistence: SessionPersistence
+  public readonly hasher: IHasher
   public torrents: Torrent[] = []
   public port: number
   public peerId: Uint8Array
@@ -111,6 +115,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
     const sessionStore = options.sessionStore ?? new MemorySessionStore()
     this.sessionPersistence = new SessionPersistence(sessionStore, this)
+    this.hasher = options.hasher ?? new SubtleCryptoHasher()
     this.port = options.port ?? 6881 // Use nullish coalescing to allow port 0
 
     this.clientId = randomClientId()
