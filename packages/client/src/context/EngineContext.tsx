@@ -25,7 +25,9 @@ export function EngineProvider({ engine, adapter, children }: EngineProviderProp
     throw new Error('EngineProvider requires either engine or adapter prop')
   }
 
-  return <EngineContext.Provider value={{ adapter: resolvedAdapter }}>{children}</EngineContext.Provider>
+  return (
+    <EngineContext.Provider value={{ adapter: resolvedAdapter }}>{children}</EngineContext.Provider>
+  )
 }
 
 /**
