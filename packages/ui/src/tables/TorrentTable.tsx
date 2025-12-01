@@ -68,9 +68,14 @@ export const torrentColumns: ColumnDef<Torrent>[] = [
   },
 ]
 
+/** Minimal interface for reading torrents - avoids coupling to full adapter */
+interface TorrentSource {
+  readonly torrents: Torrent[]
+}
+
 export interface TorrentTableProps {
-  /** Function that returns current torrent list */
-  getTorrents: () => Torrent[]
+  /** Source to read torrents from (read directly each frame, bypasses React) */
+  source: TorrentSource
   /** Selected torrent info hashes */
   selectedHashes?: Set<string>
   /** Selection change callback */
@@ -83,11 +88,12 @@ export interface TorrentTableProps {
 
 /**
  * Virtualized torrent table component.
+ * Reads directly from source on every frame - no React closure issues.
  */
 export function TorrentTable(props: TorrentTableProps) {
   return (
     <TableMount<Torrent>
-      getRows={props.getTorrents}
+      getRows={() => props.source.torrents}
       getRowKey={(t) => t.infoHashStr}
       columns={torrentColumns}
       storageKey="torrents"
