@@ -40,3 +40,4 @@ export { createDaemonEngine } from './presets/daemon'
 // Utils
 export { generateMagnet, parseMagnet, createTorrentBuffer } from './utils/magnet'
 export type { GenerateMagnetOptions, ParsedMagnet } from './utils/magnet'
+export { toHex, fromHex } from './utils/buffer'
