@@ -248,12 +248,15 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     let magnetDisplayName: string | undefined
 
+    let magnetPeerHints: import('./swarm').PeerAddress[] | undefined
+
     if (typeof magnetOrBuffer === 'string') {
       const parsed = parseMagnet(magnetOrBuffer)
       infoHash = fromHex(parsed.infoHash)
       announce = parsed.announce || []
       magnetLink = magnetOrBuffer
       magnetDisplayName = parsed.name
+      magnetPeerHints = parsed.peers
     } else {
       parsedTorrent = await TorrentParser.parse(magnetOrBuffer, this.hasher)
       infoHash = parsedTorrent.infoHash
@@ -290,6 +293,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     // Store magnet display name for fallback naming
     if (magnetDisplayName) {
       torrent._magnetDisplayName = magnetDisplayName
+    }
+
+    // Add peer hints from magnet link (x.pe parameter)
+    if (magnetPeerHints && magnetPeerHints.length > 0) {
+      torrent.addPeerHints(magnetPeerHints)
     }
 
     const initComponents = async (infoBuffer: Uint8Array, preParsed?: ParsedTorrent) => {

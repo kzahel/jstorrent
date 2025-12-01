@@ -274,15 +274,30 @@ describe('Torrent Connection Limits', () => {
       const violations: InvariantViolation[] = []
       torrent.on('invariant_violation', (v) => violations.push(v))
 
-      // Forcefully add peers bypassing the check (simulating a bug)
-      const peers = (torrent as unknown as { peers: PeerConnection[] }).peers
-      for (let i = 0; i < 5; i++) {
+      // Add peers through swarm directly to bypass addPeer limits (simulating a bug)
+      // With Phase 3, swarm is the single source of truth, so we access it directly
+      // Need to add more than maxPeers + headroom (2 + 10 = 12) to trigger violation
+      const swarm = (
+        torrent as unknown as {
+          _swarm: {
+            markConnected: (key: string, conn: PeerConnection) => void
+            addPeer: (
+              addr: { ip: string; port: number; family: 'ipv4' | 'ipv6' },
+              source: string,
+            ) => void
+          }
+        }
+      )._swarm
+      for (let i = 0; i < 15; i++) {
         const socket = createMockSocket()
         const peer = new PeerConnection(mockEngine, socket, {
           remoteAddress: `10.0.0.${i}`,
           remotePort: 6881,
         })
-        peers.push(peer) // Bypass addPeer check
+        const key = `10.0.0.${i}:6881`
+        // Add to swarm bypassing normal limits
+        swarm.addPeer({ ip: `10.0.0.${i}`, port: 6881, family: 'ipv4' }, 'manual')
+        swarm.markConnected(key, peer)
       }
 
       // Manually trigger invariant check

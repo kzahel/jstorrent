@@ -4,15 +4,24 @@ export class SpeedCalculator {
   private lastUpdateTime: number
   private windowSize: number
 
+  // Track when this calculator was created (for connection duration)
+  public readonly startTime: number
+
+  // Track when we last received data (for slow peer detection)
+  public lastActivity: number
+
   constructor(windowSeconds: number = 5) {
     this.windowSize = windowSeconds
     this.buckets = new Array(windowSeconds).fill(0)
     this.lastUpdateTime = Math.floor(Date.now() / 1000)
+    this.startTime = Date.now()
+    this.lastActivity = Date.now()
   }
 
   addBytes(bytes: number) {
     this.updateBuckets()
     this.buckets[this.currentBucketIndex] += bytes
+    this.lastActivity = Date.now()
   }
 
   getSpeed(): number {
