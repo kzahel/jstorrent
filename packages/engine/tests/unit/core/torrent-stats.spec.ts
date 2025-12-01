@@ -36,7 +36,10 @@ describe('Torrent Stats', () => {
       close: vi.fn(),
     } as unknown as ITcpSocket
 
-    const peer = new PeerConnection(mockEngine, mockSocket)
+    const peer = new PeerConnection(mockEngine, mockSocket, {
+      remoteAddress: '1.2.3.4',
+      remotePort: 6881,
+    })
     torrent.addPeer(peer)
 
     // Simulate peer events
@@ -47,7 +50,10 @@ describe('Torrent Stats', () => {
     expect(torrent.totalUploaded).toBe(50)
 
     // Add another peer
-    const peer2 = new PeerConnection(mockEngine, mockSocket)
+    const peer2 = new PeerConnection(mockEngine, mockSocket, {
+      remoteAddress: '1.2.3.5',
+      remotePort: 6882,
+    })
     torrent.addPeer(peer2)
 
     peer2.emit('bytesDownloaded', 200)
@@ -63,8 +69,14 @@ describe('Torrent Stats', () => {
       close: vi.fn(),
     } as unknown as ITcpSocket
 
-    const peer1 = new PeerConnection(mockEngine, mockSocket)
-    const peer2 = new PeerConnection(mockEngine, mockSocket)
+    const peer1 = new PeerConnection(mockEngine, mockSocket, {
+      remoteAddress: '1.2.3.4',
+      remotePort: 6881,
+    })
+    const peer2 = new PeerConnection(mockEngine, mockSocket, {
+      remoteAddress: '1.2.3.5',
+      remotePort: 6882,
+    })
 
     // Mock speed getters
     vi.spyOn(peer1, 'downloadSpeed', 'get').mockReturnValue(100)

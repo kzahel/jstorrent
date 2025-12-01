@@ -507,3 +507,24 @@ export const engineManager = new EngineManager()
 // Expose for debugging in console
 // @ts-expect-error -- exposing engineManager for debugging
 window.engineManager = engineManager
+
+/**
+ * Debug helper: Add Big Buck Bunny test torrent and start immediately.
+ * Call from console: addTestTorrent()
+ */
+async function addTestTorrent(): Promise<Torrent | null> {
+  const magnet =
+    'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da&dn=big_buck_bunny_720p_surround.mp4&x.pe=127.0.0.1:8998'
+
+  const engine = await engineManager.init()
+  const torrent = await engine.addTorrent(magnet)
+  if (torrent) {
+    console.log('[addTestTorrent] Added:', torrent.name, toHex(torrent.infoHash))
+  } else {
+    console.log('[addTestTorrent] Torrent already exists or failed to add')
+  }
+  return torrent
+}
+
+// @ts-expect-error -- exposing addTestTorrent for debugging
+window.addTestTorrent = addTestTorrent

@@ -160,7 +160,11 @@ describe('Tracker Integration', () => {
     serverA.on('connection', (socket) => {
       console.log('Client A received connection')
       const peerSocket = new NodeTcpSocket(socket)
-      const peer = new PeerConnection(clientA, peerSocket)
+      // Provide remote address info for proper swarm tracking
+      const peer = new PeerConnection(clientA, peerSocket, {
+        remoteAddress: socket.remoteAddress,
+        remotePort: socket.remotePort,
+      })
       torrentA.addPeer(peer)
 
       // We need to handle handshake on A side too

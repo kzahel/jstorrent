@@ -28,4 +28,39 @@ describe('Magnet Parser', () => {
   it('should throw on missing xt', () => {
     expect(() => parseMagnet('magnet:?dn=Test')).toThrow('Invalid magnet URI: missing xt')
   })
+
+  it('should parse magnet link with IPv4 peer hints', () => {
+    const uri =
+      'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da&dn=test&x.pe=127.0.0.1:8998&x.pe=192.168.1.1:6881'
+    const parsed = parseMagnet(uri)
+
+    expect(parsed.peers).toHaveLength(2)
+    expect(parsed.peers![0]).toEqual({ ip: '127.0.0.1', port: 8998, family: 'ipv4' })
+    expect(parsed.peers![1]).toEqual({ ip: '192.168.1.1', port: 6881, family: 'ipv4' })
+  })
+
+  it('should parse magnet link with IPv6 peer hints', () => {
+    const uri = 'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da&x.pe=[::1]:8998'
+    const parsed = parseMagnet(uri)
+
+    expect(parsed.peers).toHaveLength(1)
+    expect(parsed.peers![0]).toEqual({ ip: '::1', port: 8998, family: 'ipv6' })
+  })
+
+  it('should ignore invalid peer hints', () => {
+    const uri =
+      'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da&x.pe=invalid&x.pe=127.0.0.1:8998&x.pe=noport'
+    const parsed = parseMagnet(uri)
+
+    // Only the valid one should be parsed
+    expect(parsed.peers).toHaveLength(1)
+    expect(parsed.peers![0]).toEqual({ ip: '127.0.0.1', port: 8998, family: 'ipv4' })
+  })
+
+  it('should return undefined peers when no x.pe params', () => {
+    const uri = 'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da'
+    const parsed = parseMagnet(uri)
+
+    expect(parsed.peers).toBeUndefined()
+  })
 })

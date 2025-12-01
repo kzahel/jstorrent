@@ -15,7 +15,14 @@ export interface PeerAddress {
   family: AddressFamily
 }
 
-export type DiscoverySource = 'tracker' | 'pex' | 'dht' | 'lpd' | 'incoming' | 'manual'
+export type DiscoverySource =
+  | 'tracker'
+  | 'pex'
+  | 'dht'
+  | 'lpd'
+  | 'incoming'
+  | 'manual'
+  | 'magnet_hint'
 
 export type ConnectionState =
   | 'idle' // Known but never tried, or recovered from failed
@@ -77,6 +84,7 @@ export interface SwarmStats {
     lpd: number
     incoming: number
     manual: number
+    magnet_hint: number
   }
   // Unique peer identities (by peerId)
   identifiedPeers: number
@@ -133,6 +141,16 @@ export function parseAddressKey(key: string): PeerAddress {
  */
 export function detectAddressFamily(ip: string): AddressFamily {
   return ip.includes(':') ? 'ipv6' : 'ipv4'
+}
+
+/**
+ * Create canonical peer key from IP and port.
+ * This is the preferred helper for creating keys when you don't have a full PeerAddress.
+ * Automatically detects address family.
+ */
+export function peerKey(ip: string, port: number): string {
+  const family = detectAddressFamily(ip)
+  return addressKey({ ip, port, family })
 }
 
 /**
@@ -389,10 +407,14 @@ export class Swarm extends EventEmitter {
   markConnecting(key: string): void {
     const peer = this.peers.get(key)
     if (peer) {
+      const prevState = peer.state
       peer.state = 'connecting'
       peer.connectAttempts++
       peer.lastConnectAttempt = Date.now()
       this.connectingKeys.add(key)
+      this.logger.debug(`[${key}] ${prevState} → connecting (attempt #${peer.connectAttempts})`)
+    } else {
+      this.logger.warn(`markConnecting: peer not found in swarm: ${key}`)
     }
   }
 
@@ -402,6 +424,7 @@ export class Swarm extends EventEmitter {
   markConnected(key: string, connection: PeerConnection): void {
     const peer = this.peers.get(key)
     if (peer) {
+      const prevState = peer.state
       peer.state = 'connected'
       peer.connection = connection
       peer.lastConnectSuccess = Date.now()
@@ -411,7 +434,13 @@ export class Swarm extends EventEmitter {
       this.connectingKeys.delete(key)
       this.connectedKeys.add(key)
 
+      this.logger.debug(
+        `[${key}] ${prevState} → connected (total: ${this.connectedKeys.size} connected, ${this.connectingKeys.size} connecting)`,
+      )
+
       this.emit('peerConnected', key, peer)
+    } else {
+      this.logger.warn(`markConnected: peer not found in swarm: ${key}`)
     }
   }
 
@@ -454,12 +483,19 @@ export class Swarm extends EventEmitter {
   markConnectFailed(key: string, reason: string): void {
     const peer = this.peers.get(key)
     if (peer) {
+      const prevState = peer.state
       peer.state = 'failed'
       peer.connection = null
       peer.connectFailures++
       peer.lastConnectError = reason
 
       this.connectingKeys.delete(key)
+
+      this.logger.debug(
+        `[${key}] ${prevState} → failed: ${reason} (failures: ${peer.connectFailures})`,
+      )
+    } else {
+      this.logger.warn(`markConnectFailed: peer not found in swarm: ${key}`)
     }
   }
 
@@ -469,6 +505,7 @@ export class Swarm extends EventEmitter {
   markDisconnected(key: string): void {
     const peer = this.peers.get(key)
     if (peer) {
+      const prevState = peer.state
       // Accumulate stats from the connection before clearing
       if (peer.connection) {
         peer.totalDownloaded += peer.connection.downloaded
@@ -479,7 +516,13 @@ export class Swarm extends EventEmitter {
 
       this.connectedKeys.delete(key)
 
+      this.logger.debug(
+        `[${key}] ${prevState} → idle (disconnected) (total: ${this.connectedKeys.size} connected)`,
+      )
+
       this.emit('peerDisconnected', key, peer)
+    } else {
+      this.logger.warn(`markDisconnected: peer not found in swarm: ${key}`)
     }
   }
 
@@ -638,7 +681,7 @@ export class Swarm extends EventEmitter {
       total: this.peers.size,
       byState: { idle: 0, connecting: 0, connected: 0, failed: 0, banned: 0 },
       byFamily: { ipv4: 0, ipv6: 0 },
-      bySource: { tracker: 0, pex: 0, dht: 0, lpd: 0, incoming: 0, manual: 0 },
+      bySource: { tracker: 0, pex: 0, dht: 0, lpd: 0, incoming: 0, manual: 0, magnet_hint: 0 },
       identifiedPeers: this.peerIdIndex.size,
       multiAddressPeers: [],
     }

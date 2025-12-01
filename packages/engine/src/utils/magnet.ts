@@ -1,10 +1,12 @@
 import { Bencode } from './bencode'
+import { parseAddressKey, PeerAddress } from '../core/swarm'
 
 export interface ParsedMagnet {
   infoHash: string
   name?: string
   announce?: string[]
   urlList?: string[]
+  peers?: PeerAddress[]
 }
 
 export interface GenerateMagnetOptions {
@@ -28,6 +30,23 @@ export function generateMagnet(options: GenerateMagnetOptions): string {
   return `magnet:?${params.toString()}`
 }
 
+/**
+ * Parse peer hint address string (x.pe parameter).
+ * Supports: "ip:port" for IPv4, "[ip]:port" for IPv6
+ * Returns null for invalid addresses (silent failure for magnet parsing).
+ */
+function parsePeerHint(address: string): PeerAddress | null {
+  try {
+    const parsed = parseAddressKey(address)
+    if (parsed.port < 1 || parsed.port > 65535) {
+      return null
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
 export function parseMagnet(uri: string): ParsedMagnet {
   if (!uri.startsWith('magnet:')) {
     throw new Error('Invalid magnet URI')
@@ -46,11 +65,22 @@ export function parseMagnet(uri: string): ParsedMagnet {
   const announce = params.getAll('tr')
   const urlList = params.getAll('ws') // web seeds
 
+  // Parse peer hints (x.pe parameter)
+  const peerHints = params.getAll('x.pe')
+  const peers: PeerAddress[] = []
+  for (const hint of peerHints) {
+    const peer = parsePeerHint(hint)
+    if (peer) {
+      peers.push(peer)
+    }
+  }
+
   return {
     infoHash,
     name,
     announce: announce.length > 0 ? announce : undefined,
     urlList: urlList.length > 0 ? urlList : undefined,
+    peers: peers.length > 0 ? peers : undefined,
   }
 }
 

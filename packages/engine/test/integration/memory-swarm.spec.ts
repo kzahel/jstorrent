@@ -109,8 +109,15 @@ describe('Memory Swarm Integration', () => {
     console.log('Test: Calling MemorySocketFactory.createPair()')
     const [socketA, socketB] = MemorySocketFactory.createPair()
 
-    const peerA = new PeerConnection(clientA, socketA) // Connection FROM A TO B? No, socketA is A's end.
-    const peerB = new PeerConnection(clientB, socketB) // Connection FROM B TO A.
+    // Provide virtual addresses for proper swarm tracking
+    const peerA = new PeerConnection(clientA, socketA, {
+      remoteAddress: '127.0.0.2', // B's virtual address from A's perspective
+      remotePort: 6882,
+    })
+    const peerB = new PeerConnection(clientB, socketB, {
+      remoteAddress: '127.0.0.1', // A's virtual address from B's perspective
+      remotePort: 6881,
+    })
 
     // Add peers to torrents
     // We need to simulate incoming connection or outgoing.
