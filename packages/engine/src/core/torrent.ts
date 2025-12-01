@@ -14,6 +14,7 @@ import { TorrentFileInfo } from './torrent-file-info'
 import { EngineComponent } from '../logging/logger'
 import type { BtEngine } from './bt-engine'
 import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
+import { Swarm, SwarmStats, detectAddressFamily } from './swarm'
 
 /**
  * All persisted fields for a torrent.
@@ -63,6 +64,7 @@ export class Torrent extends EngineComponent {
   private btEngine: BtEngine
   private peers: PeerConnection[] = []
   private pendingConnections: Set<string> = new Set() // Track in-flight connection attempts
+  private _swarm: Swarm // Unified peer discovery tracking
   public infoHash: Uint8Array
   public peerId: Uint8Array
   public socketFactory: ISocketFactory
@@ -79,7 +81,7 @@ export class Torrent extends EngineComponent {
   public announce: string[] = []
   public trackerManager?: TrackerManager
   private _files: TorrentFileInfo[] = []
-  public maxPeers: number = 50
+  public maxPeers: number = 20
   public globalLimitCheck: () => boolean = () => true
 
   // Metadata Phase
@@ -198,6 +200,11 @@ export class Torrent extends EngineComponent {
    */
   private _networkActive: boolean = false
 
+  /**
+   * Periodic maintenance interval for peer slot filling.
+   */
+  private _maintenanceInterval: ReturnType<typeof setInterval> | null = null
+
   public isPrivate: boolean = false
   public creationDate?: number
 
@@ -213,7 +220,7 @@ export class Torrent extends EngineComponent {
     port: number,
     contentStorage?: TorrentContentStorage,
     announce: string[] = [],
-    maxPeers: number = 50,
+    maxPeers: number = 20,
     globalLimitCheck: () => boolean = () => true,
   ) {
     super(engine)
@@ -228,6 +235,9 @@ export class Torrent extends EngineComponent {
     this.globalLimitCheck = globalLimitCheck
 
     this.instanceLogName = `t:${toHex(infoHash).slice(0, 6)}`
+
+    // Initialize swarm for unified peer tracking
+    this._swarm = new Swarm(this.logger)
 
     if (this.announce.length > 0) {
       this.initTrackerManager()
@@ -265,22 +275,27 @@ export class Torrent extends EngineComponent {
     // Check if connection already in progress
     if (this.pendingConnections.has(peerKey)) return
 
-    // Check limits (include pending connections in count)
+    // Reserve slot FIRST (synchronous) - prevents race condition
+    this.pendingConnections.add(peerKey)
+    this._swarm.markConnecting(peerKey)
+
+    // NOW check limits (after adding, so count is accurate)
     const totalConnections = this.numPeers + this.pendingConnections.size
-    if (totalConnections >= this.maxPeers) {
+    if (totalConnections > this.maxPeers) {
       this.logger.debug(
         `Skipping peer ${peerInfo.ip}, max peers reached (${totalConnections}/${this.maxPeers})`,
       )
+      this.pendingConnections.delete(peerKey)
+      this._swarm.markConnectFailed(peerKey, 'limit_exceeded')
       return
     }
 
     if (!this.globalLimitCheck()) {
       this.logger.debug(`Skipping peer ${peerInfo.ip}, global max connections reached`)
+      this.pendingConnections.delete(peerKey)
+      this._swarm.markConnectFailed(peerKey, 'limit_exceeded')
       return
     }
-
-    // Mark as pending before starting async connection
-    this.pendingConnections.add(peerKey)
 
     try {
       this.logger.info(`Connecting to ${peerInfo.ip}:${peerInfo.port}`)
@@ -291,6 +306,9 @@ export class Torrent extends EngineComponent {
         remotePort: peerInfo.port,
       })
 
+      // Remove from pending BEFORE adding to peers (prevents double-counting)
+      this.pendingConnections.delete(peerKey)
+
       // We need to set up the peer
       this.addPeer(peer)
 
@@ -299,8 +317,7 @@ export class Torrent extends EngineComponent {
     } catch (_err) {
       // very common to happen, don't log
       // this.logger.error(`Failed to connect to peer ${peerInfo.ip}:${peerInfo.port}`, { err })
-    } finally {
-      // Always remove from pending, whether success or failure
+      this._swarm.markConnectFailed(peerKey, 'connection_error')
       this.pendingConnections.delete(peerKey)
     }
   }
@@ -386,6 +403,21 @@ export class Torrent extends EngineComponent {
 
   get numPeers(): number {
     return this.peers.length
+  }
+
+  /**
+   * Get swarm statistics for debugging/UI.
+   * Shows all known peers from all discovery sources.
+   */
+  get swarm(): SwarmStats {
+    return this._swarm.getStats()
+  }
+
+  /**
+   * Get all swarm peers (for detailed debugging).
+   */
+  get swarmPeers(): IterableIterator<import('./swarm').SwarmPeer> {
+    return this._swarm.allPeers()
   }
 
   get isComplete(): boolean {
@@ -491,6 +523,9 @@ export class Torrent extends EngineComponent {
     this.logger.debug('Suspending network')
     this._networkActive = false
 
+    // Stop periodic maintenance
+    this.stopMaintenance()
+
     // Send stopped announce to trackers
     if (this.trackerManager) {
       this.trackerManager.announce('stopped').catch((err) => {
@@ -528,7 +563,124 @@ export class Torrent extends EngineComponent {
       this.initTrackerManager()
     }
 
-    // Note: Peer connections will come from tracker responses
+    // Start periodic maintenance for peer slots
+    this.startMaintenance()
+  }
+
+  /**
+   * Start periodic maintenance to fill peer slots.
+   * Runs every 5 seconds to check if we need more peers.
+   */
+  private startMaintenance(): void {
+    if (this._maintenanceInterval) return
+
+    this._maintenanceInterval = setInterval(() => {
+      this.runMaintenance()
+    }, 5000) // Run every 5 seconds
+  }
+
+  /**
+   * Stop periodic maintenance.
+   */
+  private stopMaintenance(): void {
+    if (this._maintenanceInterval) {
+      clearInterval(this._maintenanceInterval)
+      this._maintenanceInterval = null
+    }
+  }
+
+  /**
+   * TEMPORARY: Validate swarm/connection state invariants.
+   * Remove once swarm refactoring is complete.
+   */
+  private checkSwarmInvariants(): void {
+    const swarmStats = this._swarm.getStats()
+
+    // 1. connectedKeys should match numPeers
+    if (swarmStats.byState.connected !== this.numPeers) {
+      const msg = `swarm.connected (${swarmStats.byState.connected}) !== numPeers (${this.numPeers})`
+      this.logger.error(`INVARIANT VIOLATION: ${msg}`)
+      this.emit('invariant_violation', { type: 'connected_mismatch', message: msg })
+    }
+
+    // 2. connectingKeys should match pendingConnections
+    if (swarmStats.byState.connecting !== this.pendingConnections.size) {
+      const msg = `swarm.connecting (${swarmStats.byState.connecting}) !== pendingConnections (${this.pendingConnections.size})`
+      this.logger.error(`INVARIANT VIOLATION: ${msg}`)
+      this.emit('invariant_violation', { type: 'connecting_mismatch', message: msg })
+    }
+
+    // 3. Total active connections should not exceed maxPeers
+    const total = this.numPeers + this.pendingConnections.size
+    if (total > this.maxPeers) {
+      const msg = `total connections (${total}) > maxPeers (${this.maxPeers})`
+      this.logger.error(`INVARIANT VIOLATION: ${msg}`)
+      this.emit('invariant_violation', {
+        type: 'limit_exceeded',
+        total,
+        max: this.maxPeers,
+        peers: this.numPeers,
+        pending: this.pendingConnections.size,
+        message: msg,
+      })
+    }
+  }
+
+  /**
+   * TEMPORARY: Assert connection limit immediately after state changes.
+   * Call this after every pendingConnections.add() and peers.push().
+   */
+  private assertConnectionLimit(context: string): void {
+    const total = this.numPeers + this.pendingConnections.size
+    if (total > this.maxPeers) {
+      const msg = `${this.numPeers} peers + ${this.pendingConnections.size} pending = ${total} > ${this.maxPeers} max`
+      this.logger.error(`LIMIT EXCEEDED [${context}]: ${msg}`)
+      this.emit('invariant_violation', {
+        type: 'limit_exceeded',
+        context,
+        total,
+        max: this.maxPeers,
+        peers: this.numPeers,
+        pending: this.pendingConnections.size,
+        message: msg,
+      })
+    }
+  }
+
+  /**
+   * Run maintenance: try to fill peer slots from swarm.
+   */
+  private runMaintenance(): void {
+    // Always check invariants regardless of state
+    this.checkSwarmInvariants()
+
+    if (!this._networkActive) return
+    if (this.isComplete) return // Don't seek peers when complete (unless seeding, future feature)
+
+    const connected = this.numPeers
+    const connecting = this.pendingConnections.size
+    const slotsAvailable = this.maxPeers - connected - connecting
+
+    if (slotsAvailable <= 0) return
+    if (this._swarm.size === 0) return
+
+    // Get connectable peers from swarm (respects backoff, filters banned/connected)
+    const candidates = this._swarm.getConnectablePeers(slotsAvailable)
+
+    if (candidates.length > 0) {
+      this.logger.debug(
+        `Maintenance: ${connected} connected, ${connecting} connecting, ` +
+          `${slotsAvailable} slots available, trying ${candidates.length} candidates`,
+      )
+
+      for (const swarmPeer of candidates) {
+        if (!this.globalLimitCheck()) break
+        if (this.numPeers + this.pendingConnections.size >= this.maxPeers) break
+
+        // Connect using existing method
+        this.connectToPeer({ ip: swarmPeer.ip, port: swarmPeer.port })
+      }
+    }
   }
 
   /**
@@ -547,7 +699,19 @@ export class Torrent extends EngineComponent {
       this.port,
     )
 
-    this.trackerManager.on('peersDiscovered', () => {
+    this.trackerManager.on('peersDiscovered', (peers: PeerInfo[]) => {
+      // Add peers to swarm for unified tracking
+      const peerAddresses = peers.map((p) => ({
+        ip: p.ip,
+        port: p.port,
+        family: detectAddressFamily(p.ip),
+      }))
+      const added = this._swarm.addPeers(peerAddresses, 'tracker')
+      if (added > 0) {
+        this.logger.debug(`Added ${added} tracker peers to swarm (total: ${this._swarm.size})`)
+      }
+
+      // Fill peer slots (existing behavior)
       this.fillPeerSlots()
     })
 
@@ -616,9 +780,16 @@ export class Torrent extends EngineComponent {
   }
 
   addPeer(peer: PeerConnection) {
-    if (this.numPeers >= this.maxPeers) {
-      this.logger.warn('Rejecting peer, max peers reached')
+    // Check total connections including pending (accounts for incoming during outgoing attempts)
+    const total = this.numPeers + this.pendingConnections.size
+    if (total >= this.maxPeers) {
+      this.logger.warn(`Rejecting peer, max reached (${total}/${this.maxPeers})`)
       peer.close()
+      // Clear swarm connecting state if this was an outgoing connection we initiated
+      if (peer.remoteAddress && peer.remotePort) {
+        const peerKey = `${peer.remoteAddress}:${peer.remotePort}`
+        this._swarm.markConnectFailed(peerKey, 'max_peers_reached')
+      }
       return
     }
     // Note: global limit for incoming is handled by BtEngine, but if we add manually we should check?
@@ -627,24 +798,54 @@ export class Torrent extends EngineComponent {
     if (!this.globalLimitCheck()) {
       this.logger.warn('Rejecting peer, global max connections reached')
       peer.close()
+      // Clear swarm connecting state if this was an outgoing connection we initiated
+      if (peer.remoteAddress && peer.remotePort) {
+        const peerKey = `${peer.remoteAddress}:${peer.remotePort}`
+        this._swarm.markConnectFailed(peerKey, 'global_limit_reached')
+      }
       return
     }
 
     this.peers.push(peer)
+    this.assertConnectionLimit('addPeer')
     if (this.hasMetadata) {
       peer.bitfield = new BitField(this.piecesCount)
     }
     this.setupPeerListeners(peer)
+
+    // Update swarm state
+    if (peer.remoteAddress && peer.remotePort) {
+      const peerKey = `${peer.remoteAddress}:${peer.remotePort}`
+      if (this._swarm.hasPeer(peerKey)) {
+        // Outgoing connection we initiated
+        this._swarm.markConnected(peerKey, peer)
+      } else {
+        // Incoming connection - add to swarm
+        this._swarm.addIncomingConnection(
+          peer.remoteAddress,
+          peer.remotePort,
+          detectAddressFamily(peer.remoteAddress),
+          peer,
+        )
+      }
+    }
   }
 
   private setupPeerListeners(peer: PeerConnection) {
-    const onHandshake = (_infoHash: Uint8Array, _peerId: Uint8Array, extensions: boolean) => {
+    const onHandshake = (_infoHash: Uint8Array, peerId: Uint8Array, extensions: boolean) => {
       this.logger.debug('Handshake received')
       // Verify infoHash matches
 
       // If we initiated connection, we sent handshake first.
       // If they initiated, they sent handshake first.
       // PeerConnection handles the handshake exchange logic mostly.
+
+      // Update swarm with peer identity
+      if (peer.remoteAddress && peer.remotePort) {
+        const peerKey = `${peer.remoteAddress}:${peer.remotePort}`
+        // Note: clientName is null here - could be parsed from peerId later if needed
+        this._swarm.setIdentity(peerKey, peerId, null)
+      }
 
       if (extensions) {
         peer.sendExtendedHandshake()
@@ -746,6 +947,18 @@ export class Torrent extends EngineComponent {
       this.totalUploaded += bytes
       this.emit('upload', bytes)
     })
+
+    // PEX: Listen for peers discovered via peer exchange
+    // Note: pex_peers is emitted by PexHandler using (peer as any).emit()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(peer as any).on('pex_peers', (peers: import('./swarm').PeerAddress[]) => {
+      const added = this._swarm.addPeers(peers, 'pex')
+      if (added > 0) {
+        this.logger.debug(`Added ${added} PEX peers to swarm (total: ${this._swarm.size})`)
+        // Try to fill peer slots with newly discovered peers
+        this.fillPeerSlots()
+      }
+    })
   }
 
   private removePeer(peer: PeerConnection) {
@@ -753,6 +966,12 @@ export class Torrent extends EngineComponent {
     const index = this.peers.indexOf(peer)
     if (index !== -1) {
       this.peers.splice(index, 1)
+    }
+
+    // Update swarm state
+    if (peer.remoteAddress && peer.remotePort) {
+      const peerKey = `${peer.remoteAddress}:${peer.remotePort}`
+      this._swarm.markDisconnected(peerKey)
     }
 
     // THE KEY FIX: Clear requests for this peer so blocks can be re-requested
@@ -778,48 +997,11 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Connect to known peers from the tracker pool to fill available connection slots.
-   * Only runs if the torrent is still downloading (not complete).
-   * Shuffles peers for fairness (don't always connect to first N).
+   * Fill peer slots from the swarm.
+   * Delegates to runMaintenance() for single codepath.
    */
   private fillPeerSlots(): void {
-    if (!this._networkActive || !this.trackerManager) return
-
-    // Don't seek new peers if download is complete
-    if (this.isComplete) return
-
-    const slotsAvailable = this.maxPeers - this.numPeers
-    if (slotsAvailable <= 0) return
-
-    const knownPeers = this.trackerManager.getKnownPeers()
-    this.logger.debug(
-      `Filling peer slots: ${slotsAvailable} available, ${knownPeers.length} known peers`,
-    )
-
-    // Shuffle for fairness (don't always connect to first N)
-    const shuffled = this.shuffleArray(knownPeers)
-
-    for (const peer of shuffled) {
-      if (this.numPeers + this.pendingConnections.size >= this.maxPeers) break
-      if (!this.globalLimitCheck()) break
-
-      // Skip if already connected
-      const alreadyConnected = this.peers.some(
-        (p) => p.remoteAddress === peer.ip && p.remotePort === peer.port,
-      )
-      if (alreadyConnected) continue
-
-      this.connectToPeer(peer)
-    }
-  }
-
-  private shuffleArray<T>(array: T[]): T[] {
-    const result = [...array]
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[result[i], result[j]] = [result[j], result[i]]
-    }
-    return result
+    this.runMaintenance()
   }
 
   private async handleRequest(peer: PeerConnection, index: number, begin: number, length: number) {
@@ -1159,6 +1341,9 @@ export class Torrent extends EngineComponent {
   async stop() {
     this.logger.info('Stopping')
 
+    // Stop periodic maintenance
+    this.stopMaintenance()
+
     // Cleanup active pieces manager
     this.activePieces?.destroy()
 
@@ -1168,6 +1353,10 @@ export class Torrent extends EngineComponent {
     }
     this.peers.forEach((peer) => peer.close())
     this.peers = []
+
+    // Clear swarm state
+    this._swarm.clear()
+
     if (this.contentStorage) {
       await this.contentStorage.close()
     }

@@ -117,10 +117,11 @@ describe('PexHandler', () => {
     pexMsg.set(pexPayload, 6)
 
     const pexSpy = vi.fn()
-    ;(peer as any).on('pex_peer', pexSpy)
+    ;(peer as any).on('pex_peers', pexSpy)
 
     socket.emitData(pexMsg)
 
-    expect(pexSpy).toHaveBeenCalledWith({ ip: '1.2.3.4', port: 8080 })
+    // Now emits array of PeerAddress with family field
+    expect(pexSpy).toHaveBeenCalledWith([{ ip: '1.2.3.4', port: 8080, family: 'ipv4' }])
   })
 })

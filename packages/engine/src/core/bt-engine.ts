@@ -121,7 +121,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.onLogCallback = options.onLog
     this.filterFn = createFilter(options.logging ?? { level: 'info' })
     this.maxConnections = options.maxConnections ?? 100
-    this.maxPeers = options.maxPeers ?? 50
+    this.maxPeers = options.maxPeers ?? 20
     this._suspended = options.startSuspended ?? false
 
     // Initialize logger for BtEngine itself
