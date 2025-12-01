@@ -6,6 +6,14 @@
  * via externally_connectable.
  */
 
+interface ImportMetaEnv {
+  DEV_EXTENSION_ID?: string
+}
+
+interface ImportMeta {
+  env?: ImportMetaEnv
+}
+
 export interface ExtensionBridge {
   /**
    * Send a message to the service worker and wait for response.
@@ -96,8 +104,8 @@ const EXTENSION_ID_KEY = 'jstorrent_extension_id'
  */
 function getExtensionId(): string | null {
   // 1. Check Vite env variable
-  if (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV_EXTENSION_ID) {
-    return (import.meta as any).env.DEV_EXTENSION_ID
+  if (typeof import.meta !== 'undefined' && (import.meta as ImportMeta).env?.DEV_EXTENSION_ID) {
+    return (import.meta as ImportMeta).env.DEV_EXTENSION_ID
   }
 
   // 2. Check localStorage (previously saved)

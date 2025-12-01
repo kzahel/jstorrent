@@ -1,10 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ConnectionManager, DEFAULT_CONNECTION_CONFIG } from '../../../src/core/connection-manager'
-import { Swarm, SwarmPeer, addressKey } from '../../../src/core/swarm'
+import { Swarm, addressKey } from '../../../src/core/swarm'
 import { PeerConnection } from '../../../src/core/peer-connection'
 import { ISocketFactory, ITcpSocket } from '../../../src/interfaces/socket'
 import { MockEngine } from '../../../test/utils/mock-engine'
 import type { Logger } from '../../../src/logging/logger'
+import type { SwarmPeer } from '../../../src/core/swarm'
+
+// Type to access private methods for testing
+type ConnectionManagerWithPrivate = ConnectionManager & {
+  calculateScore: (peer: SwarmPeer) => number
+}
 
 describe('ConnectionManager', () => {
   let connectionManager: ConnectionManager
@@ -46,8 +52,8 @@ describe('ConnectionManager', () => {
       // Simulate peer1 had a successful connection before
       peer1.lastConnectSuccess = Date.now() - 1000
 
-      // Access private method via any cast for testing
-      const calculateScore = (connectionManager as any).calculateScore.bind(connectionManager)
+      // Access private method via type cast for testing
+      const calculateScore = (connectionManager as ConnectionManagerWithPrivate).calculateScore.bind(connectionManager)
 
       const score1 = calculateScore(peer1)
       const score2 = calculateScore(peer2)
@@ -63,7 +69,7 @@ describe('ConnectionManager', () => {
       // Simulate peer2 has failures
       peer2.connectFailures = 3
 
-      const calculateScore = (connectionManager as any).calculateScore.bind(connectionManager)
+      const calculateScore = (connectionManager as ConnectionManagerWithPrivate).calculateScore.bind(connectionManager)
 
       const score1 = calculateScore(peer1)
       const score2 = calculateScore(peer2)
@@ -77,7 +83,7 @@ describe('ConnectionManager', () => {
       const trackerPeer = swarm.addPeer({ ip: '1.2.3.2', port: 6881, family: 'ipv4' }, 'tracker')
       const pexPeer = swarm.addPeer({ ip: '1.2.3.3', port: 6881, family: 'ipv4' }, 'pex')
 
-      const calculateScore = (connectionManager as any).calculateScore.bind(connectionManager)
+      const calculateScore = (connectionManager as ConnectionManagerWithPrivate).calculateScore.bind(connectionManager)
 
       const manualScore = calculateScore(manualPeer)
       const trackerScore = calculateScore(trackerPeer)
@@ -94,7 +100,7 @@ describe('ConnectionManager', () => {
       // Simulate peer2 was tried recently
       peer2.lastConnectAttempt = Date.now() - 10000 // 10 seconds ago
 
-      const calculateScore = (connectionManager as any).calculateScore.bind(connectionManager)
+      const calculateScore = (connectionManager as ConnectionManagerWithPrivate).calculateScore.bind(connectionManager)
 
       const score1 = calculateScore(peer1)
       const score2 = calculateScore(peer2)
@@ -110,7 +116,7 @@ describe('ConnectionManager', () => {
       // Simulate peer1 has 1MB download history
       peer1.totalDownloaded = 1024 * 1024
 
-      const calculateScore = (connectionManager as any).calculateScore.bind(connectionManager)
+      const calculateScore = (connectionManager as ConnectionManagerWithPrivate).calculateScore.bind(connectionManager)
 
       const score1 = calculateScore(peer1)
       const score2 = calculateScore(peer2)
