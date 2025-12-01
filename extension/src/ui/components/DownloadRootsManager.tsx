@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { engineManager } from '../lib/engine-manager'
+import { engineManager } from '@jstorrent/client'
 
 interface DownloadRoot {
   token: string

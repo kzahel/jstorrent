@@ -3,8 +3,15 @@
  * Sends notification events to the service worker.
  */
 
-import type { ProgressStats } from '../../lib/notifications'
 import { getBridge } from './extension-bridge'
+
+export interface ProgressStats {
+  activeCount: number
+  errorCount: number
+  downloadSpeed: number // bytes per second
+  eta: number | null // seconds, null if unknown
+  singleTorrentName?: string // set when activeCount === 1
+}
 
 class NotificationBridge {
   private throttleTimer: ReturnType<typeof setTimeout> | null = null
@@ -85,6 +92,3 @@ class NotificationBridge {
 
 // Singleton instance
 export const notificationBridge = new NotificationBridge()
-
-// Re-export ProgressStats for convenience
-export type { ProgressStats }

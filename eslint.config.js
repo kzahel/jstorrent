@@ -76,6 +76,24 @@ export default tseslint.config(
       'import/no-nodejs-modules': 'off',
     },
   },
+  {
+    files: ['packages/client/src/**/*.{ts,tsx}'],
+    plugins: {
+      import: importPlugin,
+    },
+    rules: {
+      'import/no-nodejs-modules': 'error',
+    },
+  },
+  {
+    files: ['packages/ui/src/**/*.{ts,tsx}'],
+    plugins: {
+      import: importPlugin,
+    },
+    rules: {
+      'import/no-nodejs-modules': 'error',
+    },
+  },
   // IMPORTANT: Keep this last to disable formatting rules that conflict with Prettier
   // This must come after all other configs to properly override formatting rules
   prettierConfig,
