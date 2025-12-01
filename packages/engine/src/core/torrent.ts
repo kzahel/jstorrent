@@ -16,6 +16,7 @@ import type { BtEngine } from './bt-engine'
 import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
 import { Swarm, SwarmStats, detectAddressFamily, peerKey } from './swarm'
 import { ConnectionManager } from './connection-manager'
+import { ConnectionTimingTracker } from './connection-timing'
 
 /**
  * All persisted fields for a torrent.
@@ -66,6 +67,7 @@ export class Torrent extends EngineComponent {
   private pendingConnections: Set<string> = new Set() // Track in-flight connection attempts (legacy, to be removed)
   private _swarm: Swarm // Single source of truth for peer state (Phase 3)
   private _connectionManager: ConnectionManager // Handles outgoing connection lifecycle
+  private connectionTiming: ConnectionTimingTracker // Tracks connection timing for adaptive timeouts
   public infoHash: Uint8Array
   public peerId: Uint8Array
   public socketFactory: ISocketFactory
@@ -237,6 +239,9 @@ export class Torrent extends EngineComponent {
 
     this.instanceLogName = `t:${toHex(infoHash).slice(0, 6)}`
 
+    // Initialize connection timing tracker for adaptive timeouts
+    this.connectionTiming = new ConnectionTimingTracker()
+
     // Initialize swarm for unified peer tracking
     this._swarm = new Swarm(this.logger)
 
@@ -311,9 +316,16 @@ export class Torrent extends EngineComponent {
       return
     }
 
+    const connectStartTime = Date.now()
+    const timeout = this.connectionTiming.getTimeout()
+
     try {
-      this.logger.info(`Connecting to ${peerInfo.ip}:${peerInfo.port}`)
-      const socket = await this.socketFactory.createTcpSocket(peerInfo.ip, peerInfo.port)
+      this.logger.info(`Connecting to ${peerInfo.ip}:${peerInfo.port} (timeout: ${timeout}ms)`)
+      const socket = await this.createConnectionWithTimeout(peerInfo, timeout)
+
+      // Record successful connection time
+      const connectionTime = Date.now() - connectStartTime
+      this.connectionTiming.recordSuccess(connectionTime)
 
       const peer = new PeerConnection(this.engineInstance, socket, {
         remoteAddress: peerInfo.ip,
@@ -328,12 +340,61 @@ export class Torrent extends EngineComponent {
 
       // Initiate handshake
       peer.sendHandshake(this.infoHash, this.peerId)
-    } catch (_err) {
-      // very common to happen, don't log
-      // this.logger.error(`Failed to connect to peer ${peerInfo.ip}:${peerInfo.port}`, { err })
+    } catch (err) {
+      const elapsed = Date.now() - connectStartTime
+
+      // Check if this was a timeout
+      if (err instanceof Error && err.message.includes('timeout')) {
+        this.connectionTiming.recordTimeout()
+        this.logger.debug(`Connection to ${key} timed out after ${elapsed}ms`)
+      }
+
+      // very common to happen, don't log details
       this._swarm.markConnectFailed(key, 'connection_error')
       this.pendingConnections.delete(key)
     }
+  }
+
+  /**
+   * Create a TCP connection with an internal timeout.
+   * This runs independently of the io-daemon's 30s backstop.
+   */
+  private async createConnectionWithTimeout(
+    peerInfo: PeerInfo,
+    timeoutMs: number,
+  ): Promise<import('../interfaces/socket').ITcpSocket> {
+    return new Promise((resolve, reject) => {
+      let settled = false
+
+      // Internal timeout
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true
+          reject(new Error(`Connection timeout after ${timeoutMs}ms`))
+        }
+      }, timeoutMs)
+
+      // Attempt connection
+      this.socketFactory
+        .createTcpSocket(peerInfo.ip, peerInfo.port)
+        .then((socket) => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            resolve(socket)
+          } else {
+            // Timeout already fired, close the socket
+            socket.close()
+          }
+        })
+        .catch((error) => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            reject(error)
+          }
+        })
+    })
   }
 
   get infoHashStr(): string {
@@ -448,6 +509,13 @@ export class Torrent extends EngineComponent {
    */
   get swarmPeers(): IterableIterator<import('./swarm').SwarmPeer> {
     return this._swarm.allPeers()
+  }
+
+  /**
+   * Get connection timing statistics for debugging/UI.
+   */
+  getConnectionTimingStats(): import('./connection-timing').ConnectionTimingStats {
+    return this.connectionTiming.getStats()
   }
 
   get isComplete(): boolean {

@@ -215,8 +215,9 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                     let req_id = env.request_id;
 
                     tokio::spawn(async move {
-                        // 10 second connect timeout - prevents stalling on unresponsive peers
-                        let connect_timeout = Duration::from_secs(10);
+                        // 30 second connect timeout - backstop for slow connections (satellite, poor mobile)
+                        // The TypeScript engine manages its own adaptive timeout and will cancel earlier
+                        let connect_timeout = Duration::from_secs(30);
 
                         let connect_result = match timeout(
                             connect_timeout,
