@@ -2,6 +2,7 @@ import { PeerConnection } from './peer-connection'
 import { ActivePiece, BLOCK_SIZE } from './active-piece'
 import { ActivePieceManager } from './active-piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
+import { HashMismatchError } from '../adapters/daemon/daemon-file-handle'
 import { BitField } from '../utils/bitfield'
 import { MessageType, WireMessage } from '../protocol/wire-protocol'
 import { toHex, toString, compare } from '../utils/buffer'
@@ -1034,39 +1035,46 @@ export class Torrent extends EngineComponent {
 
   /**
    * Finalize a complete piece: verify hash and write to storage.
+   * Uses verified write when available (io-daemon) for atomic hash verification.
    */
   private async finalizePiece(index: number, piece: ActivePiece): Promise<void> {
     // Assemble the complete piece
     const pieceData = piece.assemble()
-
-    // Verify hash BEFORE writing to disk
     const expectedHash = this.getPieceHash(index)
-    if (expectedHash) {
-      const actualHash = await this.btEngine.hasher.sha1(pieceData)
 
-      if (compare(actualHash, expectedHash) !== 0) {
-        // Hash failed - track suspicious peers
-        const contributors = piece.getContributingPeers()
-        this.logger.warn(
-          `Piece ${index} failed hash check. Contributors: ${Array.from(contributors).join(', ')}`,
+    // Try to use verified write (atomic hash check in io-daemon)
+    if (this.contentStorage) {
+      try {
+        const usedVerifiedWrite = await this.contentStorage.writePieceVerified(
+          index,
+          pieceData,
+          expectedHash,
         )
 
-        // TODO: Increment suspicion count for these peers
-        // TODO: Ban peers with too many failed pieces
-
-        // Discard the failed piece data
+        if (!usedVerifiedWrite && expectedHash) {
+          // Verified write not available - verify hash in TypeScript
+          const actualHash = await this.btEngine.hasher.sha1(pieceData)
+          if (compare(actualHash, expectedHash) !== 0) {
+            this.handleHashMismatch(index, piece)
+            return
+          }
+        }
+        // If usedVerifiedWrite is true, hash was already verified by io-daemon
+      } catch (e) {
+        if (e instanceof HashMismatchError) {
+          // Hash verification failed in io-daemon
+          this.handleHashMismatch(index, piece)
+          return
+        }
+        this.logger.error(`Failed to write piece ${index}:`, e)
         this.activePieces?.remove(index)
         return
       }
-    }
-
-    // Hash verified - write to storage
-    if (this.contentStorage) {
-      try {
-        await this.contentStorage.writePiece(index, pieceData)
-      } catch (e) {
-        this.logger.error(`Failed to write piece ${index}:`, e)
-        this.activePieces?.remove(index)
+    } else if (expectedHash) {
+      // No storage but have hash - verify anyway (shouldn't happen in practice)
+      const actualHash = await this.btEngine.hasher.sha1(pieceData)
+      if (compare(actualHash, expectedHash) !== 0) {
+        this.handleHashMismatch(index, piece)
         return
       }
     }
@@ -1112,6 +1120,22 @@ export class Torrent extends EngineComponent {
     }
 
     this.checkCompletion()
+  }
+
+  /**
+   * Handle hash mismatch for a piece - log, track contributors, and discard.
+   */
+  private handleHashMismatch(index: number, piece: ActivePiece): void {
+    const contributors = piece.getContributingPeers()
+    this.logger.warn(
+      `Piece ${index} failed hash check. Contributors: ${Array.from(contributors).join(', ')}`,
+    )
+
+    // TODO: Increment suspicion count for these peers
+    // TODO: Ban peers with too many failed pieces
+
+    // Discard the failed piece data
+    this.activePieces?.remove(index)
   }
 
   private async verifyPiece(index: number): Promise<boolean> {

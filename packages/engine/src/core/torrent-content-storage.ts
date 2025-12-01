@@ -1,5 +1,6 @@
 import { IStorageHandle } from '../io/storage-handle'
 import { IFileHandle } from '../interfaces/filesystem'
+import { supportsVerifiedWrite } from '../adapters/daemon/daemon-file-handle'
 import { TorrentFile } from './torrent-file'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
 
@@ -126,6 +127,62 @@ export class TorrentContentStorage extends EngineComponent {
    */
   async writePiece(pieceIndex: number, data: Uint8Array): Promise<void> {
     await this.write(pieceIndex, 0, data)
+  }
+
+  /**
+   * Check if a piece fits entirely within a single file.
+   * Used to determine if verified write can be used.
+   */
+  private pieceSpansSingleFile(pieceIndex: number, pieceLength: number): TorrentFile | null {
+    const torrentOffset = pieceIndex * this.pieceLength
+    const torrentEnd = torrentOffset + pieceLength
+
+    for (const file of this.files) {
+      const fileEnd = file.offset + file.length
+      // Check if the entire piece is within this file
+      if (torrentOffset >= file.offset && torrentEnd <= fileEnd) {
+        return file
+      }
+    }
+    return null
+  }
+
+  /**
+   * Write a complete piece with optional hash verification.
+   * If expectedHash is provided and the piece fits in a single file with a handle
+   * that supports verified writes, the hash verification happens atomically
+   * in the io-daemon.
+   *
+   * @param pieceIndex The piece index
+   * @param data The piece data
+   * @param expectedHash Optional SHA1 hash to verify (raw bytes, not hex)
+   * @returns true if verified write was used, false if caller should verify
+   */
+  async writePieceVerified(
+    pieceIndex: number,
+    data: Uint8Array,
+    expectedHash?: Uint8Array,
+  ): Promise<boolean> {
+    // Check if we can use verified write
+    if (expectedHash) {
+      const singleFile = this.pieceSpansSingleFile(pieceIndex, data.length)
+      if (singleFile) {
+        const handle = await this.getFileHandle(singleFile.path)
+        if (supportsVerifiedWrite(handle)) {
+          // Use verified write - hash check happens in io-daemon
+          const torrentOffset = pieceIndex * this.pieceLength
+          const fileRelativeOffset = torrentOffset - singleFile.offset
+
+          handle.setExpectedHashForNextWrite(expectedHash)
+          await handle.write(data, 0, data.length, fileRelativeOffset)
+          return true // Verified write was used
+        }
+      }
+    }
+
+    // Fall back to regular write (caller should verify hash)
+    await this.write(pieceIndex, 0, data)
+    return false
   }
 
   async read(index: number, begin: number, length: number): Promise<Uint8Array> {

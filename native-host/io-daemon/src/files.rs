@@ -17,13 +17,15 @@ use crate::AppState;
 // 64MB limit for piece writes (must match MAX_PIECE_SIZE in engine)
 pub const MAX_BODY_SIZE: usize = 64 * 1024 * 1024;
 
+#[allow(deprecated)]
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
-        // New header-based endpoints (preferred)
+        // New header-based endpoints (preferred) - use base64-encoded path in headers
         .route("/write/:root_token", post(write_file_v2))
         .route("/read/:root_token", get(read_file_v2))
-        // Legacy path-based endpoints (kept for compatibility)
-        .route("/files/*path", get(read_file).post(write_file))
+        // DEPRECATED: Legacy path-based endpoints - path in URL breaks on # and ? characters
+        // These are no longer used by the TypeScript engine as of 2024-12
+        .route("/files/*path", get(read_file_deprecated).post(write_file_deprecated))
         .route("/files/ensure_dir", post(ensure_dir))
         .route("/ops/stat", get(stat_file))
         .route("/ops/list", get(list_dir))
@@ -32,6 +34,12 @@ pub fn routes() -> Router<Arc<AppState>> {
         .layer(DefaultBodyLimit::max(MAX_BODY_SIZE))
 }
 
+// ============================================================================
+// DEPRECATED: Legacy path-based endpoints
+// These use the file path in the URL which breaks on # and ? characters.
+// Use /read/:root_token and /write/:root_token with X-Path-Base64 header instead.
+// ============================================================================
+
 #[derive(Deserialize)]
 struct ReadParams {
     offset: Option<u64>,
@@ -39,14 +47,15 @@ struct ReadParams {
     root_token: String,
 }
 
-
-async fn read_file(
+#[deprecated(since = "0.1.0", note = "Use read_file_v2 with X-Path-Base64 header instead")]
+async fn read_file_deprecated(
     State(state): State<Arc<AppState>>,
     Path(path): Path<String>,
     axum::extract::Query(params): axum::extract::Query<ReadParams>,
 ) -> Result<Vec<u8>, (StatusCode, String)> {
-    let full_path = validate_path(&state, &params.root_token, &path)?;
+    tracing::warn!("DEPRECATED: /files/* endpoint called for read. Use /read/:root_token with X-Path-Base64 header instead.");
 
+    let full_path = validate_path(&state, &params.root_token, &path)?;
 
     let mut file = File::open(&full_path).await
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
@@ -75,15 +84,16 @@ struct WriteParams {
     root_token: String,
 }
 
-
-async fn write_file(
+#[deprecated(since = "0.1.0", note = "Use write_file_v2 with X-Path-Base64 header instead")]
+async fn write_file_deprecated(
     State(state): State<Arc<AppState>>,
     Path(path): Path<String>,
     axum::extract::Query(params): axum::extract::Query<WriteParams>,
     body: axum::body::Bytes,
 ) -> Result<(), (StatusCode, String)> {
-    let full_path = validate_path(&state, &params.root_token, &path)?;
+    tracing::warn!("DEPRECATED: /files/* endpoint called for write. Use /write/:root_token with X-Path-Base64 header instead.");
 
+    let full_path = validate_path(&state, &params.root_token, &path)?;
 
     // Ensure parent directory exists
     if let Some(parent) = full_path.parent() {
@@ -107,6 +117,10 @@ async fn write_file(
 
     Ok(())
 }
+
+// ============================================================================
+// Current API: Header-based endpoints
+// ============================================================================
 
 /// Helper to extract path from X-Path-Base64 header
 fn extract_path_from_header(headers: &HeaderMap) -> Result<String, (StatusCode, String)> {
