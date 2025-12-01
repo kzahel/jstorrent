@@ -1,29 +1,24 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Torrent } from '../../../src/core/torrent'
 import { PeerConnection } from '../../../src/core/peer-connection'
-import { ILoggingEngine } from '../../../src/logging/logger'
 import { ISocketFactory, ITcpSocket } from '../../../src/interfaces/socket'
+import { MockEngine } from '../../../test/utils/mock-engine'
+import type { BtEngine } from '../../../src/core/bt-engine'
 
 describe('Torrent Stats', () => {
   let torrent: Torrent
-  let mockEngine: ILoggingEngine
+  let mockEngine: MockEngine
   let mockSocketFactory: ISocketFactory
 
   beforeEach(() => {
-    mockEngine = {
-      log: vi.fn(),
-      debug: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-    } as unknown as ILoggingEngine
+    mockEngine = new MockEngine()
 
     mockSocketFactory = {
       createTcpSocket: vi.fn(),
     } as unknown as ISocketFactory
 
     torrent = new Torrent(
-      mockEngine,
+      mockEngine as unknown as BtEngine,
       new Uint8Array(20),
       new Uint8Array(20),
       mockSocketFactory,

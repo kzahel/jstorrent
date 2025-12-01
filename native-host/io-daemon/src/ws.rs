@@ -9,6 +9,7 @@ use std::sync::Arc;
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::sync::mpsc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::time::{timeout, Duration};
 use std::collections::HashMap;
 use tokio::sync::Mutex;
 use crate::AppState;
@@ -214,7 +215,21 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                     let req_id = env.request_id;
 
                     tokio::spawn(async move {
-                        match TcpStream::connect(format!("{}:{}", hostname, port)).await {
+                        // 10 second connect timeout - prevents stalling on unresponsive peers
+                        let connect_timeout = Duration::from_secs(10);
+
+                        let connect_result = match timeout(
+                            connect_timeout,
+                            TcpStream::connect(format!("{}:{}", hostname, port))
+                        ).await {
+                            Ok(result) => result,
+                            Err(_) => Err(std::io::Error::new(
+                                std::io::ErrorKind::TimedOut,
+                                "Connection timeout"
+                            )),
+                        };
+
+                        match connect_result {
                             Ok(stream) => {
                                 let (mut read_half, mut write_half) = stream.into_split();
                                 let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);

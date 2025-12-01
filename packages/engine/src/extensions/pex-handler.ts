@@ -1,5 +1,6 @@
 import { PeerConnection } from '../core/peer-connection'
 import { Bencode } from '../utils/bencode'
+import { parseCompactPeers, PeerAddress } from '../core/swarm'
 
 const EXT_HANDSHAKE_ID = 0
 
@@ -45,34 +46,30 @@ export class PexHandler {
   private handlePexMessage(payload: Uint8Array) {
     try {
       const dict = Bencode.decode(payload)
-      if (dict.added) {
-        this.parsePeers(dict.added)
+      const allPeers: PeerAddress[] = []
+
+      // IPv4 peers (6 bytes each: 4 IP + 2 port)
+      if (dict.added && dict.added instanceof Uint8Array) {
+        const ipv4Peers = parseCompactPeers(dict.added, 'ipv4')
+        allPeers.push(...ipv4Peers)
       }
-      if (dict.added6) {
-        this.parsePeers(dict.added6)
+
+      // IPv6 peers (18 bytes each: 16 IP + 2 port)
+      // FIXED: Previously used IPv4 parser (6 bytes) which was wrong
+      if (dict.added6 && dict.added6 instanceof Uint8Array) {
+        const ipv6Peers = parseCompactPeers(dict.added6, 'ipv6')
+        allPeers.push(...ipv6Peers)
       }
-      // We could also handle 'dropped'
+
+      // Emit all discovered peers in a single event
+      if (allPeers.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(this.peer as any).emit('pex_peers', allPeers)
+      }
+
+      // We could also handle 'dropped' / 'dropped6' to mark peers as gone
     } catch (_err) {
       // Ignore invalid PEX messages
-    }
-  }
-
-  private parsePeers(data: Uint8Array) {
-    // Parse compact peers
-    for (let i = 0; i < data.length; i += 6) {
-      if (i + 6 > data.length) break
-      const ip = `${data[i]}.${data[i + 1]}.${data[i + 2]}.${data[i + 3]}`
-      const port = (data[i + 4] << 8) | data[i + 5]
-      // Emit peer found event?
-      // PexHandler needs to notify Torrent or PeerManager
-      // For now, let's emit on PeerConnection or use a callback
-      // But PeerConnection is for ONE peer.
-      // We need to bubble this up.
-      // Maybe PexHandler should be an EventEmitter or PeerConnection should emit 'pex_peer'.
-
-      // Let's emit 'pex_peer' on PeerConnection
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(this.peer as any).emit('pex_peer', { ip, port })
     }
   }
 }
