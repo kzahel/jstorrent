@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { useState, useRef } from 'react'
 import { Torrent } from '@jstorrent/engine'
-import { TorrentTable, formatBytes } from '@jstorrent/ui'
+import { TorrentTable, DetailPane, formatBytes } from '@jstorrent/ui'
 import { EngineProvider, useEngineState, engineManager } from '@jstorrent/client'
 import { DownloadRootsManager } from './components/DownloadRootsManager'
 
@@ -12,6 +12,9 @@ function AppContent() {
   const [selectedTorrents, setSelectedTorrents] = useState<Set<string>>(new Set())
   const { adapter, torrents, numConnections, globalStats } = useEngineState()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Get single selected hash for detail pane
+  const selectedHash = selectedTorrents.size === 1 ? [...selectedTorrents][0] : null
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -187,28 +190,38 @@ function AppContent() {
               </div>
             </div>
 
-            {/* Table */}
-            <div style={{ flex: 1, minHeight: 0 }}>
-              {torrents.length === 0 ? (
-                <div
-                  style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}
-                >
-                  No torrents. Add a magnet link to get started.
-                </div>
-              ) : (
-                <TorrentTable
-                  source={adapter}
-                  selectedHashes={selectedTorrents}
-                  onSelectionChange={setSelectedTorrents}
-                  onRowDoubleClick={(torrent: Torrent) => {
-                    if (torrent.userState === 'stopped') {
-                      torrent.userStart()
-                    } else {
-                      torrent.userStop()
-                    }
-                  }}
-                />
-              )}
+            {/* Main content: Torrent table + Detail pane */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              {/* Torrent table - top half */}
+              <div
+                style={{ flex: 1, minHeight: 150, borderBottom: '1px solid var(--border-color)' }}
+              >
+                {torrents.length === 0 ? (
+                  <div
+                    style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}
+                  >
+                    No torrents. Add a magnet link to get started.
+                  </div>
+                ) : (
+                  <TorrentTable
+                    source={adapter}
+                    selectedHashes={selectedTorrents}
+                    onSelectionChange={setSelectedTorrents}
+                    onRowDoubleClick={(torrent: Torrent) => {
+                      if (torrent.userState === 'stopped') {
+                        torrent.userStart()
+                      } else {
+                        torrent.userStop()
+                      }
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Detail pane - bottom half */}
+              <div style={{ height: 250, minHeight: 100 }}>
+                <DetailPane source={adapter} selectedHash={selectedHash} />
+              </div>
             </div>
           </>
         )}

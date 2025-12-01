@@ -33,26 +33,32 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
   // Container ref for virtualizer
   let containerRef: HTMLDivElement | undefined
 
+  // RAF-based update loop for live data
+  let rafId: number | undefined
+  const [tick, forceUpdate] = createSignal({}, { equals: false })
+
+  // Derived accessor that subscribes to RAF updates
+  const rows = () => {
+    tick() // Subscribe to the RAF signal
+    return props.getRows()
+  }
+
   // Create virtualizer
   const virtualizer = createVirtualizer({
     get count() {
-      return props.getRows().length
+      return rows().length
     },
     getScrollElement: () => containerRef ?? null,
     estimateSize: () => rowHeight,
     overscan: 5,
   })
 
-  // RAF-based update loop for live data
-  let rafId: number | undefined
-  const [, forceUpdate] = createSignal({}, { equals: false })
-
   onMount(() => {
-    const tick = () => {
+    const loop = () => {
       forceUpdate({})
-      rafId = requestAnimationFrame(tick)
+      rafId = requestAnimationFrame(loop)
     }
-    rafId = requestAnimationFrame(tick)
+    rafId = requestAnimationFrame(loop)
   })
 
   onCleanup(() => {
@@ -159,7 +165,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
       >
         <For each={virtualizer.getVirtualItems()}>
           {(virtualRow) => {
-            const row = () => props.getRows()[virtualRow.index]
+            const row = () => rows()[virtualRow.index]
             const key = () => props.getRowKey(row())
             const isSelected = () => props.selectedKeys?.has(key()) ?? false
 
