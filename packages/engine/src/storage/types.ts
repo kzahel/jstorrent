@@ -1,5 +1,5 @@
 export interface StorageRoot {
-  token: string
+  key: string
   label: string
   path: string
 }

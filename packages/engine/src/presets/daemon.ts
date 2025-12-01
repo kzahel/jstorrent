@@ -23,7 +23,7 @@ export async function createDaemonEngine(config: DaemonEngineConfig): Promise<Bt
   await connection.connectWebSocket()
 
   const storageRootManager = new StorageRootManager((root) => {
-    return new DaemonFileSystem(connection, root.token)
+    return new DaemonFileSystem(connection, root.key)
   })
 
   for (const root of config.contentRoots) {

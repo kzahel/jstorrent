@@ -16,8 +16,8 @@ describe('DaemonFileSystem Integration', () => {
   let connection: DaemonConnection
   let fs1: DaemonFileSystem
   let fs2: DaemonFileSystem
-  const rootToken1 = 'root-1'
-  const rootToken2 = 'root-2'
+  const rootKey1 = 'root-1'
+  const rootKey2 = 'root-2'
 
   beforeAll(async () => {
     // Create temp directories for roots
@@ -27,14 +27,14 @@ describe('DaemonFileSystem Integration', () => {
 
     harness = await startDaemon({
       roots: [
-        { token: rootToken1, path: dataDir1, displayName: 'Root 1' },
-        { token: rootToken2, path: dataDir2, displayName: 'Root 2' },
+        { key: rootKey1, path: dataDir1, displayName: 'Root 1' },
+        { key: rootKey2, path: dataDir2, displayName: 'Root 2' },
       ],
     })
 
     connection = new DaemonConnection(harness.port, harness.token)
-    fs1 = new DaemonFileSystem(connection, rootToken1)
-    fs2 = new DaemonFileSystem(connection, rootToken2)
+    fs1 = new DaemonFileSystem(connection, rootKey1)
+    fs2 = new DaemonFileSystem(connection, rootKey2)
   })
 
   afterAll(async () => {
@@ -131,7 +131,7 @@ describe('DaemonFileSystem Integration', () => {
 
   // ============================================================================
   // New API tests: base64 path encoding and hash verification
-  // These test the /read/:root_token and /write/:root_token endpoints
+  // These test the /read/:root_key and /write/:root_key endpoints
   // ============================================================================
 
   it('should handle paths with # character (v2 API)', async () => {

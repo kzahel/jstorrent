@@ -16,8 +16,8 @@ import {
 import { getBridge } from './extension-bridge'
 import { notificationBridge, ProgressStats } from './notification-bridge'
 
-// Session store key for default root token
-const DEFAULT_ROOT_TOKEN_KEY = 'settings:defaultRootToken'
+// Session store key for default root key
+const DEFAULT_ROOT_KEY_KEY = 'settings:defaultRootKey'
 
 /**
  * Create the appropriate session store based on context.
@@ -42,7 +42,7 @@ export interface DaemonInfo {
   token: string
   version?: number
   roots: Array<{
-    token: string
+    key: string
     path: string
     display_name: string
     removable: boolean
@@ -52,7 +52,7 @@ export interface DaemonInfo {
 }
 
 export interface DownloadRoot {
-  token: string
+  key: string
   path: string
   display_name: string
   removable: boolean
@@ -115,7 +115,7 @@ class EngineManager {
 
     // 3. Set up storage root manager
     const srm = new StorageRootManager(
-      (root) => new DaemonFileSystem(this.daemonConnection!, root.token),
+      (root) => new DaemonFileSystem(this.daemonConnection!, root.key),
     )
 
     // 4. Create session store (before registering roots so we can load default)
@@ -125,21 +125,21 @@ class EngineManager {
     if (daemonInfo.roots && daemonInfo.roots.length > 0) {
       for (const root of daemonInfo.roots) {
         srm.addRoot({
-          token: root.token,
+          key: root.key,
           label: root.display_name,
           path: root.path,
         })
       }
 
       // Load saved default root from session store
-      const savedDefaultBytes = await this.sessionStore.get(DEFAULT_ROOT_TOKEN_KEY)
-      const defaultToken = savedDefaultBytes ? new TextDecoder().decode(savedDefaultBytes) : null
-      const validDefault = defaultToken && daemonInfo.roots.some((r) => r.token === defaultToken)
+      const savedDefaultBytes = await this.sessionStore.get(DEFAULT_ROOT_KEY_KEY)
+      const defaultKey = savedDefaultBytes ? new TextDecoder().decode(savedDefaultBytes) : null
+      const validDefault = defaultKey && daemonInfo.roots.some((r) => r.key === defaultKey)
 
       if (validDefault) {
-        srm.setDefaultRoot(defaultToken)
+        srm.setDefaultRoot(defaultKey)
       } else if (daemonInfo.roots.length > 0) {
-        srm.setDefaultRoot(daemonInfo.roots[0].token)
+        srm.setDefaultRoot(daemonInfo.roots[0].key)
       }
       console.log('[EngineManager] Registered', daemonInfo.roots.length, 'download roots')
     } else {
@@ -230,7 +230,7 @@ class EngineManager {
     if (this.engine) {
       const root = response.root
       this.engine.storageRootManager.addRoot({
-        token: root.token,
+        key: root.key,
         label: root.display_name,
         path: root.path,
       })
@@ -242,32 +242,32 @@ class EngineManager {
   /**
    * Set the default download root.
    */
-  async setDefaultRoot(token: string): Promise<void> {
+  async setDefaultRoot(key: string): Promise<void> {
     if (!this.engine) {
       throw new Error('Engine not initialized')
     }
-    this.engine.storageRootManager.setDefaultRoot(token)
+    this.engine.storageRootManager.setDefaultRoot(key)
     if (this.sessionStore) {
-      await this.sessionStore.set(DEFAULT_ROOT_TOKEN_KEY, new TextEncoder().encode(token))
+      await this.sessionStore.set(DEFAULT_ROOT_KEY_KEY, new TextEncoder().encode(key))
     }
   }
 
   /**
    * Get current download roots.
    */
-  getRoots(): Array<{ token: string; label: string; path: string }> {
+  getRoots(): Array<{ key: string; label: string; path: string }> {
     if (!this.engine) return []
     return this.engine.storageRootManager.getRoots()
   }
 
   /**
-   * Get current default root token.
+   * Get current default root key.
    */
-  async getDefaultRootToken(): Promise<string | null> {
+  async getDefaultRootKey(): Promise<string | null> {
     if (!this.sessionStore) {
       return null
     }
-    const bytes = await this.sessionStore.get(DEFAULT_ROOT_TOKEN_KEY)
+    const bytes = await this.sessionStore.get(DEFAULT_ROOT_KEY_KEY)
     return bytes ? new TextDecoder().decode(bytes) : null
   }
 

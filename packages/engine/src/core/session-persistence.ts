@@ -15,7 +15,7 @@ export interface TorrentSessionData {
   infoHash: string // Hex string
   magnetLink?: string // Original magnet link if added via magnet
   torrentFile?: string // Base64 encoded .torrent file if added via file
-  storageToken?: string // Which download root to use
+  storageKey?: string // Which download root to use
   addedAt: number // Timestamp when added
 
   // User state
@@ -217,7 +217,7 @@ export class SessionPersistence {
 
         if (data.magnetLink) {
           torrent = await this.engine.addTorrent(data.magnetLink, {
-            storageToken: data.storageToken,
+            storageKey: data.storageKey,
             source: 'restore',
             userState: data.userState || 'active',
           })
@@ -225,7 +225,7 @@ export class SessionPersistence {
           // Decode base64 torrent file
           const buffer = this.base64ToUint8Array(data.torrentFile)
           torrent = await this.engine.addTorrent(buffer, {
-            storageToken: data.storageToken,
+            storageKey: data.storageKey,
             source: 'restore',
             userState: data.userState || 'active',
           })
@@ -286,15 +286,15 @@ export class SessionPersistence {
     const infoHash = toHex(torrent.infoHash)
     const persistedState = torrent.getPersistedState()
 
-    // Get storage token for this torrent
+    // Get storage key for this torrent
     const root = this.engine.storageRootManager.getRootForTorrent(infoHash)
-    const storageToken = root?.token
+    const storageKey = root?.key
 
     return {
       infoHash,
       magnetLink: persistedState.magnetLink,
       torrentFile: persistedState.torrentFileBase64,
-      storageToken,
+      storageKey,
       addedAt: persistedState.addedAt,
 
       // Persist user state

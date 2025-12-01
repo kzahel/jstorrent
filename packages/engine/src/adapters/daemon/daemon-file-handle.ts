@@ -25,7 +25,7 @@ export class DaemonFileHandle implements IFileHandle {
   constructor(
     private connection: DaemonConnection,
     private path: string,
-    private rootToken: string,
+    private rootKey: string,
   ) {}
 
   /**
@@ -45,7 +45,7 @@ export class DaemonFileHandle implements IFileHandle {
   ): Promise<{ bytesRead: number }> {
     const pathB64 = btoa(this.path)
 
-    const data = await this.connection.requestBinaryWithHeaders('GET', `/read/${this.rootToken}`, {
+    const data = await this.connection.requestBinaryWithHeaders('GET', `/read/${this.rootKey}`, {
       'X-Path-Base64': pathB64,
       'X-Offset': String(position),
       'X-Length': String(length),
@@ -83,7 +83,7 @@ export class DaemonFileHandle implements IFileHandle {
 
     const response = await this.connection.requestWithHeaders(
       'POST',
-      `/write/${this.rootToken}`,
+      `/write/${this.rootKey}`,
       headers,
       data,
     )
@@ -102,7 +102,7 @@ export class DaemonFileHandle implements IFileHandle {
   async truncate(len: number): Promise<void> {
     await this.connection.request('POST', '/ops/truncate', undefined, {
       path: this.path,
-      root_token: this.rootToken,
+      root_key: this.rootKey,
       length: len,
     })
   }

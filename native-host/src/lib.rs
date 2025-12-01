@@ -24,7 +24,7 @@ pub struct ProfileEntry {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DownloadRoot {
-    pub token: String,
+    pub key: String,
     pub path: String,
     pub display_name: String,
     pub removable: bool,

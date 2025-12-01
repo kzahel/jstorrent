@@ -1,5 +1,5 @@
 export interface DownloadRoot {
-  token: string
+  key: string
   path: string
   display_name: string
   removable: boolean

@@ -24,22 +24,22 @@ pub async fn pick_download_directory(state: &State) -> Result<ResponsePayload> {
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| path_str.clone());
 
-            // Get salt from rpc_info to generate stable token
+            // Get salt from rpc_info to generate stable key
             let salt = if let Ok(info_guard) = state.rpc_info.lock() {
                 info_guard.as_ref().map(|i| i.salt.clone()).unwrap_or_default()
             } else {
                 String::new()
             };
 
-            // Generate stable token: sha256(salt + path)
+            // Generate stable key: sha256(salt + path)
             let mut hasher = Sha256::new();
             hasher.update(salt.as_bytes());
             hasher.update(path_str.as_bytes());
-            let token = hex::encode(hasher.finalize());
+            let key = hex::encode(hasher.finalize());
 
-            // Create new root with unique token
+            // Create new root with unique key
             let new_root = DownloadRoot {
-                token,
+                key,
                 path: path_str.clone(),
                 display_name,
                 removable: false,
@@ -59,7 +59,7 @@ pub async fn pick_download_directory(state: &State) -> Result<ResponsePayload> {
                         info.download_roots.push(new_root.clone());
                     } else {
                         // If exists, return the existing root (maybe update timestamp?)
-                        // For now just return the new_root which has the same token/path
+                        // For now just return the new_root which has the same key/path
                     }
                 }
             }
