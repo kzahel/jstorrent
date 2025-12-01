@@ -4,7 +4,7 @@
     "noEmit": true
   },
   "include": ["src", "test", "e2e"],
-  "exclude": ["e2e/playwright.config.ts"],
+  "exclude": ["e2e/playwright.config.ts", "../packages/**/*.solid.tsx"],
   "references": [
     {
       "path": "./tsconfig.node.json"

@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import solid from 'vite-plugin-solid'
 import { resolve } from 'path'
 import dns from 'dns'
 
@@ -119,7 +120,22 @@ function injectPublicKey() {
 }
 
 export default defineConfig({
-  plugins: [react(), printDevUrls(), injectPublicKey(), sourcemapIgnoreLogger()],
+  plugins: [
+    // Solid plugin MUST come first, only for .solid.tsx files
+    solid({
+      include: ['**/*.solid.tsx'],
+      solid: {
+        generate: 'dom',
+      },
+    }),
+    // React plugin for all other .tsx files
+    react({
+      exclude: ['**/*.solid.tsx'],
+    }),
+    printDevUrls(),
+    injectPublicKey(),
+    sourcemapIgnoreLogger(),
+  ],
   define: {
     // Provide default extension ID if not set via env var
     'import.meta.env.DEV_EXTENSION_ID': JSON.stringify(
@@ -143,6 +159,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@jstorrent/engine': resolve(__dirname, '../packages/engine/src/index.ts'),
+      '@jstorrent/client': resolve(__dirname, '../packages/client/src/index.ts'),
+      '@jstorrent/ui': resolve(__dirname, '../packages/ui/src/index.ts'),
     },
   },
   build: {

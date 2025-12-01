@@ -1,16 +1,23 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { useState, useRef } from 'react'
-import { Torrent, generateMagnet, createTorrentBuffer } from '@jstorrent/engine'
-import { TorrentItem, formatBytes } from '@jstorrent/ui'
+import { Torrent } from '@jstorrent/engine'
+import { TorrentTable, formatBytes } from '@jstorrent/ui'
 import { EngineProvider, useEngineState, engineManager } from '@jstorrent/client'
 import { DownloadRootsManager } from './components/DownloadRootsManager'
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<'torrents' | 'settings'>('torrents')
   const [magnetInput, setMagnetInput] = useState('')
+  const [selectedTorrents, setSelectedTorrents] = useState<Set<string>>(new Set())
   const { adapter, torrents, numConnections, globalStats } = useEngineState()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Keep a ref to torrents so Solid's RAF loop always reads the latest
+  const torrentsRef = useRef(torrents)
+  React.useEffect(() => {
+    torrentsRef.current = torrents
+  }, [torrents])
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -38,51 +45,32 @@ function AppContent() {
     }
   }
 
-  const handleStartTorrent = (torrent: Torrent) => {
-    torrent.userStart()
-  }
-
-  const handleStopTorrent = (torrent: Torrent) => {
-    torrent.userStop()
-  }
-
-  const handleDeleteTorrent = async (torrent: Torrent) => {
-    await adapter.removeTorrent(torrent)
-  }
-
-  const handleRecheckTorrent = async (torrent: Torrent) => {
-    await torrent.recheckData()
-  }
-
-  const handleResetTorrent = async (torrent: Torrent) => {
-    const metadataRaw = torrent.metadataRaw
-    let torrentData: string | Uint8Array
-
-    if (metadataRaw) {
-      torrentData = createTorrentBuffer({
-        metadataRaw,
-        announce: torrent.announce,
-      })
-    } else {
-      torrentData = generateMagnet({
-        infoHash: torrent.infoHashStr,
-        name: torrent.name,
-        announce: torrent.announce,
-      })
+  const handleDeleteSelected = async () => {
+    for (const hash of selectedTorrents) {
+      const torrent = torrents.find((t) => t.infoHashStr === hash)
+      if (torrent) {
+        await adapter.removeTorrent(torrent)
+      }
     }
-
-    await adapter.removeTorrent(torrent)
-    await adapter.addTorrent(torrentData, { userState: 'stopped' })
+    setSelectedTorrents(new Set())
   }
 
-  const handleShareTorrent = (torrent: Torrent) => {
-    const magnetUri = generateMagnet({
-      infoHash: torrent.infoHashStr,
-      name: torrent.name,
-      announce: torrent.announce,
-    })
-    const shareUrl = `${import.meta.env.SHARE_URL}#magnet=${encodeURIComponent(magnetUri)}`
-    window.open(shareUrl, '_blank')
+  const handleStartSelected = () => {
+    for (const hash of selectedTorrents) {
+      const torrent = torrents.find((t) => t.infoHashStr === hash)
+      if (torrent && torrent.userState === 'stopped') {
+        torrent.userStart()
+      }
+    }
+  }
+
+  const handleStopSelected = () => {
+    for (const hash of selectedTorrents) {
+      const torrent = torrents.find((t) => t.infoHashStr === hash)
+      if (torrent && torrent.userState !== 'stopped') {
+        torrent.userStop()
+      }
+    }
   }
 
   return (
@@ -138,10 +126,19 @@ function AppContent() {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {activeTab === 'torrents' && (
-          <div style={{ padding: '20px' }}>
-            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+          <>
+            {/* Toolbar */}
+            <div
+              style={{
+                padding: '8px 20px',
+                borderBottom: '1px solid var(--border-color)',
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center',
+              }}
+            >
               <input
                 type="file"
                 ref={fileInputRef}
@@ -159,38 +156,67 @@ function AppContent() {
                   }
                 }}
                 placeholder="Enter magnet link or URL"
-                style={{ flex: 1, padding: '8px' }}
+                style={{ flex: 1, padding: '6px 8px', maxWidth: '400px' }}
               />
-              <button onClick={handleAddTorrent} style={{ padding: '8px 16px', cursor: 'pointer' }}>
+              <button onClick={handleAddTorrent} style={{ padding: '6px 12px', cursor: 'pointer' }}>
                 Add
               </button>
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
+              <button
+                onClick={handleStartSelected}
+                disabled={selectedTorrents.size === 0}
+                style={{ padding: '6px 12px', cursor: 'pointer' }}
+                title="Start selected"
+              >
+                Start
+              </button>
+              <button
+                onClick={handleStopSelected}
+                disabled={selectedTorrents.size === 0}
+                style={{ padding: '6px 12px', cursor: 'pointer' }}
+                title="Stop selected"
+              >
+                Stop
+              </button>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={selectedTorrents.size === 0}
+                style={{ padding: '6px 12px', cursor: 'pointer', color: 'var(--accent-error)' }}
+                title="Remove selected"
+              >
+                Remove
+              </button>
+              <div style={{ marginLeft: 'auto', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                {torrents.length} torrents | {numConnections} connections | ↓{' '}
+                {formatBytes(globalStats.totalDownloadRate)}/s | ↑{' '}
+                {formatBytes(globalStats.totalUploadRate)}/s
+              </div>
             </div>
 
-            <div style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
-              {torrents.length} torrents | {numConnections} connections |{' '}
-              {formatBytes(globalStats.totalDownloadRate)}/s |{' '}
-              {formatBytes(globalStats.totalUploadRate)}/s
+            {/* Table */}
+            <div style={{ flex: 1, minHeight: 0 }}>
+              {torrents.length === 0 ? (
+                <div
+                  style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}
+                >
+                  No torrents. Add a magnet link to get started.
+                </div>
+              ) : (
+                <TorrentTable
+                  getTorrents={() => torrentsRef.current}
+                  selectedHashes={selectedTorrents}
+                  onSelectionChange={setSelectedTorrents}
+                  onRowDoubleClick={(torrent: Torrent) => {
+                    if (torrent.userState === 'stopped') {
+                      torrent.userStart()
+                    } else {
+                      torrent.userStop()
+                    }
+                  }}
+                />
+              )}
             </div>
-
-            {torrents.length === 0 ? (
-              <p>No torrents. Add a magnet link to get started.</p>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                {torrents.map((torrent) => (
-                  <TorrentItem
-                    key={torrent.infoHashStr}
-                    torrent={torrent}
-                    onStart={handleStartTorrent}
-                    onStop={handleStopTorrent}
-                    onDelete={handleDeleteTorrent}
-                    onRecheck={handleRecheckTorrent}
-                    onReset={handleResetTorrent}
-                    onShare={handleShareTorrent}
-                  />
-                ))}
-              </ul>
-            )}
-          </div>
+          </>
         )}
 
         {activeTab === 'settings' && <DownloadRootsManager />}
