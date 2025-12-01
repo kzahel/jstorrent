@@ -53,6 +53,15 @@ importers:
 
   extension:
     dependencies:
+      '@jstorrent/client':
+        specifier: workspace:*
+        version: link:../packages/client
+      '@jstorrent/engine':
+        specifier: workspace:*
+        version: link:../packages/engine
+      '@jstorrent/ui':
+        specifier: workspace:*
+        version: link:../packages/ui
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -97,6 +106,25 @@ importers:
         specifier: ^4.0.13
         version: 4.0.13(@types/node@20.19.25)(happy-dom@20.0.10)(tsx@4.20.6)
 
+  packages/client:
+    dependencies:
+      '@jstorrent/engine':
+        specifier: workspace:*
+        version: link:../engine
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+    devDependencies:
+      '@types/chrome':
+        specifier: ^0.1.31
+        version: 0.1.31
+      '@types/react':
+        specifier: ^18.2.37
+        version: 18.3.27
+      typescript:
+        specifier: ^5.2.2
+        version: 5.9.3
+
   packages/engine:
     devDependencies:
       '@types/node':
@@ -114,6 +142,22 @@ importers:
       vitest:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@20.19.25)(happy-dom@20.0.10)
+
+  packages/ui:
+    dependencies:
+      '@jstorrent/engine':
+        specifier: workspace:*
+        version: link:../engine
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+    devDependencies:
+      '@types/react':
+        specifier: ^18.2.37
+        version: 18.3.27
+      typescript:
+        specifier: ^5.2.2
+        version: 5.9.3
 
   website:
     dependencies:

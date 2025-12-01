@@ -16,6 +16,9 @@
     "check_fast": "npm-run-all --parallel typecheck test"
   },
   "dependencies": {
+    "@jstorrent/client": "workspace:*",
+    "@jstorrent/engine": "workspace:*",
+    "@jstorrent/ui": "workspace:*",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

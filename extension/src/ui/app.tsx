@@ -2,50 +2,36 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { useState, useRef } from 'react'
 import { Torrent, generateMagnet, createTorrentBuffer } from '@jstorrent/engine'
-import { LogViewer } from './components/LogViewer'
+import { TorrentItem, formatBytes } from '@jstorrent/ui'
+import { EngineProvider, useEngineState, engineManager } from '@jstorrent/client'
 import { DownloadRootsManager } from './components/DownloadRootsManager'
-import { TorrentItem } from './components/TorrentItem'
-import { EngineProvider } from './context/EngineContext'
-import { useEngineState } from './hooks/useEngineState'
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState<'torrents' | 'logs' | 'settings'>('torrents')
+  const [activeTab, setActiveTab] = useState<'torrents' | 'settings'>('torrents')
   const [magnetInput, setMagnetInput] = useState('')
-  const { engine, loading, error, torrents, globalStats } = useEngineState()
+  const { adapter, torrents, numConnections, globalStats } = useEngineState()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !engine) return
+    if (!file) return
     try {
       const buffer = await file.arrayBuffer()
-      await engine.addTorrent(new Uint8Array(buffer))
+      await adapter.addTorrent(new Uint8Array(buffer))
     } catch (err) {
       console.error('Failed to add torrent file:', err)
     }
-    // Reset input so same file can be selected again
     e.target.value = ''
   }
 
   const handleAddTorrent = async () => {
-    if (!engine) return
-
     if (!magnetInput) {
-      // Empty input - open file picker
       fileInputRef.current?.click()
       return
     }
 
     try {
-      await engine.addTorrent(magnetInput)
+      await adapter.addTorrent(magnetInput)
       setMagnetInput('')
     } catch (e) {
       console.error('Failed to add torrent:', e)
@@ -61,8 +47,7 @@ function AppContent() {
   }
 
   const handleDeleteTorrent = async (torrent: Torrent) => {
-    if (!engine) return
-    await engine.removeTorrent(torrent)
+    await adapter.removeTorrent(torrent)
   }
 
   const handleRecheckTorrent = async (torrent: Torrent) => {
@@ -70,20 +55,15 @@ function AppContent() {
   }
 
   const handleResetTorrent = async (torrent: Torrent) => {
-    if (!engine) return
-
-    // Prefer using metadata if available (avoids re-fetching from peers)
     const metadataRaw = torrent.metadataRaw
     let torrentData: string | Uint8Array
 
     if (metadataRaw) {
-      // Create torrent buffer from metadata - preserves infodict
       torrentData = createTorrentBuffer({
         metadataRaw,
         announce: torrent.announce,
       })
     } else {
-      // Fall back to magnet link if no metadata
       torrentData = generateMagnet({
         infoHash: torrent.infoHashStr,
         name: torrent.name,
@@ -91,10 +71,8 @@ function AppContent() {
       })
     }
 
-    // Remove torrent (files stay on disk)
-    await engine.removeTorrent(torrent)
-    // Re-add in stopped state
-    await engine.addTorrent(torrentData, { userState: 'stopped' })
+    await adapter.removeTorrent(torrent)
+    await adapter.addTorrent(torrentData, { userState: 'stopped' })
   }
 
   const handleShareTorrent = (torrent: Torrent) => {
@@ -144,19 +122,6 @@ function AppContent() {
             Torrents
           </button>
           <button
-            onClick={() => setActiveTab('logs')}
-            style={{
-              padding: '8px 16px',
-              background: activeTab === 'logs' ? 'var(--accent-primary)' : 'var(--button-bg)',
-              color: activeTab === 'logs' ? 'white' : 'var(--button-text)',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            Logs
-          </button>
-          <button
             onClick={() => setActiveTab('settings')}
             style={{
               padding: '8px 16px',
@@ -201,41 +166,32 @@ function AppContent() {
               </button>
             </div>
 
-            {loading && <p>Loading...</p>}
-            {error && <p style={{ color: 'var(--accent-error)' }}>Error: {error}</p>}
+            <div style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
+              {torrents.length} torrents | {numConnections} connections |{' '}
+              {formatBytes(globalStats.totalDownloadRate)}/s |{' '}
+              {formatBytes(globalStats.totalUploadRate)}/s
+            </div>
 
-            {engine && (
-              <>
-                <div style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
-                  {torrents.length} torrents | {engine.numConnections} connections |{' '}
-                  {formatBytes(globalStats.totalDownloadRate)}/s |{' '}
-                  {formatBytes(globalStats.totalUploadRate)}/s
-                </div>
-
-                {torrents.length === 0 ? (
-                  <p>No torrents. Add a magnet link to get started.</p>
-                ) : (
-                  <ul style={{ listStyle: 'none', padding: 0 }}>
-                    {torrents.map((torrent) => (
-                      <TorrentItem
-                        key={torrent.infoHashStr}
-                        torrent={torrent}
-                        onStart={handleStartTorrent}
-                        onStop={handleStopTorrent}
-                        onDelete={handleDeleteTorrent}
-                        onRecheck={handleRecheckTorrent}
-                        onReset={handleResetTorrent}
-                        onShare={handleShareTorrent}
-                      />
-                    ))}
-                  </ul>
-                )}
-              </>
+            {torrents.length === 0 ? (
+              <p>No torrents. Add a magnet link to get started.</p>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                {torrents.map((torrent) => (
+                  <TorrentItem
+                    key={torrent.infoHashStr}
+                    torrent={torrent}
+                    onStart={handleStartTorrent}
+                    onStop={handleStopTorrent}
+                    onDelete={handleDeleteTorrent}
+                    onRecheck={handleRecheckTorrent}
+                    onReset={handleResetTorrent}
+                    onShare={handleShareTorrent}
+                  />
+                ))}
+              </ul>
             )}
           </div>
         )}
-
-        {activeTab === 'logs' && <LogViewer />}
 
         {activeTab === 'settings' && <DownloadRootsManager />}
       </div>
@@ -243,9 +199,39 @@ function AppContent() {
   )
 }
 
-export const App = () => {
+function App() {
+  const [engine, setEngine] = useState<Awaited<ReturnType<typeof engineManager.init>> | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  React.useEffect(() => {
+    engineManager
+      .init()
+      .then((eng) => {
+        setEngine(eng)
+        setLoading(false)
+      })
+      .catch((e) => {
+        console.error('Failed to initialize engine:', e)
+        setError(String(e))
+        setLoading(false)
+      })
+  }, [])
+
+  if (loading) {
+    return <div style={{ padding: '20px' }}>Loading...</div>
+  }
+
+  if (error) {
+    return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>
+  }
+
+  if (!engine) {
+    return <div style={{ padding: '20px' }}>Failed to initialize engine</div>
+  }
+
   return (
-    <EngineProvider>
+    <EngineProvider engine={engine}>
       <AppContent />
     </EngineProvider>
   )

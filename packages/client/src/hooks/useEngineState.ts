@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Torrent } from '@jstorrent/engine'
-import { useEngine } from '../context/EngineContext'
+import { useAdapter } from '../context/EngineContext'
 
 /**
  * Hook for reactive engine state updates.
  * Uses direct heap access + event subscriptions instead of polling.
  */
 export function useEngineState() {
-  const { engine, loading, error } = useEngine()
+  const adapter = useAdapter()
   const [, forceUpdate] = useState({})
 
   // Force re-render on engine events
@@ -16,14 +16,11 @@ export function useEngineState() {
   }, [])
 
   useEffect(() => {
-    if (!engine) return
-
     // Subscribe to engine events that affect UI
-    // Actual BtEngine events: 'torrent', 'torrent-complete', 'torrent-removed', 'error'
-    const engineEvents = ['torrent', 'torrent-complete', 'torrent-removed', 'error'] as const
+    const engineEvents = ['torrent', 'torrent-complete', 'torrent-removed', 'error']
 
     for (const event of engineEvents) {
-      engine.on(event, refresh)
+      adapter.on(event, refresh)
     }
 
     // Also refresh periodically for stats (download/upload rates)
@@ -31,14 +28,14 @@ export function useEngineState() {
 
     return () => {
       for (const event of engineEvents) {
-        engine.off(event, refresh)
+        adapter.off(event, refresh)
       }
       clearInterval(interval)
     }
-  }, [engine, refresh])
+  }, [adapter, refresh])
 
   // Compute global stats by summing from all torrents
-  const torrents = engine?.torrents ?? []
+  const torrents = adapter.torrents
   let totalDownloadRate = 0
   let totalUploadRate = 0
   for (const t of torrents) {
@@ -47,11 +44,9 @@ export function useEngineState() {
   }
 
   return {
-    engine,
-    loading,
-    error,
-    // Direct access to engine data - no serialization!
+    adapter,
     torrents,
+    numConnections: adapter.numConnections,
     globalStats: {
       totalDownloadRate,
       totalUploadRate,
@@ -63,18 +58,15 @@ export function useEngineState() {
  * Hook for a single torrent's state.
  * More efficient for detail views.
  */
-export function useTorrentState(infoHash: string) {
-  const { engine } = useEngine()
+export function useTorrentState(infoHash: string): Torrent | null {
+  const adapter = useAdapter()
   const [, forceUpdate] = useState({})
 
   useEffect(() => {
-    if (!engine) return
-
     const refresh = () => forceUpdate({})
 
     // Subscribe to events for this specific torrent
     const handler = (torrent: Torrent) => {
-      // Torrent infoHash is Uint8Array, convert to hex for comparison
       const torrentInfoHash = Array.from(torrent.infoHash)
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('')
@@ -83,18 +75,17 @@ export function useTorrentState(infoHash: string) {
       }
     }
 
-    // Torrent events: 'piece', 'progress', 'download', 'upload', 'done', 'stopped'
-    engine.on('torrent', handler)
-    engine.on('torrent-complete', handler)
+    adapter.on('torrent', handler as (...args: unknown[]) => void)
+    adapter.on('torrent-complete', handler as (...args: unknown[]) => void)
 
     const interval = setInterval(refresh, 1000)
 
     return () => {
-      engine.off('torrent', handler)
-      engine.off('torrent-complete', handler)
+      adapter.off('torrent', handler as (...args: unknown[]) => void)
+      adapter.off('torrent-complete', handler as (...args: unknown[]) => void)
       clearInterval(interval)
     }
-  }, [engine, infoHash])
+  }, [adapter, infoHash])
 
-  return engine?.getTorrent(infoHash) ?? null
+  return adapter.getTorrent(infoHash) ?? null
 }
