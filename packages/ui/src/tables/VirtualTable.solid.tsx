@@ -75,6 +75,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
 
   // Handle row click
   const handleRowClick = (row: T, e: MouseEvent) => {
+    console.log(row)
     props.onRowClick?.(row)
 
     if (props.onSelectionChange) {

@@ -13,12 +13,6 @@ function AppContent() {
   const { adapter, torrents, numConnections, globalStats } = useEngineState()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Keep a ref to torrents so Solid's RAF loop always reads the latest
-  const torrentsRef = useRef(torrents)
-  React.useEffect(() => {
-    torrentsRef.current = torrents
-  }, [torrents])
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -203,7 +197,7 @@ function AppContent() {
                 </div>
               ) : (
                 <TorrentTable
-                  getTorrents={() => torrentsRef.current}
+                  source={adapter}
                   selectedHashes={selectedTorrents}
                   onSelectionChange={setSelectedTorrents}
                   onRowDoubleClick={(torrent: Torrent) => {
