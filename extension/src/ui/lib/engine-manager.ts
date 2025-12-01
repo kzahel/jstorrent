@@ -507,7 +507,6 @@ export const engineManager = new EngineManager()
 // Expose for debugging in console
 // @ts-expect-error -- exposing engineManager for debugging
 window.engineManager = engineManager
-
 /**
  * Debug helper: Add Big Buck Bunny test torrent and start immediately.
  * Call from console: addTestTorrent()

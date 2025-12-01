@@ -270,6 +270,9 @@ export class Torrent extends EngineComponent {
 
     this._networkActive = true
 
+    // Start periodic maintenance (idempotent)
+    this.startMaintenance()
+
     if (this.trackerManager) {
       this.logger.info('Starting tracker announce')
       await this.trackerManager.announce('started')
