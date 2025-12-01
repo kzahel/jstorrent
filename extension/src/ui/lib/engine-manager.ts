@@ -10,8 +10,11 @@ import {
   RingBufferLogger,
   LogEntry,
   ISessionStore,
+  Torrent,
+  toHex,
 } from '@jstorrent/engine'
 import { getBridge } from './extension-bridge'
+import { notificationBridge, ProgressStats } from './notification-bridge'
 
 // Session store key for default root token
 const DEFAULT_ROOT_TOKEN_KEY = 'settings:defaultRootToken'
@@ -68,6 +71,9 @@ class EngineManager {
   private sessionStore: ISessionStore | null = null
   private initPromise: Promise<BtEngine> | null = null
   private swPort: chrome.runtime.Port | null = null
+  private notificationProgressInterval: ReturnType<typeof setInterval> | null = null
+  private previousActiveCount: number = 0
+  private previousCompletedCount: number = 0
 
   /**
    * Initialize the engine. Safe to call multiple times - returns cached engine.
@@ -170,6 +176,9 @@ class EngineManager {
     // 9. Connect to SW for real-time events (TorrentAdded, MagnetAdded, etc.)
     this.connectToServiceWorker()
 
+    // 10. Set up notification handling
+    this.setupNotifications()
+
     return this.engine
   }
 
@@ -178,6 +187,12 @@ class EngineManager {
    */
   shutdown(): void {
     console.log('[EngineManager] Shutting down...')
+
+    // Clean up notification interval
+    if (this.notificationProgressInterval) {
+      clearInterval(this.notificationProgressInterval)
+      this.notificationProgressInterval = null
+    }
 
     // Notify service worker
     getBridge().postMessage({ type: 'UI_CLOSING' })
@@ -254,6 +269,119 @@ class EngineManager {
     }
     const bytes = await this.sessionStore.get(DEFAULT_ROOT_TOKEN_KEY)
     return bytes ? new TextDecoder().decode(bytes) : null
+  }
+
+  /**
+   * Set up notification handling for download events.
+   */
+  private setupNotifications(): void {
+    if (!this.engine) return
+
+    // Subscribe to torrent complete events
+    this.engine.on('torrent-complete', (torrent: Torrent) => {
+      notificationBridge.onTorrentComplete(toHex(torrent.infoHash), torrent.name || 'Unknown')
+    })
+
+    // Subscribe to error events
+    // Note: Engine errors may not always have a torrent context
+    // We handle this gracefully by checking if torrent info is available
+
+    // Set up progress polling interval
+    this.notificationProgressInterval = setInterval(() => {
+      this.sendProgressUpdate()
+    }, 1000)
+
+    // Send initial progress update
+    this.sendProgressUpdate()
+  }
+
+  /**
+   * Calculate and send progress stats to the notification bridge.
+   */
+  private sendProgressUpdate(): void {
+    if (!this.engine) return
+
+    const torrents = this.engine.torrents
+
+    // Active torrents: user wants them running and not complete
+    const activeTorrents = torrents.filter(
+      (t) => t.userState === 'active' && !t.isComplete && t.hasMetadata,
+    )
+
+    // Error torrents: have an error message
+    const errorTorrents = torrents.filter((t) => t.errorMessage)
+
+    // Calculate combined download speed
+    const downloadSpeed = torrents.reduce((sum, t) => sum + (t.downloadSpeed || 0), 0)
+
+    // Calculate combined ETA (max of all active torrent ETAs)
+    const eta = this.calculateCombinedEta(activeTorrents)
+
+    // Completed torrents: finished downloading
+    const completedCount = torrents.filter((t) => t.isComplete).length
+
+    const stats: ProgressStats = {
+      activeCount: activeTorrents.length,
+      errorCount: errorTorrents.length,
+      downloadSpeed,
+      eta,
+      singleTorrentName: activeTorrents.length === 1 ? activeTorrents[0].name : undefined,
+    }
+
+    // Detect transition to all complete
+    // Only fire if: active count dropped to 0 AND completed count increased
+    // This ensures we only notify when downloads actually finished, not when stopped
+    const justCompleted = completedCount > this.previousCompletedCount
+    if (this.previousActiveCount > 0 && stats.activeCount === 0 && justCompleted) {
+      notificationBridge.onAllComplete()
+    }
+    this.previousActiveCount = stats.activeCount
+    this.previousCompletedCount = completedCount
+
+    notificationBridge.updateProgress(stats)
+  }
+
+  /**
+   * Calculate the combined ETA for all active torrents.
+   * Returns the maximum ETA (i.e., when will all torrents be done).
+   */
+  private calculateCombinedEta(activeTorrents: Torrent[]): number | null {
+    let maxEta: number | null = null
+
+    for (const torrent of activeTorrents) {
+      // Calculate ETA from progress and download speed
+      if (torrent.downloadSpeed > 0 && torrent.progress < 1) {
+        const remainingBytes = this.calculateRemainingBytes(torrent)
+        if (remainingBytes > 0) {
+          const eta = remainingBytes / torrent.downloadSpeed
+          if (maxEta === null || eta > maxEta) {
+            maxEta = eta
+          }
+        }
+      }
+    }
+
+    return maxEta
+  }
+
+  /**
+   * Calculate remaining bytes for a torrent.
+   */
+  private calculateRemainingBytes(torrent: Torrent): number {
+    // If we have content storage, use actual file sizes
+    if (torrent.contentStorage) {
+      const files = torrent.files
+      const totalSize = files.reduce((sum, f) => sum + f.length, 0)
+      return totalSize * (1 - torrent.progress)
+    }
+
+    // Fallback: estimate from piece info
+    if (torrent.piecesCount > 0) {
+      const remainingPieces = torrent.piecesCount - torrent.completedPiecesCount
+      return remainingPieces * torrent.pieceLength
+    }
+
+    return 0
   }
 
   private swReconnectAttempts = 0

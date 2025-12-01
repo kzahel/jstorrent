@@ -3,6 +3,12 @@ console.log('Service Worker loaded')
 import { DaemonLifecycleManager, NativeEvent } from './lib/daemon-lifecycle-manager'
 import { NativeHostConnection } from './lib/native-connection'
 import { handleKVMessage } from './lib/kv-handlers'
+import { NotificationManager, ProgressStats } from './lib/notifications'
+
+// ============================================================================
+// Notification Manager
+// ============================================================================
+const notificationManager = new NotificationManager()
 
 // ============================================================================
 // UI Port Management (single UI enforcement)
@@ -157,6 +163,44 @@ chrome.action.onClicked.addListener(() => {
 // ============================================================================
 type SendResponse = (response: unknown) => void
 
+// Notification message types
+interface NotificationMessage {
+  type: string
+  visible?: boolean
+  stats?: ProgressStats
+  infoHash?: string
+  name?: string
+  error?: string
+}
+
+function handleNotificationMessage(message: NotificationMessage): void {
+  switch (message.type) {
+    case 'notification:visibility':
+      if (message.visible !== undefined) {
+        notificationManager.setUiVisibility(message.visible)
+      }
+      break
+    case 'notification:progress':
+      if (message.stats) {
+        notificationManager.updateProgress(message.stats)
+      }
+      break
+    case 'notification:torrent-complete':
+      if (message.infoHash && message.name) {
+        notificationManager.onTorrentComplete(message.infoHash, message.name)
+      }
+      break
+    case 'notification:torrent-error':
+      if (message.infoHash && message.name && message.error) {
+        notificationManager.onTorrentError(message.infoHash, message.name, message.error)
+      }
+      break
+    case 'notification:all-complete':
+      notificationManager.onAllComplete()
+      break
+  }
+}
+
 function handleMessage(
   message: {
     type?: string
@@ -168,6 +212,13 @@ function handleMessage(
   },
   sendResponse: SendResponse,
 ): boolean {
+  // Notification messages
+  if (message.type?.startsWith('notification:')) {
+    handleNotificationMessage(message as NotificationMessage)
+    sendResponse({ ok: true })
+    return true
+  }
+
   // KV operations (external session store)
   if (message.type?.startsWith('KV_')) {
     return handleKVMessage(message, sendResponse)
