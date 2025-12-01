@@ -336,4 +336,4 @@ Can deprecate old routes once TS side migrated.
 - [x] Update DaemonFileHandle.write() to use new endpoint
 - [x] Add `supportsVerifiedWrite()` type guard
 - [x] Add HashMismatchError class
-- [ ] Update piece finalization to use verified write when available
+- [x] Update piece finalization to use verified write when available
