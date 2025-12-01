@@ -27,3 +27,5 @@ basically my workflow currently is:
 
 # 2025-11-30-hasher-interface.md
 
+# ... that didn't last long.
+instead i've been just been better about committing the task along with the code changes in the same commit.
