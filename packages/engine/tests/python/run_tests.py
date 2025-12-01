@@ -21,7 +21,6 @@ TIMEOUT = 15
 # Skip List - tests to skip (with reasons)
 # =============================================================================
 SKIP_TESTS = {
-    "test_seeding.py": "does not work - needs investigation",
 }
 # =============================================================================
 
