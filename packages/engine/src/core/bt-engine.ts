@@ -295,11 +295,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       torrent._magnetDisplayName = magnetDisplayName
     }
 
-    // Add peer hints from magnet link (x.pe parameter)
-    if (magnetPeerHints && magnetPeerHints.length > 0) {
-      torrent.addPeerHints(magnetPeerHints)
-    }
-
     const initComponents = async (infoBuffer: Uint8Array, preParsed?: ParsedTorrent) => {
       if (torrent.hasMetadata) return // Already initialized
 
@@ -390,6 +385,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     // Only start if engine not suspended AND user wants it active
     if (!this._suspended && torrent.userState === 'active') {
       await torrent.start()
+
+      // Add peer hints from magnet link (x.pe parameter) after start so network is active
+      if (magnetPeerHints && magnetPeerHints.length > 0) {
+        torrent.addPeerHints(magnetPeerHints)
+      }
     }
 
     // Persist torrent list (unless restoring from session)
