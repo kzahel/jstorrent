@@ -205,4 +205,43 @@ export class DaemonConnection {
     const arrayBuffer = await response.arrayBuffer()
     return new Uint8Array(arrayBuffer)
   }
+
+  /**
+   * Make an HTTP request with custom headers.
+   * Returns the raw Response object for status code inspection.
+   */
+  async requestWithHeaders(
+    method: string,
+    path: string,
+    headers: Record<string, string>,
+    body?: Uint8Array,
+  ): Promise<Response> {
+    const url = new URL(path, this.baseUrl)
+
+    return fetch(url.toString(), {
+      method,
+      headers: {
+        'X-JST-Auth': this.authToken,
+        ...headers,
+      },
+      body: body as unknown as BodyInit,
+    })
+  }
+
+  /**
+   * Make an HTTP request with custom headers and return binary data.
+   */
+  async requestBinaryWithHeaders(
+    method: string,
+    path: string,
+    headers: Record<string, string>,
+  ): Promise<Uint8Array> {
+    const response = await this.requestWithHeaders(method, path, headers)
+
+    if (!response.ok) {
+      throw new Error(`Daemon request failed: ${response.status} ${response.statusText}`)
+    }
+
+    return new Uint8Array(await response.arrayBuffer())
+  }
 }

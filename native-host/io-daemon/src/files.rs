@@ -1,23 +1,28 @@
 use axum::{
     extract::{DefaultBodyLimit, Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     routing::{get, post},
     Json, Router,
 };
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
+use sha1::{Digest, Sha1};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs::{self, File};
-use tokio::io::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use std::io::SeekFrom;
 use crate::AppState;
-use jstorrent_common::DownloadRoot;
 
 // 64MB limit for piece writes (must match MAX_PIECE_SIZE in engine)
 pub const MAX_BODY_SIZE: usize = 64 * 1024 * 1024;
 
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
+        // New header-based endpoints (preferred)
+        .route("/write/:root_token", post(write_file_v2))
+        .route("/read/:root_token", get(read_file_v2))
+        // Legacy path-based endpoints (kept for compatibility)
         .route("/files/*path", get(read_file).post(write_file))
         .route("/files/ensure_dir", post(ensure_dir))
         .route("/ops/stat", get(stat_file))
@@ -101,6 +106,152 @@ async fn write_file(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(())
+}
+
+/// Helper to extract path from X-Path-Base64 header
+fn extract_path_from_header(headers: &HeaderMap) -> Result<String, (StatusCode, String)> {
+    let path_b64 = headers
+        .get("X-Path-Base64")
+        .ok_or((StatusCode::BAD_REQUEST, "Missing X-Path-Base64 header".into()))?
+        .to_str()
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid X-Path-Base64 header".into()))?;
+
+    let path_bytes = BASE64
+        .decode(path_b64)
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid base64 in X-Path-Base64".into()))?;
+
+    String::from_utf8(path_bytes)
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid UTF-8 in path".into()))
+}
+
+/// Helper to extract optional u64 from header
+fn extract_u64_header(headers: &HeaderMap, name: &str) -> Result<Option<u64>, (StatusCode, String)> {
+    match headers.get(name) {
+        Some(value) => {
+            let s = value
+                .to_str()
+                .map_err(|_| (StatusCode::BAD_REQUEST, format!("Invalid {} header", name)))?;
+            let n = s
+                .parse()
+                .map_err(|_| (StatusCode::BAD_REQUEST, format!("Invalid {} value", name)))?;
+            Ok(Some(n))
+        }
+        None => Ok(None),
+    }
+}
+
+/// New write endpoint with base64 path in header and optional hash verification.
+/// POST /write/{root_token}
+/// Headers:
+///   X-Path-Base64: <base64 encoded path>
+///   X-Offset: <optional offset>
+///   X-Expected-SHA1: <optional hex SHA1 hash for verification>
+/// Body: raw bytes
+/// Returns: 200 OK, 409 Conflict (hash mismatch), 507 Insufficient (disk full)
+async fn write_file_v2(
+    State(state): State<Arc<AppState>>,
+    Path(root_token): Path<String>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> Result<(), (StatusCode, String)> {
+    let path = extract_path_from_header(&headers)?;
+    let offset = extract_u64_header(&headers, "X-Offset")?.unwrap_or(0);
+
+    let full_path = validate_path(&state, &root_token, &path)?;
+
+    // Ensure parent directory exists
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent).await.map_err(|e| {
+            if e.kind() == std::io::ErrorKind::StorageFull {
+                (StatusCode::INSUFFICIENT_STORAGE, e.to_string())
+            } else {
+                (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+            }
+        })?;
+    }
+
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&full_path)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if offset > 0 {
+        file.seek(SeekFrom::Start(offset)).await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    }
+
+    file.write_all(&body).await.map_err(|e| {
+        if e.kind() == std::io::ErrorKind::StorageFull {
+            (StatusCode::INSUFFICIENT_STORAGE, e.to_string())
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+        }
+    })?;
+
+    // Optional hash verification
+    if let Some(expected_hex) = headers.get("X-Expected-SHA1") {
+        let expected_hex = expected_hex
+            .to_str()
+            .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid X-Expected-SHA1 header".into()))?;
+
+        let mut hasher = Sha1::new();
+        hasher.update(&body);
+        let actual = hex::encode(hasher.finalize());
+
+        if actual != expected_hex {
+            return Err((
+                StatusCode::CONFLICT,
+                format!("Hash mismatch: expected {}, got {}", expected_hex, actual),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// New read endpoint with base64 path in header.
+/// GET /read/{root_token}
+/// Headers:
+///   X-Path-Base64: <base64 encoded path>
+///   X-Offset: <optional offset>
+///   X-Length: <optional length>
+/// Returns: raw bytes
+async fn read_file_v2(
+    State(state): State<Arc<AppState>>,
+    Path(root_token): Path<String>,
+    headers: HeaderMap,
+) -> Result<Vec<u8>, (StatusCode, String)> {
+    let path = extract_path_from_header(&headers)?;
+    let offset = extract_u64_header(&headers, "X-Offset")?;
+    let length = extract_u64_header(&headers, "X-Length")?;
+
+    let full_path = validate_path(&state, &root_token, &path)?;
+
+    let mut file = File::open(&full_path)
+        .await
+        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+
+    if let Some(off) = offset {
+        file.seek(SeekFrom::Start(off))
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    }
+
+    let mut buffer = Vec::new();
+    if let Some(len) = length {
+        buffer.resize(len as usize, 0);
+        file.read_exact(&mut buffer)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    } else {
+        file.read_to_end(&mut buffer)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    }
+
+    Ok(buffer)
 }
 
 #[derive(Deserialize)]

@@ -3,6 +3,12 @@ use axum::{
     routing::get,
     Router,
 };
+
+// Custom headers for file API
+const X_PATH_BASE64: HeaderName = HeaderName::from_static("x-path-base64");
+const X_OFFSET: HeaderName = HeaderName::from_static("x-offset");
+const X_LENGTH: HeaderName = HeaderName::from_static("x-length");
+const X_EXPECTED_SHA1: HeaderName = HeaderName::from_static("x-expected-sha1");
 use clap::Parser;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -138,26 +144,28 @@ async fn main() -> anyhow::Result<()> {
             }
         }
 
+        let allowed_headers = [
+            CONTENT_TYPE,
+            AUTHORIZATION,
+            HeaderName::from_static("x-jst-auth"),
+            X_PATH_BASE64,
+            X_OFFSET,
+            X_LENGTH,
+            X_EXPECTED_SHA1,
+        ];
+
         if allowed_origins.is_empty() {
             tracing::warn!("CORS: No origins configured, allowing any origin");
             CorsLayer::new()
                 .allow_origin(tower_http::cors::Any)
                 .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
-                .allow_headers([
-                    CONTENT_TYPE,
-                    AUTHORIZATION,
-                    HeaderName::from_static("x-jst-auth"),
-                ])
+                .allow_headers(allowed_headers)
                 .max_age(Duration::from_secs(86400))
         } else {
             CorsLayer::new()
                 .allow_origin(allowed_origins)
                 .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
-                .allow_headers([
-                    CONTENT_TYPE,
-                    AUTHORIZATION,
-                    HeaderName::from_static("x-jst-auth"),
-                ])
+                .allow_headers(allowed_headers)
                 .max_age(Duration::from_secs(86400))
         }
     };
