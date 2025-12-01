@@ -5,7 +5,7 @@ import { StorageRoot } from './types'
 export class StorageRootManager {
   private roots: Map<string, StorageRoot> = new Map()
   private torrentRoots: Map<string, string> = new Map()
-  private defaultToken: string | null = null
+  private defaultKey: string | null = null
   private createFileSystem: (root: StorageRoot) => IFileSystem
   private fsCache: Map<string, IFileSystem> = new Map()
 
@@ -18,15 +18,15 @@ export class StorageRootManager {
   }
 
   addRoot(root: StorageRoot): void {
-    this.roots.set(root.token, root)
+    this.roots.set(root.key, root)
   }
 
-  removeRoot(token: string): void {
-    this.roots.delete(token)
-    if (this.defaultToken === token) {
-      this.defaultToken = null
+  removeRoot(key: string): void {
+    this.roots.delete(key)
+    if (this.defaultKey === key) {
+      this.defaultKey = null
     }
-    this.fsCache.delete(token)
+    this.fsCache.delete(key)
   }
 
   getRoots(): StorageRoot[] {
@@ -34,30 +34,30 @@ export class StorageRootManager {
   }
 
   getDefaultRoot(): string | undefined {
-    return this.defaultToken ?? undefined
+    return this.defaultKey ?? undefined
   }
 
-  setDefaultRoot(token: string): void {
-    if (!this.roots.has(token)) {
-      throw new Error(`Storage root with token ${token} not found`)
+  setDefaultRoot(key: string): void {
+    if (!this.roots.has(key)) {
+      throw new Error(`Storage root with key ${key} not found`)
     }
-    this.defaultToken = token
+    this.defaultKey = key
   }
 
-  setRootForTorrent(torrentId: string, token: string): void {
-    if (!this.roots.has(token)) {
-      throw new Error(`Storage root with token ${token} not found`)
+  setRootForTorrent(torrentId: string, key: string): void {
+    if (!this.roots.has(key)) {
+      throw new Error(`Storage root with key ${key} not found`)
     }
-    this.torrentRoots.set(this.normalizeId(torrentId), token)
+    this.torrentRoots.set(this.normalizeId(torrentId), key)
   }
 
   getRootForTorrent(torrentId: string): StorageRoot | null {
-    const token = this.torrentRoots.get(this.normalizeId(torrentId))
-    if (token) {
-      return this.roots.get(token) || null
+    const key = this.torrentRoots.get(this.normalizeId(torrentId))
+    if (key) {
+      return this.roots.get(key) || null
     }
-    if (this.defaultToken) {
-      return this.roots.get(this.defaultToken) || null
+    if (this.defaultKey) {
+      return this.roots.get(this.defaultKey) || null
     }
     return null
   }
@@ -68,10 +68,10 @@ export class StorageRootManager {
       throw new Error(`No storage root found for torrent ${torrentId}`)
     }
 
-    let fs = this.fsCache.get(root.token)
+    let fs = this.fsCache.get(root.key)
     if (!fs) {
       fs = this.createFileSystem(root)
-      this.fsCache.set(root.token, fs)
+      this.fsCache.set(root.key, fs)
     }
     return fs
   }

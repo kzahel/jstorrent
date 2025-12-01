@@ -15,7 +15,7 @@ export interface DaemonHarness {
 
 export interface DaemonConfig {
   roots?: Array<{
-    token: string
+    key: string
     path: string
     displayName: string
   }>
@@ -39,7 +39,7 @@ export async function startDaemon(config: DaemonConfig = {}): Promise<DaemonHarn
   const installId = 'test-install-' + Math.random().toString(36).slice(2)
 
   // Build download_roots from config
-  const roots = config.roots ?? [{ token: 'default', path: dataDir, displayName: 'Test Data' }]
+  const roots = config.roots ?? [{ key: 'default', path: dataDir, displayName: 'Test Data' }]
 
   // Ensure root directories exist
   for (const root of roots) {
@@ -61,7 +61,7 @@ export async function startDaemon(config: DaemonConfig = {}): Promise<DaemonHarn
         last_used: Date.now(),
         browser: { name: 'test', binary: 'test', extension_id: 'test' },
         download_roots: roots.map((r) => ({
-          token: r.token,
+          key: r.key,
           path: r.path,
           display_name: r.displayName,
           removable: false,

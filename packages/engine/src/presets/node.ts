@@ -28,7 +28,7 @@ export function createNodeEngine(config: NodeEngineConfig): BtEngine {
 
   // Register downloadPath as default root
   storageRootManager.addRoot({
-    token: config.downloadPath,
+    key: config.downloadPath,
     label: 'Downloads',
     path: config.downloadPath,
   })

@@ -12,21 +12,21 @@ describe('StorageRootManager', () => {
   })
 
   it('should add and retrieve roots', () => {
-    const root = { token: 'test', label: 'Test', path: '/test' }
+    const root = { key: 'test', label: 'Test', path: '/test' }
     manager.addRoot(root)
     expect(manager.getRoots()).toContain(root)
   })
 
   it('should set and get default root', () => {
-    const root = { token: 'test', label: 'Test', path: '/test' }
+    const root = { key: 'test', label: 'Test', path: '/test' }
     manager.addRoot(root)
     manager.setDefaultRoot('test')
     expect(manager.getRootForTorrent('any')).toBe(root)
   })
 
   it('should set and get root for specific torrent', () => {
-    const root1 = { token: 'root1', label: 'Root 1', path: '/root1' }
-    const root2 = { token: 'root2', label: 'Root 2', path: '/root2' }
+    const root1 = { key: 'root1', label: 'Root 1', path: '/root1' }
+    const root2 = { key: 'root2', label: 'Root 2', path: '/root2' }
     manager.addRoot(root1)
     manager.addRoot(root2)
     manager.setDefaultRoot('root1')
@@ -39,7 +39,7 @@ describe('StorageRootManager', () => {
   })
 
   it('should create filesystem using factory', () => {
-    const root = { token: 'test', label: 'Test', path: '/test' }
+    const root = { key: 'test', label: 'Test', path: '/test' }
     manager.addRoot(root)
     manager.setDefaultRoot('test')
 
@@ -49,7 +49,7 @@ describe('StorageRootManager', () => {
   })
 
   it('should cache filesystem instances', () => {
-    const root = { token: 'test', label: 'Test', path: '/test' }
+    const root = { key: 'test', label: 'Test', path: '/test' }
     manager.addRoot(root)
     manager.setDefaultRoot('test')
 
@@ -73,7 +73,7 @@ describe('StorageRootManager', () => {
   })
 
   it('should remove root and clear default if it was default', () => {
-    const root = { token: 'test', label: 'Test', path: '/test' }
+    const root = { key: 'test', label: 'Test', path: '/test' }
     manager.addRoot(root)
     manager.setDefaultRoot('test')
     manager.removeRoot('test')
@@ -83,7 +83,7 @@ describe('StorageRootManager', () => {
   })
 
   it('should normalize torrent IDs to lowercase', () => {
-    const root = { token: 'test', label: 'Test', path: '/test' }
+    const root = { key: 'test', label: 'Test', path: '/test' }
     manager.addRoot(root)
     manager.setDefaultRoot('test')
 

@@ -12,7 +12,7 @@ export function createNodeEngineEnvironment(
   })
 
   storageRootManager.addRoot({
-    token: downloadPath,
+    key: downloadPath,
     label: 'Downloads',
     path: downloadPath,
   })

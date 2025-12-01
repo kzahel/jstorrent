@@ -5,7 +5,7 @@ import { DaemonFileHandle } from './daemon-file-handle'
 export class DaemonFileSystem implements IFileSystem {
   constructor(
     private connection: DaemonConnection,
-    private rootToken: string,
+    private rootKey: string,
   ) {}
 
   async open(path: string, _mode: 'r' | 'w' | 'r+'): Promise<IFileHandle> {
@@ -15,7 +15,7 @@ export class DaemonFileSystem implements IFileSystem {
     // We can just return the handle and let the operations fail if needed,
     // or we could do a stat check here.
     // For now, just return the handle.
-    return new DaemonFileHandle(this.connection, path, this.rootToken)
+    return new DaemonFileHandle(this.connection, path, this.rootKey)
   }
 
   async stat(path: string): Promise<IFileStat> {
@@ -26,7 +26,7 @@ export class DaemonFileSystem implements IFileSystem {
       is_file: boolean
     }>('GET', '/ops/stat', {
       path,
-      root_token: this.rootToken,
+      root_key: this.rootKey,
     })
 
     return {
@@ -40,7 +40,7 @@ export class DaemonFileSystem implements IFileSystem {
   async mkdir(path: string): Promise<void> {
     await this.connection.request('POST', '/files/ensure_dir', undefined, {
       path,
-      root_token: this.rootToken,
+      root_key: this.rootKey,
     })
   }
 
@@ -56,14 +56,14 @@ export class DaemonFileSystem implements IFileSystem {
   async readdir(path: string): Promise<string[]> {
     return this.connection.request<string[]>('GET', '/ops/list', {
       path,
-      root_token: this.rootToken,
+      root_key: this.rootKey,
     })
   }
 
   async delete(path: string): Promise<void> {
     await this.connection.request('POST', '/ops/delete', undefined, {
       path,
-      root_token: this.rootToken,
+      root_key: this.rootKey,
     })
   }
 }

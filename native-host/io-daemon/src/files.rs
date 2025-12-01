@@ -21,8 +21,8 @@ pub const MAX_BODY_SIZE: usize = 64 * 1024 * 1024;
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         // New header-based endpoints (preferred) - use base64-encoded path in headers
-        .route("/write/:root_token", post(write_file_v2))
-        .route("/read/:root_token", get(read_file_v2))
+        .route("/write/:root_key", post(write_file_v2))
+        .route("/read/:root_key", get(read_file_v2))
         // DEPRECATED: Legacy path-based endpoints - path in URL breaks on # and ? characters
         // These are no longer used by the TypeScript engine as of 2024-12
         .route("/files/*path", get(read_file_deprecated).post(write_file_deprecated))
@@ -37,14 +37,14 @@ pub fn routes() -> Router<Arc<AppState>> {
 // ============================================================================
 // DEPRECATED: Legacy path-based endpoints
 // These use the file path in the URL which breaks on # and ? characters.
-// Use /read/:root_token and /write/:root_token with X-Path-Base64 header instead.
+// Use /read/:root_key and /write/:root_key with X-Path-Base64 header instead.
 // ============================================================================
 
 #[derive(Deserialize)]
 struct ReadParams {
     offset: Option<u64>,
     length: Option<u64>,
-    root_token: String,
+    root_key: String,
 }
 
 #[deprecated(since = "0.1.0", note = "Use read_file_v2 with X-Path-Base64 header instead")]
@@ -53,9 +53,9 @@ async fn read_file_deprecated(
     Path(path): Path<String>,
     axum::extract::Query(params): axum::extract::Query<ReadParams>,
 ) -> Result<Vec<u8>, (StatusCode, String)> {
-    tracing::warn!("DEPRECATED: /files/* endpoint called for read. Use /read/:root_token with X-Path-Base64 header instead.");
+    tracing::warn!("DEPRECATED: /files/* endpoint called for read. Use /read/:root_key with X-Path-Base64 header instead.");
 
-    let full_path = validate_path(&state, &params.root_token, &path)?;
+    let full_path = validate_path(&state, &params.root_key, &path)?;
 
     let mut file = File::open(&full_path).await
         .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
@@ -81,7 +81,7 @@ async fn read_file_deprecated(
 #[derive(Deserialize)]
 struct WriteParams {
     offset: Option<u64>,
-    root_token: String,
+    root_key: String,
 }
 
 #[deprecated(since = "0.1.0", note = "Use write_file_v2 with X-Path-Base64 header instead")]
@@ -91,9 +91,9 @@ async fn write_file_deprecated(
     axum::extract::Query(params): axum::extract::Query<WriteParams>,
     body: axum::body::Bytes,
 ) -> Result<(), (StatusCode, String)> {
-    tracing::warn!("DEPRECATED: /files/* endpoint called for write. Use /write/:root_token with X-Path-Base64 header instead.");
+    tracing::warn!("DEPRECATED: /files/* endpoint called for write. Use /write/:root_key with X-Path-Base64 header instead.");
 
-    let full_path = validate_path(&state, &params.root_token, &path)?;
+    let full_path = validate_path(&state, &params.root_key, &path)?;
 
     // Ensure parent directory exists
     if let Some(parent) = full_path.parent() {
@@ -155,7 +155,7 @@ fn extract_u64_header(headers: &HeaderMap, name: &str) -> Result<Option<u64>, (S
 }
 
 /// New write endpoint with base64 path in header and optional hash verification.
-/// POST /write/{root_token}
+/// POST /write/{root_key}
 /// Headers:
 ///   X-Path-Base64: <base64 encoded path>
 ///   X-Offset: <optional offset>
@@ -164,14 +164,14 @@ fn extract_u64_header(headers: &HeaderMap, name: &str) -> Result<Option<u64>, (S
 /// Returns: 200 OK, 409 Conflict (hash mismatch), 507 Insufficient (disk full)
 async fn write_file_v2(
     State(state): State<Arc<AppState>>,
-    Path(root_token): Path<String>,
+    Path(root_key): Path<String>,
     headers: HeaderMap,
     body: axum::body::Bytes,
 ) -> Result<(), (StatusCode, String)> {
     let path = extract_path_from_header(&headers)?;
     let offset = extract_u64_header(&headers, "X-Offset")?.unwrap_or(0);
 
-    let full_path = validate_path(&state, &root_token, &path)?;
+    let full_path = validate_path(&state, &root_key, &path)?;
 
     // Ensure parent directory exists
     if let Some(parent) = full_path.parent() {
@@ -226,7 +226,7 @@ async fn write_file_v2(
 }
 
 /// New read endpoint with base64 path in header.
-/// GET /read/{root_token}
+/// GET /read/{root_key}
 /// Headers:
 ///   X-Path-Base64: <base64 encoded path>
 ///   X-Offset: <optional offset>
@@ -234,14 +234,14 @@ async fn write_file_v2(
 /// Returns: raw bytes
 async fn read_file_v2(
     State(state): State<Arc<AppState>>,
-    Path(root_token): Path<String>,
+    Path(root_key): Path<String>,
     headers: HeaderMap,
 ) -> Result<Vec<u8>, (StatusCode, String)> {
     let path = extract_path_from_header(&headers)?;
     let offset = extract_u64_header(&headers, "X-Offset")?;
     let length = extract_u64_header(&headers, "X-Length")?;
 
-    let full_path = validate_path(&state, &root_token, &path)?;
+    let full_path = validate_path(&state, &root_key, &path)?;
 
     let mut file = File::open(&full_path)
         .await
@@ -271,7 +271,7 @@ async fn read_file_v2(
 #[derive(Deserialize)]
 struct EnsureDirParams {
     path: String,
-    root_token: String,
+    root_key: String,
 }
 
 
@@ -279,7 +279,7 @@ async fn ensure_dir(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<EnsureDirParams>,
 ) -> Result<(), (StatusCode, String)> {
-    let full_path = validate_path(&state, &payload.root_token, &payload.path)?;
+    let full_path = validate_path(&state, &payload.root_key, &payload.path)?;
 
     fs::create_dir_all(full_path).await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -289,7 +289,7 @@ async fn ensure_dir(
 #[derive(Deserialize)]
 struct StatParams {
     path: String,
-    root_token: String,
+    root_key: String,
 }
 
 #[derive(Serialize)]
@@ -304,7 +304,7 @@ async fn stat_file(
     State(state): State<Arc<AppState>>,
     axum::extract::Query(params): axum::extract::Query<StatParams>,
 ) -> Result<Json<FileStat>, (StatusCode, String)> {
-    let full_path = validate_path(&state, &params.root_token, &params.path)?;
+    let full_path = validate_path(&state, &params.root_key, &params.path)?;
 
     let metadata = fs::metadata(&full_path).await
         .map_err(|e| {
@@ -332,14 +332,14 @@ async fn stat_file(
 #[derive(Deserialize)]
 struct ListParams {
     path: String,
-    root_token: String,
+    root_key: String,
 }
 
 async fn list_dir(
     State(state): State<Arc<AppState>>,
     axum::extract::Query(params): axum::extract::Query<ListParams>,
 ) -> Result<Json<Vec<String>>, (StatusCode, String)> {
-    let full_path = validate_path(&state, &params.root_token, &params.path)?;
+    let full_path = validate_path(&state, &params.root_key, &params.path)?;
 
     let mut entries = fs::read_dir(&full_path).await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -357,14 +357,14 @@ async fn list_dir(
 #[derive(Deserialize)]
 struct DeleteParams {
     path: String,
-    root_token: String,
+    root_key: String,
 }
 
 async fn delete_file(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<DeleteParams>,
 ) -> Result<(), (StatusCode, String)> {
-    let full_path = validate_path(&state, &payload.root_token, &payload.path)?;
+    let full_path = validate_path(&state, &payload.root_key, &payload.path)?;
 
     if full_path.is_dir() {
         fs::remove_dir_all(full_path).await
@@ -380,7 +380,7 @@ async fn delete_file(
 #[derive(Deserialize)]
 struct TruncateParams {
     path: String,
-    root_token: String,
+    root_key: String,
     length: u64,
 }
 
@@ -388,7 +388,7 @@ async fn truncate_file(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<TruncateParams>,
 ) -> Result<(), (StatusCode, String)> {
-    let full_path = validate_path(&state, &payload.root_token, &payload.path)?;
+    let full_path = validate_path(&state, &payload.root_key, &payload.path)?;
 
     let file = fs::OpenOptions::new()
         .write(true)
@@ -401,11 +401,11 @@ async fn truncate_file(
     Ok(())
 }
 
-pub fn validate_path(state: &AppState, root_token: &str, path: &str) -> Result<PathBuf, (StatusCode, String)> {
-    // Find root by token
+pub fn validate_path(state: &AppState, root_key: &str, path: &str) -> Result<PathBuf, (StatusCode, String)> {
+    // Find root by key
     let roots = state.download_roots.read().map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Lock poisoned".to_string()))?;
-    let root = roots.iter().find(|r| r.token == root_token)
-        .ok_or_else(|| (StatusCode::FORBIDDEN, "Invalid root token".to_string()))?;
+    let root = roots.iter().find(|r| r.key == root_key)
+        .ok_or_else(|| (StatusCode::FORBIDDEN, "Invalid root key".to_string()))?;
     
     let root_path = PathBuf::from(&root.path);
 

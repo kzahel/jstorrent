@@ -17,7 +17,7 @@ export function createMemoryEngine(config: MemoryEngineConfig = {}): BtEngine {
   })
 
   storageRootManager.addRoot({
-    token: 'memory',
+    key: 'memory',
     label: 'Memory',
     path: '/memory',
   })

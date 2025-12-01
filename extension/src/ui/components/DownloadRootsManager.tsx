@@ -2,23 +2,23 @@ import React, { useEffect, useState } from 'react'
 import { engineManager } from '@jstorrent/client'
 
 interface DownloadRoot {
-  token: string
+  key: string
   label: string
   path: string
 }
 
 export const DownloadRootsManager: React.FC = () => {
   const [roots, setRoots] = useState<DownloadRoot[]>([])
-  const [defaultToken, setDefaultToken] = useState<string | null>(null)
+  const [defaultKey, setDefaultKey] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
 
   useEffect(() => {
     const loadRoots = async () => {
       const loadedRoots = engineManager.getRoots()
-      const loadedDefaultToken = await engineManager.getDefaultRootToken()
+      const loadedDefaultKey = await engineManager.getDefaultRootKey()
       setRoots(loadedRoots)
-      setDefaultToken(loadedDefaultToken)
+      setDefaultKey(loadedDefaultKey)
       setLoading(false)
     }
     void loadRoots()
@@ -31,19 +31,19 @@ export const DownloadRootsManager: React.FC = () => {
     if (root) {
       // Reload roots list
       const loadedRoots = engineManager.getRoots()
-      const loadedDefaultToken = await engineManager.getDefaultRootToken()
+      const loadedDefaultKey = await engineManager.getDefaultRootKey()
       setRoots(loadedRoots)
-      setDefaultToken(loadedDefaultToken)
+      setDefaultKey(loadedDefaultKey)
       // If this is the first root, set it as default
       if (roots.length === 0) {
-        await handleSetDefault(root.token)
+        await handleSetDefault(root.key)
       }
     }
   }
 
-  const handleSetDefault = async (token: string) => {
-    await engineManager.setDefaultRoot(token)
-    setDefaultToken(token)
+  const handleSetDefault = async (key: string) => {
+    await engineManager.setDefaultRoot(key)
+    setDefaultKey(key)
   }
 
   if (loading) {
@@ -73,7 +73,7 @@ export const DownloadRootsManager: React.FC = () => {
         <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px 0' }}>
           {roots.map((root) => (
             <li
-              key={root.token}
+              key={root.key}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -83,7 +83,7 @@ export const DownloadRootsManager: React.FC = () => {
                 borderRadius: '4px',
                 marginBottom: '8px',
                 background:
-                  root.token === defaultToken ? 'var(--bg-highlight)' : 'var(--bg-secondary)',
+                  root.key === defaultKey ? 'var(--bg-highlight)' : 'var(--bg-secondary)',
               }}
             >
               <div style={{ flex: 1 }}>
@@ -91,7 +91,7 @@ export const DownloadRootsManager: React.FC = () => {
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{root.path}</div>
               </div>
 
-              {root.token === defaultToken ? (
+              {root.key === defaultKey ? (
                 <span
                   style={{
                     padding: '4px 8px',
@@ -105,7 +105,7 @@ export const DownloadRootsManager: React.FC = () => {
                 </span>
               ) : (
                 <button
-                  onClick={() => handleSetDefault(root.token)}
+                  onClick={() => handleSetDefault(root.key)}
                   style={{
                     padding: '4px 8px',
                     cursor: 'pointer',

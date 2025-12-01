@@ -104,7 +104,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       // Legacy support: wrap single filesystem in StorageRootManager
       this.storageRootManager = new StorageRootManager(() => options.fileSystem!)
       this.storageRootManager.addRoot({
-        token: 'default',
+        key: 'default',
         label: 'Default',
         path: options.downloadPath,
       })
@@ -232,7 +232,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   async addTorrent(
     magnetOrBuffer: string | Uint8Array,
     options: {
-      storageToken?: string
+      storageKey?: string
       /** Whether this torrent is being restored from session or added by user action. Default: 'user' */
       source?: 'user' | 'restore'
       userState?: TorrentUserState
@@ -274,8 +274,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     // Register storage root for this torrent if provided
-    if (options.storageToken) {
-      this.storageRootManager.setRootForTorrent(infoHashStr, options.storageToken)
+    if (options.storageKey) {
+      this.storageRootManager.setRootForTorrent(infoHashStr, options.storageKey)
     }
 
     const torrent = new Torrent(
