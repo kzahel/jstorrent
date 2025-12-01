@@ -104,8 +104,12 @@ const EXTENSION_ID_KEY = 'jstorrent_extension_id'
  */
 function getExtensionId(): string | null {
   // 1. Check Vite env variable
-  if (typeof import.meta !== 'undefined' && (import.meta as ImportMeta).env?.DEV_EXTENSION_ID) {
-    return (import.meta as ImportMeta).env.DEV_EXTENSION_ID
+  const envExtensionId =
+    typeof import.meta !== 'undefined'
+      ? (import.meta as ImportMeta).env?.DEV_EXTENSION_ID
+      : undefined
+  if (envExtensionId) {
+    return envExtensionId
   }
 
   // 2. Check localStorage (previously saved)
