@@ -19,7 +19,12 @@
     "baseUrl": ".",
     "paths": {
       "@jstorrent/engine/*": ["./packages/engine/src/*"],
-      "@jstorrent/engine": ["./packages/engine/src/index.ts"]
+      "@jstorrent/engine": ["./packages/engine/src/index.ts"],
+      "@jstorrent/client/*": ["./packages/client/src/*"],
+      "@jstorrent/client": ["./packages/client/src/index.ts"],
+      "@jstorrent/ui/*": ["./packages/ui/src/*"],
+      "@jstorrent/ui": ["./packages/ui/src/index.ts"],
+      "@jstorrent/ui/styles.css": ["./packages/ui/src/styles.css"]
     }
   }
 }
