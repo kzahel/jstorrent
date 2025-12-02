@@ -9,9 +9,11 @@ export interface DropdownMenuProps {
 }
 
 const buttonStyle: React.CSSProperties = {
-  padding: '4px 10px',
+  padding: '0 10px',
   cursor: 'pointer',
   fontSize: '13px',
+  height: '26px',
+  boxSizing: 'border-box',
   display: 'flex',
   alignItems: 'center',
   gap: '4px',
@@ -125,7 +127,13 @@ export function DropdownMenu({ label, items, onSelect, disabled }: DropdownMenuP
                   e.currentTarget.style.background = 'none'
                 }}
               >
-                {item.icon && <span>{item.icon}</span>}
+                {item.icon && (
+                  <span
+                    style={{ width: '16px', textAlign: 'center', flexShrink: 0, lineHeight: 1 }}
+                  >
+                    {item.icon}
+                  </span>
+                )}
                 {item.label}
               </button>
             )
