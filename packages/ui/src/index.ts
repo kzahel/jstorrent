@@ -7,6 +7,12 @@ export { ContextMenu } from './components/ContextMenu'
 export type { ContextMenuItem, ContextMenuProps } from './components/ContextMenu'
 export { DropdownMenu } from './components/DropdownMenu'
 export type { DropdownMenuProps } from './components/DropdownMenu'
+export { ResizeHandle } from './components/ResizeHandle'
+export type { ResizeHandleProps } from './components/ResizeHandle'
+
+// Hooks
+export { usePersistedHeight } from './hooks/usePersistedHeight'
+export type { UsePersistedHeightOptions } from './hooks/usePersistedHeight'
 
 // Tables
 export { TorrentTable, torrentColumns } from './tables/TorrentTable'

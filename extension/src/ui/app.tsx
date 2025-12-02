@@ -7,6 +7,8 @@ import {
   DetailPane,
   ContextMenu,
   DropdownMenu,
+  ResizeHandle,
+  usePersistedHeight,
   formatBytes,
   ContextMenuItem,
 } from '@jstorrent/ui'
@@ -26,6 +28,18 @@ function AppContent() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const { adapter, torrents, numConnections, globalStats, refresh } = useEngineState()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const {
+    height: detailHeight,
+    minHeight,
+    maxHeight,
+    updateHeight,
+    persistHeight,
+  } = usePersistedHeight({
+    minHeight: 100,
+    maxHeightRatio: 0.6,
+    defaultHeight: 250,
+  })
 
   // Get selected torrent objects
   const selectedTorrentObjects = useMemo(() => {
@@ -388,9 +402,7 @@ function AppContent() {
             {/* Main content */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               {/* Torrent table */}
-              <div
-                style={{ flex: 1, minHeight: 150, borderBottom: '1px solid var(--border-color)' }}
-              >
+              <div style={{ flex: 1, minHeight: 100, overflow: 'hidden' }}>
                 {torrents.length === 0 ? (
                   <div
                     style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}
@@ -414,8 +426,17 @@ function AppContent() {
                 )}
               </div>
 
+              {/* Resize handle */}
+              <ResizeHandle
+                currentHeight={detailHeight}
+                minHeight={minHeight}
+                maxHeight={maxHeight}
+                onResize={updateHeight}
+                onResizeEnd={persistHeight}
+              />
+
               {/* Detail pane */}
-              <div style={{ height: 250, minHeight: 100 }}>
+              <div style={{ height: detailHeight, flexShrink: 0, overflow: 'hidden' }}>
                 <DetailPane source={adapter} selectedHashes={selectedTorrents} />
               </div>
             </div>
