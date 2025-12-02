@@ -8,9 +8,9 @@
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:python": "./tests/python/.venv/bin/python tests/python/run_tests.py",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:all": "vitest run --config vitest.config.ts && vitest run --config vitest.integration.config.ts",
+    "test:daemon": "vitest run --config vitest.daemon.config.ts",
+    "test:python": "cd integration/python && python run_tests.py",
+    "test:all": "vitest run && vitest run --config vitest.daemon.config.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

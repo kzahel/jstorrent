@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { SpeedCalculator } from '../../../src/utils/speed-calculator'
+import { SpeedCalculator } from '../../src/utils/speed-calculator'
 
 describe('SpeedCalculator', () => {
   let calculator: SpeedCalculator

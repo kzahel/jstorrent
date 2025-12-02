@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { PeerConnection } from '../../../src/core/peer-connection'
-import { ILoggingEngine } from '../../../src/logging/logger'
-import { ITcpSocket } from '../../../src/interfaces/socket'
+import { PeerConnection } from '../../src/core/peer-connection'
+import { ILoggingEngine } from '../../src/logging/logger'
+import { ITcpSocket } from '../../src/interfaces/socket'
 
 describe('PeerConnection Stats', () => {
   let peer: PeerConnection
