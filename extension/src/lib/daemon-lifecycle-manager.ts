@@ -162,13 +162,16 @@ export class DaemonLifecycleManager {
   private waitForDaemonInfo(): Promise<DaemonInfo> {
     return new Promise((resolve) => {
       const handler = (msg: unknown) => {
+        console.log('[DaemonLifecycleManager] Raw message from native host:', JSON.stringify(msg))
         if (
           typeof msg === 'object' &&
           msg !== null &&
           'type' in msg &&
           (msg as { type: string }).type === 'DaemonInfo'
         ) {
-          resolve((msg as unknown as { payload: DaemonInfo }).payload)
+          const payload = (msg as unknown as { payload: DaemonInfo }).payload
+          console.log('[DaemonLifecycleManager] Parsed DaemonInfo payload:', JSON.stringify(payload))
+          resolve(payload)
         }
       }
       this.nativeConn!.onMessage(handler)
