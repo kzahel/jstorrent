@@ -9,6 +9,8 @@ export { DropdownMenu } from './components/DropdownMenu'
 export type { DropdownMenuProps } from './components/DropdownMenu'
 export { ResizeHandle } from './components/ResizeHandle'
 export type { ResizeHandleProps } from './components/ResizeHandle'
+export { GeneralPane } from './components/GeneralPane'
+export type { GeneralPaneProps } from './components/GeneralPane'
 
 // Hooks
 export { usePersistedHeight } from './hooks/usePersistedHeight'
