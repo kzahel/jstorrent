@@ -12,22 +12,29 @@ export interface MockTorrent {
   contentStorage?: { getTotalSize: () => number }
 }
 
-export function createMockTorrent(id: number): MockTorrent {
+/**
+ * Create a deterministic mock torrent for testing.
+ * Values are predictable based on id for reliable sort testing.
+ */
+export function createMockTorrent(id: number, overrides: Partial<MockTorrent> = {}): MockTorrent {
   const hash = id.toString(16).padStart(40, '0')
   return {
     infoHashStr: hash,
-    name: `Test Torrent ${id.toString().padStart(3, '0')}`,
-    progress: Math.random(),
+    // Names: Torrent A, B, C, D, E... for easy alphabetical testing
+    name: `Torrent ${String.fromCharCode(65 + id)}`,
+    progress: 0.5,
     activityState: 'downloading',
-    downloadSpeed: Math.floor(Math.random() * 1000000),
-    uploadSpeed: Math.floor(Math.random() * 100000),
-    numPeers: Math.floor(Math.random() * 20),
+    // Download speeds: descending (10000, 9000, 8000...) for predictable sort
+    downloadSpeed: (10 - id) * 1000,
+    uploadSpeed: id * 100,
+    numPeers: id,
     contentStorage: { getTotalSize: () => 1024 * 1024 * 100 },
+    ...overrides,
   }
 }
 
 export function createMockTorrents(count: number): MockTorrent[] {
-  return Array.from({ length: count }, (_, i) => createMockTorrent(i + 1))
+  return Array.from({ length: count }, (_, i) => createMockTorrent(i))
 }
 
 export interface MockSource {

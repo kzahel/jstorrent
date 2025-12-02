@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TorrentTable } from './TorrentTable'
@@ -7,7 +7,7 @@ import { createMockSource } from '../test/mocks'
 /**
  * TorrentTable Integration Tests
  *
- * These tests verify the selection behavior of TorrentTable which uses:
+ * These tests verify the column management behavior of TorrentTable which uses:
  * - React (TableMount wrapper)
  * - Solid.js (VirtualTable.solid.tsx)
  * - TanStack Virtual (@tanstack/solid-virtual)
@@ -17,185 +17,413 @@ import { createMockSource } from '../test/mocks'
  * to calculate which virtual items are visible. Happy-dom doesn't compute
  * layout/dimensions, so getVirtualItems() returns an empty array.
  *
- * TODO: Options to fix this:
- * 1. Use Playwright for E2E testing (recommended for UI interaction tests)
- * 2. Mock TanStack Virtual's getVirtualItems to return all items
- * 3. Use a test environment that supports layout (e.g., Playwright component testing)
- *
- * For now, these tests verify that the table structure renders correctly.
- * Selection behavior should be tested manually or via E2E tests.
+ * Tests that require row rendering are skipped with explanation.
+ * Header-level features (sorting, settings menu) can be tested.
  */
+
+// Helper to wait for Solid to mount
+async function waitForTable() {
+  await waitFor(() => {
+    expect(screen.getByTestId('virtual-table')).toBeInTheDocument()
+  })
+  // Wait for at least one RAF cycle
+  await new Promise((r) => setTimeout(r, 50))
+}
+
 describe('TorrentTable', () => {
-  it('renders table structure with headers', async () => {
-    const source = createMockSource(5)
+  beforeEach(() => {
+    sessionStorage.clear()
+  })
 
-    render(
-      <div style={{ height: 400 }}>
-        <TorrentTable source={source as never} />
-      </div>,
-    )
+  describe('rendering', () => {
+    it('renders table structure with headers', async () => {
+      const source = createMockSource(5)
 
-    // Wait for Solid to mount
-    await waitFor(() => {
-      expect(screen.getByTestId('virtual-table')).toBeInTheDocument()
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Verify headers are rendered
+      expect(screen.getByText('Name')).toBeInTheDocument()
+      expect(screen.getByText('Size')).toBeInTheDocument()
+      expect(screen.getByText('Done')).toBeInTheDocument()
+      expect(screen.getByText('Status')).toBeInTheDocument()
+      expect(screen.getByText('Down')).toBeInTheDocument()
+      expect(screen.getByText('Up')).toBeInTheDocument()
+      expect(screen.getByText('Peers')).toBeInTheDocument()
     })
 
-    // Verify headers are rendered
-    expect(screen.getByText('Name')).toBeInTheDocument()
-    expect(screen.getByText('Size')).toBeInTheDocument()
-    expect(screen.getByText('Done')).toBeInTheDocument()
-    expect(screen.getByText('Status')).toBeInTheDocument()
+    it('renders settings gear button', async () => {
+      const source = createMockSource(3)
+
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      expect(screen.getByTitle('Column settings')).toBeInTheDocument()
+    })
+  })
+
+  describe('sorting', () => {
+    it('shows sort indicator after clicking header', async () => {
+      const source = createMockSource(3)
+      const user = userEvent.setup()
+
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Click Name header to sort
+      await user.click(screen.getByText('Name'))
+
+      // Should show ascending indicator
+      await waitFor(() => {
+        expect(screen.getByText('\u25B2')).toBeInTheDocument()
+      })
+    })
+
+    it('toggles sort direction on second click', async () => {
+      const source = createMockSource(3)
+      const user = userEvent.setup()
+
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Click Name header twice
+      await user.click(screen.getByText('Name'))
+      await user.click(screen.getByText('Name'))
+
+      // Should show descending indicator
+      await waitFor(() => {
+        expect(screen.getByText('\u25BC')).toBeInTheDocument()
+      })
+    })
+
+    it('persists sort column to sessionStorage', async () => {
+      const source = createMockSource(3)
+      const user = userEvent.setup()
+
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Click Name header to sort
+      await user.click(screen.getByText('Name'))
+
+      // Check sessionStorage
+      await waitFor(() => {
+        const stored = sessionStorage.getItem('jstorrent:columns:torrents')
+        expect(stored).toBeTruthy()
+        const config = JSON.parse(stored!)
+        expect(config.sortColumn).toBe('name')
+        expect(config.sortDirection).toBe('asc')
+      })
+    })
+
+    it('restores sort indicator from sessionStorage on mount', async () => {
+      // Pre-set sessionStorage with Name descending
+      sessionStorage.setItem(
+        'jstorrent:columns:torrents',
+        JSON.stringify({
+          visible: [
+            'name',
+            'size',
+            'progress',
+            'status',
+            'downloadSpeed',
+            'uploadSpeed',
+            'peers',
+            'seeds',
+          ],
+          widths: {},
+          sortColumn: 'name',
+          sortDirection: 'desc',
+          liveSort: false,
+        }),
+      )
+
+      const source = createMockSource(5)
+
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Should show descending indicator
+      await waitFor(() => {
+        expect(screen.getByText('\u25BC')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('settings menu', () => {
+    it('opens settings menu on gear button click', async () => {
+      const source = createMockSource(3)
+      const user = userEvent.setup()
+
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Click gear button
+      const gearButton = screen.getByTitle('Column settings')
+      await user.click(gearButton)
+
+      // Menu should appear with Live Sort option
+      await waitFor(() => {
+        expect(screen.getByText('Live Sort')).toBeInTheDocument()
+      })
+    })
+
+    it('closes settings menu on outside click', async () => {
+      const source = createMockSource(3)
+      const user = userEvent.setup()
+
+      render(
+        <div style={{ height: 400 }} data-testid="outside">
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Open menu
+      const gearButton = screen.getByTitle('Column settings')
+      await user.click(gearButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('Live Sort')).toBeInTheDocument()
+      })
+
+      // Click outside
+      await user.click(screen.getByTestId('outside'))
+
+      // Menu should close
+      await waitFor(() => {
+        expect(screen.queryByText('Live Sort')).not.toBeInTheDocument()
+      })
+    })
+
+    it('shows column names in settings menu', async () => {
+      const source = createMockSource(3)
+      const user = userEvent.setup()
+
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Open settings
+      await user.click(screen.getByTitle('Column settings'))
+
+      await waitFor(() => {
+        // Should show all column names in the menu
+        // Note: 'Name' appears twice - once in header and once in menu
+        const nameElements = screen.getAllByText('Name')
+        expect(nameElements.length).toBeGreaterThanOrEqual(2)
+      })
+    })
+
+    it('persists column visibility to sessionStorage', async () => {
+      const source = createMockSource(3)
+      const user = userEvent.setup()
+
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Open settings
+      await user.click(screen.getByTitle('Column settings'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Live Sort')).toBeInTheDocument()
+      })
+
+      // Find the Peers checkbox in the menu and uncheck it
+      const checkboxes = screen.getAllByRole('checkbox')
+      // Find checkbox associated with Peers - it's in a div containing "Peers" text
+      const peersCheckbox = checkboxes.find((cb) => {
+        const parent = cb.closest('div')
+        return parent?.textContent?.includes('Peers')
+      })
+
+      expect(peersCheckbox).toBeDefined()
+      await user.click(peersCheckbox!)
+
+      // Check sessionStorage
+      await waitFor(() => {
+        const stored = sessionStorage.getItem('jstorrent:columns:torrents')
+        expect(stored).toBeTruthy()
+        const config = JSON.parse(stored!)
+        expect(config.visible).not.toContain('peers')
+      })
+    })
+
+    it('restores column visibility from sessionStorage on mount', async () => {
+      // Pre-set sessionStorage with Peers hidden
+      sessionStorage.setItem(
+        'jstorrent:columns:torrents',
+        JSON.stringify({
+          visible: ['name', 'size', 'progress', 'status', 'downloadSpeed', 'uploadSpeed', 'seeds'],
+          widths: {},
+          sortColumn: null,
+          sortDirection: 'asc',
+          liveSort: false,
+        }),
+      )
+
+      const source = createMockSource(3)
+
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Peers header should NOT be visible
+      const table = screen.getByTestId('virtual-table')
+      const headerArea = table.querySelector('[style*="sticky"]')
+      expect(headerArea?.textContent).not.toContain('Peers')
+    })
+
+    it('toggles live sort via settings menu', async () => {
+      const source = createMockSource(3)
+      const user = userEvent.setup()
+
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Open settings
+      await user.click(screen.getByTitle('Column settings'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Live Sort')).toBeInTheDocument()
+      })
+
+      // Find the Live Sort checkbox - it's in a label element
+      const liveSortLabel = screen.getByText('Live Sort').closest('label')
+      const liveSortCheckbox = liveSortLabel?.querySelector('input[type="checkbox"]')
+
+      expect(liveSortCheckbox).toBeDefined()
+      await user.click(liveSortCheckbox!)
+
+      // Check sessionStorage
+      await waitFor(() => {
+        const stored = sessionStorage.getItem('jstorrent:columns:torrents')
+        expect(stored).toBeTruthy()
+        const config = JSON.parse(stored!)
+        expect(config.liveSort).toBe(true)
+      })
+    })
+  })
+
+  describe('header context menu', () => {
+    it('opens context menu on header right-click', async () => {
+      const source = createMockSource(3)
+      const user = userEvent.setup()
+
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable source={source as never} />
+        </div>,
+      )
+
+      await waitForTable()
+
+      // Right-click on Down header (not Name since it's not hideable)
+      const downHeader = screen.getByText('Down')
+      await user.pointer({ keys: '[MouseRight]', target: downHeader })
+
+      // Context menu should appear
+      await waitFor(() => {
+        expect(screen.getByText('Hide Column')).toBeInTheDocument()
+        expect(screen.getByText('Table Settings...')).toBeInTheDocument()
+      })
+    })
   })
 
   // The following tests are skipped because TanStack Virtual requires
   // accurate element dimensions to render virtual items, which happy-dom
   // doesn't provide. These should be tested via E2E tests (Playwright).
 
-  it.skip('calls onSelectionChange with clicked row key', async () => {
-    const source = createMockSource(3)
-    const onSelectionChange = vi.fn()
-    const user = userEvent.setup()
+  describe('selection (skipped - requires row rendering)', () => {
+    it.skip('calls onSelectionChange with clicked row key', async () => {
+      const source = createMockSource(3)
+      const onSelectionChange = vi.fn()
+      const user = userEvent.setup()
 
-    render(
-      <div style={{ height: 400 }}>
-        <TorrentTable
-          source={source as never}
-          getSelectedHashes={() => new Set()}
-          onSelectionChange={onSelectionChange}
-        />
-      </div>,
-    )
+      render(
+        <div style={{ height: 400 }}>
+          <TorrentTable
+            source={source as never}
+            getSelectedHashes={() => new Set()}
+            onSelectionChange={onSelectionChange}
+          />
+        </div>,
+      )
 
-    await waitFor(() => {
-      expect(screen.getAllByTestId('table-row').length).toBeGreaterThan(0)
-    })
+      await waitForTable()
 
-    const rows = screen.getAllByTestId('table-row')
-    await user.click(rows[0])
-
-    expect(onSelectionChange).toHaveBeenCalledWith(new Set([source.torrents[0].infoHashStr]))
-  })
-
-  it.skip('toggles selection with Ctrl+click', async () => {
-    const source = createMockSource(3)
-    const selected = new Set([source.torrents[0].infoHashStr])
-    const onSelectionChange = vi.fn()
-    const user = userEvent.setup()
-
-    render(
-      <div style={{ height: 400 }}>
-        <TorrentTable
-          source={source as never}
-          getSelectedHashes={() => selected}
-          onSelectionChange={onSelectionChange}
-        />
-      </div>,
-    )
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId('table-row').length).toBeGreaterThan(0)
-    })
-
-    const rows = screen.getAllByTestId('table-row')
-
-    // Ctrl+click second row - should add to selection
-    await user.keyboard('[ControlLeft>]')
-    await user.click(rows[1])
-    await user.keyboard('[/ControlLeft]')
-
-    expect(onSelectionChange).toHaveBeenCalledWith(
-      new Set([source.torrents[0].infoHashStr, source.torrents[1].infoHashStr]),
-    )
-  })
-
-  it.skip('deselects with Ctrl+click on selected row', async () => {
-    const source = createMockSource(3)
-    const selected = new Set([source.torrents[0].infoHashStr, source.torrents[1].infoHashStr])
-    const onSelectionChange = vi.fn()
-    const user = userEvent.setup()
-
-    render(
-      <div style={{ height: 400 }}>
-        <TorrentTable
-          source={source as never}
-          getSelectedHashes={() => selected}
-          onSelectionChange={onSelectionChange}
-        />
-      </div>,
-    )
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId('table-row').length).toBeGreaterThan(0)
-    })
-
-    const rows = screen.getAllByTestId('table-row')
-
-    // Ctrl+click first row - should remove from selection
-    await user.keyboard('[ControlLeft>]')
-    await user.click(rows[0])
-    await user.keyboard('[/ControlLeft]')
-
-    expect(onSelectionChange).toHaveBeenCalledWith(new Set([source.torrents[1].infoHashStr]))
-  })
-
-  it.skip('range selects with Shift+click', async () => {
-    const source = createMockSource(5)
-    const onSelectionChange = vi.fn()
-    const user = userEvent.setup()
-
-    render(
-      <div style={{ height: 400 }}>
-        <TorrentTable
-          source={source as never}
-          getSelectedHashes={() => new Set()}
-          onSelectionChange={onSelectionChange}
-        />
-      </div>,
-    )
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId('table-row').length).toBeGreaterThan(0)
-    })
-
-    const rows = screen.getAllByTestId('table-row')
-
-    // Click first row (sets anchor)
-    await user.click(rows[0])
-    onSelectionChange.mockClear()
-
-    // Shift+click third row (selects range 0-2)
-    await user.keyboard('[ShiftLeft>]')
-    await user.click(rows[2])
-    await user.keyboard('[/ShiftLeft]')
-
-    expect(onSelectionChange).toHaveBeenCalledWith(
-      new Set([
-        source.torrents[0].infoHashStr,
-        source.torrents[1].infoHashStr,
-        source.torrents[2].infoHashStr,
-      ]),
-    )
-  })
-
-  it.skip('shows selected state visually', async () => {
-    const source = createMockSource(3)
-    const selected = new Set([source.torrents[1].infoHashStr])
-
-    render(
-      <div style={{ height: 400 }}>
-        <TorrentTable
-          source={source as never}
-          getSelectedHashes={() => selected}
-          onSelectionChange={() => {}}
-        />
-      </div>,
-    )
-
-    await waitFor(() => {
       const rows = screen.getAllByTestId('table-row')
-      expect(rows[1]).toHaveAttribute('data-selected', 'true')
-      expect(rows[0]).toHaveAttribute('data-selected', 'false')
-      expect(rows[2]).toHaveAttribute('data-selected', 'false')
+      await user.click(rows[0])
+
+      expect(onSelectionChange).toHaveBeenCalledWith(new Set([source.torrents[0].infoHashStr]))
+    })
+
+    it.skip('preserves selection after sort', async () => {
+      // Would need row rendering to verify selection state
+    })
+  })
+
+  describe('sort order (skipped - requires row rendering)', () => {
+    it.skip('sorts rows ascending on first header click', async () => {
+      // Would need row rendering to verify sort order
+    })
+
+    it.skip('sorts rows descending on second header click', async () => {
+      // Would need row rendering to verify sort order
     })
   })
 })

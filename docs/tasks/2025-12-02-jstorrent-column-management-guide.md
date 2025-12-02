@@ -1,13 +1,189 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment, react/no-unknown-property */
+# JSTorrent Column Management
+
+## Overview
+
+Add comprehensive column management to virtualized tables:
+- **Sort by column** - click header to sort, click again to reverse
+- **Live sort** - damped insertion sort for continuously changing data
+- **Column resize** - drag header edge
+- **Column visibility** - show/hide columns
+- **Column reorder** - drag to reorder in settings menu
+- **Persistence** - all settings saved to sessionStorage
+
+---
+
+## Data Structures
+
+### Extended ColumnConfig
+
+Update `packages/ui/src/tables/types.ts`:
+
+```ts
+/**
+ * Column definition for virtualized tables.
+ */
+export interface ColumnDef<T> {
+  id: string
+  header: string
+  getValue: (row: T) => string | number
+  width: number
+  minWidth?: number
+  align?: 'left' | 'center' | 'right'
+  /** If false, column cannot be hidden. Default true. */
+  hideable?: boolean
+  /** If false, cannot sort by this column. Default true. */
+  sortable?: boolean
+}
+
+/**
+ * Column visibility, width, order, and sort configuration.
+ * Persisted to sessionStorage.
+ */
+export interface ColumnConfig {
+  /** Ordered list of visible column IDs */
+  visible: string[]
+  /** Column widths (overrides defaults) */
+  widths: Record<string, number>
+  /** Current sort column ID (null = no sort) */
+  sortColumn: string | null
+  /** Sort direction */
+  sortDirection: 'asc' | 'desc'
+  /** Whether live sort is enabled */
+  liveSort: boolean
+}
+
+/**
+ * Props for table mount wrapper (React -> Solid bridge)
+ */
+export interface TableMountProps<T> {
+  getRows: () => T[]
+  getRowKey: (row: T) => string
+  columns: ColumnDef<T>[]
+  storageKey: string
+  getSelectedKeys?: () => Set<string>
+  onSelectionChange?: (keys: Set<string>) => void
+  onRowClick?: (row: T) => void
+  onRowDoubleClick?: (row: T) => void
+  onRowContextMenu?: (row: T, x: number, y: number) => void
+  rowHeight?: number
+  estimatedRowCount?: number
+}
+```
+
+---
+
+## Phase 1: Column Sorting (Click Header)
+
+### 1.1 Update packages/ui/src/tables/column-config.ts
+
+```ts
+import { ColumnConfig, ColumnDef } from './types'
+
+const STORAGE_PREFIX = 'jstorrent:columns:'
+
+/**
+ * Load column config from sessionStorage.
+ */
+export function loadColumnConfig<T>(
+  storageKey: string,
+  defaultColumns: ColumnDef<T>[],
+): ColumnConfig {
+  const defaultConfig: ColumnConfig = {
+    visible: defaultColumns.map((c) => c.id),
+    widths: {},
+    sortColumn: null,
+    sortDirection: 'asc',
+    liveSort: false,
+  }
+
+  try {
+    const stored = sessionStorage.getItem(STORAGE_PREFIX + storageKey)
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<ColumnConfig>
+      return {
+        visible: parsed.visible ?? defaultConfig.visible,
+        widths: parsed.widths ?? {},
+        sortColumn: parsed.sortColumn ?? null,
+        sortDirection: parsed.sortDirection ?? 'asc',
+        liveSort: parsed.liveSort ?? false,
+      }
+    }
+  } catch {
+    // Ignore parse errors
+  }
+
+  return defaultConfig
+}
+
+/**
+ * Save column config to sessionStorage.
+ */
+export function saveColumnConfig(storageKey: string, config: ColumnConfig): void {
+  try {
+    sessionStorage.setItem(STORAGE_PREFIX + storageKey, JSON.stringify(config))
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Get effective width for a column.
+ */
+export function getColumnWidth<T>(
+  column: ColumnDef<T>,
+  config: ColumnConfig,
+): number {
+  return config.widths[column.id] ?? column.width
+}
+
+/**
+ * Compare function for sorting rows by a column.
+ * Includes tiebreaker on key to prevent jitter when values oscillate.
+ */
+export function createCompareFunction<T>(
+  column: ColumnDef<T>,
+  direction: 'asc' | 'desc',
+  getKey: (row: T) => string,
+): (a: T, b: T) => number {
+  return (a: T, b: T) => {
+    const aVal = column.getValue(a)
+    const bVal = column.getValue(b)
+
+    let result: number
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      result = aVal - bVal
+    } else {
+      result = String(aVal).localeCompare(String(bVal))
+    }
+
+    // Apply direction
+    result = direction === 'asc' ? result : -result
+
+    // Tiebreaker: use stable key to prevent jitter
+    if (result === 0) {
+      result = getKey(a).localeCompare(getKey(b))
+    }
+
+    return result
+  }
+}
+```
+
+### 1.2 Update VirtualTable.solid.tsx for sorting
+
+This is a significant update. Here's the complete new file:
+
+```tsx
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck - Solid JSX is handled by vite-plugin-solid, not tsc
 import { createSignal, For, onCleanup, onMount, createMemo } from 'solid-js'
 import { createVirtualizer } from '@tanstack/solid-virtual'
 import type { ColumnDef, ColumnConfig } from './types'
-import {
-  getColumnWidth,
-  loadColumnConfig,
-  saveColumnConfig,
-  createCompareFunction,
+import { 
+  getColumnWidth, 
+  loadColumnConfig, 
+  saveColumnConfig, 
+  createCompareFunction 
 } from './column-config'
 
 export interface VirtualTableProps<T> {
@@ -80,7 +256,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
 
     const source = props.getRows()
     const config = columnConfig()
-
+    
     // Build a map for O(1) lookup by key
     const sourceMap = new Map<string, T>()
     for (const item of source) {
@@ -88,7 +264,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     }
 
     // Remove keys that no longer exist in source
-    sortedKeys = sortedKeys.filter((key) => sourceMap.has(key))
+    sortedKeys = sortedKeys.filter(key => sourceMap.has(key))
 
     // Find new keys (items added since last frame)
     const existingKeys = new Set(sortedKeys)
@@ -148,9 +324,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     }
 
     // Return rows in sorted order
-    return sortedKeys
-      .map((key) => sourceMap.get(key))
-      .filter((item): item is T => item !== undefined)
+    return sortedKeys.map((key) => sourceMap.get(key)).filter((item): item is T => item !== undefined)
   })
 
   // Anchor index for shift+click range selection
@@ -182,12 +356,10 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     }
   })
 
-  // Get visible columns in display order (from columnOrder, filtered by visible)
+  // Get visible columns in order
   const visibleColumns = createMemo(() => {
     const config = columnConfig()
-    const visibleSet = new Set(config.visible)
-    return config.columnOrder
-      .filter((id) => visibleSet.has(id))
+    return config.visible
       .map((id) => props.columns.find((c) => c.id === id))
       .filter((c): c is ColumnDef<T> => c !== undefined)
   })
@@ -282,11 +454,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
   const [settingsPos, setSettingsPos] = createSignal({ x: 0, y: 0 })
 
   // Header context menu state
-  const [headerMenu, setHeaderMenu] = createSignal<{
-    x: number
-    y: number
-    columnId: string
-  } | null>(null)
+  const [headerMenu, setHeaderMenu] = createSignal<{ x: number; y: number; columnId: string } | null>(null)
 
   const handleSettingsClick = (e: MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -301,14 +469,6 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
 
   // Close menus when clicking outside
   const handleDocumentClick = (e: MouseEvent) => {
-    const target = e.target as HTMLElement
-    // Don't close if clicking the settings button (it handles its own toggle)
-    if (target.closest('[title="Column settings"]')) return
-    // Don't close if clicking inside the settings menu
-    if (target.closest('[data-settings-menu]')) return
-    // Don't close if clicking inside the header context menu
-    if (target.closest('[data-header-menu]')) return
-
     if (showSettings()) {
       setShowSettings(false)
     }
@@ -325,8 +485,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     document.removeEventListener('click', handleDocumentClick)
   })
 
-  // Column visibility toggle - just adds/removes from visible set
-  // Display order is controlled by columnOrder
+  // Column visibility toggle
   const toggleColumnVisibility = (columnId: string) => {
     const config = columnConfig()
     const isVisible = config.visible.includes(columnId)
@@ -339,7 +498,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
         visible: config.visible.filter((id) => id !== columnId),
       })
     } else {
-      // Add to visible - order is determined by columnOrder
+      // Add to end of visible list
       saveConfig({
         ...config,
         visible: [...config.visible, columnId],
@@ -361,131 +520,24 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     }
   }
 
-  // Drag state for column reordering (mouse and touch)
-  const [draggedColumn, setDraggedColumn] = createSignal<string | null>(null)
-  const [dropTarget, setDropTarget] = createSignal<string | null>(null)
-
-  // Touch drag state for column reordering
-  const [touchDragState, setTouchDragState] = createSignal<{
-    columnId: string
-    startY: number
-    currentY: number
-    itemHeight: number
-  } | null>(null)
-
-  // Reorder column to new position (updates columnOrder)
-  const reorderColumn = (columnId: string, targetId: string) => {
-    if (columnId === targetId) return
-
+  // Move column in order
+  const moveColumn = (columnId: string, direction: 'up' | 'down') => {
     const config = columnConfig()
-    const newOrder = [...config.columnOrder]
+    const index = config.visible.indexOf(columnId)
+    if (index === -1) return
 
-    const fromIndex = newOrder.indexOf(columnId)
-    const toIndex = newOrder.indexOf(targetId)
+    const newIndex = direction === 'up' ? index - 1 : index + 1
+    if (newIndex < 0 || newIndex >= config.visible.length) return
 
-    if (fromIndex === -1 || toIndex === -1) return
+    const newVisible = [...config.visible]
+    newVisible.splice(index, 1)
+    newVisible.splice(newIndex, 0, columnId)
 
-    // Remove from old position and insert at new position
-    newOrder.splice(fromIndex, 1)
-    newOrder.splice(toIndex, 0, columnId)
-
-    saveConfig({ ...config, columnOrder: newOrder })
-  }
-
-  // Move column to the end of the list
-  const moveColumnToEnd = (columnId: string) => {
-    const config = columnConfig()
-    const newOrder = config.columnOrder.filter((id) => id !== columnId)
-    newOrder.push(columnId)
-    saveConfig({ ...config, columnOrder: newOrder })
-  }
-
-  // Get columns in display order (from columnOrder)
-  const orderedColumns = createMemo(() => {
-    const config = columnConfig()
-    return config.columnOrder
-      .map((id) => props.columns.find((c) => c.id === id))
-      .filter((c): c is ColumnDef<T> => c !== undefined)
-  })
-
-  // Touch handlers for column reordering (all columns can be reordered)
-  const handleColumnTouchStart = (e: TouchEvent, columnId: string) => {
-    const touch = e.touches[0]
-    const target = e.currentTarget as HTMLElement
-    const itemHeight = target.offsetHeight
-
-    setTouchDragState({
-      columnId,
-      startY: touch.clientY,
-      currentY: touch.clientY,
-      itemHeight,
-    })
-    setDraggedColumn(columnId)
-  }
-
-  const handleColumnTouchMove = (e: TouchEvent) => {
-    const state = touchDragState()
-    if (!state) return
-
-    e.preventDefault() // Prevent scrolling while dragging
-    const touch = e.touches[0]
-
-    setTouchDragState({ ...state, currentY: touch.clientY })
-
-    // Find which column we're over
-    const menuElement = (e.currentTarget as HTMLElement).closest('[data-settings-menu]')
-    if (!menuElement) return
-
-    // Check for end drop zone first
-    const endZone = menuElement.querySelector('[data-drop-end]')
-    if (endZone) {
-      const endRect = endZone.getBoundingClientRect()
-      if (touch.clientY >= endRect.top && touch.clientY <= endRect.bottom) {
-        setDropTarget('__end__')
-        return
-      }
-    }
-
-    const items = menuElement.querySelectorAll('[data-column-item]')
-    for (const item of items) {
-      const rect = item.getBoundingClientRect()
-      const itemColumnId = item.getAttribute('data-column-item')
-
-      if (
-        touch.clientY >= rect.top &&
-        touch.clientY <= rect.bottom &&
-        itemColumnId &&
-        itemColumnId !== state.columnId
-      ) {
-        setDropTarget(itemColumnId)
-        break
-      }
-    }
-  }
-
-  const handleColumnTouchEnd = () => {
-    const state = touchDragState()
-    const target = dropTarget()
-
-    if (state && target && state.columnId !== target) {
-      if (target === '__end__') {
-        moveColumnToEnd(state.columnId)
-      } else {
-        reorderColumn(state.columnId, target)
-      }
-    }
-
-    setTouchDragState(null)
-    setDraggedColumn(null)
-    setDropTarget(null)
+    saveConfig({ ...config, visible: newVisible })
   }
 
   // Column resize state
-  const [resizing, setResizing] = createSignal<{
-    columnId: string
-    startX: number
-    startWidth: number
-  } | null>(null)
+  const [resizing, setResizing] = createSignal<{ columnId: string; startX: number; startWidth: number } | null>(null)
 
   const handleResizeStart = (e: MouseEvent, column: ColumnDef<T>) => {
     e.preventDefault()
@@ -524,42 +576,6 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     document.addEventListener('mouseup', handleMouseUp)
   }
 
-  // Touch resize handler for mobile
-  const handleResizeTouchStart = (e: TouchEvent, column: ColumnDef<T>) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    const touch = e.touches[0]
-    const config = columnConfig()
-    const startWidth = getColumnWidth(column, config)
-
-    setResizing({ columnId: column.id, startX: touch.clientX, startWidth })
-
-    const handleTouchMove = (e: TouchEvent) => {
-      const r = resizing()
-      if (!r) return
-
-      const touch = e.touches[0]
-      const delta = touch.clientX - r.startX
-      const newWidth = Math.max(column.minWidth ?? 40, r.startWidth + delta)
-
-      const config = columnConfig()
-      saveConfig({
-        ...config,
-        widths: { ...config.widths, [r.columnId]: newWidth },
-      })
-    }
-
-    const handleTouchEnd = () => {
-      setResizing(null)
-      document.removeEventListener('touchmove', handleTouchMove)
-      document.removeEventListener('touchend', handleTouchEnd)
-    }
-
-    document.addEventListener('touchmove', handleTouchMove, { passive: false })
-    document.addEventListener('touchend', handleTouchEnd)
-  }
-
   return (
     <div
       ref={containerRef}
@@ -590,15 +606,14 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
         <div style={{ display: 'flex', width: `${totalWidth()}px` }}>
           <For each={visibleColumns()}>
             {(column) => {
-              // Use accessor functions for reactive values
-              const isSorted = () => columnConfig().sortColumn === column.id
-              const sortDir = () => columnConfig().sortDirection
-              const isLiveSort = () => columnConfig().liveSort
+              const config = columnConfig()
+              const isSorted = config.sortColumn === column.id
+              const sortDir = config.sortDirection
 
               return (
                 <div
                   style={{
-                    width: `${getColumnWidth(column, columnConfig())}px`,
+                    width: `${getColumnWidth(column, config)}px`,
                     padding: '8px 12px',
                     'box-sizing': 'border-box',
                     'text-align': column.align ?? 'left',
@@ -618,32 +633,27 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                   onContextMenu={(e) => handleHeaderContextMenu(e, column)}
                 >
                   <span>{column.header}</span>
-                  {isSorted() && (
+                  {isSorted && (
                     <span style={{ 'font-size': '10px', opacity: 0.7 }}>
-                      {sortDir() === 'asc' ? '\u25B2' : '\u25BC'}
+                      {sortDir === 'asc' ? '▲' : '▼'}
                     </span>
                   )}
-                  {isLiveSort() && isSorted() && (
-                    <span style={{ 'font-size': '8px', color: 'var(--accent-primary, #1976d2)' }}>
-                      {'\u25CF'}
-                    </span>
+                  {config.liveSort && isSorted && (
+                    <span style={{ 'font-size': '8px', color: 'var(--accent-primary, #1976d2)' }}>●</span>
                   )}
-                  {/* Resize handle - wider touch target for mobile */}
+                  {/* Resize handle */}
                   <div
                     style={{
                       position: 'absolute',
-                      right: '-6px',
+                      right: '0',
                       top: '0',
                       bottom: '0',
-                      width: '16px',
+                      width: '4px',
                       cursor: 'col-resize',
                       background: 'transparent',
-                      'touch-action': 'none',
-                      'z-index': '1',
                     }}
                     onClick={(e) => e.stopPropagation()}
                     onMouseDown={(e) => handleResizeStart(e, column)}
-                    onTouchStart={(e) => handleResizeTouchStart(e, column)}
                   />
                 </div>
               )
@@ -652,16 +662,14 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
         </div>
 
         {/* Dead space + settings button */}
-        <div
-          style={{
-            flex: '1',
-            'min-width': '40px',
-            display: 'flex',
-            'justify-content': 'flex-end',
-            'align-items': 'center',
-            'padding-right': '4px',
-          }}
-        >
+        <div style={{ 
+          flex: '1', 
+          'min-width': '40px',
+          display: 'flex',
+          'justify-content': 'flex-end',
+          'align-items': 'center',
+          'padding-right': '4px',
+        }}>
           <button
             style={{
               width: '28px',
@@ -682,7 +690,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
             }}
             title="Column settings"
           >
-            {'\u2699'}
+            ⚙
           </button>
         </div>
       </div>
@@ -722,9 +730,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                   cursor: 'default',
                   'border-bottom': '1px solid var(--border-light, #eee)',
                 }}
-                style:background={
-                  isSelected() ? 'var(--bg-highlight, #264f78)' : 'var(--bg-primary, #1e1e1e)'
-                }
+                style:background={isSelected() ? 'var(--bg-selected, #e3f2fd)' : 'var(--bg-primary, #fff)'}
                 onClick={(e) => handleRowClick(row(), virtualRow.index, e)}
                 onDblClick={() => props.onRowDoubleClick?.(row())}
                 onContextMenu={(e) => {
@@ -767,7 +773,6 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
       {/* Settings Menu */}
       {showSettings() && (
         <div
-          data-settings-menu
           style={{
             position: 'fixed',
             left: `${settingsPos().x}px`,
@@ -780,82 +785,68 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
             'min-width': '200px',
             'font-weight': 'normal',
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           <div style={{ padding: '8px 0' }}>
-            <For each={orderedColumns()}>
-              {(column) => {
-                // Use accessor functions for reactive values
-                const isVisible = () => columnConfig().visible.includes(column.id)
-                const isSorted = () => columnConfig().sortColumn === column.id
-                const isDragging = () => draggedColumn() === column.id
-                const isDropTarget = () =>
-                  dropTarget() === column.id && draggedColumn() !== column.id
+            <For each={props.columns}>
+              {(column, index) => {
+                const config = columnConfig()
+                const isVisible = config.visible.includes(column.id)
+                const isSorted = config.sortColumn === column.id
+                const canMoveUp = isVisible && config.visible.indexOf(column.id) > 0
+                const canMoveDown = isVisible && config.visible.indexOf(column.id) < config.visible.length - 1
 
                 return (
                   <div
-                    data-column-item={column.id}
-                    draggable={true}
-                    onDragStart={(e) => {
-                      setDraggedColumn(column.id)
-                      e.dataTransfer!.effectAllowed = 'move'
-                    }}
-                    onDragEnd={() => {
-                      const dragged = draggedColumn()
-                      const target = dropTarget()
-                      if (dragged && target && dragged !== target) {
-                        if (target === '__end__') {
-                          moveColumnToEnd(dragged)
-                        } else {
-                          reorderColumn(dragged, target)
-                        }
-                      }
-                      setDraggedColumn(null)
-                      setDropTarget(null)
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault()
-                      setDropTarget(column.id)
-                    }}
-                    onDragLeave={() => {
-                      if (dropTarget() === column.id) {
-                        setDropTarget(null)
-                      }
-                    }}
-                    onTouchStart={(e) => handleColumnTouchStart(e, column.id)}
-                    onTouchMove={handleColumnTouchMove}
-                    onTouchEnd={handleColumnTouchEnd}
                     style={{
                       display: 'flex',
                       'align-items': 'center',
                       padding: '6px 12px',
                       gap: '8px',
-                      opacity: isDragging() ? 0.5 : 1,
-                      background: isDropTarget() ? 'var(--bg-secondary, #f0f0f0)' : 'transparent',
-                      'border-top': isDropTarget()
-                        ? '2px solid var(--accent-primary, #1976d2)'
-                        : '2px solid transparent',
-                      cursor: 'grab',
-                      'touch-action': 'none',
                     }}
                   >
-                    {/* Drag handle */}
-                    <span
-                      style={{
-                        opacity: '0.4',
-                        cursor: 'grab',
-                        'font-size': '12px',
-                        'user-select': 'none',
-                      }}
-                    >
-                      {'\u2630'}
-                    </span>
+                    {/* Reorder buttons */}
+                    <div style={{ display: 'flex', 'flex-direction': 'column', gap: '2px' }}>
+                      <button
+                        style={{
+                          width: '16px',
+                          height: '12px',
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: canMoveUp ? 'pointer' : 'default',
+                          opacity: canMoveUp ? 0.6 : 0.2,
+                          'font-size': '8px',
+                          padding: 0,
+                        }}
+                        disabled={!canMoveUp}
+                        onClick={() => moveColumn(column.id, 'up')}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        style={{
+                          width: '16px',
+                          height: '12px',
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: canMoveDown ? 'pointer' : 'default',
+                          opacity: canMoveDown ? 0.6 : 0.2,
+                          'font-size': '8px',
+                          padding: 0,
+                        }}
+                        disabled={!canMoveDown}
+                        onClick={() => moveColumn(column.id, 'down')}
+                      >
+                        ▼
+                      </button>
+                    </div>
 
                     {/* Visibility checkbox */}
                     <input
                       type="checkbox"
-                      checked={isVisible()}
+                      checked={isVisible}
                       disabled={column.hideable === false}
-                      onClick={() => toggleColumnVisibility(column.id)}
+                      onChange={() => toggleColumnVisibility(column.id)}
                       style={{ cursor: column.hideable === false ? 'default' : 'pointer' }}
                     />
 
@@ -875,40 +866,15 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                     </span>
 
                     {/* Sort indicator */}
-                    {isSorted() && (
+                    {isSorted && (
                       <span style={{ 'font-size': '10px', opacity: 0.7 }}>
-                        {columnConfig().sortDirection === 'asc' ? '\u25B2' : '\u25BC'}
+                        {config.sortDirection === 'asc' ? '▲' : '▼'}
                       </span>
                     )}
                   </div>
                 )
               }}
             </For>
-
-            {/* End drop target - for moving columns to the end */}
-            <div
-              data-drop-end
-              onDragOver={(e) => {
-                e.preventDefault()
-                setDropTarget('__end__')
-              }}
-              onDragLeave={() => {
-                if (dropTarget() === '__end__') {
-                  setDropTarget(null)
-                }
-              }}
-              style={{
-                height: '24px',
-                margin: '0 12px',
-                'border-radius': '4px',
-                background:
-                  dropTarget() === '__end__' ? 'var(--bg-secondary, #f0f0f0)' : 'transparent',
-                'border-top':
-                  dropTarget() === '__end__'
-                    ? '2px solid var(--accent-primary, #1976d2)'
-                    : '2px solid transparent',
-              }}
-            />
           </div>
 
           {/* Live sort toggle */}
@@ -926,7 +892,11 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                 cursor: 'pointer',
               }}
             >
-              <input type="checkbox" checked={columnConfig().liveSort} onClick={toggleLiveSort} />
+              <input
+                type="checkbox"
+                checked={columnConfig().liveSort}
+                onChange={toggleLiveSort}
+              />
               <span>Live Sort</span>
               {columnConfig().liveSort && (
                 <span style={{ 'font-size': '10px', color: 'var(--text-secondary)' }}>
@@ -941,7 +911,6 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
       {/* Header Context Menu */}
       {headerMenu() && (
         <div
-          data-header-menu
           style={{
             position: 'fixed',
             left: `${headerMenu()!.x}px`,
@@ -955,6 +924,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
             'font-weight': 'normal',
             padding: '4px 0',
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           <button
             style={{
@@ -971,9 +941,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
               toggleColumnVisibility(headerMenu()!.columnId)
               setHeaderMenu(null)
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background = 'var(--bg-secondary, #f5f5f5)')
-            }
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-secondary, #f5f5f5)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
           >
             Hide Column
@@ -987,23 +955,19 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
               cursor: 'pointer',
               'font-size': '13px',
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background = 'var(--bg-secondary, #f5f5f5)')
-            }
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-secondary, #f5f5f5)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
           >
             <input
               type="checkbox"
               checked={columnConfig().liveSort}
-              onClick={() => {
+              onChange={() => {
                 toggleLiveSort()
               }}
             />
             Live Sort
           </label>
-          <div
-            style={{ height: '1px', background: 'var(--border-color, #ddd)', margin: '4px 0' }}
-          />
+          <div style={{ height: '1px', background: 'var(--border-color, #ddd)', margin: '4px 0' }} />
           <button
             style={{
               display: 'block',
@@ -1016,23 +980,121 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
               'font-size': '13px',
             }}
             onClick={() => {
-              // Position settings menu at same location as context menu
-              const menu = headerMenu()
-              if (menu) {
-                setSettingsPos({ x: menu.x, y: menu.y })
-              }
               setHeaderMenu(null)
               setShowSettings(true)
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background = 'var(--bg-secondary, #f5f5f5)')
-            }
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-secondary, #f5f5f5)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
           >
-            Table Settings...
+            Column Settings...
           </button>
         </div>
       )}
     </div>
   )
 }
+```
+
+---
+
+## Phase 2: Update mount.tsx
+
+No changes needed - the existing mount.tsx should work since all the new functionality is internal to VirtualTable.
+
+---
+
+## Phase 3: Verification
+
+```bash
+# 1. Start dev server
+cd extension && pnpm dev:web
+
+# 2. Manual testing:
+
+# Sorting:
+# - Click column header → sorts ascending
+# - Click same header → sorts descending
+# - Arrow indicator shows current sort column/direction
+# - Sorting persists across refresh
+
+# Column resize:
+# - Hover right edge of column header → cursor becomes col-resize
+# - Drag to resize
+# - Width persists across refresh
+
+# Settings menu (⚙ button):
+# - Click ⚙ → menu opens
+# - Uncheck column → column hides
+# - Click ▲/▼ → reorder columns
+# - Click column name → sort by it
+# - Toggle "Live Sort" → enables/disables
+# - Click outside → menu closes
+
+# Header context menu:
+# - Right-click column header → menu appears
+# - "Hide Column" → hides that column
+# - "Live Sort" checkbox → toggles live sort
+# - "Column Settings..." → opens main settings menu
+
+# Live sort:
+# - Enable live sort, sort by a speed column
+# - Rows gradually reorder as speeds change
+# - Small dot indicator shows live sort is active
+
+# Column visibility:
+# - Hidden columns can be shown via settings menu
+# - Can't hide the last visible column
+```
+
+---
+
+## Checklist
+
+### Phase 1: Core Implementation
+- [ ] Update types.ts with extended ColumnConfig
+- [ ] Update column-config.ts with sort utilities
+- [ ] Replace VirtualTable.solid.tsx with new implementation
+
+### Phase 2: Testing
+- [ ] Click-to-sort works
+- [ ] Sort direction toggle works
+- [ ] Sort indicator displays correctly
+- [ ] Column resize works
+- [ ] Settings menu opens/closes properly
+- [ ] Column visibility toggle works
+- [ ] Column reorder works (up/down buttons)
+- [ ] Live sort toggle works
+- [ ] Damped insertion sort animates smoothly
+- [ ] Header context menu works
+- [ ] All settings persist to sessionStorage
+
+---
+
+## Notes
+
+**Alignment:** Column definitions already support `align: 'left' | 'center' | 'right'`. Numbers should be right-aligned, text left-aligned.
+
+**Touch support:**
+- Column header tap works for sorting
+- Settings menu works with touch
+- Column resize is harder on touch (4px target) but still possible
+- Consider adding resize handles in settings menu for touch-friendly resize (future enhancement)
+
+**Performance:**
+
+*Key-based tracking:*
+- Tracks sorted order by row keys (e.g., `ip:port` for peers), not array indices
+- When items are added: new keys appended to end, migrate via insertion sort
+- When items are removed: keys filtered out, no re-sort needed
+- Avoids full re-sort when peer count changes frequently
+
+*Insertion sort step:*
+- Scans entire list doing comparisons (O(n) comparisons)
+- But comparisons are cheap (number subtraction or string compare)
+- Max 2 swaps per step prevents jarring jumps
+- Only runs every 200ms when live sort enabled
+
+*Tiebreaker:*
+- When two items have equal sort values, falls back to key comparison
+- Prevents jitter when values oscillate (e.g., speeds fluctuating between equal values)
+- Example: two peers both at 1MB/s won't swap back and forth
