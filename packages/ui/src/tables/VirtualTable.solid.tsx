@@ -288,15 +288,60 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     columnId: string
   } | null>(null)
 
+  // Constrain menu position to viewport bounds
+  const constrainToViewport = (
+    x: number,
+    y: number,
+    menuWidth: number,
+    menuHeight: number,
+  ): { x: number; y: number } => {
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const padding = 8 // Keep some padding from edges
+
+    // Constrain X: if menu would overflow right, move it left
+    let constrainedX = x
+    if (x + menuWidth > viewportWidth - padding) {
+      constrainedX = Math.max(padding, viewportWidth - menuWidth - padding)
+    }
+    if (constrainedX < padding) {
+      constrainedX = padding
+    }
+
+    // Constrain Y: if menu would overflow bottom, move it up
+    let constrainedY = y
+    if (y + menuHeight > viewportHeight - padding) {
+      constrainedY = Math.max(padding, viewportHeight - menuHeight - padding)
+    }
+    if (constrainedY < padding) {
+      constrainedY = padding
+    }
+
+    return { x: constrainedX, y: constrainedY }
+  }
+
+  // Estimated menu dimensions (used for initial positioning)
+  const SETTINGS_MENU_WIDTH = 220
+  const SETTINGS_MENU_HEIGHT = 400 // Approximate max height
+  const CONTEXT_MENU_WIDTH = 180
+  const CONTEXT_MENU_HEIGHT = 120 // 3 items + padding
+
   const handleSettingsClick = (e: MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setSettingsPos({ x: rect.right - 200, y: rect.bottom + 4 })
+    const pos = constrainToViewport(
+      rect.right - SETTINGS_MENU_WIDTH,
+      rect.bottom + 4,
+      SETTINGS_MENU_WIDTH,
+      SETTINGS_MENU_HEIGHT,
+    )
+    setSettingsPos(pos)
     setShowSettings(!showSettings())
   }
 
   const handleHeaderContextMenu = (e: MouseEvent, column: ColumnDef<T>) => {
     e.preventDefault()
-    setHeaderMenu({ x: e.clientX, y: e.clientY, columnId: column.id })
+    const pos = constrainToViewport(e.clientX, e.clientY, CONTEXT_MENU_WIDTH, CONTEXT_MENU_HEIGHT)
+    setHeaderMenu({ x: pos.x, y: pos.y, columnId: column.id })
   }
 
   // Close menus when clicking outside
@@ -613,6 +658,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                     'justify-content': column.align === 'right' ? 'flex-end' : 'flex-start',
                     gap: '4px',
                     position: 'relative',
+                    background: 'var(--bg-secondary, #f5f5f5)',
                   }}
                   onClick={() => handleHeaderClick(column)}
                   onContextMenu={(e) => handleHeaderContextMenu(e, column)}
@@ -778,6 +824,8 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
             'box-shadow': '0 4px 12px rgba(0,0,0,0.15)',
             'z-index': '1000',
             'min-width': '200px',
+            'max-height': 'calc(100vh - 16px)',
+            overflow: 'auto',
             'font-weight': 'normal',
           }}
         >
@@ -1016,10 +1064,16 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
               'font-size': '13px',
             }}
             onClick={() => {
-              // Position settings menu at same location as context menu
+              // Position settings menu at same location as context menu, constrained to viewport
               const menu = headerMenu()
               if (menu) {
-                setSettingsPos({ x: menu.x, y: menu.y })
+                const pos = constrainToViewport(
+                  menu.x,
+                  menu.y,
+                  SETTINGS_MENU_WIDTH,
+                  SETTINGS_MENU_HEIGHT,
+                )
+                setSettingsPos(pos)
               }
               setHeaderMenu(null)
               setShowSettings(true)

@@ -52,8 +52,10 @@ describe('TorrentTable', () => {
       expect(screen.getByText('Size')).toBeInTheDocument()
       expect(screen.getByText('Done')).toBeInTheDocument()
       expect(screen.getByText('Status')).toBeInTheDocument()
-      expect(screen.getByText('Down')).toBeInTheDocument()
-      expect(screen.getByText('Up')).toBeInTheDocument()
+      expect(screen.getByText('Downloaded')).toBeInTheDocument()
+      expect(screen.getByText('Uploaded')).toBeInTheDocument()
+      expect(screen.getByText('Down Speed')).toBeInTheDocument()
+      expect(screen.getByText('Up Speed')).toBeInTheDocument()
       expect(screen.getByText('Peers')).toBeInTheDocument()
     })
 
@@ -372,8 +374,8 @@ describe('TorrentTable', () => {
 
       await waitForTable()
 
-      // Right-click on Down header (not Name since it's not hideable)
-      const downHeader = screen.getByText('Down')
+      // Right-click on Down Speed header (not Name since it's not hideable)
+      const downHeader = screen.getByText('Down Speed')
       await user.pointer({ keys: '[MouseRight]', target: downHeader })
 
       // Context menu should appear
