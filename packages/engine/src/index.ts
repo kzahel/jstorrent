@@ -43,4 +43,9 @@ export { createDaemonEngine } from './presets/daemon'
 // Utils
 export { generateMagnet, parseMagnet, createTorrentBuffer } from './utils/magnet'
 export type { GenerateMagnetOptions, ParsedMagnet } from './utils/magnet'
-export { toHex, fromHex } from './utils/buffer'
+export { toHex, fromHex, toBase64, fromBase64 } from './utils/buffer'
+
+// Torrent factory and initialization
+export { parseTorrentInput } from './core/torrent-factory'
+export type { ParsedTorrentInput } from './core/torrent-factory'
+export { initializeTorrentMetadata } from './core/torrent-initializer'

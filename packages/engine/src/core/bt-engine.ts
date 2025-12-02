@@ -1,9 +1,8 @@
 import { EventEmitter } from '../utils/event-emitter'
 import { ISocketFactory } from '../interfaces/socket'
 import { IFileSystem } from '../interfaces/filesystem'
-// import * as crypto from 'crypto'
 import { randomBytes } from '../utils/hash'
-import { fromString, concat } from '../utils/buffer'
+import { fromString, concat, toHex } from '../utils/buffer'
 import {
   ILoggingEngine,
   Logger,
@@ -25,12 +24,11 @@ import { StorageRootManager } from '../storage/storage-root-manager'
 import { SessionPersistence } from './session-persistence'
 import { Torrent } from './torrent'
 import { PeerConnection } from './peer-connection'
-import { parseMagnet } from '../utils/magnet'
-import { TorrentParser, ParsedTorrent } from './torrent-parser'
-import { TorrentContentStorage } from './torrent-content-storage'
-import { toHex, fromHex } from '../utils/buffer'
-import { IStorageHandle } from '../io/storage-handle'
 import { TorrentUserState } from './torrent-state'
+
+// New imports for refactored code
+import { parseTorrentInput } from './torrent-factory'
+import { initializeTorrentMetadata } from './torrent-initializer'
 
 // Maximum piece size supported by the io-daemon (must match DefaultBodyLimit in io-daemon)
 export const MAX_PIECE_SIZE = 32 * 1024 * 1024 // 32MB
@@ -238,114 +236,62 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       userState?: TorrentUserState
     } = {},
   ): Promise<Torrent | null> {
-    let infoHash: Uint8Array
-    let announce: string[] = []
-    // let name: string | undefined
-    let infoBuffer: Uint8Array | undefined
-    let parsedTorrent: ParsedTorrent | undefined
-    let magnetLink: string | undefined
-    let torrentFileBase64: string | undefined
+    // Parse the input (magnet link or torrent file)
+    const input = await parseTorrentInput(magnetOrBuffer, this.hasher)
 
-    let magnetDisplayName: string | undefined
-
-    if (typeof magnetOrBuffer === 'string') {
-      const parsed = parseMagnet(magnetOrBuffer)
-      infoHash = fromHex(parsed.infoHash)
-      announce = parsed.announce || []
-      magnetLink = magnetOrBuffer
-      magnetDisplayName = parsed.name
-      // Note: peer hints (x.pe) are now extracted and added in torrent.start()
-    } else {
-      parsedTorrent = await TorrentParser.parse(magnetOrBuffer, this.hasher)
-      infoHash = parsedTorrent.infoHash
-      announce = parsedTorrent.announce
-      announce = parsedTorrent.announce
-      // name = parsedTorrent.name
-      infoBuffer = parsedTorrent.infoBuffer
-      torrentFileBase64 = this.uint8ArrayToBase64(magnetOrBuffer)
-    }
-
-    const infoHashStr = toHex(infoHash)
-    const existing = this.getTorrent(infoHashStr)
+    // Check for existing torrent
+    const existing = this.getTorrent(input.infoHashStr)
     if (existing) {
       return existing
     }
 
     // Register storage root for this torrent if provided
     if (options.storageKey) {
-      this.storageRootManager.setRootForTorrent(infoHashStr, options.storageKey)
+      this.storageRootManager.setRootForTorrent(input.infoHashStr, options.storageKey)
     }
 
+    // Create the torrent instance
     const torrent = new Torrent(
       this,
-      infoHash,
+      input.infoHash,
       this.peerId,
       this.socketFactory,
       this.port,
-      undefined, // contentStorage
-      announce,
+      undefined, // contentStorage - initialized later with metadata
+      input.announce,
       this.maxPeers,
       () => this.numConnections < this.maxConnections,
     )
 
     // Store magnet display name for fallback naming
-    if (magnetDisplayName) {
-      torrent._magnetDisplayName = magnetDisplayName
+    if (input.magnetDisplayName) {
+      torrent._magnetDisplayName = input.magnetDisplayName
     }
 
-    const initComponents = async (infoBuffer: Uint8Array, preParsed?: ParsedTorrent) => {
-      if (torrent.hasMetadata) return // Already initialized
-
-      const parsedTorrent =
-        preParsed || (await TorrentParser.parseInfoBuffer(infoBuffer, this.hasher))
-
-      // Check piece size limit
-      if (parsedTorrent.pieceLength > MAX_PIECE_SIZE) {
-        const sizeMB = (parsedTorrent.pieceLength / (1024 * 1024)).toFixed(1)
-        const maxMB = (MAX_PIECE_SIZE / (1024 * 1024)).toFixed(0)
-        const error = new Error(
-          `Torrent piece size (${sizeMB}MB) exceeds maximum supported size (${maxMB}MB)`,
-        )
-        torrent.emit('error', error)
-        this.emit('error', error)
-        throw error
-      }
-
-      // Initialize bitfield on torrent first (torrent owns the bitfield)
-      torrent.initBitfield(parsedTorrent.pieces.length)
-
-      // Initialize piece info on torrent
-      const lastPieceLength =
-        parsedTorrent.length % parsedTorrent.pieceLength || parsedTorrent.pieceLength
-      torrent.initPieceInfo(parsedTorrent.pieces, parsedTorrent.pieceLength, lastPieceLength)
-
-      // Check for existing saved state (resume data) and restore bitfield
-      const savedState = await this.sessionPersistence.loadTorrentState(infoHashStr)
-      if (savedState?.bitfield) {
-        this.logger.debug(`Restoring bitfield from saved state for ${infoHashStr}`)
-        torrent.restoreBitfieldFromHex(savedState.bitfield)
-      }
-
-      // Initialize ContentStorage
-      const storageHandle: IStorageHandle = {
-        id: infoHashStr,
-        name: parsedTorrent.name || infoHashStr,
-        getFileSystem: () => this.storageRootManager.getFileSystemForTorrent(infoHashStr),
-      }
-
-      const contentStorage = new TorrentContentStorage(this, storageHandle)
-      await contentStorage.open(parsedTorrent.files, parsedTorrent.pieceLength)
-      torrent.contentStorage = contentStorage
+    // Store magnet peer hints for use on every start
+    if (input.magnetPeerHints && input.magnetPeerHints.length > 0) {
+      torrent.magnetPeerHints = input.magnetPeerHints
     }
 
-    if (infoBuffer && parsedTorrent) {
-      torrent.setMetadata(infoBuffer)
-      await initComponents(infoBuffer, parsedTorrent)
+    // Store origin info for persistence
+    if (input.magnetLink) {
+      torrent.initFromMagnet(input.magnetLink)
+    } else if (input.torrentFileBase64) {
+      torrent.initFromTorrentFile(input.torrentFileBase64)
     }
 
+    // Set initial user state
+    torrent.userState = options.userState ?? 'active'
+
+    // Initialize metadata if we have it (torrent file case)
+    if (input.infoBuffer && input.parsedTorrent) {
+      await initializeTorrentMetadata(this, torrent, input.infoBuffer, input.parsedTorrent)
+    }
+
+    // Set up metadata event handler for magnet links
     torrent.on('metadata', async (infoBuffer) => {
       try {
-        await initComponents(infoBuffer)
+        await initializeTorrentMetadata(this, torrent, infoBuffer)
         torrent.recheckPeers()
         torrent.emit('ready')
       } catch (err) {
@@ -353,19 +299,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       }
     })
 
-    // Store origin info for persistence using init methods
-    if (magnetLink) {
-      torrent.initFromMagnet(magnetLink)
-    } else if (torrentFileBase64) {
-      torrent.initFromTorrentFile(torrentFileBase64)
-    }
-
-    // Set initial user state
-    torrent.userState = options.userState ?? 'active'
-
+    // Register torrent
     this.torrents.push(torrent)
     this.emit('torrent', torrent)
 
+    // Set up event forwarding
     torrent.on('complete', () => {
       this.emit('torrent-complete', torrent)
     })
@@ -374,16 +312,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       this.emit('error', err)
     })
 
-    // If we have metadata, verify existing data (recheck)
-    if (infoBuffer) {
-      // We can start checking asynchronously
-      // torrent.recheckData()
-    }
-
-    // Only start if engine not suspended AND user wants it active
-    // Note: peer hints from magnet link (x.pe) are now added in torrent.start()
+    // Start if engine not suspended AND user wants it active
     if (!this._suspended && torrent.userState === 'active') {
       await torrent.start()
+      // Note: peer hints are now added inside torrent.start()
     }
 
     // Persist torrent list (unless restoring from session)
@@ -420,54 +352,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     return this.torrents.find((t) => toHex(t.infoHash) === infoHash)
   }
 
-  /**
-   * Initialize a torrent from saved metadata (info dict).
-   * Used during session restore when we have the metadata buffer saved.
-   * This avoids needing to re-fetch metadata from peers.
-   */
-  async initTorrentFromSavedMetadata(torrent: Torrent, infoBuffer: Uint8Array): Promise<void> {
-    if (torrent.hasMetadata) return // Already initialized
-
-    const infoHashStr = toHex(torrent.infoHash)
-
-    // Set the metadata on the torrent
-    torrent.setMetadata(infoBuffer)
-
-    // Parse the info buffer
-    const parsedTorrent = await TorrentParser.parseInfoBuffer(infoBuffer, this.hasher)
-
-    // Check piece size limit
-    if (parsedTorrent.pieceLength > MAX_PIECE_SIZE) {
-      const sizeMB = (parsedTorrent.pieceLength / (1024 * 1024)).toFixed(1)
-      const maxMB = (MAX_PIECE_SIZE / (1024 * 1024)).toFixed(0)
-      const error = new Error(
-        `Torrent piece size (${sizeMB}MB) exceeds maximum supported size (${maxMB}MB)`,
-      )
-      torrent.emit('error', error)
-      this.emit('error', error)
-      throw error
-    }
-
-    // Initialize bitfield on torrent first (torrent owns the bitfield)
-    torrent.initBitfield(parsedTorrent.pieces.length)
-
-    // Initialize piece info on torrent
-    const lastPieceLength =
-      parsedTorrent.length % parsedTorrent.pieceLength || parsedTorrent.pieceLength
-    torrent.initPieceInfo(parsedTorrent.pieces, parsedTorrent.pieceLength, lastPieceLength)
-
-    // Initialize ContentStorage
-    const storageHandle: IStorageHandle = {
-      id: infoHashStr,
-      name: parsedTorrent.name || infoHashStr,
-      getFileSystem: () => this.storageRootManager.getFileSystemForTorrent(infoHashStr),
-    }
-
-    const contentStorage = new TorrentContentStorage(this, storageHandle)
-    await contentStorage.open(parsedTorrent.files, parsedTorrent.pieceLength)
-    torrent.contentStorage = contentStorage
-  }
-
   async destroy() {
     this.logger.info('Destroying engine')
 
@@ -498,13 +382,5 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   get numConnections(): number {
     return this.torrents.reduce((acc, t) => acc + t.numPeers, 0)
-  }
-
-  private uint8ArrayToBase64(bytes: Uint8Array): string {
-    let binary = ''
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    return btoa(binary)
   }
 }
