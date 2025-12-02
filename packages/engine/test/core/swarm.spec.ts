@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   Swarm,
   addressKey,
@@ -442,6 +442,126 @@ describe('Swarm', () => {
       expect(swarm.size).toBe(0)
       expect(swarm.connectedCount).toBe(0)
       expect(swarm.connectingCount).toBe(0)
+    })
+  })
+
+  describe('quick disconnect backoff', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should track quickDisconnects for short-lived connections', () => {
+      const peer = swarm.addPeer({ ip: '1.2.3.4', port: 6881, family: 'ipv4' }, 'tracker')
+      const key = '1.2.3.4:6881'
+      const mockConnection = { downloaded: 0, uploaded: 0 } as any
+
+      // Simulate connect/disconnect cycle (quick disconnect < 30s)
+      swarm.markConnecting(key)
+      swarm.markConnected(key, mockConnection)
+      vi.advanceTimersByTime(1000) // 1 second - short connection
+      swarm.markDisconnected(key)
+
+      expect(peer.quickDisconnects).toBe(1)
+      expect(peer.lastDisconnect).toBeDefined()
+    })
+
+    it('should apply backoff after quick disconnects', () => {
+      swarm.addPeer({ ip: '1.2.3.4', port: 6881, family: 'ipv4' }, 'tracker')
+      const key = '1.2.3.4:6881'
+      const mockConnection = { downloaded: 0, uploaded: 0 } as any
+
+      // Simulate quick connect/disconnect cycle
+      swarm.markConnecting(key)
+      swarm.markConnected(key, mockConnection)
+      swarm.markDisconnected(key) // Quick disconnect (<30s)
+
+      // Peer should NOT be returned immediately (in backoff)
+      // quickDisconnects=1, backoff = 2^1 = 2000ms
+      const candidates = swarm.getConnectablePeers(10)
+      expect(candidates.find((p) => addressKey(p) === key)).toBeUndefined()
+
+      // After backoff expires (2s + margin), should be returned
+      vi.advanceTimersByTime(2500)
+      const laterCandidates = swarm.getConnectablePeers(10)
+      expect(laterCandidates.find((p) => addressKey(p) === key)).toBeDefined()
+    })
+
+    it('should increase backoff exponentially with repeated quick disconnects', () => {
+      const peer = swarm.addPeer({ ip: '1.2.3.4', port: 6881, family: 'ipv4' }, 'tracker')
+      const key = '1.2.3.4:6881'
+      const mockConnection = { downloaded: 0, uploaded: 0 } as any
+
+      // First quick disconnect cycle
+      swarm.markConnecting(key)
+      swarm.markConnected(key, mockConnection)
+      swarm.markDisconnected(key)
+      expect(peer.quickDisconnects).toBe(1)
+
+      // Wait for backoff to expire (2^1 = 2s)
+      vi.advanceTimersByTime(3000)
+
+      // Second quick disconnect cycle
+      swarm.markConnecting(key)
+      swarm.markConnected(key, mockConnection)
+      swarm.markDisconnected(key)
+      expect(peer.quickDisconnects).toBe(2)
+
+      // Backoff should now be 2^2 = 4s
+      // After 3s, should still be in backoff
+      vi.advanceTimersByTime(3000)
+      let candidates = swarm.getConnectablePeers(10)
+      expect(candidates.find((p) => addressKey(p) === key)).toBeUndefined()
+
+      // After another 2s (total 5s > 4s backoff), should be available
+      vi.advanceTimersByTime(2000)
+      candidates = swarm.getConnectablePeers(10)
+      expect(candidates.find((p) => addressKey(p) === key)).toBeDefined()
+    })
+
+    it('should reset quickDisconnects after long-lived connection', () => {
+      const peer = swarm.addPeer({ ip: '1.2.3.4', port: 6881, family: 'ipv4' }, 'tracker')
+      const key = '1.2.3.4:6881'
+      const mockConnection = { downloaded: 0, uploaded: 0 } as any
+
+      // First: simulate a quick disconnect to set quickDisconnects > 0
+      swarm.markConnecting(key)
+      swarm.markConnected(key, mockConnection)
+      swarm.markDisconnected(key)
+      expect(peer.quickDisconnects).toBe(1)
+
+      // Wait for backoff
+      vi.advanceTimersByTime(3000)
+
+      // Now: simulate a long-lived connection (> 30 seconds)
+      swarm.markConnecting(key)
+      swarm.markConnected(key, mockConnection)
+      vi.advanceTimersByTime(35000) // 35 seconds
+      swarm.markDisconnected(key)
+
+      // quickDisconnects should be reset to 0
+      expect(peer.quickDisconnects).toBe(0)
+
+      // Peer should be immediately available (no backoff)
+      const candidates = swarm.getConnectablePeers(10)
+      expect(candidates.find((p) => addressKey(p) === key)).toBeDefined()
+    })
+
+    it('should not apply quick disconnect backoff to failed connection attempts', () => {
+      swarm.addPeer({ ip: '1.2.3.4', port: 6881, family: 'ipv4' }, 'tracker')
+      const key = '1.2.3.4:6881'
+
+      // Connection fails (never connected successfully)
+      swarm.markConnecting(key)
+      swarm.markConnectFailed(key, 'Connection refused')
+
+      // This should use connectFailures backoff, not quickDisconnects
+      const peer = swarm.getPeerByKey(key)
+      expect(peer?.connectFailures).toBe(1)
+      expect(peer?.quickDisconnects).toBe(0) // Should not increment
     })
   })
 })
