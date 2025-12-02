@@ -14,10 +14,9 @@ import { TorrentFileInfo } from './torrent-file-info'
 import { EngineComponent } from '../logging/logger'
 import type { BtEngine } from './bt-engine'
 import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
-import { Swarm, SwarmStats, detectAddressFamily, peerKey } from './swarm'
+import { Swarm, SwarmStats, detectAddressFamily, peerKey, PeerAddress } from './swarm'
 import { ConnectionManager } from './connection-manager'
 import { ConnectionTimingTracker } from './connection-timing'
-import { parseMagnet } from '../utils/magnet'
 
 /**
  * All persisted fields for a torrent.
@@ -128,6 +127,12 @@ export class Torrent extends EngineComponent {
 
   // Magnet display name (dn parameter) - fallback when info dict isn't available yet
   public _magnetDisplayName?: string
+
+  /**
+   * Peer hints from magnet link (x.pe parameter).
+   * These are added to the swarm every time the torrent starts.
+   */
+  public magnetPeerHints: PeerAddress[] = []
 
   // === Centralized persisted state ===
   private _persisted: TorrentPersistedState = createDefaultPersistedState()
@@ -279,17 +284,10 @@ export class Torrent extends EngineComponent {
     // Start periodic maintenance (idempotent)
     this.startMaintenance()
 
-    // Re-add peer hints from original magnet link (x.pe parameter)
-    // This ensures hints are tried every time the torrent starts, not just on initial add
-    if (this.magnetLink) {
-      const parsed = parseMagnet(this.magnetLink)
-      this.logger.debug(`Checking magnet for peer hints: ${parsed.peers?.length ?? 0} peers found`)
-      if (parsed.peers && parsed.peers.length > 0) {
-        this.logger.info(`Adding ${parsed.peers.length} peer hints from magnet link`)
-        this.addPeerHints(parsed.peers)
-      }
-    } else {
-      this.logger.debug('No magnet link stored, skipping peer hints')
+    // Add magnet peer hints on every start
+    if (this.magnetPeerHints.length > 0) {
+      this.logger.info(`Adding ${this.magnetPeerHints.length} peer hints from magnet link`)
+      this.addPeerHints(this.magnetPeerHints)
     }
 
     if (this.trackerManager) {
@@ -665,17 +663,10 @@ export class Torrent extends EngineComponent {
     this.logger.debug('Resuming network')
     this._networkActive = true
 
-    // Re-add peer hints from original magnet link (x.pe parameter)
-    // This ensures hints are tried every time the torrent resumes, not just on initial add
-    if (this.magnetLink) {
-      const parsed = parseMagnet(this.magnetLink)
-      this.logger.info(`Checking magnet for peer hints: ${parsed.peers?.length ?? 0} peers found`)
-      if (parsed.peers && parsed.peers.length > 0) {
-        this.logger.info(`Adding ${parsed.peers.length} peer hints from magnet link`)
-        this.addPeerHints(parsed.peers)
-      }
-    } else {
-      this.logger.info('No magnet link stored, skipping peer hints')
+    // Add magnet peer hints on every resume
+    if (this.magnetPeerHints.length > 0) {
+      this.logger.info(`Adding ${this.magnetPeerHints.length} peer hints from magnet link`)
+      this.addPeerHints(this.magnetPeerHints)
     }
 
     // Start tracker announces
@@ -1779,7 +1770,7 @@ export class Torrent extends EngineComponent {
    *
    * @param hints - Array of PeerAddress objects (already parsed with family)
    */
-  addPeerHints(hints: import('./swarm').PeerAddress[]): void {
+  addPeerHints(hints: PeerAddress[]): void {
     if (hints.length === 0) return
 
     const added = this._swarm.addPeers(hints, 'magnet_hint')

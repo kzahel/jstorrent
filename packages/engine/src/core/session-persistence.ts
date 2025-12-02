@@ -1,9 +1,10 @@
 import { ISessionStore } from '../interfaces/session-store'
 import { BtEngine } from './bt-engine'
 import { Torrent, TorrentPersistedState } from './torrent'
-import { toHex } from '../utils/buffer'
+import { toHex, toBase64, fromBase64 } from '../utils/buffer'
 import { TorrentUserState } from './torrent-state'
 import { Logger } from '../logging/logger'
+import { initializeTorrentMetadata } from './torrent-initializer'
 
 const TORRENTS_KEY = 'torrents'
 const TORRENT_PREFIX = 'torrent:'
@@ -100,19 +101,11 @@ export class SessionPersistence {
 
     // Save the info buffer (metadata) so we don't need to re-fetch from peers
     if (persistedState.infoBuffer) {
-      state.infoBuffer = this.uint8ArrayToBase64(persistedState.infoBuffer)
+      state.infoBuffer = toBase64(persistedState.infoBuffer)
     }
 
     const json = JSON.stringify(state)
     await this.store.set(TORRENT_PREFIX + infoHash, new TextEncoder().encode(json))
-  }
-
-  private uint8ArrayToBase64(bytes: Uint8Array): string {
-    let binary = ''
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    return btoa(binary)
   }
 
   /**
@@ -223,7 +216,7 @@ export class SessionPersistence {
           })
         } else if (data.torrentFile) {
           // Decode base64 torrent file
-          const buffer = this.base64ToUint8Array(data.torrentFile)
+          const buffer = fromBase64(data.torrentFile)
           torrent = await this.engine.addTorrent(buffer, {
             storageKey: data.storageKey,
             source: 'restore',
@@ -242,14 +235,14 @@ export class SessionPersistence {
             totalDownloaded: state?.downloaded ?? 0,
             totalUploaded: state?.uploaded ?? 0,
             completedPieces: [], // Will be restored from bitfield below
-            infoBuffer: state?.infoBuffer ? this.base64ToUint8Array(state.infoBuffer) : undefined,
+            infoBuffer: state?.infoBuffer ? fromBase64(state.infoBuffer) : undefined,
           }
 
           // If we have saved metadata (info buffer), initialize the torrent with it
           // This is crucial for magnet links - avoids needing to re-fetch metadata from peers
           if (persistedState.infoBuffer && !torrent.hasMetadata) {
             this.logger.debug(`Initializing torrent ${data.infoHash} from saved metadata`)
-            await this.engine.initTorrentFromSavedMetadata(torrent, persistedState.infoBuffer)
+            await initializeTorrentMetadata(this.engine, torrent, persistedState.infoBuffer)
           }
 
           // Restore bitfield if we have saved state and metadata is now available
@@ -301,14 +294,5 @@ export class SessionPersistence {
       userState: persistedState.userState,
       queuePosition: persistedState.queuePosition,
     }
-  }
-
-  private base64ToUint8Array(base64: string): Uint8Array {
-    const binary = atob(base64)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i)
-    }
-    return bytes
   }
 }

@@ -32,5 +32,10 @@ target/
 # TypeScript
 *.tsbuildinfo
 
+# Prevent accidental TypeScript output in src/
+packages/engine/src/**/*.js
+packages/engine/src/**/*.d.ts
+packages/engine/src/**/*.d.ts.map
+
 # agent crap?
 **/.pad
