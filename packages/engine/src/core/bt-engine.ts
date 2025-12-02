@@ -248,15 +248,13 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     let magnetDisplayName: string | undefined
 
-    let magnetPeerHints: import('./swarm').PeerAddress[] | undefined
-
     if (typeof magnetOrBuffer === 'string') {
       const parsed = parseMagnet(magnetOrBuffer)
       infoHash = fromHex(parsed.infoHash)
       announce = parsed.announce || []
       magnetLink = magnetOrBuffer
       magnetDisplayName = parsed.name
-      magnetPeerHints = parsed.peers
+      // Note: peer hints (x.pe) are now extracted and added in torrent.start()
     } else {
       parsedTorrent = await TorrentParser.parse(magnetOrBuffer, this.hasher)
       infoHash = parsedTorrent.infoHash
@@ -383,13 +381,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     // Only start if engine not suspended AND user wants it active
+    // Note: peer hints from magnet link (x.pe) are now added in torrent.start()
     if (!this._suspended && torrent.userState === 'active') {
       await torrent.start()
-
-      // Add peer hints from magnet link (x.pe parameter) after start so network is active
-      if (magnetPeerHints && magnetPeerHints.length > 0) {
-        torrent.addPeerHints(magnetPeerHints)
-      }
     }
 
     // Persist torrent list (unless restoring from session)
