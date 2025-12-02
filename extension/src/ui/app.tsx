@@ -113,12 +113,15 @@ function AppContent() {
 
   const handleResetSelected = async () => {
     // Reset = remove + re-add in stopped state
+    // Use original magnet URI if available (preserves non-standard query params like x.pe)
     for (const t of selectedTorrentObjects) {
-      const magnet = generateMagnet({
-        infoHash: t.infoHashStr,
-        name: t.name,
-        announce: t.announce,
-      })
+      const magnet =
+        t.magnetLink ??
+        generateMagnet({
+          infoHash: t.infoHashStr,
+          name: t.name,
+          announce: t.announce,
+        })
       await adapter.removeTorrent(t)
       await adapter.addTorrent(magnet, { userState: 'stopped' })
     }
@@ -126,14 +129,15 @@ function AppContent() {
   }
 
   const handleCopyMagnet = async () => {
-    // TODO: Use original magnet URI if available (preserves non-standard query params)
-    // Currently we regenerate it which may lose custom params
-    const magnets = selectedTorrentObjects.map((t) =>
-      generateMagnet({
-        infoHash: t.infoHashStr,
-        name: t.name,
-        announce: t.announce,
-      }),
+    // Use original magnet URI if available (preserves non-standard query params like x.pe)
+    const magnets = selectedTorrentObjects.map(
+      (t) =>
+        t.magnetLink ??
+        generateMagnet({
+          infoHash: t.infoHashStr,
+          name: t.name,
+          announce: t.announce,
+        }),
     )
     const text = magnets.join('\n')
     try {
@@ -153,13 +157,15 @@ function AppContent() {
 
   const handleShare = () => {
     if (selectedTorrentObjects.length === 0) return
-    // TODO: Use original magnet URI if available (preserves non-standard query params)
+    // Use original magnet URI if available (preserves non-standard query params like x.pe)
     const t = selectedTorrentObjects[0]
-    const magnet = generateMagnet({
-      infoHash: t.infoHashStr,
-      name: t.name,
-      announce: t.announce,
-    })
+    const magnet =
+      t.magnetLink ??
+      generateMagnet({
+        infoHash: t.infoHashStr,
+        name: t.name,
+        announce: t.announce,
+      })
     const shareUrl = import.meta.env.SHARE_URL || 'https://jstorrent.com/share.html'
     window.open(`${shareUrl}#magnet=${encodeURIComponent(magnet)}`, '_blank')
   }

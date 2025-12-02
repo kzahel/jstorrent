@@ -511,9 +511,11 @@ window.engineManager = engineManager
  * Debug helper: Add Big Buck Bunny test torrent and start immediately.
  * Call from console: addTestTorrent()
  */
-async function addTestTorrent(): Promise<Torrent | null> {
-  const magnet =
-    'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da&dn=big_buck_bunny_720p_surround.mp4&x.pe=127.0.0.1:8998'
+async function addTestTorrent(url?: string): Promise<Torrent | null> {
+  let magnet =
+    url ??
+    'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da&dn=big_buck_bunny_720p_surround.mp4'
+  magnet += '&x.pe=127.0.0.1:8998'
 
   const engine = await engineManager.init()
   const torrent = await engine.addTorrent(magnet)

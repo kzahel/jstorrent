@@ -17,6 +17,7 @@ import { TorrentUserState, TorrentActivityState, computeActivityState } from './
 import { Swarm, SwarmStats, detectAddressFamily, peerKey } from './swarm'
 import { ConnectionManager } from './connection-manager'
 import { ConnectionTimingTracker } from './connection-timing'
+import { parseMagnet } from '../utils/magnet'
 
 /**
  * All persisted fields for a torrent.
@@ -277,6 +278,15 @@ export class Torrent extends EngineComponent {
 
     // Start periodic maintenance (idempotent)
     this.startMaintenance()
+
+    // Re-add peer hints from original magnet link (x.pe parameter)
+    // This ensures hints are tried every time the torrent starts, not just on initial add
+    if (this.magnetLink) {
+      const parsed = parseMagnet(this.magnetLink)
+      if (parsed.peers && parsed.peers.length > 0) {
+        this.addPeerHints(parsed.peers)
+      }
+    }
 
     if (this.trackerManager) {
       this.logger.info('Starting tracker announce')
