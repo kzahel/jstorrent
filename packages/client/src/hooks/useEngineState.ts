@@ -51,6 +51,8 @@ export function useEngineState() {
       totalDownloadRate,
       totalUploadRate,
     },
+    /** Force an immediate re-render (useful after mutating torrent state) */
+    refresh,
   }
 }
 

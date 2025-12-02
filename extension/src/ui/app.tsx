@@ -24,7 +24,7 @@ function AppContent() {
   const [magnetInput, setMagnetInput] = useState('')
   const [selectedTorrents, setSelectedTorrents] = useState<Set<string>>(new Set())
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
-  const { adapter, torrents, numConnections, globalStats } = useEngineState()
+  const { adapter, torrents, numConnections, globalStats, refresh } = useEngineState()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Get selected torrent objects
@@ -32,7 +32,7 @@ function AppContent() {
     return [...selectedTorrents]
       .map((hash) => adapter.getTorrent(hash))
       .filter((t): t is Torrent => t !== undefined)
-  }, [selectedTorrents, adapter, torrents]) // include torrents to re-compute when list changes
+  }, [selectedTorrents, adapter, torrents])
 
   // Smart button states
   const hasSelection = selectedTorrents.size > 0
@@ -72,6 +72,7 @@ function AppContent() {
         t.userStart()
       }
     }
+    refresh()
   }
 
   const handleStopSelected = () => {
@@ -80,6 +81,7 @@ function AppContent() {
         t.userStop()
       }
     }
+    refresh()
   }
 
   const handleDeleteSelected = async () => {
