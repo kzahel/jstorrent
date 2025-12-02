@@ -117,6 +117,9 @@ importers:
       '@jstorrent/engine':
         specifier: workspace:*
         version: link:../engine
+      '@jstorrent/ui':
+        specifier: workspace:*
+        version: link:../ui
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -124,6 +127,9 @@ importers:
       '@types/chrome':
         specifier: ^0.1.31
         version: 0.1.31
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.25
       '@types/react':
         specifier: ^18.2.37
         version: 18.3.27

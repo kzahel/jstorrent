@@ -1,0 +1,108 @@
+import { toHex, fromHex } from './buffer'
+export class BitField {
+  static fromHex(hex, length) {
+    const bf = new BitField(length)
+    const bytes = fromHex(hex)
+    // Copy bytes into the bitfield's buffer (up to its size)
+    const copyLen = Math.min(bytes.length, bf.buffer.length)
+    for (let i = 0; i < copyLen; i++) {
+      bf.buffer[i] = bytes[i]
+    }
+    return bf
+  }
+  constructor(lengthOrBuffer) {
+    if (typeof lengthOrBuffer === 'number') {
+      this.length = lengthOrBuffer
+      this.buffer = new Uint8Array(Math.ceil(this.length / 8))
+    } else {
+      this.buffer = lengthOrBuffer
+      this.length = this.buffer.length * 8
+    }
+  }
+  get size() {
+    return this.length
+  }
+  get(index) {
+    if (index < 0 || index >= this.length) {
+      return false
+    }
+    const byteIndex = Math.floor(index / 8)
+    const bitIndex = 7 - (index % 8)
+    return ((this.buffer[byteIndex] >> bitIndex) & 1) === 1
+  }
+  set(index, value = true) {
+    if (index < 0 || index >= this.length) {
+      return // Silently ignore out of bounds
+    }
+    const byteIndex = Math.floor(index / 8)
+    const bitIndex = 7 - (index % 8)
+    if (value) {
+      this.buffer[byteIndex] |= 1 << bitIndex
+    } else {
+      this.buffer[byteIndex] &= ~(1 << bitIndex)
+    }
+  }
+  hasAll() {
+    // Check full bytes
+    const fullBytes = Math.floor(this.length / 8)
+    for (let i = 0; i < fullBytes; i++) {
+      if (this.buffer[i] !== 0xff) return false
+    }
+    // Check remaining bits
+    const remainingBits = this.length % 8
+    if (remainingBits > 0) {
+      const lastByte = this.buffer[fullBytes]
+      // Create a mask for the remaining bits (e.g., 3 bits -> 11100000)
+      const mask = (0xff << (8 - remainingBits)) & 0xff
+      if ((lastByte & mask) !== mask) return false
+    }
+    return true
+  }
+  hasNone() {
+    for (let i = 0; i < this.buffer.length; i++) {
+      if (this.buffer[i] !== 0) return false
+    }
+    return true
+  }
+  toBuffer() {
+    return this.buffer
+  }
+  toHex() {
+    return toHex(this.buffer)
+  }
+  /**
+   * Restore bitfield data from hex string in-place.
+   */
+  restoreFromHex(hex) {
+    const bytes = fromHex(hex)
+    const copyLen = Math.min(bytes.length, this.buffer.length)
+    for (let i = 0; i < copyLen; i++) {
+      this.buffer[i] = bytes[i]
+    }
+  }
+  count() {
+    let count = 0
+    for (let i = 0; i < this.length; i++) {
+      if (this.get(i)) {
+        count++
+      }
+    }
+    return count
+  }
+  cardinality() {
+    return this.count()
+  }
+  /**
+   * Get indices of all set bits.
+   * Used for persistence to store completed pieces as an array.
+   */
+  getSetIndices() {
+    const indices = []
+    for (let i = 0; i < this.length; i++) {
+      if (this.get(i)) {
+        indices.push(i)
+      }
+    }
+    return indices
+  }
+}

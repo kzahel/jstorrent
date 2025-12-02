@@ -11,13 +11,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@jstorrent/engine": "workspace:*"
+    "@jstorrent/engine": "workspace:*",
+    "@jstorrent/ui": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.2.0"
   },
   "devDependencies": {
     "@types/chrome": "^0.1.31",
+    "@types/node": "^20.10.0",
     "@types/react": "^18.2.37",
     "typescript": "^5.2.2"
   }

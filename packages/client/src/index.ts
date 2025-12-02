@@ -13,3 +13,9 @@ export type { ProgressStats } from './chrome/notification-bridge'
 export { EngineProvider, useAdapter, useEngine } from './context/EngineContext'
 export type { EngineProviderProps } from './context/EngineContext'
 export { useEngineState, useTorrentState } from './hooks/useEngineState'
+
+// App
+export { App, AppContent } from './App'
+
+// Components
+export { DownloadRootsManager } from './components/DownloadRootsManager'
