@@ -11,6 +11,14 @@ export function TableMount<T>(props: TableMountProps<T>) {
   const containerRef = useRef<HTMLDivElement>(null)
   const disposeRef = useRef<(() => void) | null>(null)
 
+  // Keep refs to props that may change - Solid captures these at mount time,
+  // so we need refs to always get the current value
+  const getSelectedKeysRef = useRef(props.getSelectedKeys)
+  getSelectedKeysRef.current = props.getSelectedKeys
+
+  const onSelectionChangeRef = useRef(props.onSelectionChange)
+  onSelectionChangeRef.current = props.onSelectionChange
+
   useEffect(() => {
     if (!containerRef.current) return
 
@@ -18,6 +26,7 @@ export function TableMount<T>(props: TableMountProps<T>) {
     disposeRef.current?.()
 
     // Mount Solid component - call as function to avoid JSX type mismatch
+    // Use wrapper functions that read from refs to always get current props
     disposeRef.current = render(
       () =>
         VirtualTable({
@@ -25,8 +34,8 @@ export function TableMount<T>(props: TableMountProps<T>) {
           getRowKey: props.getRowKey,
           columns: props.columns,
           storageKey: props.storageKey,
-          selectedKeys: props.selectedKeys,
-          onSelectionChange: props.onSelectionChange,
+          getSelectedKeys: () => getSelectedKeysRef.current?.() ?? new Set(),
+          onSelectionChange: (keys) => onSelectionChangeRef.current?.(keys),
           onRowClick: props.onRowClick,
           onRowDoubleClick: props.onRowDoubleClick,
           rowHeight: props.rowHeight,
@@ -44,5 +53,7 @@ export function TableMount<T>(props: TableMountProps<T>) {
   // Update props via Solid's reactivity (the getRows function is called each frame)
   // Other props are stable references, so no re-mount needed
 
-  return <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
+  return (
+    <div ref={containerRef} style={{ height: '100%', width: '100%' }} data-testid="table-mount" />
+  )
 }

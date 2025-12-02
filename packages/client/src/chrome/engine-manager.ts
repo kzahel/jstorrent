@@ -532,20 +532,20 @@ async function addTestTorrent(): Promise<Torrent | null> {
 async function addTestTorrents(n: number): Promise<Torrent[]> {
   const engine = await engineManager.init()
   const added: Torrent[] = []
-  
+
   for (let i = 1; i <= n; i++) {
     // Pad to 3 hex digits for display: 001, 002, ..., 00f, 010, ...
     const hexNum = i.toString(16).padStart(3, '0')
     // Full 40-char info hash (pad with leading zeros)
     const infoHash = i.toString(16).padStart(40, '0')
     const magnet = `magnet:?xt=urn:btih:${infoHash}&dn=test%20torrent%20${hexNum}`
-    
-    const torrent = await engine.addTorrent(magnet, {userState: 'stopped'})
+
+    const torrent = await engine.addTorrent(magnet, { userState: 'stopped' })
     if (torrent) {
       added.push(torrent)
     }
   }
-  
+
   console.log(`[addTestTorrents] Added ${added.length}/${n} torrents`)
   return added
 }

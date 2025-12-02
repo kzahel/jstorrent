@@ -14,8 +14,8 @@ interface TorrentSource {
 export interface DetailPaneProps {
   /** Source to read torrent data from */
   source: TorrentSource
-  /** Currently selected torrent hash (null = none selected) */
-  selectedHash: string | null
+  /** Selected hashes - empty Set means none, Set with 1 item shows details, Set with 2+ shows count */
+  selectedHashes: Set<string>
 }
 
 const tabStyle: React.CSSProperties = {
@@ -34,43 +34,36 @@ const activeTabStyle: React.CSSProperties = {
   borderBottomColor: 'var(--accent-primary)',
 }
 
+const emptyStateStyle: React.CSSProperties = {
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'var(--text-secondary)',
+}
+
 /**
  * Detail pane showing info about the selected torrent.
  */
 export function DetailPane(props: DetailPaneProps) {
   const [activeTab, setActiveTab] = useState<DetailTab>('peers')
 
-  if (!props.selectedHash) {
-    return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        Select a torrent to view details
-      </div>
-    )
+  // No selection
+  if (props.selectedHashes.size === 0) {
+    return <div style={emptyStateStyle}>Select a torrent to view details</div>
   }
 
-  const torrent = props.source.getTorrent(props.selectedHash)
+  // Multi-selection
+  if (props.selectedHashes.size > 1) {
+    return <div style={emptyStateStyle}>{props.selectedHashes.size} torrents selected</div>
+  }
+
+  // Single selection - show details
+  const selectedHash = [...props.selectedHashes][0]
+  const torrent = props.source.getTorrent(selectedHash)
+
   if (!torrent) {
-    return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        Torrent not found
-      </div>
-    )
+    return <div style={emptyStateStyle}>Torrent not found</div>
   }
 
   return (
@@ -111,12 +104,8 @@ export function DetailPane(props: DetailPaneProps) {
 
       {/* Tab content */}
       <div style={{ flex: 1, minHeight: 0 }}>
-        {activeTab === 'peers' && (
-          <PeerTable source={props.source} torrentHash={props.selectedHash} />
-        )}
-        {activeTab === 'pieces' && (
-          <PieceTable source={props.source} torrentHash={props.selectedHash} />
-        )}
+        {activeTab === 'peers' && <PeerTable source={props.source} torrentHash={selectedHash} />}
+        {activeTab === 'pieces' && <PieceTable source={props.source} torrentHash={selectedHash} />}
         {activeTab === 'files' && (
           <div style={{ padding: 20, color: 'var(--text-secondary)' }}>Files table coming soon</div>
         )}

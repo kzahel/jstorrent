@@ -13,9 +13,6 @@ function AppContent() {
   const { adapter, torrents, numConnections, globalStats } = useEngineState()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Get single selected hash for detail pane
-  const selectedHash = selectedTorrents.size === 1 ? [...selectedTorrents][0] : null
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -205,7 +202,7 @@ function AppContent() {
                 ) : (
                   <TorrentTable
                     source={adapter}
-                    selectedHashes={selectedTorrents}
+                    getSelectedHashes={() => selectedTorrents}
                     onSelectionChange={setSelectedTorrents}
                     onRowDoubleClick={(torrent: Torrent) => {
                       if (torrent.userState === 'stopped') {
@@ -220,7 +217,7 @@ function AppContent() {
 
               {/* Detail pane - bottom half */}
               <div style={{ height: 250, minHeight: 100 }}>
-                <DetailPane source={adapter} selectedHash={selectedHash} />
+                <DetailPane source={adapter} selectedHashes={selectedTorrents} />
               </div>
             </div>
           </>

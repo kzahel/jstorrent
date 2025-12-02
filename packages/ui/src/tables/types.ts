@@ -39,8 +39,8 @@ export interface TableMountProps<T> {
   columns: ColumnDef<T>[]
   /** Storage key for column config persistence */
   storageKey: string
-  /** Currently selected row keys */
-  selectedKeys?: Set<string>
+  /** Get currently selected row keys (getter to avoid closure issues) */
+  getSelectedKeys?: () => Set<string>
   /** Selection change handler */
   onSelectionChange?: (keys: Set<string>) => void
   /** Row click handler */
