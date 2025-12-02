@@ -170,7 +170,10 @@ export class DaemonLifecycleManager {
           (msg as { type: string }).type === 'DaemonInfo'
         ) {
           const payload = (msg as unknown as { payload: DaemonInfo }).payload
-          console.log('[DaemonLifecycleManager] Parsed DaemonInfo payload:', JSON.stringify(payload))
+          console.log(
+            '[DaemonLifecycleManager] Parsed DaemonInfo payload:',
+            JSON.stringify(payload),
+          )
           resolve(payload)
         }
       }

@@ -13,7 +13,9 @@
     "./styles.css": "./src/styles.css"
   },
   "scripts": {
-    "typecheck": "echo 'Skipped - Vite handles JSX transforms'"
+    "typecheck": "echo 'Skipped - Vite handles JSX transforms'",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@jstorrent/engine": "workspace:*",
@@ -25,8 +27,15 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^14.1.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
-    "typescript": "^5.2.2"
+    "@vitejs/plugin-react": "^5.1.1",
+    "happy-dom": "^20.0.10",
+    "typescript": "^5.2.2",
+    "vite-plugin-solid": "^2.11.0",
+    "vitest": "^4.0.13"
   }
 }

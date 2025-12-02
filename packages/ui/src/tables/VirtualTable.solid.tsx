@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment, react/no-unknown-property */
 // @ts-nocheck - Solid JSX is handled by vite-plugin-solid, not tsc
-import { createSignal, createEffect, For, onCleanup, onMount } from 'solid-js'
+import { createSignal, For, onCleanup, onMount } from 'solid-js'
 import { createVirtualizer } from '@tanstack/solid-virtual'
 import type { ColumnDef, ColumnConfig } from './types'
-import { getColumnWidth, loadColumnConfig, saveColumnConfig } from './column-config'
+import { getColumnWidth, loadColumnConfig } from './column-config'
 
 export interface VirtualTableProps<T> {
   getRows: () => T[]
   getRowKey: (row: T) => string
   columns: ColumnDef<T>[]
   storageKey: string
-  selectedKeys?: Set<string>
+  getSelectedKeys?: () => Set<string>
   onSelectionChange?: (keys: Set<string>) => void
   onRowClick?: (row: T) => void
   onRowDoubleClick?: (row: T) => void
@@ -25,10 +25,8 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     loadColumnConfig(props.storageKey, props.columns),
   )
 
-  // Save config changes
-  createEffect(() => {
-    saveColumnConfig(props.storageKey, columnConfig())
-  })
+  // Anchor index for shift+click range selection
+  let anchorIndex: number | null = null
 
   // Container ref for virtualizer
   let containerRef: HTMLDivElement | undefined
@@ -79,33 +77,53 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     return visibleColumns().reduce((sum, col) => sum + getColumnWidth(col, config), 0)
   }
 
-  // Handle row click
-  const handleRowClick = (row: T, e: MouseEvent) => {
-    console.log(row)
+  // Handle row click with selection logic
+  const handleRowClick = (row: T, index: number, e: MouseEvent) => {
     props.onRowClick?.(row)
 
-    if (props.onSelectionChange) {
-      const key = props.getRowKey(row)
-      const current = props.selectedKeys ?? new Set()
+    if (!props.onSelectionChange || !props.getSelectedKeys) return
+
+    const key = props.getRowKey(row)
+    const current = props.getSelectedKeys()
+    const allRows = rows()
+
+    if (e.shiftKey && anchorIndex !== null) {
+      // Range selection: anchor to current
+      const start = Math.min(anchorIndex, index)
+      const end = Math.max(anchorIndex, index)
+
+      const rangeKeys = new Set<string>()
+      for (let i = start; i <= end; i++) {
+        if (allRows[i]) {
+          rangeKeys.add(props.getRowKey(allRows[i]))
+        }
+      }
 
       if (e.ctrlKey || e.metaKey) {
-        // Toggle selection
+        // Shift+Ctrl: add range to existing selection
         const next = new Set(current)
-        if (next.has(key)) {
-          next.delete(key)
-        } else {
-          next.add(key)
+        for (const k of rangeKeys) {
+          next.add(k)
         }
         props.onSelectionChange(next)
-      } else if (e.shiftKey) {
-        // Range selection (simplified - just add to selection)
-        const next = new Set(current)
-        next.add(key)
-        props.onSelectionChange(next)
       } else {
-        // Single selection
-        props.onSelectionChange(new Set([key]))
+        // Shift only: replace selection with range
+        props.onSelectionChange(rangeKeys)
       }
+    } else if (e.ctrlKey || e.metaKey) {
+      // Toggle single item
+      const next = new Set(current)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      props.onSelectionChange(next)
+      anchorIndex = index
+    } else {
+      // Single select - replace selection
+      props.onSelectionChange(new Set([key]))
+      anchorIndex = index
     }
   }
 
@@ -117,7 +135,9 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
         overflow: 'auto',
         'font-family': 'system-ui, sans-serif',
         'font-size': '13px',
+        'user-select': 'none',
       }}
+      data-testid="virtual-table"
     >
       {/* Header */}
       <div
@@ -167,10 +187,16 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
           {(virtualRow) => {
             const row = () => rows()[virtualRow.index]
             const key = () => props.getRowKey(row())
-            const isSelected = () => props.selectedKeys?.has(key()) ?? false
+            const isSelected = () => {
+              tick() // Subscribe to RAF updates so selection changes are reactive
+              return props.getSelectedKeys?.().has(key()) ?? false
+            }
 
             return (
               <div
+                data-testid="table-row"
+                data-row-key={key()}
+                data-selected={isSelected()}
                 style={{
                   position: 'absolute',
                   top: '0',
@@ -180,13 +206,13 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                   transform: `translateY(${virtualRow.start}px)`,
                   display: 'flex',
                   'align-items': 'center',
-                  background: isSelected()
-                    ? 'var(--bg-selected, #e3f2fd)'
-                    : 'var(--bg-primary, #fff)',
-                  cursor: 'pointer',
+                  cursor: 'default',
                   'border-bottom': '1px solid var(--border-light, #eee)',
                 }}
-                onClick={(e) => handleRowClick(row(), e)}
+                style:background={
+                  isSelected() ? 'var(--bg-highlight, #264f78)' : 'var(--bg-primary, #1e1e1e)'
+                }
+                onClick={(e) => handleRowClick(row(), virtualRow.index, e)}
                 onDblClick={() => props.onRowDoubleClick?.(row())}
               >
                 <For each={visibleColumns()}>

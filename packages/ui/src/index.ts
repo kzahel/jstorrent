@@ -6,6 +6,7 @@ export type { DetailTab, DetailPaneProps } from './components/DetailPane'
 
 // Tables
 export { TorrentTable, torrentColumns } from './tables/TorrentTable'
+export type { TorrentTableProps } from './tables/TorrentTable'
 export { PeerTable } from './tables/PeerTable'
 export { PieceTable } from './tables/PieceTable'
 export type { PieceInfo } from './tables/PieceTable'

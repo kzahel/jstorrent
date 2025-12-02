@@ -76,8 +76,8 @@ interface TorrentSource {
 export interface TorrentTableProps {
   /** Source to read torrents from (read directly each frame, bypasses React) */
   source: TorrentSource
-  /** Selected torrent info hashes */
-  selectedHashes?: Set<string>
+  /** Getter for selected torrent hashes (avoids closure issues) */
+  getSelectedHashes?: () => Set<string>
   /** Selection change callback */
   onSelectionChange?: (hashes: Set<string>) => void
   /** Row click callback */
@@ -97,7 +97,7 @@ export function TorrentTable(props: TorrentTableProps) {
       getRowKey={(t) => t.infoHashStr}
       columns={torrentColumns}
       storageKey="torrents"
-      selectedKeys={props.selectedHashes}
+      getSelectedKeys={props.getSelectedHashes}
       onSelectionChange={props.onSelectionChange}
       onRowClick={props.onRowClick}
       onRowDoubleClick={props.onRowDoubleClick}
