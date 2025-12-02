@@ -1,17 +1,45 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { useState, useRef } from 'react'
-import { Torrent } from '@jstorrent/engine'
-import { TorrentTable, DetailPane, formatBytes } from '@jstorrent/ui'
+import { useState, useRef, useMemo } from 'react'
+import { Torrent, generateMagnet } from '@jstorrent/engine'
+import {
+  TorrentTable,
+  DetailPane,
+  ContextMenu,
+  DropdownMenu,
+  formatBytes,
+  ContextMenuItem,
+} from '@jstorrent/ui'
 import { EngineProvider, useEngineState, engineManager } from '@jstorrent/client'
 import { DownloadRootsManager } from './components/DownloadRootsManager'
+
+interface ContextMenuState {
+  x: number
+  y: number
+  torrent: Torrent
+}
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<'torrents' | 'settings'>('torrents')
   const [magnetInput, setMagnetInput] = useState('')
   const [selectedTorrents, setSelectedTorrents] = useState<Set<string>>(new Set())
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const { adapter, torrents, numConnections, globalStats } = useEngineState()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Get selected torrent objects
+  const selectedTorrentObjects = useMemo(() => {
+    return [...selectedTorrents]
+      .map((hash) => adapter.getTorrent(hash))
+      .filter((t): t is Torrent => t !== undefined)
+  }, [selectedTorrents, adapter, torrents]) // include torrents to re-compute when list changes
+
+  // Smart button states
+  const hasSelection = selectedTorrents.size > 0
+  const allStarted = hasSelection && selectedTorrentObjects.every((t) => t.userState !== 'stopped')
+  const allStopped = hasSelection && selectedTorrentObjects.every((t) => t.userState === 'stopped')
+
+  // --- Action handlers ---
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -30,7 +58,6 @@ function AppContent() {
       fileInputRef.current?.click()
       return
     }
-
     try {
       await adapter.addTorrent(magnetInput)
       setMagnetInput('')
@@ -39,32 +66,106 @@ function AppContent() {
     }
   }
 
-  const handleDeleteSelected = async () => {
-    for (const hash of selectedTorrents) {
-      const torrent = torrents.find((t) => t.infoHashStr === hash)
-      if (torrent) {
-        await adapter.removeTorrent(torrent)
-      }
-    }
-    setSelectedTorrents(new Set())
-  }
-
   const handleStartSelected = () => {
-    for (const hash of selectedTorrents) {
-      const torrent = torrents.find((t) => t.infoHashStr === hash)
-      if (torrent && torrent.userState === 'stopped') {
-        torrent.userStart()
+    for (const t of selectedTorrentObjects) {
+      if (t.userState === 'stopped') {
+        t.userStart()
       }
     }
   }
 
   const handleStopSelected = () => {
-    for (const hash of selectedTorrents) {
-      const torrent = torrents.find((t) => t.infoHashStr === hash)
-      if (torrent && torrent.userState !== 'stopped') {
-        torrent.userStop()
+    for (const t of selectedTorrentObjects) {
+      if (t.userState !== 'stopped') {
+        t.userStop()
       }
     }
+  }
+
+  const handleDeleteSelected = async () => {
+    for (const t of selectedTorrentObjects) {
+      await adapter.removeTorrent(t)
+    }
+    setSelectedTorrents(new Set())
+  }
+
+  const handleRecheckSelected = async () => {
+    for (const t of selectedTorrentObjects) {
+      await t.recheckData()
+    }
+  }
+
+  const handleResetSelected = async () => {
+    // Reset = remove + re-add in stopped state
+    for (const t of selectedTorrentObjects) {
+      const magnet = generateMagnet({
+        infoHash: t.infoHashStr,
+        name: t.name,
+        announce: t.announce,
+      })
+      await adapter.removeTorrent(t)
+      await adapter.addTorrent(magnet, { userState: 'stopped' })
+    }
+    setSelectedTorrents(new Set())
+  }
+
+  const handleCopyMagnet = () => {
+    const magnets = selectedTorrentObjects.map((t) =>
+      generateMagnet({
+        infoHash: t.infoHashStr,
+        name: t.name,
+        announce: t.announce,
+      }),
+    )
+    navigator.clipboard.writeText(magnets.join('\n'))
+  }
+
+  // --- Menu items ---
+
+  const moreMenuItems: ContextMenuItem[] = [
+    { id: 'recheck', label: 'Re-verify Data', icon: '🔍' },
+    { id: 'reset', label: 'Reset State', icon: '↺' },
+    { id: 'separator1', label: '', separator: true },
+    { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '🔗' },
+  ]
+
+  const contextMenuItems: ContextMenuItem[] = [
+    { id: 'start', label: 'Start', icon: '▶', disabled: allStarted },
+    { id: 'stop', label: 'Stop', icon: '⏸', disabled: allStopped },
+    { id: 'separator1', label: '', separator: true },
+    { id: 'recheck', label: 'Re-verify Data', icon: '🔍' },
+    { id: 'reset', label: 'Reset State', icon: '↺' },
+    { id: 'separator2', label: '', separator: true },
+    { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '🔗' },
+    { id: 'separator3', label: '', separator: true },
+    { id: 'remove', label: 'Remove', icon: '✕', danger: true },
+  ]
+
+  const handleMenuAction = (id: string) => {
+    switch (id) {
+      case 'start':
+        handleStartSelected()
+        break
+      case 'stop':
+        handleStopSelected()
+        break
+      case 'recheck':
+        handleRecheckSelected()
+        break
+      case 'reset':
+        handleResetSelected()
+        break
+      case 'copyMagnet':
+        handleCopyMagnet()
+        break
+      case 'remove':
+        handleDeleteSelected()
+        break
+    }
+  }
+
+  const handleContextMenu = (torrent: Torrent, x: number, y: number) => {
+    setContextMenu({ x, y, torrent })
   }
 
   return (
@@ -79,26 +180,26 @@ function AppContent() {
       {/* Header */}
       <div
         style={{
-          padding: '12px 20px',
+          padding: '8px 16px',
           borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
-          gap: '20px',
+          gap: '16px',
         }}
       >
-        <h1 style={{ margin: 0, fontSize: '20px' }}>JSTorrent</h1>
+        <h1 style={{ margin: 0, fontSize: '18px' }}>JSTorrent</h1>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '4px' }}>
           <button
             onClick={() => setActiveTab('torrents')}
             style={{
-              padding: '8px 16px',
+              padding: '6px 12px',
               background: activeTab === 'torrents' ? 'var(--accent-primary)' : 'var(--button-bg)',
               color: activeTab === 'torrents' ? 'white' : 'var(--button-text)',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',
+              fontSize: '13px',
             }}
           >
             Torrents
@@ -106,16 +207,23 @@ function AppContent() {
           <button
             onClick={() => setActiveTab('settings')}
             style={{
-              padding: '8px 16px',
+              padding: '6px 12px',
               background: activeTab === 'settings' ? 'var(--accent-primary)' : 'var(--button-bg)',
               color: activeTab === 'settings' ? 'white' : 'var(--button-text)',
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',
+              fontSize: '13px',
             }}
           >
             Settings
           </button>
+        </div>
+
+        <div style={{ marginLeft: 'auto', color: 'var(--text-secondary)', fontSize: '12px' }}>
+          {torrents.length} torrents | {numConnections} peers | ↓{' '}
+          {formatBytes(globalStats.totalDownloadRate)}/s | ↑{' '}
+          {formatBytes(globalStats.totalUploadRate)}/s
         </div>
       </div>
 
@@ -126,10 +234,10 @@ function AppContent() {
             {/* Toolbar */}
             <div
               style={{
-                padding: '8px 20px',
+                padding: '6px 16px',
                 borderBottom: '1px solid var(--border-color)',
                 display: 'flex',
-                gap: '8px',
+                gap: '6px',
                 alignItems: 'center',
               }}
             >
@@ -145,51 +253,72 @@ function AppContent() {
                 value={magnetInput}
                 onChange={(e) => setMagnetInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleAddTorrent()
-                  }
+                  if (e.key === 'Enter') handleAddTorrent()
                 }}
-                placeholder="Enter magnet link or URL"
-                style={{ flex: 1, padding: '6px 8px', maxWidth: '400px' }}
+                placeholder="Magnet link or URL"
+                style={{ flex: 1, padding: '4px 8px', maxWidth: '350px', fontSize: '13px' }}
               />
-              <button onClick={handleAddTorrent} style={{ padding: '6px 12px', cursor: 'pointer' }}>
+              <button
+                onClick={handleAddTorrent}
+                style={{ padding: '4px 10px', cursor: 'pointer', fontSize: '13px' }}
+              >
                 Add
               </button>
-              <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
+
+              <div style={{ width: '1px', height: '18px', background: 'var(--border-color)' }} />
+
               <button
                 onClick={handleStartSelected}
-                disabled={selectedTorrents.size === 0}
-                style={{ padding: '6px 12px', cursor: 'pointer' }}
+                disabled={!hasSelection || allStarted}
+                style={{
+                  padding: '4px 10px',
+                  cursor: hasSelection && !allStarted ? 'pointer' : 'default',
+                  fontSize: '13px',
+                  opacity: !hasSelection || allStarted ? 0.5 : 1,
+                }}
                 title="Start selected"
               >
-                Start
+                ▶ Start
               </button>
               <button
                 onClick={handleStopSelected}
-                disabled={selectedTorrents.size === 0}
-                style={{ padding: '6px 12px', cursor: 'pointer' }}
+                disabled={!hasSelection || allStopped}
+                style={{
+                  padding: '4px 10px',
+                  cursor: hasSelection && !allStopped ? 'pointer' : 'default',
+                  fontSize: '13px',
+                  opacity: !hasSelection || allStopped ? 0.5 : 1,
+                }}
                 title="Stop selected"
               >
-                Stop
+                ⏸ Stop
               </button>
               <button
                 onClick={handleDeleteSelected}
-                disabled={selectedTorrents.size === 0}
-                style={{ padding: '6px 12px', cursor: 'pointer', color: 'var(--accent-error)' }}
+                disabled={!hasSelection}
+                style={{
+                  padding: '4px 10px',
+                  cursor: hasSelection ? 'pointer' : 'default',
+                  fontSize: '13px',
+                  color: 'var(--accent-error)',
+                  opacity: hasSelection ? 1 : 0.5,
+                }}
                 title="Remove selected"
               >
-                Remove
+                ✕ Remove
               </button>
-              <div style={{ marginLeft: 'auto', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                {torrents.length} torrents | {numConnections} connections | ↓{' '}
-                {formatBytes(globalStats.totalDownloadRate)}/s | ↑{' '}
-                {formatBytes(globalStats.totalUploadRate)}/s
-              </div>
+
+              <DropdownMenu
+                label="More"
+                items={moreMenuItems}
+                onSelect={handleMenuAction}
+                disabled={!hasSelection}
+              />
             </div>
 
-            {/* Main content: Torrent table + Detail pane */}
+            {/* Main content */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-              {/* Torrent table - top half */}
+              {/* Torrent table */}
               <div
                 style={{ flex: 1, minHeight: 150, borderBottom: '1px solid var(--border-color)' }}
               >
@@ -211,11 +340,12 @@ function AppContent() {
                         torrent.userStop()
                       }
                     }}
+                    onRowContextMenu={handleContextMenu}
                   />
                 )}
               </div>
 
-              {/* Detail pane - bottom half */}
+              {/* Detail pane */}
               <div style={{ height: 250, minHeight: 100 }}>
                 <DetailPane source={adapter} selectedHashes={selectedTorrents} />
               </div>
@@ -225,6 +355,17 @@ function AppContent() {
 
         {activeTab === 'settings' && <DownloadRootsManager />}
       </div>
+
+      {/* Context menu portal */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={contextMenuItems}
+          onSelect={handleMenuAction}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   )
 }
@@ -248,17 +389,9 @@ function App() {
       })
   }, [])
 
-  if (loading) {
-    return <div style={{ padding: '20px' }}>Loading...</div>
-  }
-
-  if (error) {
-    return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>
-  }
-
-  if (!engine) {
-    return <div style={{ padding: '20px' }}>Failed to initialize engine</div>
-  }
+  if (loading) return <div style={{ padding: '20px' }}>Loading...</div>
+  if (error) return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>
+  if (!engine) return <div style={{ padding: '20px' }}>Failed to initialize engine</div>
 
   return (
     <EngineProvider engine={engine}>

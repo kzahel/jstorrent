@@ -84,6 +84,8 @@ export interface TorrentTableProps {
   onRowClick?: (torrent: Torrent) => void
   /** Row double-click callback */
   onRowDoubleClick?: (torrent: Torrent) => void
+  /** Row right-click callback - receives torrent and mouse position */
+  onRowContextMenu?: (torrent: Torrent, x: number, y: number) => void
 }
 
 /**
@@ -101,6 +103,7 @@ export function TorrentTable(props: TorrentTableProps) {
       onSelectionChange={props.onSelectionChange}
       onRowClick={props.onRowClick}
       onRowDoubleClick={props.onRowDoubleClick}
+      onRowContextMenu={props.onRowContextMenu}
       rowHeight={28}
     />
   )

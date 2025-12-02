@@ -14,6 +14,7 @@ export interface VirtualTableProps<T> {
   onSelectionChange?: (keys: Set<string>) => void
   onRowClick?: (row: T) => void
   onRowDoubleClick?: (row: T) => void
+  onRowContextMenu?: (row: T, x: number, y: number) => void
   rowHeight?: number
 }
 
@@ -214,6 +215,19 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                 }
                 onClick={(e) => handleRowClick(row(), virtualRow.index, e)}
                 onDblClick={() => props.onRowDoubleClick?.(row())}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  const r = row()
+                  const k = props.getRowKey(r)
+
+                  // If right-clicking an unselected row, select it first
+                  if (!props.getSelectedKeys?.().has(k)) {
+                    props.onSelectionChange?.(new Set([k]))
+                    anchorIndex = virtualRow.index
+                  }
+
+                  props.onRowContextMenu?.(r, e.clientX, e.clientY)
+                }}
               >
                 <For each={visibleColumns()}>
                   {(column) => (

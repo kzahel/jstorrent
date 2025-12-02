@@ -19,6 +19,9 @@ export function TableMount<T>(props: TableMountProps<T>) {
   const onSelectionChangeRef = useRef(props.onSelectionChange)
   onSelectionChangeRef.current = props.onSelectionChange
 
+  const onRowContextMenuRef = useRef(props.onRowContextMenu)
+  onRowContextMenuRef.current = props.onRowContextMenu
+
   useEffect(() => {
     if (!containerRef.current) return
 
@@ -38,6 +41,7 @@ export function TableMount<T>(props: TableMountProps<T>) {
           onSelectionChange: (keys) => onSelectionChangeRef.current?.(keys),
           onRowClick: props.onRowClick,
           onRowDoubleClick: props.onRowDoubleClick,
+          onRowContextMenu: (row, x, y) => onRowContextMenuRef.current?.(row, x, y),
           rowHeight: props.rowHeight,
         }) as unknown as Element,
       containerRef.current,
