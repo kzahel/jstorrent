@@ -2,8 +2,9 @@ import React, { useState } from 'react'
 import { Torrent } from '@jstorrent/engine'
 import { PeerTable } from '../tables/PeerTable'
 import { PieceTable } from '../tables/PieceTable'
+import { GeneralPane } from './GeneralPane'
 
-export type DetailTab = 'peers' | 'pieces' | 'files' | 'trackers'
+export type DetailTab = 'general' | 'peers' | 'pieces' | 'files' | 'trackers'
 
 /** Source interface matching adapter shape */
 interface TorrentSource {
@@ -46,7 +47,7 @@ const emptyStateStyle: React.CSSProperties = {
  * Detail pane showing info about the selected torrent.
  */
 export function DetailPane(props: DetailPaneProps) {
-  const [activeTab, setActiveTab] = useState<DetailTab>('peers')
+  const [activeTab, setActiveTab] = useState<DetailTab>('general')
 
   // No selection
   if (props.selectedHashes.size === 0) {
@@ -77,6 +78,12 @@ export function DetailPane(props: DetailPaneProps) {
         }}
       >
         <button
+          style={activeTab === 'general' ? activeTabStyle : tabStyle}
+          onClick={() => setActiveTab('general')}
+        >
+          General
+        </button>
+        <button
           style={activeTab === 'peers' ? activeTabStyle : tabStyle}
           onClick={() => setActiveTab('peers')}
         >
@@ -104,6 +111,7 @@ export function DetailPane(props: DetailPaneProps) {
 
       {/* Tab content */}
       <div style={{ flex: 1, minHeight: 0 }}>
+        {activeTab === 'general' && <GeneralPane torrent={torrent} />}
         {activeTab === 'peers' && <PeerTable source={props.source} torrentHash={selectedHash} />}
         {activeTab === 'pieces' && <PieceTable source={props.source} torrentHash={selectedHash} />}
         {activeTab === 'files' && (
