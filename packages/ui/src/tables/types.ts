@@ -47,6 +47,8 @@ export interface TableMountProps<T> {
   onRowClick?: (row: T) => void
   /** Row double-click handler */
   onRowDoubleClick?: (row: T) => void
+  /** Row right-click handler - receives row and mouse position */
+  onRowContextMenu?: (row: T, x: number, y: number) => void
   /** Row height in pixels */
   rowHeight?: number
   /** Estimated total rows (for virtualization) */

@@ -3,6 +3,10 @@ export { TorrentItem } from './components/TorrentItem'
 export type { TorrentItemProps } from './components/TorrentItem'
 export { DetailPane } from './components/DetailPane'
 export type { DetailTab, DetailPaneProps } from './components/DetailPane'
+export { ContextMenu } from './components/ContextMenu'
+export type { ContextMenuItem, ContextMenuProps } from './components/ContextMenu'
+export { DropdownMenu } from './components/DropdownMenu'
+export type { DropdownMenuProps } from './components/DropdownMenu'
 
 // Tables
 export { TorrentTable, torrentColumns } from './tables/TorrentTable'
