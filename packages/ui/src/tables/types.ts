@@ -14,17 +14,29 @@ export interface ColumnDef<T> {
   minWidth?: number
   /** Text alignment */
   align?: 'left' | 'center' | 'right'
+  /** If false, column cannot be hidden. Default true. */
+  hideable?: boolean
+  /** If false, cannot sort by this column. Default true. */
+  sortable?: boolean
 }
 
 /**
- * Column visibility and width configuration.
+ * Column visibility, width, order, and sort configuration.
  * Persisted to sessionStorage.
  */
 export interface ColumnConfig {
   /** Ordered list of visible column IDs */
   visible: string[]
+  /** Full column order (visible and hidden) for settings menu display */
+  columnOrder: string[]
   /** Column widths (overrides defaults) */
   widths: Record<string, number>
+  /** Current sort column ID (null = no sort) */
+  sortColumn: string | null
+  /** Sort direction */
+  sortDirection: 'asc' | 'desc'
+  /** Whether live sort is enabled */
+  liveSort: boolean
 }
 
 /**

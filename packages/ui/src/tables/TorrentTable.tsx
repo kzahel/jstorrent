@@ -65,6 +65,7 @@ export const torrentColumns: ColumnDef<Torrent>[] = [
     },
     width: 60,
     align: 'right',
+    sortable: false, // No real data to sort by
   },
 ]
 
