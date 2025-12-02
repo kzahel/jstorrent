@@ -111,7 +111,9 @@ function AppContent() {
     setSelectedTorrents(new Set())
   }
 
-  const handleCopyMagnet = () => {
+  const handleCopyMagnet = async () => {
+    // TODO: Use original magnet URI if available (preserves non-standard query params)
+    // Currently we regenerate it which may lose custom params
     const magnets = selectedTorrentObjects.map((t) =>
       generateMagnet({
         infoHash: t.infoHashStr,
@@ -119,26 +121,54 @@ function AppContent() {
         announce: t.announce,
       }),
     )
-    navigator.clipboard.writeText(magnets.join('\n'))
+    const text = magnets.join('\n')
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      // Fallback for non-secure contexts
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+  }
+
+  const handleShare = () => {
+    if (selectedTorrentObjects.length === 0) return
+    // TODO: Use original magnet URI if available (preserves non-standard query params)
+    const t = selectedTorrentObjects[0]
+    const magnet = generateMagnet({
+      infoHash: t.infoHashStr,
+      name: t.name,
+      announce: t.announce,
+    })
+    const shareUrl = import.meta.env.SHARE_URL || 'https://jstorrent.com/share.html'
+    window.open(`${shareUrl}#magnet=${encodeURIComponent(magnet)}`, '_blank')
   }
 
   // --- Menu items ---
 
+  // Using Unicode symbols instead of emoji for consistent baseline alignment
   const moreMenuItems: ContextMenuItem[] = [
-    { id: 'recheck', label: 'Re-verify Data', icon: '🔍' },
+    { id: 'recheck', label: 'Re-verify Data', icon: '⟳' },
     { id: 'reset', label: 'Reset State', icon: '↺' },
     { id: 'separator1', label: '', separator: true },
-    { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '🔗' },
+    { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '⎘' },
+    { id: 'share', label: 'Share...', icon: '↗' },
   ]
 
   const contextMenuItems: ContextMenuItem[] = [
     { id: 'start', label: 'Start', icon: '▶', disabled: allStarted },
-    { id: 'stop', label: 'Stop', icon: '⏸', disabled: allStopped },
+    { id: 'stop', label: 'Stop', icon: '■', disabled: allStopped },
     { id: 'separator1', label: '', separator: true },
-    { id: 'recheck', label: 'Re-verify Data', icon: '🔍' },
+    { id: 'recheck', label: 'Re-verify Data', icon: '⟳' },
     { id: 'reset', label: 'Reset State', icon: '↺' },
     { id: 'separator2', label: '', separator: true },
-    { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '🔗' },
+    { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '⎘' },
     { id: 'separator3', label: '', separator: true },
     { id: 'remove', label: 'Remove', icon: '✕', danger: true },
   ]
@@ -159,6 +189,9 @@ function AppContent() {
         break
       case 'copyMagnet':
         handleCopyMagnet()
+        break
+      case 'share':
+        handleShare()
         break
       case 'remove':
         handleDeleteSelected()
@@ -251,6 +284,7 @@ function AppContent() {
                 style={{ display: 'none' }}
               />
               <input
+                id="magnet-input"
                 type="text"
                 value={magnetInput}
                 onChange={(e) => setMagnetInput(e.target.value)}
@@ -258,56 +292,89 @@ function AppContent() {
                   if (e.key === 'Enter') handleAddTorrent()
                 }}
                 placeholder="Magnet link or URL"
-                style={{ flex: 1, padding: '4px 8px', maxWidth: '350px', fontSize: '13px' }}
+                style={{
+                  flex: 1,
+                  padding: '0 8px',
+                  maxWidth: '350px',
+                  fontSize: '13px',
+                  height: '26px',
+                  boxSizing: 'border-box',
+                }}
               />
               <button
                 onClick={handleAddTorrent}
-                style={{ padding: '4px 10px', cursor: 'pointer', fontSize: '13px' }}
+                style={{
+                  padding: '0 10px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  height: '26px',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
               >
                 Add
               </button>
 
-              <div style={{ width: '1px', height: '18px', background: 'var(--border-color)' }} />
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
 
               <button
                 onClick={handleStartSelected}
                 disabled={!hasSelection || allStarted}
                 style={{
-                  padding: '4px 10px',
+                  padding: '0 10px',
                   cursor: hasSelection && !allStarted ? 'pointer' : 'default',
                   fontSize: '13px',
+                  height: '26px',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
                   opacity: !hasSelection || allStarted ? 0.5 : 1,
                 }}
                 title="Start selected"
               >
-                ▶ Start
+                <span style={{ lineHeight: 1 }}>▶</span>
+                <span>Start</span>
               </button>
               <button
                 onClick={handleStopSelected}
                 disabled={!hasSelection || allStopped}
                 style={{
-                  padding: '4px 10px',
+                  padding: '0 10px',
                   cursor: hasSelection && !allStopped ? 'pointer' : 'default',
                   fontSize: '13px',
+                  height: '26px',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
                   opacity: !hasSelection || allStopped ? 0.5 : 1,
                 }}
                 title="Stop selected"
               >
-                ⏸ Stop
+                <span style={{ lineHeight: 1 }}>■</span>
+                <span>Stop</span>
               </button>
               <button
                 onClick={handleDeleteSelected}
                 disabled={!hasSelection}
                 style={{
-                  padding: '4px 10px',
+                  padding: '0 10px',
                   cursor: hasSelection ? 'pointer' : 'default',
                   fontSize: '13px',
+                  height: '26px',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
                   color: 'var(--accent-error)',
                   opacity: hasSelection ? 1 : 0.5,
                 }}
                 title="Remove selected"
               >
-                ✕ Remove
+                <span style={{ lineHeight: 1 }}>✕</span>
+                <span>Remove</span>
               </button>
 
               <DropdownMenu

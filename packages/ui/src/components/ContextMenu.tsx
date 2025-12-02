@@ -130,7 +130,11 @@ export function ContextMenu({ x, y, items, onSelect, onClose }: ContextMenuProps
               e.currentTarget.style.background = 'none'
             }}
           >
-            {item.icon && <span>{item.icon}</span>}
+            {item.icon && (
+              <span style={{ width: '16px', textAlign: 'center', flexShrink: 0, lineHeight: 1 }}>
+                {item.icon}
+              </span>
+            )}
             {item.label}
           </button>
         )
