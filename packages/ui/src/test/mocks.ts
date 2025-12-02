@@ -8,6 +8,8 @@ export interface MockTorrent {
   activityState: string
   downloadSpeed: number
   uploadSpeed: number
+  totalDownloaded: number
+  totalUploaded: number
   numPeers: number
   contentStorage?: { getTotalSize: () => number }
 }
@@ -27,6 +29,9 @@ export function createMockTorrent(id: number, overrides: Partial<MockTorrent> = 
     // Download speeds: descending (10000, 9000, 8000...) for predictable sort
     downloadSpeed: (10 - id) * 1000,
     uploadSpeed: id * 100,
+    // Total bytes: some deterministic values
+    totalDownloaded: (id + 1) * 1024 * 1024 * 50,
+    totalUploaded: (id + 1) * 1024 * 1024 * 10,
     numPeers: id,
     contentStorage: { getTotalSize: () => 1024 * 1024 * 100 },
     ...overrides,
