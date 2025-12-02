@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import { parseMagnet, ParsedMagnet } from '@jstorrent/engine'
+import '@jstorrent/ui/styles.css'
 
 function parseShareUrl(): { magnet: string; parsed: ParsedMagnet } | { error: string } {
   const hash = window.location.hash

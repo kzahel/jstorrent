@@ -190,6 +190,7 @@ function AppContent() {
     { id: 'reset', label: 'Reset State', icon: '↺' },
     { id: 'separator2', label: '', separator: true },
     { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '⎘' },
+    { id: 'share', label: 'Share...', icon: '↗' },
     { id: 'separator3', label: '', separator: true },
     { id: 'remove', label: 'Remove', icon: '✕', danger: true },
   ]
@@ -421,13 +422,6 @@ function AppContent() {
                     source={adapter}
                     getSelectedHashes={() => selectedTorrents}
                     onSelectionChange={setSelectedTorrents}
-                    onRowDoubleClick={(torrent: Torrent) => {
-                      if (torrent.userState === 'stopped') {
-                        torrent.userStart()
-                      } else {
-                        torrent.userStop()
-                      }
-                    }}
                     onRowContextMenu={handleContextMenu}
                   />
                 )}

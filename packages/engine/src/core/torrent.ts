@@ -283,9 +283,13 @@ export class Torrent extends EngineComponent {
     // This ensures hints are tried every time the torrent starts, not just on initial add
     if (this.magnetLink) {
       const parsed = parseMagnet(this.magnetLink)
+      this.logger.debug(`Checking magnet for peer hints: ${parsed.peers?.length ?? 0} peers found`)
       if (parsed.peers && parsed.peers.length > 0) {
+        this.logger.info(`Adding ${parsed.peers.length} peer hints from magnet link`)
         this.addPeerHints(parsed.peers)
       }
+    } else {
+      this.logger.debug('No magnet link stored, skipping peer hints')
     }
 
     if (this.trackerManager) {
@@ -660,6 +664,19 @@ export class Torrent extends EngineComponent {
 
     this.logger.debug('Resuming network')
     this._networkActive = true
+
+    // Re-add peer hints from original magnet link (x.pe parameter)
+    // This ensures hints are tried every time the torrent resumes, not just on initial add
+    if (this.magnetLink) {
+      const parsed = parseMagnet(this.magnetLink)
+      this.logger.info(`Checking magnet for peer hints: ${parsed.peers?.length ?? 0} peers found`)
+      if (parsed.peers && parsed.peers.length > 0) {
+        this.logger.info(`Adding ${parsed.peers.length} peer hints from magnet link`)
+        this.addPeerHints(parsed.peers)
+      }
+    } else {
+      this.logger.info('No magnet link stored, skipping peer hints')
+    }
 
     // Start tracker announces
     if (this.trackerManager) {
