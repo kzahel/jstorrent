@@ -160,6 +160,7 @@ export default defineConfig({
     alias: {
       '@jstorrent/engine': resolve(__dirname, '../packages/engine/src/index.ts'),
       '@jstorrent/client': resolve(__dirname, '../packages/client/src/index.ts'),
+      '@jstorrent/ui/styles.css': resolve(__dirname, '../packages/ui/src/styles.css'),
       '@jstorrent/ui': resolve(__dirname, '../packages/ui/src/index.ts'),
     },
   },

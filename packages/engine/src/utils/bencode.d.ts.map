@@ -1,0 +1,1 @@
+{"version":3,"file":"bencode.d.ts","sourceRoot":"","sources":["bencode.ts"],"names":[],"mappings":"AACA,qBAAa,OAAO;IAClB,MAAM,CAAC,MAAM,CAAC,IAAI,EAAE,UAAU,GAAG,GAAG;IAKpC,MAAM,CAAC,MAAM,CAAC,IAAI,EAAE,GAAG,GAAG,UAAU;IAIpC,MAAM,CAAC,UAAU,CAAC,IAAI,EAAE,UAAU,GAAG,UAAU,GAAG,IAAI;CAkCvD"}

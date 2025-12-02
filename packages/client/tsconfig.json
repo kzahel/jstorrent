@@ -1,21 +1,17 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "strict": true,
-    "skipLibCheck": true,
-    "declaration": true,
-    "declarationMap": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true
+    "noEmit": true,
+    "baseUrl": "../..",
+    "paths": {
+      "@jstorrent/engine/*": ["./packages/engine/src/*"],
+      "@jstorrent/engine": ["./packages/engine/src/index.ts"],
+      "@jstorrent/ui/*": ["./packages/ui/src/*"],
+      "@jstorrent/ui": ["./packages/ui/src/index.ts"],
+      "@jstorrent/ui/styles.css": ["./packages/ui/src/styles.css"],
+      "@jstorrent/client/*": ["./packages/client/src/*"],
+      "@jstorrent/client": ["./packages/client/src/index.ts"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

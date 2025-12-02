@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { engineManager } from '@jstorrent/client'
+import { engineManager } from '../chrome/engine-manager'
 
 interface DownloadRoot {
   key: string
