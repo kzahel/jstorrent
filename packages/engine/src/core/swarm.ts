@@ -56,6 +56,10 @@ export interface SwarmPeer {
   lastConnectSuccess: number | null
   lastConnectError: string | null
 
+  // Quick disconnect tracking (for backoff on rapid connect/disconnect cycles)
+  quickDisconnects: number
+  lastDisconnect: number | null
+
   // Ban info (null if not banned)
   banReason: string | null
 
@@ -407,6 +411,8 @@ export class Swarm extends EventEmitter {
       lastConnectAttempt: null,
       lastConnectSuccess: null,
       lastConnectError: null,
+      quickDisconnects: 0,
+      lastDisconnect: null,
       banReason: null,
       suspiciousPort: suspicious,
       totalDownloaded: 0,
@@ -470,6 +476,12 @@ export class Swarm extends EventEmitter {
       if (peer.state === 'failed' && peer.lastConnectAttempt) {
         const backoffMs = this.calculateBackoff(peer.connectFailures)
         if (now - peer.lastConnectAttempt < backoffMs) continue
+      }
+
+      // Check backoff for quick disconnects (idle peers that disconnect rapidly)
+      if (peer.state === 'idle' && peer.quickDisconnects > 0 && peer.lastDisconnect) {
+        const backoffMs = this.calculateBackoff(peer.quickDisconnects)
+        if (now - peer.lastDisconnect < backoffMs) continue
       }
 
       // Separate suspicious ports - they go last
@@ -674,13 +686,25 @@ export class Swarm extends EventEmitter {
         peer.totalDownloaded += peer.connection.downloaded
         peer.totalUploaded += peer.connection.uploaded
       }
+
+      // Track quick disconnects for backoff purposes
+      // If connection lasted < 30s, treat as problematic peer
+      const connectionDuration = peer.lastConnectSuccess ? Date.now() - peer.lastConnectSuccess : 0
+      if (connectionDuration < 30000) {
+        peer.quickDisconnects++
+      } else {
+        // Long-lived connection - reset quick disconnect counter
+        peer.quickDisconnects = 0
+      }
+
       peer.state = 'idle' // Can try again
       peer.connection = null
+      peer.lastDisconnect = Date.now()
 
       this.connectedKeys.delete(key)
 
       this.logger.debug(
-        `[${key}] ${prevState} → idle (disconnected) (total: ${this.connectedKeys.size} connected)`,
+        `[${key}] ${prevState} → idle (disconnected, duration=${connectionDuration}ms, quickDisconnects=${peer.quickDisconnects}) (total: ${this.connectedKeys.size} connected)`,
       )
 
       this.emit('peerDisconnected', key, peer)
@@ -721,6 +745,8 @@ export class Swarm extends EventEmitter {
         lastConnectAttempt: null,
         lastConnectSuccess: null,
         lastConnectError: null,
+        quickDisconnects: 0,
+        lastDisconnect: null,
         banReason: null,
         suspiciousPort: isSuspiciousPort(port),
         totalDownloaded: 0,
