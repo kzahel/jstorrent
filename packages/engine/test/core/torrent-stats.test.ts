@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { Torrent } from '../../../src/core/torrent'
-import { PeerConnection } from '../../../src/core/peer-connection'
-import { ISocketFactory, ITcpSocket } from '../../../src/interfaces/socket'
-import { MockEngine } from '../../../test/utils/mock-engine'
-import type { BtEngine } from '../../../src/core/bt-engine'
+import { Torrent } from '../../src/core/torrent'
+import { PeerConnection } from '../../src/core/peer-connection'
+import { ISocketFactory, ITcpSocket } from '../../src/interfaces/socket'
+import { MockEngine } from '../utils/mock-engine'
+import type { BtEngine } from '../../src/core/bt-engine'
 
 describe('Torrent Stats', () => {
   let torrent: Torrent

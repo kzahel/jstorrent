@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { ConnectionManager, DEFAULT_CONNECTION_CONFIG } from '../../../src/core/connection-manager'
-import { Swarm, addressKey } from '../../../src/core/swarm'
-import { PeerConnection } from '../../../src/core/peer-connection'
-import { ISocketFactory, ITcpSocket } from '../../../src/interfaces/socket'
-import { MockEngine } from '../../../test/utils/mock-engine'
-import type { Logger } from '../../../src/logging/logger'
-import type { SwarmPeer } from '../../../src/core/swarm'
+import { ConnectionManager, DEFAULT_CONNECTION_CONFIG } from '../../src/core/connection-manager'
+import { Swarm, addressKey } from '../../src/core/swarm'
+import { PeerConnection } from '../../src/core/peer-connection'
+import { ISocketFactory, ITcpSocket } from '../../src/interfaces/socket'
+import { MockEngine } from '../utils/mock-engine'
+import type { Logger } from '../../src/logging/logger'
+import type { SwarmPeer } from '../../src/core/swarm'
 
 // Type to access private methods for testing
 type ConnectionManagerWithPrivate = ConnectionManager & {

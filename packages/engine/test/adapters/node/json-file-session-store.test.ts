@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { JsonFileSessionStore } from '../../src/adapters/node/json-file-session-store'
+import { JsonFileSessionStore } from '../../../src/adapters/node/json-file-session-store'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'

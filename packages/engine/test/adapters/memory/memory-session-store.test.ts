@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { MemorySessionStore } from '../../src/adapters/memory/memory-session-store'
+import { MemorySessionStore } from '../../../src/adapters/memory/memory-session-store'
 
 describe('MemorySessionStore', () => {
   let store: MemorySessionStore
