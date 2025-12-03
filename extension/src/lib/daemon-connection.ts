@@ -23,9 +23,9 @@ export class DaemonConnection implements IDaemonConnection {
   ready = false
 
   async connect(info: DaemonInfo): Promise<void> {
-    // const url = `ws://127.0.0.1:${info.port}/io`
-    debugger
-    const url = 'ws://127.0.0.1:7800/io'
+    const url = `ws://127.0.0.1:${info.port}/io`
+    debugger; // this file isn't used?
+    // const url = 'ws://127.0.0.1:7800/io'
 
     this.ws = new WebSocket(url)
     this.ws.binaryType = 'arraybuffer'

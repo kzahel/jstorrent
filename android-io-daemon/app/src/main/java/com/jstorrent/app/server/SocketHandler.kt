@@ -285,22 +285,71 @@ class TcpSocketHandler(
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    companion object {
+        private const val PERF_TAG = "JSTorrent.Perf"
+        // Set to true to enable detailed timing logs
+        private const val ENABLE_PERF_LOGGING = false
+        // Log interval: only log every N reads to reduce log spam
+        private const val LOG_INTERVAL = 100
+    }
+
     fun startReading() {
         scope.launch {
             val buffer = ByteArray(65536)
+            var readCount = 0L
+            var totalBytesRead = 0L
+            val startTime = System.nanoTime()
+
             try {
                 val input = socket.getInputStream()
                 while (true) {
+                    val t0 = if (ENABLE_PERF_LOGGING) System.nanoTime() else 0L
+
                     val bytesRead = input.read(buffer)
                     if (bytesRead < 0) break
 
-                    // Send TCP_RECV
+                    val tRead = if (ENABLE_PERF_LOGGING) System.nanoTime() else 0L
+
+                    // Build TCP_RECV frame
                     val payload = socketId.toLEBytes() + buffer.copyOf(bytesRead)
-                    session.send(Protocol.createMessage(Protocol.OP_TCP_RECV, 0, payload))
+                    val frame = Protocol.createMessage(Protocol.OP_TCP_RECV, 0, payload)
+
+                    val tPack = if (ENABLE_PERF_LOGGING) System.nanoTime() else 0L
+
+                    // Send to WebSocket
+                    session.send(frame)
+
+                    val tSend = if (ENABLE_PERF_LOGGING) System.nanoTime() else 0L
+
+                    readCount++
+                    totalBytesRead += bytesRead
+
+                    // Performance logging (periodic to reduce overhead)
+                    if (ENABLE_PERF_LOGGING && readCount % LOG_INTERVAL == 0L) {
+                        Log.d(PERF_TAG,
+                            "socket=$socketId " +
+                            "read=${(tRead - t0) / 1000}µs " +
+                            "pack=${(tPack - tRead) / 1000}µs " +
+                            "send=${(tSend - tPack) / 1000}µs " +
+                            "bytes=$bytesRead " +
+                            "total=${totalBytesRead / 1024}KB"
+                        )
+                    }
                 }
             } catch (e: IOException) {
                 Log.d(TAG, "TCP socket $socketId read ended: ${e.message}")
             } finally {
+                // Log final stats
+                val elapsedMs = (System.nanoTime() - startTime) / 1_000_000
+                if (readCount > 0) {
+                    val mbps = if (elapsedMs > 0) {
+                        (totalBytesRead.toDouble() / 1024 / 1024) / (elapsedMs.toDouble() / 1000)
+                    } else 0.0
+                    Log.i(TAG, "TCP socket $socketId finished: " +
+                        "${totalBytesRead / 1024 / 1024}MB in ${elapsedMs}ms " +
+                        "(${String.format("%.2f", mbps)} MB/s, $readCount reads)"
+                    )
+                }
                 sendClose()
             }
         }
