@@ -68,7 +68,7 @@ describe('Logger System', () => {
 
     expect(client.logs).toHaveLength(1)
     const log = client.logs[0]
-    expect(log.message).toBe('doing something')
+    expect(log.message).toContain('doing something')
     expect(log.level).toBe('info')
   })
 
@@ -80,7 +80,7 @@ describe('Logger System', () => {
     ;(torrent as any).logger.warn('should show')
 
     expect(client.logs).toHaveLength(1)
-    expect(client.logs[0].message).toBe('should show')
+    expect(client.logs[0].message).toContain('should show')
   })
 
   it('should filter logs based on component', () => {
@@ -92,7 +92,7 @@ describe('Logger System', () => {
     ;(peer as any).logger.info('peer log')
 
     expect(client.logs).toHaveLength(1)
-    expect(client.logs[0].message).toBe('torrent log')
+    expect(client.logs[0].message).toContain('torrent log')
   })
 
   it('should filter logs based on instance value', () => {
@@ -104,7 +104,7 @@ describe('Logger System', () => {
     ;(t2 as any).logger.info('t2')
 
     expect(client.logs).toHaveLength(1)
-    expect(client.logs[0].message).toBe('t1')
+    expect(client.logs[0].message).toContain('t1')
   })
 
   it('should format logs with smart logger', () => {

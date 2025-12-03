@@ -188,7 +188,7 @@ export function withScopeAndFiltering(
     // will skip it and show the actual caller.
     return (msg: string, ...args: unknown[]) => {
       if (callbacks?.onLog || callbacks?.onCapture) {
-        const entry: LogEntry = { timestamp: Date.now(), level, message: msg, args }
+        const entry: LogEntry = { timestamp: Date.now(), level, message: `${prefix} ${msg}`, args }
         callbacks.onLog?.(entry)
         callbacks.onCapture?.(entry)
       }
@@ -249,6 +249,7 @@ function formatPrefix(ctx: LogContext): string {
 }
 
 export interface LogEntry {
+  id?: number
   timestamp: number
   level: LogLevel
   message: string
@@ -265,28 +266,55 @@ export interface LogCallbacks {
   onCapture?: (entry: LogEntry) => void
 }
 
+type LogListener = (entry: LogEntry) => void
+
 export class LogStore {
   private logs: LogEntry[] = []
   private maxLogs: number = 1000
+  private nextId: number = 0
+  private listeners: Set<LogListener> = new Set()
 
-  add(level: LogLevel, message: string, args: unknown[]) {
-    this.logs.push({
+  add(level: LogLevel, message: string, args: unknown[]): void {
+    const entry: LogEntry = {
+      id: this.nextId++,
       timestamp: Date.now(),
       level,
       message,
       args,
-    })
-    if (this.logs.length > this.maxLogs) {
-      this.logs.shift()
+    }
+    this.logs.push(entry)
+
+    // Bulk truncate when 50% over capacity
+    if (this.logs.length > this.maxLogs * 1.5) {
+      this.logs = this.logs.slice(-this.maxLogs)
+    }
+
+    // Notify listeners
+    for (const listener of this.listeners) {
+      try {
+        listener(entry)
+      } catch (e) {
+        console.error('Log listener error:', e)
+      }
     }
   }
 
-  get(level?: LogLevel, limit: number = 100): LogEntry[] {
-    let filtered = this.logs
-    if (level) {
-      filtered = filtered.filter((l) => LEVEL_PRIORITY[l.level] >= LEVEL_PRIORITY[level])
-    }
-    return filtered.slice(-limit)
+  getEntries(): LogEntry[] {
+    return this.logs
+  }
+
+  subscribe(listener: LogListener): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  clear(): void {
+    this.logs = []
+    // Note: don't reset nextId to keep keys unique
+  }
+
+  get size(): number {
+    return this.logs.length
   }
 }
 

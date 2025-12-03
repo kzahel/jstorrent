@@ -28,6 +28,14 @@
   --input-border: #cccccc;
 
   --progress-bg: #eeeeee;
+
+  /* Log level colors */
+  --log-error-bg: #ffebee;
+  --log-error-text: #c62828;
+  --log-warn-bg: #fff3e0;
+  --log-warn-text: #ef6c00;
+  --log-debug-text: #9e9e9e;
+  --border-color-subtle: #f0f0f0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -58,6 +66,14 @@
     --input-border: #444444;
 
     --progress-bg: #3c3c3c;
+
+    /* Log level colors - dark mode */
+    --log-error-bg: #2d1f1f;
+    --log-error-text: #ff8a80;
+    --log-warn-bg: #2d2a1f;
+    --log-warn-text: #ffb74d;
+    --log-debug-text: #757575;
+    --border-color-subtle: #333333;
   }
 }
 

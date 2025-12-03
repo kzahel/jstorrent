@@ -19,9 +19,7 @@ export type { IHasher } from './interfaces/hasher'
 
 // Logging
 export type { Logger, LogEntry, LogLevel } from './logging/logger'
-export { defaultLogger } from './logging/logger'
-export { RingBufferLogger } from './logging/ring-buffer-logger'
-export type { LogFilter } from './logging/ring-buffer-logger'
+export { LogStore, globalLogStore, defaultLogger } from './logging/logger'
 
 // Adapters
 export { MemorySessionStore } from './adapters/memory/memory-session-store'
