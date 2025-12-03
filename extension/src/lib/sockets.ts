@@ -1,4 +1,4 @@
-import { IDaemonConnection } from './daemon-connection'
+import type { IDaemonConnection } from '@jstorrent/engine'
 
 export interface ITcpSocket {
   send(data: Uint8Array): void
