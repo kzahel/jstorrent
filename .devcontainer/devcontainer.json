@@ -1,0 +1,28 @@
+{
+  "name": "JSTorrent Dev",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "workspaceFolder": "/workspace",
+  
+  // VS Code extensions to install in container
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "rust-lang.rust-analyzer",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  },
+
+  // Forward ports for dev server, etc.
+  "forwardPorts": [3000, 5173, 8080],
+
+  // Run pnpm install after container starts
+  "postCreateCommand": "pnpm install",
+
+  // Keep container running
+  "shutdownAction": "stopContainer"
+}
