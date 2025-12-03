@@ -1,0 +1,95 @@
+package com.jstorrent.app.server
+
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
+/**
+ * Binary protocol for WebSocket socket multiplexing.
+ * All multi-byte integers are little-endian.
+ */
+object Protocol {
+    const val VERSION: Byte = 1
+
+    // Session & Auth opcodes
+    const val OP_CLIENT_HELLO: Byte = 0x01
+    const val OP_SERVER_HELLO: Byte = 0x02
+    const val OP_AUTH: Byte = 0x03
+    const val OP_AUTH_RESULT: Byte = 0x04
+    const val OP_ERROR: Byte = 0x7F
+
+    // TCP opcodes
+    const val OP_TCP_CONNECT: Byte = 0x10
+    const val OP_TCP_CONNECTED: Byte = 0x11
+    const val OP_TCP_SEND: Byte = 0x12
+    const val OP_TCP_RECV: Byte = 0x13
+    const val OP_TCP_CLOSE: Byte = 0x14
+
+    // UDP opcodes
+    const val OP_UDP_BIND: Byte = 0x20
+    const val OP_UDP_BOUND: Byte = 0x21
+    const val OP_UDP_SEND: Byte = 0x22
+    const val OP_UDP_RECV: Byte = 0x23
+    const val OP_UDP_CLOSE: Byte = 0x24
+
+    /**
+     * Message envelope: 8 bytes
+     * [0]: version (u8)
+     * [1]: opcode (u8)
+     * [2-3]: flags (u16, little-endian)
+     * [4-7]: requestId (u32, little-endian)
+     */
+    data class Envelope(
+        val version: Byte,
+        val opcode: Byte,
+        val flags: Short,
+        val requestId: Int
+    ) {
+        fun toBytes(): ByteArray {
+            val buffer = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
+            buffer.put(version)
+            buffer.put(opcode)
+            buffer.putShort(flags)
+            buffer.putInt(requestId)
+            return buffer.array()
+        }
+
+        companion object {
+            fun fromBytes(data: ByteArray): Envelope? {
+                if (data.size < 8) return null
+                val buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
+                return Envelope(
+                    version = buffer.get(),
+                    opcode = buffer.get(),
+                    flags = buffer.short,
+                    requestId = buffer.int
+                )
+            }
+        }
+    }
+
+    fun createMessage(opcode: Byte, requestId: Int, payload: ByteArray = ByteArray(0)): ByteArray {
+        val envelope = Envelope(VERSION, opcode, 0, requestId)
+        return envelope.toBytes() + payload
+    }
+
+    fun createError(requestId: Int, message: String): ByteArray {
+        return createMessage(OP_ERROR, requestId, message.toByteArray())
+    }
+}
+
+// Extension functions for little-endian byte manipulation
+fun ByteArray.getUIntLE(offset: Int): Int {
+    return ByteBuffer.wrap(this, offset, 4).order(ByteOrder.LITTLE_ENDIAN).int
+}
+
+fun ByteArray.getUShortLE(offset: Int): Int {
+    return ByteBuffer.wrap(this, offset, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt() and 0xFFFF
+}
+
+fun Int.toLEBytes(): ByteArray {
+    return ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(this).array()
+}
+
+fun Short.toLEBytes(): ByteArray {
+    return ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN).putShort(this).array()
+}

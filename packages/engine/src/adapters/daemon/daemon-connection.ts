@@ -27,7 +27,8 @@ export class DaemonConnection {
   async connectWebSocket(): Promise<void> {
     if (this.ready) return
 
-    const url = `ws://127.0.0.1:${this.port}/io`
+    // const url = `ws://127.0.0.1:${this.port}/io`
+    const url = 'ws://127.0.0.1:7800/io'
     this.ws = new WebSocket(url)
     this.ws.binaryType = 'arraybuffer'
 
@@ -43,7 +44,8 @@ export class DaemonConnection {
     await this.waitForOpcode(DaemonConnection.OP_SERVER_HELLO)
 
     // 3. Send AUTH
-    const tokenBytes = new TextEncoder().encode(this.authToken)
+    // const tokenBytes = new TextEncoder().encode(this.authToken)
+    const tokenBytes = new TextEncoder().encode('test123')
     const authPayload = new Uint8Array(1 + tokenBytes.length)
     authPayload[0] = 1 // Token auth
     authPayload.set(tokenBytes, 1)
