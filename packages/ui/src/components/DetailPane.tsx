@@ -3,6 +3,7 @@ import { Torrent } from '@jstorrent/engine'
 import type { LogStore } from '@jstorrent/engine'
 import { PeerTable } from '../tables/PeerTable'
 import { PieceTable } from '../tables/PieceTable'
+import { FileTable } from '../tables/FileTable'
 import { GeneralPane } from './GeneralPane'
 import { LogTableWrapper } from '../tables/LogTableWrapper'
 
@@ -127,9 +128,7 @@ export function DetailPane(props: DetailPaneProps) {
           )}
         {activeTab === 'files' &&
           renderTorrentContent(
-            <div style={{ padding: 20, color: 'var(--text-secondary)' }}>
-              Files table coming soon
-            </div>,
+            <FileTable source={props.source} torrentHash={selectedHash!} />,
             'files',
           )}
         {activeTab === 'general' &&

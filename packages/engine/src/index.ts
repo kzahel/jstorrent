@@ -1,6 +1,7 @@
 // Core
 export { BtEngine } from './core/bt-engine'
 export { Torrent } from './core/torrent'
+export { TorrentFileInfo } from './core/torrent-file-info'
 export { PeerConnection } from './core/peer-connection'
 export { SessionPersistence } from './core/session-persistence'
 export type { TorrentSessionData, TorrentStateData } from './core/session-persistence'
