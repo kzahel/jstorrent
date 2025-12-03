@@ -2,8 +2,16 @@ console.log('Service Worker loaded')
 
 import { DaemonLifecycleManager, NativeEvent } from './lib/daemon-lifecycle-manager'
 import { NativeHostConnection } from './lib/native-connection'
+import { AndroidDaemonConnection } from './lib/android-connection'
+import { detectPlatform } from './lib/platform'
 import { handleKVMessage } from './lib/kv-handlers'
 import { NotificationManager, ProgressStats } from './lib/notifications'
+
+// ============================================================================
+// Platform Detection
+// ============================================================================
+const platform = detectPlatform()
+console.log(`[SW] Detected platform: ${platform}`)
 
 // ============================================================================
 // Notification Manager
@@ -85,7 +93,15 @@ chrome.runtime.onConnectExternal.addListener((port) => {
 // Daemon Manager with event forwarding
 // ============================================================================
 const daemonManager = new DaemonLifecycleManager(
-  () => new NativeHostConnection(),
+  () => {
+    if (platform === 'chromeos') {
+      console.log('[SW] Creating AndroidDaemonConnection')
+      return new AndroidDaemonConnection()
+    } else {
+      console.log('[SW] Creating NativeHostConnection')
+      return new NativeHostConnection()
+    }
+  },
   (event) => {
     console.log('[SW] Native event received:', event.event)
     sendToUI(event)

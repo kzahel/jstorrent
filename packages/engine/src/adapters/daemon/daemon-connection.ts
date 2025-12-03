@@ -23,19 +23,24 @@ export class DaemonConnection {
   constructor(
     private port: number,
     private authToken: string,
+    private host: string = '127.0.0.1',
   ) {
-    this.baseUrl = `http://127.0.0.1:${port}`
+    this.baseUrl = `http://${host}:${port}`
   }
 
-  static async connect(port: number, authToken: string): Promise<DaemonConnection> {
-    const connection = new DaemonConnection(port, authToken)
+  static async connect(
+    port: number,
+    authToken: string,
+    host: string = '127.0.0.1',
+  ): Promise<DaemonConnection> {
+    const connection = new DaemonConnection(port, authToken, host)
     return connection
   }
 
   async connectWebSocket(): Promise<void> {
     if (this.ready) return
 
-    const url = `ws://127.0.0.1:${this.port}/io`
+    const url = `ws://${this.host}:${this.port}/io`
     // const url = 'ws://127.0.0.1:7800/io'
     this.ws = new WebSocket(url)
     this.ws.binaryType = 'arraybuffer'
