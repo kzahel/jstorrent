@@ -49,6 +49,8 @@ export interface DaemonInfo {
     last_stat_ok: boolean
     last_checked: number
   }>
+  /** Host address for daemon connection. Defaults to 127.0.0.1 on desktop, but differs on ChromeOS. */
+  host?: string
 }
 
 export interface DownloadRoot {
@@ -109,7 +111,7 @@ class EngineManager {
     console.log('[EngineManager] Got daemon info:', daemonInfo)
 
     // 2. Create direct WebSocket connection to daemon
-    this.daemonConnection = new DaemonConnection(daemonInfo.port, daemonInfo.token)
+    this.daemonConnection = new DaemonConnection(daemonInfo.port, daemonInfo.token, daemonInfo.host)
     await this.daemonConnection.connectWebSocket()
     console.log('[EngineManager] WebSocket connected')
 
