@@ -2,10 +2,13 @@
 
 This repository contains the source code for JSTorrent, including the Chrome extension, native messaging host, and other related components.
 
+Supporting ChromeOS, Mac, Windows, and Linux
+
 ## Repository Structure
 
 - `extension/`: Chrome extension source code.
 - `native-host/`: Native messaging host (Rust) source code.
+- `android-io-daemon/`: ChromeOS supporting android app (headless io-daemon)
 - `apps/`: Mobile applications (React Native, Android, iOS).
 - `packages/`: Shared libraries and packages.
 - `website/`: Source for the JSTorrent website.
