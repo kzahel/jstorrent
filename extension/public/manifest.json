@@ -22,6 +22,7 @@
     "32": "icons/js-32.png",
     "128": "icons/js-128.png"
   },
+  "host_permissions": ["http://100.115.92.2/*"],
   "externally_connectable": {
     "matches": [
       "https://new.jstorrent.com/*",
