@@ -139,8 +139,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   scopedLoggerFor(component: ILoggableComponent): Logger {
     return withScopeAndFiltering(component, this.filterFn, {
-      onLog: this.onLogCallback,
-      onCapture: (entry) => globalLogStore.add(entry.level, entry.message, entry.args),
+      onLog: (entry) => {
+        // Add to global store (once)
+        globalLogStore.add(entry.level, entry.message, entry.args)
+        // Also call user-provided callback if any
+        this.onLogCallback?.(entry)
+      },
     })
   }
 

@@ -1,4 +1,4 @@
-import { BtEngine, Torrent } from '@jstorrent/engine'
+import { BtEngine, Torrent, LogStore, globalLogStore } from '@jstorrent/engine'
 
 /**
  * Abstract interface for engine access.
@@ -31,6 +31,9 @@ export interface EngineAdapter {
 
   /** Clean up resources */
   destroy(): void
+
+  /** Get the log store for viewing logs */
+  getLogStore(): LogStore
 }
 
 /**
@@ -73,5 +76,9 @@ export class DirectEngineAdapter implements EngineAdapter {
 
   destroy(): void {
     this.engine.destroy()
+  }
+
+  getLogStore(): LogStore {
+    return globalLogStore
   }
 }

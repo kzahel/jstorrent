@@ -191,7 +191,16 @@ export class EngineController {
   }
 
   getLogs(level: string = 'info', limit: number = 100) {
-    const logs = globalLogStore.get(level as LogLevel, limit)
+    const levelPriority: Record<LogLevel, number> = {
+      debug: 0,
+      info: 1,
+      warn: 2,
+      error: 3,
+    }
+    const minPriority = levelPriority[level as LogLevel] ?? 1
+    const allLogs = globalLogStore.getEntries()
+    const filtered = allLogs.filter((l) => levelPriority[l.level] >= minPriority)
+    const logs = filtered.slice(-limit)
     return { ok: true, logs }
   }
 }

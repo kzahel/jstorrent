@@ -7,8 +7,8 @@ import {
   StorageRootManager,
   ChromeStorageSessionStore,
   ExternalChromeStorageSessionStore,
-  RingBufferLogger,
-  LogEntry,
+  globalLogStore,
+  LogStore,
   ISessionStore,
   Torrent,
   toHex,
@@ -67,7 +67,7 @@ export interface DownloadRoot {
 class EngineManager {
   engine: BtEngine | null = null
   daemonConnection: DaemonConnection | null = null
-  logBuffer: RingBufferLogger = new RingBufferLogger(500)
+  logStore: LogStore = globalLogStore
   private sessionStore: ISessionStore | null = null
   private initPromise: Promise<BtEngine> | null = null
   private swPort: chrome.runtime.Port | null = null
@@ -154,9 +154,6 @@ class EngineManager {
       sessionStore: this.sessionStore,
       hasher,
       startSuspended: true,
-      onLog: (entry: LogEntry) => {
-        this.logBuffer.add(entry)
-      },
     })
     console.log('[EngineManager] Engine created (suspended)')
 
