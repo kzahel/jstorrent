@@ -28,6 +28,7 @@ export { LocalStorageSessionStore } from './adapters/browser/local-storage-sessi
 export { ExternalChromeStorageSessionStore } from './adapters/browser/external-chrome-storage-session-store'
 export { SubtleCryptoHasher } from './adapters/browser/subtle-crypto-hasher'
 export { DaemonConnection } from './adapters/daemon/daemon-connection'
+export type { IDaemonConnection } from './adapters/daemon/daemon-connection'
 export { DaemonSocketFactory } from './adapters/daemon/daemon-socket-factory'
 export { DaemonFileSystem } from './adapters/daemon/daemon-filesystem'
 export { DaemonHasher } from './adapters/daemon/daemon-hasher'

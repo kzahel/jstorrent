@@ -1,3 +1,11 @@
+export interface IDaemonConnection {
+  connect(info: { port: number; token: string }): Promise<void>
+  sendFrame(frame: ArrayBuffer): void
+  onFrame(cb: (frame: ArrayBuffer) => void): void
+  close(): void
+  readonly ready: boolean
+}
+
 export class DaemonConnection {
   private baseUrl: string
   private ws: WebSocket | null = null
