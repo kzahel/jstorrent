@@ -1,374 +1,415 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JSTorrent - Coming Soon</title>
-  <meta name="description" content="JSTorrent is being rebuilt for ChromeOS and desktop. Join the waitlist.">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSTorrent - Coming Soon</title>
+    <meta
+      name="description"
+      content="JSTorrent is being rebuilt for ChromeOS and desktop. Join the waitlist."
+    />
 
-  <!-- Open Graph for social sharing -->
-  <meta property="og:title" content="JSTorrent - Coming Soon">
-  <meta property="og:description" content="A modern BitTorrent client for ChromeOS. Join the waitlist.">
-  <meta property="og:image" content="/cook/JSTorrent/js-512.png">
-  <meta property="og:url" content="https://new.jstorrent.com/comingsoon2.html">
-  <meta property="og:type" content="website">
+    <!-- Open Graph for social sharing -->
+    <meta property="og:title" content="JSTorrent - Coming Soon" />
+    <meta
+      property="og:description"
+      content="A modern BitTorrent client for ChromeOS. Join the waitlist."
+    />
+    <meta property="og:image" content="/cook/JSTorrent/js-512.png" />
+    <meta property="og:url" content="https://new.jstorrent.com/comingsoon2.html" />
+    <meta property="og:type" content="website" />
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" sizes="32x32" href="/cook/JSTorrent/js-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/cook/JSTorrent/js-16.png">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/cook/JSTorrent/js-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/cook/JSTorrent/js-16.png" />
 
-  <!-- Monospace font -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Monospace font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
 
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-      background: #0d1117;
-      color: #e6edf3;
-      line-height: 1.6;
-      position: relative;
-    }
-
-    /* Subtle grid pattern */
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-image:
-        linear-gradient(rgba(74, 144, 217, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(74, 144, 217, 0.03) 1px, transparent 1px);
-      background-size: 50px 50px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .container {
-      max-width: 600px;
-      text-align: center;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      z-index: 1;
-    }
-
-    .logo {
-      width: 100px;
-      height: 100px;
-      margin-bottom: 1.5rem;
-      filter: drop-shadow(0 0 30px rgba(74, 144, 217, 0.3));
-    }
-
-    .brand-text {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.875rem;
-      color: #4A90D9;
-      margin-bottom: 1rem;
-      letter-spacing: 0.1em;
-    }
-
-    h1 {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      color: #ffffff;
-    }
-
-    h1 .accent {
-      color: #4A90D9;
-    }
-
-    .subtitle {
-      color: #8b949e;
-      font-size: 1.125rem;
-      margin-bottom: 2.5rem;
-      max-width: 450px;
-    }
-
-    .code-block {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 1.5rem;
-      margin-bottom: 2.5rem;
-      text-align: left;
-      width: 100%;
-      max-width: 480px;
-    }
-
-    .code-comment {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8125rem;
-      color: #8b949e;
-    }
-
-    .code-line {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.875rem;
-      color: #e6edf3;
-      margin-top: 0.5rem;
-    }
-
-    .code-line .keyword {
-      color: #ff7b72;
-    }
-
-    .code-line .string {
-      color: #a5d6ff;
-    }
-
-    .code-line .function {
-      color: #d2a8ff;
-    }
-
-    .form-section {
-      margin-bottom: 2.5rem;
-      width: 100%;
-    }
-
-    .form-label {
-      font-family: 'JetBrains Mono', monospace;
-      display: block;
-      font-size: 0.75rem;
-      color: #8b949e;
-      margin-bottom: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-
-    .embeddable-buttondown-form {
-      display: flex;
-      gap: 0.5rem;
-      max-width: 420px;
-      margin: 0 auto;
-    }
-
-    .embeddable-buttondown-form input[type="email"] {
-      flex: 1;
-      padding: 0.875rem 1rem;
-      font-size: 1rem;
-      font-family: 'JetBrains Mono', monospace;
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      color: #e6edf3;
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .embeddable-buttondown-form input[type="email"]::placeholder {
-      color: #6e7681;
-    }
-
-    .embeddable-buttondown-form input[type="email"]:focus {
-      border-color: #4A90D9;
-      box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
-    }
-
-    .embeddable-buttondown-form button {
-      padding: 0.875rem 1.5rem;
-      font-size: 0.9375rem;
-      font-weight: 600;
-      font-family: 'JetBrains Mono', monospace;
-      background: #238636;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-      white-space: nowrap;
-    }
-
-    .embeddable-buttondown-form button:hover {
-      background: #2ea043;
-    }
-
-    .divider {
-      width: 60px;
-      height: 1px;
-      background: #30363d;
-      margin: 0 auto 2rem;
-    }
-
-    .community-section {
-      margin-bottom: 2rem;
-    }
-
-    .community-label {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-      color: #8b949e;
-      margin-bottom: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-
-    .links {
-      display: flex;
-      gap: 0.75rem;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    .links a {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.625rem 1rem;
-      font-size: 0.875rem;
-      font-family: 'JetBrains Mono', monospace;
-      color: #e6edf3;
-      text-decoration: none;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      transition: all 0.2s;
-      background: #161b22;
-    }
-
-    .links a:hover {
-      border-color: #8b949e;
-      background: #21262d;
-    }
-
-    .links a.primary {
-      background: #238636;
-      border-color: #238636;
-    }
-
-    .links a.primary:hover {
-      background: #2ea043;
-      border-color: #2ea043;
-    }
-
-    .links svg {
-      width: 18px;
-      height: 18px;
-    }
-
-    footer {
-      padding: 2rem;
-      color: #6e7681;
-      font-size: 0.8125rem;
-      font-family: 'JetBrains Mono', monospace;
-      position: relative;
-      z-index: 1;
-    }
-
-    @media (max-width: 520px) {
       body {
-        padding: 1.5rem;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: #0d1117;
+        color: #e6edf3;
+        line-height: 1.6;
+        position: relative;
+      }
+
+      /* Subtle grid pattern */
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image:
+          linear-gradient(rgba(74, 144, 217, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(74, 144, 217, 0.03) 1px, transparent 1px);
+        background-size: 50px 50px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .container {
+        max-width: 600px;
+        text-align: center;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 1;
+      }
+
+      .logo {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 1.5rem;
+        filter: drop-shadow(0 0 30px rgba(74, 144, 217, 0.3));
+      }
+
+      .brand-text {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+        color: #4a90d9;
+        margin-bottom: 1rem;
+        letter-spacing: 0.1em;
       }
 
       h1 {
-        font-size: 1.5rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: #ffffff;
+      }
+
+      h1 .accent {
+        color: #4a90d9;
       }
 
       .subtitle {
-        font-size: 1rem;
+        color: #8b949e;
+        font-size: 1.125rem;
+        margin-bottom: 2.5rem;
+        max-width: 450px;
       }
 
       .code-block {
-        padding: 1rem;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2.5rem;
+        text-align: left;
+        width: 100%;
+        max-width: 480px;
       }
 
-      .code-comment,
+      .code-comment {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8125rem;
+        color: #8b949e;
+      }
+
       .code-line {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+        color: #e6edf3;
+        margin-top: 0.5rem;
+      }
+
+      .code-line .keyword {
+        color: #ff7b72;
+      }
+
+      .code-line .string {
+        color: #a5d6ff;
+      }
+
+      .code-line .function {
+        color: #d2a8ff;
+      }
+
+      .form-section {
+        margin-bottom: 2.5rem;
+        width: 100%;
+      }
+
+      .form-label {
+        font-family: 'JetBrains Mono', monospace;
+        display: block;
         font-size: 0.75rem;
+        color: #8b949e;
+        margin-bottom: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
       }
 
       .embeddable-buttondown-form {
-        flex-direction: column;
+        display: flex;
+        gap: 0.5rem;
+        max-width: 420px;
+        margin: 0 auto;
+      }
+
+      .embeddable-buttondown-form input[type='email'] {
+        flex: 1;
+        padding: 0.875rem 1rem;
+        font-size: 1rem;
+        font-family: 'JetBrains Mono', monospace;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        color: #e6edf3;
+        outline: none;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+
+      .embeddable-buttondown-form input[type='email']::placeholder {
+        color: #6e7681;
+      }
+
+      .embeddable-buttondown-form input[type='email']:focus {
+        border-color: #4a90d9;
+        box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
       }
 
       .embeddable-buttondown-form button {
-        width: 100%;
+        padding: 0.875rem 1.5rem;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        font-family: 'JetBrains Mono', monospace;
+        background: #238636;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        white-space: nowrap;
+      }
+
+      .embeddable-buttondown-form button:hover {
+        background: #2ea043;
+      }
+
+      .divider {
+        width: 60px;
+        height: 1px;
+        background: #30363d;
+        margin: 0 auto 2rem;
+      }
+
+      .community-section {
+        margin-bottom: 2rem;
+      }
+
+      .community-label {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.75rem;
+        color: #8b949e;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
       }
 
       .links {
-        flex-direction: column;
-        align-items: center;
+        display: flex;
+        gap: 0.75rem;
+        justify-content: center;
+        flex-wrap: wrap;
       }
 
       .links a {
-        width: 100%;
-        justify-content: center;
-        max-width: 220px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1rem;
+        font-size: 0.875rem;
+        font-family: 'JetBrains Mono', monospace;
+        color: #e6edf3;
+        text-decoration: none;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        transition: all 0.2s;
+        background: #161b22;
       }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <img src="/cook/JSTorrent/js-512.png" alt="JSTorrent" class="logo">
-    <p class="brand-text">// JSTORRENT</p>
-    <h1>A <span class="accent">fresh start</span> for JSTorrent</h1>
-    <p class="subtitle">10+ years of JSTorrent, rebuilt from the ground up for ChromeOS and desktop.</p>
 
-    <div class="code-block">
-      <p class="code-comment">// Status: In active development</p>
-      <p class="code-line"><span class="keyword">const</span> platform = [<span class="string">"ChromeOS"</span>, <span class="string">"Desktop"</span>];</p>
-      <p class="code-line"><span class="function">await</span> <span class="function">rebuild</span>();</p>
-    </div>
+      .links a:hover {
+        border-color: #8b949e;
+        background: #21262d;
+      }
 
-    <div class="form-section">
-      <label class="form-label">// Subscribe for updates</label>
-      <form
-        action="https://buttondown.com/api/emails/embed-subscribe/jstorrent"
-        method="post"
-        class="embeddable-buttondown-form"
-      >
-        <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
-        <button type="submit">Subscribe</button>
-      </form>
-    </div>
+      .links a.primary {
+        background: #238636;
+        border-color: #238636;
+      }
 
-    <div class="divider"></div>
+      .links a.primary:hover {
+        background: #2ea043;
+        border-color: #2ea043;
+      }
 
-    <div class="community-section">
-      <p class="community-label">// Follow development</p>
-      <div class="links">
-        <a href="https://github.com/kzahel/jstorrent" target="_blank" rel="noopener noreferrer" class="primary">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-          </svg>
-          GitHub
-        </a>
-        <a href="https://discord.gg/Cnwfwawxvf" target="_blank" rel="noopener noreferrer">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-          </svg>
-          Discord
-        </a>
-        <a href="https://github.com/kzahel/jstorrent/discussions" target="_blank" rel="noopener noreferrer">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M2 5.5A2.5 2.5 0 014.5 3h15A2.5 2.5 0 0122 5.5v12.587a2.5 2.5 0 01-4.27 1.768l-2.877-2.878A1.5 1.5 0 0013.793 17H4.5A2.5 2.5 0 012 14.5v-9zM4.5 5a.5.5 0 00-.5.5v9a.5.5 0 00.5.5h9.293a3.5 3.5 0 012.475 1.025l2.878 2.878A.5.5 0 0020 18.585V5.5a.5.5 0 00-.5-.5h-15zM8 8.5a.5.5 0 01.5-.5h7a.5.5 0 010 1h-7a.5.5 0 01-.5-.5zm.5 3.5a.5.5 0 000 1h4a.5.5 0 000-1h-4z"/>
-          </svg>
-          Discussions
-        </a>
+      .links svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      footer {
+        padding: 2rem;
+        color: #6e7681;
+        font-size: 0.8125rem;
+        font-family: 'JetBrains Mono', monospace;
+        position: relative;
+        z-index: 1;
+      }
+
+      @media (max-width: 520px) {
+        body {
+          padding: 1.5rem;
+        }
+
+        h1 {
+          font-size: 1.5rem;
+        }
+
+        .subtitle {
+          font-size: 1rem;
+        }
+
+        .code-block {
+          padding: 1rem;
+        }
+
+        .code-comment,
+        .code-line {
+          font-size: 0.75rem;
+        }
+
+        .embeddable-buttondown-form {
+          flex-direction: column;
+        }
+
+        .embeddable-buttondown-form button {
+          width: 100%;
+        }
+
+        .links {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .links a {
+          width: 100%;
+          justify-content: center;
+          max-width: 220px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <img src="/cook/JSTorrent/js-512.png" alt="JSTorrent" class="logo" />
+      <p class="brand-text">// JSTORRENT</p>
+      <h1>A <span class="accent">fresh start</span> for JSTorrent</h1>
+      <p class="subtitle">
+        10+ years of JSTorrent, rebuilt from the ground up for ChromeOS and desktop.
+      </p>
+
+      <div class="code-block">
+        <p class="code-comment">// Status: In active development</p>
+        <p class="code-line">
+          <span class="keyword">const</span> platform = [<span class="string">"ChromeOS"</span>,
+          <span class="string">"Desktop"</span>];
+        </p>
+        <p class="code-line">
+          <span class="function">await</span> <span class="function">rebuild</span>();
+        </p>
+      </div>
+
+      <div class="form-section">
+        <label class="form-label">// Subscribe for updates</label>
+        <form
+          action="https://buttondown.com/api/emails/embed-subscribe/jstorrent"
+          method="post"
+          class="embeddable-buttondown-form"
+        >
+          <input
+            type="email"
+            name="email"
+            placeholder="you@example.com"
+            required
+            aria-label="Email address"
+          />
+          <button type="submit">Subscribe</button>
+        </form>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="community-section">
+        <p class="community-label">// Follow development</p>
+        <div class="links">
+          <a
+            href="https://github.com/kzahel/jstorrent"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="primary"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
+              />
+            </svg>
+            GitHub
+          </a>
+          <a href="https://discord.gg/Cnwfwawxvf" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"
+              />
+            </svg>
+            Discord
+          </a>
+          <a
+            href="https://github.com/kzahel/jstorrent/discussions"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                fill-rule="evenodd"
+                d="M2 5.5A2.5 2.5 0 014.5 3h15A2.5 2.5 0 0122 5.5v12.587a2.5 2.5 0 01-4.27 1.768l-2.877-2.878A1.5 1.5 0 0013.793 17H4.5A2.5 2.5 0 012 14.5v-9zM4.5 5a.5.5 0 00-.5.5v9a.5.5 0 00.5.5h9.293a3.5 3.5 0 012.475 1.025l2.878 2.878A.5.5 0 0020 18.585V5.5a.5.5 0 00-.5-.5h-15zM8 8.5a.5.5 0 01.5-.5h7a.5.5 0 010 1h-7a.5.5 0 01-.5-.5zm.5 3.5a.5.5 0 000 1h4a.5.5 0 000-1h-4z"
+              />
+            </svg>
+            Discussions
+          </a>
+        </div>
       </div>
     </div>
-  </div>
 
-  <footer>// &copy; 2025 JSTorrent</footer>
-</body>
+    <footer>// &copy; 2025 JSTorrent</footer>
+  </body>
 </html>
