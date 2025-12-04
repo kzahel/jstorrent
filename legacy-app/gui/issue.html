@@ -1,0 +1,30 @@
+<html>
+<head>
+<script src="../js/deps/jquery-1.7.2.js"></script>
+
+<!--script src="help.js"></script-->
+<link rel="stylesheet" href="help.css"></link>
+</head>
+<body>
+<h3>Report an Issue/Bug to the Developer</h3>
+</body>
+
+<p>By providing your feedback to the developer, you are helping us improve this software. To provide the best bug report, please attempt to start the torrent and produce the error, and then click "Send Report"
+</p>
+
+<!--p>You are reporting an issue for "<em><span id="torrent-name"></span></em>" (infohash: <span id="infohash"></span>)</p-->
+
+
+Please provide detailed information about the problem
+<textarea id="description" style="width:90%;height:6em"></textarea>
+
+<p>Data to be reported:
+<textarea id="prefilled-info" readonly style="width:90%;height:4em"></textarea>
+<textarea id="torrent-info" readonly style="width:90%;height:4em"></textarea>
+<textarea id="tracker-info" readonly style="width:90%;height:4em"></textarea>
+
+<input id="send" type="button" value="Send Report" />
+
+<script src="issue.js"></script>
+</body>
+</html>

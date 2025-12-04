@@ -1,0 +1,92 @@
+{
+"update_url": "https://clients2.google.com/service/update2/crx",
+
+    "default_locale":"en",
+    "name": "__MSG_extName__",
+    "short_name": "__MSG_extName__",
+    "description": "__MSG_extDescription__",
+    "author": "Kyle Graehl",
+    "version": "2.4.4",
+    "manifest_version": 2,
+    "offline_enabled": true,
+    "minimum_chrome_version": "33",
+    "file_handlers": {
+        "any": {
+            "types": [
+                "application/x-bittorrent"
+            ],
+            "extensions": [
+                "torrent"
+            ]
+        }
+    },
+    "sockets": {
+       "udp": {
+         "send": [""],
+         "bind": [""]
+       },
+       "tcp": {
+         "connect": [""]
+       },
+       "tcpServer": {
+         "listen": [""]
+       }
+    },
+    "permissions": [
+        {"fileSystem":["write","directory","retainEntries"]},
+        "contextMenus",
+        "alarms",
+        "storage",
+        "unlimitedStorage",
+        "system.storage",
+        "system.cpu",
+        "system.memory",
+	"system.network",
+        "idle",
+        "power",
+        "notifications",
+        "http://*/",
+        "https://*/",
+        "identity",
+        "browser",
+        {"mediaGalleries":["read"]}
+    ],
+    "optional_permissions": [
+        "background"
+    ],
+    "oauth2": {
+        "client_id": "432934632994-20rclui1m8od0p2g09vfbrdnk93gbraa.apps.googleusercontent.com",
+        "scopes": ["https://www.googleapis.com/auth/chromewebstore.readonly"]
+    },
+    "app": {
+        "background": {
+            "scripts": ["conf.js", "background.js"]
+        }
+    },
+    "url_handlers": {
+        "open_jstorrent": {
+            "matches": [
+                "*://*.jstorrent.com/open*",
+                "*://jstorrent.com/open*"
+            ],
+            "title": "Open in __MSG_extName__"
+        }
+    },
+    "externally_connectable": {
+      "ids": [ "bnceafpojmnimbnhamaeedgomdcgnbjk" ],
+      "matches": [
+          "*://*.jstorrent.com/*",
+          "*://jstorrent.com/*"
+      ]
+    },
+    "icons": { 
+        "16": "js-16.png",
+        "19": "js-19.png",
+        "32": "js-32.png",
+        "48": "js-48.png",
+        "96": "js-96.png",
+        "128": "js-128.png",
+        "256": "js-256.png",
+        "512": "js-512.png"
+    }
+}

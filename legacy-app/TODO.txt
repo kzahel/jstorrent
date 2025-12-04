@@ -1,0 +1,60 @@
+- https://wiki.whatwg.org/wiki/Video_Metrics for media player
+
+- stop downloading! ( endgame ) if we have downloaded and hashchecked all pieces
+- adjust allowed per torrent memory cache
+- add queue function, set default to 1 for low ram devices.
+- if piece sizes are quite small (64KB!!! WTF) need to coalesce
+
+- clicking on update message should launch app
+- createObjectURL / revoke not letting background page go inactive. file bug
+- show "loading..." for files pane (can take a while to initialize file objects)
+- check external storage detaching handling workin ... 
+- diskio so messy. checkShouldBail? what a mess. redo everything
+- secretly play mp4 in background to get range request, or parse mp4 box headers and dl that right away
+- stopping other torrents gets disk queue broken in getMetadata state? (shouldbail?)
+- search opensubtitles on file (right click?)
+- filewriter already has file size/length (so dont need to get metadata)
+- with diskio problems of any type, clear all cache and retry
+- problem with entryCache entry.filesystem name being chrome-extension_.... vs retainstr(disk.key)
+- add button sometimes didnt select torrent / start torrent
+- seeding, not clearing pieces out of cache!
+- store graph of download progress for debugging (bytes/s, # conns, etc)
+- lazy load disks and dont show notification if torrent not active/loaded
+- check for lastError in torrent metadata save. (FILE_ERROR_NO_SPACE)
+- saving large file to google drive gives hard disk full notification.
+- web server leaving ports open ? after many ctrl-r it runs out of retries on listen
+- right click to remove tracker
+- closing choked connections needs to account not for whole swarm size, but actually valid swarm size
+- bridges when no incomplete pieces after seek area, remove bridges. also when long delay temp. turn on endgame?
+- show ETA in progress bar notification
+- when window is minimized, show app status in a notification
+- store .torrent files in local sandbox persistent storage (option)
+- store total bytes received in swarm list, and persist it for a while? (resume)
+- poll navigator.onLine sometimes ... ?
+- register idle change when app is open / foreground, so we can handle sleep/resume better
+- send keepalives or at least newstate think to sockets (sleep mode and they can stay connected?)
+- move calculate_speed into timer independent from UI render
+- store bitfield as binary string in local storage
+- show notification when update available, or when update was installed.
+- small swarm debugging
+- run overnight, look for memory leak/crash on low memory system
+
+2.1 fixes
+- recalculateblacklist serially, bad
+- onupdated background page reload error?
+- highlight effect is jarring/red
+- drag and drop .torrent file in windows, or maybe button to add torrent file
+
+- see what happens when add invalid .torrent file
+
+new stuff to add
+- SOCKS5 support
+- add version numbers in the app
+
+
+- need to disconnect from peers when no message received in n seconds (i.e. if computer goes to sleep...)
+- add "delete torrent and files" to more actions
+- fix file getting to > 100% (downloaded being incremented twice somehow)
+- better handling when disconnecting external storage (display better error)
+- pNaCL sha1 hashing of pieces
+

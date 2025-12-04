@@ -1,0 +1,23 @@
+{
+    "extName": {
+        "message": "JSTorrent Dev"
+    },
+    "extDescription": {
+        "message": "A Torrent Client for Google Chrome, runs everywhere in pure JavaScript"
+    },
+    "showHelpStartTitle": {
+        "message": "Find a Torrent File"
+    },
+    "showHelpStart": {
+        "message": "Find a torrent file online. Right click and select \"Copy link address\", come back to JSTorrent, and paste it into the address bar on top."
+    },
+    "noTorrentSelected": {
+        "message":"No torrent file selected."
+    },
+    "playFileWarningTitle": {
+        "message":"Keep JSTorrent open while playing"
+    },
+    "playFileWarningDetails": {
+        "message":"If you want to close JSTorrent, open the file using the system file browser."
+    }
+}

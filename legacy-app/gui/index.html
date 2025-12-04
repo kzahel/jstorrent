@@ -1,0 +1,259 @@
+<html>
+<head>
+  <link rel="stylesheet" href="../js/deps/SlickGrid/slick.grid.css" type="text/css"/>
+  <link rel="stylesheet" href="../js/deps/SlickGrid/css/smoothness/jquery-ui-1.8.16.custom.css" type="text/css"/>
+  <link rel="stylesheet" href="../js/deps/bootstrap-dist/css/bootstrap.min.css" type="text/css"/>
+  <link rel="stylesheet" href="index.css" type="text/css"/>
+  <script src="../js/deps/google-analytics-bundle.js"></script> <!-- throwing exceptions. -->
+  <script src="../js/deps/jquery-1.7.2.js"></script> <!-- modified to remove IE9 try/catch exception handling/detection -->
+  <script src="../js/deps/jquery.twinkle-0.5.0.js"></script>
+  <script src="../js/deps/SlickGrid/lib/jquery.event.drag-2.2.js"></script>
+
+  <script src="../js/deps/SlickGrid/slick.core.js"></script>
+  <script src="../js/deps/SlickGrid/slick.editors.js"></script>
+  <script src="../js/deps/SlickGrid/slick.formatters.js"></script>
+  <script src="../js/deps/SlickGrid/slick.grid.js"></script>
+
+  <script src="../js/deps/SlickGrid/plugins/slick.rowselectionmodel.js"></script>
+
+  <script src="../js/deps/bootstrap-dist/js/bootstrap.min.js"></script>
+  <script src="../js/deps/underscore.js"></script>
+  <script src="../js/deps/digest.js"></script>
+  <script src="../js/deps/encoding-indexes.js"></script>
+  <script src="../js/deps/encoding.js"></script>
+
+  <script src="../conf.js"></script>
+  <script src="../js/common.js"></script>
+  <script src="../js/ringbuffer.js"></script>
+  <script src="../js/log-full.js"></script>
+
+  <script src="../js/analytics.js"></script>
+  <script src="../js/bencode.js"></script>
+  <script src="../js/collection.js"></script>
+  <script src="../js/item.js"></script>
+
+  <script src="../js/disk.js"></script>
+  <script src="../js/diskio.js"></script>
+  <script src="../js/chromesocketxhr.js"></script>
+  <script src="../js/tracker.js"></script>
+  <script src="../js/torrent.js"></script>
+  <script src="../js/torrentsettings.js"></script>
+  <script src="../js/protocol.js"></script>
+  <script src="../js/net_errors.js"></script>
+  <script src="../js/dht.js"></script>
+  <script src="../js/buffer.js"></script>
+  <script src="../js/peer.js"></script>
+  <script src="../js/piece.js"></script>
+  <script src="../js/piececache.js"></script>
+  <script src="../js/file.js"></script>
+  <script src="../js/workerthread.js"></script>
+  <script src="../js/peerconnection.js"></script>
+  <script src="../js/client.js"></script>
+  <script src="../js/options.js"></script>
+  <script src="../js/notification.js"></script>
+
+  <script src="../js/web-server-chrome/common.js"></script>
+  <script src="../js/web-server-chrome/mime.js"></script>
+  <script src="../js/web-server-chrome/buffer.js"></script>
+  <script src="../js/web-server-chrome/request.js"></script>
+  <script src="../js/web-server-chrome/stream.js"></script>
+  <script src="../js/web-server-chrome/connection.js"></script>
+  <script src="../js/web-server-chrome/webapp.js"></script>
+  <script src="../js/web-server-chrome/handlers.js"></script>
+  <script src="../js/web-server-chrome/httplib.js"></script>
+
+  <script src="../js/webhandlers.js"></script>
+  <script src="../js/app.js"></script>
+<!--<script src="../concat-compiled.js"></script>-->
+
+  <script src="collectiontable.js"></script>
+  <script src="ui.js"></script>
+  <script src="index.js"></script>
+</head>
+
+<body>
+
+<div style="display:none" id="top-titlebar">
+  <img style="display:none" id="top-titlebar-icon" src="../js-19.png" />
+  <span id="client-infobar-down"></span>
+  <span id="client-infobar-up"></span>
+  <div id="top-titlebar-close">Quit</div>
+  <div id="top-titlebar-min">Compact</div>
+</div>
+
+<div style="display:none" id="minui-wrapper">
+  <div id="mintorrentGrid"></div>
+</div>
+
+<div id="ui-wrapper">
+  <div id="chrome-top">
+    <div style="clear:both"></div>
+    <div>
+      <div class="my-navbar-header">
+        <h5 style="padding:0px; margin:0px;"><a id="webstorelink" href="https://chrome.google.com/webstore/detail/jstorrent/anhdpjpojoipgpmfanmedjghaligalgb" target="_blank">
+            <img style="width:198px; height:50px" src="/js-mini-logo-2x.png" alt="JSTorrent" />
+          </a><span id="title-lite" style="display:none">Lite</span></h5>
+      </div>
+
+      <ul class="nav navbar-nav">
+        <li>
+          <form class="navbar-form navbar-left" role="search" id="add-form">
+            <div class="form-group">
+              <input id="url" type="text" class="form-control" placeholder="Add Torrent URL" style="width:400px" />
+            </div>
+            <a id="url-btn" type="submit" class="btn btn-default">Add</a> <!-- add by url -->
+          </form>
+        </li>
+
+        <li>
+          <span id="unpacked-container" style="display:none">
+            <h5>
+              <a href="#" class="download-remain-click"><span class="glyphicon glyphicon-shopping-cart"></span>Dev mode<br />Updates Disabled</a>
+            </h5>
+          </span>
+
+          <span id="download-remain-container" style="display:none">
+            <h5 >
+              <a href="#" class="download-remain-click">
+                <span class="glyphicon glyphicon-shopping-cart"></span>Free Trial:
+                <br /> <span id="download-remain"></span> Downloads Remaining
+            </a>
+            </h5>
+          </span>
+        </li>
+
+
+      </ul>
+    </div>
+
+    <div style="clear:both"></div>
+
+    <div class="btn-toolbar">
+
+      <div class="btn-group">
+        <a id="button-start" type="button" class="btn btn-default">
+          <span class="glyphicon glyphicon-play"></span>
+          Start
+        </a>
+
+        <a id="button-stop" type="button" class="btn btn-default">
+          <span class="glyphicon glyphicon-stop"></span>
+          Stop
+        </a>
+
+        <a id="button-remove" type="button" class="btn btn-default">
+          <span class="glyphicon glyphicon-trash"></span>
+          Remove
+        </a>
+
+
+      </div>
+
+      <div class="btn-group">
+        <a type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+          More Actions
+          <span class="caret"></span>
+        </a>
+        <ul class="dropdown-menu">
+          <!--li><a id="re-check" href="#">Re-check Torrent Files</a></li--><!-- not working well enough -->
+          <li><a id="reset-state">Reset Torrent State</a></li>
+          <li><a id="get-share-url">Get URL for Sharing</a></li>
+
+          <!--li><a href="#">Delete Files</a></li>
+              <li><a href="#">Delete Files and Torrent</a></li>
+<li><a href="#">Delete Everything</a></li-->
+        </ul>
+      </div>
+
+      <div class="btn-group">
+
+        <a id="button-help" type="button" class="btn btn-default">
+          <span class="glyphicon glyphicon-book"></span>
+          Help
+        </a>
+
+        <!--button id="button-sponsor" type="button" class="btn btn-default">
+            <span class="glyphicon glyphicon-heart-empty"></span>
+            Sponsor
+        </button-->
+
+        <a id="button-options" type="button" class="btn btn-default">
+          <span class="glyphicon glyphicon-cog"></span>
+          Settings
+        </a>
+
+      </div>
+
+    </div>
+
+  </div><!--div id="chrome-top"-->
+
+<div id="torrentGrid"></div>
+<div style="clear:both"></div>
+
+<!--Select Detail View: -->
+<ul class="nav nav-tabs" id="detail-tabs">
+
+  <li>
+    <a id="detail-info">
+      <span class="glyphicon glyphicon-th"></span>
+      Info
+    </a>
+  </li>
+
+  <li class="active">
+    <a id="detail-files">
+      <span class="glyphicon glyphicon-floppy-save"></span>
+      Files
+    </a>
+  </li>
+
+  <li>
+    <a id="detail-peers">
+      <span class="glyphicon glyphicon-user"></span>
+      Peers
+    </a>
+  </li>
+
+
+  <li>
+    <a id="detail-swarm">
+      <span class="glyphicon glyphicon-cloud"></span>
+      Swarm
+    </a>
+  </li>
+
+  <li>
+    <a id="detail-trackers">
+      <span class="glyphicon glyphicon-magnet"></span>
+      Trackers
+    </a>
+  </li>
+
+  <li>
+    <a id="detail-pieces">
+      <span class="glyphicon glyphicon-transfer"></span>
+      Pieces
+    </a>
+  </li>
+
+  <li>
+    <a id="detail-messages">
+    <span class="glyphicon glyphicon-warning-sign"></span>
+    Messages
+    </a>
+  </li>
+
+  <li>
+    <a id="detail-diskio">
+    <span class="glyphicon glyphicon-hdd"></span>
+    DiskIO
+    </a>
+  </li>
+
+</ul>
+<div style="clear:both"></div>
+<div id="detailGrid" ></div>
+</div> <!-- ui wrapper -->
+</body>
+</html>

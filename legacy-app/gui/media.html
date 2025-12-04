@@ -1,0 +1,32 @@
+<html><head><title>JSTorrent Media Player</title></head>
+<body>
+
+        <h5 style="padding:0px; margin:0px;"><img src="/package/js-mini-logo.png" alt="JSTorrent" /><span id="title-lite" style="display:none">Lite</span></h5>
+<p>JSTorrent Streaming Media Player (beta)</p>
+<canvas id="canvas" width="720" height="16"></canvas>
+<canvas id="rangecanvas" width="720" height="16"></canvas>
+<br />
+<div id="container"></div>
+<script src="/package/js/deps/underscore.js"></script>
+<script src="media.js"></script>
+<div id="error" style="font-size:200%; color:#f00; border:2px solid red; display:none"></div>
+<button id="play">Play</button><button id="pause">Pause</button>
+<span id="fileinfo"></span>
+<div id="marquee-container" style="width:200px; height:25px; border:1px solid black">
+  <div id="marquee" behavior="alternate">
+    initiating
+  </div>
+</div>
+<br />
+<!--complete ranges: <span id="ranges"></span-->
+<p>Important - on a Chromebook, you'll get better performance when
+saving to an external drive, since the internal disk is encrypted,
+which is slower.<p>
+
+<p>If you get an error, try reloading this page</p>
+<p>If you seek to a portion of the file that is not yet downloaded, it will prioritize downloading from that area. Please note that this feature is new and in beta. It can take a while for the file to be ready for streaming, and you may need to manually pause it so that the <span style="color:0a0">green</span> downloaded bar has downloaded enough data.</p>
+
+<p>Also, for HD videos, your computer likely will not be fast enough to download and play the video at the same time.</p>
+
+</body>
+</html>
