@@ -1,0 +1,19 @@
+html, body {
+    overflow-y: visible;
+    padding: 4px;
+}
+
+body {
+    font-size: 0.9em
+}
+li {
+    margin-top:10px;
+}
+.question {
+    color: #00A;
+}
+
+.answer { 
+    color: #332;
+    display: block;
+}

@@ -1,0 +1,278 @@
+<html>
+<head>
+<script src="../js/deps/jquery-1.7.2.js"></script>
+<!--script src="../js/deps/buy.js"></script-->
+<!--script src="https://wallet.google.com/inapp/lib/buy.js"></script-->
+<script src="help.js"></script>
+<link rel="stylesheet" href="help.css"></link>
+  <link rel="stylesheet" href="../js/deps/bootstrap-dist/css/bootstrap.min.css" type="text/css"/>
+
+</head>
+<body>
+
+<nav class="navbar navbar-default" role="navigation">
+  <div class="navbar-header">
+
+    <div>
+      <img style="width:198px; height:50px" src="/js-mini-logo-2x.png" alt="JSTorrent" />
+      <span style="position:relative; top:4px; font-size:110%; font-weight:bold; padding-left:8px"> Help</span>
+    </div>
+
+
+    <!--h4 style="padding:0.5em; padding-left:1em">JSTorrent Options</h4-->
+  </div>
+</nav>
+<div style="padding:8px">
+Thank you for using JSTorrent, a torrent client for Google Chrome.
+
+Having difficulty understanding how to use JSTorrent?
+
+<ul style="-webkit-user-select: text">
+
+  <li>
+    <span class="question">
+      What version am I running?
+    </span>
+    <span class="answer">
+      <p>This is JSTorrent version <span id="version"></span></p>
+    </span>
+  </li>
+
+    <li>
+    <span class="question">
+      How does this work?
+    </span>
+    <span class="answer">
+      <p>
+      Find a torrent file on the web, right click in your browser and
+      select "<em>Copy link address</em>", now come back to JSTorrent,
+      paste it into the address bar on top, and click
+      "<em>Add</em>". Then your torrent download will begin!</p>
+
+      <p>Or, simply download a ".torrent" file, and then either drag
+      it into the window or just click on it in the "Files" app.</p>
+
+      <p>To make it easier, there is a <a href="https://chrome.google.com/webstore/detail/jstorrent-contextmenu-ext/bnceafpojmnimbnhamaeedgomdcgnbjk?hl=en" target="_blank">chrome extension</a> that adds a right click menu that will do this automatically!</p>
+
+      <p>You can also visit <a href="http://jstorrent.com/magnet" target="_blank">JSTorrent.com</a> to setup JSTorrent as your magnet link handler.
+    </span>
+  </li>
+
+
+
+  <li>
+    <span class="question">
+      Why do I have to select a Download Folder?
+    </span>
+    <span class="answer">
+      <p>JSTorrent actually starts out with NO ACCESS to any files on your
+      computer. You have to tell it which folder(s) it has
+      access to. This is a security feature! Most desktop software
+      actually has full access to your computer. Cool, huh?</p>
+    </span>
+  </li>
+
+  <li>
+    <span class="question">
+      Where do the files download to?
+    </span>
+    <span class="answer">
+      <p>The first time you add a torrent, you'll be asked to select a <em>Default Download Folder</em>. The files will go there. Creating a "JSTorrent" folder to put everything in is the recommended setup.</p>
+    </span>
+  </li>
+
+
+  <li>
+    <span class="question">
+      I downloaded a file and the audio/video is not working!
+    </span>
+    <span class="answer">
+      <p>
+The file probably has the AC3 codec, which ChromeOS does not decode. Try to get MP4 files with H264 encoding, that will work best.
+      </p>
+
+      <p>But, you can try to use <a href="https://chrome.google.com/webstore/detail/vlc/obpdeolnggmbekmklghapmfpnfhpcndf" target="_blank">VLC for Chrome</a>, or <a href="https://chrome.google.com/webstore/detail/h265-hevc-player/dambgipgbnhmnkdolkljibpcbocimnpd" target="_blank">HEVC Player for Chrome</a>. They may be able to play your file correctly.
+
+      </p>
+      
+    </span>
+  </li>
+
+
+  <li>
+    <span class="question">
+      Can I save to Google Drive?
+    </span>
+    <span class="answer">
+<p>
+      On ChromeOS, it is indeed possible. However, saving your files to Google Drive is not a very good idea. It means you will be downloading to your local computer, and then re-uploading to Google Drive, which results in at least a 2x slowdown. Plus, it will sync multiple times as the file is being downloaded, so it results in about a 10x slowdown. In addition, there are errors in keeping the Google Drive download directory restored across restarts. So, in short, save to the internal or external disk.
+</p>
+    </span>
+  </li>
+
+
+
+  <li>
+    <span class="question">
+      My torrent isn't downloading! It says started, but isn't doing anything!
+    </span>
+    <span class="answer">
+      <p>First off, did you select your download directory?</p>
+
+      <p>Check the "Trackers" tab and make sure there are no numbers
+      in the "errors" or "timeouts" columns, and that there are
+      numbers in the "seeders" column. See if there is any information
+      in the "lasterror" column.
+
+      <p>Verify that there are peers present in the "Swarm" tab</p>
+
+      <p>Then check out the "Peers" tab and make sure you're
+      connecting to peers.</p>
+
+      <p>If you still have no success, please report detailed information to graehlarts@gmail.com, or on the 
+        <a target="_blank" href="http://google.com/+JSTorrent">JSTorrent community page</a>, or to the
+        <a target="_blank" href="http://reddit.com/r/JSTorrent">JSTorrent SubReddit</a>
+      </p>
+    </span>
+  </li>
+
+
+  <li>
+    <span class="question">
+      Okay, I downloaded to 100%, now what?
+    </span>
+    <span class="answer">
+<p>      You can access the files in your selected Downloads folder.</p>
+    </span>
+  </li>
+
+  <li>
+    <span class="question">
+      How do I add a torrent file?
+    </span>
+    <span class="answer">
+<p>      The easiest way is to find the "<em>magnet</em>" link on a website and right click and select <em>Copy link address</em>. You can also download the torrent file to your ChromeOS Downloads folder, and then drag it into the JSTorrent window. <a href="http://jstorrent.com/magnet/" target="_blank">Click here to set up magnet: links</a></p> 
+    </span>
+  </li>
+
+
+  <li>
+    <span class="question">
+      How do I skip a file, or only download one file, or change file download order?
+    </span>
+    <span class="answer">
+      <p>
+You can skip downloading files or choose to download only a single file by right clicking in the Files tab. You can skip downloading a file by selecting "Skip Download". To download only a single file, use shift+click to select other files and "Skip" them.
+      </p> 
+    </span>
+  </li>
+
+  
+  <li>
+    <span class="question">
+      Does this work with private trackers?
+    </span>
+    <span class="answer">
+      <p>With a private tracker, you'll need to download the ".torrent" file from the web browser first, and then load it into JSTorrent. This is because you need to be signed in, and JSTorrent doesn't know about your login credentials.
+      </p>
+
+      <p>Typically trackers will employ a "whitelist" and only allow certain BitTorrent clients. Since this software is relatively new, many trackers have not yet whitelisted JSTorrent. You will need to contact the administrators of your private tracker and give them the following information:</p>
+
+        <ul>
+          <li>JSTorrent reports itself to the tracker a "User-Agent" string the same as the underlying browser (e.g. "<span id="user-agent"></span>"). (current limitations disallow changing this)</li>
+          <li>It adds an "X-User-Agent" string of the form: (JSTorrent/{version}) (current x-user-agent string version: "<span id="x-user-agent"></span>"
+          <li>Its peer id begins with "-JS{version}-", currently peer id begins with "<span id="peerid"></span>"</li>
+        </ul>
+      </p>
+
+    </span>
+  </li>
+
+
+  <li>
+
+    <span class="question">
+      Something isn't working right...
+    </span>
+    <span class="answer">
+<p>      You can try looking on <a target="_blank" href="http://google.com/+JSTorrent">JSTorrent community page</a> on Google+ or the <a target="_blank" href="http://reddit.com/r/JSTorrent">JSTorrent SubReddit</a></p>
+    </span>
+  </li>
+
+  <li>
+    <span class="question">
+      My torrent says "error"
+    </span>
+    <span class="answer">
+      <p>      This software isn't perfect. It could be our fault. Check the system notifications and see if there is any information. One possible cause is the <em>Download Folder</em> for this torrent is missing (if it was an external drive). Please, let me know about any errors either on the <a target="_blank" href="http://google.com/+JSTorrent">Google+ JSTorrent community page</a>, the <a href="http://jstorrent.uservoice.com" target="_blank">Suggestions Page</a>, or the <a target="_blank" href="http://reddit.com/r/JSTorrent">JSTorrent SubReddit</a>
+      </p>
+    </span>
+  </li>
+
+  <li>
+    <span class="question">
+      I have a feature suggestion...
+    </span>
+    <span class="answer">
+      <p>      We would love to hear about it. Please share it on the <a target="_blank" href="http://google.com/+JSTorrent">Google+ JSTorrent community page</a>. Or you can share it on our <a href="http://jstorrent.uservoice.com" target="_blank">Suggestions Page</a>, or the <a target="_blank" href="http://reddit.com/r/JSTorrent">JSTorrent SubReddit</a>
+      </p>
+    </span>
+  </li>
+
+  <!--li>
+    <span class="question">
+      Can I create torrents?
+    </span>
+    <span class="answer">
+      You sure can! Just drag a file into JSTorrent
+    </span>
+  </li-->
+
+  <li>
+    <span class="question">
+      Why is it so slow?
+    </span>
+    <span class="answer">
+
+      <p>You can increase the download speed by adjusting the number of connections in the settings. This will use more system resources, but will give you faster speeds.
+
+      </p>
+    </span>
+  </li>
+
+  <li>
+    <span class="question">
+      I don't understand the options on the options page
+    </span>
+    <span class="answer">
+<p>      That's OK. The default settings are configured to work for most users. If you have specific questions, try asking on the <a target="_blank" href="http://google.com/+JSTorrent">Google+ JSTorrent community page</a> or the <a target="_blank" href="http://reddit.com/r/JSTorrent">JSTorrent SubReddit</a></p>
+    </span>
+  </li>
+
+  <!--li>
+    <span class="question">
+      I love this. I want to give you money, and support the product.
+    </span>
+    <span class="answer">
+      <a href="#" id="sponsor">Become a sponsor! ($10 USD)</a>
+    </span>
+  </li-->
+
+
+
+  <li>
+    <span class="question">
+      My question isn't answered here...
+    </span>
+    <span class="answer">
+<p>      Ask it on the <a target="_blank" href="http://google.com/+JSTorrent">Google+ JSTorrent community page</a> or the <a target="_blank" href="http://reddit.com/r/JSTorrent">JSTorrent SubReddit</a></p>
+    </span>
+  </li>
+
+
+
+
+</ul>
+</div>
+</body>
+</html>

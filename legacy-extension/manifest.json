@@ -1,0 +1,32 @@
+{
+    "name": "JSTorrent Helper extension",
+    "short_name": "JSTorrent Helper",
+    "description": "Used alongside the JSTorrent BitTorrent Chrome app, adds context menu",
+    "version": "0.1.3",
+    "manifest_version": 3,
+    "minimum_chrome_version": "88",
+    "permissions": [
+        "contextMenus",
+        "notifications",
+        "storage"
+    ],
+    "externally_connectable": {
+        "ids": [
+            "anhdpjpojoipgpmfanmedjghaligalgb",
+            "abmohcnlldaiaodkpacnldcdnjjgldfh"
+        ]
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "icons": {
+        "16": "js-16.png",
+        "19": "js-19.png",
+        "32": "js-32.png",
+        "48": "js-48.png",
+        "96": "js-96.png",
+        "128": "js-128.png",
+        "256": "js-256.png",
+        "512": "js-512.png"
+    }
+}

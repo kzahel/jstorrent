@@ -39,3 +39,6 @@ packages/*/src/**/*.d.ts.map
 
 # agent crap?
 **/.pad
+
+#legacy-app
+#legacy-extension
