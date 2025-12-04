@@ -170,3 +170,36 @@ Hi, I'm Kyle. I'm a solo developer based in Zurich, Switzerland, where I live wi
 About a decade ago, I worked at BitTorrent, Inc. I originally had the idea for a web-based torrent client to support torrenting on an iPad. I tried to push for WebSocket protocol support in the mainline µTorrent and BitTorrent clients, but it never panned out. So I built JSTorrent for Chrome Apps instead, and when those started dying, pivoting to a browser extension was the natural next step.
 
 JSTorrent has always been a passion project. I'm also currently looking for work—if you're hiring, say hi: [linkedin.com/in/kylegraehl](https://linkedin.com/in/kylegraehl)
+
+
+---
+
+## AI-Assisted Development
+
+**Is AI being used to build this?**
+Yes, extensively—and it's been a game-changer.
+
+JSTorrent is a solo project, and I have two young kids. My coding happens in the gaps: during naptime, after bedtime, sometimes while supervising playground chaos. Traditional "sit down for 4 hours of deep focus" programming doesn't exist for me anymore.
+
+This is where modern AI tooling shines. Agentic workflows let me context-switch from making dinner to reviewing a pull request to debugging a tracker announce. I can sketch out what I want, hand it off, come back later, and iterate. AI is a tool that's powerful in surprising ways—if you set up the right scaffolding.
+
+**What can AI actually do here?**
+An AI could probably build a basic torrent client. What it can't do is design a multi-platform release strategy, define clean protocols with security as a top priority, or hold the complete architecture in its head across months of development. That's my job.
+
+I'm leveraging agentic workflows to give optimal context to my "workers" and creating detailed design plans for them to execute on. The AI is excellent at implementing well-specified functionality within a clear structure. It's not great at deciding what to build, why, or how it all fits together.
+
+TypeScript helps here too—type safety gives the AI guardrails and makes it unusually effective at producing correct code. (The core engine is TypeScript; the operating system glue is Rust on desktop and Kotlin on Android.)
+
+**Why is BitTorrent a great fit for AI?**
+The BitTorrent protocol is decades old, extremely well-documented, and implemented in dozens of open-source clients. AI models have been training on torrent client code for years—they know the internals of peer wire protocol, DHT, and piece selection in their sleep.
+
+We've also set up black-box integration testing against libtorrent. This means I can almost say "okay, make uTP work now" and let the AI iterate against real protocol behavior until tests pass. The feedback loop is tight, the spec is clear, and the AI has seen this problem a thousand times before.
+
+**Is this workflow open source too?**
+Yes. I think it's important to be transparent about the "source behind the source." If you look in `docs/tasks/` in the repository, you can see the record of development iteration—the design documents, the plans, the back-and-forth.
+
+In some sense, these design documents *are* the actual source code. The TypeScript is just the output.
+
+---
+
+Better?
