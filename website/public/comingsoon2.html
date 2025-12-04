@@ -445,18 +445,18 @@
 
     <script>
       document.getElementById('signup-form').addEventListener('submit', async function (e) {
-        e.preventDefault();
+        e.preventDefault()
 
-        const form = e.target;
-        const email = document.getElementById('email-input').value;
-        const submitBtn = document.getElementById('submit-btn');
-        const errorDiv = document.getElementById('form-error');
-        const successDiv = document.getElementById('form-success');
+        const form = e.target
+        const email = document.getElementById('email-input').value
+        const submitBtn = document.getElementById('submit-btn')
+        const errorDiv = document.getElementById('form-error')
+        const successDiv = document.getElementById('form-success')
 
         // Reset state
-        errorDiv.style.display = 'none';
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Sending...';
+        errorDiv.style.display = 'none'
+        submitBtn.disabled = true
+        submitBtn.textContent = 'Sending...'
 
         try {
           const response = await fetch(form.action, {
@@ -465,23 +465,23 @@
               'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: new URLSearchParams({ email: email }),
-          });
+          })
 
           if (response.ok || response.status === 303) {
             // Success - hide form, show success message
-            form.style.display = 'none';
-            document.getElementById('form-label').style.display = 'none';
-            successDiv.style.display = 'block';
+            form.style.display = 'none'
+            document.getElementById('form-label').style.display = 'none'
+            successDiv.style.display = 'block'
           } else {
-            throw new Error('Subscription failed');
+            throw new Error('Subscription failed')
           }
         } catch (err) {
-          errorDiv.textContent = '// error: subscription failed. Try again.';
-          errorDiv.style.display = 'block';
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Subscribe';
+          errorDiv.textContent = '// error: subscription failed. Try again.'
+          errorDiv.style.display = 'block'
+          submitBtn.disabled = false
+          submitBtn.textContent = 'Subscribe'
         }
-      });
+      })
     </script>
   </body>
 </html>

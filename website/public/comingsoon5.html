@@ -1,0 +1,1098 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSTorrent - Coming Soon</title>
+    <meta
+      name="description"
+      content="JSTorrent is being rebuilt for ChromeOS and desktop. Join the waitlist."
+    />
+
+    <!-- Open Graph for social sharing -->
+    <meta property="og:title" content="JSTorrent - Coming Soon" />
+    <meta
+      property="og:description"
+      content="A modern BitTorrent client for ChromeOS. Join the waitlist."
+    />
+    <meta property="og:image" content="/cook/JSTorrent/js-512.png" />
+    <meta property="og:url" content="https://new.jstorrent.com/comingsoon5.html" />
+    <meta property="og:type" content="website" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/cook/JSTorrent/js-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/cook/JSTorrent/js-16.png" />
+
+    <!-- Monospace font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* Theme variables - Dark (default) */
+      :root {
+        --bg-primary: #0d1117;
+        --bg-secondary: #161b22;
+        --bg-tertiary: #21262d;
+        --border: #30363d;
+        --text-primary: #e6edf3;
+        --text-secondary: #8b949e;
+        --text-muted: #6e7681;
+        --accent: #4a90d9;
+        --accent-green: #238636;
+        --accent-green-hover: #2ea043;
+        --code-keyword: #ff7b72;
+        --code-string: #a5d6ff;
+        --code-function: #d2a8ff;
+        --grid-color: rgba(74, 144, 217, 0.03);
+        --success-bg: #0d1117;
+        --success-border: #238636;
+        --success-text: #3fb950;
+        --error-text: #f85149;
+      }
+
+      /* Light theme */
+      @media (prefers-color-scheme: light) {
+        :root:not([data-theme='dark']) {
+          --bg-primary: #ffffff;
+          --bg-secondary: #f6f8fa;
+          --bg-tertiary: #eaeef2;
+          --border: #d0d7de;
+          --text-primary: #1f2328;
+          --text-secondary: #656d76;
+          --text-muted: #8c959f;
+          --accent: #0969da;
+          --accent-green: #1a7f37;
+          --accent-green-hover: #2da44e;
+          --code-keyword: #cf222e;
+          --code-string: #0a3069;
+          --code-function: #8250df;
+          --grid-color: rgba(74, 144, 217, 0.05);
+          --success-bg: #dafbe1;
+          --success-border: #1a7f37;
+          --success-text: #1a7f37;
+          --error-text: #cf222e;
+        }
+      }
+
+      [data-theme='light'] {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f6f8fa;
+        --bg-tertiary: #eaeef2;
+        --border: #d0d7de;
+        --text-primary: #1f2328;
+        --text-secondary: #656d76;
+        --text-muted: #8c959f;
+        --accent: #0969da;
+        --accent-green: #1a7f37;
+        --accent-green-hover: #2da44e;
+        --code-keyword: #cf222e;
+        --code-string: #0a3069;
+        --code-function: #8250df;
+        --grid-color: rgba(74, 144, 217, 0.05);
+        --success-bg: #dafbe1;
+        --success-border: #1a7f37;
+        --success-text: #1a7f37;
+        --error-text: #cf222e;
+      }
+
+      [data-theme='dark'] {
+        --bg-primary: #0d1117;
+        --bg-secondary: #161b22;
+        --bg-tertiary: #21262d;
+        --border: #30363d;
+        --text-primary: #e6edf3;
+        --text-secondary: #8b949e;
+        --text-muted: #6e7681;
+        --accent: #4a90d9;
+        --accent-green: #238636;
+        --accent-green-hover: #2ea043;
+        --code-keyword: #ff7b72;
+        --code-string: #a5d6ff;
+        --code-function: #d2a8ff;
+        --grid-color: rgba(74, 144, 217, 0.03);
+        --success-bg: #0d1117;
+        --success-border: #238636;
+        --success-text: #3fb950;
+        --error-text: #f85149;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        min-height: 100vh;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        position: relative;
+      }
+
+      /* Subtle grid pattern */
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image:
+          linear-gradient(var(--grid-color) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+        background-size: 50px 50px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .page-wrapper {
+        position: relative;
+        z-index: 1;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Header with theme toggle */
+      .header {
+        display: flex;
+        justify-content: flex-end;
+        padding: 1rem 2rem;
+      }
+
+      .theme-toggle {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.5rem;
+        cursor: pointer;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+      }
+
+      .theme-toggle:hover {
+        border-color: var(--text-secondary);
+        color: var(--text-primary);
+      }
+
+      .theme-toggle svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .theme-toggle .sun-icon {
+        display: none;
+      }
+      .theme-toggle .moon-icon {
+        display: block;
+      }
+
+      [data-theme='dark'] .theme-toggle .sun-icon {
+        display: block;
+      }
+      [data-theme='dark'] .theme-toggle .moon-icon {
+        display: none;
+      }
+
+      @media (prefers-color-scheme: light) {
+        :root:not([data-theme='dark']) .theme-toggle .sun-icon {
+          display: block;
+        }
+        :root:not([data-theme='dark']) .theme-toggle .moon-icon {
+          display: none;
+        }
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 0 2rem 4rem;
+        text-align: center;
+        flex: 1;
+      }
+
+      .logo {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 1.5rem;
+        filter: drop-shadow(0 0 30px rgba(74, 144, 217, 0.3));
+      }
+
+      .brand-text {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+        color: var(--accent);
+        margin-bottom: 1rem;
+        letter-spacing: 0.1em;
+      }
+
+      h1 {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+      }
+
+      h1 .accent {
+        color: var(--accent);
+      }
+
+      .subtitle {
+        color: var(--text-secondary);
+        font-size: 1.125rem;
+        margin-bottom: 2.5rem;
+        max-width: 450px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .code-block {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2.5rem;
+        text-align: left;
+        max-width: 480px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .code-comment {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8125rem;
+        color: var(--text-secondary);
+      }
+
+      .code-line {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        margin-top: 0.5rem;
+      }
+
+      .code-line .keyword {
+        color: var(--code-keyword);
+      }
+      .code-line .string {
+        color: var(--code-string);
+      }
+      .code-line .function {
+        color: var(--code-function);
+      }
+
+      .form-section {
+        margin-bottom: 2.5rem;
+      }
+
+      .form-label {
+        font-family: 'JetBrains Mono', monospace;
+        display: block;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .embeddable-buttondown-form {
+        display: flex;
+        gap: 0.5rem;
+        max-width: 420px;
+        margin: 0 auto;
+      }
+
+      .embeddable-buttondown-form input[type='email'] {
+        flex: 1;
+        padding: 0.875rem 1rem;
+        font-size: 1rem;
+        font-family: 'JetBrains Mono', monospace;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-primary);
+        outline: none;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+
+      .embeddable-buttondown-form input[type='email']::placeholder {
+        color: var(--text-muted);
+      }
+
+      .embeddable-buttondown-form input[type='email']:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+      }
+
+      .embeddable-buttondown-form button {
+        padding: 0.875rem 1.5rem;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        font-family: 'JetBrains Mono', monospace;
+        background: var(--accent-green);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        white-space: nowrap;
+      }
+
+      .embeddable-buttondown-form button:hover {
+        background: var(--accent-green-hover);
+      }
+
+      .embeddable-buttondown-form button:disabled {
+        background: var(--text-muted);
+        cursor: not-allowed;
+      }
+
+      .form-success {
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--success-text);
+        font-size: 1rem;
+        padding: 1rem;
+        background: var(--success-bg);
+        border: 1px solid var(--success-border);
+        border-radius: 6px;
+        max-width: 420px;
+        margin: 0 auto;
+      }
+
+      .form-error {
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--error-text);
+        font-size: 0.8125rem;
+        margin-top: 0.5rem;
+      }
+
+      .divider {
+        width: 60px;
+        height: 1px;
+        background: var(--border);
+        margin: 0 auto 2rem;
+      }
+
+      .community-section {
+        margin-bottom: 3rem;
+      }
+
+      .community-label {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .links {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .links a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1rem;
+        font-size: 0.875rem;
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--text-primary);
+        text-decoration: none;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        transition: all 0.2s;
+        background: var(--bg-secondary);
+      }
+
+      .links a:hover {
+        border-color: var(--text-secondary);
+        background: var(--bg-tertiary);
+      }
+
+      .links a.primary {
+        background: var(--accent-green);
+        border-color: var(--accent-green);
+        color: white;
+      }
+
+      .links a.primary:hover {
+        background: var(--accent-green-hover);
+        border-color: var(--accent-green-hover);
+      }
+
+      .links svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      /* FAQ Section */
+      .faq-section {
+        text-align: left;
+        max-width: 700px;
+        margin: 0 auto;
+      }
+
+      .faq-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.25rem;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        text-align: center;
+      }
+
+      .faq-category {
+        margin-bottom: 1rem;
+      }
+
+      .faq-category > summary {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--accent);
+        cursor: pointer;
+        padding: 0.75rem 1rem;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .faq-category > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .faq-category > summary::before {
+        content: '▶';
+        font-size: 0.75rem;
+        transition: transform 0.2s;
+      }
+
+      .faq-category[open] > summary::before {
+        transform: rotate(90deg);
+      }
+
+      .faq-category > summary:hover {
+        background: var(--bg-tertiary);
+      }
+
+      .faq-category-content {
+        padding: 0.5rem 0 0.5rem 1rem;
+      }
+
+      .faq-item {
+        margin-bottom: 0.5rem;
+      }
+
+      .faq-item > summary {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        cursor: pointer;
+        padding: 0.625rem 0.75rem;
+        border-radius: 4px;
+        list-style: none;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+
+      .faq-item > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .faq-item > summary::before {
+        content: '+';
+        color: var(--accent);
+        font-weight: bold;
+        flex-shrink: 0;
+      }
+
+      .faq-item[open] > summary::before {
+        content: '−';
+      }
+
+      .faq-item > summary:hover {
+        background: var(--bg-secondary);
+      }
+
+      .faq-answer {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        padding: 0.5rem 0.75rem 0.75rem 1.5rem;
+        line-height: 1.7;
+      }
+
+      .faq-answer a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      .faq-answer a:hover {
+        text-decoration: underline;
+      }
+
+      .faq-answer ul {
+        margin: 0.5rem 0;
+        padding-left: 1.25rem;
+      }
+
+      .faq-answer li {
+        margin-bottom: 0.25rem;
+      }
+
+      footer {
+        padding: 2rem;
+        color: var(--text-muted);
+        font-size: 0.8125rem;
+        font-family: 'JetBrains Mono', monospace;
+        text-align: center;
+      }
+
+      @media (max-width: 520px) {
+        .header {
+          padding: 1rem;
+        }
+
+        .container {
+          padding: 0 1.5rem 3rem;
+        }
+
+        h1 {
+          font-size: 1.5rem;
+        }
+
+        .subtitle {
+          font-size: 1rem;
+        }
+
+        .code-block {
+          padding: 1rem;
+        }
+
+        .code-comment,
+        .code-line {
+          font-size: 0.75rem;
+        }
+
+        .embeddable-buttondown-form {
+          flex-direction: column;
+        }
+
+        .embeddable-buttondown-form button {
+          width: 100%;
+        }
+
+        .links {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .links a {
+          width: 100%;
+          justify-content: center;
+          max-width: 220px;
+        }
+
+        .faq-category > summary,
+        .faq-item > summary {
+          font-size: 0.8125rem;
+        }
+
+        .faq-answer {
+          font-size: 0.8125rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-wrapper">
+      <header class="header">
+        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+          <svg
+            class="sun-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg
+            class="moon-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </header>
+
+      <main class="container">
+        <img src="/cook/JSTorrent/js-512.png" alt="JSTorrent" class="logo" />
+        <p class="brand-text">// JSTORRENT</p>
+        <h1>A <span class="accent">fresh start</span> for JSTorrent</h1>
+        <p class="subtitle">
+          10+ years of JSTorrent, rebuilt from the ground up for ChromeOS and desktop.
+        </p>
+
+        <div class="code-block">
+          <p class="code-comment">// Status: In active development</p>
+          <p class="code-line">
+            <span class="keyword">const</span> platform = [<span class="string">"ChromeOS"</span>,
+            <span class="string">"Desktop"</span>];
+          </p>
+          <p class="code-line">
+            <span class="function">await</span> <span class="function">rebuild</span>();
+          </p>
+        </div>
+
+        <div class="form-section" id="form-section">
+          <label class="form-label" id="form-label">// Subscribe for updates</label>
+          <form
+            action="https://buttondown.com/api/emails/embed-subscribe/jstorrent"
+            method="post"
+            class="embeddable-buttondown-form"
+            id="signup-form"
+          >
+            <input
+              type="email"
+              name="email"
+              placeholder="you@example.com"
+              required
+              aria-label="Email address"
+              id="email-input"
+            />
+            <button type="submit" id="submit-btn">Subscribe</button>
+          </form>
+          <div id="form-error" class="form-error" style="display: none"></div>
+          <div id="form-success" class="form-success" style="display: none">
+            // subscribed = true;<br />
+            // We'll notify you when JSTorrent is ready.
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="community-section">
+          <p class="community-label">// Follow development</p>
+          <div class="links">
+            <a
+              href="https://github.com/kzahel/jstorrent"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="primary"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path
+                  d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
+                />
+              </svg>
+              GitHub
+            </a>
+            <a href="https://discord.gg/Cnwfwawxvf" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path
+                  d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"
+                />
+              </svg>
+              Discord
+            </a>
+            <a
+              href="https://github.com/kzahel/jstorrent/discussions"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path
+                  fill-rule="evenodd"
+                  d="M2 5.5A2.5 2.5 0 014.5 3h15A2.5 2.5 0 0122 5.5v12.587a2.5 2.5 0 01-4.27 1.768l-2.877-2.878A1.5 1.5 0 0013.793 17H4.5A2.5 2.5 0 012 14.5v-9zM4.5 5a.5.5 0 00-.5.5v9a.5.5 0 00.5.5h9.293a3.5 3.5 0 012.475 1.025l2.878 2.878A.5.5 0 0020 18.585V5.5a.5.5 0 00-.5-.5h-15zM8 8.5a.5.5 0 01.5-.5h7a.5.5 0 010 1h-7a.5.5 0 01-.5-.5zm.5 3.5a.5.5 0 000 1h4a.5.5 0 000-1h-4z"
+                />
+              </svg>
+              Discussions
+            </a>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- FAQ Section -->
+        <section class="faq-section" id="faq">
+          <h2 class="faq-title">// FAQ</h2>
+
+          <details class="faq-category">
+            <summary>The Transition</summary>
+            <div class="faq-category-content">
+              <details class="faq-item">
+                <summary>What's happening to JSTorrent?</summary>
+                <div class="faq-answer">
+                  Google is retiring Chrome Apps. The current version of JSTorrent will stop working
+                  in a future Chrome update—Google hasn't given a specific date, just a warning that
+                  it's coming. On Windows and Mac, it's already broken.<br /><br />
+                  We're rebuilding JSTorrent from the ground up as a browser extension + companion
+                  app. Same core functionality, modern architecture, works everywhere.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>Will I lose my downloads?</summary>
+                <div class="faq-answer">
+                  Your downloaded files are just files on your disk—they're yours. However, torrent
+                  session data (active downloads, metadata) won't migrate. You'll start fresh with
+                  the new version. If there's something specific you'd like us to consider, let us
+                  know in
+                  <a href="https://github.com/kzahel/jstorrent/discussions">GitHub Discussions</a>.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>When will the new version be ready?</summary>
+                <div class="faq-answer">
+                  We're targeting early 2026 for a simultaneous launch across ChromeOS, Windows,
+                  Mac, and Linux.<br /><br />
+                  Before the public launch, we'll do a soft beta with an unlisted extension for
+                  early adopters. Join the waitlist to get access.
+                </div>
+              </details>
+            </div>
+          </details>
+
+          <details class="faq-category">
+            <summary>The New Version</summary>
+            <div class="faq-category-content">
+              <details class="faq-item">
+                <summary>How does it work?</summary>
+                <div class="faq-answer">
+                  The torrent engine (the "brain") runs entirely in a browser extension. A small
+                  companion app handles the low-level networking and file access that browsers can't
+                  do directly. They communicate locally on your device—nothing goes through external
+                  servers.<br /><br />
+                  The companion app is intentionally minimal and precise. It does exactly three
+                  things: sockets, files, and hashing. This tiny surface area makes security easier
+                  to guarantee.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>Do I need to install two things?</summary>
+                <div class="faq-answer">
+                  Yes—a browser extension and a companion app. We've made it easy: download the
+                  installer and run it. Initially the desktop app will be unsigned, so you may need
+                  to click "Run anyway" on Windows or right-click to open on Mac. Code signing is
+                  coming.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>Will it work on my Chromebook?</summary>
+                <div class="faq-answer">
+                  If your Chromebook supports Android apps (most made since ~2017), yes. The
+                  companion app runs in ChromeOS's Android container. Unfortunately, very old
+                  Chromebooks without Android support are out of luck.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>What about Windows, Mac, Linux?</summary>
+                <div class="faq-answer">
+                  All supported from day one. Same extension, platform-specific companion app.
+                </div>
+              </details>
+            </div>
+          </details>
+
+          <details class="faq-category">
+            <summary>Browser Support</summary>
+            <div class="faq-category-content">
+              <details class="faq-item">
+                <summary>Which browsers are supported?</summary>
+                <div class="faq-answer">
+                  JSTorrent works on any Chromium-based browser that supports Chrome extensions:
+                  Google Chrome, Brave, Microsoft Edge, Opera, Vivaldi, and others.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>What about Firefox?</summary>
+                <div class="faq-answer">
+                  Not currently planned. Firefox uses a different extension API. If there's demand,
+                  we'll consider it—let us know in
+                  <a href="https://github.com/kzahel/jstorrent/discussions">GitHub Discussions</a>.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>What about Safari?</summary>
+                <div class="faq-answer">
+                  Safari doesn't support the extension APIs we need. No plans for Safari support.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>What about iOS / iPhone?</summary>
+                <div class="faq-answer">
+                  Apple's App Store policies forbid BitTorrent clients on iOS. A remote control app
+                  is a future possibility, but not a priority.
+                </div>
+              </details>
+            </div>
+          </details>
+
+          <details class="faq-category">
+            <summary>Features</summary>
+            <div class="faq-category-content">
+              <details class="faq-item">
+                <summary>What works in v1?</summary>
+                <div class="faq-answer">
+                  <ul>
+                    <li>Adding torrents via magnet links and .torrent files</li>
+                    <li>Downloading to a folder you choose</li>
+                    <li>Seeding (you're a good citizen of the swarm)</li>
+                    <li>Robust, fast downloads—the new TypeScript engine is heavily tested</li>
+                  </ul>
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>What's coming later?</summary>
+                <div class="faq-answer">
+                  <ul>
+                    <li>Choosing which files to download</li>
+                    <li>Streaming/playback</li>
+                    <li>Private tracker support</li>
+                    <li>Search plugins</li>
+                    <li>uTP protocol</li>
+                    <li>UPnP / NAT hole-punching</li>
+                    <li>BitTorrent v2</li>
+                    <li>Peer encryption</li>
+                    <li>Visualizations and graphs</li>
+                  </ul>
+                  Tell us what matters to you in
+                  <a href="https://discord.gg/Cnwfwawxvf">Discord</a> or
+                  <a href="https://github.com/kzahel/jstorrent/discussions">GitHub Discussions</a>.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>What's the interface like?</summary>
+                <div class="faq-answer">
+                  We love the classic torrent client interface and we've kept that familiar layout.
+                  But we've also prioritized making everything feel <em>fast</em>. The UI uses a
+                  best-in-class virtualized table renderer that can display every packet as it
+                  arrives—at 240Hz if you want.
+                </div>
+              </details>
+            </div>
+          </details>
+
+          <details class="faq-category">
+            <summary>Pricing</summary>
+            <div class="faq-category-content">
+              <details class="faq-item">
+                <summary>Is JSTorrent free?</summary>
+                <div class="faq-answer">
+                  Yes, it's free. In the future, we may offer optional extras like remote access
+                  features or supporter badges—but the core app will remain free.
+                </div>
+              </details>
+            </div>
+          </details>
+
+          <details class="faq-category">
+            <summary>Trust & Security</summary>
+            <div class="faq-category-content">
+              <details class="faq-item">
+                <summary>Why should I trust JSTorrent?</summary>
+                <div class="faq-answer">
+                  JSTorrent has been around for over 10 years with a clean track record. The
+                  extension comes from the Chrome Web Store (reviewed and signed). The companion app
+                  is built from open source code with reproducible builds.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>Does JSTorrent phone home?</summary>
+                <div class="faq-answer">
+                  All torrent traffic goes directly between you and peers—there's no JSTorrent
+                  server in the middle. We have opt-in telemetry (crash reports, usage stats) but
+                  it's <strong>off by default</strong>.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>Is it open source?</summary>
+                <div class="faq-answer">
+                  Yes, fully. All components are open source at
+                  <a href="https://github.com/kzahel/jstorrent">github.com/kzahel/jstorrent</a>.
+                </div>
+              </details>
+            </div>
+          </details>
+
+          <details class="faq-category">
+            <summary>Getting Help</summary>
+            <div class="faq-category-content">
+              <details class="faq-item">
+                <summary>Where do I ask questions?</summary>
+                <div class="faq-answer">
+                  <ul>
+                    <li>
+                      <strong>Discord</strong>:
+                      <a href="https://discord.gg/Cnwfwawxvf">discord.gg/Cnwfwawxvf</a> — quick
+                      questions, community chat
+                    </li>
+                    <li>
+                      <strong>GitHub Discussions</strong>:
+                      <a href="https://github.com/kzahel/jstorrent/discussions"
+                        >Feature requests, general feedback</a
+                      >
+                    </li>
+                    <li>
+                      <strong>GitHub Issues</strong>:
+                      <a href="https://github.com/kzahel/jstorrent/issues"
+                        >Detailed technical bug reports</a
+                      >
+                    </li>
+                  </ul>
+                  We read everything. Seriously.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>I'm having trouble with the old Chrome App.</summary>
+                <div class="faq-answer">
+                  We're focusing all effort on the new version rather than patching the deprecated
+                  Chrome App. The Discord community might help with workarounds.
+                </div>
+              </details>
+            </div>
+          </details>
+
+          <details class="faq-category">
+            <summary>Early Adopters</summary>
+            <div class="faq-category-content">
+              <details class="faq-item">
+                <summary>How do I get early access?</summary>
+                <div class="faq-answer">
+                  Join the waitlist above. Before public launch, we'll release an unlisted extension
+                  for beta testers.
+                </div>
+              </details>
+              <details class="faq-item">
+                <summary>Is there anything special for early supporters?</summary>
+                <div class="faq-answer">
+                  We're planning supporter badges and other recognition for people who help test and
+                  provide feedback during the beta. Details TBD.
+                </div>
+              </details>
+            </div>
+          </details>
+
+          <details class="faq-category">
+            <summary>About</summary>
+            <div class="faq-category-content">
+              <details class="faq-item">
+                <summary>Who makes JSTorrent?</summary>
+                <div class="faq-answer">
+                  Hi, I'm Kyle. I'm a solo developer based in Zurich, Switzerland. About a decade
+                  ago, I worked at BitTorrent, Inc. JSTorrent has always been a passion project.<br /><br />
+                  I'm currently looking for work—if you're hiring, say hi:
+                  <a href="https://linkedin.com/in/kylegraehl">linkedin.com/in/kylegraehl</a>
+                </div>
+              </details>
+            </div>
+          </details>
+        </section>
+      </main>
+
+      <footer>// &copy; 2025 JSTorrent</footer>
+    </div>
+
+    <script>
+      // Theme toggle
+      const themeToggle = document.getElementById('theme-toggle')
+      const html = document.documentElement
+
+      // Check for saved theme preference
+      const savedTheme = localStorage.getItem('theme')
+      if (savedTheme) {
+        html.setAttribute('data-theme', savedTheme)
+      }
+
+      themeToggle.addEventListener('click', () => {
+        const currentTheme = html.getAttribute('data-theme')
+        let newTheme
+
+        if (currentTheme) {
+          // Toggle between light and dark
+          newTheme = currentTheme === 'dark' ? 'light' : 'dark'
+        } else {
+          // No explicit theme set, check system preference
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          newTheme = prefersDark ? 'light' : 'dark'
+        }
+
+        html.setAttribute('data-theme', newTheme)
+        localStorage.setItem('theme', newTheme)
+      })
+
+      // Form submission
+      document.getElementById('signup-form').addEventListener('submit', async function (e) {
+        e.preventDefault()
+
+        const form = e.target
+        const email = document.getElementById('email-input').value
+        const submitBtn = document.getElementById('submit-btn')
+        const errorDiv = document.getElementById('form-error')
+        const successDiv = document.getElementById('form-success')
+
+        errorDiv.style.display = 'none'
+        submitBtn.disabled = true
+        submitBtn.textContent = 'Sending...'
+
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ email: email }),
+          })
+
+          if (response.ok || response.status === 303) {
+            form.style.display = 'none'
+            document.getElementById('form-label').style.display = 'none'
+            successDiv.style.display = 'block'
+          } else {
+            throw new Error('Subscription failed')
+          }
+        } catch (err) {
+          errorDiv.textContent = '// error: subscription failed. Try again.'
+          errorDiv.style.display = 'block'
+          submitBtn.disabled = false
+          submitBtn.textContent = 'Subscribe'
+        }
+      })
+    </script>
+  </body>
+</html>
