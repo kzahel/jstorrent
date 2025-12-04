@@ -228,6 +228,27 @@
         transform: translateY(0);
       }
 
+      .embeddable-buttondown-form button:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      .form-success {
+        color: #059669;
+        font-size: 1.0625rem;
+        font-weight: 500;
+        padding: 1rem;
+        background: #ecfdf5;
+        border-radius: 10px;
+      }
+
+      .form-error {
+        color: #dc2626;
+        font-size: 0.875rem;
+        margin-top: 0.75rem;
+      }
+
       .features {
         display: flex;
         gap: 1.5rem;
@@ -416,12 +437,13 @@
         </div>
       </div>
 
-      <div class="card">
-        <label class="form-label">Be the first to know</label>
+      <div class="card" id="signup-card">
+        <label class="form-label" id="form-label">Be the first to know</label>
         <form
           action="https://buttondown.com/api/emails/embed-subscribe/jstorrent"
           method="post"
           class="embeddable-buttondown-form"
+          id="signup-form"
         >
           <input
             type="email"
@@ -429,9 +451,14 @@
             placeholder="you@example.com"
             required
             aria-label="Email address"
+            id="email-input"
           />
-          <button type="submit">Notify Me</button>
+          <button type="submit" id="submit-btn">Notify Me</button>
         </form>
+        <div id="form-error" class="form-error" style="display: none"></div>
+        <div id="form-success" class="form-success" style="display: none">
+          You're on the list! We'll let you know when JSTorrent is ready.
+        </div>
       </div>
 
       <div class="community-section">
@@ -471,5 +498,46 @@
     </div>
 
     <footer>&copy; 2025 JSTorrent &middot; <a href="https://jstorrent.com">Legacy App</a></footer>
+
+    <script>
+      document.getElementById('signup-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const form = e.target;
+        const email = document.getElementById('email-input').value;
+        const submitBtn = document.getElementById('submit-btn');
+        const errorDiv = document.getElementById('form-error');
+        const successDiv = document.getElementById('form-success');
+
+        // Reset state
+        errorDiv.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Sending...';
+
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ email: email }),
+          });
+
+          if (response.ok || response.status === 303) {
+            // Success - hide form, show success message
+            form.style.display = 'none';
+            document.getElementById('form-label').style.display = 'none';
+            successDiv.style.display = 'block';
+          } else {
+            throw new Error('Subscription failed');
+          }
+        } catch (err) {
+          errorDiv.textContent = 'Something went wrong. Please try again.';
+          errorDiv.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Notify Me';
+        }
+      });
+    </script>
   </body>
 </html>

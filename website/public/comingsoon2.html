@@ -215,6 +215,30 @@
         background: #2ea043;
       }
 
+      .embeddable-buttondown-form button:disabled {
+        background: #484f58;
+        cursor: not-allowed;
+      }
+
+      .form-success {
+        font-family: 'JetBrains Mono', monospace;
+        color: #3fb950;
+        font-size: 1rem;
+        padding: 1rem;
+        background: #0d1117;
+        border: 1px solid #238636;
+        border-radius: 6px;
+        max-width: 420px;
+        margin: 0 auto;
+      }
+
+      .form-error {
+        font-family: 'JetBrains Mono', monospace;
+        color: #f85149;
+        font-size: 0.8125rem;
+        margin-top: 0.5rem;
+      }
+
       .divider {
         width: 60px;
         height: 1px;
@@ -349,12 +373,13 @@
         </p>
       </div>
 
-      <div class="form-section">
-        <label class="form-label">// Subscribe for updates</label>
+      <div class="form-section" id="form-section">
+        <label class="form-label" id="form-label">// Subscribe for updates</label>
         <form
           action="https://buttondown.com/api/emails/embed-subscribe/jstorrent"
           method="post"
           class="embeddable-buttondown-form"
+          id="signup-form"
         >
           <input
             type="email"
@@ -362,9 +387,15 @@
             placeholder="you@example.com"
             required
             aria-label="Email address"
+            id="email-input"
           />
-          <button type="submit">Subscribe</button>
+          <button type="submit" id="submit-btn">Subscribe</button>
         </form>
+        <div id="form-error" class="form-error" style="display: none"></div>
+        <div id="form-success" class="form-success" style="display: none">
+          // subscribed = true;<br />
+          // We'll notify you when JSTorrent is ready.
+        </div>
       </div>
 
       <div class="divider"></div>
@@ -411,5 +442,46 @@
     </div>
 
     <footer>// &copy; 2025 JSTorrent</footer>
+
+    <script>
+      document.getElementById('signup-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const form = e.target;
+        const email = document.getElementById('email-input').value;
+        const submitBtn = document.getElementById('submit-btn');
+        const errorDiv = document.getElementById('form-error');
+        const successDiv = document.getElementById('form-success');
+
+        // Reset state
+        errorDiv.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Sending...';
+
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ email: email }),
+          });
+
+          if (response.ok || response.status === 303) {
+            // Success - hide form, show success message
+            form.style.display = 'none';
+            document.getElementById('form-label').style.display = 'none';
+            successDiv.style.display = 'block';
+          } else {
+            throw new Error('Subscription failed');
+          }
+        } catch (err) {
+          errorDiv.textContent = '// error: subscription failed. Try again.';
+          errorDiv.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Subscribe';
+        }
+      });
+    </script>
   </body>
 </html>

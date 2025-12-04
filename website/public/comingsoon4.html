@@ -187,6 +187,28 @@
         background: #2980b9;
       }
 
+      .embeddable-buttondown-form button:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+      }
+
+      .form-success {
+        color: #059669;
+        font-size: 1.0625rem;
+        font-weight: 500;
+        padding: 1rem;
+        background: #ecfdf5;
+        border-radius: 8px;
+        max-width: 420px;
+        margin: 0 auto;
+      }
+
+      .form-error {
+        color: #dc2626;
+        font-size: 0.875rem;
+        margin-top: 0.75rem;
+      }
+
       /* What's Coming Section */
       .whats-new {
         margin-bottom: 3rem;
@@ -415,12 +437,13 @@
 
     <main>
       <section id="signup" class="signup-section">
-        <h2>Get notified when we launch</h2>
-        <p>Be the first to try the new JSTorrent. We'll only email you when it's ready.</p>
+        <h2 id="form-heading">Get notified when we launch</h2>
+        <p id="form-description">Be the first to try the new JSTorrent. We'll only email you when it's ready.</p>
         <form
           action="https://buttondown.com/api/emails/embed-subscribe/jstorrent"
           method="post"
           class="embeddable-buttondown-form"
+          id="signup-form"
         >
           <input
             type="email"
@@ -428,9 +451,14 @@
             placeholder="you@example.com"
             required
             aria-label="Email address"
+            id="email-input"
           />
-          <button type="submit">Notify Me</button>
+          <button type="submit" id="submit-btn">Notify Me</button>
         </form>
+        <div id="form-error" class="form-error" style="display: none"></div>
+        <div id="form-success" class="form-success" style="display: none">
+          You're on the list! We'll let you know when JSTorrent is ready.
+        </div>
       </section>
 
       <section class="whats-new">
@@ -543,5 +571,47 @@
         <a href="https://github.com/kzahel/jstorrent">GitHub</a>
       </p>
     </footer>
+
+    <script>
+      document.getElementById('signup-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const form = e.target;
+        const email = document.getElementById('email-input').value;
+        const submitBtn = document.getElementById('submit-btn');
+        const errorDiv = document.getElementById('form-error');
+        const successDiv = document.getElementById('form-success');
+
+        // Reset state
+        errorDiv.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Sending...';
+
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ email: email }),
+          });
+
+          if (response.ok || response.status === 303) {
+            // Success - hide form, show success message
+            form.style.display = 'none';
+            document.getElementById('form-heading').style.display = 'none';
+            document.getElementById('form-description').style.display = 'none';
+            successDiv.style.display = 'block';
+          } else {
+            throw new Error('Subscription failed');
+          }
+        } catch (err) {
+          errorDiv.textContent = 'Something went wrong. Please try again.';
+          errorDiv.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Notify Me';
+        }
+      });
+    </script>
   </body>
 </html>
