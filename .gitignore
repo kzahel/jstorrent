@@ -42,3 +42,4 @@ packages/*/src/**/*.d.ts.map
 
 #legacy-app
 #legacy-extension
+extension/package.zip
