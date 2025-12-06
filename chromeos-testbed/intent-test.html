@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intent Test - Regular Web Page</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-box {
+      background: white;
+      border: 2px solid #333;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      color: #333;
+      margin-top: 0;
+    }
+    .intent-link {
+      display: inline-block;
+      padding: 16px 32px;
+      background: #0066cc;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 18px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    .intent-link:hover {
+      background: #0055aa;
+    }
+    .note {
+      background: #ffffcc;
+      border-left: 4px solid #ffcc00;
+      padding: 12px;
+      margin: 16px 0;
+    }
+    .instructions {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 12px;
+      margin: 16px 0;
+    }
+    code {
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>ChromeOS Intent Test - Regular Web Page</h1>
+
+  <div class="test-box">
+    <h2>JSTorrent Pairing Intent</h2>
+
+    <p>Click the link below to trigger the JSTorrent pairing intent:</p>
+
+    <a href="intent://pair?token=webtest_123#Intent;scheme=jstorrent;package=com.jstorrent.app;end"
+       class="intent-link"
+       target="_blank">
+      Launch JSTorrent Intent
+    </a>
+
+    <div class="instructions">
+      <strong>Test Procedure:</strong>
+      <ol>
+        <li>Click the blue link above</li>
+        <li>Observe: Does it show the picker?</li>
+        <li>Check the "Always" checkbox (if present)</li>
+        <li>Select JSTorrent</li>
+        <li><strong>Click the link again</strong></li>
+        <li>Does the picker appear, or does it go straight to the app?</li>
+      </ol>
+    </div>
+
+    <div class="note">
+      <strong>What to watch for:</strong><br>
+      • Does the picker say it's from this web page (instead of chrome-extension://)?<br>
+      • Does checking "Always" persist for subsequent clicks?<br>
+      • Is the behavior different from extension-triggered intents?
+    </div>
+  </div>
+
+  <div class="test-box">
+    <h2>Additional Test Links</h2>
+
+    <p>Try with different tokens to see if that matters:</p>
+
+    <a href="intent://pair?token=test1#Intent;scheme=jstorrent;package=com.jstorrent.app;end"
+       class="intent-link"
+       target="_blank">
+      Test #1
+    </a>
+
+    <a href="intent://pair?token=test2#Intent;scheme=jstorrent;package=com.jstorrent.app;end"
+       class="intent-link"
+       target="_blank">
+      Test #2
+    </a>
+
+    <a href="intent://pair?token=test3#Intent;scheme=jstorrent;package=com.jstorrent.app;end"
+       class="intent-link"
+       target="_blank">
+      Test #3
+    </a>
+  </div>
+
+  <div class="test-box">
+    <h2>How to Test</h2>
+
+    <h3>Option 1: Open Directly (file://)</h3>
+    <p>Open this file directly in Chrome. The source will be <code>file://</code></p>
+
+    <h3>Option 2: Use Python HTTP Server (http://)</h3>
+    <pre style="background: #f0f0f0; padding: 12px; border-radius: 4px; overflow-x: auto;">
+# In the chromeos-testbed directory, run:
+python3 -m http.server 8000
+
+# Then open in Chrome:
+# http://localhost:8000/intent-test.html
+</pre>
+
+    <h3>Option 3: Use HTTPS (if you have a server)</h3>
+    <p>Host this on any HTTPS server and test from there.</p>
+  </div>
+</body>
+</html>
