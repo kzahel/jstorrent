@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <head>
+    <title>JSTorrent App Links Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui;
+        padding: 20px;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      a {
+        display: block;
+        padding: 15px;
+        margin: 10px 0;
+        background: #0066cc;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        text-align: center;
+      }
+      a:hover {
+        background: #0055aa;
+      }
+      .info {
+        background: #f0f0f0;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+      }
+      code {
+        background: #e0e0e0;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>App Links Test</h1>
+
+    <div class="info">
+      <p>Click these links to test App Links behavior on ChromeOS.</p>
+      <p>Expected on stock Android: App opens directly (no chooser)</p>
+      <p>Question: What happens on ChromeOS?</p>
+    </div>
+
+    <h2>App Links (https://)</h2>
+    <a href="https://new.jstorrent.com/launch">Basic App Link</a>
+    <a href="https://new.jstorrent.com/launch?token=test123">App Link with token</a>
+    <a href="https://new.jstorrent.com/pair?token=test456">Pairing App Link</a>
+
+    <h2>For Comparison: intent:// URL</h2>
+    <a href="intent://pair?token=test789#Intent;scheme=jstorrent;package=com.jstorrent.app;end">
+      Intent URL (existing method)
+    </a>
+
+    <div class="info">
+      <h3>What to observe:</h3>
+      <ul>
+        <li>Does a chooser/picker dialog appear?</li>
+        <li>If yes, what does it look like? (Screenshot if possible)</li>
+        <li>Is there an "Always" or "Remember" checkbox?</li>
+        <li>Does the app actually launch?</li>
+        <li>Does checking "Always" persist across multiple clicks?</li>
+      </ul>
+    </div>
+  </body>
+</html>
