@@ -68,18 +68,28 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent() {
         val uri = intent?.data ?: return
+        Log.d(TAG, "Received intent with URI: $uri")
 
         when {
             uri.scheme == "jstorrent" && uri.host == "pair" -> {
                 val token = uri.getQueryParameter("token")
                 if (token != null) {
-                    Log.i(TAG, "Received pairing token")
+                    Log.i(TAG, "Received pairing token via jstorrent:// scheme")
                     tokenStore.token = token
                 }
             }
             uri.scheme == "magnet" -> {
                 Log.i(TAG, "Received magnet link: $uri")
                 // TODO: Forward to extension via some mechanism
+            }
+            (uri.scheme == "https" || uri.scheme == "http") && uri.host == "new.jstorrent.com" -> {
+                // App Links from new.jstorrent.com
+                Log.i(TAG, "Received App Link: $uri")
+                val token = uri.getQueryParameter("token")
+                if (token != null) {
+                    Log.i(TAG, "Received pairing token via App Link")
+                    tokenStore.token = token
+                }
             }
         }
     }
