@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.jstorrent.app",
+    "sha256_cert_fingerprints": ["6B:45:3B:D8:25:C4:A1:DE:D6:6B:94:70:8C:1F:77:C6:1C:AB:E9:74:5C:E2:29:C7:46:8C:9A:BD:3B:6B:A0:B3"]
+  }
+}]
