@@ -8,7 +8,16 @@ import globals from 'globals'
 import importPlugin from 'eslint-plugin-import'
 
 export default tseslint.config(
-  { ignores: ['dist', '.eslintrc.cjs', 'packages/legacy-jstorrent-engine/**/*.js', '**/dist/**'] },
+  {
+    ignores: [
+      'dist',
+      '.eslintrc.cjs',
+      'packages/legacy-jstorrent-engine/**/*.js',
+      '**/dist/**',
+      'legacy-app/**',
+      'legacy-extension/**',
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
