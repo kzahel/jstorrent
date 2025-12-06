@@ -1,114 +1,117 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <title>ChromeOS Testbed</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-    body {
-      width: 450px;
-      padding: 16px;
-      font-family: system-ui, sans-serif;
-      font-size: 14px;
-    }
-    h2 {
-      margin: 0 0 12px 0;
-      font-size: 16px;
-    }
-    .test-section {
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 16px;
-    }
-    .test-name {
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .test-description {
-      color: #666;
-      font-size: 12px;
-      margin-bottom: 12px;
-    }
-    button {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 13px;
-      margin-right: 8px;
-      margin-bottom: 8px;
-    }
-    .run-btn {
-      background: #0066cc;
-      color: white;
-    }
-    .run-btn:hover {
-      background: #0055aa;
-    }
-    .complete-btn {
-      background: #22863a;
-      color: white;
-    }
-    .complete-btn:hover {
-      background: #1b6d30;
-    }
-    textarea {
-      width: 100%;
-      height: 60px;
-      margin: 8px 0;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-family: inherit;
-      font-size: 13px;
-      resize: vertical;
-    }
-    .status {
-      font-size: 12px;
-      color: #666;
-      margin-top: 8px;
-    }
-    .test-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      margin-bottom: 16px;
-    }
-    .test-buttons button {
-      font-size: 12px;
-      padding: 6px 10px;
-      background: #f0f0f0;
-      margin: 0;
-    }
-    .test-buttons button:hover {
-      background: #e0e0e0;
-    }
-    .test-buttons button.active {
-      background: #0066cc;
-      color: white;
-    }
-  </style>
-</head>
-<body>
-  <h2>ChromeOS Testbed</h2>
+  <head>
+    <meta charset="utf-8" />
+    <title>ChromeOS Testbed</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        width: 450px;
+        padding: 16px;
+        font-family: system-ui, sans-serif;
+        font-size: 14px;
+      }
+      h2 {
+        margin: 0 0 12px 0;
+        font-size: 16px;
+      }
+      .test-section {
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 16px;
+      }
+      .test-name {
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .test-description {
+        color: #666;
+        font-size: 12px;
+        margin-bottom: 12px;
+      }
+      button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        margin-right: 8px;
+        margin-bottom: 8px;
+      }
+      .run-btn {
+        background: #0066cc;
+        color: white;
+      }
+      .run-btn:hover {
+        background: #0055aa;
+      }
+      .complete-btn {
+        background: #22863a;
+        color: white;
+      }
+      .complete-btn:hover {
+        background: #1b6d30;
+      }
+      textarea {
+        width: 100%;
+        height: 60px;
+        margin: 8px 0;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 13px;
+        resize: vertical;
+      }
+      .status {
+        font-size: 12px;
+        color: #666;
+        margin-top: 8px;
+      }
+      .test-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 16px;
+      }
+      .test-buttons button {
+        font-size: 12px;
+        padding: 6px 10px;
+        background: #f0f0f0;
+        margin: 0;
+      }
+      .test-buttons button:hover {
+        background: #e0e0e0;
+      }
+      .test-buttons button.active {
+        background: #0066cc;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>ChromeOS Testbed</h2>
 
-  <div class="test-buttons" id="testButtons"></div>
+    <div class="test-buttons" id="testButtons"></div>
 
-  <div class="test-section" id="testArea">
-    <div class="test-name" id="testName">Select a test above</div>
-    <div class="test-description" id="testDescription"></div>
-    <button class="run-btn" id="runBtn" disabled>Run Test</button>
-    <div>
-      <label>What happened?</label>
-      <textarea id="notes" placeholder="Describe what you observed (picker appeared, app opened, error shown, etc.)"></textarea>
+    <div class="test-section" id="testArea">
+      <div class="test-name" id="testName">Select a test above</div>
+      <div class="test-description" id="testDescription"></div>
+      <button class="run-btn" id="runBtn" disabled>Run Test</button>
+      <div>
+        <label>What happened?</label>
+        <textarea
+          id="notes"
+          placeholder="Describe what you observed (picker appeared, app opened, error shown, etc.)"
+        ></textarea>
+      </div>
+      <button class="complete-btn" id="completeBtn" disabled>Complete Test</button>
+      <div class="status" id="status"></div>
     </div>
-    <button class="complete-btn" id="completeBtn" disabled>Complete Test</button>
-    <div class="status" id="status"></div>
-  </div>
 
-  <script src="ui.js"></script>
-</body>
+    <script src="ui.js"></script>
+  </body>
 </html>

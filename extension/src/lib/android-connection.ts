@@ -168,8 +168,14 @@ export class AndroidDaemonConnection implements INativeHostConnection {
     // Create intent URL - must match package in AndroidManifest
     const intentUrl = `intent://pair?token=${encodeURIComponent(token)}#Intent;scheme=jstorrent;package=com.jstorrent.app;end`
 
-    // Open in new tab - Chrome on Android/ChromeOS will handle the intent
-    await chrome.tabs.create({ url: intentUrl })
+    // Navigate current tab to intent URL (better UX than creating new tab)
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (tab?.id) {
+      await chrome.tabs.update(tab.id, { url: intentUrl })
+    } else {
+      // Fallback to creating new tab if no active tab found
+      await chrome.tabs.create({ url: intentUrl })
+    }
 
     console.log('[AndroidDaemonConnection] Opened pairing intent')
   }
