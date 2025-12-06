@@ -1,24 +1,32 @@
 #!/bin/bash
-# C2 Client - runs on ChromeOS VT2 as root
-# Polls for commands and executes them
-
+# C2 client - runs on ChromeOS VT2 as root
 DIR="/home/chronos/user/MyFiles/Downloads/WSC/.c2"
 CMD="$DIR/cmd"
-OUTPUT="$DIR/output"
+OUT="$DIR/out"
+LOCK="$DIR/lock"
 
-mkdir -p "$DIR"
-touch "$CMD" "$OUTPUT"
-
-echo "C2 client started. Polling $CMD"
-echo "Press Ctrl+C to stop"
+echo "[c2] Client started, polling $CMD"
 
 while true; do
     if [ -s "$CMD" ]; then
-        command=$(cat "$CMD")
-        echo "" > "$CMD"
-        echo "[$(date +%H:%M:%S)] Running: $command"
-        eval "$command" > "$OUTPUT" 2>&1
-        echo "[$(date +%H:%M:%S)] Done (exit: $?)"
+        # Atomic read and clear
+        if mkdir "$LOCK" 2>/dev/null; then
+            C=$(cat "$CMD")
+            > "$CMD"
+            rmdir "$LOCK"
+
+            if [ -n "$C" ]; then
+                echo "[c2] >>> $C"
+                # Execute and capture output (30 second timeout to prevent hangs)
+                OUTPUT=$(timeout 30 bash -c "$C" 2>&1)
+                EXIT_CODE=$?
+                if [ $EXIT_CODE -eq 124 ]; then
+                    OUTPUT="TIMEOUT: Command exceeded 30 seconds"
+                fi
+                echo "$OUTPUT" > "$OUT"
+                echo "[c2] <<< done (exit=$EXIT_CODE, $(echo "$OUTPUT" | wc -l) lines)"
+            fi
+        fi
     fi
     sleep 0.1
 done

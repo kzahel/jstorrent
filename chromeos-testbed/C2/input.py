@@ -7,13 +7,14 @@ Usage:
     python3 input.py screenshot              # Take screenshot, copy to .c2/latest.png
     python3 input.py key <keycode> [...]     # Press key(s) - e.g., key 125 63 for Search+F5
     python3 input.py type <text>             # Type text (a-z, 0-9, space, enter only)
+    python3 input.py info                    # Show detected touchscreen device and settings
 
     # Touchscreen (RECOMMENDED - precise absolute coordinates):
     python3 input.py tap <x> <y>             # Tap at screen coordinates
     python3 input.py tap <x> <y> --browser   # Tap at browser window coordinates (adds chrome offset)
     python3 input.py swipe <x1> <y1> <x2> <y2>         # Swipe (screen coords)
     python3 input.py swipe <x1> <y1> <x2> <y2> --browser  # Swipe (browser coords)
-    python3 input.py resolution [W H]        # Show or set screen resolution (default 1600x900)
+    python3 input.py resolution [W H]        # Show or set screen resolution (default 3840x2160)
 
     # Mouse (relative - less precise due to acceleration):
     python3 input.py move <dx> <dy>          # Move mouse by relative amount
@@ -23,10 +24,11 @@ Usage:
 Coordinates: Use screenshot pixel coordinates (e.g., 4K = 3840x2160).
     The tap coordinates map directly to screenshot pixels.
 
-Device-specific settings (in code):
-    TOUCHSCREEN_DEV = /dev/input/event6
-    TS_MAX_X, TS_MAX_Y = 3492, 1968
-    SCREEN = 3840x2160 (auto-detected from screenshots)
+Device settings are AUTO-DETECTED:
+    - Touchscreen device: scanned from /dev/input/event*
+    - Coordinate ranges: queried via ioctl from the device
+    - Screen resolution: from config or screenshot dimensions
+    Run 'python3 input.py info' to see detected values.
 """
 
 import os
@@ -271,10 +273,6 @@ class VirtualMouse:
         os.close(self.fd)
 
 # === Touchscreen Functions (writes to physical touchscreen device) ===
-# These values are specific to the Chromebook - adjust if needed
-TOUCHSCREEN_DEV = "/dev/input/event6"
-TS_MAX_X = 3492
-TS_MAX_Y = 1968
 BROWSER_CHROME_OFFSET = 87  # Pixels from top of screen to browser content
 
 # Multi-touch protocol constants
@@ -283,16 +281,139 @@ ABS_MT_TRACKING_ID = 0x39
 ABS_MT_POSITION_X = 0x35
 ABS_MT_POSITION_Y = 0x36
 
+# evdev ioctl constants for device capability queries
+def EVIOCGABS(axis):
+    """Get absolute axis info ioctl. Returns struct input_absinfo."""
+    # _IOR('E', 0x40 + axis, struct input_absinfo) where struct is 6 int32s = 24 bytes
+    return 0x80184540 + axis
+
+def EVIOCGBIT(ev_type, size):
+    """Get event bits ioctl."""
+    # _IOC(_IOC_READ, 'E', 0x20 + ev_type, size)
+    return 0x80004520 + ev_type + (size << 16)
+
+# Touchscreen config file for caching detected values
+TOUCHSCREEN_CONFIG_FILE = "/home/chronos/user/MyFiles/Downloads/WSC/.c2/touchscreen.txt"
+
+def get_abs_info(fd, axis):
+    """Query absolute axis info from an evdev device.
+    Returns dict with 'min', 'max' values or None on error.
+    """
+    try:
+        buf = array.array('i', [0] * 6)  # struct input_absinfo: value, min, max, fuzz, flat, resolution
+        fcntl.ioctl(fd, EVIOCGABS(axis), buf)
+        return {'value': buf[0], 'min': buf[1], 'max': buf[2], 'fuzz': buf[3], 'flat': buf[4], 'resolution': buf[5]}
+    except:
+        return None
+
+def device_has_abs_axis(device_path, axis):
+    """Check if a device has a specific absolute axis capability."""
+    try:
+        fd = os.open(device_path, os.O_RDONLY)
+        try:
+            info = get_abs_info(fd, axis)
+            return info is not None and info['max'] > 0
+        finally:
+            os.close(fd)
+    except:
+        return False
+
+def find_touchscreen_device():
+    """Find the touchscreen device by scanning /dev/input/event*.
+    Looks for devices that have ABS_MT_POSITION_X capability.
+    Prefers devices with larger coordinate ranges (touchscreens > trackpads).
+    Returns device path or None.
+    """
+    candidates = []
+    for i in range(20):  # Check event0 through event19
+        path = f"/dev/input/event{i}"
+        if os.path.exists(path) and device_has_abs_axis(path, ABS_MT_POSITION_X):
+            try:
+                fd = os.open(path, os.O_RDONLY)
+                try:
+                    x_info = get_abs_info(fd, ABS_MT_POSITION_X)
+                    if x_info and x_info['max'] > 0:
+                        candidates.append((path, x_info['max']))
+                finally:
+                    os.close(fd)
+            except:
+                pass
+
+    if not candidates:
+        return None
+
+    # Return device with largest max_x (touchscreens have larger ranges than trackpads)
+    candidates.sort(key=lambda x: x[1], reverse=True)
+    return candidates[0][0]
+
+def get_touchscreen_info(device_path=None):
+    """Get touchscreen device path and coordinate ranges.
+    Returns dict with 'device', 'max_x', 'max_y' or None values on failure.
+    Caches results to config file for faster subsequent runs.
+    """
+    # Try to read from cache first
+    try:
+        with open(TOUCHSCREEN_CONFIG_FILE, 'r') as f:
+            lines = f.read().strip().split('\n')
+            if len(lines) >= 3:
+                cached_dev = lines[0]
+                cached_max_x = int(lines[1])
+                cached_max_y = int(lines[2])
+                # Verify the cached device still works
+                if os.path.exists(cached_dev) and device_has_abs_axis(cached_dev, ABS_MT_POSITION_X):
+                    return {'device': cached_dev, 'max_x': cached_max_x, 'max_y': cached_max_y}
+    except:
+        pass
+
+    # Auto-detect
+    if device_path is None:
+        device_path = find_touchscreen_device()
+
+    if device_path is None:
+        return {'device': None, 'max_x': None, 'max_y': None}
+
+    try:
+        fd = os.open(device_path, os.O_RDONLY)
+        try:
+            x_info = get_abs_info(fd, ABS_MT_POSITION_X)
+            y_info = get_abs_info(fd, ABS_MT_POSITION_Y)
+            if x_info and y_info:
+                result = {'device': device_path, 'max_x': x_info['max'], 'max_y': y_info['max']}
+                # Cache the result
+                try:
+                    with open(TOUCHSCREEN_CONFIG_FILE, 'w') as f:
+                        f.write(f"{device_path}\n{x_info['max']}\n{y_info['max']}\n")
+                except:
+                    pass
+                return result
+        finally:
+            os.close(fd)
+    except:
+        pass
+
+    return {'device': device_path, 'max_x': None, 'max_y': None}
+
 class Touchscreen:
-    """Direct touchscreen input via /dev/input/event6."""
+    """Direct touchscreen input via auto-detected /dev/input/event* device."""
 
     def __init__(self):
         self.screen_w, self.screen_h = get_resolution()
         self.fd = None
 
+        # Auto-detect touchscreen device and coordinate ranges
+        ts_info = get_touchscreen_info()
+        self.device = ts_info['device']
+        self.ts_max_x = ts_info['max_x']
+        self.ts_max_y = ts_info['max_y']
+
+        if self.device is None:
+            raise RuntimeError("No touchscreen device found. Run 'input.py info' for diagnostics.")
+        if self.ts_max_x is None or self.ts_max_y is None:
+            raise RuntimeError(f"Could not query touchscreen ranges from {self.device}")
+
     def _open(self):
         if self.fd is None:
-            self.fd = os.open(TOUCHSCREEN_DEV, os.O_WRONLY)
+            self.fd = os.open(self.device, os.O_WRONLY)
 
     def _close(self):
         if self.fd is not None:
@@ -307,8 +428,8 @@ class Touchscreen:
 
     def _to_touchscreen_coords(self, screen_x, screen_y):
         """Convert screen coordinates to touchscreen coordinates."""
-        ts_x = int(screen_x * TS_MAX_X / self.screen_w)
-        ts_y = int(screen_y * TS_MAX_Y / self.screen_h)
+        ts_x = int(screen_x * self.ts_max_x / self.screen_w)
+        ts_y = int(screen_y * self.ts_max_y / self.screen_h)
         return ts_x, ts_y
 
     def tap(self, x, y, browser_coords=False):
@@ -510,6 +631,39 @@ def main():
             w, h = get_resolution()
             print(f"Current resolution: {w}x{h}")
             print("To change: input.py resolution <width> <height>")
+
+    elif cmd == "info":
+        print("=== Touchscreen Device Info ===")
+        ts_info = get_touchscreen_info()
+        if ts_info['device']:
+            print(f"Device:     {ts_info['device']}")
+            print(f"Max X:      {ts_info['max_x']}")
+            print(f"Max Y:      {ts_info['max_y']}")
+        else:
+            print("Device:     NOT FOUND")
+            print("\nScanning /dev/input/event* for touchscreen devices...")
+            for i in range(20):
+                path = f"/dev/input/event{i}"
+                if os.path.exists(path):
+                    has_mt = device_has_abs_axis(path, ABS_MT_POSITION_X)
+                    print(f"  {path}: {'HAS multi-touch' if has_mt else 'no multi-touch'}")
+
+        print("\n=== Screen Resolution ===")
+        w, h = get_resolution()
+        print(f"Resolution: {w}x{h}")
+
+        print("\n=== Coordinate Conversion ===")
+        if ts_info['device'] and ts_info['max_x'] and ts_info['max_y']:
+            print(f"Screen ({w}, {h}) -> Touchscreen ({ts_info['max_x']}, {ts_info['max_y']})")
+            # Show example conversion
+            test_x, test_y = w // 2, h // 2
+            conv_x = int(test_x * ts_info['max_x'] / w)
+            conv_y = int(test_y * ts_info['max_y'] / h)
+            print(f"Example: screen ({test_x}, {test_y}) -> touchscreen ({conv_x}, {conv_y})")
+
+        print("\n=== Config Files ===")
+        print(f"Touchscreen cache: {TOUCHSCREEN_CONFIG_FILE}")
+        print(f"Resolution file:   {RESOLUTION_FILE}")
 
     else:
         print(f"Unknown command: {cmd}")
