@@ -104,7 +104,7 @@ export function SystemBridgePanel({
       style={{
         position: 'absolute',
         top: '100%',
-        right: 0,
+        left: 0,
         marginTop: '4px',
         width: '320px',
         background: 'var(--bg-primary, white)',

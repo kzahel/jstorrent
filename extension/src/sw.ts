@@ -239,6 +239,27 @@ function handleMessage(
     return true
   }
 
+  // Trigger user launch (ChromeOS)
+  if (message.type === 'IOBRIDGE_LAUNCH') {
+    ioBridge.triggerUserLaunch()
+    sendResponse({ ok: true })
+    return true
+  }
+
+  // Cancel launch (ChromeOS)
+  if (message.type === 'IOBRIDGE_CANCEL') {
+    ioBridge.cancelUserLaunch()
+    sendResponse({ ok: true })
+    return true
+  }
+
+  // Retry connection
+  if (message.type === 'IOBRIDGE_RETRY') {
+    ioBridge.triggerRetry()
+    sendResponse({ ok: true })
+    return true
+  }
+
   // UI startup: get daemon connection info (returns state info even when not connected)
   if (message.type === 'GET_DAEMON_INFO') {
     const state = ioBridge.getState()

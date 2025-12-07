@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import type { IOBridgeState, VersionStatus } from '../components/SystemBridgePanel'
 import type { DownloadRoot } from '../chrome/engine-manager'
+import { copyTextToClipboard } from '../utils/clipboard'
 
 export type IndicatorColor = 'green' | 'yellow' | 'red'
 
@@ -169,7 +170,7 @@ export function useSystemBridge(config: UseSystemBridgeConfig): UseSystemBridgeR
       roots: roots.length,
     }
     const text = `JSTorrent Debug Info\n${JSON.stringify(info, null, 2)}`
-    await navigator.clipboard.writeText(text)
+    await copyTextToClipboard(text)
   }, [state, daemonVersion, versionStatus, readiness, roots])
 
   return {
