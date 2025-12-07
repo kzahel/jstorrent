@@ -207,7 +207,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         })
       }
     } catch (err) {
-      this.logger.warn('Failed to start server:', { error: err })
+      // not implemented yet
+      this.logger.info('Failed to start server:', { error: err })
     }
   }
 
