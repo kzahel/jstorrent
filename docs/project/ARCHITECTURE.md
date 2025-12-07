@@ -257,3 +257,17 @@ UI Page                    io-daemon                    Internet
 4. Download root token model (opaque tokens, never raw paths)
 5. React shell + Solid tables hybrid
 6. Service worker lifecycle tied to daemon connection
+
+## Invariants
+
+Hard constraints. Violating these causes subtle bugs that are difficult to diagnose.
+
+### Single Native Host Connection
+
+There is exactly ONE `chrome.runtime.connectNative()` port per extension lifecycle. Never create a second connection. All native host communication goes through this single port.
+
+**Why:** Chrome's native messaging spawns a new host process per port. Multiple ports means multiple processes. Responses go to the port that made the request - if handlers are registered on a different port, messages are lost. The native host is stateful (auth token, download roots) - a second process starts with none of that state.
+
+**Enforcement:** `NativeHostConnection` is a singleton. The constructor throws if called twice. Use `getNativeConnection()` to obtain the instance.
+
+**Reconnection:** If the native host crashes, the singleton can reconnect by calling `connect()` again. It resets internal state and creates a fresh `connectNative()` port. This spawns a new native host process. The IOBridgeService state machine handles triggering reconnection attempts.
