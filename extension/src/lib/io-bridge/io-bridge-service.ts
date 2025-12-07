@@ -208,9 +208,14 @@ export class IOBridgeService {
 
     return new Promise((resolve) => {
       const requestId = crypto.randomUUID()
+      console.log(`[IOBridgeService] pickDownloadFolder: requestId=${requestId}`)
 
       const handler = (msg: unknown) => {
-        if (typeof msg !== 'object' || msg === null) return
+        console.log('[IOBridgeService] pickDownloadFolder handler received:', JSON.stringify(msg))
+        if (typeof msg !== 'object' || msg === null) {
+          console.log('[IOBridgeService] pickDownloadFolder: message not an object, ignoring')
+          return
+        }
         const response = msg as {
           id?: string
           ok?: boolean
@@ -219,9 +224,19 @@ export class IOBridgeService {
           error?: string
         }
 
-        if (response.id !== requestId) return
+        console.log(
+          `[IOBridgeService] pickDownloadFolder: comparing id=${response.id} with requestId=${requestId}`,
+        )
+        if (response.id !== requestId) {
+          console.log('[IOBridgeService] pickDownloadFolder: ID mismatch, ignoring')
+          return
+        }
 
+        console.log(
+          `[IOBridgeService] pickDownloadFolder: ID match! ok=${response.ok}, type=${response.type}`,
+        )
         if (response.ok && response.type === 'RootAdded' && response.payload?.root) {
+          console.log('[IOBridgeService] pickDownloadFolder: resolving with root')
           resolve(response.payload.root)
         } else {
           console.log('Folder picker cancelled or failed:', response.error)
@@ -230,6 +245,7 @@ export class IOBridgeService {
       }
 
       desktopAdapter.onMessage(handler)
+      console.log(`[IOBridgeService] pickDownloadFolder: sending request`)
       desktopAdapter.send({
         op: 'pickDownloadDirectory',
         id: requestId,
