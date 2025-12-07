@@ -89,3 +89,11 @@ export type {
   NativeEventCallback,
   NativeEvent,
 } from './io-bridge-service'
+
+// Version status
+export { getVersionStatus, formatVersion, VERSION_CONFIG } from './version-status'
+export type { VersionStatus, VersionConfig } from './version-status'
+
+// Readiness computation
+export { getReadiness, isFirstTimeUser } from './readiness'
+export type { ReadinessStatus, ReadinessIssue, IndicatorColor } from './readiness'
