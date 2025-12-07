@@ -14,6 +14,8 @@ The core functionality works end-to-end:
 - ✅ Multiple simultaneous torrents
 - ✅ Connection limits and backoff
 - ✅ Tracker announce (HTTP and UDP)
+- ✅ IO Bridge state machine (multi-platform connection management)
+- ✅ ChromeOS support via Android IO daemon
 
 ## Release Blockers
 
@@ -54,6 +56,20 @@ Need to:
 
 **Blocker:** No macOS machine available
 
+### 4. ChromeOS Storage Access (Medium Priority)
+
+**Status:** Partially complete
+
+Current state:
+- ✅ Android IO daemon works
+- ✅ Extension connects via HTTP to Android container
+- ⏳ Files download to Android app private storage (not visible to user)
+
+Need to:
+- Implement Storage Access Framework (SAF) folder picker
+- Allow user to select visible download location
+- Or document workaround (file manager can access Android/data/...)
+
 ## Known Limitations (Not Blocking)
 
 ### Listening Socket
@@ -90,6 +106,14 @@ No MSE/PE (Message Stream Encryption).
 
 ## Infrastructure
 
+### IO Bridge
+
+✅ **Complete.** The IO Bridge state machine handles:
+- Desktop: Native messaging connection with auto-retry
+- ChromeOS: HTTP connection to Android container with launch prompts
+- Connection status indicator in toolbar
+- System Bridge panel for configuration
+
 ### Observability
 
 Need telemetry for crash reports and usage analytics.
@@ -114,8 +138,10 @@ Installers built on GitHub Actions (`.github/workflows/`). No manual upload need
 |-------|----------|-------|
 | Engine unit tests | Good | Core logic, protocol, utilities |
 | Python integration | Good | Real downloads against libtorrent |
+| IO Bridge unit tests | Good | State machine transitions |
 | Extension E2E | Basic | Extension loads, daemon connects |
 | Native host | Good | Python verify_*.py scripts |
+| Android daemon | Basic | Throughput benchmarks |
 
 ### Skip List (Known Issues)
 
@@ -124,20 +150,32 @@ Currently no tests in skip list. All integration tests passing.
 ## UI Completeness
 
 ### Done
-- Torrent list with virtualized table
-- Detail pane (Peers, Pieces tabs)
-- Multi-select with Shift+click
-- Context menu (right-click)
-- Column sorting, resizing
-- Download root selection
-- Settings persistence
+- ✅ Torrent list with virtualized table
+- ✅ Detail pane with tabs (Peers, Pieces, Files, General, Logs)
+- ✅ Multi-select with Shift+click
+- ✅ Context menu (right-click)
+- ✅ Column sorting, resizing, reordering
+- ✅ Download root selection
+- ✅ Settings persistence
+- ✅ System Bridge indicator (connection status in toolbar)
+- ✅ System Bridge panel (connection config dropdown)
+- ✅ Log viewer tab
 
 ### Remaining
 - Tracker tab in detail pane
-- Files tab in detail pane (file priority)
+- File priority selection (files tab exists but no priority control)
 - Bandwidth limiting UI
 - Preferences/settings dialog
 - Polish and edge cases
+
+## Platform Status
+
+| Platform | Engine | I/O Daemon | Connection | Testing |
+|----------|--------|------------|------------|---------|
+| Linux | ✅ | ✅ Rust | ✅ Native messaging | ✅ Primary dev |
+| Windows | ✅ | ✅ Rust | ✅ Native messaging | ⏳ Needs testing |
+| macOS | ✅ | ✅ Rust | ✅ Native messaging | ⏳ Needs testing |
+| ChromeOS | ✅ | ✅ Kotlin | ✅ HTTP to Android | ✅ Tested |
 
 ## Release Checklist
 
@@ -147,14 +185,17 @@ Currently no tests in skip list. All integration tests passing.
 - [ ] Code signing decision (signed vs soft launch unsigned)
 - [ ] Chrome Web Store developer account
 - [ ] Extension listing assets (screenshots, description)
+- [ ] Play Store listing for Android companion (unlisted beta)
 - [ ] Observability/analytics integration
 
 ### Release
 - [ ] Tag release (triggers GitHub Actions build)
 - [ ] Verify installers in GitHub Releases
 - [ ] Submit extension to Chrome Web Store
+- [ ] Upload Android APK to Play Store (unlisted)
 - [ ] Update website with install instructions
 
 ### Post-Release
 - [ ] Monitor crash reports / analytics
 - [ ] Handle user feedback on unsigned binary warnings (if applicable)
+- [ ] Notify waitlist from Chrome App deprecation banner
