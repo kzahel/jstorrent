@@ -31,10 +31,8 @@ export class Bencode {
       ) {
         // Found info key. The next value is the info dict.
         const valStart = decoder.pos
-        console.error(`Bencode: Found info key at ${valStart}`)
         decoder.decode() // Advance past the value
         const valEnd = decoder.pos
-        console.error(`Bencode: Info value ends at ${valEnd}, length ${valEnd - valStart}`)
         return data.slice(valStart, valEnd)
       }
 

@@ -72,3 +72,15 @@ export {
   createFailedProbeResult,
 } from './adapters/mock-adapter'
 export type { MockAdapterConfig } from './adapters/mock-adapter'
+
+// Desktop adapter (native messaging)
+export { DesktopAdapter } from './adapters/desktop-adapter'
+export type { DesktopAdapterConfig } from './adapters/desktop-adapter'
+
+// ChromeOS adapter (HTTP to Android container)
+export { ChromeOSAdapter } from './adapters/chromeos-adapter'
+export type { ChromeOSAdapterConfig } from './adapters/chromeos-adapter'
+
+// Service (high-level API for service worker)
+export { IOBridgeService, createIOBridgeService } from './io-bridge-service'
+export type { IOBridgeServiceConfig, StateChangeCallback } from './io-bridge-service'
