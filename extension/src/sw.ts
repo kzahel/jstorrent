@@ -1,17 +1,8 @@
 console.log('Service Worker loaded')
 
-import { DaemonLifecycleManager, NativeEvent } from './lib/daemon-lifecycle-manager'
-import { NativeHostConnection } from './lib/native-connection'
-import { AndroidDaemonConnection } from './lib/android-connection'
-import { detectPlatform } from './lib/platform'
+import { createIOBridgeService, type NativeEvent } from './lib/io-bridge'
 import { handleKVMessage } from './lib/kv-handlers'
 import { NotificationManager, ProgressStats } from './lib/notifications'
-
-// ============================================================================
-// Platform Detection
-// ============================================================================
-const platform = detectPlatform()
-console.log(`[SW] Detected platform: ${platform}`)
 
 // ============================================================================
 // Notification Manager
@@ -90,19 +81,10 @@ chrome.runtime.onConnectExternal.addListener((port) => {
 })
 
 // ============================================================================
-// Daemon Manager with event forwarding
+// IO Bridge Service (replaces DaemonLifecycleManager)
 // ============================================================================
-const daemonManager = new DaemonLifecycleManager(
-  () => {
-    if (platform === 'chromeos') {
-      console.log('[SW] Creating AndroidDaemonConnection')
-      return new AndroidDaemonConnection()
-    } else {
-      console.log('[SW] Creating NativeHostConnection')
-      return new NativeHostConnection()
-    }
-  },
-  (event) => {
+const ioBridge = createIOBridgeService({
+  onNativeEvent: (event: NativeEvent) => {
     console.log('[SW] Native event received:', event.event)
     sendToUI(event)
     // Open UI tab if needed
@@ -110,7 +92,17 @@ const daemonManager = new DaemonLifecycleManager(
       openUiTab()
     }
   },
-)
+})
+
+// Forward state changes to connected UI
+ioBridge.subscribe((state) => {
+  if (primaryUIPort) {
+    console.log('[SW] Forwarding state change to UI:', state.name)
+    primaryUIPort.postMessage({ type: 'IOBRIDGE_STATE_CHANGED', state })
+  }
+})
+
+console.log(`[SW] IO Bridge started, platform: ${ioBridge.getPlatform()}`)
 
 // ============================================================================
 // Installation handler - generate install ID
@@ -240,28 +232,52 @@ function handleMessage(
     return handleKVMessage(message, sendResponse)
   }
 
-  // UI startup: get daemon connection info
+  // Get current IO Bridge state (for System Bridge UI)
+  if (message.type === 'GET_IOBRIDGE_STATE') {
+    const state = ioBridge.getState()
+    sendResponse({ ok: true, state })
+    return true
+  }
+
+  // UI startup: get daemon connection info (returns state info even when not connected)
   if (message.type === 'GET_DAEMON_INFO') {
-    daemonManager
-      .getDaemonInfo()
-      .then((info) => sendResponse({ ok: true, daemonInfo: info }))
-      .catch((e) => sendResponse({ ok: false, error: String(e) }))
+    const state = ioBridge.getState()
+
+    if (state.name === 'CONNECTED') {
+      sendResponse({
+        ok: true,
+        daemonInfo: state.daemonInfo,
+        state: state.name,
+      })
+    } else {
+      // Return state info so UI knows what's happening
+      sendResponse({
+        ok: false,
+        state: state.name,
+        error: `Daemon not connected: ${state.name}`,
+        // Include helpful context based on state
+        ...(state.name === 'INSTALL_PROMPT' && { needsInstall: true }),
+        ...(state.name === 'LAUNCH_PROMPT' && { needsLaunch: true }),
+        ...(state.name === 'AWAITING_LAUNCH' && { awaitingLaunch: true }),
+        ...(state.name === 'LAUNCH_FAILED' && { launchFailed: true }),
+      })
+    }
     return true
   }
 
   // UI shutdown: decrement UI count
   if (message.type === 'UI_CLOSING') {
-    daemonManager.onUIClosing()
+    ioBridge.onUIClosing()
     sendResponse({ ok: true })
     return true
   }
 
   // Folder picker (requires native host)
   if (message.type === 'PICK_DOWNLOAD_FOLDER') {
-    daemonManager
+    ioBridge
       .pickDownloadFolder()
       .then((root) => sendResponse({ ok: true, root }))
-      .catch((e) => sendResponse({ ok: false, error: String(e) }))
+      .catch((e: unknown) => sendResponse({ ok: false, error: String(e) }))
     return true
   }
 
