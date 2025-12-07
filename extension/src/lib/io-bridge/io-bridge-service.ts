@@ -5,7 +5,7 @@
  * service worker. Provides a simpler API for common operations.
  */
 
-import type { IOBridgeState, DaemonInfo, Platform } from './types'
+import type { IOBridgeState, DaemonInfo, Platform, DownloadRoot } from './types'
 import { IOBridgeStore } from './io-bridge-store'
 import { IOBridgeEffects, type IOBridgeEffectsConfig } from './io-bridge-effects'
 import type { IIOBridgeAdapter } from './io-bridge-adapter'
@@ -15,9 +15,22 @@ import { detectPlatform } from '../platform'
 import { isConnected } from './io-bridge-state'
 
 /**
+ * Native event from daemon (TorrentAdded, MagnetAdded, etc.)
+ */
+export interface NativeEvent {
+  event: string
+  payload: unknown
+}
+
+/**
  * Callback for state changes.
  */
 export type StateChangeCallback = (state: IOBridgeState) => void
+
+/**
+ * Callback for native events.
+ */
+export type NativeEventCallback = (event: NativeEvent) => void
 
 /**
  * IO Bridge Service configuration.
@@ -27,6 +40,8 @@ export interface IOBridgeServiceConfig extends IOBridgeEffectsConfig {
   platform?: Platform
   /** Override adapter (for testing) */
   adapter?: IIOBridgeAdapter
+  /** Callback for native events (TorrentAdded, MagnetAdded, etc.) */
+  onNativeEvent?: NativeEventCallback
 }
 
 /**
@@ -43,6 +58,7 @@ export class IOBridgeService {
   private effects: IOBridgeEffects
   private adapter: IIOBridgeAdapter
   private platform: Platform
+  private onNativeEvent?: NativeEventCallback
   private pendingResolvers: Array<{
     resolve: (info: DaemonInfo) => void
     reject: (error: Error) => void
@@ -50,9 +66,11 @@ export class IOBridgeService {
   private activeUICount = 0
   private gracePeriodTimer: ReturnType<typeof setTimeout> | null = null
   private readonly GRACE_PERIOD_MS = 5000
+  private nativeEventListenerSet = false
 
   constructor(config: IOBridgeServiceConfig = {}) {
     this.platform = config.platform ?? detectPlatform()
+    this.onNativeEvent = config.onNativeEvent
 
     // Create appropriate adapter
     this.adapter =
@@ -175,11 +193,55 @@ export class IOBridgeService {
     this.effects.userCancel()
   }
 
+  /**
+   * Pick a download folder via native host dialog (desktop only).
+   */
+  async pickDownloadFolder(): Promise<DownloadRoot | null> {
+    if (this.platform !== 'desktop') {
+      throw new Error('Folder picker not supported on ChromeOS')
+    }
+
+    const desktopAdapter = this.adapter as DesktopAdapter
+    if (!desktopAdapter.send) {
+      throw new Error('Desktop adapter does not support send')
+    }
+
+    return new Promise((resolve) => {
+      const requestId = crypto.randomUUID()
+
+      const handler = (msg: unknown) => {
+        if (typeof msg !== 'object' || msg === null) return
+        const response = msg as {
+          id?: string
+          ok?: boolean
+          type?: string
+          payload?: { root?: DownloadRoot }
+          error?: string
+        }
+
+        if (response.id !== requestId) return
+
+        if (response.ok && response.type === 'RootAdded' && response.payload?.root) {
+          resolve(response.payload.root)
+        } else {
+          console.log('Folder picker cancelled or failed:', response.error)
+          resolve(null)
+        }
+      }
+
+      desktopAdapter.onMessage(handler)
+      desktopAdapter.send({
+        op: 'pickDownloadDirectory',
+        id: requestId,
+      })
+    })
+  }
+
   // ===========================================================================
   // Private methods
   // ===========================================================================
 
-  private handleStateChange(state: IOBridgeState, _prevState: IOBridgeState): void {
+  private handleStateChange(state: IOBridgeState, prevState: IOBridgeState): void {
     // Resolve pending promises when connected
     if (isConnected(state)) {
       const resolvers = this.pendingResolvers
@@ -187,6 +249,16 @@ export class IOBridgeService {
       for (const { resolve } of resolvers) {
         resolve(state.daemonInfo)
       }
+
+      // Set up native event listener when connected (desktop only)
+      if (!this.nativeEventListenerSet && this.onNativeEvent && this.platform === 'desktop') {
+        this.setupNativeEventListener()
+      }
+    }
+
+    // Reset event listener flag on disconnect
+    if (prevState.name === 'CONNECTED' && state.name !== 'CONNECTED') {
+      this.nativeEventListenerSet = false
     }
 
     // Reject pending promises on error states
@@ -201,6 +273,22 @@ export class IOBridgeService {
         reject(new Error(`Daemon not connected: ${state.name}`))
       }
     }
+  }
+
+  private setupNativeEventListener(): void {
+    if (this.platform !== 'desktop' || !this.onNativeEvent) return
+
+    const desktopAdapter = this.adapter as DesktopAdapter
+    if (!desktopAdapter.onMessage) return
+
+    this.nativeEventListenerSet = true
+
+    desktopAdapter.onMessage((msg) => {
+      if (typeof msg === 'object' && msg !== null && 'event' in msg) {
+        console.log('[IOBridgeService] Received native event:', (msg as NativeEvent).event)
+        this.onNativeEvent!(msg as NativeEvent)
+      }
+    })
   }
 
   private startGracePeriod(): void {
