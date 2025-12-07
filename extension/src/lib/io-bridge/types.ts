@@ -15,12 +15,14 @@ export type { DaemonInfo, DownloadRoot } from '../native-connection'
 export type Platform = 'desktop' | 'chromeos'
 
 /**
- * History of connection attempts for debugging.
+ * History of connection attempts for debugging and backoff calculation.
  */
 export interface ConnectionHistory {
   attempts: number
   lastAttempt: number | null
   lastError: string | null
+  /** Number of consecutive failures (resets on success) */
+  consecutiveFailures: number
 }
 
 /**

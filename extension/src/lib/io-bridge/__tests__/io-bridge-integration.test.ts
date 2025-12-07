@@ -47,7 +47,9 @@ describe('IO Bridge Integration', () => {
       })
 
       const store = new IOBridgeStore()
-      const effects = new IOBridgeEffects(store, adapter)
+      const effects = new IOBridgeEffects(store, adapter, {
+        installPollIntervalMs: 0, // Disable polling for this test
+      })
 
       effects.start()
       await vi.runAllTimersAsync()
@@ -64,7 +66,9 @@ describe('IO Bridge Integration', () => {
       })
 
       const store = new IOBridgeStore()
-      const effects = new IOBridgeEffects(store, adapter)
+      const effects = new IOBridgeEffects(store, adapter, {
+        installPollIntervalMs: 0, // Disable polling for this test
+      })
 
       effects.start()
       await vi.runAllTimersAsync()
@@ -348,7 +352,7 @@ describe('IO Bridge Integration', () => {
       store.dispatch({
         type: 'START',
         platform: 'desktop',
-        history: { attempts: 0, lastAttempt: null, lastError: null },
+        history: { attempts: 0, lastAttempt: null, lastError: null, consecutiveFailures: 0 },
       })
 
       expect(store.getState().name).toBe('PROBING')
@@ -431,6 +435,138 @@ describe('IO Bridge Integration', () => {
       const currentState = store.getState()
       adapter.simulateDaemonDisconnected(connectionId, true)
       expect(store.getState()).toBe(currentState)
+    })
+  })
+
+  describe('INSTALL_PROMPT polling', () => {
+    it('polls for native host installation', async () => {
+      const adapter = new MockAdapter({
+        platform: 'desktop',
+        probeResult: createFailedProbeResult(),
+        probeDelay: 10, // Small delay for predictable timing
+      })
+
+      const store = new IOBridgeStore()
+      const effects = new IOBridgeEffects(store, adapter, {
+        installPollIntervalMs: 1000,
+      })
+
+      effects.start()
+      // Let initial probe complete (10ms delay)
+      await vi.advanceTimersByTimeAsync(20)
+      expect(store.getState().name).toBe('INSTALL_PROMPT')
+      // Initial probe (1) + immediate first poll (2)
+      expect(adapter.getProbeCallCount()).toBe(2)
+
+      // Advance time past poll interval, should poll again
+      await vi.advanceTimersByTimeAsync(1000)
+      // Let poll probe complete
+      await vi.advanceTimersByTimeAsync(20)
+      expect(adapter.getProbeCallCount()).toBe(3)
+
+      // Make probe succeed
+      adapter.setProbeResult(createSuccessProbeResult())
+
+      // Advance time past poll interval for next poll
+      await vi.advanceTimersByTimeAsync(1000)
+      // Let successful poll probe complete
+      await vi.advanceTimersByTimeAsync(20)
+
+      expect(store.getState().name).toBe('CONNECTED')
+
+      effects.stop()
+    })
+
+    it('stops polling when max attempts reached', async () => {
+      const adapter = new MockAdapter({
+        platform: 'desktop',
+        probeResult: createFailedProbeResult(),
+      })
+
+      const store = new IOBridgeStore()
+      const effects = new IOBridgeEffects(store, adapter, {
+        installPollIntervalMs: 1000,
+        installPollMaxAttempts: 3,
+      })
+
+      effects.start()
+      await vi.runAllTimersAsync()
+      expect(store.getState().name).toBe('INSTALL_PROMPT')
+
+      // Initial probe (1) + first poll (2), then 2 more polls = 4 total
+      // Wait for 3 polls to hit max attempts
+      await vi.advanceTimersByTimeAsync(3000)
+      const countAtMax = adapter.getProbeCallCount()
+
+      // Should not poll anymore
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(adapter.getProbeCallCount()).toBe(countAtMax)
+
+      effects.stop()
+    })
+
+    it('disables polling when interval is 0', async () => {
+      const adapter = new MockAdapter({
+        platform: 'desktop',
+        probeResult: createFailedProbeResult(),
+      })
+
+      const store = new IOBridgeStore()
+      const effects = new IOBridgeEffects(store, adapter, {
+        installPollIntervalMs: 0,
+      })
+
+      effects.start()
+      await vi.runAllTimersAsync()
+      expect(store.getState().name).toBe('INSTALL_PROMPT')
+
+      // Advance time, should NOT poll
+      await vi.advanceTimersByTimeAsync(10000)
+      expect(adapter.getProbeCallCount()).toBe(1) // Only initial probe
+
+      effects.stop()
+    })
+  })
+
+  describe('Exponential backoff', () => {
+    it('uses exponential backoff for disconnect retries', async () => {
+      const connectionId = 'backoff-test-conn'
+      const adapter = new MockAdapter({
+        platform: 'desktop',
+        probeResult: createSuccessProbeResult(connectionId),
+        probeDelay: 100, // Add delay so we can observe PROBING state
+      })
+
+      const store = new IOBridgeStore()
+      const effects = new IOBridgeEffects(store, adapter, {
+        autoRetryOnDisconnect: true,
+        retryBaseDelayMs: 1000,
+        retryBackoffMultiplier: 2,
+        retryMaxDelayMs: 10000,
+        installPollIntervalMs: 0, // Disable install polling
+      })
+
+      effects.start()
+      await vi.advanceTimersByTimeAsync(150) // Let initial probe complete
+      expect(store.getState().name).toBe('CONNECTED')
+
+      // Simulate disconnect - first retry should be base delay (1000ms)
+      adapter.simulateDaemonDisconnected(connectionId, true)
+      expect(store.getState().name).toBe('DISCONNECTED')
+
+      // Wait less than 1000ms - should still be disconnected
+      await vi.advanceTimersByTimeAsync(999)
+      expect(store.getState().name).toBe('DISCONNECTED')
+
+      // Wait for retry to trigger (1ms more to pass 1000ms)
+      await vi.advanceTimersByTimeAsync(2)
+      expect(store.getState().name).toBe('PROBING')
+
+      // Let probe complete
+      await vi.advanceTimersByTimeAsync(150)
+      expect(store.getState().name).toBe('CONNECTED')
+
+      effects.stop()
     })
   })
 })
