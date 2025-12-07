@@ -102,7 +102,15 @@ export class NativeHostConnection implements INativeHostConnection {
   }
 
   onMessage(cb: (msg: unknown) => void) {
-    this.port?.onMessage.addListener(cb)
+    if (!this.port) {
+      console.error('[NativeHostConnection] onMessage called but port is null!')
+      return
+    }
+    // Wrap callback to log all messages
+    this.port.onMessage.addListener((msg: unknown) => {
+      console.log('[NativeHostConnection] Received message:', JSON.stringify(msg))
+      cb(msg)
+    })
   }
 
   onDisconnect(cb: () => void) {

@@ -146,7 +146,12 @@ export class DesktopAdapter implements IIOBridgeAdapter {
    * Register a message handler for native host messages.
    */
   onMessage(cb: (msg: unknown) => void): void {
-    this.connection?.onMessage(cb)
+    if (!this.connection) {
+      console.error('[DesktopAdapter] onMessage called but connection is null!')
+      return
+    }
+    console.log('[DesktopAdapter] Registering message handler')
+    this.connection.onMessage(cb)
   }
 
   // ===========================================================================
