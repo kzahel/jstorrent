@@ -1,6 +1,21 @@
 # JSTorrent ChromeOS Strategy
 
-**Date:** December 2025
+**Date:** December 2025  
+**Status:** ✅ Phase 1-2 Complete, Phase 3 In Progress
+
+---
+
+## Implementation Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Android IO daemon | ✅ Complete | Kotlin/Ktor, 20MB/s throughput |
+| Extension ChromeOS adapter | ✅ Complete | HTTP to 100.115.92.2 |
+| IO Bridge state machine | ✅ Complete | Multi-platform connection management |
+| Pairing flow | ✅ Complete | Intent URL token exchange |
+| System Bridge UI | ✅ Complete | Status indicator + config panel |
+| SAF folder picker | ⏳ Pending | Files in app private storage for now |
+| Play Store listing | ⏳ Pending | Unlisted beta planned |
 
 ---
 
@@ -156,82 +171,87 @@ interface IHasher {
 
 ## Key Differences from Desktop
 
-**Auth token via intent:** Desktop uses native messaging to securely pass the auth token. On ChromeOS, the extension generates a token and launches the Android app via intent URL:
+**Auth token via intent:** ✅ Implemented. Desktop uses native messaging to securely pass the auth token. On ChromeOS, the extension generates a token and launches the Android app via intent URL:
 
 ```
-intent://pair?token=abc123#Intent;scheme=jstorrent;package=com.jstorrent;end
+intent://pair?token=abc123#Intent;scheme=jstorrent;package=com.jstorrent.iodaemon;end
 ```
 
 The Android app extracts the token from the intent and stores it. Both sides now share the secret. This ensures only the JSTorrent extension can connect to the daemon.
 
-**Simplified root handling:** Desktop uses opaque tokens to hide file paths from the extension. On Android, use a single root (app's download directory). The `{root}` in `/read/{root}` and `/write/{root}` can be a fixed value like `"default"`.
+**Simplified root handling:** ✅ Implemented. Desktop uses opaque tokens to hide file paths from the extension. On Android, use a single root (app's download directory). The `{root}` in `/read/{root}` and `/write/{root}` is a fixed value `"default"`.
 
-**No native messaging:** Desktop uses Chrome's native messaging to discover the daemon port. On ChromeOS, the extension connects directly to `http://100.115.92.2:7800`.
+**No native messaging:** ✅ Implemented. Desktop uses Chrome's native messaging to discover the daemon port. On ChromeOS, the extension connects directly to `http://100.115.92.2:7800`.
 
-**Port selection:** If port 7800 is taken, use deterministic alternative ports: `port = 7800 + 4*retry + retry²` (7800, 7805, 7814, 7827...). Daemon exposes actual port via `GET /status`.
+**Port selection:** ✅ Implemented. If port 7800 is taken, use deterministic alternative ports: `port = 7800 + 4*retry + retry²` (7800, 7805, 7814, 7827...). Daemon exposes actual port via `GET /status`.
 
-**Manifest host permission:** The extension manifest needs `"host_permissions": ["http://100.115.92.2/*"]` to reach the Android container. This will be visible to Chrome Web Store reviewers and users.
+**Manifest host permission:** ✅ Implemented. The extension manifest has `"host_permissions": ["http://100.115.92.2/*"]` to reach the Android container.
 
 ---
 
 ## Extension Changes
 
-The extension needs:
+✅ All implemented via IO Bridge architecture:
 
-1. **Manifest**: Add `"host_permissions": ["http://100.115.92.2/*"]`
-2. **Platform detection**: Check if running on ChromeOS, use Android daemon instead of native host
-3. **Pairing flow**: Generate token → open intent URL → store token
-4. **AndroidDaemonConnection class**: Like `DaemonConnection` but connects to `100.115.92.2` and uses stored token
+1. **Manifest**: Added `"host_permissions": ["http://100.115.92.2/*"]`
+2. **Platform detection**: `extension/src/lib/platform.ts` detects ChromeOS
+3. **Pairing flow**: Handled by `chromeos-adapter.ts`
+4. **ChromeOSAdapter class**: In `extension/src/lib/io-bridge/adapters/chromeos-adapter.ts`
 
 Pairing flow (one-time):
-1. User clicks "Connect to Android app" in extension
+1. User clicks "Connect to Android app" in extension (System Bridge panel)
 2. Extension generates random token, stores in `chrome.storage.local`
-3. Extension opens `intent://pair?token=...#Intent;scheme=jstorrent;package=com.jstorrent;end`
+3. Extension opens intent URL via `chrome.tabs.create()`
 4. Android app launches, extracts token, stores it
-5. Extension connects to daemon, sends token in AUTH handshake
+5. Extension polls `100.115.92.2`, sends token in AUTH handshake
 
 For jstorrent.com: the website talks to the extension via `externally_connectable`, and the extension bridges to the daemon (same pattern as desktop for mixed-content bypass).
 
 ---
 
-## Open Questions
+## Remaining Work
 
-**Storage location:** Start with Android private storage. Test if ChromeOS Files app can access it. Add SAF folder picker later if users need it.
+**Storage location:** Currently using Android private storage. ChromeOS Files app *can* access it via Android/data/com.jstorrent.iodaemon/ path, but it's not ideal. SAF folder picker would let users choose a visible location.
 
-**Service lifecycle:** Does an Android app with active WebSocket stay alive on ChromeOS without a foreground notification? Needs testing. Fallback: show notification during active downloads.
+**Service lifecycle:** Testing confirmed Android app with active WebSocket stays alive on ChromeOS without foreground notification. No additional work needed.
 
-**Protocol handlers:** Android app registers intent filters for `magnet:` and `.torrent` files. Extension doesn't need to register handlers on ChromeOS.
+**Protocol handlers:** Android app registers intent filters for `magnet:` URIs. Working on ChromeOS - opens app which notifies extension.
 
 ---
 
 ## Phases
 
-### Phase 1: MVP (4-6 weeks)
+### Phase 1: MVP ✅ Complete
 
 **Android app:**
-- Kotlin HTTP + WebSocket server (Ktor)
-- Implement socket/file/hash endpoints matching existing protocol
-- Intent filter for `jstorrent://pair?token=...` (pairing)
-- Intent filters for `magnet:` URIs and `.torrent` files
-- Service that stays alive during connections
+- ✅ Kotlin HTTP + WebSocket server (Ktor)
+- ✅ Socket/file/hash endpoints matching existing protocol
+- ✅ Intent filter for `jstorrent://pair?token=...` (pairing)
+- ✅ Intent filters for `magnet:` URIs
+- ✅ Service that stays alive during connections
 
 **Extension:**
-- Add `100.115.92.2` to manifest host permissions
-- Pairing flow: generate token, open intent URL, store token
-- `AndroidDaemonConnection` class (uses stored token)
-- Detect platform, connect to `100.115.92.2` on ChromeOS
-- "Install Android app" prompt if connection fails
+- ✅ Added `100.115.92.2` to manifest host permissions
+- ✅ Pairing flow: generate token, open intent URL, store token
+- ✅ `ChromeOSAdapter` class (uses stored token)
+- ✅ Detect platform, connect to `100.115.92.2` on ChromeOS
+- ✅ "Launch Android app" prompt if connection fails
 
-### Phase 2: Polish (3-4 weeks)
+### Phase 2: Polish ✅ Complete
 
-- Handle reconnection edge cases
-- SAF folder picker if needed
-- Notifications (download complete)
-- Test on various ChromeOS devices
+- ✅ IO Bridge state machine with reconnection handling
+- ✅ System Bridge UI (indicator + panel)
+- ✅ Throughput optimization (128KB buffers → 20MB/s)
+- ⏳ SAF folder picker (deferred)
+- ⏳ Download complete notifications (deferred)
 
-### Phase 3: Launch Both Platforms
+### Phase 3: Launch (In Progress)
 
-With this architecture, ChromeOS and desktop share nearly everything. Once ChromeOS is stable, desktop launch follows quickly.
+With this architecture, ChromeOS and desktop share nearly everything. Can launch both platforms together.
+
+- ⏳ Play Store listing (unlisted beta)
+- ⏳ Windows/macOS testing
+- ⏳ User migration from Chrome App
 
 ---
 
@@ -241,10 +261,10 @@ We considered running the engine inside Android via React Native + Hermes or reu
 
 ---
 
-## Immediate Action
+## Chrome App Migration
 
 Push an update to Chrome Apps with a banner:
 
 > ⚠️ **JSTorrent is getting an upgrade.** Chrome Apps are being retired by Google, but we're building a new version. [Join the waitlist] to get notified.
 
-This stops user bleed and captures intent for launch.
+Email capture system is in place. Notify users when extension + Android app are published.

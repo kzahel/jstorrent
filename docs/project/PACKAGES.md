@@ -6,21 +6,31 @@
 jstorrent-monorepo/
 ├── packages/
 │   ├── engine/        ← Core BitTorrent engine (platform-agnostic)
-│   ├── client/        ← App shell, chrome integration, adapters
+│   ├── client/        ← App shell, chrome integration, IO Bridge UI
 │   ├── ui/            ← Virtualized tables, presentational components
 │   ├── shared-ts/     ← Shared TypeScript utilities
 │   └── proto/         ← Protocol buffer definitions (future)
 │
-├── extension/         ← Chrome extension entry points, manifest
-├── native-host/       ← Rust binaries (native-host, io-daemon, link-handler)
+├── extension/         ← Chrome extension entry points, manifest, IO Bridge
+├── native-host/       ← Rust binaries (jstorrent-host, io-daemon, link-handler)
+├── android-io-daemon/ ← Kotlin Android app for ChromeOS
 ├── website/           ← jstorrent.com landing/launch page
+│
+├── chromeos-testbed/  ← ChromeOS testing infrastructure
+├── legacy-app/        ← Original Chrome App (deprecated, still published)
+├── legacy-extension/  ← Helper extension for Chrome App
 │
 ├── docs/
 │   ├── tasks/         ← Agent execution plans (current work)
 │   ├── tasks/archive/ ← Completed task plans
-│   └── project/       ← Strategic context (this folder)
+│   ├── project/       ← Strategic context (this folder)
+│   ├── design/        ← Design documents
+│   └── decisions/     ← Architecture decision records
 │
-└── scripts/           ← Build/release scripts
+├── design_docs/       ← Historical design documents
+├── infra/             ← Infrastructure (API definitions)
+├── scripts/           ← Build/release scripts
+└── apps/              ← Future mobile app stubs
 ```
 
 ## Package Details
@@ -31,39 +41,53 @@ Platform-agnostic BitTorrent engine. No browser or Node.js APIs directly - every
 
 ```
 src/
-  core/              ← BtEngine, Torrent, PeerConnection, PieceManager
+  core/              ← BtEngine, Torrent, PeerConnection, Swarm, ConnectionManager
   interfaces/        ← IFileSystem, ISocketFactory, ISessionStore, IHasher
   adapters/
-    daemon/          ← DaemonFileSystem, DaemonSocketFactory, DaemonHasher
+    daemon/          ← DaemonConnection, DaemonFileSystem, DaemonSocketFactory
     node/            ← NodeFileSystem, NodeSocketFactory
     memory/          ← InMemoryFileSystem, MemorySocketFactory
     browser/         ← OPFSFileSystem, ChromeStorageSessionStore
-  protocol/          ← Wire protocol, bencode, metadata exchange
+  protocol/          ← Wire protocol, bencode
   tracker/           ← TrackerManager, HttpTracker, UdpTracker
   storage/           ← StorageRootManager
   logging/           ← RingBufferLogger, scoped logging
   utils/             ← BitField, buffer helpers, magnet parsing
+  presets/           ← Pre-configured engine setups (daemon, memory, node)
 
 integration/python/  ← Python tests against libtorrent
 ```
 
-**Key exports:** `BtEngine`, `Torrent`, `PeerConnection`, adapters, interfaces
+**Key exports:** `BtEngine`, `Torrent`, `PeerConnection`, `DaemonConnection`, adapters, interfaces
 
 ### packages/client
 
-Chrome-specific app shell. Connects engine to chrome APIs and daemon.
+Chrome-specific app shell. Connects engine to chrome APIs, provides IO Bridge UI components.
 
 ```
 src/
   App.tsx            ← Main application shell (toolbar, layout, state)
-  adapters/          ← EngineAdapter (wraps BtEngine for UI)
-  chrome/            ← Chrome-specific: DaemonManager, messaging
-  components/        ← Settings dialogs, download root picker
-  context/           ← React contexts (EngineContext)
-  hooks/             ← useEngine, useEngineState
+  chrome/
+    engine-manager.ts      ← Engine lifecycle, daemon connection
+    extension-bridge.ts    ← Service worker communication
+    notification-bridge.ts ← Native notification forwarding
+  components/
+    SystemBridgePanel.tsx  ← IO Bridge status dropdown panel
+    SystemIndicator.tsx    ← Toolbar connection status indicator
+    DownloadRootsManager.tsx ← Download folder picker
+  context/
+    EngineContext.tsx      ← React context for engine access
+  hooks/
+    useEngineState.ts      ← Engine state subscription
+    useIOBridgeState.ts    ← IO Bridge state subscription
+    useSystemBridge.ts     ← Combined system bridge logic
+  adapters/
+    types.ts               ← Adapter type definitions
+  utils/
+    clipboard.ts           ← Clipboard utilities
 ```
 
-**Key exports:** `App`, `EngineAdapter`, `DaemonManager`
+**Key exports:** `App`, `EngineManager`, `SystemBridgePanel`, `SystemIndicator`
 
 ### packages/ui
 
@@ -76,30 +100,51 @@ src/
     TorrentTable.tsx        ← Torrent list columns
     PeerTable.tsx           ← Peer list columns  
     PieceTable.tsx          ← Piece visualization
+    FileTable.tsx           ← File list with progress
+    LogTable.solid.tsx      ← Log viewer (Solid.js)
+    LogTableWrapper.tsx     ← React wrapper for log table
     mount.tsx               ← TableMount (React → Solid bridge)
     types.ts                ← ColumnDef, ColumnConfig
+    column-config.ts        ← Column persistence
   components/
-    DetailPane.tsx          ← Tabbed detail view
+    DetailPane.tsx          ← Tabbed detail view (Peers, Pieces, Files, General, Logs)
     GeneralPane.tsx         ← Torrent info display
     ContextMenu.tsx         ← Right-click menu
+    DropdownMenu.tsx        ← Generic dropdown
     ResizeHandle.tsx        ← Draggable divider
+    TorrentItem.tsx         ← Single torrent row
   hooks/
+    usePersistedHeight.ts   ← Height persistence for resize
   utils/
     format.ts               ← formatBytes, formatSpeed, formatPercent
 ```
 
-**Key exports:** `TorrentTable`, `DetailPane`, `TableMount`, formatters
+**Key exports:** `TorrentTable`, `DetailPane`, `TableMount`, `ContextMenu`, formatters
 
 ### extension/
 
-Chrome extension entry points. Minimal code - delegates to packages.
+Chrome extension entry points. Service worker manages IO Bridge lifecycle.
 
 ```
 src/
-  sw.ts                     ← Service worker (daemon lifecycle, external messages)
+  sw.ts                     ← Service worker (IO Bridge, UI port management)
   lib/
-    daemon-lifecycle-manager.ts
-    native-connection.ts
+    io-bridge/              ← IO Bridge state machine
+      types.ts              ← State and event types
+      io-bridge-state.ts    ← Pure state transitions
+      io-bridge-store.ts    ← State container
+      io-bridge-effects.ts  ← Side effect runner
+      io-bridge-service.ts  ← Public API
+      io-bridge-adapter.ts  ← Adapter interface
+      adapters/
+        desktop-adapter.ts  ← Native messaging
+        chromeos-adapter.ts ← HTTP to Android
+        mock-adapter.ts     ← Testing
+    native-connection.ts    ← Native host connection types
+    notifications.ts        ← Notification handling
+    platform.ts             ← Platform detection
+    sockets.ts              ← Socket utilities
+    kv-handlers.ts          ← Key-value storage handlers
   ui/
     app.html / app.tsx      ← Thin wrapper, imports from @jstorrent/client
     share.html / share.tsx  ← Share target handler
@@ -109,6 +154,9 @@ src/
 public/
   manifest.json             ← MV3 manifest
   icons/
+
+test/                       ← IO Bridge unit tests
+e2e/                        ← Playwright E2E tests
 ```
 
 ### native-host/
@@ -117,7 +165,20 @@ Rust workspace with three binaries.
 
 ```
 Cargo.toml                  ← Workspace root
-src/                        ← native-host binary (coordination)
+src/
+  main.rs                   ← jstorrent-host binary (coordination)
+  bin/
+    link-handler.rs         ← jstorrent-link-handler binary (protocol handler)
+  lib.rs                    ← Shared library (jstorrent_common)
+  daemon_manager.rs         ← io-daemon process management
+  folder_picker.rs          ← Native folder picker dialog
+  rpc.rs                    ← RPC protocol handling
+  ipc.rs                    ← Inter-process communication
+  path_safety.rs            ← Path validation and sanitization
+  protocol.rs               ← Native messaging protocol
+  logging.rs                ← Logging setup
+  state.rs                  ← Shared state
+
 io-daemon/src/              ← io-daemon binary (I/O)
   main.rs
   ws.rs                     ← WebSocket server, TCP/UDP multiplexing
@@ -125,10 +186,47 @@ io-daemon/src/              ← io-daemon binary (I/O)
   hashing.rs                ← SHA1/SHA256 endpoints
   auth.rs                   ← Token validation middleware
 
-installers/                 ← Platform installers (NSIS, pkgbuild)
+installers/                 ← Platform installers (NSIS, pkgbuild, deb)
 manifests/                  ← Chrome native messaging manifests
 scripts/                    ← Build and install scripts
 verify_*.py                 ← Python integration tests
+```
+
+### android-io-daemon/
+
+Kotlin Android app providing I/O daemon for ChromeOS.
+
+```
+app/src/main/java/com/jstorrent/app/
+  MainActivity.kt           ← Main activity, pairing UI
+  service/
+    IoDaemonService.kt      ← Foreground service for daemon
+  server/
+    HttpServer.kt           ← Ktor HTTP/WebSocket server
+    SocketHandler.kt        ← TCP/UDP multiplexing
+    FileHandler.kt          ← File read/write endpoints
+    AuthMiddleware.kt       ← Token validation
+    Protocol.kt             ← Binary protocol definitions
+  auth/
+    TokenStore.kt           ← Secure token storage
+  ui/theme/                 ← Compose theme
+
+scripts/                    ← Build and test scripts
+```
+
+**Key differences from Rust daemon:**
+- HTTP at `100.115.92.2:7800` (ARC bridge IP)
+- Auth token passed via intent URL during pairing
+- Single download root (app private storage)
+
+### website/
+
+Landing page and launch handler for jstorrent.com.
+
+```
+src/                        ← Source files
+public/                     ← Static assets
+launch/                     ← Launch page for magnet/torrent handling
 ```
 
 ## Dependencies Between Packages
@@ -171,6 +269,10 @@ pnpm test
 cd packages/ui
 pnpm test
 
+# Extension unit tests
+cd extension
+pnpm test
+
 # Extension E2E
 cd extension
 pnpm test:e2e
@@ -194,6 +296,15 @@ cargo test --workspace               # Run Rust tests
 # Python verification tests
 python verify_host.py
 python verify_torrent.py
+```
+
+### Android IO Daemon (Kotlin)
+
+```bash
+cd android-io-daemon
+./gradlew build                      # Build APK
+./gradlew assembleDebug              # Debug APK only
+./gradlew test                       # Run unit tests
 ```
 
 ### TypeScript Editing Workflow
