@@ -1,0 +1,432 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Input Debug</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: monospace;
+        background: #1a1a2e;
+        color: #eee;
+        min-height: 100vh;
+        position: relative;
+      }
+      .container {
+        display: flex;
+        height: calc(100vh - 50px);
+      }
+      .panel {
+        flex: 1;
+        padding: 10px;
+        border-right: 1px solid #333;
+        overflow-y: auto;
+      }
+      .panel:last-child {
+        border-right: none;
+      }
+      h2 {
+        color: #0ff;
+        margin-bottom: 10px;
+        font-size: 14px;
+      }
+      .event {
+        background: #252545;
+        padding: 8px;
+        margin-bottom: 5px;
+        border-radius: 4px;
+        font-size: 12px;
+        border-left: 3px solid #0f0;
+      }
+      .event.keydown {
+        border-left-color: #0f0;
+      }
+      .event.keyup {
+        border-left-color: #f00;
+      }
+      .event.click {
+        border-left-color: #ff0;
+      }
+      .event.touch {
+        border-left-color: #f0f;
+      }
+      .key {
+        color: #0ff;
+        font-weight: bold;
+      }
+      .code {
+        color: #f0f;
+      }
+      .mods {
+        color: #ff0;
+      }
+      .coords {
+        color: #0f0;
+      }
+
+      /* Click markers */
+      .click-marker {
+        position: fixed;
+        width: 30px;
+        height: 30px;
+        border: 3px solid #ff0;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 999;
+        animation: pulse 0.5s ease-out forwards;
+      }
+      @keyframes pulse {
+        0% {
+          transform: translate(-50%, -50%) scale(0.5);
+          opacity: 1;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(2);
+          opacity: 0;
+        }
+      }
+
+      /* Grid overlay */
+      .grid-lines {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        opacity: 0.15;
+        z-index: -1;
+      }
+
+      /* Status bar */
+      .status {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #000;
+        padding: 10px;
+        font-size: 14px;
+        z-index: 1002;
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .status-item {
+        color: #0ff;
+      }
+      .status-item.error {
+        color: #f00;
+      }
+      .status-item.ok {
+        color: #0f0;
+      }
+
+      /* Focus indicator */
+      .focus-box {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px 40px;
+        background: #333;
+        border: 2px solid #0ff;
+        border-radius: 8px;
+        font-size: 18px;
+        z-index: 100;
+      }
+      .focus-box.focused {
+        border-color: #0f0;
+        background: #1a3a1a;
+      }
+
+      /* Clear button */
+      .clear-btn {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        padding: 8px 16px;
+        background: #f00;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        z-index: 1003;
+      }
+
+      /* Coordinate display */
+      .coord-display {
+        position: fixed;
+        background: rgba(0, 0, 0, 0.9);
+        color: #0f0;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 16px;
+        pointer-events: none;
+        z-index: 1004;
+        display: none;
+      }
+    </style>
+  </head>
+  <body tabindex="0">
+    <div class="container">
+      <div class="panel" id="keyboard-panel">
+        <h2>KEYBOARD EVENTS</h2>
+        <div id="keyboard-log"></div>
+      </div>
+      <div class="panel" id="mouse-panel">
+        <h2>MOUSE/TOUCH EVENTS</h2>
+        <div id="mouse-log"></div>
+      </div>
+    </div>
+
+    <div class="focus-box" id="focus-box">Click to focus for keyboard input</div>
+    <div class="coord-display" id="coord-display"></div>
+    <button class="clear-btn" onclick="clearLogs()">Clear</button>
+
+    <div class="status">
+      <span class="status-item">Screen: <span id="screen-size"></span></span>
+      <span class="status-item">Last Key: <span id="last-key">-</span></span>
+      <span class="status-item">Last Click: <span id="last-click">-</span></span>
+      <span class="status-item">Server: <span id="server-status">checking...</span></span>
+    </div>
+
+    <canvas id="grid-canvas" class="grid-lines"></canvas>
+
+    <script>
+      const SERVER_PORT = 8765
+      const SERVER_URL = `http://localhost:${SERVER_PORT}`
+
+      const keyboardLog = document.getElementById('keyboard-log')
+      const mouseLog = document.getElementById('mouse-log')
+      const coordDisplay = document.getElementById('coord-display')
+      const focusBox = document.getElementById('focus-box')
+      const gridCanvas = document.getElementById('grid-canvas')
+      const serverStatus = document.getElementById('server-status')
+
+      // Event buffer for server
+      let eventBuffer = []
+      let serverConnected = false
+
+      // Send event to server
+      async function sendToServer(event) {
+        eventBuffer.push(event)
+
+        try {
+          const response = await fetch(`${SERVER_URL}/event`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(event),
+          })
+          if (response.ok) {
+            if (!serverConnected) {
+              serverConnected = true
+              serverStatus.textContent = 'CONNECTED'
+              serverStatus.parentElement.classList.remove('error')
+              serverStatus.parentElement.classList.add('ok')
+            }
+          }
+        } catch (e) {
+          if (serverConnected) {
+            serverConnected = false
+            serverStatus.textContent = 'DISCONNECTED'
+            serverStatus.parentElement.classList.add('error')
+            serverStatus.parentElement.classList.remove('ok')
+          }
+        }
+      }
+
+      // Check server connection
+      async function checkServer() {
+        try {
+          const response = await fetch(`${SERVER_URL}/ping`)
+          if (response.ok) {
+            serverConnected = true
+            serverStatus.textContent = 'CONNECTED'
+            serverStatus.parentElement.classList.remove('error')
+            serverStatus.parentElement.classList.add('ok')
+          }
+        } catch (e) {
+          serverConnected = false
+          serverStatus.textContent = 'NOT RUNNING (events logged locally only)'
+          serverStatus.parentElement.classList.add('error')
+        }
+      }
+      checkServer()
+      setInterval(checkServer, 5000)
+
+      // Draw grid
+      function drawGrid() {
+        const ctx = gridCanvas.getContext('2d')
+        gridCanvas.width = window.innerWidth
+        gridCanvas.height = window.innerHeight
+        ctx.strokeStyle = '#444'
+        ctx.lineWidth = 1
+
+        for (let x = 0; x < gridCanvas.width; x += 100) {
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, gridCanvas.height)
+          ctx.stroke()
+          ctx.fillStyle = '#666'
+          ctx.font = '10px monospace'
+          ctx.fillText(x.toString(), x + 2, 12)
+        }
+
+        for (let y = 0; y < gridCanvas.height; y += 100) {
+          ctx.beginPath()
+          ctx.moveTo(0, y)
+          ctx.lineTo(gridCanvas.width, y)
+          ctx.stroke()
+          ctx.fillStyle = '#666'
+          ctx.fillText(y.toString(), 2, y + 12)
+        }
+      }
+      drawGrid()
+      window.addEventListener('resize', drawGrid)
+
+      document.getElementById('screen-size').textContent =
+        `${window.innerWidth}x${window.innerHeight}`
+      window.addEventListener('resize', () => {
+        document.getElementById('screen-size').textContent =
+          `${window.innerWidth}x${window.innerHeight}`
+      })
+
+      // Focus handling
+      document.body.addEventListener('focus', () => {
+        focusBox.classList.add('focused')
+        focusBox.textContent = 'FOCUSED - Type to test'
+      })
+
+      document.body.addEventListener('blur', () => {
+        focusBox.classList.remove('focused')
+        focusBox.textContent = 'Click to focus for keyboard input'
+      })
+
+      focusBox.addEventListener('click', () => document.body.focus())
+
+      // Keyboard events
+      function logKeyEvent(e, type) {
+        e.preventDefault()
+
+        const mods = []
+        if (e.ctrlKey) mods.push('Ctrl')
+        if (e.altKey) mods.push('Alt')
+        if (e.shiftKey) mods.push('Shift')
+        if (e.metaKey) mods.push('Meta')
+
+        const eventData = {
+          type: type,
+          key: e.key,
+          code: e.code,
+          keyCode: e.keyCode,
+          which: e.which,
+          ctrlKey: e.ctrlKey,
+          altKey: e.altKey,
+          shiftKey: e.shiftKey,
+          metaKey: e.metaKey,
+          modifiers: mods,
+          timestamp: Date.now(),
+        }
+
+        sendToServer(eventData)
+
+        const modStr = mods.length ? mods.join('+') + '+' : ''
+        const div = document.createElement('div')
+        div.className = `event ${type}`
+        div.innerHTML = `
+                <strong>${type}</strong>: <span class="key">${e.key}</span>
+                code=<span class="code">${e.code}</span>
+                keyCode=<span class="code">${e.keyCode}</span>
+                mods=<span class="mods">${modStr || 'none'}</span>
+            `
+        keyboardLog.insertBefore(div, keyboardLog.firstChild)
+
+        document.getElementById('last-key').textContent = `${modStr}${e.key} (${e.keyCode})`
+
+        while (keyboardLog.children.length > 30) {
+          keyboardLog.removeChild(keyboardLog.lastChild)
+        }
+      }
+
+      document.addEventListener('keydown', (e) => logKeyEvent(e, 'keydown'))
+      document.addEventListener('keyup', (e) => logKeyEvent(e, 'keyup'))
+
+      // Mouse/Touch events
+      function logClickEvent(e, type) {
+        const x = e.clientX ?? e.touches?.[0]?.clientX ?? e.changedTouches?.[0]?.clientX
+        const y = e.clientY ?? e.touches?.[0]?.clientY ?? e.changedTouches?.[0]?.clientY
+
+        if (x === undefined || y === undefined) return
+
+        const eventData = {
+          type: type,
+          x: Math.round(x),
+          y: Math.round(y),
+          pageX: Math.round(e.pageX || x),
+          pageY: Math.round(e.pageY || y),
+          timestamp: Date.now(),
+        }
+
+        sendToServer(eventData)
+
+        // Visual marker
+        const marker = document.createElement('div')
+        marker.className = 'click-marker'
+        marker.style.left = x + 'px'
+        marker.style.top = y + 'px'
+        document.body.appendChild(marker)
+        setTimeout(() => marker.remove(), 500)
+
+        const div = document.createElement('div')
+        div.className = `event ${type.includes('touch') ? 'touch' : 'click'}`
+        div.innerHTML = `<strong>${type}</strong>: <span class="coords">(${Math.round(x)}, ${Math.round(y)})</span>`
+        mouseLog.insertBefore(div, mouseLog.firstChild)
+
+        document.getElementById('last-click').textContent = `(${Math.round(x)}, ${Math.round(y)})`
+
+        while (mouseLog.children.length > 30) {
+          mouseLog.removeChild(mouseLog.lastChild)
+        }
+      }
+
+      document.addEventListener('click', (e) => logClickEvent(e, 'click'))
+      document.addEventListener('touchstart', (e) => logClickEvent(e, 'touchstart'))
+      document.addEventListener('touchend', (e) => logClickEvent(e, 'touchend'))
+
+      // Mouse move - show coordinates
+      document.addEventListener('mousemove', (e) => {
+        coordDisplay.style.display = 'block'
+        coordDisplay.style.left = e.clientX + 15 + 'px'
+        coordDisplay.style.top = e.clientY - 10 + 'px'
+        coordDisplay.textContent = `(${e.clientX}, ${e.clientY})`
+      })
+
+      document.addEventListener('mouseleave', () => {
+        coordDisplay.style.display = 'none'
+      })
+
+      function clearLogs() {
+        keyboardLog.innerHTML = ''
+        mouseLog.innerHTML = ''
+        eventBuffer = []
+      }
+
+      // Auto-focus
+      setTimeout(() => document.body.focus(), 100)
+
+      // Expose buffer for direct reading
+      window.getEventBuffer = () => JSON.stringify(eventBuffer, null, 2)
+      window.clearEventBuffer = () => {
+        eventBuffer = []
+        return 'cleared'
+      }
+    </script>
+  </body>
+</html>
