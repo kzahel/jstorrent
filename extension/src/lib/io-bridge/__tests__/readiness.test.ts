@@ -7,6 +7,7 @@ const mockHistory: ConnectionHistory = {
   attempts: 0,
   lastAttempt: null,
   lastError: null,
+  consecutiveFailures: 0,
 }
 
 const mockDaemonInfo: DaemonInfo = {
@@ -214,7 +215,7 @@ describe('readiness', () => {
       const state: IOBridgeState = {
         name: 'INSTALL_PROMPT',
         platform: 'desktop',
-        history: { attempts: 0, lastAttempt: null, lastError: null },
+        history: { attempts: 0, lastAttempt: null, lastError: null, consecutiveFailures: 0 },
       }
       expect(isFirstTimeUser(state)).toBe(true)
     })
@@ -223,7 +224,7 @@ describe('readiness', () => {
       const state: IOBridgeState = {
         name: 'INSTALL_PROMPT',
         platform: 'desktop',
-        history: { attempts: 1, lastAttempt: Date.now(), lastError: null },
+        history: { attempts: 1, lastAttempt: Date.now(), lastError: null, consecutiveFailures: 0 },
       }
       expect(isFirstTimeUser(state)).toBe(false)
     })

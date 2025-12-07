@@ -1,4 +1,5 @@
-console.log('Service Worker loaded')
+const SW_START_TIME = new Date().toISOString()
+console.log(`[SW] Service Worker loaded at ${SW_START_TIME}`)
 
 import { createIOBridgeService, type NativeEvent } from './lib/io-bridge'
 import { handleKVMessage } from './lib/kv-handlers'
@@ -107,29 +108,46 @@ console.log(`[SW] IO Bridge started, platform: ${ioBridge.getPlatform()}`)
 // ============================================================================
 // Installation handler - generate install ID
 // ============================================================================
-chrome.runtime.onInstalled.addListener(async () => {
-  console.log('Extension installed')
+// Browser startup event (when Chrome starts with extension already installed)
+chrome.runtime.onStartup.addListener(() => {
+  console.log(`[SW] onStartup fired at ${new Date().toISOString()} (SW loaded at ${SW_START_TIME})`)
+})
+
+chrome.runtime.onInstalled.addListener(async (details) => {
+  console.log(`[SW] onInstalled fired at ${new Date().toISOString()} - reason: ${details.reason}`)
   const installId = await getOrGenerateInstallId()
   console.log('Generated/Retrieved Install ID:', installId)
 
   // Perform immediate handshake to register install ID with native host
   try {
     const port = chrome.runtime.connectNative('com.jstorrent.native')
+
+    // Must check lastError in onDisconnect to avoid "Unchecked runtime.lastError" warning
+    port.onDisconnect.addListener(() => {
+      if (chrome.runtime.lastError) {
+        console.log(
+          '[SW] Initial handshake: native host not available:',
+          chrome.runtime.lastError.message,
+        )
+      } else {
+        console.log('[SW] Initial handshake port disconnected')
+      }
+    })
+
     port.postMessage({
       op: 'handshake',
       extensionId: chrome.runtime.id,
       installId,
       id: crypto.randomUUID(),
     })
-    console.log('Sent initial handshake to native host')
+    console.log('[SW] Sent initial handshake to native host')
 
     // Disconnect after a short delay to allow message to be sent
     setTimeout(() => {
       port.disconnect()
-      console.log('Disconnected initial handshake port')
     }, 100)
   } catch (e) {
-    console.error('Failed to perform initial handshake:', e)
+    console.error('[SW] Failed to perform initial handshake:', e)
   }
 })
 

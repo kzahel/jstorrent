@@ -53,6 +53,18 @@ export class DesktopAdapter implements IIOBridgeAdapter {
       this.connection = this.config.createConnection()
       await this.connection.connect()
 
+      // Set up disconnect handler IMMEDIATELY to catch crashes during handshake
+      let disconnectedDuringProbe = false
+      this.connection.onDisconnect(() => {
+        console.log('[DesktopAdapter] Disconnected during probe/operation')
+        disconnectedDuringProbe = true
+        // If we have a callback registered (from watchConnection), notify it
+        if (this.disconnectCallback) {
+          this.disconnectCallback(true)
+          this.cleanup()
+        }
+      })
+
       // Generate connection ID
       const connectionId = `desktop-${Date.now()}-${Math.random().toString(36).slice(2)}`
       this.currentConnectionId = connectionId
@@ -71,6 +83,11 @@ export class DesktopAdapter implements IIOBridgeAdapter {
 
       // Wait for DaemonInfo response
       const daemonInfo = await this.waitForDaemonInfo()
+
+      // Check if we disconnected during handshake
+      if (disconnectedDuringProbe) {
+        throw new Error('Disconnected during handshake')
+      }
 
       return {
         success: true,
@@ -104,17 +121,9 @@ export class DesktopAdapter implements IIOBridgeAdapter {
       return () => {}
     }
 
+    // Store the callback - the disconnect handler was already set up in probe()
+    // and will call this callback when disconnect occurs
     this.disconnectCallback = onDisconnected
-
-    if (this.connection) {
-      this.connection.onDisconnect(() => {
-        console.log('[DesktopAdapter] Native connection disconnected')
-        // Assume it was healthy if we had a successful handshake
-        const wasHealthy = true
-        this.disconnectCallback?.(wasHealthy)
-        this.cleanup()
-      })
-    }
 
     return () => {
       this.disconnectCallback = null

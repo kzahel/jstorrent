@@ -18,14 +18,29 @@ export interface IOBridgeEffectsConfig {
   launchTimeoutMs?: number
   /** Whether to auto-retry on disconnect (default: true) */
   autoRetryOnDisconnect?: boolean
-  /** Delay before auto-retry in ms (default: 2000) */
+  /** Delay before auto-retry in ms (default: 2000) - used as base for exponential backoff */
   autoRetryDelayMs?: number
+  /** Interval for polling from INSTALL_PROMPT in ms (default: 5000). Set to 0 to disable. */
+  installPollIntervalMs?: number
+  /** Max poll attempts from INSTALL_PROMPT before stopping (default: 0 = unlimited) */
+  installPollMaxAttempts?: number
+  /** Base delay for exponential backoff in ms (default: 1000) */
+  retryBaseDelayMs?: number
+  /** Maximum delay for exponential backoff in ms (default: 30000) */
+  retryMaxDelayMs?: number
+  /** Backoff multiplier (default: 2) */
+  retryBackoffMultiplier?: number
 }
 
 const DEFAULT_CONFIG: Required<IOBridgeEffectsConfig> = {
   launchTimeoutMs: 30000,
   autoRetryOnDisconnect: true,
   autoRetryDelayMs: 2000,
+  installPollIntervalMs: 5000,
+  installPollMaxAttempts: 0, // 0 = unlimited
+  retryBaseDelayMs: 1000,
+  retryMaxDelayMs: 30000,
+  retryBackoffMultiplier: 2,
 }
 
 /**
@@ -46,6 +61,10 @@ export class IOBridgeEffects {
   private launchTimeout: ReturnType<typeof setTimeout> | null = null
   private retryTimeout: ReturnType<typeof setTimeout> | null = null
   private isStarted = false
+
+  // Install polling state
+  private installPollAttempts = 0
+  private installPollTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(store: IOBridgeStore, adapter: IIOBridgeAdapter, config: IOBridgeEffectsConfig = {}) {
     this.store = store
@@ -141,6 +160,10 @@ export class IOBridgeEffects {
           this.handleDisconnected()
         }
         break
+
+      case 'INSTALL_PROMPT':
+        this.handleInstallPrompt()
+        break
     }
   }
 
@@ -204,10 +227,17 @@ export class IOBridgeEffects {
   }
 
   private handleDisconnected(): void {
-    // Auto-retry after delay
+    const state = this.store.getState()
+    if (state.name !== 'DISCONNECTED') return
+
+    const delay = this.calculateRetryDelay(state.history.consecutiveFailures)
+    console.log(
+      `[IOBridgeEffects] Auto-retry in ${delay}ms (failures: ${state.history.consecutiveFailures})`,
+    )
+
     this.retryTimeout = setTimeout(() => {
       this.store.dispatch({ type: 'RETRY' })
-    }, this.config.autoRetryDelayMs)
+    }, delay)
 
     this.cleanupFns.push(() => {
       if (this.retryTimeout) {
@@ -215,6 +245,77 @@ export class IOBridgeEffects {
         this.retryTimeout = null
       }
     })
+  }
+
+  private calculateRetryDelay(consecutiveFailures: number): number {
+    const { retryBaseDelayMs, retryMaxDelayMs, retryBackoffMultiplier } = this.config
+
+    // Exponential backoff: base * multiplier^failures
+    const delay = retryBaseDelayMs * Math.pow(retryBackoffMultiplier, consecutiveFailures)
+
+    // Cap at max delay
+    return Math.min(delay, retryMaxDelayMs)
+  }
+
+  private handleInstallPrompt(): void {
+    if (this.config.installPollIntervalMs <= 0) {
+      console.log('[IOBridgeEffects] Install polling disabled')
+      return
+    }
+
+    console.log('[IOBridgeEffects] Starting install poll interval')
+    this.installPollAttempts = 0
+
+    // Start polling
+    this.installPollTimer = setInterval(() => {
+      this.pollForInstall()
+    }, this.config.installPollIntervalMs)
+
+    // Register cleanup
+    this.cleanupFns.push(() => {
+      if (this.installPollTimer) {
+        clearInterval(this.installPollTimer)
+        this.installPollTimer = null
+      }
+    })
+
+    // Do first poll immediately
+    this.pollForInstall()
+  }
+
+  private async pollForInstall(): Promise<void> {
+    this.installPollAttempts++
+
+    // Check max attempts
+    if (
+      this.config.installPollMaxAttempts > 0 &&
+      this.installPollAttempts > this.config.installPollMaxAttempts
+    ) {
+      console.log('[IOBridgeEffects] Max install poll attempts reached')
+      if (this.installPollTimer) {
+        clearInterval(this.installPollTimer)
+        this.installPollTimer = null
+      }
+      return
+    }
+
+    console.log(`[IOBridgeEffects] Polling for native host (attempt ${this.installPollAttempts})`)
+
+    try {
+      const result = await this.adapter.probe()
+      if (result.success) {
+        console.log('[IOBridgeEffects] Native host detected!')
+        this.store.dispatch({
+          type: 'PROBE_SUCCESS',
+          connectionId: result.connectionId,
+          daemonInfo: result.daemonInfo,
+        })
+      }
+      // On failure, just keep polling
+    } catch (error) {
+      console.log('[IOBridgeEffects] Poll probe error (expected):', error)
+      // Keep polling
+    }
   }
 
   private cleanup(): void {

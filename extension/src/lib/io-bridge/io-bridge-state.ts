@@ -39,6 +39,7 @@ export function createConnectionHistory(): ConnectionHistory {
     attempts: 0,
     lastAttempt: null,
     lastError: null,
+    consecutiveFailures: 0,
   }
 }
 
@@ -53,6 +54,18 @@ export function recordAttempt(
     attempts: history.attempts + 1,
     lastAttempt: Date.now(),
     lastError: error,
+    consecutiveFailures: error ? history.consecutiveFailures + 1 : 0,
+  }
+}
+
+/**
+ * Reset consecutive failures (on successful connection).
+ */
+export function resetFailures(history: ConnectionHistory): ConnectionHistory {
+  return {
+    ...history,
+    consecutiveFailures: 0,
+    lastError: null,
   }
 }
 
@@ -167,14 +180,26 @@ function handleDisconnected(state: DisconnectedState, event: IOBridgeEvent): IOB
 }
 
 function handleInstallPrompt(state: InstallPromptState, event: IOBridgeEvent): IOBridgeState {
-  if (event.type === 'RETRY') {
-    return {
-      name: 'PROBING',
-      platform: state.platform,
-      history: state.history,
-    } satisfies ProbingState
+  switch (event.type) {
+    case 'RETRY':
+      return {
+        name: 'PROBING',
+        platform: state.platform,
+        history: state.history,
+      } satisfies ProbingState
+
+    case 'PROBE_SUCCESS':
+      // Handle successful poll from INSTALL_PROMPT state
+      return {
+        name: 'CONNECTED',
+        platform: state.platform,
+        connectionId: event.connectionId,
+        daemonInfo: event.daemonInfo,
+      } satisfies ConnectedState
+
+    default:
+      return state
   }
-  return state
 }
 
 function handleLaunchPrompt(state: LaunchPromptState, event: IOBridgeEvent): IOBridgeState {
