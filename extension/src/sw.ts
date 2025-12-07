@@ -115,40 +115,9 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   console.log(`[SW] onInstalled fired at ${new Date().toISOString()} - reason: ${details.reason}`)
+  // Just ensure install ID exists - connection happens via IOBridgeService when UI opens
   const installId = await getOrGenerateInstallId()
   console.log('Generated/Retrieved Install ID:', installId)
-
-  // Perform immediate handshake to register install ID with native host
-  try {
-    const port = chrome.runtime.connectNative('com.jstorrent.native')
-
-    // Must check lastError in onDisconnect to avoid "Unchecked runtime.lastError" warning
-    port.onDisconnect.addListener(() => {
-      if (chrome.runtime.lastError) {
-        console.log(
-          '[SW] Initial handshake: native host not available:',
-          chrome.runtime.lastError.message,
-        )
-      } else {
-        console.log('[SW] Initial handshake port disconnected')
-      }
-    })
-
-    port.postMessage({
-      op: 'handshake',
-      extensionId: chrome.runtime.id,
-      installId,
-      id: crypto.randomUUID(),
-    })
-    console.log('[SW] Sent initial handshake to native host')
-
-    // Disconnect after a short delay to allow message to be sent
-    setTimeout(() => {
-      port.disconnect()
-    }, 100)
-  } catch (e) {
-    console.error('[SW] Failed to perform initial handshake:', e)
-  }
 })
 
 async function getOrGenerateInstallId(): Promise<string> {

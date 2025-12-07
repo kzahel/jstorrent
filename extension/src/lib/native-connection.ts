@@ -41,13 +41,64 @@ export interface INativeHostConnection {
   isDisconnected(): boolean
 }
 
+// Singleton enforcement
+let singletonInstance: NativeHostConnection | null = null
+let singletonCreated = false
+
+/**
+ * Get the singleton NativeHostConnection instance.
+ * Creates the instance on first call.
+ */
+export function getNativeConnection(): NativeHostConnection {
+  if (!singletonInstance) {
+    singletonInstance = new NativeHostConnection()
+  }
+  return singletonInstance
+}
+
+/**
+ * Reset the singleton for testing purposes only.
+ * @internal
+ */
+export function resetNativeConnection(): void {
+  singletonInstance = null
+  singletonCreated = false
+}
+
 export class NativeHostConnection implements INativeHostConnection {
   private port: chrome.runtime.Port | null = null
   private connected = false
   private disconnected = false
   private disconnectCallbacks: Array<() => void> = []
 
+  constructor() {
+    if (singletonCreated) {
+      throw new Error(
+        'NativeHostConnection is a singleton. Use getNativeConnection() instead of new NativeHostConnection()',
+      )
+    }
+    singletonCreated = true
+  }
+
+  /**
+   * Reset internal state to allow reconnection.
+   * Called automatically by connect() if previous connection died.
+   */
+  private resetState(): void {
+    this.port = null
+    this.connected = false
+    this.disconnected = false
+    // Clear callbacks - probe() will register fresh ones
+    this.disconnectCallbacks = []
+  }
+
   async connect(): Promise<void> {
+    // Allow reconnection if previous connection died
+    if (this.disconnected) {
+      console.log('[NativeHostConnection] Reconnecting after previous disconnect')
+      this.resetState()
+    }
+
     return new Promise((resolve, reject) => {
       try {
         this.port = chrome.runtime.connectNative('com.jstorrent.native')

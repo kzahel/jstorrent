@@ -12,7 +12,7 @@ import type {
   OnDaemonDisconnected,
 } from '../io-bridge-adapter'
 import type { DaemonInfo, ConnectionId } from '../types'
-import { NativeHostConnection, type INativeHostConnection } from '../../native-connection'
+import { getNativeConnection, type INativeHostConnection } from '../../native-connection'
 
 const HANDSHAKE_TIMEOUT_MS = 10000
 
@@ -20,8 +20,6 @@ const HANDSHAKE_TIMEOUT_MS = 10000
  * Configuration for the desktop adapter.
  */
 export interface DesktopAdapterConfig {
-  /** Factory for creating native host connections (for testing) */
-  createConnection?: () => INativeHostConnection
   /** Timeout for handshake in ms */
   handshakeTimeoutMs?: number
 }
@@ -42,16 +40,20 @@ export class DesktopAdapter implements IIOBridgeAdapter {
 
   constructor(config: DesktopAdapterConfig = {}) {
     this.config = {
-      createConnection: config.createConnection ?? (() => new NativeHostConnection()),
       handshakeTimeoutMs: config.handshakeTimeoutMs ?? HANDSHAKE_TIMEOUT_MS,
     }
   }
 
   async probe(): Promise<ProbeResult> {
     try {
-      // Create and connect to native host
-      this.connection = this.config.createConnection()
-      await this.connection.connect()
+      // Get singleton connection
+      this.connection = getNativeConnection()
+
+      // Connect (or reconnect if previous connection died)
+      // NativeHostConnection.connect() handles the reconnection logic internally
+      if (!this.connection.isConnected()) {
+        await this.connection.connect()
+      }
 
       // Set up disconnect handler IMMEDIATELY to catch crashes during handshake
       let disconnectedDuringProbe = false
