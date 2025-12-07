@@ -172,10 +172,8 @@ class EngineManager {
       this.shutdown()
     })
 
-    // 9. Connect to SW for real-time events (TorrentAdded, MagnetAdded, etc.)
-    this.connectToServiceWorker()
-
-    // 10. Set up notification handling
+    // 9. Set up notification handling
+    // Note: Port connection for native events is now handled by useIOBridgeState in App.tsx
     this.setupNotifications()
 
     return this.engine
@@ -471,8 +469,9 @@ class EngineManager {
 
   /**
    * Handle native events forwarded from service worker.
+   * Public so App can forward events from useIOBridgeState.
    */
-  private async handleNativeEvent(event: string, payload: unknown): Promise<void> {
+  async handleNativeEvent(event: string, payload: unknown): Promise<void> {
     if (!this.engine) {
       console.warn('[EngineManager] Received event but engine not ready:', event)
       return

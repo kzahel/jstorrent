@@ -1,5 +1,5 @@
 import React from 'react'
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import { Torrent, generateMagnet } from '@jstorrent/engine'
 import {
   TorrentTable,
@@ -13,8 +13,13 @@ import {
 } from '@jstorrent/ui'
 import { EngineProvider } from './context/EngineContext'
 import { useEngineState } from './hooks/useEngineState'
-import { engineManager } from './chrome/engine-manager'
+import { engineManager, DownloadRoot } from './chrome/engine-manager'
 import { DownloadRootsManager } from './components/DownloadRootsManager'
+import { useIOBridgeState } from './hooks/useIOBridgeState'
+import { useSystemBridge } from './hooks/useSystemBridge'
+import { SystemIndicator } from './components/SystemIndicator'
+import { SystemBridgePanel } from './components/SystemBridgePanel'
+import { copyTextToClipboard } from './utils/clipboard'
 
 interface ContextMenuState {
   x: number
@@ -141,19 +146,7 @@ function AppContent() {
         }),
     )
     const text = magnets.join('\n')
-    try {
-      await navigator.clipboard.writeText(text)
-    } catch {
-      // Fallback for non-secure contexts
-      const textarea = document.createElement('textarea')
-      textarea.value = text
-      textarea.style.position = 'fixed'
-      textarea.style.opacity = '0'
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textarea)
-    }
+    await copyTextToClipboard(text)
   }
 
   const handleShare = () => {
@@ -230,22 +223,19 @@ function AppContent() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
-        fontFamily: 'sans-serif',
+        height: '100%',
       }}
     >
-      {/* Header */}
+      {/* Tabs */}
       <div
         style={{
           padding: '8px 16px',
           borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
-          gap: '16px',
+          gap: '8px',
         }}
       >
-        <h1 style={{ margin: 0, fontSize: '18px' }}>JSTorrent</h1>
-
         <div style={{ display: 'flex', gap: '4px' }}>
           <button
             onClick={() => setActiveTab('torrents')}
@@ -463,31 +453,193 @@ function AppContent() {
 
 function App() {
   const [engine, setEngine] = useState<Awaited<ReturnType<typeof engineManager.init>> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [initError, setInitError] = useState<string | null>(null)
+  const initStartedRef = useRef(false)
+  const [defaultRootKey, setDefaultRootKey] = useState<string | null>(null)
 
-  React.useEffect(() => {
-    engineManager
-      .init()
-      .then((eng) => {
-        setEngine(eng)
-        setLoading(false)
-      })
-      .catch((e) => {
-        console.error('Failed to initialize engine:', e)
-        setError(String(e))
-        setLoading(false)
-      })
-  }, [])
+  // Handle native events from SW port
+  const handleNativeEvent = useCallback(
+    (event: string, payload: unknown) => {
+      if (engine) {
+        engineManager.handleNativeEvent(event, payload)
+      }
+    },
+    [engine],
+  )
 
-  if (loading) return <div style={{ padding: '20px' }}>Loading...</div>
-  if (error) return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>
-  if (!engine) return <div style={{ padding: '20px' }}>Failed to initialize engine</div>
+  // Subscribe to IOBridge state
+  const {
+    state: ioBridgeState,
+    isConnected,
+    retry,
+    launch,
+    cancel,
+  } = useIOBridgeState({
+    onNativeEvent: handleNativeEvent,
+  })
 
+  // Get roots from connected state
+  const roots: DownloadRoot[] =
+    ioBridgeState.name === 'CONNECTED' ? (ioBridgeState.daemonInfo?.roots ?? []) : []
+
+  // Check if there are pending torrents (torrents added but not downloading)
+  const hasPendingTorrents = engine
+    ? engine.torrents.some((t) => t.userState === 'active' && !t.hasMetadata)
+    : false
+
+  // System bridge hook for UI state (panel, readiness indicator)
+  const systemBridge = useSystemBridge({
+    state: ioBridgeState as Parameters<typeof useSystemBridge>[0]['state'],
+    roots,
+    defaultRootKey,
+    hasPendingTorrents,
+    onRetry: retry,
+    onLaunch: launch,
+    onCancel: cancel,
+    onDisconnect: () => {
+      console.log('Disconnect requested')
+    },
+    onAddFolder: async () => {
+      const root = await engineManager.pickDownloadFolder()
+      if (root) {
+        // Root will be added via daemon info update
+      }
+    },
+    onSetDefaultRoot: async (key: string) => {
+      setDefaultRootKey(key)
+      if (engine) {
+        await engineManager.setDefaultRoot(key)
+      }
+    },
+  })
+
+  // Initialize engine when connected (and not already initialized)
+  useEffect(() => {
+    if (isConnected && !engine && !initStartedRef.current && !initError) {
+      initStartedRef.current = true
+      engineManager
+        .init()
+        .then((eng) => {
+          setEngine(eng)
+          // Set default root from engine (getDefaultRoot returns the key string)
+          const currentDefault = eng.storageRootManager.getDefaultRoot()
+          if (currentDefault) {
+            setDefaultRootKey(currentDefault)
+          }
+        })
+        .catch((e) => {
+          console.error('Failed to initialize engine:', e)
+          setInitError(String(e))
+          initStartedRef.current = false // Allow retry on error
+        })
+    }
+  }, [isConnected, engine, initError])
+
+  // Always render - show indicator even when not connected
   return (
-    <EngineProvider engine={engine}>
-      <AppContent />
-    </EngineProvider>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        fontFamily: 'sans-serif',
+      }}
+    >
+      {/* Header with System Bridge indicator */}
+      <div
+        style={{
+          padding: '8px 16px',
+          borderBottom: '1px solid var(--border-color)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+        }}
+      >
+        <h1 style={{ margin: 0, fontSize: '18px' }}>JSTorrent</h1>
+
+        {/* System Bridge indicator */}
+        <div style={{ position: 'relative' }}>
+          <SystemIndicator
+            label={systemBridge.readiness.indicator.label}
+            color={systemBridge.readiness.indicator.color}
+            pulse={systemBridge.readiness.pulse}
+            onClick={systemBridge.togglePanel}
+          />
+          {systemBridge.panelOpen && (
+            <SystemBridgePanel
+              state={ioBridgeState as Parameters<typeof SystemBridgePanel>[0]['state']}
+              versionStatus={systemBridge.versionStatus}
+              daemonVersion={systemBridge.daemonVersion}
+              roots={roots}
+              defaultRootKey={defaultRootKey}
+              onRetry={retry}
+              onLaunch={launch}
+              onCancel={cancel}
+              onDisconnect={() => console.log('Disconnect')}
+              onAddFolder={async () => {
+                await engineManager.pickDownloadFolder()
+              }}
+              onSetDefaultRoot={(key) => {
+                setDefaultRootKey(key)
+                engineManager.setDefaultRoot(key)
+              }}
+              onCopyDebugInfo={systemBridge.copyDebugInfo}
+              onClose={systemBridge.closePanel}
+            />
+          )}
+        </div>
+
+        <div style={{ marginLeft: 'auto', color: 'var(--text-secondary)', fontSize: '12px' }}>
+          {engine ? (
+            <>
+              {engine.torrents.length} torrents | {engine.numConnections} peers
+            </>
+          ) : isConnected ? (
+            'Initializing...'
+          ) : (
+            'Not connected'
+          )}
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        {engine ? (
+          <EngineProvider engine={engine}>
+            <AppContent />
+          </EngineProvider>
+        ) : initError ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>
+            <div style={{ color: 'var(--accent-error)', marginBottom: '16px' }}>
+              Failed to initialize: {initError}
+            </div>
+            <button
+              onClick={() => {
+                setInitError(null)
+                retry()
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+            {ioBridgeState.name === 'INITIALIZING' && 'Starting...'}
+            {ioBridgeState.name === 'PROBING' && 'Connecting to daemon...'}
+            {ioBridgeState.name === 'INSTALL_PROMPT' &&
+              'Click the indicator above to set up JSTorrent.'}
+            {ioBridgeState.name === 'LAUNCH_PROMPT' &&
+              'Click the indicator above to launch the companion app.'}
+            {ioBridgeState.name === 'AWAITING_LAUNCH' && 'Waiting for companion app...'}
+            {ioBridgeState.name === 'LAUNCH_FAILED' &&
+              'Failed to connect. Click the indicator to retry.'}
+            {ioBridgeState.name === 'DISCONNECTED' &&
+              'Connection lost. Click the indicator to reconnect.'}
+            {ioBridgeState.name === 'CONNECTED' && !engine && 'Initializing engine...'}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
