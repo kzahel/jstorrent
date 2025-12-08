@@ -133,9 +133,10 @@ export default defineConfig({
       exclude: ['**/*.solid.tsx'],
     }),
     printDevUrls(),
-    injectPublicKey(),
+    // Skip public key injection for CWS builds (set SKIP_INJECT_KEY=1)
+    !process.env.SKIP_INJECT_KEY && injectPublicKey(),
     sourcemapIgnoreLogger(),
-  ],
+  ].filter(Boolean),
   define: {
     // Provide default extension ID if not set via env var
     'import.meta.env.DEV_EXTENSION_ID': JSON.stringify(
