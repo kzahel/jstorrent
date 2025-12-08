@@ -19,15 +19,34 @@ android {
     }
 
     signingConfigs {
-        create("release") {
+        getByName("debug") {
             storeFile = file("signing/debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+
+        create("release") {
+            val uploadKeystorePath = System.getenv("UPLOAD_KEYSTORE_PATH")
+            if (uploadKeystorePath != null) {
+                storeFile = file(uploadKeystorePath)
+                storePassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("UPLOAD_KEY_ALIAS")
+                keyPassword = System.getenv("UPLOAD_KEY_PASSWORD")
+            } else {
+                // Fall back to debug key for local release builds
+                storeFile = file("signing/debug.keystore")
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
