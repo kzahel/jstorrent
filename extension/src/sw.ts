@@ -2,6 +2,7 @@ const SW_START_TIME = new Date().toISOString()
 console.log(`[SW] Service Worker loaded at ${SW_START_TIME}`)
 
 import { createIOBridgeService, type NativeEvent } from './lib/io-bridge'
+import { hasEverConnected } from './lib/io-bridge/readiness'
 import { handleKVMessage } from './lib/kv-handlers'
 import { NotificationManager, ProgressStats } from './lib/notifications'
 
@@ -99,7 +100,14 @@ const ioBridge = createIOBridgeService({
 ioBridge.subscribe((state) => {
   if (primaryUIPort) {
     console.log('[SW] Forwarding state change to UI:', state.name)
-    primaryUIPort.postMessage({ type: 'IOBRIDGE_STATE_CHANGED', state })
+    // Include persistent hasEverConnected flag
+    hasEverConnected().then((hasConnected) => {
+      primaryUIPort?.postMessage({
+        type: 'IOBRIDGE_STATE_CHANGED',
+        state,
+        hasEverConnected: hasConnected,
+      })
+    })
   }
 })
 
@@ -222,7 +230,10 @@ function handleMessage(
   // Get current IO Bridge state (for System Bridge UI)
   if (message.type === 'GET_IOBRIDGE_STATE') {
     const state = ioBridge.getState()
-    sendResponse({ ok: true, state })
+    // Include persistent hasEverConnected flag
+    hasEverConnected().then((hasConnected) => {
+      sendResponse({ ok: true, state, hasEverConnected: hasConnected })
+    })
     return true
   }
 

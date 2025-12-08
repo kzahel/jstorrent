@@ -53,6 +53,7 @@ export interface UseIOBridgeStateConfig {
 export interface UseIOBridgeStateResult {
   state: IOBridgeState
   isConnected: boolean
+  hasEverConnected: boolean
   retry: () => void
   launch: () => void
   cancel: () => void
@@ -67,6 +68,7 @@ export interface UseIOBridgeStateResult {
 export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBridgeStateResult {
   const { onNativeEvent } = config
   const [state, setState] = useState<IOBridgeState>(INITIAL_STATE)
+  const [hasEverConnected, setHasEverConnected] = useState(false)
   const onNativeEventRef = useRef(onNativeEvent)
 
   // Keep ref updated
@@ -81,10 +83,15 @@ export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBrid
 
     // Fetch initial state
     bridge
-      .sendMessage<{ ok: boolean; state?: IOBridgeState }>({ type: 'GET_IOBRIDGE_STATE' })
+      .sendMessage<{ ok: boolean; state?: IOBridgeState; hasEverConnected?: boolean }>({
+        type: 'GET_IOBRIDGE_STATE',
+      })
       .then((response) => {
         if (response.ok && response.state) {
           setState(response.state)
+          if (response.hasEverConnected !== undefined) {
+            setHasEverConnected(response.hasEverConnected)
+          }
         }
       })
       .catch((e) => {
@@ -100,10 +107,19 @@ export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBrid
       }
 
       swPort.onMessage.addListener(
-        (msg: { type?: string; event?: string; payload?: unknown; state?: IOBridgeState }) => {
+        (msg: {
+          type?: string
+          event?: string
+          payload?: unknown
+          state?: IOBridgeState
+          hasEverConnected?: boolean
+        }) => {
           // Handle IOBridge state changes
           if (msg.type === 'IOBRIDGE_STATE_CHANGED' && msg.state) {
             setState(msg.state)
+            if (msg.hasEverConnected !== undefined) {
+              setHasEverConnected(msg.hasEverConnected)
+            }
           }
           // Handle CLOSE message (single UI enforcement)
           else if (msg.type === 'CLOSE') {
@@ -145,6 +161,7 @@ export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBrid
   return {
     state,
     isConnected: state.name === 'CONNECTED',
+    hasEverConnected,
     retry,
     launch,
     cancel,

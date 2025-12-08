@@ -15,6 +15,7 @@ import type { DaemonInfo, ConnectionId } from '../types'
 import { getNativeConnection, type INativeHostConnection } from '../../native-connection'
 
 const HANDSHAKE_TIMEOUT_MS = 10000
+const STORAGE_KEY_HAS_CONNECTED = 'iobridge:hasConnectedSuccessfully'
 
 /**
  * Configuration for the desktop adapter.
@@ -90,6 +91,9 @@ export class DesktopAdapter implements IIOBridgeAdapter {
       if (disconnectedDuringProbe) {
         throw new Error('Disconnected during handshake')
       }
+
+      // Persist successful connection for first-time detection
+      await chrome.storage.local.set({ [STORAGE_KEY_HAS_CONNECTED]: true })
 
       return {
         success: true,

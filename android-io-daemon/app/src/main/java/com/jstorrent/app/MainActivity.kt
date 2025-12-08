@@ -78,6 +78,10 @@ class MainActivity : ComponentActivity() {
                     tokenStore.token = token
                 }
             }
+            uri.scheme == "jstorrent" && uri.host == "launch" -> {
+                Log.i(TAG, "Received launch intent - app started")
+                // No token handling - just launches the app
+            }
             uri.scheme == "magnet" -> {
                 Log.i(TAG, "Received magnet link: $uri")
                 // TODO: Forward to extension via some mechanism
