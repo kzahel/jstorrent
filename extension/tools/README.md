@@ -6,6 +6,16 @@ Tools for debugging the JSTorrent extension service worker. Designed for both hu
 
 Chrome must be running with remote debugging enabled. Use the provided script:
 
+### ChromeOS Remote Development
+
+If developing on a laptop with Chromebook as test device:
+
+1. Run CDP tunnel: `ssh -L 9222:127.0.0.1:9222 chromebook`
+2. Use `./scripts/deploy-chromebook.sh` instead of `pnpm build`
+3. All tools in this folder work via the tunnel (localhost:9222 forwards to Chromebook)
+
+### Local Development
+
 ```bash
 ./start-chrome-with-tmp-and-debug.sh
 ```
