@@ -471,6 +471,7 @@ function App() {
   const {
     state: ioBridgeState,
     isConnected,
+    hasEverConnected,
     retry,
     launch,
     cancel,
@@ -572,6 +573,7 @@ function App() {
               daemonVersion={systemBridge.daemonVersion}
               roots={roots}
               defaultRootKey={defaultRootKey}
+              hasEverConnected={hasEverConnected}
               onRetry={retry}
               onLaunch={launch}
               onCancel={cancel}

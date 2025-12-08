@@ -37,6 +37,7 @@ export interface SystemBridgePanelProps {
   daemonVersion: number | undefined
   roots: DownloadRoot[]
   defaultRootKey: string | null
+  hasEverConnected: boolean
   onClose: () => void
   onRetry: () => void
   onLaunch: () => void
@@ -53,6 +54,7 @@ export function SystemBridgePanel({
   daemonVersion,
   roots,
   defaultRootKey,
+  hasEverConnected,
   onClose,
   onRetry,
   onLaunch,
@@ -64,8 +66,8 @@ export function SystemBridgePanel({
 }: SystemBridgePanelProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
-  // Helper to check if this is a first-time user
-  const isFirstTime = 'history' in state && state.history.attempts === 0
+  // First time = never successfully connected before (persistent across restarts)
+  const isFirstTime = !hasEverConnected
 
   // Click-outside to close
   useEffect(() => {

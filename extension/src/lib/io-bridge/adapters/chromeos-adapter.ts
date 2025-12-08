@@ -17,6 +17,7 @@ const ANDROID_HOST = '100.115.92.2'
 const ANDROID_PORTS = [7800, 7805, 7814, 7827, 7844]
 const STORAGE_KEY_TOKEN = 'android:authToken'
 const STORAGE_KEY_PORT = 'android:daemonPort'
+const STORAGE_KEY_HAS_CONNECTED = 'iobridge:hasConnectedSuccessfully'
 const PROBE_TIMEOUT_MS = 2000
 const POLL_INTERVAL_MS = 1000
 const HEALTH_CHECK_INTERVAL_MS = 5000
@@ -95,6 +96,9 @@ export class ChromeOSAdapter implements IIOBridgeAdapter {
 
       // Build daemon info
       const daemonInfo = await this.buildDaemonInfo(port, token)
+
+      // Persist successful connection for first-time detection
+      await chrome.storage.local.set({ [STORAGE_KEY_HAS_CONNECTED]: true })
 
       return {
         success: true,

@@ -139,10 +139,20 @@ function computeIndicator(
 /**
  * Helper to determine if a state represents a "first time" user.
  * Based on whether there have been any previous attempts.
+ * @deprecated Use hasEverConnected() for persistent first-time detection
  */
 export function isFirstTimeUser(state: IOBridgeState): boolean {
   if ('history' in state) {
     return state.history.attempts === 0
   }
   return true
+}
+
+/**
+ * Check if the user has ever successfully connected to the daemon.
+ * This is persisted across service worker restarts.
+ */
+export async function hasEverConnected(): Promise<boolean> {
+  const stored = await chrome.storage.local.get(['iobridge:hasConnectedSuccessfully'])
+  return stored['iobridge:hasConnectedSuccessfully'] === true
 }

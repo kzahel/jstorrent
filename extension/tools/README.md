@@ -28,7 +28,7 @@ Streams service worker console output to terminal and `/tmp/sw-logs.txt`. Auto-r
 cd extension/tools
 python3 -m venv .venv
 source .venv/bin/activate
-pip install websockets aiohttp
+pip install -r requirements.txt
 
 # Run
 python sw-log-stream.py

@@ -42,6 +42,14 @@
                 <data android:scheme="jstorrent" android:host="pair" />
             </intent-filter>
 
+            <!-- Launch intent (just start app, don't modify pairing) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="jstorrent" android:host="launch" />
+            </intent-filter>
+
             <!-- Magnet links -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
