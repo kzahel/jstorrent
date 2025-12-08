@@ -51,7 +51,7 @@ exec "${realHostPath}" "$@"
       path: wrapperPath,
       type: 'stdio',
       allowed_origins: [
-        'chrome-extension://bnceafpojmnimbnhamaeedgomdcgnbjk/',
+        'chrome-extension://dbokmlpefliilbjldladbimlcfgbolhk/',
         'chrome-extension://opkmhecbhgngcbglpcdfmnomkffenapc/',
         // Add more if needed or try to find a way to make it deterministic
       ],
@@ -75,7 +75,7 @@ exec "${realHostPath}" "$@"
     // fs.rmSync(userDataDir, { recursive: true, force: true });
   },
   extensionId: async ({ context }, use) => {
-    let extensionId = 'bnceafpojmnimbnhamaeedgomdcgnbjk' // Fallback
+    let extensionId = 'dbokmlpefliilbjldladbimlcfgbolhk' // Fallback
 
     // Wait for service worker to find ID
     let worker = context.serviceWorkers()[0]

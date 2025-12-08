@@ -1,5 +1,6 @@
 const SW_START_TIME = new Date().toISOString()
 console.log(`[SW] Service Worker loaded at ${SW_START_TIME}`)
+console.log('[SW] Deploy test - this log confirms deploy workflow works!')
 
 import { createIOBridgeService, type NativeEvent } from './lib/io-bridge'
 import { hasEverConnected } from './lib/io-bridge/readiness'

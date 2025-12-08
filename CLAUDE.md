@@ -85,7 +85,7 @@ ext_evaluate expression="ioBridge.getState()"
 ext_get_storage keys=["settings", "torrents"]
 ```
 
-Default extension ID is `bnceafpojmnimbnhamaeedgomdcgnbjk` (unpacked from extension/dist/).
+Default extension ID is `dbokmlpefliilbjldladbimlcfgbolhk` (unpacked from extension/dist/).
 
 ## ChromeOS Development
 

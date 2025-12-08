@@ -145,7 +145,7 @@ For AI agents debugging extension issues:
 
 ## Extension ID
 
-The unpacked extension ID is: `bnceafpojmnimbnhamaeedgomdcgnbjk`
+The unpacked extension ID is: `dbokmlpefliilbjldladbimlcfgbolhk`
 
 This may change if you load from a different path. Check `chrome://extensions` for the actual ID and update `EXTENSION_ID` in the Python scripts if needed.
 
