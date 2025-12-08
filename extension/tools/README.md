@@ -138,3 +138,78 @@ For AI agents debugging extension issues:
 The unpacked extension ID is: `bnceafpojmnimbnhamaeedgomdcgnbjk`
 
 This may change if you load from a different path. Check `chrome://extensions` for the actual ID and update `EXTENSION_ID` in the Python scripts if needed.
+
+## MCP Server (for AI Agents)
+
+`mcp_extension_debug.py` provides the same capabilities as the standalone scripts, plus additional tools, via the Model Context Protocol. This is the recommended approach for AI agent workflows.
+
+### Setup
+
+```bash
+# Install deps (one time)
+cd extension/tools
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-mcp.txt
+
+# Register with Claude Code
+claude mcp add ext-debug $(pwd)/.venv/bin/python3 $(pwd)/mcp_extension_debug.py
+```
+
+Or manually add to `~/.claude.json`:
+```json
+{
+  "mcpServers": {
+    "ext-debug": {
+      "command": "/path/to/extension/tools/.venv/bin/python3",
+      "args": ["/path/to/extension/tools/mcp_extension_debug.py"]
+    }
+  }
+}
+```
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `ext_status` | Check CDP connectivity, extension state, log collector status |
+| `ext_set_extension_id` | Set default extension ID for session |
+| `ext_reload` | Reload extension (triggers SW restart) |
+| `ext_evaluate` | Run JavaScript in SW or extension page |
+| `ext_get_storage` | Read chrome.storage.local/sync/session |
+| `ext_get_logs` | Get recent console logs (from internal buffer) |
+| `ext_list_targets` | List all debuggable targets |
+
+### Agent Workflow Example
+
+```
+# 1. Check status
+ext_status
+→ CDP reachable, extension found, SW active, log collector connected
+
+# 2. Make code changes, build
+bash: cd extension && pnpm build
+
+# 3. Reload extension
+ext_reload
+→ Extension reloaded
+
+# 4. Check for errors
+ext_get_logs level="error" limit=20
+→ { "logs": [...] }
+
+# 5. Inspect state
+ext_evaluate expression="ioBridge.getState()"
+→ { "name": "CONNECTED", ... }
+
+# 6. Check storage
+ext_get_storage keys=["settings"]
+→ { "area": "local", "data": { "settings": {...} } }
+```
+
+### Notes
+
+- The log collector runs as a background task within the MCP server
+- Logs are buffered in memory (last 500 entries)
+- When extension reloads, log collector auto-reconnects
+- Multiple CDP connections (this MCP, sw-log-stream.py, DevTools) can run simultaneously

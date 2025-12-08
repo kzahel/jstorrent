@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+#
+# NOTE: For agent workflows, consider using mcp_extension_debug.py instead.
+# It provides the same log streaming plus additional debugging tools via MCP.
+# This standalone script is useful for human developers who want a simple
+# terminal log tail.
+#
 
 import asyncio
 import json

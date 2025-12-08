@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""reload-extension.py - Reload extension via CDP"""
+"""reload-extension.py - Reload extension via CDP
+
+NOTE: For agent workflows, consider using mcp_extension_debug.py instead.
+It provides ext_reload plus additional debugging tools via MCP.
+This standalone script is useful for quick manual reloads.
+"""
 
 import asyncio
 import json
