@@ -3,14 +3,8 @@
   "name": "JSTorrent Extension",
   "version": "0.0.1",
   "description": "JSTorrent MV3 Extension",
-  "permissions": [
-    "nativeMessaging",
-    "storage",
-    "notifications",
-    "power",
-    "unlimitedStorage",
-    "tabs"
-  ],
+  "permissions": ["nativeMessaging", "storage", "notifications", "unlimitedStorage", "tabs"],
+  "optional_permissions": ["power"],
   "background": {
     "service_worker": "sw.js",
     "type": "module"
