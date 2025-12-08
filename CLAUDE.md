@@ -61,3 +61,28 @@ After editing TypeScript files, run the following checks in order:
 3. `pnpm format:fix` - Fix formatting issues
 
 Run `format:fix` last because fixing type errors or tests may introduce formatting issues that need to be cleaned up at the very end.
+
+## Extension Debugging (MCP)
+
+Use the `ext-debug` MCP server for extension debugging:
+
+```
+# Always start with status check
+ext_status
+
+# After code changes:
+cd extension && pnpm build
+ext_reload
+
+# Check logs for errors
+ext_get_logs level="error"
+
+# Inspect engine state
+ext_evaluate expression="globalThis.engine?.torrents?.length"
+ext_evaluate expression="ioBridge.getState()"
+
+# Check storage
+ext_get_storage keys=["settings", "torrents"]
+```
+
+Default extension ID is `bnceafpojmnimbnhamaeedgomdcgnbjk` (unpacked from extension/dist/).
