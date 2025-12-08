@@ -86,3 +86,39 @@ ext_get_storage keys=["settings", "torrents"]
 ```
 
 Default extension ID is `bnceafpojmnimbnhamaeedgomdcgnbjk` (unpacked from extension/dist/).
+
+## ChromeOS Development
+
+When testing on ChromeOS, the extension runs on a Chromebook. The agent runs on the dev laptop.
+
+### Build & Deploy
+
+**Do NOT just run `pnpm build` for ChromeOS testing.** Use the deploy script:
+
+```bash
+./scripts/deploy-chromebook.sh
+```
+
+This:
+1. Builds the extension locally
+2. Rsyncs to Chromebook (`/mnt/chromeos/MyFiles/Downloads/crostini-shared/jstorrent-extension/`)
+3. Triggers `chrome.runtime.reload()` via CDP
+
+### Prerequisites (set up by human)
+
+- SSH tunnel for CDP: `ssh -L 9222:127.0.0.1:9222 chromebook`
+- Extension loaded once from the deploy path
+
+### Debugging
+
+With CDP tunnel active, use MCP tools:
+- `ext_status` - Check connectivity
+- `ext_get_logs` - View SW console output
+- `ext_evaluate` - Inspect state
+
+### If extension disappears
+
+Sometimes Chrome unloads the extension. Re-load manually:
+1. `chrome://extensions` on Chromebook
+2. The extension may show as "errors" or be missing
+3. Click "Load unpacked" again -> `Downloads/crostini-shared/jstorrent-extension/`
