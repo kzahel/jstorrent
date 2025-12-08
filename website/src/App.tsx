@@ -12,7 +12,7 @@ function App() {
   }
 
   const handleLaunch = async () => {
-    const EXTENSION_ID = 'bnceafpojmnimbnhamaeedgomdcgnbjk' // Local ID
+    const EXTENSION_ID = 'dbokmlpefliilbjldladbimlcfgbolhk' // Local ID
     try {
       // @ts-expect-error - chrome is not defined in standard web types
       if (window.chrome && window.chrome.runtime) {

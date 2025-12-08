@@ -116,7 +116,7 @@ The rpc-info file is used mainly by:
   "profiles": [
     {
       "install_id": "c0e3d61a-db53-4f8e-ac67-89cac9c9e67b",
-      "extension_id": "bnceafpojmnimbnhamaeedgomdcgnbjk",
+      "extension_id": "dbokmlpefliilbjldladbimlcfgbolhk",
 
       "salt": "base64-128bits",
 

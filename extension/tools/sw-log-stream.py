@@ -13,7 +13,7 @@ import websockets
 import aiohttp
 
 CHROME_DEBUG_PORT = 9222
-EXTENSION_ID = "bnceafpojmnimbnhamaeedgomdcgnbjk"
+EXTENSION_ID = "dbokmlpefliilbjldladbimlcfgbolhk"
 LOG_FILE = "/tmp/sw-logs.txt"
 
 def log(msg):

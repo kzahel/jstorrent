@@ -119,7 +119,7 @@ On Chromebook:
 2. Enable "Developer mode"
 3. Click "Load unpacked"
 4. Navigate to `Downloads/crostini-shared/jstorrent-extension/`
-5. Note the extension ID (should be `bnceafpojmnimbnhamaeedgomdcgnbjk` if manifest key matches)
+5. Note the extension ID (should be `dbokmlpefliilbjldladbimlcfgbolhk` if manifest key matches)
 
 After this, subsequent deploys just need `./scripts/deploy-chromebook.sh` - the extension auto-reloads.
 

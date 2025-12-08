@@ -26,7 +26,7 @@ from mcp.types import TextContent, Tool
 # Configuration
 CDP_HOST = "localhost"
 CDP_PORT = 9222
-DEFAULT_EXTENSION_ID = "bnceafpojmnimbnhamaeedgomdcgnbjk"
+DEFAULT_EXTENSION_ID = "dbokmlpefliilbjldladbimlcfgbolhk"
 LOG_BUFFER_SIZE = 500
 
 server = Server("chrome-extension-debug")

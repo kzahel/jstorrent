@@ -304,7 +304,7 @@ Fields to substitute:
 - `"path"` → absolute path to installed binary
 - `"allowed_origins"` → list of extension IDs (hardcoded or CI-injected)
 
-allowed_origins list initially is bnceafpojmnimbnhamaeedgomdcgnbjk
+allowed_origins list initially is dbokmlpefliilbjldladbimlcfgbolhk
 and
 opkmhecbhgngcbglpcdfmnomkffenapc
 

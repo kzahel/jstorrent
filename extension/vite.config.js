@@ -9,7 +9,7 @@ import fs from 'fs'
 // Check if local.jstorrent.com resolves (needed for dev server)
 const DEV_HOST = 'local.jstorrent.com'
 // Default extension ID from pubkey.txt - can be overridden via VITE_EXTENSION_ID env var
-const DEFAULT_EXTENSION_ID = 'bnceafpojmnimbnhamaeedgomdcgnbjk'
+const DEFAULT_EXTENSION_ID = 'dbokmlpefliilbjldladbimlcfgbolhk'
 if (process.env.npm_lifecycle_event !== 'build') {
   dns.lookup(DEV_HOST, (err) => {
     if (err && err.code === 'ENOTFOUND') {

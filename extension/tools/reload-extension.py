@@ -13,7 +13,7 @@ import aiohttp
 import websockets
 
 CHROME_DEBUG_PORT = 9222
-EXTENSION_ID = "bnceafpojmnimbnhamaeedgomdcgnbjk"  # or partial match
+EXTENSION_ID = "dbokmlpefliilbjldladbimlcfgbolhk"  # or partial match
 
 
 async def reload():
