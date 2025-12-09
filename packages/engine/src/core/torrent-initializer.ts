@@ -2,6 +2,7 @@ import { BtEngine, MAX_PIECE_SIZE } from './bt-engine'
 import { Torrent } from './torrent'
 import { TorrentParser, ParsedTorrent } from './torrent-parser'
 import { TorrentContentStorage } from './torrent-content-storage'
+import { DiskQueue } from './disk-queue'
 import { IStorageHandle } from '../io/storage-handle'
 import { toHex } from '../utils/buffer'
 
@@ -64,14 +65,17 @@ export async function initializeTorrentMetadata(
     torrent.restoreBitfieldFromHex(savedState.bitfield)
   }
 
-  // Initialize content storage
+  // Initialize content storage with per-torrent disk queue
   const storageHandle: IStorageHandle = {
     id: infoHashStr,
     name: parsedTorrent.name || infoHashStr,
     getFileSystem: () => engine.storageRootManager.getFileSystemForTorrent(infoHashStr),
   }
 
-  const contentStorage = new TorrentContentStorage(engine, storageHandle)
+  // Create per-torrent disk queue with default 4 workers
+  const diskQueue = new DiskQueue({ maxWorkers: 4 })
+
+  const contentStorage = new TorrentContentStorage(engine, storageHandle, diskQueue)
   await contentStorage.open(parsedTorrent.files, parsedTorrent.pieceLength)
   torrent.contentStorage = contentStorage
 }

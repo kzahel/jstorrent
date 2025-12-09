@@ -3,6 +3,7 @@ import { IFileHandle } from '../interfaces/filesystem'
 import { supportsVerifiedWrite } from '../adapters/daemon/daemon-file-handle'
 import { TorrentFile } from './torrent-file'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
+import { IDiskQueue, DiskQueueSnapshot, DiskJob } from './disk-queue'
 
 export class TorrentContentStorage extends EngineComponent {
   static logName = 'content-storage'
@@ -10,17 +11,49 @@ export class TorrentContentStorage extends EngineComponent {
   private fileHandles: Map<string, IFileHandle> = new Map()
   private openingFiles: Map<string, Promise<IFileHandle>> = new Map()
   private pieceLength: number = 0
+  private jobCounter = 0
 
   private id = Math.random().toString(36).slice(2, 7)
 
   constructor(
     engine: ILoggingEngine,
     private storageHandle: IStorageHandle,
+    private diskQueue?: IDiskQueue,
   ) {
     super(engine)
     this.logger.debug(
       `TorrentContentStorage: Created instance ${this.id} for storage ${storageHandle.name}`,
     )
+  }
+
+  /**
+   * Generate a unique job ID for the disk queue.
+   */
+  private generateJobId(): string {
+    return `storage-${this.id}-${++this.jobCounter}`
+  }
+
+  /**
+   * Get a snapshot of the disk queue state for UI/debugging.
+   * Returns null if no queue is configured.
+   */
+  getDiskQueueSnapshot(): DiskQueueSnapshot | null {
+    return this.diskQueue?.getSnapshot() ?? null
+  }
+
+  /**
+   * Drain the disk queue - wait for all running jobs to complete.
+   * Call this before changing file priorities.
+   */
+  async drainDiskQueue(): Promise<void> {
+    await this.diskQueue?.drain()
+  }
+
+  /**
+   * Resume the disk queue after draining.
+   */
+  resumeDiskQueue(): void {
+    this.diskQueue?.resume()
   }
 
   async open(files: TorrentFile[], pieceLength: number) {
@@ -43,6 +76,17 @@ export class TorrentContentStorage extends EngineComponent {
 
   async close() {
     this.logger.debug(`DiskManager ${this.id}: Closing all files`)
+
+    // Drain and destroy the disk queue first
+    if (this.diskQueue) {
+      try {
+        await this.diskQueue.drain()
+      } catch (err) {
+        this.logger.warn(`Error draining disk queue during close: ${err}`)
+      }
+      this.diskQueue.destroy()
+    }
+
     // Wait for any pending opens?
     // Ideally we should wait, but for now just close what we have.
     for (const [path, handle] of this.fileHandles) {
@@ -86,6 +130,43 @@ export class TorrentContentStorage extends EngineComponent {
   }
 
   async write(index: number, begin: number, data: Uint8Array): Promise<void> {
+    // If we have a disk queue, enqueue the write operation
+    if (this.diskQueue) {
+      const filePath = this.getFilePathForOffset(index * this.pieceLength + begin)
+      const job: DiskJob = {
+        id: this.generateJobId(),
+        type: 'write',
+        filePath,
+        offset: index * this.pieceLength + begin,
+        length: data.length,
+        isPartsFile: filePath.endsWith('.parts'),
+        enqueuedAt: Date.now(),
+        executor: () => this.writeInternal(index, begin, data),
+      }
+      await this.diskQueue.enqueue(job)
+    } else {
+      await this.writeInternal(index, begin, data)
+    }
+  }
+
+  /**
+   * Get the primary file path for a given torrent offset.
+   * Used for job identification in the queue.
+   */
+  private getFilePathForOffset(torrentOffset: number): string {
+    for (const file of this.files) {
+      const fileEnd = file.offset + file.length
+      if (torrentOffset >= file.offset && torrentOffset < fileEnd) {
+        return file.path
+      }
+    }
+    return 'unknown'
+  }
+
+  /**
+   * Internal write implementation - does the actual disk I/O.
+   */
+  private async writeInternal(index: number, begin: number, data: Uint8Array): Promise<void> {
     const torrentOffset = index * this.pieceLength + begin
     let remaining = data.length
     let dataOffset = 0
@@ -186,6 +267,35 @@ export class TorrentContentStorage extends EngineComponent {
   }
 
   async read(index: number, begin: number, length: number): Promise<Uint8Array> {
+    // If we have a disk queue, enqueue the read operation
+    if (this.diskQueue) {
+      const filePath = this.getFilePathForOffset(index * this.pieceLength + begin)
+      let result: Uint8Array | undefined
+
+      const job: DiskJob = {
+        id: this.generateJobId(),
+        type: 'read',
+        filePath,
+        offset: index * this.pieceLength + begin,
+        length,
+        isPartsFile: filePath.endsWith('.parts'),
+        enqueuedAt: Date.now(),
+        executor: async () => {
+          result = await this.readInternal(index, begin, length)
+        },
+      }
+
+      await this.diskQueue.enqueue(job)
+      return result!
+    } else {
+      return this.readInternal(index, begin, length)
+    }
+  }
+
+  /**
+   * Internal read implementation - does the actual disk I/O.
+   */
+  private async readInternal(index: number, begin: number, length: number): Promise<Uint8Array> {
     const buffer = new Uint8Array(length)
     const torrentOffset = index * this.pieceLength + begin
     let remaining = length

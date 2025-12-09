@@ -2,6 +2,7 @@ import { PeerConnection } from './peer-connection'
 import { ActivePiece, BLOCK_SIZE } from './active-piece'
 import { ActivePieceManager } from './active-piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
+import type { DiskQueueSnapshot } from './disk-queue'
 import { HashMismatchError } from '../adapters/daemon/daemon-file-handle'
 import { BitField } from '../utils/bitfield'
 import { MessageType, WireMessage } from '../protocol/wire-protocol'
@@ -528,6 +529,14 @@ export class Torrent extends EngineComponent {
    */
   getConnectionTimingStats(): import('./connection-timing').ConnectionTimingStats {
     return this.connectionTiming.getStats()
+  }
+
+  /**
+   * Get disk queue snapshot for UI/debugging.
+   * Returns null if content storage is not initialized.
+   */
+  getDiskQueueSnapshot(): DiskQueueSnapshot | null {
+    return this.contentStorage?.getDiskQueueSnapshot() ?? null
   }
 
   get isComplete(): boolean {
