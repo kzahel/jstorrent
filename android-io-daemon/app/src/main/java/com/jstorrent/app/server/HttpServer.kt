@@ -184,12 +184,20 @@ class HttpServer(
                 )
             }
 
-            // WebSocket endpoint (auth handled inside protocol)
+            // WebSocket endpoint for I/O operations (sockets, files)
             webSocket("/io") {
-                Log.i(TAG, "WebSocket connected")
-                val session = SocketSession(this, tokenStore, this@HttpServer)
+                Log.i(TAG, "WebSocket /io connected")
+                val session = SocketSession(this, tokenStore, this@HttpServer, SessionType.IO)
                 session.run()
-                Log.i(TAG, "WebSocket disconnected")
+                Log.i(TAG, "WebSocket /io disconnected")
+            }
+
+            // WebSocket endpoint for control plane (roots, events)
+            webSocket("/control") {
+                Log.i(TAG, "WebSocket /control connected")
+                val session = SocketSession(this, tokenStore, this@HttpServer, SessionType.CONTROL)
+                session.run()
+                Log.i(TAG, "WebSocket /control disconnected")
             }
 
             // Protected endpoints

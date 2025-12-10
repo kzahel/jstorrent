@@ -35,6 +35,20 @@ object Protocol {
     const val OP_CTRL_ROOTS_CHANGED: Byte = 0xE0.toByte()
     const val OP_CTRL_EVENT: Byte = 0xE1.toByte()
 
+    // Opcode sets for route validation
+    val HANDSHAKE_OPCODES = setOf(
+        OP_CLIENT_HELLO, OP_SERVER_HELLO, OP_AUTH, OP_AUTH_RESULT, OP_ERROR
+    )
+
+    val IO_OPCODES = HANDSHAKE_OPCODES + setOf(
+        OP_TCP_CONNECT, OP_TCP_CONNECTED, OP_TCP_SEND, OP_TCP_RECV, OP_TCP_CLOSE,
+        OP_UDP_BIND, OP_UDP_BOUND, OP_UDP_SEND, OP_UDP_RECV, OP_UDP_CLOSE
+    )
+
+    val CONTROL_OPCODES = HANDSHAKE_OPCODES + setOf(
+        OP_CTRL_ROOTS_CHANGED, OP_CTRL_EVENT
+    )
+
     /**
      * Message envelope: 8 bytes
      * [0]: version (u8)

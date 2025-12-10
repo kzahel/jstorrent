@@ -496,7 +496,7 @@ export class DaemonBridge {
     const installId = await getOrCreateInstallId()
 
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(`ws://100.115.92.2:${port}/io`)
+      const ws = new WebSocket(`ws://100.115.92.2:${port}/control`)
       ws.binaryType = 'arraybuffer'
 
       const timeout = setTimeout(() => {

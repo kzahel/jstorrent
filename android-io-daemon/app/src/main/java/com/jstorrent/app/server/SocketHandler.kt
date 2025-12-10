@@ -16,10 +16,16 @@ import java.util.concurrent.ConcurrentHashMap
 
 private const val TAG = "SocketHandler"
 
+enum class SessionType {
+    IO,      // /io endpoint - socket operations
+    CONTROL  // /control endpoint - control broadcasts
+}
+
 class SocketSession(
     private val wsSession: DefaultWebSocketServerSession,
     private val tokenStore: TokenStore,
-    private val httpServer: HttpServer
+    private val httpServer: HttpServer,
+    private val sessionType: SessionType = SessionType.IO
 ) {
     private var authenticated = false
 
@@ -80,6 +86,17 @@ class SocketSession(
             return
         }
 
+        // Validate opcode is allowed for this session type
+        val allowedOpcodes = when (sessionType) {
+            SessionType.IO -> Protocol.IO_OPCODES
+            SessionType.CONTROL -> Protocol.CONTROL_OPCODES
+        }
+        if (envelope.opcode !in allowedOpcodes) {
+            Log.w(TAG, "Opcode 0x${envelope.opcode.toString(16)} not allowed on ${sessionType.name} endpoint")
+            sendError(envelope.requestId, "Opcode not allowed on this endpoint")
+            return
+        }
+
         val payload = data.copyOfRange(8, data.size)
 
         if (!authenticated) {
@@ -121,8 +138,12 @@ class SocketSession(
                 ) {
                     authenticated = true
                     send(Protocol.createMessage(Protocol.OP_AUTH_RESULT, envelope.requestId, byteArrayOf(0)))
-                    Log.i(TAG, "WebSocket authenticated")
-                    httpServer.registerControlSession(this@SocketSession)
+                    Log.i(TAG, "WebSocket authenticated (${sessionType.name})")
+
+                    // Only register control sessions for broadcasts
+                    if (sessionType == SessionType.CONTROL) {
+                        httpServer.registerControlSession(this@SocketSession)
+                    }
                 } else {
                     val errorMsg = "Invalid credentials".toByteArray()
                     send(Protocol.createMessage(Protocol.OP_AUTH_RESULT, envelope.requestId, byteArrayOf(1) + errorMsg))

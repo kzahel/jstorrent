@@ -6,11 +6,22 @@ export interface IDaemonConnection {
   readonly ready: boolean
 }
 
+export interface DaemonCredentials {
+  token: string
+  extensionId: string
+  installId: string
+}
+
+export type CredentialsGetter = () => Promise<DaemonCredentials>
+
 export class DaemonConnection {
   private baseUrl: string
   private ws: WebSocket | null = null
   private frameHandlers: Array<(f: ArrayBuffer) => void> = []
   public ready = false
+
+  // Cached credentials for HTTP requests
+  private cachedCredentials: DaemonCredentials | null = null
 
   // Opcodes
   private static readonly OP_CLIENT_HELLO = 0x01
@@ -22,26 +33,48 @@ export class DaemonConnection {
 
   constructor(
     private port: number,
-    private authToken: string,
     private host: string = '127.0.0.1',
+    private getCredentials?: CredentialsGetter,
+    // Legacy: direct token for desktop compatibility
+    private legacyToken?: string,
   ) {
     this.baseUrl = `http://${host}:${port}`
   }
 
+  // Legacy static factory for backwards compatibility
   static async connect(
     port: number,
     authToken: string,
     host: string = '127.0.0.1',
   ): Promise<DaemonConnection> {
-    const connection = new DaemonConnection(port, authToken, host)
+    const connection = new DaemonConnection(port, host, undefined, authToken)
     return connection
   }
 
   async connectWebSocket(): Promise<void> {
     if (this.ready) return
 
+    // Get fresh credentials
+    let token: string
+    let extensionId: string
+    let installId: string
+
+    if (this.getCredentials) {
+      const creds = await this.getCredentials()
+      this.cachedCredentials = creds
+      token = creds.token
+      extensionId = creds.extensionId
+      installId = creds.installId
+    } else if (this.legacyToken) {
+      // Desktop mode - token only
+      token = this.legacyToken
+      extensionId = ''
+      installId = ''
+    } else {
+      throw new Error('No credentials available')
+    }
+
     const url = `ws://${this.host}:${this.port}/io`
-    // const url = 'ws://127.0.0.1:7800/io'
     this.ws = new WebSocket(url)
     this.ws.binaryType = 'arraybuffer'
 
@@ -56,12 +89,26 @@ export class DaemonConnection {
     // 2. Wait for SERVER_HELLO
     await this.waitForOpcode(DaemonConnection.OP_SERVER_HELLO)
 
-    // 3. Send AUTH
-    const tokenBytes = new TextEncoder().encode(this.authToken)
-    // const tokenBytes = new TextEncoder().encode('test123') // android-io-daemon
-    const authPayload = new Uint8Array(1 + tokenBytes.length)
-    authPayload[0] = 1 // Token auth
-    authPayload.set(tokenBytes, 1)
+    // 3. Send AUTH with full credentials
+    const encoder = new TextEncoder()
+    const tokenBytes = encoder.encode(token)
+    const extIdBytes = encoder.encode(extensionId)
+    const installIdBytes = encoder.encode(installId)
+
+    // Format: authType(1) + token + \0 + extensionId + \0 + installId
+    const authPayload = new Uint8Array(
+      1 + tokenBytes.length + 1 + extIdBytes.length + 1 + installIdBytes.length,
+    )
+    let offset = 0
+    authPayload[offset++] = 0 // authType (0 = token auth, matches daemon-bridge.ts)
+    authPayload.set(tokenBytes, offset)
+    offset += tokenBytes.length
+    authPayload[offset++] = 0 // null separator
+    authPayload.set(extIdBytes, offset)
+    offset += extIdBytes.length
+    authPayload[offset++] = 0 // null separator
+    authPayload.set(installIdBytes, offset)
+
     this.sendFrameInternal(this.packEnvelope(DaemonConnection.OP_AUTH, 2, authPayload))
 
     // 4. Wait for AUTH_RESULT
@@ -144,6 +191,27 @@ export class DaemonConnection {
     }
   }
 
+  private getAuthToken(): string {
+    if (this.cachedCredentials) {
+      return this.cachedCredentials.token
+    }
+    if (this.legacyToken) {
+      return this.legacyToken
+    }
+    throw new Error('No auth token available')
+  }
+
+  private getHttpHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'X-JST-Auth': this.getAuthToken(),
+    }
+    if (this.cachedCredentials) {
+      headers['X-JST-ExtensionId'] = this.cachedCredentials.extensionId
+      headers['X-JST-InstallId'] = this.cachedCredentials.installId
+    }
+    return headers
+  }
+
   async request<T>(
     method: string,
     path: string,
@@ -160,7 +228,7 @@ export class DaemonConnection {
     }
 
     const headers: Record<string, string> = {
-      'X-JST-Auth': this.authToken,
+      ...this.getHttpHeaders(),
     }
 
     if (body) {
@@ -204,7 +272,7 @@ export class DaemonConnection {
     }
 
     const headers: Record<string, string> = {
-      'X-JST-Auth': this.authToken,
+      ...this.getHttpHeaders(),
     }
 
     const response = await fetch(url.toString(), {
@@ -236,7 +304,7 @@ export class DaemonConnection {
     return fetch(url.toString(), {
       method,
       headers: {
-        'X-JST-Auth': this.authToken,
+        ...this.getHttpHeaders(),
         ...headers,
       },
       body: body as unknown as BodyInit,
