@@ -13,8 +13,9 @@ Register with Claude:
 import asyncio
 import json
 import base64
+import aiohttp
 from io import BytesIO
-from typing import Any
+from typing import Any, Optional
 
 from PIL import Image
 import pytesseract
@@ -22,10 +23,19 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, ImageContent, Tool
 
+try:
+    import websockets
+except ImportError:
+    websockets = None
+
 # SSH connection details
 SSH_HOST = "chromeroot"
 CLIENT_PATH = "/mnt/stateful_partition/c2/client.py"
 SSH_ENV = "LD_LIBRARY_PATH=/usr/local/lib64"
+
+# CDP connection details (via SSH tunnel)
+CDP_HOST = "localhost"
+CDP_PORT = 9222
 
 server = Server("chromeos")
 
@@ -86,6 +96,158 @@ class ChromeOSConnection:
 
 # Global connection instance
 connection = ChromeOSConnection()
+
+
+class CDPInput:
+    """Handles input injection via Chrome DevTools Protocol."""
+
+    def __init__(self):
+        self._msg_id = 0
+
+    async def _get_active_page_ws_url(self) -> Optional[str]:
+        """Get the WebSocket debugger URL for the active/focused page."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"http://{CDP_HOST}:{CDP_PORT}/json") as resp:
+                    if resp.status != 200:
+                        return None
+                    targets = await resp.json()
+
+            # Find a suitable page target (prefer non-extension pages)
+            for target in targets:
+                if target.get("type") == "page":
+                    url = target.get("url", "")
+                    # Skip extension and system pages
+                    if not url.startswith("chrome-extension://") and not url.startswith("chrome://"):
+                        return target.get("webSocketDebuggerUrl")
+
+            # Fall back to any page
+            for target in targets:
+                if target.get("type") == "page":
+                    return target.get("webSocketDebuggerUrl")
+
+            return None
+        except Exception:
+            return None
+
+    async def tap(self, x: int, y: int) -> dict:
+        """Send a tap/click at the given coordinates via CDP."""
+        if websockets is None:
+            return {"error": "websockets module not available"}
+
+        ws_url = await self._get_active_page_ws_url()
+        if not ws_url:
+            return {"error": "No CDP page target available"}
+
+        try:
+            async with websockets.connect(ws_url) as ws:
+                self._msg_id += 1
+                # Mouse pressed
+                await ws.send(json.dumps({
+                    "id": self._msg_id,
+                    "method": "Input.dispatchMouseEvent",
+                    "params": {
+                        "type": "mousePressed",
+                        "x": x,
+                        "y": y,
+                        "button": "left",
+                        "clickCount": 1
+                    }
+                }))
+                await ws.recv()
+
+                await asyncio.sleep(0.05)
+
+                self._msg_id += 1
+                # Mouse released
+                await ws.send(json.dumps({
+                    "id": self._msg_id,
+                    "method": "Input.dispatchMouseEvent",
+                    "params": {
+                        "type": "mouseReleased",
+                        "x": x,
+                        "y": y,
+                        "button": "left",
+                        "clickCount": 1
+                    }
+                }))
+                await ws.recv()
+
+            return {"ok": True, "method": "cdp"}
+        except Exception as e:
+            return {"error": f"CDP tap failed: {e}"}
+
+    async def swipe(self, x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> dict:
+        """Send a swipe/drag gesture via CDP."""
+        if websockets is None:
+            return {"error": "websockets module not available"}
+
+        ws_url = await self._get_active_page_ws_url()
+        if not ws_url:
+            return {"error": "No CDP page target available"}
+
+        try:
+            async with websockets.connect(ws_url) as ws:
+                steps = 20
+                delay = (duration_ms / 1000) / steps
+
+                self._msg_id += 1
+                # Start drag
+                await ws.send(json.dumps({
+                    "id": self._msg_id,
+                    "method": "Input.dispatchMouseEvent",
+                    "params": {
+                        "type": "mousePressed",
+                        "x": x1,
+                        "y": y1,
+                        "button": "left",
+                        "clickCount": 1
+                    }
+                }))
+                await ws.recv()
+
+                # Move through points
+                for i in range(1, steps + 1):
+                    t = i / steps
+                    x = int(x1 + (x2 - x1) * t)
+                    y = int(y1 + (y2 - y1) * t)
+
+                    self._msg_id += 1
+                    await ws.send(json.dumps({
+                        "id": self._msg_id,
+                        "method": "Input.dispatchMouseEvent",
+                        "params": {
+                            "type": "mouseMoved",
+                            "x": x,
+                            "y": y,
+                            "button": "left"
+                        }
+                    }))
+                    await ws.recv()
+                    await asyncio.sleep(delay)
+
+                self._msg_id += 1
+                # Release
+                await ws.send(json.dumps({
+                    "id": self._msg_id,
+                    "method": "Input.dispatchMouseEvent",
+                    "params": {
+                        "type": "mouseReleased",
+                        "x": x2,
+                        "y": y2,
+                        "button": "left",
+                        "clickCount": 1
+                    }
+                }))
+                await ws.recv()
+
+            return {"ok": True, "method": "cdp"}
+        except Exception as e:
+            return {"error": f"CDP swipe failed: {e}"}
+
+
+# Global CDP input instance
+cdp_input = CDPInput()
 
 
 @server.list_tools()
@@ -255,11 +417,26 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | 
     elif name == "tap":
         x = arguments.get("x")
         y = arguments.get("y")
+
+        # First check display state to decide method
+        info_result = await connection.send_command({"cmd": "info"})
+        display = info_result.get("display", {})
+        internal_enabled = display.get("internal_enabled", True)
+
+        # Use CDP when internal display is disabled (external monitor mode)
+        if not internal_enabled and websockets is not None:
+            result = await cdp_input.tap(x, y)
+            if "error" not in result:
+                return [TextContent(type="text", text=f"Tapped at ({x}, {y}) [method=CDP]")]
+            # Fall through to SSH method if CDP fails
+
+        # SSH-based method (works when internal display is enabled)
         result = await connection.send_command({"cmd": "tap", "x": x, "y": y})
 
         if "error" in result:
             return [TextContent(type="text", text=f"Error: {result['error']}")]
-        return [TextContent(type="text", text=f"Tapped at ({x}, {y})")]
+        device_type = result.get("device_type", "unknown")
+        return [TextContent(type="text", text=f"Tapped at ({x}, {y}) [device={device_type}]")]
 
     elif name == "swipe":
         x1 = arguments.get("x1")
@@ -268,6 +445,19 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | 
         y2 = arguments.get("y2")
         duration_ms = arguments.get("duration_ms", 300)
 
+        # First check display state to decide method
+        info_result = await connection.send_command({"cmd": "info"})
+        display = info_result.get("display", {})
+        internal_enabled = display.get("internal_enabled", True)
+
+        # Use CDP when internal display is disabled (external monitor mode)
+        if not internal_enabled and websockets is not None:
+            result = await cdp_input.swipe(x1, y1, x2, y2, duration_ms)
+            if "error" not in result:
+                return [TextContent(type="text", text=f"Swiped ({x1},{y1}) -> ({x2},{y2}) [method=CDP]")]
+            # Fall through to SSH method if CDP fails
+
+        # SSH-based method
         result = await connection.send_command({
             "cmd": "swipe",
             "x1": x1, "y1": y1,

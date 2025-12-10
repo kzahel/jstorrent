@@ -8,7 +8,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.security.MessageDigest
-import java.security.SecureRandom
 
 /**
  * Persists SAF download roots to internal storage.
@@ -22,7 +21,6 @@ class RootStore(private val context: Context) {
 
     @Serializable
     private data class RootConfig(
-        val salt: String,
         val roots: List<DownloadRoot>
     )
 
@@ -146,10 +144,7 @@ class RootStore(private val context: Context) {
 
     private fun loadOrCreate(): RootConfig {
         if (!configFile.exists()) {
-            return RootConfig(
-                salt = generateSalt(),
-                roots = emptyList()
-            )
+            return RootConfig(roots = emptyList())
         }
 
         return try {
@@ -157,7 +152,7 @@ class RootStore(private val context: Context) {
         } catch (e: Exception) {
             // Corrupted file, start fresh but log warning
             android.util.Log.w(TAG, "Failed to load roots config, starting fresh", e)
-            RootConfig(salt = generateSalt(), roots = emptyList())
+            RootConfig(roots = emptyList())
         }
     }
 
@@ -165,16 +160,9 @@ class RootStore(private val context: Context) {
         configFile.writeText(json.encodeToString(config))
     }
 
-    private fun generateSalt(): String {
-        val bytes = ByteArray(16)
-        SecureRandom().nextBytes(bytes)
-        return bytes.joinToString("") { "%02x".format(it) }
-    }
-
     private fun generateKey(uri: Uri): String {
-        val input = config.salt + uri.toString()
         val digest = MessageDigest.getInstance("SHA-256")
-        val hash = digest.digest(input.toByteArray())
+        val hash = digest.digest(uri.toString().toByteArray())
         // Return first 16 hex chars (64 bits) - enough for uniqueness
         return hash.take(8).joinToString("") { "%02x".format(it) }
     }

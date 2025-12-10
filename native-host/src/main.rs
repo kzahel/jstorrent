@@ -126,7 +126,6 @@ async fn main() -> Result<()> {
             binary: browser_binary,
             extension_id: extension_id.clone(),
         },
-        salt: uuid::Uuid::new_v4().to_string(),
         download_roots: Vec::new(),
         install_id: None,
     };
@@ -137,12 +136,11 @@ async fn main() -> Result<()> {
     }
     
     match rpc::write_discovery_file(info) {
-        Ok((roots, salt)) => {
-            // Update roots and salt in state
+        Ok(roots) => {
+            // Update roots in state
             if let Ok(mut info_guard) = state.rpc_info.lock() {
                 if let Some(info) = info_guard.as_mut() {
                     info.download_roots = roots;
-                    info.salt = salt;
                 }
             }
         },
@@ -249,9 +247,8 @@ async fn handle_request(
                     info.browser.extension_id = Some(extension_id);
                     info.install_id = Some(install_id.clone()); // Update install_id
                     match crate::rpc::write_discovery_file(info.clone()) {
-                        Ok((roots, salt)) => {
+                        Ok(roots) => {
                             info.download_roots = roots;
-                            info.salt = salt;
                             success = true;
                         },
                         Err(e) => eprintln!("Failed to update discovery file on handshake: {}", e),

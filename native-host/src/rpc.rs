@@ -18,17 +18,13 @@ use crate::protocol::Event;
 // Legacy struct used by main.rs, updated to carry necessary info
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RpcInfo {
-    // version is now file-level, but we keep it here for compatibility or remove it?
-    // main.rs sets it to 1.
-    pub version: u32, 
+    pub version: u32,
     pub pid: u32,
     pub port: u16,
     pub token: String,
     pub started: u64,
     pub last_used: u64,
     pub browser: BrowserInfo,
-    // New fields
-    pub salt: String,
     pub download_roots: Vec<DownloadRoot>,
     pub install_id: Option<String>,
 }
@@ -155,7 +151,7 @@ async fn add_torrent_handler(
 }
 
 pub use jstorrent_common::{UnifiedRpcInfo, ProfileEntry, DownloadRoot, BrowserInfo, get_config_dir};
-pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<(Vec<DownloadRoot>, String)> {
+pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> {
     let config_dir = get_config_dir().ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?;
     let app_dir = config_dir.join("jstorrent-native");
     
@@ -212,7 +208,6 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<(Vec<DownloadRoot>,
     }
 
     let active_roots;
-    let active_salt;
 
     if let Some(idx) = found_idx {
         // Update existing entry
@@ -229,17 +224,11 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<(Vec<DownloadRoot>,
         if info.install_id.is_some() {
             entry.install_id = info.install_id.clone();
         }
-        
-        // Check if we have the correct salt (meaning we are the owner/have loaded state)
-        if entry.salt == info.salt {
-            // We have the correct salt, so we trust our roots
-            entry.download_roots = info.download_roots.clone();
-        } else {
-            // Salt mismatch (likely startup), preserve disk roots
-        }
-        
+
+        // Update roots from info
+        entry.download_roots = info.download_roots.clone();
+
         active_roots = entry.download_roots.clone();
-        active_salt = entry.salt.clone();
         
         unified_info.profiles[idx] = entry;
 
@@ -256,10 +245,8 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<(Vec<DownloadRoot>,
     } else {
         // New entry
         let new_entry = ProfileEntry {
-            // Removed profile_dir
             extension_id: info.browser.extension_id.clone(),
             install_id: info.install_id.clone(),
-            salt: info.salt.clone(),
             pid: info.pid,
             port: info.port,
             token: info.token.clone(),
@@ -269,7 +256,6 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<(Vec<DownloadRoot>,
             download_roots: info.download_roots.clone(),
         };
         active_roots = new_entry.download_roots.clone();
-        active_salt = new_entry.salt.clone();
         unified_info.profiles.push(new_entry);
     }
 
@@ -278,5 +264,5 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<(Vec<DownloadRoot>,
     serde_json::to_writer(&temp_file, &unified_info)?;
     temp_file.persist(&rpc_file).map_err(|e| e.error)?;
 
-    Ok((active_roots, active_salt))
+    Ok(active_roots)
 }

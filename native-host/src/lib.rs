@@ -9,10 +9,8 @@ pub struct UnifiedRpcInfo {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProfileEntry {
-    // Removed profile_dir as requested
     pub extension_id: Option<String>,
     pub install_id: Option<String>,
-    pub salt: String,
     pub pid: u32,
     pub port: u16,
     pub token: String,
