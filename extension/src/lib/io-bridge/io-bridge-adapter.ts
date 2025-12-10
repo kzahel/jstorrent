@@ -80,6 +80,27 @@ export interface IIOBridgeAdapter {
    * Clean up any resources held by the adapter.
    */
   dispose(): void
+
+  /**
+   * Trigger folder picker on Android (ChromeOS only).
+   * Opens the SAF folder picker to let user select a download directory.
+   *
+   * Returns true if intent was opened successfully.
+   */
+  triggerAddRoot?(): Promise<boolean>
+
+  /**
+   * Wait for a new root to appear after picker (ChromeOS only).
+   * Polls /roots endpoint until a new root key appears or timeout.
+   *
+   * @param existingKeys - Set of root keys that existed before picker was opened
+   * @param timeoutMs - Maximum time to wait (default 30000ms)
+   * @returns The new root if found, null if timeout
+   */
+  waitForNewRoot?(
+    existingKeys: Set<string>,
+    timeoutMs?: number
+  ): Promise<import('./types').DownloadRoot | null>
 }
 
 /**

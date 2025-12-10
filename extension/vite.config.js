@@ -94,14 +94,18 @@ function injectPublicKey() {
           const manifestContent = fs.readFileSync(manifestPath, 'utf-8')
           const manifestJson = JSON.parse(manifestContent)
 
-          const pubKeyContent = fs.readFileSync(resolve(__dirname, 'pubkey.txt'), 'utf-8')
-          const match = pubKeyContent.match(/"key"\s*:\s*"([^"]+)"/)
+          // Read PEM public key and extract base64 content (strip headers and whitespace)
+          const pemContent = fs.readFileSync(resolve(__dirname, 'fullpubkey.txt'), 'utf-8')
+          const base64Key = pemContent
+            .replace(/-----BEGIN PUBLIC KEY-----/, '')
+            .replace(/-----END PUBLIC KEY-----/, '')
+            .replace(/\s/g, '')
 
-          if (match && match[1]) {
-            manifestJson.key = match[1]
+          if (base64Key) {
+            manifestJson.key = base64Key
             console.log('Injected public key into manifest.json')
           } else {
-            console.warn('Could not find key in pubkey.txt')
+            console.warn('Could not extract key from fullpubkey.txt')
           }
 
           this.emitFile({

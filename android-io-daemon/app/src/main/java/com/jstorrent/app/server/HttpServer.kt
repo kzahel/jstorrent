@@ -1,7 +1,10 @@
 package com.jstorrent.app.server
 
+import android.content.Context
 import android.util.Log
 import com.jstorrent.app.auth.TokenStore
+import com.jstorrent.app.storage.DownloadRoot
+import com.jstorrent.app.storage.RootStore
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
@@ -12,15 +15,28 @@ import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.util.pipeline.*
 import io.ktor.websocket.*
-import java.io.File
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import java.time.Duration
 
 private const val TAG = "HttpServer"
 
+@Serializable
+private data class RootsResponse(
+    val roots: List<DownloadRoot>
+)
+
+private val json = Json {
+    encodeDefaults = true
+    ignoreUnknownKeys = true
+}
+
 class HttpServer(
     private val tokenStore: TokenStore,
-    private val downloadRoot: File
+    private val rootStore: RootStore,
+    private val context: Context
 ) {
     private var server: NettyApplicationEngine? = null
     private var actualPort: Int = 0
@@ -100,6 +116,18 @@ class HttpServer(
                 }
             }
 
+            // Roots endpoint - returns available download roots
+            get("/roots") {
+                requireAuth(tokenStore) {
+                    val roots = rootStore.refreshAvailability()
+                    val response = RootsResponse(roots = roots)
+                    call.respondText(
+                        json.encodeToString(response),
+                        ContentType.Application.Json
+                    )
+                }
+            }
+
             // File routes with auth
             route("/") {
                 intercept(ApplicationCallPipeline.Call) {
@@ -123,7 +151,7 @@ class HttpServer(
                     }
                 }
 
-                fileRoutes(downloadRoot)
+                fileRoutes(rootStore, context)
             }
         }
     }

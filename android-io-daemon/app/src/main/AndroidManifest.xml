@@ -81,6 +81,20 @@
             android:foregroundServiceType="dataSync"
             android:exported="false" />
 
+        <!-- SAF folder picker activity -->
+        <activity
+            android:name=".AddRootActivity"
+            android:exported="true"
+            android:theme="@style/Theme.JSTorrent.Transparent"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="jstorrent" android:host="add-root" />
+            </intent-filter>
+        </activity>
+
     </application>
 
 </manifest>
