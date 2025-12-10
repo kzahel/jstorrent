@@ -35,6 +35,8 @@ import glob
 import fcntl
 import array
 import base64
+import subprocess
+import re
 
 # === Constants ===
 KEYBOARD_DEV = "/dev/input/event2"
@@ -232,6 +234,92 @@ class KeyboardConfig:
         }
 
 
+# === Display Detection ===
+def get_active_display_info():
+    """
+    Detect active display(s) and their resolution.
+    Returns: {
+        'internal_enabled': bool,
+        'external_enabled': bool,
+        'active_resolution': (width, height),
+        'displays': [{'name': str, 'enabled': bool, 'resolution': (w,h) or None}]
+    }
+    """
+    drm_path = "/sys/class/drm"
+    displays = []
+    internal_enabled = False
+    external_enabled = False
+
+    # Scan all display connectors
+    try:
+        for entry in os.listdir(drm_path):
+            if not entry.startswith("card0-"):
+                continue
+            connector_path = os.path.join(drm_path, entry)
+
+            # Check if connected
+            status_file = os.path.join(connector_path, "status")
+            enabled_file = os.path.join(connector_path, "enabled")
+
+            try:
+                with open(status_file) as f:
+                    status = f.read().strip()
+                with open(enabled_file) as f:
+                    enabled = f.read().strip() == "enabled"
+            except (IOError, OSError):
+                continue
+
+            if status != "connected":
+                continue
+
+            # Determine if internal (eDP) or external
+            is_internal = "eDP" in entry
+
+            displays.append({
+                'name': entry,
+                'enabled': enabled,
+                'is_internal': is_internal,
+            })
+
+            if enabled:
+                if is_internal:
+                    internal_enabled = True
+                else:
+                    external_enabled = True
+    except (IOError, OSError):
+        pass
+
+    # Get active resolution from modetest
+    active_resolution = None
+    try:
+        result = subprocess.run(
+            ["modetest", "-p"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        # Look for active CRTC with resolution like: "75  172  (0,0)  (1920x1080)"
+        for line in result.stdout.split('\n'):
+            # Match lines with active resolution: has non-zero fb and resolution
+            match = re.search(r'\d+\s+(\d+)\s+\([^)]+\)\s+\((\d+)x(\d+)\)', line)
+            if match:
+                fb_id = int(match.group(1))
+                if fb_id > 0:  # Active framebuffer
+                    w, h = int(match.group(2)), int(match.group(3))
+                    if w > 0 and h > 0:
+                        active_resolution = (w, h)
+                        break
+    except (subprocess.SubprocessError, OSError):
+        pass
+
+    return {
+        'internal_enabled': internal_enabled,
+        'external_enabled': external_enabled,
+        'active_resolution': active_resolution,
+        'displays': displays,
+    }
+
+
 # === evdev ioctl helpers ===
 def EVIOCGABS(axis):
     """Get absolute axis info ioctl."""
@@ -325,6 +413,289 @@ def type_text(text):
             time.sleep(0.03)
     finally:
         os.close(fd)
+
+
+# === Virtual Pointer (uinput) ===
+# Additional constants for mouse/tablet input
+ABS_X = 0x00
+ABS_Y = 0x01
+BTN_LEFT = 0x110
+BTN_MOUSE = 0x110
+
+
+class VirtualTouchscreen:
+    """
+    Virtual absolute pointing device using uinput.
+    Creates a tablet-like device with absolute coordinates and mouse buttons.
+    Works regardless of physical display/touchscreen configuration.
+    """
+
+    # uinput constants
+    UI_SET_EVBIT = 0x40045564
+    UI_SET_ABSBIT = 0x40045567
+    UI_SET_KEYBIT = 0x40045565
+    UI_DEV_CREATE = 0x5501
+    UI_DEV_DESTROY = 0x5502
+
+    # uinput_user_dev struct size (for older kernels)
+    UINPUT_MAX_NAME_SIZE = 80
+
+    _instance = None
+
+    @classmethod
+    def get_instance(cls, screen_w=1920, screen_h=1080):
+        """Get or create singleton instance."""
+        if cls._instance is None:
+            cls._instance = cls(screen_w, screen_h)
+        return cls._instance
+
+    def __init__(self, screen_w=1920, screen_h=1080):
+        self.screen_w = screen_w
+        self.screen_h = screen_h
+        self.fd = None
+        self.device_path = "/dev/uinput"
+        self._create_device()
+
+    def _create_device(self):
+        """Create virtual tablet/pointer device via uinput."""
+        try:
+            self.fd = os.open(self.device_path, os.O_WRONLY | os.O_NONBLOCK)
+        except OSError as e:
+            raise RuntimeError(f"Cannot open {self.device_path}: {e}")
+
+        # Enable EV_KEY for mouse buttons and touch
+        fcntl.ioctl(self.fd, self.UI_SET_EVBIT, EV_KEY)
+        fcntl.ioctl(self.fd, self.UI_SET_KEYBIT, BTN_LEFT)
+        fcntl.ioctl(self.fd, self.UI_SET_KEYBIT, BTN_TOUCH)
+
+        # Enable EV_ABS for absolute positioning
+        fcntl.ioctl(self.fd, self.UI_SET_EVBIT, EV_ABS)
+        # Single-touch absolute axes (tablet-style)
+        fcntl.ioctl(self.fd, self.UI_SET_ABSBIT, ABS_X)
+        fcntl.ioctl(self.fd, self.UI_SET_ABSBIT, ABS_Y)
+        # Also multitouch for touchscreen compatibility
+        fcntl.ioctl(self.fd, self.UI_SET_ABSBIT, ABS_MT_SLOT)
+        fcntl.ioctl(self.fd, self.UI_SET_ABSBIT, ABS_MT_TRACKING_ID)
+        fcntl.ioctl(self.fd, self.UI_SET_ABSBIT, ABS_MT_POSITION_X)
+        fcntl.ioctl(self.fd, self.UI_SET_ABSBIT, ABS_MT_POSITION_Y)
+
+        # Build uinput_user_dev structure
+        ABS_CNT = 64
+        name = b"virtual-pointer"
+        name_padded = name + b'\x00' * (self.UINPUT_MAX_NAME_SIZE - len(name))
+
+        # Input ID: bus=0x03 (USB), vendor=0x1234, product=0x5678, version=1
+        input_id = struct.pack("HHHH", 0x03, 0x1234, 0x5678, 1)
+
+        ff_effects_max = struct.pack("I", 0)
+
+        absmax = [0] * ABS_CNT
+        absmin = [0] * ABS_CNT
+        absfuzz = [0] * ABS_CNT
+        absflat = [0] * ABS_CNT
+
+        # Single-touch absolute axes (ABS_X=0, ABS_Y=1)
+        absmax[ABS_X] = self.screen_w - 1
+        absmax[ABS_Y] = self.screen_h - 1
+
+        # Multitouch axes
+        absmax[ABS_MT_SLOT] = 9
+        absmax[ABS_MT_TRACKING_ID] = 65535
+        absmax[ABS_MT_POSITION_X] = self.screen_w - 1
+        absmax[ABS_MT_POSITION_Y] = self.screen_h - 1
+
+        absmax_bytes = struct.pack(f"{ABS_CNT}i", *absmax)
+        absmin_bytes = struct.pack(f"{ABS_CNT}i", *absmin)
+        absfuzz_bytes = struct.pack(f"{ABS_CNT}i", *absfuzz)
+        absflat_bytes = struct.pack(f"{ABS_CNT}i", *absflat)
+
+        user_dev = name_padded + input_id + ff_effects_max + absmax_bytes + absmin_bytes + absfuzz_bytes + absflat_bytes
+
+        os.write(self.fd, user_dev)
+
+        # Create the device
+        fcntl.ioctl(self.fd, self.UI_DEV_CREATE)
+        time.sleep(0.2)  # Give kernel time to set up device
+
+    def set_resolution(self, w, h):
+        """Update screen resolution. Requires recreating device."""
+        if w != self.screen_w or h != self.screen_h:
+            self.screen_w = w
+            self.screen_h = h
+            self._destroy()
+            self._create_device()
+
+    def _destroy(self):
+        """Destroy virtual device."""
+        if self.fd is not None:
+            try:
+                fcntl.ioctl(self.fd, self.UI_DEV_DESTROY)
+            except:
+                pass
+            os.close(self.fd)
+            self.fd = None
+
+    def _emit(self, ev_type, code, value):
+        """Write an input event."""
+        data = struct.pack("llHHi", 0, 0, ev_type, code, value)
+        written = os.write(self.fd, data)
+        if written != len(data):
+            import sys
+            print(f"DEBUG: write failed, wrote {written}/{len(data)}", file=sys.stderr)
+
+    def _sync(self):
+        """Send sync event."""
+        self._emit(EV_SYN, 0, 0)
+
+    def tap(self, x, y):
+        """Tap at screen coordinates using tablet-style absolute positioning."""
+        # Clamp coordinates
+        x = max(0, min(int(x), self.screen_w - 1))
+        y = max(0, min(int(y), self.screen_h - 1))
+
+        tracking_id = int(time.time() * 1000) % 65535
+
+        # Debug: log fd status
+        import sys
+        print(f"DEBUG: tap({x}, {y}) fd={self.fd}", file=sys.stderr)
+
+        # Move to position first (tablet style)
+        self._emit(EV_ABS, ABS_X, x)
+        self._emit(EV_ABS, ABS_Y, y)
+        # Also send multitouch events
+        self._emit(EV_ABS, ABS_MT_SLOT, 0)
+        self._emit(EV_ABS, ABS_MT_TRACKING_ID, tracking_id)
+        self._emit(EV_ABS, ABS_MT_POSITION_X, x)
+        self._emit(EV_ABS, ABS_MT_POSITION_Y, y)
+        self._sync()
+
+        time.sleep(0.02)
+
+        # Press (both mouse button and touch)
+        self._emit(EV_KEY, BTN_LEFT, 1)
+        self._emit(EV_KEY, BTN_TOUCH, 1)
+        self._sync()
+
+        time.sleep(0.08)
+
+        # Release
+        self._emit(EV_KEY, BTN_LEFT, 0)
+        self._emit(EV_KEY, BTN_TOUCH, 0)
+        self._emit(EV_ABS, ABS_MT_TRACKING_ID, -1)
+        self._sync()
+
+        print(f"DEBUG: tap complete", file=sys.stderr)
+
+    def swipe(self, x1, y1, x2, y2, duration_ms=300):
+        """Swipe from (x1,y1) to (x2,y2)."""
+        steps = 20
+        delay = (duration_ms / 1000) / steps
+        tracking_id = int(time.time() * 1000) % 65535
+
+        x1, y1 = int(x1), int(y1)
+        x2, y2 = int(x2), int(y2)
+
+        # Start position
+        self._emit(EV_ABS, ABS_X, x1)
+        self._emit(EV_ABS, ABS_Y, y1)
+        self._emit(EV_ABS, ABS_MT_SLOT, 0)
+        self._emit(EV_ABS, ABS_MT_TRACKING_ID, tracking_id)
+        self._emit(EV_ABS, ABS_MT_POSITION_X, x1)
+        self._emit(EV_ABS, ABS_MT_POSITION_Y, y1)
+        self._emit(EV_KEY, BTN_LEFT, 1)
+        self._emit(EV_KEY, BTN_TOUCH, 1)
+        self._sync()
+
+        # Move through intermediate points
+        for i in range(1, steps + 1):
+            t = i / steps
+            x = int(x1 + (x2 - x1) * t)
+            y = int(y1 + (y2 - y1) * t)
+            x = max(0, min(x, self.screen_w - 1))
+            y = max(0, min(y, self.screen_h - 1))
+            self._emit(EV_ABS, ABS_X, x)
+            self._emit(EV_ABS, ABS_Y, y)
+            self._emit(EV_ABS, ABS_MT_POSITION_X, x)
+            self._emit(EV_ABS, ABS_MT_POSITION_Y, y)
+            self._sync()
+            time.sleep(delay)
+
+        # Release
+        self._emit(EV_KEY, BTN_LEFT, 0)
+        self._emit(EV_KEY, BTN_TOUCH, 0)
+        self._emit(EV_ABS, ABS_MT_TRACKING_ID, -1)
+        self._sync()
+
+    def get_info(self):
+        """Return virtual pointer info."""
+        return {
+            'device': 'virtual-uinput',
+            'max_x': self.screen_w - 1,
+            'max_y': self.screen_h - 1,
+            'type': 'virtual',
+        }
+
+    def __del__(self):
+        self._destroy()
+
+
+# === Touch Device Selection ===
+_touch_device = None
+_touch_device_type = None  # 'physical' or 'virtual'
+
+
+def get_touch_device():
+    """
+    Get the appropriate touch device based on display configuration.
+    Uses physical touchscreen when internal display is enabled,
+    virtual touchscreen otherwise.
+    """
+    global _touch_device, _touch_device_type
+
+    display_info = get_active_display_info()
+    internal_enabled = display_info['internal_enabled']
+    active_res = display_info['active_resolution']
+
+    # Determine which device type to use
+    if internal_enabled:
+        needed_type = 'physical'
+    else:
+        needed_type = 'virtual'
+
+    # If we need to switch device types, clear the cached instance
+    if _touch_device_type != needed_type:
+        _touch_device = None
+        _touch_device_type = needed_type
+        # Clear singleton instances
+        Touchscreen._instance = None
+        VirtualTouchscreen._instance = None
+
+    # Get or create the appropriate device
+    if needed_type == 'physical':
+        _touch_device = Touchscreen.get_instance()
+        # Update resolution if we detected it
+        if active_res:
+            _touch_device.set_resolution(active_res[0], active_res[1])
+    else:
+        # Virtual touchscreen - use detected resolution or default
+        if active_res:
+            _touch_device = VirtualTouchscreen.get_instance(active_res[0], active_res[1])
+        else:
+            _touch_device = VirtualTouchscreen.get_instance(SCREEN_WIDTH, SCREEN_HEIGHT)
+
+    return _touch_device
+
+
+def get_touch_device_info():
+    """Get info about current touch device and display configuration."""
+    display_info = get_active_display_info()
+    device = get_touch_device()
+    ts_info = device.get_info()
+
+    return {
+        'touch': ts_info,
+        'display': display_info,
+    }
 
 
 # === Touchscreen Functions ===
@@ -512,9 +883,15 @@ def cmd_tap(msg):
     y = msg.get("y")
     if x is None or y is None:
         return {"error": "tap requires x and y"}
-    ts = Touchscreen.get_instance()
+    ts = get_touch_device()
+    ts_info = ts.get_info()
+    debug_info = {
+        "fd": getattr(ts, 'fd', None),
+        "screen_w": getattr(ts, 'screen_w', None),
+        "screen_h": getattr(ts, 'screen_h', None),
+    }
     ts.tap(x, y)
-    return {"ok": True}
+    return {"ok": True, "device_type": ts_info.get('type', 'physical'), "debug": debug_info}
 
 
 def cmd_swipe(msg):
@@ -525,9 +902,10 @@ def cmd_swipe(msg):
     duration_ms = msg.get("duration_ms", 300)
     if None in (x1, y1, x2, y2):
         return {"error": "swipe requires x1, y1, x2, y2"}
-    ts = Touchscreen.get_instance()
+    ts = get_touch_device()
     ts.swipe(x1, y1, x2, y2, duration_ms)
-    return {"ok": True}
+    ts_info = ts.get_info()
+    return {"ok": True, "device_type": ts_info.get('type', 'physical')}
 
 
 def cmd_key(msg):
@@ -561,23 +939,39 @@ def cmd_resolution(msg):
     if x is not None and y is not None:
         SCREEN_WIDTH = x
         SCREEN_HEIGHT = y
-        ts = Touchscreen.get_instance()
+        ts = get_touch_device()
         ts.set_resolution(x, y)
-        return {"ok": True}
+        ts_info = ts.get_info()
+        return {"ok": True, "device_type": ts_info.get('type', 'physical')}
     else:
         return {"error": "resolution requires x and y"}
 
 
 def cmd_info(msg):
-    ts = Touchscreen.get_instance()
+    # Get display and touch device info
+    display_info = get_active_display_info()
+    ts = get_touch_device()
     ts_info = ts.get_info()
     kb_config = KeyboardConfig.get_instance()
     kb_info = kb_config.get_info()
+
+    # Use detected resolution if available, otherwise use configured
+    if display_info['active_resolution']:
+        screen = list(display_info['active_resolution'])
+    else:
+        screen = [SCREEN_WIDTH, SCREEN_HEIGHT]
+
     return {
-        "screen": [SCREEN_WIDTH, SCREEN_HEIGHT],
+        "screen": screen,
         "touch_max": [ts_info['max_x'], ts_info['max_y']],
         "device": ts_info['device'],
+        "device_type": ts_info.get('type', 'physical'),
         "keyboard": kb_info,
+        "display": {
+            "internal_enabled": display_info['internal_enabled'],
+            "external_enabled": display_info['external_enabled'],
+            "active_resolution": display_info['active_resolution'],
+        },
     }
 
 

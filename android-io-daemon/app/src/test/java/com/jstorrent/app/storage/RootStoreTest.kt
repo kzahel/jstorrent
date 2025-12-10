@@ -17,40 +17,28 @@ class RootStoreTest {
 
     @Test
     fun `key generation is deterministic`() {
-        val salt = "abc123"
         val uri = "content://com.android.externalstorage.documents/tree/primary%3ADownload"
 
-        val key1 = generateTestKey(salt, uri)
-        val key2 = generateTestKey(salt, uri)
+        val key1 = generateTestKey(uri)
+        val key2 = generateTestKey(uri)
 
         assertEquals(key1, key2)
     }
 
     @Test
     fun `key generation produces different keys for different URIs`() {
-        val salt = "abc123"
         val uri1 = "content://documents/tree/primary%3ADownload"
         val uri2 = "content://documents/tree/primary%3AMovies"
 
-        val key1 = generateTestKey(salt, uri1)
-        val key2 = generateTestKey(salt, uri2)
-
-        assertNotEquals(key1, key2)
-    }
-
-    @Test
-    fun `key generation produces different keys for different salts`() {
-        val uri = "content://documents/tree/primary%3ADownload"
-
-        val key1 = generateTestKey("salt1", uri)
-        val key2 = generateTestKey("salt2", uri)
+        val key1 = generateTestKey(uri1)
+        val key2 = generateTestKey(uri2)
 
         assertNotEquals(key1, key2)
     }
 
     @Test
     fun `key is 16 hex characters`() {
-        val key = generateTestKey("salt", "content://test")
+        val key = generateTestKey("content://test")
 
         assertEquals(16, key.length)
         assertTrue(key.all { it in '0'..'9' || it in 'a'..'f' })
@@ -183,10 +171,9 @@ class RootStoreTest {
     // Test helpers - mirrors RootStore private methods
     // =========================================================================
 
-    private fun generateTestKey(salt: String, uri: String): String {
-        val input = salt + uri
+    private fun generateTestKey(uri: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
-        val hash = digest.digest(input.toByteArray())
+        val hash = digest.digest(uri.toByteArray())
         return hash.take(8).joinToString("") { "%02x".format(it) }
     }
 

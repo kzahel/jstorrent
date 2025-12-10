@@ -24,18 +24,12 @@ pub async fn pick_download_directory(state: &State) -> Result<ResponsePayload> {
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| path_str.clone());
 
-            // Get salt from rpc_info to generate stable key
-            let salt = if let Ok(info_guard) = state.rpc_info.lock() {
-                info_guard.as_ref().map(|i| i.salt.clone()).unwrap_or_default()
-            } else {
-                String::new()
-            };
-
-            // Generate stable key: sha256(salt + path)
+            // Generate stable key: sha256(path)
             let mut hasher = Sha256::new();
-            hasher.update(salt.as_bytes());
             hasher.update(path_str.as_bytes());
-            let key = hex::encode(hasher.finalize());
+            let hash = hasher.finalize();
+            // Use first 16 hex chars (64 bits) for consistency with Android
+            let key = hex::encode(&hash[..8]);
 
             // Create new root with unique key
             let new_root = DownloadRoot {
