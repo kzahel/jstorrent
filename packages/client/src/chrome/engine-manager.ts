@@ -12,12 +12,35 @@ import {
   ISessionStore,
   Torrent,
   toHex,
+  type CredentialsGetter,
 } from '@jstorrent/engine'
 import { getBridge } from './extension-bridge'
 import { notificationBridge, ProgressStats } from './notification-bridge'
 
 // Session store key for default root key
 const DEFAULT_ROOT_KEY_KEY = 'settings:defaultRootKey'
+
+/**
+ * Create credentials getter for DaemonConnection.
+ * Reads fresh values from chrome.storage.local at connection time.
+ */
+function createCredentialsGetter(): CredentialsGetter {
+  return async () => {
+    const stored = await chrome.storage.local.get(['android:authToken', 'installId'])
+    const token = stored['android:authToken'] as string | undefined
+    const installId = stored['installId'] as string | undefined
+
+    if (!token) {
+      throw new Error('No auth token in storage')
+    }
+
+    return {
+      token,
+      extensionId: chrome.runtime.id,
+      installId: installId || '',
+    }
+  }
+}
 
 /**
  * Create the appropriate session store based on context.
@@ -115,7 +138,25 @@ class EngineManager {
     console.log('[EngineManager] Got daemon info:', daemonInfo, 'roots:', roots.length)
 
     // 2. Create direct WebSocket connection to daemon
-    this.daemonConnection = new DaemonConnection(daemonInfo.port, daemonInfo.token, daemonInfo.host)
+    // On ChromeOS, use credentials getter for fresh token
+    // On desktop, use token directly from daemon info
+    const isChromeos = daemonInfo.host === '100.115.92.2'
+
+    if (isChromeos) {
+      this.daemonConnection = new DaemonConnection(
+        daemonInfo.port,
+        daemonInfo.host,
+        createCredentialsGetter(),
+      )
+    } else {
+      // Desktop - use legacy token directly
+      this.daemonConnection = new DaemonConnection(
+        daemonInfo.port,
+        daemonInfo.host,
+        undefined,
+        daemonInfo.token,
+      )
+    }
     try {
       await this.daemonConnection.connectWebSocket()
     } catch (error) {
