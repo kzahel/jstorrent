@@ -119,8 +119,10 @@ export class ChromeOSAdapter implements IIOBridgeAdapter {
       // Generate a new token for this launch attempt
       const token = await this.getOrCreateToken()
 
-      // Create intent URL to launch Android app
-      const intentUrl = `intent://launch?token=${encodeURIComponent(token)}#Intent;scheme=jstorrent;package=com.jstorrent.app;end`
+      // Create intent URL to pair with Android app (sends token)
+      // Note: Using 'pair' instead of 'launch' because 'pair' sets the token
+      // TODO: Track pairing state to use 'launch' for subsequent connections
+      const intentUrl = `intent://pair?token=${encodeURIComponent(token)}#Intent;scheme=jstorrent;package=com.jstorrent.app;end`
 
       // Try to open in current tab for better UX
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
