@@ -2,8 +2,7 @@ const SW_START_TIME = new Date().toISOString()
 console.log(`[SW] Service Worker loaded at ${SW_START_TIME}`)
 console.log('[SW] Deploy test - this log confirms deploy workflow works!')
 
-import { createIOBridgeService, type NativeEvent } from './lib/io-bridge'
-import { hasEverConnected } from './lib/io-bridge/readiness'
+import { getDaemonBridge, type NativeEvent, type DaemonBridgeState } from './lib/daemon-bridge'
 import { handleKVMessage } from './lib/kv-handlers'
 import { NotificationManager, ProgressStats } from './lib/notifications'
 
@@ -45,6 +44,16 @@ function handleUIPortConnect(port: chrome.runtime.Port): void {
 
   primaryUIPort = port
 
+  // Send current bridge state immediately
+  const state = bridge.getState()
+  bridge.hasEverConnected().then((hasConnected: boolean) => {
+    port.postMessage({
+      type: 'BRIDGE_STATE_CHANGED',
+      state,
+      hasEverConnected: hasConnected,
+    })
+  })
+
   // Send pending event if any (from storage)
   chrome.storage.session
     .get(PENDING_EVENT_KEY)
@@ -84,27 +93,31 @@ chrome.runtime.onConnectExternal.addListener((port) => {
 })
 
 // ============================================================================
-// IO Bridge Service (replaces DaemonLifecycleManager)
+// Daemon Bridge (replaces IOBridge state machine)
 // ============================================================================
-const ioBridge = createIOBridgeService({
-  onNativeEvent: (event: NativeEvent) => {
-    console.log('[SW] Native event received:', event.event)
-    sendToUI(event)
-    // Open UI tab if needed
-    if (event.event === 'TorrentAdded' || event.event === 'MagnetAdded') {
-      openUiTab()
-    }
-  },
+const bridge = getDaemonBridge()
+
+// Start connection attempt
+bridge.connect().then((success) => {
+  console.log(`[SW] Initial connection: ${success ? 'success' : 'failed'}`)
 })
 
-// Forward state changes to connected UI
-ioBridge.subscribe((state) => {
+// Forward native events to UI
+bridge.onEvent((event: NativeEvent) => {
+  console.log('[SW] Native event received:', event.event)
+  sendToUI(event)
+  if (event.event === 'TorrentAdded' || event.event === 'MagnetAdded') {
+    openUiTab()
+  }
+})
+
+// Forward state changes to UI
+bridge.subscribe((state: DaemonBridgeState) => {
   if (primaryUIPort) {
-    console.log('[SW] Forwarding state change to UI:', state.name)
-    // Include persistent hasEverConnected flag
-    hasEverConnected().then((hasConnected) => {
+    console.log('[SW] Forwarding state change to UI:', state.status)
+    bridge.hasEverConnected().then((hasConnected: boolean) => {
       primaryUIPort?.postMessage({
-        type: 'IOBRIDGE_STATE_CHANGED',
+        type: 'BRIDGE_STATE_CHANGED',
         state,
         hasEverConnected: hasConnected,
       })
@@ -112,7 +125,7 @@ ioBridge.subscribe((state) => {
   }
 })
 
-console.log(`[SW] IO Bridge started, platform: ${ioBridge.getPlatform()}`)
+console.log(`[SW] Daemon Bridge started, platform: ${bridge.getPlatform()}`)
 
 // ============================================================================
 // Installation handler - generate install ID
@@ -228,83 +241,63 @@ function handleMessage(
     return handleKVMessage(message, sendResponse)
   }
 
-  // Get current IO Bridge state (for System Bridge UI)
-  if (message.type === 'GET_IOBRIDGE_STATE') {
-    const state = ioBridge.getState()
-    // Include persistent hasEverConnected flag
-    hasEverConnected().then((hasConnected) => {
+  // Get bridge state
+  if (message.type === 'GET_BRIDGE_STATE') {
+    const state = bridge.getState()
+    bridge.hasEverConnected().then((hasConnected: boolean) => {
       sendResponse({ ok: true, state, hasEverConnected: hasConnected })
     })
     return true
   }
 
-  // Trigger user launch (ChromeOS)
-  if (message.type === 'IOBRIDGE_LAUNCH') {
-    ioBridge.triggerUserLaunch()
-    sendResponse({ ok: true })
-    return true
-  }
-
-  // Cancel launch (ChromeOS)
-  if (message.type === 'IOBRIDGE_CANCEL') {
-    ioBridge.cancelUserLaunch()
-    sendResponse({ ok: true })
-    return true
-  }
-
-  // Retry connection
-  if (message.type === 'IOBRIDGE_RETRY') {
-    ioBridge.triggerRetry()
-    sendResponse({ ok: true })
-    return true
-  }
-
-  // Signal auth failure (e.g., WebSocket auth rejected by daemon)
-  if (message.type === 'IOBRIDGE_AUTH_FAILED') {
-    ioBridge.signalAuthFailed()
-    sendResponse({ ok: true })
-    return true
-  }
-
-  // UI startup: get daemon connection info (returns state info even when not connected)
+  // Get daemon info (for engine initialization)
   if (message.type === 'GET_DAEMON_INFO') {
-    const state = ioBridge.getState()
+    const state = bridge.getState()
 
-    if (state.name === 'CONNECTED') {
+    if (state.status === 'connected' && state.daemonInfo) {
       sendResponse({
         ok: true,
         daemonInfo: state.daemonInfo,
-        state: state.name,
+        roots: state.roots,
       })
     } else {
-      // Return state info so UI knows what's happening
       sendResponse({
         ok: false,
-        state: state.name,
-        error: `Daemon not connected: ${state.name}`,
-        // Include helpful context based on state
-        ...(state.name === 'INSTALL_PROMPT' && { needsInstall: true }),
-        ...(state.name === 'LAUNCH_PROMPT' && { needsLaunch: true }),
-        ...(state.name === 'AWAITING_LAUNCH' && { awaitingLaunch: true }),
-        ...(state.name === 'LAUNCH_FAILED' && { launchFailed: true }),
+        status: state.status,
+        error: state.lastError || `Not connected: ${state.status}`,
       })
     }
     return true
   }
 
-  // UI shutdown: decrement UI count
-  if (message.type === 'UI_CLOSING') {
-    ioBridge.onUIClosing()
-    sendResponse({ ok: true })
+  // Trigger launch (ChromeOS)
+  if (message.type === 'TRIGGER_LAUNCH') {
+    bridge.triggerLaunch().then((success: boolean) => {
+      sendResponse({ ok: success })
+    })
     return true
   }
 
-  // Folder picker (requires native host)
+  // Retry connection
+  if (message.type === 'RETRY_CONNECTION') {
+    bridge.connect().then((success: boolean) => {
+      sendResponse({ ok: success })
+    })
+    return true
+  }
+
+  // Folder picker
   if (message.type === 'PICK_DOWNLOAD_FOLDER') {
-    ioBridge
+    bridge
       .pickDownloadFolder()
       .then((root) => sendResponse({ ok: true, root }))
       .catch((e: unknown) => sendResponse({ ok: false, error: String(e) }))
+    return true
+  }
+
+  // UI closing - no longer need to track UI count with simplified bridge
+  if (message.type === 'UI_CLOSING') {
+    sendResponse({ ok: true })
     return true
   }
 

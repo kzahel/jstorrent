@@ -15,6 +15,7 @@ import com.jstorrent.app.R
 import com.jstorrent.app.auth.TokenStore
 import com.jstorrent.app.server.HttpServer
 import com.jstorrent.app.storage.RootStore
+import kotlinx.serialization.json.JsonElement
 
 private const val TAG = "IoDaemonService"
 private const val NOTIFICATION_ID = 1
@@ -33,6 +34,9 @@ class IoDaemonService : Service() {
         tokenStore = TokenStore(this)
         rootStore = RootStore(this)
         createNotificationChannel()
+
+        // Set singleton for static access
+        instance = this
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -53,6 +57,7 @@ class IoDaemonService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "Service destroying")
+        instance = null
         stopServer()
         super.onDestroy()
     }
@@ -79,6 +84,32 @@ class IoDaemonService : Service() {
         httpServer?.stop()
         httpServer = null
     }
+
+    // =========================================================================
+    // Control Plane
+    // =========================================================================
+
+    /**
+     * Broadcast ROOTS_CHANGED to all connected WebSocket clients.
+     * Call this after AddRootActivity adds a new root.
+     */
+    fun broadcastRootsChanged() {
+        val roots = rootStore.refreshAvailability()
+        httpServer?.broadcastRootsChanged(roots)
+        Log.i(TAG, "Broadcast ROOTS_CHANGED with ${roots.size} roots")
+    }
+
+    /**
+     * Broadcast a generic event to all connected WebSocket clients.
+     */
+    fun broadcastEvent(event: String, payload: JsonElement? = null) {
+        httpServer?.broadcastEvent(event, payload)
+        Log.i(TAG, "Broadcast event: $event")
+    }
+
+    // =========================================================================
+    // Notification
+    // =========================================================================
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
@@ -118,6 +149,11 @@ class IoDaemonService : Service() {
     }
 
     companion object {
+        // Singleton for static access from AddRootActivity
+        @Volatile
+        var instance: IoDaemonService? = null
+            private set
+
         fun start(context: Context) {
             val intent = Intent(context, IoDaemonService::class.java)
             context.startForegroundService(intent)

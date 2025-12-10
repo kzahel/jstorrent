@@ -102,13 +102,17 @@ class EngineManager {
     const response = await bridge.sendMessage<{
       ok: boolean
       daemonInfo?: DaemonInfo
+      roots?: DownloadRoot[]
       error?: string
+      status?: string
     }>({ type: 'GET_DAEMON_INFO' })
     if (!response.ok) {
-      throw new Error(`Failed to get daemon info: ${response.error}`)
+      throw new Error(`Failed to get daemon info: ${response.error || response.status}`)
     }
     const daemonInfo: DaemonInfo = response.daemonInfo!
-    console.log('[EngineManager] Got daemon info:', daemonInfo)
+    // Roots may come separately or in daemonInfo (for backwards compatibility)
+    const roots: DownloadRoot[] = response.roots ?? daemonInfo.roots ?? []
+    console.log('[EngineManager] Got daemon info:', daemonInfo, 'roots:', roots.length)
 
     // 2. Create direct WebSocket connection to daemon
     this.daemonConnection = new DaemonConnection(daemonInfo.port, daemonInfo.token, daemonInfo.host)
@@ -133,8 +137,8 @@ class EngineManager {
     this.sessionStore = createSessionStore()
 
     // Register download roots from daemon
-    if (daemonInfo.roots && daemonInfo.roots.length > 0) {
-      for (const root of daemonInfo.roots) {
+    if (roots.length > 0) {
+      for (const root of roots) {
         srm.addRoot({
           key: root.key,
           label: root.display_name,
@@ -145,14 +149,14 @@ class EngineManager {
       // Load saved default root from session store
       const savedDefaultBytes = await this.sessionStore.get(DEFAULT_ROOT_KEY_KEY)
       const defaultKey = savedDefaultBytes ? new TextDecoder().decode(savedDefaultBytes) : null
-      const validDefault = defaultKey && daemonInfo.roots.some((r) => r.key === defaultKey)
+      const validDefault = defaultKey && roots.some((r) => r.key === defaultKey)
 
       if (validDefault) {
         srm.setDefaultRoot(defaultKey)
-      } else if (daemonInfo.roots.length > 0) {
-        srm.setDefaultRoot(daemonInfo.roots[0].key)
+      } else if (roots.length > 0) {
+        srm.setDefaultRoot(roots[0].key)
       }
-      console.log('[EngineManager] Registered', daemonInfo.roots.length, 'download roots')
+      console.log('[EngineManager] Registered', roots.length, 'download roots')
     } else {
       console.warn('[EngineManager] No download roots configured!')
     }

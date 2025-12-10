@@ -31,6 +31,8 @@ export type { SystemIndicatorProps } from './components/SystemIndicator'
 export { SystemBridgePanel } from './components/SystemBridgePanel'
 export type {
   SystemBridgePanelProps,
-  IOBridgeState,
+  DaemonBridgeState,
   VersionStatus,
+  ConnectionStatus,
+  Platform,
 } from './components/SystemBridgePanel'

@@ -1,11 +1,10 @@
 /**
  * Readiness computation for System Bridge UI.
- * Combines IOBridge state + version status + storage roots into a single status.
+ * Combines DaemonBridge state + version status + storage roots into a single status.
  */
 
-import type { IOBridgeState } from './types'
+import type { DaemonBridgeState, DownloadRoot } from '../daemon-bridge'
 import type { VersionStatus } from './version-status'
-import type { DownloadRoot } from './types'
 
 export type ReadinessIssue = 'not_connected' | 'update_required' | 'no_root'
 
@@ -35,7 +34,7 @@ export interface ReadinessStatus {
  * Compute readiness status from component states.
  */
 export function getReadiness(
-  state: IOBridgeState,
+  state: DaemonBridgeState,
   versionStatus: VersionStatus,
   roots: DownloadRoot[],
   hasPendingTorrents: boolean,
@@ -43,7 +42,7 @@ export function getReadiness(
   const issues: ReadinessIssue[] = []
 
   // Check connection
-  const isConnected = state.name === 'CONNECTED'
+  const isConnected = state.status === 'connected'
   if (!isConnected) {
     issues.push('not_connected')
   }
@@ -78,57 +77,41 @@ export function getReadiness(
 }
 
 function computeIndicator(
-  state: IOBridgeState,
+  state: DaemonBridgeState,
   versionStatus: VersionStatus,
   hasRoot: boolean,
   canSuggestUpdate: boolean,
 ): { label: string; color: IndicatorColor } {
-  // Not connected states
-  if (state.name === 'INITIALIZING') {
-    return { label: 'Starting...', color: 'yellow' }
-  }
-
-  if (state.name === 'PROBING') {
+  // Connecting state
+  if (state.status === 'connecting') {
     return { label: 'Connecting...', color: 'yellow' }
   }
 
-  if (state.name === 'INSTALL_PROMPT') {
+  // Disconnected state
+  if (state.status === 'disconnected') {
+    if (state.lastError) {
+      return { label: 'Offline', color: 'red' }
+    }
     return { label: 'Setup', color: 'yellow' }
-  }
-
-  if (state.name === 'LAUNCH_PROMPT') {
-    return { label: 'Setup', color: 'yellow' }
-  }
-
-  if (state.name === 'AWAITING_LAUNCH') {
-    return { label: 'Waiting...', color: 'yellow' }
-  }
-
-  if (state.name === 'LAUNCH_FAILED') {
-    return { label: 'Failed', color: 'red' }
-  }
-
-  if (state.name === 'DISCONNECTED') {
-    return { label: 'Offline', color: 'red' }
   }
 
   // Connected but version incompatible
-  if (state.name === 'CONNECTED' && versionStatus === 'update_required') {
+  if (state.status === 'connected' && versionStatus === 'update_required') {
     return { label: 'Update Required', color: 'red' }
   }
 
   // Connected but no download root
-  if (state.name === 'CONNECTED' && !hasRoot) {
+  if (state.status === 'connected' && !hasRoot) {
     return { label: 'Setup', color: 'yellow' }
   }
 
   // Connected, compatible, has root - but update available
-  if (state.name === 'CONNECTED' && canSuggestUpdate) {
+  if (state.status === 'connected' && canSuggestUpdate) {
     return { label: 'Update Available', color: 'green' }
   }
 
   // All good
-  if (state.name === 'CONNECTED') {
+  if (state.status === 'connected') {
     return { label: 'Ready', color: 'green' }
   }
 
@@ -137,22 +120,10 @@ function computeIndicator(
 }
 
 /**
- * Helper to determine if a state represents a "first time" user.
- * Based on whether there have been any previous attempts.
- * @deprecated Use hasEverConnected() for persistent first-time detection
- */
-export function isFirstTimeUser(state: IOBridgeState): boolean {
-  if ('history' in state) {
-    return state.history.attempts === 0
-  }
-  return true
-}
-
-/**
  * Check if the user has ever successfully connected to the daemon.
  * This is persisted across service worker restarts.
  */
 export async function hasEverConnected(): Promise<boolean> {
-  const stored = await chrome.storage.local.get(['iobridge:hasConnectedSuccessfully'])
-  return stored['iobridge:hasConnectedSuccessfully'] === true
+  const stored = await chrome.storage.local.get(['daemon:hasConnectedSuccessfully'])
+  return stored['daemon:hasConnectedSuccessfully'] === true
 }

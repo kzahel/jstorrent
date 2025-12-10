@@ -4,12 +4,8 @@ import type { DownloadRoot } from '../chrome/engine-manager'
 // Version status from io-bridge
 export type VersionStatus = 'compatible' | 'update_suggested' | 'update_required'
 
-// Connection history for tracking
-interface ConnectionHistory {
-  attempts: number
-  lastAttempt: number | null
-  lastError: string | null
-}
+// Platform type
+export type Platform = 'desktop' | 'chromeos'
 
 // Daemon info structure
 interface DaemonInfo {
@@ -20,19 +16,20 @@ interface DaemonInfo {
   host?: string
 }
 
-// IOBridge state types (matching extension/src/lib/io-bridge/types.ts)
-export type IOBridgeState =
-  | { name: 'INITIALIZING' }
-  | { name: 'PROBING'; platform: string; history: ConnectionHistory }
-  | { name: 'CONNECTED'; platform: string; connectionId: string; daemonInfo: DaemonInfo }
-  | { name: 'DISCONNECTED'; platform: string; history: ConnectionHistory; wasHealthy: boolean }
-  | { name: 'INSTALL_PROMPT'; platform: 'desktop'; history: ConnectionHistory }
-  | { name: 'LAUNCH_PROMPT'; platform: 'chromeos'; history: ConnectionHistory }
-  | { name: 'AWAITING_LAUNCH'; platform: 'chromeos'; history: ConnectionHistory; startedAt: number }
-  | { name: 'LAUNCH_FAILED'; platform: 'chromeos'; history: ConnectionHistory }
+// Connection status (simplified from 8-state IOBridge)
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
+
+// DaemonBridge state (new simplified state)
+export interface DaemonBridgeState {
+  status: ConnectionStatus
+  platform: Platform
+  daemonInfo: DaemonInfo | null
+  roots: DownloadRoot[]
+  lastError: string | null
+}
 
 export interface SystemBridgePanelProps {
-  state: IOBridgeState
+  state: DaemonBridgeState
   versionStatus: VersionStatus
   daemonVersion: number | undefined
   roots: DownloadRoot[]
@@ -58,7 +55,7 @@ export function SystemBridgePanel({
   onClose,
   onRetry,
   onLaunch,
-  onCancel,
+  // onCancel - no longer used with simplified bridge
   onDisconnect,
   onAddFolder,
   onSetDefaultRoot,
@@ -161,9 +158,8 @@ export function SystemBridgePanel({
   )
 
   function renderContent() {
-    switch (state.name) {
-      case 'INITIALIZING':
-      case 'PROBING':
+    switch (state.status) {
+      case 'connecting':
         return (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ marginBottom: '8px' }}>Connecting...</div>
@@ -173,65 +169,47 @@ export function SystemBridgePanel({
           </div>
         )
 
-      case 'INSTALL_PROMPT':
-        return (
-          <div>
-            <div style={{ marginBottom: '12px', fontWeight: 500 }}>Companion App Required</div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
-              JSTorrent needs a companion app to handle downloads.
-              {isFirstTime && <> Download and install it to get started.</>}
+      case 'disconnected':
+        // Different messages based on platform and whether we've connected before
+        if (state.platform === 'desktop') {
+          return (
+            <div>
+              <div style={{ marginBottom: '12px', fontWeight: 500 }}>
+                {state.lastError ? 'Connection Lost' : 'Companion App Required'}
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
+                {state.lastError ? (
+                  <>Connection to companion app was lost. Click retry to reconnect.</>
+                ) : (
+                  <>
+                    JSTorrent needs a companion app to handle downloads.
+                    {isFirstTime && <> Download and install it to get started.</>}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )
+          )
+        } else {
+          // ChromeOS
+          return (
+            <div>
+              <div style={{ marginBottom: '12px', fontWeight: 500 }}>
+                {state.lastError ? 'Connection Lost' : 'Launch Companion App'}
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
+                {state.lastError ? (
+                  <>Connection to companion app was lost. Click Launch to reconnect.</>
+                ) : isFirstTime ? (
+                  <>Install the JSTorrent Companion app from the Play Store, then click Launch.</>
+                ) : (
+                  <>Click Launch to start the companion app.</>
+                )}
+              </div>
+            </div>
+          )
+        }
 
-      case 'LAUNCH_PROMPT':
-        return (
-          <div>
-            <div style={{ marginBottom: '12px', fontWeight: 500 }}>Launch Companion App</div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
-              {isFirstTime ? (
-                <>Install the JSTorrent Companion app from the Play Store, then click Launch.</>
-              ) : (
-                <>Click Launch to start the companion app.</>
-              )}
-            </div>
-          </div>
-        )
-
-      case 'AWAITING_LAUNCH':
-        return (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ marginBottom: '8px' }}>Waiting for app...</div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-              Approve the dialog to continue
-            </div>
-          </div>
-        )
-
-      case 'LAUNCH_FAILED':
-        return (
-          <div>
-            <div style={{ marginBottom: '12px', fontWeight: 500, color: 'var(--accent-error)' }}>
-              Launch Timed Out
-            </div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
-              The companion app didn&apos;t respond. Make sure it&apos;s installed and try again.
-            </div>
-          </div>
-        )
-
-      case 'DISCONNECTED':
-        return (
-          <div>
-            <div style={{ marginBottom: '12px', fontWeight: 500 }}>Disconnected</div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
-              Connection to companion app was lost.
-              {state.wasHealthy && ' This may be temporary.'}
-            </div>
-          </div>
-        )
-
-      case 'CONNECTED':
+      case 'connected':
         return renderConnectedContent()
 
       default:
@@ -240,7 +218,7 @@ export function SystemBridgePanel({
   }
 
   function renderConnectedContent() {
-    if (state.name !== 'CONNECTED') return null
+    if (state.status !== 'connected' || !state.daemonInfo) return null
 
     const { daemonInfo } = state
 
@@ -343,93 +321,91 @@ export function SystemBridgePanel({
   }
 
   function renderActions() {
-    switch (state.name) {
-      case 'INSTALL_PROMPT':
-        return (
-          <>
-            <a
-              href="https://jstorrent.com/download"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                padding: '6px 12px',
-                background: 'var(--accent-primary)',
-                color: 'white',
-                textDecoration: 'none',
-                borderRadius: '4px',
-                fontSize: '13px',
-              }}
-            >
-              Download
-            </a>
-            <button onClick={onRetry} style={{ padding: '6px 12px', fontSize: '13px' }}>
-              I&apos;ve Installed It
-            </button>
-          </>
-        )
+    switch (state.status) {
+      case 'connecting':
+        // No actions while connecting, but show cancel if we want
+        return null
 
-      case 'LAUNCH_PROMPT':
-        return (
-          <>
-            <button
-              onClick={onLaunch}
-              style={{
-                padding: '6px 12px',
-                background: 'var(--accent-primary)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '13px',
-                cursor: 'pointer',
-              }}
-            >
-              Launch App
-            </button>
-            {isFirstTime && (
-              <a
-                href="https://play.google.com/store/apps/details?id=com.jstorrent.app"
-                target="_blank"
-                rel="noopener noreferrer"
+      case 'disconnected':
+        if (state.platform === 'desktop') {
+          // Desktop: show download/retry
+          return (
+            <>
+              {isFirstTime && (
+                <a
+                  href="https://jstorrent.com/download"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: '6px 12px',
+                    background: 'var(--accent-primary)',
+                    color: 'white',
+                    textDecoration: 'none',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                  }}
+                >
+                  Download
+                </a>
+              )}
+              <button
+                onClick={onRetry}
                 style={{
                   padding: '6px 12px',
                   fontSize: '13px',
-                  textDecoration: 'none',
-                  color: 'var(--text-secondary)',
+                  ...(isFirstTime
+                    ? {}
+                    : {
+                        background: 'var(--accent-primary)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                      }),
                 }}
               >
-                Install
-              </a>
-            )}
-          </>
-        )
+                {isFirstTime ? "I've Installed It" : 'Try Again'}
+              </button>
+            </>
+          )
+        } else {
+          // ChromeOS: show launch button
+          return (
+            <>
+              <button
+                onClick={onLaunch}
+                style={{
+                  padding: '6px 12px',
+                  background: 'var(--accent-primary)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                Launch App
+              </button>
+              {isFirstTime && (
+                <a
+                  href="https://play.google.com/store/apps/details?id=com.jstorrent.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '13px',
+                    textDecoration: 'none',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  Install
+                </a>
+              )}
+            </>
+          )
+        }
 
-      case 'AWAITING_LAUNCH':
-        return (
-          <button onClick={onCancel} style={{ padding: '6px 12px', fontSize: '13px' }}>
-            Cancel
-          </button>
-        )
-
-      case 'LAUNCH_FAILED':
-      case 'DISCONNECTED':
-        return (
-          <button
-            onClick={onRetry}
-            style={{
-              padding: '6px 12px',
-              background: 'var(--accent-primary)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '13px',
-              cursor: 'pointer',
-            }}
-          >
-            Try Again
-          </button>
-        )
-
-      case 'CONNECTED':
+      case 'connected':
         return (
           <>
             <button onClick={onDisconnect} style={{ padding: '6px 12px', fontSize: '13px' }}>

@@ -481,7 +481,7 @@ function App() {
 
   // Get roots from connected state
   const roots: DownloadRoot[] =
-    ioBridgeState.name === 'CONNECTED' ? (ioBridgeState.daemonInfo?.roots ?? []) : []
+    ioBridgeState.status === 'connected' ? (ioBridgeState.roots ?? []) : []
 
   // Check if there are pending torrents (torrents added but not downloading)
   const hasPendingTorrents = engine
@@ -626,18 +626,12 @@ function App() {
           </div>
         ) : (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            {ioBridgeState.name === 'INITIALIZING' && 'Starting...'}
-            {ioBridgeState.name === 'PROBING' && 'Connecting to daemon...'}
-            {ioBridgeState.name === 'INSTALL_PROMPT' &&
-              'Click the indicator above to set up JSTorrent.'}
-            {ioBridgeState.name === 'LAUNCH_PROMPT' &&
-              'Click the indicator above to launch the companion app.'}
-            {ioBridgeState.name === 'AWAITING_LAUNCH' && 'Waiting for companion app...'}
-            {ioBridgeState.name === 'LAUNCH_FAILED' &&
-              'Failed to connect. Click the indicator to retry.'}
-            {ioBridgeState.name === 'DISCONNECTED' &&
-              'Connection lost. Click the indicator to reconnect.'}
-            {ioBridgeState.name === 'CONNECTED' && !engine && 'Initializing engine...'}
+            {ioBridgeState.status === 'connecting' && 'Connecting to daemon...'}
+            {ioBridgeState.status === 'disconnected' &&
+              (ioBridgeState.platform === 'chromeos'
+                ? 'Click the indicator above to launch the companion app.'
+                : 'Click the indicator above to set up JSTorrent.')}
+            {ioBridgeState.status === 'connected' && !engine && 'Initializing engine...'}
           </div>
         )}
       </div>

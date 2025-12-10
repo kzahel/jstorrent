@@ -18,8 +18,10 @@ import io.ktor.websocket.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import java.security.MessageDigest
 import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
 
 private const val TAG = "HttpServer"
 
@@ -40,6 +42,9 @@ class HttpServer(
 ) {
     private var server: NettyApplicationEngine? = null
     private var actualPort: Int = 0
+
+    // Connected WebSocket sessions for control broadcasts
+    private val controlSessions = CopyOnWriteArrayList<SocketSession>()
 
     val port: Int get() = actualPort
     val isRunning: Boolean get() = server != null
@@ -101,7 +106,7 @@ class HttpServer(
             // WebSocket endpoint (auth handled inside protocol)
             webSocket("/io") {
                 Log.i(TAG, "WebSocket connected")
-                val session = SocketSession(this, tokenStore)
+                val session = SocketSession(this, tokenStore, this@HttpServer)
                 session.run()
                 Log.i(TAG, "WebSocket disconnected")
             }
@@ -153,6 +158,51 @@ class HttpServer(
 
                 fileRoutes(rootStore, context)
             }
+        }
+    }
+
+    // =========================================================================
+    // Control Plane
+    // =========================================================================
+
+    /**
+     * Register a WebSocket session for control broadcasts.
+     */
+    fun registerControlSession(session: SocketSession) {
+        controlSessions.add(session)
+        Log.d(TAG, "Control session registered, total: ${controlSessions.size}")
+    }
+
+    /**
+     * Unregister a WebSocket session.
+     */
+    fun unregisterControlSession(session: SocketSession) {
+        controlSessions.remove(session)
+        Log.d(TAG, "Control session unregistered, total: ${controlSessions.size}")
+    }
+
+    /**
+     * Broadcast ROOTS_CHANGED to all authenticated sessions.
+     */
+    fun broadcastRootsChanged(roots: List<DownloadRoot>) {
+        val jsonPayload = json.encodeToString(roots).toByteArray()
+        val frame = Protocol.createMessage(Protocol.OP_CTRL_ROOTS_CHANGED, 0, jsonPayload)
+
+        controlSessions.forEach { session ->
+            session.sendControl(frame)
+        }
+    }
+
+    /**
+     * Broadcast generic event to all authenticated sessions.
+     */
+    fun broadcastEvent(event: String, payload: JsonElement?) {
+        val eventObj = mapOf("event" to event, "payload" to payload)
+        val jsonPayload = json.encodeToString(eventObj).toByteArray()
+        val frame = Protocol.createMessage(Protocol.OP_CTRL_EVENT, 0, jsonPayload)
+
+        controlSessions.forEach { session ->
+            session.sendControl(frame)
         }
     }
 

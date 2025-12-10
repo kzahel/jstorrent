@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
-import type { IOBridgeState, VersionStatus } from '../components/SystemBridgePanel'
+import type { DaemonBridgeState, VersionStatus } from '../components/SystemBridgePanel'
 import type { DownloadRoot } from '../chrome/engine-manager'
 import { copyTextToClipboard } from '../utils/clipboard'
 
@@ -21,14 +21,14 @@ export interface ReadinessStatus {
  * This is a local implementation matching extension/src/lib/io-bridge/readiness.ts
  */
 function getReadiness(
-  state: IOBridgeState,
+  state: DaemonBridgeState,
   versionStatus: VersionStatus,
   roots: DownloadRoot[],
   hasPendingTorrents: boolean,
 ): ReadinessStatus {
   const issues: Array<'not_connected' | 'update_required' | 'no_root'> = []
 
-  const isConnected = state.name === 'CONNECTED'
+  const isConnected = state.status === 'connected'
   if (!isConnected) {
     issues.push('not_connected')
   }
@@ -51,29 +51,28 @@ function getReadiness(
 }
 
 function computeIndicator(
-  state: IOBridgeState,
+  state: DaemonBridgeState,
   versionStatus: VersionStatus,
   hasRoot: boolean,
   canSuggestUpdate: boolean,
 ): { label: string; color: IndicatorColor } {
-  if (state.name === 'INITIALIZING') return { label: 'Starting...', color: 'yellow' }
-  if (state.name === 'PROBING') return { label: 'Connecting...', color: 'yellow' }
-  if (state.name === 'INSTALL_PROMPT') return { label: 'Setup', color: 'yellow' }
-  if (state.name === 'LAUNCH_PROMPT') return { label: 'Setup', color: 'yellow' }
-  if (state.name === 'AWAITING_LAUNCH') return { label: 'Waiting...', color: 'yellow' }
-  if (state.name === 'LAUNCH_FAILED') return { label: 'Failed', color: 'red' }
-  if (state.name === 'DISCONNECTED') return { label: 'Offline', color: 'red' }
+  if (state.status === 'connecting') return { label: 'Connecting...', color: 'yellow' }
 
-  if (state.name === 'CONNECTED' && versionStatus === 'update_required') {
-    return { label: 'Update Required', color: 'red' }
-  }
-  if (state.name === 'CONNECTED' && !hasRoot) {
+  if (state.status === 'disconnected') {
+    if (state.lastError) return { label: 'Offline', color: 'red' }
     return { label: 'Setup', color: 'yellow' }
   }
-  if (state.name === 'CONNECTED' && canSuggestUpdate) {
+
+  if (state.status === 'connected' && versionStatus === 'update_required') {
+    return { label: 'Update Required', color: 'red' }
+  }
+  if (state.status === 'connected' && !hasRoot) {
+    return { label: 'Setup', color: 'yellow' }
+  }
+  if (state.status === 'connected' && canSuggestUpdate) {
     return { label: 'Update Available', color: 'green' }
   }
-  if (state.name === 'CONNECTED') {
+  if (state.status === 'connected') {
     return { label: 'Ready', color: 'green' }
   }
 
@@ -95,8 +94,8 @@ function getVersionStatus(daemonVersion: number | undefined): VersionStatus {
 }
 
 export interface UseSystemBridgeConfig {
-  /** Current IOBridge state */
-  state: IOBridgeState
+  /** Current DaemonBridge state */
+  state: DaemonBridgeState
   /** Download roots from daemon */
   roots: DownloadRoot[]
   /** Default root key from settings */
@@ -143,7 +142,7 @@ export function useSystemBridge(config: UseSystemBridgeConfig): UseSystemBridgeR
   const [panelOpen, setPanelOpen] = useState(false)
 
   // Extract daemon version from connected state
-  const daemonVersion = state.name === 'CONNECTED' ? state.daemonInfo.version : undefined
+  const daemonVersion = state.status === 'connected' ? state.daemonInfo?.version : undefined
   const versionStatus = useMemo(() => getVersionStatus(daemonVersion), [daemonVersion])
 
   // Compute readiness
@@ -159,15 +158,15 @@ export function useSystemBridge(config: UseSystemBridgeConfig): UseSystemBridgeR
 
   // Debug info copy
   const copyDebugInfo = useCallback(async () => {
-    const platform = 'platform' in state ? state.platform : 'unknown'
     const info = {
-      state: state.name,
-      platform,
+      status: state.status,
+      platform: state.platform,
       version: daemonVersion,
       versionStatus,
       ready: readiness.ready,
       issues: readiness.issues,
       roots: roots.length,
+      lastError: state.lastError,
     }
     const text = `JSTorrent Debug Info\n${JSON.stringify(info, null, 2)}`
     await copyTextToClipboard(text)
