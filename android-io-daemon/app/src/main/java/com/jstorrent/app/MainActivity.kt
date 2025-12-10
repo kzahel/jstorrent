@@ -68,32 +68,19 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent() {
         val uri = intent?.data ?: return
-        Log.d(TAG, "Received intent with URI: $uri")
+        Log.d(TAG, "Received intent: $uri")
 
         when {
-            uri.scheme == "jstorrent" && uri.host == "pair" -> {
-                val token = uri.getQueryParameter("token")
-                if (token != null) {
-                    Log.i(TAG, "Received pairing token via jstorrent:// scheme")
-                    tokenStore.token = token
-                }
-            }
             uri.scheme == "jstorrent" && uri.host == "launch" -> {
-                Log.i(TAG, "Received launch intent - app started")
-                // No token handling - just launches the app
+                Log.i(TAG, "Launch intent - app started")
+            }
+            uri.scheme == "jstorrent" && uri.host == "pair" -> {
+                // Pairing happens via HTTP POST /pair, not via intent
+                Log.i(TAG, "Pair intent - ignored, use POST /pair")
             }
             uri.scheme == "magnet" -> {
-                Log.i(TAG, "Received magnet link: $uri")
-                // TODO: Forward to extension via some mechanism
-            }
-            (uri.scheme == "https" || uri.scheme == "http") && uri.host == "new.jstorrent.com" -> {
-                // App Links from new.jstorrent.com
-                Log.i(TAG, "Received App Link: $uri")
-                val token = uri.getQueryParameter("token")
-                if (token != null) {
-                    Log.i(TAG, "Received pairing token via App Link")
-                    tokenStore.token = token
-                }
+                Log.i(TAG, "Magnet link: $uri")
+                // TODO: Forward to extension
             }
         }
     }

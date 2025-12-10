@@ -81,6 +81,13 @@
             android:foregroundServiceType="dataSync"
             android:exported="false" />
 
+        <!-- Pairing approval activity -->
+        <activity
+            android:name=".PairingApprovalActivity"
+            android:exported="false"
+            android:theme="@style/Theme.JSTorrent"
+            android:excludeFromRecents="true" />
+
         <!-- SAF folder picker activity -->
         <activity
             android:name=".AddRootActivity"

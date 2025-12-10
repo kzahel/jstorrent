@@ -100,23 +100,33 @@ class SocketSession(
                     return
                 }
 
+                // Parse AUTH payload: authType(1) + token + \0 + extensionId + \0 + installId
                 val authType = payload[0]
-                val token = String(payload, 1, payload.size - 1)
+                val payloadStr = String(payload, 1, payload.size - 1)
+                val parts = payloadStr.split('\u0000')
+
+                if (parts.size < 3) {
+                    sendError(envelope.requestId, "Invalid auth payload format")
+                    return
+                }
+
+                val token = parts[0]
+                val extensionId = parts[1]
+                val installId = parts[2]
 
                 val storedToken = tokenStore.token
-                if (storedToken != null && token == storedToken) {
+                if (storedToken != null &&
+                    token == storedToken &&
+                    tokenStore.isPairedWith(extensionId, installId)
+                ) {
                     authenticated = true
-                    // AUTH_RESULT success
                     send(Protocol.createMessage(Protocol.OP_AUTH_RESULT, envelope.requestId, byteArrayOf(0)))
                     Log.i(TAG, "WebSocket authenticated")
-
-                    // Register for control broadcasts now that we're authenticated
                     httpServer.registerControlSession(this@SocketSession)
                 } else {
-                    // AUTH_RESULT failure
-                    val errorMsg = "Invalid token".toByteArray()
+                    val errorMsg = "Invalid credentials".toByteArray()
                     send(Protocol.createMessage(Protocol.OP_AUTH_RESULT, envelope.requestId, byteArrayOf(1) + errorMsg))
-                    Log.w(TAG, "WebSocket auth failed")
+                    Log.w(TAG, "WebSocket auth failed: token=${token == storedToken}, paired=${tokenStore.isPairedWith(extensionId, installId)}")
                 }
             }
             else -> {

@@ -5,8 +5,10 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 
 /**
- * Stores the authentication token shared between the extension and this app.
- * The extension generates a token, sends it via intent, and uses it for all requests.
+ * Stores the authentication credentials shared between the extension and this app.
+ * - token: The shared secret for authenticating requests
+ * - installId: Identifies which extension installation is paired (detects reinstalls)
+ * - extensionId: The Chrome extension ID that is paired
  */
 class TokenStore(context: Context) {
 
@@ -17,16 +19,50 @@ class TokenStore(context: Context) {
 
     var token: String?
         get() = prefs.getString(KEY_TOKEN, null)
-        set(value) = prefs.edit { putString(KEY_TOKEN, value) }
+        private set(value) = prefs.edit { putString(KEY_TOKEN, value) }
+
+    var installId: String?
+        get() = prefs.getString(KEY_INSTALL_ID, null)
+        private set(value) = prefs.edit { putString(KEY_INSTALL_ID, value) }
+
+    var extensionId: String?
+        get() = prefs.getString(KEY_EXTENSION_ID, null)
+        private set(value) = prefs.edit { putString(KEY_EXTENSION_ID, value) }
 
     fun hasToken(): Boolean = token != null
 
+    /**
+     * Check if paired with a specific extension installation.
+     */
+    fun isPairedWith(checkExtensionId: String, checkInstallId: String): Boolean {
+        return token != null &&
+            extensionId == checkExtensionId &&
+            installId == checkInstallId
+    }
+
+    /**
+     * Store pairing credentials atomically.
+     */
+    fun pair(newToken: String, newInstallId: String, newExtensionId: String) {
+        prefs.edit {
+            putString(KEY_TOKEN, newToken)
+            putString(KEY_INSTALL_ID, newInstallId)
+            putString(KEY_EXTENSION_ID, newExtensionId)
+        }
+    }
+
     fun clear() {
-        prefs.edit { remove(KEY_TOKEN) }
+        prefs.edit {
+            remove(KEY_TOKEN)
+            remove(KEY_INSTALL_ID)
+            remove(KEY_EXTENSION_ID)
+        }
     }
 
     companion object {
         private const val PREFS_NAME = "jstorrent_auth"
         private const val KEY_TOKEN = "auth_token"
+        private const val KEY_INSTALL_ID = "install_id"
+        private const val KEY_EXTENSION_ID = "extension_id"
     }
 }
