@@ -122,3 +122,23 @@ Sometimes Chrome unloads the extension. Re-load manually:
 1. `chrome://extensions` on Chromebook
 2. The extension may show as "errors" or be missing
 3. Click "Load unpacked" again -> `Downloads/crostini-shared/jstorrent-extension/`
+
+### Android App Deployment
+
+Deploy the Android IO daemon to ChromeOS:
+
+```bash
+./scripts/deploy-android-chromebook.sh          # Debug build
+./scripts/deploy-android-chromebook.sh release  # Release build
+```
+
+This builds the APK locally, copies to Chromebook (at `~/code/jstorrent-monorepo/android-io-daemon/`), and installs via ADB.
+
+**Environment variables:**
+- `CHROMEBOOK_HOST` - SSH host (default: `chromebook`)
+- `REMOTE_PROJECT_DIR` - Path on Chromebook (default: `$HOME/code/jstorrent-monorepo/android-io-daemon`)
+- `REMOTE_ADB` - Full path to adb on Chromebook (default: `$HOME/android-sdk/platform-tools/adb`)
+
+**Troubleshooting:**
+- Signature mismatch: `ssh chromebook "adb uninstall com.jstorrent.app"` then redeploy
+- ADB not available: Enable "Linux development environment" and "Android apps" in ChromeOS settings

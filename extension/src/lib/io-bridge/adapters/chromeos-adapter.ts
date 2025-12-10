@@ -283,18 +283,88 @@ export class ChromeOSAdapter implements IIOBridgeAdapter {
   }
 
   private async fetchRoots(): Promise<DownloadRoot[]> {
-    // For now, return a single default root
-    // The Android app uses its own download directory
-    return [
-      {
-        key: 'default',
-        path: '/storage/emulated/0/Download/JSTorrent',
-        display_name: 'Downloads',
-        removable: false,
-        last_stat_ok: true,
-        last_checked: Date.now(),
-      },
-    ]
+    if (!this.currentPort || !this.token) {
+      return []
+    }
+
+    try {
+      const response = await fetch(
+        `http://${this.config.host}:${this.currentPort}/roots`,
+        {
+          headers: {
+            'X-JST-Auth': this.token,
+          },
+        }
+      )
+
+      if (!response.ok) {
+        console.warn('[ChromeOSAdapter] Failed to fetch roots:', response.status)
+        return []
+      }
+
+      const data = (await response.json()) as { roots: RootsApiResponse[] }
+
+      // Map API response to DownloadRoot format
+      // The API returns 'uri' but extension expects 'path'
+      return data.roots.map((root) => ({
+        key: root.key,
+        path: root.uri, // Use URI as the path identifier
+        display_name: root.display_name,
+        removable: root.removable,
+        last_stat_ok: root.last_stat_ok,
+        last_checked: root.last_checked,
+      }))
+    } catch (error) {
+      console.error('[ChromeOSAdapter] Error fetching roots:', error)
+      return []
+    }
+  }
+
+  /**
+   * Trigger the Android SAF folder picker.
+   * Returns true if intent was opened successfully.
+   */
+  async triggerAddRoot(): Promise<boolean> {
+    try {
+      const intentUrl = 'intent://add-root#Intent;scheme=jstorrent;package=com.jstorrent.app;end'
+
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      if (tab?.id) {
+        await chrome.tabs.update(tab.id, { url: intentUrl })
+      } else {
+        await chrome.tabs.create({ url: intentUrl })
+      }
+
+      console.log('[ChromeOSAdapter] Triggered add-root intent')
+      return true
+    } catch (error) {
+      console.error('[ChromeOSAdapter] Failed to trigger add-root:', error)
+      return false
+    }
+  }
+
+  /**
+   * Poll for roots until a new one appears or timeout.
+   * Used after triggerAddRoot() to detect when user completes picker.
+   */
+  async waitForNewRoot(
+    existingKeys: Set<string>,
+    timeoutMs: number = 30000
+  ): Promise<DownloadRoot | null> {
+    const startTime = Date.now()
+
+    while (Date.now() - startTime < timeoutMs) {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      const roots = await this.fetchRoots()
+      const newRoot = roots.find((r) => !existingKeys.has(r.key))
+
+      if (newRoot) {
+        return newRoot
+      }
+    }
+
+    return null
   }
 
   private stopHealthCheck(): void {
@@ -303,4 +373,17 @@ export class ChromeOSAdapter implements IIOBridgeAdapter {
       this.healthCheckInterval = null
     }
   }
+}
+
+/**
+ * API response format from Android daemon /roots endpoint.
+ * Note: Uses 'uri' instead of 'path' since it's a SAF content URI.
+ */
+interface RootsApiResponse {
+  key: string
+  uri: string
+  display_name: string
+  removable: boolean
+  last_stat_ok: boolean
+  last_checked: number
 }

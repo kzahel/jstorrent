@@ -14,7 +14,7 @@ import com.jstorrent.app.MainActivity
 import com.jstorrent.app.R
 import com.jstorrent.app.auth.TokenStore
 import com.jstorrent.app.server.HttpServer
-import java.io.File
+import com.jstorrent.app.storage.RootStore
 
 private const val TAG = "IoDaemonService"
 private const val NOTIFICATION_ID = 1
@@ -23,6 +23,7 @@ private const val CHANNEL_ID = "jstorrent_daemon"
 class IoDaemonService : Service() {
 
     private lateinit var tokenStore: TokenStore
+    private lateinit var rootStore: RootStore
     private var httpServer: HttpServer? = null
 
     override fun onCreate() {
@@ -30,6 +31,7 @@ class IoDaemonService : Service() {
         Log.i(TAG, "Service created")
 
         tokenStore = TokenStore(this)
+        rootStore = RootStore(this)
         createNotificationChannel()
     }
 
@@ -63,8 +65,7 @@ class IoDaemonService : Service() {
             return
         }
 
-        val downloadRoot = getDownloadRoot()
-        httpServer = HttpServer(tokenStore, downloadRoot)
+        httpServer = HttpServer(tokenStore, rootStore, this)
 
         try {
             httpServer?.start()
@@ -77,16 +78,6 @@ class IoDaemonService : Service() {
     private fun stopServer() {
         httpServer?.stop()
         httpServer = null
-    }
-
-    private fun getDownloadRoot(): File {
-        // Use app's external files directory for downloads
-        // This is accessible to the user via file manager on ChromeOS
-        val dir = getExternalFilesDir("downloads") ?: filesDir.resolve("downloads")
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
-        return dir
     }
 
     private fun createNotificationChannel() {
