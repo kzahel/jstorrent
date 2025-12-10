@@ -23,6 +23,7 @@ export interface ParsedTorrentInput {
 
   // From torrent file (has metadata)
   infoBuffer?: Uint8Array
+  torrentFileBuffer?: Uint8Array // The entire .torrent file (for saving)
   parsedTorrent?: ParsedTorrent
 }
 
@@ -60,6 +61,7 @@ export async function parseTorrentInput(
       announce: parsedTorrent.announce,
       torrentFileBase64: toBase64(magnetOrBuffer),
       infoBuffer: parsedTorrent.infoBuffer,
+      torrentFileBuffer: magnetOrBuffer, // Store raw buffer for persistence
       parsedTorrent,
     }
   }

@@ -307,6 +307,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     torrent.on('metadata', async (infoBuffer) => {
       try {
         await initializeTorrentMetadata(this, torrent, infoBuffer)
+
+        // Save infodict for future restores
+        await this.sessionPersistence.saveInfoDict(input.infoHashStr, infoBuffer)
+
         torrent.recheckPeers()
         torrent.emit('ready')
       } catch (err) {
@@ -333,6 +337,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       // Note: peer hints are now added inside torrent.start()
     }
 
+    // Save torrent file for file-source torrents (write once)
+    if (options.source !== 'restore' && input.torrentFileBuffer) {
+      await this.sessionPersistence.saveTorrentFile(input.infoHashStr, input.torrentFileBuffer)
+    }
+
     // Persist torrent list (unless restoring from session)
     if (options.source !== 'restore') {
       await this.sessionPersistence.saveTorrentList()
@@ -347,8 +356,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       this.torrents.splice(index, 1)
       const infoHash = toHex(torrent.infoHash)
 
-      // Remove persisted state
-      await this.sessionPersistence.removeTorrentState(infoHash)
+      // Remove persisted data
+      await this.sessionPersistence.removeTorrentData(infoHash)
       await this.sessionPersistence.saveTorrentList()
 
       await torrent.stop()
