@@ -133,6 +133,26 @@ export class IOBridgeEffects {
     this.store.dispatch({ type: 'USER_CANCEL' })
   }
 
+  /**
+   * Signal that auth failed (e.g., WebSocket auth rejected by daemon).
+   * This clears the token and triggers disconnect to force re-pairing.
+   */
+  authFailed(): void {
+    console.log('[IOBridgeEffects] Auth failed - clearing token and triggering disconnect')
+
+    // Clear the token via adapter if supported
+    const adapter = this.adapter as { clearToken?: () => Promise<void> }
+    if (adapter.clearToken) {
+      adapter.clearToken()
+    }
+
+    // If we're in CONNECTED state, trigger disconnect to force re-probe
+    const state = this.store.getState()
+    if (state.name === 'CONNECTED') {
+      this.store.dispatch({ type: 'DAEMON_DISCONNECTED', wasHealthy: false })
+    }
+  }
+
   private handleStateChange(state: IOBridgeState, previousState: IOBridgeState): void {
     // Clean up effects from previous state
     if (previousState.name !== state.name) {

@@ -194,6 +194,14 @@ export class IOBridgeService {
   }
 
   /**
+   * Signal that authentication with the daemon failed.
+   * This clears the token and triggers re-probing.
+   */
+  signalAuthFailed(): void {
+    this.effects.authFailed()
+  }
+
+  /**
    * Pick a download folder via native host dialog (desktop only).
    */
   async pickDownloadFolder(): Promise<DownloadRoot | null> {

@@ -259,6 +259,13 @@ function handleMessage(
     return true
   }
 
+  // Signal auth failure (e.g., WebSocket auth rejected by daemon)
+  if (message.type === 'IOBRIDGE_AUTH_FAILED') {
+    ioBridge.signalAuthFailed()
+    sendResponse({ ok: true })
+    return true
+  }
+
   // UI startup: get daemon connection info (returns state info even when not connected)
   if (message.type === 'GET_DAEMON_INFO') {
     const state = ioBridge.getState()

@@ -13,6 +13,17 @@ import type {
 } from '../io-bridge-adapter'
 import type { DaemonInfo, ConnectionId, DownloadRoot } from '../types'
 
+/**
+ * Error thrown when auth tokens don't match between extension and Android app.
+ * This triggers re-pairing flow.
+ */
+export class TokenMismatchError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'TokenMismatchError'
+  }
+}
+
 const ANDROID_HOST = '100.115.92.2'
 const ANDROID_PORTS = [7800, 7805, 7814, 7827, 7844]
 const STORAGE_KEY_TOKEN = 'android:authToken'
@@ -107,6 +118,13 @@ export class ChromeOSAdapter implements IIOBridgeAdapter {
       }
     } catch (error) {
       console.error('[ChromeOSAdapter] Probe failed:', error)
+
+      // On token mismatch, also clear saved port to force fresh discovery on retry
+      if (error instanceof TokenMismatchError) {
+        await chrome.storage.local.remove([STORAGE_KEY_PORT])
+        this.currentPort = null
+      }
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -274,6 +292,14 @@ export class ChromeOSAdapter implements IIOBridgeAdapter {
     return newToken
   }
 
+  /**
+   * Clear the stored auth token. Called when token mismatch is detected.
+   */
+  async clearToken(): Promise<void> {
+    await chrome.storage.local.remove([STORAGE_KEY_TOKEN])
+    this.token = null
+  }
+
   private async buildDaemonInfo(port: number, token: string): Promise<DaemonInfo> {
     return {
       port,
@@ -295,6 +321,12 @@ export class ChromeOSAdapter implements IIOBridgeAdapter {
           'X-JST-Auth': this.token,
         },
       })
+
+      if (response.status === 401) {
+        console.warn('[ChromeOSAdapter] 401 Unauthorized - token mismatch, clearing token')
+        await this.clearToken()
+        throw new TokenMismatchError('Token mismatch - re-pair needed')
+      }
 
       if (!response.ok) {
         console.warn('[ChromeOSAdapter] Failed to fetch roots:', response.status)

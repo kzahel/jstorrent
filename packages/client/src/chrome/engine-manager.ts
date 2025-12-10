@@ -112,7 +112,16 @@ class EngineManager {
 
     // 2. Create direct WebSocket connection to daemon
     this.daemonConnection = new DaemonConnection(daemonInfo.port, daemonInfo.token, daemonInfo.host)
-    await this.daemonConnection.connectWebSocket()
+    try {
+      await this.daemonConnection.connectWebSocket()
+    } catch (error) {
+      // If auth failed, signal IOBridge to clear token and trigger re-pairing
+      if (error instanceof Error && error.message.includes('auth failed')) {
+        console.log('[EngineManager] Auth failed, signaling IOBridge')
+        bridge.postMessage({ type: 'IOBRIDGE_AUTH_FAILED' })
+      }
+      throw error
+    }
     console.log('[EngineManager] WebSocket connected')
 
     // 3. Set up storage root manager
