@@ -8,6 +8,7 @@
 import type { Platform } from './platform'
 import { detectPlatform } from './platform'
 import type { DaemonInfo, DownloadRoot } from './native-connection'
+import { getOrCreateInstallId } from './install-id'
 
 // Re-export types for convenience
 export type { DaemonInfo, DownloadRoot } from './native-connection'
@@ -224,6 +225,8 @@ export class DaemonBridge {
   // ==========================================================================
 
   private async connectDesktop(): Promise<void> {
+    const installId = await getOrCreateInstallId()
+
     return new Promise((resolve, reject) => {
       const port = chrome.runtime.connectNative('com.jstorrent.native')
 
@@ -277,6 +280,7 @@ export class DaemonBridge {
       port.postMessage({
         op: 'handshake',
         extensionId: chrome.runtime.id,
+        installId,
         id: crypto.randomUUID(),
       })
     })

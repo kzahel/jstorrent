@@ -5,6 +5,7 @@ console.log('[SW] Deploy test - this log confirms deploy workflow works!')
 import { getDaemonBridge, type NativeEvent, type DaemonBridgeState } from './lib/daemon-bridge'
 import { handleKVMessage } from './lib/kv-handlers'
 import { NotificationManager, ProgressStats } from './lib/notifications'
+import { getOrCreateInstallId } from './lib/install-id'
 
 // ============================================================================
 // Notification Manager
@@ -138,19 +139,9 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.runtime.onInstalled.addListener(async (details) => {
   console.log(`[SW] onInstalled fired at ${new Date().toISOString()} - reason: ${details.reason}`)
   // Just ensure install ID exists - connection happens via IOBridgeService when UI opens
-  const installId = await getOrGenerateInstallId()
+  const installId = await getOrCreateInstallId()
   console.log('Generated/Retrieved Install ID:', installId)
 })
-
-async function getOrGenerateInstallId(): Promise<string> {
-  const result = await chrome.storage.local.get('installId')
-  if (result.installId) {
-    return result.installId as string
-  }
-  const newId = crypto.randomUUID()
-  await chrome.storage.local.set({ installId: newId })
-  return newId
-}
 
 // ============================================================================
 // UI Tab Management

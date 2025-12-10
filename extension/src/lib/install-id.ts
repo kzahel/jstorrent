@@ -1,0 +1,11 @@
+const STORAGE_KEY = 'installId'
+
+export async function getOrCreateInstallId(): Promise<string> {
+  const result = await chrome.storage.local.get(STORAGE_KEY)
+  if (result[STORAGE_KEY]) {
+    return result[STORAGE_KEY] as string
+  }
+  const newId = crypto.randomUUID()
+  await chrome.storage.local.set({ [STORAGE_KEY]: newId })
+  return newId
+}
