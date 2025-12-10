@@ -106,6 +106,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.java.websocket)
     testImplementation(libs.kotlinx.serialization.json)
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

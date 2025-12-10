@@ -43,5 +43,5 @@ if python extension/tools/reload-extension.py 2>/dev/null; then
     echo "Done! Extension reloaded."
 else
     echo "Build deployed but reload failed."
-    echo "   Is the CDP tunnel active? ssh -L 9222:127.0.0.1:9222 $CHROMEBOOK_HOST"
+    echo "   Is the CDP tunnel active? ssh -NL 9222:127.0.0.1:9222 chromeroot"
 fi

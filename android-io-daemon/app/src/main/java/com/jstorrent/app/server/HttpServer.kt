@@ -1,7 +1,9 @@
 package com.jstorrent.app.server
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
+import com.jstorrent.app.PairingApprovalActivity
 import com.jstorrent.app.auth.TokenStore
 import com.jstorrent.app.storage.DownloadRoot
 import com.jstorrent.app.storage.RootStore
@@ -30,6 +32,24 @@ private data class RootsResponse(
     val roots: List<DownloadRoot>
 )
 
+@Serializable
+private data class StatusResponse(
+    val port: Int,
+    val paired: Boolean,
+    val extensionId: String? = null,
+    val installId: String? = null
+)
+
+@Serializable
+private data class PairRequest(
+    val token: String
+)
+
+@Serializable
+private data class PairResponse(
+    val status: String // "approved", "pending"
+)
+
 private val json = Json {
     encodeDefaults = true
     ignoreUnknownKeys = true
@@ -45,6 +65,10 @@ class HttpServer(
 
     // Connected WebSocket sessions for control broadcasts
     private val controlSessions = CopyOnWriteArrayList<SocketSession>()
+
+    // Is a pairing dialog currently showing?
+    @Volatile
+    private var pairingDialogShowing = false
 
     val port: Int get() = actualPort
     val isRunning: Boolean get() = server != null
@@ -95,11 +119,68 @@ class HttpServer(
                 call.respondText("ok", ContentType.Text.Plain)
             }
 
-            // Status endpoint - no auth required
-            get("/status") {
+            // Status endpoint - POST for Origin header, origin check, no token auth
+            post("/status") {
+                if (!call.requireExtensionOrigin()) return@post
+                val headers = call.getExtensionHeaders() ?: return@post
+
+                val response = StatusResponse(
+                    port = actualPort,
+                    paired = tokenStore.hasToken(),
+                    extensionId = tokenStore.extensionId,
+                    installId = tokenStore.installId
+                )
                 call.respondText(
-                    """{"port":$actualPort,"paired":${tokenStore.hasToken()}}""",
+                    json.encodeToString(response),
                     ContentType.Application.Json
+                )
+            }
+
+            // Pairing endpoint - origin check, no token auth
+            post("/pair") {
+                if (!call.requireExtensionOrigin()) return@post
+                val headers = call.getExtensionHeaders() ?: return@post
+
+                val request = try {
+                    json.decodeFromString<PairRequest>(call.receiveText())
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, "Invalid request body")
+                    return@post
+                }
+
+                // Same extensionId AND installId = silent re-pair (token refresh)
+                if (tokenStore.isPairedWith(headers.extensionId, headers.installId)) {
+                    tokenStore.pair(request.token, headers.installId, headers.extensionId)
+                    Log.i(TAG, "Silent re-pair: same extensionId and installId")
+                    call.respondText(
+                        json.encodeToString(PairResponse("approved")),
+                        ContentType.Application.Json
+                    )
+                    return@post
+                }
+
+                // Dialog already showing? Return 409
+                if (pairingDialogShowing) {
+                    Log.w(TAG, "Pairing dialog already showing, rejecting")
+                    call.respond(HttpStatusCode.Conflict, "Pairing dialog already showing")
+                    return@post
+                }
+
+                // Show dialog (async) and return 202
+                pairingDialogShowing = true
+                val isReplace = tokenStore.hasToken()
+
+                showPairingDialog(
+                    token = request.token,
+                    installId = headers.installId,
+                    extensionId = headers.extensionId,
+                    isReplace = isReplace
+                )
+
+                call.respondText(
+                    json.encodeToString(PairResponse("pending")),
+                    ContentType.Application.Json,
+                    HttpStatusCode.Accepted
                 )
             }
 
@@ -113,6 +194,7 @@ class HttpServer(
 
             // Protected endpoints
             post("/hash/sha1") {
+                call.getExtensionHeaders() ?: return@post
                 requireAuth(tokenStore) {
                     val bytes = call.receive<ByteArray>()
                     val digest = MessageDigest.getInstance("SHA-1")
@@ -123,6 +205,7 @@ class HttpServer(
 
             // Roots endpoint - returns available download roots
             get("/roots") {
+                call.getExtensionHeaders() ?: return@get
                 requireAuth(tokenStore) {
                     val roots = rootStore.refreshAvailability()
                     val response = RootsResponse(roots = roots)
@@ -138,6 +221,14 @@ class HttpServer(
                 intercept(ApplicationCallPipeline.Call) {
                     val path = call.request.path()
                     if (path.startsWith("/read/") || path.startsWith("/write/")) {
+                        // Validate extension headers
+                        val headers = call.getExtensionHeaders()
+                        if (headers == null) {
+                            finish()
+                            return@intercept
+                        }
+
+                        // Validate token
                         val storedToken = tokenStore.token
                         if (storedToken == null) {
                             call.respond(HttpStatusCode.ServiceUnavailable, "Not paired")
@@ -204,6 +295,35 @@ class HttpServer(
         controlSessions.forEach { session ->
             session.sendControl(frame)
         }
+    }
+
+    /**
+     * Show pairing approval dialog. Runs async - result stored when user acts.
+     */
+    private fun showPairingDialog(
+        token: String,
+        installId: String,
+        extensionId: String,
+        isReplace: Boolean
+    ) {
+        PairingApprovalActivity.pendingCallback = { approved, approvedToken, approvedInstallId, approvedExtensionId ->
+            pairingDialogShowing = false
+            if (approved && approvedToken != null && approvedInstallId != null && approvedExtensionId != null) {
+                tokenStore.pair(approvedToken, approvedInstallId, approvedExtensionId)
+                Log.i(TAG, "Pairing approved and stored")
+            } else {
+                Log.i(TAG, "Pairing denied or dismissed")
+            }
+        }
+
+        val intent = Intent(context, PairingApprovalActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            putExtra(PairingApprovalActivity.EXTRA_TOKEN, token)
+            putExtra(PairingApprovalActivity.EXTRA_INSTALL_ID, installId)
+            putExtra(PairingApprovalActivity.EXTRA_EXTENSION_ID, extensionId)
+            putExtra(PairingApprovalActivity.EXTRA_IS_REPLACE, isReplace)
+        }
+        context.startActivity(intent)
     }
 
     companion object {

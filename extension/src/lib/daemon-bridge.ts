@@ -135,14 +135,14 @@ export class DaemonBridge {
 
   /**
    * Trigger Android app launch (ChromeOS only).
-   * Opens the pairing intent and then retries connection.
+   * Opens launch intent then polls for daemon and initiates pairing.
    */
   async triggerLaunch(): Promise<boolean> {
     if (this.state.platform !== 'chromeos') return false
 
     try {
-      const token = await this.getOrCreateToken()
-      const intentUrl = `intent://pair?token=${encodeURIComponent(token)}#Intent;scheme=jstorrent;package=com.jstorrent.app;end`
+      // Launch intent - just starts the app, no token
+      const intentUrl = 'intent://launch#Intent;scheme=jstorrent;package=com.jstorrent.app;end'
 
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
       if (tab?.id) {
@@ -151,9 +151,8 @@ export class DaemonBridge {
         await chrome.tabs.create({ url: intentUrl })
       }
 
-      // After launching, poll for connection (daemon may take a moment to start)
       this.updateState({ status: 'connecting', lastError: null })
-      this.pollForConnection()
+      this.waitForDaemonAndPair()
 
       return true
     } catch (e) {
@@ -163,48 +162,183 @@ export class DaemonBridge {
   }
 
   /**
-   * Poll for daemon connection after launch.
+   * Wait for daemon to become reachable after launch, then pair if needed.
    */
-  private async pollForConnection(): Promise<void> {
-    const maxAttempts = 30 // 30 seconds max
-    const pollInterval = 1000 // 1 second
+  private async waitForDaemonAndPair(): Promise<void> {
+    const maxWaitAttempts = 30 // 30s to wait for daemon to start
+    const pollInterval = 1000
 
-    for (let i = 0; i < maxAttempts; i++) {
-      try {
-        const port = await this.findDaemonPort()
-        if (port) {
-          const paired = await this.checkPaired(port)
-          if (paired) {
-            // Found paired daemon, complete connection
-            const token = await this.getOrCreateToken()
-            const roots = await this.fetchRoots(port, token)
-            await this.connectWebSocket(port, token)
-
-            this.updateState({
-              status: 'connected',
-              daemonInfo: { port, token, version: 1, roots, host: '100.115.92.2' },
-              roots,
-              lastError: null,
-            })
-
-            await chrome.storage.local.set({ [STORAGE_KEY_HAS_CONNECTED]: true })
-            this.startHealthCheck(port)
-            console.log('[DaemonBridge] Connected after launch')
-            return
-          }
-        }
-      } catch (e) {
-        // Keep polling
-      }
-
+    // Phase 1: Wait for daemon to become reachable
+    let port: number | null = null
+    for (let i = 0; i < maxWaitAttempts; i++) {
+      port = await this.findDaemonPort()
+      if (port) break
       await new Promise((r) => setTimeout(r, pollInterval))
     }
 
-    // Timed out
+    if (!port) {
+      this.updateState({
+        status: 'disconnected',
+        lastError: 'Android app did not start',
+      })
+      return
+    }
+
+    // Phase 2: Check status and pair if needed
+    await this.checkStatusAndPair(port)
+  }
+
+  /**
+   * Check pairing status and initiate pairing flow if needed.
+   */
+  private async checkStatusAndPair(port: number): Promise<void> {
+    const installId = await getOrCreateInstallId()
+    const extensionId = chrome.runtime.id
+
+    const status = await this.fetchStatus(port)
+
+    // Already paired with us?
+    if (status.paired && status.extensionId === extensionId && status.installId === installId) {
+      console.log('[DaemonBridge] Already paired, connecting...')
+      await this.completeConnection(port)
+      return
+    }
+
+    // Need to pair - POST /pair
+    const pairResult = await this.requestPairing(port)
+
+    if (pairResult === 'approved') {
+      await this.completeConnection(port)
+      return
+    }
+
+    if (pairResult === 'conflict') {
+      // Dialog already showing, wait and retry
+      await new Promise((r) => setTimeout(r, 2000))
+      await this.checkStatusAndPair(port)
+      return
+    }
+
+    // pairResult === 'pending' - poll until paired
+    await this.pollForPairing(port)
+  }
+
+  /**
+   * Poll /status until pairing completes or times out.
+   */
+  private async pollForPairing(port: number): Promise<void> {
+    const maxPollAttempts = 60 // 60s for user to approve
+    const pollInterval = 1000
+    const installId = await getOrCreateInstallId()
+    const extensionId = chrome.runtime.id
+
+    for (let i = 0; i < maxPollAttempts; i++) {
+      await new Promise((r) => setTimeout(r, pollInterval))
+
+      try {
+        const status = await this.fetchStatus(port)
+        if (status.paired && status.extensionId === extensionId && status.installId === installId) {
+          console.log('[DaemonBridge] Pairing approved')
+          await this.completeConnection(port)
+          return
+        }
+      } catch {
+        // Keep polling
+      }
+    }
+
     this.updateState({
       status: 'disconnected',
-      lastError: 'Launch timed out - daemon did not respond',
+      lastError: 'Pairing timed out',
     })
+  }
+
+  /**
+   * Build standard headers for all HTTP requests.
+   */
+  private async buildHeaders(includeAuth: boolean = false): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
+      'X-JST-ExtensionId': chrome.runtime.id,
+      'X-JST-InstallId': await getOrCreateInstallId(),
+    }
+    if (includeAuth) {
+      const token = await this.getOrCreateToken()
+      headers['X-JST-Auth'] = token
+    }
+    return headers
+  }
+
+  /**
+   * Fetch status from daemon (POST for Origin header).
+   */
+  private async fetchStatus(port: number): Promise<{
+    port: number
+    paired: boolean
+    extensionId: string | null
+    installId: string | null
+  }> {
+    const headers = await this.buildHeaders()
+    const response = await fetch(`http://100.115.92.2:${port}/status`, {
+      method: 'POST',
+      headers,
+    })
+    if (!response.ok) throw new Error(`Status failed: ${response.status}`)
+    return response.json()
+  }
+
+  /**
+   * Request pairing via POST /pair.
+   * Returns 'approved', 'pending', or 'conflict'.
+   */
+  private async requestPairing(port: number): Promise<'approved' | 'pending' | 'conflict'> {
+    const token = await this.getOrCreateToken()
+    const headers = await this.buildHeaders()
+    headers['Content-Type'] = 'application/json'
+
+    try {
+      const response = await fetch(`http://100.115.92.2:${port}/pair`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ token }),
+      })
+
+      if (response.ok) {
+        const data = (await response.json()) as { status: string }
+        return data.status as 'approved' | 'pending'
+      } else if (response.status === 409) {
+        return 'conflict'
+      }
+      return 'pending'
+    } catch {
+      return 'pending'
+    }
+  }
+
+  /**
+   * Complete connection after pairing confirmed.
+   */
+  private async completeConnection(port: number): Promise<void> {
+    const token = await this.getOrCreateToken()
+    const headers = await this.buildHeaders(true)
+
+    // Fetch roots with auth
+    const rootsResponse = await fetch(`http://100.115.92.2:${port}/roots`, { headers })
+    const rootsData = (await rootsResponse.json()) as { roots: DownloadRoot[] }
+    const roots = rootsData.roots || []
+
+    // Connect WebSocket
+    await this.connectWebSocket(port, token)
+
+    this.updateState({
+      status: 'connected',
+      daemonInfo: { port, token, version: 1, roots, host: '100.115.92.2' },
+      roots,
+      lastError: null,
+    })
+
+    await chrome.storage.local.set({ [STORAGE_KEY_HAS_CONNECTED]: true })
+    this.startHealthCheck(port)
+    console.log('[DaemonBridge] Connected successfully')
   }
 
   /**
@@ -344,29 +478,23 @@ export class DaemonBridge {
       throw new Error('Android daemon not reachable')
     }
 
-    const token = await this.getOrCreateToken()
-    const paired = await this.checkPaired(port)
-    if (!paired) {
-      throw new Error('Daemon not paired')
+    const installId = await getOrCreateInstallId()
+    const extensionId = chrome.runtime.id
+    const status = await this.fetchStatus(port)
+
+    // Already paired with us? Try connecting
+    if (status.paired && status.extensionId === extensionId && status.installId === installId) {
+      await this.completeConnection(port)
+      return
     }
 
-    // Fetch initial roots
-    const roots = await this.fetchRoots(port, token)
-
-    // Connect WebSocket for control plane
-    await this.connectWebSocket(port, token)
-
-    this.updateState({
-      status: 'connected',
-      daemonInfo: { port, token, version: 1, roots, host: '100.115.92.2' },
-      roots,
-    })
-
-    // Start health check
-    this.startHealthCheck(port)
+    // Need to pair
+    throw new Error('Not paired - use triggerLaunch()')
   }
 
   private async connectWebSocket(port: number, token: string): Promise<void> {
+    const installId = await getOrCreateInstallId()
+
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(`ws://100.115.92.2:${port}/io`)
       ws.binaryType = 'arraybuffer'
@@ -386,8 +514,23 @@ export class DaemonBridge {
         const opcode = data[1]
 
         if (opcode === 0x02) {
-          // SERVER_HELLO - send AUTH
-          const authPayload = new Uint8Array([0, ...new TextEncoder().encode(token)])
+          // SERVER_HELLO - send AUTH with token + extensionId + installId
+          const encoder = new TextEncoder()
+          const tokenBytes = encoder.encode(token)
+          const extensionIdBytes = encoder.encode(chrome.runtime.id)
+          const installIdBytes = encoder.encode(installId)
+
+          // Format: authType(1) + token + \0 + extensionId + \0 + installId
+          const authPayload = new Uint8Array(
+            1 + tokenBytes.length + 1 + extensionIdBytes.length + 1 + installIdBytes.length,
+          )
+          authPayload[0] = 0 // authType
+          authPayload.set(tokenBytes, 1)
+          authPayload[1 + tokenBytes.length] = 0 // null separator
+          authPayload.set(extensionIdBytes, 1 + tokenBytes.length + 1)
+          authPayload[1 + tokenBytes.length + 1 + extensionIdBytes.length] = 0 // null separator
+          authPayload.set(installIdBytes, 1 + tokenBytes.length + 1 + extensionIdBytes.length + 1)
+
           ws.send(this.buildFrame(0x03, 0, authPayload))
         } else if (opcode === 0x04) {
           // AUTH_RESULT
@@ -521,7 +664,8 @@ export class DaemonBridge {
         const controller = new AbortController()
         setTimeout(() => controller.abort(), 2000)
 
-        const response = await fetch(`http://100.115.92.2:${port}/status`, {
+        // Use /health endpoint which doesn't require headers
+        const response = await fetch(`http://100.115.92.2:${port}/health`, {
           signal: controller.signal,
         })
 
@@ -534,51 +678,6 @@ export class DaemonBridge {
       }
     }
     return null
-  }
-
-  private async checkPaired(port: number): Promise<boolean> {
-    try {
-      const response = await fetch(`http://100.115.92.2:${port}/status`)
-      const data = (await response.json()) as { paired: boolean }
-      return data.paired
-    } catch {
-      return false
-    }
-  }
-
-  private async fetchRoots(port: number, token: string): Promise<DownloadRoot[]> {
-    try {
-      const response = await fetch(`http://100.115.92.2:${port}/roots`, {
-        headers: { 'X-JST-Auth': token },
-      })
-
-      if (!response.ok) return []
-
-      const data = (await response.json()) as {
-        roots: Array<{
-          key: string
-          uri: string
-          display_name?: string
-          displayName?: string
-          removable: boolean
-          last_stat_ok?: boolean
-          lastStatOk?: boolean
-          last_checked?: number
-          lastChecked?: number
-        }>
-      }
-
-      return data.roots.map((r) => ({
-        key: r.key,
-        path: r.uri,
-        display_name: r.display_name || r.displayName || '',
-        removable: r.removable,
-        last_stat_ok: r.last_stat_ok ?? r.lastStatOk ?? true,
-        last_checked: r.last_checked ?? r.lastChecked ?? Date.now(),
-      }))
-    } catch {
-      return []
-    }
   }
 
   private async getOrCreateToken(): Promise<string> {
