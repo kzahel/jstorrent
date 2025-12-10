@@ -1,6 +1,6 @@
 import { ISessionStore } from '../interfaces/session-store'
 import { BtEngine } from './bt-engine'
-import { Torrent, TorrentPersistedState } from './torrent'
+import { Torrent } from './torrent'
 import { toHex, toBase64, fromBase64 } from '../utils/buffer'
 import { TorrentUserState } from './torrent-state'
 import { Logger } from '../logging/logger'
@@ -8,39 +8,54 @@ import { initializeTorrentMetadata } from './torrent-initializer'
 
 const TORRENTS_KEY = 'torrents'
 const TORRENT_PREFIX = 'torrent:'
+const STATE_SUFFIX = ':state'
+const TORRENTFILE_SUFFIX = ':torrentfile'
+const INFODICT_SUFFIX = ':infodict'
+
+function stateKey(infoHash: string): string {
+  return `${TORRENT_PREFIX}${infoHash}${STATE_SUFFIX}`
+}
+
+function torrentFileKey(infoHash: string): string {
+  return `${TORRENT_PREFIX}${infoHash}${TORRENTFILE_SUFFIX}`
+}
+
+function infoDictKey(infoHash: string): string {
+  return `${TORRENT_PREFIX}${infoHash}${INFODICT_SUFFIX}`
+}
 
 /**
- * Metadata for a single torrent, persisted to session store.
+ * Entry in the lightweight torrent index.
  */
-export interface TorrentSessionData {
+export interface TorrentListEntry {
   infoHash: string // Hex string
-  magnetLink?: string // Original magnet link if added via magnet
-  torrentFile?: string // Base64 encoded .torrent file if added via file
-  storageKey?: string // Which download root to use
+  source: 'file' | 'magnet'
+  magnetUri?: string // Only for magnet source
   addedAt: number // Timestamp when added
-
-  // User state
-  userState: TorrentUserState
-  queuePosition?: number
 }
 
 /**
- * Per-torrent state that changes during download.
- */
-export interface TorrentStateData {
-  bitfield: string // Hex-encoded bitfield
-  uploaded: number // Total bytes uploaded
-  downloaded: number // Total bytes downloaded (verified)
-  updatedAt: number // Last update timestamp
-  infoBuffer?: string // Base64-encoded info dictionary (for magnet links that have received metadata)
-}
-
-/**
- * List of all torrents.
+ * The torrent list index.
  */
 export interface TorrentListData {
   version: number
-  torrents: TorrentSessionData[]
+  torrents: TorrentListEntry[]
+}
+
+/**
+ * Per-torrent mutable state.
+ */
+export interface TorrentStateData {
+  // User state
+  userState: TorrentUserState
+  storageKey?: string
+  queuePosition?: number
+
+  // Progress (absent until metadata received)
+  bitfield?: string // Hex-encoded bitfield
+  uploaded: number
+  downloaded: number
+  updatedAt: number
 }
 
 /**
@@ -68,12 +83,23 @@ export class SessionPersistence {
   }
 
   /**
-   * Save the current list of torrents.
+   * Save the lightweight torrent index.
+   * Only contains identifiers and source info - no large data.
    */
   async saveTorrentList(): Promise<void> {
     const data: TorrentListData = {
-      version: 1,
-      torrents: this.engine.torrents.map((t) => this.torrentToSessionData(t)),
+      version: 2,
+      torrents: this.engine.torrents.map((t) => {
+        const entry: TorrentListEntry = {
+          infoHash: toHex(t.infoHash),
+          source: t.magnetLink ? 'magnet' : 'file',
+          addedAt: t.addedAt,
+        }
+        if (t.magnetLink) {
+          entry.magnetUri = t.magnetLink
+        }
+        return entry
+      }),
     }
 
     const json = JSON.stringify(data)
@@ -81,31 +107,40 @@ export class SessionPersistence {
   }
 
   /**
-   * Save state for a specific torrent (bitfield, stats, metadata).
+   * Save mutable state for a specific torrent (progress, userState, etc).
    */
   async saveTorrentState(torrent: Torrent): Promise<void> {
     const infoHash = toHex(torrent.infoHash)
+    const root = this.engine.storageRootManager.getRootForTorrent(infoHash)
 
-    if (!torrent.bitfield) return // No bitfield yet (no metadata)
-
-    // Get persisted state from torrent
-    const persistedState = torrent.getPersistedState()
-
-    // Convert to storage format (TorrentStateData)
     const state: TorrentStateData = {
-      bitfield: torrent.bitfield.toHex(),
-      uploaded: persistedState.totalUploaded,
-      downloaded: persistedState.totalDownloaded,
+      userState: torrent.userState,
+      storageKey: root?.key,
+      queuePosition: torrent.queuePosition,
+      bitfield: torrent.bitfield?.toHex(),
+      uploaded: torrent.totalUploaded,
+      downloaded: torrent.totalDownloaded,
       updatedAt: Date.now(),
     }
 
-    // Save the info buffer (metadata) so we don't need to re-fetch from peers
-    if (persistedState.infoBuffer) {
-      state.infoBuffer = toBase64(persistedState.infoBuffer)
-    }
-
     const json = JSON.stringify(state)
-    await this.store.set(TORRENT_PREFIX + infoHash, new TextEncoder().encode(json))
+    await this.store.set(stateKey(infoHash), new TextEncoder().encode(json))
+  }
+
+  /**
+   * Save the .torrent file bytes. Called once when adding a file-source torrent.
+   */
+  async saveTorrentFile(infoHash: string, torrentFile: Uint8Array): Promise<void> {
+    const base64 = toBase64(torrentFile)
+    await this.store.set(torrentFileKey(infoHash), new TextEncoder().encode(base64))
+  }
+
+  /**
+   * Save the info dictionary bytes. Called once when a magnet torrent receives metadata.
+   */
+  async saveInfoDict(infoHash: string, infoDict: Uint8Array): Promise<void> {
+    const base64 = toBase64(infoDict)
+    await this.store.set(infoDictKey(infoHash), new TextEncoder().encode(base64))
   }
 
   /**
@@ -146,9 +181,9 @@ export class SessionPersistence {
   }
 
   /**
-   * Load the list of torrents from storage.
+   * Load the torrent index from storage.
    */
-  async loadTorrentList(): Promise<TorrentSessionData[]> {
+  async loadTorrentList(): Promise<TorrentListEntry[]> {
     const data = await this.store.get(TORRENTS_KEY)
     if (!data) return []
 
@@ -163,21 +198,15 @@ export class SessionPersistence {
   }
 
   /**
-   * Load state for a specific torrent.
+   * Load mutable state for a specific torrent.
    */
   async loadTorrentState(infoHash: string): Promise<TorrentStateData | null> {
-    this.logger.debug(`Loading state for ${infoHash}`)
-    const data = await this.store.get(TORRENT_PREFIX + infoHash)
-    if (!data) {
-      this.logger.debug(`No saved state found for ${infoHash}`)
-      return null
-    }
+    const data = await this.store.get(stateKey(infoHash))
+    if (!data) return null
 
     try {
       const json = new TextDecoder().decode(data)
-      const parsed = JSON.parse(json) as TorrentStateData
-      this.logger.debug(`Found state for ${infoHash}, bitfield length=${parsed.bitfield?.length}`)
-      return parsed
+      return JSON.parse(json) as TorrentStateData
     } catch (e) {
       this.logger.error(`Failed to parse torrent state for ${infoHash}:`, e)
       return null
@@ -185,126 +214,125 @@ export class SessionPersistence {
   }
 
   /**
-   * Remove state for a torrent.
+   * Load the .torrent file bytes for a file-source torrent.
    */
-  async removeTorrentState(infoHash: string): Promise<void> {
-    await this.store.delete(TORRENT_PREFIX + infoHash)
+  async loadTorrentFile(infoHash: string): Promise<Uint8Array | null> {
+    const data = await this.store.get(torrentFileKey(infoHash))
+    if (!data) return null
+
+    try {
+      const base64 = new TextDecoder().decode(data)
+      return fromBase64(base64)
+    } catch (e) {
+      this.logger.error(`Failed to load torrent file for ${infoHash}:`, e)
+      return null
+    }
+  }
+
+  /**
+   * Load the info dictionary bytes for a magnet-source torrent.
+   */
+  async loadInfoDict(infoHash: string): Promise<Uint8Array | null> {
+    const data = await this.store.get(infoDictKey(infoHash))
+    if (!data) return null
+
+    try {
+      const base64 = new TextDecoder().decode(data)
+      return fromBase64(base64)
+    } catch (e) {
+      this.logger.error(`Failed to load info dict for ${infoHash}:`, e)
+      return null
+    }
+  }
+
+  /**
+   * Remove all persisted data for a torrent.
+   */
+  async removeTorrentData(infoHash: string): Promise<void> {
+    await Promise.all([
+      this.store.delete(stateKey(infoHash)),
+      this.store.delete(torrentFileKey(infoHash)),
+      this.store.delete(infoDictKey(infoHash)),
+    ])
   }
 
   /**
    * Restore all torrents from storage.
    * Call this on engine startup while engine is suspended.
-   * Torrents are added with their saved userState, metadata, bitfields, and stats restored.
-   * Network activity will only start when engine.resume() is called.
    */
   async restoreSession(): Promise<number> {
-    const torrentsData = await this.loadTorrentList()
+    const entries = await this.loadTorrentList()
     let restoredCount = 0
 
-    for (const data of torrentsData) {
+    for (const entry of entries) {
       try {
-        // Load saved state FIRST - we need infoBuffer before adding torrent for magnet links
-        const state = await this.loadTorrentState(data.infoHash)
-
+        const state = await this.loadTorrentState(entry.infoHash)
         let torrent: Torrent | null = null
 
-        if (data.magnetLink) {
-          torrent = await this.engine.addTorrent(data.magnetLink, {
-            storageKey: data.storageKey,
-            source: 'restore',
-            userState: data.userState || 'active',
-          })
-        } else if (data.torrentFile) {
-          // Decode base64 torrent file
-          const buffer = fromBase64(data.torrentFile)
-          torrent = await this.engine.addTorrent(buffer, {
-            storageKey: data.storageKey,
-            source: 'restore',
-            userState: data.userState || 'active',
-          })
-        }
-
-        if (torrent) {
-          // Build persisted state from saved data
-          const persistedState: TorrentPersistedState = {
-            magnetLink: data.magnetLink,
-            torrentFileBase64: data.torrentFile,
-            addedAt: data.addedAt,
-            userState: data.userState || 'active',
-            queuePosition: data.queuePosition,
-            totalDownloaded: state?.downloaded ?? 0,
-            totalUploaded: state?.uploaded ?? 0,
-            completedPieces: [], // Will be restored from bitfield below
-            infoBuffer: state?.infoBuffer ? fromBase64(state.infoBuffer) : undefined,
+        if (entry.source === 'file') {
+          // File-source: load .torrent file
+          const torrentFile = await this.loadTorrentFile(entry.infoHash)
+          if (!torrentFile) {
+            this.logger.error(`Missing torrent file for ${entry.infoHash}, skipping`)
+            continue
           }
+          torrent = await this.engine.addTorrent(torrentFile, {
+            storageKey: state?.storageKey,
+            source: 'restore',
+            userState: state?.userState ?? 'active',
+          })
+        } else {
+          // Magnet-source: use magnetUri
+          if (!entry.magnetUri) {
+            this.logger.error(`Missing magnetUri for ${entry.infoHash}, skipping`)
+            continue
+          }
+          torrent = await this.engine.addTorrent(entry.magnetUri, {
+            storageKey: state?.storageKey,
+            source: 'restore',
+            userState: state?.userState ?? 'active',
+          })
 
-          // If we have saved metadata (info buffer), initialize the torrent with it
-          // This is crucial for magnet links - avoids needing to re-fetch metadata from peers
-          if (persistedState.infoBuffer && !torrent.hasMetadata) {
-            this.logger.debug(`Initializing torrent ${data.infoHash} from saved metadata`)
-            try {
-              await initializeTorrentMetadata(this.engine, torrent, persistedState.infoBuffer)
-            } catch (e) {
-              // Use name check instead of instanceof (instanceof fails across module boundaries)
-              if (e instanceof Error && e.name === 'MissingStorageRootError') {
-                // Storage is missing - mark torrent in error state but keep it visible
-                torrent.errorMessage = `Download location unavailable. Storage root not found.`
-                this.logger.warn(`Torrent ${data.infoHash} restored with missing storage`)
-                // Continue - torrent is in error state but will appear in UI
-              } else {
-                throw e // Re-throw other errors
+          // If we have saved infodict, initialize metadata
+          if (torrent && !torrent.hasMetadata) {
+            const infoDict = await this.loadInfoDict(entry.infoHash)
+            if (infoDict) {
+              this.logger.debug(`Initializing torrent ${entry.infoHash} from saved infodict`)
+              try {
+                await initializeTorrentMetadata(this.engine, torrent, infoDict)
+              } catch (e) {
+                if (e instanceof Error && e.name === 'MissingStorageRootError') {
+                  torrent.errorMessage = `Download location unavailable. Storage root not found.`
+                  this.logger.warn(`Torrent ${entry.infoHash} restored with missing storage`)
+                } else {
+                  throw e
+                }
               }
             }
           }
+        }
 
-          // Restore bitfield if we have saved state and metadata is now available
-          // Note: We still use hex bitfield for storage efficiency, but restore via restoreBitfieldFromHex
-          if (state?.bitfield && torrent.hasMetadata) {
-            this.logger.debug(
-              `Restoring bitfield for ${data.infoHash}, length=${state.bitfield?.length}`,
-            )
-            torrent.restoreBitfieldFromHex(state.bitfield)
-            this.logger.debug(`Restored bitfield, completedPieces=${torrent.completedPiecesCount}`)
+        if (torrent) {
+          // Restore progress from state
+          if (state) {
+            if (state.bitfield && torrent.hasMetadata) {
+              torrent.restoreBitfieldFromHex(state.bitfield)
+            }
+            torrent.totalUploaded = state.uploaded
+            torrent.totalDownloaded = state.downloaded
+            torrent.queuePosition = state.queuePosition
           }
 
-          // Restore the rest of the persisted state (stats, timestamps, etc.)
-          // Don't overwrite bitfield since we just restored it from hex
-          torrent.addedAt = persistedState.addedAt
-          torrent.queuePosition = persistedState.queuePosition
-          torrent.totalDownloaded = persistedState.totalDownloaded
-          torrent.totalUploaded = persistedState.totalUploaded
+          // Restore addedAt from list entry
+          torrent.addedAt = entry.addedAt
 
           restoredCount++
         }
       } catch (e) {
-        this.logger.error(`Failed to restore torrent ${data.infoHash}:`, e)
+        this.logger.error(`Failed to restore torrent ${entry.infoHash}:`, e)
       }
     }
 
-    // Note: Torrents will NOT start yet because engine is suspended.
-    // Caller should call engine.resume() after restore completes.
-
     return restoredCount
-  }
-
-  private torrentToSessionData(torrent: Torrent): TorrentSessionData {
-    const infoHash = toHex(torrent.infoHash)
-    const persistedState = torrent.getPersistedState()
-
-    // Get storage key for this torrent
-    const root = this.engine.storageRootManager.getRootForTorrent(infoHash)
-    const storageKey = root?.key
-
-    return {
-      infoHash,
-      magnetLink: persistedState.magnetLink,
-      torrentFile: persistedState.torrentFileBase64,
-      storageKey,
-      addedAt: persistedState.addedAt,
-
-      // Persist user state
-      userState: persistedState.userState,
-      queuePosition: persistedState.queuePosition,
-    }
   }
 }

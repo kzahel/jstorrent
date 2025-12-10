@@ -4,7 +4,7 @@ export { Torrent } from './core/torrent'
 export { TorrentFileInfo } from './core/torrent-file-info'
 export { PeerConnection } from './core/peer-connection'
 export { SessionPersistence } from './core/session-persistence'
-export type { TorrentSessionData, TorrentStateData } from './core/session-persistence'
+export type { TorrentListEntry, TorrentStateData } from './core/session-persistence'
 export { ConnectionTimingTracker } from './core/connection-timing'
 export type { ConnectionTimingStats } from './core/connection-timing'
 
