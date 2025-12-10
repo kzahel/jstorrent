@@ -267,29 +267,9 @@ export class TorrentContentStorage extends EngineComponent {
   }
 
   async read(index: number, begin: number, length: number): Promise<Uint8Array> {
-    // If we have a disk queue, enqueue the read operation
-    if (this.diskQueue) {
-      const filePath = this.getFilePathForOffset(index * this.pieceLength + begin)
-      let result: Uint8Array | undefined
-
-      const job: DiskJob = {
-        id: this.generateJobId(),
-        type: 'read',
-        filePath,
-        offset: index * this.pieceLength + begin,
-        length,
-        isPartsFile: filePath.endsWith('.parts'),
-        enqueuedAt: Date.now(),
-        executor: async () => {
-          result = await this.readInternal(index, begin, length)
-        },
-      }
-
-      await this.diskQueue.enqueue(job)
-      return result!
-    } else {
-      return this.readInternal(index, begin, length)
-    }
+    // Reads bypass the queue - they're fast, don't need serialization,
+    // and blocking reads would hurt seeding performance
+    return this.readInternal(index, begin, length)
   }
 
   /**
