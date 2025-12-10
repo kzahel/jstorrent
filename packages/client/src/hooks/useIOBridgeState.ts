@@ -2,48 +2,56 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { getBridge } from '../chrome/extension-bridge'
 
 /**
- * IOBridge state names (mirrored from extension/src/lib/io-bridge/types.ts)
+ * Platform type
  */
-export type IOBridgeStateName =
-  | 'INITIALIZING'
-  | 'PROBING'
-  | 'CONNECTED'
-  | 'DISCONNECTED'
-  | 'INSTALL_PROMPT'
-  | 'LAUNCH_PROMPT'
-  | 'AWAITING_LAUNCH'
-  | 'LAUNCH_FAILED'
+export type Platform = 'desktop' | 'chromeos'
 
 /**
- * Minimal IOBridge state for UI consumption.
- * Full state type is in extension; we only need what the UI uses.
+ * Connection status (simplified from 8-state IOBridge)
  */
-export interface IOBridgeState {
-  name: IOBridgeStateName
-  platform?: 'desktop' | 'chromeos'
-  daemonInfo?: {
-    port: number
-    token: string
-    version?: number
-    roots: Array<{
-      key: string
-      path: string
-      display_name: string
-      removable: boolean
-      last_stat_ok: boolean
-      last_checked: number
-    }>
-    host?: string
-  }
-  history?: {
-    attempts: number
-    lastAttempt: number | null
-    lastError: string | null
-  }
-  wasHealthy?: boolean
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
+
+/**
+ * Download root info
+ */
+export interface DownloadRoot {
+  key: string
+  path: string
+  display_name: string
+  removable: boolean
+  last_stat_ok: boolean
+  last_checked: number
 }
 
-const INITIAL_STATE: IOBridgeState = { name: 'INITIALIZING' }
+/**
+ * Daemon info from bridge
+ */
+export interface DaemonInfo {
+  port: number
+  token: string
+  version?: number
+  roots: DownloadRoot[]
+  host?: string
+}
+
+/**
+ * DaemonBridge state (new simplified state)
+ */
+export interface DaemonBridgeState {
+  status: ConnectionStatus
+  platform: Platform
+  daemonInfo: DaemonInfo | null
+  roots: DownloadRoot[]
+  lastError: string | null
+}
+
+const INITIAL_STATE: DaemonBridgeState = {
+  status: 'connecting',
+  platform: 'desktop',
+  daemonInfo: null,
+  roots: [],
+  lastError: null,
+}
 
 export interface UseIOBridgeStateConfig {
   /** Callback for native events (TorrentAdded, MagnetAdded) */
@@ -51,7 +59,7 @@ export interface UseIOBridgeStateConfig {
 }
 
 export interface UseIOBridgeStateResult {
-  state: IOBridgeState
+  state: DaemonBridgeState
   isConnected: boolean
   hasEverConnected: boolean
   retry: () => void
@@ -60,14 +68,14 @@ export interface UseIOBridgeStateResult {
 }
 
 /**
- * Hook to subscribe to IOBridge state from service worker.
+ * Hook to subscribe to DaemonBridge state from service worker.
  *
  * Returns current state and action callbacks.
  * Also handles native events (TorrentAdded, MagnetAdded) via the port.
  */
 export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBridgeStateResult {
   const { onNativeEvent } = config
-  const [state, setState] = useState<IOBridgeState>(INITIAL_STATE)
+  const [state, setState] = useState<DaemonBridgeState>(INITIAL_STATE)
   const [hasEverConnected, setHasEverConnected] = useState(false)
   const onNativeEventRef = useRef(onNativeEvent)
 
@@ -83,8 +91,8 @@ export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBrid
 
     // Fetch initial state
     bridge
-      .sendMessage<{ ok: boolean; state?: IOBridgeState; hasEverConnected?: boolean }>({
-        type: 'GET_IOBRIDGE_STATE',
+      .sendMessage<{ ok: boolean; state?: DaemonBridgeState; hasEverConnected?: boolean }>({
+        type: 'GET_BRIDGE_STATE',
       })
       .then((response) => {
         if (response.ok && response.state) {
@@ -111,11 +119,11 @@ export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBrid
           type?: string
           event?: string
           payload?: unknown
-          state?: IOBridgeState
+          state?: DaemonBridgeState
           hasEverConnected?: boolean
         }) => {
-          // Handle IOBridge state changes
-          if (msg.type === 'IOBRIDGE_STATE_CHANGED' && msg.state) {
+          // Handle DaemonBridge state changes
+          if (msg.type === 'BRIDGE_STATE_CHANGED' && msg.state) {
             setState(msg.state)
             if (msg.hasEverConnected !== undefined) {
               setHasEverConnected(msg.hasEverConnected)
@@ -147,20 +155,21 @@ export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBrid
 
   // Action callbacks
   const retry = useCallback(() => {
-    getBridge().postMessage({ type: 'IOBRIDGE_RETRY' })
+    getBridge().postMessage({ type: 'RETRY_CONNECTION' })
   }, [])
 
   const launch = useCallback(() => {
-    getBridge().postMessage({ type: 'IOBRIDGE_LAUNCH' })
+    getBridge().postMessage({ type: 'TRIGGER_LAUNCH' })
   }, [])
 
   const cancel = useCallback(() => {
-    getBridge().postMessage({ type: 'IOBRIDGE_CANCEL' })
+    // Cancel is no longer used in simplified bridge, but keep for API compatibility
+    console.log('[useIOBridgeState] cancel() called - no-op in simplified bridge')
   }, [])
 
   return {
     state,
-    isConnected: state.name === 'CONNECTED',
+    isConnected: state.status === 'connected',
     hasEverConnected,
     retry,
     launch,

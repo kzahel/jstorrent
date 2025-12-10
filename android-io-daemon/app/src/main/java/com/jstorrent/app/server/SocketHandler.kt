@@ -18,7 +18,8 @@ private const val TAG = "SocketHandler"
 
 class SocketSession(
     private val wsSession: DefaultWebSocketServerSession,
-    private val tokenStore: TokenStore
+    private val tokenStore: TokenStore,
+    private val httpServer: HttpServer
 ) {
     private var authenticated = false
 
@@ -108,6 +109,9 @@ class SocketSession(
                     // AUTH_RESULT success
                     send(Protocol.createMessage(Protocol.OP_AUTH_RESULT, envelope.requestId, byteArrayOf(0)))
                     Log.i(TAG, "WebSocket authenticated")
+
+                    // Register for control broadcasts now that we're authenticated
+                    httpServer.registerControlSession(this@SocketSession)
                 } else {
                     // AUTH_RESULT failure
                     val errorMsg = "Invalid token".toByteArray()
@@ -264,11 +268,21 @@ class SocketSession(
         }
     }
 
+    /**
+     * Send a control frame. Only works if authenticated.
+     */
+    fun sendControl(frame: ByteArray) {
+        if (authenticated) {
+            send(frame)
+        }
+    }
+
     private fun sendError(requestId: Int, message: String) {
         send(Protocol.createError(requestId, message))
     }
 
     private fun cleanup() {
+        httpServer.unregisterControlSession(this)
         tcpSockets.values.forEach { it.close() }
         tcpSockets.clear()
         udpSockets.values.forEach { it.close() }

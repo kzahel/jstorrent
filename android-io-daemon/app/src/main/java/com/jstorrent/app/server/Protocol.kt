@@ -31,6 +31,10 @@ object Protocol {
     const val OP_UDP_RECV: Byte = 0x23
     const val OP_UDP_CLOSE: Byte = 0x24
 
+    // Control plane opcodes (0xE0-0xEF)
+    const val OP_CTRL_ROOTS_CHANGED: Byte = 0xE0.toByte()
+    const val OP_CTRL_EVENT: Byte = 0xE1.toByte()
+
     /**
      * Message envelope: 8 bytes
      * [0]: version (u8)

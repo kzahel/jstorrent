@@ -7,6 +7,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import com.jstorrent.app.service.IoDaemonService
 import com.jstorrent.app.storage.RootStore
 
 /**
@@ -76,6 +77,9 @@ class AddRootActivity : AppCompatActivity() {
         // Add to RootStore
         val root = rootStore.addRoot(uri)
         Log.i(TAG, "Added root: key=${root.key}, label=${root.displayName}")
+
+        // Notify connected clients about new root
+        IoDaemonService.instance?.broadcastRootsChanged()
 
         Toast.makeText(
             this,
