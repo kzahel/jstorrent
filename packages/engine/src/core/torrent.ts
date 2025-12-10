@@ -17,6 +17,7 @@ import { TorrentUserState, TorrentActivityState, computeActivityState } from './
 import { Swarm, SwarmStats, detectAddressFamily, peerKey, PeerAddress } from './swarm'
 import { ConnectionManager } from './connection-manager'
 import { ConnectionTimingTracker } from './connection-timing'
+import { initializeTorrentStorage } from './torrent-initializer'
 
 /**
  * All persisted fields for a torrent.
@@ -594,11 +595,43 @@ export class Torrent extends EngineComponent {
   }
 
   /**
+   * Try to initialize storage for this torrent.
+   * Used for recovery when storage becomes available after initial failure.
+   * @throws MissingStorageRootError if storage is still unavailable
+   */
+  async tryInitializeStorage(): Promise<void> {
+    if (this.contentStorage) {
+      return // Already initialized
+    }
+    if (!this.hasMetadata || !this.metadataRaw) {
+      throw new Error('Cannot initialize storage without metadata')
+    }
+    await initializeTorrentStorage(this.engine as BtEngine, this, this.metadataRaw)
+  }
+
+  /**
    * User action: Start the torrent.
    * Changes userState to 'active' and starts networking if engine allows.
+   * If storage was missing, attempts to initialize it first.
    */
-  userStart(): void {
+  async userStart(): Promise<void> {
     this.logger.info('User starting torrent')
+
+    // If storage is missing but we have metadata, try to initialize storage
+    if (!this.contentStorage && this.hasMetadata) {
+      try {
+        await this.tryInitializeStorage()
+      } catch (e) {
+        // Use name check instead of instanceof (instanceof fails across module boundaries)
+        if (e instanceof Error && e.name === 'MissingStorageRootError') {
+          this.errorMessage = `Download location unavailable. Storage root not found.`
+          this.logger.warn('Cannot start - storage still unavailable')
+          return // Stay in error state, don't change userState
+        }
+        throw e
+      }
+    }
+
     this.userState = 'active'
     this.errorMessage = undefined
 
