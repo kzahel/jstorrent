@@ -14,65 +14,37 @@ Currently the BtEngine runs in the UI page (same JS heap as React UI). This allo
 
 **Current implication:** Closing all JSTorrent tabs stops downloads.
 
-### 2. IO Bridge (Multi-Platform Connection)
+### 2. Daemon Bridge (Multi-Platform Connection)
 
-The IO Bridge is a state machine that manages connections to I/O daemons across platforms. It abstracts the difference between desktop (native messaging) and ChromeOS (HTTP to Android container).
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  extension/src/lib/io-bridge/                                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  types.ts                 ← Shared types (DaemonInfo, Platform, States)     │
-│  io-bridge-state.ts       ← Pure state machine (states, events, transition) │
-│  io-bridge-store.ts       ← StateStore (holds state, notifies listeners)    │
-│  io-bridge-effects.ts     ← Side effect runner (async ops, timers)          │
-│  io-bridge-service.ts     ← Public API, coordinates store + effects         │
-│  io-bridge-adapter.ts     ← IIOBridgeAdapter interface                      │
-│                                                                             │
-│  adapters/                                                                  │
-│    desktop-adapter.ts     ← Native messaging (Win/Mac/Linux)                │
-│    chromeos-adapter.ts    ← HTTP to Android container (100.115.92.2)        │
-│    mock-adapter.ts        ← For unit tests                                  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-**State Machine:**
+The Daemon Bridge manages connections to I/O daemons across platforms. It abstracts the difference between desktop (native messaging) and ChromeOS (WebSocket to Android container).
 
 ```
-INITIALIZING
-    │
-    │ START
-    ▼
-PROBING ─────────────────────────────────────────┐
-    │                                            │
-    ├── PROBE_SUCCESS ──► CONNECTED              │
-    │                                            │
-    └── PROBE_FAILED                             │
-            │                                    │
-            ├── (desktop) ──► INSTALL_PROMPT     │
-            │                      │ RETRY       │
-            │                      └─────────────┤
-            │                                    │
-            └── (chromeos) ──► LAUNCH_PROMPT     │
-                                   │ USER_LAUNCH │
-                                   ▼             │
-                            AWAITING_LAUNCH      │
-                                   │             │
-                    ┌──────────────┼──────────┐  │
-                    │ DAEMON_      │ LAUNCH_  │  │
-                    │ CONNECTED    │ TIMEOUT  │  │
-                    ▼              ▼          │  │
-                CONNECTED     LAUNCH_FAILED   │  │
-                    │              │ RETRY    │  │
-                    │              └──────────┤  │
-                    │ DAEMON_DISCONNECTED     │  │
-                    ▼                         │  │
-                DISCONNECTED ─────────────────┘  │
-                    │ RETRY                      │
-                    └────────────────────────────┘
+extension/src/lib/daemon-bridge.ts
 ```
+
+**Three states:**
+
+```
+connecting ◄──────► connected ◄──────► disconnected
+```
+
+The bridge exposes a unified API regardless of platform:
+- `connect()` / `disconnect()`
+- `pickDownloadFolder()`
+- `subscribe()` for state changes (status, roots)
+- `onEvent()` for native events (TorrentAdded, MagnetAdded)
+
+**Platform differences are hidden:**
+
+| Aspect | Desktop | ChromeOS |
+|--------|---------|----------|
+| Control channel | Native messaging | WebSocket control frames (0xE0/0xE1) |
+| Data channel | WebSocket to io-daemon | Same WebSocket |
+| Bootstrap | Chrome auto-launches native-host | Intent URL to launch Android app |
+
+UI components decide what prompts to show based on `status + hasEverConnected + platform`, not encoded in the bridge itself.
+
+See `DAEMON-PROTOCOL.md` for wire-level protocol details.
 
 ### 3. Three-Process Native Architecture (Desktop)
 
