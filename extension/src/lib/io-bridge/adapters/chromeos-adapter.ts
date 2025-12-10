@@ -290,14 +290,11 @@ export class ChromeOSAdapter implements IIOBridgeAdapter {
     }
 
     try {
-      const response = await fetch(
-        `http://${this.config.host}:${this.currentPort}/roots`,
-        {
-          headers: {
-            'X-JST-Auth': this.token,
-          },
-        }
-      )
+      const response = await fetch(`http://${this.config.host}:${this.currentPort}/roots`, {
+        headers: {
+          'X-JST-Auth': this.token,
+        },
+      })
 
       if (!response.ok) {
         console.warn('[ChromeOSAdapter] Failed to fetch roots:', response.status)
@@ -351,7 +348,7 @@ export class ChromeOSAdapter implements IIOBridgeAdapter {
    */
   async waitForNewRoot(
     existingKeys: Set<string>,
-    timeoutMs: number = 30000
+    timeoutMs: number = 30000,
   ): Promise<DownloadRoot | null> {
     const startTime = Date.now()
 

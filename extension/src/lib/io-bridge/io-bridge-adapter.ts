@@ -99,7 +99,7 @@ export interface IIOBridgeAdapter {
    */
   waitForNewRoot?(
     existingKeys: Set<string>,
-    timeoutMs?: number
+    timeoutMs?: number,
   ): Promise<import('./types').DownloadRoot | null>
 }
 
