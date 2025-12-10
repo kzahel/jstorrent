@@ -242,7 +242,19 @@ export class SessionPersistence {
           // This is crucial for magnet links - avoids needing to re-fetch metadata from peers
           if (persistedState.infoBuffer && !torrent.hasMetadata) {
             this.logger.debug(`Initializing torrent ${data.infoHash} from saved metadata`)
-            await initializeTorrentMetadata(this.engine, torrent, persistedState.infoBuffer)
+            try {
+              await initializeTorrentMetadata(this.engine, torrent, persistedState.infoBuffer)
+            } catch (e) {
+              // Use name check instead of instanceof (instanceof fails across module boundaries)
+              if (e instanceof Error && e.name === 'MissingStorageRootError') {
+                // Storage is missing - mark torrent in error state but keep it visible
+                torrent.errorMessage = `Download location unavailable. Storage root not found.`
+                this.logger.warn(`Torrent ${data.infoHash} restored with missing storage`)
+                // Continue - torrent is in error state but will appear in UI
+              } else {
+                throw e // Re-throw other errors
+              }
+            }
           }
 
           // Restore bitfield if we have saved state and metadata is now available

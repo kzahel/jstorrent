@@ -64,8 +64,9 @@ describe('StorageRootManager', () => {
     expect(() => manager.setDefaultRoot('nonexistent')).toThrow('not found')
   })
 
-  it('should throw when setting torrent root to non-existent token', () => {
-    expect(() => manager.setRootForTorrent('abc', 'nonexistent')).toThrow('not found')
+  it('should return false when setting torrent root to non-existent key', () => {
+    const result = manager.setRootForTorrent('abc', 'nonexistent')
+    expect(result).toBe(false)
   })
 
   it('should throw when getting filesystem with no root configured', () => {

@@ -290,7 +290,17 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     // Initialize metadata if we have it (torrent file case)
     if (input.infoBuffer && input.parsedTorrent) {
-      await initializeTorrentMetadata(this, torrent, input.infoBuffer, input.parsedTorrent)
+      try {
+        await initializeTorrentMetadata(this, torrent, input.infoBuffer, input.parsedTorrent)
+      } catch (e) {
+        // Handle missing storage gracefully - torrent will be in error state but still visible
+        if (e instanceof Error && e.name === 'MissingStorageRootError') {
+          torrent.errorMessage = `Download location unavailable. Storage root not found.`
+          this.logger.warn(`Torrent ${input.infoHashStr} initialized with missing storage`)
+        } else {
+          throw e
+        }
+      }
     }
 
     // Set up metadata event handler for magnet links

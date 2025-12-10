@@ -35,7 +35,7 @@ export { DaemonFileSystem } from './adapters/daemon/daemon-filesystem'
 export { DaemonHasher } from './adapters/daemon/daemon-hasher'
 
 // Storage
-export { StorageRootManager } from './storage/storage-root-manager'
+export { StorageRootManager, MissingStorageRootError } from './storage/storage-root-manager'
 
 // Presets
 export { createDaemonEngine } from './presets/daemon'
@@ -48,4 +48,4 @@ export { toHex, fromHex, toBase64, fromBase64 } from './utils/buffer'
 // Torrent factory and initialization
 export { parseTorrentInput } from './core/torrent-factory'
 export type { ParsedTorrentInput } from './core/torrent-factory'
-export { initializeTorrentMetadata } from './core/torrent-initializer'
+export { initializeTorrentMetadata, initializeTorrentStorage } from './core/torrent-initializer'
