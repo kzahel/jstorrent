@@ -177,7 +177,9 @@ export function SystemBridgePanel({
               <div style={{ marginBottom: '12px', fontWeight: 500 }}>
                 {state.lastError ? 'Connection Lost' : 'Companion App Required'}
               </div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
+              <div
+                style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}
+              >
                 {state.lastError ? (
                   <>Connection to companion app was lost. Click retry to reconnect.</>
                 ) : (
@@ -196,7 +198,9 @@ export function SystemBridgePanel({
               <div style={{ marginBottom: '12px', fontWeight: 500 }}>
                 {state.lastError ? 'Connection Lost' : 'Launch Companion App'}
               </div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
+              <div
+                style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}
+              >
                 {state.lastError ? (
                   <>Connection to companion app was lost. Click Launch to reconnect.</>
                 ) : isFirstTime ? (
