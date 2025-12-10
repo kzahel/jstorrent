@@ -89,25 +89,35 @@ export class DaemonConnection {
     // 2. Wait for SERVER_HELLO
     await this.waitForOpcode(DaemonConnection.OP_SERVER_HELLO)
 
-    // 3. Send AUTH with full credentials
-    const encoder = new TextEncoder()
-    const tokenBytes = encoder.encode(token)
-    const extIdBytes = encoder.encode(extensionId)
-    const installIdBytes = encoder.encode(installId)
+    // 3. Send AUTH
+    let authPayload: Uint8Array
+    if (this.getCredentials) {
+      // ChromeOS/Android mode - new format with extensionId and installId
+      const encoder = new TextEncoder()
+      const tokenBytes = encoder.encode(token)
+      const extIdBytes = encoder.encode(extensionId)
+      const installIdBytes = encoder.encode(installId)
 
-    // Format: authType(1) + token + \0 + extensionId + \0 + installId
-    const authPayload = new Uint8Array(
-      1 + tokenBytes.length + 1 + extIdBytes.length + 1 + installIdBytes.length,
-    )
-    let offset = 0
-    authPayload[offset++] = 0 // authType (0 = token auth, matches daemon-bridge.ts)
-    authPayload.set(tokenBytes, offset)
-    offset += tokenBytes.length
-    authPayload[offset++] = 0 // null separator
-    authPayload.set(extIdBytes, offset)
-    offset += extIdBytes.length
-    authPayload[offset++] = 0 // null separator
-    authPayload.set(installIdBytes, offset)
+      // Format: authType(1) + token + \0 + extensionId + \0 + installId
+      authPayload = new Uint8Array(
+        1 + tokenBytes.length + 1 + extIdBytes.length + 1 + installIdBytes.length,
+      )
+      let offset = 0
+      authPayload[offset++] = 0 // authType 0 for new format
+      authPayload.set(tokenBytes, offset)
+      offset += tokenBytes.length
+      authPayload[offset++] = 0 // null separator
+      authPayload.set(extIdBytes, offset)
+      offset += extIdBytes.length
+      authPayload[offset++] = 0 // null separator
+      authPayload.set(installIdBytes, offset)
+    } else {
+      // Desktop mode - legacy format for jstorrent-native compatibility
+      const tokenBytes = new TextEncoder().encode(token)
+      authPayload = new Uint8Array(1 + tokenBytes.length)
+      authPayload[0] = 1 // authType 1 for legacy token auth
+      authPayload.set(tokenBytes, 1)
+    }
 
     this.sendFrameInternal(this.packEnvelope(DaemonConnection.OP_AUTH, 2, authPayload))
 
