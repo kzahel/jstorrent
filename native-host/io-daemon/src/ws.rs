@@ -153,13 +153,33 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                         send_msg(&tx, OP_SERVER_HELLO, env.request_id, vec![]).await;
                     }
                     OP_AUTH => {
-                        // Payload: auth_type(u8) + token(utf8)
-                        if payload.len() < 1 {
-                            send_error(&tx, env.request_id, "Invalid auth payload").await;
+                        // Parse AUTH payload
+                        // Format: authType(1) + token + '\0' + extensionId + '\0' + installId
+                        // Desktop ignores extensionId/installId but must parse them
+                        if payload.is_empty() {
+                            send_error(&tx, env.request_id, "Empty auth payload").await;
                             break;
                         }
-                        let _auth_type = payload[0]; // Ignored for now, assume token
-                        let token = String::from_utf8_lossy(&payload[1..]).to_string();
+
+                        let auth_type = payload[0];
+                        let data = &payload[1..];
+
+                        let token = match auth_type {
+                            0 => {
+                                // New format: null-separated fields
+                                // Find first null byte to extract token
+                                let token_end = data.iter().position(|&b| b == 0).unwrap_or(data.len());
+                                String::from_utf8_lossy(&data[..token_end]).to_string()
+                            }
+                            1 => {
+                                // Legacy format: raw token (entire remaining payload)
+                                String::from_utf8_lossy(data).to_string()
+                            }
+                            _ => {
+                                send_error(&tx, env.request_id, "Unknown auth type").await;
+                                break;
+                            }
+                        };
                         
                         // Verify token (simple string match for now, or check against state)
                         // In main.rs we generated a token. We need to check it.
