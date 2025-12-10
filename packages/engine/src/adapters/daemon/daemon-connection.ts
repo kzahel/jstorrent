@@ -35,7 +35,7 @@ export class DaemonConnection {
     private port: number,
     private host: string = '127.0.0.1',
     private getCredentials?: CredentialsGetter,
-    // Legacy: direct token for desktop compatibility
+    // Direct token for desktop (extensionId/installId will be empty strings)
     private legacyToken?: string,
   ) {
     this.baseUrl = `http://${host}:${port}`
@@ -89,35 +89,25 @@ export class DaemonConnection {
     // 2. Wait for SERVER_HELLO
     await this.waitForOpcode(DaemonConnection.OP_SERVER_HELLO)
 
-    // 3. Send AUTH
-    let authPayload: Uint8Array
-    if (this.getCredentials) {
-      // ChromeOS/Android mode - new format with extensionId and installId
-      const encoder = new TextEncoder()
-      const tokenBytes = encoder.encode(token)
-      const extIdBytes = encoder.encode(extensionId)
-      const installIdBytes = encoder.encode(installId)
+    // 3. Send AUTH - unified format for all platforms
+    // Format: authType(1) + token + '\0' + extensionId + '\0' + installId
+    const encoder = new TextEncoder()
+    const tokenBytes = encoder.encode(token)
+    const extIdBytes = encoder.encode(extensionId)
+    const installIdBytes = encoder.encode(installId)
 
-      // Format: authType(1) + token + \0 + extensionId + \0 + installId
-      authPayload = new Uint8Array(
-        1 + tokenBytes.length + 1 + extIdBytes.length + 1 + installIdBytes.length,
-      )
-      let offset = 0
-      authPayload[offset++] = 0 // authType 0 for new format
-      authPayload.set(tokenBytes, offset)
-      offset += tokenBytes.length
-      authPayload[offset++] = 0 // null separator
-      authPayload.set(extIdBytes, offset)
-      offset += extIdBytes.length
-      authPayload[offset++] = 0 // null separator
-      authPayload.set(installIdBytes, offset)
-    } else {
-      // Desktop mode - legacy format for jstorrent-native compatibility
-      const tokenBytes = new TextEncoder().encode(token)
-      authPayload = new Uint8Array(1 + tokenBytes.length)
-      authPayload[0] = 1 // authType 1 for legacy token auth
-      authPayload.set(tokenBytes, 1)
-    }
+    const authPayload = new Uint8Array(
+      1 + tokenBytes.length + 1 + extIdBytes.length + 1 + installIdBytes.length,
+    )
+    let offset = 0
+    authPayload[offset++] = 0 // authType 0
+    authPayload.set(tokenBytes, offset)
+    offset += tokenBytes.length
+    authPayload[offset++] = 0 // null separator
+    authPayload.set(extIdBytes, offset)
+    offset += extIdBytes.length
+    authPayload[offset++] = 0 // null separator
+    authPayload.set(installIdBytes, offset)
 
     this.sendFrameInternal(this.packEnvelope(DaemonConnection.OP_AUTH, 2, authPayload))
 
