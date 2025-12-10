@@ -26,8 +26,8 @@ declare const chrome: any
  *
  * Use this when running the engine on jstorrent.com or localhost dev server.
  *
- * Values are base64 encoded for transport and stored as-is in chrome.storage.local.
- * The SW owns the key prefix - this class sends unprefixed keys.
+ * Binary values are base64 encoded for transport.
+ * JSON values are passed directly.
  */
 export class ExternalChromeStorageSessionStore implements ISessionStore {
   constructor(private extensionId: string) {}
@@ -97,7 +97,7 @@ export class ExternalChromeStorageSessionStore implements ISessionStore {
     const response = await this.send<{ ok: boolean; error?: string }>({
       type: 'KV_SET',
       key,
-      value: toBase64(value), // Encode once, stored as-is
+      value: toBase64(value),
     })
     if (!response.ok) {
       throw new Error(response.error || 'KV_SET failed')
@@ -131,6 +131,28 @@ export class ExternalChromeStorageSessionStore implements ISessionStore {
     })
     if (!response.ok) {
       throw new Error(response.error || 'KV_CLEAR failed')
+    }
+  }
+
+  async getJson<T>(key: string): Promise<T | null> {
+    const response = await this.send<{ ok: boolean; value?: T | null; error?: string }>({
+      type: 'KV_GET_JSON',
+      key,
+    })
+    if (!response.ok) {
+      throw new Error(response.error || 'KV_GET_JSON failed')
+    }
+    return response.value ?? null
+  }
+
+  async setJson<T>(key: string, value: T): Promise<void> {
+    const response = await this.send<{ ok: boolean; error?: string }>({
+      type: 'KV_SET_JSON',
+      key,
+      value,
+    })
+    if (!response.ok) {
+      throw new Error(response.error || 'KV_SET_JSON failed')
     }
   }
 }

@@ -62,8 +62,6 @@ export interface TorrentStateData {
  * Handles persisting and restoring torrent session state.
  */
 export class SessionPersistence {
-  private saveTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
-  private readonly DEBOUNCE_MS = 2000 // Save at most every 2 seconds per torrent
   private _logger: Logger | null = null
 
   constructor(
@@ -102,8 +100,7 @@ export class SessionPersistence {
       }),
     }
 
-    const json = JSON.stringify(data)
-    await this.store.set(TORRENTS_KEY, new TextEncoder().encode(json))
+    await this.store.setJson(TORRENTS_KEY, data)
   }
 
   /**
@@ -123,8 +120,7 @@ export class SessionPersistence {
       updatedAt: Date.now(),
     }
 
-    const json = JSON.stringify(state)
-    await this.store.set(stateKey(infoHash), new TextEncoder().encode(json))
+    await this.store.setJson(stateKey(infoHash), state)
   }
 
   /**
@@ -144,37 +140,10 @@ export class SessionPersistence {
   }
 
   /**
-   * Save state for a torrent, debounced.
-   */
-  saveTorrentStateDebounced(torrent: Torrent): void {
-    const infoHash = toHex(torrent.infoHash)
-
-    // Clear existing timer
-    const existing = this.saveTimers.get(infoHash)
-    if (existing) {
-      clearTimeout(existing)
-    }
-
-    // Set new timer
-    const timer = setTimeout(() => {
-      this.saveTorrentState(torrent)
-      this.saveTimers.delete(infoHash)
-    }, this.DEBOUNCE_MS)
-
-    this.saveTimers.set(infoHash, timer)
-  }
-
-  /**
-   * Flush all pending saves immediately.
+   * Save state for all torrents immediately.
    * Call this on shutdown.
    */
   async flushPendingSaves(): Promise<void> {
-    for (const [, timer] of this.saveTimers) {
-      clearTimeout(timer)
-    }
-    this.saveTimers.clear()
-
-    // Save all torrents
     for (const torrent of this.engine.torrents) {
       await this.saveTorrentState(torrent)
     }
@@ -184,33 +153,16 @@ export class SessionPersistence {
    * Load the torrent index from storage.
    */
   async loadTorrentList(): Promise<TorrentListEntry[]> {
-    const data = await this.store.get(TORRENTS_KEY)
+    const data = await this.store.getJson<TorrentListData>(TORRENTS_KEY)
     if (!data) return []
-
-    try {
-      const json = new TextDecoder().decode(data)
-      const parsed: TorrentListData = JSON.parse(json)
-      return parsed.torrents || []
-    } catch (e) {
-      this.logger.error('Failed to parse torrent list:', e)
-      return []
-    }
+    return data.torrents || []
   }
 
   /**
    * Load mutable state for a specific torrent.
    */
   async loadTorrentState(infoHash: string): Promise<TorrentStateData | null> {
-    const data = await this.store.get(stateKey(infoHash))
-    if (!data) return null
-
-    try {
-      const json = new TextDecoder().decode(data)
-      return JSON.parse(json) as TorrentStateData
-    } catch (e) {
-      this.logger.error(`Failed to parse torrent state for ${infoHash}:`, e)
-      return null
-    }
+    return this.store.getJson<TorrentStateData>(stateKey(infoHash))
   }
 
   /**

@@ -639,8 +639,8 @@ export class Torrent extends EngineComponent {
       this.resumeNetwork()
     }
 
-    // Persist state change
-    ;(this.engine as BtEngine).sessionPersistence?.saveTorrentList()
+    // Persist state change (userState + bitfield)
+    ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
   }
 
   /**
@@ -652,8 +652,8 @@ export class Torrent extends EngineComponent {
     this.userState = 'stopped'
     this.suspendNetwork()
 
-    // Persist state change
-    ;(this.engine as BtEngine).sessionPersistence?.saveTorrentList()
+    // Persist state change (userState + bitfield)
+    ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
   }
 
   /**
@@ -1453,9 +1453,9 @@ export class Torrent extends EngineComponent {
       })
     }
 
-    // Persist state (debounced to avoid excessive writes)
+    // Persist state immediately
     const btEngine = this.engine as BtEngine
-    btEngine.sessionPersistence?.saveTorrentStateDebounced(this)
+    btEngine.sessionPersistence?.saveTorrentState(this)
 
     // Send HAVE message to all peers
     for (const p of this.connectedPeers) {

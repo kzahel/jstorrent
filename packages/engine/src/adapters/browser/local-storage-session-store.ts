@@ -106,4 +106,25 @@ export class LocalStorageSessionStore implements ISessionStore {
       console.warn('[LocalStorageSessionStore] clear error:', e)
     }
   }
+
+  async getJson<T>(key: string): Promise<T | null> {
+    try {
+      const value = localStorage.getItem(this.prefixKey(key))
+      if (value !== null) {
+        return JSON.parse(value) as T
+      }
+    } catch (e) {
+      console.warn('[LocalStorageSessionStore] getJson error:', e)
+    }
+    return null
+  }
+
+  async setJson<T>(key: string, value: T): Promise<void> {
+    try {
+      localStorage.setItem(this.prefixKey(key), JSON.stringify(value))
+    } catch (e) {
+      console.error('[LocalStorageSessionStore] setJson error:', e)
+      throw e
+    }
+  }
 }

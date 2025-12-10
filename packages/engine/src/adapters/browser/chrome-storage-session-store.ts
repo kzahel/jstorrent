@@ -75,4 +75,19 @@ export class ChromeStorageSessionStore implements ISessionStore {
     const prefixedKeys = keys.map((k) => this.prefixKey(k))
     await this.storageArea.remove(prefixedKeys)
   }
+
+  async getJson<T>(key: string): Promise<T | null> {
+    const prefixedKey = this.prefixKey(key)
+    const result = await this.storageArea.get(prefixedKey)
+    const value = result[prefixedKey]
+    // JSON values are stored directly (not as base64 strings)
+    if (value !== undefined && typeof value !== 'string') {
+      return value as T
+    }
+    return null
+  }
+
+  async setJson<T>(key: string, value: T): Promise<void> {
+    await this.storageArea.set({ [this.prefixKey(key)]: value })
+  }
 }

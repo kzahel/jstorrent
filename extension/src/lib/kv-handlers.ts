@@ -2,7 +2,8 @@
  * KV storage handlers for external session store.
  *
  * Uses chrome.storage.local directly with 'session:' prefix.
- * Values are stored as base64 strings (passed through from external store).
+ * Binary values are stored as base64 strings.
+ * JSON values are stored directly.
  */
 
 const PREFIX = 'session:'
@@ -18,7 +19,13 @@ function unprefixKey(key: string): string {
 export type KVSendResponse = (response: unknown) => void
 
 export function handleKVMessage(
-  message: { type?: string; key?: string; keys?: string[]; value?: string; prefix?: string },
+  message: {
+    type?: string
+    key?: string
+    keys?: string[]
+    value?: string | unknown
+    prefix?: string
+  },
   sendResponse: KVSendResponse,
 ): boolean {
   if (message.type === 'KV_GET') {
@@ -26,7 +33,7 @@ export function handleKVMessage(
     chrome.storage.local
       .get(prefixedKey)
       .then((result) => {
-        const value = result[prefixedKey] ?? null // Already base64 or null
+        const value = result[prefixedKey] ?? null
         sendResponse({ ok: true, value })
       })
       .catch((e) => {
@@ -54,7 +61,6 @@ export function handleKVMessage(
 
   if (message.type === 'KV_SET') {
     const prefixedKey = prefixKey(message.key!)
-    // Store base64 value directly - no decode/re-encode
     chrome.storage.local
       .set({ [prefixedKey]: message.value })
       .then(() => {
@@ -102,6 +108,34 @@ export function handleKVMessage(
         const keysToRemove = Object.keys(all).filter((k) => k.startsWith(PREFIX))
         return chrome.storage.local.remove(keysToRemove)
       })
+      .then(() => {
+        sendResponse({ ok: true })
+      })
+      .catch((e) => {
+        sendResponse({ ok: false, error: String(e) })
+      })
+    return true
+  }
+
+  // JSON-specific handlers (stored directly, not as base64)
+  if (message.type === 'KV_GET_JSON') {
+    const prefixedKey = prefixKey(message.key!)
+    chrome.storage.local
+      .get(prefixedKey)
+      .then((result) => {
+        const value = result[prefixedKey] ?? null
+        sendResponse({ ok: true, value })
+      })
+      .catch((e) => {
+        sendResponse({ ok: false, error: String(e) })
+      })
+    return true
+  }
+
+  if (message.type === 'KV_SET_JSON') {
+    const prefixedKey = prefixKey(message.key!)
+    chrome.storage.local
+      .set({ [prefixedKey]: message.value })
       .then(() => {
         sendResponse({ ok: true })
       })
