@@ -10,8 +10,9 @@ export function loadColumnConfig<T>(
   defaultColumns: ColumnDef<T>[],
 ): ColumnConfig {
   const allColumnIds = defaultColumns.map((c) => c.id)
+  const defaultVisibleIds = defaultColumns.filter((c) => !c.defaultHidden).map((c) => c.id)
   const defaultConfig: ColumnConfig = {
-    visible: allColumnIds,
+    visible: defaultVisibleIds,
     columnOrder: allColumnIds,
     widths: {},
     sortColumn: null,
@@ -36,10 +37,15 @@ export function loadColumnConfig<T>(
         columnOrder = [...visible, ...hiddenIds]
       }
 
-      // Ensure any new columns are added to the order
+      // Ensure any new columns are added to the order and visibility
       for (const id of allColumnIds) {
         if (!columnOrder.includes(id)) {
           columnOrder.push(id)
+          // Add new non-hidden columns to visible list for existing users
+          const col = defaultColumns.find((c) => c.id === id)
+          if (col && !col.defaultHidden && !visible.includes(id)) {
+            visible.push(id)
+          }
         }
       }
 

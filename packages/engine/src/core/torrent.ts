@@ -1446,6 +1446,11 @@ export class Torrent extends EngineComponent {
     this.markPieceVerified(index)
     this.activePieces?.remove(index)
 
+    // Update cached downloaded bytes on file objects
+    for (const file of this._files) {
+      file.updateForPiece(index)
+    }
+
     const progressPct =
       this.piecesCount > 0 ? ((this.completedPiecesCount / this.piecesCount) * 100).toFixed(1) : '0'
 
