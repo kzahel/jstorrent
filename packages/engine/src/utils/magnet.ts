@@ -60,7 +60,7 @@ export function parseMagnet(uri: string): ParsedMagnet {
     throw new Error('Invalid magnet URI: missing xt (urn:btih)')
   }
 
-  const infoHash = xt.slice(9) // remove 'urn:btih:'
+  const infoHash = xt.slice(9).toLowerCase() // remove 'urn:btih:' and normalize case
   const name = params.get('dn') || undefined
   const announce = params.getAll('tr')
   const urlList = params.getAll('ws') // web seeds
