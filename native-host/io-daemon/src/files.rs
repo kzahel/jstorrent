@@ -173,6 +173,24 @@ async fn write_file_v2(
 
     let full_path = validate_path(&state, &root_key, &path)?;
 
+    // Hash verification FIRST (before any file operations)
+    if let Some(expected_hex) = headers.get("X-Expected-SHA1") {
+        let expected_hex = expected_hex
+            .to_str()
+            .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid X-Expected-SHA1 header".into()))?;
+
+        let mut hasher = Sha1::new();
+        hasher.update(&body);
+        let actual = hex::encode(hasher.finalize());
+
+        if actual != expected_hex {
+            return Err((
+                StatusCode::CONFLICT,
+                format!("Hash mismatch: expected {}, got {}", expected_hex, actual),
+            ));
+        }
+    }
+
     // Ensure parent directory exists
     if let Some(parent) = full_path.parent() {
         fs::create_dir_all(parent).await.map_err(|e| {
@@ -203,24 +221,6 @@ async fn write_file_v2(
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
         }
     })?;
-
-    // Optional hash verification
-    if let Some(expected_hex) = headers.get("X-Expected-SHA1") {
-        let expected_hex = expected_hex
-            .to_str()
-            .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid X-Expected-SHA1 header".into()))?;
-
-        let mut hasher = Sha1::new();
-        hasher.update(&body);
-        let actual = hex::encode(hasher.finalize());
-
-        if actual != expected_hex {
-            return Err((
-                StatusCode::CONFLICT,
-                format!("Hash mismatch: expected {}, got {}", expected_hex, actual),
-            ));
-        }
-    }
 
     Ok(())
 }
@@ -421,3 +421,47 @@ pub fn validate_path(state: &AppState, root_key: &str, path: &str) -> Result<Pat
     Ok(root_path.join(clean_path))
 }
 
+#[cfg(test)]
+mod tests {
+    use sha1::{Sha1, Digest};
+
+    /// Test helper: compute SHA1 hash the same way as write_file_v2
+    fn compute_sha1_hex(data: &[u8]) -> String {
+        let mut hasher = Sha1::new();
+        hasher.update(data);
+        hex::encode(hasher.finalize())
+    }
+
+    #[test]
+    fn test_sha1_hash_computation() {
+        // Known test vector: SHA1("hello") = aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d
+        let hash = compute_sha1_hex(b"hello");
+        assert_eq!(hash, "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d");
+    }
+
+    #[test]
+    fn test_sha1_empty_data() {
+        // SHA1("") = da39a3ee5e6b4b0d3255bfef95601890afd80709
+        let hash = compute_sha1_hex(b"");
+        assert_eq!(hash, "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+    }
+
+    #[test]
+    fn test_sha1_binary_data() {
+        // Test with binary data (16KB of 0xAB bytes)
+        let data = vec![0xABu8; 16384];
+        let hash = compute_sha1_hex(&data);
+        // Just verify it produces a 40-char hex string
+        assert_eq!(hash.len(), 40);
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_hash_comparison_case_sensitive() {
+        // The Rust implementation uses lowercase hex and exact comparison
+        let hash = compute_sha1_hex(b"test");
+        assert_eq!(hash, hash.to_lowercase());
+        // Verify uppercase would NOT match (this is intentional behavior)
+        assert_ne!(hash, hash.to_uppercase());
+    }
+}
