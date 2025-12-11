@@ -67,17 +67,20 @@ export function usePersistedUIState(options: UsePersistedUIStateOptions = {}) {
   }, [minHeight, getMaxHeight])
 
   // Persist state to localStorage
-  const persistState = useCallback((updates: Partial<PersistedUIState>) => {
-    try {
-      const raw = localStorage.getItem(UI_STATE_KEY)
-      const current: PersistedUIState = raw
-        ? JSON.parse(raw)
-        : { detailPaneHeight: height, detailPaneTab: activeTab }
-      localStorage.setItem(UI_STATE_KEY, JSON.stringify({ ...current, ...updates }))
-    } catch {
-      // Ignore storage errors
-    }
-  }, [height, activeTab])
+  const persistState = useCallback(
+    (updates: Partial<PersistedUIState>) => {
+      try {
+        const raw = localStorage.getItem(UI_STATE_KEY)
+        const current: PersistedUIState = raw
+          ? JSON.parse(raw)
+          : { detailPaneHeight: height, detailPaneTab: activeTab }
+        localStorage.setItem(UI_STATE_KEY, JSON.stringify({ ...current, ...updates }))
+      } catch {
+        // Ignore storage errors
+      }
+    },
+    [height, activeTab],
+  )
 
   // Update height during drag (don't persist yet)
   const updateHeight = useCallback(
