@@ -549,6 +549,14 @@ export class Torrent extends EngineComponent {
     return this.connectionTiming.getStats()
   }
 
+  /**
+   * Get active pieces being downloaded.
+   * Returns raw array for efficient RAF-driven UI updates.
+   */
+  getActivePieces(): ActivePiece[] {
+    return this.activePieces?.activePieces ?? []
+  }
+
   get isComplete(): boolean {
     return this.isDownloadComplete
   }

@@ -63,6 +63,14 @@ export class ActivePiece {
     return this.blockData.size
   }
 
+  get outstandingRequests(): number {
+    let count = 0
+    for (const requests of this.blockRequests.values()) {
+      count += requests.length
+    }
+    return count
+  }
+
   hasBlock(blockIndex: number): boolean {
     return this.blockData.has(blockIndex)
   }
