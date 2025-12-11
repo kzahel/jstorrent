@@ -16,11 +16,55 @@ function formatProgress(progress: number): string {
 /** Column definitions for file table */
 const fileColumns: ColumnDef<TorrentFileInfo>[] = [
   {
+    id: 'filename',
+    header: 'Filename',
+    getValue: (f) => f.filename,
+    width: 200,
+    minWidth: 100,
+  },
+  {
+    id: 'folder',
+    header: 'Folder',
+    getValue: (f) => f.folder || '(root)',
+    width: 250,
+    minWidth: 100,
+  },
+  {
+    id: 'extension',
+    header: 'Ext',
+    getValue: (f) => f.extension || '-',
+    width: 70,
+    minWidth: 40,
+  },
+  {
+    id: 'index',
+    header: 'Index',
+    getValue: (f) => f.index,
+    width: 50,
+    align: 'right',
+    defaultHidden: true,
+  },
+  {
+    id: 'priority',
+    header: 'Priority',
+    getValue: (f) => f.priority,
+    width: 60,
+    align: 'right',
+  },
+  {
+    id: 'complete',
+    header: '✓',
+    getValue: (f) => (f.isComplete ? '✓' : ''),
+    width: 40,
+    align: 'center',
+  },
+  {
     id: 'name',
-    header: 'Name',
+    header: 'Full Path',
     getValue: (f) => f.path,
     width: 350,
     minWidth: 150,
+    defaultHidden: true,
   },
   {
     id: 'size',

@@ -18,6 +18,8 @@ export interface ColumnDef<T> {
   hideable?: boolean
   /** If false, cannot sort by this column. Default true. */
   sortable?: boolean
+  /** If true, column is hidden by default. Default false. */
+  defaultHidden?: boolean
 }
 
 /**
