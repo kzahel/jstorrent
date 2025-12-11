@@ -4,10 +4,11 @@ import type { LogStore } from '@jstorrent/engine'
 import { PeerTable } from '../tables/PeerTable'
 import { PieceTable } from '../tables/PieceTable'
 import { FileTable } from '../tables/FileTable'
+import { DiskTable } from '../tables/DiskTable'
 import { GeneralPane } from './GeneralPane'
 import { LogTableWrapper } from '../tables/LogTableWrapper'
 
-export type DetailTab = 'peers' | 'pieces' | 'files' | 'general' | 'logs'
+export type DetailTab = 'peers' | 'pieces' | 'files' | 'disk' | 'general' | 'logs'
 
 /** Source interface matching adapter shape */
 interface TorrentSource {
@@ -101,6 +102,12 @@ export function DetailPane(props: DetailPaneProps) {
           Files {torrent ? `(${torrent.files.length})` : ''}
         </button>
         <button
+          style={activeTab === 'disk' ? activeTabStyle : tabStyle}
+          onClick={() => setActiveTab('disk')}
+        >
+          Disk
+        </button>
+        <button
           style={activeTab === 'general' ? activeTabStyle : tabStyle}
           onClick={() => setActiveTab('general')}
         >
@@ -130,6 +137,11 @@ export function DetailPane(props: DetailPaneProps) {
           renderTorrentContent(
             <FileTable source={props.source} torrentHash={selectedHash!} />,
             'files',
+          )}
+        {activeTab === 'disk' &&
+          renderTorrentContent(
+            <DiskTable source={props.source} torrentHash={selectedHash!} />,
+            'disk queue',
           )}
         {activeTab === 'general' &&
           renderTorrentContent(<GeneralPane torrent={torrent!} />, 'general info')}

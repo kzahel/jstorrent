@@ -8,6 +8,10 @@ export type { TorrentListEntry, TorrentStateData } from './core/session-persiste
 export { ConnectionTimingTracker } from './core/connection-timing'
 export type { ConnectionTimingStats } from './core/connection-timing'
 
+// Disk Queue
+export { DiskQueue, ImmediateDiskQueue } from './core/disk-queue'
+export type { IDiskQueue, DiskJob, DiskQueueSnapshot, DiskQueueConfig } from './core/disk-queue'
+
 // Torrent state
 export type { TorrentUserState, TorrentActivityState } from './core/torrent-state'
 export { computeActivityState } from './core/torrent-state'
