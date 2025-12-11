@@ -1,0 +1,13 @@
+{
+  "connections": {
+    "local": {
+      "port": 9223,
+      "extension_id": "dbokmlpefliilbjldladbimlcfgbolhk"
+    },
+    "chromebook": {
+      "port": 9222,
+      "extension_id": "dbokmlpefliilbjldladbimlcfgbolhk"
+    }
+  },
+  "default": "local"
+}
