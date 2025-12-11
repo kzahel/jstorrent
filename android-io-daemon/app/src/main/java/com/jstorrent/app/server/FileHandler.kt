@@ -113,6 +113,18 @@ fun Route.fileRoutes(rootStore: RootStore, context: Context) {
             return@post call.respond(HttpStatusCode.PayloadTooLarge, "Body too large")
         }
 
+        // Hash verification FIRST (before any file operations)
+        if (expectedSha1 != null) {
+            val digest = MessageDigest.getInstance("SHA-1")
+            val actualHash = digest.digest(body).joinToString("") { "%02x".format(it) }
+            if (!actualHash.equals(expectedSha1, ignoreCase = true)) {
+                return@post call.respond(
+                    HttpStatusCode.Conflict,
+                    "Hash mismatch: expected $expectedSha1, got $actualHash"
+                )
+            }
+        }
+
         try {
             // Get or create file (creates parent directories as needed)
             val file = getOrCreateFile(context, rootUri, relativePath)
@@ -131,18 +143,6 @@ fun Route.fileRoutes(rootStore: RootStore, context: Context) {
                 HttpStatusCode.InternalServerError,
                 "Cannot open file for writing"
             )
-
-            // Optional hash verification (verifies what we wrote)
-            if (expectedSha1 != null) {
-                val digest = MessageDigest.getInstance("SHA-1")
-                val actualHash = digest.digest(body).joinToString("") { "%02x".format(it) }
-                if (!actualHash.equals(expectedSha1, ignoreCase = true)) {
-                    return@post call.respond(
-                        HttpStatusCode.Conflict,
-                        "Hash mismatch: expected $expectedSha1, got $actualHash"
-                    )
-                }
-            }
 
             call.respond(HttpStatusCode.OK)
         } catch (e: Exception) {
