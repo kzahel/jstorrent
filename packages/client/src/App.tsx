@@ -8,17 +8,18 @@ import {
   DropdownMenu,
   ResizeHandle,
   usePersistedUIState,
+  useAppSettings,
   formatBytes,
   ContextMenuItem,
 } from '@jstorrent/ui'
 import { EngineProvider } from './context/EngineContext'
 import { useEngineState } from './hooks/useEngineState'
 import { engineManager, DownloadRoot } from './chrome/engine-manager'
-import { DownloadRootsManager } from './components/DownloadRootsManager'
 import { useIOBridgeState } from './hooks/useIOBridgeState'
 import { useSystemBridge } from './hooks/useSystemBridge'
 import { SystemIndicator } from './components/SystemIndicator'
 import { SystemBridgePanel } from './components/SystemBridgePanel'
+import { SettingsOverlay } from './components/SettingsOverlay'
 import { copyTextToClipboard } from './utils/clipboard'
 
 interface ContextMenuState {
@@ -28,11 +29,10 @@ interface ContextMenuState {
 }
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState<'torrents' | 'settings'>('torrents')
   const [magnetInput, setMagnetInput] = useState('')
   const [selectedTorrents, setSelectedTorrents] = useState<Set<string>>(new Set())
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
-  const { adapter, torrents, numConnections, globalStats, refresh } = useEngineState()
+  const { adapter, torrents, refresh } = useEngineState()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const {
@@ -228,220 +228,168 @@ function AppContent() {
         height: '100%',
       }}
     >
-      {/* Tabs */}
-      <div
-        style={{
-          padding: '8px 16px',
-          borderBottom: '1px solid var(--border-color)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '4px' }}>
-          <button
-            onClick={() => setActiveTab('torrents')}
-            style={{
-              padding: '6px 12px',
-              background: activeTab === 'torrents' ? 'var(--accent-primary)' : 'var(--button-bg)',
-              color: activeTab === 'torrents' ? 'white' : 'var(--button-text)',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '13px',
-            }}
-          >
-            Torrents
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            style={{
-              padding: '6px 12px',
-              background: activeTab === 'settings' ? 'var(--accent-primary)' : 'var(--button-bg)',
-              color: activeTab === 'settings' ? 'white' : 'var(--button-text)',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '13px',
-            }}
-          >
-            Settings
-          </button>
-        </div>
-
-        <div style={{ marginLeft: 'auto', color: 'var(--text-secondary)', fontSize: '12px' }}>
-          {torrents.length} torrents | {numConnections} peers | ↓{' '}
-          {formatBytes(globalStats.totalDownloadRate)}/s | ↑{' '}
-          {formatBytes(globalStats.totalUploadRate)}/s
-        </div>
-      </div>
-
       {/* Content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {activeTab === 'torrents' && (
-          <>
-            {/* Toolbar */}
-            <div
+        <>
+          {/* Toolbar */}
+          <div
+            style={{
+              padding: '6px 16px',
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex',
+              gap: '6px',
+              alignItems: 'center',
+            }}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept=".torrent"
+              style={{ display: 'none' }}
+            />
+            <input
+              id="magnet-input"
+              type="text"
+              value={magnetInput}
+              onChange={(e) => setMagnetInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddTorrent()
+              }}
+              placeholder="Magnet link or URL"
               style={{
-                padding: '6px 16px',
-                borderBottom: '1px solid var(--border-color)',
+                flex: 1,
+                padding: '0 8px',
+                maxWidth: '350px',
+                fontSize: '13px',
+                height: '26px',
+                boxSizing: 'border-box',
+              }}
+            />
+            <button
+              onClick={handleAddTorrent}
+              style={{
+                padding: '0 10px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                height: '26px',
+                boxSizing: 'border-box',
                 display: 'flex',
-                gap: '6px',
                 alignItems: 'center',
               }}
             >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                accept=".torrent"
-                style={{ display: 'none' }}
-              />
-              <input
-                id="magnet-input"
-                type="text"
-                value={magnetInput}
-                onChange={(e) => setMagnetInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAddTorrent()
-                }}
-                placeholder="Magnet link or URL"
-                style={{
-                  flex: 1,
-                  padding: '0 8px',
-                  maxWidth: '350px',
-                  fontSize: '13px',
-                  height: '26px',
-                  boxSizing: 'border-box',
-                }}
-              />
-              <button
-                onClick={handleAddTorrent}
-                style={{
-                  padding: '0 10px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  height: '26px',
-                  boxSizing: 'border-box',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                Add
-              </button>
+              Add
+            </button>
 
-              <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
+            <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
 
-              <button
-                onClick={handleStartSelected}
-                disabled={!hasSelection || allStarted}
-                style={{
-                  padding: '0 10px',
-                  cursor: hasSelection && !allStarted ? 'pointer' : 'default',
-                  fontSize: '13px',
-                  height: '26px',
-                  boxSizing: 'border-box',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  opacity: !hasSelection || allStarted ? 0.5 : 1,
-                }}
-                title="Start selected"
-              >
-                <span style={{ lineHeight: 1 }}>▶</span>
-                <span>Start</span>
-              </button>
-              <button
-                onClick={handleStopSelected}
-                disabled={!hasSelection || allStopped}
-                style={{
-                  padding: '0 10px',
-                  cursor: hasSelection && !allStopped ? 'pointer' : 'default',
-                  fontSize: '13px',
-                  height: '26px',
-                  boxSizing: 'border-box',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  opacity: !hasSelection || allStopped ? 0.5 : 1,
-                }}
-                title="Stop selected"
-              >
-                <span style={{ lineHeight: 1 }}>■</span>
-                <span>Stop</span>
-              </button>
-              <button
-                onClick={handleDeleteSelected}
-                disabled={!hasSelection}
-                style={{
-                  padding: '0 10px',
-                  cursor: hasSelection ? 'pointer' : 'default',
-                  fontSize: '13px',
-                  height: '26px',
-                  boxSizing: 'border-box',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  color: 'var(--accent-error)',
-                  opacity: hasSelection ? 1 : 0.5,
-                }}
-                title="Remove selected"
-              >
-                <span style={{ lineHeight: 1 }}>✕</span>
-                <span>Remove</span>
-              </button>
+            <button
+              onClick={handleStartSelected}
+              disabled={!hasSelection || allStarted}
+              style={{
+                padding: '0 10px',
+                cursor: hasSelection && !allStarted ? 'pointer' : 'default',
+                fontSize: '13px',
+                height: '26px',
+                boxSizing: 'border-box',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                opacity: !hasSelection || allStarted ? 0.5 : 1,
+              }}
+              title="Start selected"
+            >
+              <span style={{ lineHeight: 1 }}>▶</span>
+              <span>Start</span>
+            </button>
+            <button
+              onClick={handleStopSelected}
+              disabled={!hasSelection || allStopped}
+              style={{
+                padding: '0 10px',
+                cursor: hasSelection && !allStopped ? 'pointer' : 'default',
+                fontSize: '13px',
+                height: '26px',
+                boxSizing: 'border-box',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                opacity: !hasSelection || allStopped ? 0.5 : 1,
+              }}
+              title="Stop selected"
+            >
+              <span style={{ lineHeight: 1 }}>■</span>
+              <span>Stop</span>
+            </button>
+            <button
+              onClick={handleDeleteSelected}
+              disabled={!hasSelection}
+              style={{
+                padding: '0 10px',
+                cursor: hasSelection ? 'pointer' : 'default',
+                fontSize: '13px',
+                height: '26px',
+                boxSizing: 'border-box',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: 'var(--accent-error)',
+                opacity: hasSelection ? 1 : 0.5,
+              }}
+              title="Remove selected"
+            >
+              <span style={{ lineHeight: 1 }}>✕</span>
+              <span>Remove</span>
+            </button>
 
-              <DropdownMenu
-                label="More"
-                items={moreMenuItems}
-                onSelect={handleMenuAction}
-                disabled={!hasSelection}
-              />
-            </div>
+            <DropdownMenu
+              label="More"
+              items={moreMenuItems}
+              onSelect={handleMenuAction}
+              disabled={!hasSelection}
+            />
+          </div>
 
-            {/* Main content */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-              {/* Torrent table */}
-              <div style={{ flex: 1, minHeight: 100, overflow: 'hidden' }}>
-                {torrents.length === 0 ? (
-                  <div
-                    style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}
-                  >
-                    No torrents. Add a magnet link to get started.
-                  </div>
-                ) : (
-                  <TorrentTable
-                    source={adapter}
-                    getSelectedHashes={() => selectedTorrents}
-                    onSelectionChange={setSelectedTorrents}
-                    onRowContextMenu={handleContextMenu}
-                  />
-                )}
-              </div>
-
-              {/* Resize handle */}
-              <ResizeHandle
-                currentHeight={detailHeight}
-                minHeight={minHeight}
-                maxHeight={maxHeight}
-                onResize={updateHeight}
-                onResizeEnd={persistHeight}
-              />
-
-              {/* Detail pane */}
-              <div style={{ height: detailHeight, flexShrink: 0, overflow: 'hidden' }}>
-                <DetailPane
+          {/* Main content */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            {/* Torrent table */}
+            <div style={{ flex: 1, minHeight: 100, overflow: 'hidden' }}>
+              {torrents.length === 0 ? (
+                <div
+                  style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}
+                >
+                  No torrents. Add a magnet link to get started.
+                </div>
+              ) : (
+                <TorrentTable
                   source={adapter}
-                  selectedHashes={selectedTorrents}
-                  activeTab={detailTab}
-                  onTabChange={setDetailTab}
+                  getSelectedHashes={() => selectedTorrents}
+                  onSelectionChange={setSelectedTorrents}
+                  onRowContextMenu={handleContextMenu}
                 />
-              </div>
+              )}
             </div>
-          </>
-        )}
 
-        {activeTab === 'settings' && <DownloadRootsManager />}
+            {/* Resize handle */}
+            <ResizeHandle
+              currentHeight={detailHeight}
+              minHeight={minHeight}
+              maxHeight={maxHeight}
+              onResize={updateHeight}
+              onResizeEnd={persistHeight}
+            />
+
+            {/* Detail pane */}
+            <div style={{ height: detailHeight, flexShrink: 0, overflow: 'hidden' }}>
+              <DetailPane
+                source={adapter}
+                selectedHashes={selectedTorrents}
+                activeTab={detailTab}
+                onTabChange={setDetailTab}
+              />
+            </div>
+          </div>
+        </>
       </div>
 
       {/* Context menu portal */}
@@ -463,6 +411,15 @@ function App() {
   const [initError, setInitError] = useState<string | null>(null)
   const initStartedRef = useRef(false)
   const [defaultRootKey, setDefaultRootKey] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // App settings hook
+  const {
+    settings,
+    activeTab: settingsTab,
+    setActiveTab: setSettingsTab,
+    updateSetting,
+  } = useAppSettings()
 
   // Handle native events from SW port
   const handleNativeEvent = useCallback(
@@ -594,20 +551,43 @@ function App() {
               }}
               onCopyDebugInfo={systemBridge.copyDebugInfo}
               onClose={systemBridge.closePanel}
+              onOpenSettings={() => setSettingsOpen(true)}
             />
           )}
         </div>
 
-        <div style={{ marginLeft: 'auto', color: 'var(--text-secondary)', fontSize: '12px' }}>
-          {engine ? (
-            <>
-              {engine.torrents.length} torrents | {engine.numConnections} peers
-            </>
-          ) : isConnected ? (
-            'Initializing...'
-          ) : (
-            'Not connected'
-          )}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+            {engine ? (
+              <>
+                {engine.torrents.length} torrents | {engine.numConnections} peers | ↓{' '}
+                {formatBytes(engine.torrents.reduce((sum, t) => sum + t.downloadSpeed, 0))}/s | ↑{' '}
+                {formatBytes(engine.torrents.reduce((sum, t) => sum + t.uploadSpeed, 0))}/s
+              </>
+            ) : isConnected ? (
+              'Initializing...'
+            ) : (
+              'Not connected'
+            )}
+          </span>
+          <button
+            onClick={() => setSettingsOpen(true)}
+            style={{
+              background: 'var(--button-bg)',
+              border: '1px solid var(--border-color)',
+              cursor: 'pointer',
+              padding: '6px 12px',
+              fontSize: '13px',
+              color: 'var(--text-primary)',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span style={{ fontSize: '16px' }}>⚙</span>
+            Settings
+          </button>
         </div>
       </div>
 
@@ -642,6 +622,16 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Settings overlay */}
+      <SettingsOverlay
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={settings}
+        activeTab={settingsTab}
+        setActiveTab={setSettingsTab}
+        updateSetting={updateSetting}
+      />
     </div>
   )
 }

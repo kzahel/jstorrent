@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import { Torrent } from '@jstorrent/engine'
-import type { LogStore, DiskQueueSnapshot } from '@jstorrent/engine'
+import type { LogStore, DiskQueueSnapshot, TrackerStats } from '@jstorrent/engine'
 import { PeerTable } from '../tables/PeerTable'
 import { PieceTable } from '../tables/PieceTable'
 import { FileTable } from '../tables/FileTable'
@@ -8,9 +8,18 @@ import { SwarmTable } from '../tables/SwarmTable'
 import { GeneralPane } from './GeneralPane'
 import { LogTableWrapper } from '../tables/LogTableWrapper'
 import { DiskTable } from '../tables/DiskTable'
+import { TrackerTable } from '../tables/TrackerTable'
 import { useSelection } from '../hooks/useSelection'
 
-export type DetailTab = 'peers' | 'swarm' | 'pieces' | 'files' | 'general' | 'logs' | 'disk'
+export type DetailTab =
+  | 'peers'
+  | 'swarm'
+  | 'pieces'
+  | 'files'
+  | 'general'
+  | 'trackers'
+  | 'logs'
+  | 'disk'
 
 export const DEFAULT_DETAIL_TAB: DetailTab = 'general'
 
@@ -20,6 +29,7 @@ interface TorrentSource {
   getTorrent(hash: string): Torrent | undefined
   getLogStore(): LogStore
   getDiskQueueSnapshot(hash: string): DiskQueueSnapshot | null
+  getTrackerStats(hash: string): TrackerStats[]
 }
 
 export interface DetailPaneProps {
@@ -109,6 +119,12 @@ export function DetailPane(props: DetailPaneProps) {
         <button style={getTabStyle(activeTab === 'general')} onClick={() => onTabChange('general')}>
           General
         </button>
+        <button
+          style={getTabStyle(activeTab === 'trackers')}
+          onClick={() => onTabChange('trackers')}
+        >
+          Trackers
+        </button>
         <button style={getTabStyle(activeTab === 'peers')} onClick={() => onTabChange('peers')}>
           Peers {torrent ? `(${torrent.numPeers})` : ''}
         </button>
@@ -173,6 +189,16 @@ export function DetailPane(props: DetailPaneProps) {
           )}
         {activeTab === 'general' &&
           renderTorrentContent(<GeneralPane torrent={torrent!} />, 'general info')}
+        {activeTab === 'trackers' &&
+          renderTorrentContent(
+            <TrackerTable
+              source={props.source}
+              torrentHash={selectedHash!}
+              getSelectedKeys={getSelectedKeys}
+              onSelectionChange={onSelectionChange}
+            />,
+            'trackers',
+          )}
         {activeTab === 'logs' && <LogTableWrapper logStore={props.source.getLogStore()} />}
         {activeTab === 'disk' &&
           renderTorrentContent(

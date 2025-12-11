@@ -43,6 +43,7 @@ export interface SystemBridgePanelProps {
   onAddFolder: () => void
   onSetDefaultRoot: (key: string) => void
   onCopyDebugInfo: () => void
+  onOpenSettings?: () => void
 }
 
 export function SystemBridgePanel({
@@ -60,6 +61,7 @@ export function SystemBridgePanel({
   onAddFolder,
   onSetDefaultRoot,
   onCopyDebugInfo,
+  onOpenSettings,
 }: SystemBridgePanelProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -308,17 +310,36 @@ export function SystemBridgePanel({
               ))}
             </div>
           )}
-          <button
-            onClick={onAddFolder}
-            style={{
-              marginTop: '8px',
-              padding: '6px 12px',
-              fontSize: '13px',
-              cursor: 'pointer',
-            }}
-          >
-            Add Folder...
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+            <button
+              onClick={onAddFolder}
+              style={{
+                padding: '6px 12px',
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              Add Folder...
+            </button>
+            {onOpenSettings && (
+              <button
+                onClick={() => {
+                  onOpenSettings()
+                  onClose()
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent-primary)',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  padding: '6px 0',
+                }}
+              >
+                Manage in Settings
+              </button>
+            )}
+          </div>
         </div>
       </>
     )

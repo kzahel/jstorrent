@@ -10,7 +10,7 @@ import { InfoHashHex, infoHashFromBytes } from '../utils/infohash'
 import { Bencode } from '../utils/bencode'
 import { TrackerManager } from '../tracker/tracker-manager'
 import { ISocketFactory } from '../interfaces/socket'
-import { PeerInfo } from '../interfaces/tracker'
+import { PeerInfo, TrackerStats } from '../interfaces/tracker'
 import { TorrentFileInfo } from './torrent-file-info'
 import { EngineComponent } from '../logging/logger'
 import type { BtEngine } from './bt-engine'
@@ -221,6 +221,13 @@ export class Torrent extends EngineComponent {
    */
   getDiskQueueSnapshot(): DiskQueueSnapshot {
     return this._diskQueue.getSnapshot()
+  }
+
+  /**
+   * Get tracker stats for UI display.
+   */
+  getTrackerStats(): TrackerStats[] {
+    return this.trackerManager?.getTrackerStats() ?? []
   }
 
   /**

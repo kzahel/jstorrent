@@ -1,4 +1,4 @@
-import { ITracker, PeerInfo } from '../interfaces/tracker'
+import { ITracker, PeerInfo, TrackerStats } from '../interfaces/tracker'
 import { HttpTracker } from './http-tracker'
 import { UdpTracker } from './udp-tracker'
 import { ISocketFactory } from '../interfaces/socket'
@@ -108,6 +108,13 @@ export class TrackerManager extends EngineComponent {
       const [ip, portStr] = key.split(':')
       return { ip, port: parseInt(portStr, 10) }
     })
+  }
+
+  /**
+   * Get stats for all trackers.
+   */
+  getTrackerStats(): TrackerStats[] {
+    return this.trackers.map((t) => t.getStats())
   }
 
   destroy() {

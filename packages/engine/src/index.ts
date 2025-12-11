@@ -20,6 +20,7 @@ export type { IFileSystem, IFileHandle, IFileStat } from './interfaces/filesyste
 export type { ISocketFactory, ITcpSocket, IUdpSocket } from './interfaces/socket'
 export type { ISessionStore } from './interfaces/session-store'
 export type { IHasher } from './interfaces/hasher'
+export type { TrackerStats, TrackerStatus } from './interfaces/tracker'
 
 // Logging
 export type { Logger, LogEntry, LogLevel } from './logging/logger'
