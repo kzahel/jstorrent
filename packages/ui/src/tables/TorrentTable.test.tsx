@@ -32,7 +32,7 @@ async function waitForTable() {
 
 describe('TorrentTable', () => {
   beforeEach(() => {
-    sessionStorage.clear()
+    localStorage.clear()
   })
 
   describe('rendering', () => {
@@ -118,7 +118,7 @@ describe('TorrentTable', () => {
       })
     })
 
-    it('persists sort column to sessionStorage', async () => {
+    it('persists sort column to localStorage', async () => {
       const source = createMockSource(3)
       const user = userEvent.setup()
 
@@ -133,9 +133,9 @@ describe('TorrentTable', () => {
       // Click Name header to sort
       await user.click(screen.getByText('Name'))
 
-      // Check sessionStorage
+      // Check localStorage
       await waitFor(() => {
-        const stored = sessionStorage.getItem('jstorrent:columns:torrents')
+        const stored = localStorage.getItem('jstorrent:columns:torrents')
         expect(stored).toBeTruthy()
         const config = JSON.parse(stored!)
         expect(config.sortColumn).toBe('name')
@@ -143,9 +143,9 @@ describe('TorrentTable', () => {
       })
     })
 
-    it('restores sort indicator from sessionStorage on mount', async () => {
-      // Pre-set sessionStorage with Name descending
-      sessionStorage.setItem(
+    it('restores sort indicator from localStorage on mount', async () => {
+      // Pre-set localStorage with Name descending
+      localStorage.setItem(
         'jstorrent:columns:torrents',
         JSON.stringify({
           visible: [
@@ -257,7 +257,7 @@ describe('TorrentTable', () => {
       })
     })
 
-    it('persists column visibility to sessionStorage', async () => {
+    it('persists column visibility to localStorage', async () => {
       const source = createMockSource(3)
       const user = userEvent.setup()
 
@@ -287,18 +287,18 @@ describe('TorrentTable', () => {
       expect(peersCheckbox).toBeDefined()
       await user.click(peersCheckbox!)
 
-      // Check sessionStorage
+      // Check localStorage
       await waitFor(() => {
-        const stored = sessionStorage.getItem('jstorrent:columns:torrents')
+        const stored = localStorage.getItem('jstorrent:columns:torrents')
         expect(stored).toBeTruthy()
         const config = JSON.parse(stored!)
         expect(config.visible).not.toContain('peers')
       })
     })
 
-    it('restores column visibility from sessionStorage on mount', async () => {
-      // Pre-set sessionStorage with Peers hidden
-      sessionStorage.setItem(
+    it('restores column visibility from localStorage on mount', async () => {
+      // Pre-set localStorage with Peers hidden
+      localStorage.setItem(
         'jstorrent:columns:torrents',
         JSON.stringify({
           visible: ['name', 'size', 'progress', 'status', 'downloadSpeed', 'uploadSpeed', 'seeds'],
@@ -351,9 +351,9 @@ describe('TorrentTable', () => {
       expect(liveSortCheckbox).toBeDefined()
       await user.click(liveSortCheckbox!)
 
-      // Check sessionStorage
+      // Check localStorage
       await waitFor(() => {
-        const stored = sessionStorage.getItem('jstorrent:columns:torrents')
+        const stored = localStorage.getItem('jstorrent:columns:torrents')
         expect(stored).toBeTruthy()
         const config = JSON.parse(stored!)
         expect(config.liveSort).toBe(true)

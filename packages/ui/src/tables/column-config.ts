@@ -1,9 +1,10 @@
+import { uiStorage } from '../storage/UIStorage'
 import { ColumnConfig, ColumnDef } from './types'
 
 const STORAGE_PREFIX = 'jstorrent:columns:'
 
 /**
- * Load column config from sessionStorage.
+ * Load column config from storage.
  */
 export function loadColumnConfig<T>(
   storageKey: string,
@@ -21,7 +22,7 @@ export function loadColumnConfig<T>(
   }
 
   try {
-    const stored = sessionStorage.getItem(STORAGE_PREFIX + storageKey)
+    const stored = uiStorage.getItem(STORAGE_PREFIX + storageKey)
     if (stored) {
       const parsed = JSON.parse(stored) as Partial<ColumnConfig>
 
@@ -66,14 +67,10 @@ export function loadColumnConfig<T>(
 }
 
 /**
- * Save column config to sessionStorage.
+ * Save column config to storage.
  */
 export function saveColumnConfig(storageKey: string, config: ColumnConfig): void {
-  try {
-    sessionStorage.setItem(STORAGE_PREFIX + storageKey, JSON.stringify(config))
-  } catch {
-    // Ignore storage errors (quota, etc.)
-  }
+  uiStorage.setItem(STORAGE_PREFIX + storageKey, JSON.stringify(config))
 }
 
 /**
