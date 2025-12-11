@@ -25,13 +25,12 @@ private const val TAG = "MainActivity"
 class MainActivity : ComponentActivity() {
 
     private lateinit var tokenStore: TokenStore
+    private var isPaired = mutableStateOf(false)
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         Log.i(TAG, "Notification permission granted: $isGranted")
-        // Start service regardless of permission result
-        IoDaemonService.start(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,24 +38,36 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         tokenStore = TokenStore(this)
+        isPaired.value = tokenStore.hasToken()
 
         // Handle pairing intent
         handleIntent()
 
-        // Request notification permission on Android 13+
-        requestNotificationPermissionAndStartService()
+        // Start service immediately, then request notification permission
+        startServiceAndRequestNotificationPermission()
 
         setContent {
             JSTorrentTheme {
                 MainScreen(
-                    isPaired = tokenStore.hasToken(),
+                    isPaired = isPaired.value,
                     onUnpair = {
                         tokenStore.clear()
-                        // Force recomposition
-                        recreate()
+                        isPaired.value = false
                     }
                 )
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh pairing state when returning from PairingApprovalActivity
+        val wasPaired = isPaired.value
+        isPaired.value = tokenStore.hasToken()
+
+        // Request notification permission after pairing completes (not during onboarding)
+        if (!wasPaired && isPaired.value) {
+            requestNotificationPermissionIfNeeded()
         }
     }
 
@@ -85,21 +96,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun requestNotificationPermissionAndStartService() {
+    private fun startServiceAndRequestNotificationPermission() {
+        // Always start service immediately - don't block on permission dialog
+        IoDaemonService.start(this)
+
+        // Only request notification permission after pairing is complete
+        // This avoids dialog conflicts during onboarding
+        if (tokenStore.hasToken()) {
+            requestNotificationPermissionIfNeeded()
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            when {
-                ContextCompat.checkSelfPermission(
+            if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED -> {
-                    IoDaemonService.start(this)
-                }
-                else -> {
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
-        } else {
-            IoDaemonService.start(this)
         }
     }
 }
