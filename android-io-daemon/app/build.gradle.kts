@@ -13,8 +13,8 @@ android {
         applicationId = "com.jstorrent.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -28,12 +28,21 @@ android {
         }
 
         create("release") {
-            val uploadKeystorePath = System.getenv("UPLOAD_KEYSTORE_PATH")
-            if (uploadKeystorePath != null) {
-                storeFile = file(uploadKeystorePath)
-                storePassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("UPLOAD_KEY_ALIAS")
-                keyPassword = System.getenv("UPLOAD_KEY_PASSWORD")
+            // Check project properties first (for -P flags), then env vars
+            val keystorePath = project.findProperty("UPLOAD_KEYSTORE_PATH") as String?
+                ?: System.getenv("UPLOAD_KEYSTORE_PATH")
+            val keystorePass = project.findProperty("UPLOAD_KEYSTORE_PASSWORD") as String?
+                ?: System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+            val alias = project.findProperty("UPLOAD_KEY_ALIAS") as String?
+                ?: System.getenv("UPLOAD_KEY_ALIAS")
+            val keyPass = project.findProperty("UPLOAD_KEY_PASSWORD") as String?
+                ?: System.getenv("UPLOAD_KEY_PASSWORD")
+
+            if (keystorePath != null && keystorePass != null && alias != null && keyPass != null) {
+                storeFile = file(keystorePath)
+                storePassword = keystorePass
+                keyAlias = alias
+                keyPassword = keyPass
             } else {
                 // Fall back to debug key for local release builds
                 storeFile = file("signing/debug.keystore")
@@ -55,6 +64,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
         }
     }
     compileOptions {
