@@ -25,11 +25,13 @@ Register with Claude Code:
 """
 
 import asyncio
+import base64
 import json
 import sys
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +39,10 @@ import aiohttp
 import websockets
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import TextContent, Tool
+from mcp.types import ImageContent, TextContent, Tool
+
+from PIL import Image
+import pytesseract
 
 # Configuration
 DEFAULT_HOST = "localhost"
@@ -239,6 +244,33 @@ async def cdp_evaluate(ws_url: str, expression: str, await_promise: bool = True)
         "awaitPromise": await_promise,
     }
     return await cdp_send_command(ws_url, "Runtime.evaluate", params)
+
+
+async def cdp_capture_screenshot(ws_url: str, format: str = "png", quality: int = 80) -> dict:
+    """Capture screenshot of a page target via CDP.
+
+    Requires enabling the Page domain first, so we handle this in a single connection.
+    """
+    async with websockets.connect(ws_url) as ws:
+        # Enable Page domain first
+        await ws.send(json.dumps({"id": 1, "method": "Page.enable"}))
+        async with asyncio.timeout(10):
+            while True:
+                response = json.loads(await ws.recv())
+                if response.get("id") == 1:
+                    break
+
+        # Now capture screenshot
+        params: dict[str, Any] = {"format": format}
+        if format == "jpeg":
+            params["quality"] = quality
+
+        await ws.send(json.dumps({"id": 2, "method": "Page.captureScreenshot", "params": params}))
+        async with asyncio.timeout(30):
+            while True:
+                response = json.loads(await ws.recv())
+                if response.get("id") == 2:
+                    return response
 
 
 # =============================================================================
@@ -613,6 +645,16 @@ async def list_tools() -> list[Tool]:
                         "type": "boolean",
                         "description": "Only show targets for current extension (default: false)",
                     },
+                    "connection": CONNECTION_PARAM,
+                },
+            },
+        ),
+        Tool(
+            name="ext_screenshot",
+            description="Capture screenshot of extension page. Returns the image with OCR text.",
+            inputSchema={
+                "type": "object",
+                "properties": {
                     "connection": CONNECTION_PARAM,
                 },
             },
@@ -1035,6 +1077,63 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         if len(results) == 1:
             return [TextContent(type="text", text=json.dumps(results[0], indent=2))]
         return [TextContent(type="text", text=json.dumps({"results": results}, indent=2))]
+
+    # --- ext_screenshot ---
+    elif name == "ext_screenshot":
+        connections = get_connections(conn_name)
+        if not connections:
+            return [TextContent(type="text", text=f"Connection '{conn_name}' not found")]
+
+        # Only support single connection for screenshot (returns image)
+        conn = connections[0]
+
+        page = await cdp_find_extension_page(conn)
+        if not page:
+            return [TextContent(type="text", text="No extension page found. Open the extension UI first.")]
+
+        ws_url = page.get("webSocketDebuggerUrl")
+        if not ws_url:
+            return [TextContent(type="text", text="Extension page has no debugger URL")]
+
+        try:
+            result = await cdp_capture_screenshot(ws_url)
+
+            if "error" in result:
+                return [TextContent(type="text", text=f"Screenshot failed: {result['error']}")]
+
+            image_data = result.get("result", {}).get("data")
+            if not image_data:
+                return [TextContent(type="text", text="No image data returned")]
+
+            # Decode and process image
+            image_bytes = base64.b64decode(image_data)
+            img = Image.open(BytesIO(image_bytes))
+
+            # Resize if too large (max 1920px width)
+            max_width = 1920
+            if img.width > max_width:
+                ratio = max_width / img.width
+                new_size = (max_width, int(img.height * ratio))
+                img = img.resize(new_size, Image.LANCZOS)
+
+            # Run OCR
+            try:
+                ocr_text = pytesseract.image_to_string(img)
+            except Exception as e:
+                ocr_text = f"OCR failed: {e}"
+
+            # Re-encode as PNG
+            output = BytesIO()
+            img.save(output, format="PNG", optimize=True)
+            resized_data = base64.b64encode(output.getvalue()).decode('ascii')
+
+            return [
+                ImageContent(type="image", data=resized_data, mimeType="image/png"),
+                TextContent(type="text", text=f"OCR Text:\n{ocr_text}"),
+            ]
+
+        except Exception as e:
+            return [TextContent(type="text", text=f"Screenshot failed: {type(e).__name__}: {e}")]
 
     return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
