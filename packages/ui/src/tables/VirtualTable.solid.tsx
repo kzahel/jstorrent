@@ -156,6 +156,9 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
   // Anchor index for shift+click range selection
   let anchorIndex: number | null = null
 
+  // Focus index for keyboard navigation (tracks keyboard cursor position)
+  const [focusIndex, setFocusIndex] = createSignal<number | null>(null)
+
   // Create virtualizer
   const virtualizer = createVirtualizer({
     get count() {
@@ -275,6 +278,49 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
       props.onSelectionChange(new Set([key]))
       anchorIndex = index
     }
+    setFocusIndex(index)
+  }
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+    if (!props.onSelectionChange || !props.getSelectedKeys) return
+
+    e.preventDefault()
+    const allRows = rows()
+    if (allRows.length === 0) return
+
+    // Determine starting index (use focus, then anchor, then 0)
+    const startIndex = focusIndex() ?? anchorIndex ?? 0
+
+    // Calculate new index
+    const newIndex =
+      e.key === 'ArrowUp'
+        ? Math.max(0, startIndex - 1)
+        : Math.min(allRows.length - 1, startIndex + 1)
+
+    const key = props.getRowKey(allRows[newIndex])
+
+    if (e.shiftKey) {
+      // Range selection from anchor to newIndex
+      if (anchorIndex === null) anchorIndex = startIndex
+      const start = Math.min(anchorIndex, newIndex)
+      const end = Math.max(anchorIndex, newIndex)
+      const rangeKeys = new Set<string>()
+      for (let i = start; i <= end; i++) {
+        rangeKeys.add(props.getRowKey(allRows[i]))
+      }
+      props.onSelectionChange(rangeKeys)
+    } else {
+      // Single selection
+      props.onSelectionChange(new Set([key]))
+      anchorIndex = newIndex
+    }
+
+    setFocusIndex(newIndex)
+
+    // Scroll into view
+    virtualizer.scrollToIndex(newIndex, { align: 'auto' })
   }
 
   // Settings menu state
@@ -608,6 +654,8 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
   return (
     <div
       ref={containerRef}
+      tabindex="0"
+      onKeyDown={handleKeyDown}
       style={{
         height: '100%',
         overflow: 'auto',
@@ -615,6 +663,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
         'font-size': '13px',
         'user-select': 'none',
         position: 'relative',
+        outline: 'none',
       }}
       data-testid="virtual-table"
     >
@@ -781,6 +830,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                   if (!props.getSelectedKeys?.().has(k)) {
                     props.onSelectionChange?.(new Set([k]))
                     anchorIndex = virtualRow.index
+                    setFocusIndex(virtualRow.index)
                   }
 
                   props.onRowContextMenu?.(r, e.clientX, e.clientY)
