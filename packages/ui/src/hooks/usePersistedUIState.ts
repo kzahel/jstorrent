@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useLayoutEffect } from 'react'
+import { useState, useCallback, useLayoutEffect } from 'react'
 import type { DetailTab } from '../components/DetailPane'
 
 const UI_STATE_KEY = 'jstorrent:uiState'
@@ -32,29 +32,28 @@ export function usePersistedUIState(options: UsePersistedUIStateOptions = {}) {
     return Math.floor(window.innerHeight * maxHeightRatio)
   }, [maxHeightRatio])
 
-  const [height, setHeight] = useState(defaultHeight)
-  const [activeTab, setActiveTab] = useState<DetailTab>(defaultTab)
-  const [loaded, setLoaded] = useState(false)
-
-  // Load from chrome.storage.local on mount
-  useEffect(() => {
-    const loadState = async () => {
-      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-        const result = await chrome.storage.local.get(UI_STATE_KEY)
-        const saved = result[UI_STATE_KEY] as PersistedUIState | undefined
-        if (saved) {
-          if (typeof saved.detailPaneHeight === 'number') {
-            setHeight(clamp(saved.detailPaneHeight, minHeight, getMaxHeight()))
-          }
-          if (saved.detailPaneTab) {
-            setActiveTab(saved.detailPaneTab)
-          }
+  // Load initial state from localStorage synchronously
+  const getInitialState = useCallback((): PersistedUIState => {
+    try {
+      const raw = localStorage.getItem(UI_STATE_KEY)
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<PersistedUIState>
+        return {
+          detailPaneHeight:
+            typeof saved.detailPaneHeight === 'number'
+              ? clamp(saved.detailPaneHeight, minHeight, getMaxHeight())
+              : defaultHeight,
+          detailPaneTab: saved.detailPaneTab || defaultTab,
         }
       }
-      setLoaded(true)
+    } catch {
+      // Ignore parse errors
     }
-    loadState()
-  }, [minHeight, getMaxHeight])
+    return { detailPaneHeight: defaultHeight, detailPaneTab: defaultTab }
+  }, [defaultHeight, defaultTab, minHeight, getMaxHeight])
+
+  const [height, setHeight] = useState(() => getInitialState().detailPaneHeight)
+  const [activeTab, setActiveTab] = useState<DetailTab>(() => getInitialState().detailPaneTab)
 
   // Re-clamp height on window resize
   useLayoutEffect(() => {
@@ -67,23 +66,18 @@ export function usePersistedUIState(options: UsePersistedUIStateOptions = {}) {
     return () => window.removeEventListener('resize', handleResize)
   }, [minHeight, getMaxHeight])
 
-  // Persist state to chrome.storage.local
-  const persistState = useCallback(
-    (updates: Partial<PersistedUIState>) => {
-      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-        chrome.storage.local.get(UI_STATE_KEY).then((result) => {
-          const current = (result[UI_STATE_KEY] as PersistedUIState) || {
-            detailPaneHeight: height,
-            detailPaneTab: activeTab,
-          }
-          chrome.storage.local.set({
-            [UI_STATE_KEY]: { ...current, ...updates },
-          })
-        })
-      }
-    },
-    [height, activeTab],
-  )
+  // Persist state to localStorage
+  const persistState = useCallback((updates: Partial<PersistedUIState>) => {
+    try {
+      const raw = localStorage.getItem(UI_STATE_KEY)
+      const current: PersistedUIState = raw
+        ? JSON.parse(raw)
+        : { detailPaneHeight: height, detailPaneTab: activeTab }
+      localStorage.setItem(UI_STATE_KEY, JSON.stringify({ ...current, ...updates }))
+    } catch {
+      // Ignore storage errors
+    }
+  }, [height, activeTab])
 
   // Update height during drag (don't persist yet)
   const updateHeight = useCallback(
@@ -119,6 +113,6 @@ export function usePersistedUIState(options: UsePersistedUIStateOptions = {}) {
     persistHeight,
     activeTab,
     setTab,
-    loaded,
+    loaded: true, // Always loaded immediately with localStorage
   }
 }
