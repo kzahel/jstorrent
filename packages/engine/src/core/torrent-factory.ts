@@ -2,6 +2,7 @@ import { IHasher } from '../interfaces/hasher'
 import { parseMagnet } from '../utils/magnet'
 import { TorrentParser, ParsedTorrent } from './torrent-parser'
 import { fromHex, toBase64 } from '../utils/buffer'
+import { InfoHashHex, infoHashFromBytes } from '../utils/infohash'
 import type { PeerAddress } from './swarm'
 
 /**
@@ -10,7 +11,7 @@ import type { PeerAddress } from './swarm'
  */
 export interface ParsedTorrentInput {
   infoHash: Uint8Array
-  infoHashStr: string
+  infoHashStr: InfoHashHex
   announce: string[]
 
   // Origin info (one of these will be set)
@@ -51,9 +52,7 @@ export async function parseTorrentInput(
   } else {
     // Parse torrent file
     const parsedTorrent = await TorrentParser.parse(magnetOrBuffer, hasher)
-    const infoHashStr = Array.from(parsedTorrent.infoHash)
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
+    const infoHashStr = infoHashFromBytes(parsedTorrent.infoHash)
 
     return {
       infoHash: parsedTorrent.infoHash,
