@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Torrent } from '@jstorrent/engine'
 import type { LogStore, DiskQueueSnapshot } from '@jstorrent/engine'
 import { PeerTable } from '../tables/PeerTable'
@@ -9,6 +9,8 @@ import { LogTableWrapper } from '../tables/LogTableWrapper'
 import { DiskTable } from '../tables/DiskTable'
 
 export type DetailTab = 'peers' | 'pieces' | 'files' | 'general' | 'logs' | 'disk'
+
+export const DEFAULT_DETAIL_TAB: DetailTab = 'general'
 
 /** Source interface matching adapter shape */
 interface TorrentSource {
@@ -23,23 +25,32 @@ export interface DetailPaneProps {
   source: TorrentSource
   /** Selected hashes - empty Set means none, Set with 1 item shows details, Set with 2+ shows count */
   selectedHashes: Set<string>
+  /** Active tab */
+  activeTab: DetailTab
+  /** Callback when tab changes */
+  onTabChange: (tab: DetailTab) => void
 }
 
 const tabStyle: React.CSSProperties = {
-  padding: '8px 16px',
+  padding: '8px 12px',
   border: 'none',
   borderBottom: '2px solid transparent',
   background: 'none',
   cursor: 'pointer',
   fontSize: '13px',
   color: 'var(--text-secondary)',
+  whiteSpace: 'nowrap',
+  textAlign: 'center',
 }
 
-const activeTabStyle: React.CSSProperties = {
+const TAB_WIDTH = 80
+
+const getTabStyle = (isActive: boolean): React.CSSProperties => ({
   ...tabStyle,
-  color: 'var(--text-primary)',
-  borderBottomColor: 'var(--accent-primary)',
-}
+  width: TAB_WIDTH,
+  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+  borderBottomColor: isActive ? 'var(--accent-primary)' : 'transparent',
+})
 
 const placeholderStyle: React.CSSProperties = {
   height: '100%',
@@ -54,7 +65,7 @@ const placeholderStyle: React.CSSProperties = {
  * Tab bar is always visible. Logs tab works without selection.
  */
 export function DetailPane(props: DetailPaneProps) {
-  const [activeTab, setActiveTab] = useState<DetailTab>('logs')
+  const { activeTab, onTabChange } = props
 
   // Get selected torrent (if single selection)
   const selectedHash = props.selectedHashes.size === 1 ? [...props.selectedHashes][0] : null
@@ -84,40 +95,22 @@ export function DetailPane(props: DetailPaneProps) {
           background: 'var(--bg-secondary)',
         }}
       >
-        <button
-          style={activeTab === 'peers' ? activeTabStyle : tabStyle}
-          onClick={() => setActiveTab('peers')}
-        >
-          Peers {torrent ? `(${torrent.numPeers})` : ''}
-        </button>
-        <button
-          style={activeTab === 'pieces' ? activeTabStyle : tabStyle}
-          onClick={() => setActiveTab('pieces')}
-        >
-          Pieces {torrent ? `(${torrent.completedPiecesCount}/${torrent.piecesCount})` : ''}
-        </button>
-        <button
-          style={activeTab === 'files' ? activeTabStyle : tabStyle}
-          onClick={() => setActiveTab('files')}
-        >
-          Files {torrent ? `(${torrent.files.length})` : ''}
-        </button>
-        <button
-          style={activeTab === 'general' ? activeTabStyle : tabStyle}
-          onClick={() => setActiveTab('general')}
-        >
+        <button style={getTabStyle(activeTab === 'general')} onClick={() => onTabChange('general')}>
           General
         </button>
-        <button
-          style={activeTab === 'logs' ? activeTabStyle : tabStyle}
-          onClick={() => setActiveTab('logs')}
-        >
+        <button style={getTabStyle(activeTab === 'peers')} onClick={() => onTabChange('peers')}>
+          Peers {torrent ? `(${torrent.numPeers})` : ''}
+        </button>
+        <button style={getTabStyle(activeTab === 'files')} onClick={() => onTabChange('files')}>
+          Files {torrent ? `(${torrent.files.length})` : ''}
+        </button>
+        <button style={getTabStyle(activeTab === 'pieces')} onClick={() => onTabChange('pieces')}>
+          Pieces
+        </button>
+        <button style={getTabStyle(activeTab === 'logs')} onClick={() => onTabChange('logs')}>
           Logs
         </button>
-        <button
-          style={activeTab === 'disk' ? activeTabStyle : tabStyle}
-          onClick={() => setActiveTab('disk')}
-        >
+        <button style={getTabStyle(activeTab === 'disk')} onClick={() => onTabChange('disk')}>
           Disk
         </button>
       </div>

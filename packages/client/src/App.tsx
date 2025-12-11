@@ -7,7 +7,7 @@ import {
   ContextMenu,
   DropdownMenu,
   ResizeHandle,
-  usePersistedHeight,
+  usePersistedUIState,
   formatBytes,
   ContextMenuItem,
 } from '@jstorrent/ui'
@@ -41,7 +41,9 @@ function AppContent() {
     maxHeight,
     updateHeight,
     persistHeight,
-  } = usePersistedHeight({
+    activeTab: detailTab,
+    setTab: setDetailTab,
+  } = usePersistedUIState({
     minHeight: 100,
     maxHeightRatio: 0.6,
     defaultHeight: 250,
@@ -428,7 +430,12 @@ function AppContent() {
 
               {/* Detail pane */}
               <div style={{ height: detailHeight, flexShrink: 0, overflow: 'hidden' }}>
-                <DetailPane source={adapter} selectedHashes={selectedTorrents} />
+                <DetailPane
+                  source={adapter}
+                  selectedHashes={selectedTorrents}
+                  activeTab={detailTab}
+                  onTabChange={setDetailTab}
+                />
               </div>
             </div>
           </>

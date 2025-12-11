@@ -1,7 +1,7 @@
 // Components
 export { TorrentItem } from './components/TorrentItem'
 export type { TorrentItemProps } from './components/TorrentItem'
-export { DetailPane } from './components/DetailPane'
+export { DetailPane, DEFAULT_DETAIL_TAB } from './components/DetailPane'
 export type { DetailTab, DetailPaneProps } from './components/DetailPane'
 export { ContextMenu } from './components/ContextMenu'
 export type { ContextMenuItem, ContextMenuProps } from './components/ContextMenu'
@@ -15,6 +15,8 @@ export type { GeneralPaneProps } from './components/GeneralPane'
 // Hooks
 export { usePersistedHeight } from './hooks/usePersistedHeight'
 export type { UsePersistedHeightOptions } from './hooks/usePersistedHeight'
+export { usePersistedUIState } from './hooks/usePersistedUIState'
+export type { UsePersistedUIStateOptions } from './hooks/usePersistedUIState'
 
 // Tables
 export { TorrentTable, torrentColumns } from './tables/TorrentTable'
