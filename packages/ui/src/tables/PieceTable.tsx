@@ -95,6 +95,10 @@ export interface PieceTableProps {
   source: TorrentSource
   /** Hash of the selected torrent */
   torrentHash: string
+  /** Get selected row keys (for Solid bridge) */
+  getSelectedKeys?: () => Set<string>
+  /** Called when selection changes */
+  onSelectionChange?: (keys: Set<string>) => void
 }
 
 /**
@@ -111,6 +115,8 @@ export function PieceTable(props: PieceTableProps) {
       columns={pieceColumns}
       storageKey="pieces"
       rowHeight={24}
+      getSelectedKeys={props.getSelectedKeys}
+      onSelectionChange={props.onSelectionChange}
     />
   )
 }

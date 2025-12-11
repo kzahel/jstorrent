@@ -558,7 +558,7 @@ export class Torrent extends EngineComponent {
 
     if (this.contentStorage && this.hasMetadata) {
       const rawFiles = this.contentStorage.filesList
-      this._files = rawFiles.map((f) => new TorrentFileInfo(f, this))
+      this._files = rawFiles.map((f, i) => new TorrentFileInfo(f, this, i))
       return this._files
     }
     return []

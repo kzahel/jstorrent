@@ -62,6 +62,10 @@ export interface FileTableProps {
   source: TorrentSource
   /** Hash of the selected torrent */
   torrentHash: string
+  /** Get selected row keys (for Solid bridge) */
+  getSelectedKeys?: () => Set<string>
+  /** Called when selection changes */
+  onSelectionChange?: (keys: Set<string>) => void
 }
 
 /**
@@ -109,10 +113,12 @@ export function FileTable(props: FileTableProps) {
     <>
       <TableMount<TorrentFileInfo>
         getRows={() => getTorrent()?.files ?? []}
-        getRowKey={(f) => f.path}
+        getRowKey={(f) => String(f.index)}
         columns={fileColumns}
         storageKey="files"
         rowHeight={24}
+        getSelectedKeys={props.getSelectedKeys}
+        onSelectionChange={props.onSelectionChange}
         onRowContextMenu={handleContextMenu}
         onRowDoubleClick={(file) => {
           // TODO: Implement file open via native host

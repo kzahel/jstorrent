@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Torrent } from '@jstorrent/engine'
 import type { LogStore, DiskQueueSnapshot } from '@jstorrent/engine'
 import { PeerTable } from '../tables/PeerTable'
@@ -7,6 +7,7 @@ import { FileTable } from '../tables/FileTable'
 import { GeneralPane } from './GeneralPane'
 import { LogTableWrapper } from '../tables/LogTableWrapper'
 import { DiskTable } from '../tables/DiskTable'
+import { useSelection } from '../hooks/useSelection'
 
 export type DetailTab = 'peers' | 'pieces' | 'files' | 'general' | 'logs' | 'disk'
 
@@ -71,6 +72,15 @@ export function DetailPane(props: DetailPaneProps) {
   const selectedHash = props.selectedHashes.size === 1 ? [...props.selectedHashes][0] : null
   const torrent = selectedHash ? props.source.getTorrent(selectedHash) : null
 
+  // Selection state for detail pane tables (shared, cleared on tab/torrent switch)
+  const detailSelection = useSelection()
+  const { getSelectedKeys, onSelectionChange, clear: clearSelection } = detailSelection
+
+  // Clear selection when tab or torrent changes
+  useEffect(() => {
+    clearSelection()
+  }, [activeTab, selectedHash, clearSelection])
+
   // Helper to render torrent-specific content or placeholder
   const renderTorrentContent = (content: React.ReactNode, tabName: string) => {
     if (props.selectedHashes.size === 0) {
@@ -119,17 +129,32 @@ export function DetailPane(props: DetailPaneProps) {
       <div style={{ flex: 1, minHeight: 0 }}>
         {activeTab === 'peers' &&
           renderTorrentContent(
-            <PeerTable source={props.source} torrentHash={selectedHash!} />,
+            <PeerTable
+              source={props.source}
+              torrentHash={selectedHash!}
+              getSelectedKeys={getSelectedKeys}
+              onSelectionChange={onSelectionChange}
+            />,
             'peers',
           )}
         {activeTab === 'pieces' &&
           renderTorrentContent(
-            <PieceTable source={props.source} torrentHash={selectedHash!} />,
+            <PieceTable
+              source={props.source}
+              torrentHash={selectedHash!}
+              getSelectedKeys={getSelectedKeys}
+              onSelectionChange={onSelectionChange}
+            />,
             'pieces',
           )}
         {activeTab === 'files' &&
           renderTorrentContent(
-            <FileTable source={props.source} torrentHash={selectedHash!} />,
+            <FileTable
+              source={props.source}
+              torrentHash={selectedHash!}
+              getSelectedKeys={getSelectedKeys}
+              onSelectionChange={onSelectionChange}
+            />,
             'files',
           )}
         {activeTab === 'general' &&
@@ -137,7 +162,12 @@ export function DetailPane(props: DetailPaneProps) {
         {activeTab === 'logs' && <LogTableWrapper logStore={props.source.getLogStore()} />}
         {activeTab === 'disk' &&
           renderTorrentContent(
-            <DiskTable source={props.source} torrentHash={selectedHash!} />,
+            <DiskTable
+              source={props.source}
+              torrentHash={selectedHash!}
+              getSelectedKeys={getSelectedKeys}
+              onSelectionChange={onSelectionChange}
+            />,
             'disk activity',
           )}
       </div>
