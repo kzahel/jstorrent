@@ -16,7 +16,7 @@ Currently the BtEngine runs in the UI page (same JS heap as React UI). This allo
 
 ### 2. Daemon Bridge (Multi-Platform Connection)
 
-The Daemon Bridge manages connections to I/O daemons across platforms. It abstracts the difference between desktop (native messaging) and ChromeOS (WebSocket to Android container).
+The Daemon Bridge manages connections to I/O daemons across platforms. It abstracts the difference between desktop (native messaging) and ChromeOS (HTTP/WebSocket to Android container).
 
 ```
 extension/src/lib/daemon-bridge.ts
@@ -30,7 +30,8 @@ connecting ◄──────► connected ◄──────► disconnec
 
 The bridge exposes a unified API regardless of platform:
 - `connect()` / `disconnect()`
-- `pickDownloadFolder()`
+- `pickDownloadFolder()` - triggers native picker on desktop, SAF picker on ChromeOS
+- `triggerLaunch()` - opens Android app on ChromeOS (no-op on desktop)
 - `subscribe()` for state changes (status, roots)
 - `onEvent()` for native events (TorrentAdded, MagnetAdded)
 
@@ -39,12 +40,13 @@ The bridge exposes a unified API regardless of platform:
 | Aspect | Desktop | ChromeOS |
 |--------|---------|----------|
 | Control channel | Native messaging | WebSocket control frames (0xE0/0xE1) |
-| Data channel | WebSocket to io-daemon | Same WebSocket |
-| Bootstrap | Chrome auto-launches native-host | Intent URL to launch Android app |
+| Data channel | WebSocket `/io` to io-daemon | Same WebSocket `/io` to Android |
+| Bootstrap | Chrome auto-launches native-host | Intent URL + HTTP `POST /pair` |
+| Auth | Token from DaemonInfo | Token + extensionId + installId + user approval |
 
 UI components decide what prompts to show based on `status + hasEverConnected + platform`, not encoded in the bridge itself.
 
-See `DAEMON-PROTOCOL.md` for wire-level protocol details.
+See `DAEMON-PROTOCOL.md` for wire-level protocol details and the "Platform Differences" section below for detailed comparison.
 
 ### 3. Three-Process Native Architecture (Desktop)
 
@@ -99,6 +101,125 @@ On ChromeOS, there's no native messaging. Instead:
 - Extension connects via HTTP/WebSocket to `100.115.92.2` (stable ARC bridge IP)
 - Android app (`android-io-daemon`) provides identical I/O endpoints as Rust daemon
 - User must launch Android app (extension shows launch prompt)
+
+## Platform Differences
+
+### Bootstrap & Connection
+
+| Aspect | Desktop | ChromeOS |
+|--------|---------|----------|
+| **Launch** | `chrome.runtime.connectNative()` auto-launches native-host | Intent URL `jstorrent://launch` opens Android app |
+| **Control channel** | Native messaging (JSON over stdio) | WebSocket `/io` with control frames (0xE0/0xE1) |
+| **Data channel** | WebSocket `/io` to io-daemon | Same WebSocket `/io` |
+| **Daemon host** | `127.0.0.1` | `100.115.92.2` (ARC bridge IP) |
+| **Daemon port** | Returned in DaemonInfo | Probed from list: 7800, 7805, 7814, 7827, 7844 |
+
+### Authentication
+
+**Desktop:**
+- Native-host generates token on launch, sends in `DaemonInfo` response
+- Extension stores token, uses for all subsequent requests
+- Single-step: native messaging implies trust
+
+**ChromeOS:**
+- Extension generates token, sends via `POST /pair` endpoint
+- Android app shows user approval dialog
+- Extension polls `/status` until `paired: true` with matching identity
+- Identity tracking: `extensionId` (Chrome extension ID) + `installId` (per-installation UUID)
+- Silent re-pair if same identity reconnects (token refresh, no dialog)
+- Re-approval required if `installId` changes (extension reinstalled)
+
+**Why identity tracking on ChromeOS?**
+- Intents are untrusted (any app can send them) - used only for launching
+- Origin header validation blocks local Android apps hitting `127.0.0.1`
+- `installId` detects extension reinstalls, prompts user to re-approve
+
+### Storage & Paths
+
+| Aspect | Desktop | ChromeOS |
+|--------|---------|----------|
+| **Root selection** | Native OS file picker via native-host | SAF (Storage Access Framework) picker |
+| **Root URI format** | Filesystem path | Content URI (e.g., `content://com.android.externalstorage.documents/tree/...`) |
+| **Token derivation** | `sha256(salt + realpath)` | `sha256(salt + uri)` |
+| **Cloud storage** | N/A | Blocked - SAF only accepts local providers |
+| **Permission persistence** | Filesystem permissions | `takePersistableUriPermission()` |
+
+**Why block cloud storage on ChromeOS?**
+Cloud providers (Google Drive, Dropbox, OneDrive) don't reliably support random access writes via SAF, which torrents require. The folder picker validates the provider and shows an error for cloud-backed locations.
+
+### WebSocket AUTH Frame
+
+The AUTH frame payload differs slightly:
+
+```
+Format: authType(1) + token + '\0' + extensionId + '\0' + installId
+```
+
+- `authType`: Always `0` (unified format)
+- `token`: Shared secret
+- `extensionId`: Chrome extension ID
+- `installId`: Per-installation UUID (from `chrome.storage.local`)
+
+Desktop io-daemon extracts token by finding the first null byte; ignores extensionId/installId. Android daemon validates all three fields.
+
+### Control Frame Protocol (ChromeOS Only)
+
+Control messages use reserved opcodes on the data WebSocket:
+
+| Opcode | Name | Direction | Payload |
+|--------|------|-----------|---------|
+| `0xE0` | ROOTS_CHANGED | S→C | JSON array of roots |
+| `0xE1` | EVENT | S→C | JSON `{event, payload}` |
+
+Events include `TorrentAdded`, `MagnetAdded` - same as native messaging events on desktop.
+
+### HTTP Endpoints
+
+**Shared (both platforms):**
+- `GET /read/{rootKey}` - Read file bytes
+- `POST /write/{rootKey}` - Write file bytes
+- `POST /hash/sha1` - Hash bytes
+
+**ChromeOS-only:**
+- `GET /health` - Health check
+- `POST /status` - Get port, pairing status, identity
+- `POST /pair` - Initiate pairing
+- `GET /roots` - Get configured roots
+
+Desktop handles root management via native messaging; ChromeOS needs HTTP endpoints since there's no persistent control channel until WebSocket connects.
+
+### Connection State
+
+The `DaemonBridge` exposes a unified state machine:
+
+```
+connecting ←──────→ connected ←──────→ disconnected
+```
+
+**What happens in each state:**
+
+| State | Desktop | ChromeOS |
+|-------|---------|----------|
+| `connecting` | Native messaging handshake | Port probe → HTTP pairing → WebSocket auth |
+| `connected` | Native port + WebSocket active | WebSocket authenticated, health check running |
+| `disconnected` | Native port closed or timed out | WebSocket closed or health check failed |
+
+UI decisions (show install prompt vs launch prompt) are based on `status + hasEverConnected + platform`, not embedded in the state machine.
+
+### Folder Picker Flow
+
+**Desktop:**
+1. Extension sends `{op: "pickDownloadDirectory", id}` via native messaging
+2. Native-host opens OS file picker
+3. Response `{type: "RootAdded", id, ok, payload: {root}}` via native messaging
+
+**ChromeOS:**
+1. Extension opens intent `jstorrent://add-root`
+2. Android `AddRootActivity` launches SAF picker immediately
+3. User selects folder (cloud providers blocked)
+4. Activity calls `takePersistableUriPermission()`, adds to `RootStore`
+5. Android daemon broadcasts `ROOTS_CHANGED` via WebSocket
+6. Extension receives updated roots array automatically
 
 ### 5. Adapter Pattern
 
@@ -201,9 +322,21 @@ User clicks magnet link
     ▼
 Android app registered as magnet handler
     │
-    ├─► App already running? ──► Handle directly, notify extension
+    ├─► App already running? ──► Handle directly
+    │                               │
+    │                               ▼
+    │                          Send EVENT (0xE1) via WebSocket
+    │                               │
+    │                               ▼
+    │                          Extension receives, opens UI
     │
-    └─► App not running? ──► App launches, extension detects via polling
+    └─► App not running? ──► App launches
+                               │
+                               ▼
+                          Extension detects via health poll
+                               │
+                               ▼
+                          Connects, magnet added from intent
 ```
 
 ### Downloading
@@ -223,12 +356,14 @@ UI Page                    io-daemon                    Internet
 
 ## What Won't Change
 
-1. IO Bridge state machine for multi-platform connection management
-2. Three-process native architecture (jstorrent-host, io-daemon, link-handler)
-3. Adapter pattern with interface injection
-4. Download root token model (opaque tokens, never raw paths)
-5. React shell + Solid tables hybrid
-6. Service worker lifecycle tied to daemon connection
+1. **DaemonBridge abstraction** - Unified API hiding platform differences
+2. **Three-process native architecture on desktop** (jstorrent-host, io-daemon, link-handler)
+3. **Single Android daemon on ChromeOS** - Combined control + I/O
+4. **Adapter pattern** with interface injection (engine remains platform-agnostic)
+5. **Download root token model** - Opaque tokens, never raw paths
+6. **React shell + Solid tables hybrid** - React for layout, Solid for 60fps data
+7. **WebSocket binary protocol** - Same frame format and opcodes on both platforms
+8. **Secure pairing on ChromeOS** - User approval required, identity tracking
 
 ## Invariants
 
