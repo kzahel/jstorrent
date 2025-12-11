@@ -543,6 +543,14 @@ export class Torrent extends EngineComponent {
   }
 
   /**
+   * Get all swarm peers as a stable array (for UI).
+   * Returns cached array that only rebuilds when peers are added/removed.
+   */
+  get swarmPeersArray(): import('./swarm').SwarmPeer[] {
+    return this._swarm.getAllPeersArray()
+  }
+
+  /**
    * Get connection timing statistics for debugging/UI.
    */
   getConnectionTimingStats(): import('./connection-timing').ConnectionTimingStats {
