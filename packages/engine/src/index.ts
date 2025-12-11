@@ -53,3 +53,14 @@ export { toHex, fromHex, toBase64, fromBase64 } from './utils/buffer'
 export { parseTorrentInput } from './core/torrent-factory'
 export type { ParsedTorrentInput } from './core/torrent-factory'
 export { initializeTorrentMetadata, initializeTorrentStorage } from './core/torrent-initializer'
+
+// Disk Queue
+export {
+  TorrentDiskQueue,
+  type IDiskQueue,
+  type DiskJob,
+  type DiskJobType,
+  type DiskJobStatus,
+  type DiskQueueSnapshot,
+  type DiskQueueConfig,
+} from './core/disk-queue'

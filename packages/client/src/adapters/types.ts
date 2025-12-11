@@ -1,4 +1,4 @@
-import { BtEngine, Torrent, LogStore, globalLogStore } from '@jstorrent/engine'
+import { BtEngine, Torrent, LogStore, globalLogStore, DiskQueueSnapshot } from '@jstorrent/engine'
 
 /**
  * Abstract interface for engine access.
@@ -34,6 +34,9 @@ export interface EngineAdapter {
 
   /** Get the log store for viewing logs */
   getLogStore(): LogStore
+
+  /** Get disk queue snapshot for a torrent */
+  getDiskQueueSnapshot(infoHash: string): DiskQueueSnapshot | null
 }
 
 /**
@@ -80,5 +83,13 @@ export class DirectEngineAdapter implements EngineAdapter {
 
   getLogStore(): LogStore {
     return globalLogStore
+  }
+
+  getDiskQueueSnapshot(infoHash: string): DiskQueueSnapshot | null {
+    const torrent = this.engine.getTorrent(infoHash)
+    if (!torrent) return null
+    // TODO: Return torrent.getDiskQueueSnapshot() once wired up
+    // For now return empty snapshot
+    return { pending: [], running: [], draining: false }
   }
 }
