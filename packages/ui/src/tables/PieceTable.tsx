@@ -1,61 +1,19 @@
-import { Torrent } from '@jstorrent/engine'
+import { Torrent, ActivePiece } from '@jstorrent/engine'
 import { TableMount } from './mount'
 import { ColumnDef } from './types'
 import { formatBytes } from '../utils/format'
 
-/**
- * Piece info derived from torrent state.
- * Not a real class - computed on-the-fly for display.
- */
-export interface PieceInfo {
-  index: number
-  size: number
-  state: 'have' | 'active' | 'missing'
-  availability: number // How many peers have this piece
+function formatElapsed(timestamp: number): string {
+  const elapsed = Date.now() - timestamp
+  if (elapsed < 1000) return `${elapsed}ms`
+  const tenths = Math.floor(elapsed / 100) / 10
+  return `${tenths.toFixed(1)}s`
 }
 
 /**
- * Compute piece info array from torrent.
- * Called every frame by the RAF loop.
+ * Column definitions for active piece table.
  */
-function computePieces(torrent: Torrent | null): PieceInfo[] {
-  if (!torrent || torrent.piecesCount === 0) return []
-
-  const bitfield = torrent.bitfield
-  const pieces: PieceInfo[] = []
-
-  // Build availability map from connected peers
-  const availability = new Map<number, number>()
-  for (const peer of torrent.peers) {
-    if (peer.bitfield) {
-      for (let i = 0; i < torrent.piecesCount; i++) {
-        if (peer.bitfield.get(i)) {
-          availability.set(i, (availability.get(i) ?? 0) + 1)
-        }
-      }
-    }
-  }
-
-  for (let i = 0; i < torrent.piecesCount; i++) {
-    const have = bitfield?.get(i) ?? false
-    const isLast = i === torrent.piecesCount - 1
-    const size = isLast ? torrent.lastPieceLength : torrent.pieceLength
-
-    pieces.push({
-      index: i,
-      size,
-      state: have ? 'have' : 'missing', // TODO: detect 'active' from ActivePieceManager
-      availability: availability.get(i) ?? 0,
-    })
-  }
-
-  return pieces
-}
-
-/**
- * Column definitions for piece table.
- */
-const pieceColumns: ColumnDef<PieceInfo>[] = [
+const activePieceColumns: ColumnDef<ActivePiece>[] = [
   {
     id: 'index',
     header: '#',
@@ -66,21 +24,43 @@ const pieceColumns: ColumnDef<PieceInfo>[] = [
   {
     id: 'size',
     header: 'Size',
-    getValue: (p) => formatBytes(p.size),
+    getValue: (p) => formatBytes(p.length),
     width: 80,
     align: 'right',
   },
   {
-    id: 'state',
-    header: 'State',
-    getValue: (p) => p.state,
-    width: 80,
+    id: 'blocksNeeded',
+    header: 'Blocks',
+    getValue: (p) => p.blocksNeeded,
+    width: 60,
+    align: 'right',
   },
   {
-    id: 'availability',
-    header: 'Avail',
-    getValue: (p) => p.availability || '-',
+    id: 'blocksReceived',
+    header: 'Recv',
+    getValue: (p) => p.blocksReceived,
+    width: 60,
+    align: 'right',
+  },
+  {
+    id: 'requests',
+    header: 'Reqs',
+    getValue: (p) => p.outstandingRequests,
     width: 50,
+    align: 'right',
+  },
+  {
+    id: 'buffered',
+    header: 'Buffered',
+    getValue: (p) => formatBytes(p.bufferedBytes),
+    width: 80,
+    align: 'right',
+  },
+  {
+    id: 'activity',
+    header: 'Activity',
+    getValue: (p) => formatElapsed(p.lastActivity),
+    width: 70,
     align: 'right',
   },
 ]
@@ -102,17 +82,22 @@ export interface PieceTableProps {
 }
 
 /**
- * Virtualized piece table for a single torrent.
- * Can handle thousands of pieces efficiently.
+ * Virtualized table showing active pieces being downloaded.
+ * Displays raw metrics that update frequently via RAF loop.
+ * Pieces disappear when persisted (hash verified, written to disk).
  */
 export function PieceTable(props: PieceTableProps) {
-  const getTorrent = () => props.source.getTorrent(props.torrentHash) ?? null
+  const getRows = (): ActivePiece[] => {
+    const torrent = props.source.getTorrent(props.torrentHash)
+    if (!torrent) return []
+    return torrent.getActivePieces()
+  }
 
   return (
-    <TableMount<PieceInfo>
-      getRows={() => computePieces(getTorrent())}
+    <TableMount<ActivePiece>
+      getRows={getRows}
       getRowKey={(p) => String(p.index)}
-      columns={pieceColumns}
+      columns={activePieceColumns}
       storageKey="pieces"
       rowHeight={24}
       getSelectedKeys={props.getSelectedKeys}
