@@ -37,6 +37,7 @@ class LogEntry:
     timestamp: float
     level: str
     text: str
+    source: str = "sw"  # "sw" for service worker, "page" for extension pages
     stack: str | None = None
 
 
@@ -44,9 +45,14 @@ class LogEntry:
 class ServerState:
     extension_id: str = DEFAULT_EXTENSION_ID
     log_buffer: deque = field(default_factory=lambda: deque(maxlen=LOG_BUFFER_SIZE))
-    log_collector_task: asyncio.Task | None = None
-    log_collector_connected: bool = False
-    log_collector_ws_url: str | None = None
+    # Service worker log collector
+    sw_log_collector_task: asyncio.Task | None = None
+    sw_log_collector_connected: bool = False
+    sw_log_collector_ws_url: str | None = None
+    # Extension page log collector
+    page_log_collector_task: asyncio.Task | None = None
+    page_log_collector_connected: bool = False
+    page_log_collector_ws_url: str | None = None
 
 
 state = ServerState()
@@ -123,14 +129,14 @@ async def cdp_evaluate(ws_url: str, expression: str, await_promise: bool = True)
 # Log Collector (Background Task)
 # =============================================================================
 
-async def log_collector_loop():
+async def sw_log_collector_loop():
     """Background task that maintains persistent connection to SW and collects logs."""
     while True:
         try:
             sw = await cdp_find_service_worker(state.extension_id)
             if not sw:
-                state.log_collector_connected = False
-                state.log_collector_ws_url = None
+                state.sw_log_collector_connected = False
+                state.sw_log_collector_ws_url = None
                 await asyncio.sleep(2)
                 continue
 
@@ -139,19 +145,20 @@ async def log_collector_loop():
                 await asyncio.sleep(2)
                 continue
 
-            state.log_collector_ws_url = ws_url
+            state.sw_log_collector_ws_url = ws_url
 
             async with websockets.connect(ws_url) as ws:
                 # Enable console and runtime events
                 await ws.send(json.dumps({"id": 1, "method": "Runtime.enable"}))
                 await ws.send(json.dumps({"id": 2, "method": "Console.enable"}))
-                state.log_collector_connected = True
+                state.sw_log_collector_connected = True
 
                 # Add connection marker to buffer
                 state.log_buffer.append(LogEntry(
                     timestamp=datetime.now().timestamp() * 1000,
                     level="info",
-                    text="[LogCollector] Connected to service worker",
+                    text="[SW LogCollector] Connected to service worker",
+                    source="sw",
                 ))
 
                 # Read events
@@ -166,7 +173,8 @@ async def log_collector_loop():
                             state.log_buffer.append(LogEntry(
                                 timestamp=datetime.now().timestamp() * 1000,
                                 level="info",
-                                text="[LogCollector] Service worker restarted, reconnecting...",
+                                text="[SW LogCollector] Service worker restarted, reconnecting...",
+                                source="sw",
                             ))
                             break
                         continue
@@ -190,6 +198,7 @@ async def log_collector_loop():
                             timestamp=params.get("timestamp", datetime.now().timestamp() * 1000),
                             level=params.get("type", "log"),
                             text=" ".join(parts),
+                            source="sw",
                         ))
 
                     elif method == "Runtime.exceptionThrown":
@@ -204,6 +213,7 @@ async def log_collector_loop():
                             timestamp=params.get("timestamp", datetime.now().timestamp() * 1000),
                             level="error",
                             text=text,
+                            source="sw",
                             stack=stack,
                         ))
 
@@ -213,17 +223,127 @@ async def log_collector_loop():
             state.log_buffer.append(LogEntry(
                 timestamp=datetime.now().timestamp() * 1000,
                 level="error",
-                text=f"[LogCollector] Error: {type(e).__name__}: {e}",
+                text=f"[SW LogCollector] Error: {type(e).__name__}: {e}",
+                source="sw",
             ))
 
-        state.log_collector_connected = False
+        state.sw_log_collector_connected = False
         await asyncio.sleep(1)
 
 
-def ensure_log_collector():
-    """Start log collector if not already running."""
-    if state.log_collector_task is None or state.log_collector_task.done():
-        state.log_collector_task = asyncio.create_task(log_collector_loop())
+async def page_log_collector_loop():
+    """Background task that maintains persistent connection to extension pages and collects logs."""
+    while True:
+        try:
+            page = await cdp_find_extension_page(state.extension_id)
+            if not page:
+                state.page_log_collector_connected = False
+                state.page_log_collector_ws_url = None
+                await asyncio.sleep(2)
+                continue
+
+            ws_url = page.get("webSocketDebuggerUrl")
+            if not ws_url:
+                await asyncio.sleep(2)
+                continue
+
+            state.page_log_collector_ws_url = ws_url
+
+            async with websockets.connect(ws_url) as ws:
+                # Enable console and runtime events
+                await ws.send(json.dumps({"id": 1, "method": "Runtime.enable"}))
+                await ws.send(json.dumps({"id": 2, "method": "Console.enable"}))
+                state.page_log_collector_connected = True
+
+                page_url = page.get("url", "unknown")
+                # Add connection marker to buffer
+                state.log_buffer.append(LogEntry(
+                    timestamp=datetime.now().timestamp() * 1000,
+                    level="info",
+                    text=f"[Page LogCollector] Connected to extension page: {page_url}",
+                    source="page",
+                ))
+
+                # Read events
+                while True:
+                    try:
+                        message = await asyncio.wait_for(ws.recv(), timeout=2.0)
+                    except asyncio.TimeoutError:
+                        # Check if page URL changed (popup closed/reopened)
+                        current_page = await cdp_find_extension_page(state.extension_id)
+                        current_url = current_page.get("webSocketDebuggerUrl") if current_page else None
+                        if current_url != ws_url:
+                            state.log_buffer.append(LogEntry(
+                                timestamp=datetime.now().timestamp() * 1000,
+                                level="info",
+                                text="[Page LogCollector] Extension page changed, reconnecting...",
+                                source="page",
+                            ))
+                            break
+                        continue
+
+                    data = json.loads(message)
+                    method = data.get("method", "")
+
+                    if method == "Runtime.consoleAPICalled":
+                        params = data.get("params", {})
+                        args = params.get("args", [])
+                        parts = []
+                        for a in args:
+                            if "value" in a:
+                                parts.append(str(a["value"]))
+                            elif "description" in a:
+                                parts.append(a["description"])
+                            else:
+                                parts.append(json.dumps(a))
+
+                        state.log_buffer.append(LogEntry(
+                            timestamp=params.get("timestamp", datetime.now().timestamp() * 1000),
+                            level=params.get("type", "log"),
+                            text=" ".join(parts),
+                            source="page",
+                        ))
+
+                    elif method == "Runtime.exceptionThrown":
+                        params = data.get("params", {})
+                        exc = params.get("exceptionDetails", {})
+                        text = exc.get("text", "Unknown exception")
+                        stack = None
+                        if "exception" in exc:
+                            stack = exc["exception"].get("description")
+
+                        state.log_buffer.append(LogEntry(
+                            timestamp=params.get("timestamp", datetime.now().timestamp() * 1000),
+                            level="error",
+                            text=text,
+                            source="page",
+                            stack=stack,
+                        ))
+
+        except websockets.exceptions.ConnectionClosed:
+            pass
+        except Exception as e:
+            state.log_buffer.append(LogEntry(
+                timestamp=datetime.now().timestamp() * 1000,
+                level="error",
+                text=f"[Page LogCollector] Error: {type(e).__name__}: {e}",
+                source="page",
+            ))
+
+        state.page_log_collector_connected = False
+        await asyncio.sleep(1)
+
+
+def ensure_sw_log_collector():
+    """Start service worker log collector if not already running."""
+    if state.sw_log_collector_task is None or state.sw_log_collector_task.done():
+        state.sw_log_collector_task = asyncio.create_task(sw_log_collector_loop())
+
+
+def ensure_page_log_collector():
+    """Start extension page log collector if not already running."""
+    if state.page_log_collector_task is None or state.page_log_collector_task.done():
+        state.page_log_collector_task = asyncio.create_task(page_log_collector_loop())
 
 
 # =============================================================================
@@ -251,11 +371,15 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="ext_reload",
-            description="Reload the extension via chrome.runtime.reload(). Triggers service worker restart.",
+            description="Reload the extension via chrome.runtime.reload(). Triggers service worker restart. By default, re-opens any extension tabs that were open.",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "id": {"type": "string", "description": "Extension ID (uses default if not specified)"},
+                    "restore_tabs": {
+                        "type": "boolean",
+                        "description": "Re-open extension tabs after reload (default: true)",
+                    },
                 },
             },
         ),
@@ -297,8 +421,26 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="ext_start_logs",
+            description="Start log collection from extension. Call BEFORE performing actions you want to capture. Workflow: start_logs → do actions → get_logs.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "target": {
+                        "type": "string",
+                        "enum": ["sw", "page", "all"],
+                        "description": "What to collect from: 'sw' (service worker), 'page' (extension UI), 'all' (default: all)",
+                    },
+                    "clear": {
+                        "type": "boolean",
+                        "description": "Clear existing log buffer before starting (default: false)",
+                    },
+                },
+            },
+        ),
+        Tool(
             name="ext_get_logs",
-            description="Get recent console logs from the service worker. Logs are collected by a background process.",
+            description="Get collected console logs. Use ext_start_logs first to begin collection.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -307,6 +449,11 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "enum": ["all", "error", "warn", "log", "info", "debug"],
                         "description": "Filter by log level (default: all)",
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["sw", "page", "all"],
+                        "description": "Filter by source: 'sw' (service worker), 'page' (extension UI), 'all' (default: all)",
                     },
                 },
             },
@@ -332,8 +479,6 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
 
     # --- ext_status ---
     if name == "ext_status":
-        ensure_log_collector()
-
         targets = await cdp_get_targets()
         if targets is None:
             return [TextContent(type="text", text=f"CDP not reachable at {CDP_HOST}:{CDP_PORT}\n\nStart Chrome with: --remote-debugging-port={CDP_PORT}")]
@@ -352,10 +497,12 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
                 "active": page is not None,
                 "url": page.get("url") if page else None,
             },
-            "log_collector": {
-                "connected": state.log_collector_connected,
+            "log_collectors": {
+                "sw_connected": state.sw_log_collector_connected,
+                "page_connected": state.page_log_collector_connected,
                 "buffer_size": len(state.log_buffer),
             },
+            "hint": "Use ext_start_logs to begin capturing logs before actions",
         }
 
         return [TextContent(type="text", text=json.dumps(status, indent=2))]
@@ -369,23 +516,39 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         old_id = state.extension_id
         state.extension_id = new_id
 
-        # Clear log buffer and restart collector for new extension
+        # Clear log buffer and stop collectors for new extension
         state.log_buffer.clear()
-        if state.log_collector_task:
-            state.log_collector_task.cancel()
-            state.log_collector_task = None
+        if state.sw_log_collector_task:
+            state.sw_log_collector_task.cancel()
+            state.sw_log_collector_task = None
+        if state.page_log_collector_task:
+            state.page_log_collector_task.cancel()
+            state.page_log_collector_task = None
 
         return [TextContent(type="text", text=f"Extension ID changed: {old_id} → {new_id}")]
 
     # --- ext_reload ---
     elif name == "ext_reload":
         ext_id = arguments.get("id", state.extension_id)
+        restore_tabs = arguments.get("restore_tabs", True)
 
         sw = await cdp_find_service_worker(ext_id)
         if not sw:
             return [TextContent(type="text", text=f"Extension {ext_id} not found or service worker not active")]
 
+        # Capture extension page URLs before reload
+        extension_page_urls = []
+        if restore_tabs:
+            targets = await cdp_find_extension_targets(ext_id)
+            for t in targets:
+                if t.get("type") == "page":
+                    url = t.get("url", "")
+                    # Only restore top-level extension pages (not devtools, etc)
+                    if url.startswith(f"chrome-extension://{ext_id}/"):
+                        extension_page_urls.append(url)
+
         ws_url = sw.get("webSocketDebuggerUrl")
+        reload_result = "triggered"
         try:
             # Don't await response - connection dies on reload
             async with websockets.connect(ws_url) as ws:
@@ -394,9 +557,45 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
                     "method": "Runtime.evaluate",
                     "params": {"expression": "chrome.runtime.reload()"}
                 }))
-            return [TextContent(type="text", text=f"Extension {ext_id} reload triggered")]
         except Exception as e:
-            return [TextContent(type="text", text=f"Reload may have succeeded (connection closed): {e}")]
+            reload_result = f"triggered (connection closed: {type(e).__name__})"
+
+        # Restore tabs if requested and there were pages to restore
+        restored_tabs = []
+        if restore_tabs and extension_page_urls:
+            # Wait for extension to come back up
+            for _ in range(10):  # Try for up to 5 seconds
+                await asyncio.sleep(0.5)
+                new_sw = await cdp_find_service_worker(ext_id)
+                if new_sw and new_sw.get("webSocketDebuggerUrl"):
+                    break
+            else:
+                return [TextContent(type="text", text=json.dumps({
+                    "reload": reload_result,
+                    "restore_tabs": "failed - extension did not restart in time",
+                    "urls_to_restore": extension_page_urls,
+                }, indent=2))]
+
+            # Re-open each extension page using the service worker
+            new_sw = await cdp_find_service_worker(ext_id)
+            new_ws_url = new_sw.get("webSocketDebuggerUrl") if new_sw else None
+            if new_ws_url:
+                for url in extension_page_urls:
+                    try:
+                        url_json = json.dumps(url)
+                        await cdp_evaluate(new_ws_url, f"chrome.tabs.create({{url: {url_json}}})")
+                        restored_tabs.append(url)
+                    except Exception as e:
+                        restored_tabs.append(f"{url} (failed: {e})")
+
+        result = {
+            "reload": reload_result,
+            "extension_id": ext_id,
+        }
+        if restore_tabs:
+            result["restored_tabs"] = restored_tabs if restored_tabs else "none (no extension pages were open)"
+
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
     # --- ext_evaluate ---
     elif name == "ext_evaluate":
@@ -458,17 +657,56 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         except Exception as e:
             return [TextContent(type="text", text=f"Storage read failed: {e}")]
 
+    # --- ext_start_logs ---
+    elif name == "ext_start_logs":
+        target = arguments.get("target", "all")
+        clear = arguments.get("clear", False)
+
+        if clear:
+            state.log_buffer.clear()
+
+        started = []
+        if target in ("sw", "all"):
+            ensure_sw_log_collector()
+            started.append("sw")
+        if target in ("page", "all"):
+            ensure_page_log_collector()
+            started.append("page")
+
+        # Give collectors a moment to connect
+        await asyncio.sleep(0.5)
+
+        result = {
+            "started": started,
+            "cleared": clear,
+            "sw_collector": {
+                "running": state.sw_log_collector_task is not None and not state.sw_log_collector_task.done(),
+                "connected": state.sw_log_collector_connected,
+            },
+            "page_collector": {
+                "running": state.page_log_collector_task is not None and not state.page_log_collector_task.done(),
+                "connected": state.page_log_collector_connected,
+            },
+            "buffer_size": len(state.log_buffer),
+        }
+
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
     # --- ext_get_logs ---
     elif name == "ext_get_logs":
-        ensure_log_collector()
-
         limit = arguments.get("limit", 50)
         level_filter = arguments.get("level", "all")
+        source_filter = arguments.get("source", "all")
 
         logs = list(state.log_buffer)
 
+        # Filter by level
         if level_filter != "all":
             logs = [l for l in logs if l.level == level_filter]
+
+        # Filter by source
+        if source_filter != "all":
+            logs = [l for l in logs if l.source == source_filter]
 
         logs = logs[-limit:]
 
@@ -477,6 +715,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             entry = {
                 "timestamp": log.timestamp,
                 "level": log.level,
+                "source": log.source,
                 "text": log.text,
             }
             if log.stack:
@@ -486,7 +725,8 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         result = {
             "logs": formatted,
             "buffer_total": len(state.log_buffer),
-            "collector_connected": state.log_collector_connected,
+            "sw_collector_connected": state.sw_log_collector_connected,
+            "page_collector_connected": state.page_log_collector_connected,
         }
 
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
