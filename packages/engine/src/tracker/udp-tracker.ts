@@ -1,4 +1,10 @@
-import { ITracker, TrackerAnnounceEvent, PeerInfo } from '../interfaces/tracker'
+import {
+  ITracker,
+  TrackerAnnounceEvent,
+  PeerInfo,
+  TrackerStats,
+  TrackerStatus,
+} from '../interfaces/tracker'
 import { IUdpSocket, ISocketFactory } from '../interfaces/socket'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
 
@@ -15,9 +21,16 @@ export class UdpTracker extends EngineComponent implements ITracker {
   private connectionIdTime: number = 0
   private transactionId: number = 0
   private _interval: number = 1800
+  private _status: TrackerStatus = 'idle'
+  private _seeders: number | null = null
+  private _leechers: number | null = null
+  private _lastError: string | null = null
 
   get interval(): number {
     return this._interval
+  }
+  get url(): string {
+    return this.announceUrl
   }
   private timer: NodeJS.Timeout | null = null
 
@@ -34,6 +47,7 @@ export class UdpTracker extends EngineComponent implements ITracker {
 
   async announce(event: TrackerAnnounceEvent = 'started'): Promise<void> {
     this.logger.info(`UdpTracker: Announcing '${event}' to ${this.announceUrl}`)
+    this._status = 'announcing'
     try {
       if (!this.socket) {
         this.logger.debug('UdpTracker: Creating UDP socket')
@@ -56,6 +70,9 @@ export class UdpTracker extends EngineComponent implements ITracker {
       await this.sendAnnounce(event)
       this.logger.debug('UdpTracker: Announce packet sent')
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      this._status = 'error'
+      this._lastError = errMsg
       this.emit('error', err)
     }
   }
@@ -139,9 +156,24 @@ export class UdpTracker extends EngineComponent implements ITracker {
         this.connectPromise = null
       }
     } else if (action === ACTION_ANNOUNCE) {
+      // Success - update status
+      this._status = 'ok'
+      this._lastError = null
+
       const interval = view.getUint32(8, false)
       this._interval = interval
-      this.logger.info('UdpTracker: Announce response received', { interval })
+
+      // BEP 15: leechers at offset 12, seeders at offset 16
+      if (msg.length >= 20) {
+        this._leechers = view.getUint32(12, false)
+        this._seeders = view.getUint32(16, false)
+      }
+
+      this.logger.info('UdpTracker: Announce response received', {
+        interval,
+        seeders: this._seeders,
+        leechers: this._leechers,
+      })
 
       const peers: PeerInfo[] = []
       for (let i = 20; i + 6 <= msg.length; i += 6) {
@@ -155,11 +187,25 @@ export class UdpTracker extends EngineComponent implements ITracker {
     } else if (action === ACTION_ERROR) {
       const errorMsg = new TextDecoder().decode(msg.slice(8))
       this.logger.error(`UdpTracker: Error response: ${errorMsg}`)
+      this._status = 'error'
+      this._lastError = errorMsg
       this.emit('error', new Error(errorMsg))
       if (this.connectPromise) {
         this.connectPromise.reject(new Error(errorMsg))
         this.connectPromise = null
       }
+    }
+  }
+
+  getStats(): TrackerStats {
+    return {
+      url: this.announceUrl,
+      type: 'udp',
+      status: this._status,
+      interval: this._interval,
+      seeders: this._seeders,
+      leechers: this._leechers,
+      lastError: this._lastError,
     }
   }
 

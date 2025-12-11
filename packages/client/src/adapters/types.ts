@@ -1,4 +1,11 @@
-import { BtEngine, Torrent, LogStore, globalLogStore, DiskQueueSnapshot } from '@jstorrent/engine'
+import {
+  BtEngine,
+  Torrent,
+  LogStore,
+  globalLogStore,
+  DiskQueueSnapshot,
+  TrackerStats,
+} from '@jstorrent/engine'
 
 /**
  * Abstract interface for engine access.
@@ -37,6 +44,9 @@ export interface EngineAdapter {
 
   /** Get disk queue snapshot for a torrent */
   getDiskQueueSnapshot(infoHash: string): DiskQueueSnapshot | null
+
+  /** Get tracker stats for a torrent */
+  getTrackerStats(infoHash: string): TrackerStats[]
 }
 
 /**
@@ -89,5 +99,10 @@ export class DirectEngineAdapter implements EngineAdapter {
     const torrent = this.engine.getTorrent(infoHash)
     if (!torrent) return null
     return torrent.getDiskQueueSnapshot()
+  }
+
+  getTrackerStats(infoHash: string): TrackerStats[] {
+    const torrent = this.engine.getTorrent(infoHash)
+    return torrent?.getTrackerStats() ?? []
   }
 }

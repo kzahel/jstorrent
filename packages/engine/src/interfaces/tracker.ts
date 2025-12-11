@@ -14,9 +14,23 @@ export interface TrackerAnnounceResponse {
 
 export type TrackerAnnounceEvent = 'started' | 'stopped' | 'completed' | 'update'
 
+export type TrackerStatus = 'idle' | 'announcing' | 'ok' | 'error'
+
+export interface TrackerStats {
+  url: string
+  type: 'http' | 'udp'
+  status: TrackerStatus
+  interval: number
+  seeders: number | null
+  leechers: number | null
+  lastError: string | null
+}
+
 export interface ITracker extends EventEmitter {
+  readonly url: string
   announce(event: TrackerAnnounceEvent): Promise<void>
   destroy(): void
+  getStats(): TrackerStats
 
   // Events
   on(event: 'peersDiscovered', listener: (peers: PeerInfo[]) => void): this

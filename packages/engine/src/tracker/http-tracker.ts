@@ -1,4 +1,4 @@
-import { ITracker, PeerInfo } from '../interfaces/tracker'
+import { ITracker, PeerInfo, TrackerStats, TrackerStatus } from '../interfaces/tracker'
 import { Bencode } from '../utils/bencode'
 import { ISocketFactory } from '../interfaces/socket'
 import { MinimalHttpClient } from '../utils/minimal-http-client'
@@ -10,9 +10,16 @@ export class HttpTracker extends EngineComponent implements ITracker {
   private httpClient: MinimalHttpClient
   private _infoHash: Uint8Array
   private _peerId: Uint8Array
+  private _status: TrackerStatus = 'idle'
+  private _seeders: number | null = null
+  private _leechers: number | null = null
+  private _lastError: string | null = null
 
   get interval(): number {
     return this._interval
+  }
+  get url(): string {
+    return this.announceUrl
   }
   private timer: NodeJS.Timeout | null = null
 
@@ -36,6 +43,7 @@ export class HttpTracker extends EngineComponent implements ITracker {
     const url = `${this.announceUrl}?${query}`
 
     this.logger.info(`HttpTracker: Announcing '${event}' to ${this.announceUrl}`)
+    this._status = 'announcing'
 
     try {
       const responseBody = await this.httpClient.get(url)
@@ -44,6 +52,8 @@ export class HttpTracker extends EngineComponent implements ITracker {
     } catch (err) {
       const errMsg = `Tracker announce failed: ${err instanceof Error ? err.message : String(err)}`
       this.logger.error(`HttpTracker: ${errMsg}`)
+      this._status = 'error'
+      this._lastError = errMsg
       this.emit('error', new Error(errMsg))
     }
   }
@@ -55,6 +65,8 @@ export class HttpTracker extends EngineComponent implements ITracker {
     } catch (err) {
       const errMsg = `Failed to decode tracker response: ${err instanceof Error ? err.message : String(err)}`
       this.logger.error(`HttpTracker: ${errMsg}`)
+      this._status = 'error'
+      this._lastError = errMsg
       this.emit('error', new Error(errMsg))
     }
   }
@@ -82,12 +94,27 @@ export class HttpTracker extends EngineComponent implements ITracker {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handleResponse(data: any) {
     if (data['failure reason']) {
-      this.emit('error', new Error(new TextDecoder().decode(data['failure reason'])))
+      const errMsg = new TextDecoder().decode(data['failure reason'])
+      this._status = 'error'
+      this._lastError = errMsg
+      this.emit('error', new Error(errMsg))
       return
     }
 
+    // Success - update status and clear error
+    this._status = 'ok'
+    this._lastError = null
+
     if (data['interval']) {
       this._interval = data['interval']
+    }
+
+    // Store seeders/leechers from response
+    if (typeof data['complete'] === 'number') {
+      this._seeders = data['complete']
+    }
+    if (typeof data['incomplete'] === 'number') {
+      this._leechers = data['incomplete']
     }
 
     if (data['peers']) {
@@ -116,6 +143,18 @@ export class HttpTracker extends EngineComponent implements ITracker {
       }
     }
     return peers
+  }
+
+  getStats(): TrackerStats {
+    return {
+      url: this.announceUrl,
+      type: 'http',
+      status: this._status,
+      interval: this._interval,
+      seeders: this._seeders,
+      leechers: this._leechers,
+      lastError: this._lastError,
+    }
   }
 
   destroy(): void {
