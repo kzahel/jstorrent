@@ -4,12 +4,13 @@ import type { LogStore, DiskQueueSnapshot } from '@jstorrent/engine'
 import { PeerTable } from '../tables/PeerTable'
 import { PieceTable } from '../tables/PieceTable'
 import { FileTable } from '../tables/FileTable'
+import { SwarmTable } from '../tables/SwarmTable'
 import { GeneralPane } from './GeneralPane'
 import { LogTableWrapper } from '../tables/LogTableWrapper'
 import { DiskTable } from '../tables/DiskTable'
 import { useSelection } from '../hooks/useSelection'
 
-export type DetailTab = 'peers' | 'pieces' | 'files' | 'general' | 'logs' | 'disk'
+export type DetailTab = 'peers' | 'swarm' | 'pieces' | 'files' | 'general' | 'logs' | 'disk'
 
 export const DEFAULT_DETAIL_TAB: DetailTab = 'general'
 
@@ -111,6 +112,9 @@ export function DetailPane(props: DetailPaneProps) {
         <button style={getTabStyle(activeTab === 'peers')} onClick={() => onTabChange('peers')}>
           Peers {torrent ? `(${torrent.numPeers})` : ''}
         </button>
+        <button style={getTabStyle(activeTab === 'swarm')} onClick={() => onTabChange('swarm')}>
+          Swarm
+        </button>
         <button style={getTabStyle(activeTab === 'files')} onClick={() => onTabChange('files')}>
           Files {torrent ? `(${torrent.files.length})` : ''}
         </button>
@@ -136,6 +140,16 @@ export function DetailPane(props: DetailPaneProps) {
               onSelectionChange={onSelectionChange}
             />,
             'peers',
+          )}
+        {activeTab === 'swarm' &&
+          renderTorrentContent(
+            <SwarmTable
+              source={props.source}
+              torrentHash={selectedHash!}
+              getSelectedKeys={getSelectedKeys}
+              onSelectionChange={onSelectionChange}
+            />,
+            'swarm',
           )}
         {activeTab === 'pieces' &&
           renderTorrentContent(

@@ -356,6 +356,11 @@ export class Swarm extends EventEmitter {
   // PeerId index for identity grouping
   private peerIdIndex: Map<string, Set<string>> = new Map() // peerId hex → Set of address keys
 
+  // Cached array for efficient UI access (avoids allocation per RAF frame)
+  private _allPeersVersion = 0 // Bumped on add/remove
+  private _cachedPeersArray: SwarmPeer[] | null = null
+  private _cachedPeersVersion = -1 // Version when cache was built
+
   constructor(private logger: Logger) {
     super()
   }
@@ -419,6 +424,7 @@ export class Swarm extends EventEmitter {
       totalUploaded: 0,
     }
     this.peers.set(key, peer)
+    this._allPeersVersion++
 
     return peer
   }
@@ -753,6 +759,7 @@ export class Swarm extends EventEmitter {
         totalUploaded: 0,
       }
       this.peers.set(key, peer)
+      this._allPeersVersion++
     }
 
     peer.state = 'connected'
@@ -945,6 +952,19 @@ export class Swarm extends EventEmitter {
     return this.peers.values()
   }
 
+  /**
+   * Get all peers as a stable array (for UI).
+   * Caches the array and only rebuilds when peers are added/removed.
+   * Property mutations on SwarmPeer objects are visible via references.
+   */
+  getAllPeersArray(): SwarmPeer[] {
+    if (this._cachedPeersVersion !== this._allPeersVersion || !this._cachedPeersArray) {
+      this._cachedPeersArray = Array.from(this.peers.values())
+      this._cachedPeersVersion = this._allPeersVersion
+    }
+    return this._cachedPeersArray
+  }
+
   // --- Helpers ---
 
   private calculateBackoff(failures: number): number {
@@ -972,5 +992,7 @@ export class Swarm extends EventEmitter {
     this.connectedKeys.clear()
     this.connectingKeys.clear()
     this.peerIdIndex.clear()
+    this._allPeersVersion++
+    this._cachedPeersArray = null
   }
 }
