@@ -18,6 +18,7 @@ import { Swarm, SwarmStats, detectAddressFamily, peerKey, PeerAddress } from './
 import { ConnectionManager } from './connection-manager'
 import { ConnectionTimingTracker } from './connection-timing'
 import { initializeTorrentStorage } from './torrent-initializer'
+import { TorrentDiskQueue, DiskQueueSnapshot } from './disk-queue'
 
 /**
  * All persisted fields for a torrent.
@@ -81,6 +82,7 @@ export class Torrent extends EngineComponent {
   public lastPieceLength: number = 0
   public piecesCount: number = 0
   public contentStorage?: TorrentContentStorage
+  private _diskQueue: TorrentDiskQueue = new TorrentDiskQueue()
   private _bitfield?: BitField
   public announce: string[] = []
   public trackerManager?: TrackerManager
@@ -204,6 +206,21 @@ export class Torrent extends EngineComponent {
    * Current error message if any.
    */
   public errorMessage?: string
+
+  /**
+   * Get the disk queue for this torrent.
+   * Used by TorrentContentStorage to queue disk operations.
+   */
+  get diskQueue(): TorrentDiskQueue {
+    return this._diskQueue
+  }
+
+  /**
+   * Get disk queue snapshot for UI display.
+   */
+  getDiskQueueSnapshot(): DiskQueueSnapshot {
+    return this._diskQueue.getSnapshot()
+  }
 
   /**
    * Whether network is currently active for this torrent.

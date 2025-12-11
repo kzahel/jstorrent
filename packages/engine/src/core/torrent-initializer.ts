@@ -71,7 +71,7 @@ export async function initializeTorrentMetadata(
     getFileSystem: () => engine.storageRootManager.getFileSystemForTorrent(infoHashStr),
   }
 
-  const contentStorage = new TorrentContentStorage(engine, storageHandle)
+  const contentStorage = new TorrentContentStorage(engine, storageHandle, torrent.diskQueue)
   await contentStorage.open(parsedTorrent.files, parsedTorrent.pieceLength)
   torrent.contentStorage = contentStorage
 }
@@ -107,7 +107,7 @@ export async function initializeTorrentStorage(
     getFileSystem: () => engine.storageRootManager.getFileSystemForTorrent(infoHashStr),
   }
 
-  const contentStorage = new TorrentContentStorage(engine, storageHandle)
+  const contentStorage = new TorrentContentStorage(engine, storageHandle, torrent.diskQueue)
   await contentStorage.open(parsedTorrent.files, parsedTorrent.pieceLength)
   torrent.contentStorage = contentStorage
 }
