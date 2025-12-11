@@ -6,6 +6,7 @@ import { HashMismatchError } from '../adapters/daemon/daemon-file-handle'
 import { BitField } from '../utils/bitfield'
 import { MessageType, WireMessage } from '../protocol/wire-protocol'
 import { toHex, toString, compare } from '../utils/buffer'
+import { InfoHashHex, infoHashFromBytes } from '../utils/infohash'
 import { Bencode } from '../utils/bencode'
 import { TrackerManager } from '../tracker/tracker-manager'
 import { ISocketFactory } from '../interfaces/socket'
@@ -427,8 +428,8 @@ export class Torrent extends EngineComponent {
     })
   }
 
-  get infoHashStr(): string {
-    return toHex(this.infoHash)
+  get infoHashStr(): InfoHashHex {
+    return infoHashFromBytes(this.infoHash)
   }
 
   get bitfield(): BitField | undefined {
