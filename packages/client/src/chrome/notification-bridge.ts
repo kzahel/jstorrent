@@ -61,7 +61,7 @@ class NotificationBridge {
     if (!this.pendingStats) return
 
     getBridge().postMessage({
-      type: 'notification:progress',
+      type: 'notification:stats',
       stats: this.pendingStats,
     })
   }
