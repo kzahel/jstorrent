@@ -188,7 +188,7 @@ function handleNotificationMessage(message: NotificationMessage): void {
         notificationManager.setUiVisibility(message.visible)
       }
       break
-    case 'notification:progress':
+    case 'notification:stats':
       if (message.stats) {
         notificationManager.updateProgress(message.stats)
       }
@@ -322,7 +322,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 // Internal messages (from extension UI)
 // ============================================================================
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type !== 'notification:progress') {
+  if (message.type !== 'notification:stats') {
     console.log('Received internal message:', message.type)
   }
   return handleMessage(message, sendResponse)
