@@ -1,5 +1,6 @@
 import { useState, useCallback, useLayoutEffect } from 'react'
 import type { DetailTab } from '../components/DetailPane'
+import { uiStorage } from '../storage/UIStorage'
 
 const UI_STATE_KEY = 'jstorrent:uiState'
 
@@ -32,10 +33,10 @@ export function usePersistedUIState(options: UsePersistedUIStateOptions = {}) {
     return Math.floor(window.innerHeight * maxHeightRatio)
   }, [maxHeightRatio])
 
-  // Load initial state from localStorage synchronously
+  // Load initial state from storage synchronously
   const getInitialState = useCallback((): PersistedUIState => {
     try {
-      const raw = localStorage.getItem(UI_STATE_KEY)
+      const raw = uiStorage.getItem(UI_STATE_KEY)
       if (raw) {
         const saved = JSON.parse(raw) as Partial<PersistedUIState>
         return {
@@ -66,17 +67,17 @@ export function usePersistedUIState(options: UsePersistedUIStateOptions = {}) {
     return () => window.removeEventListener('resize', handleResize)
   }, [minHeight, getMaxHeight])
 
-  // Persist state to localStorage
+  // Persist state to storage
   const persistState = useCallback(
     (updates: Partial<PersistedUIState>) => {
       try {
-        const raw = localStorage.getItem(UI_STATE_KEY)
+        const raw = uiStorage.getItem(UI_STATE_KEY)
         const current: PersistedUIState = raw
           ? JSON.parse(raw)
           : { detailPaneHeight: height, detailPaneTab: activeTab }
-        localStorage.setItem(UI_STATE_KEY, JSON.stringify({ ...current, ...updates }))
+        uiStorage.setItem(UI_STATE_KEY, JSON.stringify({ ...current, ...updates }))
       } catch {
-        // Ignore storage errors
+        // Ignore parse errors
       }
     },
     [height, activeTab],
