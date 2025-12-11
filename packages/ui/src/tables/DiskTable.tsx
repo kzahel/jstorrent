@@ -3,24 +3,33 @@ import { ColumnDef } from './types'
 import { formatBytes } from '../utils/format'
 import type { DiskJob, DiskQueueSnapshot } from '@jstorrent/engine'
 
-function formatDuration(job: DiskJob): string {
-  if (!job.startedAt) return '-'
-  const ms = Date.now() - job.startedAt
-  if (ms < 1000) return `${ms}ms`
-  return `${(ms / 1000).toFixed(1)}s`
+function formatTime(timestamp: number | undefined): string {
+  if (!timestamp) return '-'
+  const date = new Date(timestamp)
+  return date.toLocaleTimeString()
 }
 
-function formatStatus(job: DiskJob): string {
-  return job.status === 'running' ? '▶' : '⏳'
+function formatElapsed(job: DiskJob): string {
+  if (!job.startedAt) return '-'
+  const ms = Date.now() - job.startedAt
+  // Show at 0.1s granularity
+  const tenths = Math.floor(ms / 100) / 10
+  return `${tenths.toFixed(1)}s`
 }
 
 const diskColumns: ColumnDef<DiskJob>[] = [
   {
+    id: 'id',
+    header: 'ID',
+    getValue: (j) => String(j.id),
+    width: 45,
+    align: 'right',
+  },
+  {
     id: 'status',
-    header: '',
-    getValue: (j) => formatStatus(j),
-    width: 30,
-    align: 'center',
+    header: 'Status',
+    getValue: (j) => j.status,
+    width: 70,
   },
   {
     id: 'type',
@@ -50,9 +59,21 @@ const diskColumns: ColumnDef<DiskJob>[] = [
     align: 'right',
   },
   {
-    id: 'time',
-    header: 'Time',
-    getValue: (j) => formatDuration(j),
+    id: 'enqueued',
+    header: 'Enqueued',
+    getValue: (j) => formatTime(j.enqueuedAt),
+    width: 90,
+  },
+  {
+    id: 'started',
+    header: 'Started',
+    getValue: (j) => formatTime(j.startedAt),
+    width: 90,
+  },
+  {
+    id: 'elapsed',
+    header: 'Elapsed',
+    getValue: (j) => formatElapsed(j),
     width: 70,
     align: 'right',
   },

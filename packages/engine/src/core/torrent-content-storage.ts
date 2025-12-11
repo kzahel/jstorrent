@@ -3,6 +3,7 @@ import { IFileHandle } from '../interfaces/filesystem'
 import { supportsVerifiedWrite } from '../adapters/daemon/daemon-file-handle'
 import { TorrentFile } from './torrent-file'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
+import { IDiskQueue } from './disk-queue'
 
 export class TorrentContentStorage extends EngineComponent {
   static logName = 'content-storage'
@@ -16,6 +17,7 @@ export class TorrentContentStorage extends EngineComponent {
   constructor(
     engine: ILoggingEngine,
     private storageHandle: IStorageHandle,
+    private diskQueue?: IDiskQueue,
   ) {
     super(engine)
     this.logger.debug(
@@ -148,7 +150,29 @@ export class TorrentContentStorage extends EngineComponent {
   }
 
   /**
+   * Count how many files a write at the given torrent offset and length touches.
+   */
+  private countFilesTouched(torrentOffset: number, length: number): number {
+    let count = 0
+    let remaining = length
+    let currentOffset = torrentOffset
+
+    for (const file of this.files) {
+      const fileEnd = file.offset + file.length
+      if (currentOffset >= file.offset && currentOffset < fileEnd) {
+        count++
+        const bytesInFile = Math.min(remaining, fileEnd - currentOffset)
+        remaining -= bytesInFile
+        currentOffset += bytesInFile
+        if (remaining === 0) break
+      }
+    }
+    return count
+  }
+
+  /**
    * Write a complete piece with optional hash verification.
+   * If a disk queue is configured, the write is queued for concurrency control.
    * If expectedHash is provided and the piece fits in a single file with a handle
    * that supports verified writes, the hash verification happens atomically
    * in the io-daemon.
@@ -163,26 +187,51 @@ export class TorrentContentStorage extends EngineComponent {
     data: Uint8Array,
     expectedHash?: Uint8Array,
   ): Promise<boolean> {
-    // Check if we can use verified write
-    if (expectedHash) {
-      const singleFile = this.pieceSpansSingleFile(pieceIndex, data.length)
-      if (singleFile) {
-        const handle = await this.getFileHandle(singleFile.path)
-        if (supportsVerifiedWrite(handle)) {
-          // Use verified write - hash check happens in io-daemon
-          const torrentOffset = pieceIndex * this.pieceLength
-          const fileRelativeOffset = torrentOffset - singleFile.offset
+    const torrentOffset = pieceIndex * this.pieceLength
+    const fileCount = this.countFilesTouched(torrentOffset, data.length)
 
-          handle.setExpectedHashForNextWrite(expectedHash)
-          await handle.write(data, 0, data.length, fileRelativeOffset)
-          return true // Verified write was used
+    // The actual write logic
+    const doWrite = async (): Promise<boolean> => {
+      // Check if we can use verified write
+      if (expectedHash) {
+        const singleFile = this.pieceSpansSingleFile(pieceIndex, data.length)
+        if (singleFile) {
+          const handle = await this.getFileHandle(singleFile.path)
+          if (supportsVerifiedWrite(handle)) {
+            // Use verified write - hash check happens in io-daemon
+            const fileRelativeOffset = torrentOffset - singleFile.offset
+
+            handle.setExpectedHashForNextWrite(expectedHash)
+            await handle.write(data, 0, data.length, fileRelativeOffset)
+            return true // Verified write was used
+          }
         }
       }
+
+      // Fall back to regular write (caller should verify hash)
+      await this.write(pieceIndex, 0, data)
+      return false
     }
 
-    // Fall back to regular write (caller should verify hash)
-    await this.write(pieceIndex, 0, data)
-    return false
+    // If no queue configured, execute directly
+    if (!this.diskQueue) {
+      return doWrite()
+    }
+
+    // Queue the write for concurrency control
+    let result = false
+    await this.diskQueue.enqueue(
+      {
+        type: 'write',
+        pieceIndex,
+        fileCount,
+        size: data.length,
+      },
+      async () => {
+        result = await doWrite()
+      },
+    )
+    return result
   }
 
   async read(index: number, begin: number, length: number): Promise<Uint8Array> {

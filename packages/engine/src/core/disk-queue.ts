@@ -8,7 +8,8 @@ export interface DiskJob {
   fileCount: number // How many files this job touches
   size: number // Bytes
   status: DiskJobStatus
-  startedAt?: number // Timestamp when started
+  enqueuedAt: number // Timestamp when enqueued
+  startedAt?: number // Timestamp when started running
 }
 
 export interface DiskQueueSnapshot {
@@ -18,7 +19,10 @@ export interface DiskQueueSnapshot {
 }
 
 export interface IDiskQueue {
-  enqueue(job: Omit<DiskJob, 'id' | 'status'>, execute: () => Promise<void>): Promise<void>
+  enqueue(
+    job: Omit<DiskJob, 'id' | 'status' | 'enqueuedAt'>,
+    execute: () => Promise<void>,
+  ): Promise<void>
   drain(): Promise<void>
   resume(): void
   getSnapshot(): DiskQueueSnapshot
@@ -43,13 +47,14 @@ export class TorrentDiskQueue implements IDiskQueue {
   }
 
   async enqueue(
-    jobData: Omit<DiskJob, 'id' | 'status'>,
+    jobData: Omit<DiskJob, 'id' | 'status' | 'enqueuedAt'>,
     execute: () => Promise<void>,
   ): Promise<void> {
     const job: DiskJob = {
       ...jobData,
       id: this.nextId++,
       status: 'pending',
+      enqueuedAt: Date.now(),
     }
 
     return new Promise((resolve, reject) => {

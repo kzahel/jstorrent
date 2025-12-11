@@ -88,8 +88,6 @@ export class DirectEngineAdapter implements EngineAdapter {
   getDiskQueueSnapshot(infoHash: string): DiskQueueSnapshot | null {
     const torrent = this.engine.getTorrent(infoHash)
     if (!torrent) return null
-    // TODO: Return torrent.getDiskQueueSnapshot() once wired up
-    // For now return empty snapshot
-    return { pending: [], running: [], draining: false }
+    return torrent.getDiskQueueSnapshot()
   }
 }
