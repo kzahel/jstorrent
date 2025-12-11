@@ -225,8 +225,10 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
             entry.install_id = info.install_id.clone();
         }
 
-        // Update roots from info
-        entry.download_roots = info.download_roots.clone();
+        // Only update roots if we have new ones (preserve existing on startup)
+        if !info.download_roots.is_empty() {
+            entry.download_roots = info.download_roots.clone();
+        }
 
         active_roots = entry.download_roots.clone();
         
