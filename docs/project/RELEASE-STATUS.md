@@ -1,6 +1,6 @@
 # JSTorrent Release Status
 
-*Last updated: December 2025*
+*Last updated: December 11, 2025*
 
 ## Current State: Working Beta
 
@@ -56,19 +56,17 @@ Need to:
 
 **Blocker:** No macOS machine available
 
-### 4. ChromeOS Storage Access (Medium Priority)
+### 4. ChromeOS Storage Access (Complete)
 
-**Status:** Partially complete
+**Status:** ✅ Complete
 
-Current state:
 - ✅ Android IO daemon works
 - ✅ Extension connects via HTTP to Android container
-- ⏳ Files download to Android app private storage (not visible to user)
-
-Need to:
-- Implement Storage Access Framework (SAF) folder picker
-- Allow user to select visible download location
-- Or document workaround (file manager can access Android/data/...)
+- ✅ Storage Access Framework (SAF) folder picker implemented
+- ✅ Files download to user-selected folders (visible in ChromeOS Files app)
+- ✅ Random access writes via ParcelFileDescriptor (O(write_size), not O(file_size))
+- ✅ Cloud storage providers (Google Drive, Dropbox, etc.) rejected with user-friendly message
+- ✅ Removable storage (SD cards, USB drives) supported with availability tracking
 
 ## Known Limitations (Not Blocking)
 
@@ -114,6 +112,16 @@ No MSE/PE (Message Stream Encryption).
 - Connection status indicator in toolbar
 - System Bridge panel for configuration
 
+### Secure ChromeOS Pairing
+
+✅ **Complete.** The extension↔Android auth flow:
+- HTTP-based pairing over trusted channel (100.115.92.2)
+- Origin header validation (blocks local Android apps from spoofing)
+- User approval dialog for new pairings
+- Silent re-pairing for same extension reinstalls
+- Unified AUTH format across desktop and ChromeOS (authType=0 + null-separated fields)
+- Automatic 401 recovery (token mismatch triggers re-pairing flow)
+
 ### Observability
 
 Need telemetry for crash reports and usage analytics.
@@ -139,9 +147,10 @@ Installers built on GitHub Actions (`.github/workflows/`). No manual upload need
 | Engine unit tests | Good | Core logic, protocol, utilities |
 | Python integration | Good | Real downloads against libtorrent |
 | IO Bridge unit tests | Good | State machine transitions |
+| Session persistence | Good | Stop/resume lifecycle, JSON storage |
 | Extension E2E | Basic | Extension loads, daemon connects |
 | Native host | Good | Python verify_*.py scripts |
-| Android daemon | Basic | Throughput benchmarks |
+| Android daemon | Good | Unit tests + throughput benchmarks |
 
 ### Skip List (Known Issues)
 

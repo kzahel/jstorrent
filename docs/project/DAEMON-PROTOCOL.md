@@ -7,8 +7,8 @@ Reference for how the extension communicates with native daemons on each platfor
 | Aspect | Desktop | ChromeOS |
 |--------|---------|----------|
 | **Processes** | native-host (coordinator) + io-daemon (worker) | Android app (combined) |
-| **Control channel** | Native messaging to native-host | WebSocket `/io` (0xE0/0xE1 frames) |
-| **Data channel** | WebSocket to io-daemon | Same WebSocket `/io` |
+| **Control channel** | Native messaging to native-host | WebSocket `/control` (0xE0/0xE1 frames) |
+| **Data channel** | WebSocket `/io` to io-daemon | WebSocket `/io` to Android app |
 | **File I/O** | HTTP to io-daemon | HTTP to Android app |
 | **Bootstrap** | Chrome auto-launches native-host | User launches Android app via intent |
 
@@ -31,9 +31,13 @@ Chrome Extension
 ```
 Chrome Extension
     │
-    ├── Intent URLs ───────────────► Android app (launch, pair, add-root)
+    ├── Intent URLs ───────────────► Android app (launch, add-root)
     │
-    ├── WebSocket /io ─────────────► Android app (data + control frames)
+    ├── HTTP POST /pair ───────────► Android app (secure pairing flow)
+    │
+    ├── WebSocket /control ────────► Android app (DaemonBridge: roots, events)
+    │
+    ├── WebSocket /io ─────────────► Android app (DaemonConnection: TCP/UDP)
     │
     └── HTTP ──────────────────────► Android app (files: read/write/hash, status)
 ```
@@ -136,8 +140,10 @@ Bytes 8+:  Payload (opcode-specific)
 |--------|------|-----------|---------|
 | `0x01` | CLIENT_HELLO | C→S | (empty) |
 | `0x02` | SERVER_HELLO | S→C | (empty) |
-| `0x03` | AUTH | C→S | `[authType:1][token...]` |
+| `0x03` | AUTH | C→S | `[authType:1][token\0extensionId\0installId]` |
 | `0x04` | AUTH_RESULT | S→C | `[status:1][errorMsg...]` (status 0=success) |
+
+**AUTH payload format:** The payload contains authType (1 byte, always 0), followed by null-separated strings: token, extensionId, and installId. The extensionId is the Chrome extension ID and installId is a unique per-installation identifier stored in `chrome.storage.local`.
 
 ### TCP Operations
 
@@ -219,11 +225,20 @@ Response: raw 20-byte SHA1 hash
 
 ### ChromeOS-only Endpoints
 
-| Endpoint | Method | Purpose | Auth |
-|----------|--------|---------|------|
-| `/status` | GET | `{port, paired}` - check if app is paired | No |
-| `/health` | GET | Health check, returns "ok" | No |
-| `/roots` | GET | `{roots: [...]}` - fetch current roots | Yes |
+| Endpoint | Method | Purpose | Auth | Origin Check |
+|----------|--------|---------|------|--------------|
+| `/health` | GET | Health check, returns "ok" | No | No |
+| `/status` | POST | `{port, paired, extensionId, installId}` | No | Yes |
+| `/pair` | POST | Initiate pairing, body: `{token}` | No | Yes |
+| `/roots` | GET | `{roots: [...]}` - fetch current roots | Yes | No |
+| `/control` | WebSocket | Control plane (ROOTS_CHANGED, events) | Yes | No |
+
+**Origin check:** Validates `Origin: chrome-extension://...` header to ensure requests come from Chrome extension, not local Android apps hitting `127.0.0.1`.
+
+**POST /pair responses:**
+- `200 OK` + `{status: "approved"}` - Same extensionId+installId, token updated silently
+- `202 Accepted` + `{status: "pending"}` - Dialog shown, poll `/status`
+- `409 Conflict` - Dialog already showing for another request
 
 ---
 
@@ -243,13 +258,21 @@ Disconnection detected via native messaging port `onDisconnect`.
 
 ### ChromeOS
 
-1. Extension checks `GET http://100.115.92.2:{port}/status` on known ports
-2. If not reachable or not paired:
-   - Open intent URL to launch/pair Android app
-   - Poll `/status` until paired
-3. Extension connects WebSocket to `ws://100.115.92.2:{port}/io`
-4. WebSocket auth handshake
-5. Ready for data operations
+**Initial pairing:**
+1. Extension checks `POST /status` on known ports (7800, 7805, 7814...)
+2. If not reachable, open intent URL to launch Android app, then poll
+3. If reachable but not paired (or paired with different installId):
+   - `POST /pair` with `{token}` body
+   - Android app shows approval dialog
+   - Poll `/status` until `paired: true` with matching extensionId/installId
+4. DaemonBridge connects to `ws://100.115.92.2:{port}/control`
+5. WebSocket auth handshake (AUTH includes token + extensionId + installId)
+6. Ready for control operations (ROOTS_CHANGED, events)
+
+**Engine connection (per-torrent):**
+1. DaemonConnection connects to `ws://100.115.92.2:{port}/io`
+2. WebSocket auth handshake
+3. Ready for TCP/UDP socket operations
 
 Disconnection detected via WebSocket `onclose` or failed health checks.
 
@@ -257,16 +280,22 @@ Disconnection detected via WebSocket `onclose` or failed health checks.
 
 ## Security
 
-### Auth Token
+### Auth Token & Identity
 
-Both platforms use a shared secret token:
+Both platforms use a shared secret token plus identity verification:
 
 - **Desktop:** Native-host generates token, sends in DaemonInfo, extension stores and uses for all requests
-- **ChromeOS:** Extension generates token, sends via intent URL during pairing, Android app stores
+- **ChromeOS:** Extension generates token, sends via HTTP `POST /pair` endpoint, Android app stores after user approval
 
-Token is required for:
-- WebSocket AUTH frame
-- HTTP requests (X-JST-Auth header or Authorization: Bearer)
+**ChromeOS identity tracking:**
+- `extensionId`: Chrome extension ID (e.g., `dbokmlpefliilbjldladbimlcfgbolhk`)
+- `installId`: Unique per-installation UUID stored in `chrome.storage.local`
+
+The Android app tracks which extensionId+installId is paired. If the installId changes (extension reinstalled), the user must re-approve pairing. This prevents one extension from impersonating another.
+
+Token + identity is required for:
+- WebSocket AUTH frame (both `/io` and `/control`)
+- HTTP requests (`X-JST-Auth`, `X-JST-ExtensionId`, `X-JST-InstallId` headers)
 
 ### Download Root Tokens
 
@@ -283,12 +312,19 @@ File paths are never exposed to the extension. Instead:
 
 | Concern | Desktop | ChromeOS |
 |---------|---------|----------|
-| **Bootstrap** | Native messaging auto-launches native-host | No equivalent; must use intent URLs |
-| **Bidirectional push** | Native messaging supports it natively | WebSocket already open for data, add control frames |
-| **File picker** | Native-host shows OS dialog, responds via native msg | Android Activity, broadcasts via WebSocket |
-| **Complexity** | Separate channels match separate processes | Single process, single WebSocket makes sense |
+| **Bootstrap** | Native messaging auto-launches native-host | Intent URL launches app, `POST /pair` for auth |
+| **Bidirectional push** | Native messaging supports it natively | Dedicated `/control` WebSocket |
+| **File picker** | Native-host shows OS dialog, responds via native msg | Android Activity, broadcasts via `/control` WebSocket |
+| **I/O operations** | `/io` WebSocket to io-daemon | `/io` WebSocket to Android app |
 
-Unifying on WebSocket for desktop would require native messaging anyway (to bootstrap), plus IPC between native-host and io-daemon for picker. The current split matches the natural process boundaries.
+**Why separate `/control` and `/io` on ChromeOS?**
+
+Originally both shared `/io`, but this caused issues:
+- Control messages (ROOTS_CHANGED, events) should only go to DaemonBridge, not DaemonConnection
+- Different lifecycle: DaemonBridge stays connected for the extension's lifetime; DaemonConnection connects per-engine
+- Opcode validation: prevents accidental mixing of control and I/O operations
+
+The separation mirrors desktop's architecture where native messaging handles control and `/io` handles data.
 
 From `DaemonBridge`'s perspective, both platforms expose the same API:
 - `connect()` / `disconnect()`

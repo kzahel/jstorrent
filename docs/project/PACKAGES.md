@@ -5,13 +5,15 @@
 ```
 jstorrent-monorepo/
 ├── packages/
-│   ├── engine/        ← Core BitTorrent engine (platform-agnostic)
-│   ├── client/        ← App shell, chrome integration, IO Bridge UI
-│   ├── ui/            ← Virtualized tables, presentational components
-│   ├── shared-ts/     ← Shared TypeScript utilities
-│   └── proto/         ← Protocol buffer definitions (future)
+│   ├── engine/                 ← Core BitTorrent engine (platform-agnostic)
+│   ├── client/                 ← App shell, chrome integration, IO Bridge UI
+│   ├── ui/                     ← Virtualized tables, presentational components
+│   ├── shared-ts/              ← Shared TypeScript utilities (placeholder)
+│   ├── proto/                  ← Protocol buffer definitions (placeholder)
+│   ├── docs/                   ← Package-level design documents
+│   └── legacy-jstorrent-engine/ ← Migration docs from original engine
 │
-├── extension/         ← Chrome extension entry points, manifest, IO Bridge
+├── extension/         ← Chrome extension entry points, manifest, daemon bridge
 ├── native-host/       ← Rust binaries (jstorrent-host, io-daemon, link-handler)
 ├── android-io-daemon/ ← Kotlin Android app for ChromeOS
 ├── website/           ← jstorrent.com landing/launch page
@@ -19,6 +21,7 @@ jstorrent-monorepo/
 ├── chromeos-testbed/  ← ChromeOS testing infrastructure
 ├── legacy-app/        ← Original Chrome App (deprecated, still published)
 ├── legacy-extension/  ← Helper extension for Chrome App
+├── test_torrents/     ← Test torrent files for development
 │
 ├── docs/
 │   ├── tasks/         ← Agent execution plans (current work)
@@ -54,6 +57,10 @@ src/
   logging/           ← RingBufferLogger, scoped logging
   utils/             ← BitField, buffer helpers, magnet parsing
   presets/           ← Pre-configured engine setups (daemon, memory, node)
+  cmd/               ← Command-line utilities
+  extensions/        ← Engine extensions
+  io/                ← I/O utilities
+  node-rpc/          ← Node.js RPC layer
 
 integration/python/  ← Python tests against libtorrent
 ```
@@ -123,23 +130,17 @@ src/
 
 ### extension/
 
-Chrome extension entry points. Service worker manages IO Bridge lifecycle.
+Chrome extension entry points. Service worker manages daemon bridge lifecycle.
 
 ```
 src/
-  sw.ts                     ← Service worker (IO Bridge, UI port management)
+  sw.ts                     ← Service worker (daemon bridge, UI port management)
   lib/
-    io-bridge/              ← IO Bridge state machine
-      types.ts              ← State and event types
-      io-bridge-state.ts    ← Pure state transitions
-      io-bridge-store.ts    ← State container
-      io-bridge-effects.ts  ← Side effect runner
-      io-bridge-service.ts  ← Public API
-      io-bridge-adapter.ts  ← Adapter interface
-      adapters/
-        desktop-adapter.ts  ← Native messaging
-        chromeos-adapter.ts ← HTTP to Android
-        mock-adapter.ts     ← Testing
+    daemon-bridge.ts        ← Daemon connection management
+    install-id.ts           ← Extension install ID utilities
+    io-bridge/              ← IO Bridge utilities
+      readiness.ts          ← Readiness state tracking
+      version-status.ts     ← Version compatibility checking
     native-connection.ts    ← Native host connection types
     notifications.ts        ← Notification handling
     platform.ts             ← Platform detection
@@ -155,7 +156,7 @@ public/
   manifest.json             ← MV3 manifest
   icons/
 
-test/                       ← IO Bridge unit tests
+test/                       ← Unit tests
 e2e/                        ← Playwright E2E tests
 ```
 
@@ -198,26 +199,32 @@ Kotlin Android app providing I/O daemon for ChromeOS.
 
 ```
 app/src/main/java/com/jstorrent/app/
-  MainActivity.kt           ← Main activity, pairing UI
+  MainActivity.kt              ← Main activity, pairing UI
+  AddRootActivity.kt           ← Activity for adding download roots
+  PairingApprovalActivity.kt   ← Pairing approval UI
   service/
-    IoDaemonService.kt      ← Foreground service for daemon
+    IoDaemonService.kt         ← Foreground service for daemon
   server/
-    HttpServer.kt           ← Ktor HTTP/WebSocket server
-    SocketHandler.kt        ← TCP/UDP multiplexing
-    FileHandler.kt          ← File read/write endpoints
-    AuthMiddleware.kt       ← Token validation
-    Protocol.kt             ← Binary protocol definitions
+    HttpServer.kt              ← Ktor HTTP/WebSocket server
+    SocketHandler.kt           ← TCP/UDP multiplexing
+    FileHandler.kt             ← File read/write endpoints
+    AuthMiddleware.kt          ← Token validation
+    OriginCheckMiddleware.kt   ← Origin validation for requests
+    Protocol.kt                ← Binary protocol definitions
   auth/
-    TokenStore.kt           ← Secure token storage
-  ui/theme/                 ← Compose theme
+    TokenStore.kt              ← Secure token storage
+  storage/
+    DownloadRoot.kt            ← Download root data model
+    RootStore.kt               ← Multiple download root management
+  ui/theme/                    ← Compose theme
 
-scripts/                    ← Build and test scripts
+scripts/                       ← Build and test scripts
 ```
 
 **Key differences from Rust daemon:**
 - HTTP at `100.115.92.2:7800` (ARC bridge IP)
 - Auth token passed via intent URL during pairing
-- Single download root (app private storage)
+- Multiple download roots supported via Storage Access Framework
 
 ### website/
 

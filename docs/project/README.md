@@ -14,6 +14,8 @@ Strategic documentation for AI-assisted development conversations.
 | `PACKAGES.md` | Monorepo structure, package responsibilities |
 | `WORKFLOW.md` | How work gets done, testing, dev setup |
 | `RELEASE-STATUS.md` | What's blocking release, known limitations |
+| `CHROMEOS-STRATEGY.md` | ChromeOS migration strategy and implementation status |
+| `DAEMON-PROTOCOL.md` | Extension-daemon communication protocol reference |
 
 ## Usage
 

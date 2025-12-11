@@ -70,7 +70,9 @@ After auditing actual usage, the surface area is much smaller than the Rust code
 
 ### Actually Used Endpoints
 
-**1. WebSocket `/io`** — TCP/UDP multiplexing
+**1. WebSocket `/io`** — TCP/UDP multiplexing (data plane)
+
+Used by the engine's DaemonConnection for actual socket I/O operations.
 
 ```
 Frame: [version:1][opcode:1][flags:2][reqId:4][payload...]
@@ -92,11 +94,27 @@ UDP:
 Handshake:
   0x01 CLIENT_HELLO   → (empty)
   0x02 SERVER_HELLO   ← (empty)
-  0x03 AUTH           → [authType:1][token...]
+  0x03 AUTH           → [authType:1][token + \0 + extensionId + \0 + installId]
   0x04 AUTH_RESULT    ← [status:1] (0=success)
 ```
 
-**2. `GET /read/{root}`** — Read file bytes
+The `/io` endpoint only accepts handshake opcodes (0x01-0x04) and I/O opcodes (0x10-0x24).
+
+**2. WebSocket `/control`** — Control plane (DaemonBridge)
+
+Used by the extension's service worker for pairing state, root changes, and native events.
+
+```
+Frame: [version:1][opcode:1][flags:2][reqId:4][payload...]
+
+Control (Server → Client):
+  0xE0 ROOTS_CHANGED  ← [JSON array of roots]
+  0xE1 EVENT          ← [JSON {event, payload}]
+```
+
+The `/control` endpoint only accepts handshake opcodes (0x01-0x04) and control opcodes (0xE0-0xE1).
+
+**4. `GET /read/{root}`** — Read file bytes
 
 Headers:
 - `X-Path-Base64`: base64-encoded relative path
@@ -105,7 +123,7 @@ Headers:
 
 Returns: raw bytes
 
-**3. `POST /write/{root}`** — Write file bytes
+**5. `POST /write/{root}`** — Write file bytes
 
 Headers:
 - `X-Path-Base64`: base64-encoded relative path
@@ -118,7 +136,7 @@ Body: raw bytes
 
 Returns: 200 OK, 409 Conflict (hash mismatch), 507 Insufficient Storage
 
-**4. `POST /hash/sha1`** — Hash bytes
+**6. `POST /hash/sha1`** — Hash bytes
 
 Body: raw bytes  
 Returns: raw 20-byte SHA1 hash
