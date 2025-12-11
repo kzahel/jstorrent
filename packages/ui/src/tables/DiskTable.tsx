@@ -86,6 +86,10 @@ interface DiskQueueSource {
 export interface DiskTableProps {
   source: DiskQueueSource
   torrentHash: string
+  /** Get selected row keys (for Solid bridge) */
+  getSelectedKeys?: () => Set<string>
+  /** Called when selection changes */
+  onSelectionChange?: (keys: Set<string>) => void
 }
 
 export function DiskTable(props: DiskTableProps) {
@@ -103,6 +107,8 @@ export function DiskTable(props: DiskTableProps) {
       columns={diskColumns}
       storageKey="disk"
       rowHeight={24}
+      getSelectedKeys={props.getSelectedKeys}
+      onSelectionChange={props.onSelectionChange}
     />
   )
 }

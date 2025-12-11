@@ -5,7 +5,12 @@ export class TorrentFileInfo {
   constructor(
     private file: TorrentFile,
     private torrent: Torrent,
+    private _index: number,
   ) {}
+
+  get index(): number {
+    return this._index
+  }
 
   get path(): string {
     return this.file.path

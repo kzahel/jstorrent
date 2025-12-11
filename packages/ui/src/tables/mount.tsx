@@ -13,6 +13,9 @@ export function TableMount<T>(props: TableMountProps<T>) {
 
   // Keep refs to props that may change - Solid captures these at mount time,
   // so we need refs to always get the current value
+  const getRowsRef = useRef(props.getRows)
+  getRowsRef.current = props.getRows
+
   const getSelectedKeysRef = useRef(props.getSelectedKeys)
   getSelectedKeysRef.current = props.getSelectedKeys
 
@@ -33,7 +36,7 @@ export function TableMount<T>(props: TableMountProps<T>) {
     disposeRef.current = render(
       () =>
         VirtualTable({
-          getRows: props.getRows,
+          getRows: () => getRowsRef.current(),
           getRowKey: props.getRowKey,
           columns: props.columns,
           storageKey: props.storageKey,

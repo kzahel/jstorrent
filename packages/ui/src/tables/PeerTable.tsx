@@ -148,6 +148,10 @@ export interface PeerTableProps {
   source: TorrentSource
   /** Hash of the selected torrent */
   torrentHash: string
+  /** Get selected row keys (for Solid bridge) */
+  getSelectedKeys?: () => Set<string>
+  /** Called when selection changes */
+  onSelectionChange?: (keys: Set<string>) => void
 }
 
 /**
@@ -164,6 +168,8 @@ export function PeerTable(props: PeerTableProps) {
       columns={columns}
       storageKey="peers"
       rowHeight={24}
+      getSelectedKeys={props.getSelectedKeys}
+      onSelectionChange={props.onSelectionChange}
     />
   )
 }
