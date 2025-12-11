@@ -322,6 +322,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 // Internal messages (from extension UI)
 // ============================================================================
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  console.log('Received internal message:', message.type)
+  if (message.type !== 'notification:progress') {
+    console.log('Received internal message:', message.type)
+  }
   return handleMessage(message, sendResponse)
 })
