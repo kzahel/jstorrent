@@ -708,6 +708,10 @@ export class Torrent extends EngineComponent {
     }
     // Note: swarm state is updated via markDisconnected when peers close
     this.pendingConnections.clear()
+
+    // Clear active pieces - release buffered data and pending requests
+    this.activePieces?.destroy()
+    this.activePieces = undefined
   }
 
   /**
