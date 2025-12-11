@@ -28,6 +28,8 @@ export { LogTable } from './tables/LogTable.solid'
 export type { LogTableProps } from './tables/LogTable.solid'
 export { LogTableWrapper } from './tables/LogTableWrapper'
 export type { LogTableWrapperProps } from './tables/LogTableWrapper'
+export { DiskTable } from './tables/DiskTable'
+export type { DiskTableProps } from './tables/DiskTable'
 export { TableMount } from './tables/mount'
 export type { ColumnDef, ColumnConfig, TableMountProps } from './tables/types'
 

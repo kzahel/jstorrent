@@ -1,19 +1,21 @@
 import React, { useState } from 'react'
 import { Torrent } from '@jstorrent/engine'
-import type { LogStore } from '@jstorrent/engine'
+import type { LogStore, DiskQueueSnapshot } from '@jstorrent/engine'
 import { PeerTable } from '../tables/PeerTable'
 import { PieceTable } from '../tables/PieceTable'
 import { FileTable } from '../tables/FileTable'
 import { GeneralPane } from './GeneralPane'
 import { LogTableWrapper } from '../tables/LogTableWrapper'
+import { DiskTable } from '../tables/DiskTable'
 
-export type DetailTab = 'peers' | 'pieces' | 'files' | 'general' | 'logs'
+export type DetailTab = 'peers' | 'pieces' | 'files' | 'general' | 'logs' | 'disk'
 
 /** Source interface matching adapter shape */
 interface TorrentSource {
   readonly torrents: Torrent[]
   getTorrent(hash: string): Torrent | undefined
   getLogStore(): LogStore
+  getDiskQueueSnapshot(hash: string): DiskQueueSnapshot | null
 }
 
 export interface DetailPaneProps {
@@ -112,6 +114,12 @@ export function DetailPane(props: DetailPaneProps) {
         >
           Logs
         </button>
+        <button
+          style={activeTab === 'disk' ? activeTabStyle : tabStyle}
+          onClick={() => setActiveTab('disk')}
+        >
+          Disk
+        </button>
       </div>
 
       {/* Tab content */}
@@ -134,6 +142,11 @@ export function DetailPane(props: DetailPaneProps) {
         {activeTab === 'general' &&
           renderTorrentContent(<GeneralPane torrent={torrent!} />, 'general info')}
         {activeTab === 'logs' && <LogTableWrapper logStore={props.source.getLogStore()} />}
+        {activeTab === 'disk' &&
+          renderTorrentContent(
+            <DiskTable source={props.source} torrentHash={selectedHash!} />,
+            'disk activity',
+          )}
       </div>
     </div>
   )
