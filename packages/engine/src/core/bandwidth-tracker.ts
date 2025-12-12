@@ -1,4 +1,10 @@
-import { RrdHistory, RrdTierConfig, RrdSample, DEFAULT_RRD_TIERS } from '../utils/rrd-history'
+import {
+  RrdHistory,
+  RrdTierConfig,
+  RrdSample,
+  RrdSamplesResult,
+  DEFAULT_RRD_TIERS,
+} from '../utils/rrd-history'
 
 export interface BandwidthTrackerConfig {
   tiers?: RrdTierConfig[]
@@ -28,6 +34,18 @@ export class BandwidthTracker {
 
   getUploadSamples(fromTime: number, toTime: number, maxPoints?: number): RrdSample[] {
     return this.upload.getSamples(fromTime, toTime, maxPoints)
+  }
+
+  getDownloadSamplesWithMeta(
+    fromTime: number,
+    toTime: number,
+    maxPoints?: number,
+  ): RrdSamplesResult {
+    return this.download.getSamplesWithMeta(fromTime, toTime, maxPoints)
+  }
+
+  getUploadSamplesWithMeta(fromTime: number, toTime: number, maxPoints?: number): RrdSamplesResult {
+    return this.upload.getSamplesWithMeta(fromTime, toTime, maxPoints)
   }
 
   getDownloadRate(windowMs?: number): number {

@@ -8,6 +8,13 @@ export interface RrdSample {
   value: number
 }
 
+export interface RrdSamplesResult {
+  samples: RrdSample[]
+  bucketMs: number
+  /** The start time of the most recent bucket in the selected tier */
+  latestBucketTime: number
+}
+
 /**
  * Default tiers: ~10 min of history with decreasing resolution
  * Tier 0: 100ms × 300 = 30 sec (fine detail for live view)
@@ -113,24 +120,52 @@ export class RrdHistory {
   }
 
   /**
+   * Select the appropriate tier for a time range query.
+   */
+  private selectTier(duration: number, maxPoints: number): number {
+    const desiredBucketMs = duration / maxPoints
+
+    // Find appropriate tier: prefer finest resolution that covers the time range
+    let tierIndex = 0
+    for (let i = 0; i < this.tiers.length; i++) {
+      const tier = this.tiers[i]
+      const tierCapacityMs = tier.config.bucketMs * tier.config.count
+
+      if (tier.config.bucketMs <= desiredBucketMs && tierCapacityMs >= duration) {
+        tierIndex = i
+      }
+    }
+
+    // If no tier covers the full range, use the coarsest tier (most history)
+    const selectedTier = this.tiers[tierIndex]
+    if (selectedTier.config.bucketMs * selectedTier.config.count < duration) {
+      tierIndex = this.tiers.length - 1
+    }
+
+    return tierIndex
+  }
+
+  /**
    * Get samples for a time range at appropriate resolution.
    * Returns samples in chronological order.
    */
   getSamples(fromTime: number, toTime: number, maxPoints: number = 500): RrdSample[] {
-    const duration = toTime - fromTime
-    const desiredBucketMs = duration / maxPoints
-
-    // Find the finest tier that's coarser than our desired resolution
-    let tierIndex = 0
-    for (let i = 0; i < this.tiers.length; i++) {
-      if (this.tiers[i].config.bucketMs <= desiredBucketMs) {
-        tierIndex = i
-      } else {
-        break
-      }
-    }
-
+    const tierIndex = this.selectTier(toTime - fromTime, maxPoints)
     return this.getSamplesFromTier(tierIndex, fromTime, toTime)
+  }
+
+  /**
+   * Get samples with metadata about the bucket size used.
+   * Use this when you need to align timestamps to the actual resolution.
+   */
+  getSamplesWithMeta(fromTime: number, toTime: number, maxPoints: number = 500): RrdSamplesResult {
+    const tierIndex = this.selectTier(toTime - fromTime, maxPoints)
+    const tier = this.tiers[tierIndex]
+    return {
+      samples: this.getSamplesFromTier(tierIndex, fromTime, toTime),
+      bucketMs: tier.config.bucketMs,
+      latestBucketTime: tier.bucketStartTime,
+    }
   }
 
   private getSamplesFromTier(tierIndex: number, fromTime: number, toTime: number): RrdSample[] {
