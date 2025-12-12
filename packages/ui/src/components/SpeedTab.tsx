@@ -23,7 +23,18 @@ const containerStyle: React.CSSProperties = {
 const headerStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'flex-end',
+  alignItems: 'center',
+  gap: '12px',
   marginBottom: '4px',
+}
+
+const checkboxLabelStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '4px',
+  fontSize: '12px',
+  color: 'var(--text-secondary)',
+  cursor: 'pointer',
 }
 
 const selectStyle: React.CSSProperties = {
@@ -52,6 +63,7 @@ function formatTimeAgo(timestamp: number, now: number): string {
 
 export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
   const [windowMs, setWindowMs] = useState<number>(TIME_WINDOWS[0].value)
+  const [hideCurrentBucket, setHideCurrentBucket] = useState<boolean>(true)
   const containerRef = useRef<HTMLDivElement>(null)
   const plotRef = useRef<uPlot | null>(null)
   const rafRef = useRef<number>(0)
@@ -71,8 +83,7 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
         {
           // x-axis (time) - format for legend/cursor
           // Return empty when not hovering (rawValue is null/undefined)
-          value: (_, rawValue) =>
-            rawValue == null ? '--' : formatTimeAgo(rawValue, Date.now()),
+          value: (_, rawValue) => (rawValue == null ? '--' : formatTimeAgo(rawValue, Date.now())),
         },
         {
           label: 'Download',
@@ -131,22 +142,35 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
     resizeObserver.observe(containerRef.current)
 
     // Animation loop
-    const bucketMs = 100
-    // Exclude the most recent ~150ms to avoid jitter from incomplete bucket
-    const edgeBufferMs = 150
-
     const update = () => {
       const now = Date.now()
-      // End slightly in the past to avoid incomplete bucket jitter
-      const toTime = now - edgeBufferMs
       const fromTime = now - windowMs
 
-      const downSamples = bandwidthTracker.getDownloadSamples(fromTime, toTime, 300)
-      const upSamples = bandwidthTracker.getUploadSamples(fromTime, toTime, 300)
+      // Get samples with metadata about which tier/bucket size was used
+      const downResult = bandwidthTracker.getDownloadSamplesWithMeta(fromTime, now, 300)
+      const upResult = bandwidthTracker.getUploadSamplesWithMeta(fromTime, now, 300)
+
+      // Use the actual bucket size from the RRD tier that was selected
+      const bucketMs = downResult.bucketMs
+
+      // Calculate aligned end time
+      // Use the max of RRD's latest bucket and current time to handle both:
+      // - Active data flow: align to RRD's internal state to prevent jitter
+      // - No data flow: extend to current time to show zeros
+      const latestBucketTime = downResult.latestBucketTime
+      const currentBucketStart = Math.floor(now / bucketMs) * bucketMs
+      const effectiveLatest = Math.max(latestBucketTime, currentBucketStart)
+      const alignedEnd = hideCurrentBucket
+        ? effectiveLatest - bucketMs // End at the previous complete bucket
+        : effectiveLatest // Include current (incomplete) bucket
 
       // Create maps for lookup
-      const downMap = new Map(downSamples.map((s) => [s.time, s.value]))
-      const upMap = new Map(upSamples.map((s) => [s.time, s.value]))
+      const downMap = new Map<number, number>(
+        downResult.samples.map((s: { time: number; value: number }) => [s.time, s.value]),
+      )
+      const upMap = new Map<number, number>(
+        upResult.samples.map((s: { time: number; value: number }) => [s.time, s.value]),
+      )
 
       // Generate a complete time series at fixed intervals
       // This ensures the graph maintains consistent size even when no data is flowing
@@ -156,7 +180,6 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
 
       // Align start time to bucket boundary
       const alignedStart = Math.floor(fromTime / bucketMs) * bucketMs
-      const alignedEnd = Math.floor(toTime / bucketMs) * bucketMs
 
       for (let t = alignedStart; t <= alignedEnd; t += bucketMs) {
         times.push(t)
@@ -182,7 +205,7 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
       resizeObserver.disconnect()
       plotRef.current?.destroy()
     }
-  }, [bandwidthTracker, windowMs])
+  }, [bandwidthTracker, windowMs, hideCurrentBucket])
 
   return (
     <div style={containerStyle}>
@@ -193,6 +216,14 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
         .uplot .u-legend .u-value { color: var(--text-primary); }
       `}</style>
       <div style={headerStyle}>
+        <label style={checkboxLabelStyle}>
+          <input
+            type="checkbox"
+            checked={hideCurrentBucket}
+            onChange={(e) => setHideCurrentBucket(e.target.checked)}
+          />
+          Hide current
+        </label>
         <select
           style={selectStyle}
           value={windowMs}
