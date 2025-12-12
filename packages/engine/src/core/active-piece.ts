@@ -149,24 +149,29 @@ export class ActivePiece {
 
   /**
    * Clear requests that have timed out.
-   * Returns the number of requests cleared.
+   * Returns a map of peerId -> number of requests cleared for that peer.
    */
-  checkTimeouts(timeoutMs: number): number {
+  checkTimeouts(timeoutMs: number): Map<string, number> {
     const now = Date.now()
-    let cleared = 0
+    const clearedByPeer = new Map<string, number>()
 
     for (const [blockIndex, requests] of this.blockRequests) {
-      const filtered = requests.filter((r) => now - r.timestamp < timeoutMs)
-      if (filtered.length !== requests.length) {
-        cleared += requests.length - filtered.length
-        if (filtered.length === 0) {
-          this.blockRequests.delete(blockIndex)
+      const remaining: RequestInfo[] = []
+      for (const req of requests) {
+        if (now - req.timestamp >= timeoutMs) {
+          // This request timed out - track it by peer
+          clearedByPeer.set(req.peerId, (clearedByPeer.get(req.peerId) || 0) + 1)
         } else {
-          this.blockRequests.set(blockIndex, filtered)
+          remaining.push(req)
         }
       }
+      if (remaining.length === 0) {
+        this.blockRequests.delete(blockIndex)
+      } else if (remaining.length !== requests.length) {
+        this.blockRequests.set(blockIndex, remaining)
+      }
     }
-    return cleared
+    return clearedByPeer
   }
 
   // --- Block Selection ---
