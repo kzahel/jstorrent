@@ -188,8 +188,8 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
       const downRates: number[] = []
       const upRates: number[] = []
 
-      // Align start time to bucket boundary
-      const alignedStart = Math.floor(fromTime / bucketMs) * bucketMs
+      // Align start time to bucket boundary, skip the first bucket (often incomplete/zero)
+      const alignedStart = Math.floor(fromTime / bucketMs) * bucketMs + bucketMs
 
       for (let t = alignedStart; t <= alignedEnd; t += bucketMs) {
         times.push(t)
