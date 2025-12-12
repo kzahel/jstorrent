@@ -10,8 +10,8 @@ export interface ActivePieceConfig {
 
 const DEFAULT_CONFIG: ActivePieceConfig = {
   requestTimeoutMs: 30000,
-  maxActivePieces: 60,
-  maxBufferedBytes: 16 * 1024 * 1024, // 16MB // too low?
+  maxActivePieces: 120,
+  maxBufferedBytes: 128 * 1024 * 1024, // 16MB // too low?
   cleanupIntervalMs: 10000,
 }
 
@@ -148,14 +148,20 @@ export class ActivePieceManager extends EngineComponent {
   /**
    * Check for and clear timed-out requests across all active pieces.
    * Called periodically by the cleanup interval.
+   * Emits 'requestsCleared' with a Map<peerId, count> of cleared requests per peer.
    */
   checkTimeouts(): number {
-    let totalCleared = 0
+    const clearedByPeer = new Map<string, number>()
     for (const piece of this.pieces.values()) {
-      totalCleared += piece.checkTimeouts(this.config.requestTimeoutMs)
+      const pieceClearedByPeer = piece.checkTimeouts(this.config.requestTimeoutMs)
+      for (const [peerId, count] of pieceClearedByPeer) {
+        clearedByPeer.set(peerId, (clearedByPeer.get(peerId) || 0) + count)
+      }
     }
+    const totalCleared = [...clearedByPeer.values()].reduce((a, b) => a + b, 0)
     if (totalCleared > 0) {
       this.logger.debug(`Cleared ${totalCleared} timed-out requests`)
+      this.emit('requestsCleared', clearedByPeer)
     }
     return totalCleared
   }

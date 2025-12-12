@@ -1118,6 +1118,17 @@ export class Torrent extends EngineComponent {
       this.requestPieces(peer)
     })
 
+    peer.on('choke', () => {
+      this.logger.debug('Choke received')
+      // Peer has discarded all our pending requests per BitTorrent spec
+      const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
+      const cleared = this.activePieces?.clearRequestsForPeer(peerId) || 0
+      peer.requestsPending = 0 // Critical: reset so we can request again after unchoke
+      if (cleared > 0) {
+        this.logger.debug(`Cleared ${cleared} tracked requests after choke`)
+      }
+    })
+
     peer.on('interested', () => {
       this.logger.debug('Interested received')
       this.handleInterested(peer)
@@ -1277,11 +1288,26 @@ export class Torrent extends EngineComponent {
 
     // Initialize activePieces if needed (lazy init after metadata is available)
     if (!this.activePieces) {
-      this.activePieces = new ActivePieceManager(
-        this.engineInstance,
-        (index) => this.getPieceLength(index),
-        { requestTimeoutMs: 30000, maxActivePieces: 20, maxBufferedBytes: 16 * 1024 * 1024 },
+      this.activePieces = new ActivePieceManager(this.engineInstance, (index) =>
+        this.getPieceLength(index),
       )
+      this.activePieces.on('requestsCleared', (clearedByPeer: Map<string, number>) => {
+        // Decrement requestsPending for each affected peer
+        for (const p of this.connectedPeers) {
+          const pId = p.peerId ? toHex(p.peerId) : `${p.remoteAddress}:${p.remotePort}`
+          const cleared = clearedByPeer.get(pId)
+          if (cleared) {
+            p.requestsPending = Math.max(0, p.requestsPending - cleared)
+            this.logger.debug(`Decremented ${cleared} pending requests for peer ${pId}`)
+          }
+        }
+        // Then re-request from all unchoked peers
+        for (const p of this.connectedPeers) {
+          if (!p.peerChoking) {
+            this.requestPieces(p)
+          }
+        }
+      })
     }
 
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
@@ -1292,7 +1318,7 @@ export class Torrent extends EngineComponent {
     )
       */
 
-    const MAX_PIPELINE = 200
+    const MAX_PIPELINE = 500
 
     let _requestsMade = 0
     let _skippedComplete = 0
@@ -1377,11 +1403,26 @@ export class Torrent extends EngineComponent {
 
     // Initialize activePieces if needed (lazy init after metadata is available)
     if (!this.activePieces && this.hasMetadata) {
-      this.activePieces = new ActivePieceManager(
-        this.engineInstance,
-        (index) => this.getPieceLength(index),
-        { requestTimeoutMs: 30000, maxActivePieces: 20, maxBufferedBytes: 16 * 1024 * 1024 },
+      this.activePieces = new ActivePieceManager(this.engineInstance, (index) =>
+        this.getPieceLength(index),
       )
+      this.activePieces.on('requestsCleared', (clearedByPeer: Map<string, number>) => {
+        // Decrement requestsPending for each affected peer
+        for (const p of this.connectedPeers) {
+          const pId = p.peerId ? toHex(p.peerId) : `${p.remoteAddress}:${p.remotePort}`
+          const cleared = clearedByPeer.get(pId)
+          if (cleared) {
+            p.requestsPending = Math.max(0, p.requestsPending - cleared)
+            this.logger.debug(`Decremented ${cleared} pending requests for peer ${pId}`)
+          }
+        }
+        // Then re-request from all unchoked peers
+        for (const p of this.connectedPeers) {
+          if (!p.peerChoking) {
+            this.requestPieces(p)
+          }
+        }
+      })
     }
 
     if (!this.activePieces) {
