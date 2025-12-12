@@ -154,15 +154,25 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
       const bucketMs = downResult.bucketMs
 
       // Calculate aligned end time
-      // Use the max of RRD's latest bucket and current time to handle both:
-      // - Active data flow: align to RRD's internal state to prevent jitter
-      // - No data flow: extend to current time to show zeros
       const latestBucketTime = downResult.latestBucketTime
       const currentBucketStart = Math.floor(now / bucketMs) * bucketMs
-      const effectiveLatest = Math.max(latestBucketTime, currentBucketStart)
-      const alignedEnd = hideCurrentBucket
-        ? effectiveLatest - bucketMs // End at the previous complete bucket
-        : effectiveLatest // Include current (incomplete) bucket
+      const gapBuckets = (currentBucketStart - latestBucketTime) / bucketMs
+
+      let alignedEnd: number
+      if (hideCurrentBucket) {
+        if (gapBuckets <= 1) {
+          // Data is flowing - wall clock is 0-1 buckets ahead of RRD
+          // Hide the RRD's current (incomplete) bucket to prevent flicker
+          alignedEnd = latestBucketTime - bucketMs
+        } else {
+          // Data stopped flowing - wall clock is way ahead
+          // Extend to current time (showing zeros) but hide the current bucket
+          alignedEnd = currentBucketStart - bucketMs
+        }
+      } else {
+        // Not hiding current bucket - extend to whichever is later
+        alignedEnd = Math.max(latestBucketTime, currentBucketStart)
+      }
 
       // Create maps for lookup
       const downMap = new Map<number, number>(
