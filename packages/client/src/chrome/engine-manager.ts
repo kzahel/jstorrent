@@ -567,7 +567,7 @@ async function addTestTorrent(url?: string): Promise<Torrent | null> {
   let magnet =
     url ??
     'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da&dn=big_buck_bunny_720p_surround.mp4'
-  magnet += '&x.pe=127.0.0.1:8998'
+  magnet += '&x.pe=127.0.0.1:8998&x.pe=127.0.0.1:6082'
 
   const engine = await engineManager.init()
   const torrent = await engine.addTorrent(magnet)
@@ -577,6 +577,11 @@ async function addTestTorrent(url?: string): Promise<Torrent | null> {
     console.log('[addTestTorrent] Torrent already exists or failed to add')
   }
   return torrent
+}
+
+async function addTestTorrent2(): Promise<Torrent | null> {
+  const url = 'magnet:?xt=urn:btih:68e52e19f423308ba4f330d5a9b7fb68cec36355&xt=urn:btmh:1220d501d9530fb0563cb8113adb85a69df2cf5997f59b1927d302fc807e407dc0ee&dn=remy%20reads%20a%20book.mp4'
+  return addTestTorrent(url)
 }
 
 /**
@@ -606,6 +611,8 @@ async function addTestTorrents(n: number): Promise<Torrent[]> {
 
 // @ts-expect-error -- exposing addTestTorrent for debugging
 window.addTestTorrent = addTestTorrent
+// @ts-expect-error -- exposing addTestTorrent2 for debugging
+window.addTestTorrent2 = addTestTorrent2
 
 // @ts-expect-error -- exposing addTestTorrents for debugging
 window.addTestTorrents = addTestTorrents
