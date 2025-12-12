@@ -13,7 +13,8 @@
     "test:all": "vitest run && vitest run --config vitest.daemon.config.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "download-memory": "node --import tsx scripts/download_memory.ts"
+    "download-memory": "node --import tsx scripts/download_memory.ts",
+    "download-null": "node --import tsx scripts/download_null.ts"
   },
   "keywords": [
     "bittorrent",
