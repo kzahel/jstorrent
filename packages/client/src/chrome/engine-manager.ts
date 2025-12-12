@@ -14,6 +14,7 @@ import {
   toHex,
   type CredentialsGetter,
 } from '@jstorrent/engine'
+import { loadSettings } from '@jstorrent/ui'
 import { getBridge } from './extension-bridge'
 import { notificationBridge, ProgressStats } from './notification-bridge'
 
@@ -204,11 +205,13 @@ class EngineManager {
 
     // 5. Create engine (suspended)
     const hasher = new DaemonHasher(this.daemonConnection)
+    const appSettings = loadSettings()
     this.engine = new BtEngine({
       socketFactory: new DaemonSocketFactory(this.daemonConnection),
       storageRootManager: srm,
       sessionStore: this.sessionStore,
       hasher,
+      port: appSettings.listeningPort,
       startSuspended: true,
     })
     console.log('[EngineManager] Engine created (suspended)')
@@ -580,7 +583,8 @@ async function addTestTorrent(url?: string): Promise<Torrent | null> {
 }
 
 async function addTestTorrent2(): Promise<Torrent | null> {
-  const url = 'magnet:?xt=urn:btih:68e52e19f423308ba4f330d5a9b7fb68cec36355&xt=urn:btmh:1220d501d9530fb0563cb8113adb85a69df2cf5997f59b1927d302fc807e407dc0ee&dn=remy%20reads%20a%20book.mp4'
+  const url =
+    'magnet:?xt=urn:btih:68e52e19f423308ba4f330d5a9b7fb68cec36355&xt=urn:btmh:1220d501d9530fb0563cb8113adb85a69df2cf5997f59b1927d302fc807e407dc0ee&dn=remy%20reads%20a%20book.mp4'
   return addTestTorrent(url)
 }
 
