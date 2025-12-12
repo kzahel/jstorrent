@@ -20,6 +20,7 @@ export interface AppSettings {
   uploadSpeedLimit: number
   maxPeersPerTorrent: number
   maxGlobalPeers: number
+  listeningPort: number
 
   // Advanced
   ioWorkerThreads: number
@@ -39,12 +40,13 @@ const DEFAULT_SETTINGS: AppSettings = {
   uploadSpeedLimit: 0, // unlimited
   maxPeersPerTorrent: 50,
   maxGlobalPeers: 200,
+  listeningPort: 6881,
 
   // Advanced
   ioWorkerThreads: 4,
 }
 
-function loadSettings(): AppSettings {
+export function loadSettings(): AppSettings {
   try {
     const raw = uiStorage.getItem(APP_SETTINGS_KEY)
     if (raw) {

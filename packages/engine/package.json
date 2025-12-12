@@ -12,7 +12,8 @@
     "test:python": "cd integration/python && python run_tests.py",
     "test:all": "vitest run && vitest run --config vitest.daemon.config.ts",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "download-memory": "node --import tsx scripts/download_memory.ts"
   },
   "keywords": [
     "bittorrent",

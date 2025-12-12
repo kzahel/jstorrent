@@ -305,6 +305,19 @@ const InterfaceTab: React.FC<TabProps> = ({ settings, updateSetting }) => (
 
 const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => (
   <div>
+    <Section title="Listening Port">
+      <NumberRow
+        label="Port for incoming connections"
+        value={settings.listeningPort}
+        onChange={(v) => updateSetting('listeningPort', v)}
+        min={1024}
+        max={65535}
+      />
+      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+        Changes require restart to take effect.
+      </div>
+    </Section>
+
     <Section title="Speed Limits">
       <SpeedLimitRow
         label="Download"

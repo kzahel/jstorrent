@@ -617,5 +617,15 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
         }
     }
 
+    // Clean up all resources when WebSocket disconnects
+    {
+        let manager = socket_manager.lock().await;
+        // Abort all TCP server tasks to release their ports
+        for (_, handle) in manager.tcp_servers.iter() {
+            handle.abort();
+        }
+        // TCP sockets and UDP sockets will be cleaned up when dropped
+    }
+
     send_task.abort();
 }
