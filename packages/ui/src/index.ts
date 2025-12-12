@@ -19,7 +19,14 @@ export { usePersistedHeight } from './hooks/usePersistedHeight'
 export type { UsePersistedHeightOptions } from './hooks/usePersistedHeight'
 export { usePersistedUIState } from './hooks/usePersistedUIState'
 export type { UsePersistedUIStateOptions } from './hooks/usePersistedUIState'
-export { useAppSettings, applyTheme, getEffectiveTheme, loadSettings } from './hooks/useAppSettings'
+export {
+  useAppSettings,
+  applyTheme,
+  getEffectiveTheme,
+  loadSettings,
+  getSettingSchema,
+  getDefaultValue,
+} from './hooks/useAppSettings'
 export type { AppSettings, Theme, SettingsTab } from './hooks/useAppSettings'
 
 // Tables

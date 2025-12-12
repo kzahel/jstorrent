@@ -452,22 +452,42 @@ interface NumberRowProps {
   max?: number
 }
 
-const NumberRow: React.FC<NumberRowProps> = ({ label, value, onChange, min = 0, max = 9999 }) => (
-  <div style={styles.fieldRow}>
-    <span style={{ flex: 1 }}>{label}</span>
-    <input
-      type="number"
-      value={value}
-      onChange={(e) => {
-        const v = Number(e.target.value)
-        if (v >= min && v <= max) onChange(v)
-      }}
-      min={min}
-      max={max}
-      style={styles.numberInput}
-    />
-  </div>
-)
+const NumberRow: React.FC<NumberRowProps> = ({ label, value, onChange, min = 0, max = 9999 }) => {
+  const [inputValue, setInputValue] = useState(String(value))
+
+  // Sync from prop when it changes externally
+  useEffect(() => {
+    setInputValue(String(value))
+  }, [value])
+
+  const handleBlur = () => {
+    const v = Number(inputValue)
+    if (Number.isFinite(v)) {
+      // Clamp to range and update
+      const clamped = Math.max(min, Math.min(max, v))
+      onChange(clamped)
+      setInputValue(String(clamped))
+    } else {
+      // Invalid input, reset to current value
+      setInputValue(String(value))
+    }
+  }
+
+  return (
+    <div style={styles.fieldRow}>
+      <span style={{ flex: 1 }}>{label}</span>
+      <input
+        type="number"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onBlur={handleBlur}
+        min={min}
+        max={max}
+        style={styles.numberInput}
+      />
+    </div>
+  )
+}
 
 // ============ Styles ============
 
