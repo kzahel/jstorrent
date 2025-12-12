@@ -114,6 +114,18 @@ export class RrdHistory {
     const nextTier = this.tiers[tierIndex + 1]
     if (!nextTier) return
 
+    // Don't consolidate stale data that would modify already-completed buckets
+    // This can happen when resuming after a gap - the old bucket data shouldn't
+    // be added to higher-tier buckets that have already been displayed
+    const now = Date.now()
+    const dataBucket =
+      Math.floor(tier.bucketStartTime / nextTier.config.bucketMs) * nextTier.config.bucketMs
+    const dataBucketEnd = dataBucket + nextTier.config.bucketMs
+    // Allow one bucket period of tolerance for normal consolidation delay
+    if (now > dataBucketEnd + nextTier.config.bucketMs) {
+      return
+    }
+
     // Consolidate: pass the finalized bucket value to next tier
     const value = tier.buckets[tier.index]
     this.recordToTier(tierIndex + 1, value, tier.bucketStartTime)
