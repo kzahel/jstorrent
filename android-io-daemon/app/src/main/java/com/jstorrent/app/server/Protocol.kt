@@ -24,6 +24,12 @@ object Protocol {
     const val OP_TCP_RECV: Byte = 0x13
     const val OP_TCP_CLOSE: Byte = 0x14
 
+    // TCP Server opcodes
+    const val OP_TCP_LISTEN: Byte = 0x15
+    const val OP_TCP_LISTEN_RESULT: Byte = 0x16
+    const val OP_TCP_ACCEPT: Byte = 0x17
+    const val OP_TCP_STOP_LISTEN: Byte = 0x18
+
     // UDP opcodes
     const val OP_UDP_BIND: Byte = 0x20
     const val OP_UDP_BOUND: Byte = 0x21
@@ -42,6 +48,7 @@ object Protocol {
 
     val IO_OPCODES = HANDSHAKE_OPCODES + setOf(
         OP_TCP_CONNECT, OP_TCP_CONNECTED, OP_TCP_SEND, OP_TCP_RECV, OP_TCP_CLOSE,
+        OP_TCP_LISTEN, OP_TCP_LISTEN_RESULT, OP_TCP_ACCEPT, OP_TCP_STOP_LISTEN,
         OP_UDP_BIND, OP_UDP_BOUND, OP_UDP_SEND, OP_UDP_RECV, OP_UDP_CLOSE
     )
 
