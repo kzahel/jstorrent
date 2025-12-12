@@ -40,6 +40,31 @@ export interface ITcpSocket {
   connect?(port: number, host: string): Promise<void>
 }
 
+export interface ITcpServer {
+  /**
+   * Start listening on the specified port.
+   * Calls the callback when the server is ready.
+   */
+  listen(port: number, callback?: () => void): void
+
+  /**
+   * Get the address the server is listening on.
+   */
+  address(): { port: number } | null
+
+  /**
+   * Register a callback for incoming connections.
+   * The socket passed to the callback is the native socket that needs to be wrapped.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(event: 'connection', cb: (socket: any) => void): void
+
+  /**
+   * Close the server.
+   */
+  close(): void
+}
+
 export interface IUdpSocket {
   /**
    * Send data to a specific address and port.
@@ -73,8 +98,7 @@ export interface ISocketFactory {
   /**
    * Create a TCP server.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createTcpServer(): any
+  createTcpServer(): ITcpServer
 
   /**
    * Wrap a native socket into ITcpSocket.

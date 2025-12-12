@@ -6,7 +6,7 @@ use axum::{
 };
 use futures::{sink::SinkExt, stream::StreamExt};
 use std::sync::Arc;
-use tokio::net::{TcpStream, UdpSocket};
+use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::mpsc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::{timeout, Duration};
@@ -27,6 +27,12 @@ const OP_TCP_CONNECTED: u8 = 0x11;
 const OP_TCP_SEND: u8 = 0x12;
 const OP_TCP_RECV: u8 = 0x13;
 const OP_TCP_CLOSE: u8 = 0x14;
+
+// TCP Server opcodes
+const OP_TCP_LISTEN: u8 = 0x15;
+const OP_TCP_LISTEN_RESULT: u8 = 0x16;
+const OP_TCP_ACCEPT: u8 = 0x17;
+const OP_TCP_STOP_LISTEN: u8 = 0x18;
 
 const OP_UDP_BIND: u8 = 0x20;
 const OP_UDP_BOUND: u8 = 0x21;
@@ -90,6 +96,8 @@ impl Envelope {
 struct SocketManager {
     tcp_sockets: HashMap<u32, mpsc::Sender<Vec<u8>>>,
     udp_sockets: HashMap<u32, Arc<UdpSocket>>,
+    tcp_servers: HashMap<u32, tokio::task::JoinHandle<()>>,
+    next_socket_id: u32,
 }
 
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
@@ -108,6 +116,8 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let socket_manager = Arc::new(Mutex::new(SocketManager {
         tcp_sockets: HashMap::new(),
         udp_sockets: HashMap::new(),
+        tcp_servers: HashMap::new(),
+        next_socket_id: 0x10000, // Start high to avoid collision with client-assigned IDs
     }));
 
     // Authentication State Machine
@@ -341,6 +351,148 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                     if payload.len() >= 4 {
                         let socket_id = u32::from_le_bytes(payload[0..4].try_into().unwrap());
                         socket_manager.lock().await.tcp_sockets.remove(&socket_id);
+                    }
+                }
+                OP_TCP_LISTEN => {
+                    // Payload: serverId(4), port(2), bind_addr(string)
+                    if payload.len() >= 6 {
+                        let server_id = u32::from_le_bytes(payload[0..4].try_into().unwrap());
+                        let port = u16::from_le_bytes(payload[4..6].try_into().unwrap());
+                        let bind_addr = String::from_utf8_lossy(&payload[6..]).to_string();
+                        let addr = if bind_addr.is_empty() {
+                            format!("0.0.0.0:{}", port)
+                        } else {
+                            format!("{}:{}", bind_addr, port)
+                        };
+
+                        let manager = socket_manager.clone();
+                        let tx_clone = tx.clone();
+                        let req_id = env.request_id;
+
+                        tokio::spawn(async move {
+                            match TcpListener::bind(&addr).await {
+                                Ok(listener) => {
+                                    let bound_port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
+
+                                    // Send TCP_LISTEN_RESULT success
+                                    // Payload: serverId(4), status(1), boundPort(2), errno(4)
+                                    let mut resp = server_id.to_le_bytes().to_vec();
+                                    resp.push(0); // Success
+                                    resp.extend_from_slice(&bound_port.to_le_bytes());
+                                    resp.extend_from_slice(&0u32.to_le_bytes());
+
+                                    let env = Envelope::new(OP_TCP_LISTEN_RESULT, req_id);
+                                    let mut data = env.to_bytes().to_vec();
+                                    data.extend_from_slice(&resp);
+                                    tx_clone.send(data).await.ok();
+
+                                    // Spawn accept loop
+                                    let tx_accept = tx_clone.clone();
+                                    let manager_accept = manager.clone();
+                                    let accept_handle = tokio::spawn(async move {
+                                        loop {
+                                            match listener.accept().await {
+                                                Ok((stream, peer_addr)) => {
+                                                    // Allocate a new socket ID for this connection
+                                                    let socket_id = {
+                                                        let mut mgr = manager_accept.lock().await;
+                                                        let id = mgr.next_socket_id;
+                                                        mgr.next_socket_id += 1;
+                                                        id
+                                                    };
+
+                                                    // Send TCP_ACCEPT
+                                                    // Payload: serverId(4), socketId(4), remotePort(2), remoteAddr(string)
+                                                    let mut p = server_id.to_le_bytes().to_vec();
+                                                    p.extend_from_slice(&socket_id.to_le_bytes());
+                                                    p.extend_from_slice(&peer_addr.port().to_le_bytes());
+                                                    let addr_str = peer_addr.ip().to_string();
+                                                    p.extend_from_slice(addr_str.as_bytes());
+
+                                                    let env = Envelope::new(OP_TCP_ACCEPT, 0);
+                                                    let mut d = env.to_bytes().to_vec();
+                                                    d.extend_from_slice(&p);
+                                                    if tx_accept.send(d).await.is_err() {
+                                                        break;
+                                                    }
+
+                                                    // Set up read/write for the accepted connection
+                                                    let (mut read_half, mut write_half) = stream.into_split();
+                                                    let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
+
+                                                    manager_accept.lock().await.tcp_sockets.insert(socket_id, write_tx);
+
+                                                    // Read task
+                                                    let tx_read = tx_accept.clone();
+                                                    tokio::spawn(async move {
+                                                        let mut buf = [0u8; 8192];
+                                                        loop {
+                                                            match read_half.read(&mut buf).await {
+                                                                Ok(0) => break,
+                                                                Ok(n) => {
+                                                                    let mut p = socket_id.to_le_bytes().to_vec();
+                                                                    p.extend_from_slice(&buf[..n]);
+
+                                                                    let env = Envelope::new(OP_TCP_RECV, 0);
+                                                                    let mut d = env.to_bytes().to_vec();
+                                                                    d.extend_from_slice(&p);
+                                                                    if tx_read.send(d).await.is_err() {
+                                                                        break;
+                                                                    }
+                                                                }
+                                                                Err(_) => break,
+                                                            }
+                                                        }
+                                                        // Send TCP_CLOSE
+                                                        let mut p = socket_id.to_le_bytes().to_vec();
+                                                        p.push(0);
+                                                        p.extend_from_slice(&0u32.to_le_bytes());
+
+                                                        let env = Envelope::new(OP_TCP_CLOSE, 0);
+                                                        let mut d = env.to_bytes().to_vec();
+                                                        d.extend_from_slice(&p);
+                                                        tx_read.send(d).await.ok();
+                                                    });
+
+                                                    // Write task
+                                                    tokio::spawn(async move {
+                                                        while let Some(data) = write_rx.recv().await {
+                                                            if write_half.write_all(&data).await.is_err() {
+                                                                break;
+                                                            }
+                                                        }
+                                                    });
+                                                }
+                                                Err(_) => break,
+                                            }
+                                        }
+                                    });
+
+                                    manager.lock().await.tcp_servers.insert(server_id, accept_handle);
+                                }
+                                Err(_e) => {
+                                    // Send TCP_LISTEN_RESULT failure
+                                    let mut resp = server_id.to_le_bytes().to_vec();
+                                    resp.push(1); // Failure
+                                    resp.extend_from_slice(&0u16.to_le_bytes());
+                                    resp.extend_from_slice(&1u32.to_le_bytes()); // Generic errno
+
+                                    let env = Envelope::new(OP_TCP_LISTEN_RESULT, req_id);
+                                    let mut data = env.to_bytes().to_vec();
+                                    data.extend_from_slice(&resp);
+                                    tx_clone.send(data).await.ok();
+                                }
+                            }
+                        });
+                    }
+                }
+                OP_TCP_STOP_LISTEN => {
+                    // Payload: serverId(4)
+                    if payload.len() >= 4 {
+                        let server_id = u32::from_le_bytes(payload[0..4].try_into().unwrap());
+                        if let Some(handle) = socket_manager.lock().await.tcp_servers.remove(&server_id) {
+                            handle.abort();
+                        }
                     }
                 }
                 OP_UDP_BIND => {

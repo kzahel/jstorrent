@@ -1,6 +1,6 @@
 import * as net from 'net'
 import * as dgram from 'dgram'
-import { ITcpSocket, ISocketFactory, IUdpSocket } from '../../interfaces/socket'
+import { ITcpServer, ITcpSocket, ISocketFactory, IUdpSocket } from '../../interfaces/socket'
 
 export class NodeTcpSocket implements ITcpSocket {
   private socket: net.Socket
@@ -93,6 +93,35 @@ export class NodeUdpSocket implements IUdpSocket {
   }
 }
 
+export class NodeTcpServer implements ITcpServer {
+  private server: net.Server
+
+  constructor() {
+    this.server = net.createServer()
+  }
+
+  listen(port: number, callback?: () => void): void {
+    this.server.listen(port, callback)
+  }
+
+  address(): { port: number } | null {
+    const addr = this.server.address()
+    if (addr && typeof addr === 'object' && 'port' in addr) {
+      return { port: addr.port }
+    }
+    return null
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(event: 'connection', cb: (socket: any) => void): void {
+    this.server.on(event, cb)
+  }
+
+  close(): void {
+    this.server.close()
+  }
+}
+
 export class NodeSocketFactory implements ISocketFactory {
   async createTcpSocket(host?: string, port?: number): Promise<ITcpSocket> {
     const socket = new NodeTcpSocket()
@@ -106,8 +135,8 @@ export class NodeSocketFactory implements ISocketFactory {
     return new NodeUdpSocket()
   }
 
-  createTcpServer(): net.Server {
-    return net.createServer()
+  createTcpServer(): ITcpServer {
+    return new NodeTcpServer()
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

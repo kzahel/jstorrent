@@ -11,8 +11,10 @@ import java.io.IOException
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 private const val TAG = "SocketHandler"
 
@@ -32,6 +34,8 @@ class SocketSession(
     // Socket management
     private val tcpSockets = ConcurrentHashMap<Int, TcpSocketHandler>()
     private val udpSockets = ConcurrentHashMap<Int, UdpSocketHandler>()
+    private val tcpServers = ConcurrentHashMap<Int, TcpServerHandler>()
+    private val nextSocketId = AtomicInteger(0x10000) // Start high to avoid collision with client-assigned IDs
 
     // Outgoing message queue - large buffer for high throughput
     private val outgoing = Channel<ByteArray>(1000)
@@ -161,6 +165,8 @@ class SocketSession(
             Protocol.OP_TCP_CONNECT -> handleTcpConnect(envelope.requestId, payload)
             Protocol.OP_TCP_SEND -> handleTcpSend(payload)
             Protocol.OP_TCP_CLOSE -> handleTcpClose(payload)
+            Protocol.OP_TCP_LISTEN -> handleTcpListen(envelope.requestId, payload)
+            Protocol.OP_TCP_STOP_LISTEN -> handleTcpStopListen(payload)
             Protocol.OP_UDP_BIND -> handleUdpBind(envelope.requestId, payload)
             Protocol.OP_UDP_SEND -> handleUdpSend(payload)
             Protocol.OP_UDP_CLOSE -> handleUdpClose(payload)
@@ -217,6 +223,61 @@ class SocketSession(
 
         val socketId = payload.getUIntLE(0)
         tcpSockets.remove(socketId)?.close()
+    }
+
+    // TCP Server handlers
+
+    private fun handleTcpListen(requestId: Int, payload: ByteArray) {
+        if (payload.size < 6) return
+
+        val serverId = payload.getUIntLE(0)
+        val port = payload.getUShortLE(4)
+        // bindAddr (string) is ignored for now - always binds to 0.0.0.0
+
+        Log.d(TAG, "TCP_LISTEN: serverId=$serverId, port=$port")
+
+        scope.launch {
+            try {
+                val serverSocket = ServerSocket(port)
+                val boundPort = serverSocket.localPort
+
+                val handler = TcpServerHandler(
+                    serverId,
+                    serverSocket,
+                    this@SocketSession,
+                    nextSocketId,
+                    tcpSockets
+                )
+                tcpServers[serverId] = handler
+
+                // Send TCP_LISTEN_RESULT success
+                // Payload: serverId(4), status(1), boundPort(2), errno(4)
+                val response = serverId.toLEBytes() +
+                    byteArrayOf(0) +
+                    boundPort.toShort().toLEBytes() +
+                    0.toLEBytes()
+                send(Protocol.createMessage(Protocol.OP_TCP_LISTEN_RESULT, requestId, response))
+
+                // Start accepting connections
+                handler.startAccepting()
+
+            } catch (e: Exception) {
+                Log.e(TAG, "TCP listen failed: ${e.message}")
+                // Send TCP_LISTEN_RESULT failure
+                val response = serverId.toLEBytes() +
+                    byteArrayOf(1) +
+                    0.toShort().toLEBytes() +
+                    1.toLEBytes()
+                send(Protocol.createMessage(Protocol.OP_TCP_LISTEN_RESULT, requestId, response))
+            }
+        }
+    }
+
+    private fun handleTcpStopListen(payload: ByteArray) {
+        if (payload.size < 4) return
+
+        val serverId = payload.getUIntLE(0)
+        tcpServers.remove(serverId)?.close()
     }
 
     // UDP handlers
@@ -318,8 +379,60 @@ class SocketSession(
         tcpSockets.clear()
         udpSockets.values.forEach { it.close() }
         udpSockets.clear()
+        tcpServers.values.forEach { it.close() }
+        tcpServers.clear()
         scope.cancel()
         outgoing.close()
+    }
+}
+
+class TcpServerHandler(
+    private val serverId: Int,
+    private val serverSocket: ServerSocket,
+    private val session: SocketSession,
+    private val nextSocketId: AtomicInteger,
+    private val tcpSockets: ConcurrentHashMap<Int, TcpSocketHandler>
+) {
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    fun startAccepting() {
+        scope.launch {
+            try {
+                while (true) {
+                    val socket = serverSocket.accept()
+                    val socketId = nextSocketId.getAndIncrement()
+                    val peerAddr = socket.inetAddress.hostAddress ?: "unknown"
+                    val peerPort = socket.port
+
+                    Log.d(TAG, "TCP_ACCEPT: serverId=$serverId, socketId=$socketId, peer=$peerAddr:$peerPort")
+
+                    // Create handler for accepted connection
+                    val handler = TcpSocketHandler(socketId, socket, session)
+                    tcpSockets[socketId] = handler
+
+                    // Send TCP_ACCEPT
+                    // Payload: serverId(4), socketId(4), remotePort(2), remoteAddr(string)
+                    val addrBytes = peerAddr.toByteArray()
+                    val payload = serverId.toLEBytes() +
+                        socketId.toLEBytes() +
+                        peerPort.toShort().toLEBytes() +
+                        addrBytes
+                    session.send(Protocol.createMessage(Protocol.OP_TCP_ACCEPT, 0, payload))
+
+                    // Start reading from the accepted connection
+                    handler.startReading()
+                }
+            } catch (e: IOException) {
+                Log.d(TAG, "TCP server $serverId accept ended: ${e.message}")
+            }
+        }
+    }
+
+    fun close() {
+        scope.cancel()
+        try {
+            serverSocket.close()
+        } catch (e: Exception) {}
     }
 }
 

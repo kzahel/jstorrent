@@ -1,5 +1,6 @@
-import { ISocketFactory, ITcpSocket, IUdpSocket } from '../../interfaces/socket'
+import { ISocketFactory, ITcpServer, ITcpSocket, IUdpSocket } from '../../interfaces/socket'
 import { DaemonConnection } from './daemon-connection'
+import { DaemonTcpServer } from './daemon-tcp-server'
 import { DaemonTcpSocket } from './daemon-tcp-socket'
 import { DaemonUdpSocket } from './daemon-udp-socket'
 import { IDaemonSocketManager } from './internal-types'
@@ -46,14 +47,19 @@ export class DaemonSocketFactory implements ISocketFactory, IDaemonSocketManager
     return new DaemonUdpSocket(socketId, this.daemon, this)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createTcpServer(): any {
-    throw new Error('Method not implemented.')
+  createTcpServer(): ITcpServer {
+    const serverId = this.nextSocketIdVal++
+    return new DaemonTcpServer(serverId, this.daemon, this)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  wrapTcpSocket(_socket: any): ITcpSocket {
-    throw new Error('Method not implemented.')
+  wrapTcpSocket(socket: any): ITcpSocket {
+    // If the socket is already a DaemonTcpSocket (from DaemonTcpServer), return it as-is
+    if (socket instanceof DaemonTcpSocket) {
+      return socket
+    }
+    // For other socket types, this would need to be implemented
+    throw new Error('wrapTcpSocket only supports DaemonTcpSocket')
   }
 
   registerHandler(socketId: number, handler: (payload: Uint8Array, msgType: number) => void) {
