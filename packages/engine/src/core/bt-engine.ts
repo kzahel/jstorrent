@@ -25,6 +25,7 @@ import { SessionPersistence } from './session-persistence'
 import { Torrent } from './torrent'
 import { PeerConnection } from './peer-connection'
 import { TorrentUserState } from './torrent-state'
+import { BandwidthTracker } from './bandwidth-tracker'
 
 // New imports for refactored code
 import { parseTorrentInput } from './torrent-factory'
@@ -63,6 +64,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public readonly socketFactory: ISocketFactory
   public readonly sessionPersistence: SessionPersistence
   public readonly hasher: IHasher
+  public readonly bandwidthTracker = new BandwidthTracker()
   public torrents: Torrent[] = []
   public port: number
   public peerId: Uint8Array

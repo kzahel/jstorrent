@@ -5,6 +5,7 @@ import {
   globalLogStore,
   DiskQueueSnapshot,
   TrackerStats,
+  BandwidthTracker,
 } from '@jstorrent/engine'
 
 /**
@@ -47,6 +48,9 @@ export interface EngineAdapter {
 
   /** Get tracker stats for a torrent */
   getTrackerStats(infoHash: string): TrackerStats[]
+
+  /** Get the bandwidth tracker for speed graphs */
+  getBandwidthTracker(): BandwidthTracker
 }
 
 /**
@@ -104,5 +108,9 @@ export class DirectEngineAdapter implements EngineAdapter {
   getTrackerStats(infoHash: string): TrackerStats[] {
     const torrent = this.engine.getTorrent(infoHash)
     return torrent?.getTrackerStats() ?? []
+  }
+
+  getBandwidthTracker(): BandwidthTracker {
+    return this.engine.bandwidthTracker
   }
 }

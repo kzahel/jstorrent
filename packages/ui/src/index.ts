@@ -11,6 +11,8 @@ export { ResizeHandle } from './components/ResizeHandle'
 export type { ResizeHandleProps } from './components/ResizeHandle'
 export { GeneralPane } from './components/GeneralPane'
 export type { GeneralPaneProps } from './components/GeneralPane'
+export { SpeedTab } from './components/SpeedTab'
+export type { SpeedTabProps } from './components/SpeedTab'
 
 // Hooks
 export { usePersistedHeight } from './hooks/usePersistedHeight'

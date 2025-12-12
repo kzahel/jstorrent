@@ -10,8 +10,8 @@ export interface ActivePieceConfig {
 
 const DEFAULT_CONFIG: ActivePieceConfig = {
   requestTimeoutMs: 30000,
-  maxActivePieces: 20,
-  maxBufferedBytes: 16 * 1024 * 1024, // 16MB
+  maxActivePieces: 60,
+  maxBufferedBytes: 16 * 1024 * 1024, // 16MB // too low?
   cleanupIntervalMs: 10000,
 }
 

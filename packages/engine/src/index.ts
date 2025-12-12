@@ -1,6 +1,8 @@
 // Core
 export { BtEngine } from './core/bt-engine'
 export { Torrent } from './core/torrent'
+export { BandwidthTracker } from './core/bandwidth-tracker'
+export type { BandwidthTrackerConfig } from './core/bandwidth-tracker'
 export { TorrentFileInfo } from './core/torrent-file-info'
 export { PeerConnection } from './core/peer-connection'
 export { ActivePiece } from './core/active-piece'
@@ -51,6 +53,8 @@ export { createDaemonEngine } from './presets/daemon'
 // Utils
 export { generateMagnet, parseMagnet, createTorrentBuffer } from './utils/magnet'
 export type { GenerateMagnetOptions, ParsedMagnet } from './utils/magnet'
+export { RrdHistory, DEFAULT_RRD_TIERS } from './utils/rrd-history'
+export type { RrdTierConfig, RrdSample } from './utils/rrd-history'
 export { toHex, fromHex, toBase64, fromBase64 } from './utils/buffer'
 export type { InfoHashHex } from './utils/infohash'
 export { infoHashFromHex, infoHashFromBytes } from './utils/infohash'

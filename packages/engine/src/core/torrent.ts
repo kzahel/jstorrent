@@ -1145,15 +1145,14 @@ export class Torrent extends EngineComponent {
 
     peer.on('bytesDownloaded', (bytes) => {
       this.totalDownloaded += bytes
-      this.emit('download', bytes) // Re-emit or keep existing 'download' event usage?
-      // Existing 'download' event was emitted in handlePiece, but that's for valid pieces?
-      // No, handlePiece emitted 'download' with block length.
-      // Let's check handlePiece.
+      this.emit('download', bytes)
+      ;(this.engine as BtEngine).bandwidthTracker.recordDownload(bytes)
     })
 
     peer.on('bytesUploaded', (bytes) => {
       this.totalUploaded += bytes
       this.emit('upload', bytes)
+      ;(this.engine as BtEngine).bandwidthTracker.recordUpload(bytes)
     })
 
     // PEX: Listen for peers discovered via peer exchange
@@ -1414,13 +1413,14 @@ export class Torrent extends EngineComponent {
       this.logger.debug(`Duplicate block ${msg.index}:${msg.begin}`)
     }
 
-    // Check if piece is complete
+    // Refill request pipeline immediately (before any async I/O)
+    // This prevents sawtooth download patterns on fast peers
+    this.requestPieces(peer)
+
+    // Then finalize if piece is complete
     if (piece.haveAllBlocks) {
       await this.finalizePiece(msg.index, piece)
     }
-
-    // Continue requesting more pieces
-    this.requestPieces(peer)
   }
 
   /**

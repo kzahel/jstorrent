@@ -6,10 +6,12 @@ import {
   withScopeAndFiltering,
   globalLogStore,
 } from '../../src/logging/logger'
+import { BandwidthTracker } from '../../src/core/bandwidth-tracker'
 
 export class MockEngine implements ILoggingEngine {
   clientId = 'mock-client'
   filterFn = createFilter({ level: 'debug' })
+  bandwidthTracker = new BandwidthTracker()
 
   scopedLoggerFor(component: EngineComponent): Logger {
     return withScopeAndFiltering(component, this.filterFn, {
