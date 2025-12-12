@@ -217,7 +217,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handleIncomingConnection(nativeSocket: any) {
     const socket = this.socketFactory.wrapTcpSocket(nativeSocket)
-    const peer = new PeerConnection(this, socket)
+    // Extract remote address from the socket (available for incoming connections)
+    const peer = new PeerConnection(this, socket, {
+      remoteAddress: socket.remoteAddress,
+      remotePort: socket.remotePort,
+    })
     peer.on('handshake', (infoHash, _peerId, _extensions) => {
       const infoHashStr = toHex(infoHash)
       const torrent = this.getTorrent(infoHashStr)

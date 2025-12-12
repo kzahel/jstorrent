@@ -98,10 +98,14 @@ export class DaemonTcpServer implements ITcpServer {
 
     const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength)
     const socketId = view.getUint32(4, true)
-    // remotePort and remoteAddr are available but not needed for the callback
+    const remotePort = view.getUint16(8, true)
+    const remoteAddress = new TextDecoder().decode(payload.slice(10))
 
-    // Create a DaemonTcpSocket for the accepted connection
-    const socket = new DaemonTcpSocket(socketId, this.daemon, this.manager)
+    // Create a DaemonTcpSocket for the accepted connection with remote address info
+    const socket = new DaemonTcpSocket(socketId, this.daemon, this.manager, {
+      remoteAddress,
+      remotePort,
+    })
 
     // Call the connection callback with the socket
     // The engine expects to receive the socket and will call wrapTcpSocket on it,
