@@ -33,6 +33,16 @@ export interface ITcpSocket {
   close(): void
 
   /**
+   * Remote peer address (available for accepted connections).
+   */
+  remoteAddress?: string
+
+  /**
+   * Remote peer port (available for accepted connections).
+   */
+  remotePort?: number
+
+  /**
    * Connect to a remote peer.
    * Note: This is an addition to the extension's interface to allow
    * the engine to initiate connections.

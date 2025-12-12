@@ -15,11 +15,20 @@ export class DaemonTcpSocket implements ITcpSocket {
   // @ts-expect-error - unused
   private onErrorCb: ((err: Error) => void) | null = null
 
+  // Remote address info (available for accepted connections)
+  public remoteAddress?: string
+  public remotePort?: number
+
   constructor(
     private id: number,
     private daemon: DaemonConnection,
     private manager: IDaemonSocketManager,
+    options?: { remoteAddress?: string; remotePort?: number },
   ) {
+    if (options) {
+      this.remoteAddress = options.remoteAddress
+      this.remotePort = options.remotePort
+    }
     this.manager.registerHandler(id, (payload, msgType) => {
       if (msgType === OP_TCP_RECV) {
         // Payload: socketId(4) + data
