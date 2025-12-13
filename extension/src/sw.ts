@@ -296,6 +296,27 @@ function handleMessage(
     return true
   }
 
+  // Remove download root
+  if (message.type === 'REMOVE_DOWNLOAD_ROOT') {
+    const key = message.key as string | undefined
+    console.log('[SW] REMOVE_DOWNLOAD_ROOT received, key:', key)
+    if (!key) {
+      sendResponse({ ok: false, error: 'Missing key' })
+      return true
+    }
+    bridge
+      .removeDownloadRoot(key)
+      .then((success) => {
+        console.log('[SW] removeDownloadRoot result:', success)
+        sendResponse({ ok: success })
+      })
+      .catch((e: unknown) => {
+        console.error('[SW] removeDownloadRoot error:', e)
+        sendResponse({ ok: false, error: String(e) })
+      })
+    return true
+  }
+
   // UI closing - no longer need to track UI count with simplified bridge
   if (message.type === 'UI_CLOSING') {
     sendResponse({ ok: true })

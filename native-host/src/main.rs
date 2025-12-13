@@ -237,7 +237,36 @@ async fn handle_request(
             res
         },
 
-        
+        Operation::DeleteDownloadRoot { key } => {
+            log!("Handling DeleteDownloadRoot for key: {}", key);
+
+            let mut removed = false;
+            if let Ok(mut info_guard) = state.rpc_info.lock() {
+                if let Some(info) = info_guard.as_mut() {
+                    let len_before = info.download_roots.len();
+                    info.download_roots.retain(|r| r.key != key);
+                    removed = info.download_roots.len() < len_before;
+
+                    if removed {
+                        // Persist to rpc-info.json
+                        if let Err(e) = crate::rpc::write_discovery_file(info.clone()) {
+                            log!("Failed to persist rpc-info after removing root: {}", e);
+                        }
+                    }
+                }
+            }
+
+            if removed {
+                // Refresh daemon config
+                if let Err(e) = daemon_manager.refresh_config().await {
+                    log!("Failed to refresh daemon config: {}", e);
+                }
+                Ok(ResponsePayload::RootRemoved { key })
+            } else {
+                Err(anyhow::anyhow!("Root not found: {}", key))
+            }
+        },
+
         Operation::Handshake { extension_id, install_id } => {
             log!("Handling Handshake for extension_id: {}, install_id: {}", extension_id, install_id);
             // Update extension ID and install ID in state and rewrite discovery file

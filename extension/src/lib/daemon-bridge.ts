@@ -354,6 +354,19 @@ export class DaemonBridge {
     }
   }
 
+  /**
+   * Remove a download root.
+   * Desktop: via native messaging
+   * ChromeOS: via HTTP DELETE to Android daemon
+   */
+  async removeDownloadRoot(key: string): Promise<boolean> {
+    if (this.state.platform === 'desktop') {
+      return this.removeRootDesktop(key)
+    } else {
+      return this.removeRootChromeos(key)
+    }
+  }
+
   // ==========================================================================
   // Desktop Implementation
   // ==========================================================================
@@ -465,6 +478,54 @@ export class DaemonBridge {
       // but responses are keyed by requestId so this is safe
       this.nativePort!.onMessage.addListener(handler)
       this.nativePort!.postMessage({ op: 'pickDownloadDirectory', id: requestId })
+    })
+  }
+
+  private async removeRootDesktop(key: string): Promise<boolean> {
+    if (!this.nativePort) return false
+
+    return new Promise((resolve) => {
+      const requestId = crypto.randomUUID()
+      let resolved = false
+
+      // Timeout after 10 seconds to prevent hanging
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true
+          console.error('[DaemonBridge] removeRootDesktop timed out')
+          resolve(false)
+        }
+      }, 10000)
+
+      const handler = (msg: unknown) => {
+        if (resolved) return
+        if (typeof msg !== 'object' || msg === null) return
+        const response = msg as {
+          id?: string
+          ok?: boolean
+          type?: string
+          payload?: { key?: string }
+        }
+
+        if (response.id !== requestId) return
+
+        resolved = true
+        clearTimeout(timeout)
+
+        if (response.ok && response.type === 'RootRemoved') {
+          // Remove from local state
+          this.updateState({
+            roots: this.state.roots.filter((r) => r.key !== key),
+          })
+          resolve(true)
+        } else {
+          console.error('[DaemonBridge] removeRootDesktop failed:', response)
+          resolve(false)
+        }
+      }
+
+      this.nativePort!.onMessage.addListener(handler)
+      this.nativePort!.postMessage({ op: 'deleteDownloadRoot', key, id: requestId })
     })
   }
 
@@ -639,6 +700,32 @@ export class DaemonBridge {
         }
       })
     })
+  }
+
+  private async removeRootChromeos(key: string): Promise<boolean> {
+    const port = this.state.daemonInfo?.port
+    if (!port) return false
+
+    try {
+      const headers = await this.buildHeaders(true)
+      const response = await fetch(`http://100.115.92.2:${port}/roots/${encodeURIComponent(key)}`, {
+        method: 'DELETE',
+        headers,
+      })
+
+      if (response.ok) {
+        // Root will be updated via ROOTS_CHANGED WebSocket message
+        // but we can optimistically update local state
+        this.updateState({
+          roots: this.state.roots.filter((r) => r.key !== key),
+        })
+        return true
+      }
+      return false
+    } catch (e) {
+      console.error('[DaemonBridge] Failed to remove root:', e)
+      return false
+    }
   }
 
   private buildFrame(opcode: number, requestId: number, payload: Uint8Array): ArrayBuffer {

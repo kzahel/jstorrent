@@ -304,6 +304,49 @@ class EngineManager {
   }
 
   /**
+   * Remove a download root.
+   * Does not block removal if torrents are using it - they will error.
+   * Returns true if removed successfully.
+   */
+  async removeDownloadRoot(key: string): Promise<boolean> {
+    const response = await getBridge().sendMessage<{
+      ok: boolean
+      error?: string
+    }>({ type: 'REMOVE_DOWNLOAD_ROOT', key })
+
+    if (!response.ok) {
+      console.error('[EngineManager] Failed to remove root:', response.error)
+      return false
+    }
+
+    // Remove from StorageRootManager
+    if (this.engine) {
+      this.engine.storageRootManager.removeRoot(key)
+
+      // If this was the default root, select a new default
+      const currentDefault = this.engine.storageRootManager.getDefaultRoot()
+      if (!currentDefault) {
+        // Default was cleared - set new default if any roots remain
+        const remaining = this.engine.storageRootManager.getRoots()
+        if (remaining.length > 0) {
+          this.engine.storageRootManager.setDefaultRoot(remaining[0].key)
+          if (this.sessionStore) {
+            await this.sessionStore.set(
+              DEFAULT_ROOT_KEY_KEY,
+              new TextEncoder().encode(remaining[0].key),
+            )
+          }
+        } else if (this.sessionStore) {
+          // No roots left - clear the persisted default
+          await this.sessionStore.delete(DEFAULT_ROOT_KEY_KEY)
+        }
+      }
+    }
+
+    return true
+  }
+
+  /**
    * Set the default download root.
    */
   async setDefaultRoot(key: string): Promise<void> {
