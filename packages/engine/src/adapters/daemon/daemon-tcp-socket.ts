@@ -14,6 +14,7 @@ export class DaemonTcpSocket implements ITcpSocket {
   private onCloseCb: ((hadError: boolean) => void) | null = null
   // @ts-expect-error - unused
   private onErrorCb: ((err: Error) => void) | null = null
+  private closed = false
 
   // Remote address info (available for accepted connections)
   public remoteAddress?: string
@@ -29,19 +30,28 @@ export class DaemonTcpSocket implements ITcpSocket {
       this.remoteAddress = options.remoteAddress
       this.remotePort = options.remotePort
     }
-    this.manager.registerHandler(id, (payload, msgType) => {
-      if (msgType === OP_TCP_RECV) {
-        // Payload: socketId(4) + data
-        if (this.onDataCb) {
-          this.onDataCb(payload.slice(4))
+    this.manager.registerHandler(
+      id,
+      (payload, msgType) => {
+        if (msgType === OP_TCP_RECV) {
+          // Payload: socketId(4) + data
+          if (this.onDataCb) {
+            this.onDataCb(payload.slice(4))
+          }
+        } else if (msgType === OP_TCP_CLOSE) {
+          // Payload: socketId(4), reason(1), errno(4)
+          // reason != 0 indicates error (including IO connection lost)
+          if (this.closed) return
+          this.closed = true
+          const hadError = payload.length >= 5 && payload[4] !== 0
+          if (this.onCloseCb) {
+            this.onCloseCb(hadError)
+          }
+          this.manager.unregisterHandler(this.id)
         }
-      } else if (msgType === OP_TCP_CLOSE) {
-        if (this.onCloseCb) {
-          this.onCloseCb(false)
-        }
-        this.manager.unregisterHandler(this.id)
-      }
-    })
+      },
+      'tcp',
+    )
   }
 
   async connect(port: number, host: string): Promise<void> {
@@ -91,6 +101,9 @@ export class DaemonTcpSocket implements ITcpSocket {
   }
 
   close() {
+    if (this.closed) return
+    this.closed = true
+
     const buffer = new ArrayBuffer(4)
     new DataView(buffer).setUint32(0, this.id, true)
 
@@ -102,7 +115,11 @@ export class DaemonTcpSocket implements ITcpSocket {
     envView.setUint32(4, 0, true)
     new Uint8Array(env, 8).set(new Uint8Array(buffer))
 
-    this.daemon.sendFrame(env)
+    try {
+      this.daemon.sendFrame(env)
+    } catch {
+      // Ignore send errors during close (connection may already be dead)
+    }
     this.manager.unregisterHandler(this.id)
     if (this.onCloseCb) this.onCloseCb(false)
   }

@@ -19,10 +19,16 @@ export class DaemonConnection {
   private ws: WebSocket | null = null
   private frameHandlers: Array<(f: ArrayBuffer) => void> = []
   private disconnectHandlers: Array<(reason: string) => void> = []
+  private reconnectHandlers: Array<() => void> = []
   public ready = false
 
   // Cached credentials for HTTP requests
   private cachedCredentials: DaemonCredentials | null = null
+
+  // Reconnect state
+  private reconnectAttempts = 0
+  private maxReconnectAttempts = 5
+  private reconnecting = false
 
   // Opcodes
   private static readonly OP_CLIENT_HELLO = 0x01
@@ -128,12 +134,17 @@ export class DaemonConnection {
       for (const h of this.frameHandlers) h(frame)
     }
 
-    // TODO: Add auto-reconnect with exponential backoff
+    // Handle unexpected disconnect with auto-reconnect
     this.ws!.onclose = (ev) => {
-      this.notifyDisconnect(`WebSocket closed: code=${ev.code} reason=${ev.reason}`)
+      const reason = `WebSocket closed: code=${ev.code} reason=${ev.reason}`
+      console.log(`[DaemonConnection] ${reason}`)
+      this.notifyDisconnect(reason)
+      // Trigger reconnect in background (don't await)
+      this.attemptReconnect()
     }
     this.ws!.onerror = () => {
-      this.notifyDisconnect('WebSocket error')
+      // onerror is usually followed by onclose, so just log here
+      console.error('[DaemonConnection] WebSocket error')
     }
   }
 
@@ -159,9 +170,52 @@ export class DaemonConnection {
     this.disconnectHandlers.push(cb)
   }
 
+  onReconnect(cb: () => void) {
+    this.reconnectHandlers.push(cb)
+  }
+
   private notifyDisconnect(reason: string) {
     this.ready = false
     for (const h of this.disconnectHandlers) h(reason)
+  }
+
+  private notifyReconnect() {
+    for (const h of this.reconnectHandlers) h()
+  }
+
+  /**
+   * Attempt to reconnect with exponential backoff.
+   * Called automatically when the websocket closes unexpectedly.
+   */
+  private async attemptReconnect(): Promise<void> {
+    if (this.reconnecting) return
+    this.reconnecting = true
+
+    while (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++
+      const delay = 1000 * Math.pow(2, this.reconnectAttempts - 1) // 1s, 2s, 4s, 8s, 16s
+      console.log(
+        `[DaemonConnection] Reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`,
+      )
+
+      await new Promise((r) => setTimeout(r, delay))
+
+      try {
+        await this.connectWebSocket()
+        console.log('[DaemonConnection] Reconnected successfully')
+        this.reconnectAttempts = 0
+        this.reconnecting = false
+        this.notifyReconnect()
+        return
+      } catch (e) {
+        console.error('[DaemonConnection] Reconnect failed:', e)
+      }
+    }
+
+    console.error('[DaemonConnection] Max reconnect attempts reached, giving up')
+    this.reconnecting = false
+    // Notify disconnect again with final message
+    this.notifyDisconnect('Max reconnect attempts reached')
   }
 
   close() {
@@ -172,6 +226,7 @@ export class DaemonConnection {
       this.ws = null
     }
     this.ready = false
+    this.reconnecting = false // Stop any reconnect attempts
   }
 
   private waitForOpcode(expectedOp: number): Promise<ArrayBuffer> {

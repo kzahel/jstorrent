@@ -11,26 +11,35 @@ const PROTOCOL_VERSION = 1
 export class DaemonUdpSocket implements IUdpSocket {
   private onMessageCb: ((src: { addr: string; port: number }, data: Uint8Array) => void) | null =
     null
+  private closed = false
 
   constructor(
     private id: number,
     private daemon: DaemonConnection,
     private manager: IDaemonSocketManager,
   ) {
-    this.manager.registerHandler(id, (payload, msgType) => {
-      if (msgType === OP_UDP_RECV) {
-        // Payload: socketId(4) + port(2) + addr_len(2) + addr + data
-        const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength)
-        const port = view.getUint16(4, true)
-        const addrLen = view.getUint16(6, true)
-        const addr = new TextDecoder().decode(payload.slice(8, 8 + addrLen))
-        const data = payload.slice(8 + addrLen)
+    this.manager.registerHandler(
+      id,
+      (payload, msgType) => {
+        if (msgType === OP_UDP_RECV) {
+          // Payload: socketId(4) + port(2) + addr_len(2) + addr + data
+          const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength)
+          const port = view.getUint16(4, true)
+          const addrLen = view.getUint16(6, true)
+          const addr = new TextDecoder().decode(payload.slice(8, 8 + addrLen))
+          const data = payload.slice(8 + addrLen)
 
-        if (this.onMessageCb) {
-          this.onMessageCb({ addr, port }, data)
+          if (this.onMessageCb) {
+            this.onMessageCb({ addr, port }, data)
+          }
+        } else if (msgType === OP_UDP_CLOSE) {
+          // Socket was closed (either by daemon or synthetic from IO disconnect)
+          this.closed = true
+          this.manager.unregisterHandler(this.id)
         }
-      }
-    })
+      },
+      'udp',
+    )
   }
 
   send(addr: string, port: number, data: Uint8Array) {
@@ -61,6 +70,9 @@ export class DaemonUdpSocket implements IUdpSocket {
   }
 
   close() {
+    if (this.closed) return
+    this.closed = true
+
     const buffer = new ArrayBuffer(4)
     new DataView(buffer).setUint32(0, this.id, true)
 
@@ -72,7 +84,11 @@ export class DaemonUdpSocket implements IUdpSocket {
     envView.setUint32(4, 0, true)
     new Uint8Array(env, 8).set(new Uint8Array(buffer))
 
-    this.daemon.sendFrame(env)
+    try {
+      this.daemon.sendFrame(env)
+    } catch {
+      // Ignore send errors during close (connection may already be dead)
+    }
     this.manager.unregisterHandler(this.id)
   }
 }

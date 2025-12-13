@@ -170,6 +170,16 @@ class EngineManager {
     }
     console.log('[EngineManager] WebSocket connected')
 
+    // Register disconnect/reconnect handlers
+    this.daemonConnection.onDisconnect((reason) => {
+      console.error('[EngineManager] IO WebSocket disconnected:', reason)
+      this.handleIoDisconnect(reason)
+    })
+    this.daemonConnection.onReconnect(() => {
+      console.log('[EngineManager] IO WebSocket reconnected')
+      this.handleIoReconnect()
+    })
+
     // 3. Set up storage root manager
     const srm = new StorageRootManager(
       (root) => new DaemonFileSystem(this.daemonConnection!, root.key),
@@ -275,6 +285,44 @@ class EngineManager {
     }
 
     this.initPromise = null
+  }
+
+  /**
+   * Handle IO websocket disconnect.
+   * Marks active torrents with error and shows notification.
+   */
+  private handleIoDisconnect(_reason: string): void {
+    if (!this.engine) return
+
+    // Mark all active torrents with IO error
+    for (const torrent of this.engine.torrents) {
+      if (torrent.userState === 'active' && !torrent.errorMessage) {
+        torrent.errorMessage = 'IO connection lost'
+      }
+    }
+
+    // Show notification about connection loss
+    notificationBridge.onTorrentError(
+      'system',
+      'JSTorrent',
+      'IO connection lost - attempting to reconnect',
+    )
+  }
+
+  /**
+   * Handle IO websocket reconnect.
+   * Clears IO errors and resumes torrents.
+   */
+  private handleIoReconnect(): void {
+    if (!this.engine) return
+
+    // Clear IO-related errors and let torrents resume naturally
+    for (const torrent of this.engine.torrents) {
+      if (torrent.errorMessage === 'IO connection lost') {
+        torrent.errorMessage = undefined
+        // Torrents will automatically re-establish peers on next tick
+      }
+    }
   }
 
   /**
