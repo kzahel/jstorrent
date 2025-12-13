@@ -75,3 +75,32 @@ export {
   type DiskQueueSnapshot,
   type DiskQueueConfig,
 } from './core/disk-queue'
+
+// Settings
+export {
+  // Schema and types
+  settingsSchema,
+  type SettingsSchema,
+  type SettingKey,
+  type Settings,
+  type SyncSettingKey,
+  type LocalSettingKey,
+  getSettingDef,
+  getDefaultValue,
+  getStorageClass,
+  requiresRestart,
+  validateValue,
+  getDefaults,
+  SETTINGS_KEY_PREFIX,
+  getStorageKey,
+  // Interface
+  type ISettingsStore,
+  type SettingChangeCallback,
+  type AnySettingChangeCallback,
+  type Unsubscribe,
+  // Base class
+  BaseSettingsStore,
+  // Adapters
+  MemorySettingsStore,
+  LocalStorageSettingsStore,
+} from './settings'
