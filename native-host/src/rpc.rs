@@ -225,10 +225,10 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
             entry.install_id = info.install_id.clone();
         }
 
-        // Only update roots if we have new ones (preserve existing on startup)
-        if !info.download_roots.is_empty() {
-            entry.download_roots = info.download_roots.clone();
-        }
+        // Update download_roots from the incoming info
+        // Note: This will preserve roots on initial startup (when info.download_roots comes from file)
+        // but will also correctly update when roots are added/removed
+        entry.download_roots = info.download_roots.clone();
 
         active_roots = entry.download_roots.clone();
         
@@ -264,6 +264,8 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
     // Atomic write
     let temp_file = tempfile::NamedTempFile::new_in(&app_dir)?;
     serde_json::to_writer(&temp_file, &unified_info)?;
+    // Sync to ensure data is on disk before rename
+    temp_file.as_file().sync_all()?;
     temp_file.persist(&rpc_file).map_err(|e| e.error)?;
 
     Ok(active_roots)

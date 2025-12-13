@@ -750,6 +750,7 @@ export class Torrent extends EngineComponent {
     if (this._networkActive) return
     if ((this.engine as BtEngine).isSuspended) return
     if (this.userState !== 'active') return
+    if (this.errorMessage) return // Error state blocks network like stopped
 
     this.logger.debug('Resuming network')
     this._networkActive = true
@@ -1588,6 +1589,18 @@ export class Torrent extends EngineComponent {
           this.handleHashMismatch(index, piece)
           return
         }
+
+        // Check for fatal storage errors (e.g., storage root deleted)
+        if (e instanceof Error && e.name === 'MissingStorageRootError') {
+          this.logger.error(`Fatal storage error - stopping torrent:`, e)
+          this.errorMessage = 'Download location unavailable. Storage root not found.'
+          this.suspendNetwork()
+          this.activePieces?.remove(index)
+          // Persist error state
+          ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
+          return
+        }
+
         this.logger.error(`Failed to write piece ${index}:`, e)
         this.activePieces?.remove(index)
         return
