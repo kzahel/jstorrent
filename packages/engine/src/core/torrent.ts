@@ -1,5 +1,11 @@
 import { PeerConnection } from './peer-connection'
 import { ActivePiece, BLOCK_SIZE } from './active-piece'
+import {
+  PeerCoordinator,
+  PeerSnapshot,
+  ChokeDecision,
+  DropDecision,
+} from './peer-coordinator'
 import { ActivePieceManager } from './active-piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 import { HashMismatchError } from '../adapters/daemon/daemon-file-handle'
@@ -80,6 +86,7 @@ export class Torrent extends EngineComponent {
   private _swarm: Swarm // Single source of truth for peer state (Phase 3)
   private _connectionManager: ConnectionManager // Handles outgoing connection lifecycle
   private connectionTiming: ConnectionTimingTracker // Tracks connection timing for adaptive timeouts
+  private _peerCoordinator: PeerCoordinator // Coordinates choke/unchoke and peer dropping decisions
   public infoHash: Uint8Array
   public peerId: Uint8Array
   public socketFactory: ISocketFactory
@@ -303,6 +310,12 @@ export class Torrent extends EngineComponent {
         maxPeersPerTorrent: this.maxPeers,
         connectTimeout: 10000, // 10 second internal timeout
       },
+    )
+
+    // Initialize peer coordinator for BEP 3 choke algorithm
+    this._peerCoordinator = new PeerCoordinator(
+      { maxUploadSlots: this.maxUploadSlots },
+      {}, // Use default download optimizer config
     )
 
     if (this.announce.length > 0) {
@@ -580,6 +593,22 @@ export class Torrent extends EngineComponent {
    */
   getConnectionTimingStats(): import('./connection-timing').ConnectionTimingStats {
     return this.connectionTiming.getStats()
+  }
+
+  /**
+   * Get peer coordinator state for debugging/UI.
+   */
+  getPeerCoordinatorState(): {
+    protectedPeers: string[]
+    optimisticPeer: string | null
+    config: ReturnType<PeerCoordinator['getConfig']>
+  } {
+    const state = this._peerCoordinator.getUnchokeState()
+    return {
+      protectedPeers: Array.from(state.unchokedPeerIds),
+      optimisticPeer: state.optimisticPeerId,
+      config: this._peerCoordinator.getConfig(),
+    }
   }
 
   /**
@@ -871,7 +900,7 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Run maintenance: try to fill peer slots from swarm.
+   * Run maintenance: peer coordination and slot filling.
    */
   private runMaintenance(): void {
     // Always check invariants regardless of state
@@ -879,7 +908,25 @@ export class Torrent extends EngineComponent {
 
     if (!this._networkActive) return
     if (this.isKillSwitchEnabled) return
-    if (this.isComplete) return // Don't seek peers when complete (unless seeding, future feature)
+
+    // === Run peer coordinator (BEP 3 choke algorithm + download optimizer) ===
+    const snapshots = this.buildPeerSnapshots()
+    const hasSwarmCandidates = this._swarm.getConnectablePeers(1).length > 0
+
+    const { unchoke, drop } = this._peerCoordinator.evaluate(snapshots, hasSwarmCandidates)
+
+    // Apply unchoke decisions
+    for (const decision of unchoke) {
+      this.applyUnchokeDecision(decision)
+    }
+
+    // Apply drop decisions
+    for (const decision of drop) {
+      this.applyDropDecision(decision)
+    }
+
+    // === Fill peer slots (existing logic) ===
+    if (this.isComplete) return // Don't seek peers when complete
 
     const connected = this.numPeers
     const connecting = this.pendingConnections.size
@@ -888,7 +935,6 @@ export class Torrent extends EngineComponent {
     if (slotsAvailable <= 0) return
     if (this._swarm.size === 0) return
 
-    // Get connectable peers from swarm (respects backoff, filters banned/connected)
     const candidates = this._swarm.getConnectablePeers(slotsAvailable)
 
     if (candidates.length > 0) {
@@ -901,7 +947,6 @@ export class Torrent extends EngineComponent {
         if (!this.globalLimitCheck()) break
         if (this.numPeers + this.pendingConnections.size >= this.maxPeers) break
 
-        // Connect using existing method
         this.connectToPeer({ ip: swarmPeer.ip, port: swarmPeer.port })
       }
     }
@@ -1007,6 +1052,7 @@ export class Torrent extends EngineComponent {
 
   setMaxUploadSlots(max: number) {
     this.maxUploadSlots = max
+    this._peerCoordinator.updateUnchokeConfig({ maxUploadSlots: max })
   }
 
   addPeer(peer: PeerConnection) {
@@ -1187,8 +1233,7 @@ export class Torrent extends EngineComponent {
 
     peer.on('not_interested', () => {
       this.logger.debug('Not interested received')
-      // Peer no longer wants data - try to fill the slot with someone else
-      this.fillUploadSlot()
+      // Peer no longer wants data - choke algorithm will handle slot reallocation
     })
 
     peer.on('message', (msg) => {
@@ -1209,8 +1254,7 @@ export class Torrent extends EngineComponent {
     peer.on('close', () => {
       this.logger.debug('Peer closed')
       this.removePeer(peer)
-      // Peer left - try to fill the upload slot with someone else
-      this.fillUploadSlot()
+      // Peer left - choke algorithm will handle slot reallocation
     })
 
     peer.on('bytesDownloaded', (bytes) => {
@@ -1251,6 +1295,8 @@ export class Torrent extends EngineComponent {
     if (peer.remoteAddress && peer.remotePort) {
       const key = peerKey(peer.remoteAddress, peer.remotePort)
       this._swarm.markDisconnected(key)
+      // Notify peer coordinator of disconnect
+      this._peerCoordinator.peerDisconnected(key)
       this.logger.debug(`Removing peer ${key}, peers remaining: ${this.numPeers}`)
     } else {
       // Address info missing - this is a bug, but log it to help debug
@@ -1383,40 +1429,78 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Count currently unchoked interested peers (active upload slots).
+   * Build peer snapshots for the coordinator algorithms.
    */
-  private countUnchokedPeers(): number {
-    return this.peers.filter((p) => !p.amChoking && p.peerInterested).length
+  private buildPeerSnapshots(): PeerSnapshot[] {
+    const now = Date.now()
+    return this.peers.map((peer) => ({
+      id: peerKey(peer.remoteAddress!, peer.remotePort!),
+      peerInterested: peer.peerInterested,
+      peerChoking: peer.peerChoking,
+      amChoking: peer.amChoking,
+      downloadRate: peer.downloadSpeed,
+      connectedAt: peer.connectedAt,
+      lastDataReceived: peer.downloadSpeedCalculator.lastActivity || now,
+    }))
   }
 
   /**
-   * Fill an upload slot with the best available candidate.
-   * Prefers peers giving us the best download rates (baby tit-for-tat).
+   * Apply an unchoke decision to a peer.
    */
-  private fillUploadSlot(): void {
-    if (this.countUnchokedPeers() >= this.maxUploadSlots) return
+  private applyUnchokeDecision(decision: ChokeDecision): void {
+    const peer = this.peers.find(
+      (p) => peerKey(p.remoteAddress!, p.remotePort!) === decision.peerId,
+    )
+    if (!peer) return
 
-    // Find interested choked peers, prefer those giving us best download rates
-    const candidates = this.peers
-      .filter((p) => p.amChoking && p.peerInterested)
-      .sort((a, b) => b.downloadSpeed - a.downloadSpeed)
+    if (decision.action === 'unchoke') {
+      if (peer.amChoking) {
+        peer.amChoking = false
+        peer.sendMessage(MessageType.UNCHOKE)
+        this.logger.debug(`Unchoked ${decision.peerId} (${decision.reason})`)
+      }
+    } else {
+      this.chokePeer(peer)
+      this.logger.debug(`Choked ${decision.peerId} (${decision.reason})`)
+    }
+  }
 
-    const candidate = candidates[0]
-    if (candidate) {
-      this.logger.debug(`Filling upload slot (peer download: ${candidate.downloadSpeed} B/s)`)
-      candidate.amChoking = false
-      candidate.sendMessage(MessageType.UNCHOKE)
+  /**
+   * Apply a drop decision to a peer.
+   */
+  private applyDropDecision(decision: DropDecision): void {
+    const peer = this.peers.find(
+      (p) => peerKey(p.remoteAddress!, p.remotePort!) === decision.peerId,
+    )
+    if (!peer) return
+
+    this.logger.info(`Dropping slow peer ${decision.peerId}: ${decision.reason}`)
+    peer.close()
+  }
+
+  /**
+   * Choke a peer and clear their upload queue.
+   */
+  private chokePeer(peer: PeerConnection): void {
+    if (peer.amChoking) return
+
+    peer.amChoking = true
+    peer.sendMessage(MessageType.CHOKE)
+
+    // Clear queued uploads for this peer
+    const before = this.uploadQueue.length
+    this.uploadQueue = this.uploadQueue.filter((req) => req.peer !== peer)
+    const removed = before - this.uploadQueue.length
+    if (removed > 0) {
+      this.logger.debug(`Cleared ${removed} queued uploads for choked peer`)
     }
   }
 
   private handleInterested(peer: PeerConnection) {
     peer.peerInterested = true
-    // Only unchoke if we have a free upload slot
-    if (peer.amChoking && this.countUnchokedPeers() < this.maxUploadSlots) {
-      this.logger.debug('Unchoking peer (slot available)')
-      peer.amChoking = false
-      peer.sendMessage(MessageType.UNCHOKE)
-    }
+    // Don't unchoke immediately - let the choke algorithm decide on next tick
+    // This prevents fibrillation (rapid choke/unchoke cycling)
+    this.logger.debug(`Peer ${peer.remoteAddress} is interested (will evaluate on next tick)`)
   }
 
   private updateInterest(peer: PeerConnection) {
