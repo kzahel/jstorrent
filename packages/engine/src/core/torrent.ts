@@ -715,7 +715,14 @@ export class Torrent extends EngineComponent {
    * Called by engine.suspend() or userStop().
    */
   suspendNetwork(): void {
-    if (!this._networkActive) return
+    const wasActive = this._networkActive
+
+    // Always close peers, even if already suspended (handles race conditions)
+    for (const peer of this.connectedPeers) {
+      peer.close()
+    }
+
+    if (!wasActive) return
 
     this.logger.debug('Suspending network')
     this._networkActive = false
@@ -730,10 +737,6 @@ export class Torrent extends EngineComponent {
       })
     }
 
-    // Close all peer connections
-    for (const peer of this.connectedPeers) {
-      peer.close()
-    }
     // Note: swarm state is updated via markDisconnected when peers close
     this.pendingConnections.clear()
 
@@ -986,6 +989,13 @@ export class Torrent extends EngineComponent {
   }
 
   addPeer(peer: PeerConnection) {
+    // Reject peers when torrent is in error state
+    if (this.errorMessage) {
+      this.logger.debug('Rejecting peer - torrent in error state')
+      peer.close()
+      return
+    }
+
     // Validate address info exists - required for proper swarm tracking
     if (!peer.remoteAddress || !peer.remotePort) {
       this.logger.warn('addPeer called without address info - cannot track in swarm')
