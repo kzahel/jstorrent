@@ -416,7 +416,7 @@ function App() {
   const [defaultRootKey, setDefaultRootKey] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   // Force re-render for stats updates (engine object is mutable)
-  const [, forceUpdate] = useState(0)
+  const [statsRevision, forceUpdate] = useState(0)
 
   // Settings store initialization
   const [settingsReady, setSettingsReady] = useState(false)
@@ -494,6 +494,23 @@ function App() {
     const interval = setInterval(() => forceUpdate((n) => n + 1), 1000)
     return () => clearInterval(interval)
   }, [engine])
+
+  // Update tab title with transfer rates (every 5 seconds)
+  useEffect(() => {
+    if (!engine) {
+      document.title = 'JSTorrent'
+      return
+    }
+    // Only update title every 5th tick (5 seconds)
+    if (statsRevision % 5 !== 0) return
+    const downRate = engine.torrents.reduce((sum, t) => sum + t.downloadSpeed, 0)
+    const upRate = engine.torrents.reduce((sum, t) => sum + t.uploadSpeed, 0)
+    if (downRate > 0 || upRate > 0) {
+      document.title = `JSTorrent - ↓${formatBytes(downRate)}/s ↑${formatBytes(upRate)}/s`
+    } else {
+      document.title = 'JSTorrent'
+    }
+  }, [engine, statsRevision])
 
   // Settings tab state (settings themselves come from context)
   const [settingsTab, setSettingsTab] = useState<'general' | 'interface' | 'network' | 'advanced'>(
