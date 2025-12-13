@@ -415,6 +415,8 @@ function App() {
   const initStartedRef = useRef(false)
   const [defaultRootKey, setDefaultRootKey] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Force re-render for stats updates (engine object is mutable)
+  const [, forceUpdate] = useState(0)
 
   // Settings store initialization
   const [settingsReady, setSettingsReady] = useState(false)
@@ -485,6 +487,13 @@ function App() {
       unsubGlobal()
     }
   }, [settingsStore, settingsReady])
+
+  // Periodic refresh for header stats (engine object is mutable)
+  useEffect(() => {
+    if (!engine) return
+    const interval = setInterval(() => forceUpdate((n) => n + 1), 1000)
+    return () => clearInterval(interval)
+  }, [engine])
 
   // Settings tab state (settings themselves come from context)
   const [settingsTab, setSettingsTab] = useState<'general' | 'interface' | 'network' | 'advanced'>(
