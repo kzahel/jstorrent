@@ -217,7 +217,17 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handleIncomingConnection(nativeSocket: any) {
     const socket = this.socketFactory.wrapTcpSocket(nativeSocket)
-    // Extract remote address from the socket (available for incoming connections)
+
+    // Validate remote address info - required for peer tracking
+    if (!socket.remoteAddress || !socket.remotePort) {
+      this.logger.error(
+        `Incoming connection missing remote address info (remoteAddress=${socket.remoteAddress}, remotePort=${socket.remotePort}). ` +
+          `Socket wrapper must implement remoteAddress/remotePort getters.`,
+      )
+      socket.close()
+      return
+    }
+
     const peer = new PeerConnection(this, socket, {
       remoteAddress: socket.remoteAddress,
       remotePort: socket.remotePort,

@@ -9,6 +9,14 @@ export class NodeTcpSocket implements ITcpSocket {
     this.socket = socket || new net.Socket()
   }
 
+  get remoteAddress(): string | undefined {
+    return this.socket.remoteAddress
+  }
+
+  get remotePort(): number | undefined {
+    return this.socket.remotePort
+  }
+
   connect(port: number, host: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // console.error(`NodeTcpSocket: Connecting to ${host}:${port}`)
