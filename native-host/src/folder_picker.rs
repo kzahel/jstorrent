@@ -47,14 +47,14 @@ pub async fn pick_download_directory(state: &State) -> Result<ResponsePayload> {
             // Add to rpc_info.download_roots
             if let Ok(mut info_guard) = state.rpc_info.lock() {
                 if let Some(ref mut info) = *info_guard {
+                    // Ensure roots vec exists
+                    let roots = info.download_roots.get_or_insert_with(Vec::new);
                     // Check if path already exists
-                    let exists = info.download_roots.iter().any(|r| r.path == path_str);
+                    let exists = roots.iter().any(|r| r.path == path_str);
                     if !exists {
-                        info.download_roots.push(new_root.clone());
-                    } else {
-                        // If exists, return the existing root (maybe update timestamp?)
-                        // For now just return the new_root which has the same key/path
+                        roots.push(new_root.clone());
                     }
+                    // Note: if exists, return the new_root which has the same key/path
                 }
             }
 

@@ -114,6 +114,7 @@ async fn main() -> Result<()> {
     }
 
     // Write discovery file
+    // Note: download_roots is None on startup to preserve existing roots in the file
     let info = rpc::RpcInfo {
         version: 1,
         pid: std::process::id(),
@@ -126,21 +127,21 @@ async fn main() -> Result<()> {
             binary: browser_binary,
             extension_id: extension_id.clone(),
         },
-        download_roots: Vec::new(),
+        download_roots: None, // Don't overwrite existing roots
         install_id: None,
     };
-    
+
     // Store info in state so we can update it later (e.g. on handshake)
     if let Ok(mut info_guard) = state.rpc_info.lock() {
         *info_guard = Some(info.clone());
     }
-    
+
     match rpc::write_discovery_file(info) {
         Ok(roots) => {
-            // Update roots in state
+            // Update roots in state from persisted file
             if let Ok(mut info_guard) = state.rpc_info.lock() {
                 if let Some(info) = info_guard.as_mut() {
-                    info.download_roots = roots;
+                    info.download_roots = Some(roots);
                 }
             }
         },
@@ -243,14 +244,16 @@ async fn handle_request(
             let mut removed = false;
             if let Ok(mut info_guard) = state.rpc_info.lock() {
                 if let Some(info) = info_guard.as_mut() {
-                    let len_before = info.download_roots.len();
-                    info.download_roots.retain(|r| r.key != key);
-                    removed = info.download_roots.len() < len_before;
+                    if let Some(roots) = info.download_roots.as_mut() {
+                        let len_before = roots.len();
+                        roots.retain(|r| r.key != key);
+                        removed = roots.len() < len_before;
 
-                    if removed {
-                        // Persist to rpc-info.json
-                        if let Err(e) = crate::rpc::write_discovery_file(info.clone()) {
-                            log!("Failed to persist rpc-info after removing root: {}", e);
+                        if removed {
+                            // Persist to rpc-info.json (Some(...) = explicitly update)
+                            if let Err(e) = crate::rpc::write_discovery_file(info.clone()) {
+                                log!("Failed to persist rpc-info after removing root: {}", e);
+                            }
                         }
                     }
                 }
@@ -277,14 +280,14 @@ async fn handle_request(
                     info.install_id = Some(install_id.clone()); // Update install_id
                     match crate::rpc::write_discovery_file(info.clone()) {
                         Ok(roots) => {
-                            info.download_roots = roots;
+                            info.download_roots = Some(roots);
                             success = true;
                         },
                         Err(e) => eprintln!("Failed to update discovery file on handshake: {}", e),
                     }
                 }
             }
-            
+
             if success {
                 let start_result = if daemon_manager.port.is_none() {
                      log!("Starting daemon with install_id: {}", install_id);
@@ -303,9 +306,9 @@ async fn handle_request(
                          // Get roots from rpc_info
                          let roots = state.rpc_info.lock().unwrap()
                              .as_ref()
-                             .map(|info| info.download_roots.clone())
+                             .and_then(|info| info.download_roots.clone())
                              .unwrap_or_default();
-                         
+
                          Ok(ResponsePayload::DaemonInfo { port, token, roots })
                     } else {
                          log!("Daemon info missing");
