@@ -93,7 +93,8 @@ export class DaemonFileHandle implements IFileHandle {
     }
 
     if (!response.ok) {
-      throw new Error(`Write failed: ${response.status} ${response.statusText}`)
+      const errorDetail = await response.text()
+      throw new Error(`Write failed: ${response.status} ${response.statusText}: ${errorDetail}`)
     }
 
     return { bytesWritten: length }

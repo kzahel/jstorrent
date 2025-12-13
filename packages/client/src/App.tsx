@@ -97,7 +97,7 @@ function AppContent() {
 
   const handleStartSelected = () => {
     for (const t of selectedTorrentObjects) {
-      if (t.userState === 'stopped') {
+      if (t.userState === 'stopped' || t.activityState === 'error') {
         t.userStart()
       }
     }
