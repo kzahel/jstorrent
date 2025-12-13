@@ -315,6 +315,17 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
     engineManager.setRateLimits(settings.downloadSpeedLimit, v)
   }
 
+  // Apply connection limits to engine when settings change
+  const handleMaxPeersPerTorrentChange = (v: number) => {
+    updateSetting('maxPeersPerTorrent', v)
+    engineManager.setConnectionLimits(v, settings.maxGlobalPeers)
+  }
+
+  const handleMaxGlobalPeersChange = (v: number) => {
+    updateSetting('maxGlobalPeers', v)
+    engineManager.setConnectionLimits(settings.maxPeersPerTorrent, v)
+  }
+
   return (
     <div>
       <Section title="Listening Port">
@@ -347,20 +358,17 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
         <NumberRow
           label="Max peers per torrent"
           value={settings.maxPeersPerTorrent}
-          onChange={(v) => updateSetting('maxPeersPerTorrent', v)}
+          onChange={handleMaxPeersPerTorrentChange}
           min={1}
           max={500}
         />
         <NumberRow
           label="Global max peers"
           value={settings.maxGlobalPeers}
-          onChange={(v) => updateSetting('maxGlobalPeers', v)}
+          onChange={handleMaxGlobalPeersChange}
           min={1}
           max={2000}
         />
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-          Connection limits are not yet implemented - values are saved for future use.
-        </div>
       </Section>
     </div>
   )
