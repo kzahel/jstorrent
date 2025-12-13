@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { engineManager } from '../chrome/engine-manager'
-import type { AppSettings, Theme, SettingsTab } from '@jstorrent/ui'
+import { useSettings } from '../context/SettingsContext'
+import type { Settings, SettingKey } from '@jstorrent/engine'
+
+type SettingsTab = 'general' | 'interface' | 'network' | 'advanced'
+type Theme = 'system' | 'dark' | 'light'
 
 interface DownloadRoot {
   key: string
@@ -11,10 +15,8 @@ interface DownloadRoot {
 interface SettingsOverlayProps {
   isOpen: boolean
   onClose: () => void
-  settings: AppSettings
   activeTab: SettingsTab
   setActiveTab: (tab: SettingsTab) => void
-  updateSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void
 }
 
 const TABS: { id: SettingsTab; label: string }[] = [
@@ -29,11 +31,10 @@ const FPS_OPTIONS = [1, 5, 10, 20, 30, 60, 120, 240, 0] // 0 = unlimited
 export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   isOpen,
   onClose,
-  settings,
   activeTab,
   setActiveTab,
-  updateSetting,
 }) => {
+  const { settings, set: updateSetting } = useSettings()
   // Download roots state
   const [roots, setRoots] = useState<DownloadRoot[]>([])
   const [defaultKey, setDefaultKey] = useState<string | null>(null)
@@ -163,8 +164,8 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
 // ============ Tab Components ============
 
 interface TabProps {
-  settings: AppSettings
-  updateSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void
+  settings: Settings
+  updateSetting: <K extends SettingKey>(key: K, value: Settings[K]) => Promise<void>
 }
 
 interface GeneralTabProps extends TabProps {
@@ -246,18 +247,39 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
       </button>
     </Section>
 
+    <Section title="Notifications">
+      <ToggleRow
+        label="Notify when torrent completes"
+        sublabel="Show notification when a single download finishes"
+        checked={settings['notifications.onTorrentComplete']}
+        onChange={(v) => updateSetting('notifications.onTorrentComplete', v)}
+      />
+      <ToggleRow
+        label="Notify when all complete"
+        sublabel="Show notification when all downloads finish"
+        checked={settings['notifications.onAllComplete']}
+        onChange={(v) => updateSetting('notifications.onAllComplete', v)}
+      />
+      <ToggleRow
+        label="Notify on errors"
+        sublabel="Show notification when a download fails"
+        checked={settings['notifications.onError']}
+        onChange={(v) => updateSetting('notifications.onError', v)}
+      />
+      <ToggleRow
+        label="Show progress when backgrounded"
+        sublabel="Persistent notification with download progress when UI is hidden"
+        checked={settings['notifications.progressWhenBackgrounded']}
+        onChange={(v) => updateSetting('notifications.progressWhenBackgrounded', v)}
+      />
+    </Section>
+
     <Section title="Behavior">
       <ToggleRow
         label="Keep system awake while downloading"
-        sublabel="Prevents sleep during active downloads (demo)"
-        checked={settings.keepAwakeWhileDownloading}
-        onChange={(v) => updateSetting('keepAwakeWhileDownloading', v)}
-      />
-      <ToggleRow
-        label="Notify when torrent completes"
-        sublabel="Show browser notification when a download finishes"
-        checked={settings.notifyOnComplete}
-        onChange={(v) => updateSetting('notifyOnComplete', v)}
+        sublabel="Prevents sleep during active downloads (requires permission)"
+        checked={settings.keepAwake}
+        onChange={(v) => updateSetting('keepAwake', v)}
       />
     </Section>
   </div>
@@ -374,24 +396,14 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
   )
 }
 
-const AdvancedTab: React.FC<TabProps> = ({ settings, updateSetting }) => (
+const AdvancedTab: React.FC<TabProps> = ({
+  settings: _settings,
+  updateSetting: _updateSetting,
+}) => (
   <div>
-    <Section title="Disk I/O">
-      <NumberRow
-        label="I/O worker threads"
-        value={settings.ioWorkerThreads}
-        onChange={(v) => updateSetting('ioWorkerThreads', v)}
-        min={1}
-        max={16}
-      />
-      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-        This setting is not yet implemented - value is saved for future use.
-      </div>
-    </Section>
-
-    <Section title="Other">
+    <Section title="Advanced">
       <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-        More advanced settings will be added here in future updates.
+        Advanced settings will be added here in future updates.
       </div>
     </Section>
   </div>

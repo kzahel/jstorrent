@@ -1,21 +1,9 @@
 /**
  * Notification Manager for JSTorrent.
  * Handles Chrome notifications for download events and persistent progress.
+ *
+ * Uses the unified settings store keys from @jstorrent/engine/settings/schema.
  */
-
-export interface NotificationSettings {
-  onTorrentComplete: boolean
-  onAllComplete: boolean
-  onError: boolean
-  progressWhenBackgrounded: boolean
-}
-
-export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
-  onTorrentComplete: true,
-  onAllComplete: true,
-  onError: true,
-  progressWhenBackgrounded: false,
-}
 
 export interface ProgressStats {
   activeCount: number
@@ -25,12 +13,30 @@ export interface ProgressStats {
   singleTorrentName?: string // set when activeCount === 1
 }
 
-const SETTINGS_KEY = 'notificationSettings'
+// Settings keys (prefixed as stored in chrome.storage.sync)
+const SETTING_KEYS = {
+  onTorrentComplete: 'settings:notifications.onTorrentComplete',
+  onAllComplete: 'settings:notifications.onAllComplete',
+  onError: 'settings:notifications.onError',
+  progressWhenBackgrounded: 'settings:notifications.progressWhenBackgrounded',
+} as const
+
+// Default values (must match schema in @jstorrent/engine)
+const DEFAULTS = {
+  onTorrentComplete: true,
+  onAllComplete: true,
+  onError: true,
+  progressWhenBackgrounded: false,
+} as const
+
 const PROGRESS_NOTIFICATION_ID = 'jstorrent-progress'
 const ALL_COMPLETE_NOTIFICATION_ID = 'jstorrent-all-complete'
 
 export class NotificationManager {
-  private settings: NotificationSettings = { ...DEFAULT_NOTIFICATION_SETTINGS }
+  private onTorrentCompleteEnabled: boolean = DEFAULTS.onTorrentComplete
+  private onAllCompleteEnabled: boolean = DEFAULTS.onAllComplete
+  private onErrorEnabled: boolean = DEFAULTS.onError
+  private progressWhenBackgroundedEnabled: boolean = DEFAULTS.progressWhenBackgrounded
   private uiVisible: boolean = true
   private progressNotificationActive: boolean = false
   private lastProgressStats: ProgressStats | null = null
@@ -38,6 +44,7 @@ export class NotificationManager {
   constructor() {
     this.loadSettings()
     this.setupClickHandler()
+    this.setupSettingsListener()
   }
 
   // ============================================================================
@@ -46,26 +53,71 @@ export class NotificationManager {
 
   async loadSettings(): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(SETTINGS_KEY)
-      if (result[SETTINGS_KEY]) {
-        this.settings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...result[SETTINGS_KEY] }
+      const keys = Object.values(SETTING_KEYS)
+      const result = await chrome.storage.sync.get(keys)
+
+      // Parse stored JSON values
+      const getValue = <T>(key: string, defaultValue: T): T => {
+        if (key in result) {
+          const value = result[key]
+          if (typeof value === 'string') {
+            try {
+              return JSON.parse(value) as T
+            } catch {
+              return defaultValue
+            }
+          }
+        }
+        return defaultValue
       }
+
+      this.onTorrentCompleteEnabled = getValue(
+        SETTING_KEYS.onTorrentComplete,
+        DEFAULTS.onTorrentComplete,
+      )
+      this.onAllCompleteEnabled = getValue(SETTING_KEYS.onAllComplete, DEFAULTS.onAllComplete)
+      this.onErrorEnabled = getValue(SETTING_KEYS.onError, DEFAULTS.onError)
+      this.progressWhenBackgroundedEnabled = getValue(
+        SETTING_KEYS.progressWhenBackgrounded,
+        DEFAULTS.progressWhenBackgrounded,
+      )
     } catch (e) {
       console.error('[NotificationManager] Failed to load settings:', e)
     }
   }
 
-  async saveSettings(settings: Partial<NotificationSettings>): Promise<void> {
-    this.settings = { ...this.settings, ...settings }
-    try {
-      await chrome.storage.sync.set({ [SETTINGS_KEY]: this.settings })
-    } catch (e) {
-      console.error('[NotificationManager] Failed to save settings:', e)
-    }
-  }
+  private setupSettingsListener(): void {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'sync') return
 
-  getSettings(): NotificationSettings {
-    return { ...this.settings }
+      for (const [key, change] of Object.entries(changes)) {
+        const parseValue = <T>(defaultValue: T): T => {
+          if (typeof change.newValue === 'string') {
+            try {
+              return JSON.parse(change.newValue) as T
+            } catch {
+              return defaultValue
+            }
+          }
+          return defaultValue
+        }
+
+        switch (key) {
+          case SETTING_KEYS.onTorrentComplete:
+            this.onTorrentCompleteEnabled = parseValue(DEFAULTS.onTorrentComplete)
+            break
+          case SETTING_KEYS.onAllComplete:
+            this.onAllCompleteEnabled = parseValue(DEFAULTS.onAllComplete)
+            break
+          case SETTING_KEYS.onError:
+            this.onErrorEnabled = parseValue(DEFAULTS.onError)
+            break
+          case SETTING_KEYS.progressWhenBackgrounded:
+            this.progressWhenBackgroundedEnabled = parseValue(DEFAULTS.progressWhenBackgrounded)
+            break
+        }
+      }
+    })
   }
 
   // ============================================================================
@@ -115,7 +167,7 @@ export class NotificationManager {
       infoHash,
       name,
       progressNotificationActive: this.progressNotificationActive,
-      settingEnabled: this.settings.onTorrentComplete,
+      settingEnabled: this.onTorrentCompleteEnabled,
     })
 
     // Suppress if persistent progress is active
@@ -123,7 +175,7 @@ export class NotificationManager {
       console.log('[NotificationManager] Suppressed: progress notification active')
       return
     }
-    if (!this.settings.onTorrentComplete) {
+    if (!this.onTorrentCompleteEnabled) {
       console.log('[NotificationManager] Suppressed: setting disabled')
       return
     }
@@ -137,7 +189,7 @@ export class NotificationManager {
       name,
       error,
       progressNotificationActive: this.progressNotificationActive,
-      settingEnabled: this.settings.onError,
+      settingEnabled: this.onErrorEnabled,
     })
 
     // Suppress if persistent progress is active (errors shown in progress message)
@@ -145,7 +197,7 @@ export class NotificationManager {
       console.log('[NotificationManager] Suppressed: progress notification active')
       return
     }
-    if (!this.settings.onError) {
+    if (!this.onErrorEnabled) {
       console.log('[NotificationManager] Suppressed: setting disabled')
       return
     }
@@ -156,10 +208,10 @@ export class NotificationManager {
   onAllComplete(): void {
     console.log('[NotificationManager] onAllComplete called:', {
       progressNotificationActive: this.progressNotificationActive,
-      settingEnabled: this.settings.onAllComplete,
+      settingEnabled: this.onAllCompleteEnabled,
     })
 
-    if (!this.settings.onAllComplete) {
+    if (!this.onAllCompleteEnabled) {
       console.log('[NotificationManager] Suppressed: setting disabled')
       this.clearProgressNotification()
       return
@@ -205,7 +257,7 @@ export class NotificationManager {
   // ============================================================================
 
   private shouldShowPersistentProgress(): boolean {
-    return !this.uiVisible && this.settings.progressWhenBackgrounded
+    return !this.uiVisible && this.progressWhenBackgroundedEnabled
   }
 
   private showProgressNotification(stats: ProgressStats): void {

@@ -8,11 +8,14 @@ import {
   DropdownMenu,
   ResizeHandle,
   usePersistedUIState,
-  useAppSettings,
   formatBytes,
   ContextMenuItem,
+  setMaxFpsCache,
+  applyTheme,
 } from '@jstorrent/ui'
 import { EngineProvider } from './context/EngineContext'
+import { SettingsProvider } from './context/SettingsContext'
+import { getSettingsStore } from './settings'
 import { useEngineState } from './hooks/useEngineState'
 import { engineManager, DownloadRoot } from './chrome/engine-manager'
 import { useIOBridgeState } from './hooks/useIOBridgeState'
@@ -413,13 +416,80 @@ function App() {
   const [defaultRootKey, setDefaultRootKey] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  // App settings hook
-  const {
-    settings,
-    activeTab: settingsTab,
-    setActiveTab: setSettingsTab,
-    updateSetting,
-  } = useAppSettings()
+  // Settings store initialization
+  const [settingsReady, setSettingsReady] = useState(false)
+  const [settingsStore] = useState(() => getSettingsStore())
+
+  useEffect(() => {
+    settingsStore.init().then(() => setSettingsReady(true))
+  }, [settingsStore])
+
+  // Keep maxFps cache updated from settings store
+  useEffect(() => {
+    if (!settingsReady) return
+
+    // Initialize cache
+    setMaxFpsCache(settingsStore.get('maxFps'))
+
+    // Keep cache updated
+    return settingsStore.subscribe('maxFps', (value) => {
+      setMaxFpsCache(value)
+    })
+  }, [settingsStore, settingsReady])
+
+  // Apply theme from settings store
+  useEffect(() => {
+    if (!settingsReady) return
+
+    // Apply initial theme
+    applyTheme(settingsStore.get('theme'))
+
+    // Keep theme updated
+    return settingsStore.subscribe('theme', (value) => {
+      applyTheme(value)
+    })
+  }, [settingsStore, settingsReady])
+
+  // Apply rate limits from settings store
+  useEffect(() => {
+    if (!settingsReady) return
+
+    // Subscribe to rate limit changes
+    const unsubDownload = settingsStore.subscribe('downloadSpeedLimit', (value) => {
+      engineManager.setRateLimits(value, settingsStore.get('uploadSpeedLimit'))
+    })
+    const unsubUpload = settingsStore.subscribe('uploadSpeedLimit', (value) => {
+      engineManager.setRateLimits(settingsStore.get('downloadSpeedLimit'), value)
+    })
+
+    return () => {
+      unsubDownload()
+      unsubUpload()
+    }
+  }, [settingsStore, settingsReady])
+
+  // Apply connection limits from settings store
+  useEffect(() => {
+    if (!settingsReady) return
+
+    // Subscribe to connection limit changes
+    const unsubPerTorrent = settingsStore.subscribe('maxPeersPerTorrent', (value) => {
+      engineManager.setConnectionLimits(value, settingsStore.get('maxGlobalPeers'))
+    })
+    const unsubGlobal = settingsStore.subscribe('maxGlobalPeers', (value) => {
+      engineManager.setConnectionLimits(settingsStore.get('maxPeersPerTorrent'), value)
+    })
+
+    return () => {
+      unsubPerTorrent()
+      unsubGlobal()
+    }
+  }, [settingsStore, settingsReady])
+
+  // Settings tab state (settings themselves come from context)
+  const [settingsTab, setSettingsTab] = useState<'general' | 'interface' | 'network' | 'advanced'>(
+    'general',
+  )
 
   // Handle native events from SW port
   const handleNativeEvent = useCallback(
@@ -500,139 +570,144 @@ function App() {
     }
   }, [isConnected, engine, initError])
 
+  // Wait for settings to load
+  if (!settingsReady) {
+    return <div style={{ padding: '40px', textAlign: 'center' }}>Loading settings...</div>
+  }
+
   // Always render - show indicator even when not connected
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        fontFamily: 'sans-serif',
-      }}
-    >
-      {/* Header with System Bridge indicator */}
+    <SettingsProvider store={settingsStore}>
       <div
         style={{
-          padding: '8px 16px',
-          borderBottom: '1px solid var(--border-color)',
           display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
+          flexDirection: 'column',
+          height: '100vh',
+          fontFamily: 'sans-serif',
         }}
       >
-        <h1 style={{ margin: 0, fontSize: '18px' }}>JSTorrent</h1>
+        {/* Header with System Bridge indicator */}
+        <div
+          style={{
+            padding: '8px 16px',
+            borderBottom: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+          }}
+        >
+          <h1 style={{ margin: 0, fontSize: '18px' }}>JSTorrent</h1>
 
-        {/* System Bridge indicator */}
-        <div style={{ position: 'relative' }}>
-          <SystemIndicator
-            label={systemBridge.readiness.indicator.label}
-            color={systemBridge.readiness.indicator.color}
-            pulse={systemBridge.readiness.pulse}
-            onClick={systemBridge.togglePanel}
-          />
-          {systemBridge.panelOpen && (
-            <SystemBridgePanel
-              state={ioBridgeState as Parameters<typeof SystemBridgePanel>[0]['state']}
-              versionStatus={systemBridge.versionStatus}
-              daemonVersion={systemBridge.daemonVersion}
-              roots={roots}
-              defaultRootKey={defaultRootKey}
-              hasEverConnected={hasEverConnected}
-              onRetry={retry}
-              onLaunch={launch}
-              onCancel={cancel}
-              onDisconnect={() => console.log('Disconnect')}
-              onAddFolder={async () => {
-                await engineManager.pickDownloadFolder()
-              }}
-              onSetDefaultRoot={(key) => {
-                setDefaultRootKey(key)
-                engineManager.setDefaultRoot(key)
-              }}
-              onCopyDebugInfo={systemBridge.copyDebugInfo}
-              onClose={systemBridge.closePanel}
-              onOpenSettings={() => setSettingsOpen(true)}
+          {/* System Bridge indicator */}
+          <div style={{ position: 'relative' }}>
+            <SystemIndicator
+              label={systemBridge.readiness.indicator.label}
+              color={systemBridge.readiness.indicator.color}
+              pulse={systemBridge.readiness.pulse}
+              onClick={systemBridge.togglePanel}
             />
+            {systemBridge.panelOpen && (
+              <SystemBridgePanel
+                state={ioBridgeState as Parameters<typeof SystemBridgePanel>[0]['state']}
+                versionStatus={systemBridge.versionStatus}
+                daemonVersion={systemBridge.daemonVersion}
+                roots={roots}
+                defaultRootKey={defaultRootKey}
+                hasEverConnected={hasEverConnected}
+                onRetry={retry}
+                onLaunch={launch}
+                onCancel={cancel}
+                onDisconnect={() => console.log('Disconnect')}
+                onAddFolder={async () => {
+                  await engineManager.pickDownloadFolder()
+                }}
+                onSetDefaultRoot={(key) => {
+                  setDefaultRootKey(key)
+                  engineManager.setDefaultRoot(key)
+                }}
+                onCopyDebugInfo={systemBridge.copyDebugInfo}
+                onClose={systemBridge.closePanel}
+                onOpenSettings={() => setSettingsOpen(true)}
+              />
+            )}
+          </div>
+
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+              {engine ? (
+                <>
+                  {engine.torrents.length} torrents | {engine.numConnections} peers | ↓{' '}
+                  {formatBytes(engine.torrents.reduce((sum, t) => sum + t.downloadSpeed, 0))}/s | ↑{' '}
+                  {formatBytes(engine.torrents.reduce((sum, t) => sum + t.uploadSpeed, 0))}/s
+                </>
+              ) : isConnected ? (
+                'Initializing...'
+              ) : (
+                'Not connected'
+              )}
+            </span>
+            <button
+              onClick={() => setSettingsOpen(true)}
+              style={{
+                background: 'var(--button-bg)',
+                border: '1px solid var(--border-color)',
+                cursor: 'pointer',
+                padding: '6px 12px',
+                fontSize: '13px',
+                color: 'var(--text-primary)',
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span style={{ fontSize: '16px' }}>⚙</span>
+              Settings
+            </button>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          {engine ? (
+            <EngineProvider engine={engine}>
+              <AppContent />
+            </EngineProvider>
+          ) : initError ? (
+            <div style={{ padding: '40px', textAlign: 'center' }}>
+              <div style={{ color: 'var(--accent-error)', marginBottom: '16px' }}>
+                Failed to initialize: {initError}
+              </div>
+              <button
+                onClick={() => {
+                  setInitError(null)
+                  retry()
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              {ioBridgeState.status === 'connecting' && 'Connecting to daemon...'}
+              {ioBridgeState.status === 'disconnected' &&
+                (ioBridgeState.platform === 'chromeos'
+                  ? 'Click the indicator above to launch the companion app.'
+                  : 'Click the indicator above to set up JSTorrent.')}
+              {ioBridgeState.status === 'connected' && !engine && 'Initializing engine...'}
+            </div>
           )}
         </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
-            {engine ? (
-              <>
-                {engine.torrents.length} torrents | {engine.numConnections} peers | ↓{' '}
-                {formatBytes(engine.torrents.reduce((sum, t) => sum + t.downloadSpeed, 0))}/s | ↑{' '}
-                {formatBytes(engine.torrents.reduce((sum, t) => sum + t.uploadSpeed, 0))}/s
-              </>
-            ) : isConnected ? (
-              'Initializing...'
-            ) : (
-              'Not connected'
-            )}
-          </span>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            style={{
-              background: 'var(--button-bg)',
-              border: '1px solid var(--border-color)',
-              cursor: 'pointer',
-              padding: '6px 12px',
-              fontSize: '13px',
-              color: 'var(--text-primary)',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <span style={{ fontSize: '16px' }}>⚙</span>
-            Settings
-          </button>
-        </div>
+        {/* Settings overlay */}
+        <SettingsOverlay
+          isOpen={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          activeTab={settingsTab}
+          setActiveTab={setSettingsTab}
+        />
       </div>
-
-      {/* Main content */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        {engine ? (
-          <EngineProvider engine={engine}>
-            <AppContent />
-          </EngineProvider>
-        ) : initError ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <div style={{ color: 'var(--accent-error)', marginBottom: '16px' }}>
-              Failed to initialize: {initError}
-            </div>
-            <button
-              onClick={() => {
-                setInitError(null)
-                retry()
-              }}
-            >
-              Retry
-            </button>
-          </div>
-        ) : (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            {ioBridgeState.status === 'connecting' && 'Connecting to daemon...'}
-            {ioBridgeState.status === 'disconnected' &&
-              (ioBridgeState.platform === 'chromeos'
-                ? 'Click the indicator above to launch the companion app.'
-                : 'Click the indicator above to set up JSTorrent.')}
-            {ioBridgeState.status === 'connected' && !engine && 'Initializing engine...'}
-          </div>
-        )}
-      </div>
-
-      {/* Settings overlay */}
-      <SettingsOverlay
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        settings={settings}
-        activeTab={settingsTab}
-        setActiveTab={setSettingsTab}
-        updateSetting={updateSetting}
-      />
-    </div>
+    </SettingsProvider>
   )
 }
 

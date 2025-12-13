@@ -14,7 +14,7 @@ import {
   toHex,
   type CredentialsGetter,
 } from '@jstorrent/engine'
-import { loadSettings } from '@jstorrent/ui'
+import { getSettingsStore } from '../settings'
 import { getBridge } from './extension-bridge'
 import { notificationBridge, ProgressStats } from './notification-bridge'
 
@@ -205,13 +205,13 @@ class EngineManager {
 
     // 5. Create engine (suspended)
     const hasher = new DaemonHasher(this.daemonConnection)
-    const appSettings = loadSettings()
+    const settingsStore = getSettingsStore()
     this.engine = new BtEngine({
       socketFactory: new DaemonSocketFactory(this.daemonConnection),
       storageRootManager: srm,
       sessionStore: this.sessionStore,
       hasher,
-      port: appSettings.listeningPort,
+      port: settingsStore.get('listeningPort'),
       startSuspended: true,
     })
     console.log('[EngineManager] Engine created (suspended)')
@@ -225,8 +225,14 @@ class EngineManager {
     console.log('[EngineManager] Engine resumed')
 
     // 8. Apply rate limits and connection limits from settings
-    this.setRateLimits(appSettings.downloadSpeedLimit, appSettings.uploadSpeedLimit)
-    this.setConnectionLimits(appSettings.maxPeersPerTorrent, appSettings.maxGlobalPeers)
+    this.setRateLimits(
+      settingsStore.get('downloadSpeedLimit'),
+      settingsStore.get('uploadSpeedLimit'),
+    )
+    this.setConnectionLimits(
+      settingsStore.get('maxPeersPerTorrent'),
+      settingsStore.get('maxGlobalPeers'),
+    )
 
     // 9. Set up beforeunload handler
     window.addEventListener('beforeunload', () => {

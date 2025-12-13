@@ -18,7 +18,9 @@ import {
 import { BaseSettingsStore } from '@jstorrent/engine'
 
 export class ChromeStorageSettingsStore extends BaseSettingsStore {
-  private changeListener: ((changes: Record<string, chrome.storage.StorageChange>, areaName: string) => void) | null = null
+  private changeListener:
+    | ((changes: Record<string, chrome.storage.StorageChange>, areaName: string) => void)
+    | null = null
 
   protected async loadFromStorage(): Promise<Partial<Settings>> {
     const result = {} as Record<string, unknown>
@@ -47,10 +49,7 @@ export class ChromeStorageSettingsStore extends BaseSettingsStore {
     return result as Partial<Settings>
   }
 
-  protected async saveToStorage<K extends SettingKey>(
-    key: K,
-    value: Settings[K],
-  ): Promise<void> {
+  protected async saveToStorage<K extends SettingKey>(key: K, value: Settings[K]): Promise<void> {
     const storageKey = getStorageKey(key)
     const storageClass = getStorageClass(key)
     const storage = storageClass === 'sync' ? chrome.storage.sync : chrome.storage.local
@@ -107,9 +106,7 @@ export class ChromeStorageSettingsStore extends BaseSettingsStore {
         if (areaName !== expectedArea) continue
 
         // Get new value (or default if deleted)
-        const newValue = 'newValue' in change 
-          ? change.newValue 
-          : settingsSchema[settingKey].default
+        const newValue = 'newValue' in change ? change.newValue : settingsSchema[settingKey].default
 
         this.handleExternalChange(settingKey, newValue)
       }
