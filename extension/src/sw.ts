@@ -5,12 +5,18 @@ console.log('[SW] Deploy test - this log confirms deploy workflow works!')
 import { getDaemonBridge, type NativeEvent, type DaemonBridgeState } from './lib/daemon-bridge'
 import { handleKVMessage } from './lib/kv-handlers'
 import { NotificationManager, ProgressStats } from './lib/notifications'
+import { PowerManager } from './lib/power'
 import { getOrCreateInstallId } from './lib/install-id'
 
 // ============================================================================
 // Notification Manager
 // ============================================================================
 const notificationManager = new NotificationManager()
+
+// ============================================================================
+// Power Manager (prevents sleep during active downloads)
+// ============================================================================
+const powerManager = new PowerManager()
 
 // ============================================================================
 // UI Port Management (single UI enforcement)
@@ -191,6 +197,7 @@ function handleNotificationMessage(message: NotificationMessage): void {
     case 'notification:stats':
       if (message.stats) {
         notificationManager.updateProgress(message.stats)
+        powerManager.updateActiveDownloads(message.stats.activeCount)
       }
       break
     case 'notification:torrent-complete':
