@@ -336,6 +336,8 @@ export class Torrent extends EngineComponent {
   }
 
   async connectToPeer(peerInfo: PeerInfo) {
+    if (this.isKillSwitchEnabled) return
+
     const key = peerKey(peerInfo.ip, peerInfo.port)
 
     // Check if already connected (via swarm - single source of truth)
@@ -642,6 +644,19 @@ export class Torrent extends EngineComponent {
   }
 
   /**
+   * Returns true if network activity should be blocked.
+   * Check this at the top of network-related functions.
+   */
+  get isKillSwitchEnabled(): boolean {
+    return (
+      this.userState === 'stopped' ||
+      this.userState === 'queued' ||
+      !!this.errorMessage ||
+      (this.engine as BtEngine).isSuspended
+    )
+  }
+
+  /**
    * Whether this torrent has metadata (piece info, files, etc).
    */
   get hasMetadata(): boolean {
@@ -751,9 +766,7 @@ export class Torrent extends EngineComponent {
    */
   resumeNetwork(): void {
     if (this._networkActive) return
-    if ((this.engine as BtEngine).isSuspended) return
-    if (this.userState !== 'active') return
-    if (this.errorMessage) return // Error state blocks network like stopped
+    if (this.isKillSwitchEnabled) return
 
     this.logger.debug('Resuming network')
     this._networkActive = true
@@ -862,6 +875,7 @@ export class Torrent extends EngineComponent {
     this.checkSwarmInvariants()
 
     if (!this._networkActive) return
+    if (this.isKillSwitchEnabled) return
     if (this.isComplete) return // Don't seek peers when complete (unless seeding, future feature)
 
     const connected = this.numPeers
@@ -989,9 +1003,9 @@ export class Torrent extends EngineComponent {
   }
 
   addPeer(peer: PeerConnection) {
-    // Reject peers when torrent is in error state
-    if (this.errorMessage) {
-      this.logger.debug('Rejecting peer - torrent in error state')
+    // Reject peers when kill switch is enabled (stopped, queued, error, or engine suspended)
+    if (this.isKillSwitchEnabled) {
+      this.logger.debug('Rejecting peer - kill switch enabled')
       peer.close()
       return
     }
@@ -1384,6 +1398,8 @@ export class Torrent extends EngineComponent {
   }
 
   private requestPieces(peer: PeerConnection) {
+    if (this.isKillSwitchEnabled) return
+
     if (peer.peerChoking) {
       // console.error(`requestPieces: Peer is choking us`)
       return

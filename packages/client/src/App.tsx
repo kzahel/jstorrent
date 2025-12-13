@@ -59,10 +59,14 @@ function AppContent() {
       .filter((t): t is Torrent => t !== undefined)
   }, [selectedTorrents, adapter, torrents])
 
-  // Smart button states
+  // Smart button states - consider error state as "effectively stopped"
   const hasSelection = selectedTorrents.size > 0
-  const allStarted = hasSelection && selectedTorrentObjects.every((t) => t.userState !== 'stopped')
-  const allStopped = hasSelection && selectedTorrentObjects.every((t) => t.userState === 'stopped')
+  const allEffectivelyStopped =
+    hasSelection &&
+    selectedTorrentObjects.every((t) => t.userState === 'stopped' || !!t.errorMessage)
+  const allActive =
+    hasSelection &&
+    selectedTorrentObjects.every((t) => t.userState !== 'stopped' && !t.errorMessage)
 
   // --- Action handlers ---
 
@@ -181,8 +185,8 @@ function AppContent() {
   ]
 
   const contextMenuItems: ContextMenuItem[] = [
-    { id: 'start', label: 'Start', icon: '▶', disabled: allStarted },
-    { id: 'stop', label: 'Stop', icon: '■', disabled: allStopped },
+    { id: 'start', label: 'Start', icon: '▶', disabled: allActive },
+    { id: 'stop', label: 'Stop', icon: '■', disabled: allEffectivelyStopped },
     { id: 'separator1', label: '', separator: true },
     { id: 'recheck', label: 'Re-verify Data', icon: '⟳' },
     { id: 'reset', label: 'Reset State', icon: '↺' },
@@ -288,17 +292,17 @@ function AppContent() {
 
             <button
               onClick={handleStartSelected}
-              disabled={!hasSelection || allStarted}
+              disabled={!hasSelection || allActive}
               style={{
                 padding: '0 10px',
-                cursor: hasSelection && !allStarted ? 'pointer' : 'default',
+                cursor: hasSelection && !allActive ? 'pointer' : 'default',
                 fontSize: '13px',
                 height: '26px',
                 boxSizing: 'border-box',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                opacity: !hasSelection || allStarted ? 0.5 : 1,
+                opacity: !hasSelection || allActive ? 0.5 : 1,
               }}
               title="Start selected"
             >
@@ -307,17 +311,17 @@ function AppContent() {
             </button>
             <button
               onClick={handleStopSelected}
-              disabled={!hasSelection || allStopped}
+              disabled={!hasSelection || allEffectivelyStopped}
               style={{
                 padding: '0 10px',
-                cursor: hasSelection && !allStopped ? 'pointer' : 'default',
+                cursor: hasSelection && !allEffectivelyStopped ? 'pointer' : 'default',
                 fontSize: '13px',
                 height: '26px',
                 boxSizing: 'border-box',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                opacity: !hasSelection || allStopped ? 0.5 : 1,
+                opacity: !hasSelection || allEffectivelyStopped ? 0.5 : 1,
               }}
               title="Stop selected"
             >
