@@ -99,6 +99,7 @@ export class Torrent extends EngineComponent {
   private _files: TorrentFileInfo[] = []
   public maxPeers: number = 20
   public globalLimitCheck: () => boolean = () => true
+  private maxUploadSlots: number = 4
 
   // Metadata Phase
   public metadataSize: number | null = null
@@ -270,6 +271,7 @@ export class Torrent extends EngineComponent {
     announce: string[] = [],
     maxPeers: number = 20,
     globalLimitCheck: () => boolean = () => true,
+    maxUploadSlots: number = 4,
   ) {
     super(engine)
     this.btEngine = engine
@@ -281,6 +283,7 @@ export class Torrent extends EngineComponent {
     this.announce = announce
     this.maxPeers = maxPeers
     this.globalLimitCheck = globalLimitCheck
+    this.maxUploadSlots = maxUploadSlots
 
     this.instanceLogName = `t:${toHex(infoHash).slice(0, 6)}`
 
@@ -1002,6 +1005,10 @@ export class Torrent extends EngineComponent {
     this._connectionManager.updateConfig({ maxPeersPerTorrent: max })
   }
 
+  setMaxUploadSlots(max: number) {
+    this.maxUploadSlots = max
+  }
+
   addPeer(peer: PeerConnection) {
     // Reject peers when kill switch is enabled (stopped, queued, error, or engine suspended)
     if (this.isKillSwitchEnabled) {
@@ -1178,6 +1185,12 @@ export class Torrent extends EngineComponent {
       this.handleInterested(peer)
     })
 
+    peer.on('not_interested', () => {
+      this.logger.debug('Not interested received')
+      // Peer no longer wants data - try to fill the slot with someone else
+      this.fillUploadSlot()
+    })
+
     peer.on('message', (msg) => {
       if (msg.type === MessageType.PIECE) {
         this.handleBlock(peer, msg)
@@ -1196,6 +1209,8 @@ export class Torrent extends EngineComponent {
     peer.on('close', () => {
       this.logger.debug('Peer closed')
       this.removePeer(peer)
+      // Peer left - try to fill the upload slot with someone else
+      this.fillUploadSlot()
     })
 
     peer.on('bytesDownloaded', (bytes) => {
@@ -1367,11 +1382,38 @@ export class Torrent extends EngineComponent {
     }
   }
 
+  /**
+   * Count currently unchoked interested peers (active upload slots).
+   */
+  private countUnchokedPeers(): number {
+    return this.peers.filter((p) => !p.amChoking && p.peerInterested).length
+  }
+
+  /**
+   * Fill an upload slot with the best available candidate.
+   * Prefers peers giving us the best download rates (baby tit-for-tat).
+   */
+  private fillUploadSlot(): void {
+    if (this.countUnchokedPeers() >= this.maxUploadSlots) return
+
+    // Find interested choked peers, prefer those giving us best download rates
+    const candidates = this.peers
+      .filter((p) => p.amChoking && p.peerInterested)
+      .sort((a, b) => b.downloadSpeed - a.downloadSpeed)
+
+    const candidate = candidates[0]
+    if (candidate) {
+      this.logger.debug(`Filling upload slot (peer download: ${candidate.downloadSpeed} B/s)`)
+      candidate.amChoking = false
+      candidate.sendMessage(MessageType.UNCHOKE)
+    }
+  }
+
   private handleInterested(peer: PeerConnection) {
     peer.peerInterested = true
-    // Simple unchoke strategy: always unchoke interested peers
-    if (peer.amChoking) {
-      this.logger.debug('Unchoking peer')
+    // Only unchoke if we have a free upload slot
+    if (peer.amChoking && this.countUnchokedPeers() < this.maxUploadSlots) {
+      this.logger.debug('Unchoking peer (slot available)')
       peer.amChoking = false
       peer.sendMessage(MessageType.UNCHOKE)
     }

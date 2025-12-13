@@ -372,12 +372,17 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
   // Apply connection limits to engine when settings change
   const handleMaxPeersPerTorrentChange = (v: number) => {
     updateSetting('maxPeersPerTorrent', v)
-    engineManager.setConnectionLimits(v, settings.maxGlobalPeers)
+    engineManager.setConnectionLimits(v, settings.maxGlobalPeers, settings.maxUploadSlots)
   }
 
   const handleMaxGlobalPeersChange = (v: number) => {
     updateSetting('maxGlobalPeers', v)
-    engineManager.setConnectionLimits(settings.maxPeersPerTorrent, v)
+    engineManager.setConnectionLimits(settings.maxPeersPerTorrent, v, settings.maxUploadSlots)
+  }
+
+  const handleMaxUploadSlotsChange = (v: number) => {
+    updateSetting('maxUploadSlots', v)
+    engineManager.setConnectionLimits(settings.maxPeersPerTorrent, settings.maxGlobalPeers, v)
   }
 
   return (
@@ -422,6 +427,13 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
           onChange={handleMaxGlobalPeersChange}
           min={1}
           max={2000}
+        />
+        <NumberRow
+          label="Max upload slots"
+          value={settings.maxUploadSlots}
+          onChange={handleMaxUploadSlotsChange}
+          min={0}
+          max={50}
         />
       </Section>
     </div>

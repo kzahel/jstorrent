@@ -232,6 +232,7 @@ class EngineManager {
     this.setConnectionLimits(
       settingsStore.get('maxPeersPerTorrent'),
       settingsStore.get('maxGlobalPeers'),
+      settingsStore.get('maxUploadSlots'),
     )
 
     // 9. Set up beforeunload handler
@@ -399,15 +400,20 @@ class EngineManager {
    * Set connection limits.
    * @param maxPeersPerTorrent - Maximum peers per torrent
    * @param maxGlobalPeers - Maximum total connections across all torrents
+   * @param maxUploadSlots - Maximum simultaneously unchoked peers per torrent
    */
-  setConnectionLimits(maxPeersPerTorrent: number, maxGlobalPeers: number): void {
+  setConnectionLimits(
+    maxPeersPerTorrent: number,
+    maxGlobalPeers: number,
+    maxUploadSlots: number,
+  ): void {
     if (!this.engine) {
       console.warn('[EngineManager] Cannot set connection limits: engine not initialized')
       return
     }
-    this.engine.setConnectionLimits(maxPeersPerTorrent, maxGlobalPeers)
+    this.engine.setConnectionLimits(maxPeersPerTorrent, maxGlobalPeers, maxUploadSlots)
     console.log(
-      `[EngineManager] Connection limits set: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}`,
+      `[EngineManager] Connection limits set: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}, maxUploadSlots=${maxUploadSlots}`,
     )
   }
 
