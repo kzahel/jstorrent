@@ -224,8 +224,9 @@ class EngineManager {
     this.engine.resume()
     console.log('[EngineManager] Engine resumed')
 
-    // 8. Apply rate limits from settings
+    // 8. Apply rate limits and connection limits from settings
     this.setRateLimits(appSettings.downloadSpeedLimit, appSettings.uploadSpeedLimit)
+    this.setConnectionLimits(appSettings.maxPeersPerTorrent, appSettings.maxGlobalPeers)
 
     // 9. Set up beforeunload handler
     window.addEventListener('beforeunload', () => {
@@ -342,6 +343,22 @@ class EngineManager {
     this.engine.bandwidthTracker.setUploadLimit(uploadLimit)
     console.log(
       `[EngineManager] Rate limits set: download=${downloadLimit === 0 ? 'unlimited' : downloadLimit + ' B/s'}, upload=${uploadLimit === 0 ? 'unlimited' : uploadLimit + ' B/s'}`,
+    )
+  }
+
+  /**
+   * Set connection limits.
+   * @param maxPeersPerTorrent - Maximum peers per torrent
+   * @param maxGlobalPeers - Maximum total connections across all torrents
+   */
+  setConnectionLimits(maxPeersPerTorrent: number, maxGlobalPeers: number): void {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set connection limits: engine not initialized')
+      return
+    }
+    this.engine.setConnectionLimits(maxPeersPerTorrent, maxGlobalPeers)
+    console.log(
+      `[EngineManager] Connection limits set: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}`,
     )
   }
 

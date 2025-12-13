@@ -413,4 +413,21 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   get numConnections(): number {
     return this.torrents.reduce((acc, t) => acc + t.numPeers, 0)
   }
+
+  /**
+   * Set connection limits for the engine.
+   * @param maxPeersPerTorrent - Maximum peers per torrent (applied to new and existing torrents)
+   * @param maxGlobalPeers - Maximum total connections across all torrents
+   */
+  setConnectionLimits(maxPeersPerTorrent: number, maxGlobalPeers: number): void {
+    this.maxPeers = maxPeersPerTorrent
+    this.maxConnections = maxGlobalPeers
+    // Apply to all existing torrents
+    for (const torrent of this.torrents) {
+      torrent.setMaxPeers(maxPeersPerTorrent)
+    }
+    this.logger.info(
+      `Connection limits updated: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}`,
+    )
+  }
 }
