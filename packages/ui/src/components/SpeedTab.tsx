@@ -3,6 +3,8 @@ import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import type { BandwidthTracker } from '@jstorrent/engine'
 import { formatSpeed } from '../utils/format'
+import { createThrottledRaf } from '../utils/throttledRaf'
+import { getMaxFps } from '../hooks/useAppSettings'
 
 export interface SpeedTabProps {
   bandwidthTracker: BandwidthTracker
@@ -66,7 +68,6 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
   const [hideCurrentBucket, setHideCurrentBucket] = useState<boolean>(true)
   const containerRef = useRef<HTMLDivElement>(null)
   const plotRef = useRef<uPlot | null>(null)
-  const rafRef = useRef<number>(0)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -141,7 +142,7 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
     })
     resizeObserver.observe(containerRef.current)
 
-    // Animation loop
+    // Animation loop (throttled by maxFps setting)
     const update = () => {
       const now = Date.now()
       const fromTime = now - windowMs
@@ -204,14 +205,13 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
       if (plotRef.current && times.length > 0) {
         plotRef.current.setData([times, downRates, upRates])
       }
-
-      rafRef.current = requestAnimationFrame(update)
     }
 
-    rafRef.current = requestAnimationFrame(update)
+    const throttledRaf = createThrottledRaf(update, getMaxFps)
+    throttledRaf.start()
 
     return () => {
-      cancelAnimationFrame(rafRef.current)
+      throttledRaf.stop()
       resizeObserver.disconnect()
       plotRef.current?.destroy()
     }

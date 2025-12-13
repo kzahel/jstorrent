@@ -122,13 +122,25 @@ export function loadSettings(): AppSettings {
   return defaults
 }
 
+// Module-level cache for maxFps - avoids localStorage reads in RAF loops
+let cachedMaxFps = 60
+
 function saveSettings(settings: AppSettings): void {
+  cachedMaxFps = settings.maxFps
   try {
     uiStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(settings))
   } catch {
     // Ignore errors
   }
 }
+
+/** Get cached maxFps value (fast memory read, no localStorage) */
+export function getMaxFps(): number {
+  return cachedMaxFps
+}
+
+// Initialize cache on module load
+cachedMaxFps = loadSettings().maxFps
 
 // ============ React Hook ============
 

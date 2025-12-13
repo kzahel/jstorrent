@@ -18,6 +18,7 @@ export class DaemonConnection {
   private baseUrl: string
   private ws: WebSocket | null = null
   private frameHandlers: Array<(f: ArrayBuffer) => void> = []
+  private disconnectHandlers: Array<(reason: string) => void> = []
   public ready = false
 
   // Cached credentials for HTTP requests
@@ -126,23 +127,50 @@ export class DaemonConnection {
       const frame = ev.data as ArrayBuffer
       for (const h of this.frameHandlers) h(frame)
     }
+
+    // TODO: Add auto-reconnect with exponential backoff
+    this.ws!.onclose = (ev) => {
+      this.notifyDisconnect(`WebSocket closed: code=${ev.code} reason=${ev.reason}`)
+    }
+    this.ws!.onerror = () => {
+      this.notifyDisconnect('WebSocket error')
+    }
   }
 
   sendFrame(frame: ArrayBuffer) {
-    if (!this.ready) throw new Error('Daemon not ready')
-    this.ws?.send(frame)
+    if (!this.ready || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('Daemon connection not ready')
+    }
+    this.ws.send(frame)
   }
 
   private sendFrameInternal(frame: ArrayBuffer) {
-    this.ws?.send(frame)
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('Daemon connection not ready')
+    }
+    this.ws.send(frame)
   }
 
   onFrame(cb: (f: ArrayBuffer) => void) {
     this.frameHandlers.push(cb)
   }
 
+  onDisconnect(cb: (reason: string) => void) {
+    this.disconnectHandlers.push(cb)
+  }
+
+  private notifyDisconnect(reason: string) {
+    this.ready = false
+    for (const h of this.disconnectHandlers) h(reason)
+  }
+
   close() {
-    this.ws?.close()
+    if (this.ws) {
+      this.ws.onclose = null // prevent notification on intentional close
+      this.ws.onerror = null
+      this.ws.close()
+      this.ws = null
+    }
     this.ready = false
   }
 
