@@ -63,6 +63,15 @@ export function createDefaultPersistedState(): TorrentPersistedState {
   }
 }
 
+/** Queued upload request for rate limiting */
+interface QueuedUploadRequest {
+  peer: PeerConnection
+  index: number
+  begin: number
+  length: number
+  queuedAt: number
+}
+
 export class Torrent extends EngineComponent {
   static logName = 'torrent'
 
@@ -97,6 +106,10 @@ export class Torrent extends EngineComponent {
   public metadataComplete = false
   public metadataPiecesReceived = new Set<number>()
   private _metadataRaw: Uint8Array | null = null // The full info dictionary buffer
+
+  // Upload queue for rate limiting
+  private uploadQueue: QueuedUploadRequest[] = []
+  private uploadDrainScheduled = false
 
   /**
    * The raw info dictionary buffer (verified via SHA1 against infoHash).
@@ -1180,6 +1193,14 @@ export class Torrent extends EngineComponent {
   }
 
   private removePeer(peer: PeerConnection) {
+    // Clear any queued uploads for this peer
+    const queueLengthBefore = this.uploadQueue.length
+    this.uploadQueue = this.uploadQueue.filter((req) => req.peer !== peer)
+    const removedUploads = queueLengthBefore - this.uploadQueue.length
+    if (removedUploads > 0) {
+      this.logger.debug(`Cleared ${removedUploads} queued uploads for disconnected peer`)
+    }
+
     // Update swarm state - swarm is single source of truth (Phase 3)
     if (peer.remoteAddress && peer.remotePort) {
       const key = peerKey(peer.remoteAddress, peer.remotePort)
@@ -1222,27 +1243,96 @@ export class Torrent extends EngineComponent {
     this.runMaintenance()
   }
 
-  private async handleRequest(peer: PeerConnection, index: number, begin: number, length: number) {
+  private handleRequest(peer: PeerConnection, index: number, begin: number, length: number): void {
+    // Validate: we must not be choking this peer
     if (peer.amChoking) {
-      // We are choking the peer, ignore request
+      this.logger.debug('Ignoring request from choked peer')
       return
     }
 
+    // Validate: we have this piece
     if (!this.bitfield || !this.bitfield.get(index)) {
-      // We don't have this piece
+      this.logger.debug(`Ignoring request for piece ${index} we don't have`)
       return
     }
 
-    if (!this.contentStorage) return
+    if (!this.contentStorage) {
+      this.logger.debug('Ignoring request: no content storage')
+      return
+    }
 
-    try {
-      const block = await this.contentStorage.read(index, begin, length)
-      peer.sendPiece(index, begin, block)
-    } catch (err) {
-      this.logger.error(
-        `Error handling request: ${err instanceof Error ? err.message : String(err)}`,
-        { err },
-      )
+    // Queue the request
+    this.uploadQueue.push({
+      peer,
+      index,
+      begin,
+      length,
+      queuedAt: Date.now(),
+    })
+
+    // Trigger drain
+    this.drainUploadQueue()
+  }
+
+  private async drainUploadQueue(): Promise<void> {
+    // Prevent concurrent drain loops
+    if (this.uploadDrainScheduled) return
+
+    while (this.uploadQueue.length > 0) {
+      const req = this.uploadQueue[0]
+
+      // Skip if peer disconnected
+      if (!this.connectedPeers.includes(req.peer)) {
+        this.uploadQueue.shift()
+        continue
+      }
+
+      // Skip if we've since choked this peer
+      if (req.peer.amChoking) {
+        this.uploadQueue.shift()
+        this.logger.debug('Discarding queued request: peer now choked')
+        continue
+      }
+
+      // Rate limit check
+      const uploadBucket = this.btEngine.bandwidthTracker.uploadBucket
+      if (uploadBucket.isLimited && !uploadBucket.tryConsume(req.length)) {
+        // Schedule retry when tokens available
+        const delayMs = uploadBucket.msUntilAvailable(req.length)
+        this.uploadDrainScheduled = true
+        setTimeout(
+          () => {
+            this.uploadDrainScheduled = false
+            this.drainUploadQueue()
+          },
+          Math.max(delayMs, 10),
+        ) // minimum 10ms to avoid tight loop
+        return
+      }
+
+      // Dequeue and process
+      this.uploadQueue.shift()
+
+      try {
+        const block = await this.contentStorage!.read(req.index, req.begin, req.length)
+
+        // Final check: peer still connected and unchoked
+        if (!this.connectedPeers.includes(req.peer)) {
+          this.logger.debug('Peer disconnected before upload could complete')
+          continue
+        }
+        if (req.peer.amChoking) {
+          this.logger.debug('Peer choked before upload could complete')
+          continue
+        }
+
+        req.peer.sendPiece(req.index, req.begin, block)
+      } catch (err) {
+        this.logger.error(
+          `Error handling queued request: ${err instanceof Error ? err.message : String(err)}`,
+          { err },
+        )
+      }
     }
   }
 
@@ -1366,6 +1456,12 @@ export class Torrent extends EngineComponent {
 
       for (const block of neededBlocks) {
         if (peer.requestsPending >= MAX_PIPELINE) break
+
+        // Rate limit check - bail if out of tokens
+        const downloadBucket = this.btEngine.bandwidthTracker.downloadBucket
+        if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
+          break // Out of budget for this round, will retry on next trigger
+        }
 
         peer.sendRequest(index, block.begin, block.length)
         peer.requestsPending++

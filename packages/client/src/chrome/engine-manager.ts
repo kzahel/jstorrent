@@ -224,12 +224,15 @@ class EngineManager {
     this.engine.resume()
     console.log('[EngineManager] Engine resumed')
 
-    // 8. Set up beforeunload handler
+    // 8. Apply rate limits from settings
+    this.setRateLimits(appSettings.downloadSpeedLimit, appSettings.uploadSpeedLimit)
+
+    // 9. Set up beforeunload handler
     window.addEventListener('beforeunload', () => {
       this.shutdown()
     })
 
-    // 9. Set up notification handling
+    // 10. Set up notification handling
     // Note: Port connection for native events is now handled by useIOBridgeState in App.tsx
     this.setupNotifications()
 
@@ -323,6 +326,23 @@ class EngineManager {
     }
     const bytes = await this.sessionStore.get(DEFAULT_ROOT_KEY_KEY)
     return bytes ? new TextDecoder().decode(bytes) : null
+  }
+
+  /**
+   * Set download and upload rate limits.
+   * @param downloadLimit - bytes per second (0 = unlimited)
+   * @param uploadLimit - bytes per second (0 = unlimited)
+   */
+  setRateLimits(downloadLimit: number, uploadLimit: number): void {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set rate limits: engine not initialized')
+      return
+    }
+    this.engine.bandwidthTracker.setDownloadLimit(downloadLimit)
+    this.engine.bandwidthTracker.setUploadLimit(uploadLimit)
+    console.log(
+      `[EngineManager] Rate limits set: download=${downloadLimit === 0 ? 'unlimited' : downloadLimit + ' B/s'}, upload=${uploadLimit === 0 ? 'unlimited' : uploadLimit + ' B/s'}`,
+    )
   }
 
   /**
