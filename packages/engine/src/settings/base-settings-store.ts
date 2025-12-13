@@ -5,12 +5,7 @@
  * Subclasses implement the actual storage read/write.
  */
 
-import {
-  type Settings,
-  type SettingKey,
-  getDefaults,
-  validateValue,
-} from './schema'
+import { type Settings, type SettingKey, getDefaults, validateValue } from './schema'
 import type {
   ISettingsStore,
   SettingChangeCallback,
@@ -49,10 +44,7 @@ export abstract class BaseSettingsStore implements ISettingsStore {
   /**
    * Save a single setting to storage.
    */
-  protected abstract saveToStorage<K extends SettingKey>(
-    key: K,
-    value: Settings[K],
-  ): Promise<void>
+  protected abstract saveToStorage<K extends SettingKey>(key: K, value: Settings[K]): Promise<void>
 
   /**
    * Delete a single setting from storage (reset to default).

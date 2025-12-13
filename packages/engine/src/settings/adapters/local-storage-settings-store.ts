@@ -39,10 +39,7 @@ export class LocalStorageSettingsStore extends BaseSettingsStore {
     return result
   }
 
-  protected async saveToStorage<K extends SettingKey>(
-    key: K,
-    value: Settings[K],
-  ): Promise<void> {
+  protected async saveToStorage<K extends SettingKey>(key: K, value: Settings[K]): Promise<void> {
     const storageKey = getStorageKey(key)
     try {
       localStorage.setItem(storageKey, JSON.stringify(value))

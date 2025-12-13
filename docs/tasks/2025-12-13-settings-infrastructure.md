@@ -18,12 +18,12 @@ Phase 1 is complete. The core infrastructure exists:
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | Core infrastructure (schema, interface, adapters) | ✅ Done |
-| 2 | Create settings singleton + React context | TODO |
-| 3 | Migrate UI settings reads to use store | TODO |
-| 4 | Migrate NotificationManager to use store | TODO |
-| 5. Register settings effects | TODO |
-| 6 | Update SettingsOverlay to use store | TODO |
-| 7 | Delete dead code | TODO |
+| 2 | Create settings singleton + React context | ✅ Done |
+| 3 | Migrate UI settings reads to use store | ✅ Done |
+| 4 | Migrate NotificationManager to use store | ✅ Done |
+| 5 | Register settings effects (theme, rate limits) | ✅ Done |
+| 6 | Update SettingsOverlay to use store | ✅ Done (merged with Phase 3) |
+| 7 | Delete dead code | ✅ Done (merged with Phase 3) |
 
 ---
 
@@ -208,6 +208,18 @@ Manually verify:
 ## Phase 3: Migrate UI Settings Reads
 
 Replace `useAppSettings` hook usage with `useSettings`.
+
+**Status:** ✅ Complete
+
+**What was done:**
+- Removed `useAppSettings` hook from App.tsx
+- SettingsOverlay now uses `useSettings()` context internally
+- Updated all setting keys to match new schema:
+  - `keepAwakeWhileDownloading` → `keepAwake`
+  - `notifyOnComplete` → `notifications.onTorrentComplete` (plus other notification settings)
+  - Removed `ioWorkerThreads` (not in new schema)
+- `@jstorrent/ui` now only exports theme utilities and maxFps cache functions
+- engine-manager.ts now uses settings store directly
 
 ### 3.1 Update App.tsx to use new context
 

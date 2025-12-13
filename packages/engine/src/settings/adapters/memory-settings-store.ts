@@ -19,10 +19,7 @@ export class MemorySettingsStore extends BaseSettingsStore {
     return result as Partial<Settings>
   }
 
-  protected async saveToStorage<K extends SettingKey>(
-    key: K,
-    value: Settings[K],
-  ): Promise<void> {
+  protected async saveToStorage<K extends SettingKey>(key: K, value: Settings[K]): Promise<void> {
     this.storage.set(key, value)
   }
 

@@ -145,7 +145,7 @@ describe('MemorySettingsStore', () => {
 
     it('should notify subscribers on reset', async () => {
       await store.set('theme', 'dark')
-      
+
       const callback = vi.fn()
       store.subscribe('theme', callback)
 
