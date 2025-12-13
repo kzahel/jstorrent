@@ -9,6 +9,8 @@ import {
   saveColumnConfig,
   createCompareFunction,
 } from './column-config'
+import { createThrottledRaf } from '../utils/throttledRaf'
+import { getMaxFps } from '../hooks/useAppSettings'
 
 export interface VirtualTableProps<T> {
   getRows: () => T[]
@@ -169,20 +171,16 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     overscan: 5,
   })
 
-  let rafId: number | undefined
+  // Throttled RAF loop for live updates (respects maxFps setting)
+  let throttledRaf: { start: () => void; stop: () => void } | undefined
 
   onMount(() => {
-    const loop = () => {
-      forceUpdate({})
-      rafId = requestAnimationFrame(loop)
-    }
-    rafId = requestAnimationFrame(loop)
+    throttledRaf = createThrottledRaf(() => forceUpdate({}), getMaxFps)
+    throttledRaf.start()
   })
 
   onCleanup(() => {
-    if (rafId !== undefined) {
-      cancelAnimationFrame(rafId)
-    }
+    throttledRaf?.stop()
   })
 
   // Get visible columns in display order (from columnOrder, filtered by visible)
