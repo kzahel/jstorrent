@@ -63,6 +63,7 @@ class NotificationBridge {
     getBridge().postMessage({
       type: 'notification:stats',
       stats: this.pendingStats,
+      visible: document.visibilityState === 'visible',
     })
   }
 

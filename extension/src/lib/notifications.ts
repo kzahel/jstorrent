@@ -56,10 +56,15 @@ export class NotificationManager {
       const keys = Object.values(SETTING_KEYS)
       const result = await chrome.storage.sync.get(keys)
 
-      // Parse stored JSON values
+      // Get stored values (may be raw values or JSON strings)
       const getValue = <T>(key: string, defaultValue: T): T => {
         if (key in result) {
           const value = result[key]
+          // If it's already the right type, use it directly
+          if (typeof value === typeof defaultValue) {
+            return value as T
+          }
+          // If it's a JSON string, parse it
           if (typeof value === 'string') {
             try {
               return JSON.parse(value) as T
@@ -92,9 +97,15 @@ export class NotificationManager {
 
       for (const [key, change] of Object.entries(changes)) {
         const parseValue = <T>(defaultValue: T): T => {
-          if (typeof change.newValue === 'string') {
+          const value = change.newValue
+          // If it's already the right type, use it directly
+          if (typeof value === typeof defaultValue) {
+            return value as T
+          }
+          // If it's a JSON string, parse it
+          if (typeof value === 'string') {
             try {
-              return JSON.parse(change.newValue) as T
+              return JSON.parse(value) as T
             } catch {
               return defaultValue
             }

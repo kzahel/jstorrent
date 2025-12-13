@@ -196,6 +196,9 @@ function handleNotificationMessage(message: NotificationMessage): void {
       break
     case 'notification:stats':
       if (message.stats) {
+        if (message.visible !== undefined) {
+          notificationManager.setUiVisibility(message.visible)
+        }
         notificationManager.updateProgress(message.stats)
         powerManager.updateActiveDownloads(message.stats.activeCount)
       }
