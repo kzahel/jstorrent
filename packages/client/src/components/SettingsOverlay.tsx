@@ -188,102 +188,123 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
   onRemoveRoot,
   settings,
   updateSetting,
-}) => (
-  <div>
-    <Section title="Download Locations">
-      {loadingRoots ? (
-        <div style={{ color: 'var(--text-secondary)' }}>Loading...</div>
-      ) : roots.length === 0 ? (
-        <div style={styles.warning}>
-          <strong>No download location configured</strong>
-          <p style={{ margin: '8px 0 0 0' }}>
-            You need to select a download folder before you can add torrents.
-          </p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {roots.map((root) => (
-            <div
-              key={root.key}
-              style={{
-                ...styles.rootItem,
-                background: root.key === defaultKey ? 'var(--bg-highlight)' : 'var(--bg-secondary)',
-              }}
-            >
-              <input
-                type="radio"
-                checked={root.key === defaultKey}
-                onChange={() => onSetDefault(root.key)}
-                style={{ margin: 0 }}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 'bold' }}>{root.label}</div>
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {root.path}
-                </div>
-              </div>
-              <button
-                style={styles.iconButton}
-                onClick={() => onRemoveRoot(root.key)}
-                title="Remove (demo)"
+}) => {
+  // Handle keepAwake toggle with permission request
+  const handleKeepAwakeChange = async (enabled: boolean) => {
+    if (enabled) {
+      // Request power permission before enabling
+      try {
+        const granted = await chrome.permissions.request({ permissions: ['power'] })
+        if (granted) {
+          updateSetting('keepAwake', true)
+        }
+        // If denied, toggle stays off (no action needed)
+      } catch (e) {
+        console.error('Failed to request power permission:', e)
+      }
+    } else {
+      updateSetting('keepAwake', false)
+    }
+  }
+
+  return (
+    <div>
+      <Section title="Download Locations">
+        {loadingRoots ? (
+          <div style={{ color: 'var(--text-secondary)' }}>Loading...</div>
+        ) : roots.length === 0 ? (
+          <div style={styles.warning}>
+            <strong>No download location configured</strong>
+            <p style={{ margin: '8px 0 0 0' }}>
+              You need to select a download folder before you can add torrents.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {roots.map((root) => (
+              <div
+                key={root.key}
+                style={{
+                  ...styles.rootItem,
+                  background:
+                    root.key === defaultKey ? 'var(--bg-highlight)' : 'var(--bg-secondary)',
+                }}
               >
-                🗑
-              </button>
-              {root.key === defaultKey && <span style={styles.defaultBadge}>Default</span>}
-            </div>
-          ))}
-        </div>
-      )}
-      <button onClick={onAddRoot} disabled={addingRoot} style={styles.addButton}>
-        {addingRoot ? 'Selecting...' : '+ Add Download Location'}
-      </button>
-    </Section>
+                <input
+                  type="radio"
+                  checked={root.key === defaultKey}
+                  onChange={() => onSetDefault(root.key)}
+                  style={{ margin: 0 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 'bold' }}>{root.label}</div>
+                  <div
+                    style={{
+                      fontSize: '12px',
+                      color: 'var(--text-secondary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {root.path}
+                  </div>
+                </div>
+                <button
+                  style={styles.iconButton}
+                  onClick={() => onRemoveRoot(root.key)}
+                  title="Remove (demo)"
+                >
+                  🗑
+                </button>
+                {root.key === defaultKey && <span style={styles.defaultBadge}>Default</span>}
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={onAddRoot} disabled={addingRoot} style={styles.addButton}>
+          {addingRoot ? 'Selecting...' : '+ Add Download Location'}
+        </button>
+      </Section>
 
-    <Section title="Notifications">
-      <ToggleRow
-        label="Notify when torrent completes"
-        sublabel="Show notification when a single download finishes"
-        checked={settings['notifications.onTorrentComplete']}
-        onChange={(v) => updateSetting('notifications.onTorrentComplete', v)}
-      />
-      <ToggleRow
-        label="Notify when all complete"
-        sublabel="Show notification when all downloads finish"
-        checked={settings['notifications.onAllComplete']}
-        onChange={(v) => updateSetting('notifications.onAllComplete', v)}
-      />
-      <ToggleRow
-        label="Notify on errors"
-        sublabel="Show notification when a download fails"
-        checked={settings['notifications.onError']}
-        onChange={(v) => updateSetting('notifications.onError', v)}
-      />
-      <ToggleRow
-        label="Show progress when backgrounded"
-        sublabel="Persistent notification with download progress when UI is hidden"
-        checked={settings['notifications.progressWhenBackgrounded']}
-        onChange={(v) => updateSetting('notifications.progressWhenBackgrounded', v)}
-      />
-    </Section>
+      <Section title="Notifications">
+        <ToggleRow
+          label="Notify when torrent completes"
+          sublabel="Show notification when a single download finishes"
+          checked={settings['notifications.onTorrentComplete']}
+          onChange={(v) => updateSetting('notifications.onTorrentComplete', v)}
+        />
+        <ToggleRow
+          label="Notify when all complete"
+          sublabel="Show notification when all downloads finish"
+          checked={settings['notifications.onAllComplete']}
+          onChange={(v) => updateSetting('notifications.onAllComplete', v)}
+        />
+        <ToggleRow
+          label="Notify on errors"
+          sublabel="Show notification when a download fails"
+          checked={settings['notifications.onError']}
+          onChange={(v) => updateSetting('notifications.onError', v)}
+        />
+        <ToggleRow
+          label="Show progress when backgrounded"
+          sublabel="Persistent notification with download progress when UI is hidden"
+          checked={settings['notifications.progressWhenBackgrounded']}
+          onChange={(v) => updateSetting('notifications.progressWhenBackgrounded', v)}
+        />
+      </Section>
 
-    <Section title="Behavior">
-      <ToggleRow
-        label="Keep system awake while downloading"
-        sublabel="Prevents sleep during active downloads (requires permission)"
-        checked={settings.keepAwake}
-        onChange={(v) => updateSetting('keepAwake', v)}
-      />
-    </Section>
-  </div>
-)
+      <Section title="Behavior">
+        <ToggleRow
+          label="Keep system awake while downloading"
+          sublabel="Prevents sleep during active downloads (requires permission)"
+          checked={settings.keepAwake}
+          onChange={handleKeepAwakeChange}
+        />
+      </Section>
+    </div>
+  )
+}
 
 const InterfaceTab: React.FC<TabProps> = ({ settings, updateSetting }) => (
   <div>
