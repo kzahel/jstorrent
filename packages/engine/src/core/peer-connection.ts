@@ -65,6 +65,9 @@ export class PeerConnection extends EngineComponent {
   public uploadSpeedCalculator = new SpeedCalculator()
   public downloadSpeedCalculator = new SpeedCalculator()
 
+  /** Timestamp when this connection was established */
+  public connectedAt: number = Date.now()
+
   public peerId: Uint8Array | undefined = undefined
   public infoHash: Uint8Array | undefined = undefined
   public bitfield: BitField | null = null
