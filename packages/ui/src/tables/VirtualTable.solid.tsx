@@ -22,6 +22,7 @@ export interface VirtualTableProps<T> {
   onRowClick?: (row: T) => void
   onRowDoubleClick?: (row: T) => void
   onRowContextMenu?: (row: T, x: number, y: number) => void
+  getRowTooltip?: (row: T) => string | undefined
   rowHeight?: number
 }
 
@@ -803,6 +804,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                 data-testid="table-row"
                 data-row-key={key()}
                 data-selected={isSelected()}
+                title={props.getRowTooltip?.(row())}
                 style={{
                   position: 'absolute',
                   top: '0',
@@ -846,6 +848,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                         overflow: 'hidden',
                         'text-overflow': 'ellipsis',
                         'flex-shrink': '0',
+                        ...column.getCellStyle?.(row()),
                       }}
                     >
                       {column.getValue(row())}

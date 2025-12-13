@@ -45,6 +45,7 @@ export function TableMount<T>(props: TableMountProps<T>) {
           onRowClick: props.onRowClick,
           onRowDoubleClick: props.onRowDoubleClick,
           onRowContextMenu: (row, x, y) => onRowContextMenuRef.current?.(row, x, y),
+          getRowTooltip: props.getRowTooltip,
           rowHeight: props.rowHeight,
         }) as unknown as Element,
       containerRef.current,

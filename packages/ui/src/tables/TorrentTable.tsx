@@ -33,6 +33,14 @@ export const torrentColumns: ColumnDef<Torrent>[] = [
     header: 'Status',
     getValue: (t) => t.activityState,
     width: 100,
+    getCellStyle: (t) =>
+      t.errorMessage
+        ? {
+            color: '#e74c3c',
+            'text-decoration': 'underline dotted',
+            cursor: 'help',
+          }
+        : undefined,
   },
   {
     id: 'downloaded',
@@ -112,6 +120,7 @@ export function TorrentTable(props: TorrentTableProps) {
     <TableMount<Torrent>
       getRows={() => props.source.torrents}
       getRowKey={(t) => t.infoHashStr}
+      getRowTooltip={(t) => t.errorMessage}
       columns={torrentColumns}
       storageKey="torrents"
       getSelectedKeys={props.getSelectedHashes}
