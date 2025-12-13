@@ -56,6 +56,7 @@ export type { GenerateMagnetOptions, ParsedMagnet } from './utils/magnet'
 export { RrdHistory, DEFAULT_RRD_TIERS } from './utils/rrd-history'
 export type { RrdTierConfig, RrdSample, RrdSamplesResult } from './utils/rrd-history'
 export { toHex, fromHex, toBase64, fromBase64 } from './utils/buffer'
+export { TokenBucket } from './utils/token-bucket'
 export type { InfoHashHex } from './utils/infohash'
 export { infoHashFromHex, infoHashFromBytes } from './utils/infohash'
 

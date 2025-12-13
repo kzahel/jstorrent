@@ -303,58 +303,68 @@ const InterfaceTab: React.FC<TabProps> = ({ settings, updateSetting }) => (
   </div>
 )
 
-const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => (
-  <div>
-    <Section title="Listening Port">
-      <NumberRow
-        label="Port for incoming connections"
-        value={settings.listeningPort}
-        onChange={(v) => updateSetting('listeningPort', v)}
-        min={1024}
-        max={65535}
-      />
-      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-        Changes require restart to take effect.
-      </div>
-    </Section>
+const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
+  // Apply rate limits to engine when settings change
+  const handleDownloadLimitChange = (v: number) => {
+    updateSetting('downloadSpeedLimit', v)
+    engineManager.setRateLimits(v, settings.uploadSpeedLimit)
+  }
 
-    <Section title="Speed Limits">
-      <SpeedLimitRow
-        label="Download"
-        value={settings.downloadSpeedLimit}
-        onChange={(v) => updateSetting('downloadSpeedLimit', v)}
-      />
-      <SpeedLimitRow
-        label="Upload"
-        value={settings.uploadSpeedLimit}
-        onChange={(v) => updateSetting('uploadSpeedLimit', v)}
-      />
-      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-        Speed limits are not yet implemented - values are saved for future use.
-      </div>
-    </Section>
+  const handleUploadLimitChange = (v: number) => {
+    updateSetting('uploadSpeedLimit', v)
+    engineManager.setRateLimits(settings.downloadSpeedLimit, v)
+  }
 
-    <Section title="Connection Limits">
-      <NumberRow
-        label="Max peers per torrent"
-        value={settings.maxPeersPerTorrent}
-        onChange={(v) => updateSetting('maxPeersPerTorrent', v)}
-        min={1}
-        max={500}
-      />
-      <NumberRow
-        label="Global max peers"
-        value={settings.maxGlobalPeers}
-        onChange={(v) => updateSetting('maxGlobalPeers', v)}
-        min={1}
-        max={2000}
-      />
-      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-        Connection limits are not yet implemented - values are saved for future use.
-      </div>
-    </Section>
-  </div>
-)
+  return (
+    <div>
+      <Section title="Listening Port">
+        <NumberRow
+          label="Port for incoming connections"
+          value={settings.listeningPort}
+          onChange={(v) => updateSetting('listeningPort', v)}
+          min={1024}
+          max={65535}
+        />
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+          Changes require restart to take effect.
+        </div>
+      </Section>
+
+      <Section title="Speed Limits">
+        <SpeedLimitRow
+          label="Download"
+          value={settings.downloadSpeedLimit}
+          onChange={handleDownloadLimitChange}
+        />
+        <SpeedLimitRow
+          label="Upload"
+          value={settings.uploadSpeedLimit}
+          onChange={handleUploadLimitChange}
+        />
+      </Section>
+
+      <Section title="Connection Limits">
+        <NumberRow
+          label="Max peers per torrent"
+          value={settings.maxPeersPerTorrent}
+          onChange={(v) => updateSetting('maxPeersPerTorrent', v)}
+          min={1}
+          max={500}
+        />
+        <NumberRow
+          label="Global max peers"
+          value={settings.maxGlobalPeers}
+          onChange={(v) => updateSetting('maxGlobalPeers', v)}
+          min={1}
+          max={2000}
+        />
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+          Connection limits are not yet implemented - values are saved for future use.
+        </div>
+      </Section>
+    </div>
+  )
+}
 
 const AdvancedTab: React.FC<TabProps> = ({ settings, updateSetting }) => (
   <div>
@@ -415,7 +425,37 @@ interface SpeedLimitRowProps {
 
 const SpeedLimitRow: React.FC<SpeedLimitRowProps> = ({ label, value, onChange }) => {
   const isUnlimited = value === 0
-  const displayValue = isUnlimited ? '' : String(Math.round(value / 1024)) // Convert to KB/s
+  const derivedValue = isUnlimited ? '' : String(Math.round(value / 1024))
+
+  // Track if user is actively editing (to prevent prop sync during edit)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState(derivedValue)
+
+  // Display either the edit value (while editing) or derived value (from props)
+  const displayValue = isEditing ? editValue : derivedValue
+
+  const handleFocus = () => {
+    setIsEditing(true)
+    setEditValue(derivedValue)
+  }
+
+  const handleBlur = () => {
+    setIsEditing(false)
+    const kb = Number(editValue)
+    if (Number.isFinite(kb) && kb > 0) {
+      onChange(kb * 1024)
+    } else if (editValue === '' || kb <= 0) {
+      // Empty or zero means unlimited
+      onChange(0)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleBlur()
+      ;(e.target as HTMLInputElement).blur()
+    }
+  }
 
   return (
     <div style={styles.fieldRow}>
@@ -423,10 +463,10 @@ const SpeedLimitRow: React.FC<SpeedLimitRowProps> = ({ label, value, onChange })
       <input
         type="number"
         value={displayValue}
-        onChange={(e) => {
-          const kb = Number(e.target.value)
-          onChange(kb > 0 ? kb * 1024 : 0)
-        }}
+        onChange={(e) => setEditValue(e.target.value)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
         disabled={isUnlimited}
         placeholder="0"
         style={{ ...styles.numberInput, opacity: isUnlimited ? 0.5 : 1 }}
