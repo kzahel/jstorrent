@@ -1658,19 +1658,13 @@ export class Torrent extends EngineComponent {
           return
         }
 
-        // Check for fatal storage errors (e.g., storage root deleted)
-        if (e instanceof Error && e.name === 'MissingStorageRootError') {
-          this.logger.error(`Fatal storage error - stopping torrent:`, e)
-          this.errorMessage = 'Download location unavailable. Storage root not found.'
-          this.suspendNetwork()
-          this.activePieces?.remove(index)
-          // Persist error state
-          ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
-          return
-        }
-
-        this.logger.error(`Failed to write piece ${index}:`, e)
+        // ANY write failure is fatal - fail fast
+        const errorMsg = e instanceof Error ? e.message : String(e)
+        this.logger.error(`Fatal write error - stopping torrent:`, errorMsg)
+        this.errorMessage = `Write failed: ${errorMsg}`
+        this.suspendNetwork()
         this.activePieces?.remove(index)
+        ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
         return
       }
     } else if (expectedHash) {
