@@ -20,6 +20,8 @@ export interface ColumnDef<T> {
   sortable?: boolean
   /** If true, column is hidden by default. Default false. */
   defaultHidden?: boolean
+  /** Optional inline styles for the cell based on row data */
+  getCellStyle?: (row: T) => Record<string, string> | undefined
 }
 
 /**
@@ -63,6 +65,8 @@ export interface TableMountProps<T> {
   onRowDoubleClick?: (row: T) => void
   /** Row right-click handler - receives row and mouse position */
   onRowContextMenu?: (row: T, x: number, y: number) => void
+  /** Optional tooltip text for a row */
+  getRowTooltip?: (row: T) => string | undefined
   /** Row height in pixels */
   rowHeight?: number
   /** Estimated total rows (for virtualization) */
