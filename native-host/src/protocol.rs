@@ -13,6 +13,9 @@ pub enum Operation {
     // Folder Picker
     PickDownloadDirectory,
 
+    // Delete Download Root
+    DeleteDownloadRoot { key: String },
+
     // Handshake
     Handshake {
         #[serde(rename = "extensionId")]
@@ -45,6 +48,7 @@ pub enum ResponsePayload {
     },
     Path { path: String },
     RootAdded { root: DownloadRoot },
+    RootRemoved { key: String },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

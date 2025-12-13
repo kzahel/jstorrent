@@ -224,6 +224,50 @@ class HttpServer(
                 }
             }
 
+            // Delete root endpoint - removes a download root
+            delete("/roots/{key}") {
+                call.getExtensionHeaders() ?: return@delete
+                requireAuth(tokenStore) {
+                    val key = call.parameters["key"]
+                    if (key.isNullOrBlank()) {
+                        call.respond(HttpStatusCode.BadRequest, "Missing key")
+                        return@requireAuth
+                    }
+
+                    // Get root before removal (for SAF permission cleanup)
+                    val root = rootStore.getRoot(key)
+                    val removed = rootStore.removeRoot(key)
+
+                    if (removed) {
+                        // Release SAF permission
+                        root?.let { r ->
+                            try {
+                                val uri = android.net.Uri.parse(r.uri)
+                                context.contentResolver.releasePersistableUriPermission(
+                                    uri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                                )
+                                Log.i(TAG, "Released SAF permission for ${r.displayName}")
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to release SAF permission: ${e.message}")
+                            }
+                        }
+
+                        // Broadcast change to connected clients
+                        val updatedRoots = rootStore.refreshAvailability()
+                        broadcastRootsChanged(updatedRoots)
+
+                        call.respondText(
+                            json.encodeToString(mapOf("removed" to key)),
+                            ContentType.Application.Json
+                        )
+                    } else {
+                        call.respond(HttpStatusCode.NotFound, "Root not found")
+                    }
+                }
+            }
+
             // File routes with auth
             route("/") {
                 intercept(ApplicationCallPipeline.Call) {

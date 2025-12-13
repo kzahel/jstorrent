@@ -83,9 +83,20 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
     setDefaultKey(key)
   }
 
-  const handleRemoveRoot = (key: string) => {
-    // Demo only - not implemented
-    console.log('Remove root (demo):', key)
+  const handleRemoveRoot = async (key: string) => {
+    const root = roots.find((r) => r.key === key)
+    const confirmed = window.confirm(
+      `Remove download location "${root?.label || key}"?\n\n` +
+        'Existing downloads using this location will need to be moved or removed.',
+    )
+    if (!confirmed) return
+
+    const success = await engineManager.removeDownloadRoot(key)
+    if (success) {
+      await reloadRoots()
+    } else {
+      alert('Failed to remove download location.')
+    }
   }
 
   // Close on escape key
@@ -253,7 +264,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                 <button
                   style={styles.iconButton}
                   onClick={() => onRemoveRoot(root.key)}
-                  title="Remove (demo)"
+                  title="Remove"
                 >
                   🗑
                 </button>
