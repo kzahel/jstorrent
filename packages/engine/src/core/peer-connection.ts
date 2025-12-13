@@ -23,6 +23,7 @@ export interface PeerConnection {
   on(event: 'piece', listener: (index: number, begin: number, data: Uint8Array) => void): this
   on(event: 'cancel', listener: (index: number, begin: number, length: number) => void): this
   on(event: 'interested', listener: () => void): this
+  on(event: 'not_interested', listener: () => void): this
   on(event: 'extension_handshake', listener: (payload: Record<string, unknown>) => void): this
   on(event: 'metadata_request', listener: (piece: number) => void): this
   on(
@@ -237,6 +238,7 @@ export class PeerConnection extends EngineComponent {
         break
       case MessageType.NOT_INTERESTED:
         this.peerInterested = false
+        this.emit('not_interested')
         break
       case MessageType.HAVE:
         if (message.index !== undefined) {

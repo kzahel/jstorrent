@@ -139,6 +139,13 @@ export const settingsSchema = {
     max: 65535,
     restartRequired: true,
   },
+  maxUploadSlots: {
+    type: 'number',
+    storage: 'sync',
+    default: 4,
+    min: 0, // 0 = no uploads (pure leecher mode)
+    max: 50,
+  },
 
   // -------------------------------------------------------------------------
   // Machine-Local Settings

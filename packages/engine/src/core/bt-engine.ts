@@ -49,6 +49,7 @@ export interface BtEngineOptions {
   port?: number // Listening port to announce
   logging?: EngineLoggingConfig
   maxPeers?: number
+  maxUploadSlots?: number
   onLog?: (entry: LogEntry) => void
 
   /**
@@ -75,6 +76,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   private onLogCallback?: (entry: LogEntry) => void
   public maxConnections: number
   public maxPeers: number
+  public maxUploadSlots: number
 
   /**
    * Whether the engine is suspended (no network activity).
@@ -122,6 +124,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.filterFn = createFilter(options.logging ?? { level: 'info' })
     this.maxConnections = options.maxConnections ?? 100
     this.maxPeers = options.maxPeers ?? 20
+    this.maxUploadSlots = options.maxUploadSlots ?? 4
     this._suspended = options.startSuspended ?? false
 
     // Initialize logger for BtEngine itself
@@ -282,6 +285,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       input.announce,
       this.maxPeers,
       () => this.numConnections < this.maxConnections,
+      this.maxUploadSlots,
     )
 
     // Store magnet display name for fallback naming
@@ -428,16 +432,23 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    * Set connection limits for the engine.
    * @param maxPeersPerTorrent - Maximum peers per torrent (applied to new and existing torrents)
    * @param maxGlobalPeers - Maximum total connections across all torrents
+   * @param maxUploadSlots - Maximum simultaneously unchoked peers per torrent
    */
-  setConnectionLimits(maxPeersPerTorrent: number, maxGlobalPeers: number): void {
+  setConnectionLimits(
+    maxPeersPerTorrent: number,
+    maxGlobalPeers: number,
+    maxUploadSlots: number,
+  ): void {
     this.maxPeers = maxPeersPerTorrent
     this.maxConnections = maxGlobalPeers
+    this.maxUploadSlots = maxUploadSlots
     // Apply to all existing torrents
     for (const torrent of this.torrents) {
       torrent.setMaxPeers(maxPeersPerTorrent)
+      torrent.setMaxUploadSlots(maxUploadSlots)
     }
     this.logger.info(
-      `Connection limits updated: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}`,
+      `Connection limits updated: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}, maxUploadSlots=${maxUploadSlots}`,
     )
   }
 }

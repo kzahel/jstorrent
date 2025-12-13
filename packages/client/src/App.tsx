@@ -480,15 +480,31 @@ function App() {
 
     // Subscribe to connection limit changes
     const unsubPerTorrent = settingsStore.subscribe('maxPeersPerTorrent', (value) => {
-      engineManager.setConnectionLimits(value, settingsStore.get('maxGlobalPeers'))
+      engineManager.setConnectionLimits(
+        value,
+        settingsStore.get('maxGlobalPeers'),
+        settingsStore.get('maxUploadSlots'),
+      )
     })
     const unsubGlobal = settingsStore.subscribe('maxGlobalPeers', (value) => {
-      engineManager.setConnectionLimits(settingsStore.get('maxPeersPerTorrent'), value)
+      engineManager.setConnectionLimits(
+        settingsStore.get('maxPeersPerTorrent'),
+        value,
+        settingsStore.get('maxUploadSlots'),
+      )
+    })
+    const unsubUploadSlots = settingsStore.subscribe('maxUploadSlots', (value) => {
+      engineManager.setConnectionLimits(
+        settingsStore.get('maxPeersPerTorrent'),
+        settingsStore.get('maxGlobalPeers'),
+        value,
+      )
     })
 
     return () => {
       unsubPerTorrent()
       unsubGlobal()
+      unsubUploadSlots()
     }
   }, [settingsStore, settingsReady])
 
