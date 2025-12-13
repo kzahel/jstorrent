@@ -25,7 +25,8 @@ pub struct RpcInfo {
     pub started: u64,
     pub last_used: u64,
     pub browser: BrowserInfo,
-    pub download_roots: Vec<DownloadRoot>,
+    /// None = don't update roots, Some(vec) = set roots to vec (even if empty)
+    pub download_roots: Option<Vec<DownloadRoot>>,
     pub install_id: Option<String>,
 }
 
@@ -225,10 +226,12 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
             entry.install_id = info.install_id.clone();
         }
 
-        // Update download_roots from the incoming info
-        // Note: This will preserve roots on initial startup (when info.download_roots comes from file)
-        // but will also correctly update when roots are added/removed
-        entry.download_roots = info.download_roots.clone();
+        // Only update roots if explicitly provided (Some)
+        // None means "don't update" - preserves existing roots on startup
+        // Some(vec) means "set to this" - allows removing all roots
+        if let Some(roots) = &info.download_roots {
+            entry.download_roots = roots.clone();
+        }
 
         active_roots = entry.download_roots.clone();
         
@@ -245,7 +248,7 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
              });
         }
     } else {
-        // New entry
+        // New entry - use provided roots or empty
         let new_entry = ProfileEntry {
             extension_id: info.browser.extension_id.clone(),
             install_id: info.install_id.clone(),
@@ -255,7 +258,7 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
             started: info.started,
             last_used: info.last_used,
             browser: info.browser.clone(),
-            download_roots: info.download_roots.clone(),
+            download_roots: info.download_roots.clone().unwrap_or_default(),
         };
         active_roots = new_entry.download_roots.clone();
         unified_info.profiles.push(new_entry);
