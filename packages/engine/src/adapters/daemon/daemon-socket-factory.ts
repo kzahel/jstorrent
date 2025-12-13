@@ -7,6 +7,10 @@ import { IDaemonSocketManager } from './internal-types'
 
 const PROTOCOL_VERSION = 1
 
+// Opcodes for synthetic close events
+const OP_TCP_CLOSE = 0x14
+const OP_UDP_CLOSE = 0x24
+
 export class DaemonSocketFactory implements ISocketFactory, IDaemonSocketManager {
   private nextSocketIdVal = 1
   private pendingRequests = new Map<
@@ -14,9 +18,46 @@ export class DaemonSocketFactory implements ISocketFactory, IDaemonSocketManager
     { resolve: (v: Uint8Array) => void; reject: (e: Error) => void }
   >()
   private socketHandlers = new Map<number, (payload: Uint8Array, msgType: number) => void>()
+  // Track socket types so we can send the correct close opcode
+  private socketTypes = new Map<number, 'tcp' | 'udp'>()
 
   constructor(private daemon: DaemonConnection) {
     this.daemon.onFrame((frame) => this.handleFrame(frame))
+    this.daemon.onDisconnect((reason) => this.handleDisconnect(reason))
+  }
+
+  /**
+   * Called when the /io websocket disconnects.
+   * Cleans up all pending requests and notifies all sockets they're closed.
+   */
+  private handleDisconnect(reason: string): void {
+    // Reject all pending requests
+    for (const [, { reject }] of this.pendingRequests) {
+      reject(new Error(`IO connection lost: ${reason}`))
+    }
+    this.pendingRequests.clear()
+
+    // Notify all sockets they're closed with synthetic close events
+    // Store handlers before clearing to avoid mutation during iteration
+    const handlers = [...this.socketHandlers.entries()]
+    const types = new Map(this.socketTypes)
+    this.socketHandlers.clear()
+    this.socketTypes.clear()
+
+    for (const [socketId, handler] of handlers) {
+      // Build synthetic close payload: socketId(4), reason(1), errno(4)
+      // reason=1 indicates error (IO connection lost)
+      const payload = new Uint8Array(9)
+      const view = new DataView(payload.buffer)
+      view.setUint32(0, socketId, true)
+      payload[4] = 1 // reason: error
+      view.setUint32(5, 0, true) // errno: 0
+
+      // Use correct opcode based on socket type
+      const socketType = types.get(socketId) ?? 'tcp'
+      const opcode = socketType === 'udp' ? OP_UDP_CLOSE : OP_TCP_CLOSE
+      handler(payload, opcode)
+    }
   }
 
   async createTcpSocket(host?: string, port?: number): Promise<ITcpSocket> {
@@ -62,12 +103,18 @@ export class DaemonSocketFactory implements ISocketFactory, IDaemonSocketManager
     throw new Error('wrapTcpSocket only supports DaemonTcpSocket')
   }
 
-  registerHandler(socketId: number, handler: (payload: Uint8Array, msgType: number) => void) {
+  registerHandler(
+    socketId: number,
+    handler: (payload: Uint8Array, msgType: number) => void,
+    socketType: 'tcp' | 'udp' = 'tcp',
+  ) {
     this.socketHandlers.set(socketId, handler)
+    this.socketTypes.set(socketId, socketType)
   }
 
   unregisterHandler(socketId: number) {
     this.socketHandlers.delete(socketId)
+    this.socketTypes.delete(socketId)
   }
 
   private handleFrame(frame: ArrayBuffer) {
