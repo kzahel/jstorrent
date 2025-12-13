@@ -1473,7 +1473,6 @@ export class Torrent extends EngineComponent {
         piece.addRequest(blockIndex, peerId)
       }
     }
-
   }
 
   /**
