@@ -1055,7 +1055,13 @@ export class Torrent extends EngineComponent {
   private setupPeerListeners(peer: PeerConnection) {
     const onHandshake = (_infoHash: Uint8Array, peerId: Uint8Array, extensions: boolean) => {
       this.logger.debug('Handshake received')
-      // Verify infoHash matches
+
+      // Check for self-connection (our own peerId)
+      if (compare(peerId, this.peerId) === 0) {
+        this.logger.warn('Self-connection detected, closing peer')
+        peer.close()
+        return
+      }
 
       // If we initiated connection, we sent handshake first.
       // If they initiated, they sent handshake first.
@@ -1402,11 +1408,6 @@ export class Torrent extends EngineComponent {
 
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
     const missing = this.getMissingPieces()
-    /*
-    console.error(
-      `requestPieces: ${missing.length} missing pieces, peer.bitfield=${!!peer.bitfield}, peerPending=${peer.requestsPending}`,
-    )
-      */
 
     const MAX_PIPELINE = 500
 
@@ -1473,11 +1474,6 @@ export class Torrent extends EngineComponent {
       }
     }
 
-    /*
-    console.error(
-      `requestPieces: Made ${_requestsMade} requests, skipped: complete=${_skippedComplete}, capacity=${_skippedCapacity}, peerLacks=${_skippedPeerLacks}, noNeeded=${_skippedNoNeeded}`,
-    )
-      */
   }
 
   /**
