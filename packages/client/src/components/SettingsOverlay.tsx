@@ -24,7 +24,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'advanced', label: 'Advanced' },
 ]
 
-const FPS_OPTIONS = [1, 20, 30, 60, 120, 240, 0] // 0 = unlimited
+const FPS_OPTIONS = [1, 5, 10, 20, 30, 60, 120, 240, 0] // 0 = unlimited
 
 export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   isOpen,
