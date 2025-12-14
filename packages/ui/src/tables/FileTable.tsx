@@ -52,13 +52,6 @@ const fileColumns: ColumnDef<TorrentFileInfo>[] = [
     align: 'right',
   },
   {
-    id: 'complete',
-    header: '✓',
-    getValue: (f) => (f.isComplete ? '✓' : ''),
-    width: 40,
-    align: 'center',
-  },
-  {
     id: 'name',
     header: 'Full Path',
     getValue: (f) => f.path,
