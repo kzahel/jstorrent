@@ -35,6 +35,9 @@ hex = "0.4"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.52", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
 
+[dev-dependencies]
+serial_test = "3"
+
 [[bin]]
 name = "jstorrent-host"
 path = "src/main.rs"
