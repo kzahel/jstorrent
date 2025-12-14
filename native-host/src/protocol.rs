@@ -44,6 +44,7 @@ pub enum ResponsePayload {
     DaemonInfo {
         port: u16,
         token: String,
+        version: String,
         roots: Vec<DownloadRoot>,
     },
     Path { path: String },

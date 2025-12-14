@@ -311,7 +311,7 @@ async fn handle_request(
                              .and_then(|info| info.download_roots.clone())
                              .unwrap_or_default();
 
-                         Ok(ResponsePayload::DaemonInfo { port, token, roots })
+                         Ok(ResponsePayload::DaemonInfo { port, token, version: env!("CARGO_PKG_VERSION").to_string(), roots })
                     } else {
                          log!("Daemon info missing");
                          Err(anyhow::anyhow!("Daemon not running"))
