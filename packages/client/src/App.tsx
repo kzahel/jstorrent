@@ -688,6 +688,25 @@ function App() {
               )}
             </span>
             <button
+              onClick={() => window.open(systemBridge.getBugReportUrl(), '_blank')}
+              style={{
+                background: 'var(--button-bg)',
+                border: '1px solid var(--border-color)',
+                cursor: 'pointer',
+                padding: '6px 12px',
+                fontSize: '13px',
+                color: 'var(--text-primary)',
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              title="Report a bug on GitHub"
+            >
+              <span style={{ fontSize: '14px' }}>&#x1F41B;</span>
+              Report Bug
+            </button>
+            <button
               onClick={() => setSettingsOpen(true)}
               style={{
                 background: 'var(--button-bg)',

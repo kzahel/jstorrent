@@ -127,6 +127,8 @@ export interface UseSystemBridgeResult {
   daemonVersion: number | undefined
   /** Copy debug info to clipboard */
   copyDebugInfo: () => Promise<void>
+  /** Get URL for filing a bug report on GitHub */
+  getBugReportUrl: () => string
 }
 
 /**
@@ -171,6 +173,40 @@ export function useSystemBridge(config: UseSystemBridgeConfig): UseSystemBridgeR
     await copyTextToClipboard(text)
   }, [state, daemonVersion, versionStatus, readiness, roots])
 
+  // Generate bug report URL with pre-filled info
+  const getBugReportUrl = useCallback(() => {
+    const extVersion =
+      typeof chrome !== 'undefined' && chrome.runtime?.getManifest
+        ? chrome.runtime.getManifest().version
+        : 'unknown'
+
+    const body = `**Environment:**
+- Extension: v${extVersion}
+- Daemon: v${daemonVersion ?? 'not connected'}
+- Platform: ${state.platform}
+- Status: ${state.status}
+- User-Agent: ${navigator.userAgent}
+${state.lastError ? `- Last Error: ${state.lastError}` : ''}
+
+**Description:**
+[Describe the issue here]
+
+**Steps to reproduce:**
+1.
+2.
+3.
+
+**Expected behavior:**
+
+
+**Actual behavior:**
+
+`
+    const url = new URL('https://github.com/kzahel/jstorrent/issues/new')
+    url.searchParams.set('body', body)
+    return url.toString()
+  }, [state, daemonVersion])
+
   return {
     panelOpen,
     openPanel,
@@ -180,5 +216,6 @@ export function useSystemBridge(config: UseSystemBridgeConfig): UseSystemBridgeR
     versionStatus,
     daemonVersion,
     copyDebugInfo,
+    getBugReportUrl,
   }
 }
