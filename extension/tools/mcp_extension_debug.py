@@ -93,6 +93,35 @@ state = GlobalState()
 
 
 # =============================================================================
+# Value Truncation
+# =============================================================================
+
+def truncate_value(val, max_str_len=200, max_array_items=10, max_depth=5, depth=0):
+    """Recursively truncate large values for readable output."""
+    if depth > max_depth:
+        return "...(depth limit)"
+
+    if isinstance(val, str):
+        if len(val) > max_str_len:
+            return val[:max_str_len] + f"...(truncated, {len(val)} chars)"
+        return val
+
+    if isinstance(val, list):
+        if len(val) > max_array_items:
+            truncated = [truncate_value(v, max_str_len, max_array_items, max_depth, depth + 1)
+                         for v in val[:max_array_items]]
+            truncated.append(f"...(truncated, {len(val)} items)")
+            return truncated
+        return [truncate_value(v, max_str_len, max_array_items, max_depth, depth + 1) for v in val]
+
+    if isinstance(val, dict):
+        return {k: truncate_value(v, max_str_len, max_array_items, max_depth, depth + 1)
+                for k, v in val.items()}
+
+    return val
+
+
+# =============================================================================
 # Config Loading
 # =============================================================================
 
@@ -591,6 +620,10 @@ async def list_tools() -> list[Tool]:
                         "items": {"type": "string"},
                         "description": "Specific keys to retrieve (all if omitted)",
                     },
+                    "full": {
+                        "type": "boolean",
+                        "description": "Return full values without truncation (default: false)",
+                    },
                     "connection": CONNECTION_PARAM,
                 },
             },
@@ -918,6 +951,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
     elif name == "ext_get_storage":
         area = arguments.get("area", "local")
         keys = arguments.get("keys")
+        full = arguments.get("full", False)
         connections = get_connections(conn_name)
         if not connections:
             return [TextContent(type="text", text=f"Connection '{conn_name}' not found")]
@@ -941,8 +975,9 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
                 result = await cdp_evaluate(ws_url, expression)
                 eval_result = result.get("result", {})
                 value = eval_result.get("result", {}).get("value", {})
+                data = value if full else truncate_value(value)
 
-                return {"connection": conn.name, "area": area, "data": value}
+                return {"connection": conn.name, "area": area, "data": data}
             except Exception as e:
                 return {"connection": conn.name, "error": f"Storage read failed: {e}"}
 
