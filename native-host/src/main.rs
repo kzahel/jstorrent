@@ -278,6 +278,8 @@ async fn handle_request(
                 if let Some(info) = info_guard.as_mut() {
                     info.browser.extension_id = Some(extension_id);
                     info.install_id = Some(install_id.clone()); // Update install_id
+                    // Set to None to preserve existing roots in the file
+                    info.download_roots = None;
                     match crate::rpc::write_discovery_file(info.clone()) {
                         Ok(roots) => {
                             info.download_roots = Some(roots);

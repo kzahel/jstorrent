@@ -273,3 +273,180 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
 
     Ok(active_roots)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn make_test_root(key: &str, path: &str) -> DownloadRoot {
+        DownloadRoot {
+            key: key.to_string(),
+            path: path.to_string(),
+            display_name: format!("Test Root {}", key),
+            removable: true,
+            last_stat_ok: true,
+            last_checked: 0,
+        }
+    }
+
+    fn make_rpc_info(pid: u32, install_id: Option<&str>, roots: Option<Vec<DownloadRoot>>) -> RpcInfo {
+        RpcInfo {
+            version: 1,
+            pid,
+            port: 12345,
+            token: "test-token".to_string(),
+            started: 1000,
+            last_used: 1000,
+            browser: BrowserInfo {
+                name: "Chrome".to_string(),
+                binary: "/usr/bin/chrome".to_string(),
+                extension_id: Some("test-ext-id".to_string()),
+            },
+            download_roots: roots,
+            install_id: install_id.map(|s| s.to_string()),
+        }
+    }
+
+    /// Test: Startup with existing roots in rpc-info.json preserves them
+    /// Simulates the REAL restart scenario:
+    /// 1. First run: roots are saved with install_id
+    /// 2. Restart: new PID, no install_id, download_roots: None -> returns empty, state becomes Some([])
+    /// 3. Handshake: MUST pass None (not Some([])) to preserve existing roots
+    #[test]
+    fn test_startup_preserves_existing_roots() {
+        let temp_dir = TempDir::new().unwrap();
+        std::env::set_var("JSTORRENT_CONFIG_DIR", temp_dir.path());
+
+        // Create the app directory
+        let app_dir = temp_dir.path().join("jstorrent-native");
+        std::fs::create_dir_all(&app_dir).unwrap();
+
+        let install_id = "test-install-123";
+        let test_root = make_test_root("root-key-1", "/home/user/Downloads");
+
+        // Step 1: First run - create entry with roots and install_id
+        let info1 = make_rpc_info(1000, Some(install_id), Some(vec![test_root.clone()]));
+        let roots1 = write_discovery_file(info1).unwrap();
+        assert_eq!(roots1.len(), 1);
+        assert_eq!(roots1[0].key, "root-key-1");
+
+        // Step 2: Restart - new PID, no install_id yet, download_roots: None
+        // This simulates the native host starting up before handshake
+        let info2 = make_rpc_info(2000, None, None);
+        let roots2 = write_discovery_file(info2).unwrap();
+        // New entry created (no install_id match, no PID match), returns empty
+        assert_eq!(roots2.len(), 0);
+
+        // At this point in real code, state.download_roots becomes Some(roots2) = Some([])
+        // The handshake handler MUST set download_roots = None before calling write_discovery_file
+
+        // Step 3: Handshake - same install_id, download_roots: None (NOT Some([])!)
+        // This should find the OLD entry by install_id and preserve its roots
+        let info3 = make_rpc_info(2000, Some(install_id), None); // Critical: None, not Some([])
+        let roots3 = write_discovery_file(info3).unwrap();
+
+        // Should return the preserved roots from the original entry
+        assert_eq!(roots3.len(), 1, "Roots should be preserved after restart handshake");
+        assert_eq!(roots3[0].key, "root-key-1");
+        assert_eq!(roots3[0].path, "/home/user/Downloads");
+
+        std::env::remove_var("JSTORRENT_CONFIG_DIR");
+    }
+
+    /// Test: Passing Some([]) on handshake WOULD wipe roots (regression test)
+    /// This documents the bug we fixed - if handshake passes Some([]) instead of None, roots get wiped
+    #[test]
+    fn test_some_empty_wipes_roots_regression() {
+        let temp_dir = TempDir::new().unwrap();
+        std::env::set_var("JSTORRENT_CONFIG_DIR", temp_dir.path());
+
+        let app_dir = temp_dir.path().join("jstorrent-native");
+        std::fs::create_dir_all(&app_dir).unwrap();
+
+        let install_id = "test-install-regression";
+        let test_root = make_test_root("root-key-1", "/home/user/Downloads");
+
+        // Step 1: Create entry with roots
+        let info1 = make_rpc_info(1000, Some(install_id), Some(vec![test_root]));
+        let roots1 = write_discovery_file(info1).unwrap();
+        assert_eq!(roots1.len(), 1);
+
+        // Step 2: Startup with new PID, None
+        let info2 = make_rpc_info(2000, None, None);
+        let _roots2 = write_discovery_file(info2).unwrap();
+
+        // Step 3: If handshake passes Some([]) instead of None, roots get WIPED
+        // This is the BUG behavior - main.rs now sets download_roots = None before handshake
+        let info3 = make_rpc_info(2000, Some(install_id), Some(vec![])); // BUG: Some([]) wipes roots
+        let roots3 = write_discovery_file(info3).unwrap();
+        assert_eq!(roots3.len(), 0, "Some([]) wipes roots - main.rs must pass None to preserve");
+
+        std::env::remove_var("JSTORRENT_CONFIG_DIR");
+    }
+
+    /// Test: Removing a root actually removes it
+    /// Simulates:
+    /// 1. Start with a root
+    /// 2. Remove the root by passing Some(empty vec)
+    /// 3. Verify it's actually gone
+    #[test]
+    fn test_removing_root_actually_removes_it() {
+        let temp_dir = TempDir::new().unwrap();
+        std::env::set_var("JSTORRENT_CONFIG_DIR", temp_dir.path());
+
+        let app_dir = temp_dir.path().join("jstorrent-native");
+        std::fs::create_dir_all(&app_dir).unwrap();
+
+        let install_id = "test-install-456";
+        let test_root = make_test_root("root-to-remove", "/home/user/Videos");
+
+        // Step 1: Create entry with a root
+        let info1 = make_rpc_info(1000, Some(install_id), Some(vec![test_root]));
+        let roots1 = write_discovery_file(info1).unwrap();
+        assert_eq!(roots1.len(), 1);
+
+        // Step 2: Remove the root by passing Some(empty vec)
+        let info2 = make_rpc_info(1000, Some(install_id), Some(vec![])); // Some([]) = explicitly empty
+        let roots2 = write_discovery_file(info2).unwrap();
+        assert_eq!(roots2.len(), 0, "Root should be removed");
+
+        // Step 3: Verify it's actually gone by reading with None (preserve mode)
+        let info3 = make_rpc_info(1000, Some(install_id), None);
+        let roots3 = write_discovery_file(info3).unwrap();
+        assert_eq!(roots3.len(), 0, "Root should still be gone after preserve-mode read");
+
+        std::env::remove_var("JSTORRENT_CONFIG_DIR");
+    }
+
+    /// Test: Adding a root works
+    #[test]
+    fn test_adding_root() {
+        let temp_dir = TempDir::new().unwrap();
+        std::env::set_var("JSTORRENT_CONFIG_DIR", temp_dir.path());
+
+        let app_dir = temp_dir.path().join("jstorrent-native");
+        std::fs::create_dir_all(&app_dir).unwrap();
+
+        let install_id = "test-install-789";
+
+        // Step 1: Start with no roots
+        let info1 = make_rpc_info(1000, Some(install_id), Some(vec![]));
+        let roots1 = write_discovery_file(info1).unwrap();
+        assert_eq!(roots1.len(), 0);
+
+        // Step 2: Add a root
+        let new_root = make_test_root("new-root", "/home/user/Music");
+        let info2 = make_rpc_info(1000, Some(install_id), Some(vec![new_root.clone()]));
+        let roots2 = write_discovery_file(info2).unwrap();
+        assert_eq!(roots2.len(), 1);
+        assert_eq!(roots2[0].key, "new-root");
+
+        // Step 3: Verify it persists with None
+        let info3 = make_rpc_info(1000, Some(install_id), None);
+        let roots3 = write_discovery_file(info3).unwrap();
+        assert_eq!(roots3.len(), 1, "Added root should persist");
+
+        std::env::remove_var("JSTORRENT_CONFIG_DIR");
+    }
+}
