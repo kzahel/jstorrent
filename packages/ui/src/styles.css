@@ -171,6 +171,8 @@ body {
   margin: 0;
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 input,
