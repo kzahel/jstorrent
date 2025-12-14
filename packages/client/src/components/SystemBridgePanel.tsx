@@ -141,17 +141,19 @@ export function SystemBridgePanel({
       {/* Content */}
       <div style={{ padding: '16px' }}>{renderContent()}</div>
 
-      {/* Footer */}
-      <div
-        style={{
-          padding: '12px 16px',
-          borderTop: '1px solid var(--border-color, #e5e7eb)',
-          display: 'flex',
-          gap: '8px',
-        }}
-      >
-        {renderActions()}
-      </div>
+      {/* Footer - only show when disconnected (has actions) */}
+      {state.status === 'disconnected' && (
+        <div
+          style={{
+            padding: '12px 16px',
+            borderTop: '1px solid var(--border-color, #e5e7eb)',
+            display: 'flex',
+            gap: '8px',
+          }}
+        >
+          {renderActions()}
+        </div>
+      )}
     </div>
   )
 
