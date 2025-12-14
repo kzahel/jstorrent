@@ -1850,7 +1850,12 @@ export class Torrent extends EngineComponent {
     this.activePieces?.destroy()
 
     if (this.trackerManager) {
-      await this.trackerManager.announce('stopped')
+      try {
+        await this.trackerManager.announce('stopped')
+      } catch (err) {
+        // Announce may fail if IO is disconnected during shutdown - that's ok
+        this.logger.warn(`Failed to announce stopped: ${err instanceof Error ? err.message : err}`)
+      }
       this.trackerManager.destroy()
     }
     // Close all connected peers (swarm will be updated via markDisconnected)

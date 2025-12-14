@@ -278,11 +278,11 @@ class EngineManager {
       this.engine = null
     }
 
-    // Clean up connection
-    if (this.daemonConnection) {
-      this.daemonConnection.close()
-      this.daemonConnection = null
-    }
+    // Note: Don't close daemonConnection here. The engine.destroy() is async but
+    // beforeunload can't wait for it, so closing the connection immediately would
+    // cause tracker announce('stopped') to fail. The WebSocket will close
+    // automatically when the page unloads.
+    this.daemonConnection = null
 
     this.initPromise = null
   }
