@@ -227,6 +227,8 @@ function handleMessage(
     keys?: string[]
     value?: string
     prefix?: string
+    rootKey?: string
+    path?: string
   },
   sendResponse: SendResponse,
 ): boolean {
@@ -314,6 +316,36 @@ function handleMessage(
         console.error('[SW] removeDownloadRoot error:', e)
         sendResponse({ ok: false, error: String(e) })
       })
+    return true
+  }
+
+  // Open file with default application
+  if (message.type === 'OPEN_FILE') {
+    const rootKey = message.rootKey as string | undefined
+    const path = message.path as string | undefined
+    if (!rootKey || !path) {
+      sendResponse({ ok: false, error: 'Missing rootKey or path' })
+      return true
+    }
+    bridge
+      .openFile(rootKey, path)
+      .then((result) => sendResponse(result))
+      .catch((e: unknown) => sendResponse({ ok: false, error: String(e) }))
+    return true
+  }
+
+  // Reveal file in folder
+  if (message.type === 'REVEAL_IN_FOLDER') {
+    const rootKey = message.rootKey as string | undefined
+    const path = message.path as string | undefined
+    if (!rootKey || !path) {
+      sendResponse({ ok: false, error: 'Missing rootKey or path' })
+      return true
+    }
+    bridge
+      .revealInFolder(rootKey, path)
+      .then((result) => sendResponse(result))
+      .catch((e: unknown) => sendResponse({ ok: false, error: String(e) }))
     return true
   }
 

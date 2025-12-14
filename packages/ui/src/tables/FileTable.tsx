@@ -110,6 +110,12 @@ export interface FileTableProps {
   getSelectedKeys?: () => Set<string>
   /** Called when selection changes */
   onSelectionChange?: (keys: Set<string>) => void
+  /** Called when user wants to open a file. If not provided, shows "not available" alert. */
+  onOpenFile?: (torrentHash: string, file: TorrentFileInfo) => void
+  /** Called when user wants to reveal a file in folder. If not provided, shows "not available" alert. */
+  onRevealInFolder?: (torrentHash: string, file: TorrentFileInfo) => void
+  /** Called when user wants to copy the file path. If not provided, shows "not available" alert. */
+  onCopyFilePath?: (torrentHash: string, file: TorrentFileInfo) => void
 }
 
 /**
@@ -135,7 +141,36 @@ export function FileTable(props: FileTableProps) {
       label: 'Open Containing Folder',
       icon: '📁',
     },
+    {
+      id: 'copy-path',
+      label: 'Copy File Path',
+      icon: '📋',
+    },
   ]
+
+  const handleOpenFile = (file: TorrentFileInfo) => {
+    if (props.onOpenFile) {
+      props.onOpenFile(props.torrentHash, file)
+    } else {
+      alert(`Open file not available.\n\nPath: ${file.path}`)
+    }
+  }
+
+  const handleRevealInFolder = (file: TorrentFileInfo) => {
+    if (props.onRevealInFolder) {
+      props.onRevealInFolder(props.torrentHash, file)
+    } else {
+      alert(`Reveal in folder not available.\n\nPath: ${file.path}`)
+    }
+  }
+
+  const handleCopyFilePath = (file: TorrentFileInfo) => {
+    if (props.onCopyFilePath) {
+      props.onCopyFilePath(props.torrentHash, file)
+    } else {
+      alert(`Copy file path not available.\n\nPath: ${file.path}`)
+    }
+  }
 
   const handleContextMenuSelect = (id: string) => {
     if (!contextMenu) return
@@ -143,12 +178,13 @@ export function FileTable(props: FileTableProps) {
 
     switch (id) {
       case 'open':
-        // TODO: Implement file open via native host
-        alert(`Open file: ${file.path}\n\nComing soon!`)
+        handleOpenFile(file)
         break
       case 'open-folder':
-        // TODO: Implement folder open via native host
-        alert(`Open folder for: ${file.path}\n\nComing soon!`)
+        handleRevealInFolder(file)
+        break
+      case 'copy-path':
+        handleCopyFilePath(file)
         break
     }
   }
@@ -164,10 +200,7 @@ export function FileTable(props: FileTableProps) {
         getSelectedKeys={props.getSelectedKeys}
         onSelectionChange={props.onSelectionChange}
         onRowContextMenu={handleContextMenu}
-        onRowDoubleClick={(file) => {
-          // TODO: Implement file open via native host
-          alert(`Open file: ${file.path}\n\nComing soon!`)
-        }}
+        onRowDoubleClick={handleOpenFile}
       />
 
       {contextMenu && (

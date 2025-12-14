@@ -23,6 +23,20 @@ pub enum Operation {
         #[serde(rename = "installId")]
         install_id: String,
     },
+
+    // Open file with default application
+    OpenFile {
+        #[serde(rename = "rootKey")]
+        root_key: String,
+        path: String,
+    },
+
+    // Reveal file in system file manager
+    RevealInFolder {
+        #[serde(rename = "rootKey")]
+        root_key: String,
+        path: String,
+    },
 }
 
 #[derive(Debug, Serialize)]
