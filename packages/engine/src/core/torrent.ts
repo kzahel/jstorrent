@@ -1897,9 +1897,10 @@ export class Torrent extends EngineComponent {
 
     if (!this.hasMetadata) return
 
-    // Stop the torrent first - ensures no network activity during check
-    if (this.userState !== 'stopped') {
-      await this.stop()
+    // Suspend networking during check (non-destructive, unlike stop())
+    const wasNetworkActive = this._networkActive
+    if (wasNetworkActive) {
+      this.suspendNetwork()
     }
 
     // Set checking state
@@ -1938,6 +1939,11 @@ export class Torrent extends EngineComponent {
     this.logger.info(`Recheck complete for ${this.infoHashStr}`)
     // Note: Don't call checkCompletion() here - recheck shouldn't trigger
     // "download complete" notifications, it's just verifying existing data
+
+    // Resume networking if it was active before recheck
+    if (wasNetworkActive) {
+      this.resumeNetwork()
+    }
   }
 
   private checkCompletion() {
