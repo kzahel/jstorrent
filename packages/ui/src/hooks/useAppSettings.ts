@@ -8,6 +8,7 @@
 // ============ Types ============
 
 export type Theme = 'system' | 'dark' | 'light'
+export type ProgressBarStyle = 'text' | 'bar' | 'bar-gradient' | 'bar-striped' | 'bar-segmented'
 
 // ============ MaxFps Cache ============
 
@@ -22,6 +23,21 @@ export function getMaxFps(): number {
 /** Set cached maxFps value (called by settings store subscriber) */
 export function setMaxFpsCache(fps: number): void {
   cachedMaxFps = fps
+}
+
+// ============ ProgressBarStyle Cache ============
+
+// Module-level cache for progressBarStyle - avoids storage reads during render
+let cachedProgressBarStyle: ProgressBarStyle = 'bar'
+
+/** Get cached progress bar style (fast memory read, no storage access) */
+export function getProgressBarStyle(): ProgressBarStyle {
+  return cachedProgressBarStyle
+}
+
+/** Set cached progress bar style (called by settings store subscriber) */
+export function setProgressBarStyleCache(style: ProgressBarStyle): void {
+  cachedProgressBarStyle = style
 }
 
 // ============ Theme Utilities ============

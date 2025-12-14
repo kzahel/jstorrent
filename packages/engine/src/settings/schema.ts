@@ -67,6 +67,12 @@ export const settingsSchema = {
     min: 0,
     max: 240,
   },
+  progressBarStyle: {
+    type: 'enum',
+    storage: 'sync',
+    values: ['text', 'bar', 'bar-gradient', 'bar-striped', 'bar-segmented'] as const,
+    default: 'bar',
+  },
 
   // -------------------------------------------------------------------------
   // Notifications

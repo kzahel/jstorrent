@@ -851,7 +851,9 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                         ...column.getCellStyle?.(row()),
                       }}
                     >
-                      {column.getValue(row())}
+                      {column.renderCell
+                        ? column.renderCell(row(), column.getValue(row()))
+                        : column.getValue(row())}
                     </div>
                   )}
                 </For>

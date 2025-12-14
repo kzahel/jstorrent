@@ -179,3 +179,13 @@ button {
   background-color: var(--button-bg);
   color: var(--button-text);
 }
+
+/* Progress bar stripe animation */
+@keyframes progress-stripe {
+  from {
+    background-position: 16px 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
