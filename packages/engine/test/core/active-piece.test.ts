@@ -219,4 +219,80 @@ describe('ActivePiece', () => {
       expect(peers.has('peer2')).toBe(true)
     })
   })
+
+  describe('endgame methods', () => {
+    describe('getNeededBlocksEndgame', () => {
+      it('should return blocks not requested by this specific peer', () => {
+        const piece = new ActivePiece(0, 32768) // 2 blocks
+
+        // peer1 requests block 0
+        piece.addRequest(0, 'peer1')
+
+        // peer2 should be able to request block 0 (duplicate) and block 1
+        const needed = piece.getNeededBlocksEndgame('peer2')
+        expect(needed).toHaveLength(2)
+        expect(needed[0].begin).toBe(0)
+        expect(needed[1].begin).toBe(16384)
+      })
+
+      it('should not return blocks already requested by this peer', () => {
+        const piece = new ActivePiece(0, 32768)
+
+        piece.addRequest(0, 'peer1')
+        piece.addRequest(1, 'peer1')
+
+        // peer1 already requested everything
+        const needed = piece.getNeededBlocksEndgame('peer1')
+        expect(needed).toHaveLength(0)
+      })
+
+      it('should not return blocks we already have', () => {
+        const piece = new ActivePiece(0, 32768)
+
+        // Receive block 0
+        piece.addBlock(0, new Uint8Array(16384), 'peer1')
+
+        // peer2 should only get block 1
+        const needed = piece.getNeededBlocksEndgame('peer2')
+        expect(needed).toHaveLength(1)
+        expect(needed[0].begin).toBe(16384)
+      })
+
+      it('should respect maxBlocks limit', () => {
+        const piece = new ActivePiece(0, 65536) // 4 blocks
+
+        const needed = piece.getNeededBlocksEndgame('peer1', 2)
+        expect(needed).toHaveLength(2)
+      })
+    })
+
+    describe('getOtherRequesters', () => {
+      it('should return peers that requested the block excluding one', () => {
+        const piece = new ActivePiece(0, 16384)
+
+        piece.addRequest(0, 'peer1')
+        piece.addRequest(0, 'peer2')
+        piece.addRequest(0, 'peer3')
+
+        const others = piece.getOtherRequesters(0, 'peer1')
+        expect(others.sort()).toEqual(['peer2', 'peer3'])
+      })
+
+      it('should return empty array if no other requesters', () => {
+        const piece = new ActivePiece(0, 16384)
+
+        piece.addRequest(0, 'peer1')
+
+        const others = piece.getOtherRequesters(0, 'peer1')
+        expect(others).toHaveLength(0)
+      })
+
+      it('should return empty array for unrequested block', () => {
+        const piece = new ActivePiece(0, 16384)
+
+        const others = piece.getOtherRequesters(0, 'peer1')
+        expect(others).toHaveLength(0)
+      })
+    })
+  })
 })

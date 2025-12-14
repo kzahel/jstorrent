@@ -13,6 +13,8 @@ export * from './core/peer-coordinator'
 export type { TorrentListEntry, TorrentStateData } from './core/session-persistence'
 export { ConnectionTimingTracker } from './core/connection-timing'
 export type { ConnectionTimingStats } from './core/connection-timing'
+export { EndgameManager } from './core/endgame-manager'
+export type { EndgameDecision, CancelDecision, EndgameConfig } from './core/endgame-manager'
 
 // Torrent state
 export type { TorrentUserState, TorrentActivityState } from './core/torrent-state'

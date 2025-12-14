@@ -21,6 +21,7 @@ import { ConnectionManager } from './connection-manager'
 import { ConnectionTimingTracker } from './connection-timing'
 import { initializeTorrentStorage } from './torrent-initializer'
 import { TorrentDiskQueue, DiskQueueSnapshot } from './disk-queue'
+import { EndgameManager } from './endgame-manager'
 
 /**
  * All persisted fields for a torrent.
@@ -95,6 +96,7 @@ export class Torrent extends EngineComponent {
   public piecesCount: number = 0
   public contentStorage?: TorrentContentStorage
   private _diskQueue: TorrentDiskQueue = new TorrentDiskQueue()
+  private _endgameManager: EndgameManager = new EndgameManager()
   private _bitfield?: BitField
   public announce: string[] = []
   public trackerManager?: TrackerManager
@@ -623,6 +625,13 @@ export class Torrent extends EngineComponent {
     return this.isDownloadComplete
   }
 
+  /**
+   * Whether this torrent is in endgame mode.
+   */
+  get isEndgame(): boolean {
+    return this._endgameManager.isEndgame
+  }
+
   get files(): TorrentFileInfo[] {
     if (this._files.length > 0) return this._files
 
@@ -798,6 +807,9 @@ export class Torrent extends EngineComponent {
     // Clear active pieces - release buffered data and pending requests
     this.activePieces?.destroy()
     this.activePieces = undefined
+
+    // Reset endgame state
+    this._endgameManager.reset()
   }
 
   /**
@@ -1613,7 +1625,11 @@ export class Torrent extends EngineComponent {
       }
 
       // Get blocks we can request from this piece
-      const neededBlocks = piece.getNeededBlocks(MAX_PIPELINE - peer.requestsPending)
+      // In endgame mode, use peer-specific method to allow duplicate requests
+      const neededBlocks = this._endgameManager.isEndgame
+        ? piece.getNeededBlocksEndgame(peerId, MAX_PIPELINE - peer.requestsPending)
+        : piece.getNeededBlocks(MAX_PIPELINE - peer.requestsPending)
+
       if (neededBlocks.length === 0) {
         _skippedNoNeeded++
         continue
@@ -1635,6 +1651,18 @@ export class Torrent extends EngineComponent {
         // Track request in ActivePiece (tied to this peer)
         const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
         piece.addRequest(blockIndex, peerId)
+      }
+    }
+
+    // Check if we should enter/exit endgame mode
+    if (this.activePieces) {
+      const decision = this._endgameManager.evaluate(
+        missing.length,
+        this.activePieces.activeCount,
+        this.activePieces.hasUnrequestedBlocks(),
+      )
+      if (decision) {
+        this.logger.info(`Endgame: ${decision.type}`)
       }
     }
   }
@@ -1707,6 +1735,22 @@ export class Torrent extends EngineComponent {
     const isNew = piece.addBlock(blockIndex, msg.block, peerId)
     if (!isNew) {
       this.logger.debug(`Duplicate block ${msg.index}:${msg.begin}`)
+    }
+
+    // In endgame mode, send CANCEL to other peers that requested this block
+    if (isNew && this._endgameManager.isEndgame) {
+      const cancels = this._endgameManager.getCancels(piece, blockIndex, peerId)
+      for (const cancel of cancels) {
+        // Find peer by ID and send cancel
+        for (const p of this.connectedPeers) {
+          const pId = p.peerId ? toHex(p.peerId) : `${p.remoteAddress}:${p.remotePort}`
+          if (pId === cancel.peerId) {
+            p.sendCancel(cancel.index, cancel.begin, cancel.length)
+            this.logger.debug(`Endgame: sent CANCEL to ${pId} for ${cancel.index}:${cancel.begin}`)
+            break
+          }
+        }
+      }
     }
 
     // Refill request pipeline immediately (before any async I/O)

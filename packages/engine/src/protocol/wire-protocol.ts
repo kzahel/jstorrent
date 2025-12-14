@@ -164,6 +164,15 @@ export class PeerWireProtocol {
     return this.createMessage(MessageType.REQUEST, payload)
   }
 
+  static createCancel(index: number, begin: number, length: number): Uint8Array {
+    const payload = new Uint8Array(12)
+    const view = new DataView(payload.buffer)
+    view.setUint32(0, index, false)
+    view.setUint32(4, begin, false)
+    view.setUint32(8, length, false)
+    return this.createMessage(MessageType.CANCEL, payload)
+  }
+
   static createPiece(index: number, begin: number, block: Uint8Array): Uint8Array {
     const payload = new Uint8Array(8 + block.length)
     const view = new DataView(payload.buffer)

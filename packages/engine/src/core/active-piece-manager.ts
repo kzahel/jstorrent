@@ -167,6 +167,20 @@ export class ActivePieceManager extends EngineComponent {
   }
 
   /**
+   * Check if any active piece has unrequested blocks.
+   * Used to determine endgame eligibility.
+   */
+  hasUnrequestedBlocks(): boolean {
+    for (const piece of this.pieces.values()) {
+      // If piece has blocks that aren't received AND aren't requested, return true
+      if (piece.getNeededBlocks(1).length > 0) {
+        return true
+      }
+    }
+    return false
+  }
+
+  /**
    * Remove stale pieces that have no activity and no data.
    */
   private cleanupStale(): void {

@@ -115,6 +115,11 @@ export class PeerConnection extends EngineComponent {
     this.send(message)
   }
 
+  sendCancel(index: number, begin: number, length: number) {
+    const message = PeerWireProtocol.createCancel(index, begin, length)
+    this.send(message)
+  }
+
   sendHave(index: number) {
     // HAVE message payload is just the index (4 bytes)
     const payload = new Uint8Array(4)

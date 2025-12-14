@@ -197,6 +197,40 @@ export class ActivePiece {
     return needed
   }
 
+  // --- Endgame Mode Support ---
+
+  /**
+   * Get blocks needed from a specific peer in endgame mode.
+   * Returns blocks this peer hasn't requested yet, even if other peers have.
+   */
+  getNeededBlocksEndgame(peerId: string, maxBlocks: number = Infinity): BlockInfo[] {
+    const needed: BlockInfo[] = []
+
+    for (let i = 0; i < this.blocksNeeded && needed.length < maxBlocks; i++) {
+      // Skip if we have the data
+      if (this.blockData.has(i)) continue
+
+      // In endgame: skip only if THIS PEER already requested it
+      const requests = this.blockRequests.get(i)
+      if (requests?.some((r) => r.peerId === peerId)) continue
+
+      const begin = i * BLOCK_SIZE
+      const length = Math.min(BLOCK_SIZE, this.length - begin)
+      needed.push({ begin, length })
+    }
+
+    return needed
+  }
+
+  /**
+   * Get peer IDs that have outstanding requests for a block (excluding one peer).
+   * Used in endgame to send CANCEL messages when a block arrives.
+   */
+  getOtherRequesters(blockIndex: number, excludePeerId: string): string[] {
+    const requests = this.blockRequests.get(blockIndex) ?? []
+    return requests.filter((r) => r.peerId !== excludePeerId).map((r) => r.peerId)
+  }
+
   // --- Assembly ---
 
   /**
