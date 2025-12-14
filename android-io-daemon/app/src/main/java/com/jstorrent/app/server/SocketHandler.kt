@@ -16,9 +16,14 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 
 private const val TAG = "SocketHandler"
+
+// Limit concurrent pending TCP connections to prevent resource exhaustion
+// when connecting to many unreachable peers on internet torrents
+private val connectSemaphore = Semaphore(50)
 
 enum class SessionType {
     IO,      // /io endpoint - socket operations
@@ -210,6 +215,8 @@ class SocketSession(
         Log.d(TAG, "TCP_CONNECT: socketId=$socketId, $hostname:$port")
 
         scope.launch {
+            // Limit concurrent pending connections to prevent resource exhaustion
+            connectSemaphore.acquire()
             try {
                 val socket = Socket()
                 // Performance: disable Nagle's algorithm for lower latency
@@ -220,7 +227,9 @@ class SocketSession(
                 socket.soTimeout = 60_000 // 60 second read timeout
                 // Reliability: TCP keep-alive for connection health
                 socket.setKeepAlive(true)
-                socket.connect(InetSocketAddress(hostname, port), 30000)
+                // 10s connect timeout (reduced from 30s) - prevents resource exhaustion
+                // when connecting to many unreachable peers on internet torrents
+                socket.connect(InetSocketAddress(hostname, port), 10000)
 
                 val handler = TcpSocketHandler(socketId, socket, this@SocketSession)
                 tcpSockets[socketId] = handler
@@ -238,6 +247,8 @@ class SocketSession(
                 // Send TCP_CONNECTED failure
                 val response = socketId.toLEBytes() + byteArrayOf(1) + 1.toLEBytes()
                 send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
+            } finally {
+                connectSemaphore.release()
             }
         }
     }
@@ -462,6 +473,13 @@ class TcpServerHandler(
             try {
                 while (true) {
                     val socket = serverSocket.accept()
+                    // Apply same socket options as outgoing connections
+                    // CRITICAL for internet peers: tcpNoDelay prevents Nagle buffering
+                    socket.tcpNoDelay = true
+                    socket.receiveBufferSize = 256 * 1024
+                    socket.soTimeout = 60_000
+                    socket.setKeepAlive(true)
+
                     val socketId = nextSocketId.getAndIncrement()
                     val peerAddr = socket.inetAddress.hostAddress ?: "unknown"
                     val peerPort = socket.port
@@ -617,8 +635,10 @@ class TcpSocketHandler(
                     output.write(data)
                     pendingBytes += data.size
 
-                    // Flush when queue is empty or we've accumulated enough
-                    if (sendQueue.isEmpty || pendingBytes >= 32 * 1024) {
+                    // Flush when queue is empty, accumulated enough, or small control message
+                    // Small messages (<1KB) are likely protocol control (handshake, interested,
+                    // unchoke, have, request) and must be sent immediately for peers to respond
+                    if (sendQueue.isEmpty || pendingBytes >= 32 * 1024 || data.size < 1024) {
                         output.flush()
                         pendingBytes = 0
                     }

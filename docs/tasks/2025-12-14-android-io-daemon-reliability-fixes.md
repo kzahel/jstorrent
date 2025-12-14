@@ -1016,6 +1016,97 @@ import kotlinx.coroutines.Job
 
 If issues arise, the changes are isolated to `SocketHandler.kt` and `FileHandler.kt`. Revert to the previous version of these files.
 
+## Phase 5: Internet Peer Connectivity Fixes
+
+After implementing Phases 1-4, local LAN peers worked at 7MB/s but internet torrents would connect then stall after ~10 seconds. Additional investigation revealed:
+
+### Root Causes (Internet-Specific)
+
+1. **Missing socket options on accepted connections** - `TcpServerHandler.startAccepting()` had no socket options, causing Nagle's algorithm to buffer small protocol messages on high-latency internet connections
+
+2. **Write buffering delayed protocol messages** - The TCP sender only flushed after 32KB accumulated or queue was empty. BitTorrent control messages (handshake, interested, unchoke, have, request) are <1KB and would wait in buffer
+
+3. **Resource exhaustion from connection attempts** - Internet torrents try connecting to hundreds of peers. Many are unreachable, and with 30s timeout × hundreds of peers = exhausted coroutines/threads
+
+### Fixes Applied
+
+#### 5.1 Socket Options for Accepted Connections
+
+**In `TcpServerHandler.startAccepting()`, after `val socket = serverSocket.accept()`:**
+
+```kotlin
+val socket = serverSocket.accept()
+// Apply same socket options as outgoing connections
+// CRITICAL for internet peers: tcpNoDelay prevents Nagle buffering
+socket.tcpNoDelay = true
+socket.receiveBufferSize = 256 * 1024
+socket.soTimeout = 60_000
+socket.setKeepAlive(true)
+```
+
+#### 5.2 Flush Small Messages Immediately
+
+**In `TcpSocketHandler.startSending()`, change flush condition:**
+
+```kotlin
+// Flush when queue is empty, accumulated enough, or small control message
+// Small messages (<1KB) are likely protocol control (handshake, interested,
+// unchoke, have, request) and must be sent immediately for peers to respond
+if (sendQueue.isEmpty || pendingBytes >= 32 * 1024 || data.size < 1024) {
+    output.flush()
+    pendingBytes = 0
+}
+```
+
+#### 5.3 Reduce Connect Timeout
+
+**In `handleTcpConnect()`, reduce timeout from 30s to 10s:**
+
+```kotlin
+// 10s connect timeout (reduced from 30s to free up resources faster
+// when connecting to unreachable internet peers)
+socket.connect(InetSocketAddress(hostname, port), 10000)
+```
+
+#### 5.4 Limit Concurrent Pending Connections
+
+**Add semaphore to prevent resource exhaustion:**
+
+```kotlin
+import java.util.concurrent.Semaphore
+
+// Limit concurrent pending TCP connections to prevent resource exhaustion
+// when connecting to many unreachable peers on internet torrents
+private val connectSemaphore = Semaphore(50)
+```
+
+**Wrap `handleTcpConnect()` socket creation:**
+
+```kotlin
+scope.launch {
+    // Limit concurrent pending connections to prevent resource exhaustion
+    connectSemaphore.acquire()
+    try {
+        val socket = Socket()
+        // ... socket options and connect ...
+    } catch (e: Exception) {
+        // ... error handling ...
+    } finally {
+        connectSemaphore.release()
+    }
+}
+```
+
+### Results
+
+| Metric | Before Fixes | After Fixes |
+|--------|--------------|-------------|
+| Local peer speed | 7 MB/s | 7 MB/s (unchanged) |
+| Internet torrent | Stalls after ~10s | Downloads to completion |
+| Resource usage | Exhausted after ~10s | Stable |
+
+---
+
 ## Future Improvements (Not In This Task)
 
 1. **Backpressure signaling** - Protocol extension to tell engine to slow down
