@@ -24,6 +24,7 @@ const CONTAINER_STYLE: JSX.CSSProperties = {
   'border-radius': '2px',
   position: 'relative',
   overflow: 'hidden',
+  'pointer-events': 'none', // Allow clicks to pass through to row
 }
 
 const TEXT_OVERLAY_STYLE: JSX.CSSProperties = {
