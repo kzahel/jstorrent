@@ -46,33 +46,33 @@ export const SystemIndicator = forwardRef<HTMLButtonElement, SystemIndicatorProp
       <button
         ref={ref}
         onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        padding: '4px 10px',
-        border: 'none',
-        borderRadius: '12px',
-        background: colors.bg,
-        color: colors.text,
-        fontSize: '12px',
-        fontWeight: 500,
-        cursor: 'pointer',
-        animation: pulse ? 'system-indicator-pulse 2s ease-in-out infinite' : undefined,
-      }}
-    >
-      <span
         style={{
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          background: colors.text,
-          opacity: 0.8,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 10px',
+          border: 'none',
+          borderRadius: '12px',
+          background: colors.bg,
+          color: colors.text,
+          fontSize: '12px',
+          fontWeight: 500,
+          cursor: 'pointer',
+          animation: pulse ? 'system-indicator-pulse 2s ease-in-out infinite' : undefined,
         }}
-      />
-      {label}
-      <span style={{ opacity: 0.6 }}>&#x25BE;</span>
-    </button>
+      >
+        <span
+          style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: colors.text,
+            opacity: 0.8,
+          }}
+        />
+        {label}
+        <span style={{ opacity: 0.6 }}>&#x25BE;</span>
+      </button>
     )
   },
 )
