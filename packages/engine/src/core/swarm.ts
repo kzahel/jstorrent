@@ -995,4 +995,33 @@ export class Swarm extends EventEmitter {
     this._allPeersVersion++
     this._cachedPeersArray = null
   }
+
+  /**
+   * Reset backoff state for all peers.
+   * Called when torrent is started to allow immediate reconnection attempts.
+   * Preserves peer addresses and stats, only resets connection attempt tracking.
+   */
+  resetBackoffState(): void {
+    for (const peer of this.peers.values()) {
+      // Don't reset banned peers
+      if (peer.state === 'banned') continue
+
+      // Reset failed peers to idle so they're eligible for connection
+      if (peer.state === 'failed') {
+        peer.state = 'idle'
+      }
+
+      // Reset connection attempt counters
+      peer.connectAttempts = 0
+      peer.connectFailures = 0
+      peer.lastConnectAttempt = null
+      peer.lastConnectError = null
+
+      // Reset quick disconnect tracking
+      peer.quickDisconnects = 0
+      peer.lastDisconnect = null
+    }
+
+    this.logger.debug(`Reset backoff state for ${this.peers.size} peers`)
+  }
 }
