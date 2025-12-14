@@ -7,7 +7,7 @@ import { getProgressBarStyle } from '../hooks/useAppSettings'
 export interface ProgressBarProps {
   /** Progress value from 0.0 to 1.0 */
   progress: number
-  /** Whether the torrent is actively downloading (unused for now) */
+  /** Whether the torrent is actively downloading/seeding (not stopped) */
   isActive?: boolean
 }
 
@@ -20,6 +20,9 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
   if (style === 'text') {
     return <span>{percentText}</span>
   }
+
+  // Desaturate colors when stopped
+  const saturateFilter = props.isActive === false ? 'saturate(0.2)' : 'none'
 
   // Simple bar with overlaid text
   const barColor = props.progress >= 1 ? 'var(--accent-success)' : 'var(--accent-primary)'
@@ -43,6 +46,7 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
           background: barColor,
           'border-radius': '2px',
           transition: 'width 0.2s ease',
+          filter: saturateFilter,
         }}
       />
       <span

@@ -4,14 +4,7 @@ import { TableMount } from './mount'
 import { ColumnDef } from './types'
 import { formatBytes } from '../utils/format'
 import { ContextMenu, ContextMenuItem } from '../components/ContextMenu'
-
-/** Format progress as percentage */
-function formatProgress(progress: number): string {
-  const pct = progress * 100
-  if (pct >= 100) return '100%'
-  if (pct < 0.1) return '0%'
-  return pct.toFixed(1) + '%'
-}
+import { ProgressBar } from './ProgressBar.solid'
 
 /** Column definitions for file table */
 const fileColumns: ColumnDef<TorrentFileInfo>[] = [
@@ -69,9 +62,10 @@ const fileColumns: ColumnDef<TorrentFileInfo>[] = [
   {
     id: 'progress',
     header: 'Progress',
-    getValue: (f) => formatProgress(f.progress),
+    getValue: (f) => f.progress * 100, // Numeric for sorting
     width: 80,
-    align: 'right',
+    align: 'center',
+    renderCell: (f) => ProgressBar({ progress: f.progress }),
   },
   {
     id: 'done',

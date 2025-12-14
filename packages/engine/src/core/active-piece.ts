@@ -197,19 +197,6 @@ export class ActivePiece {
     return needed
   }
 
-  /**
-   * For endgame mode: get blocks that are requested but not yet received.
-   */
-  getRequestedButNotReceivedBlocks(): number[] {
-    const blocks: number[] = []
-    for (let i = 0; i < this.blocksNeeded; i++) {
-      if (!this.blockData.has(i)) {
-        blocks.push(i)
-      }
-    }
-    return blocks
-  }
-
   // --- Assembly ---
 
   /**
