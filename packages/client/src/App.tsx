@@ -11,6 +11,7 @@ import {
   formatBytes,
   ContextMenuItem,
   setMaxFpsCache,
+  setProgressBarStyleCache,
   applyTheme,
 } from '@jstorrent/ui'
 import { EngineProvider } from './context/EngineContext'
@@ -464,6 +465,19 @@ function App() {
     // Keep cache updated
     return settingsStore.subscribe('maxFps', (value) => {
       setMaxFpsCache(value)
+    })
+  }, [settingsStore, settingsReady])
+
+  // Keep progressBarStyle cache updated from settings store
+  useEffect(() => {
+    if (!settingsReady) return
+
+    // Initialize cache
+    setProgressBarStyleCache(settingsStore.get('progressBarStyle'))
+
+    // Keep cache updated
+    return settingsStore.subscribe('progressBarStyle', (value) => {
+      setProgressBarStyleCache(value)
     })
   }, [settingsStore, settingsReady])
 

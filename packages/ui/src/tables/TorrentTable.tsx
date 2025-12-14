@@ -2,6 +2,7 @@ import { Torrent } from '@jstorrent/engine'
 import { TableMount } from './mount'
 import { ColumnDef } from './types'
 import { formatBytes } from '../utils/format'
+import { ProgressBar } from './ProgressBar.solid'
 
 /**
  * Column definitions for torrent table.
@@ -24,9 +25,14 @@ export const torrentColumns: ColumnDef<Torrent>[] = [
   {
     id: 'progress',
     header: 'Done',
-    getValue: (t) => `${(t.progress * 100).toFixed(1)}%`,
-    width: 70,
-    align: 'right',
+    getValue: (t) => t.progress * 100, // Numeric for sorting
+    width: 80,
+    align: 'center',
+    renderCell: (t) =>
+      ProgressBar({
+        progress: t.progress,
+        isActive: t.activityState === 'downloading' || t.activityState === 'checking',
+      }),
   },
   {
     id: 'status',

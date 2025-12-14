@@ -19,8 +19,15 @@ export { usePersistedHeight } from './hooks/usePersistedHeight'
 export type { UsePersistedHeightOptions } from './hooks/usePersistedHeight'
 export { usePersistedUIState } from './hooks/usePersistedUIState'
 export type { UsePersistedUIStateOptions } from './hooks/usePersistedUIState'
-export { applyTheme, getEffectiveTheme, getMaxFps, setMaxFpsCache } from './hooks/useAppSettings'
-export type { Theme } from './hooks/useAppSettings'
+export {
+  applyTheme,
+  getEffectiveTheme,
+  getMaxFps,
+  setMaxFpsCache,
+  getProgressBarStyle,
+  setProgressBarStyleCache,
+} from './hooks/useAppSettings'
+export type { Theme, ProgressBarStyle } from './hooks/useAppSettings'
 
 // Tables
 export { TorrentTable, torrentColumns } from './tables/TorrentTable'

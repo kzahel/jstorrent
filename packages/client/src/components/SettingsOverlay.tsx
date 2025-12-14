@@ -5,6 +5,15 @@ import type { Settings, SettingKey } from '@jstorrent/engine'
 
 type SettingsTab = 'general' | 'interface' | 'network' | 'advanced'
 type Theme = 'system' | 'dark' | 'light'
+type ProgressBarStyle = 'text' | 'bar' | 'bar-gradient' | 'bar-striped' | 'bar-segmented'
+
+const PROGRESS_BAR_STYLES: { value: ProgressBarStyle; label: string }[] = [
+  { value: 'text', label: 'Text Only' },
+  { value: 'bar', label: 'Simple Bar' },
+  { value: 'bar-gradient', label: 'Gradient Bar' },
+  { value: 'bar-striped', label: 'Striped Bar' },
+  { value: 'bar-segmented', label: 'Segmented Bar' },
+]
 
 interface DownloadRoot {
   key: string
@@ -337,6 +346,20 @@ const InterfaceTab: React.FC<TabProps> = ({ settings, updateSetting }) => (
             </label>
           ))}
         </div>
+      </div>
+      <div style={styles.fieldRow}>
+        <span>Progress Bar Style</span>
+        <select
+          value={settings.progressBarStyle}
+          onChange={(e) => updateSetting('progressBarStyle', e.target.value as ProgressBarStyle)}
+          style={styles.select}
+        >
+          {PROGRESS_BAR_STYLES.map(({ value, label }) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
       </div>
     </Section>
 
