@@ -3,13 +3,50 @@ use crate::state::State;
 use anyhow::{anyhow, Result};
 use rfd::AsyncFileDialog;
 use jstorrent_common::DownloadRoot;
+use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 use sha2::{Sha256, Digest};
 
+/// Determine the best starting directory for the folder picker.
+/// Falls back through: most recent download root -> system downloads -> home directory
+fn get_starting_directory(state: &State) -> Option<PathBuf> {
+    // 1. Try most recently used download root (by last_checked timestamp)
+    if let Ok(info_guard) = state.rpc_info.lock() {
+        if let Some(ref info) = *info_guard {
+            if let Some(ref roots) = info.download_roots {
+                if let Some(best) = roots.iter()
+                    .filter(|r| r.last_stat_ok)
+                    .max_by_key(|r| r.last_checked)
+                {
+                    let path = PathBuf::from(&best.path);
+                    if path.exists() {
+                        return Some(path);
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Fall back to system downloads folder
+    if let Ok(download_root) = state.download_root.lock() {
+        if download_root.exists() {
+            return Some(download_root.clone());
+        }
+    }
+
+    // 3. Fall back to home directory
+    dirs::home_dir()
+}
+
 pub async fn pick_download_directory(state: &State) -> Result<ResponsePayload> {
-    let task = AsyncFileDialog::new()
-        .set_title("Select Download Directory")
-        .pick_folder();
+    let mut dialog = AsyncFileDialog::new()
+        .set_title("Select Download Directory");
+
+    if let Some(start_dir) = get_starting_directory(state) {
+        dialog = dialog.set_directory(&start_dir);
+    }
+
+    let task = dialog.pick_folder();
 
     let handle = task.await;
 
