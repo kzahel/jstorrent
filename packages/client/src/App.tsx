@@ -178,8 +178,8 @@ function AppContent() {
 
   // Using Unicode symbols instead of emoji for consistent baseline alignment
   const moreMenuItems: ContextMenuItem[] = [
-    { id: 'recheck', label: 'Re-verify Data', icon: '⟳' },
-    { id: 'reset', label: 'Reset State', icon: '↺' },
+    { id: 'recheck', label: 'Re-verify Data', icon: '⟳', disabled: anyChecking },
+    { id: 'reset', label: 'Reset State', icon: '↺', disabled: anyChecking },
     { id: 'separator1', label: '', separator: true },
     { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '⎘' },
     { id: 'share', label: 'Share...', icon: '↗' },
@@ -189,8 +189,8 @@ function AppContent() {
     { id: 'start', label: 'Start', icon: '▶', disabled: allActive || anyChecking },
     { id: 'stop', label: 'Stop', icon: '■', disabled: allEffectivelyStopped || anyChecking },
     { id: 'separator1', label: '', separator: true },
-    { id: 'recheck', label: 'Re-verify Data', icon: '⟳' },
-    { id: 'reset', label: 'Reset State', icon: '↺' },
+    { id: 'recheck', label: 'Re-verify Data', icon: '⟳', disabled: anyChecking },
+    { id: 'reset', label: 'Reset State', icon: '↺', disabled: anyChecking },
     { id: 'separator2', label: '', separator: true },
     { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '⎘' },
     { id: 'share', label: 'Share...', icon: '↗' },

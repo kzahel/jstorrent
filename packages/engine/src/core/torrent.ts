@@ -1887,6 +1887,12 @@ export class Torrent extends EngineComponent {
   }
 
   async recheckData() {
+    // Prevent re-entry if already checking
+    if (this._isChecking) {
+      this.logger.warn('Recheck already in progress, ignoring')
+      return
+    }
+
     this.logger.info(`Rechecking data for ${this.infoHashStr}`)
 
     if (!this.hasMetadata) return
