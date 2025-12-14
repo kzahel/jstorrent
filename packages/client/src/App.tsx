@@ -640,7 +640,14 @@ function App() {
             gap: '16px',
           }}
         >
-          <h1 style={{ margin: 0, fontSize: '18px' }}>JSTorrent</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <img
+              src="../../icons/js-32.png"
+              alt="JSTorrent"
+              style={{ width: '24px', height: '24px' }}
+            />
+            <h1 style={{ margin: 0, fontSize: '18px' }}>JSTorrent</h1>
+          </div>
 
           {/* System Bridge indicator */}
           <div style={{ position: 'relative' }}>
