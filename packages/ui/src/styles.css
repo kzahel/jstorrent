@@ -28,6 +28,8 @@
   --input-border: #cccccc;
 
   --progress-bg: #eeeeee;
+  --progress-text: #000000;
+  --progress-text-shadow: 0 0 3px #ffffff, 0 0 3px #ffffff;
 
   /* Log level colors */
   --log-error-bg: #ffebee;
@@ -67,6 +69,8 @@
     --input-border: #444444;
 
     --progress-bg: #3c3c3c;
+    --progress-text: #ffffff;
+    --progress-text-shadow: 0 0 3px #000000, 0 0 3px #000000;
 
     /* Log level colors - dark mode */
     --log-error-bg: #2d1f1f;
@@ -107,6 +111,8 @@
   --input-border: #444444;
 
   --progress-bg: #3c3c3c;
+  --progress-text: #ffffff;
+  --progress-text-shadow: 0 0 3px #000000, 0 0 3px #000000;
 
   --log-error-bg: #2d1f1f;
   --log-error-text: #ff8a80;
@@ -146,6 +152,8 @@
   --input-border: #cccccc;
 
   --progress-bg: #eeeeee;
+  --progress-text: #000000;
+  --progress-text-shadow: 0 0 3px #ffffff, 0 0 3px #ffffff;
 
   --log-error-bg: #ffebee;
   --log-error-text: #c62828;
@@ -178,14 +186,4 @@ button {
 button {
   background-color: var(--button-bg);
   color: var(--button-text);
-}
-
-/* Progress bar stripe animation */
-@keyframes progress-stripe {
-  from {
-    background-position: 16px 0;
-  }
-  to {
-    background-position: 0 0;
-  }
 }

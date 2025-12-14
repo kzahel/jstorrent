@@ -5,14 +5,11 @@ import type { Settings, SettingKey } from '@jstorrent/engine'
 
 type SettingsTab = 'general' | 'interface' | 'network' | 'advanced'
 type Theme = 'system' | 'dark' | 'light'
-type ProgressBarStyle = 'text' | 'bar' | 'bar-gradient' | 'bar-striped' | 'bar-segmented'
+type ProgressBarStyle = 'text' | 'bar'
 
 const PROGRESS_BAR_STYLES: { value: ProgressBarStyle; label: string }[] = [
   { value: 'text', label: 'Text Only' },
-  { value: 'bar', label: 'Simple Bar' },
-  { value: 'bar-gradient', label: 'Gradient Bar' },
-  { value: 'bar-striped', label: 'Striped Bar' },
-  { value: 'bar-segmented', label: 'Segmented Bar' },
+  { value: 'bar', label: 'Progress Bar' },
 ]
 
 interface DownloadRoot {

@@ -8,7 +8,7 @@
 // ============ Types ============
 
 export type Theme = 'system' | 'dark' | 'light'
-export type ProgressBarStyle = 'text' | 'bar' | 'bar-gradient' | 'bar-striped' | 'bar-segmented'
+export type ProgressBarStyle = 'text' | 'bar'
 
 // ============ MaxFps Cache ============
 

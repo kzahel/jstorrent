@@ -70,7 +70,7 @@ export const settingsSchema = {
   progressBarStyle: {
     type: 'enum',
     storage: 'sync',
-    values: ['text', 'bar', 'bar-gradient', 'bar-striped', 'bar-segmented'] as const,
+    values: ['text', 'bar'] as const,
     default: 'bar',
   },
 
