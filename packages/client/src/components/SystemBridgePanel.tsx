@@ -39,10 +39,8 @@ export interface SystemBridgePanelProps {
   onRetry: () => void
   onLaunch: () => void
   onCancel: () => void
-  onDisconnect: () => void
   onAddFolder: () => void
   onSetDefaultRoot: (key: string) => void
-  onCopyDebugInfo: () => void
   onOpenSettings?: () => void
 }
 
@@ -57,10 +55,8 @@ export function SystemBridgePanel({
   onRetry,
   onLaunch,
   // onCancel - no longer used with simplified bridge
-  onDisconnect,
   onAddFolder,
   onSetDefaultRoot,
-  onCopyDebugInfo,
   onOpenSettings,
 }: SystemBridgePanelProps) {
   const panelRef = useRef<HTMLDivElement>(null)
@@ -431,19 +427,7 @@ export function SystemBridgePanel({
         }
 
       case 'connected':
-        return (
-          <>
-            <button onClick={onDisconnect} style={{ padding: '6px 12px', fontSize: '13px' }}>
-              Disconnect
-            </button>
-            <button
-              onClick={onCopyDebugInfo}
-              style={{ padding: '6px 12px', fontSize: '13px', marginLeft: 'auto' }}
-            >
-              Copy Debug Info
-            </button>
-          </>
-        )
+        return null
 
       default:
         return null
