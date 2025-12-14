@@ -67,7 +67,8 @@ function AppContent() {
   const allActive =
     hasSelection &&
     selectedTorrentObjects.every((t) => t.userState !== 'stopped' && !t.errorMessage)
-  const anyChecking = hasSelection && selectedTorrentObjects.some((t) => t.activityState === 'checking')
+  const anyChecking =
+    hasSelection && selectedTorrentObjects.some((t) => t.activityState === 'checking')
 
   // --- Action handlers ---
 
@@ -315,7 +316,8 @@ function AppContent() {
               disabled={!hasSelection || allEffectivelyStopped || anyChecking}
               style={{
                 padding: '0 10px',
-                cursor: hasSelection && !allEffectivelyStopped && !anyChecking ? 'pointer' : 'default',
+                cursor:
+                  hasSelection && !allEffectivelyStopped && !anyChecking ? 'pointer' : 'default',
                 fontSize: '13px',
                 height: '26px',
                 boxSizing: 'border-box',
@@ -394,6 +396,26 @@ function AppContent() {
                 selectedHashes={selectedTorrents}
                 activeTab={detailTab}
                 onTabChange={setDetailTab}
+                onOpenFile={async (torrentHash, file) => {
+                  const result = await engineManager.openFile(torrentHash, file.path)
+                  if (!result.ok) {
+                    alert(`Failed to open file: ${result.error}`)
+                  }
+                }}
+                onRevealInFolder={async (torrentHash, file) => {
+                  const result = await engineManager.revealInFolder(torrentHash, file.path)
+                  if (!result.ok) {
+                    alert(`Failed to reveal in folder: ${result.error}`)
+                  }
+                }}
+                onCopyFilePath={async (torrentHash, file) => {
+                  const fullPath = engineManager.getFilePath(torrentHash, file.path)
+                  if (fullPath) {
+                    await copyTextToClipboard(fullPath)
+                  } else {
+                    alert('Failed to get file path: storage root not found')
+                  }
+                }}
               />
             </div>
           </div>

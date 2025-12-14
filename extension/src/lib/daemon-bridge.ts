@@ -367,6 +367,67 @@ export class DaemonBridge {
     }
   }
 
+  /**
+   * Open a file with the system's default application.
+   * Desktop only for now.
+   */
+  async openFile(rootKey: string, path: string): Promise<{ ok: boolean; error?: string }> {
+    if (this.state.platform !== 'desktop') {
+      return { ok: false, error: 'Not supported on this platform' }
+    }
+    return this.sendNativeRequest('openFile', { rootKey, path })
+  }
+
+  /**
+   * Reveal a file in the system file manager.
+   * Desktop only for now.
+   */
+  async revealInFolder(rootKey: string, path: string): Promise<{ ok: boolean; error?: string }> {
+    if (this.state.platform !== 'desktop') {
+      return { ok: false, error: 'Not supported on this platform' }
+    }
+    return this.sendNativeRequest('revealInFolder', { rootKey, path })
+  }
+
+  /**
+   * Helper to send a request to the native host and wait for response.
+   */
+  private async sendNativeRequest(
+    op: string,
+    params: Record<string, unknown>,
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (!this.nativePort) {
+      return { ok: false, error: 'Not connected' }
+    }
+
+    return new Promise((resolve) => {
+      const requestId = crypto.randomUUID()
+      let resolved = false
+
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true
+          resolve({ ok: false, error: 'Request timed out' })
+        }
+      }, 10000)
+
+      const handler = (msg: unknown) => {
+        if (resolved) return
+        if (typeof msg !== 'object' || msg === null) return
+        const response = msg as { id?: string; ok?: boolean; error?: string }
+
+        if (response.id !== requestId) return
+
+        resolved = true
+        clearTimeout(timeout)
+        resolve({ ok: response.ok ?? false, error: response.error })
+      }
+
+      this.nativePort!.onMessage.addListener(handler)
+      this.nativePort!.postMessage({ op, ...params, id: requestId })
+    })
+  }
+
   // ==========================================================================
   // Desktop Implementation
   // ==========================================================================

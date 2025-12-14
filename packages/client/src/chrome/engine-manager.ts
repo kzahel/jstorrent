@@ -389,6 +389,79 @@ class EngineManager {
   }
 
   /**
+   * Open a file with the system's default application.
+   * @param torrentHash The torrent's info hash (hex)
+   * @param filePath The file's path (already includes torrent name as root dir per BT spec)
+   */
+  async openFile(torrentHash: string, filePath: string): Promise<{ ok: boolean; error?: string }> {
+    if (!this.engine) {
+      return { ok: false, error: 'Engine not initialized' }
+    }
+
+    // Get the root key for this torrent
+    const root = this.engine.storageRootManager.getRootForTorrent(torrentHash)
+    if (!root) {
+      return { ok: false, error: 'No storage root for torrent' }
+    }
+
+    // filePath already includes torrent name as root directory (per BT spec for multi-file torrents)
+    return getBridge().sendMessage<{ ok: boolean; error?: string }>({
+      type: 'OPEN_FILE',
+      rootKey: root.key,
+      path: filePath,
+    })
+  }
+
+  /**
+   * Reveal a file in the system file manager.
+   * @param torrentHash The torrent's info hash (hex)
+   * @param filePath The file's path (already includes torrent name as root dir per BT spec)
+   */
+  async revealInFolder(
+    torrentHash: string,
+    filePath: string,
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (!this.engine) {
+      return { ok: false, error: 'Engine not initialized' }
+    }
+
+    // Get the root key for this torrent
+    const root = this.engine.storageRootManager.getRootForTorrent(torrentHash)
+    if (!root) {
+      return { ok: false, error: 'No storage root for torrent' }
+    }
+
+    // filePath already includes torrent name as root directory (per BT spec for multi-file torrents)
+    return getBridge().sendMessage<{ ok: boolean; error?: string }>({
+      type: 'REVEAL_IN_FOLDER',
+      rootKey: root.key,
+      path: filePath,
+    })
+  }
+
+  /**
+   * Get the full filesystem path for a torrent file.
+   * @param torrentHash The torrent's info hash (hex)
+   * @param filePath The file's path (already includes torrent name as root dir per BT spec)
+   * @returns The full path, or null if the root is not found
+   */
+  getFilePath(torrentHash: string, filePath: string): string | null {
+    if (!this.engine) {
+      return null
+    }
+
+    // Get the root for this torrent (contains both key and path)
+    const root = this.engine.storageRootManager.getRootForTorrent(torrentHash)
+    if (!root) {
+      return null
+    }
+
+    // Combine root path with file path
+    // filePath already includes torrent name as root directory (per BT spec for multi-file torrents)
+    return `${root.path}/${filePath}`
+  }
+
+  /**
    * Set the default download root.
    */
   async setDefaultRoot(key: string): Promise<void> {

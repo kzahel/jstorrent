@@ -1,6 +1,7 @@
 
 mod folder_picker;
 mod ipc;
+mod opener;
 mod path_safety;
 mod protocol;
 mod rpc;
@@ -320,6 +321,56 @@ async fn handle_request(
             } else {
                 log!("Handshake failed to update state");
                 Err(anyhow::anyhow!("Failed to update extension ID or install ID"))
+            }
+        }
+
+        Operation::OpenFile { root_key, path } => {
+            log!("Handling OpenFile for root_key: {}, path: {}", root_key, path);
+
+            // Find the root path
+            let root_path = state.rpc_info.lock().ok()
+                .and_then(|info| info.as_ref().and_then(|i| i.download_roots.clone()))
+                .and_then(|roots| roots.into_iter().find(|r| r.key == root_key))
+                .map(|r| r.path);
+
+            match root_path {
+                Some(root) => {
+                    // Validate path safety and get canonicalized path
+                    match path_safety::validate_path(&path, &root) {
+                        Ok(safe_path) => {
+                            opener::open_file(&safe_path)
+                                .map(|_| ResponsePayload::Empty)
+                                .map_err(|e| anyhow::anyhow!(e))
+                        }
+                        Err(e) => Err(e),
+                    }
+                }
+                None => Err(anyhow::anyhow!("Root not found: {}", root_key)),
+            }
+        }
+
+        Operation::RevealInFolder { root_key, path } => {
+            log!("Handling RevealInFolder for root_key: {}, path: {}", root_key, path);
+
+            // Find the root path
+            let root_path = state.rpc_info.lock().ok()
+                .and_then(|info| info.as_ref().and_then(|i| i.download_roots.clone()))
+                .and_then(|roots| roots.into_iter().find(|r| r.key == root_key))
+                .map(|r| r.path);
+
+            match root_path {
+                Some(root) => {
+                    // Validate path safety and get canonicalized path
+                    match path_safety::validate_path(&path, &root) {
+                        Ok(safe_path) => {
+                            opener::reveal_in_folder(&safe_path)
+                                .map(|_| ResponsePayload::Empty)
+                                .map_err(|e| anyhow::anyhow!(e))
+                        }
+                        Err(e) => Err(e),
+                    }
+                }
+                None => Err(anyhow::anyhow!("Root not found: {}", root_key)),
             }
         }
     };

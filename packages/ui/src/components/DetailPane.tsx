@@ -4,6 +4,7 @@ import type { LogStore, DiskQueueSnapshot, TrackerStats, BandwidthTracker } from
 import { PeerTable } from '../tables/PeerTable'
 import { PieceTable } from '../tables/PieceTable'
 import { FileTable } from '../tables/FileTable'
+import type { TorrentFileInfo } from '@jstorrent/engine'
 import { SwarmTable } from '../tables/SwarmTable'
 import { GeneralPane } from './GeneralPane'
 import { LogTableWrapper } from '../tables/LogTableWrapper'
@@ -44,6 +45,12 @@ export interface DetailPaneProps {
   activeTab: DetailTab
   /** Callback when tab changes */
   onTabChange: (tab: DetailTab) => void
+  /** Callback when user wants to open a file */
+  onOpenFile?: (torrentHash: string, file: TorrentFileInfo) => void
+  /** Callback when user wants to reveal a file in folder */
+  onRevealInFolder?: (torrentHash: string, file: TorrentFileInfo) => void
+  /** Callback when user wants to copy the file path */
+  onCopyFilePath?: (torrentHash: string, file: TorrentFileInfo) => void
 }
 
 const tabStyle: React.CSSProperties = {
@@ -190,6 +197,9 @@ export function DetailPane(props: DetailPaneProps) {
               torrentHash={selectedHash!}
               getSelectedKeys={getSelectedKeys}
               onSelectionChange={onSelectionChange}
+              onOpenFile={props.onOpenFile}
+              onRevealInFolder={props.onRevealInFolder}
+              onCopyFilePath={props.onCopyFilePath}
             />,
             'files',
           )}
