@@ -2,6 +2,7 @@ import { uiStorage } from '../storage/UIStorage'
 import { ColumnConfig, ColumnDef } from './types'
 
 const STORAGE_PREFIX = 'jstorrent:columns:'
+const UI_STATE_KEY = 'jstorrent:uiState'
 
 /**
  * Load column config from storage.
@@ -110,4 +111,13 @@ export function createCompareFunction<T>(
 
     return result
   }
+}
+
+/**
+ * Clear all UI settings (column configs and UI state).
+ * Used for "Reset UI Settings" feature.
+ */
+export function clearAllUISettings(): void {
+  uiStorage.clearByPrefix(STORAGE_PREFIX)
+  uiStorage.removeItem(UI_STATE_KEY)
 }

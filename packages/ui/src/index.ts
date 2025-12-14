@@ -44,6 +44,7 @@ export { DiskTable } from './tables/DiskTable'
 export type { DiskTableProps } from './tables/DiskTable'
 export { TableMount } from './tables/mount'
 export type { ColumnDef, ColumnConfig, TableMountProps } from './tables/types'
+export { clearAllUISettings } from './tables/column-config'
 
 // Utils
 export * from './utils/format'
