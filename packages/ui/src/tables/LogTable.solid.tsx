@@ -72,6 +72,13 @@ export function LogTable(props: LogTableProps) {
       }
     })
     onCleanup(unsubscribe)
+
+    // Scroll to bottom on initial mount (when switching to this tab)
+    requestAnimationFrame(() => {
+      if (containerRef) {
+        containerRef.scrollTop = containerRef.scrollHeight
+      }
+    })
   })
 
   const filteredEntries = createMemo(() => {
