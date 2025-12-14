@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { forwardRef, useEffect } from 'react'
 
 export interface SystemIndicatorProps {
   label: string
@@ -22,28 +22,30 @@ const colorMap = {
   },
 }
 
-export function SystemIndicator({ label, color, pulse, onClick }: SystemIndicatorProps) {
-  const colors = colorMap[color]
+export const SystemIndicator = forwardRef<HTMLButtonElement, SystemIndicatorProps>(
+  function SystemIndicator({ label, color, pulse, onClick }, ref) {
+    const colors = colorMap[color]
 
-  // Inject keyframes style once
-  useEffect(() => {
-    const styleId = 'system-indicator-styles'
-    if (document.getElementById(styleId)) return
+    // Inject keyframes style once
+    useEffect(() => {
+      const styleId = 'system-indicator-styles'
+      if (document.getElementById(styleId)) return
 
-    const style = document.createElement('style')
-    style.id = styleId
-    style.textContent = `
+      const style = document.createElement('style')
+      style.id = styleId
+      style.textContent = `
       @keyframes system-indicator-pulse {
         0%, 100% { opacity: 1; transform: scale(1); }
         50% { opacity: 0.8; transform: scale(1.02); }
       }
     `
-    document.head.appendChild(style)
-  }, [])
+      document.head.appendChild(style)
+    }, [])
 
-  return (
-    <button
-      onClick={onClick}
+    return (
+      <button
+        ref={ref}
+        onClick={onClick}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -71,5 +73,6 @@ export function SystemIndicator({ label, color, pulse, onClick }: SystemIndicato
       {label}
       <span style={{ opacity: 0.6 }}>&#x25BE;</span>
     </button>
-  )
-}
+    )
+  },
+)

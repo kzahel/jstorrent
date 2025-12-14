@@ -1,3 +1,4 @@
+import type { RefObject } from 'react'
 import { useEffect, useRef } from 'react'
 import type { DownloadRoot } from '../chrome/engine-manager'
 
@@ -42,6 +43,8 @@ export interface SystemBridgePanelProps {
   onAddFolder: () => void
   onSetDefaultRoot: (key: string) => void
   onOpenSettings?: () => void
+  /** Ref to the anchor element (toggle button) - clicks on it won't trigger close */
+  anchorRef?: RefObject<HTMLElement | null>
 }
 
 export function SystemBridgePanel({
@@ -58,6 +61,7 @@ export function SystemBridgePanel({
   onAddFolder,
   // onSetDefaultRoot - selection moved to Settings
   onOpenSettings,
+  anchorRef,
 }: SystemBridgePanelProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -67,7 +71,13 @@ export function SystemBridgePanel({
   // Click-outside to close
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      // Don't close if clicking inside the panel or on the anchor (toggle button)
+      if (panelRef.current && !panelRef.current.contains(target)) {
+        if (anchorRef?.current && anchorRef.current.contains(target)) {
+          // Click was on the toggle button - let its onClick handle the toggle
+          return
+        }
         onClose()
       }
     }
@@ -81,7 +91,7 @@ export function SystemBridgePanel({
       clearTimeout(timeoutId)
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [onClose])
+  }, [onClose, anchorRef])
 
   // Escape key to close
   useEffect(() => {

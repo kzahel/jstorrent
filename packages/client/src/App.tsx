@@ -417,6 +417,7 @@ function App() {
   const [engine, setEngine] = useState<Awaited<ReturnType<typeof engineManager.init>> | null>(null)
   const [initError, setInitError] = useState<string | null>(null)
   const initStartedRef = useRef(false)
+  const indicatorRef = useRef<HTMLButtonElement>(null)
   const [defaultRootKey, setDefaultRootKey] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   // Force re-render for stats updates (engine object is mutable)
@@ -644,6 +645,7 @@ function App() {
           {/* System Bridge indicator */}
           <div style={{ position: 'relative' }}>
             <SystemIndicator
+              ref={indicatorRef}
               label={systemBridge.readiness.indicator.label}
               color={systemBridge.readiness.indicator.color}
               pulse={systemBridge.readiness.pulse}
@@ -669,6 +671,7 @@ function App() {
                 }}
                 onClose={systemBridge.closePanel}
                 onOpenSettings={() => setSettingsOpen(true)}
+                anchorRef={indicatorRef}
               />
             )}
           </div>
