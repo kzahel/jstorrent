@@ -798,6 +798,9 @@ export class Torrent extends EngineComponent {
     this.logger.debug('Resuming network')
     this._networkActive = true
 
+    // Reset backoff state so we immediately try reconnecting to known peers
+    this._swarm.resetBackoffState()
+
     // Add magnet peer hints on every resume
     if (this.magnetPeerHints.length > 0) {
       this.logger.info(`Adding ${this.magnetPeerHints.length} peer hints from magnet link`)
