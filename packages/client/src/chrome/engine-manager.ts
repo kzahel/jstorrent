@@ -224,6 +224,8 @@ class EngineManager {
       port: settingsStore.get('listeningPort'),
       startSuspended: true,
     })
+    // @ts-expect-error -- expose engine for debugging
+    window.engine = this.engine // expose for debugging
     console.log('[EngineManager] Engine created (suspended)')
 
     // 6. Restore session

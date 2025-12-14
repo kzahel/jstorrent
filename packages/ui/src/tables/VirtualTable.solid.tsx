@@ -282,6 +282,20 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
 
   // Handle keyboard navigation
   const handleKeyDown = (e: KeyboardEvent) => {
+    // Handle Ctrl+A / Cmd+A for select all
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      e.preventDefault()
+      if (!props.onSelectionChange || !props.getSelectedKeys) return
+
+      const allRows = rows()
+      const allKeys = new Set<string>()
+      for (const row of allRows) {
+        allKeys.add(props.getRowKey(row))
+      }
+      props.onSelectionChange(allKeys)
+      return
+    }
+
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
     if (!props.onSelectionChange || !props.getSelectedKeys) return
 
