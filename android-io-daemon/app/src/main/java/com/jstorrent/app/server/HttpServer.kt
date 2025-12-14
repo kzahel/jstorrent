@@ -58,7 +58,7 @@ private val json = Json {
 class HttpServer(
     private val tokenStore: TokenStore,
     private val rootStore: RootStore,
-    private val context: Context
+    private val appContext: Context
 ) {
     private var server: NettyApplicationEngine? = null
     private var actualPort: Int = 0
@@ -243,7 +243,7 @@ class HttpServer(
                         root?.let { r ->
                             try {
                                 val uri = android.net.Uri.parse(r.uri)
-                                context.contentResolver.releasePersistableUriPermission(
+                                appContext.contentResolver.releasePersistableUriPermission(
                                     uri,
                                     Intent.FLAG_GRANT_READ_URI_PERMISSION or
                                             Intent.FLAG_GRANT_WRITE_URI_PERMISSION
@@ -299,7 +299,7 @@ class HttpServer(
                     }
                 }
 
-                fileRoutes(rootStore, context)
+                fileRoutes(rootStore, appContext)
             }
         }
     }
@@ -368,14 +368,14 @@ class HttpServer(
             }
         }
 
-        val intent = Intent(context, PairingApprovalActivity::class.java).apply {
+        val intent = Intent(appContext, PairingApprovalActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
             putExtra(PairingApprovalActivity.EXTRA_TOKEN, token)
             putExtra(PairingApprovalActivity.EXTRA_INSTALL_ID, installId)
             putExtra(PairingApprovalActivity.EXTRA_EXTENSION_ID, extensionId)
             putExtra(PairingApprovalActivity.EXTRA_IS_REPLACE, isReplace)
         }
-        context.startActivity(intent)
+        appContext.startActivity(intent)
     }
 
     companion object {
