@@ -331,7 +331,7 @@ export class DaemonBridge {
 
     this.updateState({
       status: 'connected',
-      daemonInfo: { port, token, version: 1, roots, host: '100.115.92.2' },
+      daemonInfo: { port, token, version: 'unknown', roots, host: '100.115.92.2' },
       roots,
       lastError: null,
     })
@@ -410,7 +410,7 @@ export class DaemonBridge {
             daemonInfo: {
               port: payload.port,
               token: payload.token,
-              version: payload.version ?? 1,
+              version: payload.version ?? 'unknown',
               roots: payload.roots || [],
             },
             roots: payload.roots || [],

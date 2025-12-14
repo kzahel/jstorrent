@@ -126,11 +126,19 @@ describe('UnchokeAlgorithm', () => {
         { id: 'fast', peerInterested: true, amChoking: true, downloadRate: 1000, connectedAt: 0 },
         { id: 'medium', peerInterested: true, amChoking: true, downloadRate: 500, connectedAt: 0 },
         { id: 'faster', peerInterested: true, amChoking: true, downloadRate: 900, connectedAt: 0 },
-        { id: 'fastest', peerInterested: true, amChoking: true, downloadRate: 1100, connectedAt: 0 },
+        {
+          id: 'fastest',
+          peerInterested: true,
+          amChoking: true,
+          downloadRate: 1100,
+          connectedAt: 0,
+        },
       ]
 
       const decisions = algo.evaluate(peers)
-      const titForTat = decisions.filter((d) => d.action === 'unchoke' && d.reason === 'tit_for_tat')
+      const titForTat = decisions.filter(
+        (d) => d.action === 'unchoke' && d.reason === 'tit_for_tat',
+      )
       const titForTatIds = titForTat.map((d) => d.peerId)
 
       // Top 3 should be fastest, fast, faster
@@ -194,7 +202,9 @@ describe('UnchokeAlgorithm', () => {
       }))
 
       const decisions = algo.evaluate(peers)
-      const optimistic = decisions.filter((d) => d.action === 'unchoke' && d.reason === 'optimistic')
+      const optimistic = decisions.filter(
+        (d) => d.action === 'unchoke' && d.reason === 'optimistic',
+      )
       expect(optimistic).toHaveLength(1)
     })
 

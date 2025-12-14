@@ -18,7 +18,7 @@ use crate::protocol::Event;
 // Legacy struct used by main.rs, updated to carry necessary info
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RpcInfo {
-    pub version: u32,
+    pub version: String,
     pub pid: u32,
     pub port: u16,
     pub token: String,
@@ -52,7 +52,7 @@ pub struct AddTorrentRequest {
 pub struct HealthResponse {
     status: String,
     pid: u32,
-    version: u32,
+    version: String,
 }
 
 #[derive(Serialize)]
@@ -92,7 +92,7 @@ async fn health_handler(
     Ok(Json(HealthResponse {
         status: "ok".to_string(),
         pid: std::process::id(),
-        version: 1,
+        version: env!("CARGO_PKG_VERSION").to_string(),
     }))
 }
 
@@ -301,7 +301,7 @@ mod tests {
 
     fn make_rpc_info(pid: u32, install_id: Option<&str>, roots: Option<Vec<DownloadRoot>>) -> RpcInfo {
         RpcInfo {
-            version: 1,
+            version: "0.1.0".to_string(),
             pid,
             port: 12345,
             token: "test-token".to_string(),
