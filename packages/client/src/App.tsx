@@ -577,9 +577,6 @@ function App() {
     onRetry: retry,
     onLaunch: launch,
     onCancel: cancel,
-    onDisconnect: () => {
-      console.log('Disconnect requested')
-    },
     onAddFolder: async () => {
       const root = await engineManager.pickDownloadFolder()
       if (root) {
@@ -663,7 +660,6 @@ function App() {
                 onRetry={retry}
                 onLaunch={launch}
                 onCancel={cancel}
-                onDisconnect={() => console.log('Disconnect')}
                 onAddFolder={async () => {
                   await engineManager.pickDownloadFolder()
                 }}
@@ -671,7 +667,6 @@ function App() {
                   setDefaultRootKey(key)
                   engineManager.setDefaultRoot(key)
                 }}
-                onCopyDebugInfo={systemBridge.copyDebugInfo}
                 onClose={systemBridge.closePanel}
                 onOpenSettings={() => setSettingsOpen(true)}
               />

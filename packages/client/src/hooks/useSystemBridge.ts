@@ -106,7 +106,6 @@ export interface UseSystemBridgeConfig {
   onRetry: () => void
   onLaunch: () => void
   onCancel: () => void
-  onDisconnect: () => void
   onAddFolder: () => void
   onSetDefaultRoot: (key: string) => void
 }
