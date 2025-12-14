@@ -80,6 +80,7 @@
 
 /* Explicit dark theme override */
 :root[data-theme='dark'] {
+  color-scheme: dark;
   --bg-primary: #1e1e1e;
   --bg-secondary: #252526;
   --bg-tertiary: #333333;
@@ -117,6 +118,7 @@
 
 /* Explicit light theme override (uses default :root values) */
 :root[data-theme='light'] {
+  color-scheme: light;
   /* Light mode is the default, so these match :root */
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f5;
