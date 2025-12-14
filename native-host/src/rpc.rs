@@ -218,7 +218,16 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
         entry.token = info.token.clone();
         entry.started = info.started;
         entry.last_used = info.last_used;
-        entry.browser = info.browser.clone();
+        // Update browser info, but preserve existing binary if new one doesn't exist on disk
+        // (happens when Chrome updates while running - Linux shows "(deleted)" in /proc/pid/exe)
+        let new_binary = &info.browser.binary;
+        if !new_binary.is_empty() && std::path::Path::new(new_binary).exists() {
+            entry.browser = info.browser.clone();
+        } else {
+            // Update name and extension_id, but preserve the existing binary path
+            entry.browser.name = info.browser.name.clone();
+            entry.browser.extension_id = info.browser.extension_id.clone();
+        }
         entry.extension_id = info.browser.extension_id.clone();
         
         // Update install_id if we have one
@@ -300,7 +309,7 @@ mod tests {
             last_used: 1000,
             browser: BrowserInfo {
                 name: "Chrome".to_string(),
-                binary: "/usr/bin/chrome".to_string(),
+                binary: "/bin/sh".to_string(), // Use a path that exists on all Unix systems
                 extension_id: Some("test-ext-id".to_string()),
             },
             download_roots: roots,
