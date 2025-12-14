@@ -76,6 +76,9 @@ describe('UDP Tracker Integration', () => {
     await torrentA.recheckData()
     console.log('Client A recheck complete')
 
+    // Start the seeder - recheckData() stops the torrent
+    await torrentA.start()
+
     // Add torrent to Client B (Leeching)
     const torrentB = await clientB.addTorrent(torrentBuffer)
     if (!torrentB) throw new Error('Failed to add torrent B')
