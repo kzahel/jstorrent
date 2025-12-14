@@ -286,6 +286,7 @@ pub fn write_discovery_file(info: RpcInfo) -> anyhow::Result<Vec<DownloadRoot>> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use tempfile::TempDir;
 
     fn make_test_root(key: &str, path: &str) -> DownloadRoot {
@@ -323,6 +324,7 @@ mod tests {
     /// 2. Restart: new PID, no install_id, download_roots: None -> returns empty, state becomes Some([])
     /// 3. Handshake: MUST pass None (not Some([])) to preserve existing roots
     #[test]
+    #[serial]
     fn test_startup_preserves_existing_roots() {
         let temp_dir = TempDir::new().unwrap();
         std::env::set_var("JSTORRENT_CONFIG_DIR", temp_dir.path());
@@ -366,6 +368,7 @@ mod tests {
     /// Test: Passing Some([]) on handshake WOULD wipe roots (regression test)
     /// This documents the bug we fixed - if handshake passes Some([]) instead of None, roots get wiped
     #[test]
+    #[serial]
     fn test_some_empty_wipes_roots_regression() {
         let temp_dir = TempDir::new().unwrap();
         std::env::set_var("JSTORRENT_CONFIG_DIR", temp_dir.path());
@@ -400,6 +403,7 @@ mod tests {
     /// 2. Remove the root by passing Some(empty vec)
     /// 3. Verify it's actually gone
     #[test]
+    #[serial]
     fn test_removing_root_actually_removes_it() {
         let temp_dir = TempDir::new().unwrap();
         std::env::set_var("JSTORRENT_CONFIG_DIR", temp_dir.path());
@@ -430,6 +434,7 @@ mod tests {
 
     /// Test: Adding a root works
     #[test]
+    #[serial]
     fn test_adding_root() {
         let temp_dir = TempDir::new().unwrap();
         std::env::set_var("JSTORRENT_CONFIG_DIR", temp_dir.path());
