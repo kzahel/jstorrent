@@ -6,6 +6,8 @@ export interface UIStorage {
   getItem(key: string): string | null
   setItem(key: string, value: string): void
   removeItem(key: string): void
+  /** Remove all keys that start with the given prefix */
+  clearByPrefix(prefix: string): void
 }
 
 /** Default implementation using localStorage */
@@ -29,6 +31,21 @@ class LocalStorageAdapter implements UIStorage {
   removeItem(key: string): void {
     try {
       localStorage.removeItem(key)
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  clearByPrefix(prefix: string): void {
+    try {
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key?.startsWith(prefix)) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach((key) => localStorage.removeItem(key))
     } catch {
       // Ignore errors
     }

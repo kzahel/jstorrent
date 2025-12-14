@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { engineManager } from '../chrome/engine-manager'
 import { useSettings } from '../context/SettingsContext'
 import type { Settings, SettingKey } from '@jstorrent/engine'
+import { clearAllUISettings } from '@jstorrent/ui'
 
 type SettingsTab = 'general' | 'interface' | 'network' | 'advanced'
 type Theme = 'system' | 'dark' | 'light'
@@ -40,7 +41,7 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   activeTab,
   setActiveTab,
 }) => {
-  const { settings, set: updateSetting } = useSettings()
+  const { settings, set: updateSetting, resetAll } = useSettings()
   // Download roots state
   const [roots, setRoots] = useState<DownloadRoot[]>([])
   const [defaultKey, setDefaultKey] = useState<string | null>(null)
@@ -105,6 +106,34 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
     }
   }
 
+  // Handle reset UI settings
+  const handleResetUISettings = () => {
+    const confirmed = window.confirm(
+      'Reset all user interface settings to defaults?\n\n' +
+        'This will restore default column configurations for all tables.\n' +
+        'The page will reload to apply changes.',
+    )
+    if (confirmed) {
+      clearAllUISettings()
+      window.location.reload()
+    }
+  }
+
+  // Handle reset all settings
+  const handleResetAllSettings = async () => {
+    const confirmed = window.confirm(
+      'Reset ALL settings to their default values?\n\n' +
+        'This includes network limits, notification preferences, theme, and UI layout.\n' +
+        'Your download locations and downloaded files will not be affected.\n\n' +
+        'The page will reload to apply changes.',
+    )
+    if (confirmed) {
+      await resetAll()
+      clearAllUISettings()
+      window.location.reload()
+    }
+  }
+
   // Close on escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -163,13 +192,21 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
               />
             )}
             {activeTab === 'interface' && (
-              <InterfaceTab settings={settings} updateSetting={updateSetting} />
+              <InterfaceTab
+                settings={settings}
+                updateSetting={updateSetting}
+                onResetUISettings={handleResetUISettings}
+              />
             )}
             {activeTab === 'network' && (
               <NetworkTab settings={settings} updateSetting={updateSetting} />
             )}
             {activeTab === 'advanced' && (
-              <AdvancedTab settings={settings} updateSetting={updateSetting} />
+              <AdvancedTab
+                settings={settings}
+                updateSetting={updateSetting}
+                onResetAllSettings={handleResetAllSettings}
+              />
             )}
           </div>
         </div>
@@ -325,7 +362,15 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
   )
 }
 
-const InterfaceTab: React.FC<TabProps> = ({ settings, updateSetting }) => (
+interface InterfaceTabProps extends TabProps {
+  onResetUISettings: () => void
+}
+
+const InterfaceTab: React.FC<InterfaceTabProps> = ({
+  settings,
+  updateSetting,
+  onResetUISettings,
+}) => (
   <div>
     <Section title="Appearance">
       <div style={styles.fieldRow}>
@@ -375,6 +420,15 @@ const InterfaceTab: React.FC<TabProps> = ({ settings, updateSetting }) => (
           ))}
         </select>
       </div>
+    </Section>
+
+    <Section title="User Interface">
+      <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+        Restore default column visibility, order, and sizes for all tables.
+      </div>
+      <button onClick={onResetUISettings} style={styles.dangerButton}>
+        Reset UI Settings
+      </button>
     </Section>
   </div>
 )
@@ -462,15 +516,25 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
   )
 }
 
-const AdvancedTab: React.FC<TabProps> = ({
+interface AdvancedTabProps extends TabProps {
+  onResetAllSettings: () => void
+}
+
+const AdvancedTab: React.FC<AdvancedTabProps> = ({
   settings: _settings,
   updateSetting: _updateSetting,
+  onResetAllSettings,
 }) => (
   <div>
-    <Section title="Advanced">
-      <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-        Advanced settings will be added here in future updates.
+    <Section title="Danger Zone">
+      <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+        Restore all settings to their default values. This includes network limits, notification
+        preferences, theme, and UI layout. Your download locations and downloaded files will not be
+        affected.
       </div>
+      <button onClick={onResetAllSettings} style={styles.dangerButton}>
+        Reset All Settings
+      </button>
     </Section>
   </div>
 )
@@ -750,6 +814,14 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '12px',
     padding: '8px 16px',
     background: 'var(--accent-success)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  dangerButton: {
+    padding: '8px 16px',
+    background: 'var(--accent-error, #ef4444)',
     color: 'white',
     border: 'none',
     borderRadius: '4px',

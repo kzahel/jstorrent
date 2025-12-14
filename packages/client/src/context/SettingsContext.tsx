@@ -10,6 +10,8 @@ interface SettingsContextValue {
   set: <K extends SettingKey>(key: K, value: Settings[K]) => Promise<void>
   /** Reset a setting to default */
   reset: <K extends SettingKey>(key: K) => Promise<void>
+  /** Reset all settings to defaults */
+  resetAll: () => Promise<void>
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null)
@@ -44,8 +46,12 @@ export function SettingsProvider({ store, children }: SettingsProviderProps) {
     [store],
   )
 
+  const resetAll = useCallback(async () => {
+    await store.resetAll()
+  }, [store])
+
   return (
-    <SettingsContext.Provider value={{ store, settings, set, reset }}>
+    <SettingsContext.Provider value={{ store, settings, set, reset, resetAll }}>
       {children}
     </SettingsContext.Provider>
   )
