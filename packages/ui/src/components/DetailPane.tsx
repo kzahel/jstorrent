@@ -140,11 +140,11 @@ export function DetailPane(props: DetailPaneProps) {
         <button style={getTabStyle(activeTab === 'pieces')} onClick={() => onTabChange('pieces')}>
           Pieces
         </button>
-        <button style={getTabStyle(activeTab === 'logs')} onClick={() => onTabChange('logs')}>
-          Logs
-        </button>
         <button style={getTabStyle(activeTab === 'disk')} onClick={() => onTabChange('disk')}>
           Disk
+        </button>
+        <button style={getTabStyle(activeTab === 'logs')} onClick={() => onTabChange('logs')}>
+          Logs
         </button>
         <button style={getTabStyle(activeTab === 'speed')} onClick={() => onTabChange('speed')}>
           Speed

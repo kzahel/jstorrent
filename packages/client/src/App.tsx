@@ -67,6 +67,7 @@ function AppContent() {
   const allActive =
     hasSelection &&
     selectedTorrentObjects.every((t) => t.userState !== 'stopped' && !t.errorMessage)
+  const anyChecking = hasSelection && selectedTorrentObjects.some((t) => t.activityState === 'checking')
 
   // --- Action handlers ---
 
@@ -185,8 +186,8 @@ function AppContent() {
   ]
 
   const contextMenuItems: ContextMenuItem[] = [
-    { id: 'start', label: 'Start', icon: '▶', disabled: allActive },
-    { id: 'stop', label: 'Stop', icon: '■', disabled: allEffectivelyStopped },
+    { id: 'start', label: 'Start', icon: '▶', disabled: allActive || anyChecking },
+    { id: 'stop', label: 'Stop', icon: '■', disabled: allEffectivelyStopped || anyChecking },
     { id: 'separator1', label: '', separator: true },
     { id: 'recheck', label: 'Re-verify Data', icon: '⟳' },
     { id: 'reset', label: 'Reset State', icon: '↺' },
@@ -292,17 +293,17 @@ function AppContent() {
 
             <button
               onClick={handleStartSelected}
-              disabled={!hasSelection || allActive}
+              disabled={!hasSelection || allActive || anyChecking}
               style={{
                 padding: '0 10px',
-                cursor: hasSelection && !allActive ? 'pointer' : 'default',
+                cursor: hasSelection && !allActive && !anyChecking ? 'pointer' : 'default',
                 fontSize: '13px',
                 height: '26px',
                 boxSizing: 'border-box',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                opacity: !hasSelection || allActive ? 0.5 : 1,
+                opacity: !hasSelection || allActive || anyChecking ? 0.5 : 1,
               }}
               title="Start selected"
             >
@@ -311,17 +312,17 @@ function AppContent() {
             </button>
             <button
               onClick={handleStopSelected}
-              disabled={!hasSelection || allEffectivelyStopped}
+              disabled={!hasSelection || allEffectivelyStopped || anyChecking}
               style={{
                 padding: '0 10px',
-                cursor: hasSelection && !allEffectivelyStopped ? 'pointer' : 'default',
+                cursor: hasSelection && !allEffectivelyStopped && !anyChecking ? 'pointer' : 'default',
                 fontSize: '13px',
                 height: '26px',
                 boxSizing: 'border-box',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                opacity: !hasSelection || allEffectivelyStopped ? 0.5 : 1,
+                opacity: !hasSelection || allEffectivelyStopped || anyChecking ? 0.5 : 1,
               }}
               title="Stop selected"
             >

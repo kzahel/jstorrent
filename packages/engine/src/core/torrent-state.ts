@@ -30,14 +30,14 @@ export function computeActivityState(
   // Engine suspended = everything stopped
   if (engineSuspended) return 'stopped'
 
+  // Checking data (takes priority over stopped state)
+  if (isChecking) return 'checking'
+
   // User stopped or queued = stopped
   if (userState === 'stopped' || userState === 'queued') return 'stopped'
 
   // Error state
   if (hasError) return 'error'
-
-  // Checking data
-  if (isChecking) return 'checking'
 
   // No metadata yet
   if (!hasMetadata) return 'downloading_metadata'

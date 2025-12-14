@@ -220,6 +220,11 @@ export class Torrent extends EngineComponent {
   private _isChecking: boolean = false
 
   /**
+   * Progress of data checking (0-1).
+   */
+  private _checkingProgress: number = 0
+
+  /**
    * Current error message if any.
    */
   public errorMessage?: string
@@ -632,6 +637,14 @@ export class Torrent extends EngineComponent {
   get progress(): number {
     if (this.piecesCount === 0) return 0
     return this.completedPiecesCount / this.piecesCount
+  }
+
+  /**
+   * Progress of data checking operation (0-1).
+   * Only meaningful when activityState is 'checking'.
+   */
+  get checkingProgress(): number {
+    return this._checkingProgress
   }
 
   get name(): string {
@@ -1875,40 +1888,40 @@ export class Torrent extends EngineComponent {
 
   async recheckData() {
     this.logger.info(`Rechecking data for ${this.infoHashStr}`)
-    // TODO: Pause peers?
-
-    // We iterate through all pieces and verify them.
-    // We don't clear the bitfield upfront because we want to keep what we have if it's valid.
-    // But if we find an invalid piece that was marked valid, we must reset it.
 
     if (!this.hasMetadata) return
 
-    for (let i = 0; i < this.piecesCount; i++) {
-      try {
-        const isValid = await this.verifyPiece(i)
-        if (isValid) {
-          if (!this.hasPiece(i)) {
-            this.logger.debug(`Piece ${i} found valid during recheck`)
+    // Stop the torrent first - ensures no network activity during check
+    if (this.userState !== 'stopped') {
+      await this.stop()
+    }
+
+    // Set checking state
+    this._isChecking = true
+    this._checkingProgress = 0
+
+    // Reset bitfield to 0% (create fresh bitfield)
+    this._bitfield = new BitField(this.piecesCount)
+
+    try {
+      for (let i = 0; i < this.piecesCount; i++) {
+        try {
+          const isValid = await this.verifyPiece(i)
+          if (isValid) {
             this.markPieceVerified(i)
           }
-        } else {
-          if (this.hasPiece(i)) {
-            this.logger.warn(`Piece ${i} found invalid during recheck`)
-            this._bitfield?.set(i, false)
-          }
+        } catch (err) {
+          // Read error - piece remains unchecked
+          this.logger.debug(`Piece ${i} read error during recheck:`, { err })
         }
-      } catch (err) {
-        // Read error or other issue
-        if (this.hasPiece(i)) {
-          this.logger.error(`Piece ${i} error during recheck:`, { err })
-          this._bitfield?.set(i, false)
-        }
-      }
 
-      // Emit progress?
-      if (i % 10 === 0) {
-        // console.error(`Torrent: Recheck progress ${i}/${this.piecesCount}`)
+        // Update progress
+        this._checkingProgress = (i + 1) / this.piecesCount
       }
+    } finally {
+      // Always clear checking state
+      this._isChecking = false
+      this._checkingProgress = 0
     }
 
     // Trigger save of resume data
@@ -1917,7 +1930,8 @@ export class Torrent extends EngineComponent {
     }
     this.emit('checked')
     this.logger.info(`Recheck complete for ${this.infoHashStr}`)
-    this.checkCompletion()
+    // Note: Don't call checkCompletion() here - recheck shouldn't trigger
+    // "download complete" notifications, it's just verifying existing data
   }
 
   private checkCompletion() {

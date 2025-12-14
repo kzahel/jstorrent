@@ -31,7 +31,12 @@ export const torrentColumns: ColumnDef<Torrent>[] = [
   {
     id: 'status',
     header: 'Status',
-    getValue: (t) => t.activityState,
+    getValue: (t) => {
+      if (t.activityState === 'checking') {
+        return `${(t.checkingProgress * 100).toFixed(0)}% checking`
+      }
+      return t.activityState
+    },
     width: 100,
     getCellStyle: (t) =>
       t.errorMessage
