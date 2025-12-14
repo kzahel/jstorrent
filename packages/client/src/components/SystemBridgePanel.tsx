@@ -56,7 +56,7 @@ export function SystemBridgePanel({
   onLaunch,
   // onCancel - no longer used with simplified bridge
   onAddFolder,
-  onSetDefaultRoot,
+  // onSetDefaultRoot - selection moved to Settings
   onOpenSettings,
 }: SystemBridgePanelProps) {
   const panelRef = useRef<HTMLDivElement>(null)
@@ -277,35 +277,16 @@ export function SystemBridgePanel({
           )}
         </div>
 
-        {/* Download locations */}
+        {/* Download location */}
         <div>
-          <div style={{ fontWeight: 500, marginBottom: '8px' }}>Download Locations</div>
+          <div style={{ fontWeight: 500, marginBottom: '4px' }}>Download Location</div>
           {roots.length === 0 ? (
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              No download folder configured. Click &quot;Add Folder&quot; to get started.
+              No download folder configured.
             </div>
           ) : (
-            <div style={{ fontSize: '13px' }}>
-              {roots.map((root) => (
-                <label
-                  key={root.key}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '6px 0',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="defaultRoot"
-                    checked={root.key === defaultRootKey}
-                    onChange={() => onSetDefaultRoot(root.key)}
-                  />
-                  <span style={{ flex: 1 }}>{root.display_name}</span>
-                </label>
-              ))}
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              {roots.find((r) => r.key === defaultRootKey)?.display_name ?? 'None selected'}
             </div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>

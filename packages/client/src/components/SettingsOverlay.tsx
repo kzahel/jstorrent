@@ -231,47 +231,49 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
             </p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {roots.map((root) => (
-              <div
-                key={root.key}
-                style={{
-                  ...styles.rootItem,
-                  background:
-                    root.key === defaultKey ? 'var(--bg-highlight)' : 'var(--bg-secondary)',
-                }}
+          <>
+            <div style={styles.fieldRow}>
+              <span>Default</span>
+              <select
+                value={defaultKey ?? ''}
+                onChange={(e) => onSetDefault(e.target.value)}
+                style={styles.select}
               >
-                <input
-                  type="radio"
-                  checked={root.key === defaultKey}
-                  onChange={() => onSetDefault(root.key)}
-                  style={{ margin: 0 }}
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 'bold' }}>{root.label}</div>
-                  <div
-                    style={{
-                      fontSize: '12px',
-                      color: 'var(--text-secondary)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {root.path}
+                {roots.map((root) => (
+                  <option key={root.key} value={root.key}>
+                    {root.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {roots.map((root) => (
+                <div key={root.key} style={styles.rootItem}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div>{root.label}</div>
+                    <div
+                      style={{
+                        fontSize: '12px',
+                        color: 'var(--text-secondary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {root.path}
+                    </div>
                   </div>
+                  <button
+                    style={styles.iconButton}
+                    onClick={() => onRemoveRoot(root.key)}
+                    title="Remove"
+                  >
+                    🗑
+                  </button>
                 </div>
-                <button
-                  style={styles.iconButton}
-                  onClick={() => onRemoveRoot(root.key)}
-                  title="Remove"
-                >
-                  🗑
-                </button>
-                {root.key === defaultKey && <span style={styles.defaultBadge}>Default</span>}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
         <button onClick={onAddRoot} disabled={addingRoot} style={styles.addButton}>
           {addingRoot ? 'Selecting...' : '+ Add Download Location'}
@@ -679,8 +681,8 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--bg-primary)',
   },
   section: {
-    marginBottom: '20px',
-    padding: '16px',
+    marginBottom: '16px',
+    padding: '12px',
     background: 'var(--bg-secondary)',
     borderRadius: '6px',
     border: '1px solid var(--border-color)',
@@ -703,8 +705,8 @@ const styles: Record<string, React.CSSProperties> = {
   rootItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    padding: '12px',
+    gap: '8px',
+    padding: '8px',
     background: 'var(--bg-tertiary)',
     border: '1px solid var(--border-light)',
     borderRadius: '4px',
