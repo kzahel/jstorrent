@@ -31,7 +31,7 @@ export const torrentColumns: ColumnDef<Torrent>[] = [
     renderCell: (t) =>
       ProgressBar({
         progress: t.progress,
-        isActive: t.activityState === 'downloading' || t.activityState === 'checking',
+        isActive: t.activityState !== 'stopped',
       }),
   },
   {
