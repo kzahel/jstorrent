@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+
 package com.jstorrent.app.server
 
 import android.util.Log
@@ -38,9 +40,23 @@ class SocketSession(
     private val nextSocketId = AtomicInteger(0x10000) // Start high to avoid collision with client-assigned IDs
 
     // Outgoing message queue - large buffer for high throughput
-    private val outgoing = Channel<ByteArray>(1000)
+    // At 65KB frames, 2000 frames = ~130MB buffer capacity
+    private val outgoing = Channel<ByteArray>(2000)
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    // Track dropped messages for diagnostics
+    private val dropCount = java.util.concurrent.atomic.AtomicLong(0)
+    // Connection statistics
+    private val bytesReceived = java.util.concurrent.atomic.AtomicLong(0)
+    private val bytesSent = java.util.concurrent.atomic.AtomicLong(0)
+    private val framesReceived = java.util.concurrent.atomic.AtomicLong(0)
+    private val framesSent = java.util.concurrent.atomic.AtomicLong(0)
+    private val connectTime = System.currentTimeMillis()
+
+    companion object {
+        // Reduce log spam - only log sends when debugging
+        private const val ENABLE_SEND_LOGGING = false
+    }
 
     suspend fun run() {
         // Start sender coroutine
@@ -50,7 +66,12 @@ class SocketSession(
                     wsSession.send(Frame.Binary(true, data))
                 }
             } catch (e: Exception) {
-                Log.d(TAG, "Sender stopped: ${e.message}")
+                Log.w(TAG, "WebSocket sender failed: ${e.message}")
+                // Sender failed - close the WebSocket to trigger cleanup
+                // This will cause the receiver loop to exit and call cleanup()
+                try {
+                    wsSession.close(CloseReason(CloseReason.Codes.GOING_AWAY, "Sender failed"))
+                } catch (_: Exception) {}
             }
         }
 
@@ -71,6 +92,9 @@ class SocketSession(
     }
 
     private suspend fun handleMessage(data: ByteArray) {
+        framesReceived.incrementAndGet()
+        bytesReceived.addAndGet(data.size.toLong())
+
         if (data.size < 8) {
             Log.w(TAG, "Message too short: ${data.size} bytes")
             return
@@ -188,6 +212,14 @@ class SocketSession(
         scope.launch {
             try {
                 val socket = Socket()
+                // Performance: disable Nagle's algorithm for lower latency
+                socket.tcpNoDelay = true
+                // Performance: larger receive buffer for better throughput
+                socket.receiveBufferSize = 256 * 1024
+                // Reliability: detect zombie connections that stop responding
+                socket.soTimeout = 60_000 // 60 second read timeout
+                // Reliability: TCP keep-alive for connection health
+                socket.setKeepAlive(true)
                 socket.connect(InetSocketAddress(hostname, port), 30000)
 
                 val handler = TcpSocketHandler(socketId, socket, this@SocketSession)
@@ -197,8 +229,9 @@ class SocketSession(
                 val response = socketId.toLEBytes() + byteArrayOf(0) + 0.toLEBytes()
                 send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
 
-                // Start reading from socket
+                // Start reading and sending
                 handler.startReading()
+                handler.startSending()
 
             } catch (e: Exception) {
                 Log.e(TAG, "TCP connect failed: ${e.message}")
@@ -215,7 +248,14 @@ class SocketSession(
         val socketId = payload.getUIntLE(0)
         val data = payload.copyOfRange(4, payload.size)
 
-        tcpSockets[socketId]?.send(data)
+        val socket = tcpSockets[socketId]
+        if (socket != null) {
+            socket.send(data)
+        } else {
+            // Socket was closed but engine doesn't know yet
+            // This can happen during cleanup races - log but don't spam
+            Log.d(TAG, "TCP_SEND to unknown socket $socketId (${data.size} bytes)")
+        }
     }
 
     private fun handleTcpClose(payload: ByteArray) {
@@ -306,8 +346,9 @@ class SocketSession(
                     0.toLEBytes()
                 send(Protocol.createMessage(Protocol.OP_UDP_BOUND, requestId, response))
 
-                // Start receiving
+                // Start receiving and sending
                 handler.startReceiving()
+                handler.startSending()
 
             } catch (e: Exception) {
                 Log.e(TAG, "UDP bind failed: ${e.message}")
@@ -333,7 +374,12 @@ class SocketSession(
         val destAddr = String(payload, 8, addrLen)
         val data = payload.copyOfRange(8 + addrLen, payload.size)
 
-        udpSockets[socketId]?.send(destAddr, destPort, data)
+        val socket = udpSockets[socketId]
+        if (socket != null) {
+            socket.send(destAddr, destPort, data)
+        } else {
+            Log.d(TAG, "UDP_SEND to unknown socket $socketId (${data.size} bytes to $destAddr:$destPort)")
+        }
     }
 
     private fun handleUdpClose(payload: ByteArray) {
@@ -346,17 +392,24 @@ class SocketSession(
     // Helpers
 
     internal fun send(data: ByteArray) {
+        framesSent.incrementAndGet()
+        bytesSent.addAndGet(data.size.toLong())
+
         if (data.size >= 8) {
             val envelope = Protocol.Envelope.fromBytes(data)
-            if (envelope != null) {
+            if (envelope != null && ENABLE_SEND_LOGGING) {
                 Log.d(TAG, "SEND: opcode=0x${envelope.opcode.toString(16)}, reqId=${envelope.requestId}, " +
                     "payloadSize=${data.size - 8}")
             }
         }
-        // Use trySend to avoid coroutine overhead - drop if buffer full
+        // Use trySend for non-blocking send
         val result = outgoing.trySend(data)
         if (result.isFailure) {
-            Log.w(TAG, "Outgoing buffer full, dropping message")
+            // Channel is full - this indicates backpressure
+            // Log at warning level but don't spam
+            if (dropCount.incrementAndGet() % 100 == 1L) {
+                Log.w(TAG, "Outgoing buffer full, dropped ${dropCount.get()} messages total")
+            }
         }
     }
 
@@ -374,6 +427,15 @@ class SocketSession(
     }
 
     private fun cleanup() {
+        // Log session statistics
+        val duration = (System.currentTimeMillis() - connectTime) / 1000.0
+        val recvMB = bytesReceived.get() / 1024.0 / 1024.0
+        val sentMB = bytesSent.get() / 1024.0 / 1024.0
+        Log.i(TAG, "Session closed after ${String.format("%.1f", duration)}s: " +
+            "recv=${String.format("%.1f", recvMB)}MB/${framesReceived.get()} frames, " +
+            "sent=${String.format("%.1f", sentMB)}MB/${framesSent.get()} frames, " +
+            "dropped=${dropCount.get()}")
+
         httpServer.unregisterControlSession(this)
         tcpSockets.values.forEach { it.close() }
         tcpSockets.clear()
@@ -419,8 +481,9 @@ class TcpServerHandler(
                         addrBytes
                     session.send(Protocol.createMessage(Protocol.OP_TCP_ACCEPT, 0, payload))
 
-                    // Start reading from the accepted connection
+                    // Start reading and sending
                     handler.startReading()
+                    handler.startSending()
                 }
             } catch (e: IOException) {
                 Log.d(TAG, "TCP server $serverId accept ended: ${e.message}")
@@ -433,6 +496,10 @@ class TcpServerHandler(
         try {
             serverSocket.close()
         } catch (e: Exception) {}
+
+        // Note: We don't close accepted connections here because they're
+        // tracked in the session's tcpSockets map and will be cleaned up
+        // when the session closes. Closing them here would cause double-close.
     }
 }
 
@@ -442,6 +509,9 @@ class TcpSocketHandler(
     private val session: SocketSession
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    // Dedicated send queue for ordered, batched writes
+    private val sendQueue = Channel<ByteArray>(100)
+    private var senderJob: Job? = null
 
     companion object {
         private const val PERF_TAG = "JSTorrent.Perf"
@@ -453,7 +523,7 @@ class TcpSocketHandler(
 
     fun startReading() {
         scope.launch {
-            val buffer = ByteArray(65536)
+            val buffer = ByteArray(128 * 1024) // 128KB - optimal based on benchmarks
             var readCount = 0L
             var totalBytesRead = 0L
             val startTime = System.nanoTime()
@@ -463,14 +533,38 @@ class TcpSocketHandler(
                 while (true) {
                     val t0 = if (ENABLE_PERF_LOGGING) System.nanoTime() else 0L
 
-                    val bytesRead = input.read(buffer)
+                    val bytesRead = try {
+                        input.read(buffer)
+                    } catch (e: java.net.SocketTimeoutException) {
+                        // Read timeout - connection may still be alive but idle
+                        // For BitTorrent, idle connections are normal (peer has no data to send)
+                        // Check if scope is still active, then keep waiting
+                        if (!scope.isActive) break
+                        continue
+                    }
                     if (bytesRead < 0) break
 
                     val tRead = if (ENABLE_PERF_LOGGING) System.nanoTime() else 0L
 
-                    // Build TCP_RECV frame
-                    val payload = socketId.toLEBytes() + buffer.copyOf(bytesRead)
-                    val frame = Protocol.createMessage(Protocol.OP_TCP_RECV, 0, payload)
+                    // Build TCP_RECV frame with minimal allocations
+                    // Frame structure: [header:8][socketId:4][data:bytesRead]
+                    val frameSize = 8 + 4 + bytesRead
+                    val frame = ByteArray(frameSize)
+
+                    // Write header directly
+                    frame[0] = Protocol.VERSION
+                    frame[1] = Protocol.OP_TCP_RECV
+                    // flags = 0 (bytes 2-3 already zero)
+                    // requestId = 0 (bytes 4-7 already zero)
+
+                    // Write socketId (little-endian)
+                    frame[8] = (socketId and 0xFF).toByte()
+                    frame[9] = ((socketId shr 8) and 0xFF).toByte()
+                    frame[10] = ((socketId shr 16) and 0xFF).toByte()
+                    frame[11] = ((socketId shr 24) and 0xFF).toByte()
+
+                    // Copy data
+                    System.arraycopy(buffer, 0, frame, 12, bytesRead)
 
                     val tPack = if (ENABLE_PERF_LOGGING) System.nanoTime() else 0L
 
@@ -513,18 +607,41 @@ class TcpSocketHandler(
         }
     }
 
-    fun send(data: ByteArray) {
-        scope.launch {
+    fun startSending() {
+        senderJob = scope.launch {
             try {
-                socket.getOutputStream().write(data)
-                socket.getOutputStream().flush()
+                val output = socket.getOutputStream().buffered(64 * 1024)
+                var pendingBytes = 0
+
+                for (data in sendQueue) {
+                    output.write(data)
+                    pendingBytes += data.size
+
+                    // Flush when queue is empty or we've accumulated enough
+                    if (sendQueue.isEmpty || pendingBytes >= 32 * 1024) {
+                        output.flush()
+                        pendingBytes = 0
+                    }
+                }
+                // Final flush
+                output.flush()
             } catch (e: IOException) {
-                Log.e(TAG, "TCP send failed: ${e.message}")
+                Log.d(TAG, "TCP socket $socketId send ended: ${e.message}")
             }
         }
     }
 
+    fun send(data: ByteArray) {
+        // Non-blocking enqueue - will drop if queue full (connection overwhelmed)
+        val result = sendQueue.trySend(data)
+        if (result.isFailure) {
+            Log.w(TAG, "TCP socket $socketId send queue full, dropping")
+        }
+    }
+
     fun close() {
+        sendQueue.close()
+        senderJob?.cancel()
         scope.cancel()
         try {
             socket.close()
@@ -532,8 +649,13 @@ class TcpSocketHandler(
     }
 
     private fun sendClose() {
-        val payload = socketId.toLEBytes() + byteArrayOf(0) + 0.toLEBytes()
-        session.send(Protocol.createMessage(Protocol.OP_TCP_CLOSE, 0, payload))
+        try {
+            val payload = socketId.toLEBytes() + byteArrayOf(0) + 0.toLEBytes()
+            session.send(Protocol.createMessage(Protocol.OP_TCP_CLOSE, 0, payload))
+        } catch (e: Exception) {
+            // Session may already be closed - that's fine
+            Log.d(TAG, "Could not send TCP_CLOSE for socket $socketId: ${e.message}")
+        }
     }
 }
 
@@ -543,6 +665,13 @@ class UdpSocketHandler(
     private val session: SocketSession
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val sendQueue = Channel<Triple<String, Int, ByteArray>>(100)
+    private var senderJob: Job? = null
+
+    init {
+        // Set socket timeout to detect idle connections
+        socket.soTimeout = 60_000 // 60 seconds
+    }
 
     fun startReceiving() {
         scope.launch {
@@ -551,20 +680,43 @@ class UdpSocketHandler(
 
             try {
                 while (true) {
-                    socket.receive(packet)
+                    try {
+                        socket.receive(packet)
+                    } catch (e: java.net.SocketTimeoutException) {
+                        // Timeout is normal for UDP - just keep waiting
+                        // Check if we should stop
+                        if (!scope.isActive) break
+                        continue
+                    }
 
                     val srcAddr = packet.address.hostAddress ?: continue
                     val srcPort = packet.port
                     val data = packet.data.copyOf(packet.length)
 
-                    // Build UDP_RECV payload:
-                    // socketId(4) + srcPort(2) + addrLen(2) + addr + data
+                    // Build UDP_RECV payload with minimal allocations
                     val addrBytes = srcAddr.toByteArray()
-                    val payload = socketId.toLEBytes() +
-                        srcPort.toShort().toLEBytes() +
-                        addrBytes.size.toShort().toLEBytes() +
-                        addrBytes +
-                        data
+                    val payloadSize = 4 + 2 + 2 + addrBytes.size + data.size
+                    val payload = ByteArray(payloadSize)
+                    var offset = 0
+
+                    // socketId (4 bytes, little-endian)
+                    payload[offset++] = (socketId and 0xFF).toByte()
+                    payload[offset++] = ((socketId shr 8) and 0xFF).toByte()
+                    payload[offset++] = ((socketId shr 16) and 0xFF).toByte()
+                    payload[offset++] = ((socketId shr 24) and 0xFF).toByte()
+
+                    // srcPort (2 bytes, little-endian)
+                    payload[offset++] = (srcPort and 0xFF).toByte()
+                    payload[offset++] = ((srcPort shr 8) and 0xFF).toByte()
+
+                    // addrLen (2 bytes, little-endian)
+                    payload[offset++] = (addrBytes.size and 0xFF).toByte()
+                    payload[offset++] = ((addrBytes.size shr 8) and 0xFF).toByte()
+
+                    // addr + data
+                    System.arraycopy(addrBytes, 0, payload, offset, addrBytes.size)
+                    offset += addrBytes.size
+                    System.arraycopy(data, 0, payload, offset, data.size)
 
                     session.send(Protocol.createMessage(Protocol.OP_UDP_RECV, 0, payload))
                 }
@@ -576,22 +728,33 @@ class UdpSocketHandler(
         }
     }
 
-    fun send(destAddr: String, destPort: Int, data: ByteArray) {
-        scope.launch {
+    fun startSending() {
+        senderJob = scope.launch {
             try {
-                val packet = DatagramPacket(
-                    data,
-                    data.size,
-                    InetSocketAddress(destAddr, destPort)
-                )
-                socket.send(packet)
+                for ((destAddr, destPort, data) in sendQueue) {
+                    val packet = DatagramPacket(
+                        data,
+                        data.size,
+                        InetSocketAddress(destAddr, destPort)
+                    )
+                    socket.send(packet)
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "UDP send failed: ${e.message}")
+                Log.d(TAG, "UDP socket $socketId send ended: ${e.message}")
             }
         }
     }
 
+    fun send(destAddr: String, destPort: Int, data: ByteArray) {
+        val result = sendQueue.trySend(Triple(destAddr, destPort, data))
+        if (result.isFailure) {
+            Log.w(TAG, "UDP socket $socketId send queue full, dropping")
+        }
+    }
+
     fun close() {
+        sendQueue.close()
+        senderJob?.cancel()
         scope.cancel()
         try {
             socket.close()
@@ -599,7 +762,12 @@ class UdpSocketHandler(
     }
 
     private fun sendClose() {
-        val payload = socketId.toLEBytes() + byteArrayOf(0) + 0.toLEBytes()
-        session.send(Protocol.createMessage(Protocol.OP_UDP_CLOSE, 0, payload))
+        try {
+            val payload = socketId.toLEBytes() + byteArrayOf(0) + 0.toLEBytes()
+            session.send(Protocol.createMessage(Protocol.OP_UDP_CLOSE, 0, payload))
+        } catch (e: Exception) {
+            // Session may already be closed - that's fine
+            Log.d(TAG, "Could not send UDP_CLOSE for socket $socketId: ${e.message}")
+        }
     }
 }

@@ -19,6 +19,48 @@ import java.security.MessageDigest
 private const val TAG = "FileHandler"
 private const val MAX_BODY_SIZE = 64 * 1024 * 1024 // 64MB
 
+/**
+ * LRU cache for DocumentFile references to avoid repeated SAF traversals.
+ * Key format: "$rootUri|$relativePath"
+ */
+private val documentFileCache = object : LinkedHashMap<String, DocumentFile>(100, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, DocumentFile>?): Boolean {
+        return size > 200 // Keep max 200 entries
+    }
+}
+private val cacheLock = Any()
+
+private fun getCachedFile(context: Context, rootUri: Uri, relativePath: String): DocumentFile? {
+    val cacheKey = "$rootUri|$relativePath"
+
+    synchronized(cacheLock) {
+        documentFileCache[cacheKey]?.let { cached ->
+            // Verify it still exists
+            if (cached.exists()) {
+                return cached
+            } else {
+                documentFileCache.remove(cacheKey)
+            }
+        }
+    }
+
+    // Cache miss - do the traversal
+    val file = resolveFile(context, rootUri, relativePath)
+    if (file != null) {
+        synchronized(cacheLock) {
+            documentFileCache[cacheKey] = file
+        }
+    }
+    return file
+}
+
+private fun cacheFile(rootUri: Uri, relativePath: String, file: DocumentFile) {
+    val cacheKey = "$rootUri|$relativePath"
+    synchronized(cacheLock) {
+        documentFileCache[cacheKey] = file
+    }
+}
+
 fun Route.fileRoutes(rootStore: RootStore, context: Context) {
 
     get("/read/{root_key}") {
@@ -48,7 +90,7 @@ fun Route.fileRoutes(rootStore: RootStore, context: Context) {
             ?: return@get call.respond(HttpStatusCode.Forbidden, "Invalid root key")
 
         try {
-            val file = resolveFile(context, rootUri, relativePath)
+            val file = getCachedFile(context, rootUri, relativePath)
                 ?: return@get call.respond(HttpStatusCode.NotFound, "File not found")
 
             // Use ParcelFileDescriptor for random access reads
@@ -126,12 +168,19 @@ fun Route.fileRoutes(rootStore: RootStore, context: Context) {
         }
 
         try {
-            // Get or create file (creates parent directories as needed)
-            val file = getOrCreateFile(context, rootUri, relativePath)
-                ?: return@post call.respond(
-                    HttpStatusCode.InternalServerError,
-                    "Cannot create file"
-                )
+            // Try cache first for existing files
+            var file = getCachedFile(context, rootUri, relativePath)
+
+            if (file == null) {
+                // Not in cache or doesn't exist - create it
+                file = getOrCreateFile(context, rootUri, relativePath)
+                    ?: return@post call.respond(
+                        HttpStatusCode.InternalServerError,
+                        "Cannot create file"
+                    )
+                // Cache the newly created file
+                cacheFile(rootUri, relativePath, file)
+            }
 
             // Use ParcelFileDescriptor for true random access writes
             // This is O(write_size), not O(file_size) like the stream approach
