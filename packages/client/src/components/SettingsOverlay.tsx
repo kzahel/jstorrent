@@ -264,11 +264,11 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                     </div>
                   </div>
                   <button
-                    style={styles.iconButton}
+                    style={{ ...styles.iconButton, color: 'var(--accent-error, #ef4444)' }}
                     onClick={() => onRemoveRoot(root.key)}
                     title="Remove"
                   >
-                    🗑
+                    ✕
                   </button>
                 </div>
               ))}
