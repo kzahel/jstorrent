@@ -872,17 +872,24 @@ export class DaemonBridge {
   }
 
   private cleanup(): void {
+    console.log('[DaemonBridge] cleanup() called')
     if (this.healthCheckInterval) {
+      console.log('[DaemonBridge] Clearing health check interval')
       clearInterval(this.healthCheckInterval)
       this.healthCheckInterval = null
     }
     if (this.ws) {
+      console.log('[DaemonBridge] Closing WebSocket')
       this.ws.close()
       this.ws = null
     }
     if (this.nativePort) {
+      console.log('[DaemonBridge] Disconnecting native port')
       this.nativePort.disconnect()
       this.nativePort = null
+      console.log('[DaemonBridge] Native port disconnected and nulled')
+    } else {
+      console.log('[DaemonBridge] No native port to disconnect')
     }
   }
 

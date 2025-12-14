@@ -23,6 +23,33 @@ const powerManager = new PowerManager()
 // ============================================================================
 let primaryUIPort: chrome.runtime.Port | null = null
 
+// ============================================================================
+// Idle Timeout Management (allows SW to suspend when no UI)
+// ============================================================================
+const IDLE_TIMEOUT_MS = 10 * 1000 // 10 seconds
+let idleTimer: ReturnType<typeof setTimeout> | null = null
+
+function startIdleTimer(): void {
+  clearIdleTimer()
+  console.log(`[SW] Starting idle timer (${IDLE_TIMEOUT_MS / 1000}s)`)
+  idleTimer = setTimeout(() => {
+    console.log('[SW] Idle timeout fired - disconnecting daemon bridge')
+    const state = bridge.getState()
+    console.log('[SW] Bridge state before disconnect:', state.status)
+    bridge.disconnect()
+    console.log('[SW] Bridge disconnected, timer cleared')
+    idleTimer = null
+  }, IDLE_TIMEOUT_MS)
+}
+
+function clearIdleTimer(): void {
+  if (idleTimer) {
+    console.log('[SW] Clearing idle timer')
+    clearTimeout(idleTimer)
+    idleTimer = null
+  }
+}
+
 // Store pending event in chrome.storage.session so it survives SW restarts
 const PENDING_EVENT_KEY = 'pending:nativeEvent'
 
@@ -38,6 +65,16 @@ async function sendToUI(event: NativeEvent): Promise<void> {
 
 function handleUIPortConnect(port: chrome.runtime.Port): void {
   console.log('[SW] UI connected via port')
+
+  // Cancel idle timeout since UI is now active
+  clearIdleTimer()
+
+  // Reconnect bridge if it was disconnected due to idle timeout
+  const currentState = bridge.getState()
+  if (currentState.status === 'disconnected') {
+    console.log('[SW] Reconnecting bridge for UI')
+    bridge.connect()
+  }
 
   // Close existing UI if any (single UI enforcement)
   if (primaryUIPort) {
@@ -80,6 +117,8 @@ function handleUIPortConnect(port: chrome.runtime.Port): void {
     console.log('[SW] UI port disconnected')
     if (primaryUIPort === port) {
       primaryUIPort = null
+      // Start idle timer to allow SW suspension
+      startIdleTimer()
     }
   })
 }
