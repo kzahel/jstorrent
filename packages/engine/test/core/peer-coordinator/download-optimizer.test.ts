@@ -154,7 +154,12 @@ describe('DownloadOptimizer', () => {
 
     it('should drop peers way below average', () => {
       const optimizer = new DownloadOptimizer(
-        { dropBelowAverageRatio: 0.1, minSpeedBytes: 0, minConnectionAgeMs: 0, minPeersBeforeDropping: 0 },
+        {
+          dropBelowAverageRatio: 0.1,
+          minSpeedBytes: 0,
+          minConnectionAgeMs: 0,
+          minPeersBeforeDropping: 0,
+        },
         fakeClock,
       )
 

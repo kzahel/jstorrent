@@ -116,7 +116,7 @@ async fn main() -> Result<()> {
     // Write discovery file
     // Note: download_roots is None on startup to preserve existing roots in the file
     let info = rpc::RpcInfo {
-        version: 1,
+        version: env!("CARGO_PKG_VERSION").to_string(),
         pid: std::process::id(),
         port,
         token,

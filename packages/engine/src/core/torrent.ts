@@ -1,11 +1,6 @@
 import { PeerConnection } from './peer-connection'
 import { ActivePiece, BLOCK_SIZE } from './active-piece'
-import {
-  PeerCoordinator,
-  PeerSnapshot,
-  ChokeDecision,
-  DropDecision,
-} from './peer-coordinator'
+import { PeerCoordinator, PeerSnapshot, ChokeDecision, DropDecision } from './peer-coordinator'
 import { ActivePieceManager } from './active-piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 import { HashMismatchError } from '../adapters/daemon/daemon-file-handle'
