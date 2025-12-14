@@ -300,13 +300,6 @@ class EngineManager {
         torrent.errorMessage = 'IO connection lost'
       }
     }
-
-    // Show notification about connection loss
-    notificationBridge.onTorrentError(
-      'system',
-      'JSTorrent',
-      'IO connection lost - attempting to reconnect',
-    )
   }
 
   /**
