@@ -199,18 +199,15 @@ async fn main() -> anyhow::Result<()> {
 }
 
 
+#[cfg(unix)]
 async fn monitor_parent(pid: u32) {
-    use tokio::time::{sleep, Duration};
     use std::process::Command;
+    use tokio::time::{sleep, Duration};
 
     loop {
         sleep(Duration::from_secs(1)).await;
-        
-        // Simple check if process exists (works on Linux)
-        let output = Command::new("kill")
-            .arg("-0")
-            .arg(pid.to_string())
-            .output();
+
+        let output = Command::new("kill").arg("-0").arg(pid.to_string()).output();
 
         match output {
             Ok(output) => {
@@ -220,10 +217,47 @@ async fn monitor_parent(pid: u32) {
                 }
             }
             Err(_) => {
-                // If we can't check, assume it's gone or something is wrong
                 tracing::warn!("Failed to check parent process, shutting down");
                 std::process::exit(1);
             }
+        }
+    }
+}
+
+#[cfg(windows)]
+async fn monitor_parent(pid: u32) {
+    use tokio::time::{sleep, Duration};
+    use windows_sys::Win32::Foundation::{CloseHandle, STILL_ACTIVE};
+    use windows_sys::Win32::System::Threading::{
+        GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+
+    loop {
+        sleep(Duration::from_secs(1)).await;
+
+        // HANDLE is isize in windows-sys, 0 means failure
+        let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+        if handle == 0 {
+            tracing::info!("Parent process {} no longer exists, shutting down", pid);
+            std::process::exit(0);
+        }
+
+        let mut exit_code: u32 = 0;
+        let success = unsafe { GetExitCodeProcess(handle, &mut exit_code) };
+        unsafe { CloseHandle(handle) };
+
+        if success == 0 {
+            tracing::warn!("Failed to get parent process exit code, shutting down");
+            std::process::exit(1);
+        }
+
+        if exit_code != STILL_ACTIVE as u32 {
+            tracing::info!(
+                "Parent process {} exited with code {}, shutting down",
+                pid,
+                exit_code
+            );
+            std::process::exit(0);
         }
     }
 }
