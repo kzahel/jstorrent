@@ -88,6 +88,23 @@ export const torrentColumns: ColumnDef<Torrent>[] = [
     width: 60,
     align: 'right',
   },
+  {
+    id: 'addedAt',
+    header: 'Added',
+    getValue: (t) => t.addedAt,
+    width: 140,
+    align: 'right',
+    renderCell: (_t, value) => (typeof value === 'number' ? new Date(value).toLocaleString() : '-'),
+  },
+  {
+    id: 'completedAt',
+    header: 'Completed',
+    getValue: (t) => t.completedAt ?? 0,
+    width: 140,
+    align: 'right',
+    defaultHidden: true,
+    renderCell: (t) => (t.completedAt ? new Date(t.completedAt).toLocaleString() : '-'),
+  },
 ]
 
 /** Minimal interface for reading torrents - avoids coupling to full adapter */

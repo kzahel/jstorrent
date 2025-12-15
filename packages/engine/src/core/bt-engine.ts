@@ -328,7 +328,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       const infoHashStr = toHex(infoHash)
       const torrent = this.getTorrent(infoHashStr)
       if (torrent) {
-        this.logger.info(`Incoming connection for torrent ${infoHashStr}`)
+        this.logger.debug(`Incoming connection for torrent ${infoHashStr}`)
         // Send our handshake back FIRST
         peer.sendHandshake(torrent.infoHash, torrent.peerId)
         peer.isIncoming = true

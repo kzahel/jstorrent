@@ -97,8 +97,10 @@ export const TorrentItem: React.FC<TorrentItemProps> = ({
           <div style={{ fontWeight: 'bold' }}>{torrent.name || 'Loading metadata...'}</div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
             {torrent.activityState} | {(torrent.progress * 100).toFixed(1)}% | {torrent.numPeers}{' '}
-            peers | {torrent.files.length} files |{' '}
-            {formatBytes(torrent.contentStorage?.getTotalSize() || 0)}
+            peers | {torrent.files.length} files
+            {torrent.contentStorage?.getTotalSize()
+              ? ` | ${formatBytes(torrent.contentStorage.getTotalSize())}`
+              : ''}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
             {formatBytes(torrent.downloadSpeed)}/s | {formatBytes(torrent.uploadSpeed)}/s

@@ -401,7 +401,7 @@ export class Torrent extends EngineComponent {
     const timeout = this.connectionTiming.getTimeout()
 
     try {
-      this.logger.info(`Connecting to ${peerInfo.ip}:${peerInfo.port} (timeout: ${timeout}ms)`)
+      this.logger.debug(`Connecting to ${peerInfo.ip}:${peerInfo.port} (timeout: ${timeout}ms)`)
       const socket = await this.createConnectionWithTimeout(peerInfo, timeout)
 
       // Record successful connection time
@@ -1323,7 +1323,7 @@ export class Torrent extends EngineComponent {
         this._swarm.setIdentity(key, peer.peerId, clientName)
       }
 
-      this.logger.info(
+      this.logger.debug(
         `Extension handshake received. metadataComplete=${this.metadataComplete}, peerMetadataId=${peer.peerMetadataId}`,
       )
 
@@ -1974,7 +1974,7 @@ export class Torrent extends EngineComponent {
     const progressPct =
       this.piecesCount > 0 ? ((this.completedPiecesCount / this.piecesCount) * 100).toFixed(1) : '0'
 
-    this.logger.info(
+    this.logger.debug(
       `Piece ${index} verified [${this.completedPiecesCount}/${this.piecesCount}] ${progressPct}%`,
     )
 
