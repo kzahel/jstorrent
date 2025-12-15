@@ -126,7 +126,7 @@ export const settingsSchema = {
   maxPeersPerTorrent: {
     type: 'number',
     storage: 'sync',
-    default: 50,
+    default: 20,
     min: 1,
     max: 500,
   },

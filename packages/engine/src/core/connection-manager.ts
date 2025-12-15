@@ -10,7 +10,6 @@ import type { Logger, ILoggingEngine } from '../logging/logger'
 
 export interface ConnectionConfig {
   maxPeersPerTorrent: number
-  connectingHeadroom: number // Extra slots for in-flight connections
   connectTimeout: number // Internal timeout (ms)
   maintenanceInterval: number // Base interval between maintenance runs
   burstConnections: number // Max connections per maintenance run
@@ -22,9 +21,7 @@ export interface ConnectionConfig {
   slowPeerTimeoutMs: number // Time without data before dropping (ms)
 }
 
-export const DEFAULT_CONNECTION_CONFIG: ConnectionConfig = {
-  maxPeersPerTorrent: 50,
-  connectingHeadroom: 10,
+export const DEFAULT_CONNECTION_CONFIG: Omit<ConnectionConfig, 'maxPeersPerTorrent'> = {
   connectTimeout: 10000, // 10 seconds
   maintenanceInterval: 3000, // 3 seconds (base interval)
   burstConnections: 5,
@@ -92,7 +89,8 @@ export class ConnectionManager extends EventEmitter {
     socketFactory: ISocketFactory,
     engine: ILoggingEngine,
     logger: Logger,
-    config: Partial<ConnectionConfig> = {},
+    config: Pick<ConnectionConfig, 'maxPeersPerTorrent'> &
+      Partial<Omit<ConnectionConfig, 'maxPeersPerTorrent'>>,
   ) {
     super()
     this.swarm = swarm
@@ -122,13 +120,12 @@ export class ConnectionManager extends EventEmitter {
 
   /**
    * Calculate available connection slots.
-   * Accounts for connected peers, in-flight connections, and headroom.
+   * Accounts for connected peers and in-flight connections.
    */
   get availableSlots(): number {
     const connected = this.swarm.connectedCount
     const connecting = this.swarm.connectingCount
-    const maxWithHeadroom = this.config.maxPeersPerTorrent + this.config.connectingHeadroom
-    return Math.max(0, maxWithHeadroom - connected - connecting)
+    return Math.max(0, this.config.maxPeersPerTorrent - connected - connecting)
   }
 
   /**
