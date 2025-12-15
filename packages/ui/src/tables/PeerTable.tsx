@@ -18,14 +18,19 @@ function FlagWithTooltip(props: { code: string | null | undefined }) {
 
 /**
  * Format peer flags (choking/interested states)
- * D = downloading from peer, U = uploading to peer
- * Characters: d/D = download, u/U = upload (lowercase = choked)
+ * D = downloading from peer, U = uploading to peer, I = incoming connection
+ * Characters: d/D = download, u/U = upload (lowercase = choked), I = incoming
  * Returns empty string for connecting peers (no connection yet)
  */
 function formatFlags(peer: DisplayPeer): string {
   if (!peer.connection) return ''
 
   const flags: string[] = []
+
+  // Incoming connection
+  if (peer.connection.isIncoming) {
+    flags.push('I')
+  }
 
   // Download: are we interested and are they choking us?
   if (peer.connection.amInterested) {
