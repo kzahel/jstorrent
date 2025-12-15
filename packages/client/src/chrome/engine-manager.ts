@@ -223,6 +223,7 @@ class EngineManager {
       hasher,
       port: settingsStore.get('listeningPort'),
       startSuspended: true,
+      getNetworkInterfaces: () => this.daemonConnection!.getNetworkInterfaces(),
     })
     // @ts-expect-error -- expose engine for debugging
     window.engine = this.engine // expose for debugging
@@ -551,6 +552,18 @@ class EngineManager {
     console.log(
       `[EngineManager] Daemon rate limit set: ${opsPerSecond} ops/sec, burst=${burstSize}`,
     )
+  }
+
+  /**
+   * Enable or disable UPnP port mapping.
+   * @param enabled - Whether UPnP should be enabled
+   */
+  async setUPnPEnabled(enabled: boolean): Promise<void> {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set UPnP: engine not initialized')
+      return
+    }
+    await this.engine.setUPnPEnabled(enabled)
   }
 
   /**

@@ -157,6 +157,11 @@ export const settingsSchema = {
     min: 0, // 0 = no uploads (pure leecher mode)
     max: 50,
   },
+  'upnp.enabled': {
+    type: 'boolean',
+    storage: 'sync',
+    default: true,
+  },
 
   // -------------------------------------------------------------------------
   // Advanced: Daemon Rate Limiting

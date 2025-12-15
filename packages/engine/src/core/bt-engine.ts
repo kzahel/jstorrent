@@ -16,6 +16,7 @@ import {
   LogEntry,
   globalLogStore,
 } from '../logging/logger'
+import { UPnPManager, NetworkInterface } from '../upnp'
 
 import { ISessionStore } from '../interfaces/session-store'
 import { IHasher } from '../interfaces/hasher'
@@ -34,6 +35,9 @@ import { initializeTorrentMetadata } from './torrent-initializer'
 
 // Maximum piece size supported by the io-daemon (must match DefaultBodyLimit in io-daemon)
 export const MAX_PIECE_SIZE = 32 * 1024 * 1024 // 32MB
+
+// UPnP status type
+export type UPnPStatus = 'disabled' | 'discovering' | 'mapped' | 'failed'
 
 // === Unified Daemon Operation Queue Types ===
 
@@ -99,6 +103,12 @@ export interface BtEngineOptions {
    * Default: 40 (2x rate)
    */
   daemonOpsBurst?: number
+
+  /**
+   * Function to get network interfaces.
+   * Required for UPnP to determine local address for port mapping.
+   */
+  getNetworkInterfaces?: () => Promise<NetworkInterface[]>
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -124,6 +134,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    * By default, engine starts active. Pass `startSuspended: true` to start suspended.
    */
   private _suspended: boolean = false
+
+  // === UPnP ===
+  private upnpManager?: UPnPManager
+  private _upnpStatus: UPnPStatus = 'disabled'
+  private getNetworkInterfaces?: () => Promise<NetworkInterface[]>
 
   // === Unified Daemon Operation Queue ===
 
@@ -196,6 +211,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     const opsPerSec = options.daemonOpsPerSecond ?? 20
     const burst = options.daemonOpsBurst ?? opsPerSec * 2
     this.daemonRateLimiter = new TokenBucket(opsPerSec, burst)
+
+    // Save network interface getter for UPnP
+    this.getNetworkInterfaces = options.getNetworkInterfaces
 
     // Initialize logger for BtEngine itself
     this.logger = this.scopedLoggerFor(this)
@@ -475,6 +493,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     // Clear pending operations
     this.pendingOps.clear()
 
+    // Clean up UPnP mappings
+    await this.disableUPnP()
+
     // Flush any pending persistence saves
     await this.sessionPersistence.flushPendingSaves()
 
@@ -745,5 +766,91 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    */
   setConnectionRateLimit(connectionsPerSecond: number, burstSize?: number): void {
     this.setDaemonRateLimit(connectionsPerSecond, burstSize)
+  }
+
+  // === UPnP Methods ===
+
+  /**
+   * Get the current UPnP status.
+   */
+  get upnpStatus(): UPnPStatus {
+    return this._upnpStatus
+  }
+
+  /**
+   * Get the external IP address discovered via UPnP.
+   * Returns null if UPnP is not enabled or discovery failed.
+   */
+  get upnpExternalIP(): string | null {
+    return this.upnpManager?.externalIP ?? null
+  }
+
+  /**
+   * Enable or disable UPnP port mapping.
+   * When enabled, discovers gateway and maps the listening port.
+   * When disabled, removes any active mappings.
+   */
+  async setUPnPEnabled(enabled: boolean): Promise<void> {
+    if (enabled) {
+      await this.enableUPnP()
+    } else {
+      await this.disableUPnP()
+    }
+  }
+
+  private async enableUPnP(): Promise<void> {
+    if (this._upnpStatus !== 'disabled') {
+      // Already enabled or in progress
+      return
+    }
+
+    if (!this.getNetworkInterfaces) {
+      this.logger.warn('UPnP: Cannot enable - no getNetworkInterfaces function provided')
+      this._upnpStatus = 'failed'
+      this.emit('upnpStatusChanged', this._upnpStatus)
+      return
+    }
+
+    this._upnpStatus = 'discovering'
+    this.emit('upnpStatusChanged', this._upnpStatus)
+    this.logger.info('UPnP: Discovering gateway...')
+
+    this.upnpManager = new UPnPManager(this.socketFactory, this.getNetworkInterfaces, this.logger)
+
+    const discovered = await this.upnpManager.discover()
+    if (!discovered) {
+      this._upnpStatus = 'failed'
+      this.emit('upnpStatusChanged', this._upnpStatus)
+      this.logger.info('UPnP: No gateway found')
+      return
+    }
+
+    const mapped = await this.upnpManager.addMapping(this.port, 'TCP')
+    if (mapped) {
+      this._upnpStatus = 'mapped'
+      this.emit('upnpStatusChanged', this._upnpStatus)
+      this.logger.info(
+        `UPnP: Port ${this.port} mapped successfully, external IP: ${this.upnpManager.externalIP}`,
+      )
+    } else {
+      this._upnpStatus = 'failed'
+      this.emit('upnpStatusChanged', this._upnpStatus)
+      this.logger.warn(`UPnP: Failed to map port ${this.port}`)
+    }
+  }
+
+  private async disableUPnP(): Promise<void> {
+    if (this._upnpStatus === 'disabled') {
+      return
+    }
+
+    if (this.upnpManager) {
+      await this.upnpManager.cleanup()
+      this.upnpManager = undefined
+    }
+
+    this._upnpStatus = 'disabled'
+    this.emit('upnpStatusChanged', this._upnpStatus)
+    this.logger.info('UPnP: Disabled')
   }
 }

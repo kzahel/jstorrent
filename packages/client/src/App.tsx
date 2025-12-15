@@ -546,6 +546,19 @@ function App() {
     }
   }, [settingsStore, settingsReady])
 
+  // Apply UPnP setting from settings store
+  useEffect(() => {
+    if (!settingsReady || !engine) return
+
+    // Apply initial value
+    engineManager.setUPnPEnabled(settingsStore.get('upnp.enabled'))
+
+    // Subscribe to changes
+    return settingsStore.subscribe('upnp.enabled', (enabled) => {
+      engineManager.setUPnPEnabled(enabled)
+    })
+  }, [settingsStore, settingsReady, engine])
+
   // Periodic refresh for header stats (engine object is mutable)
   useEffect(() => {
     if (!engine) return

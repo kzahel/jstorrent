@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { engineManager } from '../chrome/engine-manager'
 import { useSettings } from '../context/SettingsContext'
-import type { Settings, SettingKey } from '@jstorrent/engine'
+import type { Settings, SettingKey, UPnPStatus } from '@jstorrent/engine'
 import { clearAllUISettings } from '@jstorrent/ui'
 
 type SettingsTab = 'general' | 'interface' | 'network' | 'advanced'
@@ -434,6 +434,24 @@ const InterfaceTab: React.FC<InterfaceTabProps> = ({
 )
 
 const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
+  // UPnP status state - initialize from engine if available
+  const [upnpStatus, setUpnpStatus] = useState<UPnPStatus>(
+    () => engineManager.engine?.upnpStatus ?? 'disabled',
+  )
+
+  // Subscribe to UPnP status changes
+  useEffect(() => {
+    const engine = engineManager.engine
+    if (!engine) return
+
+    // Subscribe to changes
+    const handler = (status: UPnPStatus) => setUpnpStatus(status)
+    engine.on('upnpStatusChanged', handler)
+    return () => {
+      engine.off('upnpStatusChanged', handler)
+    }
+  }, [])
+
   // Apply rate limits to engine when settings change
   const handleDownloadLimitChange = (v: number) => {
     updateSetting('downloadSpeedLimit', v)
@@ -461,6 +479,24 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
     engineManager.setConnectionLimits(settings.maxPeersPerTorrent, settings.maxGlobalPeers, v)
   }
 
+  // UPnP status indicator
+  const getUpnpStatusInfo = (): { text: string; color: string } => {
+    switch (upnpStatus) {
+      case 'discovering':
+        return { text: 'Discovering...', color: 'var(--text-secondary)' }
+      case 'mapped': {
+        const externalIP = engineManager.engine?.upnpExternalIP
+        return { text: externalIP ? `✓ ${externalIP}` : '✓ Mapped', color: 'var(--accent-success)' }
+      }
+      case 'failed':
+        return { text: 'Failed', color: 'var(--accent-error)' }
+      default:
+        return { text: '', color: '' }
+    }
+  }
+
+  const statusInfo = getUpnpStatusInfo()
+
   return (
     <div>
       <Section title="Listening Port">
@@ -473,6 +509,27 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
         />
         <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
           Changes require restart to take effect.
+        </div>
+      </Section>
+
+      <Section title="Port Forwarding">
+        <div style={styles.toggleRow}>
+          <div style={{ flex: 1 }}>
+            <div>Enable UPnP</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Automatically configure router for incoming connections
+            </div>
+          </div>
+          {statusInfo.text && (
+            <span style={{ fontSize: '12px', color: statusInfo.color, marginRight: '12px' }}>
+              {statusInfo.text}
+            </span>
+          )}
+          <input
+            type="checkbox"
+            checked={settings['upnp.enabled']}
+            onChange={(e) => updateSetting('upnp.enabled', e.target.checked)}
+          />
         </div>
       </Section>
 
