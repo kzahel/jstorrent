@@ -36,13 +36,11 @@ Native binaries ideally should be signed:
 
 ### 2. Windows Testing (High Priority)
 
-**Status:** Not tested yet (machine available)
+**Status:** Tested. Works. Need to test file associations more.
 
-Need to:
-- Test native-host builds and runs
-- Test installer (NSIS script exists but untested)
-- Test native messaging registration
-- Test file paths (backslash handling)
+Weird things:
+- Download path display looks odd
+- Can't reinstall native host if it's running (blocks)
 
 ### 3. macOS Testing (Medium Priority)
 
@@ -70,17 +68,9 @@ Need to:
 
 ## Known Limitations (Not Blocking)
 
-### Listening Socket
-
-Engine doesn't bind a listening port for incoming peer connections. Only outgoing connections work.
-
-**Impact:** Slightly reduced peer connectivity. Many clients work fine outgoing-only.
-
-**Future:** Implement after initial release.
-
 ### DHT
 
-No DHT support. Relies entirely on trackers for peer discovery.
+No DHT support. Relies entirely on trackers and pex for peer discovery.
 
 **Impact:** Trackerless torrents won't work. Most public torrents have trackers.
 
@@ -152,9 +142,6 @@ Installers built on GitHub Actions (`.github/workflows/`). No manual upload need
 | Native host | Good | Python verify_*.py scripts |
 | Android daemon | Good | Unit tests + throughput benchmarks |
 
-### Skip List (Known Issues)
-
-Currently no tests in skip list. All integration tests passing.
 
 ## UI Completeness
 
@@ -171,11 +158,7 @@ Currently no tests in skip list. All integration tests passing.
 - ✅ Log viewer tab
 
 ### Remaining
-- Tracker tab in detail pane
 - File priority selection (files tab exists but no priority control)
-- Bandwidth limiting UI
-- Preferences/settings dialog
-- Polish and edge cases
 
 ## Platform Status
 
@@ -192,15 +175,15 @@ Currently no tests in skip list. All integration tests passing.
 - [ ] Windows testing complete
 - [ ] macOS testing complete (need machine access)
 - [ ] Code signing decision (signed vs soft launch unsigned)
-- [ ] Chrome Web Store developer account
+- [x] Chrome Web Store developer account
 - [ ] Extension listing assets (screenshots, description)
 - [ ] Play Store listing for Android companion (unlisted beta)
 - [ ] Observability/analytics integration
 
 ### Release
-- [ ] Tag release (triggers GitHub Actions build)
+- [x] Tag release (triggers GitHub Actions build)
 - [ ] Verify installers in GitHub Releases
-- [ ] Submit extension to Chrome Web Store
+- [x] Submit extension to Chrome Web Store
 - [ ] Upload Android APK to Play Store (unlisted)
 - [ ] Update website with install instructions
 
