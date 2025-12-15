@@ -319,4 +319,269 @@ describe('Materialization', () => {
       expect(count).toBe(0)
     })
   })
+
+  describe('boundary piece immediate write', () => {
+    it('writePieceFilteredByPriority writes only to non-skipped files', async () => {
+      // Setup: [large file (skipped), small file (wanted)]
+      // File A: 0-50000 (will be skipped), File B: 50000-51000 (wanted)
+      const buffer = createMultiFileTorrent({
+        name: 'test-folder',
+        files: [
+          { path: 'large.dat', length: 50000 },
+          { path: 'small.txt', length: 1000 },
+        ],
+        pieceLength: 16384,
+      })
+
+      const torrent = await engine.addTorrent(buffer)
+      if (!torrent) throw new Error('Torrent is null')
+
+      // Create files in the mock filesystem (direct map access)
+      // Note: TorrentFile paths are relative (e.g., 'test-folder/large.dat'), not absolute
+      const fileAPath = 'test-folder/large.dat'
+      const fileBPath = 'test-folder/small.txt'
+      fileSystem.files.set(fileAPath, new Uint8Array(50000).fill(0))
+      fileSystem.files.set(fileBPath, new Uint8Array(1000).fill(0))
+
+      // Skip file A - piece 3 becomes boundary
+      torrent.setFilePriority(0, 1)
+      expect(torrent.pieceClassification[3]).toBe('boundary')
+
+      // Verify contentStorage has updated priorities
+      const contentStorage = torrent.contentStorage
+      if (!contentStorage) throw new Error('contentStorage is undefined')
+
+      // Write piece 3 data using filtered write
+      // Piece 3: bytes 49152-65536 in torrent
+      // - File A gets bytes 49152-50000 (848 bytes) - should be SKIPPED
+      // - File B gets bytes 50000-51000 (1000 bytes) - should be WRITTEN
+      const pieceData = new Uint8Array(16384)
+      // Fill with pattern so we can verify what was written
+      for (let i = 0; i < pieceData.length; i++) {
+        pieceData[i] = (i % 256) as number
+      }
+
+      await contentStorage.writePieceFilteredByPriority(3, pieceData)
+
+      // Verify file A was NOT modified (should still be all zeros)
+      const fileAData = await fileSystem.readFile(fileAPath)
+      // Check the last 848 bytes of file A (where piece 3 would overlap)
+      const fileAOverlap = fileAData.slice(49152 - 0) // offset 49152 relative to file A start (0)
+      expect(fileAOverlap.every((b) => b === 0)).toBe(true)
+
+      // Verify file B WAS modified with the correct data
+      const fileBData = await fileSystem.readFile(fileBPath)
+      // File B starts at torrent offset 50000, piece 3 starts at 49152
+      // So piece data offset for file B start is 50000 - 49152 = 848
+      const expectedPattern = pieceData.slice(848, 848 + 1000)
+      expect(fileBData).toEqual(expectedPattern)
+    })
+
+    it('handles case where only last files are wanted', async () => {
+      // This is the user's exact scenario: skip all but last two small files
+      const buffer = createMultiFileTorrent({
+        name: 'test-folder',
+        files: [
+          { path: 'big1.dat', length: 100000 },
+          { path: 'big2.dat', length: 100000 },
+          { path: 'readme1.txt', length: 500 },
+          { path: 'readme2.txt', length: 500 },
+        ],
+        pieceLength: 16384,
+      })
+
+      const torrent = await engine.addTorrent(buffer)
+      if (!torrent) throw new Error('Torrent is null')
+
+      // Create files in mock filesystem (direct map access)
+      // Note: TorrentFile paths are relative (e.g., 'test-folder/big1.dat'), not absolute
+      fileSystem.files.set('test-folder/big1.dat', new Uint8Array(100000).fill(0))
+      fileSystem.files.set('test-folder/big2.dat', new Uint8Array(100000).fill(0))
+      fileSystem.files.set('test-folder/readme1.txt', new Uint8Array(500).fill(0))
+      fileSystem.files.set('test-folder/readme2.txt', new Uint8Array(500).fill(0))
+
+      // Skip first two large files
+      torrent.setFilePriority(0, 1)
+      torrent.setFilePriority(1, 1)
+
+      // Find the boundary piece that spans from big2.dat to readme1.txt
+      // big1.dat: 0-100000, big2.dat: 100000-200000, readme1.txt: 200000-200500
+      // Piece at offset 196608 (piece 12) spans from big2 into readme1
+      const boundaryPieceIndex = Math.floor(200000 / 16384) // piece that contains offset 200000
+      expect(torrent.pieceClassification[boundaryPieceIndex]).toBe('boundary')
+
+      // Write boundary piece using filtered write
+      const contentStorage = torrent.contentStorage
+      if (!contentStorage) throw new Error('contentStorage is undefined')
+      const pieceData = new Uint8Array(16384).fill(0xab)
+      await contentStorage.writePieceFilteredByPriority(boundaryPieceIndex, pieceData)
+
+      // Verify readme1.txt was written to
+      const readme1Data = await fileSystem.readFile('test-folder/readme1.txt')
+      // At least some bytes should be 0xab now (the part from the boundary piece)
+      const hasExpectedData = readme1Data.some((b) => b === 0xab)
+      expect(hasExpectedData).toBe(true)
+
+      // Verify big2.dat was NOT modified (should still be all zeros)
+      const big2Data = await fileSystem.readFile('test-folder/big2.dat')
+      expect(big2Data.every((b) => b === 0)).toBe(true)
+    })
+
+    it('handles small file in middle of piece with surrounding files skipped', async () => {
+      // Edge case: small file entirely within one piece, surrounded by skipped files
+      // Layout:
+      //   big1.dat: 0-30000 (skipped)
+      //   tiny.txt: 30000-30100 (100 bytes, WANTED)
+      //   big2.dat: 30100-60000 (skipped)
+      // With pieceLength 16384:
+      //   Piece 0: 0-16384 (entirely in big1) -> blacklisted
+      //   Piece 1: 16384-32768 (spans big1, tiny, big2) -> boundary
+      //   Piece 2: 32768-48768 (spans big2) -> blacklisted
+      //   Piece 3: 48768-60000 (in big2) -> blacklisted
+      const buffer = createMultiFileTorrent({
+        name: 'test-folder',
+        files: [
+          { path: 'big1.dat', length: 30000 },
+          { path: 'tiny.txt', length: 100 },
+          { path: 'big2.dat', length: 29900 },
+        ],
+        pieceLength: 16384,
+      })
+
+      const torrent = await engine.addTorrent(buffer)
+      if (!torrent) throw new Error('Torrent is null')
+
+      // Create files in mock filesystem
+      fileSystem.files.set('test-folder/big1.dat', new Uint8Array(30000).fill(0))
+      fileSystem.files.set('test-folder/tiny.txt', new Uint8Array(100).fill(0))
+      fileSystem.files.set('test-folder/big2.dat', new Uint8Array(29900).fill(0))
+
+      // Skip big1 and big2, keep only tiny.txt
+      torrent.setFilePriority(0, 1) // big1 skipped
+      torrent.setFilePriority(2, 1) // big2 skipped
+
+      // Piece 1 (16384-32768) should be boundary since it spans:
+      // - big1 (skipped): 16384-30000
+      // - tiny.txt (wanted): 30000-30100
+      // - big2 (skipped): 30100-32768
+      expect(torrent.pieceClassification[1]).toBe('boundary')
+
+      // Piece 0 should be blacklisted (entirely in skipped big1)
+      expect(torrent.pieceClassification[0]).toBe('blacklisted')
+
+      const contentStorage = torrent.contentStorage
+      if (!contentStorage) throw new Error('contentStorage is undefined')
+
+      // Write boundary piece 1 using filtered write
+      const pieceData = new Uint8Array(16384).fill(0xcd)
+      await contentStorage.writePieceFilteredByPriority(1, pieceData)
+
+      // Verify tiny.txt WAS written to
+      // tiny.txt is at torrent offset 30000-30100
+      // Piece 1 starts at 16384, so tiny.txt starts at piece offset 30000-16384 = 13616
+      const tinyData = await fileSystem.readFile('test-folder/tiny.txt')
+      expect(tinyData.every((b) => b === 0xcd)).toBe(true)
+
+      // Verify big1.dat was NOT modified (should still be all zeros)
+      const big1Data = await fileSystem.readFile('test-folder/big1.dat')
+      expect(big1Data.every((b) => b === 0)).toBe(true)
+
+      // Verify big2.dat was NOT modified (should still be all zeros)
+      const big2Data = await fileSystem.readFile('test-folder/big2.dat')
+      expect(big2Data.every((b) => b === 0)).toBe(true)
+    })
+
+    it('handles skipped file in middle of piece with wanted files on both ends', async () => {
+      // Edge case: piece spans [wanted file] -> [skipped file] -> [wanted file]
+      // This tests that the middle portion is correctly skipped while both ends are written
+      // Layout:
+      //   part1.dat: 0-10000 (WANTED)
+      //   skip.dat:  10000-20000 (SKIPPED)
+      //   part2.dat: 20000-30000 (WANTED)
+      // With pieceLength 16384:
+      //   Piece 0: 0-16384 (spans part1, skip) -> boundary
+      //   Piece 1: 16384-30000 (spans skip, part2) -> boundary
+      const buffer = createMultiFileTorrent({
+        name: 'test-folder',
+        files: [
+          { path: 'part1.dat', length: 10000 },
+          { path: 'skip.dat', length: 10000 },
+          { path: 'part2.dat', length: 10000 },
+        ],
+        pieceLength: 16384,
+      })
+
+      const torrent = await engine.addTorrent(buffer)
+      if (!torrent) throw new Error('Torrent is null')
+
+      // Create files in mock filesystem
+      fileSystem.files.set('test-folder/part1.dat', new Uint8Array(10000).fill(0))
+      fileSystem.files.set('test-folder/skip.dat', new Uint8Array(10000).fill(0))
+      fileSystem.files.set('test-folder/part2.dat', new Uint8Array(10000).fill(0))
+
+      // Skip only the middle file
+      torrent.setFilePriority(1, 1) // skip.dat skipped
+
+      // Piece 0 (0-16384) should be boundary since it spans:
+      // - part1.dat (wanted): 0-10000
+      // - skip.dat (skipped): 10000-16384
+      expect(torrent.pieceClassification[0]).toBe('boundary')
+
+      // Piece 1 (16384-30000) should be boundary since it spans:
+      // - skip.dat (skipped): 16384-20000
+      // - part2.dat (wanted): 20000-30000
+      expect(torrent.pieceClassification[1]).toBe('boundary')
+
+      const contentStorage = torrent.contentStorage
+      if (!contentStorage) throw new Error('contentStorage is undefined')
+
+      // Write boundary piece 0 using filtered write
+      const piece0Data = new Uint8Array(16384).fill(0xaa)
+      await contentStorage.writePieceFilteredByPriority(0, piece0Data)
+
+      // Write boundary piece 1 using filtered write
+      const piece1Data = new Uint8Array(16384).fill(0xbb)
+      await contentStorage.writePieceFilteredByPriority(1, piece1Data)
+
+      // Verify part1.dat WAS written to (should be all 0xaa)
+      const part1Data = await fileSystem.readFile('test-folder/part1.dat')
+      expect(part1Data.every((b) => b === 0xaa)).toBe(true)
+
+      // Verify skip.dat was NOT modified (should still be all zeros)
+      const skipData = await fileSystem.readFile('test-folder/skip.dat')
+      expect(skipData.every((b) => b === 0)).toBe(true)
+
+      // Verify part2.dat WAS written to (should be all 0xbb)
+      const part2Data = await fileSystem.readFile('test-folder/part2.dat')
+      expect(part2Data.every((b) => b === 0xbb)).toBe(true)
+    })
+
+    it('setFilePriorities propagates to contentStorage', async () => {
+      const buffer = createMultiFileTorrent({
+        name: 'test-folder',
+        files: [
+          { path: 'fileA.txt', length: 50000 },
+          { path: 'fileB.txt', length: 50000 },
+        ],
+        pieceLength: 16384,
+      })
+
+      const torrent = await engine.addTorrent(buffer)
+      if (!torrent) throw new Error('Torrent is null')
+
+      const contentStorage = torrent.contentStorage
+      if (!contentStorage) throw new Error('contentStorage is undefined')
+
+      // Initially all files should have priority 0 (wanted)
+      // @ts-expect-error - accessing private member for testing
+      expect(contentStorage.filePriorities).toEqual([0, 0])
+
+      // Skip file A
+      torrent.setFilePriority(0, 1)
+
+      // Verify contentStorage was updated
+      // @ts-expect-error - accessing private member for testing
+      expect(contentStorage.filePriorities).toEqual([1, 0])
+    })
+  })
 })

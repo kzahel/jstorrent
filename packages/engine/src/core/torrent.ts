@@ -1057,6 +1057,9 @@ export class Torrent extends EngineComponent {
 
     this._pieceClassification = classification
 
+    // Propagate file priorities to contentStorage for filtered writes
+    this.contentStorage.setFilePriorities(this._filePriorities)
+
     // Log summary
     const wanted = classification.filter((c) => c === 'wanted').length
     const boundary = classification.filter((c) => c === 'boundary').length
@@ -2415,7 +2418,15 @@ export class Torrent extends EngineComponent {
         // Track in partsFilePieces set
         this._partsFilePieces.add(index)
 
-        this.logger.debug(`Boundary piece ${index} stored in .parts file`)
+        // Also write the wanted portions to their files immediately
+        // (skipped file portions stay only in .parts)
+        if (this.contentStorage) {
+          await this.contentStorage.writePieceFilteredByPriority(index, pieceData)
+        }
+
+        this.logger.debug(
+          `Boundary piece ${index} stored in .parts file (wanted portions written to files)`,
+        )
       } catch (e) {
         this._diskQueue.resume()
         const errorMsg = e instanceof Error ? e.message : String(e)
@@ -2430,6 +2441,11 @@ export class Torrent extends EngineComponent {
       // Mark as verified in internal bitfield
       this.markPieceVerified(index)
       this.activePieces?.remove(index)
+
+      // Update cached downloaded bytes on file objects
+      for (const file of this._files) {
+        file.updateForPiece(index)
+      }
 
       // Note: Do NOT send HAVE for boundary pieces (they're in .parts, not serveable)
       // Progress still counts toward completion
