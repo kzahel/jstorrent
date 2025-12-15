@@ -41,3 +41,38 @@ export function formatDuration(seconds: number): string {
     return `${secs}s`
   }
 }
+
+/** Known BitTorrent client codes (Azureus-style) */
+const TORRENT_CLIENTS: Record<string, string> = {
+  UT: 'µTorrent',
+  TR: 'Transmission',
+  DE: 'Deluge',
+  qB: 'qBittorrent',
+  AZ: 'Azureus',
+  LT: 'libtorrent',
+  lt: 'libtorrent',
+  JS: 'JSTorrent',
+}
+
+/**
+ * Parse a BitTorrent peer ID to extract the client name and version.
+ * Supports Azureus-style encoding (-XX0000-).
+ */
+export function parseClientName(peerId: Uint8Array | null): string {
+  if (!peerId) return ''
+
+  // Azureus-style: -XX0000-
+  if (peerId[0] === 0x2d && peerId[7] === 0x2d) {
+    const clientCode = String.fromCharCode(peerId[1], peerId[2])
+    const version = String.fromCharCode(peerId[3], peerId[4], peerId[5], peerId[6])
+
+    const name = TORRENT_CLIENTS[clientCode] || clientCode
+    return `${name} ${version.replace(/0/g, '.').replace(/\.+$/, '')}`
+  }
+
+  // Shadow-style: first byte is client
+  // Just show hex for unknown
+  return Array.from(peerId.slice(0, 8))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}

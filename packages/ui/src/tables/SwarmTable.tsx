@@ -2,7 +2,7 @@ import type { SwarmPeer, Torrent } from '@jstorrent/engine'
 import { addressKey } from '@jstorrent/engine'
 import { TableMount } from './mount'
 import { ColumnDef } from './types'
-import { formatBytes } from '../utils/format'
+import { formatBytes, parseClientName } from '../utils/format'
 
 /**
  * Format timestamp as relative time or absolute
@@ -15,39 +15,6 @@ function formatTime(ts: number | null): string {
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
   return new Date(ts).toLocaleDateString()
-}
-
-/**
- * Parse client name from peer ID bytes
- */
-function parseClientName(peerId: Uint8Array | null): string {
-  if (!peerId) return '-'
-
-  // Azureus-style: -XX0000-
-  if (peerId[0] === 0x2d && peerId[7] === 0x2d) {
-    const clientCode = String.fromCharCode(peerId[1], peerId[2])
-    const version = String.fromCharCode(peerId[3], peerId[4], peerId[5], peerId[6])
-
-    const clients: Record<string, string> = {
-      UT: 'µTorrent',
-      TR: 'Transmission',
-      DE: 'Deluge',
-      qB: 'qBittorrent',
-      AZ: 'Azureus',
-      LT: 'libtorrent',
-      lt: 'libtorrent',
-      JS: 'JSTorrent',
-    }
-
-    const name = clients[clientCode] || clientCode
-    return `${name} ${version.replace(/0/g, '.').replace(/\.+$/, '')}`
-  }
-
-  // Shadow-style: first byte is client
-  // Just show hex for unknown
-  return Array.from(peerId.slice(0, 8))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
 }
 
 /**
@@ -78,7 +45,7 @@ const swarmColumns: ColumnDef<SwarmPeer>[] = [
   {
     id: 'client',
     header: 'Client',
-    getValue: (p) => p.clientName || parseClientName(p.peerId),
+    getValue: (p) => p.clientName || parseClientName(p.peerId) || '-',
     width: 140,
   },
   {

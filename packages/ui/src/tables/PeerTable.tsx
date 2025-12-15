@@ -1,7 +1,7 @@
 import { DisplayPeer, Torrent } from '@jstorrent/engine'
 import { TableMount } from './mount'
 import { ColumnDef } from './types'
-import { formatBytes } from '../utils/format'
+import { formatBytes, parseClientName } from '../utils/format'
 
 /**
  * Format peer flags (choking/interested states)
@@ -38,40 +38,6 @@ function getPeerProgress(peer: DisplayPeer, torrent: Torrent): number {
 }
 
 /**
- * Parse client name from peer ID bytes
- */
-function parseClientName(peer: DisplayPeer): string {
-  const peerId = peer.connection?.peerId ?? peer.swarmPeer?.peerId
-  if (!peerId) return ''
-
-  // Azureus-style: -XX0000-
-  if (peerId[0] === 0x2d && peerId[7] === 0x2d) {
-    const clientCode = String.fromCharCode(peerId[1], peerId[2])
-    const version = String.fromCharCode(peerId[3], peerId[4], peerId[5], peerId[6])
-
-    const clients: Record<string, string> = {
-      UT: 'µTorrent',
-      TR: 'Transmission',
-      DE: 'Deluge',
-      qB: 'qBittorrent',
-      AZ: 'Azureus',
-      LT: 'libtorrent',
-      lt: 'libtorrent',
-      JS: 'JSTorrent',
-    }
-
-    const name = clients[clientCode] || clientCode
-    return `${name} ${version.replace(/0/g, '.').replace(/\.+$/, '')}`
-  }
-
-  // Shadow-style: first byte is client
-  // Just show hex for unknown
-  return Array.from(peerId.slice(0, 8))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-/**
  * Format connection state for display
  */
 function formatState(peer: DisplayPeer): string {
@@ -96,7 +62,7 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
     {
       id: 'client',
       header: 'Client',
-      getValue: (p) => parseClientName(p),
+      getValue: (p) => parseClientName(p.connection?.peerId ?? p.swarmPeer?.peerId ?? null),
       width: 140,
     },
     {
