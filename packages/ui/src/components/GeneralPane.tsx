@@ -92,7 +92,7 @@ function buildTorrentInfo(torrent: Torrent): InfoGroup[] {
     name: torrent.name,
     announce: torrent.announce,
   })
-  const shareBase = import.meta.env.SHARE_URL || 'https://jstorrent.com/share.html'
+  const shareBase = 'https://jstorrent.com/share.html'
   const shareUrl = `${shareBase}#magnet=${encodeURIComponent(magnetUri)}`
 
   groups.push({
