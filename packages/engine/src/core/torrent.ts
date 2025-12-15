@@ -1313,13 +1313,22 @@ export class Torrent extends EngineComponent {
       onHandshake(peer.infoHash, peer.peerId, peer.peerExtensions)
     }
 
-    peer.on('extension_handshake', (_payload) => {
+    peer.on('extension_handshake', (payload) => {
+      // Extract clientName from BEP 10 "v" field
+      const clientName = typeof payload.v === 'string' ? payload.v : null
+
+      // Update swarm with clientName
+      if (peer.remoteAddress && peer.remotePort && peer.peerId) {
+        const key = peerKey(peer.remoteAddress, peer.remotePort)
+        this._swarm.setIdentity(key, peer.peerId, clientName)
+      }
+
       this.logger.info(
         `Extension handshake received. metadataComplete=${this.metadataComplete}, peerMetadataId=${peer.peerMetadataId}`,
       )
+
       // Check if we need metadata and peer has it
       if (!this.metadataComplete && peer.peerMetadataId !== null) {
-        // this.logger.info('Peer supports metadata, requesting piece 0...')
         peer.sendMetadataRequest(0)
       } else if (this.metadataComplete) {
         this.logger.debug('Already have metadata, not requesting')
