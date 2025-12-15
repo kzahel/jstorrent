@@ -35,6 +35,34 @@ import { initializeTorrentMetadata } from './torrent-initializer'
 // Maximum piece size supported by the io-daemon (must match DefaultBodyLimit in io-daemon)
 export const MAX_PIECE_SIZE = 32 * 1024 * 1024 // 32MB
 
+// === Unified Daemon Operation Queue Types ===
+
+/**
+ * Types of operations that consume daemon resources.
+ */
+export type DaemonOpType =
+  | 'tcp_connect' // TCP peer connection (long-lived)
+  | 'utp_connect' // UDP peer connection via uTP (long-lived, future)
+  | 'udp_announce' // UDP tracker announce (fire & forget)
+  | 'http_announce' // HTTP tracker announce (fire & forget)
+
+/**
+ * Pending operation counts per type.
+ */
+export type PendingOpCounts = Record<DaemonOpType, number>
+
+/**
+ * Create empty pending op counts.
+ */
+function emptyOpCounts(): PendingOpCounts {
+  return {
+    tcp_connect: 0,
+    utp_connect: 0,
+    udp_announce: 0,
+    http_announce: 0,
+  }
+}
+
 export interface BtEngineOptions {
   downloadPath?: string
   socketFactory: ISocketFactory
@@ -85,29 +113,29 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    */
   private _suspended: boolean = false
 
-  // === Connection Queue (fair scheduling) ===
+  // === Unified Daemon Operation Queue ===
 
   /**
-   * Pending connection slot requests per torrent.
-   * Key: infoHashHex, Value: number of slots requested
+   * Pending operation counts per torrent.
+   * Key: infoHashHex, Value: counts by operation type
    */
-  private connectionRequests = new Map<string, number>()
+  private pendingOps = new Map<string, PendingOpCounts>()
 
   /**
    * Round-robin index for fair queue draining.
    */
-  private connectionDrainIndex = 0
+  private opDrainIndex = 0
 
   /**
-   * Global rate limiter for outgoing connection attempts.
-   * Prevents flooding the daemon when multiple torrents start simultaneously.
+   * Single rate limiter for all daemon operations.
+   * Prevents overwhelming the daemon regardless of operation type.
    */
-  private connectionRateLimiter = new TokenBucket(10, 20) // 10/sec, burst 20
+  private daemonRateLimiter = new TokenBucket(20, 40) // 20 ops/sec, burst 40
 
   /**
-   * Interval handle for connection queue drain loop.
+   * Interval handle for operation queue drain loop.
    */
-  private connectionDrainInterval: ReturnType<typeof setInterval> | null = null
+  private opDrainInterval: ReturnType<typeof setInterval> | null = null
 
   // ILoggableComponent implementation
   static logName = 'client'
@@ -165,7 +193,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     this.startServer()
-    this.startConnectionDrainLoop()
+    this.startOpDrainLoop()
   }
 
   scopedLoggerFor(component: ILoggableComponent): Logger {
@@ -424,8 +452,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   async destroy() {
     this.logger.info('Destroying engine')
 
-    // Stop connection drain loop
-    this.stopConnectionDrainLoop()
+    // Stop operation drain loop
+    this.stopOpDrainLoop()
+
+    // Clear pending operations
+    this.pendingOps.clear()
 
     // Flush any pending persistence saves
     await this.sessionPersistence.flushPendingSaves()
@@ -480,142 +511,222 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     )
   }
 
-  // === Connection Queue Methods ===
+  // === Unified Daemon Operation Queue Methods ===
 
   /**
-   * Request connection slots for a torrent.
-   * Slots are granted fairly via round-robin across all requesting torrents.
+   * Request daemon operation slots for a torrent.
    * @param infoHashHex - Torrent identifier
-   * @param count - Number of connection slots requested
+   * @param type - Type of operation
+   * @param count - Number of slots requested
    */
-  requestConnections(infoHashHex: string, count: number): void {
+  requestDaemonOps(infoHashHex: string, type: DaemonOpType, count: number): void {
     if (count <= 0) return
-    const current = this.connectionRequests.get(infoHashHex) ?? 0
-    this.connectionRequests.set(infoHashHex, current + count)
+
+    let ops = this.pendingOps.get(infoHashHex)
+    if (!ops) {
+      ops = emptyOpCounts()
+      this.pendingOps.set(infoHashHex, ops)
+    }
+
+    ops[type] += count
     this.logger.debug(
-      `[ConnectionQueue] ${infoHashHex.slice(0, 8)} requested ${count} slots (total: ${current + count})`,
+      `[OpQueue] ${infoHashHex.slice(0, 8)} +${count} ${type} (pending: ${JSON.stringify(ops)})`,
     )
   }
 
   /**
-   * Cancel all pending connection requests for a torrent.
+   * Cancel all pending operations for a torrent.
    * Called when torrent is stopped or removed.
    * @param infoHashHex - Torrent identifier
    */
+  cancelDaemonOps(infoHashHex: string): void {
+    const ops = this.pendingOps.get(infoHashHex)
+    if (ops) {
+      const total = Object.values(ops).reduce((a, b) => a + b, 0)
+      if (total > 0) {
+        this.pendingOps.delete(infoHashHex)
+        this.logger.debug(`[OpQueue] ${infoHashHex.slice(0, 8)} cancelled ${total} pending ops`)
+      }
+    }
+  }
+
+  /**
+   * Cancel pending operations of a specific type for a torrent.
+   * @param infoHashHex - Torrent identifier
+   * @param type - Type of operation to cancel
+   */
+  cancelDaemonOpsByType(infoHashHex: string, type: DaemonOpType): void {
+    const ops = this.pendingOps.get(infoHashHex)
+    if (ops && ops[type] > 0) {
+      this.logger.debug(`[OpQueue] ${infoHashHex.slice(0, 8)} cancelled ${ops[type]} ${type} ops`)
+      ops[type] = 0
+
+      // Clean up if all zeros
+      if (Object.values(ops).every((c) => c === 0)) {
+        this.pendingOps.delete(infoHashHex)
+      }
+    }
+  }
+
+  // === Legacy Connection Queue API (wrapper around unified queue) ===
+
+  /**
+   * Request connection slots for a torrent.
+   * @deprecated Use requestDaemonOps(hash, 'tcp_connect', count) instead.
+   */
+  requestConnections(infoHashHex: string, count: number): void {
+    this.requestDaemonOps(infoHashHex, 'tcp_connect', count)
+  }
+
+  /**
+   * Cancel all pending connection requests for a torrent.
+   * @deprecated Use cancelDaemonOps() instead.
+   */
   cancelConnectionRequests(infoHashHex: string): void {
-    const pending = this.connectionRequests.get(infoHashHex) ?? 0
-    if (pending > 0) {
-      this.connectionRequests.delete(infoHashHex)
-      this.logger.debug(
-        `[ConnectionQueue] ${infoHashHex.slice(0, 8)} cancelled ${pending} pending requests`,
-      )
+    this.cancelDaemonOps(infoHashHex)
+  }
+
+  /**
+   * Start the operation queue drain loop.
+   */
+  private startOpDrainLoop(): void {
+    if (this.opDrainInterval) return
+
+    // Drain at 50ms intervals (up to 20 ops/sec with rate limiter)
+    this.opDrainInterval = setInterval(() => {
+      this.drainOpQueue()
+    }, 50)
+  }
+
+  /**
+   * Stop the operation queue drain loop.
+   */
+  private stopOpDrainLoop(): void {
+    if (this.opDrainInterval) {
+      clearInterval(this.opDrainInterval)
+      this.opDrainInterval = null
     }
   }
 
   /**
-   * Start the connection queue drain loop.
-   * Called when engine starts.
+   * Drain operation queue with round-robin fairness.
+   * Grants one operation slot per call, rate limited.
    */
-  private startConnectionDrainLoop(): void {
-    if (this.connectionDrainInterval) return
-
-    // Drain at 100ms intervals (up to 10 connections/sec with rate limiter)
-    this.connectionDrainInterval = setInterval(() => {
-      this.drainConnectionQueue()
-    }, 100)
-  }
-
-  /**
-   * Stop the connection queue drain loop.
-   * Called when engine stops.
-   */
-  private stopConnectionDrainLoop(): void {
-    if (this.connectionDrainInterval) {
-      clearInterval(this.connectionDrainInterval)
-      this.connectionDrainInterval = null
-    }
-  }
-
-  /**
-   * Drain connection queue with round-robin fairness.
-   * Grants one connection slot per call, rate limited.
-   */
-  private drainConnectionQueue(): void {
+  private drainOpQueue(): void {
     // Check global connection limit first
     if (this.numConnections >= this.maxConnections) return
 
     // Check rate limit
-    if (!this.connectionRateLimiter.tryConsume(1)) return
+    if (!this.daemonRateLimiter.tryConsume(1)) return
 
-    const hashes = Array.from(this.connectionRequests.keys())
+    const hashes = Array.from(this.pendingOps.keys())
     if (hashes.length === 0) return
 
     // Round-robin: try each torrent starting from last position
     for (let i = 0; i < hashes.length; i++) {
-      const idx = (this.connectionDrainIndex + i) % hashes.length
+      const idx = (this.opDrainIndex + i) % hashes.length
       const hash = hashes[idx]
-      const count = this.connectionRequests.get(hash) ?? 0
+      const ops = this.pendingOps.get(hash)
 
-      if (count <= 0) {
-        this.connectionRequests.delete(hash)
+      if (!ops) continue
+
+      const total = Object.values(ops).reduce((a, b) => a + b, 0)
+      if (total <= 0) {
+        this.pendingOps.delete(hash)
         continue
       }
 
       const torrent = this.getTorrent(hash)
       if (!torrent || !torrent.isActive) {
-        // Torrent stopped or removed, clear its requests
-        this.connectionRequests.delete(hash)
+        this.pendingOps.delete(hash)
         continue
       }
 
-      // Grant one slot to this torrent
-      const connected = torrent.connectOnePeer()
-      if (connected) {
-        this.connectionRequests.set(hash, count - 1)
-        if (count - 1 <= 0) {
-          this.connectionRequests.delete(hash)
+      // Grant slot - torrent decides which operation to execute
+      const usedType = torrent.useDaemonSlot(ops)
+      if (usedType) {
+        ops[usedType]--
+        if (ops[usedType] < 0) ops[usedType] = 0
+
+        // Clean up if all zeros
+        if (Object.values(ops).every((c) => c === 0)) {
+          this.pendingOps.delete(hash)
         }
-        // Advance round-robin to next torrent
-        this.connectionDrainIndex = (idx + 1) % Math.max(1, hashes.length)
+
+        // Advance round-robin
+        this.opDrainIndex = (idx + 1) % Math.max(1, hashes.length)
         return
       } else {
-        // Torrent couldn't connect (no candidates), clear its requests
-        this.connectionRequests.delete(hash)
+        // Torrent couldn't use any slot, clear its pending ops
+        this.pendingOps.delete(hash)
       }
     }
   }
 
   /**
+   * Get operation queue stats for debugging.
+   */
+  getOpQueueStats(): {
+    pendingByTorrent: Record<string, PendingOpCounts>
+    totalByType: PendingOpCounts
+    rateLimiterAvailable: number
+  } {
+    const pendingByTorrent: Record<string, PendingOpCounts> = {}
+    const totalByType = emptyOpCounts()
+
+    for (const [hash, ops] of this.pendingOps) {
+      pendingByTorrent[hash.slice(0, 8)] = { ...ops }
+      for (const type of Object.keys(ops) as DaemonOpType[]) {
+        totalByType[type] += ops[type]
+      }
+    }
+
+    return {
+      pendingByTorrent,
+      totalByType,
+      rateLimiterAvailable: this.daemonRateLimiter.available,
+    }
+  }
+
+  /**
    * Get connection queue stats for debugging.
+   * @deprecated Use getOpQueueStats() instead.
    */
   getConnectionQueueStats(): {
     pendingByTorrent: Record<string, number>
     totalPending: number
     rateLimiterAvailable: number
   } {
+    const stats = this.getOpQueueStats()
     const pendingByTorrent: Record<string, number> = {}
     let totalPending = 0
-    for (const [hash, count] of this.connectionRequests) {
-      pendingByTorrent[hash.slice(0, 8)] = count
+    for (const [hash, ops] of Object.entries(stats.pendingByTorrent)) {
+      const count = ops.tcp_connect
+      pendingByTorrent[hash] = count
       totalPending += count
     }
     return {
       pendingByTorrent,
       totalPending,
-      rateLimiterAvailable: this.connectionRateLimiter.available,
+      rateLimiterAvailable: stats.rateLimiterAvailable,
     }
   }
 
   /**
-   * Configure global connection rate limit.
-   * @param connectionsPerSecond - Rate limit (0 = unlimited)
+   * Configure daemon operation rate limit.
+   * @param opsPerSecond - Rate limit (0 = unlimited)
    * @param burstSize - Maximum burst (default: 2x rate)
    */
+  setDaemonRateLimit(opsPerSecond: number, burstSize?: number): void {
+    const burst = burstSize ?? opsPerSecond * 2
+    this.daemonRateLimiter.setLimit(opsPerSecond, burst / Math.max(1, opsPerSecond))
+  }
+
+  /**
+   * Configure global connection rate limit.
+   * @deprecated Use setDaemonRateLimit() instead.
+   */
   setConnectionRateLimit(connectionsPerSecond: number, burstSize?: number): void {
-    const burst = burstSize ?? connectionsPerSecond * 2
-    this.connectionRateLimiter.setLimit(
-      connectionsPerSecond,
-      burst / Math.max(1, connectionsPerSecond),
-    )
+    this.setDaemonRateLimit(connectionsPerSecond, burstSize)
   }
 }

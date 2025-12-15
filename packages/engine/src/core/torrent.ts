@@ -14,7 +14,7 @@ import { ISocketFactory } from '../interfaces/socket'
 import { PeerInfo, TrackerStats } from '../interfaces/tracker'
 import { TorrentFileInfo } from './torrent-file-info'
 import { EngineComponent } from '../logging/logger'
-import type { BtEngine } from './bt-engine'
+import type { BtEngine, DaemonOpType, PendingOpCounts } from './bt-engine'
 import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
 import { Swarm, SwarmStats, SwarmPeer, detectAddressFamily, peerKey, PeerAddress } from './swarm'
 import { ConnectionManager } from './connection-manager'
@@ -97,8 +97,7 @@ export class Torrent extends EngineComponent {
   static logName = 'torrent'
 
   private btEngine: BtEngine
-  private pendingConnections: Set<string> = new Set() // Track in-flight connection attempts (legacy, to be removed)
-  private _swarm: Swarm // Single source of truth for peer state (Phase 3)
+  private _swarm: Swarm // Single source of truth for peer state
   private _connectionManager: ConnectionManager // Handles outgoing connection lifecycle
   private connectionTiming: ConnectionTimingTracker // Tracks connection timing for adaptive timeouts
   private _peerCoordinator: PeerCoordinator // Coordinates choke/unchoke and peer dropping decisions
@@ -374,24 +373,26 @@ export class Torrent extends EngineComponent {
 
     const key = peerKey(peerInfo.ip, peerInfo.port)
 
-    // Check if already connected (via swarm - single source of truth)
+    // Check if already connected or connecting (swarm is source of truth)
     const existingPeer = this._swarm.getPeerByKey(key)
-    if (existingPeer?.state === 'connected') return
+    if (existingPeer?.state === 'connected' || existingPeer?.state === 'connecting') return
 
-    // Check if connection already in progress
-    if (this.pendingConnections.has(key)) return
+    // Ensure peer exists in swarm before marking connecting
+    // (connectToPeer may be called for peers not yet discovered via tracker)
+    if (!existingPeer) {
+      const family = detectAddressFamily(peerInfo.ip)
+      this._swarm.addPeer({ ip: peerInfo.ip, port: peerInfo.port, family }, 'manual')
+    }
 
-    // Reserve slot FIRST (synchronous) - prevents race condition
-    this.pendingConnections.add(key)
+    // Mark connecting in swarm FIRST (prevents race condition)
     this._swarm.markConnecting(key)
 
-    // NOW check limits (after adding, so count is accurate)
-    const totalConnections = this.numPeers + this.pendingConnections.size
+    // Check limits AFTER marking (so count is accurate)
+    const totalConnections = this.numPeers + this._swarm.connectingCount
     if (totalConnections > this.maxPeers) {
       this.logger.debug(
         `Skipping peer ${peerInfo.ip}, max peers reached (${totalConnections}/${this.maxPeers})`,
       )
-      this.pendingConnections.delete(key)
       this._swarm.markConnectFailed(key, 'limit_exceeded')
       return
     }
@@ -412,9 +413,7 @@ export class Torrent extends EngineComponent {
         remotePort: peerInfo.port,
       })
 
-      // Remove from pending BEFORE adding to peers (prevents double-counting)
-      this.pendingConnections.delete(key)
-
+      // Swarm state will be updated in addPeer() via markConnected()
       // We need to set up the peer
       this.addPeer(peer)
 
@@ -430,8 +429,8 @@ export class Torrent extends EngineComponent {
       }
 
       // very common to happen, don't log details
+      // Swarm state already tracked via markConnecting, now mark failed
       this._swarm.markConnectFailed(key, 'connection_error')
-      this.pendingConnections.delete(key)
     }
   }
 
@@ -753,6 +752,46 @@ export class Torrent extends EngineComponent {
   }
 
   /**
+   * Use a granted daemon operation slot.
+   * Called by BtEngine when granting a slot.
+   * Executes the highest priority pending operation.
+   *
+   * Priority order:
+   * 1. tcp_connect - peer connections for download speed
+   * 2. udp_announce / http_announce - peer discovery
+   * 3. utp_connect - future
+   *
+   * @param pending - Current pending counts (for reference)
+   * @returns The operation type that was executed, or null if nothing pending
+   */
+  useDaemonSlot(pending: PendingOpCounts): DaemonOpType | null {
+    if (!this._networkActive) return null
+
+    // Priority 1: TCP peer connections
+    if (pending.tcp_connect > 0) {
+      if (this.connectOnePeer()) {
+        return 'tcp_connect'
+      }
+    }
+
+    // Priority 2: Tracker announces (UDP and HTTP)
+    if (pending.udp_announce > 0 || pending.http_announce > 0) {
+      const announcedType = this.trackerManager?.announceOne()
+      if (announcedType) {
+        return announcedType // 'udp_announce' or 'http_announce'
+      }
+    }
+
+    // Priority 3: uTP connections (future)
+    if (pending.utp_connect > 0) {
+      // TODO: implement when uTP is added
+      // if (this.connectOneUtpPeer()) return 'utp_connect'
+    }
+
+    return null
+  }
+
+  /**
    * Try to initialize storage for this torrent.
    * Used for recovery when storage becomes available after initial failure.
    * @throws MissingStorageRootError if storage is still unavailable
@@ -837,9 +876,6 @@ export class Torrent extends EngineComponent {
     for (const key of connectingKeys) {
       this._swarm.markConnectFailed(key, 'stopped')
     }
-
-    // Clear local pending connections tracking
-    this.pendingConnections.clear()
 
     // Always close peers, even if already suspended (handles race conditions)
     for (const peer of this.connectedPeers) {
@@ -927,17 +963,10 @@ export class Torrent extends EngineComponent {
 
   /**
    * Validate connection state invariants.
-   * With Phase 3, swarm is single source of truth, so these checks are simpler.
+   * Swarm is single source of truth for connection state.
    */
   private checkSwarmInvariants(): void {
     const swarmStats = this._swarm.getStats()
-
-    // connectingKeys should match pendingConnections (until we remove pendingConnections)
-    if (swarmStats.byState.connecting !== this.pendingConnections.size) {
-      const msg = `swarm.connecting (${swarmStats.byState.connecting}) !== pendingConnections (${this.pendingConnections.size})`
-      this.logger.error(`INVARIANT VIOLATION: ${msg}`)
-      this.emit('invariant_violation', { type: 'connecting_mismatch', message: msg })
-    }
 
     // Total active connections should not exceed maxPeers (with headroom for in-flight)
     const total = this.numPeers + swarmStats.byState.connecting
@@ -1195,14 +1224,21 @@ export class Torrent extends EngineComponent {
       }
     }
 
-    // Check total connections including pending (accounts for incoming during outgoing attempts)
-    const total = this.numPeers + this.pendingConnections.size
-    if (total >= this.maxPeers) {
-      this.logger.warn(`Rejecting peer, max reached (${total}/${this.maxPeers})`)
+    // Check total connections including connecting (accounts for incoming during outgoing attempts)
+    // If peer is already in connecting state (outgoing connection), it's already counted
+    // so we use > instead of >= to avoid double-counting
+    const key =
+      peer.remoteAddress && peer.remotePort ? peerKey(peer.remoteAddress, peer.remotePort) : null
+    const existingSwarmPeer = key ? this._swarm.getPeerByKey(key) : null
+    const peerAlreadyCounted = existingSwarmPeer?.state === 'connecting'
+    const total = this.numPeers + this._swarm.connectingCount
+    const effectiveTotal = peerAlreadyCounted ? total : total + 1
+
+    if (effectiveTotal > this.maxPeers) {
+      this.logger.warn(`Rejecting peer, max reached (${effectiveTotal}/${this.maxPeers})`)
       peer.close()
       // Clear swarm connecting state if this was an outgoing connection we initiated
-      if (peer.remoteAddress && peer.remotePort) {
-        const key = peerKey(peer.remoteAddress, peer.remotePort)
+      if (key) {
         this._swarm.markConnectFailed(key, 'max_peers_reached')
       }
       return

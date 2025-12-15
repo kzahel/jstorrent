@@ -4,10 +4,18 @@ import { UdpTracker } from './udp-tracker'
 import { ISocketFactory } from '../interfaces/socket'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
 
+export type TrackerAnnounceEvent = 'started' | 'stopped' | 'completed' | 'update'
+
 export class TrackerManager extends EngineComponent {
   static logName = 'tracker-manager'
   private trackers: ITracker[] = []
   private knownPeers: Set<string> = new Set()
+
+  /**
+   * Queue of trackers waiting to announce, grouped by protocol.
+   */
+  private pendingUdpAnnounces: Array<{ tracker: ITracker; event: TrackerAnnounceEvent }> = []
+  private pendingHttpAnnounces: Array<{ tracker: ITracker; event: TrackerAnnounceEvent }> = []
 
   constructor(
     engine: ILoggingEngine,
@@ -68,7 +76,90 @@ export class TrackerManager extends EngineComponent {
     this.logger.info(`TrackerManager: Created ${this.trackers.length} trackers`)
   }
 
-  async announce(event: 'started' | 'stopped' | 'completed' | 'update' = 'started') {
+  /**
+   * Queue announces for all trackers.
+   * Returns counts by protocol type for use with requestDaemonOps().
+   * @param event - The announce event type
+   */
+  queueAnnounces(event: TrackerAnnounceEvent = 'started'): { udp: number; http: number } {
+    this.logger.info(
+      `TrackerManager: Queueing '${event}' announces for ${this.trackers.length} trackers`,
+    )
+
+    // Clear existing pending for this event type
+    this.pendingUdpAnnounces = this.pendingUdpAnnounces.filter((p) => p.event !== event)
+    this.pendingHttpAnnounces = this.pendingHttpAnnounces.filter((p) => p.event !== event)
+
+    let udp = 0
+    let http = 0
+
+    for (const tracker of this.trackers) {
+      if (tracker.url.startsWith('udp')) {
+        this.pendingUdpAnnounces.push({ tracker, event })
+        udp++
+      } else if (tracker.url.startsWith('http')) {
+        this.pendingHttpAnnounces.push({ tracker, event })
+        http++
+      }
+    }
+
+    this.logger.debug(`TrackerManager: Queued ${udp} UDP, ${http} HTTP announces`)
+    return { udp, http }
+  }
+
+  /**
+   * Process one pending announce.
+   * Prefers UDP (typically faster response).
+   * @returns The protocol type announced, or null if queue empty
+   */
+  announceOne(): 'udp_announce' | 'http_announce' | null {
+    // Try UDP first (typically faster)
+    const udpPending = this.pendingUdpAnnounces.shift()
+    if (udpPending) {
+      const { tracker, event } = udpPending
+      this.logger.debug(`TrackerManager: Announcing '${event}' to UDP ${tracker.url}`)
+      tracker.announce(event).catch((err) => {
+        this.logger.warn(
+          `TrackerManager: UDP announce failed: ${err instanceof Error ? err.message : String(err)}`,
+        )
+      })
+      return 'udp_announce'
+    }
+
+    // Then HTTP
+    const httpPending = this.pendingHttpAnnounces.shift()
+    if (httpPending) {
+      const { tracker, event } = httpPending
+      this.logger.debug(`TrackerManager: Announcing '${event}' to HTTP ${tracker.url}`)
+      tracker.announce(event).catch((err) => {
+        this.logger.warn(
+          `TrackerManager: HTTP announce failed: ${err instanceof Error ? err.message : String(err)}`,
+        )
+      })
+      return 'http_announce'
+    }
+
+    return null
+  }
+
+  /**
+   * Clear all pending announces.
+   * Called when torrent stops.
+   */
+  clearPendingAnnounces(): void {
+    const total = this.pendingUdpAnnounces.length + this.pendingHttpAnnounces.length
+    this.pendingUdpAnnounces = []
+    this.pendingHttpAnnounces = []
+    if (total > 0) {
+      this.logger.debug(`TrackerManager: Cleared ${total} pending announces`)
+    }
+  }
+
+  /**
+   * Announce to all trackers immediately (legacy method).
+   * For new code, prefer queueAnnounces() + requestDaemonOps().
+   */
+  async announce(event: TrackerAnnounceEvent = 'started') {
     this.logger.info(`TrackerManager: Announcing '${event}' to ${this.trackers.length} trackers`)
     const promises = this.trackers.map((t) =>
       t.announce(event).catch((err) => {
@@ -118,6 +209,8 @@ export class TrackerManager extends EngineComponent {
   }
 
   destroy() {
+    this.clearPendingAnnounces()
+
     for (const tracker of this.trackers) {
       tracker.destroy()
     }

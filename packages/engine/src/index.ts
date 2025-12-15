@@ -1,5 +1,6 @@
 // Core
 export { BtEngine } from './core/bt-engine'
+export type { DaemonOpType, PendingOpCounts } from './core/bt-engine'
 export { Torrent } from './core/torrent'
 export type { DisplayPeer } from './core/torrent'
 export { BandwidthTracker } from './core/bandwidth-tracker'

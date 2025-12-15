@@ -88,10 +88,9 @@ describe('Torrent Connection Limits', () => {
       torrent.connectToPeer({ ip: '1.1.1.1', port: 6881 })
       torrent.connectToPeer({ ip: '1.1.1.2', port: 6881 })
 
-      // Access private field for testing
-      const pendingSize = (torrent as unknown as { pendingConnections: Set<string> })
-        .pendingConnections.size
-      expect(pendingSize).toBe(2)
+      // Access swarm's connectingCount for testing (swarm is single source of truth)
+      const swarm = (torrent as unknown as { _swarm: { connectingCount: number } })._swarm
+      expect(swarm.connectingCount).toBe(2)
 
       // Now try to add 2 incoming peers - should only accept 1 (3 - 2 = 1 slot)
       const socket1 = createMockSocket()
@@ -141,11 +140,10 @@ describe('Torrent Connection Limits', () => {
         torrent.connectToPeer({ ip: '1.1.1.3', port: 6881 }),
       ])
 
-      // After connections complete, pending should be 0 and peers should be 3
-      const pendingSize = (torrent as unknown as { pendingConnections: Set<string> })
-        .pendingConnections.size
+      // After connections complete, connecting should be 0 and peers should be 3
+      const swarm = (torrent as unknown as { _swarm: { connectingCount: number } })._swarm
       expect(torrent.numPeers).toBe(3)
-      expect(pendingSize).toBe(0)
+      expect(swarm.connectingCount).toBe(0)
       expect(violations).toHaveLength(0)
     })
 
@@ -204,11 +202,10 @@ describe('Torrent Connection Limits', () => {
       // Try to connect
       await torrent.connectToPeer({ ip: '1.1.1.1', port: 6881 })
 
-      // Should have 0 peers and 0 pending
-      const pendingSize = (torrent as unknown as { pendingConnections: Set<string> })
-        .pendingConnections.size
+      // Should have 0 peers and 0 connecting
+      const swarm = (torrent as unknown as { _swarm: { connectingCount: number } })._swarm
       expect(torrent.numPeers).toBe(0)
-      expect(pendingSize).toBe(0)
+      expect(swarm.connectingCount).toBe(0)
       expect(violations).toHaveLength(0)
     })
   })
