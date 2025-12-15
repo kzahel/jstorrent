@@ -213,49 +213,8 @@ describe('Torrent Connection Limits', () => {
     })
   })
 
-  describe('globalLimitCheck', () => {
-    it('should respect globalLimitCheck callback', () => {
-      let globalAllows = true
-      const globalLimitCheck = vi.fn(() => globalAllows)
-
-      const torrent = new Torrent(
-        mockEngine as unknown as BtEngine,
-        new Uint8Array(20),
-        new Uint8Array(20),
-        mockSocketFactory,
-        6881,
-        undefined,
-        [],
-        10, // maxPeers
-        globalLimitCheck,
-      )
-
-      const violations: InvariantViolation[] = []
-      torrent.on('invariant_violation', (v) => violations.push(v))
-
-      // Add first peer - should succeed
-      const socket1 = createMockSocket()
-      const peer1 = new PeerConnection(mockEngine, socket1, {
-        remoteAddress: '1.1.1.1',
-        remotePort: 6881,
-      })
-      torrent.addPeer(peer1)
-      expect(torrent.numPeers).toBe(1)
-
-      // Now disable global limit
-      globalAllows = false
-
-      // Try to add another peer - should be rejected
-      const socket2 = createMockSocket()
-      const peer2 = new PeerConnection(mockEngine, socket2, {
-        remoteAddress: '1.1.1.2',
-        remotePort: 6881,
-      })
-      torrent.addPeer(peer2)
-      expect(torrent.numPeers).toBe(1)
-      expect(violations).toHaveLength(0)
-    })
-  })
+  // Note: globalLimitCheck has been removed in favor of centralized connection queue in BtEngine.
+  // Global rate limiting is now handled by BtEngine.requestConnections() and drainConnectionQueue().
 
   describe('invariant events', () => {
     it('should emit invariant_violation when limits are exceeded', () => {

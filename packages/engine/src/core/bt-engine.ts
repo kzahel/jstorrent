@@ -3,6 +3,7 @@ import { ISocketFactory } from '../interfaces/socket'
 import { IFileSystem } from '../interfaces/filesystem'
 import { randomBytes } from '../utils/hash'
 import { fromString, concat, toHex } from '../utils/buffer'
+import { TokenBucket } from '../utils/token-bucket'
 import {
   ILoggingEngine,
   Logger,
@@ -84,6 +85,30 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    */
   private _suspended: boolean = false
 
+  // === Connection Queue (fair scheduling) ===
+
+  /**
+   * Pending connection slot requests per torrent.
+   * Key: infoHashHex, Value: number of slots requested
+   */
+  private connectionRequests = new Map<string, number>()
+
+  /**
+   * Round-robin index for fair queue draining.
+   */
+  private connectionDrainIndex = 0
+
+  /**
+   * Global rate limiter for outgoing connection attempts.
+   * Prevents flooding the daemon when multiple torrents start simultaneously.
+   */
+  private connectionRateLimiter = new TokenBucket(10, 20) // 10/sec, burst 20
+
+  /**
+   * Interval handle for connection queue drain loop.
+   */
+  private connectionDrainInterval: ReturnType<typeof setInterval> | null = null
+
   // ILoggableComponent implementation
   static logName = 'client'
   getLogName(): string {
@@ -140,6 +165,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     this.startServer()
+    this.startConnectionDrainLoop()
   }
 
   scopedLoggerFor(component: ILoggableComponent): Logger {
@@ -284,7 +310,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       undefined, // contentStorage - initialized later with metadata
       input.announce,
       this.maxPeers,
-      () => this.numConnections < this.maxConnections,
       this.maxUploadSlots,
     )
 
@@ -399,6 +424,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   async destroy() {
     this.logger.info('Destroying engine')
 
+    // Stop connection drain loop
+    this.stopConnectionDrainLoop()
+
     // Flush any pending persistence saves
     await this.sessionPersistence.flushPendingSaves()
 
@@ -449,6 +477,145 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
     this.logger.info(
       `Connection limits updated: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}, maxUploadSlots=${maxUploadSlots}`,
+    )
+  }
+
+  // === Connection Queue Methods ===
+
+  /**
+   * Request connection slots for a torrent.
+   * Slots are granted fairly via round-robin across all requesting torrents.
+   * @param infoHashHex - Torrent identifier
+   * @param count - Number of connection slots requested
+   */
+  requestConnections(infoHashHex: string, count: number): void {
+    if (count <= 0) return
+    const current = this.connectionRequests.get(infoHashHex) ?? 0
+    this.connectionRequests.set(infoHashHex, current + count)
+    this.logger.debug(
+      `[ConnectionQueue] ${infoHashHex.slice(0, 8)} requested ${count} slots (total: ${current + count})`,
+    )
+  }
+
+  /**
+   * Cancel all pending connection requests for a torrent.
+   * Called when torrent is stopped or removed.
+   * @param infoHashHex - Torrent identifier
+   */
+  cancelConnectionRequests(infoHashHex: string): void {
+    const pending = this.connectionRequests.get(infoHashHex) ?? 0
+    if (pending > 0) {
+      this.connectionRequests.delete(infoHashHex)
+      this.logger.debug(
+        `[ConnectionQueue] ${infoHashHex.slice(0, 8)} cancelled ${pending} pending requests`,
+      )
+    }
+  }
+
+  /**
+   * Start the connection queue drain loop.
+   * Called when engine starts.
+   */
+  private startConnectionDrainLoop(): void {
+    if (this.connectionDrainInterval) return
+
+    // Drain at 100ms intervals (up to 10 connections/sec with rate limiter)
+    this.connectionDrainInterval = setInterval(() => {
+      this.drainConnectionQueue()
+    }, 100)
+  }
+
+  /**
+   * Stop the connection queue drain loop.
+   * Called when engine stops.
+   */
+  private stopConnectionDrainLoop(): void {
+    if (this.connectionDrainInterval) {
+      clearInterval(this.connectionDrainInterval)
+      this.connectionDrainInterval = null
+    }
+  }
+
+  /**
+   * Drain connection queue with round-robin fairness.
+   * Grants one connection slot per call, rate limited.
+   */
+  private drainConnectionQueue(): void {
+    // Check global connection limit first
+    if (this.numConnections >= this.maxConnections) return
+
+    // Check rate limit
+    if (!this.connectionRateLimiter.tryConsume(1)) return
+
+    const hashes = Array.from(this.connectionRequests.keys())
+    if (hashes.length === 0) return
+
+    // Round-robin: try each torrent starting from last position
+    for (let i = 0; i < hashes.length; i++) {
+      const idx = (this.connectionDrainIndex + i) % hashes.length
+      const hash = hashes[idx]
+      const count = this.connectionRequests.get(hash) ?? 0
+
+      if (count <= 0) {
+        this.connectionRequests.delete(hash)
+        continue
+      }
+
+      const torrent = this.getTorrent(hash)
+      if (!torrent || !torrent.isActive) {
+        // Torrent stopped or removed, clear its requests
+        this.connectionRequests.delete(hash)
+        continue
+      }
+
+      // Grant one slot to this torrent
+      const connected = torrent.connectOnePeer()
+      if (connected) {
+        this.connectionRequests.set(hash, count - 1)
+        if (count - 1 <= 0) {
+          this.connectionRequests.delete(hash)
+        }
+        // Advance round-robin to next torrent
+        this.connectionDrainIndex = (idx + 1) % Math.max(1, hashes.length)
+        return
+      } else {
+        // Torrent couldn't connect (no candidates), clear its requests
+        this.connectionRequests.delete(hash)
+      }
+    }
+  }
+
+  /**
+   * Get connection queue stats for debugging.
+   */
+  getConnectionQueueStats(): {
+    pendingByTorrent: Record<string, number>
+    totalPending: number
+    rateLimiterAvailable: number
+  } {
+    const pendingByTorrent: Record<string, number> = {}
+    let totalPending = 0
+    for (const [hash, count] of this.connectionRequests) {
+      pendingByTorrent[hash.slice(0, 8)] = count
+      totalPending += count
+    }
+    return {
+      pendingByTorrent,
+      totalPending,
+      rateLimiterAvailable: this.connectionRateLimiter.available,
+    }
+  }
+
+  /**
+   * Configure global connection rate limit.
+   * @param connectionsPerSecond - Rate limit (0 = unlimited)
+   * @param burstSize - Maximum burst (default: 2x rate)
+   */
+  setConnectionRateLimit(connectionsPerSecond: number, burstSize?: number): void {
+    const burst = burstSize ?? connectionsPerSecond * 2
+    this.connectionRateLimiter.setLimit(
+      connectionsPerSecond,
+      burst / Math.max(1, connectionsPerSecond),
     )
   }
 }

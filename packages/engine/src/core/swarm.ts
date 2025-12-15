@@ -872,6 +872,14 @@ export class Swarm extends EventEmitter {
     return this.connectingKeys.size
   }
 
+  /**
+   * Get all keys of peers currently in connecting state.
+   * Used by Torrent.getDisplayPeers() for UI.
+   */
+  getConnectingKeys(): ReadonlySet<string> {
+    return this.connectingKeys
+  }
+
   get bannedCount(): number {
     let count = 0
     for (const peer of this.peers.values()) {

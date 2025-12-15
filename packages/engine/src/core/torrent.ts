@@ -16,7 +16,7 @@ import { TorrentFileInfo } from './torrent-file-info'
 import { EngineComponent } from '../logging/logger'
 import type { BtEngine } from './bt-engine'
 import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
-import { Swarm, SwarmStats, detectAddressFamily, peerKey, PeerAddress } from './swarm'
+import { Swarm, SwarmStats, SwarmPeer, detectAddressFamily, peerKey, PeerAddress } from './swarm'
 import { ConnectionManager } from './connection-manager'
 import { ConnectionTimingTracker } from './connection-timing'
 import { initializeTorrentStorage } from './torrent-initializer'
@@ -50,6 +50,25 @@ export interface TorrentPersistedState {
 
   // === Progress ===
   completedPieces: number[] // Indices of verified pieces
+}
+
+/**
+ * Unified peer representation for UI display.
+ * Can represent either a connected peer (with full PeerConnection) or a connecting peer.
+ */
+export interface DisplayPeer {
+  /** Unique key: "ip:port" or "[ipv6]:port" */
+  key: string
+  /** Remote IP address */
+  ip: string
+  /** Remote port */
+  port: number
+  /** Connection state */
+  state: 'connecting' | 'connected'
+  /** Full connection (only for connected peers) */
+  connection: PeerConnection | null
+  /** Swarm peer data (available for both states) */
+  swarmPeer: SwarmPeer | null
 }
 
 /**
@@ -102,7 +121,6 @@ export class Torrent extends EngineComponent {
   public trackerManager?: TrackerManager
   private _files: TorrentFileInfo[] = []
   public maxPeers: number = 20
-  public globalLimitCheck: () => boolean = () => true
   private maxUploadSlots: number = 4
 
   // Metadata Phase
@@ -279,7 +297,6 @@ export class Torrent extends EngineComponent {
     contentStorage?: TorrentContentStorage,
     announce: string[] = [],
     maxPeers: number = 20,
-    globalLimitCheck: () => boolean = () => true,
     maxUploadSlots: number = 4,
   ) {
     super(engine)
@@ -291,7 +308,6 @@ export class Torrent extends EngineComponent {
     this.contentStorage = contentStorage
     this.announce = announce
     this.maxPeers = maxPeers
-    this.globalLimitCheck = globalLimitCheck
     this.maxUploadSlots = maxUploadSlots
 
     this.instanceLogName = `t:${toHex(infoHash).slice(0, 6)}`
@@ -375,13 +391,6 @@ export class Torrent extends EngineComponent {
       this.logger.debug(
         `Skipping peer ${peerInfo.ip}, max peers reached (${totalConnections}/${this.maxPeers})`,
       )
-      this.pendingConnections.delete(key)
-      this._swarm.markConnectFailed(key, 'limit_exceeded')
-      return
-    }
-
-    if (!this.globalLimitCheck()) {
-      this.logger.debug(`Skipping peer ${peerInfo.ip}, global max connections reached`)
       this.pendingConnections.delete(key)
       this._swarm.markConnectFailed(key, 'limit_exceeded')
       return
@@ -706,10 +715,41 @@ export class Torrent extends EngineComponent {
   }
 
   /**
+   * Whether this torrent is actively networking.
+   * Used by BtEngine connection queue to check if slots should be granted.
+   */
+  get isActive(): boolean {
+    return this._networkActive && !this.isKillSwitchEnabled
+  }
+
+  /**
    * Whether this torrent has metadata (piece info, files, etc).
    */
   get hasMetadata(): boolean {
     return this.piecesCount > 0
+  }
+
+  /**
+   * Connect to one peer from the swarm.
+   * Called by BtEngine when granting a connection slot.
+   * @returns true if a connection was initiated, false if no candidates available
+   */
+  connectOnePeer(): boolean {
+    if (!this._networkActive) return false
+    if (this.isKillSwitchEnabled) return false
+
+    // Check we still have room
+    const connected = this.numPeers
+    const connecting = this._swarm.connectingCount
+    if (connected + connecting >= this.maxPeers) return false
+
+    // Get best candidate right now
+    const candidates = this._swarm.getConnectablePeers(1)
+    if (candidates.length === 0) return false
+
+    const peer = candidates[0]
+    this.connectToPeer({ ip: peer.ip, port: peer.port })
+    return true
   }
 
   /**
@@ -768,6 +808,10 @@ export class Torrent extends EngineComponent {
   userStop(): void {
     this.logger.info('User stopping torrent')
     this.userState = 'stopped'
+
+    // Cancel pending connection requests
+    this.btEngine.cancelConnectionRequests(this.infoHashStr)
+
     this.suspendNetwork()
 
     // Persist state change (userState + bitfield)
@@ -780,6 +824,9 @@ export class Torrent extends EngineComponent {
    */
   suspendNetwork(): void {
     const wasActive = this._networkActive
+
+    // Cancel pending connection requests
+    this.btEngine.cancelConnectionRequests(this.infoHashStr)
 
     // Always close peers, even if already suspended (handles race conditions)
     for (const peer of this.connectedPeers) {
@@ -948,31 +995,27 @@ export class Torrent extends EngineComponent {
       this.applyDropDecision(decision)
     }
 
-    // === Fill peer slots (existing logic) ===
+    // === Request connection slots from engine ===
     if (this.isComplete) return // Don't seek peers when complete
 
     const connected = this.numPeers
-    const connecting = this.pendingConnections.size
+    const connecting = this._swarm.connectingCount
     const slotsAvailable = this.maxPeers - connected - connecting
 
     if (slotsAvailable <= 0) return
-    if (this._swarm.size === 0) return
 
-    const candidates = this._swarm.getConnectablePeers(slotsAvailable)
+    // Check if we have candidates before requesting slots
+    const candidateCount = this._swarm.getConnectablePeers(slotsAvailable).length
+    if (candidateCount === 0) return
 
-    if (candidates.length > 0) {
-      this.logger.debug(
-        `Maintenance: ${connected} connected, ${connecting} connecting, ` +
-          `${slotsAvailable} slots available, trying ${candidates.length} candidates`,
-      )
+    // Request slots from engine (will be granted fairly via round-robin)
+    const slotsToRequest = Math.min(slotsAvailable, candidateCount)
+    this.btEngine.requestConnections(this.infoHashStr, slotsToRequest)
 
-      for (const swarmPeer of candidates) {
-        if (!this.globalLimitCheck()) break
-        if (this.numPeers + this.pendingConnections.size >= this.maxPeers) break
-
-        this.connectToPeer({ ip: swarmPeer.ip, port: swarmPeer.port })
-      }
-    }
+    this.logger.debug(
+      `Maintenance: ${connected} connected, ${connecting} connecting, ` +
+        `requested ${slotsToRequest} slots (${candidateCount} candidates available)`,
+    )
   }
 
   /**
@@ -1045,6 +1088,45 @@ export class Torrent extends EngineComponent {
     }))
   }
 
+  /**
+   * Get all peers for UI display, including those currently connecting.
+   * Returns unified DisplayPeer objects that work for both states.
+   */
+  getDisplayPeers(): DisplayPeer[] {
+    const result: DisplayPeer[] = []
+
+    // Add connected peers
+    for (const conn of this._swarm.getConnectedPeers()) {
+      const key = peerKey(conn.remoteAddress ?? '', conn.remotePort ?? 0)
+      const swarmPeer = this._swarm.getPeerByKey(key) ?? null
+      result.push({
+        key,
+        ip: conn.remoteAddress ?? '',
+        port: conn.remotePort ?? 0,
+        state: 'connected',
+        connection: conn,
+        swarmPeer,
+      })
+    }
+
+    // Add connecting peers
+    for (const key of this._swarm.getConnectingKeys()) {
+      const swarmPeer = this._swarm.getPeerByKey(key)
+      if (swarmPeer) {
+        result.push({
+          key,
+          ip: swarmPeer.ip,
+          port: swarmPeer.port,
+          state: 'connecting',
+          connection: null,
+          swarmPeer,
+        })
+      }
+    }
+
+    return result
+  }
+
   getPieceAvailability(): number[] {
     if (!this.hasMetadata) return []
     const counts = new Array(this.piecesCount).fill(0)
@@ -1115,19 +1197,7 @@ export class Torrent extends EngineComponent {
       }
       return
     }
-    // Note: global limit for incoming is handled by BtEngine, but if we add manually we should check?
-    // BtEngine calls addPeer for incoming.
-    // If we call addPeer manually (e.g. from tests), we should check.
-    if (!this.globalLimitCheck()) {
-      this.logger.warn('Rejecting peer, global max connections reached')
-      peer.close()
-      // Clear swarm connecting state if this was an outgoing connection we initiated
-      if (peer.remoteAddress && peer.remotePort) {
-        const key = peerKey(peer.remoteAddress, peer.remotePort)
-        this._swarm.markConnectFailed(key, 'global_limit_reached')
-      }
-      return
-    }
+    // Note: global limit for incoming is handled by BtEngine via connection queue
 
     // Update swarm state FIRST - swarm is single source of truth (Phase 3)
     if (peer.remoteAddress && peer.remotePort) {

@@ -1,4 +1,4 @@
-import { PeerConnection, Torrent } from '@jstorrent/engine'
+import { DisplayPeer, Torrent } from '@jstorrent/engine'
 import { TableMount } from './mount'
 import { ColumnDef } from './types'
 import { formatBytes } from '../utils/format'
@@ -7,18 +7,21 @@ import { formatBytes } from '../utils/format'
  * Format peer flags (choking/interested states)
  * D = downloading from peer, U = uploading to peer
  * Characters: d/D = download, u/U = upload (lowercase = choked)
+ * Returns '-' for connecting peers (no connection yet)
  */
-function formatFlags(peer: PeerConnection): string {
+function formatFlags(peer: DisplayPeer): string {
+  if (!peer.connection) return '-'
+
   const flags: string[] = []
 
   // Download: are we interested and are they choking us?
-  if (peer.amInterested) {
-    flags.push(peer.peerChoking ? 'd' : 'D')
+  if (peer.connection.amInterested) {
+    flags.push(peer.connection.peerChoking ? 'd' : 'D')
   }
 
   // Upload: are they interested and are we choking them?
-  if (peer.peerInterested) {
-    flags.push(peer.amChoking ? 'u' : 'U')
+  if (peer.connection.peerInterested) {
+    flags.push(peer.connection.amChoking ? 'u' : 'U')
   }
 
   return flags.join(' ') || '-'
@@ -26,17 +29,19 @@ function formatFlags(peer: PeerConnection): string {
 
 /**
  * Calculate peer's progress from their bitfield
+ * Returns 0 for connecting peers
  */
-function getPeerProgress(peer: PeerConnection, torrent: Torrent): number {
-  if (!peer.bitfield || torrent.piecesCount === 0) return 0
-  const have = peer.bitfield.count()
+function getPeerProgress(peer: DisplayPeer, torrent: Torrent): number {
+  if (!peer.connection?.bitfield || torrent.piecesCount === 0) return 0
+  const have = peer.connection.bitfield.count()
   return have / torrent.piecesCount
 }
 
 /**
  * Parse client name from peer ID bytes
  */
-function parseClientName(peerId: Uint8Array | undefined): string {
+function parseClientName(peer: DisplayPeer): string {
+  const peerId = peer.connection?.peerId ?? peer.swarmPeer?.peerId
   if (!peerId) return '?'
 
   // Azureus-style: -XX0000-
@@ -66,19 +71,32 @@ function parseClientName(peerId: Uint8Array | undefined): string {
     .join('')
 }
 
-/** Column definitions - torrent is captured for progress calculation */
-function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<PeerConnection>[] {
+/**
+ * Format connection state for display
+ */
+function formatState(peer: DisplayPeer): string {
+  return peer.state === 'connecting' ? 'Connecting...' : 'Connected'
+}
+
+/** Column definitions for DisplayPeer */
+function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayPeer>[] {
   return [
+    {
+      id: 'state',
+      header: 'State',
+      getValue: (p) => formatState(p),
+      width: 90,
+    },
     {
       id: 'address',
       header: 'Address',
-      getValue: (p) => `${p.remoteAddress ?? '?'}:${p.remotePort ?? '?'}`,
+      getValue: (p) => `${p.ip}:${p.port}`,
       width: 180,
     },
     {
       id: 'client',
       header: 'Client',
-      getValue: (p) => parseClientName(p.peerId),
+      getValue: (p) => parseClientName(p),
       width: 140,
     },
     {
@@ -96,28 +114,40 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<PeerConn
     {
       id: 'downSpeed',
       header: 'Down',
-      getValue: (p) => (p.downloadSpeed > 0 ? formatBytes(p.downloadSpeed) + '/s' : '-'),
+      getValue: (p) => {
+        const speed = p.connection?.downloadSpeed ?? 0
+        return speed > 0 ? formatBytes(speed) + '/s' : '-'
+      },
       width: 90,
       align: 'right',
     },
     {
       id: 'upSpeed',
       header: 'Up',
-      getValue: (p) => (p.uploadSpeed > 0 ? formatBytes(p.uploadSpeed) + '/s' : '-'),
+      getValue: (p) => {
+        const speed = p.connection?.uploadSpeed ?? 0
+        return speed > 0 ? formatBytes(speed) + '/s' : '-'
+      },
       width: 90,
       align: 'right',
     },
     {
       id: 'downloaded',
       header: 'Downloaded',
-      getValue: (p) => (p.downloaded > 0 ? formatBytes(p.downloaded) : '-'),
+      getValue: (p) => {
+        const dl = p.connection?.downloaded ?? 0
+        return dl > 0 ? formatBytes(dl) : '-'
+      },
       width: 90,
       align: 'right',
     },
     {
       id: 'uploaded',
       header: 'Uploaded',
-      getValue: (p) => (p.uploaded > 0 ? formatBytes(p.uploaded) : '-'),
+      getValue: (p) => {
+        const up = p.connection?.uploaded ?? 0
+        return up > 0 ? formatBytes(up) : '-'
+      },
       width: 90,
       align: 'right',
     },
@@ -131,7 +161,7 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<PeerConn
     {
       id: 'requests',
       header: 'Reqs',
-      getValue: (p) => p.requestsPending || '-',
+      getValue: (p) => p.connection?.requestsPending || '-',
       width: 50,
       align: 'right',
     },
@@ -162,9 +192,9 @@ export function PeerTable(props: PeerTableProps) {
   const columns = createPeerColumns(getTorrent)
 
   return (
-    <TableMount<PeerConnection>
-      getRows={() => getTorrent()?.peers ?? []}
-      getRowKey={(p) => `${p.remoteAddress}:${p.remotePort}`}
+    <TableMount<DisplayPeer>
+      getRows={() => getTorrent()?.getDisplayPeers() ?? []}
+      getRowKey={(p) => p.key}
       columns={columns}
       storageKey="peers"
       rowHeight={24}

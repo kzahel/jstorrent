@@ -1,6 +1,7 @@
 // Core
 export { BtEngine } from './core/bt-engine'
 export { Torrent } from './core/torrent'
+export type { DisplayPeer } from './core/torrent'
 export { BandwidthTracker } from './core/bandwidth-tracker'
 export type { BandwidthTrackerConfig } from './core/bandwidth-tracker'
 export { TorrentFileInfo } from './core/torrent-file-info'
