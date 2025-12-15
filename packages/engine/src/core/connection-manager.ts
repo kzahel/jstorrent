@@ -160,6 +160,15 @@ export class ConnectionManager extends EventEmitter {
       this.logger.debug(`[ConnectionManager] Connecting to ${key}`)
       const socket = await this.socketFactory.createTcpSocket(peer.ip, peer.port)
 
+      // Check if we were cancelled while awaiting (timer removed by cancelAllPendingConnections)
+      if (!this.connectTimers.has(key)) {
+        this.logger.debug(
+          `[ConnectionManager] Connection to ${key} completed but was cancelled, closing socket`,
+        )
+        socket.close()
+        return
+      }
+
       // Clear timeout on success
       clearTimeout(timer)
       this.connectTimers.delete(key)
@@ -177,13 +186,16 @@ export class ConnectionManager extends EventEmitter {
       this.emit('peerConnected', key, connection)
       this.onPeerConnected?.(key, connection)
     } catch (err) {
-      // Clear timeout on failure
+      // Clear timeout on failure (may already be cleared by cancel)
       clearTimeout(timer)
       this.connectTimers.delete(key)
 
-      const reason = err instanceof Error ? err.message : String(err)
-      this.swarm.markConnectFailed(key, reason)
-      this.emit('peerConnectFailed', key, reason)
+      // Only mark failed if we weren't already cancelled
+      if (this.swarm.getPeerByKey(key)?.state === 'connecting') {
+        const reason = err instanceof Error ? err.message : String(err)
+        this.swarm.markConnectFailed(key, reason)
+        this.emit('peerConnectFailed', key, reason)
+      }
     }
   }
 

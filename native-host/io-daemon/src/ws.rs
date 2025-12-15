@@ -95,6 +95,7 @@ impl Envelope {
 
 struct SocketManager {
     tcp_sockets: HashMap<u32, mpsc::Sender<Vec<u8>>>,
+    pending_connects: HashMap<u32, tokio::task::AbortHandle>,
     udp_sockets: HashMap<u32, Arc<UdpSocket>>,
     tcp_servers: HashMap<u32, tokio::task::JoinHandle<()>>,
     next_socket_id: u32,
@@ -115,6 +116,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
 
     let socket_manager = Arc::new(Mutex::new(SocketManager {
         tcp_sockets: HashMap::new(),
+        pending_connects: HashMap::new(),
         udp_sockets: HashMap::new(),
         tcp_servers: HashMap::new(),
         next_socket_id: 0x10000, // Start high to avoid collision with client-assigned IDs
@@ -244,7 +246,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                     let tx_clone = tx.clone();
                     let req_id = env.request_id;
 
-                    tokio::spawn(async move {
+                    let task = tokio::spawn(async move {
                         // 30 second connect timeout - backstop for slow connections (satellite, poor mobile)
                         // The TypeScript engine manages its own adaptive timeout and will cancel earlier
                         let connect_timeout = Duration::from_secs(30);
@@ -264,8 +266,13 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                             Ok(stream) => {
                                 let (mut read_half, mut write_half) = stream.into_split();
                                 let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
-                                
-                                manager.lock().await.tcp_sockets.insert(socket_id, write_tx);
+
+                                // Move from pending to established
+                                {
+                                    let mut mgr = manager.lock().await;
+                                    mgr.pending_connects.remove(&socket_id);
+                                    mgr.tcp_sockets.insert(socket_id, write_tx);
+                                }
                                 
                                 // Send TCP_CONNECTED
                                 // Payload: socketId(4), status(1 byte=0), errno(4 bytes=0)
@@ -322,12 +329,15 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                                     }
                                 });
                             }
-                            Err(e) => {
+                            Err(_) => {
+                                // Remove from pending on failure
+                                manager.lock().await.pending_connects.remove(&socket_id);
+
                                 // Send TCP_CONNECTED failure
                                 let mut resp = socket_id.to_le_bytes().to_vec();
                                 resp.push(1); // Failure
                                 resp.extend_from_slice(&1u32.to_le_bytes()); // Generic error
-                                
+
                                 let env = Envelope::new(OP_TCP_CONNECTED, req_id);
                                 let mut data = env.to_bytes().to_vec();
                                 data.extend_from_slice(&resp);
@@ -335,6 +345,9 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                             }
                         }
                     });
+
+                    // Track pending connection for cancellation
+                    socket_manager.lock().await.pending_connects.insert(socket_id, task.abort_handle());
                 }
                 OP_TCP_SEND => {
                     // Payload: socketId(4) + data
@@ -350,7 +363,15 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                     // Payload: socketId(4)
                     if payload.len() >= 4 {
                         let socket_id = u32::from_le_bytes(payload[0..4].try_into().unwrap());
-                        socket_manager.lock().await.tcp_sockets.remove(&socket_id);
+                        let mut mgr = socket_manager.lock().await;
+
+                        // Remove established socket
+                        mgr.tcp_sockets.remove(&socket_id);
+
+                        // Cancel pending connect if exists (allows immediate cleanup)
+                        if let Some(handle) = mgr.pending_connects.remove(&socket_id) {
+                            handle.abort();
+                        }
                     }
                 }
                 OP_TCP_LISTEN => {

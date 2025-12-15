@@ -825,8 +825,11 @@ export class Torrent extends EngineComponent {
   suspendNetwork(): void {
     const wasActive = this._networkActive
 
-    // Cancel pending connection requests
+    // Cancel pending connection requests from the global queue
     this.btEngine.cancelConnectionRequests(this.infoHashStr)
+
+    // Cancel in-flight connection attempts (clears timers, marks peers as failed in swarm)
+    this._connectionManager.cancelAllPendingConnections()
 
     // Always close peers, even if already suspended (handles race conditions)
     for (const peer of this.connectedPeers) {
