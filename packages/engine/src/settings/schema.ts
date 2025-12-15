@@ -154,6 +154,32 @@ export const settingsSchema = {
   },
 
   // -------------------------------------------------------------------------
+  // Advanced: Daemon Rate Limiting
+  // -------------------------------------------------------------------------
+  /**
+   * Maximum daemon operations per second (connections, announces).
+   * Controls how fast we initiate new connections to peers/trackers.
+   */
+  daemonOpsPerSecond: {
+    type: 'number',
+    storage: 'sync',
+    default: 20,
+    min: 1,
+    max: 100,
+  },
+  /**
+   * Burst capacity for daemon operations.
+   * Allows this many operations immediately before rate limiting kicks in.
+   */
+  daemonOpsBurst: {
+    type: 'number',
+    storage: 'sync',
+    default: 40,
+    min: 1,
+    max: 200,
+  },
+
+  // -------------------------------------------------------------------------
   // Machine-Local Settings
   // -------------------------------------------------------------------------
   defaultRootKey: {

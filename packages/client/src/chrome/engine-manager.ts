@@ -534,6 +534,22 @@ class EngineManager {
   }
 
   /**
+   * Set daemon operation rate limit (connections, announces).
+   * @param opsPerSecond - operations per second
+   * @param burstSize - burst capacity
+   */
+  setDaemonRateLimit(opsPerSecond: number, burstSize: number): void {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set daemon rate limit: engine not initialized')
+      return
+    }
+    this.engine.setDaemonRateLimit(opsPerSecond, burstSize)
+    console.log(
+      `[EngineManager] Daemon rate limit set: ${opsPerSecond} ops/sec, burst=${burstSize}`,
+    )
+  }
+
+  /**
    * Set up notification handling for download events.
    */
   private setupNotifications(): void {

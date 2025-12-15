@@ -521,23 +521,57 @@ interface AdvancedTabProps extends TabProps {
 }
 
 const AdvancedTab: React.FC<AdvancedTabProps> = ({
-  settings: _settings,
-  updateSetting: _updateSetting,
+  settings,
+  updateSetting,
   onResetAllSettings,
-}) => (
-  <div>
-    <Section title="Danger Zone">
-      <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
-        Restore all settings to their default values. This includes network limits, notification
-        preferences, theme, and UI layout. Your download locations and downloaded files will not be
-        affected.
-      </div>
-      <button onClick={onResetAllSettings} style={styles.dangerButton}>
-        Reset All Settings
-      </button>
-    </Section>
-  </div>
-)
+}) => {
+  // Apply daemon rate limit to engine when settings change
+  const handleOpsPerSecondChange = (v: number) => {
+    updateSetting('daemonOpsPerSecond', v)
+    engineManager.setDaemonRateLimit(v, settings.daemonOpsBurst)
+  }
+
+  const handleOpsBurstChange = (v: number) => {
+    updateSetting('daemonOpsBurst', v)
+    engineManager.setDaemonRateLimit(settings.daemonOpsPerSecond, v)
+  }
+
+  return (
+    <div>
+      <Section title="Daemon Rate Limiting">
+        <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+          Controls how fast new connections and tracker announces are initiated. Lower values reduce
+          resource usage but slow down peer discovery.
+        </div>
+        <NumberRow
+          label="Operations per second"
+          value={settings.daemonOpsPerSecond}
+          onChange={handleOpsPerSecondChange}
+          min={1}
+          max={100}
+        />
+        <NumberRow
+          label="Burst capacity"
+          value={settings.daemonOpsBurst}
+          onChange={handleOpsBurstChange}
+          min={1}
+          max={200}
+        />
+      </Section>
+
+      <Section title="Danger Zone">
+        <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+          Restore all settings to their default values. This includes network limits, notification
+          preferences, theme, and UI layout. Your download locations and downloaded files will not
+          be affected.
+        </div>
+        <button onClick={onResetAllSettings} style={styles.dangerButton}>
+          Reset All Settings
+        </button>
+      </Section>
+    </div>
+  )
+}
 
 // ============ Reusable Components ============
 

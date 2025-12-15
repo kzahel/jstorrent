@@ -87,6 +87,18 @@ export interface BtEngineOptions {
    * Call resume() after setup/restore is complete.
    */
   startSuspended?: boolean
+
+  /**
+   * Maximum daemon operations per second (connections, announces).
+   * Default: 20
+   */
+  daemonOpsPerSecond?: number
+
+  /**
+   * Burst capacity for daemon operations.
+   * Default: 40 (2x rate)
+   */
+  daemonOpsBurst?: number
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -130,7 +142,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    * Single rate limiter for all daemon operations.
    * Prevents overwhelming the daemon regardless of operation type.
    */
-  private daemonRateLimiter = new TokenBucket(20, 40) // 20 ops/sec, burst 40
+  private daemonRateLimiter: TokenBucket
 
   /**
    * Interval handle for operation queue drain loop.
@@ -179,6 +191,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.maxPeers = options.maxPeers ?? 20
     this.maxUploadSlots = options.maxUploadSlots ?? 4
     this._suspended = options.startSuspended ?? false
+
+    // Initialize daemon rate limiter from options
+    const opsPerSec = options.daemonOpsPerSecond ?? 20
+    const burst = options.daemonOpsBurst ?? opsPerSec * 2
+    this.daemonRateLimiter = new TokenBucket(opsPerSec, burst)
 
     // Initialize logger for BtEngine itself
     this.logger = this.scopedLoggerFor(this)
