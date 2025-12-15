@@ -468,7 +468,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       await this.sessionPersistence.removeTorrentData(infoHash)
       await this.sessionPersistence.saveTorrentList()
 
-      await torrent.stop()
+      torrent.stop()
       this.emit('torrent-removed', torrent)
     }
   }
