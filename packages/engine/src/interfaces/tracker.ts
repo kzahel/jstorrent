@@ -24,6 +24,8 @@ export interface TrackerStats {
   seeders: number | null
   leechers: number | null
   lastError: string | null
+  /** Timestamp (ms) when next announce should occur, or null if not yet announced */
+  nextAnnounce: number | null
 }
 
 export interface ITracker extends EventEmitter {
