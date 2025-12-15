@@ -174,6 +174,31 @@ export function getPortScorePenalty(port: number): number {
   return 0
 }
 
+/**
+ * Check if an IP address is valid for peer connections.
+ * Rejects multicast, broadcast, and "this" network addresses.
+ */
+export function isValidPeerIp(ip: string): boolean {
+  // IPv6 - allow all for now
+  if (ip.includes(':')) return true
+
+  const parts = ip.split('.')
+  if (parts.length !== 4) return false
+
+  const first = parseInt(parts[0], 10)
+
+  // Block 0.0.0.0/8 - "this" network
+  if (first === 0) return false
+
+  // Block 224.0.0.0/4 - multicast (224-239)
+  if (first >= 224 && first <= 239) return false
+
+  // Block broadcast
+  if (ip === '255.255.255.255') return false
+
+  return true
+}
+
 // ============================================================================
 // Address Utilities
 // ============================================================================
@@ -386,6 +411,12 @@ export class Swarm extends EventEmitter {
       return null
     }
 
+    // Reject invalid IPs (multicast, broadcast, "this" network)
+    if (!isValidPeerIp(address.ip)) {
+      this.logger.debug(`Rejecting peer ${address.ip}:${address.port} - invalid IP`)
+      return null
+    }
+
     const key = addressKey(address)
     let peer = this.peers.get(key)
 
@@ -438,6 +469,8 @@ export class Swarm extends EventEmitter {
     for (const addr of addresses) {
       // Skip invalid ports
       if (!isValidPort(addr.port)) continue
+      // Skip invalid IPs
+      if (!isValidPeerIp(addr.ip)) continue
 
       const key = addressKey(addr)
       if (!this.peers.has(key)) {

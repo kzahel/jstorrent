@@ -60,7 +60,7 @@ class SocketSession(
 
     companion object {
         // Reduce log spam - only log sends when debugging
-        private const val ENABLE_SEND_LOGGING = false
+        private const val ENABLE_SEND_LOGGING = true
     }
 
     suspend fun run() {
@@ -231,10 +231,13 @@ class SocketSession(
                 // when connecting to many unreachable peers on internet torrents
                 socket.connect(InetSocketAddress(hostname, port), 10000)
 
-                val handler = TcpSocketHandler(socketId, socket, this@SocketSession)
+                val handler = TcpSocketHandler(socketId, socket, this@SocketSession) { id ->
+                    tcpSockets.remove(id)
+                }
                 tcpSockets[socketId] = handler
 
                 // Send TCP_CONNECTED success
+                Log.i(TAG, "TCP_CONNECTED SUCCESS: socketId=$socketId, $hostname:$port")
                 val response = socketId.toLEBytes() + byteArrayOf(0) + 0.toLEBytes()
                 send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
 
@@ -259,13 +262,15 @@ class SocketSession(
         val socketId = payload.getUIntLE(0)
         val data = payload.copyOfRange(4, payload.size)
 
+        Log.d(TAG, "TCP_SEND: socketId=$socketId, ${data.size} bytes")
+
         val socket = tcpSockets[socketId]
         if (socket != null) {
             socket.send(data)
         } else {
             // Socket was closed but engine doesn't know yet
             // This can happen during cleanup races - log but don't spam
-            Log.d(TAG, "TCP_SEND to unknown socket $socketId (${data.size} bytes)")
+            Log.w(TAG, "TCP_SEND to unknown socket $socketId (${data.size} bytes)")
         }
     }
 
@@ -487,7 +492,9 @@ class TcpServerHandler(
                     Log.d(TAG, "TCP_ACCEPT: serverId=$serverId, socketId=$socketId, peer=$peerAddr:$peerPort")
 
                     // Create handler for accepted connection
-                    val handler = TcpSocketHandler(socketId, socket, session)
+                    val handler = TcpSocketHandler(socketId, socket, session) { id ->
+                        tcpSockets.remove(id)
+                    }
                     tcpSockets[socketId] = handler
 
                     // Send TCP_ACCEPT
@@ -524,7 +531,8 @@ class TcpServerHandler(
 class TcpSocketHandler(
     private val socketId: Int,
     private val socket: Socket,
-    private val session: SocketSession
+    private val session: SocketSession,
+    private val onClosed: (Int) -> Unit = {}  // Callback to remove from map when peer closes
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     // Dedicated send queue for ordered, batched writes
@@ -620,7 +628,12 @@ class TcpSocketHandler(
                         "(${String.format("%.2f", mbps)} MB/s, $readCount reads)"
                     )
                 }
+                // Notify engine that socket closed
                 sendClose()
+                // Clean up handler and remove from session's map
+                // This prevents queue buildup when engine sends to closed socket
+                close()
+                onClosed(socketId)
             }
         }
     }
@@ -713,6 +726,8 @@ class UdpSocketHandler(
                     val srcPort = packet.port
                     val data = packet.data.copyOf(packet.length)
 
+                    Log.d(TAG, "UDP_RECV: socketId=$socketId, from=$srcAddr:$srcPort, ${data.size} bytes")
+
                     // Build UDP_RECV payload with minimal allocations
                     val addrBytes = srcAddr.toByteArray()
                     val payloadSize = 4 + 2 + 2 + addrBytes.size + data.size
@@ -752,12 +767,18 @@ class UdpSocketHandler(
         senderJob = scope.launch {
             try {
                 for ((destAddr, destPort, data) in sendQueue) {
-                    val packet = DatagramPacket(
-                        data,
-                        data.size,
-                        InetSocketAddress(destAddr, destPort)
-                    )
-                    socket.send(packet)
+                    try {
+                        val packet = DatagramPacket(
+                            data,
+                            data.size,
+                            InetSocketAddress(destAddr, destPort)
+                        )
+                        socket.send(packet)
+                    } catch (e: Exception) {
+                        // Log but continue - don't let one bad address kill the sender
+                        // This happens with unresolvable tracker hostnames
+                        Log.w(TAG, "UDP socket $socketId send to $destAddr:$destPort failed: ${e.message}")
+                    }
                 }
             } catch (e: Exception) {
                 Log.d(TAG, "UDP socket $socketId send ended: ${e.message}")

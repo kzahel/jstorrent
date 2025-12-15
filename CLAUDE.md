@@ -136,9 +136,11 @@ This builds the APK locally, copies to Chromebook (at `~/code/jstorrent-monorepo
 
 **Environment variables:**
 - `CHROMEBOOK_HOST` - SSH host (default: `chromebook`)
-- `REMOTE_PROJECT_DIR` - Path on Chromebook (default: `$HOME/code/jstorrent-monorepo/android-io-daemon`)
-- `REMOTE_ADB` - Full path to adb on Chromebook (default: `$HOME/android-sdk/platform-tools/adb`)
+- `REMOTE_PROJECT_DIR` - Path on Chromebook (default: `/home/graehlarts/code/jstorrent-monorepo/android-io-daemon`)
+- `REMOTE_ADB` - Full path to adb on Chromebook (default: `/home/graehlarts/android-sdk/platform-tools/adb`)
+
+**ADB path on Chromebook:** `/home/graehlarts/android-sdk/platform-tools/adb`
 
 **Troubleshooting:**
-- Signature mismatch: `ssh chromebook "adb uninstall com.jstorrent.app"` then redeploy
+- Signature mismatch: `ssh chromebook "/home/graehlarts/android-sdk/platform-tools/adb uninstall com.jstorrent.app"` then redeploy
 - ADB not available: Enable "Linux development environment" and "Android apps" in ChromeOS settings
