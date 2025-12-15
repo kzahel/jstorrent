@@ -88,18 +88,6 @@ export const torrentColumns: ColumnDef<Torrent>[] = [
     width: 60,
     align: 'right',
   },
-  {
-    id: 'seeds',
-    header: 'Seeds',
-    getValue: () => {
-      // Count peers that have 100% (are seeds)
-      // This would need swarm data - simplified for now
-      return '-'
-    },
-    width: 60,
-    align: 'right',
-    sortable: false, // No real data to sort by
-  },
 ]
 
 /** Minimal interface for reading torrents - avoids coupling to full adapter */
