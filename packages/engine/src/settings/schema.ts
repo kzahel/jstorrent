@@ -3,6 +3,11 @@
  *
  * Single source of truth for all application settings.
  * Defines type, default value, validation, and storage class for each setting.
+ *
+ * IMPORTANT: When adding settings that affect engine behavior at runtime
+ * (e.g., rate limits, connection limits), ensure they are applied during
+ * engine initialization in packages/client/src/chrome/engine-manager.ts
+ * (see the "Apply rate limits and connection limits from settings" section).
  */
 
 // ============================================================================

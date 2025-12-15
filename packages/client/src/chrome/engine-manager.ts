@@ -246,6 +246,10 @@ class EngineManager {
       settingsStore.get('maxGlobalPeers'),
       settingsStore.get('maxUploadSlots'),
     )
+    this.setDaemonRateLimit(
+      settingsStore.get('daemonOpsPerSecond'),
+      settingsStore.get('daemonOpsBurst'),
+    )
 
     // 9. Set up beforeunload handler
     window.addEventListener('beforeunload', () => {
