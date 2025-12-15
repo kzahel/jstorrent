@@ -24,6 +24,7 @@ export interface VirtualTableProps<T> {
   onRowContextMenu?: (row: T, x: number, y: number) => void
   getRowTooltip?: (row: T) => string | undefined
   rowHeight?: number
+  getRowStyle?: (row: T) => Record<string, string> | undefined
 }
 
 /**
@@ -846,6 +847,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                   'align-items': 'center',
                   cursor: 'default',
                   'border-bottom': '1px solid var(--border-light, #eee)',
+                  ...props.getRowStyle?.(row()),
                 }}
                 style:background={
                   isSelected() ? 'var(--bg-highlight, #264f78)' : 'var(--bg-primary, #1e1e1e)'

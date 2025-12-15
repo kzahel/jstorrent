@@ -166,6 +166,7 @@ export function PeerTable(props: PeerTableProps) {
       rowHeight={24}
       getSelectedKeys={props.getSelectedKeys}
       onSelectionChange={props.onSelectionChange}
+      getRowStyle={(p) => (p.state === 'connecting' ? { opacity: '0.5' } : undefined)}
     />
   )
 }
