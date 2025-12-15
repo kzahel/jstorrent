@@ -513,7 +513,7 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
       </Section>
 
       <Section title="Port Forwarding">
-        <div style={styles.toggleRow}>
+        <label style={styles.toggleRow}>
           <div style={{ flex: 1 }}>
             <div>Enable UPnP</div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -530,7 +530,7 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
             checked={settings['upnp.enabled']}
             onChange={(e) => updateSetting('upnp.enabled', e.target.checked)}
           />
-        </div>
+        </label>
       </Section>
 
       <Section title="Speed Limits">
