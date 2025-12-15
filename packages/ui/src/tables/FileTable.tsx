@@ -119,8 +119,17 @@ export function FileTable(props: FileTableProps) {
     setContextMenu({ x, y, file })
   }
 
-  const getContextMenuItems = (file: TorrentFileInfo): ContextMenuItem[] => {
-    const items: ContextMenuItem[] = [
+  const getContextMenuItems = (): ContextMenuItem[] => {
+    // Get selected files to determine which options to enable
+    const torrent = getTorrent()
+    const selectedKeys = props.getSelectedKeys?.() ?? new Set<string>()
+    const selectedFiles = torrent?.files.filter((f) => selectedKeys.has(String(f.index))) ?? []
+
+    // Check if any selected files can be skipped or unskipped
+    const canSkipAny = selectedFiles.some((f) => !f.isSkipped && !f.isComplete)
+    const canUnskipAny = selectedFiles.some((f) => f.isSkipped)
+
+    return [
       {
         id: 'open',
         label: 'Open',
@@ -137,24 +146,19 @@ export function FileTable(props: FileTableProps) {
         icon: '📋',
       },
       { id: 'separator', label: '-' },
-    ]
-
-    if (file.isSkipped) {
-      items.push({
-        id: 'unskip',
-        label: 'Download (Unskip)',
-        icon: '▶️',
-      })
-    } else {
-      items.push({
+      {
         id: 'skip',
         label: "Don't Download (Skip)",
         icon: '⏸️',
-        disabled: file.isComplete, // Can't skip completed files
-      })
-    }
-
-    return items
+        disabled: !canSkipAny,
+      },
+      {
+        id: 'unskip',
+        label: 'Download (Unskip)',
+        icon: '▶️',
+        disabled: !canUnskipAny,
+      },
+    ]
   }
 
   const handleOpenFile = (file: TorrentFileInfo) => {
@@ -181,8 +185,16 @@ export function FileTable(props: FileTableProps) {
     }
   }
 
-  const handleSetFilePriority = (file: TorrentFileInfo, priority: number) => {
-    if (props.onSetFilePriority) {
+  const handleSetFilePriorityForSelected = (priority: number) => {
+    if (!props.onSetFilePriority) return
+
+    const torrent = getTorrent()
+    const selectedKeys = props.getSelectedKeys?.() ?? new Set<string>()
+    const selectedFiles = torrent?.files.filter((f) => selectedKeys.has(String(f.index))) ?? []
+
+    for (const file of selectedFiles) {
+      // Skip completed files when trying to skip
+      if (priority === 1 && file.isComplete) continue
       props.onSetFilePriority(props.torrentHash, file.index, priority)
     }
   }
@@ -202,10 +214,10 @@ export function FileTable(props: FileTableProps) {
         handleCopyFilePath(file)
         break
       case 'skip':
-        handleSetFilePriority(file, 1) // 1 = skip
+        handleSetFilePriorityForSelected(1) // 1 = skip
         break
       case 'unskip':
-        handleSetFilePriority(file, 0) // 0 = normal
+        handleSetFilePriorityForSelected(0) // 0 = normal
         break
     }
   }
@@ -228,7 +240,7 @@ export function FileTable(props: FileTableProps) {
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          items={getContextMenuItems(contextMenu.file)}
+          items={getContextMenuItems()}
           onSelect={handleContextMenuSelect}
           onClose={() => setContextMenu(null)}
         />
