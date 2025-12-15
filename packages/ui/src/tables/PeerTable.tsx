@@ -7,10 +7,10 @@ import { formatBytes } from '../utils/format'
  * Format peer flags (choking/interested states)
  * D = downloading from peer, U = uploading to peer
  * Characters: d/D = download, u/U = upload (lowercase = choked)
- * Returns '-' for connecting peers (no connection yet)
+ * Returns empty string for connecting peers (no connection yet)
  */
 function formatFlags(peer: DisplayPeer): string {
-  if (!peer.connection) return '-'
+  if (!peer.connection) return ''
 
   const flags: string[] = []
 
@@ -24,7 +24,7 @@ function formatFlags(peer: DisplayPeer): string {
     flags.push(peer.connection.amChoking ? 'u' : 'U')
   }
 
-  return flags.join(' ') || '-'
+  return flags.join(' ')
 }
 
 /**
@@ -42,7 +42,7 @@ function getPeerProgress(peer: DisplayPeer, torrent: Torrent): number {
  */
 function parseClientName(peer: DisplayPeer): string {
   const peerId = peer.connection?.peerId ?? peer.swarmPeer?.peerId
-  if (!peerId) return '?'
+  if (!peerId) return ''
 
   // Azureus-style: -XX0000-
   if (peerId[0] === 0x2d && peerId[7] === 0x2d) {
@@ -104,7 +104,7 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
       header: '%',
       getValue: (p) => {
         const t = getTorrent()
-        if (!t) return '-'
+        if (!t || !p.connection) return ''
         const pct = getPeerProgress(p, t) * 100
         return pct >= 100 ? '100' : pct.toFixed(1)
       },
@@ -116,7 +116,7 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
       header: 'Down',
       getValue: (p) => {
         const speed = p.connection?.downloadSpeed ?? 0
-        return speed > 0 ? formatBytes(speed) + '/s' : '-'
+        return speed > 0 ? formatBytes(speed) + '/s' : ''
       },
       width: 90,
       align: 'right',
@@ -126,7 +126,7 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
       header: 'Up',
       getValue: (p) => {
         const speed = p.connection?.uploadSpeed ?? 0
-        return speed > 0 ? formatBytes(speed) + '/s' : '-'
+        return speed > 0 ? formatBytes(speed) + '/s' : ''
       },
       width: 90,
       align: 'right',
@@ -136,7 +136,7 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
       header: 'Downloaded',
       getValue: (p) => {
         const dl = p.connection?.downloaded ?? 0
-        return dl > 0 ? formatBytes(dl) : '-'
+        return dl > 0 ? formatBytes(dl) : ''
       },
       width: 90,
       align: 'right',
@@ -146,7 +146,7 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
       header: 'Uploaded',
       getValue: (p) => {
         const up = p.connection?.uploaded ?? 0
-        return up > 0 ? formatBytes(up) : '-'
+        return up > 0 ? formatBytes(up) : ''
       },
       width: 90,
       align: 'right',
@@ -161,7 +161,7 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
     {
       id: 'requests',
       header: 'Reqs',
-      getValue: (p) => p.connection?.requestsPending || '-',
+      getValue: (p) => p.connection?.requestsPending || '',
       width: 50,
       align: 'right',
     },
