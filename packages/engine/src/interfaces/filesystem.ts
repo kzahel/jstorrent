@@ -72,4 +72,9 @@ export interface IFileSystem {
    * Returns list of filenames (not full paths).
    */
   readdir(path: string): Promise<string[]>
+
+  /**
+   * Delete a file or directory.
+   */
+  delete(path: string): Promise<void>
 }

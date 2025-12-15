@@ -51,6 +51,8 @@ export interface DetailPaneProps {
   onRevealInFolder?: (torrentHash: string, file: TorrentFileInfo) => void
   /** Callback when user wants to copy the file path */
   onCopyFilePath?: (torrentHash: string, file: TorrentFileInfo) => void
+  /** Callback when user wants to set file priority */
+  onSetFilePriority?: (torrentHash: string, fileIndex: number, priority: number) => void
 }
 
 const tabStyle: React.CSSProperties = {
@@ -202,6 +204,7 @@ export function DetailPane(props: DetailPaneProps) {
               onOpenFile={props.onOpenFile}
               onRevealInFolder={props.onRevealInFolder}
               onCopyFilePath={props.onCopyFilePath}
+              onSetFilePriority={props.onSetFilePriority}
             />,
             'files',
           )}

@@ -417,6 +417,12 @@ function AppContent() {
                     alert('Failed to get file path: storage root not found')
                   }
                 }}
+                onSetFilePriority={(torrentHash, fileIndex, priority) => {
+                  const torrent = adapter.getTorrent(torrentHash)
+                  if (torrent) {
+                    torrent.setFilePriority(fileIndex, priority)
+                  }
+                }}
               />
             </div>
           </div>

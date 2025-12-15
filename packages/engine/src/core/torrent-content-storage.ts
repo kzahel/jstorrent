@@ -39,6 +39,13 @@ export class TorrentContentStorage extends EngineComponent {
     return this.files
   }
 
+  /**
+   * Get the storage handle for this content storage.
+   */
+  get storage(): IStorageHandle {
+    return this.storageHandle
+  }
+
   getTotalSize(): number {
     return this.files.reduce((sum, f) => sum + f.length, 0)
   }

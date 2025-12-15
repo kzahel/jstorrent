@@ -22,6 +22,15 @@ import { ConnectionTimingTracker } from './connection-timing'
 import { initializeTorrentStorage } from './torrent-initializer'
 import { TorrentDiskQueue, DiskQueueSnapshot } from './disk-queue'
 import { EndgameManager } from './endgame-manager'
+import { PartsFile } from './parts-file'
+
+/**
+ * Piece classification for file priority system.
+ * - 'wanted': All files touched by this piece are non-skipped
+ * - 'boundary': Piece touches both skipped and non-skipped files
+ * - 'blacklisted': All files touched by this piece are skipped
+ */
+export type PieceClassification = 'wanted' | 'boundary' | 'blacklisted'
 
 /**
  * All persisted fields for a torrent.
@@ -50,6 +59,9 @@ export interface TorrentPersistedState {
 
   // === Progress ===
   completedPieces: number[] // Indices of verified pieces
+
+  // === File Priorities ===
+  filePriorities?: number[] // Per-file priority: 0=normal, 1=skip
 }
 
 /**
@@ -120,6 +132,16 @@ export class Torrent extends EngineComponent {
   public trackerManager?: TrackerManager
   private _files: TorrentFileInfo[] = []
   public maxPeers: number = 20
+
+  // === File Priority System ===
+  /** Per-file priorities: 0 = normal, 1 = skip */
+  private _filePriorities: number[] = []
+  /** Cached piece classification (recomputed on file priority changes) */
+  private _pieceClassification: PieceClassification[] = []
+  /** Pieces currently stored in .parts file (not in regular files) */
+  private _partsFilePieces: Set<number> = new Set()
+  /** .parts file manager for boundary pieces */
+  private _partsFile?: PartsFile
   private maxUploadSlots: number = 4
 
   // Metadata Phase
@@ -532,7 +554,7 @@ export class Torrent extends EngineComponent {
     if (!this._bitfield) return []
     const missing: number[] = []
     for (let i = 0; i < this.piecesCount; i++) {
-      if (!this._bitfield.get(i)) {
+      if (this.shouldRequestPiece(i)) {
         missing.push(i)
       }
     }
@@ -545,8 +567,41 @@ export class Torrent extends EngineComponent {
     return this._bitfield?.count() ?? 0
   }
 
+  /**
+   * Number of pieces we actually want (not blacklisted).
+   */
+  get wantedPiecesCount(): number {
+    if (this._pieceClassification.length === 0) return this.piecesCount
+    return this._pieceClassification.filter((c) => c !== 'blacklisted').length
+  }
+
+  /**
+   * Number of wanted pieces we have (verified).
+   * Counts pieces that are wanted or boundary and have bitfield=1.
+   */
+  get completedWantedPiecesCount(): number {
+    if (!this._bitfield) return 0
+    if (this._pieceClassification.length === 0) return this.completedPiecesCount
+
+    let count = 0
+    for (let i = 0; i < this.piecesCount; i++) {
+      if (this._pieceClassification[i] !== 'blacklisted' && this._bitfield.get(i)) {
+        count++
+      }
+    }
+    return count
+  }
+
   get isDownloadComplete(): boolean {
-    return this.piecesCount > 0 && this.completedPiecesCount === this.piecesCount
+    if (this.piecesCount === 0) return false
+
+    // If we have file priorities, check only wanted pieces
+    if (this._pieceClassification.length > 0) {
+      return this.completedWantedPiecesCount === this.wantedPiecesCount
+    }
+
+    // No file priorities - all pieces must be complete
+    return this.completedPiecesCount === this.piecesCount
   }
 
   // --- Session Restore ---
@@ -651,8 +706,420 @@ export class Torrent extends EngineComponent {
     return []
   }
 
+  // === File Priority System ===
+
+  /**
+   * Get file priorities array. Returns empty array if no files.
+   */
+  get filePriorities(): number[] {
+    return this._filePriorities
+  }
+
+  /**
+   * Get the piece classification array.
+   */
+  get pieceClassification(): PieceClassification[] {
+    return this._pieceClassification
+  }
+
+  /**
+   * Get pieces currently stored in .parts file.
+   */
+  get partsFilePieces(): Set<number> {
+    return this._partsFilePieces
+  }
+
+  /**
+   * Get the PartsFile manager (if initialized).
+   */
+  get partsFile(): PartsFile | undefined {
+    return this._partsFile
+  }
+
+  /**
+   * Initialize the PartsFile for boundary piece storage.
+   * Called after storage is initialized.
+   */
+  async initPartsFile(): Promise<void> {
+    if (!this.contentStorage) return
+
+    const storageHandle = this.contentStorage.storage
+    if (!storageHandle) {
+      this.logger.warn('Cannot initialize PartsFile: no storage handle')
+      return
+    }
+
+    this._partsFile = new PartsFile(this.engineInstance, storageHandle, this.infoHashStr)
+    await this._partsFile.load()
+
+    // Sync partsFilePieces set with loaded data
+    this._partsFilePieces = this._partsFile.pieces
+    this.logger.debug(`PartsFile initialized with ${this._partsFilePieces.size} pieces`)
+  }
+
+  /**
+   * Check if a file is skipped.
+   */
+  isFileSkipped(fileIndex: number): boolean {
+    return this._filePriorities[fileIndex] === 1
+  }
+
+  /**
+   * Check if a file is complete (all pieces touching it are verified).
+   */
+  isFileComplete(fileIndex: number): boolean {
+    if (!this.hasMetadata || !this._bitfield) return false
+    const file = this.contentStorage?.filesList[fileIndex]
+    if (!file) return false
+
+    const startPiece = Math.floor(file.offset / this.pieceLength)
+    const endPiece = Math.floor((file.offset + file.length - 1) / this.pieceLength)
+
+    for (let i = startPiece; i <= endPiece; i++) {
+      if (!this._bitfield.get(i)) return false
+    }
+    return true
+  }
+
+  /**
+   * Set file priority for a single file.
+   * @param fileIndex - Index of the file
+   * @param priority - 0 = normal, 1 = skip
+   * @returns true if priority was changed, false if ignored (e.g., file already complete)
+   */
+  setFilePriority(fileIndex: number, priority: number): boolean {
+    if (!this.hasMetadata) return false
+    const fileCount = this.contentStorage?.filesList.length ?? 0
+    if (fileIndex < 0 || fileIndex >= fileCount) return false
+
+    // Prevent skipping completed files
+    if (priority === 1 && this.isFileComplete(fileIndex)) {
+      this.logger.debug(`Ignoring skip request for completed file ${fileIndex}`)
+      return false
+    }
+
+    // Ensure array is initialized
+    if (this._filePriorities.length !== fileCount) {
+      this._filePriorities = new Array(fileCount).fill(0)
+    }
+
+    if (this._filePriorities[fileIndex] === priority) return false
+
+    const wasSkipped = this._filePriorities[fileIndex] === 1
+    this._filePriorities[fileIndex] = priority
+    this.recomputePieceClassification()
+
+    // Persist state change
+    ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
+
+    this.logger.info(`File ${fileIndex} priority set to ${priority === 1 ? 'skip' : 'normal'}`)
+
+    // If un-skipping, try to materialize any boundary pieces
+    if (wasSkipped && priority === 0) {
+      // Fire and forget - don't block the caller
+      this.materializeEligiblePieces().catch((e) => {
+        this.logger.error('Error materializing pieces:', e)
+      })
+    }
+
+    return true
+  }
+
+  /**
+   * Set priorities for multiple files at once.
+   * @param priorities - Map of fileIndex -> priority
+   * @returns Number of files whose priority was changed
+   */
+  setFilePriorities(priorities: Map<number, number>): number {
+    if (!this.hasMetadata) return 0
+    const fileCount = this.contentStorage?.filesList.length ?? 0
+
+    // Ensure array is initialized
+    if (this._filePriorities.length !== fileCount) {
+      this._filePriorities = new Array(fileCount).fill(0)
+    }
+
+    let changed = 0
+    let anyUnskipped = false
+    for (const [fileIndex, priority] of priorities) {
+      if (fileIndex < 0 || fileIndex >= fileCount) continue
+
+      // Prevent skipping completed files
+      if (priority === 1 && this.isFileComplete(fileIndex)) {
+        this.logger.debug(`Ignoring skip request for completed file ${fileIndex}`)
+        continue
+      }
+
+      if (this._filePriorities[fileIndex] !== priority) {
+        if (this._filePriorities[fileIndex] === 1 && priority === 0) {
+          anyUnskipped = true
+        }
+        this._filePriorities[fileIndex] = priority
+        changed++
+      }
+    }
+
+    if (changed > 0) {
+      this.recomputePieceClassification()
+      ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
+      this.logger.info(`Updated ${changed} file priorities`)
+
+      // If any files were un-skipped, try to materialize boundary pieces
+      if (anyUnskipped) {
+        this.materializeEligiblePieces().catch((e) => {
+          this.logger.error('Error materializing pieces:', e)
+        })
+      }
+    }
+
+    return changed
+  }
+
+  /**
+   * Initialize file priorities array (called when metadata becomes available).
+   */
+  initFilePriorities(): void {
+    const fileCount = this.contentStorage?.filesList.length ?? 0
+    if (fileCount === 0) return
+
+    // Initialize all to normal (0) if not already set
+    if (this._filePriorities.length !== fileCount) {
+      this._filePriorities = new Array(fileCount).fill(0)
+    }
+
+    this.recomputePieceClassification()
+  }
+
+  /**
+   * Restore file priorities from persisted state.
+   * Bypasses validation since we're restoring saved state.
+   * Called during session restore after metadata is available.
+   */
+  restoreFilePriorities(priorities: number[]): void {
+    if (!this.hasMetadata) return
+
+    const fileCount = this.contentStorage?.filesList.length ?? 0
+    if (priorities.length !== fileCount) {
+      this.logger.warn(
+        `File priorities length mismatch: ${priorities.length} vs ${fileCount} files, ignoring`,
+      )
+      return
+    }
+
+    this._filePriorities = [...priorities]
+    this.recomputePieceClassification()
+    this.logger.debug(`Restored file priorities for ${fileCount} files`)
+  }
+
+  /**
+   * Materialize a boundary piece from .parts to regular files.
+   * Called when all files touched by a boundary piece become non-skipped.
+   *
+   * @returns true if successfully materialized, false otherwise
+   */
+  private async materializePiece(pieceIndex: number): Promise<boolean> {
+    if (!this._partsFile || !this.contentStorage) return false
+
+    const pieceData = this._partsFile.getPiece(pieceIndex)
+    if (!pieceData) {
+      this.logger.warn(`Cannot materialize piece ${pieceIndex}: not in .parts`)
+      return false
+    }
+
+    try {
+      // Drain disk queue before modifying files
+      await this._diskQueue.drain()
+
+      // Write to regular files
+      await this.contentStorage.writePiece(pieceIndex, pieceData)
+
+      // Remove from .parts file
+      await this._partsFile.removePieceAndFlush(pieceIndex)
+
+      // Update tracking
+      this._partsFilePieces.delete(pieceIndex)
+
+      // Resume disk queue
+      this._diskQueue.resume()
+
+      this.logger.debug(`Materialized piece ${pieceIndex} from .parts to regular files`)
+
+      // Update cached downloaded bytes on file objects
+      for (const file of this._files) {
+        file.updateForPiece(pieceIndex)
+      }
+
+      // Now we can advertise this piece - send HAVE to all peers
+      for (const p of this.connectedPeers) {
+        if (p.handshakeReceived) {
+          p.sendHave(pieceIndex)
+        }
+      }
+
+      return true
+    } catch (e) {
+      this._diskQueue.resume()
+      this.logger.error(`Failed to materialize piece ${pieceIndex}:`, e)
+      return false
+    }
+  }
+
+  /**
+   * Check if a piece can be materialized (all files it touches are non-skipped).
+   */
+  private canMaterializePiece(pieceIndex: number): boolean {
+    // Must be a verified piece currently in .parts
+    if (!this._partsFilePieces.has(pieceIndex)) return false
+    if (!this._bitfield?.get(pieceIndex)) return false
+
+    // The new classification should be 'wanted' (all files non-skipped)
+    return this._pieceClassification[pieceIndex] === 'wanted'
+  }
+
+  /**
+   * Attempt to materialize any boundary pieces that can now be written to regular files.
+   * Called after file priorities change (un-skip).
+   */
+  async materializeEligiblePieces(): Promise<number> {
+    if (!this._partsFile || this._partsFilePieces.size === 0) return 0
+
+    const toMaterialize: number[] = []
+    for (const pieceIndex of this._partsFilePieces) {
+      if (this.canMaterializePiece(pieceIndex)) {
+        toMaterialize.push(pieceIndex)
+      }
+    }
+
+    if (toMaterialize.length === 0) return 0
+
+    this.logger.info(`Materializing ${toMaterialize.length} pieces from .parts`)
+
+    let materialized = 0
+    for (const pieceIndex of toMaterialize) {
+      if (await this.materializePiece(pieceIndex)) {
+        materialized++
+      }
+    }
+
+    if (materialized > 0) {
+      // Persist state change
+      ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
+    }
+
+    return materialized
+  }
+
+  /**
+   * Recompute piece classification based on current file priorities.
+   * Called whenever file priorities change.
+   */
+  private recomputePieceClassification(): void {
+    if (!this.hasMetadata || !this.contentStorage) {
+      this._pieceClassification = []
+      return
+    }
+
+    const files = this.contentStorage.filesList
+    const classification: PieceClassification[] = new Array(this.piecesCount)
+
+    for (let pieceIndex = 0; pieceIndex < this.piecesCount; pieceIndex++) {
+      const pieceStart = pieceIndex * this.pieceLength
+      const pieceEnd = pieceStart + this.getPieceLength(pieceIndex)
+
+      let touchesSkipped = false
+      let touchesNonSkipped = false
+
+      for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
+        const file = files[fileIndex]
+        const fileEnd = file.offset + file.length
+
+        // Check if piece overlaps with this file
+        if (pieceStart < fileEnd && pieceEnd > file.offset) {
+          if (this._filePriorities[fileIndex] === 1) {
+            touchesSkipped = true
+          } else {
+            touchesNonSkipped = true
+          }
+        }
+
+        // Early exit if we've found both
+        if (touchesSkipped && touchesNonSkipped) break
+      }
+
+      if (touchesSkipped && touchesNonSkipped) {
+        classification[pieceIndex] = 'boundary'
+      } else if (touchesSkipped) {
+        classification[pieceIndex] = 'blacklisted'
+      } else {
+        classification[pieceIndex] = 'wanted'
+      }
+    }
+
+    this._pieceClassification = classification
+
+    // Log summary
+    const wanted = classification.filter((c) => c === 'wanted').length
+    const boundary = classification.filter((c) => c === 'boundary').length
+    const blacklisted = classification.filter((c) => c === 'blacklisted').length
+    this.logger.debug(
+      `Piece classification: ${wanted} wanted, ${boundary} boundary, ${blacklisted} blacklisted`,
+    )
+  }
+
+  /**
+   * Check if a piece should be requested based on classification.
+   */
+  shouldRequestPiece(index: number): boolean {
+    // Already have it
+    if (this._bitfield?.get(index)) return false
+
+    // Check classification (if available)
+    if (this._pieceClassification.length > 0) {
+      if (this._pieceClassification[index] === 'blacklisted') return false
+    }
+
+    return true // Wanted or boundary - both get requested
+  }
+
+  /**
+   * Get the advertised bitfield (for sending to peers).
+   * This excludes boundary pieces that are stored in .parts file.
+   * We don't advertise pieces we can't actually serve from regular files.
+   */
+  getAdvertisedBitfield(): BitField | undefined {
+    if (!this._bitfield) return undefined
+
+    // If no pieces in .parts, return the regular bitfield
+    if (this._partsFilePieces.size === 0) {
+      return this._bitfield
+    }
+
+    // Clone the bitfield and clear boundary pieces
+    const advertised = this._bitfield.clone()
+    for (const pieceIndex of this._partsFilePieces) {
+      advertised.set(pieceIndex, false)
+    }
+    return advertised
+  }
+
+  /**
+   * Check if a piece can be served to peers (in regular files, not .parts).
+   */
+  canServePiece(index: number): boolean {
+    if (!this._bitfield?.get(index)) return false
+    return !this._partsFilePieces.has(index)
+  }
+
   get progress(): number {
     if (this.piecesCount === 0) return 0
+
+    // If we have file priorities, calculate progress based on wanted pieces
+    if (this._pieceClassification.length > 0) {
+      const wanted = this.wantedPiecesCount
+      if (wanted === 0) return 1 // All files skipped = 100% (nothing to do)
+      return this.completedWantedPiecesCount / wanted
+    }
+
     return this.completedPiecesCount / this.piecesCount
   }
 
@@ -1297,10 +1764,11 @@ export class Torrent extends EngineComponent {
         peer.sendExtendedHandshake()
       }
 
-      // Send BitField
-      if (this.bitfield) {
+      // Send BitField (advertised bitfield excludes boundary pieces in .parts)
+      const advertisedBitfield = this.getAdvertisedBitfield()
+      if (advertisedBitfield) {
         this.logger.debug('Sending BitField to peer')
-        peer.sendMessage(MessageType.BITFIELD, this.bitfield.toBuffer())
+        peer.sendMessage(MessageType.BITFIELD, advertisedBitfield.toBuffer())
       } else {
         this.logger.debug('No bitfield to send')
       }
@@ -1494,9 +1962,9 @@ export class Torrent extends EngineComponent {
       return
     }
 
-    // Validate: we have this piece
-    if (!this.bitfield || !this.bitfield.get(index)) {
-      this.logger.debug(`Ignoring request for piece ${index} we don't have`)
+    // Validate: we have this piece and it's serveable (not in .parts)
+    if (!this.canServePiece(index)) {
+      this.logger.debug(`Ignoring request for piece ${index} - not serveable`)
       return
     }
 
@@ -1658,11 +2126,12 @@ export class Torrent extends EngineComponent {
   private updateInterest(peer: PeerConnection) {
     if (!peer.bitfield) return
 
-    // Calculate if peer has any piece we're missing
+    // Calculate if peer has any piece we want and don't have
     let interested = false
     if (!this.isComplete && this.bitfield) {
       for (let i = 0; i < this.bitfield.size; i++) {
-        if (!this.bitfield.get(i) && peer.bitfield.get(i)) {
+        // Use shouldRequestPiece which checks both bitfield and classification
+        if (this.shouldRequestPiece(i) && peer.bitfield.get(i)) {
           interested = true
           break
         }
@@ -1919,56 +2388,110 @@ export class Torrent extends EngineComponent {
     const pieceData = piece.assemble()
     const expectedHash = this.getPieceHash(index)
 
-    // Try to use verified write (atomic hash check in io-daemon)
-    if (this.contentStorage) {
-      try {
-        const usedVerifiedWrite = await this.contentStorage.writePieceVerified(
-          index,
-          pieceData,
-          expectedHash,
-        )
+    // Check piece classification to determine storage destination
+    const classification = this._pieceClassification[index]
+    const isBoundaryPiece = classification === 'boundary'
 
-        if (!usedVerifiedWrite && expectedHash) {
-          // Verified write not available - verify hash in TypeScript
-          const actualHash = await this.btEngine.hasher.sha1(pieceData)
-          if (compare(actualHash, expectedHash) !== 0) {
-            this.handleHashMismatch(index, piece)
-            return
-          }
-        }
-        // If usedVerifiedWrite is true, hash was already verified by io-daemon
-      } catch (e) {
-        if (e instanceof HashMismatchError) {
-          // Hash verification failed in io-daemon
+    if (isBoundaryPiece && this._partsFile) {
+      // Boundary piece: verify hash then store in .parts file
+      if (expectedHash) {
+        const actualHash = await this.btEngine.hasher.sha1(pieceData)
+        if (compare(actualHash, expectedHash) !== 0) {
           this.handleHashMismatch(index, piece)
           return
         }
+      }
 
-        // ANY write failure is fatal - fail fast
+      try {
+        // Drain disk queue before modifying .parts
+        await this._diskQueue.drain()
+
+        // Write to .parts file
+        await this._partsFile.addPieceAndFlush(index, pieceData)
+
+        // Resume disk queue
+        this._diskQueue.resume()
+
+        // Track in partsFilePieces set
+        this._partsFilePieces.add(index)
+
+        this.logger.debug(`Boundary piece ${index} stored in .parts file`)
+      } catch (e) {
+        this._diskQueue.resume()
         const errorMsg = e instanceof Error ? e.message : String(e)
-        this.logger.error(`Fatal write error - stopping torrent:`, errorMsg)
+        this.logger.error(`Failed to write boundary piece to .parts:`, errorMsg)
         this.errorMessage = `Write failed: ${errorMsg}`
         this.suspendNetwork()
         this.activePieces?.remove(index)
         ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
         return
       }
-    } else if (expectedHash) {
-      // No storage but have hash - verify anyway (shouldn't happen in practice)
-      const actualHash = await this.btEngine.hasher.sha1(pieceData)
-      if (compare(actualHash, expectedHash) !== 0) {
-        this.handleHashMismatch(index, piece)
-        return
+
+      // Mark as verified in internal bitfield
+      this.markPieceVerified(index)
+      this.activePieces?.remove(index)
+
+      // Note: Do NOT send HAVE for boundary pieces (they're in .parts, not serveable)
+      // Progress still counts toward completion
+    } else {
+      // Wanted piece (or no classification): write to regular files
+      if (this.contentStorage) {
+        try {
+          const usedVerifiedWrite = await this.contentStorage.writePieceVerified(
+            index,
+            pieceData,
+            expectedHash,
+          )
+
+          if (!usedVerifiedWrite && expectedHash) {
+            // Verified write not available - verify hash in TypeScript
+            const actualHash = await this.btEngine.hasher.sha1(pieceData)
+            if (compare(actualHash, expectedHash) !== 0) {
+              this.handleHashMismatch(index, piece)
+              return
+            }
+          }
+          // If usedVerifiedWrite is true, hash was already verified by io-daemon
+        } catch (e) {
+          if (e instanceof HashMismatchError) {
+            // Hash verification failed in io-daemon
+            this.handleHashMismatch(index, piece)
+            return
+          }
+
+          // ANY write failure is fatal - fail fast
+          const errorMsg = e instanceof Error ? e.message : String(e)
+          this.logger.error(`Fatal write error - stopping torrent:`, errorMsg)
+          this.errorMessage = `Write failed: ${errorMsg}`
+          this.suspendNetwork()
+          this.activePieces?.remove(index)
+          ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
+          return
+        }
+      } else if (expectedHash) {
+        // No storage but have hash - verify anyway (shouldn't happen in practice)
+        const actualHash = await this.btEngine.hasher.sha1(pieceData)
+        if (compare(actualHash, expectedHash) !== 0) {
+          this.handleHashMismatch(index, piece)
+          return
+        }
       }
-    }
 
-    // Mark as verified
-    this.markPieceVerified(index)
-    this.activePieces?.remove(index)
+      // Mark as verified
+      this.markPieceVerified(index)
+      this.activePieces?.remove(index)
 
-    // Update cached downloaded bytes on file objects
-    for (const file of this._files) {
-      file.updateForPiece(index)
+      // Update cached downloaded bytes on file objects
+      for (const file of this._files) {
+        file.updateForPiece(index)
+      }
+
+      // Send HAVE message to all peers (only for non-boundary pieces)
+      for (const p of this.connectedPeers) {
+        if (p.handshakeReceived) {
+          p.sendHave(index)
+        }
+      }
     }
 
     const progressPct =
@@ -1999,13 +2522,6 @@ export class Torrent extends EngineComponent {
     // Persist state immediately
     const btEngine = this.engine as BtEngine
     btEngine.sessionPersistence?.saveTorrentState(this)
-
-    // Send HAVE message to all peers
-    for (const p of this.connectedPeers) {
-      if (p.handshakeReceived) {
-        p.sendHave(index)
-      }
-    }
 
     this.checkCompletion()
   }
@@ -2101,10 +2617,32 @@ export class Torrent extends EngineComponent {
     // Reset bitfield to 0% (create fresh bitfield)
     this._bitfield = new BitField(this.piecesCount)
 
+    // Clear partsFilePieces tracking - will be rebuilt during recheck
+    this._partsFilePieces.clear()
+
+    // Reload .parts file to get current state
+    if (this._partsFile) {
+      await this._partsFile.load()
+    }
+
     try {
       for (let i = 0; i < this.piecesCount; i++) {
         try {
-          const isValid = await this.verifyPiece(i)
+          // Check if this is a boundary piece that might be in .parts
+          const isBoundary = this._pieceClassification[i] === 'boundary'
+          let isValid = false
+
+          if (isBoundary && this._partsFile?.hasPiece(i)) {
+            // Try to verify from .parts file
+            isValid = await this.verifyPieceFromParts(i)
+            if (isValid) {
+              this._partsFilePieces.add(i)
+            }
+          } else {
+            // Verify from regular files
+            isValid = await this.verifyPiece(i)
+          }
+
           if (isValid) {
             this.markPieceVerified(i)
           }
@@ -2127,7 +2665,9 @@ export class Torrent extends EngineComponent {
       this.emit('verified', { bitfield: this.bitfield.toHex() })
     }
     this.emit('checked')
-    this.logger.info(`Recheck complete for ${this.infoHashStr}`)
+    this.logger.info(
+      `Recheck complete for ${this.infoHashStr} (${this._partsFilePieces.size} pieces in .parts)`,
+    )
     // Note: Don't call checkCompletion() here - recheck shouldn't trigger
     // "download complete" notifications, it's just verifying existing data
 
@@ -2135,6 +2675,28 @@ export class Torrent extends EngineComponent {
     if (wasNetworkActive) {
       this.resumeNetwork()
     }
+  }
+
+  /**
+   * Verify a piece from the .parts file.
+   */
+  private async verifyPieceFromParts(index: number): Promise<boolean> {
+    if (!this._partsFile) return false
+
+    const data = this._partsFile.getPiece(index)
+    if (!data) return false
+
+    const expectedHash = this.getPieceHash(index)
+    if (!expectedHash) {
+      // If no hashes provided, assume valid
+      return true
+    }
+
+    // Calculate SHA1
+    const hash = await this.btEngine.hasher.sha1(data)
+
+    // Compare
+    return compare(hash, expectedHash) === 0
   }
 
   private checkCompletion() {
@@ -2272,6 +2834,8 @@ export class Torrent extends EngineComponent {
       completedPieces: this._bitfield?.getSetIndices() ?? [],
       // Always sync metadataRaw → infoBuffer
       infoBuffer: this._metadataRaw ?? undefined,
+      // Always sync filePriorities
+      filePriorities: this._filePriorities.length > 0 ? [...this._filePriorities] : undefined,
     }
   }
 
@@ -2295,6 +2859,12 @@ export class Torrent extends EngineComponent {
       this._cachedInfoDict = undefined // Clear cache so infoDict getter re-parses
       this.metadataComplete = true
       this.metadataSize = state.infoBuffer.length
+    }
+
+    // Restore file priorities
+    if (state.filePriorities && state.filePriorities.length > 0) {
+      this._filePriorities = [...state.filePriorities]
+      // Note: pieceClassification will be recomputed after metadata is initialized
     }
   }
 

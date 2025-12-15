@@ -55,7 +55,11 @@ export class TorrentFileInfo {
   }
 
   get priority(): number {
-    return 0 // TODO: Implement priority
+    return this.torrent.filePriorities[this._index] ?? 0
+  }
+
+  get isSkipped(): boolean {
+    return this.priority === 1
   }
 
   /**

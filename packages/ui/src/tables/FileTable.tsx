@@ -40,9 +40,9 @@ const fileColumns: ColumnDef<TorrentFileInfo>[] = [
   {
     id: 'priority',
     header: 'Priority',
-    getValue: (f) => f.priority,
-    width: 60,
-    align: 'right',
+    getValue: (f) => (f.isSkipped ? 'Skip' : 'Normal'),
+    width: 70,
+    align: 'center',
   },
   {
     id: 'name',
@@ -103,6 +103,8 @@ export interface FileTableProps {
   onRevealInFolder?: (torrentHash: string, file: TorrentFileInfo) => void
   /** Called when user wants to copy the file path. If not provided, shows "not available" alert. */
   onCopyFilePath?: (torrentHash: string, file: TorrentFileInfo) => void
+  /** Called when user wants to change file priority. */
+  onSetFilePriority?: (torrentHash: string, fileIndex: number, priority: number) => void
 }
 
 /**
@@ -117,23 +119,43 @@ export function FileTable(props: FileTableProps) {
     setContextMenu({ x, y, file })
   }
 
-  const contextMenuItems: ContextMenuItem[] = [
-    {
-      id: 'open',
-      label: 'Open',
-      icon: '📄',
-    },
-    {
-      id: 'open-folder',
-      label: 'Open Containing Folder',
-      icon: '📁',
-    },
-    {
-      id: 'copy-path',
-      label: 'Copy File Path',
-      icon: '📋',
-    },
-  ]
+  const getContextMenuItems = (file: TorrentFileInfo): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [
+      {
+        id: 'open',
+        label: 'Open',
+        icon: '📄',
+      },
+      {
+        id: 'open-folder',
+        label: 'Open Containing Folder',
+        icon: '📁',
+      },
+      {
+        id: 'copy-path',
+        label: 'Copy File Path',
+        icon: '📋',
+      },
+      { id: 'separator', label: '-' },
+    ]
+
+    if (file.isSkipped) {
+      items.push({
+        id: 'unskip',
+        label: 'Download (Unskip)',
+        icon: '▶️',
+      })
+    } else {
+      items.push({
+        id: 'skip',
+        label: "Don't Download (Skip)",
+        icon: '⏸️',
+        disabled: file.isComplete, // Can't skip completed files
+      })
+    }
+
+    return items
+  }
 
   const handleOpenFile = (file: TorrentFileInfo) => {
     if (props.onOpenFile) {
@@ -159,6 +181,12 @@ export function FileTable(props: FileTableProps) {
     }
   }
 
+  const handleSetFilePriority = (file: TorrentFileInfo, priority: number) => {
+    if (props.onSetFilePriority) {
+      props.onSetFilePriority(props.torrentHash, file.index, priority)
+    }
+  }
+
   const handleContextMenuSelect = (id: string) => {
     if (!contextMenu) return
     const file = contextMenu.file
@@ -172,6 +200,12 @@ export function FileTable(props: FileTableProps) {
         break
       case 'copy-path':
         handleCopyFilePath(file)
+        break
+      case 'skip':
+        handleSetFilePriority(file, 1) // 1 = skip
+        break
+      case 'unskip':
+        handleSetFilePriority(file, 0) // 0 = normal
         break
     }
   }
@@ -194,7 +228,7 @@ export function FileTable(props: FileTableProps) {
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          items={contextMenuItems}
+          items={getContextMenuItems(contextMenu.file)}
           onSelect={handleContextMenuSelect}
           onClose={() => setContextMenu(null)}
         />

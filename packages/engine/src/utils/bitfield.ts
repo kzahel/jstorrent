@@ -123,4 +123,13 @@ export class BitField {
     }
     return indices
   }
+
+  /**
+   * Create a deep copy of this bitfield.
+   */
+  clone(): BitField {
+    const cloned = new BitField(this.length)
+    cloned.buffer.set(this.buffer)
+    return cloned
+  }
 }

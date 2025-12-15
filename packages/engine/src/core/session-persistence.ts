@@ -56,6 +56,9 @@ export interface TorrentStateData {
   uploaded: number
   downloaded: number
   updatedAt: number
+
+  // File priorities (absent until metadata received and user sets priorities)
+  filePriorities?: number[] // Per-file: 0=normal, 1=skip
 }
 
 /**
@@ -118,6 +121,7 @@ export class SessionPersistence {
       uploaded: torrent.totalUploaded,
       downloaded: torrent.totalDownloaded,
       updatedAt: Date.now(),
+      filePriorities: torrent.filePriorities?.length > 0 ? [...torrent.filePriorities] : undefined,
     }
 
     await this.store.setJson(stateKey(infoHash), state)
@@ -273,6 +277,11 @@ export class SessionPersistence {
             torrent.totalUploaded = state.uploaded
             torrent.totalDownloaded = state.downloaded
             torrent.queuePosition = state.queuePosition
+
+            // Restore file priorities (must be after metadata is initialized)
+            if (state.filePriorities && torrent.hasMetadata) {
+              torrent.restoreFilePriorities(state.filePriorities)
+            }
           }
 
           // Restore addedAt from list entry
