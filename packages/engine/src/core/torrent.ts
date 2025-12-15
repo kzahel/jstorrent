@@ -831,6 +831,16 @@ export class Torrent extends EngineComponent {
     // Cancel in-flight connection attempts (clears timers, marks peers as failed in swarm)
     this._connectionManager.cancelAllPendingConnections()
 
+    // Mark ALL connecting peers as failed (handles peers from both ConnectionManager and connectToPeer)
+    // Copy keys first since markConnectFailed modifies connectingKeys
+    const connectingKeys = [...this._swarm.getConnectingKeys()]
+    for (const key of connectingKeys) {
+      this._swarm.markConnectFailed(key, 'stopped')
+    }
+
+    // Clear local pending connections tracking
+    this.pendingConnections.clear()
+
     // Always close peers, even if already suspended (handles race conditions)
     for (const peer of this.connectedPeers) {
       peer.close()
@@ -850,9 +860,6 @@ export class Torrent extends EngineComponent {
         this.logger.warn(`Failed to send stopped announce: ${err}`)
       })
     }
-
-    // Note: swarm state is updated via markDisconnected when peers close
-    this.pendingConnections.clear()
 
     // Clear active pieces - release buffered data and pending requests
     this.activePieces?.destroy()
