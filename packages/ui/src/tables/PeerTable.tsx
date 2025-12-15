@@ -2,7 +2,19 @@ import { DisplayPeer, Torrent } from '@jstorrent/engine'
 import { TableMount } from './mount'
 import { ColumnDef } from './types'
 import { formatBytes, parseClientName } from '../utils/format'
-import { countryCodeToFlag } from '../utils/country-flag'
+import { countryCodeToFlag, countryCodeToName } from '../utils/country-flag'
+
+/** Render flag with tooltip (Solid-style function component) */
+function FlagWithTooltip(props: { code: string | null | undefined }) {
+  const flag = countryCodeToFlag(props.code)
+  const name = countryCodeToName(props.code)
+  if (!flag) return ''
+  // Using DOM API for Solid compatibility (called from column renderCell)
+  const span = document.createElement('span')
+  span.textContent = flag
+  if (name) span.title = name
+  return span
+}
 
 /**
  * Format peer flags (choking/interested states)
@@ -62,10 +74,11 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
     },
     {
       id: 'country',
-      header: '',
+      header: 'Country',
       getValue: (p) => countryCodeToFlag(p.swarmPeer?.countryCode),
       width: 30,
       align: 'center',
+      renderCell: (p) => FlagWithTooltip({ code: p.swarmPeer?.countryCode }),
     },
     {
       id: 'client',
