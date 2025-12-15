@@ -1656,22 +1656,36 @@ export class Torrent extends EngineComponent {
   }
 
   private updateInterest(peer: PeerConnection) {
-    if (peer.bitfield) {
-      // Check if peer has any piece we are missing
-      // For now, just set interested if they have anything (naive)
-      // Better: check intersection of peer.bitfield and ~this.bitfield
-      const interested = true // Placeholder for logic
-      // console.log(`Torrent: Checking interest for peer. Interested: ${interested}, AmInterested: ${peer.amInterested}`)
-      if (interested && !peer.amInterested) {
-        this.logger.debug('Sending INTERESTED')
-        peer.sendMessage(MessageType.INTERESTED)
-        peer.amInterested = true
-      }
+    if (!peer.bitfield) return
 
-      // If we are interested and unchoked, try to request
-      if (interested && !peer.peerChoking) {
-        this.requestPieces(peer)
+    // Calculate if peer has any piece we're missing
+    let interested = false
+    if (!this.isComplete && this.bitfield) {
+      for (let i = 0; i < this.bitfield.size; i++) {
+        if (!this.bitfield.get(i) && peer.bitfield.get(i)) {
+          interested = true
+          break
+        }
       }
+    }
+
+    // Send INTERESTED if newly interested
+    if (interested && !peer.amInterested) {
+      this.logger.debug('Sending INTERESTED')
+      peer.sendMessage(MessageType.INTERESTED)
+      peer.amInterested = true
+    }
+
+    // Send NOT_INTERESTED if no longer interested
+    if (!interested && peer.amInterested) {
+      this.logger.debug('Sending NOT_INTERESTED')
+      peer.sendMessage(MessageType.NOT_INTERESTED)
+      peer.amInterested = false
+    }
+
+    // If interested and unchoked, try to request
+    if (interested && !peer.peerChoking) {
+      this.requestPieces(peer)
     }
   }
 
@@ -2128,6 +2142,8 @@ export class Torrent extends EngineComponent {
       this.logger.info('Download complete!')
       this.emit('done')
       this.emit('complete')
+      // Tell all peers we're no longer interested
+      this.recheckPeers()
     }
   }
 
