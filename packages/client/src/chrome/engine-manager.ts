@@ -447,6 +447,35 @@ class EngineManager {
   }
 
   /**
+   * Open the torrent's storage folder in the system file manager.
+   * @param torrentHash The torrent's info hash (hex)
+   */
+  async openTorrentFolder(torrentHash: string): Promise<{ ok: boolean; error?: string }> {
+    if (!this.engine) {
+      return { ok: false, error: 'Engine not initialized' }
+    }
+
+    const torrent = this.engine.torrents.find((t) => toHex(t.infoHash) === torrentHash)
+    if (!torrent) {
+      return { ok: false, error: 'Torrent not found' }
+    }
+
+    // Get the root key for this torrent
+    const root = this.engine.storageRootManager.getRootForTorrent(torrentHash)
+    if (!root) {
+      return { ok: false, error: 'No storage root for torrent' }
+    }
+
+    // Use torrent name as path (folder for multi-file, file for single-file)
+    const path = torrent.name || torrentHash
+    return getBridge().sendMessage<{ ok: boolean; error?: string }>({
+      type: 'REVEAL_IN_FOLDER',
+      rootKey: root.key,
+      path,
+    })
+  }
+
+  /**
    * Get the full filesystem path for a torrent file.
    * @param torrentHash The torrent's info hash (hex)
    * @param filePath The file's path (already includes torrent name as root dir per BT spec)

@@ -191,6 +191,7 @@ function AppContent() {
     { id: 'start', label: 'Start', icon: '▶', disabled: allActive || anyChecking },
     { id: 'stop', label: 'Stop', icon: '■', disabled: allEffectivelyStopped || anyChecking },
     { id: 'separator1', label: '', separator: true },
+    { id: 'openFolder', label: 'Open Folder', icon: '📁' },
     { id: 'recheck', label: 'Re-verify Data', icon: '⟳', disabled: anyChecking },
     { id: 'reset', label: 'Reset State', icon: '↺', disabled: anyChecking },
     { id: 'separator2', label: '', separator: true },
@@ -200,6 +201,16 @@ function AppContent() {
     { id: 'remove', label: 'Remove', icon: '✕', danger: true },
   ]
 
+  const handleOpenFolder = async () => {
+    for (const t of selectedTorrentObjects) {
+      const result = await engineManager.openTorrentFolder(t.infoHashStr)
+      if (!result.ok) {
+        alert(`Failed to open folder: ${result.error}`)
+        break
+      }
+    }
+  }
+
   const handleMenuAction = (id: string) => {
     switch (id) {
       case 'start':
@@ -207,6 +218,9 @@ function AppContent() {
         break
       case 'stop':
         handleStopSelected()
+        break
+      case 'openFolder':
+        handleOpenFolder()
         break
       case 'recheck':
         handleRecheckSelected()
