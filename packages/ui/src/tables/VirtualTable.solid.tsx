@@ -421,12 +421,28 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     }
   }
 
+  // Close menus when pressing Escape
+  const handleDocumentKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (showSettings()) {
+        setShowSettings(false)
+        e.preventDefault()
+      }
+      if (headerMenu()) {
+        setHeaderMenu(null)
+        e.preventDefault()
+      }
+    }
+  }
+
   onMount(() => {
     document.addEventListener('click', handleDocumentClick)
+    document.addEventListener('keydown', handleDocumentKeyDown)
   })
 
   onCleanup(() => {
     document.removeEventListener('click', handleDocumentClick)
+    document.removeEventListener('keydown', handleDocumentKeyDown)
   })
 
   // Column visibility toggle - just adds/removes from visible set
