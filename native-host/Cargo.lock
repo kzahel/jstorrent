@@ -1067,6 +1067,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "if-addrs"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb2a33e9c38988ecbda730c85b0fd9ddcdf83c0305ac7fd21c8bb9f57f2f0cc8"
+dependencies = [
+ "libc",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1163,11 +1173,13 @@ dependencies = [
  "clap",
  "futures",
  "hex",
+ "if-addrs",
  "jstorrent-host",
  "serde",
  "serde_json",
  "sha1",
  "sha2",
+ "socket2 0.5.10",
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",

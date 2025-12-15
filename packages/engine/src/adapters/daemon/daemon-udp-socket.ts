@@ -6,6 +6,8 @@ import { IDaemonSocketManager } from './internal-types'
 const OP_UDP_SEND = 0x22
 const OP_UDP_RECV = 0x23
 const OP_UDP_CLOSE = 0x24
+const OP_UDP_JOIN_MULTICAST = 0x25
+const OP_UDP_LEAVE_MULTICAST = 0x26
 const PROTOCOL_VERSION = 1
 
 export class DaemonUdpSocket implements IUdpSocket {
@@ -90,5 +92,45 @@ export class DaemonUdpSocket implements IUdpSocket {
       // Ignore send errors during close (connection may already be dead)
     }
     this.manager.unregisterHandler(this.id)
+  }
+
+  async joinMulticast(group: string): Promise<void> {
+    // Payload: socketId(4) + groupAddr(string)
+    const groupBytes = new TextEncoder().encode(group)
+    const buffer = new ArrayBuffer(4 + groupBytes.length)
+    const view = new DataView(buffer)
+
+    view.setUint32(0, this.id, true)
+    new Uint8Array(buffer, 4).set(groupBytes)
+
+    const env = new ArrayBuffer(8 + buffer.byteLength)
+    const envView = new DataView(env)
+    envView.setUint8(0, PROTOCOL_VERSION)
+    envView.setUint8(1, OP_UDP_JOIN_MULTICAST)
+    envView.setUint16(2, 0, true)
+    envView.setUint32(4, 0, true)
+    new Uint8Array(env, 8).set(new Uint8Array(buffer))
+
+    this.daemon.sendFrame(env)
+  }
+
+  async leaveMulticast(group: string): Promise<void> {
+    // Payload: socketId(4) + groupAddr(string)
+    const groupBytes = new TextEncoder().encode(group)
+    const buffer = new ArrayBuffer(4 + groupBytes.length)
+    const view = new DataView(buffer)
+
+    view.setUint32(0, this.id, true)
+    new Uint8Array(buffer, 4).set(groupBytes)
+
+    const env = new ArrayBuffer(8 + buffer.byteLength)
+    const envView = new DataView(env)
+    envView.setUint8(0, PROTOCOL_VERSION)
+    envView.setUint8(1, OP_UDP_LEAVE_MULTICAST)
+    envView.setUint16(2, 0, true)
+    envView.setUint32(4, 0, true)
+    new Uint8Array(env, 8).set(new Uint8Array(buffer))
+
+    this.daemon.sendFrame(env)
   }
 }

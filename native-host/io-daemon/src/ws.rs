@@ -7,6 +7,7 @@ use axum::{
 use futures::{sink::SinkExt, stream::StreamExt};
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
+use socket2::SockRef;
 use tokio::sync::mpsc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::{timeout, Duration};
@@ -39,6 +40,8 @@ const OP_UDP_BOUND: u8 = 0x21;
 const OP_UDP_SEND: u8 = 0x22;
 const OP_UDP_RECV: u8 = 0x23;
 const OP_UDP_CLOSE: u8 = 0x24;
+const OP_UDP_JOIN_MULTICAST: u8 = 0x25;
+const OP_UDP_LEAVE_MULTICAST: u8 = 0x26;
 
 const PROTOCOL_VERSION: u8 = 1;
 
@@ -628,6 +631,36 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                     if payload.len() >= 4 {
                         let socket_id = u32::from_le_bytes(payload[0..4].try_into().unwrap());
                         socket_manager.lock().await.udp_sockets.remove(&socket_id);
+                    }
+                }
+                OP_UDP_JOIN_MULTICAST => {
+                    // Payload: socketId(4), groupAddr(string)
+                    if payload.len() >= 4 {
+                        let socket_id = u32::from_le_bytes(payload[0..4].try_into().unwrap());
+                        let group_addr = String::from_utf8_lossy(&payload[4..]).to_string();
+
+                        if let Some(socket) = socket_manager.lock().await.udp_sockets.get(&socket_id) {
+                            if let Ok(group) = group_addr.parse::<std::net::Ipv4Addr>() {
+                                let sock_ref = SockRef::from(socket.as_ref());
+                                if let Err(e) = sock_ref.join_multicast_v4(&group, &std::net::Ipv4Addr::UNSPECIFIED) {
+                                    eprintln!("Failed to join multicast {}: {}", group_addr, e);
+                                }
+                            }
+                        }
+                    }
+                }
+                OP_UDP_LEAVE_MULTICAST => {
+                    // Payload: socketId(4), groupAddr(string)
+                    if payload.len() >= 4 {
+                        let socket_id = u32::from_le_bytes(payload[0..4].try_into().unwrap());
+                        let group_addr = String::from_utf8_lossy(&payload[4..]).to_string();
+
+                        if let Some(socket) = socket_manager.lock().await.udp_sockets.get(&socket_id) {
+                            if let Ok(group) = group_addr.parse::<std::net::Ipv4Addr>() {
+                                let sock_ref = SockRef::from(socket.as_ref());
+                                let _ = sock_ref.leave_multicast_v4(&group, &std::net::Ipv4Addr::UNSPECIFIED);
+                            }
+                        }
                     }
                 }
                 _ => {

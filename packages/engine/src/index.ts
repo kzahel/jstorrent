@@ -81,6 +81,13 @@ export {
   type DiskQueueConfig,
 } from './core/disk-queue'
 
+// UPnP
+export { UPnPManager, SSDPClient, GatewayDevice } from './upnp'
+export type { NetworkInterface, UPnPMapping, SSDPDevice } from './upnp'
+
+// LPD (Local Peer Discovery)
+export { LPDService } from './lpd'
+
 // Settings
 export {
   // Schema and types

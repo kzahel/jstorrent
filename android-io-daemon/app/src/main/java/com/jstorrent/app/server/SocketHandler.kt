@@ -12,7 +12,9 @@ import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import java.io.IOException
 import java.net.DatagramPacket
 import java.net.DatagramSocket
+import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.MulticastSocket
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.ConcurrentHashMap
@@ -230,6 +232,8 @@ class SocketSession(
             Protocol.OP_UDP_BIND -> handleUdpBind(envelope.requestId, payload)
             Protocol.OP_UDP_SEND -> handleUdpSend(payload)
             Protocol.OP_UDP_CLOSE -> handleUdpClose(payload)
+            Protocol.OP_UDP_JOIN_MULTICAST -> handleUdpJoinMulticast(payload)
+            Protocol.OP_UDP_LEAVE_MULTICAST -> handleUdpLeaveMulticast(payload)
             else -> sendError(envelope.requestId, "Unknown opcode: ${envelope.opcode}")
         }
     }
@@ -449,7 +453,11 @@ class SocketSession(
 
         scope.launch {
             try {
-                val socket = DatagramSocket(port)
+                // Use MulticastSocket instead of DatagramSocket to support multicast operations
+                // MulticastSocket works for both unicast and multicast
+                val socket = MulticastSocket(port)
+                socket.reuseAddress = true
+                socket.timeToLive = 1  // LAN only for multicast
                 val boundPort = socket.localPort
 
                 val handler = UdpSocketHandler(socketId, socket, this@SocketSession)
@@ -503,6 +511,40 @@ class SocketSession(
 
         val socketId = payload.getUIntLE(0)
         udpSockets.remove(socketId)?.close()
+    }
+
+    private fun handleUdpJoinMulticast(payload: ByteArray) {
+        if (payload.size < 4) return
+
+        val socketId = payload.getUIntLE(0)
+        val groupAddr = String(payload, 4, payload.size - 4)
+
+        udpSockets[socketId]?.let { handler ->
+            try {
+                val group = InetAddress.getByName(groupAddr)
+                handler.joinMulticast(group)
+                Log.d(TAG, "UDP socket $socketId joined multicast $groupAddr")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to join multicast $groupAddr: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleUdpLeaveMulticast(payload: ByteArray) {
+        if (payload.size < 4) return
+
+        val socketId = payload.getUIntLE(0)
+        val groupAddr = String(payload, 4, payload.size - 4)
+
+        udpSockets[socketId]?.let { handler ->
+            try {
+                val group = InetAddress.getByName(groupAddr)
+                handler.leaveMulticast(group)
+                Log.d(TAG, "UDP socket $socketId left multicast $groupAddr")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to leave multicast $groupAddr: ${e.message}")
+            }
+        }
     }
 
     // Helpers
@@ -810,7 +852,7 @@ class TcpSocketHandler(
 
 class UdpSocketHandler(
     private val socketId: Int,
-    private val socket: DatagramSocket,
+    private val socket: MulticastSocket,
     private val session: SocketSession
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -820,6 +862,16 @@ class UdpSocketHandler(
     init {
         // Set socket timeout to detect idle connections
         socket.soTimeout = 60_000 // 60 seconds
+    }
+
+    @Suppress("DEPRECATION")
+    fun joinMulticast(group: InetAddress) {
+        socket.joinGroup(group)
+    }
+
+    @Suppress("DEPRECATION")
+    fun leaveMulticast(group: InetAddress) {
+        socket.leaveGroup(group)
     }
 
     fun startReceiving() {

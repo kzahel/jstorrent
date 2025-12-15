@@ -177,6 +177,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(ws::routes())
         .merge(control::routes())
         .merge(config::routes())
+        .merge(http::routes())
         .layer(axum::middleware::from_fn_with_state(state.clone(), auth::middleware))
         .layer(TraceLayer::new_for_http())
         .layer(cors)

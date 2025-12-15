@@ -21,6 +21,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import java.net.Inet4Address
+import java.net.NetworkInterface
 import java.security.MessageDigest
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
@@ -117,6 +119,37 @@ class HttpServer(
             // Health check - no auth required
             get("/health") {
                 call.respondText("ok", ContentType.Text.Plain)
+            }
+
+            // Network interfaces - returns available network interfaces for UPnP subnet matching
+            get("/network/interfaces") {
+                val interfaces = mutableListOf<Map<String, Any>>()
+
+                try {
+                    val netInterfaces = NetworkInterface.getNetworkInterfaces()
+                    while (netInterfaces.hasMoreElements()) {
+                        val iface = netInterfaces.nextElement()
+                        if (iface.isLoopback || !iface.isUp) continue
+
+                        for (addr in iface.interfaceAddresses) {
+                            val inet = addr.address
+                            if (inet is Inet4Address) {
+                                interfaces.add(mapOf(
+                                    "name" to iface.name,
+                                    "address" to inet.hostAddress,
+                                    "prefixLength" to addr.networkPrefixLength.toInt()
+                                ))
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to get network interfaces: ${e.message}")
+                }
+
+                call.respondText(
+                    json.encodeToString(interfaces),
+                    ContentType.Application.Json
+                )
             }
 
             // Status endpoint - POST for Origin header, origin check, no token auth
