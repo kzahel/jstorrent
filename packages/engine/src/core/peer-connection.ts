@@ -57,6 +57,14 @@ export class PeerConnection extends EngineComponent {
   public amInterested = false
   public peerExtensions = false
   public requestsPending = 0 // Number of outstanding requests
+
+  // Adaptive pipeline depth - starts conservative, ramps up for fast peers
+  public pipelineDepth = 10 // Current allowed depth (10-500)
+  private blockCount = 0 // Blocks received since last rate check
+  private lastRateCheckTime = 0 // Timestamp of last rate calculation
+  private static readonly RATE_CHECK_INTERVAL = 1000 // Check rate every 1 second
+  private static readonly MAX_PIPELINE_DEPTH = 500
+  private static readonly MIN_PIPELINE_DEPTH = 5
   public peerMetadataId: number | null = null
   public myMetadataId = 1 // Our ID for ut_metadata
 
@@ -398,5 +406,48 @@ export class PeerConnection extends EngineComponent {
 
   get downloadSpeed(): number {
     return this.downloadSpeedCalculator.getSpeed()
+  }
+
+  /**
+   * Record a block received from this peer. Adjusts pipeline depth based on
+   * response rate - fast peers get more requests, slow peers get fewer.
+   * O(1) - only recalculates rate every RATE_CHECK_INTERVAL ms.
+   */
+  recordBlockReceived(): void {
+    this.blockCount++
+
+    const now = Date.now()
+    const elapsed = now - this.lastRateCheckTime
+
+    // Only check rate periodically to avoid overhead
+    if (elapsed >= PeerConnection.RATE_CHECK_INTERVAL) {
+      const rate = (this.blockCount * 1000) / elapsed // blocks per second
+
+      // Adjust depth based on rate
+      if (rate > 10) {
+        // Fast peer - increase depth
+        this.pipelineDepth = Math.min(PeerConnection.MAX_PIPELINE_DEPTH, this.pipelineDepth + 5)
+      } else if (rate < 2 && this.pipelineDepth > 10) {
+        // Slow peer - decrease depth gradually
+        this.pipelineDepth = Math.max(10, this.pipelineDepth - 5)
+      }
+
+      // Reset counters
+      this.blockCount = 0
+      this.lastRateCheckTime = now
+    }
+  }
+
+  /**
+   * Reduce pipeline depth - called on choke as a congestion signal.
+   * Uses multiplicative decrease (halve) for faster recovery from congestion.
+   */
+  reduceDepth(): void {
+    this.pipelineDepth = Math.max(
+      PeerConnection.MIN_PIPELINE_DEPTH,
+      Math.floor(this.pipelineDepth / 2),
+    )
+    this.blockCount = 0
+    this.lastRateCheckTime = Date.now()
   }
 }

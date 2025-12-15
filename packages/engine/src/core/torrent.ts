@@ -1244,6 +1244,8 @@ export class Torrent extends EngineComponent {
       const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
       const cleared = this.activePieces?.clearRequestsForPeer(peerId) || 0
       peer.requestsPending = 0 // Critical: reset so we can request again after unchoke
+      // Reduce pipeline depth - choke is a congestion signal
+      peer.reduceDepth()
       if (cleared > 0) {
         this.logger.debug(`Cleared ${cleared} tracked requests after choke`)
       }
@@ -1585,7 +1587,8 @@ export class Torrent extends EngineComponent {
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
     const missing = this.getMissingPieces()
 
-    const MAX_PIPELINE = 500
+    // Use per-peer adaptive pipeline depth (starts at 10, ramps up for fast peers)
+    const pipelineLimit = peer.pipelineDepth
 
     let _requestsMade = 0
     let _skippedComplete = 0
@@ -1594,8 +1597,8 @@ export class Torrent extends EngineComponent {
     let _skippedNoNeeded = 0
 
     for (const index of missing) {
-      if (peer.requestsPending >= MAX_PIPELINE) {
-        //this.logger.debug(`requestPieces: Hit MAX_PIPELINE limit`)
+      if (peer.requestsPending >= pipelineLimit) {
+        //this.logger.debug(`requestPieces: Hit pipeline limit`)
         break
       }
 
@@ -1627,8 +1630,8 @@ export class Torrent extends EngineComponent {
       // Get blocks we can request from this piece
       // In endgame mode, use peer-specific method to allow duplicate requests
       const neededBlocks = this._endgameManager.isEndgame
-        ? piece.getNeededBlocksEndgame(peerId, MAX_PIPELINE - peer.requestsPending)
-        : piece.getNeededBlocks(MAX_PIPELINE - peer.requestsPending)
+        ? piece.getNeededBlocksEndgame(peerId, pipelineLimit - peer.requestsPending)
+        : piece.getNeededBlocks(pipelineLimit - peer.requestsPending)
 
       if (neededBlocks.length === 0) {
         _skippedNoNeeded++
@@ -1636,7 +1639,7 @@ export class Torrent extends EngineComponent {
       }
 
       for (const block of neededBlocks) {
-        if (peer.requestsPending >= MAX_PIPELINE) break
+        if (peer.requestsPending >= pipelineLimit) break
 
         // Rate limit check - bail if out of tokens
         const downloadBucket = this.btEngine.bandwidthTracker.downloadBucket
@@ -1683,6 +1686,9 @@ export class Torrent extends EngineComponent {
     }
 
     if (peer.requestsPending > 0) peer.requestsPending--
+
+    // Track block receipt for adaptive pipeline depth adjustment
+    peer.recordBlockReceived()
 
     // Initialize activePieces if needed (lazy init after metadata is available)
     if (!this.activePieces && this.hasMetadata) {
