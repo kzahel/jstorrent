@@ -16,14 +16,19 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.sync.Semaphore
 
 private const val TAG = "SocketHandler"
 
 // Limit concurrent pending TCP connections to prevent resource exhaustion
-// when connecting to many unreachable peers on internet torrents
-private val connectSemaphore = Semaphore(50)
+// when connecting to many unreachable peers on internet torrents.
+// Using kotlinx.coroutines Semaphore (suspending) instead of java.util.concurrent
+// Semaphore (blocking) to avoid starving the IO dispatcher thread pool.
+private val connectSemaphore = Semaphore(30)
+// Track pending connections for diagnostics
+private val pendingConnects = java.util.concurrent.atomic.AtomicInteger(0)
+private val waitingForSemaphore = java.util.concurrent.atomic.AtomicInteger(0)
 
 enum class SessionType {
     IO,      // /io endpoint - socket operations
@@ -43,6 +48,8 @@ class SocketSession(
     private val udpSockets = ConcurrentHashMap<Int, UdpSocketHandler>()
     private val tcpServers = ConcurrentHashMap<Int, TcpServerHandler>()
     private val nextSocketId = AtomicInteger(0x10000) // Start high to avoid collision with client-assigned IDs
+    // Track pending TCP connect jobs so they can be cancelled when TCP_CLOSE arrives
+    private val pendingTcpConnects = ConcurrentHashMap<Int, Job>()
 
     // Outgoing message queue - large buffer for high throughput
     // At 65KB frames, 2000 frames = ~130MB buffer capacity
@@ -51,6 +58,8 @@ class SocketSession(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     // Track dropped messages for diagnostics
     private val dropCount = java.util.concurrent.atomic.AtomicLong(0)
+    // Track queue depth for diagnostics
+    private val queueDepth = java.util.concurrent.atomic.AtomicInteger(0)
     // Connection statistics
     private val bytesReceived = java.util.concurrent.atomic.AtomicLong(0)
     private val bytesSent = java.util.concurrent.atomic.AtomicLong(0)
@@ -66,9 +75,31 @@ class SocketSession(
     suspend fun run() {
         // Start sender coroutine
         val senderJob = scope.launch {
+            var sendCount = 0L
+            var totalSendTimeNs = 0L
             try {
                 for (data in outgoing) {
+                    val depth = queueDepth.decrementAndGet()
+                    val t0 = System.nanoTime()
                     wsSession.send(Frame.Binary(true, data))
+                    val sendTimeNs = System.nanoTime() - t0
+                    totalSendTimeNs += sendTimeNs
+                    sendCount++
+
+                    // Log slow sends and queue depth
+                    val sendTimeMs = sendTimeNs / 1_000_000
+                    if (sendTimeMs > 50) {
+                        // Parse opcode for context
+                        val opcode = if (data.size >= 2) data[1].toInt() and 0xFF else -1
+                        Log.w(TAG, "SLOW SEND: ${sendTimeMs}ms, opcode=0x${opcode.toString(16)}, " +
+                            "size=${data.size}, queueDepth=$depth")
+                    }
+
+                    // Periodic stats every 1000 sends
+                    if (sendCount % 1000 == 0L) {
+                        val avgSendUs = totalSendTimeNs / sendCount / 1000
+                        Log.i(TAG, "Sender stats: $sendCount sends, avg=${avgSendUs}µs/send, queueDepth=$depth")
+                    }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "WebSocket sender failed: ${e.message}")
@@ -212,48 +243,108 @@ class SocketSession(
         val port = payload.getUShortLE(4)
         val hostname = String(payload, 6, payload.size - 6)
 
-        Log.d(TAG, "TCP_CONNECT: socketId=$socketId, $hostname:$port")
+        // Fast-fail if too many connects are already pending
+        // This prevents unbounded queue growth when extension floods with connect requests
+        val currentPending = pendingConnects.get()
+        if (currentPending >= 60) {
+            Log.w(TAG, "TCP_CONNECT rejected (queue full): socketId=$socketId, pending=$currentPending")
+            val response = socketId.toLEBytes() + byteArrayOf(1) + 1.toLEBytes()
+            send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
+            return
+        }
 
-        scope.launch {
-            // Limit concurrent pending connections to prevent resource exhaustion
-            connectSemaphore.acquire()
+        val waiting = waitingForSemaphore.incrementAndGet()
+        val pending = pendingConnects.incrementAndGet()
+        Log.d(TAG, "TCP_CONNECT: socketId=$socketId, $hostname:$port (waiting=$waiting, pending=$pending)")
+
+        val job = scope.launch {
+            var acquiredSemaphore = false
             try {
-                val socket = Socket()
-                // Performance: disable Nagle's algorithm for lower latency
-                socket.tcpNoDelay = true
-                // Performance: larger receive buffer for better throughput
-                socket.receiveBufferSize = 256 * 1024
-                // Reliability: detect zombie connections that stop responding
-                socket.soTimeout = 60_000 // 60 second read timeout
-                // Reliability: TCP keep-alive for connection health
-                socket.setKeepAlive(true)
-                // 10s connect timeout (reduced from 30s) - prevents resource exhaustion
-                // when connecting to many unreachable peers on internet torrents
-                socket.connect(InetSocketAddress(hostname, port), 10000)
-
-                val handler = TcpSocketHandler(socketId, socket, this@SocketSession) { id ->
-                    tcpSockets.remove(id)
+                // Limit concurrent pending connections to prevent resource exhaustion
+                // Use withTimeout to prevent indefinite waiting when many connects queue up
+                val acquired = withTimeoutOrNull(5000L) {
+                    connectSemaphore.acquire()
+                    true
                 }
-                tcpSockets[socketId] = handler
+                if (acquired != true) {
+                    Log.w(TAG, "TCP_CONNECT timeout waiting for semaphore: socketId=$socketId")
+                    waitingForSemaphore.decrementAndGet()
+                    // Send failure to extension
+                    val response = socketId.toLEBytes() + byteArrayOf(1) + 1.toLEBytes()
+                    send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
+                    return@launch
+                }
+                acquiredSemaphore = true
+                waitingForSemaphore.decrementAndGet()
 
-                // Send TCP_CONNECTED success
-                Log.i(TAG, "TCP_CONNECTED SUCCESS: socketId=$socketId, $hostname:$port")
-                val response = socketId.toLEBytes() + byteArrayOf(0) + 0.toLEBytes()
-                send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
+                // Check if we were cancelled while waiting for semaphore
+                if (!isActive) {
+                    Log.d(TAG, "TCP_CONNECT cancelled while waiting: socketId=$socketId")
+                    return@launch
+                }
 
-                // Start reading and sending
-                handler.startReading()
-                handler.startSending()
+                val socket = Socket()
+                try {
+                    // Performance: disable Nagle's algorithm for lower latency
+                    socket.tcpNoDelay = true
+                    // Performance: larger receive buffer for better throughput
+                    socket.receiveBufferSize = 256 * 1024
+                    // Reliability: detect zombie connections that stop responding
+                    socket.soTimeout = 60_000 // 60 second read timeout
+                    // Reliability: TCP keep-alive for connection health
+                    socket.setKeepAlive(true)
+                    // 10s connect timeout - balance between resource usage and reaching slow peers
+                    socket.connect(InetSocketAddress(hostname, port), 10000)
 
+                    // Check if we were cancelled during connect
+                    if (!isActive) {
+                        Log.d(TAG, "TCP_CONNECT cancelled during connect: socketId=$socketId")
+                        socket.close()
+                        return@launch
+                    }
+
+                    val handler = TcpSocketHandler(socketId, socket, this@SocketSession) { id ->
+                        tcpSockets.remove(id)
+                    }
+                    tcpSockets[socketId] = handler
+
+                    // Send TCP_CONNECTED success
+                    Log.i(TAG, "TCP_CONNECTED SUCCESS: socketId=$socketId, $hostname:$port")
+                    val response = socketId.toLEBytes() + byteArrayOf(0) + 0.toLEBytes()
+                    send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
+
+                    // Start reading and sending
+                    handler.startReading()
+                    handler.startSending()
+                } catch (e: Exception) {
+                    socket.close()
+                    throw e
+                }
+
+            } catch (e: CancellationException) {
+                Log.d(TAG, "TCP_CONNECT cancelled: socketId=$socketId, hadSemaphore=$acquiredSemaphore")
+                // Don't send failure - socket was intentionally closed
+                // Decrement waiting counter if we were cancelled before acquiring
+                if (!acquiredSemaphore) {
+                    waitingForSemaphore.decrementAndGet()
+                }
+                throw e  // Re-throw to properly propagate cancellation
             } catch (e: Exception) {
                 Log.e(TAG, "TCP connect failed: ${e.message}")
                 // Send TCP_CONNECTED failure
                 val response = socketId.toLEBytes() + byteArrayOf(1) + 1.toLEBytes()
                 send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
             } finally {
-                connectSemaphore.release()
+                if (acquiredSemaphore) {
+                    connectSemaphore.release()
+                }
+                pendingConnects.decrementAndGet()
+                pendingTcpConnects.remove(socketId)
             }
         }
+
+        // Track the job so it can be cancelled by TCP_CLOSE
+        pendingTcpConnects[socketId] = job
     }
 
     private fun handleTcpSend(payload: ByteArray) {
@@ -278,6 +369,15 @@ class SocketSession(
         if (payload.size < 4) return
 
         val socketId = payload.getUIntLE(0)
+
+        // Cancel any pending connect for this socket - this frees up semaphore permits
+        // for new connections when torrents are stopped
+        val pendingJob = pendingTcpConnects.remove(socketId)
+        if (pendingJob != null) {
+            Log.d(TAG, "TCP_CLOSE cancelling pending connect: socketId=$socketId")
+            pendingJob.cancel()
+        }
+
         tcpSockets.remove(socketId)?.close()
     }
 
@@ -420,7 +520,14 @@ class SocketSession(
         }
         // Use trySend for non-blocking send
         val result = outgoing.trySend(data)
-        if (result.isFailure) {
+        if (result.isSuccess) {
+            val depth = queueDepth.incrementAndGet()
+            // Log when queue is building up
+            if (depth > 100 && depth % 100 == 0) {
+                val opcode = if (data.size >= 2) data[1].toInt() and 0xFF else -1
+                Log.w(TAG, "Queue building: depth=$depth, opcode=0x${opcode.toString(16)}")
+            }
+        } else {
             // Channel is full - this indicates backpressure
             // Log at warning level but don't spam
             if (dropCount.incrementAndGet() % 100 == 1L) {
@@ -447,12 +554,21 @@ class SocketSession(
         val duration = (System.currentTimeMillis() - connectTime) / 1000.0
         val recvMB = bytesReceived.get() / 1024.0 / 1024.0
         val sentMB = bytesSent.get() / 1024.0 / 1024.0
+        val pendingCount = pendingTcpConnects.size
         Log.i(TAG, "Session closed after ${String.format("%.1f", duration)}s: " +
             "recv=${String.format("%.1f", recvMB)}MB/${framesReceived.get()} frames, " +
             "sent=${String.format("%.1f", sentMB)}MB/${framesSent.get()} frames, " +
-            "dropped=${dropCount.get()}")
+            "dropped=${dropCount.get()}, pendingConnects=$pendingCount")
 
         httpServer.unregisterControlSession(this)
+
+        // Cancel all pending TCP connects to release semaphore permits
+        if (pendingCount > 0) {
+            Log.i(TAG, "Cancelling $pendingCount pending TCP connects")
+            pendingTcpConnects.values.forEach { it.cancel() }
+            pendingTcpConnects.clear()
+        }
+
         tcpSockets.values.forEach { it.close() }
         tcpSockets.clear()
         udpSockets.values.forEach { it.close() }
