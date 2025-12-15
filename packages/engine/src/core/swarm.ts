@@ -1,5 +1,6 @@
 import { EventEmitter } from '../utils/event-emitter'
 import { toHex } from '../utils/buffer'
+import { lookupCountry } from '../geo/geoip'
 import type { PeerConnection } from './peer-connection'
 import type { Logger } from '../logging/logger'
 
@@ -48,6 +49,9 @@ export interface SwarmPeer {
   // Identity (populated after successful handshake)
   peerId: Uint8Array | null
   clientName: string | null // Parsed from peerId, e.g. "µTorrent 3.5.5"
+
+  // GeoIP (populated on discovery if data available)
+  countryCode: string | null // ISO 3166-1 alpha-2, e.g. "US"
 
   // Connection history
   connectAttempts: number
@@ -442,6 +446,7 @@ export class Swarm extends EventEmitter {
       connection: null,
       peerId: null,
       clientName: null,
+      countryCode: lookupCountry(address.ip),
       connectAttempts: 0,
       connectFailures: 0,
       lastConnectAttempt: null,
@@ -779,6 +784,7 @@ export class Swarm extends EventEmitter {
         connection: null,
         peerId: null,
         clientName: null,
+        countryCode: lookupCountry(ip),
         connectAttempts: 0,
         connectFailures: 0,
         lastConnectAttempt: null,

@@ -2,6 +2,7 @@ import { DisplayPeer, Torrent } from '@jstorrent/engine'
 import { TableMount } from './mount'
 import { ColumnDef } from './types'
 import { formatBytes, parseClientName } from '../utils/format'
+import { countryCodeToFlag } from '../utils/country-flag'
 
 /**
  * Format peer flags (choking/interested states)
@@ -58,6 +59,13 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
       header: 'Address',
       getValue: (p) => `${p.ip}:${p.port}`,
       width: 180,
+    },
+    {
+      id: 'country',
+      header: '',
+      getValue: (p) => countryCodeToFlag(p.swarmPeer?.countryCode),
+      width: 30,
+      align: 'center',
     },
     {
       id: 'client',

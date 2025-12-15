@@ -6,6 +6,15 @@ import dns from 'dns'
 
 import fs from 'fs'
 
+// Ensure GeoIP data file exists (copy stub if not)
+// This allows builds to succeed without running pnpm update-geoip
+const geoipDataPath = resolve(__dirname, '../packages/engine/src/geo/ipv4-country-data.ts')
+const geoipStubPath = resolve(__dirname, '../packages/engine/src/geo/ipv4-country-data.stub.ts')
+if (!fs.existsSync(geoipDataPath) && fs.existsSync(geoipStubPath)) {
+  fs.copyFileSync(geoipStubPath, geoipDataPath)
+  console.log('Copied GeoIP stub to ipv4-country-data.ts (run pnpm update-geoip for real data)')
+}
+
 // Check if local.jstorrent.com resolves (needed for dev server)
 const DEV_HOST = 'local.jstorrent.com'
 // Default extension ID from pubkey.txt - can be overridden via VITE_EXTENSION_ID env var
