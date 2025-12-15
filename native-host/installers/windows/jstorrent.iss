@@ -43,10 +43,10 @@ Source: "..\..\manifests\com.jstorrent.native.json.template"; DestDir: "{app}"; 
 [Registry]
 ; Chrome Native Messaging Host
 Root: HKCU; Subkey: "Software\Google\Chrome\NativeMessagingHosts\com.jstorrent.native"; ValueType: string; ValueName: ""; ValueData: "{app}\com.jstorrent.native.json"; Flags: uninsdeletekey
-; Magnet Protocol Handler
-Root: HKCR; Subkey: "magnet"; ValueType: string; ValueName: ""; ValueData: "URL:BitTorrent Magnet Link"; Flags: uninsdeletekey
-Root: HKCR; Subkey: "magnet"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
-Root: HKCR; Subkey: "magnet\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\JSTorrent Link Handler.exe"" ""%1"""; Flags: uninsdeletekey
+; Magnet Protocol Handler (per-user registration, no admin required)
+Root: HKCU; Subkey: "Software\Classes\magnet"; ValueType: string; ValueName: ""; ValueData: "URL:BitTorrent Magnet Link"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\magnet"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\magnet\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\JSTorrent Link Handler.exe"" ""%1"""; Flags: uninsdeletekey
 
 [Code]
 // We need to replace HOST_PATH_PLACEHOLDER in the manifest with the actual path
