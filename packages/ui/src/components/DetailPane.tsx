@@ -150,6 +150,8 @@ export function DetailPane(props: DetailPaneProps) {
         <button style={getTabStyle(activeTab === 'disk')} onClick={() => onTabChange('disk')}>
           Disk
         </button>
+        {/* Spacer pushes global tabs (Logs, Speed) to the right */}
+        <div style={{ flex: 1 }} />
         <button style={getTabStyle(activeTab === 'logs')} onClick={() => onTabChange('logs')}>
           Logs
         </button>
