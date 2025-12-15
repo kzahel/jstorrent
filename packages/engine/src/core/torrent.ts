@@ -734,6 +734,8 @@ export class Torrent extends EngineComponent {
    * @returns true if a connection was initiated, false if no candidates available
    */
   connectOnePeer(): boolean {
+    // Don't initiate outgoing connections when seeding - accept incoming only
+    if (this.isDownloadComplete) return false
     if (!this._networkActive) return false
     if (this.isKillSwitchEnabled) return false
 
