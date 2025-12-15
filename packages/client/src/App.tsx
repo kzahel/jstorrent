@@ -629,27 +629,41 @@ function App() {
     },
   })
 
-  // Initialize engine when connected (and not already initialized)
+  // Initialize engine when connected
+  // Uses engineManager.engine as source of truth to handle reconnection scenarios
   useEffect(() => {
-    if (isConnected && !engine && !initStartedRef.current && !initError) {
-      initStartedRef.current = true
-      engineManager
-        .init()
-        .then((eng) => {
-          setEngine(eng)
-          // Set default root from engine (getDefaultRoot returns the key string)
-          const currentDefault = eng.storageRootManager.getDefaultRoot()
-          if (currentDefault) {
-            setDefaultRootKey(currentDefault)
-          }
-        })
-        .catch((e) => {
-          console.error('Failed to initialize engine:', e)
-          setInitError(String(e))
-          initStartedRef.current = false // Allow retry on error
-        })
+    if (!isConnected) {
+      // Daemon disconnected - reset init flag to allow re-init on reconnect
+      if (initStartedRef.current) {
+        console.log('[App] Daemon disconnected, will re-init on reconnect')
+        initStartedRef.current = false
+      }
+      return
     }
-  }, [isConnected, engine, initError])
+
+    // Skip if engine already exists or init already started
+    if (engineManager.engine || initStartedRef.current || initError) {
+      return
+    }
+
+    // Initialize engine
+    initStartedRef.current = true
+    engineManager
+      .init()
+      .then((eng) => {
+        setEngine(eng)
+        // Set default root from engine (getDefaultRoot returns the key string)
+        const currentDefault = eng.storageRootManager.getDefaultRoot()
+        if (currentDefault) {
+          setDefaultRootKey(currentDefault)
+        }
+      })
+      .catch((e) => {
+        console.error('Failed to initialize engine:', e)
+        setInitError(String(e))
+        initStartedRef.current = false // Allow retry on error
+      })
+  }, [isConnected, initError])
 
   // Wait for settings to load
   if (!settingsReady) {
