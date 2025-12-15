@@ -130,7 +130,6 @@ const swarmColumns: ColumnDef<SwarmPeer>[] = [
     getValue: (p) => p.connectAttempts || '-',
     width: 70,
     align: 'right',
-    defaultHidden: true,
   },
   {
     id: 'connectFailures',
@@ -138,14 +137,12 @@ const swarmColumns: ColumnDef<SwarmPeer>[] = [
     getValue: (p) => p.connectFailures || '-',
     width: 70,
     align: 'right',
-    defaultHidden: true,
   },
   {
     id: 'lastAttempt',
     header: 'Last Attempt',
     getValue: (p) => formatTime(p.lastConnectAttempt),
     width: 100,
-    defaultHidden: true,
   },
   {
     id: 'lastSuccess',
