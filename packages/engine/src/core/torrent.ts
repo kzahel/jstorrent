@@ -2633,12 +2633,22 @@ export class Torrent extends EngineComponent {
     // Reset bitfield to 0% (create fresh bitfield)
     this._bitfield = new BitField(this.piecesCount)
 
+    // Clear cached file info so it's recomputed with fresh downloaded values
+    this._files = []
+
     // Clear partsFilePieces tracking - will be rebuilt during recheck
     this._partsFilePieces.clear()
 
     // Reload .parts file to get current state
     if (this._partsFile) {
       await this._partsFile.load()
+    }
+
+    // Close file handles so they're reopened fresh during verification.
+    // This detects deleted files - on Linux, deleted files with open handles
+    // remain readable until handles are closed.
+    if (this.contentStorage) {
+      await this.contentStorage.close()
     }
 
     try {
