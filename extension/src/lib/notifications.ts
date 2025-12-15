@@ -342,19 +342,18 @@ export class NotificationManager {
 
   private async focusOrOpenUI(): Promise<void> {
     try {
-      const tabs = await chrome.tabs.query({
-        url: chrome.runtime.getURL('src/ui/app.html'),
-      })
+      const url = chrome.runtime.getURL('src/ui/app.html')
+      // Use getContexts() instead of tabs.query({ url }) - works without "tabs" permission
+      const contexts = await chrome.runtime.getContexts({ contextTypes: ['TAB'] })
+      const existing = contexts.find((c) => c.documentUrl === url)
 
-      if (tabs.length > 0 && tabs[0].id !== undefined) {
-        await chrome.tabs.update(tabs[0].id, { active: true })
-        if (tabs[0].windowId !== undefined) {
-          await chrome.windows.update(tabs[0].windowId, { focused: true })
+      if (existing?.tabId && existing.tabId !== -1) {
+        await chrome.tabs.update(existing.tabId, { active: true })
+        if (existing.windowId && existing.windowId !== -1) {
+          await chrome.windows.update(existing.windowId, { focused: true })
         }
       } else {
-        await chrome.tabs.create({
-          url: chrome.runtime.getURL('src/ui/app.html'),
-        })
+        await chrome.tabs.create({ url })
       }
     } catch (e) {
       console.error('[NotificationManager] Failed to focus/open UI:', e)
