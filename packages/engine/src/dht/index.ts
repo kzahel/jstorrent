@@ -6,7 +6,7 @@
 
 // Types
 export type {
-  DHTNode,
+  DHTNodeInfo,
   Bucket,
   RoutingTableState,
   RoutingTableEvents,
@@ -133,3 +133,11 @@ export {
   routeQuery,
   createQueryHandler,
 } from './query-handlers'
+
+// ============================================================================
+// Phase 4 Exports - DHTNode (Client Side)
+// ============================================================================
+
+// DHTNode class and types
+export type { DHTNodeOptions, DHTNodeEvents, GetPeersResult } from './dht-node'
+export { DHTNode } from './dht-node'

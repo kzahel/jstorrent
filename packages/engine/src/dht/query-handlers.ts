@@ -27,7 +27,7 @@ import {
   getQueryPort,
   getQueryImpliedPort,
 } from './krpc-messages'
-import { DHTNode } from './types'
+import { DHTNodeInfo } from './types'
 import { K, NODE_ID_BYTES } from './constants'
 
 /**
@@ -37,7 +37,7 @@ export interface QueryHandlerResult {
   /** Response data to send */
   response: Uint8Array
   /** Node to add to routing table (if any) */
-  node?: DHTNode
+  node?: DHTNodeInfo
 }
 
 /**

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { RoutingTable } from '../../src/dht/routing-table'
-import { DHTNode } from '../../src/dht/types'
+import { DHTNodeInfo } from '../../src/dht/types'
 import { K, BUCKET_REFRESH_MS, NODE_QUESTIONABLE_MS } from '../../src/dht/constants'
 import {
   generateRandomNodeId,
@@ -20,7 +20,7 @@ describe('RoutingTable', () => {
   })
 
   // Helper to create a node with specific bucket distance
-  function makeNodeInBucket(bucketIndex: number): DHTNode {
+  function makeNodeInBucket(bucketIndex: number): DHTNodeInfo {
     const id = generateRandomIdInBucket(bucketIndex, localId)
     return {
       id,
@@ -30,7 +30,7 @@ describe('RoutingTable', () => {
   }
 
   // Helper to create a random node
-  function makeRandomNode(): DHTNode {
+  function makeRandomNode(): DHTNodeInfo {
     return {
       id: generateRandomNodeId(),
       host: `192.168.1.${Math.floor(Math.random() * 255)}`,
@@ -120,7 +120,7 @@ describe('RoutingTable', () => {
     })
 
     it('does not add our own local ID', () => {
-      const node: DHTNode = {
+      const node: DHTNodeInfo = {
         id: localId,
         host: '127.0.0.1',
         port: 6881,
@@ -288,7 +288,7 @@ describe('RoutingTable', () => {
 
   describe('isQuestionable', () => {
     it('returns true for nodes without lastSeen', () => {
-      const node: DHTNode = {
+      const node: DHTNodeInfo = {
         id: generateRandomNodeId(),
         host: '192.168.1.1',
         port: 6881,
@@ -298,7 +298,7 @@ describe('RoutingTable', () => {
     })
 
     it('returns false for recently seen nodes', () => {
-      const node: DHTNode = {
+      const node: DHTNodeInfo = {
         id: generateRandomNodeId(),
         host: '192.168.1.1',
         port: 6881,
@@ -309,7 +309,7 @@ describe('RoutingTable', () => {
     })
 
     it('returns true for nodes not seen in NODE_QUESTIONABLE_MS', () => {
-      const node: DHTNode = {
+      const node: DHTNodeInfo = {
         id: generateRandomNodeId(),
         host: '192.168.1.1',
         port: 6881,
@@ -351,7 +351,7 @@ describe('RoutingTable', () => {
 
     it('roundtrips correctly', () => {
       // Add nodes
-      const originalNodes: DHTNode[] = []
+      const originalNodes: DHTNodeInfo[] = []
       for (let i = 0; i < 10; i++) {
         const node = makeRandomNode()
         table.addNode(node)
@@ -390,7 +390,7 @@ describe('RoutingTable', () => {
 
   describe('getAllNodes', () => {
     it('returns all nodes from all buckets', () => {
-      const nodes: DHTNode[] = []
+      const nodes: DHTNodeInfo[] = []
       for (let i = 0; i < 15; i++) {
         const node = makeRandomNode()
         table.addNode(node)

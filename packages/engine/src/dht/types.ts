@@ -6,10 +6,10 @@
  */
 
 /**
- * A DHT node (not to be confused with a BitTorrent peer).
+ * A DHT node's contact information (not to be confused with a BitTorrent peer).
  * Nodes participate in the DHT, storing peer information.
  */
-export interface DHTNode {
+export interface DHTNodeInfo {
   /** 20-byte node ID (same space as infohashes) */
   id: Uint8Array
   /** IPv4 or IPv6 address */
@@ -32,7 +32,7 @@ export interface Bucket {
   /** Maximum ID in this bucket's range (exclusive) */
   max: bigint
   /** Nodes in this bucket, ordered by last seen (oldest first) */
-  nodes: DHTNode[]
+  nodes: DHTNodeInfo[]
   /** Timestamp when this bucket last changed */
   lastChanged: number
 }
@@ -59,17 +59,17 @@ export interface RoutingTableEvents {
    * Emitted when a bucket is full and the least recently seen node
    * should be pinged to verify it's still alive.
    */
-  ping: (node: DHTNode) => void
+  ping: (node: DHTNodeInfo) => void
 
   /**
    * Emitted when a node is added to the routing table.
    */
-  nodeAdded: (node: DHTNode) => void
+  nodeAdded: (node: DHTNodeInfo) => void
 
   /**
    * Emitted when a node is removed from the routing table.
    */
-  nodeRemoved: (node: DHTNode) => void
+  nodeRemoved: (node: DHTNodeInfo) => void
 }
 
 /**

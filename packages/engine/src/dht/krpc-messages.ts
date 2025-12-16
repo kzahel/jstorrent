@@ -6,7 +6,7 @@
  */
 
 import { Bencode } from '../utils/bencode'
-import { DHTNode, CompactPeer, CompactNodeInfo } from './types'
+import { DHTNodeInfo, CompactPeer, CompactNodeInfo } from './types'
 import { NODE_ID_BYTES, COMPACT_PEER_BYTES, COMPACT_NODE_BYTES, CLIENT_VERSION } from './constants'
 
 // ============================================================================
@@ -210,7 +210,7 @@ export function encodePingResponse(transactionId: Uint8Array, nodeId: Uint8Array
 export function encodeFindNodeResponse(
   transactionId: Uint8Array,
   nodeId: Uint8Array,
-  nodes: DHTNode[],
+  nodes: DHTNodeInfo[],
 ): Uint8Array {
   const msg = {
     t: transactionId,
@@ -265,7 +265,7 @@ export function encodeGetPeersResponseWithNodes(
   transactionId: Uint8Array,
   nodeId: Uint8Array,
   token: Uint8Array,
-  nodes: DHTNode[],
+  nodes: DHTNodeInfo[],
 ): Uint8Array {
   const msg = {
     t: transactionId,
@@ -488,7 +488,7 @@ export function decodeCompactPeers(values: unknown[]): CompactPeer[] {
  * @param node - DHT node with id, host, port
  * @returns 26-byte compact representation
  */
-export function encodeCompactNode(node: DHTNode | CompactNodeInfo): Uint8Array {
+export function encodeCompactNode(node: DHTNodeInfo | CompactNodeInfo): Uint8Array {
   const result = new Uint8Array(COMPACT_NODE_BYTES)
 
   // Copy 20-byte node ID
@@ -507,7 +507,7 @@ export function encodeCompactNode(node: DHTNode | CompactNodeInfo): Uint8Array {
  * @param nodes - Array of DHT nodes
  * @returns Concatenated compact node info
  */
-export function encodeCompactNodes(nodes: DHTNode[]): Uint8Array {
+export function encodeCompactNodes(nodes: DHTNodeInfo[]): Uint8Array {
   const result = new Uint8Array(nodes.length * COMPACT_NODE_BYTES)
 
   for (let i = 0; i < nodes.length; i++) {

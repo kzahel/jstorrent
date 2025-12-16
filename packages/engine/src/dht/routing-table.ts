@@ -9,7 +9,7 @@
  */
 
 import { EventEmitter } from '../utils/event-emitter'
-import { DHTNode, Bucket, RoutingTableState } from './types'
+import { DHTNodeInfo, Bucket, RoutingTableState } from './types'
 import { K, NODE_QUESTIONABLE_MS, MAX_NODE_ID } from './constants'
 import {
   nodeIdToBigInt,
@@ -62,7 +62,7 @@ export class RoutingTable extends EventEmitter {
    * @param node - The node to add
    * @returns true if the node was added/updated, false if bucket is full
    */
-  addNode(node: DHTNode): boolean {
+  addNode(node: DHTNodeInfo): boolean {
     // Don't add ourselves
     if (nodeIdsEqual(node.id, this.localId)) {
       return false
@@ -87,7 +87,7 @@ export class RoutingTable extends EventEmitter {
     // Node doesn't exist - try to add it
     if (bucket.nodes.length < K) {
       // Bucket has space
-      const newNode: DHTNode = {
+      const newNode: DHTNodeInfo = {
         ...node,
         lastSeen: node.lastSeen ?? Date.now(),
       }
@@ -136,9 +136,9 @@ export class RoutingTable extends EventEmitter {
    * @param count - Number of nodes to return (default K)
    * @returns Array of nodes sorted by distance to target
    */
-  closest(target: Uint8Array, count: number = K): DHTNode[] {
+  closest(target: Uint8Array, count: number = K): DHTNodeInfo[] {
     // Collect all nodes
-    const allNodes: DHTNode[] = []
+    const allNodes: DHTNodeInfo[] = []
     for (const bucket of this.buckets) {
       allNodes.push(...bucket.nodes)
     }
@@ -194,8 +194,8 @@ export class RoutingTable extends EventEmitter {
   /**
    * Get all nodes in the routing table.
    */
-  getAllNodes(): DHTNode[] {
-    const nodes: DHTNode[] = []
+  getAllNodes(): DHTNodeInfo[] {
+    const nodes: DHTNodeInfo[] = []
     for (const bucket of this.buckets) {
       nodes.push(...bucket.nodes)
     }
@@ -205,7 +205,7 @@ export class RoutingTable extends EventEmitter {
   /**
    * Check if a node is questionable (hasn't responded recently).
    */
-  isQuestionable(node: DHTNode): boolean {
+  isQuestionable(node: DHTNodeInfo): boolean {
     if (!node.lastSeen) return true
     return Date.now() - node.lastSeen > NODE_QUESTIONABLE_MS
   }
