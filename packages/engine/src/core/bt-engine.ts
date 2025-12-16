@@ -109,6 +109,15 @@ export interface BtEngineOptions {
    * Required for UPnP to determine local address for port mapping.
    */
   getNetworkInterfaces?: () => Promise<NetworkInterface[]>
+
+  /**
+   * MSE/PE encryption policy for peer connections.
+   * - 'disabled': No encryption
+   * - 'enabled': Try encryption, fall back to plain
+   * - 'required': Only accept encrypted connections
+   * Default: 'disabled'
+   */
+  encryptionPolicy?: 'disabled' | 'enabled' | 'required'
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -128,6 +137,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public maxConnections: number
   public maxPeers: number
   public maxUploadSlots: number
+  public encryptionPolicy: 'disabled' | 'enabled' | 'required'
 
   /**
    * Whether the engine is suspended (no network activity).
@@ -205,6 +215,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.maxConnections = options.maxConnections ?? 100
     this.maxPeers = options.maxPeers ?? 20
     this.maxUploadSlots = options.maxUploadSlots ?? 4
+    this.encryptionPolicy = options.encryptionPolicy ?? 'disabled'
     this._suspended = options.startSuspended ?? false
 
     // Initialize daemon rate limiter from options
@@ -383,6 +394,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       input.announce,
       this.maxPeers,
       this.maxUploadSlots,
+      this.encryptionPolicy,
     )
 
     // Store magnet display name for fallback naming

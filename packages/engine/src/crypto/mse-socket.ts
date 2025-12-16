@@ -71,6 +71,21 @@ export class MseSocket implements ITcpSocket {
   }
 
   /**
+   * Run MSE handshake on an already-connected socket.
+   * Use this instead of connect() when the underlying socket is already connected.
+   */
+  async runHandshakeOnConnected(): Promise<void> {
+    if (this.options.policy === 'disabled') {
+      this.handshakeComplete = true
+      return
+    }
+
+    // Run MSE handshake as initiator
+    this.handshakePromise = this.runHandshake('initiator')
+    await this.handshakePromise
+  }
+
+  /**
    * For incoming connections - call this after socket is accepted
    */
   async acceptConnection(): Promise<void> {

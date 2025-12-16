@@ -34,7 +34,7 @@ export interface EncryptionContext {
 export const DEFAULT_CONNECTION_CONFIG: Omit<ConnectionConfig, 'maxPeersPerTorrent'> = {
   connectTimeout: 10000, // 10 seconds
   maintenanceInterval: 3000, // 3 seconds (base interval)
-  encryptionPolicy: 'enabled', // Try MSE, fall back to plain if fails
+  encryptionPolicy: 'disabled', // MSE disabled by default; enable explicitly when needed
   burstConnections: 5,
   // Adaptive maintenance
   maintenanceMinInterval: 1000, // 1 second when urgent
@@ -200,7 +200,8 @@ export class ConnectionManager extends EventEmitter {
         })
 
         try {
-          await mseSocket.connect(peer.port, peer.ip)
+          // Socket is already connected, just run the MSE handshake
+          await mseSocket.runHandshakeOnConnected()
           socket = mseSocket
           this.logger.debug(
             `[ConnectionManager] MSE handshake complete for ${key} (encrypted: ${mseSocket.isEncrypted})`,
@@ -237,10 +238,11 @@ export class ConnectionManager extends EventEmitter {
         remotePort: peer.port,
       })
 
-      // Mark connected in swarm
-      this.swarm.markConnected(key, connection)
+      // Don't mark connected here - let the callback (addPeer) handle it
+      // This avoids duplicate detection rejecting the peer
 
-      // Notify listeners
+      // Notify listeners - the callback is responsible for calling addPeer
+      // which will mark the peer connected in swarm
       this.emit('peerConnected', key, connection)
       this.onPeerConnected?.(key, connection)
     } catch (err) {

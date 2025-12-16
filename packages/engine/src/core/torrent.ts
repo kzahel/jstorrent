@@ -320,6 +320,7 @@ export class Torrent extends EngineComponent {
     announce: string[] = [],
     maxPeers: number = 20,
     maxUploadSlots: number = 4,
+    encryptionPolicy: 'disabled' | 'enabled' | 'required' = 'disabled',
   ) {
     super(engine)
     this.btEngine = engine
@@ -349,6 +350,7 @@ export class Torrent extends EngineComponent {
       {
         maxPeersPerTorrent: this.maxPeers,
         connectTimeout: 10000, // 10 second internal timeout
+        encryptionPolicy, // MSE/PE encryption policy
       },
     )
 
@@ -357,6 +359,11 @@ export class Torrent extends EngineComponent {
       infoHash: this.infoHash,
       sha1: (data: Uint8Array) => this.btEngine.hasher.sha1(data),
       getRandomBytes: randomBytes,
+    })
+
+    // Register callback for when ConnectionManager establishes a connection
+    this._connectionManager.setOnPeerConnected((key, peer) => {
+      this.handleNewPeerConnection(key, peer)
     })
 
     // Initialize peer coordinator for BEP 3 choke algorithm
@@ -407,112 +414,30 @@ export class Torrent extends EngineComponent {
     const existingPeer = this._swarm.getPeerByKey(key)
     if (existingPeer?.state === 'connected' || existingPeer?.state === 'connecting') return
 
-    // Ensure peer exists in swarm before marking connecting
+    // Ensure peer exists in swarm before initiating connection
     // (connectToPeer may be called for peers not yet discovered via tracker)
     if (!existingPeer) {
       const family = detectAddressFamily(peerInfo.ip)
       this._swarm.addPeer({ ip: peerInfo.ip, port: peerInfo.port, family }, 'manual')
     }
 
-    // Mark connecting in swarm FIRST (prevents race condition)
-    this._swarm.markConnecting(key)
-
-    // Check limits AFTER marking (so count is accurate)
-    const totalConnections = this.numPeers + this._swarm.connectingCount
-    if (totalConnections > this.maxPeers) {
-      this.logger.debug(
-        `Skipping peer ${peerInfo.ip}, max peers reached (${totalConnections}/${this.maxPeers})`,
-      )
-      this._swarm.markConnectFailed(key, 'limit_exceeded')
-      return
-    }
-
-    // Check global connection limit
+    // Check global connection limit before attempting
     if (this.btEngine.numConnections >= this.btEngine.maxConnections) {
       this.logger.debug(
         `Skipping peer ${peerInfo.ip}, global limit reached (${this.btEngine.numConnections}/${this.btEngine.maxConnections})`,
       )
-      this._swarm.markConnectFailed(key, 'global_limit_exceeded')
       return
     }
 
-    const connectStartTime = Date.now()
-    const timeout = this.connectionTiming.getTimeout()
-
-    try {
-      this.logger.debug(`Connecting to ${peerInfo.ip}:${peerInfo.port} (timeout: ${timeout}ms)`)
-      const socket = await this.createConnectionWithTimeout(peerInfo, timeout)
-
-      // Record successful connection time
-      const connectionTime = Date.now() - connectStartTime
-      this.connectionTiming.recordSuccess(connectionTime)
-
-      const peer = new PeerConnection(this.engineInstance, socket, {
-        remoteAddress: peerInfo.ip,
-        remotePort: peerInfo.port,
-      })
-
-      // Swarm state will be updated in addPeer() via markConnected()
-      // We need to set up the peer
-      this.addPeer(peer)
-
-      // Initiate handshake
-      peer.sendHandshake(this.infoHash, this.peerId)
-    } catch (err) {
-      const elapsed = Date.now() - connectStartTime
-
-      // Check if this was a timeout
-      if (err instanceof Error && err.message.includes('timeout')) {
-        this.connectionTiming.recordTimeout()
-        this.logger.debug(`Connection to ${key} timed out after ${elapsed}ms`)
-      }
-
-      // very common to happen, don't log details
-      // Swarm state already tracked via markConnecting, now mark failed
-      this._swarm.markConnectFailed(key, 'connection_error')
+    // Delegate to ConnectionManager which handles:
+    // - Swarm state tracking (markConnecting/markConnected/markFailed)
+    // - MSE/PE encryption handshake (if enabled)
+    // - PeerConnection creation
+    // - Callback to handleNewPeerConnection for BT handshake
+    const swarmPeer = this._swarm.getPeerByKey(key)
+    if (swarmPeer) {
+      await this._connectionManager.initiateConnection(swarmPeer)
     }
-  }
-
-  /**
-   * Create a TCP connection with an internal timeout.
-   * This runs independently of the io-daemon's 30s backstop.
-   */
-  private async createConnectionWithTimeout(
-    peerInfo: PeerInfo,
-    timeoutMs: number,
-  ): Promise<import('../interfaces/socket').ITcpSocket> {
-    return new Promise((resolve, reject) => {
-      let settled = false
-
-      // Internal timeout
-      const timer = setTimeout(() => {
-        if (!settled) {
-          settled = true
-          reject(new Error(`Connection timeout after ${timeoutMs}ms`))
-        }
-      }, timeoutMs)
-
-      // Attempt connection
-      this.socketFactory
-        .createTcpSocket(peerInfo.ip, peerInfo.port)
-        .then((socket) => {
-          if (!settled) {
-            settled = true
-            clearTimeout(timer)
-            resolve(socket)
-          } else {
-            // Timeout already fired, close the socket
-            socket.close()
-          }
-        })
-        .catch((error) => {
-          if (!settled) {
-            settled = true
-            clearTimeout(timer)
-            reject(error)
-          }
-        })
-    })
   }
 
   get infoHashStr(): InfoHashHex {
@@ -1708,6 +1633,18 @@ export class Torrent extends EngineComponent {
   setMaxUploadSlots(max: number) {
     this.maxUploadSlots = max
     this._peerCoordinator.updateUnchokeConfig({ maxUploadSlots: max })
+  }
+
+  /**
+   * Handle a new peer connection from ConnectionManager.
+   * This is called after MSE handshake (if enabled) completes.
+   */
+  private handleNewPeerConnection(_key: string, peer: PeerConnection) {
+    // Set up the peer with event listeners etc
+    this.addPeer(peer)
+
+    // Initiate BitTorrent handshake
+    peer.sendHandshake(this.infoHash, this.peerId)
   }
 
   addPeer(peer: PeerConnection) {
