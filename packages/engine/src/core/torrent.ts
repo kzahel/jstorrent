@@ -2292,7 +2292,7 @@ export class Torrent extends EngineComponent {
     let _skippedPeerLacks = 0
     let _skippedNoNeeded = 0
 
-    for (const index of missing) {
+    pieceLoop: for (const index of missing) {
       if (peer.requestsPending >= pipelineLimit) {
         //this.logger.debug(`requestPieces: Hit pipeline limit`)
         break
@@ -2340,7 +2340,7 @@ export class Torrent extends EngineComponent {
         // Rate limit check - bail if out of tokens
         const downloadBucket = this.btEngine.bandwidthTracker.downloadBucket
         if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
-          break // Out of budget for this round, will retry on next trigger
+          break pieceLoop // Out of budget - stop creating new active pieces too
         }
 
         peer.sendRequest(index, block.begin, block.length)
