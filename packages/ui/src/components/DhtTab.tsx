@@ -21,7 +21,9 @@ const containerStyle: React.CSSProperties = {
 const statsContainerStyle: React.CSSProperties = {
   padding: '12px 16px',
   borderBottom: '1px solid var(--border-color)',
-  flexShrink: 0,
+  flex: 1,
+  overflow: 'auto',
+  minHeight: 0,
 }
 
 const groupStyle: React.CSSProperties = {
