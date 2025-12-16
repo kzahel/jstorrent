@@ -350,19 +350,20 @@ describe('RoutingTable', () => {
     })
 
     it('roundtrips correctly', () => {
-      // Add nodes
-      const originalNodes: DHTNodeInfo[] = []
+      // Add nodes (only track successfully added ones)
+      const addedNodes: DHTNodeInfo[] = []
       for (let i = 0; i < 10; i++) {
         const node = makeRandomNode()
-        table.addNode(node)
-        originalNodes.push(node)
+        if (table.addNode(node)) {
+          addedNodes.push(node)
+        }
       }
 
       const state = table.serialize()
       const restored = RoutingTable.deserialize(state)
 
-      // All original nodes should be in restored table
-      for (const node of originalNodes) {
+      // All successfully added nodes should be in restored table
+      for (const node of addedNodes) {
         const found = restored.closest(node.id, 1)
         expect(found.length).toBe(1)
         expect(nodeIdsEqual(found[0].id, node.id)).toBe(true)
@@ -390,18 +391,21 @@ describe('RoutingTable', () => {
 
   describe('getAllNodes', () => {
     it('returns all nodes from all buckets', () => {
-      const nodes: DHTNodeInfo[] = []
+      // Only track nodes that were successfully added (some may be rejected
+      // if a non-splittable bucket fills up with random IDs)
+      const addedNodes: DHTNodeInfo[] = []
       for (let i = 0; i < 15; i++) {
         const node = makeRandomNode()
-        table.addNode(node)
-        nodes.push(node)
+        if (table.addNode(node)) {
+          addedNodes.push(node)
+        }
       }
 
       const allNodes = table.getAllNodes()
-      expect(allNodes.length).toBe(15)
+      expect(allNodes.length).toBe(addedNodes.length)
 
-      // Each original node should be present
-      for (const node of nodes) {
+      // Each successfully added node should be present
+      for (const node of addedNodes) {
         const found = allNodes.find((n) => nodeIdsEqual(n.id, node.id))
         expect(found).toBeDefined()
       }
