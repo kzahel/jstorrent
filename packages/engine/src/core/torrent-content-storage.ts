@@ -8,6 +8,10 @@ import { IDiskQueue } from './disk-queue'
 export class TorrentContentStorage extends EngineComponent {
   static logName = 'content-storage'
   private files: TorrentFile[] = []
+  /**
+   * Cached file handles. For Node.js filesystem, this avoids repeated fs.open() syscalls.
+   * For daemon filesystem, handles are stateless so caching is a no-op but harmless.
+   */
   private fileHandles: Map<string, IFileHandle> = new Map()
   private openingFiles: Map<string, Promise<IFileHandle>> = new Map()
   private pieceLength: number = 0
@@ -74,6 +78,13 @@ export class TorrentContentStorage extends EngineComponent {
     this.openingFiles.clear()
   }
 
+  /**
+   * Get or open a file handle, caching for reuse.
+   *
+   * Caching is an optimization for Node.js where file descriptors are expensive to open.
+   * For daemon filesystem, handles are stateless (each read/write is a separate RPC call),
+   * so caching just stores metadata objects with no real benefit.
+   */
   private async getFileHandle(path: string): Promise<IFileHandle> {
     if (this.fileHandles.has(path)) {
       return this.fileHandles.get(path)!
