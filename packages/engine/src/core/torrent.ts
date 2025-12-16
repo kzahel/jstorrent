@@ -1857,6 +1857,20 @@ export class Torrent extends EngineComponent {
       }
     }
 
+    // CRITICAL: Register error and close handlers FIRST, before any code that might call peer.close()
+    // This ensures that when self-connection is detected and peer.close() is called in onHandshake,
+    // the close event handler exists and removePeer() will be called to clean up swarm state.
+    peer.on('error', (err) => {
+      this.logger.error(`Peer error: ${err.message}`)
+      this.removePeer(peer)
+    })
+
+    peer.on('close', () => {
+      this.logger.debug('Peer closed')
+      this.removePeer(peer)
+      // Peer left - choke algorithm will handle slot reallocation
+    })
+
     peer.on('handshake', onHandshake)
 
     // If handshake already received (e.g. incoming connection handled by BtEngine), trigger logic immediately
@@ -1947,17 +1961,6 @@ export class Torrent extends EngineComponent {
 
     peer.on('request', (index, begin, length) => {
       this.handleRequest(peer, index, begin, length)
-    })
-
-    peer.on('error', (err) => {
-      this.logger.error(`Peer error: ${err.message}`)
-      this.removePeer(peer)
-    })
-
-    peer.on('close', () => {
-      this.logger.debug('Peer closed')
-      this.removePeer(peer)
-      // Peer left - choke algorithm will handle slot reallocation
     })
 
     peer.on('bytesDownloaded', (bytes) => {
@@ -2851,8 +2854,12 @@ export class Torrent extends EngineComponent {
 
   private checkCompletion() {
     if (this.isDownloadComplete) {
-      // Clear any blacklisted active pieces (shouldn't be any, but safety check)
-      this.clearBlacklistedActivePieces()
+      // Clear ALL active pieces - downloading is done, release memory
+      this.activePieces?.destroy()
+      this.activePieces = undefined
+
+      // Reset endgame state
+      this._endgameManager.reset()
 
       this.logger.info('Download complete!')
       this.emit('done')
