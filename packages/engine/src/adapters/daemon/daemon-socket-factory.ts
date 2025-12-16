@@ -156,9 +156,23 @@ export class DaemonSocketFactory implements ISocketFactory, IDaemonSocketManager
     }
   }
 
-  waitForResponse(reqId: number): Promise<Uint8Array> {
+  waitForResponse(reqId: number, timeoutMs = 10000): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
-      this.pendingRequests.set(reqId, { resolve: resolve as (v: Uint8Array) => void, reject })
+      const timer = setTimeout(() => {
+        this.pendingRequests.delete(reqId)
+        reject(new Error('Socket operation timed out'))
+      }, timeoutMs)
+
+      this.pendingRequests.set(reqId, {
+        resolve: (v: Uint8Array) => {
+          clearTimeout(timer)
+          resolve(v)
+        },
+        reject: (e: Error) => {
+          clearTimeout(timer)
+          reject(e)
+        },
+      })
     })
   }
 

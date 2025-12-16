@@ -7,7 +7,7 @@ use axum::{
 use futures::{sink::SinkExt, stream::StreamExt};
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
-use socket2::SockRef;
+use socket2::{SockRef, Socket, Domain, Type, Protocol};
 use tokio::sync::mpsc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::{timeout, Duration};
@@ -536,7 +536,22 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                         let req_id = env.request_id;
 
                         tokio::spawn(async move {
-                            match UdpSocket::bind(&addr).await {
+                            // Use socket2 to create UDP socket with SO_REUSEADDR
+                            // This prevents "address already in use" errors when quickly
+                            // reconnecting (e.g., page reload)
+                            let bind_result = (|| -> std::io::Result<UdpSocket> {
+                                let socket_addr: std::net::SocketAddr = addr.parse()
+                                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+                                let domain = if socket_addr.is_ipv4() { Domain::IPV4 } else { Domain::IPV6 };
+                                let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
+                                socket.set_reuse_address(true)?;
+                                socket.set_nonblocking(true)?;
+                                socket.bind(&socket_addr.into())?;
+                                let std_socket: std::net::UdpSocket = socket.into();
+                                UdpSocket::from_std(std_socket)
+                            })();
+
+                            match bind_result {
                                 Ok(socket) => {
                                     let local_port = socket.local_addr().map(|a| a.port()).unwrap_or(0);
                                     let socket = Arc::new(socket);

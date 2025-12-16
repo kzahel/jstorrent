@@ -1135,7 +1135,15 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       logger: dhtLogger,
     })
 
-    await this._dhtNode.start()
+    try {
+      await this._dhtNode.start()
+    } catch (err) {
+      // Clean up the broken DHTNode if start() fails (e.g., port already in use)
+      this.logger.error(`DHT: Failed to start: ${err instanceof Error ? err.message : err}`)
+      this._dhtNode = undefined
+      this._dhtEnabled = false
+      throw err
+    }
 
     // Restore routing table from persisted state
     if (persistedState && persistedState.nodes.length > 0) {

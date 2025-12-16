@@ -253,7 +253,9 @@ class EngineManager {
     )
     this.setEncryptionPolicy(settingsStore.get('encryptionPolicy'))
     // Don't await - DHT bootstrap runs in background and can take a while
-    void this.setDHTEnabled(settingsStore.get('dht.enabled'))
+    this.setDHTEnabled(settingsStore.get('dht.enabled')).catch((err) => {
+      console.error('[EngineManager] DHT failed to start:', err)
+    })
 
     // 9. Set up beforeunload handler
     window.addEventListener('beforeunload', () => {
