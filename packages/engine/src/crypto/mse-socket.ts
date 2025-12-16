@@ -14,7 +14,7 @@ import { ITcpSocket } from '../interfaces/socket'
 import { MseHandshake, MseRole } from './mse-handshake'
 import { RC4 } from './rc4'
 
-export type EncryptionPolicy = 'disabled' | 'enabled' | 'required'
+export type EncryptionPolicy = 'disabled' | 'allow' | 'prefer' | 'required'
 
 export interface MseSocketOptions {
   policy: EncryptionPolicy
@@ -126,6 +126,12 @@ export class MseSocket implements ITcpSocket {
       this.handshakeComplete = true
       this.handshake = null
       return
+    }
+
+    // For 'required' policy, reject if connection is not encrypted
+    // (e.g., peer sent plain BitTorrent handshake)
+    if (this.options.policy === 'required' && !result.encrypted) {
+      throw new Error('MSE handshake failed: encryption required but peer sent plain connection')
     }
 
     this.encrypted = result.encrypted

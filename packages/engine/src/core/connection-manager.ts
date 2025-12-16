@@ -21,7 +21,7 @@ export interface ConnectionConfig {
   slowPeerMinSpeed: number // Minimum speed (bytes/sec) before considered slow
   slowPeerTimeoutMs: number // Time without data before dropping (ms)
   // MSE/PE encryption
-  encryptionPolicy: EncryptionPolicy // 'disabled' | 'enabled' | 'required'
+  encryptionPolicy: EncryptionPolicy // 'disabled' | 'allow' | 'prefer' | 'required'
 }
 
 /** Context needed for MSE encryption (set by Torrent) */
@@ -138,6 +138,14 @@ export class ConnectionManager extends EventEmitter {
     this.encryptionContext = context
   }
 
+  /**
+   * Set encryption policy at runtime.
+   * Takes effect for new connections only.
+   */
+  setEncryptionPolicy(policy: EncryptionPolicy): void {
+    this.config.encryptionPolicy = policy
+  }
+
   // --- Connection Budget ---
 
   /**
@@ -189,14 +197,19 @@ export class ConnectionManager extends EventEmitter {
         return
       }
 
-      // Wrap with MSE encryption if enabled and context available
+      // Wrap with MSE encryption if policy is 'prefer' or 'required' and context available
+      // 'disabled' and 'allow' don't initiate MSE on outgoing connections
       let socket: ITcpSocket = rawSocket
-      if (this.config.encryptionPolicy !== 'disabled' && this.encryptionContext) {
+      const shouldInitiateMse =
+        (this.config.encryptionPolicy === 'prefer' ||
+          this.config.encryptionPolicy === 'required') &&
+        this.encryptionContext
+      if (shouldInitiateMse) {
         const mseSocket = new MseSocket(rawSocket, {
           policy: this.config.encryptionPolicy,
-          infoHash: this.encryptionContext.infoHash,
-          sha1: this.encryptionContext.sha1,
-          getRandomBytes: this.encryptionContext.getRandomBytes,
+          infoHash: this.encryptionContext!.infoHash,
+          sha1: this.encryptionContext!.sha1,
+          getRandomBytes: this.encryptionContext!.getRandomBytes,
         })
 
         try {
@@ -213,7 +226,7 @@ export class ConnectionManager extends EventEmitter {
             rawSocket.close()
             throw new Error(`MSE handshake failed: ${mseErr}`)
           }
-          // 'enabled' mode: fall back to plain socket
+          // 'prefer' mode: fall back to plain socket
           this.logger.debug(
             `[ConnectionManager] MSE handshake failed for ${key}, using plain: ${mseErr}`,
           )

@@ -251,6 +251,7 @@ class EngineManager {
       settingsStore.get('daemonOpsPerSecond'),
       settingsStore.get('daemonOpsBurst'),
     )
+    this.setEncryptionPolicy(settingsStore.get('encryptionPolicy'))
 
     // 9. Set up beforeunload handler
     window.addEventListener('beforeunload', () => {
@@ -581,6 +582,19 @@ class EngineManager {
     console.log(
       `[EngineManager] Daemon rate limit set: ${opsPerSecond} ops/sec, burst=${burstSize}`,
     )
+  }
+
+  /**
+   * Set encryption policy for peer connections.
+   * @param policy - 'disabled' | 'allow' | 'prefer' | 'required'
+   */
+  setEncryptionPolicy(policy: 'disabled' | 'allow' | 'prefer' | 'required'): void {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set encryption policy: engine not initialized')
+      return
+    }
+    this.engine.setEncryptionPolicy(policy)
+    console.log(`[EngineManager] Encryption policy set: ${policy}`)
   }
 
   /**

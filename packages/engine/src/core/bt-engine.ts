@@ -21,6 +21,7 @@ import { UPnPManager, NetworkInterface } from '../upnp'
 import { ISessionStore } from '../interfaces/session-store'
 import { IHasher } from '../interfaces/hasher'
 import { SubtleCryptoHasher } from '../adapters/browser/subtle-crypto-hasher'
+import type { EncryptionPolicy } from '../crypto'
 import { MemorySessionStore } from '../adapters/memory/memory-session-store'
 import { StorageRootManager } from '../storage/storage-root-manager'
 import { SessionPersistence } from './session-persistence'
@@ -113,11 +114,12 @@ export interface BtEngineOptions {
   /**
    * MSE/PE encryption policy for peer connections.
    * - 'disabled': No encryption
-   * - 'enabled': Try encryption, fall back to plain
+   * - 'allow': Accept encryption if peer requests, but don't initiate
+   * - 'prefer': Try encryption, fall back to plain
    * - 'required': Only accept encrypted connections
    * Default: 'disabled'
    */
-  encryptionPolicy?: 'disabled' | 'enabled' | 'required'
+  encryptionPolicy?: EncryptionPolicy
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -137,7 +139,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public maxConnections: number
   public maxPeers: number
   public maxUploadSlots: number
-  public encryptionPolicy: 'disabled' | 'enabled' | 'required'
+  public encryptionPolicy: EncryptionPolicy
 
   /**
    * Whether the engine is suspended (no network activity).
@@ -597,6 +599,20 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.logger.info(
       `Connection limits updated: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}, maxUploadSlots=${maxUploadSlots}`,
     )
+  }
+
+  /**
+   * Set encryption policy for the engine.
+   * Takes effect for new connections on all torrents.
+   * @param policy - 'disabled' | 'allow' | 'prefer' | 'required'
+   */
+  setEncryptionPolicy(policy: EncryptionPolicy): void {
+    this.encryptionPolicy = policy
+    // Apply to all existing torrents
+    for (const torrent of this.torrents) {
+      torrent.setEncryptionPolicy(policy)
+    }
+    this.logger.info(`Encryption policy updated: ${policy}`)
   }
 
   // === Unified Daemon Operation Queue Methods ===

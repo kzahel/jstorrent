@@ -165,14 +165,15 @@ export const settingsSchema = {
   /**
    * MSE/PE (Protocol Encryption) policy.
    * - 'disabled': No encryption, plain BitTorrent connections only
-   * - 'enabled': Try encryption, fall back to plain if peer doesn't support it (default)
+   * - 'allow': Accept encryption if peer requests, but don't initiate (default)
+   * - 'prefer': Initiate encryption, fall back to plain if peer doesn't support
    * - 'required': Only accept encrypted connections
    */
   encryptionPolicy: {
     type: 'enum',
     storage: 'sync',
-    values: ['disabled', 'enabled', 'required'] as const,
-    default: 'enabled',
+    values: ['disabled', 'allow', 'prefer', 'required'] as const,
+    default: 'allow',
   },
 
   // -------------------------------------------------------------------------

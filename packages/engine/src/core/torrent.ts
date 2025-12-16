@@ -18,6 +18,7 @@ import type { BtEngine, DaemonOpType, PendingOpCounts } from './bt-engine'
 import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
 import { Swarm, SwarmStats, SwarmPeer, detectAddressFamily, peerKey, PeerAddress } from './swarm'
 import { ConnectionManager } from './connection-manager'
+import type { EncryptionPolicy } from '../crypto'
 import { randomBytes } from '../utils/hash'
 import { ConnectionTimingTracker } from './connection-timing'
 import { initializeTorrentStorage } from './torrent-initializer'
@@ -320,7 +321,7 @@ export class Torrent extends EngineComponent {
     announce: string[] = [],
     maxPeers: number = 20,
     maxUploadSlots: number = 4,
-    encryptionPolicy: 'disabled' | 'enabled' | 'required' = 'disabled',
+    encryptionPolicy: EncryptionPolicy = 'disabled',
   ) {
     super(engine)
     this.btEngine = engine
@@ -1633,6 +1634,14 @@ export class Torrent extends EngineComponent {
   setMaxUploadSlots(max: number) {
     this.maxUploadSlots = max
     this._peerCoordinator.updateUnchokeConfig({ maxUploadSlots: max })
+  }
+
+  /**
+   * Set encryption policy at runtime.
+   * Takes effect for new connections only.
+   */
+  setEncryptionPolicy(policy: EncryptionPolicy): void {
+    this._connectionManager.setEncryptionPolicy(policy)
   }
 
   /**

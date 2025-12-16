@@ -479,6 +479,13 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
     engineManager.setConnectionLimits(settings.maxPeersPerTorrent, settings.maxGlobalPeers, v)
   }
 
+  // Apply encryption policy to engine when settings change
+  const handleEncryptionPolicyChange = (v: string) => {
+    const policy = v as 'disabled' | 'allow' | 'prefer' | 'required'
+    updateSetting('encryptionPolicy', policy)
+    engineManager.setEncryptionPolicy(policy)
+  }
+
   // UPnP status indicator
   const getUpnpStatusInfo = (): { text: string; color: string } => {
     switch (upnpStatus) {
@@ -530,6 +537,27 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
             checked={settings['upnp.enabled']}
             onChange={(e) => updateSetting('upnp.enabled', e.target.checked)}
           />
+        </label>
+      </Section>
+
+      <Section title="Encryption">
+        <label style={styles.toggleRow}>
+          <div style={{ flex: 1 }}>
+            <div>Protocol encryption (MSE/PE)</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Encrypts BitTorrent protocol traffic
+            </div>
+          </div>
+          <select
+            value={settings.encryptionPolicy}
+            onChange={(e) => handleEncryptionPolicyChange(e.target.value)}
+            style={styles.select}
+          >
+            <option value="disabled">Disable</option>
+            <option value="allow">Allow</option>
+            <option value="prefer">Prefer</option>
+            <option value="required">Require</option>
+          </select>
         </label>
       </Section>
 
