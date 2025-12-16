@@ -486,6 +486,12 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
     engineManager.setEncryptionPolicy(policy)
   }
 
+  // Apply DHT setting to engine when it changes
+  const handleDHTEnabledChange = async (enabled: boolean) => {
+    await updateSetting('dht.enabled', enabled)
+    await engineManager.setDHTEnabled(enabled)
+  }
+
   // UPnP status indicator
   const getUpnpStatusInfo = (): { text: string; color: string } => {
     switch (upnpStatus) {
@@ -595,6 +601,15 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
           onChange={handleMaxUploadSlotsChange}
           min={0}
           max={50}
+        />
+      </Section>
+
+      <Section title="Peer Discovery">
+        <ToggleRow
+          label="Enable DHT"
+          sublabel="Distributed Hash Table for finding peers without trackers"
+          checked={settings['dht.enabled']}
+          onChange={handleDHTEnabledChange}
         />
       </Section>
     </div>

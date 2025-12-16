@@ -252,6 +252,7 @@ class EngineManager {
       settingsStore.get('daemonOpsBurst'),
     )
     this.setEncryptionPolicy(settingsStore.get('encryptionPolicy'))
+    await this.setDHTEnabled(settingsStore.get('dht.enabled'))
 
     // 9. Set up beforeunload handler
     window.addEventListener('beforeunload', () => {
@@ -607,6 +608,19 @@ class EngineManager {
       return
     }
     await this.engine.setUPnPEnabled(enabled)
+  }
+
+  /**
+   * Enable or disable DHT (Distributed Hash Table).
+   * @param enabled - Whether DHT should be enabled
+   */
+  async setDHTEnabled(enabled: boolean): Promise<void> {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set DHT: engine not initialized')
+      return
+    }
+    await this.engine.setDHTEnabled(enabled)
+    console.log(`[EngineManager] DHT ${enabled ? 'enabled' : 'disabled'}`)
   }
 
   /**
