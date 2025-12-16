@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "postinstall": "[ -f src/geo/ipv4-country-data.ts ] || cp src/geo/ipv4-country-data.stub.ts src/geo/ipv4-country-data.ts",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
