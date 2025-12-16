@@ -104,3 +104,32 @@ export { TransactionManager } from './transaction-manager'
 // KRPC Socket
 export type { KRPCSocketOptions, KRPCSocketEvents } from './krpc-socket'
 export { KRPCSocket } from './krpc-socket'
+
+// ============================================================================
+// Phase 3 Exports - Query Handlers (Server Side)
+// ============================================================================
+
+// Token Store
+export type { TokenStoreOptions } from './token-store'
+export { TokenStore } from './token-store'
+
+// Peer Store
+export type { PeerStoreOptions } from './peer-store'
+export {
+  PeerStore,
+  DEFAULT_PEER_TTL_MS,
+  DEFAULT_MAX_PEERS_PER_INFOHASH,
+  DEFAULT_MAX_INFOHASHES,
+} from './peer-store'
+
+// Query Handlers
+export type { QueryHandlerResult, QueryHandlerDeps } from './query-handlers'
+export {
+  handlePing,
+  handleFindNode,
+  handleGetPeers,
+  handleAnnouncePeer,
+  handleUnknownMethod,
+  routeQuery,
+  createQueryHandler,
+} from './query-handlers'
