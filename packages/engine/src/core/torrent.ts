@@ -3004,6 +3004,11 @@ export class Torrent extends EngineComponent {
       // Reset endgame state
       this._endgameManager.reset()
 
+      // Record completion time (only if not already set, e.g., from persisted state)
+      if (!this.completedAt) {
+        this.completedAt = Date.now()
+      }
+
       this.logger.info('Download complete!')
       this.emit('done')
       this.emit('complete')
