@@ -40,7 +40,7 @@ const fileColumns: ColumnDef<TorrentFileInfo>[] = [
   {
     id: 'priority',
     header: 'Priority',
-    getValue: (f) => (f.isSkipped ? 'Skip' : 'Normal'),
+    getValue: (f) => (f.isSkipped ? 'Skip' : f.priority === 2 ? 'High' : 'Normal'),
     width: 70,
     align: 'center',
   },
@@ -128,6 +128,7 @@ export function FileTable(props: FileTableProps) {
     // Check if any selected files can be skipped or unskipped
     const canSkipAny = selectedFiles.some((f) => !f.isSkipped && !f.isComplete)
     const canUnskipAny = selectedFiles.some((f) => f.isSkipped)
+    const canSetHighPriority = selectedFiles.some((f) => f.priority !== 2 && !f.isComplete)
 
     return [
       {
@@ -147,6 +148,12 @@ export function FileTable(props: FileTableProps) {
       },
       { id: 'separator', label: '-' },
       {
+        id: 'high-priority',
+        label: 'High Priority',
+        icon: '⬆️',
+        disabled: !canSetHighPriority,
+      },
+      {
         id: 'skip',
         label: "Don't Download (Skip)",
         icon: '⏸️',
@@ -154,7 +161,7 @@ export function FileTable(props: FileTableProps) {
       },
       {
         id: 'unskip',
-        label: 'Download (Unskip)',
+        label: 'Normal Priority',
         icon: '▶️',
         disabled: !canUnskipAny,
       },
@@ -212,6 +219,9 @@ export function FileTable(props: FileTableProps) {
         break
       case 'copy-path':
         handleCopyFilePath(file)
+        break
+      case 'high-priority':
+        handleSetFilePriorityForSelected(2) // 2 = high
         break
       case 'skip':
         handleSetFilePriorityForSelected(1) // 1 = skip

@@ -10,8 +10,8 @@ export interface ActivePieceConfig {
 
 const DEFAULT_CONFIG: ActivePieceConfig = {
   requestTimeoutMs: 30000,
-  maxActivePieces: 150,
-  maxBufferedBytes: 128 * 1024 * 1024, // 128 MB
+  maxActivePieces: 10000, // Effectively unlimited - maxBufferedBytes is the real limit
+  maxBufferedBytes: 128 * 1024 * 1024, // 128 MB - this is the real memory guard
   cleanupIntervalMs: 10000,
 }
 

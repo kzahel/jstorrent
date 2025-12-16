@@ -25,6 +25,7 @@ import { initializeTorrentStorage } from './torrent-initializer'
 import { TorrentDiskQueue, DiskQueueSnapshot } from './disk-queue'
 import { EndgameManager } from './endgame-manager'
 import { PartsFile } from './parts-file'
+import { PiecePicker } from './piece-picker'
 import type { LookupResult } from '../dht'
 
 /**
@@ -130,6 +131,7 @@ export class Torrent extends EngineComponent {
   public contentStorage?: TorrentContentStorage
   private _diskQueue: TorrentDiskQueue = new TorrentDiskQueue()
   private _endgameManager: EndgameManager = new EndgameManager()
+  private _piecePicker: PiecePicker = new PiecePicker()
   private _bitfield?: BitField
   public announce: string[] = []
   public trackerManager?: TrackerManager
@@ -141,6 +143,10 @@ export class Torrent extends EngineComponent {
   private _filePriorities: number[] = []
   /** Cached piece classification (recomputed on file priority changes) */
   private _pieceClassification: PieceClassification[] = []
+  /** Per-piece availability count (how many connected peers have each piece) */
+  private _pieceAvailability: Uint16Array | null = null
+  /** Per-piece priority derived from file priorities (0=skip, 1=normal, 2=high) */
+  private _piecePriority: Uint8Array | null = null
   /** Pieces currently stored in .parts file (not in regular files) */
   private _partsFilePieces: Set<number> = new Set()
   /** .parts file manager for boundary pieces */
@@ -461,6 +467,18 @@ export class Torrent extends EngineComponent {
     this._bitfield = new BitField(pieceCount)
   }
 
+  /**
+   * Initialize piece availability tracking.
+   * Call after metadata is available (same time as initBitfield).
+   */
+  initPieceAvailability(pieceCount: number): void {
+    this._pieceAvailability = new Uint16Array(pieceCount) // All zeros
+  }
+
+  get pieceAvailability(): Uint16Array | null {
+    return this._pieceAvailability
+  }
+
   // --- Piece Info Initialization ---
 
   /**
@@ -667,6 +685,13 @@ export class Torrent extends EngineComponent {
    */
   get pieceClassification(): PieceClassification[] {
     return this._pieceClassification
+  }
+
+  /**
+   * Get per-piece priority (0=skip, 1=normal, 2=high).
+   */
+  get piecePriority(): Uint8Array | null {
+    return this._piecePriority
   }
 
   /**
@@ -1017,6 +1042,81 @@ export class Torrent extends EngineComponent {
 
     // Clear any active pieces that are now blacklisted
     this.clearBlacklistedActivePieces()
+
+    // Recompute piece priorities (for rarest-first selection)
+    this.recomputePiecePriority()
+  }
+
+  /**
+   * Recompute piece priorities from file priorities.
+   * Piece priority = max(priority of files it touches), mapped as:
+   *   - File priority 0 (normal) → contributes piece priority 1
+   *   - File priority 1 (skip) → contributes piece priority 0
+   *   - File priority 2 (high) → contributes piece priority 2
+   *
+   * This means:
+   *   - Piece priority 0 = skip (all touching files are skipped)
+   *   - Piece priority 1 = normal (at least one touching file is normal)
+   *   - Piece priority 2 = high (at least one touching file is high priority)
+   */
+  private recomputePiecePriority(): void {
+    if (!this.hasMetadata || !this.contentStorage || this.piecesCount === 0) {
+      this._piecePriority = null
+      return
+    }
+
+    if (!this._piecePriority || this._piecePriority.length !== this.piecesCount) {
+      this._piecePriority = new Uint8Array(this.piecesCount)
+    }
+
+    const files = this.contentStorage.filesList
+
+    for (let pieceIndex = 0; pieceIndex < this.piecesCount; pieceIndex++) {
+      const pieceStart = pieceIndex * this.pieceLength
+      const pieceEnd = pieceStart + this.getPieceLength(pieceIndex)
+
+      let maxPriority = 0 // Start as skip
+
+      for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
+        const file = files[fileIndex]
+        const fileEnd = file.offset + file.length
+
+        // Check if piece overlaps with this file
+        if (pieceStart < fileEnd && pieceEnd > file.offset) {
+          const filePriority = this._filePriorities[fileIndex] ?? 0
+
+          // Map file priority to piece priority contribution
+          let contribution = 0
+          if (filePriority === 2) {
+            contribution = 2 // High priority
+          } else if (filePriority === 0) {
+            contribution = 1 // Normal priority
+          }
+          // filePriority === 1 (skip) contributes 0
+
+          maxPriority = Math.max(maxPriority, contribution)
+
+          // Early exit if we hit high priority (can't go higher)
+          if (maxPriority === 2) break
+        }
+      }
+
+      this._piecePriority[pieceIndex] = maxPriority
+    }
+
+    // Log summary
+    let skip = 0,
+      normal = 0,
+      high = 0
+    for (let i = 0; i < this.piecesCount; i++) {
+      const p = this._piecePriority[i]
+      if (p === 0) skip++
+      else if (p === 1) normal++
+      else high++
+    }
+    if (high > 0) {
+      this.logger.debug(`Piece priority: ${high} high, ${normal} normal, ${skip} skip`)
+    }
   }
 
   /**
@@ -1039,13 +1139,16 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Check if a piece should be requested based on classification.
+   * Check if a piece should be requested based on priority.
    */
   shouldRequestPiece(index: number): boolean {
     // Already have it
     if (this._bitfield?.get(index)) return false
 
-    // Check classification (if available)
+    // Check piece priority (0 = skip)
+    if (this._piecePriority && this._piecePriority[index] === 0) return false
+
+    // Fallback to classification for backwards compatibility
     if (this._pieceClassification.length > 0) {
       if (this._pieceClassification[index] === 'blacklisted') return false
     }
@@ -1914,14 +2017,30 @@ export class Torrent extends EngineComponent {
       this.logger.warn(`Metadata piece ${piece} rejected by peer`)
     })
 
-    peer.on('bitfield', (_bf) => {
+    peer.on('bitfield', (bf) => {
       this.logger.debug('Bitfield received')
+
+      // Update piece availability
+      if (this._pieceAvailability) {
+        for (let i = 0; i < this.piecesCount; i++) {
+          if (bf.get(i)) {
+            this._pieceAvailability[i]++
+          }
+        }
+      }
+
       // Update interest
       this.updateInterest(peer)
     })
 
-    peer.on('have', (_index) => {
-      this.logger.debug(`Have received ${_index}`)
+    peer.on('have', (index) => {
+      this.logger.debug(`Have received ${index}`)
+
+      // Update piece availability (peer.bitfield already updated before event)
+      if (this._pieceAvailability && index < this._pieceAvailability.length) {
+        this._pieceAvailability[index]++
+      }
+
       this.updateInterest(peer)
     })
 
@@ -1989,6 +2108,15 @@ export class Torrent extends EngineComponent {
   }
 
   private removePeer(peer: PeerConnection) {
+    // Decrement piece availability for all pieces this peer had
+    if (this._pieceAvailability && peer.bitfield) {
+      for (let i = 0; i < this.piecesCount; i++) {
+        if (peer.bitfield.get(i) && this._pieceAvailability[i] > 0) {
+          this._pieceAvailability[i]--
+        }
+      }
+    }
+
     // Clear any queued uploads for this peer
     const queueLengthBefore = this.uploadQueue.length
     this.uploadQueue = this.uploadQueue.filter((req) => req.peer !== peer)
@@ -2281,27 +2409,35 @@ export class Torrent extends EngineComponent {
     }
 
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
-    const missing = this.getMissingPieces()
 
     // Use per-peer adaptive pipeline depth (starts at 10, ramps up for fast peers)
     const pipelineLimit = peer.pipelineDepth
 
+    // Use rarest-first piece selection if we have the necessary data
+    let selectedPieces: number[]
+    if (this._pieceAvailability && this._piecePriority && this._bitfield && peer.bitfield) {
+      const result = this._piecePicker.selectPieces({
+        peerBitfield: peer.bitfield,
+        ownBitfield: this._bitfield,
+        piecePriority: this._piecePriority,
+        pieceAvailability: this._pieceAvailability,
+        startedPieces: new Set(this.activePieces?.activeIndices ?? []),
+        maxPieces: 100, // Reasonable upper bound per peer
+      })
+      selectedPieces = result.pieces
+    } else {
+      // Fallback to sequential order (getMissingPieces filters by what peer has)
+      selectedPieces = this.getMissingPieces().filter((i) => peer.bitfield?.get(i))
+    }
+
     let _requestsMade = 0
     let _skippedComplete = 0
     let _skippedCapacity = 0
-    let _skippedPeerLacks = 0
     let _skippedNoNeeded = 0
 
-    pieceLoop: for (const index of missing) {
+    pieceLoop: for (const index of selectedPieces) {
       if (peer.requestsPending >= pipelineLimit) {
-        //this.logger.debug(`requestPieces: Hit pipeline limit`)
         break
-      }
-
-      // Check peer has this piece
-      if (!peer.bitfield?.get(index)) {
-        _skippedPeerLacks++
-        continue
       }
 
       // Get or create active piece
@@ -2355,8 +2491,9 @@ export class Torrent extends EngineComponent {
 
     // Check if we should enter/exit endgame mode
     if (this.activePieces) {
+      const missingCount = this.piecesCount - this.completedPiecesCount
       const decision = this._endgameManager.evaluate(
-        missing.length,
+        missingCount,
         this.activePieces.activeCount,
         this.activePieces.hasUnrequestedBlocks(),
       )

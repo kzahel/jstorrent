@@ -52,6 +52,7 @@ export async function initializeTorrentMetadata(
 
   // Initialize bitfield (torrent owns the bitfield)
   torrent.initBitfield(parsedTorrent.pieces.length)
+  torrent.initPieceAvailability(parsedTorrent.pieces.length)
 
   // Initialize piece info
   const lastPieceLength =

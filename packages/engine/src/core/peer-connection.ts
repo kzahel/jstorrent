@@ -263,8 +263,9 @@ export class PeerConnection extends EngineComponent {
         this.emit('not_interested')
         break
       case MessageType.HAVE:
-        if (message.index !== undefined) {
-          this.bitfield?.set(message.index, true)
+        // Only emit if this is new information (avoid double-counting in availability)
+        if (message.index !== undefined && this.bitfield && !this.bitfield.get(message.index)) {
+          this.bitfield.set(message.index, true)
           this.emit('have', message.index)
         }
         break
