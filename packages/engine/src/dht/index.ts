@@ -47,3 +47,60 @@ export {
 
 // Routing Table
 export { RoutingTable } from './routing-table'
+
+// ============================================================================
+// Phase 2 Exports - KRPC Protocol Layer
+// ============================================================================
+
+// KRPC Message Types
+export type { KRPCQuery, KRPCResponse, KRPCError, KRPCMessage } from './krpc-messages'
+
+// KRPC Message Encoding
+export {
+  // Encoding queries
+  encodePingQuery,
+  encodeFindNodeQuery,
+  encodeGetPeersQuery,
+  encodeAnnouncePeerQuery,
+  // Encoding responses
+  encodePingResponse,
+  encodeFindNodeResponse,
+  encodeGetPeersResponseWithPeers,
+  encodeGetPeersResponseWithNodes,
+  encodeAnnouncePeerResponse,
+  encodeErrorResponse,
+  // Decoding
+  decodeMessage,
+  isQuery,
+  isResponse,
+  isError,
+  // Compact encoding
+  encodeCompactPeer,
+  decodeCompactPeer,
+  decodeCompactPeers,
+  encodeCompactNode,
+  encodeCompactNodes,
+  decodeCompactNode,
+  decodeCompactNodes,
+  // Response helpers
+  getResponseNodeId,
+  getResponseNodes,
+  getResponsePeers,
+  getResponseToken,
+  getQueryNodeId,
+  getQueryTarget,
+  getQueryInfoHash,
+  getQueryToken,
+  getQueryPort,
+  getQueryImpliedPort,
+  // Error codes
+  KRPCErrorCode,
+} from './krpc-messages'
+
+// Transaction Manager
+export type { PendingQuery } from './transaction-manager'
+export { TransactionManager } from './transaction-manager'
+
+// KRPC Socket
+export type { KRPCSocketOptions, KRPCSocketEvents } from './krpc-socket'
+export { KRPCSocket } from './krpc-socket'
