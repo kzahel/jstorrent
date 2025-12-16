@@ -6,6 +6,8 @@ import {
   DiskQueueSnapshot,
   TrackerStats,
   BandwidthTracker,
+  DHTStats,
+  DHTNodeInfo,
 } from '@jstorrent/engine'
 
 /**
@@ -57,6 +59,12 @@ export interface EngineAdapter {
 
   /** Get the bandwidth tracker for speed graphs */
   getBandwidthTracker(): BandwidthTracker
+
+  /** Get DHT statistics (null if DHT disabled) */
+  getDHTStats(): DHTStats | null
+
+  /** Get all DHT nodes */
+  getDHTNodes(): DHTNodeInfo[]
 }
 
 /**
@@ -126,5 +134,13 @@ export class DirectEngineAdapter implements EngineAdapter {
 
   getBandwidthTracker(): BandwidthTracker {
     return this.engine.bandwidthTracker
+  }
+
+  getDHTStats(): DHTStats | null {
+    return this.engine.dhtNode?.getStats() ?? null
+  }
+
+  getDHTNodes(): DHTNodeInfo[] {
+    return this.engine.dhtNode?.getAllNodes() ?? []
   }
 }

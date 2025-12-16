@@ -131,6 +131,38 @@ export interface BootstrapStats {
 }
 
 /**
+ * DHT node statistics for UI display.
+ */
+export interface DHTStats {
+  // Basic info
+  enabled: boolean
+  ready: boolean
+  nodeId: string
+  nodeCount: number
+  bucketCount: number
+
+  // Traffic
+  bytesSent: number
+  bytesReceived: number
+
+  // Queries sent
+  pingsSent: number
+  findNodesSent: number
+  getPeersSent: number
+  announcesSent: number
+
+  // Queries received
+  pingsReceived: number
+  findNodesReceived: number
+  getPeersReceived: number
+  announcesReceived: number
+
+  // Errors
+  timeouts: number
+  errors: number
+}
+
+/**
  * Events emitted by DHTNode.
  */
 export interface DHTNodeEvents {
@@ -185,6 +217,22 @@ export class DHTNode extends EventEmitter {
   /** Optional logger for debug output */
   private readonly logger?: Logger
 
+  // Query counters (sent)
+  private _pingsSent = 0
+  private _findNodesSent = 0
+  private _getPeersSent = 0
+  private _announcesSent = 0
+
+  // Query counters (received) - incremented via callback from query handler
+  private _pingsReceived = 0
+  private _findNodesReceived = 0
+  private _getPeersReceived = 0
+  private _announcesReceived = 0
+
+  // Error counters
+  private _timeouts = 0
+  private _errors = 0
+
   constructor(options: DHTNodeOptions) {
     super()
 
@@ -224,6 +272,7 @@ export class DHTNode extends EventEmitter {
       routingTable: this.routingTable,
       tokenStore: this.tokenStore,
       peerStore: this.peerStore,
+      onQueryReceived: (queryType) => this.incrementReceivedCounter(queryType),
     }
     const queryHandler = createQueryHandler(this.krpcSocket, handlerDeps)
     this.krpcSocket.on('query', queryHandler)
@@ -297,6 +346,7 @@ export class DHTNode extends EventEmitter {
 
     const transactionId = this.krpcSocket.generateTransactionId()
     const queryData = encodePingQuery(transactionId, this.nodeId)
+    this._pingsSent++
 
     try {
       const response = await this.krpcSocket.query(
@@ -322,6 +372,7 @@ export class DHTNode extends EventEmitter {
       return true
     } catch {
       // Timeout or error - node did not respond
+      this._timeouts++
       return false
     }
   }
@@ -349,6 +400,7 @@ export class DHTNode extends EventEmitter {
 
     const transactionId = this.krpcSocket.generateTransactionId()
     const queryData = encodeFindNodeQuery(transactionId, this.nodeId, target)
+    this._findNodesSent++
 
     try {
       const response = await this.krpcSocket.query(
@@ -375,6 +427,7 @@ export class DHTNode extends EventEmitter {
       return nodes
     } catch {
       // Timeout or error
+      this._timeouts++
       return []
     }
   }
@@ -404,6 +457,7 @@ export class DHTNode extends EventEmitter {
 
     const transactionId = this.krpcSocket.generateTransactionId()
     const queryData = encodeGetPeersQuery(transactionId, this.nodeId, infoHash)
+    this._getPeersSent++
 
     try {
       const response = await this.krpcSocket.query(
@@ -450,6 +504,7 @@ export class DHTNode extends EventEmitter {
       return result
     } catch {
       // Timeout or error
+      this._timeouts++
       return null
     }
   }
@@ -490,6 +545,7 @@ export class DHTNode extends EventEmitter {
       token,
       impliedPort,
     )
+    this._announcesSent++
 
     try {
       const response = await this.krpcSocket.query(
@@ -514,6 +570,7 @@ export class DHTNode extends EventEmitter {
       return true
     } catch {
       // Timeout or KRPC error response
+      this._timeouts++
       return false
     }
   }
@@ -876,5 +933,55 @@ export class DHTNode extends EventEmitter {
    */
   getClosestNodes(target: Uint8Array, count?: number): DHTNodeInfo[] {
     return this.routingTable.closest(target, count)
+  }
+
+  /**
+   * Get DHT statistics for UI display.
+   */
+  getStats(): DHTStats {
+    return {
+      enabled: true,
+      ready: this._ready,
+      nodeId: this.nodeIdHex,
+      nodeCount: this.routingTable.size(),
+      bucketCount: this.routingTable.getBucketCount(),
+
+      bytesSent: this.krpcSocket.bytesSent,
+      bytesReceived: this.krpcSocket.bytesReceived,
+
+      pingsSent: this._pingsSent,
+      findNodesSent: this._findNodesSent,
+      getPeersSent: this._getPeersSent,
+      announcesSent: this._announcesSent,
+
+      pingsReceived: this._pingsReceived,
+      findNodesReceived: this._findNodesReceived,
+      getPeersReceived: this._getPeersReceived,
+      announcesReceived: this._announcesReceived,
+
+      timeouts: this._timeouts,
+      errors: this._errors,
+    }
+  }
+
+  /**
+   * Increment received query counter.
+   * Called by query handler when processing incoming queries.
+   */
+  incrementReceivedCounter(queryType: 'ping' | 'find_node' | 'get_peers' | 'announce_peer'): void {
+    switch (queryType) {
+      case 'ping':
+        this._pingsReceived++
+        break
+      case 'find_node':
+        this._findNodesReceived++
+        break
+      case 'get_peers':
+        this._getPeersReceived++
+        break
+      case 'announce_peer':
+        this._announcesReceived++
+        break
+    }
   }
 }

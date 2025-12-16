@@ -148,6 +148,7 @@ export type {
   GetPeersResult,
   BootstrapOptions,
   BootstrapStats,
+  DHTStats,
 } from './dht-node'
 export { DHTNode } from './dht-node'
 

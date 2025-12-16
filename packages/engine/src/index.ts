@@ -88,6 +88,9 @@ export type { NetworkInterface, UPnPMapping, SSDPDevice } from './upnp'
 // LPD (Local Peer Discovery)
 export { LPDService } from './lpd'
 
+// DHT
+export type { DHTStats, DHTNodeInfo } from './dht'
+
 // Settings
 export {
   // Schema and types

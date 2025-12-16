@@ -38,6 +38,7 @@ export class MseSocket implements ITcpSocket {
   private onCloseCb: ((hadError: boolean) => void) | null = null
   private onErrorCb: ((err: Error) => void) | null = null
   private bufferedData: Uint8Array[] = []
+  private pendingInitialPayload: Uint8Array | null = null
 
   // For handshake
   private handshake: MseHandshake | null = null
@@ -145,9 +146,18 @@ export class MseSocket implements ITcpSocket {
       this.options.onInfoHashRecovered(result.infoHash)
     }
 
-    // Deliver any initial payload
+    // Buffer initial payload - will be delivered when onData() is called
     if (result.initialPayload && result.initialPayload.length > 0) {
-      this.onDataCb?.(result.initialPayload)
+      console.log(
+        `[MseSocket] initialPayload ${result.initialPayload.length} bytes, onDataCb=${!!this.onDataCb}`,
+      )
+      if (this.onDataCb) {
+        this.onDataCb(result.initialPayload)
+      } else {
+        this.pendingInitialPayload = result.initialPayload
+      }
+    } else {
+      console.log(`[MseSocket] no initialPayload from handshake`)
     }
   }
 
@@ -186,6 +196,16 @@ export class MseSocket implements ITcpSocket {
 
   onData(cb: (data: Uint8Array) => void): void {
     this.onDataCb = cb
+    // Deliver any buffered initial payload from handshake
+    if (this.pendingInitialPayload) {
+      console.log(
+        `[MseSocket] onData called, delivering pending ${this.pendingInitialPayload.length} bytes`,
+      )
+      cb(this.pendingInitialPayload)
+      this.pendingInitialPayload = null
+    } else {
+      console.log(`[MseSocket] onData called, no pending payload`)
+    }
   }
 
   onClose(cb: (hadError: boolean) => void): void {

@@ -55,6 +55,10 @@ export class KRPCSocket extends EventEmitter {
   private socketFactory: ISocketFactory
   private options: Required<KRPCSocketOptions>
 
+  // Traffic counters
+  private _bytesSent = 0
+  private _bytesReceived = 0
+
   constructor(socketFactory: ISocketFactory, options: KRPCSocketOptions = {}) {
     super()
     this.socketFactory = socketFactory
@@ -115,6 +119,7 @@ export class KRPCSocket extends EventEmitter {
         }
       })
 
+      this._bytesSent += data.length
       this.socket.send(host, port, data)
     })
   }
@@ -126,6 +131,7 @@ export class KRPCSocket extends EventEmitter {
     if (!this.socket) {
       throw new Error('Socket not bound')
     }
+    this._bytesSent += data.length
     this.socket.send(host, port, data)
   }
 
@@ -162,9 +168,24 @@ export class KRPCSocket extends EventEmitter {
   }
 
   /**
+   * Get bytes sent counter.
+   */
+  get bytesSent(): number {
+    return this._bytesSent
+  }
+
+  /**
+   * Get bytes received counter.
+   */
+  get bytesReceived(): number {
+    return this._bytesReceived
+  }
+
+  /**
    * Handle incoming UDP message.
    */
   private handleMessage(data: Uint8Array, rinfo: { addr: string; port: number }): void {
+    this._bytesReceived += data.length
     const msg = decodeMessage(data)
     if (!msg) {
       // Invalid message - ignore

@@ -52,6 +52,8 @@ export interface QueryHandlerDeps {
   tokenStore: TokenStore
   /** Peer store for storing/retrieving peers */
   peerStore: PeerStore
+  /** Optional callback for tracking received queries */
+  onQueryReceived?: (queryType: 'ping' | 'find_node' | 'get_peers' | 'announce_peer') => void
 }
 
 /**
@@ -292,12 +294,16 @@ export async function routeQuery(
 ): Promise<QueryHandlerResult> {
   switch (query.q) {
     case 'ping':
+      deps.onQueryReceived?.('ping')
       return handlePing(query, rinfo, deps)
     case 'find_node':
+      deps.onQueryReceived?.('find_node')
       return handleFindNode(query, rinfo, deps)
     case 'get_peers':
+      deps.onQueryReceived?.('get_peers')
       return handleGetPeers(query, rinfo, deps)
     case 'announce_peer':
+      deps.onQueryReceived?.('announce_peer')
       return handleAnnouncePeer(query, rinfo, deps)
     default:
       return handleUnknownMethod(query)
