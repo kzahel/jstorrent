@@ -150,3 +150,10 @@ export type {
   BootstrapStats,
 } from './dht-node'
 export { DHTNode } from './dht-node'
+
+// ============================================================================
+// Phase 6 Exports - Iterative Lookup
+// ============================================================================
+
+export type { IterativeLookupOptions, LookupResult } from './iterative-lookup'
+export { iterativeLookup } from './iterative-lookup'
