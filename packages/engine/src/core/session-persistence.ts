@@ -213,6 +213,14 @@ export class SessionPersistence {
   }
 
   /**
+   * Reset torrent state (progress, file priorities) without removing the infodict.
+   * Used for "reset state" which clears progress but preserves metadata for magnet torrents.
+   */
+  async resetState(infoHash: string): Promise<void> {
+    await this.store.delete(stateKey(infoHash))
+  }
+
+  /**
    * Restore all torrents from storage.
    * Call this on engine startup while engine is suspended.
    */

@@ -480,6 +480,35 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
   }
 
+  /**
+   * Reset a torrent's state (progress, stats, file priorities) without removing it.
+   * For magnet torrents, this preserves the infodict so metadata doesn't need to be re-fetched.
+   * The torrent will be stopped after reset and needs to be started manually.
+   */
+  async resetTorrent(torrent: Torrent): Promise<void> {
+    const index = this.torrents.indexOf(torrent)
+    if (index === -1) return
+
+    const infoHash = toHex(torrent.infoHash)
+
+    // Stop without tracker announce (much faster)
+    await torrent.stop({ skipAnnounce: true })
+
+    // Reset in-memory state
+    torrent.resetState()
+
+    // Reset persisted state (but preserve infodict for magnet torrents)
+    await this.sessionPersistence.resetState(infoHash)
+
+    // Set user state to stopped
+    torrent.userState = 'stopped'
+
+    // Save the new (empty) state
+    await this.sessionPersistence.saveTorrentState(torrent)
+
+    this.emit('torrent-updated', torrent)
+  }
+
   getTorrent(infoHash: string): Torrent | undefined {
     return this.torrents.find((t) => toHex(t.infoHash) === infoHash)
   }

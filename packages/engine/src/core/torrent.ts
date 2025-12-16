@@ -2576,7 +2576,7 @@ export class Torrent extends EngineComponent {
     // Compare
     return compare(hash, expectedHash) === 0
   }
-  async stop() {
+  async stop(options?: { skipAnnounce?: boolean }) {
     this.logger.info('Stopping')
 
     // Stop periodic maintenance
@@ -2589,11 +2589,13 @@ export class Torrent extends EngineComponent {
     this.activePieces?.destroy()
 
     if (this.trackerManager) {
-      try {
-        await this.trackerManager.announce('stopped')
-      } catch (err) {
-        // Announce may fail if IO is disconnected during shutdown - that's ok
-        this.logger.warn(`Failed to announce stopped: ${err instanceof Error ? err.message : err}`)
+      if (!options?.skipAnnounce) {
+        try {
+          await this.trackerManager.announce('stopped')
+        } catch (err) {
+          // Announce may fail if IO is disconnected during shutdown - that's ok
+          this.logger.warn(`Failed to announce stopped: ${err instanceof Error ? err.message : err}`)
+        }
       }
       this.trackerManager.destroy()
     }
@@ -2607,6 +2609,46 @@ export class Torrent extends EngineComponent {
       await this.contentStorage.close()
     }
     this.emit('stopped')
+  }
+
+  /**
+   * Reset torrent state (progress, stats, file priorities) without clearing metadata.
+   * This is used for "Reset State" which clears download progress but preserves the
+   * infodict for magnet torrents so metadata doesn't need to be re-fetched.
+   */
+  resetState(): void {
+    this.logger.info('Resetting torrent state')
+
+    // Reset bitfield (progress) to empty
+    if (this.hasMetadata && this.piecesCount > 0) {
+      this._bitfield = new BitField(this.piecesCount)
+    }
+
+    // Reset stats
+    this._persisted.totalDownloaded = 0
+    this._persisted.totalUploaded = 0
+
+    // Reset file priorities to all normal (0)
+    const fileCount = this.contentStorage?.filesList.length ?? 0
+    if (fileCount > 0) {
+      this._filePriorities = new Array(fileCount).fill(0)
+      this._pieceClassification = []
+      this.recomputePieceClassification()
+
+      // Also reset on content storage
+      this.contentStorage?.setFilePriorities(this._filePriorities)
+    } else {
+      this._filePriorities = []
+      this._pieceClassification = []
+    }
+
+    // Clear cached file info so it's recomputed with fresh values
+    this._files = []
+
+    // Clear partsFilePieces tracking
+    this._partsFilePieces.clear()
+
+    this.logger.info('Torrent state reset complete')
   }
 
   async recheckData() {

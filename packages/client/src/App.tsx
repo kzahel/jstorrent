@@ -130,18 +130,9 @@ function AppContent() {
   }
 
   const handleResetSelected = async () => {
-    // Reset = remove + re-add in stopped state
-    // Use original magnet URI if available (preserves non-standard query params like x.pe)
+    // Reset torrent state (progress, stats, file priorities) while preserving metadata
     for (const t of selectedTorrentObjects) {
-      const magnet =
-        t.magnetLink ??
-        generateMagnet({
-          infoHash: t.infoHashStr,
-          name: t.name,
-          announce: t.announce,
-        })
-      await adapter.removeTorrent(t)
-      await adapter.addTorrent(magnet, { userState: 'stopped' })
+      await adapter.resetTorrent(t)
     }
     setSelectedTorrents(new Set())
   }
