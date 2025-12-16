@@ -13,6 +13,8 @@ export interface Logger {
 
 export interface EngineLoggingConfig {
   level: LogLevel
+  /** Per-component log level overrides. Key is component name (e.g. "peer", "torrent"). */
+  componentLevels?: Record<string, LogLevel>
   includeComponents?: string[] // e.g. ["torrent", "pcmgr"]
   excludeComponents?: string[]
   includeInstanceValues?: string[] // compare against instanceValue
@@ -136,9 +138,12 @@ function passesLevel(msgLevel: LogLevel, configLevel: LogLevel): boolean {
 
 export function createFilter(cfg: EngineLoggingConfig): ShouldLogFn {
   return (level, ctx) => {
-    if (!passesLevel(level, cfg.level)) return false
-
     const comp = ctx.component
+
+    // Check level: use component-specific level if set, otherwise global
+    const effectiveLevel = cfg.componentLevels?.[comp] ?? cfg.level
+    if (!passesLevel(level, effectiveLevel)) return false
+
     const inst = typeof ctx.instanceValue === 'string' ? ctx.instanceValue : undefined
     const pid = typeof ctx.peerId === 'string' ? ctx.peerId : undefined
 

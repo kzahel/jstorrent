@@ -32,7 +32,11 @@ interface ContextMenuState {
   torrent: Torrent
 }
 
-function AppContent() {
+interface AppContentProps {
+  onOpenLoggingSettings?: () => void
+}
+
+function AppContent({ onOpenLoggingSettings }: AppContentProps) {
   const [magnetInput, setMagnetInput] = useState('')
   const [selectedTorrents, setSelectedTorrents] = useState<Set<string>>(new Set())
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
@@ -428,6 +432,7 @@ function AppContent() {
                     torrent.setFilePriority(fileIndex, priority)
                   }
                 }}
+                onOpenLoggingSettings={onOpenLoggingSettings}
               />
             </div>
           </div>
@@ -568,6 +573,83 @@ function App() {
     return settingsStore.subscribe('upnp.enabled', (enabled) => {
       engineManager.setUPnPEnabled(enabled)
     })
+  }, [settingsStore, settingsReady, engine])
+
+  // Apply logging settings from settings store
+  useEffect(() => {
+    if (!settingsReady || !engine) return
+
+    // Helper to build logging config from settings
+    const buildLoggingConfig = () => {
+      const level = settingsStore.get('logging.level')
+      const componentLevels: Record<string, 'debug' | 'info' | 'warn' | 'error'> = {}
+
+      // Component names that have per-component settings
+      const components = [
+        'client',
+        'torrent',
+        'peer',
+        'active-pieces',
+        'content-storage',
+        'parts-file',
+        'tracker-manager',
+        'http-tracker',
+        'udp-tracker',
+        'dht',
+      ] as const
+
+      for (const comp of components) {
+        const key = `logging.level.${comp}` as const
+        const value = settingsStore.get(key)
+        if (value !== 'default') {
+          componentLevels[comp] = value
+        }
+      }
+
+      return { level, componentLevels }
+    }
+
+    // Apply initial value
+    engineManager.setLoggingConfig(buildLoggingConfig())
+
+    // Subscribe to all logging settings changes
+    const unsubscribes = [
+      settingsStore.subscribe('logging.level', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.client', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.torrent', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.peer', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.active-pieces', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.content-storage', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.parts-file', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.tracker-manager', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.http-tracker', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.udp-tracker', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.dht', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+    ]
+
+    return () => unsubscribes.forEach((unsub) => unsub())
   }, [settingsStore, settingsReady, engine])
 
   // Periodic refresh for header stats (engine object is mutable)
@@ -816,7 +898,12 @@ function App() {
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {engine ? (
             <EngineProvider engine={engine}>
-              <AppContent />
+              <AppContent
+                onOpenLoggingSettings={() => {
+                  setSettingsTab('advanced')
+                  setSettingsOpen(true)
+                }}
+              />
             </EngineProvider>
           ) : initError ? (
             <div style={{ padding: '40px', textAlign: 'center' }}>

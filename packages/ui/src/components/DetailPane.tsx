@@ -53,6 +53,8 @@ export interface DetailPaneProps {
   onCopyFilePath?: (torrentHash: string, file: TorrentFileInfo) => void
   /** Callback when user wants to set file priority */
   onSetFilePriority?: (torrentHash: string, fileIndex: number, priority: number) => void
+  /** Callback to open logging settings */
+  onOpenLoggingSettings?: () => void
 }
 
 const tabStyle: React.CSSProperties = {
@@ -220,7 +222,12 @@ export function DetailPane(props: DetailPaneProps) {
             />,
             'trackers',
           )}
-        {activeTab === 'logs' && <LogTableWrapper logStore={props.source.getLogStore()} />}
+        {activeTab === 'logs' && (
+          <LogTableWrapper
+            logStore={props.source.getLogStore()}
+            onOpenSettings={props.onOpenLoggingSettings}
+          />
+        )}
         {activeTab === 'speed' && (
           <SpeedTab bandwidthTracker={props.source.getBandwidthTracker()} />
         )}

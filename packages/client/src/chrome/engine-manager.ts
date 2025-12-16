@@ -625,6 +625,19 @@ class EngineManager {
   }
 
   /**
+   * Set logging configuration dynamically.
+   * @param config - Logging configuration with global level and optional per-component levels
+   */
+  setLoggingConfig(config: import('@jstorrent/engine').EngineLoggingConfig): void {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set logging config: engine not initialized')
+      return
+    }
+    this.engine.setLoggingConfig(config)
+    console.log(`[EngineManager] Logging config updated: level=${config.level}`)
+  }
+
+  /**
    * Set up notification handling for download events.
    */
   private setupNotifications(): void {

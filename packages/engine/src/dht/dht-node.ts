@@ -9,6 +9,7 @@
 
 import { EventEmitter } from '../utils/event-emitter'
 import { ISocketFactory } from '../interfaces/socket'
+import type { Logger } from '../logging/logger'
 import { RoutingTable } from './routing-table'
 import { KRPCSocket, KRPCSocketOptions } from './krpc-socket'
 import { TokenStore, TokenStoreOptions } from './token-store'
@@ -86,6 +87,8 @@ export interface DHTNodeOptions {
    * @default false
    */
   skipMaintenance?: boolean
+  /** Logger for debug output. If not provided, logs are not emitted. */
+  logger?: Logger
 }
 
 /**
@@ -179,6 +182,9 @@ export class DHTNode extends EventEmitter {
   /** Skip maintenance timers (for tests) */
   private readonly skipMaintenance: boolean
 
+  /** Optional logger for debug output */
+  private readonly logger?: Logger
+
   constructor(options: DHTNodeOptions) {
     super()
 
@@ -197,6 +203,7 @@ export class DHTNode extends EventEmitter {
     })
     this.peerStore = new PeerStore(options.peerOptions)
     this.skipMaintenance = options.skipMaintenance ?? false
+    this.logger = options.logger
 
     // Forward routing table events
     this.routingTable.on('nodeAdded', (node: DHTNodeInfo) => this.emit('nodeAdded', node))
@@ -244,6 +251,7 @@ export class DHTNode extends EventEmitter {
       throw new Error('DHTNode already started')
     }
 
+    this.logger?.debug('Starting DHT node...')
     await this.krpcSocket.bind()
     this._ready = true
 
@@ -252,6 +260,7 @@ export class DHTNode extends EventEmitter {
       this.startMaintenance()
     }
 
+    this.logger?.info(`DHT node started with ID ${this.nodeIdHex.slice(0, 8)}...`)
     this.emit('ready')
   }
 
@@ -259,6 +268,7 @@ export class DHTNode extends EventEmitter {
    * Stop the DHT node (close socket, stop maintenance, cleanup).
    */
   stop(): void {
+    this.logger?.info('Stopping DHT node')
     this._ready = false
 
     // Stop maintenance timers
@@ -528,6 +538,7 @@ export class DHTNode extends EventEmitter {
       throw new Error('DHTNode not started')
     }
 
+    this.logger?.info('Starting DHT bootstrap...')
     const startTime = Date.now()
     const bootstrapNodes = options.nodes ?? BOOTSTRAP_NODES
     const concurrency = options.concurrency ?? BOOTSTRAP_CONCURRENCY
@@ -673,6 +684,10 @@ export class DHTNode extends EventEmitter {
       durationMs: Date.now() - startTime,
     }
 
+    this.logger?.info(
+      `DHT bootstrap complete: ${stats.routingTableSize} nodes, ` +
+        `${stats.responsesReceived}/${stats.queriedCount} responses, ${stats.durationMs}ms`,
+    )
     this.emit('bootstrapped', stats)
     return stats
   }

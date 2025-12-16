@@ -30,7 +30,7 @@ export type { IHasher } from './interfaces/hasher'
 export type { TrackerStats, TrackerStatus } from './interfaces/tracker'
 
 // Logging
-export type { Logger, LogEntry, LogLevel } from './logging/logger'
+export type { Logger, LogEntry, LogLevel, EngineLoggingConfig } from './logging/logger'
 export { LogStore, globalLogStore, defaultLogger } from './logging/logger'
 
 // Adapters

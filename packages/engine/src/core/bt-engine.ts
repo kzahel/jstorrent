@@ -267,7 +267,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   }
 
   scopedLoggerFor(component: ILoggableComponent): Logger {
-    return withScopeAndFiltering(component, this.filterFn, {
+    // Pass a wrapper that always calls current filterFn, enabling dynamic log level changes
+    return withScopeAndFiltering(component, (level, ctx) => this.filterFn(level, ctx), {
       onLog: (entry) => {
         // Add to global store (once)
         globalLogStore.add(entry.level, entry.message, entry.args)
@@ -275,6 +276,15 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         this.onLogCallback?.(entry)
       },
     })
+  }
+
+  /**
+   * Update logging configuration dynamically.
+   * Takes effect immediately for all components.
+   */
+  setLoggingConfig(config: EngineLoggingConfig): void {
+    this.filterFn = createFilter(config)
+    this.logger.info('Logging config updated', { level: config.level })
   }
 
   /**
@@ -996,10 +1006,19 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     // Create DHT node with persisted node ID or generate new one
     const nodeId = persistedState ? hexToNodeId(persistedState.nodeId) : undefined
 
+    // Create a scoped logger for DHT
+    const dhtLoggable = {
+      getLogName: () => 'dht',
+      getStaticLogName: () => 'dht',
+      engineInstance: this as ILoggingEngine,
+    }
+    const dhtLogger = this.scopedLoggerFor(dhtLoggable)
+
     this._dhtNode = new DHTNode({
       nodeId,
       socketFactory: this.socketFactory,
       krpcOptions: { bindPort: this.port }, // Use same port as TCP for UDP
+      logger: dhtLogger,
     })
 
     await this._dhtNode.start()

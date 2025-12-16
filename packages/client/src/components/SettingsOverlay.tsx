@@ -620,6 +620,28 @@ interface AdvancedTabProps extends TabProps {
   onResetAllSettings: () => void
 }
 
+// Log level options for global setting
+const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const
+type LogLevelValue = (typeof LOG_LEVELS)[number]
+
+// Log level options for per-component setting (includes 'default')
+const COMPONENT_LOG_LEVELS = ['default', 'debug', 'info', 'warn', 'error'] as const
+type ComponentLogLevelValue = (typeof COMPONENT_LOG_LEVELS)[number]
+
+// Component names for logging settings
+const LOG_COMPONENTS = [
+  'client',
+  'torrent',
+  'peer',
+  'active-pieces',
+  'content-storage',
+  'parts-file',
+  'tracker-manager',
+  'http-tracker',
+  'udp-tracker',
+  'dht',
+] as const
+
 const AdvancedTab: React.FC<AdvancedTabProps> = ({
   settings,
   updateSetting,
@@ -636,8 +658,70 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
     engineManager.setDaemonRateLimit(settings.daemonOpsPerSecond, v)
   }
 
+  // Reset logging settings to defaults
+  const handleResetLogging = () => {
+    updateSetting('logging.level', 'info')
+    for (const comp of LOG_COMPONENTS) {
+      const key = `logging.level.${comp}` as const
+      updateSetting(key, 'default')
+    }
+  }
+
   return (
     <div>
+      <Section title="Logging">
+        <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+          Controls the verbosity of engine logs. More verbose levels (debug) may generate
+          significant output.
+        </div>
+        <div style={styles.fieldRow}>
+          <span style={{ flex: 1 }}>Global log level</span>
+          <select
+            value={settings['logging.level']}
+            onChange={(e) => updateSetting('logging.level', e.target.value as LogLevelValue)}
+            style={styles.select}
+          >
+            {LOG_LEVELS.map((level) => (
+              <option key={level} value={level}>
+                {level.charAt(0).toUpperCase() + level.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ color: 'var(--text-secondary)', marginTop: '16px', marginBottom: '8px' }}>
+          Component Overrides (select &ldquo;Default&rdquo; to use global level)
+        </div>
+        {LOG_COMPONENTS.map((comp) => {
+          const key = `logging.level.${comp}` as const
+          return (
+            <div key={comp} style={styles.fieldRow}>
+              <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '12px' }}>{comp}</span>
+              <select
+                value={settings[key]}
+                onChange={(e) => updateSetting(key, e.target.value as ComponentLogLevelValue)}
+                style={styles.select}
+              >
+                {COMPONENT_LOG_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level === 'default'
+                      ? 'Default'
+                      : level.charAt(0).toUpperCase() + level.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )
+        })}
+
+        <button
+          onClick={handleResetLogging}
+          style={{ ...styles.addButton, marginTop: '16px', background: 'var(--accent-primary)' }}
+        >
+          Reset Logging to Defaults
+        </button>
+      </Section>
+
       <Section title="Daemon Rate Limiting">
         <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
           Controls how fast new connections and tracker announces are initiated. Lower values reduce

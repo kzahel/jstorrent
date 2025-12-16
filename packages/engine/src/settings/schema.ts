@@ -189,6 +189,83 @@ export const settingsSchema = {
   },
 
   // -------------------------------------------------------------------------
+  // Logging
+  // -------------------------------------------------------------------------
+  /**
+   * Global log level. Messages below this level are not captured.
+   */
+  'logging.level': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['debug', 'info', 'warn', 'error'] as const,
+    default: 'info',
+  },
+  /**
+   * Per-component log level overrides.
+   * 'default' means use the global logging.level setting.
+   */
+  'logging.level.client': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.torrent': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.peer': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.active-pieces': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.content-storage': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.parts-file': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.tracker-manager': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.http-tracker': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.udp-tracker': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.dht': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+
+  // -------------------------------------------------------------------------
   // Advanced: Daemon Rate Limiting
   // -------------------------------------------------------------------------
   /**
