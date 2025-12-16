@@ -277,6 +277,7 @@ export function LogTable(props: LogTableProps) {
           overflow: 'auto',
           'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
           'font-size': '11px',
+          'user-select': 'text',
         }}
       >
         <div style={{ height: `${visibleRange().totalHeight}px`, position: 'relative' }}>
