@@ -5,6 +5,7 @@ import {
   TorrentTable,
   DetailPane,
   ContextMenu,
+  ConfirmDialog,
   DropdownMenu,
   ResizeHandle,
   usePersistedUIState,
@@ -40,6 +41,7 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
   const [magnetInput, setMagnetInput] = useState('')
   const [selectedTorrents, setSelectedTorrents] = useState<Set<string>>(new Set())
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const [confirmRemoveAll, setConfirmRemoveAll] = useState<Torrent[] | null>(null)
   const { adapter, torrents, refresh } = useEngineState()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -141,6 +143,28 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
     setSelectedTorrents(new Set())
   }
 
+  const handleRemoveWithDataRequest = () => {
+    if (selectedTorrentObjects.length > 0) {
+      setConfirmRemoveAll(selectedTorrentObjects)
+    }
+  }
+
+  const handleRemoveWithDataConfirm = async () => {
+    if (!confirmRemoveAll) return
+    const errors: string[] = []
+    for (const t of confirmRemoveAll) {
+      const result = await adapter.removeTorrentWithData(t)
+      errors.push(...result.errors)
+    }
+    setConfirmRemoveAll(null)
+    setSelectedTorrents(new Set())
+    if (errors.length > 0) {
+      alert(
+        `Some files could not be deleted:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...and ${errors.length - 5} more` : ''}`,
+      )
+    }
+  }
+
   const handleCopyMagnet = async () => {
     // Use original magnet URI if available (preserves non-standard query params like x.pe)
     const magnets = selectedTorrentObjects.map(
@@ -180,6 +204,8 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
     { id: 'separator1', label: '', separator: true },
     { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '⎘' },
     { id: 'share', label: 'Share...', icon: '↗' },
+    { id: 'separator2', label: '', separator: true },
+    { id: 'removeWithData', label: 'Remove All Data', icon: '⊗', danger: true },
   ]
 
   const contextMenuItems: ContextMenuItem[] = [
@@ -194,6 +220,7 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
     { id: 'share', label: 'Share...', icon: '↗' },
     { id: 'separator3', label: '', separator: true },
     { id: 'remove', label: 'Remove', icon: '✕', danger: true },
+    { id: 'removeWithData', label: 'Remove All Data', icon: '⊗', danger: true },
   ]
 
   const handleOpenFolder = async () => {
@@ -231,6 +258,9 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
         break
       case 'remove':
         handleDeleteSelected()
+        break
+      case 'removeWithData':
+        handleRemoveWithDataRequest()
         break
     }
   }
@@ -438,6 +468,22 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
           </div>
         </>
       </div>
+
+      {/* Remove All Data confirmation dialog */}
+      {confirmRemoveAll && (
+        <ConfirmDialog
+          title="Remove All Data"
+          message={`Permanently delete ${
+            confirmRemoveAll.length === 1
+              ? `"${confirmRemoveAll[0].name}"`
+              : `${confirmRemoveAll.length} torrents`
+          } and ALL downloaded files? This cannot be undone.`}
+          confirmLabel="Delete Everything"
+          danger
+          onConfirm={handleRemoveWithDataConfirm}
+          onCancel={() => setConfirmRemoveAll(null)}
+        />
+      )}
 
       {/* Context menu portal */}
       {contextMenu && (

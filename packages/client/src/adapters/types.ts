@@ -28,6 +28,9 @@ export interface EngineAdapter {
   /** Remove a torrent */
   removeTorrent(torrent: Torrent): Promise<void>
 
+  /** Remove a torrent and delete all associated data files from disk */
+  removeTorrentWithData(torrent: Torrent): Promise<{ success: boolean; errors: string[] }>
+
   /** Reset a torrent's state (progress, stats, file priorities) without removing it */
   resetTorrent(torrent: Torrent): Promise<void>
 
@@ -80,6 +83,10 @@ export class DirectEngineAdapter implements EngineAdapter {
 
   async removeTorrent(torrent: Torrent): Promise<void> {
     await this.engine.removeTorrent(torrent)
+  }
+
+  async removeTorrentWithData(torrent: Torrent): Promise<{ success: boolean; errors: string[] }> {
+    return this.engine.removeTorrentWithData(torrent)
   }
 
   async resetTorrent(torrent: Torrent): Promise<void> {

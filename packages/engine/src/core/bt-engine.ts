@@ -565,6 +565,89 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   }
 
   /**
+   * Remove a torrent and delete all associated data files from disk.
+   * This includes: downloaded content files, .parts file, and session data.
+   * Returns a list of any errors encountered during file deletion.
+   */
+  async removeTorrentWithData(torrent: Torrent): Promise<{ success: boolean; errors: string[] }> {
+    const errors: string[] = []
+    const infoHash = toHex(torrent.infoHash)
+
+    // 1. Close file handles and stop torrent
+    if (torrent.contentStorage) {
+      await torrent.contentStorage.close()
+    }
+    torrent.stop()
+
+    // 2. Get filesystem for this torrent (may throw if no storage root)
+    let fs: IFileSystem | null = null
+    try {
+      fs = this.storageRootManager.getFileSystemForTorrent(infoHash)
+    } catch {
+      // No storage root - skip file deletion (torrent may never have had files)
+    }
+
+    // 3. Delete content files
+    if (torrent.contentStorage && fs) {
+      for (const file of torrent.contentStorage.filesList) {
+        try {
+          if (await fs.exists(file.path)) {
+            await fs.delete(file.path)
+          }
+        } catch (e) {
+          errors.push(`${file.path}: ${e instanceof Error ? e.message : String(e)}`)
+        }
+      }
+      // Clean up empty parent directories (best effort)
+      await this.cleanupEmptyDirectories(fs, torrent.contentStorage.filesList)
+    }
+
+    // 4. Delete .parts file
+    if (fs) {
+      const partsPath = `${infoHash}.parts`
+      try {
+        if (await fs.exists(partsPath)) {
+          await fs.delete(partsPath)
+        }
+      } catch (e) {
+        errors.push(`.parts: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+
+    // 5. Remove from engine (clears session data)
+    await this.removeTorrent(torrent)
+
+    return { success: errors.length === 0, errors }
+  }
+
+  /**
+   * Clean up empty parent directories after deleting files.
+   * Works deepest-first to properly clean up nested empty directories.
+   */
+  private async cleanupEmptyDirectories(fs: IFileSystem, files: { path: string }[]): Promise<void> {
+    const dirs = new Set<string>()
+    for (const file of files) {
+      let dir = file.path
+      while (dir.includes('/')) {
+        dir = dir.substring(0, dir.lastIndexOf('/'))
+        if (dir) dirs.add(dir)
+      }
+    }
+    // Sort deepest first
+    const sorted = [...dirs].sort((a, b) => b.split('/').length - a.split('/').length)
+    for (const dir of sorted) {
+      try {
+        const contents = await fs.readdir(dir)
+        if (contents.length === 0) {
+          await fs.delete(dir)
+        }
+      } catch {
+        // Ignore errors - directory may not exist or be non-empty
+      }
+    }
+  }
+
+  /**
    * Reset a torrent's state (progress, stats, file priorities) without removing it.
    * For magnet torrents, this preserves the infodict so metadata doesn't need to be re-fetched.
    * The torrent will be stopped after reset and needs to be started manually.
