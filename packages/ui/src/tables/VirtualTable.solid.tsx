@@ -382,7 +382,10 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
 
   // Estimated menu dimensions (used for initial positioning)
   const SETTINGS_MENU_WIDTH = 220
-  const SETTINGS_MENU_HEIGHT = 400 // Approximate max height
+  // Calculate settings menu height based on number of columns
+  // Each column item is ~32px (6px padding × 2 + content), plus end drop zone (24px),
+  // live sort section (~56px), and container padding (~16px)
+  const SETTINGS_MENU_HEIGHT = props.columns.length * 32 + 24 + 56 + 16
   const CONTEXT_MENU_WIDTH = 180
   const CONTEXT_MENU_HEIGHT = 120 // 3 items + padding
 
