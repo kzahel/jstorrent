@@ -97,6 +97,12 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
       width: 140,
     },
     {
+      id: 'source',
+      header: 'Source',
+      getValue: (p) => p.swarmPeer?.source ?? '',
+      width: 70,
+    },
+    {
       id: 'progress',
       header: '%',
       getValue: (p) => {
