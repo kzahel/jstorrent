@@ -927,13 +927,13 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     const tcpMapped = await this.upnpManager.addMapping(this.port, 'TCP')
-    const udpMapped = await this.upnpManager.addMapping(this.port, 'UDP') // For DHT
+    const udpMapped = await this.upnpManager.addMapping(this.port + 1, 'UDP') // For DHT
 
     if (tcpMapped) {
       this._upnpStatus = 'mapped'
       this.emit('upnpStatusChanged', this._upnpStatus)
       this.logger.info(
-        `UPnP: Mapped TCP port ${this.port}${udpMapped ? ' and UDP' : ''}, external IP: ${this.upnpManager.externalIP}`,
+        `UPnP: Mapped TCP port ${this.port}${udpMapped ? ` and UDP port ${this.port + 1}` : ''}, external IP: ${this.upnpManager.externalIP}`,
       )
     } else {
       this._upnpStatus = 'failed'
@@ -1017,7 +1017,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this._dhtNode = new DHTNode({
       nodeId,
       socketFactory: this.socketFactory,
-      krpcOptions: { bindPort: this.port }, // Use same port as TCP for UDP
+      krpcOptions: { bindPort: this.port + 1 }, // DHT uses port+1 to avoid conflicts
       logger: dhtLogger,
     })
 
