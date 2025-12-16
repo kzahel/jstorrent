@@ -252,7 +252,8 @@ class EngineManager {
       settingsStore.get('daemonOpsBurst'),
     )
     this.setEncryptionPolicy(settingsStore.get('encryptionPolicy'))
-    await this.setDHTEnabled(settingsStore.get('dht.enabled'))
+    // Don't await - DHT bootstrap runs in background and can take a while
+    void this.setDHTEnabled(settingsStore.get('dht.enabled'))
 
     // 9. Set up beforeunload handler
     window.addEventListener('beforeunload', () => {
