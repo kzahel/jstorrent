@@ -18,6 +18,7 @@ import type { BtEngine, DaemonOpType, PendingOpCounts } from './bt-engine'
 import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
 import { Swarm, SwarmStats, SwarmPeer, detectAddressFamily, peerKey, PeerAddress } from './swarm'
 import { ConnectionManager } from './connection-manager'
+import { randomBytes } from '../utils/hash'
 import { ConnectionTimingTracker } from './connection-timing'
 import { initializeTorrentStorage } from './torrent-initializer'
 import { TorrentDiskQueue, DiskQueueSnapshot } from './disk-queue'
@@ -350,6 +351,13 @@ export class Torrent extends EngineComponent {
         connectTimeout: 10000, // 10 second internal timeout
       },
     )
+
+    // Set MSE encryption context for the connection manager
+    this._connectionManager.setEncryptionContext({
+      infoHash: this.infoHash,
+      sha1: (data: Uint8Array) => this.btEngine.hasher.sha1(data),
+      getRandomBytes: randomBytes,
+    })
 
     // Initialize peer coordinator for BEP 3 choke algorithm
     this._peerCoordinator = new PeerCoordinator(

@@ -1,8 +1,9 @@
 import { EventEmitter } from '../utils/event-emitter'
 import { Swarm, SwarmPeer, peerKey } from './swarm'
 import { PeerConnection } from './peer-connection'
-import { ISocketFactory } from '../interfaces/socket'
+import { ISocketFactory, ITcpSocket } from '../interfaces/socket'
 import type { Logger, ILoggingEngine } from '../logging/logger'
+import { MseSocket, EncryptionPolicy } from '../crypto'
 
 // ============================================================================
 // Configuration
@@ -19,11 +20,21 @@ export interface ConnectionConfig {
   // Slow peer detection
   slowPeerMinSpeed: number // Minimum speed (bytes/sec) before considered slow
   slowPeerTimeoutMs: number // Time without data before dropping (ms)
+  // MSE/PE encryption
+  encryptionPolicy: EncryptionPolicy // 'disabled' | 'enabled' | 'required'
+}
+
+/** Context needed for MSE encryption (set by Torrent) */
+export interface EncryptionContext {
+  infoHash: Uint8Array
+  sha1: (data: Uint8Array) => Promise<Uint8Array>
+  getRandomBytes: (length: number) => Uint8Array
 }
 
 export const DEFAULT_CONNECTION_CONFIG: Omit<ConnectionConfig, 'maxPeersPerTorrent'> = {
   connectTimeout: 10000, // 10 seconds
   maintenanceInterval: 3000, // 3 seconds (base interval)
+  encryptionPolicy: 'enabled', // Try MSE, fall back to plain if fails
   burstConnections: 5,
   // Adaptive maintenance
   maintenanceMinInterval: 1000, // 1 second when urgent
@@ -84,6 +95,9 @@ export class ConnectionManager extends EventEmitter {
   private lastMaintenanceRun = 0
   private pendingMaintenanceTrigger = false
 
+  // MSE encryption context (set by Torrent after infoHash is known)
+  private encryptionContext: EncryptionContext | null = null
+
   constructor(
     swarm: Swarm,
     socketFactory: ISocketFactory,
@@ -116,6 +130,14 @@ export class ConnectionManager extends EventEmitter {
     return { ...this.config }
   }
 
+  /**
+   * Set encryption context (called by Torrent when infoHash is available).
+   * Required for MSE/PE encryption handshake.
+   */
+  setEncryptionContext(context: EncryptionContext): void {
+    this.encryptionContext = context
+  }
+
   // --- Connection Budget ---
 
   /**
@@ -140,6 +162,7 @@ export class ConnectionManager extends EventEmitter {
   /**
    * Initiate connection to a specific peer.
    * Sets up timeout and handles success/failure.
+   * If encryption is enabled and context is set, performs MSE handshake.
    */
   async initiateConnection(peer: SwarmPeer): Promise<void> {
     const key = peerKey(peer.ip, peer.port)
@@ -155,13 +178,51 @@ export class ConnectionManager extends EventEmitter {
 
     try {
       this.logger.debug(`[ConnectionManager] Connecting to ${key}`)
-      const socket = await this.socketFactory.createTcpSocket(peer.ip, peer.port)
+      const rawSocket = await this.socketFactory.createTcpSocket(peer.ip, peer.port)
 
       // Check if we were cancelled while awaiting (timer removed by cancelAllPendingConnections)
       if (!this.connectTimers.has(key)) {
         this.logger.debug(
           `[ConnectionManager] Connection to ${key} completed but was cancelled, closing socket`,
         )
+        rawSocket.close()
+        return
+      }
+
+      // Wrap with MSE encryption if enabled and context available
+      let socket: ITcpSocket = rawSocket
+      if (this.config.encryptionPolicy !== 'disabled' && this.encryptionContext) {
+        const mseSocket = new MseSocket(rawSocket, {
+          policy: this.config.encryptionPolicy,
+          infoHash: this.encryptionContext.infoHash,
+          sha1: this.encryptionContext.sha1,
+          getRandomBytes: this.encryptionContext.getRandomBytes,
+        })
+
+        try {
+          await mseSocket.connect(peer.port, peer.ip)
+          socket = mseSocket
+          this.logger.debug(
+            `[ConnectionManager] MSE handshake complete for ${key} (encrypted: ${mseSocket.isEncrypted})`,
+          )
+        } catch (mseErr) {
+          // MSE handshake failed
+          if (this.config.encryptionPolicy === 'required') {
+            // Encryption required but failed - reject connection
+            rawSocket.close()
+            throw new Error(`MSE handshake failed: ${mseErr}`)
+          }
+          // 'enabled' mode: fall back to plain socket
+          this.logger.debug(
+            `[ConnectionManager] MSE handshake failed for ${key}, using plain: ${mseErr}`,
+          )
+          socket = rawSocket
+        }
+      }
+
+      // Check again if we were cancelled during MSE handshake
+      if (!this.connectTimers.has(key)) {
+        this.logger.debug(`[ConnectionManager] Connection to ${key} cancelled during MSE handshake`)
         socket.close()
         return
       }
