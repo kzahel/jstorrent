@@ -419,6 +419,15 @@ export class Torrent extends EngineComponent {
       return
     }
 
+    // Check global connection limit
+    if (this.btEngine.numConnections >= this.btEngine.maxConnections) {
+      this.logger.debug(
+        `Skipping peer ${peerInfo.ip}, global limit reached (${this.btEngine.numConnections}/${this.btEngine.maxConnections})`,
+      )
+      this._swarm.markConnectFailed(key, 'global_limit_exceeded')
+      return
+    }
+
     const connectStartTime = Date.now()
     const timeout = this.connectionTiming.getTimeout()
 
@@ -1067,6 +1076,28 @@ export class Torrent extends EngineComponent {
     this.logger.debug(
       `Piece classification: ${wanted} wanted, ${boundary} boundary, ${blacklisted} blacklisted`,
     )
+
+    // Clear any active pieces that are now blacklisted
+    this.clearBlacklistedActivePieces()
+  }
+
+  /**
+   * Remove any active pieces that are blacklisted.
+   * Called when file priorities change or on completion.
+   */
+  private clearBlacklistedActivePieces(): void {
+    if (!this.activePieces || this._pieceClassification.length === 0) return
+
+    let cleared = 0
+    for (const index of this.activePieces.activeIndices) {
+      if (this._pieceClassification[index] === 'blacklisted') {
+        this.activePieces.remove(index)
+        cleared++
+      }
+    }
+    if (cleared > 0) {
+      this.logger.debug(`Cleared ${cleared} blacklisted active pieces`)
+    }
   }
 
   /**
@@ -2594,7 +2625,9 @@ export class Torrent extends EngineComponent {
           await this.trackerManager.announce('stopped')
         } catch (err) {
           // Announce may fail if IO is disconnected during shutdown - that's ok
-          this.logger.warn(`Failed to announce stopped: ${err instanceof Error ? err.message : err}`)
+          this.logger.warn(
+            `Failed to announce stopped: ${err instanceof Error ? err.message : err}`,
+          )
         }
       }
       this.trackerManager.destroy()
@@ -2769,6 +2802,9 @@ export class Torrent extends EngineComponent {
 
   private checkCompletion() {
     if (this.isDownloadComplete) {
+      // Clear any blacklisted active pieces (shouldn't be any, but safety check)
+      this.clearBlacklistedActivePieces()
+
       this.logger.info('Download complete!')
       this.emit('done')
       this.emit('complete')

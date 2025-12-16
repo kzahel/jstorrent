@@ -310,6 +310,15 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   private handleIncomingConnection(nativeSocket: any) {
     const socket = this.socketFactory.wrapTcpSocket(nativeSocket)
 
+    // Check global connection limit for incoming connections
+    if (this.numConnections >= this.maxConnections) {
+      this.logger.debug(
+        `Rejecting incoming connection: global limit reached (${this.numConnections}/${this.maxConnections})`,
+      )
+      socket.close()
+      return
+    }
+
     // Validate remote address info - required for peer tracking
     if (!socket.remoteAddress || !socket.remotePort) {
       this.logger.error(
