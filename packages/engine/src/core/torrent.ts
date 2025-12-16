@@ -2417,6 +2417,12 @@ export class Torrent extends EngineComponent {
       return
     }
 
+    // Early exit if we already have this piece (prevents creating active pieces for complete pieces)
+    if (this._bitfield?.get(msg.index)) {
+      this.logger.debug(`Ignoring block ${msg.index}:${msg.begin} - piece already complete`)
+      return
+    }
+
     // Get or create active piece (may receive unsolicited blocks or from different peer)
     let piece = this.activePieces.get(msg.index)
     if (!piece) {
