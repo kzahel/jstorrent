@@ -22,7 +22,7 @@ import { UPnPManager, NetworkInterface } from '../upnp'
 import { ISessionStore } from '../interfaces/session-store'
 import { IHasher } from '../interfaces/hasher'
 import { SubtleCryptoHasher } from '../adapters/browser/subtle-crypto-hasher'
-import type { EncryptionPolicy } from '../crypto'
+import { type EncryptionPolicy, MseSocket } from '../crypto'
 import { MemorySessionStore } from '../adapters/memory/memory-session-store'
 import { StorageRootManager } from '../storage/storage-root-manager'
 import { SessionPersistence } from './session-persistence'
@@ -352,31 +352,60 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private handleIncomingConnection(nativeSocket: any) {
-    const socket = this.socketFactory.wrapTcpSocket(nativeSocket)
+  private async handleIncomingConnection(nativeSocket: any) {
+    const rawSocket = this.socketFactory.wrapTcpSocket(nativeSocket)
 
     // Check global connection limit for incoming connections
     if (this.numConnections >= this.maxConnections) {
       this.logger.debug(
         `Rejecting incoming connection: global limit reached (${this.numConnections}/${this.maxConnections})`,
       )
-      socket.close()
+      rawSocket.close()
       return
     }
 
     // Validate remote address info - required for peer tracking
-    if (!socket.remoteAddress || !socket.remotePort) {
+    if (!rawSocket.remoteAddress || !rawSocket.remotePort) {
       this.logger.error(
-        `Incoming connection missing remote address info (remoteAddress=${socket.remoteAddress}, remotePort=${socket.remotePort}). ` +
+        `Incoming connection missing remote address info (remoteAddress=${rawSocket.remoteAddress}, remotePort=${rawSocket.remotePort}). ` +
           `Socket wrapper must implement remoteAddress/remotePort getters.`,
       )
-      socket.close()
+      rawSocket.close()
       return
     }
 
+    // Handle MSE/PE encryption for incoming connections
+    let socket = rawSocket
+    const shouldHandleMse = this.encryptionPolicy !== 'disabled'
+
+    if (shouldHandleMse && this.torrents.length > 0) {
+      const knownInfoHashes = this.torrents.map((t) => t.infoHash)
+      const mseSocket = new MseSocket(rawSocket, {
+        policy: this.encryptionPolicy,
+        knownInfoHashes,
+        sha1: (data) => this.hasher.sha1(data),
+        getRandomBytes: randomBytes,
+      })
+
+      try {
+        await mseSocket.acceptConnection()
+        socket = mseSocket
+        this.logger.debug(`Incoming MSE handshake complete (encrypted: ${mseSocket.isEncrypted})`)
+      } catch (err) {
+        // MSE failed
+        if (this.encryptionPolicy === 'required') {
+          this.logger.debug(`Incoming connection rejected: encryption required but MSE failed`)
+          rawSocket.close()
+          return
+        }
+        // 'allow' or 'prefer': fall back to plain socket
+        this.logger.debug(`Incoming MSE failed, using plain: ${err}`)
+      }
+    }
+
     const peer = new PeerConnection(this, socket, {
-      remoteAddress: socket.remoteAddress,
-      remotePort: socket.remotePort,
+      remoteAddress: socket.remoteAddress!,
+      remotePort: socket.remotePort!,
     })
     peer.on('handshake', (infoHash, _peerId, _extensions) => {
       const infoHashStr = toHex(infoHash)

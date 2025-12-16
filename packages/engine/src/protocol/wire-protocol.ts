@@ -45,13 +45,11 @@ export class PeerWireProtocol {
     // console.error('Buffer start:', buffer.slice(0, 20))
     const pstrlen = buffer[0]
     if (pstrlen !== 19) {
-      console.error(`PeerWireProtocol: invalid pstrlen ${pstrlen}`)
       return null
     }
 
     const pstr = new TextDecoder().decode(buffer.slice(1, 20))
     if (pstr !== 'BitTorrent protocol') {
-      console.error(`PeerWireProtocol: invalid pstr ${pstr}`)
       return null
     }
 
