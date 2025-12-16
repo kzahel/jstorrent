@@ -56,18 +56,28 @@ const TORRENT_CLIENTS: Record<string, string> = {
 
 /**
  * Parse a BitTorrent peer ID to extract the client name and version.
- * Supports Azureus-style encoding (-XX0000-).
+ * Supports Azureus-style encoding (-XX####-).
  */
 export function parseClientName(peerId: Uint8Array | null): string {
   if (!peerId) return ''
 
-  // Azureus-style: -XX0000-
+  // Azureus-style: -XX####- where XX=client code, ####=version digits
   if (peerId[0] === 0x2d && peerId[7] === 0x2d) {
     const clientCode = String.fromCharCode(peerId[1], peerId[2])
-    const version = String.fromCharCode(peerId[3], peerId[4], peerId[5], peerId[6])
+    const versionChars = String.fromCharCode(peerId[3], peerId[4], peerId[5], peerId[6])
 
     const name = TORRENT_CLIENTS[clientCode] || clientCode
-    return `${name} ${version.replace(/0/g, '.').replace(/\.+$/, '')}`
+
+    // Parse version: each char is a version component (0-9)
+    // "0001" → "0.0.0.1", "1234" → "1.2.3.4"
+    const versionParts = versionChars.split('').map((c) => parseInt(c, 10) || 0)
+    // Remove trailing zeros for cleaner display
+    while (versionParts.length > 1 && versionParts[versionParts.length - 1] === 0) {
+      versionParts.pop()
+    }
+    const version = versionParts.join('.')
+
+    return `${name} ${version}`
   }
 
   // Shadow-style: first byte is client

@@ -1,6 +1,7 @@
 import { PeerConnection } from '../core/peer-connection'
 import { Bencode } from '../utils/bencode'
 import { parseCompactPeers, PeerAddress } from '../core/swarm'
+import { VERSION } from '../version'
 
 const EXT_HANDSHAKE_ID = 0
 
@@ -26,7 +27,7 @@ export class PexHandler {
   private sendExtendedHandshake() {
     const payload = {
       m: { ut_pex: 1 }, // We support PEX with ID 1
-      v: 'JSTorrent 0.0.1',
+      v: `JSTorrent ${VERSION}`,
     }
     const encoded = Bencode.encode(payload)
     this.peer.sendExtendedMessage(EXT_HANDSHAKE_ID, encoded)

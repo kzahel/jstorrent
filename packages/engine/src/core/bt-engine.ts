@@ -3,6 +3,7 @@ import { ISocketFactory } from '../interfaces/socket'
 import { IFileSystem } from '../interfaces/filesystem'
 import { randomBytes } from '../utils/hash'
 import { fromString, concat, toHex } from '../utils/buffer'
+import { VERSION, versionToAzureusCode } from '../version'
 import { TokenBucket } from '../utils/token-bucket'
 import { DHTNode, saveDHTState, loadDHTState, hexToNodeId } from '../dht'
 import {
@@ -256,8 +257,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     if (options.peerId) {
       this.peerId = Buffer.from(options.peerId)
     } else {
-      // Generate random peerId: -JS0001- + 12 random bytes
-      const prefix = '-JS0001-'
+      // Generate random peerId: -JS{version}- + 12 random bytes
+      // Azureus-style: -XX####- where XX=client code, ####=version
+      const prefix = `-JS${versionToAzureusCode(VERSION)}-`
       const random = randomBytes(12)
       this.peerId = concat([fromString(prefix), random])
     }

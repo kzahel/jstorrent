@@ -3,8 +3,14 @@ import react from '@vitejs/plugin-react'
 import solid from 'vite-plugin-solid'
 import { resolve } from 'path'
 import dns from 'dns'
+import { createRequire } from 'module'
 
 import fs from 'fs'
+
+// Read engine version from package.json
+const require = createRequire(import.meta.url)
+const enginePkg = require('../packages/engine/package.json')
+const JSTORRENT_VERSION = enginePkg.version
 
 // Ensure GeoIP data file exists (copy stub if not)
 // This allows builds to succeed without running pnpm update-geoip
@@ -159,6 +165,8 @@ export default defineConfig({
     'import.meta.env.SHARE_URL': JSON.stringify(
       process.env.SHARE_URL || `http://${DEV_HOST}:3001/src/ui/share.html`,
     ),
+    // JSTorrent version from engine package.json
+    'import.meta.env.JSTORRENT_VERSION': JSON.stringify(JSTORRENT_VERSION),
   },
   server: {
     // Dev mode: serve on local.jstorrent.com:3001

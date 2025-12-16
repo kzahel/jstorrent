@@ -119,3 +119,6 @@ export {
   MemorySettingsStore,
   LocalStorageSettingsStore,
 } from './settings'
+
+// Version
+export { VERSION, versionToAzureusCode, azureusCodeToVersion } from './version'
