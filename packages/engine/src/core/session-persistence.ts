@@ -68,9 +68,17 @@ export class SessionPersistence {
   private _logger: Logger | null = null
 
   constructor(
-    private store: ISessionStore,
+    private _store: ISessionStore,
     private engine: BtEngine,
   ) {}
+
+  /**
+   * Get the underlying session store.
+   * Used by BtEngine for DHT state persistence.
+   */
+  get store(): ISessionStore {
+    return this._store
+  }
 
   private get logger(): Logger {
     if (!this._logger) {
@@ -103,7 +111,7 @@ export class SessionPersistence {
       }),
     }
 
-    await this.store.setJson(TORRENTS_KEY, data)
+    await this._store.setJson(TORRENTS_KEY, data)
   }
 
   /**
@@ -124,7 +132,7 @@ export class SessionPersistence {
       filePriorities: torrent.filePriorities?.length > 0 ? [...torrent.filePriorities] : undefined,
     }
 
-    await this.store.setJson(stateKey(infoHash), state)
+    await this._store.setJson(stateKey(infoHash), state)
   }
 
   /**
@@ -132,7 +140,7 @@ export class SessionPersistence {
    */
   async saveTorrentFile(infoHash: string, torrentFile: Uint8Array): Promise<void> {
     const base64 = toBase64(torrentFile)
-    await this.store.set(torrentFileKey(infoHash), new TextEncoder().encode(base64))
+    await this._store.set(torrentFileKey(infoHash), new TextEncoder().encode(base64))
   }
 
   /**
@@ -140,7 +148,7 @@ export class SessionPersistence {
    */
   async saveInfoDict(infoHash: string, infoDict: Uint8Array): Promise<void> {
     const base64 = toBase64(infoDict)
-    await this.store.set(infoDictKey(infoHash), new TextEncoder().encode(base64))
+    await this._store.set(infoDictKey(infoHash), new TextEncoder().encode(base64))
   }
 
   /**
@@ -157,7 +165,7 @@ export class SessionPersistence {
    * Load the torrent index from storage.
    */
   async loadTorrentList(): Promise<TorrentListEntry[]> {
-    const data = await this.store.getJson<TorrentListData>(TORRENTS_KEY)
+    const data = await this._store.getJson<TorrentListData>(TORRENTS_KEY)
     if (!data) return []
     return data.torrents || []
   }
@@ -166,14 +174,14 @@ export class SessionPersistence {
    * Load mutable state for a specific torrent.
    */
   async loadTorrentState(infoHash: string): Promise<TorrentStateData | null> {
-    return this.store.getJson<TorrentStateData>(stateKey(infoHash))
+    return this._store.getJson<TorrentStateData>(stateKey(infoHash))
   }
 
   /**
    * Load the .torrent file bytes for a file-source torrent.
    */
   async loadTorrentFile(infoHash: string): Promise<Uint8Array | null> {
-    const data = await this.store.get(torrentFileKey(infoHash))
+    const data = await this._store.get(torrentFileKey(infoHash))
     if (!data) return null
 
     try {
@@ -189,7 +197,7 @@ export class SessionPersistence {
    * Load the info dictionary bytes for a magnet-source torrent.
    */
   async loadInfoDict(infoHash: string): Promise<Uint8Array | null> {
-    const data = await this.store.get(infoDictKey(infoHash))
+    const data = await this._store.get(infoDictKey(infoHash))
     if (!data) return null
 
     try {
@@ -206,9 +214,9 @@ export class SessionPersistence {
    */
   async removeTorrentData(infoHash: string): Promise<void> {
     await Promise.all([
-      this.store.delete(stateKey(infoHash)),
-      this.store.delete(torrentFileKey(infoHash)),
-      this.store.delete(infoDictKey(infoHash)),
+      this._store.delete(stateKey(infoHash)),
+      this._store.delete(torrentFileKey(infoHash)),
+      this._store.delete(infoDictKey(infoHash)),
     ])
   }
 
@@ -217,7 +225,7 @@ export class SessionPersistence {
    * Used for "reset state" which clears progress but preserves metadata for magnet torrents.
    */
   async resetState(infoHash: string): Promise<void> {
-    await this.store.delete(stateKey(infoHash))
+    await this._store.delete(stateKey(infoHash))
   }
 
   /**

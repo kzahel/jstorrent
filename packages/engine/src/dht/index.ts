@@ -157,3 +157,17 @@ export { DHTNode } from './dht-node'
 
 export type { IterativeLookupOptions, LookupResult } from './iterative-lookup'
 export { iterativeLookup } from './iterative-lookup'
+
+// ============================================================================
+// Phase 7 Exports - Maintenance & Persistence
+// ============================================================================
+
+// Persistence
+export type { DHTPersistedState } from './dht-persistence'
+export { saveDHTState, loadDHTState, clearDHTState } from './dht-persistence'
+
+// Additional DHTNode exports
+export type { AnnounceResult } from './dht-node'
+
+// Additional constants
+export { PEER_CLEANUP_MS } from './constants'

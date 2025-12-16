@@ -101,3 +101,9 @@ export const BOOTSTRAP_CONCURRENCY = ALPHA
  * Should be enough to traverse the DHT depth.
  */
 export const BOOTSTRAP_MAX_ITERATIONS = 20
+
+/**
+ * Peer cleanup interval in milliseconds (10 minutes).
+ * Remove expired peer store entries periodically.
+ */
+export const PEER_CLEANUP_MS = 10 * 60 * 1000

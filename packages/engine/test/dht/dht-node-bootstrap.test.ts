@@ -172,6 +172,7 @@ describe('DHTNode Bootstrap', () => {
       socketFactory: factory,
       krpcOptions: { timeout: 100 }, // Short timeout for tests
       hashFn: mockHashFn,
+      skipMaintenance: true, // Skip maintenance timers for tests using fake timers
     })
     await dhtNode.start()
   })

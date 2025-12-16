@@ -127,6 +127,7 @@ function createTestNode(factory: MockSocketFactory): DHTNode {
     socketFactory: factory,
     krpcOptions: { timeout: 100 }, // Short timeout for tests
     hashFn: mockHashFn,
+    skipMaintenance: true, // Skip maintenance timers for tests using fake timers
   })
 }
 
@@ -553,6 +554,7 @@ describe('DHTNode Outgoing Queries', () => {
       const node = new DHTNode({
         socketFactory: new MockSocketFactory(),
         hashFn: mockHashFn,
+        skipMaintenance: true,
       })
 
       expect(node.ready).toBe(false)
@@ -653,6 +655,7 @@ describe('DHTNode Outgoing Queries', () => {
       const node = new DHTNode({
         socketFactory: new MockSocketFactory(),
         hashFn: mockHashFn,
+        skipMaintenance: true,
       })
       node.on('ready', readyHandler)
 

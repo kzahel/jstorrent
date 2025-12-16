@@ -25,6 +25,7 @@ import { initializeTorrentStorage } from './torrent-initializer'
 import { TorrentDiskQueue, DiskQueueSnapshot } from './disk-queue'
 import { EndgameManager } from './endgame-manager'
 import { PartsFile } from './parts-file'
+import type { LookupResult } from '../dht'
 
 /**
  * Piece classification for file priority system.
@@ -303,6 +304,9 @@ export class Torrent extends EngineComponent {
    * Periodic maintenance interval for peer slot filling.
    */
   private _maintenanceInterval: ReturnType<typeof setInterval> | null = null
+
+  /** DHT lookup timer - periodically queries DHT for peers */
+  private _dhtLookupTimer: ReturnType<typeof setTimeout> | null = null
 
   public isPrivate: boolean = false
   public creationDate?: number
@@ -1327,6 +1331,9 @@ export class Torrent extends EngineComponent {
     // Stop periodic maintenance
     this.stopMaintenance()
 
+    // Stop DHT lookup timer
+    this.stopDHTLookup()
+
     // Send stopped announce to trackers
     if (this.trackerManager) {
       this.trackerManager.announce('stopped').catch((err) => {
@@ -1372,6 +1379,11 @@ export class Torrent extends EngineComponent {
       this.initTrackerManager()
     }
 
+    // Start DHT peer discovery (if enabled and not private)
+    if (!this.isPrivate) {
+      this.startDHTLookup()
+    }
+
     // Start periodic maintenance for peer slots
     this.startMaintenance()
   }
@@ -1395,6 +1407,89 @@ export class Torrent extends EngineComponent {
     if (this._maintenanceInterval) {
       clearInterval(this._maintenanceInterval)
       this._maintenanceInterval = null
+    }
+  }
+
+  // ==========================================================================
+  // DHT Peer Discovery
+  // ==========================================================================
+
+  /**
+   * Start periodic DHT lookups for peer discovery.
+   * Runs immediately, then every 5 minutes.
+   */
+  private startDHTLookup(): void {
+    if (this._dhtLookupTimer) return
+    if (!this.btEngine.dhtEnabled || !this.btEngine.dhtNode) return
+
+    // Run immediately
+    this.requestDHTPeers()
+
+    // Schedule periodic lookups (every 5 minutes)
+    const scheduleLookup = () => {
+      this._dhtLookupTimer = setTimeout(
+        () => {
+          this.requestDHTPeers()
+          if (this._networkActive && !this.isPrivate) {
+            scheduleLookup()
+          }
+        },
+        5 * 60 * 1000,
+      )
+    }
+    scheduleLookup()
+  }
+
+  /**
+   * Stop DHT lookup timer.
+   */
+  private stopDHTLookup(): void {
+    if (this._dhtLookupTimer) {
+      clearTimeout(this._dhtLookupTimer)
+      this._dhtLookupTimer = null
+    }
+  }
+
+  /**
+   * Request peers from DHT via iterative lookup.
+   * Adds discovered peers to the swarm.
+   */
+  private async requestDHTPeers(): Promise<void> {
+    const dhtNode = this.btEngine.dhtNode
+    if (!dhtNode) return
+    if (!this._networkActive) return
+
+    try {
+      this.logger.debug('DHT: Starting peer lookup')
+      const result: LookupResult = await dhtNode.lookup(this.infoHash)
+
+      if (result.peers.length > 0) {
+        this.logger.info(`DHT: Found ${result.peers.length} peers`)
+
+        // Add peers to swarm
+        const peerAddresses = result.peers.map((p) => ({
+          ip: p.host,
+          port: p.port,
+          family: detectAddressFamily(p.host),
+        }))
+        const added = this._swarm.addPeers(peerAddresses, 'dht')
+        if (added > 0) {
+          this.logger.debug(`DHT: Added ${added} new peers to swarm`)
+          this.fillPeerSlots()
+        }
+      } else {
+        this.logger.debug(`DHT: No peers found, got ${result.closestNodes.length} closer nodes`)
+      }
+
+      // Announce ourselves to the nodes that gave us tokens
+      if (result.tokens.size > 0 && this.port > 0) {
+        const announceResult = await dhtNode.announce(this.infoHash, this.port, result.tokens)
+        this.logger.debug(
+          `DHT: Announced to ${announceResult.successCount}/${announceResult.totalCount} nodes`,
+        )
+      }
+    } catch (err) {
+      this.logger.warn(`DHT: Lookup failed: ${err}`)
     }
   }
 

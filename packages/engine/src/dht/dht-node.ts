@@ -25,14 +25,22 @@ import {
   getResponseToken,
 } from './krpc-messages'
 import { DHTNodeInfo, CompactPeer, CompactNodeInfo } from './types'
-import { generateRandomNodeId, nodeIdToHex, compareDistance } from './xor-distance'
+import {
+  generateRandomNodeId,
+  nodeIdToHex,
+  compareDistance,
+  generateRandomIdInBucket,
+} from './xor-distance'
 import {
   NODE_ID_BYTES,
   K,
   BOOTSTRAP_NODES,
   BOOTSTRAP_CONCURRENCY,
   BOOTSTRAP_MAX_ITERATIONS,
+  BUCKET_REFRESH_MS,
+  PEER_CLEANUP_MS,
 } from './constants'
+import { iterativeLookup, LookupResult } from './iterative-lookup'
 
 /**
  * Result from a get_peers query.
@@ -44,6 +52,16 @@ export interface GetPeersResult {
   peers?: CompactPeer[]
   /** Closer nodes to query (if the queried node doesn't have peers) */
   nodes?: CompactNodeInfo[]
+}
+
+/**
+ * Result from an announce operation.
+ */
+export interface AnnounceResult {
+  /** Number of nodes we successfully announced to */
+  successCount: number
+  /** Number of nodes we tried to announce to */
+  totalCount: number
 }
 
 /**
@@ -62,6 +80,12 @@ export interface DHTNodeOptions {
   peerOptions?: PeerStoreOptions
   /** Hash function for token generation (defaults to crypto.subtle.digest) */
   hashFn?: (data: Uint8Array) => Promise<Uint8Array>
+  /**
+   * Skip starting maintenance timers.
+   * Useful for tests that use fake timers.
+   * @default false
+   */
+  skipMaintenance?: boolean
 }
 
 /**
@@ -146,6 +170,15 @@ export class DHTNode extends EventEmitter {
   /** Whether the node is ready (socket bound) */
   private _ready: boolean = false
 
+  /** Bucket refresh timer */
+  private bucketRefreshTimer: ReturnType<typeof setTimeout> | null = null
+
+  /** Peer cleanup timer */
+  private peerCleanupTimer: ReturnType<typeof setTimeout> | null = null
+
+  /** Skip maintenance timers (for tests) */
+  private readonly skipMaintenance: boolean
+
   constructor(options: DHTNodeOptions) {
     super()
 
@@ -163,6 +196,7 @@ export class DHTNode extends EventEmitter {
       ...options.tokenOptions,
     })
     this.peerStore = new PeerStore(options.peerOptions)
+    this.skipMaintenance = options.skipMaintenance ?? false
 
     // Forward routing table events
     this.routingTable.on('nodeAdded', (node: DHTNodeInfo) => this.emit('nodeAdded', node))
@@ -203,7 +237,7 @@ export class DHTNode extends EventEmitter {
   }
 
   /**
-   * Start the DHT node (bind socket).
+   * Start the DHT node (bind socket, start maintenance).
    */
   async start(): Promise<void> {
     if (this._ready) {
@@ -212,14 +246,24 @@ export class DHTNode extends EventEmitter {
 
     await this.krpcSocket.bind()
     this._ready = true
+
+    // Start maintenance timers (unless skipped for tests)
+    if (!this.skipMaintenance) {
+      this.startMaintenance()
+    }
+
     this.emit('ready')
   }
 
   /**
-   * Stop the DHT node (close socket, cleanup).
+   * Stop the DHT node (close socket, stop maintenance, cleanup).
    */
   stop(): void {
     this._ready = false
+
+    // Stop maintenance timers
+    this.stopMaintenance()
+
     this.krpcSocket.close()
     this.tokenStore.stopRotation()
   }
@@ -631,6 +675,159 @@ export class DHTNode extends EventEmitter {
 
     this.emit('bootstrapped', stats)
     return stats
+  }
+
+  // ==========================================================================
+  // Maintenance
+  // ==========================================================================
+
+  /**
+   * Start all maintenance timers.
+   * Uses setTimeout with self-rescheduling for better test compatibility.
+   */
+  private startMaintenance(): void {
+    // Token rotation
+    this.tokenStore.startRotation()
+
+    // Bucket refresh - check every minute, refresh stale buckets
+    const scheduleBucketRefresh = () => {
+      this.bucketRefreshTimer = setTimeout(() => {
+        this.refreshStaleBuckets()
+        if (this._ready) {
+          scheduleBucketRefresh()
+        }
+      }, 60 * 1000)
+    }
+    scheduleBucketRefresh()
+
+    // Peer cleanup
+    const schedulePeerCleanup = () => {
+      this.peerCleanupTimer = setTimeout(() => {
+        this.peerStore.cleanup()
+        if (this._ready) {
+          schedulePeerCleanup()
+        }
+      }, PEER_CLEANUP_MS)
+    }
+    schedulePeerCleanup()
+  }
+
+  /**
+   * Stop all maintenance timers.
+   */
+  private stopMaintenance(): void {
+    if (this.bucketRefreshTimer) {
+      clearTimeout(this.bucketRefreshTimer)
+      this.bucketRefreshTimer = null
+    }
+
+    if (this.peerCleanupTimer) {
+      clearTimeout(this.peerCleanupTimer)
+      this.peerCleanupTimer = null
+    }
+  }
+
+  /**
+   * Refresh stale buckets by sending find_node with random target.
+   * Per BEP 5: "Buckets that have not been changed in 15 minutes should be refreshed"
+   */
+  private async refreshStaleBuckets(): Promise<void> {
+    if (!this._ready) return
+
+    const staleBucketIndices = this.routingTable.getStaleBuckets(BUCKET_REFRESH_MS)
+
+    for (const bucketIndex of staleBucketIndices) {
+      const bucket = this.routingTable.getBucket(bucketIndex)
+      if (!bucket || bucket.nodes.length === 0) continue
+
+      // Generate random target ID in this bucket's range
+      const target = generateRandomIdInBucket(bucketIndex, this.nodeId)
+
+      // Query a node from this bucket
+      const nodeToQuery = bucket.nodes[0]
+      try {
+        await this.findNode(nodeToQuery, target)
+      } catch {
+        // Ignore errors during refresh
+      }
+    }
+  }
+
+  // ==========================================================================
+  // High-Level Operations
+  // ==========================================================================
+
+  /**
+   * Perform an iterative lookup to find peers for an infohash.
+   *
+   * This is the main method for discovering peers via DHT.
+   *
+   * @param infoHash - 20-byte torrent infohash
+   * @returns Lookup result with peers, closest nodes, and tokens for announce
+   */
+  async lookup(infoHash: Uint8Array): Promise<LookupResult> {
+    if (!this._ready) {
+      throw new Error('DHTNode not started')
+    }
+
+    if (infoHash.length !== NODE_ID_BYTES) {
+      throw new Error(`Info hash must be ${NODE_ID_BYTES} bytes`)
+    }
+
+    return iterativeLookup({
+      target: infoHash,
+      routingTable: this.routingTable,
+      sendGetPeers: async (node) => {
+        return this.getPeers(node, infoHash)
+      },
+      localNodeId: this.nodeId,
+    })
+  }
+
+  /**
+   * Announce ourselves as a peer for a torrent to the closest nodes.
+   *
+   * Should be called after a successful lookup with the tokens from the result.
+   *
+   * @param infoHash - 20-byte torrent infohash
+   * @param port - Port we're listening on for BitTorrent connections
+   * @param tokens - Token map from lookup result (node key -> {node, token})
+   * @returns Announce result with success/total counts
+   */
+  async announce(
+    infoHash: Uint8Array,
+    port: number,
+    tokens: Map<string, { node: { host: string; port: number }; token: Uint8Array }>,
+  ): Promise<AnnounceResult> {
+    if (!this._ready) {
+      throw new Error('DHTNode not started')
+    }
+
+    if (infoHash.length !== NODE_ID_BYTES) {
+      throw new Error(`Info hash must be ${NODE_ID_BYTES} bytes`)
+    }
+
+    let successCount = 0
+    const totalCount = tokens.size
+
+    // Announce to all nodes that gave us tokens
+    const announcePromises = Array.from(tokens.values()).map(async ({ node, token }) => {
+      const success = await this.announcePeer(node, infoHash, port, token)
+      if (success) {
+        successCount++
+      }
+    })
+
+    await Promise.all(announcePromises)
+
+    return { successCount, totalCount }
+  }
+
+  /**
+   * Get the serializable state for persistence.
+   */
+  getState(): import('./types').RoutingTableState {
+    return this.routingTable.serialize()
   }
 
   // ==========================================================================

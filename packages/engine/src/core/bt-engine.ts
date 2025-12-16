@@ -4,6 +4,7 @@ import { IFileSystem } from '../interfaces/filesystem'
 import { randomBytes } from '../utils/hash'
 import { fromString, concat, toHex } from '../utils/buffer'
 import { TokenBucket } from '../utils/token-bucket'
+import { DHTNode, saveDHTState, loadDHTState, hexToNodeId } from '../dht'
 import {
   ILoggingEngine,
   Logger,
@@ -120,6 +121,18 @@ export interface BtEngineOptions {
    * Default: 'disabled'
    */
   encryptionPolicy?: EncryptionPolicy
+
+  /**
+   * Enable DHT for trackerless peer discovery.
+   * Default: true
+   */
+  dhtEnabled?: boolean
+
+  /**
+   * Skip DHT bootstrap (for testing only).
+   * @internal
+   */
+  _skipDHTBootstrap?: boolean
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -151,6 +164,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   private upnpManager?: UPnPManager
   private _upnpStatus: UPnPStatus = 'disabled'
   private getNetworkInterfaces?: () => Promise<NetworkInterface[]>
+
+  // === DHT ===
+  private _dhtEnabled: boolean = true
+  private _dhtNode?: DHTNode
+  private _skipDHTBootstrap: boolean = false
 
   // === Unified Daemon Operation Queue ===
 
@@ -227,6 +245,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     // Save network interface getter for UPnP
     this.getNetworkInterfaces = options.getNetworkInterfaces
+
+    // Initialize DHT setting
+    this._dhtEnabled = options.dhtEnabled ?? true
+    this._skipDHTBootstrap = options._skipDHTBootstrap ?? false
 
     // Initialize logger for BtEngine itself
     this.logger = this.scopedLoggerFor(this)
@@ -547,6 +569,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     // Clean up UPnP mappings
     await this.disableUPnP()
+
+    // Stop DHT (saves state)
+    await this.disableDHT()
 
     // Flush any pending persistence saves
     await this.sessionPersistence.flushPendingSaves()
@@ -918,5 +943,120 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this._upnpStatus = 'disabled'
     this.emit('upnpStatusChanged', this._upnpStatus)
     this.logger.info('UPnP: Disabled')
+  }
+
+  // === DHT Methods ===
+
+  /**
+   * Get whether DHT is enabled.
+   */
+  get dhtEnabled(): boolean {
+    return this._dhtEnabled
+  }
+
+  /**
+   * Get the DHT node instance (if enabled and started).
+   */
+  get dhtNode(): DHTNode | undefined {
+    return this._dhtNode
+  }
+
+  /**
+   * Enable or disable DHT.
+   * When enabled, starts the DHT node and begins peer discovery.
+   * When disabled, stops the DHT node and saves state for persistence.
+   */
+  async setDHTEnabled(enabled: boolean): Promise<void> {
+    if (enabled) {
+      await this.enableDHT()
+    } else {
+      await this.disableDHT()
+    }
+  }
+
+  /**
+   * Start the DHT node.
+   * Loads persisted state (node ID, routing table) if available.
+   */
+  private async enableDHT(): Promise<void> {
+    if (this._dhtNode) {
+      // Already enabled
+      return
+    }
+
+    this.logger.info('DHT: Starting...')
+    this._dhtEnabled = true
+
+    // Try to load persisted state
+    const sessionStore = this.sessionPersistence.store
+    const persistedState = await loadDHTState(sessionStore)
+
+    // Create DHT node with persisted node ID or generate new one
+    const nodeId = persistedState ? hexToNodeId(persistedState.nodeId) : undefined
+
+    this._dhtNode = new DHTNode({
+      nodeId,
+      socketFactory: this.socketFactory,
+    })
+
+    await this._dhtNode.start()
+
+    // Restore routing table from persisted state
+    if (persistedState && persistedState.nodes.length > 0) {
+      this.logger.info(`DHT: Restoring ${persistedState.nodes.length} nodes from session`)
+      for (const node of persistedState.nodes) {
+        this._dhtNode.addNode({
+          id: hexToNodeId(node.id),
+          host: node.host,
+          port: node.port,
+        })
+      }
+    }
+
+    // Bootstrap if routing table is empty or small (skip for tests)
+    if (!this._skipDHTBootstrap && this._dhtNode.getNodeCount() < 10) {
+      this.logger.info('DHT: Bootstrapping...')
+      const stats = await this._dhtNode.bootstrap()
+      this.logger.info(`DHT: Bootstrap complete - ${stats.routingTableSize} nodes in routing table`)
+    }
+
+    this.logger.info(`DHT: Started with node ID ${this._dhtNode.nodeIdHex}`)
+    this.emit('dhtStatusChanged', true)
+  }
+
+  /**
+   * Stop the DHT node and save state for persistence.
+   */
+  private async disableDHT(): Promise<void> {
+    if (!this._dhtNode) {
+      this._dhtEnabled = false
+      return
+    }
+
+    this.logger.info('DHT: Stopping...')
+
+    // Save state before stopping
+    const sessionStore = this.sessionPersistence.store
+    const state = this._dhtNode.getState()
+    await saveDHTState(sessionStore, state)
+    this.logger.info(`DHT: Saved ${state.nodes.length} nodes to session`)
+
+    this._dhtNode.stop()
+    this._dhtNode = undefined
+    this._dhtEnabled = false
+
+    this.emit('dhtStatusChanged', false)
+    this.logger.info('DHT: Stopped')
+  }
+
+  /**
+   * Save DHT state (called periodically or before shutdown).
+   */
+  async saveDHTState(): Promise<void> {
+    if (!this._dhtNode) return
+
+    const sessionStore = this.sessionPersistence.store
+    const state = this._dhtNode.getState()
+    await saveDHTState(sessionStore, state)
   }
 }
