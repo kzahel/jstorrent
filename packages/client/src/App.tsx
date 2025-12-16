@@ -691,6 +691,12 @@ function App() {
     [engine],
   )
 
+  // Open logging settings (memoized to prevent LogTable remounts)
+  const handleOpenLoggingSettings = useCallback(() => {
+    setSettingsTab('advanced')
+    setSettingsOpen(true)
+  }, [])
+
   // Subscribe to IOBridge state
   const {
     state: ioBridgeState,
@@ -898,12 +904,7 @@ function App() {
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {engine ? (
             <EngineProvider engine={engine}>
-              <AppContent
-                onOpenLoggingSettings={() => {
-                  setSettingsTab('advanced')
-                  setSettingsOpen(true)
-                }}
-              />
+              <AppContent onOpenLoggingSettings={handleOpenLoggingSettings} />
             </EngineProvider>
           ) : initError ? (
             <div style={{ padding: '40px', textAlign: 'center' }}>
