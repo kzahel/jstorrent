@@ -55,7 +55,7 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
     setTab: setDetailTab,
   } = usePersistedUIState({
     minHeight: 100,
-    maxHeightRatio: 0.6,
+    maxHeightRatio: 0.85,
     defaultHeight: 250,
   })
 

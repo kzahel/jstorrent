@@ -42,6 +42,30 @@ export function formatDuration(seconds: number): string {
   }
 }
 
+/**
+ * Compute ETA in seconds for a download.
+ * Returns Infinity if complete or stalled, which sorts to end and displays as ∞.
+ */
+export function computeEtaSeconds(
+  progress: number,
+  totalSize: number,
+  downloadSpeed: number,
+): number {
+  if (progress >= 1 || downloadSpeed <= 0) return Infinity
+  const remainingBytes = totalSize * (1 - progress)
+  return remainingBytes / downloadSpeed
+}
+
+/**
+ * Format ETA as human-readable string.
+ * Returns "-" if complete, "∞" if stalled.
+ */
+export function formatEta(progress: number, totalSize: number, downloadSpeed: number): string {
+  if (progress >= 1) return '-'
+  if (downloadSpeed <= 0) return '∞'
+  return formatDuration(computeEtaSeconds(progress, totalSize, downloadSpeed))
+}
+
 /** Known BitTorrent client codes (Azureus-style) */
 const TORRENT_CLIENTS: Record<string, string> = {
   UT: 'µTorrent',

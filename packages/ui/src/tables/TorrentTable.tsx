@@ -1,7 +1,7 @@
 import { Torrent } from '@jstorrent/engine'
 import { TableMount } from './mount'
 import { ColumnDef } from './types'
-import { formatBytes } from '../utils/format'
+import { formatBytes, computeEtaSeconds, formatEta } from '../utils/format'
 import { ProgressBar } from './ProgressBar.solid'
 
 /**
@@ -33,6 +33,16 @@ export const torrentColumns: ColumnDef<Torrent>[] = [
         progress: t.progress,
         isActive: t.activityState !== 'stopped',
       }),
+  },
+  {
+    id: 'eta',
+    header: 'ETA',
+    getValue: (t) =>
+      computeEtaSeconds(t.progress, t.contentStorage?.getTotalSize() ?? 0, t.downloadSpeed),
+    width: 80,
+    align: 'right',
+    renderCell: (t) =>
+      formatEta(t.progress, t.contentStorage?.getTotalSize() ?? 0, t.downloadSpeed),
   },
   {
     id: 'status',
