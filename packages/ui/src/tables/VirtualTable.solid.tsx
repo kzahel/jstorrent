@@ -710,6 +710,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
           'border-bottom': '1px solid var(--border-color, #ddd)',
           'font-weight': '600',
           'z-index': '2',
+          width: `${totalWidth()}px`,
           'min-width': '100%',
         }}
       >
