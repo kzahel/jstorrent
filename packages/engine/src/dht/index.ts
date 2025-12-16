@@ -29,6 +29,9 @@ export {
   COMPACT_NODE_BYTES,
   CLIENT_VERSION,
   MAX_NODE_ID,
+  BOOTSTRAP_NODES,
+  BOOTSTRAP_CONCURRENCY,
+  BOOTSTRAP_MAX_ITERATIONS,
 } from './constants'
 
 // XOR Distance Utilities
@@ -139,5 +142,11 @@ export {
 // ============================================================================
 
 // DHTNode class and types
-export type { DHTNodeOptions, DHTNodeEvents, GetPeersResult } from './dht-node'
+export type {
+  DHTNodeOptions,
+  DHTNodeEvents,
+  GetPeersResult,
+  BootstrapOptions,
+  BootstrapStats,
+} from './dht-node'
 export { DHTNode } from './dht-node'

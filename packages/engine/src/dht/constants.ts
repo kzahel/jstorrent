@@ -78,3 +78,26 @@ export const CLIENT_VERSION = new Uint8Array([0x4a, 0x53, 0x30, 0x31]) // "JS01"
  * Maximum ID value (2^160 - 1) as bigint.
  */
 export const MAX_NODE_ID = (1n << 160n) - 1n
+
+/**
+ * Well-known DHT bootstrap nodes.
+ * Used to populate initial routing table when starting fresh.
+ * These are operated by major BitTorrent clients.
+ */
+export const BOOTSTRAP_NODES: ReadonlyArray<{ host: string; port: number }> = [
+  { host: 'router.bittorrent.com', port: 6881 },
+  { host: 'router.utorrent.com', port: 6881 },
+  { host: 'dht.transmissionbt.com', port: 6881 },
+]
+
+/**
+ * Maximum number of concurrent queries during bootstrap.
+ * Same as ALPHA for iterative lookups.
+ */
+export const BOOTSTRAP_CONCURRENCY = ALPHA
+
+/**
+ * Maximum iterations during bootstrap to prevent infinite loops.
+ * Should be enough to traverse the DHT depth.
+ */
+export const BOOTSTRAP_MAX_ITERATIONS = 20

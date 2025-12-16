@@ -25,8 +25,14 @@ import {
   getResponseToken,
 } from './krpc-messages'
 import { DHTNodeInfo, CompactPeer, CompactNodeInfo } from './types'
-import { generateRandomNodeId, nodeIdToHex } from './xor-distance'
-import { NODE_ID_BYTES } from './constants'
+import { generateRandomNodeId, nodeIdToHex, compareDistance } from './xor-distance'
+import {
+  NODE_ID_BYTES,
+  K,
+  BOOTSTRAP_NODES,
+  BOOTSTRAP_CONCURRENCY,
+  BOOTSTRAP_MAX_ITERATIONS,
+} from './constants'
 
 /**
  * Result from a get_peers query.
@@ -59,11 +65,52 @@ export interface DHTNodeOptions {
 }
 
 /**
+ * Options for the bootstrap process.
+ */
+export interface BootstrapOptions {
+  /**
+   * Bootstrap nodes to contact initially.
+   * Defaults to BOOTSTRAP_NODES from constants.
+   */
+  nodes?: ReadonlyArray<{ host: string; port: number }>
+
+  /**
+   * Maximum concurrent queries.
+   * Defaults to BOOTSTRAP_CONCURRENCY (3).
+   */
+  concurrency?: number
+
+  /**
+   * Maximum iterations to prevent infinite loops.
+   * Defaults to BOOTSTRAP_MAX_ITERATIONS (20).
+   */
+  maxIterations?: number
+}
+
+/**
+ * Statistics from the bootstrap process.
+ */
+export interface BootstrapStats {
+  /** Number of nodes queried */
+  queriedCount: number
+  /** Number of successful responses */
+  responsesReceived: number
+  /** Number of timeouts/errors */
+  failures: number
+  /** Final routing table size */
+  routingTableSize: number
+  /** Duration in milliseconds */
+  durationMs: number
+}
+
+/**
  * Events emitted by DHTNode.
  */
 export interface DHTNodeEvents {
   /** Emitted when ready to send/receive queries */
   ready: () => void
+  /** Emitted when bootstrap process completes */
+  bootstrapped: (stats: BootstrapStats) => void
   /** Emitted on errors */
   error: (err: Error) => void
   /** Emitted when a node is added to the routing table */
@@ -415,6 +462,175 @@ export class DHTNode extends EventEmitter {
       // Timeout or KRPC error response
       return false
     }
+  }
+
+  // ==========================================================================
+  // Bootstrap
+  // ==========================================================================
+
+  /**
+   * Bootstrap the DHT by discovering nodes close to ourselves.
+   *
+   * This implements the Kademlia bootstrap algorithm:
+   * 1. Query bootstrap nodes with find_node(our_id)
+   * 2. From responses, query nodes closer to us that we haven't queried
+   * 3. Repeat until no closer unqueried nodes exist
+   *
+   * @param options - Bootstrap options
+   * @returns Bootstrap statistics
+   */
+  async bootstrap(options: BootstrapOptions = {}): Promise<BootstrapStats> {
+    if (!this._ready) {
+      throw new Error('DHTNode not started')
+    }
+
+    const startTime = Date.now()
+    const bootstrapNodes = options.nodes ?? BOOTSTRAP_NODES
+    const concurrency = options.concurrency ?? BOOTSTRAP_CONCURRENCY
+    const maxIterations = options.maxIterations ?? BOOTSTRAP_MAX_ITERATIONS
+
+    // Statistics
+    let queriedCount = 0
+    let responsesReceived = 0
+    let failures = 0
+
+    // Track which nodes we've already queried (by host:port since we don't know IDs yet)
+    const queried = new Set<string>()
+    const nodeKey = (host: string, port: number) => `${host}:${port}`
+
+    // Candidates to query, sorted by distance to self (closest first)
+    // Initially populated with bootstrap nodes (unknown distance)
+    const candidates: Array<{ host: string; port: number; id?: Uint8Array }> = [
+      ...bootstrapNodes.map((n) => ({ host: n.host, port: n.port })),
+    ]
+
+    // Helper to query a single node
+    // Note: We use KRPC socket directly instead of findNode() because findNode()
+    // catches errors and returns []. We need to distinguish success from failure
+    // for accurate statistics.
+    const queryNode = async (node: {
+      host: string
+      port: number
+      id?: Uint8Array
+    }): Promise<CompactNodeInfo[]> => {
+      const key = nodeKey(node.host, node.port)
+      if (queried.has(key)) {
+        return []
+      }
+      queried.add(key)
+      queriedCount++
+
+      const transactionId = this.krpcSocket.generateTransactionId()
+      const queryData = encodeFindNodeQuery(transactionId, this.nodeId, this.nodeId)
+
+      try {
+        const response = await this.krpcSocket.query(
+          node.host,
+          node.port,
+          queryData,
+          transactionId,
+          'find_node',
+        )
+
+        // Add responding node to routing table
+        const responseNodeId = getResponseNodeId(response)
+        if (responseNodeId) {
+          this.routingTable.addNode({
+            id: responseNodeId,
+            host: node.host,
+            port: node.port,
+            lastSeen: Date.now(),
+          })
+        }
+
+        responsesReceived++
+        return getResponseNodes(response)
+      } catch {
+        failures++
+        return []
+      }
+    }
+
+    // Process candidates in waves
+    let iteration = 0
+    let foundCloserNodes = true
+
+    while (foundCloserNodes && iteration < maxIterations && candidates.length > 0) {
+      iteration++
+      foundCloserNodes = false
+
+      // Get up to `concurrency` unqueried candidates
+      const batch: Array<{ host: string; port: number; id?: Uint8Array }> = []
+      for (const candidate of candidates) {
+        if (!queried.has(nodeKey(candidate.host, candidate.port))) {
+          batch.push(candidate)
+          if (batch.length >= concurrency) break
+        }
+      }
+
+      if (batch.length === 0) {
+        break
+      }
+
+      // Query batch in parallel
+      const results = await Promise.all(batch.map(queryNode))
+
+      // Collect all new nodes from responses
+      const newNodes: CompactNodeInfo[] = []
+      for (const nodes of results) {
+        for (const node of nodes) {
+          const key = nodeKey(node.host, node.port)
+          if (!queried.has(key)) {
+            newNodes.push(node)
+          }
+        }
+      }
+
+      // Add new nodes to candidates
+      if (newNodes.length > 0) {
+        foundCloserNodes = true
+
+        // Add new nodes (they may already be in routing table from findNode responses)
+        for (const node of newNodes) {
+          // Check if this node is already in candidates
+          const existingIdx = candidates.findIndex(
+            (c) => c.host === node.host && c.port === node.port,
+          )
+          if (existingIdx === -1) {
+            candidates.push({ host: node.host, port: node.port, id: node.id })
+          } else if (!candidates[existingIdx].id && node.id) {
+            // Update with ID if we now have it
+            candidates[existingIdx].id = node.id
+          }
+        }
+
+        // Sort candidates by distance to self (closest first)
+        // Nodes without ID go to the end
+        candidates.sort((a, b) => {
+          if (!a.id && !b.id) return 0
+          if (!a.id) return 1
+          if (!b.id) return -1
+          return compareDistance(a.id, b.id, this.nodeId)
+        })
+
+        // Keep only the K closest unqueried + some buffer
+        const maxCandidates = K * 3
+        while (candidates.length > maxCandidates) {
+          candidates.pop()
+        }
+      }
+    }
+
+    const stats: BootstrapStats = {
+      queriedCount,
+      responsesReceived,
+      failures,
+      routingTableSize: this.routingTable.size(),
+      durationMs: Date.now() - startTime,
+    }
+
+    this.emit('bootstrapped', stats)
+    return stats
   }
 
   // ==========================================================================
