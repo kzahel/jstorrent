@@ -10,6 +10,7 @@ import {
   VC,
   CRYPTO_PROVIDE,
   CRYPTO_SELECT_RC4,
+  CRYPTO_SELECT_PLAIN,
   CRYPTO_RC4,
   CRYPTO_PLAINTEXT,
   BT_PROTOCOL_HEADER,
@@ -485,7 +486,7 @@ export class MseHandshake {
     const padD = this.options.getRandomBytes(padDLen)
 
     const cryptoSelect =
-      this.encryptionMethod === CRYPTO_RC4 ? CRYPTO_SELECT_RC4 : CRYPTO_SELECT_RC4
+      this.encryptionMethod === CRYPTO_RC4 ? CRYPTO_SELECT_RC4 : CRYPTO_SELECT_PLAIN
 
     const payload = new Uint8Array(8 + 4 + 2 + padDLen)
     payload.set(VC, 0)
