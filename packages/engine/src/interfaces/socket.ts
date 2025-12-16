@@ -43,6 +43,11 @@ export interface ITcpSocket {
   remotePort?: number
 
   /**
+   * Whether this connection is encrypted (MSE/PE).
+   */
+  isEncrypted?: boolean
+
+  /**
    * Connect to a remote peer.
    * Note: This is an addition to the extension's interface to allow
    * the engine to initiate connections.

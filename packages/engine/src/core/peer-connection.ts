@@ -84,6 +84,11 @@ export class PeerConnection extends EngineComponent {
   public remotePort?: number
   public isIncoming = false
 
+  /** Whether this connection is encrypted (MSE/PE) */
+  get isEncrypted(): boolean {
+    return this.socket.isEncrypted ?? false
+  }
+
   constructor(
     engine: ILoggingEngine,
     socket: ITcpSocket,

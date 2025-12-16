@@ -19,7 +19,9 @@ function getRandomBytes(length: number): Uint8Array {
 function createBtHandshake(infoHash: Uint8Array, peerId: Uint8Array): Uint8Array {
   const protocol = new TextEncoder().encode('BitTorrent protocol')
   const reserved = new Uint8Array(8)
-  const msg = new Uint8Array(1 + protocol.length + reserved.length + infoHash.length + peerId.length)
+  const msg = new Uint8Array(
+    1 + protocol.length + reserved.length + infoHash.length + peerId.length,
+  )
   let offset = 0
   msg[offset++] = BT_PROTOCOL_HEADER // 19
   msg.set(protocol, offset)
@@ -130,7 +132,6 @@ describe('Encryption Policy', () => {
 
       expect(mseSocketB.isEncrypted).toBe(false)
     })
-
   })
 
   describe("policy: 'prefer'", () => {
@@ -273,9 +274,9 @@ describe('Encryption Policy', () => {
       const responderPromise = mseSocketB.acceptConnection()
 
       // At least one side should throw
-      await expect(
-        Promise.all([initiatorPromise, responderPromise]),
-      ).rejects.toThrow(/MSE handshake failed/)
+      await expect(Promise.all([initiatorPromise, responderPromise])).rejects.toThrow(
+        /MSE handshake failed/,
+      )
     })
 
     it('should throw error when peer sends plain BT handshake', async () => {

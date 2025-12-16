@@ -18,14 +18,19 @@ function FlagWithTooltip(props: { code: string | null | undefined }) {
 
 /**
  * Format peer flags (choking/interested states)
- * D = downloading from peer, U = uploading to peer, I = incoming connection
- * Characters: d/D = download, u/U = upload (lowercase = choked), I = incoming
+ * E = encrypted (MSE/PE), I = incoming connection
+ * d/D = download (lowercase = choked), u/U = upload (lowercase = choked)
  * Returns empty string for connecting peers (no connection yet)
  */
 function formatFlags(peer: DisplayPeer): string {
   if (!peer.connection) return ''
 
   const flags: string[] = []
+
+  // Encrypted connection (MSE/PE)
+  if (peer.connection.isEncrypted) {
+    flags.push('E')
+  }
 
   // Incoming connection
   if (peer.connection.isIncoming) {
