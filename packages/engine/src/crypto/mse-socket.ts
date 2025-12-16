@@ -148,16 +148,11 @@ export class MseSocket implements ITcpSocket {
 
     // Buffer initial payload - will be delivered when onData() is called
     if (result.initialPayload && result.initialPayload.length > 0) {
-      console.log(
-        `[MseSocket] initialPayload ${result.initialPayload.length} bytes, onDataCb=${!!this.onDataCb}`,
-      )
       if (this.onDataCb) {
         this.onDataCb(result.initialPayload)
       } else {
         this.pendingInitialPayload = result.initialPayload
       }
-    } else {
-      console.log(`[MseSocket] no initialPayload from handshake`)
     }
   }
 
@@ -197,14 +192,14 @@ export class MseSocket implements ITcpSocket {
   onData(cb: (data: Uint8Array) => void): void {
     this.onDataCb = cb
     // Deliver any buffered initial payload from handshake
+    // Use queueMicrotask to defer delivery - this allows event listeners
+    // to be attached after the socket.onData() call returns
     if (this.pendingInitialPayload) {
-      console.log(
-        `[MseSocket] onData called, delivering pending ${this.pendingInitialPayload.length} bytes`,
-      )
-      cb(this.pendingInitialPayload)
+      const payload = this.pendingInitialPayload
       this.pendingInitialPayload = null
-    } else {
-      console.log(`[MseSocket] onData called, no pending payload`)
+      queueMicrotask(() => {
+        cb(payload)
+      })
     }
   }
 

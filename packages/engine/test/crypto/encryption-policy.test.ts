@@ -399,4 +399,134 @@ describe('Encryption Policy', () => {
       expect(mseSocketB.isEncrypted).toBe(true)
     })
   })
+
+  describe('initial payload delivery timing', () => {
+    it('should defer initial payload delivery via queueMicrotask for plain BT', async () => {
+      // This tests the fix for the race condition where:
+      // 1. PeerConnection constructor calls socket.onData(callback)
+      // 2. If callback is invoked synchronously, the 'handshake' event fires
+      // 3. But the listener isn't attached yet (still in constructor)
+      // The fix defers delivery via queueMicrotask.
+
+      const [socketA, socketB] = MemorySocketFactory.createPair()
+
+      const mseSocketB = new MseSocket(socketB, {
+        policy: 'allow',
+        knownInfoHashes: [infoHash],
+        sha1,
+        getRandomBytes,
+      })
+
+      // Start responder
+      const responderPromise = mseSocketB.acceptConnection()
+
+      // Send plain BT handshake
+      const btHandshake = createBtHandshake(infoHash, peerId)
+      socketA.send(btHandshake)
+
+      // Wait for acceptConnection to complete
+      await responderPromise
+      expect(mseSocketB.isEncrypted).toBe(false)
+
+      // Now test the timing of onData callback
+      let callbackInvokedSynchronously = false
+      let callbackInvokedAsync = false
+
+      // Call onData - the callback should NOT be invoked synchronously
+      mseSocketB.onData(() => {
+        callbackInvokedSynchronously = true
+        callbackInvokedAsync = true
+      })
+
+      // At this point, callback should NOT have been invoked yet
+      // (it should be deferred via queueMicrotask)
+      expect(callbackInvokedSynchronously).toBe(false)
+
+      // After microtask runs, callback should be invoked
+      await Promise.resolve() // Let microtask run
+      expect(callbackInvokedAsync).toBe(true)
+    })
+
+    it('should deliver initial payload with correct data for plain BT handshake', async () => {
+      const [socketA, socketB] = MemorySocketFactory.createPair()
+
+      const mseSocketB = new MseSocket(socketB, {
+        policy: 'allow',
+        knownInfoHashes: [infoHash],
+        sha1,
+        getRandomBytes,
+      })
+
+      const responderPromise = mseSocketB.acceptConnection()
+
+      // Send plain BT handshake
+      const btHandshake = createBtHandshake(infoHash, peerId)
+      socketA.send(btHandshake)
+
+      await responderPromise
+
+      // Set up data receiver
+      const receivedData: Uint8Array[] = []
+      mseSocketB.onData((data) => receivedData.push(data))
+
+      // Wait for deferred delivery
+      await Promise.resolve()
+
+      // Should have received the BT handshake
+      expect(receivedData.length).toBe(1)
+      expect(receivedData[0]).toEqual(btHandshake)
+    })
+
+    it('should allow event listeners to be attached before payload is processed', async () => {
+      // This simulates the real-world scenario:
+      // 1. MseSocket.acceptConnection() completes with buffered handshake
+      // 2. PeerConnection is created (calls socket.onData in constructor)
+      // 3. Event listener is attached (peer.on('handshake', ...))
+      // 4. Deferred payload delivery triggers handshake parsing
+      // 5. 'handshake' event fires and listener receives it
+
+      const [socketA, socketB] = MemorySocketFactory.createPair()
+
+      const mseSocketB = new MseSocket(socketB, {
+        policy: 'allow',
+        knownInfoHashes: [infoHash],
+        sha1,
+        getRandomBytes,
+      })
+
+      const responderPromise = mseSocketB.acceptConnection()
+      const btHandshake = createBtHandshake(infoHash, peerId)
+      socketA.send(btHandshake)
+      await responderPromise
+
+      // Simulate PeerConnection pattern:
+      // 1. onData is called (in constructor)
+      // 2. Event listener is attached (after constructor)
+      // 3. Deferred payload triggers event
+
+      let handshakeReceived = false
+      const receivedData: Uint8Array[] = []
+
+      // Step 1: Call onData (like PeerConnection constructor does)
+      mseSocketB.onData((data) => {
+        receivedData.push(data)
+        // In real code, this parses handshake and emits event
+        // We simulate by calling the "listener" directly
+        if (data.length === 68) {
+          handshakeReceived = true
+        }
+      })
+
+      // At this point, data hasn't been delivered yet (deferred)
+      expect(handshakeReceived).toBe(false)
+
+      // Step 2: "Event listener" setup happens here (synchronously after onData)
+      // In real code: peer.on('handshake', ...)
+
+      // Step 3: After microtask, payload is delivered
+      await Promise.resolve()
+      expect(handshakeReceived).toBe(true)
+      expect(receivedData.length).toBe(1)
+    })
+  })
 })
