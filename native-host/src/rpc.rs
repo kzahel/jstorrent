@@ -131,6 +131,18 @@ async fn add_torrent_handler(
         return Err(StatusCode::FORBIDDEN);
     }
 
+    // Chrome native messaging limits messages to 1MB. Base64 adds ~33% overhead,
+    // plus JSON wrapper. Reject files that would exceed this limit.
+    const MAX_BASE64_SIZE: usize = 900_000; // ~675KB original, conservative margin
+    if payload.contents_base64.len() > MAX_BASE64_SIZE {
+        crate::log!(
+            "Torrent file too large: {} bytes base64 (limit: {})",
+            payload.contents_base64.len(),
+            MAX_BASE64_SIZE
+        );
+        return Err(StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
     crate::log!("Received add-torrent request: {} ({} bytes)", payload.file_name, payload.contents_base64.len());
 
     if let Some(sender) = &state.event_sender {

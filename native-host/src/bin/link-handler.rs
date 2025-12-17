@@ -317,6 +317,11 @@ fn send_payload(info: &ProfileEntry, mode: &Mode) -> Result<()> {
 
     if resp.status().is_success() {
         Ok(())
+    } else if resp.status() == reqwest::StatusCode::PAYLOAD_TOO_LARGE {
+        Err(anyhow::anyhow!(
+            "This torrent file is too large to open via file association.\n\n\
+             Please drag and drop it directly into JSTorrent instead."
+        ))
     } else {
         Err(anyhow::anyhow!("Failed to add request: {}", resp.status()))
     }
