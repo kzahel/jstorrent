@@ -1891,11 +1891,19 @@ export class Torrent extends EngineComponent {
     const effectiveTotal = peerAlreadyCounted ? total : total + 1
 
     if (effectiveTotal > this.maxPeers) {
-      this.logger.warn(`Rejecting peer, max reached (${effectiveTotal}/${this.maxPeers})`)
+      this.logger.info(`Rejecting peer, max reached (${effectiveTotal}/${this.maxPeers})`)
       peer.close()
-      // Clear swarm connecting state if this was an outgoing connection we initiated
-      if (key) {
-        this._swarm.markConnectFailed(key, 'max_peers_reached')
+      if (existingSwarmPeer) {
+        // Outgoing connection we initiated - mark as failed
+        this._swarm.markConnectFailed(key!, 'max_peers_reached')
+      } else if (peer.remoteAddress && peer.remotePort) {
+        // Incoming connection - track the rejection
+        this._swarm.rejectIncoming(
+          peer.remoteAddress,
+          peer.remotePort,
+          detectAddressFamily(peer.remoteAddress),
+          'max_peers_reached',
+        )
       }
       return
     }

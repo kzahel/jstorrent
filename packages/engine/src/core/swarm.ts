@@ -67,6 +67,11 @@ export interface SwarmPeer {
   // Ban info (null if not banned)
   banReason: string | null
 
+  // Rejection tracking (incoming connections we rejected)
+  rejectionCount: number
+  lastRejected: number | null
+  lastRejectionReason: string | null
+
   // Port quality indicator (privileged ports, well-known services)
   suspiciousPort: boolean
 
@@ -455,6 +460,9 @@ export class Swarm extends EventEmitter {
       quickDisconnects: 0,
       lastDisconnect: null,
       banReason: null,
+      rejectionCount: 0,
+      lastRejected: null,
+      lastRejectionReason: null,
       suspiciousPort: suspicious,
       totalDownloaded: 0,
       totalUploaded: 0,
@@ -719,6 +727,52 @@ export class Swarm extends EventEmitter {
   }
 
   /**
+   * Record a rejected incoming connection.
+   * Tracks the peer in the swarm so we can detect repeat attempts.
+   */
+  rejectIncoming(ip: string, port: number, family: AddressFamily, reason: string): void {
+    const key = addressKey({ ip, port, family })
+    let peer = this.peers.get(key)
+
+    if (!peer) {
+      peer = {
+        ip,
+        port,
+        family,
+        source: 'incoming',
+        discoveredAt: Date.now(),
+        state: 'idle',
+        connection: null,
+        peerId: null,
+        clientName: null,
+        countryCode: lookupCountry(ip),
+        connectAttempts: 0,
+        connectFailures: 0,
+        lastConnectAttempt: null,
+        lastConnectSuccess: null,
+        lastConnectError: null,
+        quickDisconnects: 0,
+        lastDisconnect: null,
+        banReason: null,
+        rejectionCount: 0,
+        lastRejected: null,
+        lastRejectionReason: null,
+        suspiciousPort: isSuspiciousPort(port),
+        totalDownloaded: 0,
+        totalUploaded: 0,
+      }
+      this.peers.set(key, peer)
+      this._allPeersVersion++
+    }
+
+    peer.rejectionCount++
+    peer.lastRejected = Date.now()
+    peer.lastRejectionReason = reason
+
+    this.logger.debug(`[${key}] Rejected incoming: ${reason} (count: ${peer.rejectionCount})`)
+  }
+
+  /**
    * Mark peer disconnected (was connected, now isn't).
    */
   markDisconnected(key: string): void {
@@ -793,6 +847,9 @@ export class Swarm extends EventEmitter {
         quickDisconnects: 0,
         lastDisconnect: null,
         banReason: null,
+        rejectionCount: 0,
+        lastRejected: null,
+        lastRejectionReason: null,
         suspiciousPort: isSuspiciousPort(port),
         totalDownloaded: 0,
         totalUploaded: 0,
