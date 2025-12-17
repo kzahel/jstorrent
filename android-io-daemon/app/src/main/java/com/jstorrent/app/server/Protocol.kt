@@ -30,6 +30,10 @@ object Protocol {
     const val OP_TCP_ACCEPT: Byte = 0x17
     const val OP_TCP_STOP_LISTEN: Byte = 0x18
 
+    // TLS upgrade opcodes
+    const val OP_TCP_SECURE: Byte = 0x19
+    const val OP_TCP_SECURED: Byte = 0x1A
+
     // UDP opcodes
     const val OP_UDP_BIND: Byte = 0x20
     const val OP_UDP_BOUND: Byte = 0x21
@@ -51,6 +55,7 @@ object Protocol {
     val IO_OPCODES = HANDSHAKE_OPCODES + setOf(
         OP_TCP_CONNECT, OP_TCP_CONNECTED, OP_TCP_SEND, OP_TCP_RECV, OP_TCP_CLOSE,
         OP_TCP_LISTEN, OP_TCP_LISTEN_RESULT, OP_TCP_ACCEPT, OP_TCP_STOP_LISTEN,
+        OP_TCP_SECURE, OP_TCP_SECURED,
         OP_UDP_BIND, OP_UDP_BOUND, OP_UDP_SEND, OP_UDP_RECV, OP_UDP_CLOSE,
         OP_UDP_JOIN_MULTICAST, OP_UDP_LEAVE_MULTICAST
     )

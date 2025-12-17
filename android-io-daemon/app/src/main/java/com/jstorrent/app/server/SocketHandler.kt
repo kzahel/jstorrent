@@ -17,7 +17,14 @@ import java.net.InetSocketAddress
 import java.net.MulticastSocket
 import java.net.ServerSocket
 import java.net.Socket
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.ConcurrentHashMap
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSocket
+import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.sync.Semaphore
 
@@ -52,6 +59,8 @@ class SocketSession(
     private val nextSocketId = AtomicInteger(0x10000) // Start high to avoid collision with client-assigned IDs
     // Track pending TCP connect jobs so they can be cancelled when TCP_CLOSE arrives
     private val pendingTcpConnects = ConcurrentHashMap<Int, Job>()
+    // Connected sockets that haven't started reading/writing yet (for TLS upgrade)
+    private val pendingTcpSockets = ConcurrentHashMap<Int, Socket>()
 
     // Outgoing message queue - large buffer for high throughput
     // At 65KB frames, 2000 frames = ~130MB buffer capacity
@@ -227,6 +236,7 @@ class SocketSession(
             Protocol.OP_TCP_CONNECT -> handleTcpConnect(envelope.requestId, payload)
             Protocol.OP_TCP_SEND -> handleTcpSend(payload)
             Protocol.OP_TCP_CLOSE -> handleTcpClose(payload)
+            Protocol.OP_TCP_SECURE -> handleTcpSecure(envelope.requestId, payload)
             Protocol.OP_TCP_LISTEN -> handleTcpListen(envelope.requestId, payload)
             Protocol.OP_TCP_STOP_LISTEN -> handleTcpStopListen(payload)
             Protocol.OP_UDP_BIND -> handleUdpBind(envelope.requestId, payload)
@@ -307,19 +317,14 @@ class SocketSession(
                         return@launch
                     }
 
-                    val handler = TcpSocketHandler(socketId, socket, this@SocketSession) { id ->
-                        tcpSockets.remove(id)
-                    }
-                    tcpSockets[socketId] = handler
+                    // Store in pending - don't start read/write tasks yet
+                    // This allows for TLS upgrade before activation
+                    pendingTcpSockets[socketId] = socket
 
                     // Send TCP_CONNECTED success
                     Log.i(TAG, "TCP_CONNECTED SUCCESS: socketId=$socketId, $hostname:$port")
                     val response = socketId.toLEBytes() + byteArrayOf(0) + 0.toLEBytes()
                     send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
-
-                    // Start reading and sending
-                    handler.startReading()
-                    handler.startSending()
                 } catch (e: Exception) {
                     socket.close()
                     throw e
@@ -359,6 +364,20 @@ class SocketSession(
 
         Log.d(TAG, "TCP_SEND: socketId=$socketId, ${data.size} bytes")
 
+        // Check if socket is pending (not yet activated)
+        val pendingSocket = pendingTcpSockets.remove(socketId)
+        if (pendingSocket != null) {
+            // Auto-activate as plain TCP socket
+            val handler = TcpSocketHandler(socketId, pendingSocket, this@SocketSession) { id ->
+                tcpSockets.remove(id)
+            }
+            tcpSockets[socketId] = handler
+            handler.startReading()
+            handler.startSending()
+            handler.send(data)
+            return
+        }
+
         val socket = tcpSockets[socketId]
         if (socket != null) {
             socket.send(data)
@@ -382,7 +401,87 @@ class SocketSession(
             pendingJob.cancel()
         }
 
+        // Remove pending socket (connected but not yet activated)
+        pendingTcpSockets.remove(socketId)?.close()
+
         tcpSockets.remove(socketId)?.close()
+    }
+
+    private fun handleTcpSecure(requestId: Int, payload: ByteArray) {
+        // Payload: socketId(4) + flags(1) + hostname(utf8)
+        // flags bit 0: skipValidation
+        if (payload.size < 5) return
+
+        val socketId = payload.getUIntLE(0)
+        val flags = payload[4].toInt()
+        val skipValidation = (flags and 1) != 0
+        val hostname = String(payload, 5, payload.size - 5)
+
+        Log.d(TAG, "TCP_SECURE: socketId=$socketId, hostname=$hostname, skipValidation=$skipValidation")
+
+        // Must be a pending socket (not yet active)
+        val socket = pendingTcpSockets.remove(socketId)
+        if (socket == null) {
+            Log.e(TAG, "TCP_SECURE: socket $socketId not pending")
+            val response = socketId.toLEBytes() + byteArrayOf(1)
+            send(Protocol.createMessage(Protocol.OP_TCP_SECURED, requestId, response))
+            return
+        }
+
+        scope.launch {
+            try {
+                // Create SSLSocketFactory
+                val sslSocketFactory = if (skipValidation) {
+                    createInsecureSocketFactory()
+                } else {
+                    SSLSocketFactory.getDefault() as SSLSocketFactory
+                }
+
+                // Create SSLSocket wrapping the existing socket
+                val sslSocket = sslSocketFactory.createSocket(
+                    socket,
+                    hostname,
+                    socket.port,
+                    true  // autoClose
+                ) as SSLSocket
+
+                // Configure and start handshake
+                sslSocket.useClientMode = true
+                sslSocket.startHandshake()
+
+                // Create handler and start read/write tasks
+                val handler = TcpSocketHandler(socketId, sslSocket, this@SocketSession) { id ->
+                    tcpSockets.remove(id)
+                }
+                tcpSockets[socketId] = handler
+                handler.startReading()
+                handler.startSending()
+
+                // Send success
+                Log.i(TAG, "TCP_SECURED SUCCESS: socketId=$socketId, hostname=$hostname")
+                val response = socketId.toLEBytes() + byteArrayOf(0)
+                send(Protocol.createMessage(Protocol.OP_TCP_SECURED, requestId, response))
+
+            } catch (e: Exception) {
+                Log.e(TAG, "TLS upgrade failed for socketId=$socketId: ${e.message}")
+                try {
+                    socket.close()
+                } catch (_: Exception) {}
+                val response = socketId.toLEBytes() + byteArrayOf(1)
+                send(Protocol.createMessage(Protocol.OP_TCP_SECURED, requestId, response))
+            }
+        }
+    }
+
+    private fun createInsecureSocketFactory(): SSLSocketFactory {
+        val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
+            override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
+            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+        })
+        val sslContext = SSLContext.getInstance("TLS")
+        sslContext.init(null, trustAllCerts, SecureRandom())
+        return sslContext.socketFactory
     }
 
     // TCP Server handlers
@@ -610,6 +709,10 @@ class SocketSession(
             pendingTcpConnects.values.forEach { it.cancel() }
             pendingTcpConnects.clear()
         }
+
+        // Close pending sockets (connected but not yet activated)
+        pendingTcpSockets.values.forEach { it.close() }
+        pendingTcpSockets.clear()
 
         tcpSockets.values.forEach { it.close() }
         tcpSockets.clear()

@@ -13,6 +13,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::{timeout, Duration};
 use std::collections::HashMap;
 use tokio::sync::Mutex;
+use native_tls::TlsConnector;
 use crate::AppState;
 
 
@@ -34,6 +35,10 @@ const OP_TCP_LISTEN: u8 = 0x15;
 const OP_TCP_LISTEN_RESULT: u8 = 0x16;
 const OP_TCP_ACCEPT: u8 = 0x17;
 const OP_TCP_STOP_LISTEN: u8 = 0x18;
+
+// TLS upgrade opcodes
+const OP_TCP_SECURE: u8 = 0x19;
+const OP_TCP_SECURED: u8 = 0x1A;
 
 const OP_UDP_BIND: u8 = 0x20;
 const OP_UDP_BOUND: u8 = 0x21;
@@ -99,6 +104,7 @@ impl Envelope {
 struct SocketManager {
     tcp_sockets: HashMap<u32, mpsc::Sender<Vec<u8>>>,
     pending_connects: HashMap<u32, tokio::task::AbortHandle>,
+    pending_tcp: HashMap<u32, TcpStream>,  // Connected but not yet reading/writing (for TLS upgrade)
     udp_sockets: HashMap<u32, Arc<UdpSocket>>,
     tcp_servers: HashMap<u32, tokio::task::JoinHandle<()>>,
     next_socket_id: u32,
@@ -120,6 +126,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let socket_manager = Arc::new(Mutex::new(SocketManager {
         tcp_sockets: HashMap::new(),
         pending_connects: HashMap::new(),
+        pending_tcp: HashMap::new(),
         udp_sockets: HashMap::new(),
         tcp_servers: HashMap::new(),
         next_socket_id: 0x10000, // Start high to avoid collision with client-assigned IDs
@@ -267,70 +274,24 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
 
                         match connect_result {
                             Ok(stream) => {
-                                let (mut read_half, mut write_half) = stream.into_split();
-                                let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
-
-                                // Move from pending to established
+                                // Store in pending_tcp - don't start read/write tasks yet
+                                // This allows for TLS upgrade before activation
                                 {
                                     let mut mgr = manager.lock().await;
                                     mgr.pending_connects.remove(&socket_id);
-                                    mgr.tcp_sockets.insert(socket_id, write_tx);
+                                    mgr.pending_tcp.insert(socket_id, stream);
                                 }
-                                
+
                                 // Send TCP_CONNECTED
                                 // Payload: socketId(4), status(1 byte=0), errno(4 bytes=0)
                                 let mut resp = socket_id.to_le_bytes().to_vec();
                                 resp.push(0); // Success
                                 resp.extend_from_slice(&0u32.to_le_bytes());
-                                
+
                                 let env = Envelope::new(OP_TCP_CONNECTED, req_id);
                                 let mut data = env.to_bytes().to_vec();
                                 data.extend_from_slice(&resp);
                                 tx_clone.send(data).await.ok();
-
-                                // Read task
-                                let tx_read = tx_clone.clone();
-                                tokio::spawn(async move {
-                                    let mut buf = [0u8; 8192];
-                                    loop {
-                                        match read_half.read(&mut buf).await {
-                                            Ok(0) => break, // EOF
-                                            Ok(n) => {
-                                                // Send TCP_RECV
-                                                // Payload: socketId(4) + data
-                                                let mut p = socket_id.to_le_bytes().to_vec();
-                                                p.extend_from_slice(&buf[..n]);
-                                                
-                                                let env = Envelope::new(OP_TCP_RECV, 0); // Async event, req_id=0
-                                                let mut d = env.to_bytes().to_vec();
-                                                d.extend_from_slice(&p);
-                                                if tx_read.send(d).await.is_err() {
-                                                    break;
-                                                }
-                                            }
-                                            Err(_) => break,
-                                        }
-                                    }
-                                    // Send TCP_CLOSE
-                                    // Payload: socketId(4), reason(1), errno(4)
-                                    let mut p = socket_id.to_le_bytes().to_vec();
-                                    p.push(0); // Normal closure
-                                    p.extend_from_slice(&0u32.to_le_bytes());
-                                    
-                                    let env = Envelope::new(OP_TCP_CLOSE, 0);
-                                    let mut d = env.to_bytes().to_vec();
-                                    d.extend_from_slice(&p);
-                                    tx_read.send(d).await.ok();
-                                });
-
-                                // Write task
-                                tokio::spawn(async move {
-                                    while let Some(data) = write_rx.recv().await {
-                                        if write_half.write_all(&data).await.is_err() {
-                                            break;
-                                        }
-                                    }
-                                });
                             }
                             Err(_) => {
                                 // Remove from pending on failure
@@ -356,9 +317,59 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                     // Payload: socketId(4) + data
                     if payload.len() >= 4 {
                         let socket_id = u32::from_le_bytes(payload[0..4].try_into().unwrap());
-                        let data = payload[4..].to_vec();
-                        if let Some(sender) = socket_manager.lock().await.tcp_sockets.get(&socket_id) {
-                            sender.send(data).await.ok();
+                        let data_to_send = payload[4..].to_vec();
+
+                        // Check if socket is pending (not yet activated)
+                        let pending_stream = socket_manager.lock().await.pending_tcp.remove(&socket_id);
+                        if let Some(stream) = pending_stream {
+                            // Auto-activate as plain TCP socket
+                            let (mut read_half, mut write_half) = stream.into_split();
+                            let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
+
+                            socket_manager.lock().await.tcp_sockets.insert(socket_id, write_tx.clone());
+
+                            // Send the data
+                            write_tx.send(data_to_send).await.ok();
+
+                            // Read task
+                            let tx_read = tx.clone();
+                            tokio::spawn(async move {
+                                let mut buf = [0u8; 8192];
+                                loop {
+                                    match read_half.read(&mut buf).await {
+                                        Ok(0) => break,
+                                        Ok(n) => {
+                                            let mut p = socket_id.to_le_bytes().to_vec();
+                                            p.extend_from_slice(&buf[..n]);
+                                            let env = Envelope::new(OP_TCP_RECV, 0);
+                                            let mut d = env.to_bytes().to_vec();
+                                            d.extend_from_slice(&p);
+                                            if tx_read.send(d).await.is_err() {
+                                                break;
+                                            }
+                                        }
+                                        Err(_) => break,
+                                    }
+                                }
+                                let mut p = socket_id.to_le_bytes().to_vec();
+                                p.push(0);
+                                p.extend_from_slice(&0u32.to_le_bytes());
+                                let env = Envelope::new(OP_TCP_CLOSE, 0);
+                                let mut d = env.to_bytes().to_vec();
+                                d.extend_from_slice(&p);
+                                tx_read.send(d).await.ok();
+                            });
+
+                            // Write task
+                            tokio::spawn(async move {
+                                while let Some(data) = write_rx.recv().await {
+                                    if write_half.write_all(&data).await.is_err() {
+                                        break;
+                                    }
+                                }
+                            });
+                        } else if let Some(sender) = socket_manager.lock().await.tcp_sockets.get(&socket_id) {
+                            sender.send(data_to_send).await.ok();
                         }
                     }
                 }
@@ -371,9 +382,151 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                         // Remove established socket
                         mgr.tcp_sockets.remove(&socket_id);
 
+                        // Remove pending socket (connected but not yet activated)
+                        mgr.pending_tcp.remove(&socket_id);
+
                         // Cancel pending connect if exists (allows immediate cleanup)
                         if let Some(handle) = mgr.pending_connects.remove(&socket_id) {
                             handle.abort();
+                        }
+                    }
+                }
+                OP_TCP_SECURE => {
+                    // Payload: socketId(4) + flags(1) + hostname(utf8)
+                    // flags bit 0: skipValidation
+                    if payload.len() >= 5 {
+                        let socket_id = u32::from_le_bytes(payload[0..4].try_into().unwrap());
+                        let flags = payload[4];
+                        let skip_validation = (flags & 1) != 0;
+                        let hostname = String::from_utf8_lossy(&payload[5..]).to_string();
+
+                        let req_id = env.request_id;
+                        let manager = socket_manager.clone();
+                        let tx_clone = tx.clone();
+
+                        // Take the pending stream
+                        let pending_stream = manager.lock().await.pending_tcp.remove(&socket_id);
+
+                        if let Some(stream) = pending_stream {
+                            tokio::spawn(async move {
+                                // Build TLS connector
+                                let connector_result = if skip_validation {
+                                    TlsConnector::builder()
+                                        .danger_accept_invalid_certs(true)
+                                        .danger_accept_invalid_hostnames(true)
+                                        .build()
+                                } else {
+                                    TlsConnector::new()
+                                };
+
+                                let connector = match connector_result {
+                                    Ok(c) => c,
+                                    Err(e) => {
+                                        eprintln!("TLS connector build failed: {}", e);
+                                        // Send failure response
+                                        let mut resp = socket_id.to_le_bytes().to_vec();
+                                        resp.push(1); // Failure
+                                        let env = Envelope::new(OP_TCP_SECURED, req_id);
+                                        let mut data = env.to_bytes().to_vec();
+                                        data.extend_from_slice(&resp);
+                                        tx_clone.send(data).await.ok();
+                                        return;
+                                    }
+                                };
+
+                                // Convert to async TLS connector
+                                let tls_connector = tokio_native_tls::TlsConnector::from(connector);
+
+                                // Perform TLS handshake with 30 second timeout
+                                let handshake_result = timeout(
+                                    Duration::from_secs(30),
+                                    tls_connector.connect(&hostname, stream)
+                                ).await;
+
+                                match handshake_result {
+                                    Ok(Ok(tls_stream)) => {
+                                        // TLS handshake succeeded - activate the socket
+                                        let (mut read_half, mut write_half) = tokio::io::split(tls_stream);
+                                        let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(32);
+
+                                        manager.lock().await.tcp_sockets.insert(socket_id, write_tx);
+
+                                        // Send success response
+                                        let mut resp = socket_id.to_le_bytes().to_vec();
+                                        resp.push(0); // Success
+                                        let env = Envelope::new(OP_TCP_SECURED, req_id);
+                                        let mut data = env.to_bytes().to_vec();
+                                        data.extend_from_slice(&resp);
+                                        tx_clone.send(data).await.ok();
+
+                                        // Read task
+                                        let tx_read = tx_clone.clone();
+                                        tokio::spawn(async move {
+                                            let mut buf = [0u8; 8192];
+                                            loop {
+                                                match read_half.read(&mut buf).await {
+                                                    Ok(0) => break,
+                                                    Ok(n) => {
+                                                        let mut p = socket_id.to_le_bytes().to_vec();
+                                                        p.extend_from_slice(&buf[..n]);
+                                                        let env = Envelope::new(OP_TCP_RECV, 0);
+                                                        let mut d = env.to_bytes().to_vec();
+                                                        d.extend_from_slice(&p);
+                                                        if tx_read.send(d).await.is_err() {
+                                                            break;
+                                                        }
+                                                    }
+                                                    Err(_) => break,
+                                                }
+                                            }
+                                            let mut p = socket_id.to_le_bytes().to_vec();
+                                            p.push(0);
+                                            p.extend_from_slice(&0u32.to_le_bytes());
+                                            let env = Envelope::new(OP_TCP_CLOSE, 0);
+                                            let mut d = env.to_bytes().to_vec();
+                                            d.extend_from_slice(&p);
+                                            tx_read.send(d).await.ok();
+                                        });
+
+                                        // Write task
+                                        tokio::spawn(async move {
+                                            while let Some(data) = write_rx.recv().await {
+                                                if write_half.write(&data).await.is_err() {
+                                                    break;
+                                                }
+                                            }
+                                        });
+                                    }
+                                    Ok(Err(e)) => {
+                                        // TLS handshake failed
+                                        eprintln!("TLS handshake failed for {}: {}", hostname, e);
+                                        let mut resp = socket_id.to_le_bytes().to_vec();
+                                        resp.push(1); // Failure
+                                        let env = Envelope::new(OP_TCP_SECURED, req_id);
+                                        let mut data = env.to_bytes().to_vec();
+                                        data.extend_from_slice(&resp);
+                                        tx_clone.send(data).await.ok();
+                                    }
+                                    Err(_) => {
+                                        // Timeout
+                                        eprintln!("TLS handshake timed out for {}", hostname);
+                                        let mut resp = socket_id.to_le_bytes().to_vec();
+                                        resp.push(1); // Failure
+                                        let env = Envelope::new(OP_TCP_SECURED, req_id);
+                                        let mut data = env.to_bytes().to_vec();
+                                        data.extend_from_slice(&resp);
+                                        tx_clone.send(data).await.ok();
+                                    }
+                                }
+                            });
+                        } else {
+                            // Socket not found in pending state
+                            let mut resp = socket_id.to_le_bytes().to_vec();
+                            resp.push(1); // Failure
+                            let env = Envelope::new(OP_TCP_SECURED, req_id);
+                            let mut data = env.to_bytes().to_vec();
+                            data.extend_from_slice(&resp);
+                            tx.send(data).await.ok();
                         }
                     }
                 }

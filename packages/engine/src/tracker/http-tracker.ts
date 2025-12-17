@@ -147,10 +147,11 @@ export class HttpTracker extends EngineComponent implements ITracker {
         peers.push({ ip, port })
       }
     } else if (Array.isArray(peersData)) {
-      // Dictionary format (rare)
+      // Dictionary format (non-compact) - IP is a string or Uint8Array of ASCII bytes
       for (const p of peersData) {
         if (p.ip && p.port) {
-          peers.push({ ip: String(p.ip), port: Number(p.port) })
+          const ipStr = p.ip instanceof Uint8Array ? new TextDecoder().decode(p.ip) : String(p.ip)
+          peers.push({ ip: ipStr, port: Number(p.port) })
         }
       }
     }

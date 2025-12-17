@@ -6,6 +6,6 @@ export interface IDaemonSocketManager {
   ): void
   unregisterHandler(socketId: number): void
   packEnvelope(msgType: number, reqId: number, payload?: Uint8Array): ArrayBuffer
-  waitForResponse(reqId: number): Promise<Uint8Array>
+  waitForResponse(reqId: number, timeoutMs?: number): Promise<Uint8Array>
   nextRequestId(): number
 }

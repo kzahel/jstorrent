@@ -48,6 +48,20 @@ export interface ITcpSocket {
   isEncrypted?: boolean
 
   /**
+   * Whether this socket is using TLS.
+   */
+  isSecure?: boolean
+
+  /**
+   * Upgrade this socket to TLS.
+   * Must be called before any data is sent/received.
+   * @param hostname - Server hostname for SNI (Server Name Indication)
+   * @param options - TLS options
+   * @returns Promise that resolves when TLS handshake completes
+   */
+  secure?(hostname: string, options?: { skipValidation?: boolean }): Promise<void>
+
+  /**
    * Connect to a remote peer.
    * Note: This is an addition to the extension's interface to allow
    * the engine to initiate connections.

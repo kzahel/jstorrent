@@ -26,7 +26,8 @@ export class MinimalHttpClient {
   async get(url: string, headers: Record<string, string> = {}): Promise<Uint8Array> {
     const urlObj = new URL(url)
     const host = urlObj.hostname
-    const port = urlObj.port ? parseInt(urlObj.port, 10) : urlObj.protocol === 'https:' ? 443 : 80
+    const isHttps = urlObj.protocol === 'https:'
+    const port = urlObj.port ? parseInt(urlObj.port, 10) : isHttps ? 443 : 80
     const path = urlObj.pathname + urlObj.search
 
     this.logger?.debug(
@@ -34,6 +35,16 @@ export class MinimalHttpClient {
     )
 
     const socket = await this.socketFactory.createTcpSocket(host, port)
+
+    // Upgrade to TLS for HTTPS
+    if (isHttps) {
+      if (socket.secure) {
+        await socket.secure(host)
+      } else {
+        socket.close()
+        throw new Error('HTTPS not supported: socket factory does not support TLS')
+      }
+    }
 
     return new Promise<Uint8Array>((resolve, reject) => {
       const requestLines = [
@@ -218,7 +229,8 @@ export class MinimalHttpClient {
   async post(url: string, body: string, headers: Record<string, string> = {}): Promise<Uint8Array> {
     const urlObj = new URL(url)
     const host = urlObj.hostname
-    const port = urlObj.port ? parseInt(urlObj.port, 10) : urlObj.protocol === 'https:' ? 443 : 80
+    const isHttps = urlObj.protocol === 'https:'
+    const port = urlObj.port ? parseInt(urlObj.port, 10) : isHttps ? 443 : 80
     const path = urlObj.pathname + urlObj.search
 
     this.logger?.debug(
@@ -226,6 +238,17 @@ export class MinimalHttpClient {
     )
 
     const socket = await this.socketFactory.createTcpSocket(host, port)
+
+    // Upgrade to TLS for HTTPS
+    if (isHttps) {
+      if (socket.secure) {
+        await socket.secure(host)
+      } else {
+        socket.close()
+        throw new Error('HTTPS not supported: socket factory does not support TLS')
+      }
+    }
+
     const bodyBytes = fromString(body)
 
     return new Promise<Uint8Array>((resolve, reject) => {

@@ -7,6 +7,7 @@ const OP_TCP_CONNECT = 0x10
 const OP_TCP_SEND = 0x12
 const OP_TCP_RECV = 0x13
 const OP_TCP_CLOSE = 0x14
+const OP_TCP_SECURE = 0x19
 const PROTOCOL_VERSION = 1
 
 export class DaemonTcpSocket implements ITcpSocket {
@@ -15,10 +16,15 @@ export class DaemonTcpSocket implements ITcpSocket {
   // @ts-expect-error - unused
   private onErrorCb: ((err: Error) => void) | null = null
   private closed = false
+  private _isSecure = false
 
   // Remote address info (available for accepted connections)
   public remoteAddress?: string
   public remotePort?: number
+
+  get isSecure(): boolean {
+    return this._isSecure
+  }
 
   constructor(
     private id: number,
@@ -68,6 +74,32 @@ export class DaemonTcpSocket implements ITcpSocket {
     this.daemon.sendFrame(this.manager.packEnvelope(OP_TCP_CONNECT, reqId, new Uint8Array(buffer)))
 
     await this.manager.waitForResponse(reqId)
+  }
+
+  async secure(hostname: string, options?: { skipValidation?: boolean }): Promise<void> {
+    if (this._isSecure) {
+      throw new Error('Socket is already secure')
+    }
+    if (this.closed) {
+      throw new Error('Socket is closed')
+    }
+
+    const reqId = this.manager.nextRequestId()
+    const flags = options?.skipValidation ? 1 : 0
+
+    // Payload: socketId(4) + flags(1) + hostname(utf8)
+    const hostBytes = new TextEncoder().encode(hostname)
+    const buffer = new ArrayBuffer(4 + 1 + hostBytes.length)
+    const view = new DataView(buffer)
+    view.setUint32(0, this.id, true)
+    view.setUint8(4, flags)
+    new Uint8Array(buffer, 5).set(hostBytes)
+
+    this.daemon.sendFrame(this.manager.packEnvelope(OP_TCP_SECURE, reqId, new Uint8Array(buffer)))
+
+    // 30s timeout for TLS handshake
+    await this.manager.waitForResponse(reqId, 30000)
+    this._isSecure = true
   }
 
   send(data: Uint8Array) {
