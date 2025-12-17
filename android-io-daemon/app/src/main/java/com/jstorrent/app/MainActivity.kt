@@ -1,7 +1,6 @@
 package com.jstorrent.app
 
 import android.Manifest
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -207,13 +206,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchBrowserFallback() {
-        try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(FALLBACK_URL))
-            startActivity(intent)
-            Log.i(TAG, "Launched browser fallback: $FALLBACK_URL")
-        } catch (e: ActivityNotFoundException) {
-            Log.e(TAG, "No browser available to launch fallback URL")
+        // Target Chrome explicitly to avoid our own app catching this URL
+        // (AndroidManifest has intent filter for new.jstorrent.com)
+        // On ChromeOS, this opens in the real Chrome browser, not Android Chrome
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(FALLBACK_URL)).apply {
+            setPackage("com.android.chrome")
         }
+        startActivity(intent)
+        Log.i(TAG, "Launched browser fallback: $FALLBACK_URL")
     }
 
     private fun startServiceAndRequestNotificationPermission() {
