@@ -45,3 +45,6 @@ packages/*/src/**/*.d.ts.map
 
 extension/package.zip
 legacy-app-crx.zip
+
+# Claude Code
+.claude/settings.local.json

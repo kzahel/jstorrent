@@ -1,3 +1,6 @@
+// Prevent console window from appearing on Windows
+#![windows_subsystem = "windows"]
+
 use anyhow::{Context, Result};
 use clap::Parser;
 use reqwest::blocking::Client;
@@ -45,7 +48,7 @@ struct HealthResponse {
 mod logging;
 
 fn main() {
-    logging::init("jstorrent-log-handler.log");
+    logging::init("jstorrent-link-handler.log");
     log!("Link Handler started. PID: {}", std::process::id());
 
     // Set up signal handler

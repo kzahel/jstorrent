@@ -43,10 +43,28 @@ Source: "..\..\manifests\com.jstorrent.native.json.template"; DestDir: "{app}"; 
 [Registry]
 ; Chrome Native Messaging Host
 Root: HKCU; Subkey: "Software\Google\Chrome\NativeMessagingHosts\com.jstorrent.native"; ValueType: string; ValueName: ""; ValueData: "{app}\com.jstorrent.native.json"; Flags: uninsdeletekey
-; Magnet Protocol Handler (per-user registration, no admin required)
-Root: HKCU; Subkey: "Software\Classes\magnet"; ValueType: string; ValueName: ""; ValueData: "URL:BitTorrent Magnet Link"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\magnet"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\magnet\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\JSTorrent Link Handler.exe"" ""%1"""; Flags: uninsdeletekey
+
+; Register in Windows 11 Default Apps
+Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "JSTorrent"; ValueData: "Software\JSTorrent\Capabilities"; Flags: uninsdeletevalue
+
+; Application Capabilities
+Root: HKCU; Subkey: "Software\JSTorrent\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "JSTorrent"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\JSTorrent\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "BitTorrent client for Chrome"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\JSTorrent\Capabilities\UrlAssociations"; ValueType: string; ValueName: "magnet"; ValueData: "JSTorrent.Magnet"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\JSTorrent\Capabilities\FileAssociations"; ValueType: string; ValueName: ".torrent"; ValueData: "JSTorrent.Torrent"; Flags: uninsdeletekey
+
+; ProgId for Magnet protocol
+Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet"; ValueType: string; ValueName: ""; ValueData: "URL:BitTorrent Magnet Link"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\JSTorrent Link Handler.exe"" ""%1"""; Flags: uninsdeletekey
+
+; ProgId for .torrent files
+Root: HKCU; Subkey: "Software\Classes\JSTorrent.Torrent"; ValueType: string; ValueName: ""; ValueData: "BitTorrent File"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\JSTorrent.Torrent\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\JSTorrent Link Handler.exe"" ""%1"""; Flags: uninsdeletekey
+
+; .torrent file extension association
+Root: HKCU; Subkey: "Software\Classes\.torrent"; ValueType: string; ValueName: ""; ValueData: "JSTorrent.Torrent"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\.torrent"; ValueType: string; ValueName: "Content Type"; ValueData: "application/x-bittorrent"; Flags: uninsdeletekey
 
 [Code]
 // We need to replace HOST_PATH_PLACEHOLDER in the manifest with the actual path
