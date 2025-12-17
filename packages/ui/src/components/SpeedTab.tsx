@@ -21,6 +21,8 @@ const TIME_WINDOWS = [
 
 const containerStyle: React.CSSProperties = {
   padding: '8px',
+  overflow: 'auto',
+  height: '100%',
 }
 
 const headerStyle: React.CSSProperties = {
@@ -29,15 +31,6 @@ const headerStyle: React.CSSProperties = {
   alignItems: 'center',
   gap: '12px',
   marginBottom: '4px',
-}
-
-const checkboxLabelStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '4px',
-  fontSize: '12px',
-  color: 'var(--text-secondary)',
-  cursor: 'pointer',
 }
 
 const selectStyle: React.CSSProperties = {
@@ -74,12 +67,13 @@ const categoryButtonActiveStyle: React.CSSProperties = {
 }
 
 const breakdownStyle: React.CSSProperties = {
-  marginTop: '12px',
+  marginTop: '4px',
   fontSize: '11px',
   color: 'var(--text-secondary)',
   display: 'grid',
-  gridTemplateColumns: 'auto 1fr 1fr',
-  gap: '4px 12px',
+  gridTemplateColumns: 'auto 70px 70px',
+  gap: '4px 8px',
+  width: 'fit-content',
 }
 
 /** Display names for traffic categories */
@@ -103,24 +97,22 @@ function formatTimeAgo(timestamp: number, now: number): string {
 
 export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
   const [windowMs, setWindowMs] = useState<number>(TIME_WINDOWS[0].value)
-  const [hideCurrentBucket, setHideCurrentBucket] = useState<boolean>(true)
   const [selectedCategories, setSelectedCategories] = useState<TrafficCategory[] | 'all'>('all')
   const containerRef = useRef<HTMLDivElement>(null)
   const plotRef = useRef<uPlot | null>(null)
 
   const toggleCategory = (cat: TrafficCategory) => {
     if (selectedCategories === 'all') {
-      // Switch to specific selection, excluding clicked one
-      setSelectedCategories(FILTER_CATEGORIES.filter((c) => c !== cat))
+      // Switch to showing only the clicked category
+      setSelectedCategories([cat])
+    } else if (selectedCategories.length === 0) {
+      // From empty, select just the clicked category
+      setSelectedCategories([cat])
     } else {
       const idx = selectedCategories.indexOf(cat)
       if (idx >= 0) {
-        const newCats = selectedCategories.filter((c) => c !== cat)
-        if (newCats.length === 0) {
-          setSelectedCategories('all') // Reset to all if empty
-        } else {
-          setSelectedCategories(newCats)
-        }
+        // Remove the category (allow empty selection)
+        setSelectedCategories(selectedCategories.filter((c) => c !== cat))
       } else {
         setSelectedCategories([...selectedCategories, cat])
       }
@@ -233,20 +225,16 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
       const currentBucketStart = Math.floor(now / bucketMs) * bucketMs
       const gapBuckets = (currentBucketStart - latestBucketTime) / bucketMs
 
+      // Always hide current bucket to prevent flicker from incomplete data
       let alignedEnd: number
-      if (hideCurrentBucket) {
-        if (gapBuckets <= 1) {
-          // Data is flowing - wall clock is 0-1 buckets ahead of RRD
-          // Hide the RRD's current (incomplete) bucket to prevent flicker
-          alignedEnd = latestBucketTime - bucketMs
-        } else {
-          // Data stopped flowing - wall clock is way ahead
-          // Extend to current time (showing zeros) but hide the current bucket
-          alignedEnd = currentBucketStart - bucketMs
-        }
+      if (gapBuckets <= 1) {
+        // Data is flowing - wall clock is 0-1 buckets ahead of RRD
+        // Hide the RRD's current (incomplete) bucket to prevent flicker
+        alignedEnd = latestBucketTime - bucketMs
       } else {
-        // Not hiding current bucket - extend to whichever is later
-        alignedEnd = Math.max(latestBucketTime, currentBucketStart)
+        // Data stopped flowing - wall clock is way ahead
+        // Extend to current time (showing zeros) but hide the current bucket
+        alignedEnd = currentBucketStart - bucketMs
       }
 
       // Create maps for lookup
@@ -289,7 +277,7 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
       resizeObserver.disconnect()
       plotRef.current?.destroy()
     }
-  }, [bandwidthTracker, windowMs, hideCurrentBucket, selectedCategories])
+  }, [bandwidthTracker, windowMs, selectedCategories])
 
   return (
     <div style={containerStyle}>
@@ -304,8 +292,11 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
           <button
             style={selectedCategories === 'all' ? categoryButtonActiveStyle : categoryButtonStyle}
-            onClick={() => setSelectedCategories('all')}
+            onClick={() => setSelectedCategories(selectedCategories === 'all' ? [] : 'all')}
           >
+            <span style={{ visibility: selectedCategories === 'all' ? 'visible' : 'hidden' }}>
+              ✓
+            </span>{' '}
             All
           </button>
           {FILTER_CATEGORIES.map((cat) => (
@@ -314,18 +305,11 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
               style={isCategoryActive(cat) ? categoryButtonActiveStyle : categoryButtonStyle}
               onClick={() => toggleCategory(cat)}
             >
+              <span style={{ visibility: isCategoryActive(cat) ? 'visible' : 'hidden' }}>✓</span>{' '}
               {CATEGORY_LABELS[cat]}
             </button>
           ))}
         </div>
-        <label style={checkboxLabelStyle}>
-          <input
-            type="checkbox"
-            checked={hideCurrentBucket}
-            onChange={(e) => setHideCurrentBucket(e.target.checked)}
-          />
-          Hide current
-        </label>
         <select
           style={selectStyle}
           value={windowMs}
@@ -350,7 +334,17 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
         </div>
       </div>
 
-      {/* Traffic breakdown */}
+      {/* Traffic breakdown - current instantaneous rates */}
+      <div
+        style={{
+          marginTop: '12px',
+          fontSize: '11px',
+          fontWeight: 500,
+          color: 'var(--text-secondary)',
+        }}
+      >
+        Current Rates
+      </div>
       <div style={breakdownStyle}>
         <div style={{ fontWeight: 500 }}>Category</div>
         <div style={{ fontWeight: 500 }}>Down</div>
