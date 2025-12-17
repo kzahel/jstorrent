@@ -16,6 +16,8 @@ import com.jstorrent.app.auth.TokenStore
 import com.jstorrent.app.server.HttpServer
 import com.jstorrent.app.storage.RootStore
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 
 private const val TAG = "IoDaemonService"
 private const val NOTIFICATION_ID = 1
@@ -105,6 +107,33 @@ class IoDaemonService : Service() {
     fun broadcastEvent(event: String, payload: JsonElement? = null) {
         httpServer?.broadcastEvent(event, payload)
         Log.i(TAG, "Broadcast event: $event")
+    }
+
+    /**
+     * Check if any authenticated control session is connected.
+     */
+    fun hasActiveControlConnection(): Boolean =
+        httpServer?.hasActiveControlConnection() ?: false
+
+    /**
+     * Send a MagnetAdded event to the extension.
+     */
+    fun sendMagnetAdded(magnet: String) {
+        val payload = kotlinx.serialization.json.buildJsonObject {
+            put("link", kotlinx.serialization.json.JsonPrimitive(magnet))
+        }
+        broadcastEvent("MagnetAdded", payload)
+    }
+
+    /**
+     * Send a TorrentAdded event to the extension.
+     */
+    fun sendTorrentAdded(name: String, contentsBase64: String) {
+        val payload = kotlinx.serialization.json.buildJsonObject {
+            put("name", kotlinx.serialization.json.JsonPrimitive(name))
+            put("contentsBase64", kotlinx.serialization.json.JsonPrimitive(contentsBase64))
+        }
+        broadcastEvent("TorrentAdded", payload)
     }
 
     // =========================================================================

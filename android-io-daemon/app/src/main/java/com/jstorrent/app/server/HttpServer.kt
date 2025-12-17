@@ -360,6 +360,11 @@ class HttpServer(
     }
 
     /**
+     * Check if any authenticated control session is connected.
+     */
+    fun hasActiveControlConnection(): Boolean = controlSessions.isNotEmpty()
+
+    /**
      * Broadcast ROOTS_CHANGED to all authenticated sessions.
      */
     fun broadcastRootsChanged(roots: List<DownloadRoot>) {

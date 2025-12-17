@@ -218,6 +218,8 @@ class SocketSession(
                     // Only register control sessions for broadcasts
                     if (sessionType == SessionType.CONTROL) {
                         httpServer.registerControlSession(this@SocketSession)
+                        // Notify PendingLinkManager that a control connection is available
+                        com.jstorrent.app.link.PendingLinkManager.notifyConnectionEstablished()
                     }
                 } else {
                     val errorMsg = "Invalid credentials".toByteArray()
