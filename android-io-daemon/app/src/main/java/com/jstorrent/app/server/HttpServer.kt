@@ -8,6 +8,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.jstorrent.app.AddRootActivity
+import com.jstorrent.app.BuildConfig
 import com.jstorrent.app.PairingApprovalActivity
 import com.jstorrent.app.R
 import com.jstorrent.app.auth.TokenStore
@@ -47,7 +48,8 @@ private data class StatusResponse(
     val port: Int,
     val paired: Boolean,
     val extensionId: String? = null,
-    val installId: String? = null
+    val installId: String? = null,
+    val version: String? = null
 )
 
 @Serializable
@@ -176,7 +178,8 @@ class HttpServer(
                     port = actualPort,
                     paired = tokenStore.hasToken(),
                     extensionId = tokenStore.extensionId,
-                    installId = tokenStore.installId
+                    installId = tokenStore.installId,
+                    version = BuildConfig.VERSION_NAME
                 )
                 call.respondText(
                     json.encodeToString(response),

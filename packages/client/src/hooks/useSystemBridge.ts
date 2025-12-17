@@ -81,15 +81,13 @@ function computeIndicator(
 
 /**
  * Get version status from daemon version.
+ * Version is a semver string like "1.0.2".
  */
-function getVersionStatus(daemonVersion: number | undefined): VersionStatus {
+function getVersionStatus(daemonVersion: string | undefined): VersionStatus {
   // Simple version check - expand this when versioning becomes more complex
-  const minSupported = 1
-  const current = 1
-
-  if (daemonVersion === undefined) return 'compatible'
-  if (daemonVersion < minSupported) return 'update_required'
-  if (daemonVersion < current) return 'update_suggested'
+  // For now, any valid version is compatible
+  if (daemonVersion === undefined || daemonVersion === 'unknown') return 'compatible'
+  // Could add semver comparison here if needed
   return 'compatible'
 }
 
@@ -124,7 +122,7 @@ export interface UseSystemBridgeResult {
   /** Version status */
   versionStatus: VersionStatus
   /** Daemon version (if connected) */
-  daemonVersion: number | undefined
+  daemonVersion: string | undefined
   /** Copy debug info to clipboard */
   copyDebugInfo: () => Promise<void>
   /** Get URL for filing a bug report on GitHub */

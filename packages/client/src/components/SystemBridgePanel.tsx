@@ -12,7 +12,7 @@ export type Platform = 'desktop' | 'chromeos'
 interface DaemonInfo {
   port: number
   token: string
-  version?: number
+  version?: string
   roots: DownloadRoot[]
   host?: string
 }
@@ -32,7 +32,7 @@ export interface DaemonBridgeState {
 export interface SystemBridgePanelProps {
   state: DaemonBridgeState
   versionStatus: VersionStatus
-  daemonVersion: number | undefined
+  daemonVersion: string | undefined
   roots: DownloadRoot[]
   defaultRootKey: string | null
   hasEverConnected: boolean

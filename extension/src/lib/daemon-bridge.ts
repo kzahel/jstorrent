@@ -200,7 +200,7 @@ export class DaemonBridge {
     // Already paired with us?
     if (status.paired && status.extensionId === extensionId && status.installId === installId) {
       console.log('[DaemonBridge] Already paired, connecting...')
-      await this.completeConnection(port)
+      await this.completeConnection(port, status.version)
       return
     }
 
@@ -208,7 +208,7 @@ export class DaemonBridge {
     const pairResult = await this.requestPairing(port)
 
     if (pairResult === 'approved') {
-      await this.completeConnection(port)
+      await this.completeConnection(port, status.version)
       return
     }
 
@@ -239,7 +239,7 @@ export class DaemonBridge {
         const status = await this.fetchStatus(port)
         if (status.paired && status.extensionId === extensionId && status.installId === installId) {
           console.log('[DaemonBridge] Pairing approved')
-          await this.completeConnection(port)
+          await this.completeConnection(port, status.version)
           return
         }
       } catch {
@@ -276,6 +276,7 @@ export class DaemonBridge {
     paired: boolean
     extensionId: string | null
     installId: string | null
+    version: string | null
   }> {
     const headers = await this.buildHeaders()
     const response = await fetch(`http://100.115.92.2:${port}/status`, {
@@ -317,7 +318,7 @@ export class DaemonBridge {
   /**
    * Complete connection after pairing confirmed.
    */
-  private async completeConnection(port: number): Promise<void> {
+  private async completeConnection(port: number, version?: string | null): Promise<void> {
     const token = await this.getOrCreateToken()
     const headers = await this.buildHeaders(true)
 
@@ -352,7 +353,7 @@ export class DaemonBridge {
 
     this.updateState({
       status: 'connected',
-      daemonInfo: { port, token, version: 'unknown', roots, host: '100.115.92.2' },
+      daemonInfo: { port, token, version: version ?? 'unknown', roots, host: '100.115.92.2' },
       roots,
       lastError: null,
     })
@@ -627,7 +628,7 @@ export class DaemonBridge {
 
     // Already paired with us? Try connecting
     if (status.paired && status.extensionId === extensionId && status.installId === installId) {
-      await this.completeConnection(port)
+      await this.completeConnection(port, status.version)
       return
     }
 
