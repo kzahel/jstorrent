@@ -657,8 +657,52 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                         if let Some(socket) = socket_manager.lock().await.udp_sockets.get(&socket_id) {
                             if let Ok(group) = group_addr.parse::<std::net::Ipv4Addr>() {
                                 let sock_ref = SockRef::from(socket.as_ref());
-                                if let Err(e) = sock_ref.join_multicast_v4(&group, &std::net::Ipv4Addr::UNSPECIFIED) {
-                                    eprintln!("Failed to join multicast {}: {}", group_addr, e);
+
+                                // On Windows, UNSPECIFIED (0.0.0.0) doesn't reliably select an interface.
+                                // Join multicast on each local IPv4 interface explicitly.
+                                let mut joined_any = false;
+                                let mut first_interface: Option<std::net::Ipv4Addr> = None;
+                                if let Ok(addrs) = if_addrs::get_if_addrs() {
+                                    for iface in addrs {
+                                        if let std::net::IpAddr::V4(local_addr) = iface.ip() {
+                                            // Skip loopback
+                                            if local_addr.is_loopback() {
+                                                continue;
+                                            }
+                                            if first_interface.is_none() {
+                                                first_interface = Some(local_addr);
+                                            }
+                                            match sock_ref.join_multicast_v4(&group, &local_addr) {
+                                                Ok(_) => {
+                                                    joined_any = true;
+                                                }
+                                                Err(e) => {
+                                                    // Log but continue - some interfaces may fail
+                                                    eprintln!("Failed to join multicast {} on {}: {}", group_addr, local_addr, e);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Fallback: try UNSPECIFIED if no interfaces worked
+                                if !joined_any {
+                                    if let Err(e) = sock_ref.join_multicast_v4(&group, &std::net::Ipv4Addr::UNSPECIFIED) {
+                                        eprintln!("Failed to join multicast {} (fallback): {}", group_addr, e);
+                                    }
+                                }
+
+                                // Set the outgoing multicast interface (required on Windows for sends)
+                                // Use first non-loopback interface, or fall back to UNSPECIFIED
+                                let outgoing_if = first_interface.unwrap_or(std::net::Ipv4Addr::UNSPECIFIED);
+                                if let Err(e) = sock_ref.set_multicast_if_v4(&outgoing_if) {
+                                    eprintln!("Failed to set multicast interface to {}: {}", outgoing_if, e);
+                                }
+
+                                // Set multicast TTL to 2 (sufficient for most home networks)
+                                // Default is 1, which should work but some network configs may need higher
+                                if let Err(e) = sock_ref.set_multicast_ttl_v4(2) {
+                                    eprintln!("Failed to set multicast TTL: {}", e);
                                 }
                             }
                         }
@@ -673,6 +717,19 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                         if let Some(socket) = socket_manager.lock().await.udp_sockets.get(&socket_id) {
                             if let Ok(group) = group_addr.parse::<std::net::Ipv4Addr>() {
                                 let sock_ref = SockRef::from(socket.as_ref());
+
+                                // Leave multicast on all interfaces we may have joined
+                                if let Ok(addrs) = if_addrs::get_if_addrs() {
+                                    for iface in addrs {
+                                        if let std::net::IpAddr::V4(local_addr) = iface.ip() {
+                                            if local_addr.is_loopback() {
+                                                continue;
+                                            }
+                                            let _ = sock_ref.leave_multicast_v4(&group, &local_addr);
+                                        }
+                                    }
+                                }
+                                // Also try UNSPECIFIED in case we joined via fallback
                                 let _ = sock_ref.leave_multicast_v4(&group, &std::net::Ipv4Addr::UNSPECIFIED);
                             }
                         }
