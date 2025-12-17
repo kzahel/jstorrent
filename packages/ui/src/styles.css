@@ -188,4 +188,9 @@ button {
 button {
   background-color: var(--button-bg);
   color: var(--button-text);
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
 }
