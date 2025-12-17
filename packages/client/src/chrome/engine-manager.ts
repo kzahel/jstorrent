@@ -100,6 +100,7 @@ class EngineManager {
   private notificationProgressInterval: ReturnType<typeof setInterval> | null = null
   private previousActiveCount: number = 0
   private previousCompletedCount: number = 0
+  private pendingNativeEvents: Array<{ event: string; payload: unknown }> = []
 
   /**
    * Initialize the engine. Safe to call multiple times - returns cached engine.
@@ -266,6 +267,15 @@ class EngineManager {
     // Note: Port connection for native events is now handled by useIOBridgeState in App.tsx
     this.setupNotifications()
 
+    // 11. Process any native events that arrived during initialization
+    if (this.pendingNativeEvents.length > 0) {
+      console.log('[EngineManager] Processing', this.pendingNativeEvents.length, 'queued events')
+      for (const { event, payload } of this.pendingNativeEvents) {
+        await this.handleNativeEvent(event, payload)
+      }
+      this.pendingNativeEvents = []
+    }
+
     return this.engine
   }
 
@@ -289,6 +299,9 @@ class EngineManager {
       this.engine.destroy()
       this.engine = null
     }
+
+    // Clear any pending events
+    this.pendingNativeEvents = []
 
     // Note: Don't close daemonConnection here. The engine.destroy() is async but
     // beforeunload can't wait for it, so closing the connection immediately would
@@ -844,7 +857,8 @@ class EngineManager {
    */
   async handleNativeEvent(event: string, payload: unknown): Promise<void> {
     if (!this.engine) {
-      console.warn('[EngineManager] Received event but engine not ready:', event)
+      console.log('[EngineManager] Engine not ready, queueing event:', event)
+      this.pendingNativeEvents.push({ event, payload })
       return
     }
 
