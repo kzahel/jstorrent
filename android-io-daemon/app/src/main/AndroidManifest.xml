@@ -83,21 +83,6 @@
                 <data android:pathPattern=".*\\.torrent" />
             </intent-filter>
 
-            <!-- App Links for new.jstorrent.com (Android App Links experiment) -->
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="new.jstorrent.com" />
-            </intent-filter>
-
-            <!-- HTTP fallback for App Links -->
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" android:host="new.jstorrent.com" />
-            </intent-filter>
         </activity>
 
         <!-- IO Daemon foreground service -->

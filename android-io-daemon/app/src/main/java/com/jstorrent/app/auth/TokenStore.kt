@@ -29,6 +29,10 @@ class TokenStore(context: Context) {
         get() = prefs.getString(KEY_EXTENSION_ID, null)
         private set(value) = prefs.edit { putString(KEY_EXTENSION_ID, value) }
 
+    var backgroundModeEnabled: Boolean
+        get() = prefs.getBoolean(KEY_BACKGROUND_MODE, false)
+        set(value) = prefs.edit { putBoolean(KEY_BACKGROUND_MODE, value) }
+
     fun hasToken(): Boolean = token != null
 
     /**
@@ -64,5 +68,6 @@ class TokenStore(context: Context) {
         private const val KEY_TOKEN = "auth_token"
         private const val KEY_INSTALL_ID = "install_id"
         private const val KEY_EXTENSION_ID = "extension_id"
+        private const val KEY_BACKGROUND_MODE = "background_mode_enabled"
     }
 }

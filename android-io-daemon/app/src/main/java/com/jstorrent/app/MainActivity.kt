@@ -11,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,11 +37,24 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var tokenStore: TokenStore
     private var isPaired = mutableStateOf(false)
+    private var backgroundModeEnabled = mutableStateOf(false)
+    private var hasNotificationPermission = mutableStateOf(false)
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         Log.i(TAG, "Notification permission granted: $isGranted")
+        hasNotificationPermission.value = isGranted
+        if (isGranted) {
+            // Permission granted - enable background mode
+            tokenStore.backgroundModeEnabled = true
+            backgroundModeEnabled.value = true
+            IoDaemonService.instance?.setForegroundMode(true)
+        } else {
+            // Permission denied - ensure background mode stays disabled
+            tokenStore.backgroundModeEnabled = false
+            backgroundModeEnabled.value = false
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,20 +63,50 @@ class MainActivity : ComponentActivity() {
 
         tokenStore = TokenStore(this)
         isPaired.value = tokenStore.hasToken()
+        backgroundModeEnabled.value = tokenStore.backgroundModeEnabled
+        hasNotificationPermission.value = checkNotificationPermission()
 
         // Handle pairing intent
         handleIntent()
 
-        // Start service immediately, then request notification permission
-        startServiceAndRequestNotificationPermission()
+        // Start service (background mode handled by service based on preference)
+        IoDaemonService.start(this)
 
         setContent {
             JSTorrentTheme {
                 MainScreen(
                     isPaired = isPaired.value,
+                    backgroundModeEnabled = backgroundModeEnabled.value,
+                    hasNotificationPermission = hasNotificationPermission.value,
+                    onBackgroundModeToggle = { enabled ->
+                        if (enabled) {
+                            // Request permission when enabling
+                            requestNotificationPermission()
+                        } else {
+                            // Disable background mode
+                            tokenStore.backgroundModeEnabled = false
+                            backgroundModeEnabled.value = false
+                            IoDaemonService.instance?.setForegroundMode(false)
+                        }
+                    },
+                    onBackToJSTorrent = {
+                        // Check actual current state before deciding to close
+                        val bgEnabled = tokenStore.backgroundModeEnabled
+                        val hasPermission = checkNotificationPermission()
+                        Log.i(TAG, "Back to JSTorrent: bgEnabled=$bgEnabled, hasPermission=$hasPermission")
+                        launchBrowserFallback()
+                        // Only close this window if background mode is fully enabled
+                        if (bgEnabled && hasPermission) {
+                            Log.i(TAG, "Closing window - background mode active")
+                            finish()
+                        } else {
+                            Log.i(TAG, "Keeping window open - background mode not active")
+                        }
+                    },
                     onUnpair = {
                         tokenStore.clear()
                         isPaired.value = false
+                        backgroundModeEnabled.value = false
                     }
                 )
             }
@@ -71,13 +115,19 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh pairing state when returning from PairingApprovalActivity
-        val wasPaired = isPaired.value
+        // Refresh all state when returning to activity
         isPaired.value = tokenStore.hasToken()
+        backgroundModeEnabled.value = tokenStore.backgroundModeEnabled
 
-        // Request notification permission after pairing completes (not during onboarding)
-        if (!wasPaired && isPaired.value) {
-            requestNotificationPermissionIfNeeded()
+        // Check if permission was revoked in system settings
+        val permissionGranted = checkNotificationPermission()
+        hasNotificationPermission.value = permissionGranted
+
+        // If permission was revoked but background mode is enabled, disable it
+        if (backgroundModeEnabled.value && !permissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            tokenStore.backgroundModeEnabled = false
+            backgroundModeEnabled.value = false
+            IoDaemonService.instance?.setForegroundMode(false)
         }
     }
 
@@ -206,36 +256,48 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchBrowserFallback() {
-        // Target Chrome explicitly to avoid our own app catching this URL
-        // (AndroidManifest has intent filter for new.jstorrent.com)
-        // On ChromeOS, this opens in the real Chrome browser, not Android Chrome
+        // Target Chrome explicitly - on ChromeOS this opens in the real Chrome browser
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(FALLBACK_URL)).apply {
             setPackage("com.android.chrome")
         }
-        startActivity(intent)
-        Log.i(TAG, "Launched browser fallback: $FALLBACK_URL")
-    }
-
-    private fun startServiceAndRequestNotificationPermission() {
-        // Always start service immediately - don't block on permission dialog
-        IoDaemonService.start(this)
-
-        // Only request notification permission after pairing is complete
-        // This avoids dialog conflicts during onboarding
-        if (tokenStore.hasToken()) {
-            requestNotificationPermissionIfNeeded()
+        try {
+            startActivity(intent)
+            Log.i(TAG, "Launched browser fallback: $FALLBACK_URL")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch Chrome, trying default browser", e)
+            // Fallback to default browser if Chrome not available
+            val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(FALLBACK_URL))
+            startActivity(fallbackIntent)
         }
     }
 
-    private fun requestNotificationPermissionIfNeeded() {
+    private fun checkNotificationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            // Before Android 13, no permission needed for notifications
+            true
+        }
+    }
+
+    private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
+            if (!checkNotificationPermission()) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                // Already have permission - enable background mode directly
+                tokenStore.backgroundModeEnabled = true
+                backgroundModeEnabled.value = true
+                IoDaemonService.instance?.setForegroundMode(true)
             }
+        } else {
+            // Before Android 13, no permission needed - enable directly
+            tokenStore.backgroundModeEnabled = true
+            backgroundModeEnabled.value = true
+            IoDaemonService.instance?.setForegroundMode(true)
         }
     }
 }
@@ -243,6 +305,10 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(
     isPaired: Boolean,
+    backgroundModeEnabled: Boolean,
+    hasNotificationPermission: Boolean,
+    onBackgroundModeToggle: (Boolean) -> Unit,
+    onBackToJSTorrent: () -> Unit,
     onUnpair: () -> Unit
 ) {
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -254,26 +320,114 @@ fun MainScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "JSTorrent IO Daemon",
-                style = MaterialTheme.typography.headlineMedium
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             if (isPaired) {
+                // Paired state header - centered text with small check to the left
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "✓",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Paired",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Text(
-                    text = "Paired with extension",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    text = "Connected to JSTorrent",
+                    style = MaterialTheme.typography.bodyLarge
                 )
 
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Status message based on background mode
+                if (backgroundModeEnabled && hasNotificationPermission) {
+                    Text(
+                        text = "✅ Running in background",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "You can safely close this window.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = "⚠️ Keep this window open while",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = "downloading torrents.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                HorizontalDivider()
+
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Background mode checkbox - entire row is clickable
+                val isBackgroundActive = backgroundModeEnabled && hasNotificationPermission
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onBackgroundModeToggle(!isBackgroundActive) },
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Checkbox(
+                        checked = isBackgroundActive,
+                        onCheckedChange = { checked -> onBackgroundModeToggle(checked) }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "Run in background",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Allows you to close this window. Shows a persistent notification.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Buttons
+                Button(onClick = onBackToJSTorrent) {
+                    Text("Back to JSTorrent")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedButton(onClick = onUnpair) {
                     Text("Unpair")
                 }
             } else {
+                // Unpaired state
+                Text(
+                    text = "JSTorrent IO Daemon",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
                 Text(
                     text = "Not paired",
                     style = MaterialTheme.typography.bodyLarge,

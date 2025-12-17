@@ -44,7 +44,7 @@ class IoDaemonService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "Service starting")
 
-        // Start as foreground service immediately
+        // Must call startForeground immediately after startForegroundService (Android requirement)
         startForeground(NOTIFICATION_ID, createNotification("Starting..."))
 
         // Start HTTP server
@@ -53,6 +53,13 @@ class IoDaemonService : Service() {
         // Update notification with port
         val port = httpServer?.port ?: 0
         updateNotification("Running on port $port")
+
+        // If background mode is disabled, remove foreground status
+        // Service continues running but will be killed when activity closes
+        if (!tokenStore.backgroundModeEnabled) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            Log.i(TAG, "Background mode disabled, removed foreground status")
+        }
 
         return START_STICKY
     }
@@ -85,6 +92,26 @@ class IoDaemonService : Service() {
     private fun stopServer() {
         httpServer?.stop()
         httpServer = null
+    }
+
+    // =========================================================================
+    // Foreground Mode
+    // =========================================================================
+
+    /**
+     * Toggle foreground mode at runtime.
+     * When enabled, shows a persistent notification and service survives activity close.
+     * When disabled, removes notification and service will be killed when activity closes.
+     */
+    fun setForegroundMode(enabled: Boolean) {
+        if (enabled) {
+            val port = httpServer?.port ?: 0
+            startForeground(NOTIFICATION_ID, createNotification("Running on port $port"))
+            Log.i(TAG, "Foreground mode enabled")
+        } else {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            Log.i(TAG, "Foreground mode disabled")
+        }
     }
 
     // =========================================================================
