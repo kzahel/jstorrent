@@ -139,7 +139,7 @@ export class NotificationManager {
     const wasVisible = this.uiVisible
     this.uiVisible = visible
 
-    console.log(`[NotificationManager] UI visibility: ${wasVisible} -> ${visible}`)
+    // console.log(`[NotificationManager] UI visibility: ${wasVisible} -> ${visible}`)
 
     if (visible && !wasVisible) {
       // UI came to foreground - clear persistent notification

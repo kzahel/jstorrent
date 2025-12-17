@@ -54,6 +54,13 @@ private data class PairResponse(
     val status: String // "approved", "pending"
 )
 
+@Serializable
+private data class NetworkInterfaceInfo(
+    val name: String,
+    val address: String,
+    val prefixLength: Int
+)
+
 private val json = Json {
     encodeDefaults = true
     ignoreUnknownKeys = true
@@ -125,7 +132,7 @@ class HttpServer(
 
             // Network interfaces - returns available network interfaces for UPnP subnet matching
             get("/network/interfaces") {
-                val interfaces = mutableListOf<Map<String, Any>>()
+                val interfaces = mutableListOf<NetworkInterfaceInfo>()
 
                 try {
                     val netInterfaces = NetworkInterface.getNetworkInterfaces()
@@ -136,10 +143,10 @@ class HttpServer(
                         for (addr in iface.interfaceAddresses) {
                             val inet = addr.address
                             if (inet is Inet4Address) {
-                                interfaces.add(mapOf(
-                                    "name" to iface.name,
-                                    "address" to inet.hostAddress,
-                                    "prefixLength" to addr.networkPrefixLength.toInt()
+                                interfaces.add(NetworkInterfaceInfo(
+                                    name = iface.name,
+                                    address = inet.hostAddress ?: "",
+                                    prefixLength = addr.networkPrefixLength.toInt()
                                 ))
                             }
                         }
