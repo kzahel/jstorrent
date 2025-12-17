@@ -46,6 +46,7 @@ object Protocol {
     // Control plane opcodes (0xE0-0xEF)
     const val OP_CTRL_ROOTS_CHANGED: Byte = 0xE0.toByte()
     const val OP_CTRL_EVENT: Byte = 0xE1.toByte()
+    const val OP_CTRL_OPEN_FOLDER_PICKER: Byte = 0xE2.toByte()
 
     // Opcode sets for route validation
     val HANDSHAKE_OPCODES = setOf(
@@ -61,7 +62,7 @@ object Protocol {
     )
 
     val CONTROL_OPCODES = HANDSHAKE_OPCODES + setOf(
-        OP_CTRL_ROOTS_CHANGED, OP_CTRL_EVENT
+        OP_CTRL_ROOTS_CHANGED, OP_CTRL_EVENT, OP_CTRL_OPEN_FOLDER_PICKER
     )
 
     /**

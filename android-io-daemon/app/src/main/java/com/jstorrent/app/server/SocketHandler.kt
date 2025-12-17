@@ -246,6 +246,11 @@ class SocketSession(
             Protocol.OP_UDP_CLOSE -> handleUdpClose(payload)
             Protocol.OP_UDP_JOIN_MULTICAST -> handleUdpJoinMulticast(payload)
             Protocol.OP_UDP_LEAVE_MULTICAST -> handleUdpLeaveMulticast(payload)
+            Protocol.OP_CTRL_OPEN_FOLDER_PICKER -> {
+                if (sessionType == SessionType.CONTROL) {
+                    httpServer.openFolderPicker()
+                }
+            }
             else -> sendError(envelope.requestId, "Unknown opcode: ${envelope.opcode}")
         }
     }

@@ -736,14 +736,14 @@ export class DaemonBridge {
   private async pickFolderChromeos(): Promise<DownloadRoot | null> {
     const existingKeys = new Set(this.state.roots.map((r) => r.key))
 
-    // Open intent
-    const intentUrl = 'intent://add-root#Intent;scheme=jstorrent;package=com.jstorrent.app;end'
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-    if (tab?.id) {
-      await chrome.tabs.update(tab.id, { url: intentUrl })
-    } else {
-      await chrome.tabs.create({ url: intentUrl })
+    // Send command to open folder picker via WebSocket
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      console.error('[DaemonBridge] WebSocket not connected')
+      return null
     }
+
+    const requestId = Math.floor(Math.random() * 0xffffffff)
+    this.ws.send(this.buildFrame(0xe2, requestId, new Uint8Array(0))) // OP_CTRL_OPEN_FOLDER_PICKER
 
     // Wait for ROOTS_CHANGED with new root (via WebSocket)
     return new Promise((resolve) => {

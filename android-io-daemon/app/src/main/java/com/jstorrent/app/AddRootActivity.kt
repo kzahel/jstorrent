@@ -1,5 +1,6 @@
 package com.jstorrent.app
 
+import android.app.NotificationManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -41,6 +42,10 @@ class AddRootActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         rootStore = RootStore(this)
+
+        // Cancel the folder picker notification (in case we were launched via full-screen intent)
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.cancel(FOLDER_PICKER_NOTIFICATION_ID)
 
         // Launch picker immediately
         pickFolder.launch(null)
@@ -111,6 +116,7 @@ class AddRootActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "AddRootActivity"
+        const val FOLDER_PICKER_NOTIFICATION_ID = 2
 
         private val ALLOWED_PROVIDERS = setOf(
             "com.android.externalstorage.documents", // Internal storage, SD cards, USB drives

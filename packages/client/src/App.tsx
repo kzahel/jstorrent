@@ -770,9 +770,14 @@ function App() {
     onLaunch: launch,
     onCancel: cancel,
     onAddFolder: async () => {
+      const existingRoots = roots.length
       const root = await engineManager.pickDownloadFolder()
       if (root) {
-        // Root will be added via daemon info update
+        // If this is the first root, set it as default
+        if (existingRoots === 0) {
+          setDefaultRootKey(root.key)
+          await engineManager.setDefaultRoot(root.key)
+        }
       }
     },
     onSetDefaultRoot: async (key: string) => {

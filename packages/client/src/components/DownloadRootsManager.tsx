@@ -32,21 +32,25 @@ export const DownloadRootsManager: React.FC = () => {
     void loadRoots()
   }, [])
 
-  const handleAddRoot = async () => {
+  const handleAddRoot = () => {
     setAdding(true)
-    const root = await engineManager.pickDownloadFolder()
-    setAdding(false)
-    if (root) {
-      // Reload roots list
-      const loadedRoots = engineManager.getRoots()
-      const loadedDefaultKey = await engineManager.getDefaultRootKey()
-      setRoots(loadedRoots)
-      setDefaultKey(loadedDefaultKey)
-      // If this is the first root, set it as default
-      if (roots.length === 0) {
-        await handleSetDefault(root.key)
+    // Re-enable button after 2s (notification may be missed, allow retry)
+    setTimeout(() => setAdding(false), 2000)
+
+    // Start picker in background, update UI when result comes back
+    engineManager.pickDownloadFolder().then(async (root) => {
+      if (root) {
+        // Reload roots list
+        const loadedRoots = engineManager.getRoots()
+        const loadedDefaultKey = await engineManager.getDefaultRootKey()
+        setRoots(loadedRoots)
+        setDefaultKey(loadedDefaultKey)
+        // If this is the first root, set it as default
+        if (roots.length === 0) {
+          await handleSetDefault(root.key)
+        }
       }
-    }
+    })
   }
 
   const handleSetDefault = async (key: string) => {

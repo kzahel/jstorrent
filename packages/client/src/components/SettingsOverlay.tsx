@@ -72,17 +72,21 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
     setLoadingRoots(false)
   }
 
-  const handleAddRoot = async () => {
+  const handleAddRoot = () => {
     setAddingRoot(true)
-    const root = await engineManager.pickDownloadFolder()
-    setAddingRoot(false)
-    if (root) {
-      await reloadRoots()
-      // If this is the first root, set it as default
-      if (roots.length === 0) {
-        await handleSetDefault(root.key)
+    // Re-enable button after 2s (notification may be missed, allow retry)
+    setTimeout(() => setAddingRoot(false), 2000)
+
+    // Start picker in background, update UI when result comes back
+    engineManager.pickDownloadFolder().then(async (root) => {
+      if (root) {
+        await reloadRoots()
+        // If this is the first root, set it as default
+        if (roots.length === 0) {
+          await handleSetDefault(root.key)
+        }
       }
-    }
+    })
   }
 
   const handleSetDefault = async (key: string) => {

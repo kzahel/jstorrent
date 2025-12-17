@@ -1,9 +1,15 @@
 package com.jstorrent.app.server
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.jstorrent.app.AddRootActivity
 import com.jstorrent.app.PairingApprovalActivity
+import com.jstorrent.app.R
 import com.jstorrent.app.auth.TokenStore
 import com.jstorrent.app.storage.DownloadRoot
 import com.jstorrent.app.storage.RootStore
@@ -398,6 +404,71 @@ class HttpServer(
 
         controlSessions.forEach { session ->
             session.sendControl(frame)
+        }
+    }
+
+    /**
+     * Open the SAF folder picker activity.
+     * Called from WebSocket handler when client sends OP_CTRL_OPEN_FOLDER_PICKER.
+     *
+     * Uses two approaches simultaneously:
+     * 1. Direct activity start (works when app is in foreground/recently used)
+     * 2. Notification with full-screen intent (fallback for background restrictions)
+     *
+     * The activity cancels the notification when it starts, so if direct start works,
+     * the user won't see the notification.
+     */
+    fun openFolderPicker() {
+        val intent = Intent(appContext, AddRootActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT
+        }
+
+        // Post notification first (as safety net) - activity will cancel it when it starts
+        val channelId = "jstorrent_folder_picker"
+        val notificationId = AddRootActivity.FOLDER_PICKER_NOTIFICATION_ID
+
+        val channel = NotificationChannel(
+            channelId,
+            "Folder Picker",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Shows folder picker when requested by extension"
+        }
+        val notificationManager = appContext.getSystemService(NotificationManager::class.java)
+        notificationManager.createNotificationChannel(channel)
+
+        // Cancel any existing notification first - this forces Android to show
+        // a fresh heads-up notification even if one was recently dismissed
+        notificationManager.cancel(notificationId)
+
+        val pendingIntent = PendingIntent.getActivity(
+            appContext,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(appContext, channelId)
+            .setContentTitle("Add Download Folder")
+            .setContentText("Tap to select a download folder")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setFullScreenIntent(pendingIntent, true)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(notificationId, notification)
+        Log.i(TAG, "Folder picker notification posted")
+
+        // Also try direct activity start - on Android 10+ this may silently fail
+        // to bring activity to foreground if app is backgrounded, but notification
+        // will serve as fallback
+        try {
+            appContext.startActivity(intent)
+            Log.i(TAG, "Folder picker activity start attempted")
+        } catch (e: Exception) {
+            Log.w(TAG, "Direct activity start failed: ${e.message}")
         }
     }
 
