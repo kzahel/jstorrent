@@ -250,7 +250,12 @@ describe('QueryHandlers', () => {
     })
 
     it('rejects invalid token with error 203', async () => {
-      const invalidToken = new Uint8Array(20).fill(0xff)
+      // Generate a valid token first so we know what it looks like
+      const validToken = await deps.tokenStore.generate(rinfo.host)
+
+      // Create an invalid token by flipping all bits of the valid token
+      // This guarantees it won't match
+      const invalidToken = validToken.map((b) => b ^ 0xff)
 
       const query = createMockQuery('announce_peer', {
         id: remoteNodeId,
