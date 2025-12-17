@@ -728,14 +728,10 @@ function App() {
   )
 
   // Handle native events from SW port
-  const handleNativeEvent = useCallback(
-    (event: string, payload: unknown) => {
-      if (engine) {
-        engineManager.handleNativeEvent(event, payload)
-      }
-    },
-    [engine],
-  )
+  // Always forward to engineManager - it queues events if engine not ready yet
+  const handleNativeEvent = useCallback((event: string, payload: unknown) => {
+    engineManager.handleNativeEvent(event, payload)
+  }, [])
 
   // Open logging settings (memoized to prevent LogTable remounts)
   const handleOpenLoggingSettings = useCallback(() => {

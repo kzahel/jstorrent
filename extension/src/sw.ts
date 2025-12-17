@@ -149,9 +149,9 @@ bridge.connect().then((success) => {
 })
 
 // Forward native events to UI
-bridge.onEvent((event: NativeEvent) => {
+bridge.onEvent(async (event: NativeEvent) => {
   console.log('[SW] Native event received:', event.event)
-  sendToUI(event)
+  await sendToUI(event) // Wait for storage write to complete before opening tab
   if (event.event === 'TorrentAdded' || event.event === 'MagnetAdded') {
     openUiTab()
   }
