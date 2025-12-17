@@ -422,7 +422,7 @@ fun MainScreen(
             } else {
                 // Unpaired state
                 Text(
-                    text = "JSTorrent IO Daemon",
+                    text = "JSTorrent System Bridge",
                     style = MaterialTheme.typography.headlineMedium
                 )
 
@@ -434,13 +434,11 @@ fun MainScreen(
                     color = MaterialTheme.colorScheme.outline
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                Text(
-                    text = "Open JSTorrent extension to pair",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.outline
-                )
+                Button(onClick = onBackToJSTorrent) {
+                    Text("Back to JSTorrent")
+                }
             }
         }
     }

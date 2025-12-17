@@ -398,7 +398,7 @@ export function SystemBridgePanel({
                   cursor: 'pointer',
                 }}
               >
-                Launch App
+                {isFirstTime ? 'Setup JSTorrent' : 'Open JSTorrent'}
               </button>
               {isFirstTime && (
                 <a

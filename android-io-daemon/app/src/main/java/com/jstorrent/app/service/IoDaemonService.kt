@@ -50,9 +50,8 @@ class IoDaemonService : Service() {
         // Start HTTP server
         startServer()
 
-        // Update notification with port
-        val port = httpServer?.port ?: 0
-        updateNotification("Running on port $port")
+        // Update notification
+        updateNotification("Running in background")
 
         // If background mode is disabled, remove foreground status
         // Service continues running but will be killed when activity closes
@@ -105,8 +104,7 @@ class IoDaemonService : Service() {
      */
     fun setForegroundMode(enabled: Boolean) {
         if (enabled) {
-            val port = httpServer?.port ?: 0
-            startForeground(NOTIFICATION_ID, createNotification("Running on port $port"))
+            startForeground(NOTIFICATION_ID, createNotification("Running in background"))
             Log.i(TAG, "Foreground mode enabled")
         } else {
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -170,10 +168,10 @@ class IoDaemonService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "JSTorrent Daemon",
+            "JSTorrent System Bridge",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Shows when JSTorrent daemon is running"
+            description = "Shows when JSTorrent System Bridge is running in background"
             setShowBadge(false)
         }
 
@@ -190,7 +188,7 @@ class IoDaemonService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("JSTorrent")
+            .setContentTitle("System Bridge")
             .setContentText(status)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
