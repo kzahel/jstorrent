@@ -21,6 +21,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.security.MessageDigest
@@ -373,8 +375,13 @@ class HttpServer(
      * Broadcast generic event to all authenticated sessions.
      */
     fun broadcastEvent(event: String, payload: JsonElement?) {
-        val eventObj = mapOf("event" to event, "payload" to payload)
-        val jsonPayload = json.encodeToString(eventObj).toByteArray()
+        val eventObj = buildJsonObject {
+            put("event", event)
+            if (payload != null) {
+                put("payload", payload)
+            }
+        }
+        val jsonPayload = eventObj.toString().toByteArray()
         val frame = Protocol.createMessage(Protocol.OP_CTRL_EVENT, 0, jsonPayload)
 
         controlSessions.forEach { session ->

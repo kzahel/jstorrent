@@ -2,8 +2,10 @@ package com.jstorrent.app
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Base64
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,9 +18,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.jstorrent.app.auth.TokenStore
 import com.jstorrent.app.service.IoDaemonService
 import com.jstorrent.app.ui.theme.JSTorrentTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 private const val TAG = "MainActivity"
 
@@ -90,10 +97,63 @@ class MainActivity : ComponentActivity() {
                 Log.i(TAG, "Pair intent - ignored, use POST /pair")
             }
             uri.scheme == "magnet" -> {
-                Log.i(TAG, "Magnet link: $uri")
-                // TODO: Forward to extension
+                forwardMagnetToExtension(uri.toString())
+            }
+            uri.scheme == "file" || uri.scheme == "content" -> {
+                forwardTorrentFileToExtension(uri)
             }
         }
+    }
+
+    private fun forwardMagnetToExtension(magnetUri: String) {
+        Log.i(TAG, "Forwarding magnet link to extension: $magnetUri")
+        lifecycleScope.launch {
+            val service = waitForService()
+            if (service != null) {
+                // Extension expects { link: string }
+                val payload = buildJsonObject {
+                    put("link", magnetUri)
+                }
+                service.broadcastEvent("MagnetAdded", payload)
+            } else {
+                Log.e(TAG, "Service not available, cannot forward magnet link")
+            }
+        }
+    }
+
+    private fun forwardTorrentFileToExtension(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes != null) {
+                    val service = waitForService()
+                    if (service != null) {
+                        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        Log.i(TAG, "Forwarding torrent file to extension (${bytes.size} bytes)")
+                        // Extension expects { name?, infohash?, contentsBase64 }
+                        val payload = buildJsonObject {
+                            put("contentsBase64", base64)
+                        }
+                        service.broadcastEvent("TorrentAdded", payload)
+                    } else {
+                        Log.e(TAG, "Service not available, cannot forward torrent file")
+                    }
+                } else {
+                    Log.e(TAG, "Failed to read torrent file: empty content")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to read torrent file: ${e.message}")
+            }
+        }
+    }
+
+    private suspend fun waitForService(timeoutMs: Long = 5000): IoDaemonService? {
+        val startTime = System.currentTimeMillis()
+        while (System.currentTimeMillis() - startTime < timeoutMs) {
+            IoDaemonService.instance?.let { return it }
+            delay(100)
+        }
+        return null
     }
 
     private fun startServiceAndRequestNotificationPermission() {

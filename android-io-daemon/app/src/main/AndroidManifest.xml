@@ -58,6 +58,31 @@
                 <data android:scheme="magnet" />
             </intent-filter>
 
+            <!-- Torrent files via MIME type -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="application/x-bittorrent" />
+            </intent-filter>
+
+            <!-- Torrent files via file extension (content:// URIs) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.torrent" />
+            </intent-filter>
+
+            <!-- Torrent files via file extension (file:// URIs) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:pathPattern=".*\\.torrent" />
+            </intent-filter>
+
             <!-- App Links for new.jstorrent.com (Android App Links experiment) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
