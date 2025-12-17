@@ -1,6 +1,6 @@
 // Core
 export { BtEngine } from './core/bt-engine'
-export type { DaemonOpType, PendingOpCounts } from './core/bt-engine'
+export type { DaemonOpType, PendingOpCounts, UPnPStatus } from './core/bt-engine'
 export { Torrent } from './core/torrent'
 export type { DisplayPeer } from './core/torrent'
 export { BandwidthTracker } from './core/bandwidth-tracker'
@@ -30,7 +30,7 @@ export type { IHasher } from './interfaces/hasher'
 export type { TrackerStats, TrackerStatus } from './interfaces/tracker'
 
 // Logging
-export type { Logger, LogEntry, LogLevel } from './logging/logger'
+export type { Logger, LogEntry, LogLevel, EngineLoggingConfig } from './logging/logger'
 export { LogStore, globalLogStore, defaultLogger } from './logging/logger'
 
 // Adapters
@@ -80,6 +80,16 @@ export {
   type DiskQueueSnapshot,
   type DiskQueueConfig,
 } from './core/disk-queue'
+
+// UPnP
+export { UPnPManager, SSDPClient, GatewayDevice } from './upnp'
+export type { NetworkInterface, UPnPMapping, SSDPDevice } from './upnp'
+
+// LPD (Local Peer Discovery)
+export { LPDService } from './lpd'
+
+// DHT
+export type { DHTStats, DHTNodeInfo } from './dht'
 
 // Settings
 export {

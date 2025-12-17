@@ -99,6 +99,14 @@ export class NodeUdpSocket implements IUdpSocket {
   close(): void {
     this.socket.close()
   }
+
+  async joinMulticast(group: string): Promise<void> {
+    this.socket.addMembership(group)
+  }
+
+  async leaveMulticast(group: string): Promise<void> {
+    this.socket.dropMembership(group)
+  }
 }
 
 export class NodeTcpServer implements ITcpServer {

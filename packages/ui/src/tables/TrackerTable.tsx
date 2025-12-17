@@ -8,6 +8,19 @@ function formatInterval(seconds: number): string {
   return `${Math.floor(seconds / 3600)}h`
 }
 
+function formatTimeUntil(timestampMs: number | null): string {
+  if (timestampMs === null) return '-'
+  const now = Date.now()
+  const diffMs = timestampMs - now
+  if (diffMs <= 0) return 'now'
+  const diffSec = Math.ceil(diffMs / 1000)
+  if (diffSec < 60) return `${diffSec}s`
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ${diffSec % 60}s`
+  const hours = Math.floor(diffSec / 3600)
+  const mins = Math.floor((diffSec % 3600) / 60)
+  return `${hours}h ${mins}m`
+}
+
 const trackerColumns: ColumnDef<TrackerStats>[] = [
   {
     id: 'url',
@@ -46,6 +59,13 @@ const trackerColumns: ColumnDef<TrackerStats>[] = [
     header: 'Interval',
     getValue: (t) => formatInterval(t.interval),
     width: 65,
+    align: 'right',
+  },
+  {
+    id: 'nextAnnounce',
+    header: 'Next Announce',
+    getValue: (t) => formatTimeUntil(t.nextAnnounce),
+    width: 90,
     align: 'right',
   },
   {

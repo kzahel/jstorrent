@@ -59,4 +59,8 @@ export class NullFileSystem implements IFileSystem {
   async readdir(_path: string): Promise<string[]> {
     return []
   }
+
+  async delete(path: string): Promise<void> {
+    this.sizes.delete(path)
+  }
 }

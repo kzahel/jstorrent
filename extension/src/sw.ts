@@ -193,12 +193,14 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 // ============================================================================
 async function openUiTab() {
   const url = chrome.runtime.getURL('src/ui/app.html')
-  const tabs = await chrome.tabs.query({ url })
-  if (tabs.length > 0 && tabs[0].id) {
+  // Use getContexts() instead of tabs.query({ url }) - works without "tabs" permission
+  const contexts = await chrome.runtime.getContexts({ contextTypes: ['TAB'] })
+  const existing = contexts.find((c) => c.documentUrl === url)
+  if (existing?.tabId && existing.tabId !== -1) {
     // Focus existing tab
-    await chrome.tabs.update(tabs[0].id, { active: true })
-    if (tabs[0].windowId) {
-      await chrome.windows.update(tabs[0].windowId, { focused: true })
+    await chrome.tabs.update(existing.tabId, { active: true })
+    if (existing.windowId && existing.windowId !== -1) {
+      await chrome.windows.update(existing.windowId, { focused: true })
     }
   } else {
     // Create new tab

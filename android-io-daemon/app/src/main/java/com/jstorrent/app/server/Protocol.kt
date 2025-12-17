@@ -36,6 +36,8 @@ object Protocol {
     const val OP_UDP_SEND: Byte = 0x22
     const val OP_UDP_RECV: Byte = 0x23
     const val OP_UDP_CLOSE: Byte = 0x24
+    const val OP_UDP_JOIN_MULTICAST: Byte = 0x25
+    const val OP_UDP_LEAVE_MULTICAST: Byte = 0x26
 
     // Control plane opcodes (0xE0-0xEF)
     const val OP_CTRL_ROOTS_CHANGED: Byte = 0xE0.toByte()
@@ -49,7 +51,8 @@ object Protocol {
     val IO_OPCODES = HANDSHAKE_OPCODES + setOf(
         OP_TCP_CONNECT, OP_TCP_CONNECTED, OP_TCP_SEND, OP_TCP_RECV, OP_TCP_CLOSE,
         OP_TCP_LISTEN, OP_TCP_LISTEN_RESULT, OP_TCP_ACCEPT, OP_TCP_STOP_LISTEN,
-        OP_UDP_BIND, OP_UDP_BOUND, OP_UDP_SEND, OP_UDP_RECV, OP_UDP_CLOSE
+        OP_UDP_BIND, OP_UDP_BOUND, OP_UDP_SEND, OP_UDP_RECV, OP_UDP_CLOSE,
+        OP_UDP_JOIN_MULTICAST, OP_UDP_LEAVE_MULTICAST
     )
 
     val CONTROL_OPCODES = HANDSHAKE_OPCODES + setOf(

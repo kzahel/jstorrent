@@ -10,6 +10,7 @@
     "website"
   ],
   "scripts": {
+    "update-geoip": "pnpm --filter @jstorrent/engine exec tsx ../../scripts/build-geoip.ts",
     "dev": "pnpm --recursive --parallel dev",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -4,6 +4,7 @@ import { IFileSystem } from '../interfaces/filesystem'
 import { randomBytes } from '../utils/hash'
 import { fromString, concat, toHex } from '../utils/buffer'
 import { TokenBucket } from '../utils/token-bucket'
+import { DHTNode, saveDHTState, loadDHTState, hexToNodeId } from '../dht'
 import {
   ILoggingEngine,
   Logger,
@@ -16,10 +17,12 @@ import {
   LogEntry,
   globalLogStore,
 } from '../logging/logger'
+import { UPnPManager, NetworkInterface } from '../upnp'
 
 import { ISessionStore } from '../interfaces/session-store'
 import { IHasher } from '../interfaces/hasher'
 import { SubtleCryptoHasher } from '../adapters/browser/subtle-crypto-hasher'
+import { type EncryptionPolicy, MseSocket } from '../crypto'
 import { MemorySessionStore } from '../adapters/memory/memory-session-store'
 import { StorageRootManager } from '../storage/storage-root-manager'
 import { SessionPersistence } from './session-persistence'
@@ -34,6 +37,9 @@ import { initializeTorrentMetadata } from './torrent-initializer'
 
 // Maximum piece size supported by the io-daemon (must match DefaultBodyLimit in io-daemon)
 export const MAX_PIECE_SIZE = 32 * 1024 * 1024 // 32MB
+
+// UPnP status type
+export type UPnPStatus = 'disabled' | 'discovering' | 'mapped' | 'failed'
 
 // === Unified Daemon Operation Queue Types ===
 
@@ -87,6 +93,46 @@ export interface BtEngineOptions {
    * Call resume() after setup/restore is complete.
    */
   startSuspended?: boolean
+
+  /**
+   * Maximum daemon operations per second (connections, announces).
+   * Default: 20
+   */
+  daemonOpsPerSecond?: number
+
+  /**
+   * Burst capacity for daemon operations.
+   * Default: 40 (2x rate)
+   */
+  daemonOpsBurst?: number
+
+  /**
+   * Function to get network interfaces.
+   * Required for UPnP to determine local address for port mapping.
+   */
+  getNetworkInterfaces?: () => Promise<NetworkInterface[]>
+
+  /**
+   * MSE/PE encryption policy for peer connections.
+   * - 'disabled': No encryption
+   * - 'allow': Accept encryption if peer requests, but don't initiate
+   * - 'prefer': Try encryption, fall back to plain
+   * - 'required': Only accept encrypted connections
+   * Default: 'disabled'
+   */
+  encryptionPolicy?: EncryptionPolicy
+
+  /**
+   * Enable DHT for trackerless peer discovery.
+   * Default: true
+   */
+  dhtEnabled?: boolean
+
+  /**
+   * Skip DHT bootstrap (for testing only).
+   * @internal
+   */
+  _skipDHTBootstrap?: boolean
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -106,12 +152,23 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public maxConnections: number
   public maxPeers: number
   public maxUploadSlots: number
+  public encryptionPolicy: EncryptionPolicy
 
   /**
    * Whether the engine is suspended (no network activity).
    * By default, engine starts active. Pass `startSuspended: true` to start suspended.
    */
   private _suspended: boolean = false
+
+  // === UPnP ===
+  private upnpManager?: UPnPManager
+  private _upnpStatus: UPnPStatus = 'disabled'
+  private getNetworkInterfaces?: () => Promise<NetworkInterface[]>
+
+  // === DHT ===
+  private _dhtEnabled: boolean = true
+  private _dhtNode?: DHTNode
+  private _skipDHTBootstrap: boolean = false
 
   // === Unified Daemon Operation Queue ===
 
@@ -130,7 +187,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    * Single rate limiter for all daemon operations.
    * Prevents overwhelming the daemon regardless of operation type.
    */
-  private daemonRateLimiter = new TokenBucket(20, 40) // 20 ops/sec, burst 40
+  private daemonRateLimiter: TokenBucket
 
   /**
    * Interval handle for operation queue drain loop.
@@ -178,7 +235,20 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.maxConnections = options.maxConnections ?? 100
     this.maxPeers = options.maxPeers ?? 20
     this.maxUploadSlots = options.maxUploadSlots ?? 4
+    this.encryptionPolicy = options.encryptionPolicy ?? 'disabled'
     this._suspended = options.startSuspended ?? false
+
+    // Initialize daemon rate limiter from options
+    const opsPerSec = options.daemonOpsPerSecond ?? 20
+    const burst = options.daemonOpsBurst ?? opsPerSec * 2
+    this.daemonRateLimiter = new TokenBucket(opsPerSec, burst)
+
+    // Save network interface getter for UPnP
+    this.getNetworkInterfaces = options.getNetworkInterfaces
+
+    // Initialize DHT setting
+    this._dhtEnabled = options.dhtEnabled ?? true
+    this._skipDHTBootstrap = options._skipDHTBootstrap ?? false
 
     // Initialize logger for BtEngine itself
     this.logger = this.scopedLoggerFor(this)
@@ -197,7 +267,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   }
 
   scopedLoggerFor(component: ILoggableComponent): Logger {
-    return withScopeAndFiltering(component, this.filterFn, {
+    // Pass a wrapper that always calls current filterFn, enabling dynamic log level changes
+    return withScopeAndFiltering(component, (level, ctx) => this.filterFn(level, ctx), {
       onLog: (entry) => {
         // Add to global store (once)
         globalLogStore.add(entry.level, entry.message, entry.args)
@@ -205,6 +276,15 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         this.onLogCallback?.(entry)
       },
     })
+  }
+
+  /**
+   * Update logging configuration dynamically.
+   * Takes effect immediately for all components.
+   */
+  setLoggingConfig(config: EngineLoggingConfig): void {
+    this.filterFn = createFilter(config)
+    this.logger.info('Logging config updated', { level: config.level })
   }
 
   /**
@@ -272,28 +352,66 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private handleIncomingConnection(nativeSocket: any) {
-    const socket = this.socketFactory.wrapTcpSocket(nativeSocket)
+  private async handleIncomingConnection(nativeSocket: any) {
+    const rawSocket = this.socketFactory.wrapTcpSocket(nativeSocket)
 
-    // Validate remote address info - required for peer tracking
-    if (!socket.remoteAddress || !socket.remotePort) {
-      this.logger.error(
-        `Incoming connection missing remote address info (remoteAddress=${socket.remoteAddress}, remotePort=${socket.remotePort}). ` +
-          `Socket wrapper must implement remoteAddress/remotePort getters.`,
+    // Check global connection limit for incoming connections
+    if (this.numConnections >= this.maxConnections) {
+      this.logger.debug(
+        `Rejecting incoming connection: global limit reached (${this.numConnections}/${this.maxConnections})`,
       )
-      socket.close()
+      rawSocket.close()
       return
     }
 
+    // Validate remote address info - required for peer tracking
+    if (!rawSocket.remoteAddress || !rawSocket.remotePort) {
+      this.logger.error(
+        `Incoming connection missing remote address info (remoteAddress=${rawSocket.remoteAddress}, remotePort=${rawSocket.remotePort}). ` +
+          `Socket wrapper must implement remoteAddress/remotePort getters.`,
+      )
+      rawSocket.close()
+      return
+    }
+
+    // Handle MSE/PE encryption for incoming connections
+    let socket = rawSocket
+    const shouldHandleMse = this.encryptionPolicy !== 'disabled'
+
+    if (shouldHandleMse && this.torrents.length > 0) {
+      const knownInfoHashes = this.torrents.map((t) => t.infoHash)
+      const mseSocket = new MseSocket(rawSocket, {
+        policy: this.encryptionPolicy,
+        knownInfoHashes,
+        sha1: (data) => this.hasher.sha1(data),
+        getRandomBytes: randomBytes,
+      })
+
+      try {
+        await mseSocket.acceptConnection()
+        socket = mseSocket
+        this.logger.debug(`Incoming MSE handshake complete (encrypted: ${mseSocket.isEncrypted})`)
+      } catch (err) {
+        // MSE failed
+        if (this.encryptionPolicy === 'required') {
+          this.logger.debug(`Incoming connection rejected: encryption required but MSE failed`)
+          rawSocket.close()
+          return
+        }
+        // 'allow' or 'prefer': fall back to plain socket
+        this.logger.debug(`Incoming MSE failed, using plain: ${err}`)
+      }
+    }
+
     const peer = new PeerConnection(this, socket, {
-      remoteAddress: socket.remoteAddress,
-      remotePort: socket.remotePort,
+      remoteAddress: socket.remoteAddress!,
+      remotePort: socket.remotePort!,
     })
     peer.on('handshake', (infoHash, _peerId, _extensions) => {
       const infoHashStr = toHex(infoHash)
       const torrent = this.getTorrent(infoHashStr)
       if (torrent) {
-        this.logger.info(`Incoming connection for torrent ${infoHashStr}`)
+        this.logger.debug(`Incoming connection for torrent ${infoHashStr}`)
         // Send our handshake back FIRST
         peer.sendHandshake(torrent.infoHash, torrent.peerId)
         peer.isIncoming = true
@@ -339,6 +457,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       input.announce,
       this.maxPeers,
       this.maxUploadSlots,
+      this.encryptionPolicy,
     )
 
     // Store magnet display name for fallback naming
@@ -433,7 +552,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       await this.sessionPersistence.removeTorrentData(infoHash)
       await this.sessionPersistence.saveTorrentList()
 
-      await torrent.stop()
+      torrent.stop()
       this.emit('torrent-removed', torrent)
     }
   }
@@ -443,6 +562,118 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     if (torrent) {
       await this.removeTorrent(torrent)
     }
+  }
+
+  /**
+   * Remove a torrent and delete all associated data files from disk.
+   * This includes: downloaded content files, .parts file, and session data.
+   * Returns a list of any errors encountered during file deletion.
+   */
+  async removeTorrentWithData(torrent: Torrent): Promise<{ success: boolean; errors: string[] }> {
+    const errors: string[] = []
+    const infoHash = toHex(torrent.infoHash)
+
+    // 1. Close file handles and stop torrent
+    if (torrent.contentStorage) {
+      await torrent.contentStorage.close()
+    }
+    torrent.stop()
+
+    // 2. Get filesystem for this torrent (may throw if no storage root)
+    let fs: IFileSystem | null = null
+    try {
+      fs = this.storageRootManager.getFileSystemForTorrent(infoHash)
+    } catch {
+      // No storage root - skip file deletion (torrent may never have had files)
+    }
+
+    // 3. Delete content files
+    if (torrent.contentStorage && fs) {
+      for (const file of torrent.contentStorage.filesList) {
+        try {
+          if (await fs.exists(file.path)) {
+            await fs.delete(file.path)
+          }
+        } catch (e) {
+          errors.push(`${file.path}: ${e instanceof Error ? e.message : String(e)}`)
+        }
+      }
+      // Clean up empty parent directories (best effort)
+      await this.cleanupEmptyDirectories(fs, torrent.contentStorage.filesList)
+    }
+
+    // 4. Delete .parts file
+    if (fs) {
+      const partsPath = `${infoHash}.parts`
+      try {
+        if (await fs.exists(partsPath)) {
+          await fs.delete(partsPath)
+        }
+      } catch (e) {
+        errors.push(`.parts: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+
+    // 5. Remove from engine (clears session data)
+    await this.removeTorrent(torrent)
+
+    return { success: errors.length === 0, errors }
+  }
+
+  /**
+   * Clean up empty parent directories after deleting files.
+   * Works deepest-first to properly clean up nested empty directories.
+   */
+  private async cleanupEmptyDirectories(fs: IFileSystem, files: { path: string }[]): Promise<void> {
+    const dirs = new Set<string>()
+    for (const file of files) {
+      let dir = file.path
+      while (dir.includes('/')) {
+        dir = dir.substring(0, dir.lastIndexOf('/'))
+        if (dir) dirs.add(dir)
+      }
+    }
+    // Sort deepest first
+    const sorted = [...dirs].sort((a, b) => b.split('/').length - a.split('/').length)
+    for (const dir of sorted) {
+      try {
+        const contents = await fs.readdir(dir)
+        if (contents.length === 0) {
+          await fs.delete(dir)
+        }
+      } catch {
+        // Ignore errors - directory may not exist or be non-empty
+      }
+    }
+  }
+
+  /**
+   * Reset a torrent's state (progress, stats, file priorities) without removing it.
+   * For magnet torrents, this preserves the infodict so metadata doesn't need to be re-fetched.
+   * The torrent will be stopped after reset and needs to be started manually.
+   */
+  async resetTorrent(torrent: Torrent): Promise<void> {
+    const index = this.torrents.indexOf(torrent)
+    if (index === -1) return
+
+    const infoHash = toHex(torrent.infoHash)
+
+    // Stop without tracker announce (much faster)
+    await torrent.stop({ skipAnnounce: true })
+
+    // Reset in-memory state
+    torrent.resetState()
+
+    // Reset persisted state (but preserve infodict for magnet torrents)
+    await this.sessionPersistence.resetState(infoHash)
+
+    // Set user state to stopped
+    torrent.userState = 'stopped'
+
+    // Save the new (empty) state
+    await this.sessionPersistence.saveTorrentState(torrent)
+
+    this.emit('torrent-updated', torrent)
   }
 
   getTorrent(infoHash: string): Torrent | undefined {
@@ -457,6 +688,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     // Clear pending operations
     this.pendingOps.clear()
+
+    // Clean up UPnP mappings
+    await this.disableUPnP()
+
+    // Stop DHT (saves state)
+    await this.disableDHT()
 
     // Flush any pending persistence saves
     await this.sessionPersistence.flushPendingSaves()
@@ -509,6 +746,20 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.logger.info(
       `Connection limits updated: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}, maxUploadSlots=${maxUploadSlots}`,
     )
+  }
+
+  /**
+   * Set encryption policy for the engine.
+   * Takes effect for new connections on all torrents.
+   * @param policy - 'disabled' | 'allow' | 'prefer' | 'required'
+   */
+  setEncryptionPolicy(policy: EncryptionPolicy): void {
+    this.encryptionPolicy = policy
+    // Apply to all existing torrents
+    for (const torrent of this.torrents) {
+      torrent.setEncryptionPolicy(policy)
+    }
+    this.logger.info(`Encryption policy updated: ${policy}`)
   }
 
   // === Unified Daemon Operation Queue Methods ===
@@ -728,5 +979,218 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    */
   setConnectionRateLimit(connectionsPerSecond: number, burstSize?: number): void {
     this.setDaemonRateLimit(connectionsPerSecond, burstSize)
+  }
+
+  // === UPnP Methods ===
+
+  /**
+   * Get the current UPnP status.
+   */
+  get upnpStatus(): UPnPStatus {
+    return this._upnpStatus
+  }
+
+  /**
+   * Get the external IP address discovered via UPnP.
+   * Returns null if UPnP is not enabled or discovery failed.
+   */
+  get upnpExternalIP(): string | null {
+    return this.upnpManager?.externalIP ?? null
+  }
+
+  /**
+   * Enable or disable UPnP port mapping.
+   * When enabled, discovers gateway and maps the listening port.
+   * When disabled, removes any active mappings.
+   */
+  async setUPnPEnabled(enabled: boolean): Promise<void> {
+    if (enabled) {
+      await this.enableUPnP()
+    } else {
+      await this.disableUPnP()
+    }
+  }
+
+  private async enableUPnP(): Promise<void> {
+    if (this._upnpStatus !== 'disabled') {
+      // Already enabled or in progress
+      return
+    }
+
+    if (!this.getNetworkInterfaces) {
+      this.logger.warn('UPnP: Cannot enable - no getNetworkInterfaces function provided')
+      this._upnpStatus = 'failed'
+      this.emit('upnpStatusChanged', this._upnpStatus)
+      return
+    }
+
+    this._upnpStatus = 'discovering'
+    this.emit('upnpStatusChanged', this._upnpStatus)
+    this.logger.info('UPnP: Discovering gateway...')
+
+    this.upnpManager = new UPnPManager(this.socketFactory, this.getNetworkInterfaces, this.logger)
+
+    const discovered = await this.upnpManager.discover()
+    if (!discovered) {
+      this._upnpStatus = 'failed'
+      this.emit('upnpStatusChanged', this._upnpStatus)
+      this.logger.info('UPnP: No gateway found')
+      return
+    }
+
+    const tcpMapped = await this.upnpManager.addMapping(this.port, 'TCP')
+    const udpMapped = await this.upnpManager.addMapping(this.port + 1, 'UDP') // For DHT
+
+    if (tcpMapped) {
+      this._upnpStatus = 'mapped'
+      this.emit('upnpStatusChanged', this._upnpStatus)
+      this.logger.info(
+        `UPnP: Mapped TCP port ${this.port}${udpMapped ? ` and UDP port ${this.port + 1}` : ''}, external IP: ${this.upnpManager.externalIP}`,
+      )
+    } else {
+      this._upnpStatus = 'failed'
+      this.emit('upnpStatusChanged', this._upnpStatus)
+      this.logger.warn(`UPnP: Failed to map port ${this.port}`)
+    }
+  }
+
+  private async disableUPnP(): Promise<void> {
+    if (this._upnpStatus === 'disabled') {
+      return
+    }
+
+    if (this.upnpManager) {
+      await this.upnpManager.cleanup()
+      this.upnpManager = undefined
+    }
+
+    this._upnpStatus = 'disabled'
+    this.emit('upnpStatusChanged', this._upnpStatus)
+    this.logger.info('UPnP: Disabled')
+  }
+
+  // === DHT Methods ===
+
+  /**
+   * Get whether DHT is enabled.
+   */
+  get dhtEnabled(): boolean {
+    return this._dhtEnabled
+  }
+
+  /**
+   * Get the DHT node instance (if enabled and started).
+   */
+  get dhtNode(): DHTNode | undefined {
+    return this._dhtNode
+  }
+
+  /**
+   * Enable or disable DHT.
+   * When enabled, starts the DHT node and begins peer discovery.
+   * When disabled, stops the DHT node and saves state for persistence.
+   */
+  async setDHTEnabled(enabled: boolean): Promise<void> {
+    if (enabled) {
+      await this.enableDHT()
+    } else {
+      await this.disableDHT()
+    }
+  }
+
+  /**
+   * Start the DHT node.
+   * Loads persisted state (node ID, routing table) if available.
+   */
+  private async enableDHT(): Promise<void> {
+    if (this._dhtNode) {
+      // Already enabled
+      return
+    }
+
+    this.logger.info('DHT: Starting...')
+    this._dhtEnabled = true
+
+    // Try to load persisted state
+    const sessionStore = this.sessionPersistence.store
+    const persistedState = await loadDHTState(sessionStore)
+
+    // Create DHT node with persisted node ID or generate new one
+    const nodeId = persistedState ? hexToNodeId(persistedState.nodeId) : undefined
+
+    // Create a scoped logger for DHT
+    const dhtLoggable = {
+      getLogName: () => 'dht',
+      getStaticLogName: () => 'dht',
+      engineInstance: this as ILoggingEngine,
+    }
+    const dhtLogger = this.scopedLoggerFor(dhtLoggable)
+
+    this._dhtNode = new DHTNode({
+      nodeId,
+      socketFactory: this.socketFactory,
+      krpcOptions: { bindPort: this.port + 1 }, // DHT uses port+1 to avoid conflicts
+      logger: dhtLogger,
+    })
+
+    await this._dhtNode.start()
+
+    // Restore routing table from persisted state
+    if (persistedState && persistedState.nodes.length > 0) {
+      this.logger.info(`DHT: Restoring ${persistedState.nodes.length} nodes from session`)
+      for (const node of persistedState.nodes) {
+        this._dhtNode.addNode({
+          id: hexToNodeId(node.id),
+          host: node.host,
+          port: node.port,
+        })
+      }
+    }
+
+    // Bootstrap if routing table is empty or small (skip for tests)
+    if (!this._skipDHTBootstrap && this._dhtNode.getNodeCount() < 10) {
+      this.logger.info('DHT: Bootstrapping...')
+      const stats = await this._dhtNode.bootstrap()
+      this.logger.info(`DHT: Bootstrap complete - ${stats.routingTableSize} nodes in routing table`)
+    }
+
+    this.logger.info(`DHT: Started with node ID ${this._dhtNode.nodeIdHex}`)
+    this.emit('dhtStatusChanged', true)
+  }
+
+  /**
+   * Stop the DHT node and save state for persistence.
+   */
+  private async disableDHT(): Promise<void> {
+    if (!this._dhtNode) {
+      this._dhtEnabled = false
+      return
+    }
+
+    this.logger.info('DHT: Stopping...')
+
+    // Save state before stopping
+    const sessionStore = this.sessionPersistence.store
+    const state = this._dhtNode.getState()
+    await saveDHTState(sessionStore, state)
+    this.logger.info(`DHT: Saved ${state.nodes.length} nodes to session`)
+
+    this._dhtNode.stop()
+    this._dhtNode = undefined
+    this._dhtEnabled = false
+
+    this.emit('dhtStatusChanged', false)
+    this.logger.info('DHT: Stopped')
+  }
+
+  /**
+   * Save DHT state (called periodically or before shutdown).
+   */
+  async saveDHTState(): Promise<void> {
+    if (!this._dhtNode) return
+
+    const sessionStore = this.sessionPersistence.store
+    const state = this._dhtNode.getState()
+    await saveDHTState(sessionStore, state)
   }
 }

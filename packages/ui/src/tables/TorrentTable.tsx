@@ -89,16 +89,21 @@ export const torrentColumns: ColumnDef<Torrent>[] = [
     align: 'right',
   },
   {
-    id: 'seeds',
-    header: 'Seeds',
-    getValue: () => {
-      // Count peers that have 100% (are seeds)
-      // This would need swarm data - simplified for now
-      return '-'
-    },
-    width: 60,
+    id: 'addedAt',
+    header: 'Added',
+    getValue: (t) => t.addedAt,
+    width: 140,
     align: 'right',
-    sortable: false, // No real data to sort by
+    renderCell: (_t, value) => (typeof value === 'number' ? new Date(value).toLocaleString() : '-'),
+  },
+  {
+    id: 'completedAt',
+    header: 'Completed',
+    getValue: (t) => t.completedAt ?? 0,
+    width: 140,
+    align: 'right',
+    defaultHidden: true,
+    renderCell: (t) => (t.completedAt ? new Date(t.completedAt).toLocaleString() : '-'),
   },
 ]
 

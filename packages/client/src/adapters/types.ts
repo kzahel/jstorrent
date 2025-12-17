@@ -6,6 +6,8 @@ import {
   DiskQueueSnapshot,
   TrackerStats,
   BandwidthTracker,
+  DHTStats,
+  DHTNodeInfo,
 } from '@jstorrent/engine'
 
 /**
@@ -27,6 +29,12 @@ export interface EngineAdapter {
 
   /** Remove a torrent */
   removeTorrent(torrent: Torrent): Promise<void>
+
+  /** Remove a torrent and delete all associated data files from disk */
+  removeTorrentWithData(torrent: Torrent): Promise<{ success: boolean; errors: string[] }>
+
+  /** Reset a torrent's state (progress, stats, file priorities) without removing it */
+  resetTorrent(torrent: Torrent): Promise<void>
 
   /** Get torrent by info hash string */
   getTorrent(infoHash: string): Torrent | undefined
@@ -51,6 +59,12 @@ export interface EngineAdapter {
 
   /** Get the bandwidth tracker for speed graphs */
   getBandwidthTracker(): BandwidthTracker
+
+  /** Get DHT statistics (null if DHT disabled) */
+  getDHTStats(): DHTStats | null
+
+  /** Get all DHT nodes */
+  getDHTNodes(): DHTNodeInfo[]
 }
 
 /**
@@ -77,6 +91,14 @@ export class DirectEngineAdapter implements EngineAdapter {
 
   async removeTorrent(torrent: Torrent): Promise<void> {
     await this.engine.removeTorrent(torrent)
+  }
+
+  async removeTorrentWithData(torrent: Torrent): Promise<{ success: boolean; errors: string[] }> {
+    return this.engine.removeTorrentWithData(torrent)
+  }
+
+  async resetTorrent(torrent: Torrent): Promise<void> {
+    await this.engine.resetTorrent(torrent)
   }
 
   getTorrent(infoHash: string): Torrent | undefined {
@@ -112,5 +134,13 @@ export class DirectEngineAdapter implements EngineAdapter {
 
   getBandwidthTracker(): BandwidthTracker {
     return this.engine.bandwidthTracker
+  }
+
+  getDHTStats(): DHTStats | null {
+    return this.engine.dhtNode?.getStats() ?? null
+  }
+
+  getDHTNodes(): DHTNodeInfo[] {
+    return this.engine.dhtNode?.getAllNodes() ?? []
   }
 }

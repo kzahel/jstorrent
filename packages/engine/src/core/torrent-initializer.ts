@@ -74,6 +74,17 @@ export async function initializeTorrentMetadata(
   const contentStorage = new TorrentContentStorage(engine, storageHandle, torrent.diskQueue)
   await contentStorage.open(parsedTorrent.files, parsedTorrent.pieceLength)
   torrent.contentStorage = contentStorage
+
+  // Initialize file priorities and classification
+  torrent.initFilePriorities()
+
+  // Restore file priorities from saved state if available
+  if (savedState?.filePriorities) {
+    torrent.restoreFilePriorities(savedState.filePriorities)
+  }
+
+  // Initialize .parts file for boundary pieces
+  await torrent.initPartsFile()
 }
 
 /**
@@ -110,4 +121,10 @@ export async function initializeTorrentStorage(
   const contentStorage = new TorrentContentStorage(engine, storageHandle, torrent.diskQueue)
   await contentStorage.open(parsedTorrent.files, parsedTorrent.pieceLength)
   torrent.contentStorage = contentStorage
+
+  // Initialize file priorities and classification (may already be set from restore)
+  torrent.initFilePriorities()
+
+  // Initialize .parts file for boundary pieces
+  await torrent.initPartsFile()
 }

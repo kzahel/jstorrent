@@ -25,6 +25,9 @@ export function TableMount<T>(props: TableMountProps<T>) {
   const onRowContextMenuRef = useRef(props.onRowContextMenu)
   onRowContextMenuRef.current = props.onRowContextMenu
 
+  const getRowStyleRef = useRef(props.getRowStyle)
+  getRowStyleRef.current = props.getRowStyle
+
   useEffect(() => {
     if (!containerRef.current) return
 
@@ -47,6 +50,7 @@ export function TableMount<T>(props: TableMountProps<T>) {
           onRowContextMenu: (row, x, y) => onRowContextMenuRef.current?.(row, x, y),
           getRowTooltip: props.getRowTooltip,
           rowHeight: props.rowHeight,
+          getRowStyle: (row) => getRowStyleRef.current?.(row),
         }) as unknown as Element,
       containerRef.current,
     )

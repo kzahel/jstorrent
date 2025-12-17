@@ -2,17 +2,40 @@ import { DisplayPeer, Torrent } from '@jstorrent/engine'
 import { TableMount } from './mount'
 import { ColumnDef } from './types'
 import { formatBytes, parseClientName } from '../utils/format'
+import { countryCodeToFlag, countryCodeToName } from '../utils/country-flag'
+
+/** Render flag with tooltip (Solid-style function component) */
+function FlagWithTooltip(props: { code: string | null | undefined }) {
+  const flag = countryCodeToFlag(props.code)
+  const name = countryCodeToName(props.code)
+  if (!flag) return ''
+  // Using DOM API for Solid compatibility (called from column renderCell)
+  const span = document.createElement('span')
+  span.textContent = flag
+  if (name) span.title = name
+  return span
+}
 
 /**
  * Format peer flags (choking/interested states)
- * D = downloading from peer, U = uploading to peer
- * Characters: d/D = download, u/U = upload (lowercase = choked)
+ * E = encrypted (MSE/PE), I = incoming connection
+ * d/D = download (lowercase = choked), u/U = upload (lowercase = choked)
  * Returns empty string for connecting peers (no connection yet)
  */
 function formatFlags(peer: DisplayPeer): string {
   if (!peer.connection) return ''
 
   const flags: string[] = []
+
+  // Encrypted connection (MSE/PE)
+  if (peer.connection.isEncrypted) {
+    flags.push('E')
+  }
+
+  // Incoming connection
+  if (peer.connection.isIncoming) {
+    flags.push('I')
+  }
 
   // Download: are we interested and are they choking us?
   if (peer.connection.amInterested) {
@@ -60,10 +83,24 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
       width: 180,
     },
     {
+      id: 'country',
+      header: 'Country',
+      getValue: (p) => countryCodeToFlag(p.swarmPeer?.countryCode),
+      width: 30,
+      align: 'center',
+      renderCell: (p) => FlagWithTooltip({ code: p.swarmPeer?.countryCode }),
+    },
+    {
       id: 'client',
       header: 'Client',
       getValue: (p) => parseClientName(p.connection?.peerId ?? p.swarmPeer?.peerId ?? null),
       width: 140,
+    },
+    {
+      id: 'source',
+      header: 'Source',
+      getValue: (p) => p.swarmPeer?.source ?? '',
+      width: 70,
     },
     {
       id: 'progress',
@@ -166,6 +203,7 @@ export function PeerTable(props: PeerTableProps) {
       rowHeight={24}
       getSelectedKeys={props.getSelectedKeys}
       onSelectionChange={props.onSelectionChange}
+      getRowStyle={(p) => (p.state === 'connecting' ? { opacity: '0.5' } : undefined)}
     />
   )
 }

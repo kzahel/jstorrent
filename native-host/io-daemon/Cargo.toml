@@ -22,6 +22,8 @@ tracing-appender = "0.2"
 clap = { version = "4.4", features = ["derive"] }
 chrono = "0.4"
 futures = "0.3"
+socket2 = "0.5"
+if-addrs = "0.12"
 tokio-util = { version = "0.7", features = ["io"] }
 uuid = { version = "1.0", features = ["v4"] }
 jstorrent_common = { package = "jstorrent-host", path = "../" }

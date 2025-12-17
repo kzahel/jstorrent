@@ -24,6 +24,7 @@ export interface VirtualTableProps<T> {
   onRowContextMenu?: (row: T, x: number, y: number) => void
   getRowTooltip?: (row: T) => string | undefined
   rowHeight?: number
+  getRowStyle?: (row: T) => Record<string, string> | undefined
 }
 
 /**
@@ -421,12 +422,28 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     }
   }
 
+  // Close menus when pressing Escape
+  const handleDocumentKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (showSettings()) {
+        setShowSettings(false)
+        e.preventDefault()
+      }
+      if (headerMenu()) {
+        setHeaderMenu(null)
+        e.preventDefault()
+      }
+    }
+  }
+
   onMount(() => {
     document.addEventListener('click', handleDocumentClick)
+    document.addEventListener('keydown', handleDocumentKeyDown)
   })
 
   onCleanup(() => {
     document.removeEventListener('click', handleDocumentClick)
+    document.removeEventListener('keydown', handleDocumentKeyDown)
   })
 
   // Column visibility toggle - just adds/removes from visible set
@@ -830,6 +847,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                   'align-items': 'center',
                   cursor: 'default',
                   'border-bottom': '1px solid var(--border-light, #eee)',
+                  ...props.getRowStyle?.(row()),
                 }}
                 style:background={
                   isSelected() ? 'var(--bg-highlight, #264f78)' : 'var(--bg-primary, #1e1e1e)'

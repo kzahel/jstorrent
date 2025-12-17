@@ -1,6 +1,13 @@
 import React, { useEffect } from 'react'
 import { Torrent } from '@jstorrent/engine'
-import type { LogStore, DiskQueueSnapshot, TrackerStats, BandwidthTracker } from '@jstorrent/engine'
+import type {
+  LogStore,
+  DiskQueueSnapshot,
+  TrackerStats,
+  BandwidthTracker,
+  DHTStats,
+  DHTNodeInfo,
+} from '@jstorrent/engine'
 import { PeerTable } from '../tables/PeerTable'
 import { PieceTable } from '../tables/PieceTable'
 import { FileTable } from '../tables/FileTable'
@@ -11,6 +18,7 @@ import { LogTableWrapper } from '../tables/LogTableWrapper'
 import { DiskTable } from '../tables/DiskTable'
 import { TrackerTable } from '../tables/TrackerTable'
 import { SpeedTab } from './SpeedTab'
+import { DhtTab } from './DhtTab'
 import { useSelection } from '../hooks/useSelection'
 
 export type DetailTab =
@@ -23,6 +31,7 @@ export type DetailTab =
   | 'logs'
   | 'disk'
   | 'speed'
+  | 'dht'
 
 export const DEFAULT_DETAIL_TAB: DetailTab = 'general'
 
@@ -34,6 +43,8 @@ interface TorrentSource {
   getDiskQueueSnapshot(hash: string): DiskQueueSnapshot | null
   getTrackerStats(hash: string): TrackerStats[]
   getBandwidthTracker(): BandwidthTracker
+  getDHTStats(): DHTStats | null
+  getDHTNodes(): DHTNodeInfo[]
 }
 
 export interface DetailPaneProps {
@@ -51,6 +62,10 @@ export interface DetailPaneProps {
   onRevealInFolder?: (torrentHash: string, file: TorrentFileInfo) => void
   /** Callback when user wants to copy the file path */
   onCopyFilePath?: (torrentHash: string, file: TorrentFileInfo) => void
+  /** Callback when user wants to set file priority */
+  onSetFilePriority?: (torrentHash: string, fileIndex: number, priority: number) => void
+  /** Callback to open logging settings */
+  onOpenLoggingSettings?: () => void
 }
 
 const tabStyle: React.CSSProperties = {
@@ -150,11 +165,16 @@ export function DetailPane(props: DetailPaneProps) {
         <button style={getTabStyle(activeTab === 'disk')} onClick={() => onTabChange('disk')}>
           Disk
         </button>
+        {/* Spacer pushes global tabs (Logs, Speed) to the right */}
+        <div style={{ flex: 1 }} />
         <button style={getTabStyle(activeTab === 'logs')} onClick={() => onTabChange('logs')}>
           Logs
         </button>
         <button style={getTabStyle(activeTab === 'speed')} onClick={() => onTabChange('speed')}>
           Speed
+        </button>
+        <button style={getTabStyle(activeTab === 'dht')} onClick={() => onTabChange('dht')}>
+          DHT
         </button>
       </div>
 
@@ -200,6 +220,7 @@ export function DetailPane(props: DetailPaneProps) {
               onOpenFile={props.onOpenFile}
               onRevealInFolder={props.onRevealInFolder}
               onCopyFilePath={props.onCopyFilePath}
+              onSetFilePriority={props.onSetFilePriority}
             />,
             'files',
           )}
@@ -215,9 +236,17 @@ export function DetailPane(props: DetailPaneProps) {
             />,
             'trackers',
           )}
-        {activeTab === 'logs' && <LogTableWrapper logStore={props.source.getLogStore()} />}
+        {activeTab === 'logs' && (
+          <LogTableWrapper
+            logStore={props.source.getLogStore()}
+            onOpenSettings={props.onOpenLoggingSettings}
+          />
+        )}
         {activeTab === 'speed' && (
           <SpeedTab bandwidthTracker={props.source.getBandwidthTracker()} />
+        )}
+        {activeTab === 'dht' && (
+          <DhtTab stats={props.source.getDHTStats()} nodes={props.source.getDHTNodes()} />
         )}
         {activeTab === 'disk' &&
           renderTorrentContent(

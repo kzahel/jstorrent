@@ -6,6 +6,8 @@ import type { LogEntry, LogLevel, LogStore } from '@jstorrent/engine'
 
 export interface LogTableProps {
   logStore: LogStore
+  /** Callback to open settings panel (for gear icon) */
+  onOpenSettings?: () => void
 }
 
 const LEVEL_PRIORITY: Record<LogLevel, number> = {
@@ -15,7 +17,13 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
   error: 3,
 }
 
-const LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error']
+// Display filter options: "All" shows everything (debug level internally)
+const DISPLAY_FILTER_OPTIONS: { value: LogLevel; label: string }[] = [
+  { value: 'debug', label: 'All' },
+  { value: 'info', label: 'Info' },
+  { value: 'warn', label: 'Warn' },
+  { value: 'error', label: 'Error' },
+]
 
 function formatTime(timestamp: number): string {
   const date = new Date(timestamp)
@@ -44,7 +52,7 @@ const ROW_HEIGHT = 22
 
 export function LogTable(props: LogTableProps) {
   const [entries, setEntries] = createSignal<LogEntry[]>(props.logStore.getEntries())
-  const [levelFilter, setLevelFilter] = createSignal<LogLevel>('info')
+  const [levelFilter, setLevelFilter] = createSignal<LogLevel>('debug') // Default to "All"
   const [searchFilter, setSearchFilter] = createSignal('')
   const [scrollTop, setScrollTop] = createSignal(0)
 
@@ -157,7 +165,7 @@ export function LogTable(props: LogTableProps) {
         <label
           style={{ display: 'flex', 'align-items': 'center', gap: '6px', 'font-size': '12px' }}
         >
-          Level:
+          Show:
           <select
             value={levelFilter()}
             onChange={(e) => setLevelFilter(e.target.value as LogLevel)}
@@ -170,10 +178,8 @@ export function LogTable(props: LogTableProps) {
               'font-size': '12px',
             }}
           >
-            <For each={LEVELS}>
-              {(level) => (
-                <option value={level}>{level.charAt(0).toUpperCase() + level.slice(1)}</option>
-              )}
+            <For each={DISPLAY_FILTER_OPTIONS}>
+              {(opt) => <option value={opt.value}>{opt.label}</option>}
             </For>
           </select>
         </label>
@@ -221,6 +227,25 @@ export function LogTable(props: LogTableProps) {
           Clear
         </button>
 
+        {props.onOpenSettings && (
+          <button
+            onClick={props.onOpenSettings}
+            title="Open Logging Settings"
+            style={{
+              padding: '4px 8px',
+              'border-radius': '4px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-primary)',
+              color: 'var(--text-primary)',
+              'font-size': '14px',
+              cursor: 'pointer',
+              'line-height': 1,
+            }}
+          >
+            &#9881;
+          </button>
+        )}
+
         <span style={{ 'font-size': '11px', color: 'var(--text-secondary)' }}>
           {filteredEntries().length} / {entries().length}
         </span>
@@ -252,6 +277,7 @@ export function LogTable(props: LogTableProps) {
           overflow: 'auto',
           'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
           'font-size': '11px',
+          'user-select': 'text',
         }}
       >
         <div style={{ height: `${visibleRange().totalHeight}px`, position: 'relative' }}>

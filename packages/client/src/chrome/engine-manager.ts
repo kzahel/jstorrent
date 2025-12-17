@@ -223,6 +223,7 @@ class EngineManager {
       hasher,
       port: settingsStore.get('listeningPort'),
       startSuspended: true,
+      getNetworkInterfaces: () => this.daemonConnection!.getNetworkInterfaces(),
     })
     // @ts-expect-error -- expose engine for debugging
     window.engine = this.engine // expose for debugging
@@ -246,6 +247,13 @@ class EngineManager {
       settingsStore.get('maxGlobalPeers'),
       settingsStore.get('maxUploadSlots'),
     )
+    this.setDaemonRateLimit(
+      settingsStore.get('daemonOpsPerSecond'),
+      settingsStore.get('daemonOpsBurst'),
+    )
+    this.setEncryptionPolicy(settingsStore.get('encryptionPolicy'))
+    // Don't await - DHT bootstrap runs in background and can take a while
+    void this.setDHTEnabled(settingsStore.get('dht.enabled'))
 
     // 9. Set up beforeunload handler
     window.addEventListener('beforeunload', () => {
@@ -442,6 +450,35 @@ class EngineManager {
   }
 
   /**
+   * Open the torrent's storage folder in the system file manager.
+   * @param torrentHash The torrent's info hash (hex)
+   */
+  async openTorrentFolder(torrentHash: string): Promise<{ ok: boolean; error?: string }> {
+    if (!this.engine) {
+      return { ok: false, error: 'Engine not initialized' }
+    }
+
+    const torrent = this.engine.torrents.find((t) => toHex(t.infoHash) === torrentHash)
+    if (!torrent) {
+      return { ok: false, error: 'Torrent not found' }
+    }
+
+    // Get the root key for this torrent
+    const root = this.engine.storageRootManager.getRootForTorrent(torrentHash)
+    if (!root) {
+      return { ok: false, error: 'No storage root for torrent' }
+    }
+
+    // Use torrent name as path (folder for multi-file, file for single-file)
+    const path = torrent.name || torrentHash
+    return getBridge().sendMessage<{ ok: boolean; error?: string }>({
+      type: 'REVEAL_IN_FOLDER',
+      rootKey: root.key,
+      path,
+    })
+  }
+
+  /**
    * Get the full filesystem path for a torrent file.
    * @param torrentHash The torrent's info hash (hex)
    * @param filePath The file's path (already includes torrent name as root dir per BT spec)
@@ -531,6 +568,73 @@ class EngineManager {
     console.log(
       `[EngineManager] Connection limits set: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}, maxUploadSlots=${maxUploadSlots}`,
     )
+  }
+
+  /**
+   * Set daemon operation rate limit (connections, announces).
+   * @param opsPerSecond - operations per second
+   * @param burstSize - burst capacity
+   */
+  setDaemonRateLimit(opsPerSecond: number, burstSize: number): void {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set daemon rate limit: engine not initialized')
+      return
+    }
+    this.engine.setDaemonRateLimit(opsPerSecond, burstSize)
+    console.log(
+      `[EngineManager] Daemon rate limit set: ${opsPerSecond} ops/sec, burst=${burstSize}`,
+    )
+  }
+
+  /**
+   * Set encryption policy for peer connections.
+   * @param policy - 'disabled' | 'allow' | 'prefer' | 'required'
+   */
+  setEncryptionPolicy(policy: 'disabled' | 'allow' | 'prefer' | 'required'): void {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set encryption policy: engine not initialized')
+      return
+    }
+    this.engine.setEncryptionPolicy(policy)
+    console.log(`[EngineManager] Encryption policy set: ${policy}`)
+  }
+
+  /**
+   * Enable or disable UPnP port mapping.
+   * @param enabled - Whether UPnP should be enabled
+   */
+  async setUPnPEnabled(enabled: boolean): Promise<void> {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set UPnP: engine not initialized')
+      return
+    }
+    await this.engine.setUPnPEnabled(enabled)
+  }
+
+  /**
+   * Enable or disable DHT (Distributed Hash Table).
+   * @param enabled - Whether DHT should be enabled
+   */
+  async setDHTEnabled(enabled: boolean): Promise<void> {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set DHT: engine not initialized')
+      return
+    }
+    await this.engine.setDHTEnabled(enabled)
+    console.log(`[EngineManager] DHT ${enabled ? 'enabled' : 'disabled'}`)
+  }
+
+  /**
+   * Set logging configuration dynamically.
+   * @param config - Logging configuration with global level and optional per-component levels
+   */
+  setLoggingConfig(config: import('@jstorrent/engine').EngineLoggingConfig): void {
+    if (!this.engine) {
+      console.warn('[EngineManager] Cannot set logging config: engine not initialized')
+      return
+    }
+    this.engine.setLoggingConfig(config)
+    console.log(`[EngineManager] Logging config updated: level=${config.level}`)
   }
 
   /**

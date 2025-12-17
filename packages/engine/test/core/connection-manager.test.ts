@@ -34,13 +34,10 @@ describe('ConnectionManager', () => {
       createTcpSocket: vi.fn(),
     } as unknown as ISocketFactory
 
-    connectionManager = new ConnectionManager(
-      swarm,
-      mockSocketFactory,
-      mockEngine,
-      mockLogger,
-      DEFAULT_CONNECTION_CONFIG,
-    )
+    connectionManager = new ConnectionManager(swarm, mockSocketFactory, mockEngine, mockLogger, {
+      ...DEFAULT_CONNECTION_CONFIG,
+      maxPeersPerTorrent: 50,
+    })
   })
 
   describe('Peer Scoring', () => {
@@ -309,7 +306,7 @@ describe('ConnectionManager', () => {
 
       expect(stats.adaptiveInterval).toBeDefined()
       expect(stats.averageDownloadSpeed).toBeDefined()
-      expect(stats.config).toEqual(DEFAULT_CONNECTION_CONFIG)
+      expect(stats.config).toEqual({ ...DEFAULT_CONNECTION_CONFIG, maxPeersPerTorrent: 50 })
     })
   })
 })

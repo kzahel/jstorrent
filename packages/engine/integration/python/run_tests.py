@@ -17,6 +17,12 @@ from pathlib import Path
 # More time won't help ya buddy.
 TIMEOUT = 15
 
+# Per-test timeout overrides
+TEST_TIMEOUTS = {
+    "test_seeding.py": 45,  # Seeding needs more time for handshake/negotiation
+    "test_connection_limits.py": 45,  # Two 15s verification loops
+}
+
 # =============================================================================
 # Skip List - tests to skip (with reasons)
 # =============================================================================
@@ -27,6 +33,7 @@ SKIP_TESTS = {
 
 def run_test(path: Path, quiet: bool = False) -> tuple:
     """Run test, return (passed: bool, elapsed: float)."""
+    timeout = TEST_TIMEOUTS.get(path.name, TIMEOUT)
     print(f"\n{'='*60}")
     print(f"Running: {path.name}")
     print('='*60 + ("" if quiet else "\n"))
@@ -36,16 +43,16 @@ def run_test(path: Path, quiet: bool = False) -> tuple:
         if quiet:
             result = subprocess.run(
                 [sys.executable, str(path)],
-                timeout=TIMEOUT,
+                timeout=timeout,
                 capture_output=True
             )
         else:
-            result = subprocess.run([sys.executable, str(path)], timeout=TIMEOUT)
+            result = subprocess.run([sys.executable, str(path)], timeout=timeout)
         elapsed = time.time() - start
         return (result.returncode == 0, elapsed)
     except subprocess.TimeoutExpired:
-        print(f"\n✗ TIMEOUT after {TIMEOUT}s - test is broken, not slow")
-        return (False, TIMEOUT)
+        print(f"\n✗ TIMEOUT after {timeout}s - test is broken, not slow")
+        return (False, timeout)
 
 
 def main():

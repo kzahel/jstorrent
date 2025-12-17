@@ -137,3 +137,61 @@ class LibtorrentSession:
 
     def listen_port(self) -> int:
         return self.session.listen_port()
+
+
+class EncryptedLibtorrentSession(LibtorrentSession):
+    """
+    Libtorrent session that REQUIRES encryption (MSE/PE).
+
+    Used for testing that jstorrent can connect to peers that only accept
+    encrypted connections (pe_forced policy with RC4 encryption).
+    """
+
+    def __init__(self, root_dir: str, port: int = 40000):
+        self.root_dir = root_dir
+        self.port = port
+
+        # Start with base settings, then override for encryption
+        settings = {
+            'listen_interfaces': '127.0.0.1:%d' % port,
+            'enable_dht': False,
+            'enable_lsd': False,
+            'enable_upnp': False,
+            'enable_natpmp': False,
+            'enable_incoming_utp': False,
+            'enable_outgoing_utp': False,
+            'user_agent': 'libtorrent_mse_test',
+            'alert_mask': lt.alert.category_t.all_categories,
+            'allow_multiple_connections_per_ip': True,
+            # Encryption settings - REQUIRE encryption
+            'out_enc_policy': 2,  # pe_forced (numeric fallback)
+            'in_enc_policy': 2,   # pe_forced
+            'allowed_enc_level': 3,  # both (prefer RC4)
+            'prefer_rc4': True,
+        }
+
+        params = lt.session_params()
+        params.settings = settings
+        self.session = lt.session(params)
+
+        # Apply settings using proper enum values
+        try:
+            settings['out_enc_policy'] = lt.enc_policy.pe_forced
+            settings['in_enc_policy'] = lt.enc_policy.pe_forced
+            settings['allowed_enc_level'] = lt.enc_level.both
+            self.session.apply_settings(settings)
+            print("DEBUG: Applied encryption REQUIRED settings (pe_forced, both).")
+        except AttributeError:
+            # Fallback to numeric values if enums not available
+            settings['out_enc_policy'] = 2  # pe_forced
+            settings['in_enc_policy'] = 2   # pe_forced
+            settings['allowed_enc_level'] = 3  # both
+            self.session.apply_settings(settings)
+            print("DEBUG: Applied encryption REQUIRED settings (numeric fallback).")
+
+        # Verify settings
+        applied = self.session.get_settings()
+        print(f"DEBUG (encrypted): out_enc_policy={applied.get('out_enc_policy')} (expect: 2/pe_forced)")
+        print(f"DEBUG (encrypted): in_enc_policy={applied.get('in_enc_policy')} (expect: 2/pe_forced)")
+        print(f"DEBUG (encrypted): allowed_enc_level={applied.get('allowed_enc_level')} (expect: 3/both)")
+        print(f"DEBUG (encrypted): prefer_rc4={applied.get('prefer_rc4')}")

@@ -95,7 +95,7 @@ def test_quick_disconnect_backoff() -> bool:
             time.sleep(10)
 
             # Get logs and count connection attempts
-            logs = engine.get_logs(level="debug", limit=1000)
+            logs = engine.get_logs(level="debug", limit=1000).get("logs", [])
 
             # Count connection attempts to the libtorrent peer
             connect_count = count_connection_attempts(logs, "127.0.0.1", lt_port)

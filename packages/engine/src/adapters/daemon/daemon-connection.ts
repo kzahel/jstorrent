@@ -1,3 +1,5 @@
+import type { NetworkInterface } from '../../upnp/upnp-manager'
+
 export interface IDaemonConnection {
   connect(info: { port: number; token: string }): Promise<void>
   sendFrame(frame: ArrayBuffer): void
@@ -409,5 +411,13 @@ export class DaemonConnection {
     }
 
     return new Uint8Array(await response.arrayBuffer())
+  }
+
+  /**
+   * Get network interfaces from the daemon.
+   * Used for UPnP to determine local address for port mapping.
+   */
+  async getNetworkInterfaces(): Promise<NetworkInterface[]> {
+    return this.request<NetworkInterface[]>('GET', '/network/interfaces')
   }
 }

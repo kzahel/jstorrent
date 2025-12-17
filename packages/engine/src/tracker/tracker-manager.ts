@@ -65,7 +65,15 @@ export class TrackerManager extends EngineComponent {
           if (tracker) {
             this.trackers.push(tracker)
             tracker.on('peersDiscovered', (peers) => this.handlePeersDiscovered(peers))
-            tracker.on('error', (err) => this.logger.warn(`Tracker ${url} error: ${err.message}`))
+            tracker.on('error', (err) => {
+              const msg = `Tracker ${url} error: ${err.message}`
+              // Connect timeouts are expected, not exceptional
+              if (err.message === 'Connect timeout') {
+                this.logger.info(msg)
+              } else {
+                this.logger.warn(msg)
+              }
+            })
           }
         } catch (_err) {
           // Invalid URL or unsupported protocol

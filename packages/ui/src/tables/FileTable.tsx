@@ -40,9 +40,9 @@ const fileColumns: ColumnDef<TorrentFileInfo>[] = [
   {
     id: 'priority',
     header: 'Priority',
-    getValue: (f) => f.priority,
-    width: 60,
-    align: 'right',
+    getValue: (f) => (f.isSkipped ? 'Skip' : 'Normal'),
+    width: 70,
+    align: 'center',
   },
   {
     id: 'name',
@@ -103,6 +103,8 @@ export interface FileTableProps {
   onRevealInFolder?: (torrentHash: string, file: TorrentFileInfo) => void
   /** Called when user wants to copy the file path. If not provided, shows "not available" alert. */
   onCopyFilePath?: (torrentHash: string, file: TorrentFileInfo) => void
+  /** Called when user wants to change file priority. */
+  onSetFilePriority?: (torrentHash: string, fileIndex: number, priority: number) => void
 }
 
 /**
@@ -117,23 +119,47 @@ export function FileTable(props: FileTableProps) {
     setContextMenu({ x, y, file })
   }
 
-  const contextMenuItems: ContextMenuItem[] = [
-    {
-      id: 'open',
-      label: 'Open',
-      icon: '📄',
-    },
-    {
-      id: 'open-folder',
-      label: 'Open Containing Folder',
-      icon: '📁',
-    },
-    {
-      id: 'copy-path',
-      label: 'Copy File Path',
-      icon: '📋',
-    },
-  ]
+  const getContextMenuItems = (): ContextMenuItem[] => {
+    // Get selected files to determine which options to enable
+    const torrent = getTorrent()
+    const selectedKeys = props.getSelectedKeys?.() ?? new Set<string>()
+    const selectedFiles = torrent?.files.filter((f) => selectedKeys.has(String(f.index))) ?? []
+
+    // Check if any selected files can be skipped or unskipped
+    const canSkipAny = selectedFiles.some((f) => !f.isSkipped && !f.isComplete)
+    const canUnskipAny = selectedFiles.some((f) => f.isSkipped)
+
+    return [
+      {
+        id: 'open',
+        label: 'Open',
+        icon: '📄',
+      },
+      {
+        id: 'open-folder',
+        label: 'Open Containing Folder',
+        icon: '📁',
+      },
+      {
+        id: 'copy-path',
+        label: 'Copy File Path',
+        icon: '📋',
+      },
+      { id: 'separator', label: '-' },
+      {
+        id: 'skip',
+        label: "Don't Download (Skip)",
+        icon: '⏸️',
+        disabled: !canSkipAny,
+      },
+      {
+        id: 'unskip',
+        label: 'Download (Unskip)',
+        icon: '▶️',
+        disabled: !canUnskipAny,
+      },
+    ]
+  }
 
   const handleOpenFile = (file: TorrentFileInfo) => {
     if (props.onOpenFile) {
@@ -159,6 +185,20 @@ export function FileTable(props: FileTableProps) {
     }
   }
 
+  const handleSetFilePriorityForSelected = (priority: number) => {
+    if (!props.onSetFilePriority) return
+
+    const torrent = getTorrent()
+    const selectedKeys = props.getSelectedKeys?.() ?? new Set<string>()
+    const selectedFiles = torrent?.files.filter((f) => selectedKeys.has(String(f.index))) ?? []
+
+    for (const file of selectedFiles) {
+      // Skip completed files when trying to skip
+      if (priority === 1 && file.isComplete) continue
+      props.onSetFilePriority(props.torrentHash, file.index, priority)
+    }
+  }
+
   const handleContextMenuSelect = (id: string) => {
     if (!contextMenu) return
     const file = contextMenu.file
@@ -172,6 +212,12 @@ export function FileTable(props: FileTableProps) {
         break
       case 'copy-path':
         handleCopyFilePath(file)
+        break
+      case 'skip':
+        handleSetFilePriorityForSelected(1) // 1 = skip
+        break
+      case 'unskip':
+        handleSetFilePriorityForSelected(0) // 0 = normal
         break
     }
   }
@@ -194,7 +240,7 @@ export function FileTable(props: FileTableProps) {
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          items={contextMenuItems}
+          items={getContextMenuItems()}
           onSelect={handleContextMenuSelect}
           onClose={() => setContextMenu(null)}
         />

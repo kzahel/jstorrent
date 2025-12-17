@@ -75,4 +75,6 @@ export interface TableMountProps<T> {
   rowHeight?: number
   /** Estimated total rows (for virtualization) */
   estimatedRowCount?: number
+  /** Optional inline styles for the row based on row data */
+  getRowStyle?: (row: T) => Record<string, string> | undefined
 }

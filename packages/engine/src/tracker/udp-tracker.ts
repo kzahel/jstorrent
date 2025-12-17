@@ -25,6 +25,7 @@ export class UdpTracker extends EngineComponent implements ITracker {
   private _seeders: number | null = null
   private _leechers: number | null = null
   private _lastError: string | null = null
+  private _lastAnnounceTime: number | null = null
 
   get interval(): number {
     return this._interval
@@ -159,6 +160,7 @@ export class UdpTracker extends EngineComponent implements ITracker {
       // Success - update status
       this._status = 'ok'
       this._lastError = null
+      this._lastAnnounceTime = Date.now()
 
       const interval = view.getUint32(8, false)
       this._interval = interval
@@ -206,6 +208,7 @@ export class UdpTracker extends EngineComponent implements ITracker {
       seeders: this._seeders,
       leechers: this._leechers,
       lastError: this._lastError,
+      nextAnnounce: this._lastAnnounceTime ? this._lastAnnounceTime + this._interval * 1000 : null,
     }
   }
 

@@ -87,11 +87,13 @@ function buildTorrentInfo(torrent: Torrent): InfoGroup[] {
   })
 
   // Origin
-  const shareUrl = generateMagnet({
+  const magnetUri = generateMagnet({
     infoHash: torrent.infoHashStr,
     name: torrent.name,
     announce: torrent.announce,
   })
+  const shareBase = 'https://jstorrent.com/share.html'
+  const shareUrl = `${shareBase}#magnet=${encodeURIComponent(magnetUri)}`
 
   groups.push({
     title: 'Origin',

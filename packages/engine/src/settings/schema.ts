@@ -3,6 +3,11 @@
  *
  * Single source of truth for all application settings.
  * Defines type, default value, validation, and storage class for each setting.
+ *
+ * IMPORTANT: When adding settings that affect engine behavior at runtime
+ * (e.g., rate limits, connection limits), ensure they are applied during
+ * engine initialization in packages/client/src/chrome/engine-manager.ts
+ * (see the "Apply rate limits and connection limits from settings" section).
  */
 
 // ============================================================================
@@ -126,7 +131,7 @@ export const settingsSchema = {
   maxPeersPerTorrent: {
     type: 'number',
     storage: 'sync',
-    default: 50,
+    default: 20,
     min: 1,
     max: 500,
   },
@@ -151,6 +156,139 @@ export const settingsSchema = {
     default: 4,
     min: 0, // 0 = no uploads (pure leecher mode)
     max: 50,
+  },
+  'upnp.enabled': {
+    type: 'boolean',
+    storage: 'sync',
+    default: true,
+  },
+  /**
+   * MSE/PE (Protocol Encryption) policy.
+   * - 'disabled': No encryption, plain BitTorrent connections only
+   * - 'allow': Accept encryption if peer requests, but don't initiate (default)
+   * - 'prefer': Initiate encryption, fall back to plain if peer doesn't support
+   * - 'required': Only accept encrypted connections
+   */
+  encryptionPolicy: {
+    type: 'enum',
+    storage: 'sync',
+    values: ['disabled', 'allow', 'prefer', 'required'] as const,
+    default: 'allow',
+  },
+
+  // -------------------------------------------------------------------------
+  // DHT (Distributed Hash Table)
+  // -------------------------------------------------------------------------
+  /**
+   * Enable DHT for trackerless peer discovery.
+   */
+  'dht.enabled': {
+    type: 'boolean',
+    storage: 'sync',
+    default: true,
+  },
+
+  // -------------------------------------------------------------------------
+  // Logging
+  // -------------------------------------------------------------------------
+  /**
+   * Global log level. Messages below this level are not captured.
+   */
+  'logging.level': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['debug', 'info', 'warn', 'error'] as const,
+    default: 'info',
+  },
+  /**
+   * Per-component log level overrides.
+   * 'default' means use the global logging.level setting.
+   */
+  'logging.level.client': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.torrent': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.peer': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.active-pieces': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.content-storage': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.parts-file': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.tracker-manager': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.http-tracker': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.udp-tracker': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+  'logging.level.dht': {
+    type: 'enum',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default',
+  },
+
+  // -------------------------------------------------------------------------
+  // Advanced: Daemon Rate Limiting
+  // -------------------------------------------------------------------------
+  /**
+   * Maximum daemon operations per second (connections, announces).
+   * Controls how fast we initiate new connections to peers/trackers.
+   */
+  daemonOpsPerSecond: {
+    type: 'number',
+    storage: 'sync',
+    default: 20,
+    min: 1,
+    max: 100,
+  },
+  /**
+   * Burst capacity for daemon operations.
+   * Allows this many operations immediately before rate limiting kicks in.
+   */
+  daemonOpsBurst: {
+    type: 'number',
+    storage: 'sync',
+    default: 40,
+    min: 1,
+    max: 200,
   },
 
   // -------------------------------------------------------------------------

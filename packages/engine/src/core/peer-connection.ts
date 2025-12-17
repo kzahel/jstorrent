@@ -2,6 +2,7 @@
 import { ITcpSocket } from '../interfaces/socket'
 import { PeerWireProtocol, MessageType, WireMessage } from '../protocol/wire-protocol'
 import { BitField } from '../utils/bitfield'
+import { Bencode } from '../utils/bencode'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
 import { SpeedCalculator } from '../utils/speed-calculator'
 
@@ -82,6 +83,11 @@ export class PeerConnection extends EngineComponent {
   public remoteAddress?: string
   public remotePort?: number
   public isIncoming = false
+
+  /** Whether this connection is encrypted (MSE/PE) */
+  get isEncrypted(): boolean {
+    return this.socket.isEncrypted ?? false
+  }
 
   constructor(
     engine: ILoggingEngine,
@@ -317,29 +323,39 @@ export class PeerConnection extends EngineComponent {
 
   private handleExtendedHandshake(payload: Uint8Array) {
     try {
-      // Decode bencoded dictionary
-      // For now, simple regex parsing or string search since we know the structure
-      // We look for "ut_metadata" and the integer following it
-      const str = new TextDecoder().decode(payload)
-      this.logger.debug('Extended Handshake payload:', str)
+      const dict = Bencode.decode(payload) as Record<string, unknown>
+      this.logger.debug('Extended Handshake payload:', dict)
 
-      // Very naive parsing for "ut_metadata"i{id}e
-      const match = str.match(/ut_metadatai(\d+)e/)
-      if (match) {
-        this.peerMetadataId = parseInt(match[1], 10)
-        // this.logger.info(`Peer supports ut_metadata with ID ${this.peerMetadataId}`)
-      } else {
+      // Extract ut_metadata ID from 'm' dictionary
+      if (dict.m && typeof dict.m === 'object') {
+        const m = dict.m as Record<string, unknown>
+        if (typeof m.ut_metadata === 'number') {
+          this.peerMetadataId = m.ut_metadata
+        }
+      }
+
+      if (this.peerMetadataId === null) {
         this.logger.warn('Peer does not support ut_metadata')
       }
 
-      // Also check for metadata_size
-      const sizeMatch = str.match(/metadata_sizei(\d+)e/)
-      if (sizeMatch) {
-        // this.logger.info(`Peer reports metadata_size: ${sizeMatch[1]}`)
+      // Extract client version from 'v' field (BEP 10)
+      let clientName: string | null = null
+      if (dict.v) {
+        if (dict.v instanceof Uint8Array) {
+          clientName = new TextDecoder('utf-8', { fatal: false }).decode(dict.v)
+        } else if (typeof dict.v === 'string') {
+          clientName = dict.v
+        }
+        if (clientName && clientName.length > 64) {
+          clientName = clientName.slice(0, 64)
+        }
       }
 
-      // Emit generic event (we might want to parse more properly later)
-      this.emit('extension_handshake', { raw: str })
+      this.emit('extension_handshake', {
+        m: dict.m,
+        v: clientName,
+        metadata_size: dict.metadata_size,
+      })
     } catch (err) {
       this.logger.error('Error parsing extended handshake', { err })
     }

@@ -8,9 +8,14 @@ import { IDiskQueue } from './disk-queue'
 export class TorrentContentStorage extends EngineComponent {
   static logName = 'content-storage'
   private files: TorrentFile[] = []
+  /**
+   * Cached file handles. For Node.js filesystem, this avoids repeated fs.open() syscalls.
+   * For daemon filesystem, handles are stateless so caching is a no-op but harmless.
+   */
   private fileHandles: Map<string, IFileHandle> = new Map()
   private openingFiles: Map<string, Promise<IFileHandle>> = new Map()
   private pieceLength: number = 0
+  private filePriorities: number[] = []
 
   private id = Math.random().toString(36).slice(2, 7)
 
@@ -28,6 +33,8 @@ export class TorrentContentStorage extends EngineComponent {
   async open(files: TorrentFile[], pieceLength: number) {
     this.files = files
     this.pieceLength = pieceLength
+    // Initialize all file priorities to 0 (normal/wanted)
+    this.filePriorities = new Array(files.length).fill(0)
     this.logger.debug(`DiskManager ${this.id}: Opened with ${files.length} files`)
 
     // Pre-open files or open on demand? Let's open on demand for now to save resources,
@@ -35,8 +42,24 @@ export class TorrentContentStorage extends EngineComponent {
     // Let's stick to open-on-demand logic implicitly in read/write.
   }
 
+  /**
+   * Update file priorities. Priority 1 = skipped, 0 = normal.
+   * Used by boundary piece writes to know which files to skip.
+   */
+  setFilePriorities(priorities: number[]): void {
+    this.filePriorities = priorities.slice()
+    this.logger.debug(`DiskManager ${this.id}: Updated file priorities`)
+  }
+
   get filesList(): TorrentFile[] {
     return this.files
+  }
+
+  /**
+   * Get the storage handle for this content storage.
+   */
+  get storage(): IStorageHandle {
+    return this.storageHandle
   }
 
   getTotalSize(): number {
@@ -55,6 +78,13 @@ export class TorrentContentStorage extends EngineComponent {
     this.openingFiles.clear()
   }
 
+  /**
+   * Get or open a file handle, caching for reuse.
+   *
+   * Caching is an optimization for Node.js where file descriptors are expensive to open.
+   * For daemon filesystem, handles are stateless (each read/write is a separate RPC call),
+   * so caching just stores metadata objects with no real benefit.
+   */
   private async getFileHandle(path: string): Promise<IFileHandle> {
     if (this.fileHandles.has(path)) {
       return this.fileHandles.get(path)!
@@ -129,6 +159,48 @@ export class TorrentContentStorage extends EngineComponent {
    */
   async writePiece(pieceIndex: number, data: Uint8Array): Promise<void> {
     await this.write(pieceIndex, 0, data)
+  }
+
+  /**
+   * Write a piece, but only to files that are not skipped (priority !== 1).
+   * Used for boundary pieces to write their wanted portions to disk immediately.
+   * Skipped file portions are stored in .parts file separately.
+   */
+  async writePieceFilteredByPriority(pieceIndex: number, data: Uint8Array): Promise<void> {
+    const torrentOffset = pieceIndex * this.pieceLength
+    let remaining = data.length
+    let dataOffset = 0
+    let currentTorrentOffset = torrentOffset
+
+    for (let fileIndex = 0; fileIndex < this.files.length; fileIndex++) {
+      const file = this.files[fileIndex]
+      const fileEnd = file.offset + file.length
+
+      if (currentTorrentOffset >= file.offset && currentTorrentOffset < fileEnd) {
+        const fileRelativeOffset = currentTorrentOffset - file.offset
+        const bytesToWrite = Math.min(remaining, file.length - fileRelativeOffset)
+
+        // Skip writing to files that are skipped (priority === 1)
+        if (this.filePriorities[fileIndex] !== 1) {
+          this.logger.debug(
+            `DiskManager: Writing filtered to ${file.path}, fileRelOffset=${fileRelativeOffset}, bytes=${bytesToWrite}`,
+          )
+
+          const handle = await this.getFileHandle(file.path)
+          await handle.write(data, dataOffset, bytesToWrite, fileRelativeOffset)
+        } else {
+          this.logger.debug(
+            `DiskManager: Skipping write to ${file.path} (file skipped), bytes=${bytesToWrite}`,
+          )
+        }
+
+        remaining -= bytesToWrite
+        dataOffset += bytesToWrite
+        currentTorrentOffset += bytesToWrite
+
+        if (remaining === 0) break
+      }
+    }
   }
 
   /**

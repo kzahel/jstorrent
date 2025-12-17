@@ -5,6 +5,7 @@ import {
   TorrentTable,
   DetailPane,
   ContextMenu,
+  ConfirmDialog,
   DropdownMenu,
   ResizeHandle,
   usePersistedUIState,
@@ -32,10 +33,15 @@ interface ContextMenuState {
   torrent: Torrent
 }
 
-function AppContent() {
+interface AppContentProps {
+  onOpenLoggingSettings?: () => void
+}
+
+function AppContent({ onOpenLoggingSettings }: AppContentProps) {
   const [magnetInput, setMagnetInput] = useState('')
   const [selectedTorrents, setSelectedTorrents] = useState<Set<string>>(new Set())
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const [confirmRemoveAll, setConfirmRemoveAll] = useState<Torrent[] | null>(null)
   const { adapter, torrents, refresh } = useEngineState()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -130,20 +136,33 @@ function AppContent() {
   }
 
   const handleResetSelected = async () => {
-    // Reset = remove + re-add in stopped state
-    // Use original magnet URI if available (preserves non-standard query params like x.pe)
+    // Reset torrent state (progress, stats, file priorities) while preserving metadata
     for (const t of selectedTorrentObjects) {
-      const magnet =
-        t.magnetLink ??
-        generateMagnet({
-          infoHash: t.infoHashStr,
-          name: t.name,
-          announce: t.announce,
-        })
-      await adapter.removeTorrent(t)
-      await adapter.addTorrent(magnet, { userState: 'stopped' })
+      await adapter.resetTorrent(t)
     }
     setSelectedTorrents(new Set())
+  }
+
+  const handleRemoveWithDataRequest = () => {
+    if (selectedTorrentObjects.length > 0) {
+      setConfirmRemoveAll(selectedTorrentObjects)
+    }
+  }
+
+  const handleRemoveWithDataConfirm = async () => {
+    if (!confirmRemoveAll) return
+    const errors: string[] = []
+    for (const t of confirmRemoveAll) {
+      const result = await adapter.removeTorrentWithData(t)
+      errors.push(...result.errors)
+    }
+    setConfirmRemoveAll(null)
+    setSelectedTorrents(new Set())
+    if (errors.length > 0) {
+      alert(
+        `Some files could not be deleted:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...and ${errors.length - 5} more` : ''}`,
+      )
+    }
   }
 
   const handleCopyMagnet = async () => {
@@ -185,12 +204,15 @@ function AppContent() {
     { id: 'separator1', label: '', separator: true },
     { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '⎘' },
     { id: 'share', label: 'Share...', icon: '↗' },
+    { id: 'separator2', label: '', separator: true },
+    { id: 'removeWithData', label: 'Remove All Data', icon: '⊗', danger: true },
   ]
 
   const contextMenuItems: ContextMenuItem[] = [
     { id: 'start', label: 'Start', icon: '▶', disabled: allActive || anyChecking },
     { id: 'stop', label: 'Stop', icon: '■', disabled: allEffectivelyStopped || anyChecking },
     { id: 'separator1', label: '', separator: true },
+    { id: 'openFolder', label: 'Open Folder', icon: '📁' },
     { id: 'recheck', label: 'Re-verify Data', icon: '⟳', disabled: anyChecking },
     { id: 'reset', label: 'Reset State', icon: '↺', disabled: anyChecking },
     { id: 'separator2', label: '', separator: true },
@@ -198,7 +220,18 @@ function AppContent() {
     { id: 'share', label: 'Share...', icon: '↗' },
     { id: 'separator3', label: '', separator: true },
     { id: 'remove', label: 'Remove', icon: '✕', danger: true },
+    { id: 'removeWithData', label: 'Remove All Data', icon: '⊗', danger: true },
   ]
+
+  const handleOpenFolder = async () => {
+    for (const t of selectedTorrentObjects) {
+      const result = await engineManager.openTorrentFolder(t.infoHashStr)
+      if (!result.ok) {
+        alert(`Failed to open folder: ${result.error}`)
+        break
+      }
+    }
+  }
 
   const handleMenuAction = (id: string) => {
     switch (id) {
@@ -207,6 +240,9 @@ function AppContent() {
         break
       case 'stop':
         handleStopSelected()
+        break
+      case 'openFolder':
+        handleOpenFolder()
         break
       case 'recheck':
         handleRecheckSelected()
@@ -222,6 +258,9 @@ function AppContent() {
         break
       case 'remove':
         handleDeleteSelected()
+        break
+      case 'removeWithData':
+        handleRemoveWithDataRequest()
         break
     }
   }
@@ -417,11 +456,34 @@ function AppContent() {
                     alert('Failed to get file path: storage root not found')
                   }
                 }}
+                onSetFilePriority={(torrentHash, fileIndex, priority) => {
+                  const torrent = adapter.getTorrent(torrentHash)
+                  if (torrent) {
+                    torrent.setFilePriority(fileIndex, priority)
+                  }
+                }}
+                onOpenLoggingSettings={onOpenLoggingSettings}
               />
             </div>
           </div>
         </>
       </div>
+
+      {/* Remove All Data confirmation dialog */}
+      {confirmRemoveAll && (
+        <ConfirmDialog
+          title="Remove All Data"
+          message={`Permanently delete ${
+            confirmRemoveAll.length === 1
+              ? `"${confirmRemoveAll[0].name}"`
+              : `${confirmRemoveAll.length} torrents`
+          } and ALL downloaded files? This cannot be undone.`}
+          confirmLabel="Delete Everything"
+          danger
+          onConfirm={handleRemoveWithDataConfirm}
+          onCancel={() => setConfirmRemoveAll(null)}
+        />
+      )}
 
       {/* Context menu portal */}
       {contextMenu && (
@@ -546,6 +608,96 @@ function App() {
     }
   }, [settingsStore, settingsReady])
 
+  // Apply UPnP setting from settings store
+  useEffect(() => {
+    if (!settingsReady || !engine) return
+
+    // Apply initial value
+    engineManager.setUPnPEnabled(settingsStore.get('upnp.enabled'))
+
+    // Subscribe to changes
+    return settingsStore.subscribe('upnp.enabled', (enabled) => {
+      engineManager.setUPnPEnabled(enabled)
+    })
+  }, [settingsStore, settingsReady, engine])
+
+  // Apply logging settings from settings store
+  useEffect(() => {
+    if (!settingsReady || !engine) return
+
+    // Helper to build logging config from settings
+    const buildLoggingConfig = () => {
+      const level = settingsStore.get('logging.level')
+      const componentLevels: Record<string, 'debug' | 'info' | 'warn' | 'error'> = {}
+
+      // Component names that have per-component settings
+      const components = [
+        'client',
+        'torrent',
+        'peer',
+        'active-pieces',
+        'content-storage',
+        'parts-file',
+        'tracker-manager',
+        'http-tracker',
+        'udp-tracker',
+        'dht',
+      ] as const
+
+      for (const comp of components) {
+        const key = `logging.level.${comp}` as const
+        const value = settingsStore.get(key)
+        if (value !== 'default') {
+          componentLevels[comp] = value
+        }
+      }
+
+      return { level, componentLevels }
+    }
+
+    // Apply initial value
+    engineManager.setLoggingConfig(buildLoggingConfig())
+
+    // Subscribe to all logging settings changes
+    const unsubscribes = [
+      settingsStore.subscribe('logging.level', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.client', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.torrent', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.peer', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.active-pieces', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.content-storage', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.parts-file', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.tracker-manager', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.http-tracker', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.udp-tracker', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+      settingsStore.subscribe('logging.level.dht', () => {
+        engineManager.setLoggingConfig(buildLoggingConfig())
+      }),
+    ]
+
+    return () => unsubscribes.forEach((unsub) => unsub())
+  }, [settingsStore, settingsReady, engine])
+
   // Periodic refresh for header stats (engine object is mutable)
   useEffect(() => {
     if (!engine) return
@@ -584,6 +736,12 @@ function App() {
     },
     [engine],
   )
+
+  // Open logging settings (memoized to prevent LogTable remounts)
+  const handleOpenLoggingSettings = useCallback(() => {
+    setSettingsTab('advanced')
+    setSettingsOpen(true)
+  }, [])
 
   // Subscribe to IOBridge state
   const {
@@ -629,27 +787,41 @@ function App() {
     },
   })
 
-  // Initialize engine when connected (and not already initialized)
+  // Initialize engine when connected
+  // Uses engineManager.engine as source of truth to handle reconnection scenarios
   useEffect(() => {
-    if (isConnected && !engine && !initStartedRef.current && !initError) {
-      initStartedRef.current = true
-      engineManager
-        .init()
-        .then((eng) => {
-          setEngine(eng)
-          // Set default root from engine (getDefaultRoot returns the key string)
-          const currentDefault = eng.storageRootManager.getDefaultRoot()
-          if (currentDefault) {
-            setDefaultRootKey(currentDefault)
-          }
-        })
-        .catch((e) => {
-          console.error('Failed to initialize engine:', e)
-          setInitError(String(e))
-          initStartedRef.current = false // Allow retry on error
-        })
+    if (!isConnected) {
+      // Daemon disconnected - reset init flag to allow re-init on reconnect
+      if (initStartedRef.current) {
+        console.log('[App] Daemon disconnected, will re-init on reconnect')
+        initStartedRef.current = false
+      }
+      return
     }
-  }, [isConnected, engine, initError])
+
+    // Skip if engine already exists or init already started
+    if (engineManager.engine || initStartedRef.current || initError) {
+      return
+    }
+
+    // Initialize engine
+    initStartedRef.current = true
+    engineManager
+      .init()
+      .then((eng) => {
+        setEngine(eng)
+        // Set default root from engine (getDefaultRoot returns the key string)
+        const currentDefault = eng.storageRootManager.getDefaultRoot()
+        if (currentDefault) {
+          setDefaultRootKey(currentDefault)
+        }
+      })
+      .catch((e) => {
+        console.error('Failed to initialize engine:', e)
+        setInitError(String(e))
+        initStartedRef.current = false // Allow retry on error
+      })
+  }, [isConnected, initError])
 
   // Wait for settings to load
   if (!settingsReady) {
@@ -778,7 +950,7 @@ function App() {
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {engine ? (
             <EngineProvider engine={engine}>
-              <AppContent />
+              <AppContent onOpenLoggingSettings={handleOpenLoggingSettings} />
             </EngineProvider>
           ) : initError ? (
             <div style={{ padding: '40px', textAlign: 'center' }}>

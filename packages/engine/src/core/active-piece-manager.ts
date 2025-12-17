@@ -10,8 +10,8 @@ export interface ActivePieceConfig {
 
 const DEFAULT_CONFIG: ActivePieceConfig = {
   requestTimeoutMs: 30000,
-  maxActivePieces: 120,
-  maxBufferedBytes: 128 * 1024 * 1024, // 16MB // too low?
+  maxActivePieces: 150,
+  maxBufferedBytes: 128 * 1024 * 1024, // 128 MB
   cleanupIntervalMs: 10000,
 }
 
@@ -181,16 +181,25 @@ export class ActivePieceManager extends EngineComponent {
   }
 
   /**
-   * Remove stale pieces that have no activity and no data.
+   * Remove stale pieces that are not making progress.
+   * A piece is considered stale if:
+   * - No activity for staleThreshold (2x request timeout = 60s by default)
+   * - AND either: no data received, OR no outstanding requests (stuck)
    */
   private cleanupStale(): void {
     const now = Date.now()
     const staleThreshold = this.config.requestTimeoutMs * 2
 
     for (const [index, piece] of this.pieces) {
-      // Remove pieces that have no activity and no data
-      if (now - piece.lastActivity > staleThreshold && piece.blocksReceived === 0) {
-        this.logger.debug(`Removing stale piece ${index}`)
+      const isStale = now - piece.lastActivity > staleThreshold
+
+      // Remove if stale AND either:
+      // - No data received (original condition - piece never got started)
+      // - No outstanding requests (piece is stuck - has data but no pending requests)
+      if (isStale && (piece.blocksReceived === 0 || piece.outstandingRequests === 0)) {
+        this.logger.debug(
+          `Removing stale piece ${index} (blocks: ${piece.blocksReceived}, requests: ${piece.outstandingRequests})`,
+        )
         piece.clear()
         this.pieces.delete(index)
       }

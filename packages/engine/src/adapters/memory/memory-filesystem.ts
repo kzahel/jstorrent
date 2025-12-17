@@ -126,4 +126,8 @@ export class InMemoryFileSystem implements IFileSystem {
     if (!file) throw new Error(`File not found: ${path}`)
     return file
   }
+
+  async delete(path: string): Promise<void> {
+    this.files.delete(path)
+  }
 }

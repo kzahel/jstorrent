@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { engineManager } from '../chrome/engine-manager'
 import { useSettings } from '../context/SettingsContext'
-import type { Settings, SettingKey } from '@jstorrent/engine'
+import type { Settings, SettingKey, UPnPStatus } from '@jstorrent/engine'
 import { clearAllUISettings } from '@jstorrent/ui'
 
 type SettingsTab = 'general' | 'interface' | 'network' | 'advanced'
@@ -434,6 +434,24 @@ const InterfaceTab: React.FC<InterfaceTabProps> = ({
 )
 
 const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
+  // UPnP status state - initialize from engine if available
+  const [upnpStatus, setUpnpStatus] = useState<UPnPStatus>(
+    () => engineManager.engine?.upnpStatus ?? 'disabled',
+  )
+
+  // Subscribe to UPnP status changes
+  useEffect(() => {
+    const engine = engineManager.engine
+    if (!engine) return
+
+    // Subscribe to changes
+    const handler = (status: UPnPStatus) => setUpnpStatus(status)
+    engine.on('upnpStatusChanged', handler)
+    return () => {
+      engine.off('upnpStatusChanged', handler)
+    }
+  }, [])
+
   // Apply rate limits to engine when settings change
   const handleDownloadLimitChange = (v: number) => {
     updateSetting('downloadSpeedLimit', v)
@@ -461,6 +479,37 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
     engineManager.setConnectionLimits(settings.maxPeersPerTorrent, settings.maxGlobalPeers, v)
   }
 
+  // Apply encryption policy to engine when settings change
+  const handleEncryptionPolicyChange = (v: string) => {
+    const policy = v as 'disabled' | 'allow' | 'prefer' | 'required'
+    updateSetting('encryptionPolicy', policy)
+    engineManager.setEncryptionPolicy(policy)
+  }
+
+  // Apply DHT setting to engine when it changes
+  const handleDHTEnabledChange = async (enabled: boolean) => {
+    await updateSetting('dht.enabled', enabled)
+    await engineManager.setDHTEnabled(enabled)
+  }
+
+  // UPnP status indicator
+  const getUpnpStatusInfo = (): { text: string; color: string } => {
+    switch (upnpStatus) {
+      case 'discovering':
+        return { text: 'Discovering...', color: 'var(--text-secondary)' }
+      case 'mapped': {
+        const externalIP = engineManager.engine?.upnpExternalIP
+        return { text: externalIP ? `✓ ${externalIP}` : '✓ Mapped', color: 'var(--accent-success)' }
+      }
+      case 'failed':
+        return { text: 'Failed', color: 'var(--accent-error)' }
+      default:
+        return { text: '', color: '' }
+    }
+  }
+
+  const statusInfo = getUpnpStatusInfo()
+
   return (
     <div>
       <Section title="Listening Port">
@@ -474,6 +523,48 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
         <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
           Changes require restart to take effect.
         </div>
+      </Section>
+
+      <Section title="Port Forwarding">
+        <label style={styles.toggleRow}>
+          <div style={{ flex: 1 }}>
+            <div>Enable UPnP</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Automatically configure router for incoming connections
+            </div>
+          </div>
+          {statusInfo.text && (
+            <span style={{ fontSize: '12px', color: statusInfo.color, marginRight: '12px' }}>
+              {statusInfo.text}
+            </span>
+          )}
+          <input
+            type="checkbox"
+            checked={settings['upnp.enabled']}
+            onChange={(e) => updateSetting('upnp.enabled', e.target.checked)}
+          />
+        </label>
+      </Section>
+
+      <Section title="Encryption">
+        <label style={styles.toggleRow}>
+          <div style={{ flex: 1 }}>
+            <div>Protocol encryption (MSE/PE)</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Encrypts BitTorrent protocol traffic
+            </div>
+          </div>
+          <select
+            value={settings.encryptionPolicy}
+            onChange={(e) => handleEncryptionPolicyChange(e.target.value)}
+            style={styles.select}
+          >
+            <option value="disabled">Disable</option>
+            <option value="allow">Allow</option>
+            <option value="prefer">Prefer</option>
+            <option value="required">Require</option>
+          </select>
+        </label>
       </Section>
 
       <Section title="Speed Limits">
@@ -512,6 +603,15 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
           max={50}
         />
       </Section>
+
+      <Section title="Peer Discovery">
+        <ToggleRow
+          label="Enable DHT"
+          sublabel="Distributed Hash Table for finding peers without trackers"
+          checked={settings['dht.enabled']}
+          onChange={handleDHTEnabledChange}
+        />
+      </Section>
     </div>
   )
 }
@@ -520,24 +620,142 @@ interface AdvancedTabProps extends TabProps {
   onResetAllSettings: () => void
 }
 
+// Log level options for global setting
+const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const
+type LogLevelValue = (typeof LOG_LEVELS)[number]
+
+// Log level options for per-component setting (includes 'default')
+const COMPONENT_LOG_LEVELS = ['default', 'debug', 'info', 'warn', 'error'] as const
+type ComponentLogLevelValue = (typeof COMPONENT_LOG_LEVELS)[number]
+
+// Component names for logging settings
+const LOG_COMPONENTS = [
+  'client',
+  'torrent',
+  'peer',
+  'active-pieces',
+  'content-storage',
+  'parts-file',
+  'tracker-manager',
+  'http-tracker',
+  'udp-tracker',
+  'dht',
+] as const
+
 const AdvancedTab: React.FC<AdvancedTabProps> = ({
-  settings: _settings,
-  updateSetting: _updateSetting,
+  settings,
+  updateSetting,
   onResetAllSettings,
-}) => (
-  <div>
-    <Section title="Danger Zone">
-      <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
-        Restore all settings to their default values. This includes network limits, notification
-        preferences, theme, and UI layout. Your download locations and downloaded files will not be
-        affected.
-      </div>
-      <button onClick={onResetAllSettings} style={styles.dangerButton}>
-        Reset All Settings
-      </button>
-    </Section>
-  </div>
-)
+}) => {
+  // Apply daemon rate limit to engine when settings change
+  const handleOpsPerSecondChange = (v: number) => {
+    updateSetting('daemonOpsPerSecond', v)
+    engineManager.setDaemonRateLimit(v, settings.daemonOpsBurst)
+  }
+
+  const handleOpsBurstChange = (v: number) => {
+    updateSetting('daemonOpsBurst', v)
+    engineManager.setDaemonRateLimit(settings.daemonOpsPerSecond, v)
+  }
+
+  // Reset logging settings to defaults
+  const handleResetLogging = () => {
+    updateSetting('logging.level', 'info')
+    for (const comp of LOG_COMPONENTS) {
+      const key = `logging.level.${comp}` as const
+      updateSetting(key, 'default')
+    }
+  }
+
+  return (
+    <div>
+      <Section title="Logging">
+        <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+          Controls the verbosity of engine logs. More verbose levels (debug) may generate
+          significant output.
+        </div>
+        <div style={styles.fieldRow}>
+          <span style={{ flex: 1 }}>Global log level</span>
+          <select
+            value={settings['logging.level']}
+            onChange={(e) => updateSetting('logging.level', e.target.value as LogLevelValue)}
+            style={styles.select}
+          >
+            {LOG_LEVELS.map((level) => (
+              <option key={level} value={level}>
+                {level.charAt(0).toUpperCase() + level.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ color: 'var(--text-secondary)', marginTop: '16px', marginBottom: '8px' }}>
+          Component Overrides (select &ldquo;Default&rdquo; to use global level)
+        </div>
+        {LOG_COMPONENTS.map((comp) => {
+          const key = `logging.level.${comp}` as const
+          return (
+            <div key={comp} style={styles.fieldRow}>
+              <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '12px' }}>{comp}</span>
+              <select
+                value={settings[key]}
+                onChange={(e) => updateSetting(key, e.target.value as ComponentLogLevelValue)}
+                style={styles.select}
+              >
+                {COMPONENT_LOG_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level === 'default'
+                      ? 'Default'
+                      : level.charAt(0).toUpperCase() + level.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )
+        })}
+
+        <button
+          onClick={handleResetLogging}
+          style={{ ...styles.addButton, marginTop: '16px', background: 'var(--accent-primary)' }}
+        >
+          Reset Logging to Defaults
+        </button>
+      </Section>
+
+      <Section title="Daemon Rate Limiting">
+        <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+          Controls how fast new connections and tracker announces are initiated. Lower values reduce
+          resource usage but slow down peer discovery.
+        </div>
+        <NumberRow
+          label="Operations per second"
+          value={settings.daemonOpsPerSecond}
+          onChange={handleOpsPerSecondChange}
+          min={1}
+          max={100}
+        />
+        <NumberRow
+          label="Burst capacity"
+          value={settings.daemonOpsBurst}
+          onChange={handleOpsBurstChange}
+          min={1}
+          max={200}
+        />
+      </Section>
+
+      <Section title="Danger Zone">
+        <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+          Restore all settings to their default values. This includes network limits, notification
+          preferences, theme, and UI layout. Your download locations and downloaded files will not
+          be affected.
+        </div>
+        <button onClick={onResetAllSettings} style={styles.dangerButton}>
+          Reset All Settings
+        </button>
+      </Section>
+    </div>
+  )
+}
 
 // ============ Reusable Components ============
 
