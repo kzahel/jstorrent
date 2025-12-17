@@ -323,8 +323,29 @@ export class DaemonBridge {
 
     // Fetch roots with auth
     const rootsResponse = await fetch(`http://100.115.92.2:${port}/roots`, { headers })
-    const rootsData = (await rootsResponse.json()) as { roots: DownloadRoot[] }
-    const roots = rootsData.roots || []
+    const rootsData = (await rootsResponse.json()) as {
+      roots: Array<{
+        key: string
+        uri?: string
+        path?: string
+        displayName?: string
+        display_name?: string
+        removable: boolean
+        lastStatOk?: boolean
+        last_stat_ok?: boolean
+        lastChecked?: number
+        last_checked?: number
+      }>
+    }
+    // Map Android format (uri, displayName) to extension format (path, display_name)
+    const roots: DownloadRoot[] = (rootsData.roots || []).map((r) => ({
+      key: r.key,
+      path: r.uri || r.path || '',
+      display_name: r.displayName || r.display_name || '',
+      removable: r.removable,
+      last_stat_ok: r.lastStatOk ?? r.last_stat_ok ?? true,
+      last_checked: r.lastChecked ?? r.last_checked ?? Date.now(),
+    }))
 
     // Connect WebSocket
     await this.connectWebSocket(port, token)
