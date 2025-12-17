@@ -25,6 +25,7 @@ import {
   getResponsePeers,
   getResponseToken,
 } from './krpc-messages'
+import type { BandwidthTracker } from '../core/bandwidth-tracker'
 import { DHTNodeInfo, CompactPeer, CompactNodeInfo } from './types'
 import {
   generateRandomNodeId,
@@ -89,6 +90,8 @@ export interface DHTNodeOptions {
   skipMaintenance?: boolean
   /** Logger for debug output. If not provided, logs are not emitted. */
   logger?: Logger
+  /** Bandwidth tracker for recording DHT traffic */
+  bandwidthTracker?: BandwidthTracker
 }
 
 /**
@@ -244,7 +247,10 @@ export class DHTNode extends EventEmitter {
 
     // Initialize components
     this.routingTable = new RoutingTable(this.nodeId)
-    this.krpcSocket = new KRPCSocket(options.socketFactory, options.krpcOptions)
+    this.krpcSocket = new KRPCSocket(options.socketFactory, {
+      ...options.krpcOptions,
+      bandwidthTracker: options.bandwidthTracker,
+    })
     this.tokenStore = new TokenStore({
       hashFn: options.hashFn,
       ...options.tokenOptions,

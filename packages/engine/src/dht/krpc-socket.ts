@@ -17,6 +17,7 @@ import {
   isError,
 } from './krpc-messages'
 import { QUERY_TIMEOUT_MS } from './constants'
+import type { BandwidthTracker } from '../core/bandwidth-tracker'
 
 /**
  * Options for KRPCSocket.
@@ -28,6 +29,8 @@ export interface KRPCSocketOptions {
   bindAddr?: string
   /** Bind port (default: 0 for random) */
   bindPort?: number
+  /** Bandwidth tracker for recording DHT traffic */
+  bandwidthTracker?: BandwidthTracker
 }
 
 /**
@@ -53,7 +56,8 @@ export class KRPCSocket extends EventEmitter {
   private socket: IUdpSocket | null = null
   private transactions: TransactionManager
   private socketFactory: ISocketFactory
-  private options: Required<KRPCSocketOptions>
+  private options: Omit<Required<KRPCSocketOptions>, 'bandwidthTracker'>
+  private bandwidthTracker?: BandwidthTracker
 
   // Traffic counters
   private _bytesSent = 0
@@ -67,6 +71,7 @@ export class KRPCSocket extends EventEmitter {
       bindAddr: options.bindAddr ?? '0.0.0.0',
       bindPort: options.bindPort ?? 0,
     }
+    this.bandwidthTracker = options.bandwidthTracker
     this.transactions = new TransactionManager(this.options.timeout)
   }
 
@@ -120,6 +125,7 @@ export class KRPCSocket extends EventEmitter {
       })
 
       this._bytesSent += data.length
+      this.bandwidthTracker?.record('dht', data.length, 'up')
       this.socket.send(host, port, data)
     })
   }
@@ -132,6 +138,7 @@ export class KRPCSocket extends EventEmitter {
       throw new Error('Socket not bound')
     }
     this._bytesSent += data.length
+    this.bandwidthTracker?.record('dht', data.length, 'up')
     this.socket.send(host, port, data)
   }
 
@@ -186,6 +193,7 @@ export class KRPCSocket extends EventEmitter {
    */
   private handleMessage(data: Uint8Array, rinfo: { addr: string; port: number }): void {
     this._bytesReceived += data.length
+    this.bandwidthTracker?.record('dht', data.length, 'down')
     const msg = decodeMessage(data)
     if (!msg) {
       // Invalid message - ignore

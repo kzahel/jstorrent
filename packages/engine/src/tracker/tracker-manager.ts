@@ -3,6 +3,7 @@ import { HttpTracker } from './http-tracker'
 import { UdpTracker } from './udp-tracker'
 import { ISocketFactory } from '../interfaces/socket'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
+import type { BandwidthTracker } from '../core/bandwidth-tracker'
 
 export type TrackerAnnounceEvent = 'started' | 'stopped' | 'completed' | 'update'
 
@@ -24,6 +25,7 @@ export class TrackerManager extends EngineComponent {
     readonly peerId: Uint8Array,
     private socketFactory: ISocketFactory,
     private port: number = 6881,
+    private bandwidthTracker?: BandwidthTracker,
   ) {
     super(engine)
     this.initTrackers()
@@ -47,6 +49,7 @@ export class TrackerManager extends EngineComponent {
               this.peerId,
               this.socketFactory,
               this.port,
+              this.bandwidthTracker,
             )
           } else if (url.startsWith('udp')) {
             this.logger.debug(`TrackerManager: Creating UDP tracker for ${url}`)
@@ -57,6 +60,7 @@ export class TrackerManager extends EngineComponent {
               this.peerId,
               this.socketFactory,
               this.port,
+              this.bandwidthTracker,
             )
           } else {
             this.logger.warn(`TrackerManager: Unsupported tracker protocol: ${url}`)

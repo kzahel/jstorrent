@@ -3,6 +3,7 @@ import { Bencode } from '../utils/bencode'
 import { ISocketFactory } from '../interfaces/socket'
 import { MinimalHttpClient } from '../utils/minimal-http-client'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
+import type { BandwidthTracker } from '../core/bandwidth-tracker'
 
 export class HttpTracker extends EngineComponent implements ITracker {
   static logName = 'http-tracker'
@@ -31,6 +32,7 @@ export class HttpTracker extends EngineComponent implements ITracker {
     peerId: Uint8Array,
     socketFactory: ISocketFactory,
     private port: number = 6881,
+    private bandwidthTracker?: BandwidthTracker,
   ) {
     super(engine)
     this._infoHash = infoHash
@@ -46,9 +48,17 @@ export class HttpTracker extends EngineComponent implements ITracker {
     this.logger.info(`HttpTracker: Announcing '${event}' to ${this.announceUrl}`)
     this._status = 'announcing'
 
+    // Estimate request size (URL + headers, approximate)
+    const requestSize = url.length + 200 // rough estimate for HTTP headers
+    this.bandwidthTracker?.record('tracker:http', requestSize, 'up')
+
     try {
       const responseBody = await this.httpClient.get(url)
       this.logger.debug(`HttpTracker: Received ${responseBody.length} bytes response`)
+
+      // Record tracker download bytes
+      this.bandwidthTracker?.record('tracker:http', responseBody.length, 'down')
+
       this.handleBody(responseBody)
     } catch (err) {
       const errMsg = `Tracker announce failed: ${err instanceof Error ? err.message : String(err)}`

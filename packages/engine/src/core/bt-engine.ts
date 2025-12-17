@@ -1133,6 +1133,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       socketFactory: this.socketFactory,
       krpcOptions: { bindPort: this.port + 1 }, // DHT uses port+1 to avoid conflicts
       logger: dhtLogger,
+      bandwidthTracker: this.bandwidthTracker,
     })
 
     try {

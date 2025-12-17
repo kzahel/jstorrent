@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
-import type { BandwidthTracker } from '@jstorrent/engine'
+import type { BandwidthTracker, TrafficCategory } from '@jstorrent/engine'
+import { ALL_TRAFFIC_CATEGORIES } from '@jstorrent/engine'
 import { formatSpeed } from '../utils/format'
 import { createThrottledRaf } from '../utils/throttledRaf'
 import { getMaxFps } from '../hooks/useAppSettings'
@@ -56,6 +57,43 @@ const rateContainerStyle: React.CSSProperties = {
   fontSize: '13px',
 }
 
+const categoryButtonStyle: React.CSSProperties = {
+  padding: '2px 6px',
+  fontSize: '11px',
+  borderRadius: '3px',
+  border: '1px solid var(--border-color)',
+  background: 'transparent',
+  color: 'var(--text-secondary)',
+  cursor: 'pointer',
+}
+
+const categoryButtonActiveStyle: React.CSSProperties = {
+  ...categoryButtonStyle,
+  background: 'var(--bg-tertiary)',
+  color: 'var(--text-primary)',
+}
+
+const breakdownStyle: React.CSSProperties = {
+  marginTop: '12px',
+  fontSize: '11px',
+  color: 'var(--text-secondary)',
+  display: 'grid',
+  gridTemplateColumns: 'auto 1fr 1fr',
+  gap: '4px 12px',
+}
+
+/** Display names for traffic categories */
+const CATEGORY_LABELS: Record<TrafficCategory, string> = {
+  'peer:protocol': 'Peer',
+  'peer:payload': 'Payload',
+  'tracker:http': 'HTTP Tracker',
+  'tracker:udp': 'UDP Tracker',
+  dht: 'DHT',
+}
+
+/** Categories to show in the filter (exclude peer:payload as it's a subset) */
+const FILTER_CATEGORIES = ALL_TRAFFIC_CATEGORIES.filter((c) => c !== 'peer:payload')
+
 /** Format time as relative seconds ago */
 function formatTimeAgo(timestamp: number, now: number): string {
   const secAgo = Math.round((now - timestamp) / 1000)
@@ -66,8 +104,32 @@ function formatTimeAgo(timestamp: number, now: number): string {
 export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
   const [windowMs, setWindowMs] = useState<number>(TIME_WINDOWS[0].value)
   const [hideCurrentBucket, setHideCurrentBucket] = useState<boolean>(true)
+  const [selectedCategories, setSelectedCategories] = useState<TrafficCategory[] | 'all'>('all')
   const containerRef = useRef<HTMLDivElement>(null)
   const plotRef = useRef<uPlot | null>(null)
+
+  const toggleCategory = (cat: TrafficCategory) => {
+    if (selectedCategories === 'all') {
+      // Switch to specific selection, excluding clicked one
+      setSelectedCategories(FILTER_CATEGORIES.filter((c) => c !== cat))
+    } else {
+      const idx = selectedCategories.indexOf(cat)
+      if (idx >= 0) {
+        const newCats = selectedCategories.filter((c) => c !== cat)
+        if (newCats.length === 0) {
+          setSelectedCategories('all') // Reset to all if empty
+        } else {
+          setSelectedCategories(newCats)
+        }
+      } else {
+        setSelectedCategories([...selectedCategories, cat])
+      }
+    }
+  }
+
+  const isCategoryActive = (cat: TrafficCategory) => {
+    return selectedCategories === 'all' || selectedCategories.includes(cat)
+  }
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -148,8 +210,20 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
       const fromTime = now - windowMs
 
       // Get samples with metadata about which tier/bucket size was used
-      const downResult = bandwidthTracker.getDownloadSamplesWithMeta(fromTime, now, 300)
-      const upResult = bandwidthTracker.getUploadSamplesWithMeta(fromTime, now, 300)
+      const downResult = bandwidthTracker.getSamplesWithMeta(
+        'down',
+        selectedCategories,
+        fromTime,
+        now,
+        300,
+      )
+      const upResult = bandwidthTracker.getSamplesWithMeta(
+        'up',
+        selectedCategories,
+        fromTime,
+        now,
+        300,
+      )
 
       // Use the actual bucket size from the RRD tier that was selected
       const bucketMs = downResult.bucketMs
@@ -215,7 +289,7 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
       resizeObserver.disconnect()
       plotRef.current?.destroy()
     }
-  }, [bandwidthTracker, windowMs, hideCurrentBucket])
+  }, [bandwidthTracker, windowMs, hideCurrentBucket, selectedCategories])
 
   return (
     <div style={containerStyle}>
@@ -226,6 +300,24 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
         .uplot .u-legend .u-value { color: var(--text-primary); }
       `}</style>
       <div style={headerStyle}>
+        {/* Category filter buttons */}
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          <button
+            style={selectedCategories === 'all' ? categoryButtonActiveStyle : categoryButtonStyle}
+            onClick={() => setSelectedCategories('all')}
+          >
+            All
+          </button>
+          {FILTER_CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              style={isCategoryActive(cat) ? categoryButtonActiveStyle : categoryButtonStyle}
+              onClick={() => toggleCategory(cat)}
+            >
+              {CATEGORY_LABELS[cat]}
+            </button>
+          ))}
+        </div>
         <label style={checkboxLabelStyle}>
           <input
             type="checkbox"
@@ -250,12 +342,49 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
       <div style={rateContainerStyle}>
         <div>
           <span style={{ color: '#22c55e' }}>▼</span> Download:{' '}
-          {formatSpeed(bandwidthTracker.getDownloadRate())}
+          {formatSpeed(bandwidthTracker.getRate('down', selectedCategories))}
         </div>
         <div>
           <span style={{ color: '#3b82f6' }}>▲</span> Upload:{' '}
-          {formatSpeed(bandwidthTracker.getUploadRate())}
+          {formatSpeed(bandwidthTracker.getRate('up', selectedCategories))}
         </div>
+      </div>
+
+      {/* Traffic breakdown */}
+      <div style={breakdownStyle}>
+        <div style={{ fontWeight: 500 }}>Category</div>
+        <div style={{ fontWeight: 500 }}>Down</div>
+        <div style={{ fontWeight: 500 }}>Up</div>
+
+        <div>Peer data</div>
+        <div>{formatSpeed(bandwidthTracker.getCategoryRate('down', 'peer:payload'))}</div>
+        <div>{formatSpeed(bandwidthTracker.getCategoryRate('up', 'peer:payload'))}</div>
+
+        <div>Peer overhead</div>
+        <div>
+          {formatSpeed(
+            bandwidthTracker.getCategoryRate('down', 'peer:protocol') -
+              bandwidthTracker.getCategoryRate('down', 'peer:payload'),
+          )}
+        </div>
+        <div>
+          {formatSpeed(
+            bandwidthTracker.getCategoryRate('up', 'peer:protocol') -
+              bandwidthTracker.getCategoryRate('up', 'peer:payload'),
+          )}
+        </div>
+
+        <div>HTTP Tracker</div>
+        <div>{formatSpeed(bandwidthTracker.getCategoryRate('down', 'tracker:http'))}</div>
+        <div>{formatSpeed(bandwidthTracker.getCategoryRate('up', 'tracker:http'))}</div>
+
+        <div>UDP Tracker</div>
+        <div>{formatSpeed(bandwidthTracker.getCategoryRate('down', 'tracker:udp'))}</div>
+        <div>{formatSpeed(bandwidthTracker.getCategoryRate('up', 'tracker:udp'))}</div>
+
+        <div>DHT</div>
+        <div>{formatSpeed(bandwidthTracker.getCategoryRate('down', 'dht'))}</div>
+        <div>{formatSpeed(bandwidthTracker.getCategoryRate('up', 'dht'))}</div>
       </div>
     </div>
   )

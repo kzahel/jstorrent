@@ -7,6 +7,7 @@ import {
 } from '../interfaces/tracker'
 import { IUdpSocket, ISocketFactory } from '../interfaces/socket'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
+import type { BandwidthTracker } from '../core/bandwidth-tracker'
 
 // BEP 15 Constants
 const PROTOCOL_ID = 0x41727101980n // Magic constant
@@ -42,6 +43,7 @@ export class UdpTracker extends EngineComponent implements ITracker {
     readonly peerId: Uint8Array,
     private socketFactory: ISocketFactory,
     private port: number = 6881,
+    private bandwidthTracker?: BandwidthTracker,
   ) {
     super(engine)
   }
@@ -90,6 +92,7 @@ export class UdpTracker extends EngineComponent implements ITracker {
 
     if (this.socket) {
       this.socket.send(host, port, buf)
+      this.bandwidthTracker?.record('tracker:udp', buf.length, 'up')
 
       return new Promise<void>((resolve, reject) => {
         this.connectPromise = { resolve, reject }
@@ -138,10 +141,13 @@ export class UdpTracker extends EngineComponent implements ITracker {
     view.setUint16(96, this.port, false)
 
     this.socket.send(host, port, buf)
+    this.bandwidthTracker?.record('tracker:udp', buf.length, 'up')
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private onMessage(msg: Uint8Array, _rinfo: any) {
+    this.bandwidthTracker?.record('tracker:udp', msg.length, 'down')
+
     if (msg.length < 8) return
     const view = new DataView(msg.buffer, msg.byteOffset, msg.byteLength)
     const action = view.getUint32(0, false)

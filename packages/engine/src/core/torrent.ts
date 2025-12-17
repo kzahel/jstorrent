@@ -1706,6 +1706,7 @@ export class Torrent extends EngineComponent {
       this.peerId,
       this.socketFactory,
       this.port,
+      (this.engine as BtEngine).bandwidthTracker,
     )
 
     this.trackerManager.on('peersDiscovered', (peers: PeerInfo[]) => {
@@ -2085,13 +2086,13 @@ export class Torrent extends EngineComponent {
     peer.on('bytesDownloaded', (bytes) => {
       this.totalDownloaded += bytes
       this.emit('download', bytes)
-      ;(this.engine as BtEngine).bandwidthTracker.recordDownload(bytes)
+      ;(this.engine as BtEngine).bandwidthTracker.record('peer:protocol', bytes, 'down')
     })
 
     peer.on('bytesUploaded', (bytes) => {
       this.totalUploaded += bytes
       this.emit('upload', bytes)
-      ;(this.engine as BtEngine).bandwidthTracker.recordUpload(bytes)
+      ;(this.engine as BtEngine).bandwidthTracker.record('peer:protocol', bytes, 'up')
     })
 
     // PEX: Listen for peers discovered via peer exchange
@@ -2253,6 +2254,8 @@ export class Torrent extends EngineComponent {
         }
 
         req.peer.sendPiece(req.index, req.begin, block)
+        // Record payload bytes for uploaded piece data
+        ;(this.engine as BtEngine).bandwidthTracker.record('peer:payload', block.length, 'up')
       } catch (err) {
         this.logger.error(
           `Error handling queued request: ${err instanceof Error ? err.message : String(err)}`,
@@ -2580,6 +2583,9 @@ export class Torrent extends EngineComponent {
     const isNew = piece.addBlock(blockIndex, msg.block, peerId)
     if (!isNew) {
       this.logger.debug(`Duplicate block ${msg.index}:${msg.begin}`)
+    } else {
+      // Record payload bytes (piece data only, not protocol overhead)
+      ;(this.engine as BtEngine).bandwidthTracker.record('peer:payload', msg.block.length, 'down')
     }
 
     // In endgame mode, send CANCEL to other peers that requested this block
