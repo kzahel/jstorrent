@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { engineManager } from '../chrome/engine-manager'
 
+/** Strip Windows extended-length path prefix for display */
+function formatPathForDisplay(path: string): string {
+  if (path.startsWith('\\\\?\\')) {
+    return path.slice(4)
+  }
+  return path
+}
+
 interface DownloadRoot {
   key: string
   label: string
@@ -87,7 +95,7 @@ export const DownloadRootsManager: React.FC = () => {
             >
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 'bold' }}>{root.label}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{root.path}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{formatPathForDisplay(root.path)}</div>
               </div>
 
               {root.key === defaultKey ? (
