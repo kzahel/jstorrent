@@ -22,6 +22,18 @@ export class ChromeStorageSettingsStore extends BaseSettingsStore {
     | ((changes: Record<string, chrome.storage.StorageChange>, areaName: string) => void)
     | null = null
 
+  protected override async doInit(): Promise<void> {
+    await super.doInit()
+
+    // Generate random listening port on first run (10000-60000)
+    // Wide range minimizes collision when multiple devices on same network
+    // DHT uses port+1, so we need two consecutive ports
+    if (this.get('listeningPort') === 0) {
+      const randomPort = 10000 + Math.floor(Math.random() * 50001) // 10000-60000
+      await this.set('listeningPort', randomPort)
+    }
+  }
+
   protected async loadFromStorage(): Promise<Partial<Settings>> {
     const result = {} as Record<string, unknown>
     const allKeys = Object.keys(settingsSchema) as SettingKey[]

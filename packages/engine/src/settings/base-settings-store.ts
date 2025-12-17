@@ -26,6 +26,9 @@ export abstract class BaseSettingsStore implements ISettingsStore {
   /** Whether init() has been called */
   private initialized = false
 
+  /** Singleton promise for init() to prevent race conditions */
+  protected initPromise: Promise<void> | null = null
+
   constructor() {
     // Start with defaults, will be overwritten by init()
     this.cache = getDefaults()
@@ -61,6 +64,13 @@ export abstract class BaseSettingsStore implements ISettingsStore {
   // ===========================================================================
 
   async init(): Promise<void> {
+    if (!this.initPromise) {
+      this.initPromise = this.doInit()
+    }
+    return this.initPromise
+  }
+
+  protected async doInit(): Promise<void> {
     if (this.initialized) return
 
     const stored = await this.loadFromStorage()

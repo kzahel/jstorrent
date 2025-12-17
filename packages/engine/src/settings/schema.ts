@@ -144,8 +144,8 @@ export const settingsSchema = {
   },
   listeningPort: {
     type: 'number',
-    storage: 'sync',
-    default: 6881,
+    storage: 'local', // Local storage: each device gets its own port
+    default: 0, // 0 = generate random on first run
     min: 1024,
     max: 65535,
     restartRequired: true,
