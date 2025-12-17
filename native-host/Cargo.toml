@@ -39,6 +39,9 @@ windows-sys = { version = "0.52", features = ["Win32_UI_WindowsAndMessaging", "W
 [dev-dependencies]
 serial_test = "3"
 
+[build-dependencies]
+winres = "0.1"
+
 [[bin]]
 name = "jstorrent-host"
 path = "src/main.rs"

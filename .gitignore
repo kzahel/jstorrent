@@ -1,5 +1,6 @@
 # General
 .DS_Store
+nul
 
 magnet_link.txt
 magnet-link.txt
@@ -51,3 +52,6 @@ packages/engine/src/geo/ipv4-country-data.ts
 
 # Claude Code
 .claude/settings.local.json
+
+# Inno Setup output
+native-host/installers/windows/Output/

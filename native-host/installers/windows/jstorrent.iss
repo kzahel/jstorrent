@@ -27,7 +27,7 @@ OutputBaseFilename=jstorrent-native-host-install-windows-x86_64
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-; SetupIconFile=assets\icon.ico
+SetupIconFile=assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
@@ -56,10 +56,12 @@ Root: HKCU; Subkey: "Software\JSTorrent\Capabilities\FileAssociations"; ValueTyp
 ; ProgId for Magnet protocol
 Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet"; ValueType: string; ValueName: ""; ValueData: "URL:BitTorrent Magnet Link"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\JSTorrent Link Handler.exe,0"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\JSTorrent Link Handler.exe"" ""%1"""; Flags: uninsdeletekey
 
 ; ProgId for .torrent files
 Root: HKCU; Subkey: "Software\Classes\JSTorrent.Torrent"; ValueType: string; ValueName: ""; ValueData: "BitTorrent File"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\JSTorrent.Torrent\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\JSTorrent Link Handler.exe,0"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\JSTorrent.Torrent\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\JSTorrent Link Handler.exe"" ""%1"""; Flags: uninsdeletekey
 
 ; .torrent file extension association
