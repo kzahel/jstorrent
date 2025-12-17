@@ -95,7 +95,9 @@ export const DownloadRootsManager: React.FC = () => {
             >
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 'bold' }}>{root.label}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{formatPathForDisplay(root.path)}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  {formatPathForDisplay(root.path)}
+                </div>
               </div>
 
               {root.key === defaultKey ? (
