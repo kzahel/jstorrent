@@ -52,6 +52,8 @@
           } else {
             console.log('Extension response:', response)
             updateStatus('Connected to extension! Launching...', 'success')
+            // close the window after a short delay
+            setTimeout(() => {window.close()}, 1000)
           }
         })
       } else {
