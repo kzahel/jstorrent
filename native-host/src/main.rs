@@ -8,6 +8,8 @@ mod rpc;
 mod state;
 mod logging;
 mod daemon_manager;
+#[cfg(target_os = "windows")]
+mod win_foreground;
 
 use anyhow::Result;
 use protocol::{Event, Operation, Request, Response, ResponsePayload};

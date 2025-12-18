@@ -58,11 +58,13 @@ Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet"; ValueType: string; Valu
 Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\JSTorrent Link Handler.exe,0"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\JSTorrent Link Handler.exe"" ""%1"""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\JSTorrent.Magnet\shell\open"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "JSTorrent"; Flags: uninsdeletekey
 
 ; ProgId for .torrent files
 Root: HKCU; Subkey: "Software\Classes\JSTorrent.Torrent"; ValueType: string; ValueName: ""; ValueData: "BitTorrent File"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\JSTorrent.Torrent\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\JSTorrent Link Handler.exe,0"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\JSTorrent.Torrent\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\JSTorrent Link Handler.exe"" ""%1"""; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\JSTorrent.Torrent\shell\open"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "JSTorrent"; Flags: uninsdeletekey
 
 ; .torrent file extension association
 Root: HKCU; Subkey: "Software\Classes\.torrent"; ValueType: string; ValueName: ""; ValueData: "JSTorrent.Torrent"; Flags: uninsdeletekey

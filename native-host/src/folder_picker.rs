@@ -46,6 +46,11 @@ pub async fn pick_download_directory(state: &State) -> Result<ResponsePayload> {
         dialog = dialog.set_directory(&start_dir);
     }
 
+    // Windows: Prepare process for foreground access so the dialog
+    // appears in front of the browser instead of behind it.
+    #[cfg(target_os = "windows")]
+    crate::win_foreground::prepare_for_foreground();
+
     let task = dialog.pick_folder();
 
     let handle = task.await;
