@@ -1,6 +1,21 @@
 #!/bin/bash
 # Preinstall script for JSTorrent Native Host
 
-# Cleanup old version if exists
-rm -rf /usr/local/lib/jstorrent-native
+# $2 is the installation destination (e.g., ~/Library/Application Support/JSTorrent)
+if [ -n "$2" ] && [ "$2" != "/" ]; then
+    INSTALL_DIR="$2"
+    # Extract user home from install path
+    USER_HOME="${2%/Library/Application Support/JSTorrent}"
+else
+    # Fallback: detect console user
+    CONSOLE_USER=$(stat -f "%Su" /dev/console)
+    USER_HOME=$(dscl . -read /Users/"$CONSOLE_USER" NFSHomeDirectory | awk '{print $2}')
+    INSTALL_DIR="$USER_HOME/Library/Application Support/JSTorrent"
+fi
+
+# Cleanup old version if exists (both old system location and new user location)
+rm -rf /usr/local/lib/jstorrent-native 2>/dev/null || true
+rm -rf "$INSTALL_DIR"
+rm -rf "$USER_HOME/Applications/JSTorrent Link Handler.app"
+rm -rf "/Applications/JSTorrent Link Handler.app" 2>/dev/null || true
 exit 0

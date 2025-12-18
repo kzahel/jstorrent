@@ -1,7 +1,18 @@
 #!/bin/bash
 # Postinstall script for JSTorrent Native Host
 
-INSTALL_DIR="/usr/local/lib/jstorrent-native"
+# $2 is the installation destination (e.g., ~/Library/Application Support/JSTorrent)
+# Use it directly as INSTALL_DIR, derive USER_HOME from it
+if [ -n "$2" ] && [ "$2" != "/" ]; then
+    INSTALL_DIR="$2"
+    # Extract user home from install path (remove /Library/Application Support/JSTorrent suffix)
+    USER_HOME="${2%/Library/Application Support/JSTorrent}"
+else
+    # Fallback: detect console user
+    CONSOLE_USER=$(stat -f "%Su" /dev/console)
+    USER_HOME=$(dscl . -read /Users/"$CONSOLE_USER" NFSHomeDirectory | awk '{print $2}')
+    INSTALL_DIR="$USER_HOME/Library/Application Support/JSTorrent"
+fi
 MANIFEST_TEMPLATE="$INSTALL_DIR/com.jstorrent.native.json.template"
 BINARY_PATH="$INSTALL_DIR/jstorrent-native-host"
 
@@ -10,27 +21,36 @@ chmod 755 "$BINARY_PATH"
 chmod 755 "$INSTALL_DIR/jstorrent-io-daemon"
 chmod 755 "$INSTALL_DIR/uninstall.sh"
 
-# Install Chrome manifest (best effort - may fail if run as root)
-MANIFEST_DEST="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.jstorrent.native.json"
-if mkdir -p "$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts" 2>/dev/null; then
+# Install Chrome manifest
+MANIFEST_DEST="$USER_HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.jstorrent.native.json"
+if mkdir -p "$USER_HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts" 2>/dev/null; then
     sed "s|HOST_PATH_PLACEHOLDER|$BINARY_PATH|g" "$MANIFEST_TEMPLATE" > "$MANIFEST_DEST" 2>/dev/null && chmod 644 "$MANIFEST_DEST"
 fi
 
-# Build Link Handler app in /Applications from resources
+# Build Link Handler app in ~/Applications from resources
 RESOURCES_DIR="$INSTALL_DIR/link-handler-resources"
-APP_PATH="/Applications/JSTorrent Link Handler.app"
+APP_PATH="$USER_HOME/Applications/JSTorrent Link Handler.app"
 
 if [ -d "$RESOURCES_DIR" ]; then
+    # Ensure ~/Applications exists
+    mkdir -p "$USER_HOME/Applications"
+
     # Remove old version if it exists
     rm -rf "$APP_PATH"
 
     # Create .app bundle structure
     mkdir -p "$APP_PATH/Contents/MacOS"
-    mkdir -p "$APP_PATH/Contents/Resources"
+    mkdir -p "$APP_PATH/Contents/Resources/Scripts"
 
-    # Copy files
-    cp "$RESOURCES_DIR/jstorrent-link-handler" "$APP_PATH/Contents/MacOS/jstorrent-link-handler"
-    chmod 755 "$APP_PATH/Contents/MacOS/jstorrent-link-handler"
+    # Copy executables - droplet receives Apple Events, binary does the work
+    cp "$RESOURCES_DIR/droplet" "$APP_PATH/Contents/MacOS/droplet"
+    chmod 755 "$APP_PATH/Contents/MacOS/droplet"
+    cp "$RESOURCES_DIR/jstorrent-link-handler-bin" "$APP_PATH/Contents/MacOS/jstorrent-link-handler-bin"
+    chmod 755 "$APP_PATH/Contents/MacOS/jstorrent-link-handler-bin"
+
+    # Copy the compiled AppleScript (droplet loads this at runtime)
+    cp "$RESOURCES_DIR/Scripts/main.scpt" "$APP_PATH/Contents/Resources/Scripts/"
+
     cp "$RESOURCES_DIR/Info.plist" "$APP_PATH/Contents/"
     cp "$RESOURCES_DIR/PkgInfo" "$APP_PATH/Contents/"
 

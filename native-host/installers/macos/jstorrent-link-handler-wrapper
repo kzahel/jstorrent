@@ -1,0 +1,27 @@
+#!/bin/bash
+# Wrapper script for jstorrent-link-handler on macOS
+# This script receives Apple Events and converts them to command-line arguments
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BINARY="$SCRIPT_DIR/jstorrent-link-handler-bin"
+
+# Log for debugging
+LOG_DIR="$HOME/.config/jstorrent-native"
+mkdir -p "$LOG_DIR"
+
+# macOS passes URLs/files as arguments after the script name
+# But for URL schemes, it may also pass via Apple Events which bash doesn't handle
+# However, when launched via `open -a`, args come through normally
+
+# For URL schemes opened by clicking, macOS calls the app with just the URL as $1
+# For document types (files), the file path comes as $1
+
+echo "[$(date)] Wrapper called with args: $@" >> "$LOG_DIR/wrapper.log"
+
+if [ -n "$1" ]; then
+    echo "[$(date)] Passing to binary: $1" >> "$LOG_DIR/wrapper.log"
+    exec "$BINARY" "$1"
+else
+    echo "[$(date)] No arguments received" >> "$LOG_DIR/wrapper.log"
+fi
