@@ -16,69 +16,122 @@ fi
 
 echo "Verifying macOS Installer..."
 
-# Note: This requires sudo and modifies the system.
-# In CI, this is fine. Locally, we should warn the user.
+# User-domain installation paths (no sudo required)
+INSTALL_DIR="$HOME/Library/Application Support/JSTorrent"
+APP_PATH="$HOME/Applications/JSTorrent Link Handler.app"
+MANIFEST_PATH="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.jstorrent.native.json"
 
 if [ "$CI" != "true" ]; then
-    echo "WARNING: This script will install the package to your system (requiring sudo)."
+    echo "This script will install the package to your user directory."
+    echo "Install location: $INSTALL_DIR"
     echo "Press Ctrl+C to cancel, or Enter to continue."
     read -r
 fi
 
-# Install PKG
+# Install PKG (user-domain, no sudo required)
 echo "Installing PKG..."
-sudo installer -pkg "$INSTALLER_PKG" -target /
+installer -pkg "$INSTALLER_PKG" -target CurrentUserHomeDirectory
 
 # Verify files
 echo "Verifying installed files..."
 
-if [ ! -f "/usr/local/lib/jstorrent-native/jstorrent-native-host" ]; then
-    echo "Error: Native host binary not found in /usr/local/lib/jstorrent-native/"
+if [ ! -f "$INSTALL_DIR/jstorrent-native-host" ]; then
+    echo "Error: Native host binary not found in $INSTALL_DIR/"
     exit 1
 fi
 
-if [ ! -f "/usr/local/lib/jstorrent-native/jstorrent-io-daemon" ]; then
-    echo "Error: IO Daemon binary not found in /usr/local/lib/jstorrent-native/"
+if [ ! -f "$INSTALL_DIR/jstorrent-io-daemon" ]; then
+    echo "Error: IO Daemon binary not found in $INSTALL_DIR/"
     exit 1
 fi
 
-if [ ! -d "/Applications/JSTorrent Link Handler.app" ]; then
-    echo "Error: JSTorrent Link Handler app not found in /Applications/"
+if [ ! -d "$APP_PATH" ]; then
+    echo "Error: JSTorrent Link Handler app not found at $APP_PATH"
     exit 1
 fi
 
-# Verify io-daemon permissions
-if [ ! -x "/usr/local/lib/jstorrent-native/jstorrent-io-daemon" ]; then
-    echo "Error: io-daemon is not executable in /usr/local/lib/jstorrent-native/"
+# Verify binary permissions
+if [ ! -x "$INSTALL_DIR/jstorrent-native-host" ]; then
+    echo "Error: native-host is not executable"
+    exit 1
+fi
+
+if [ ! -x "$INSTALL_DIR/jstorrent-io-daemon" ]; then
+    echo "Error: io-daemon is not executable"
+    exit 1
+fi
+
+# Verify Chrome manifest was created
+if [ ! -f "$MANIFEST_PATH" ]; then
+    echo "Warning: Chrome manifest not found at $MANIFEST_PATH"
+    echo "(This is expected if Chrome is not installed)"
+else
+    echo "Chrome manifest found at $MANIFEST_PATH"
+fi
+
+# Verify link handler app structure
+if [ ! -x "$APP_PATH/Contents/MacOS/droplet" ]; then
+    echo "Error: Link handler droplet not executable"
+    exit 1
+fi
+
+if [ ! -x "$APP_PATH/Contents/MacOS/jstorrent-link-handler-bin" ]; then
+    echo "Error: Link handler binary not executable"
     exit 1
 fi
 
 echo "Install verification passed!"
 
-# Verify Uninstall (if we had an uninstall script for macOS that we could run easily)
-# The macOS uninstaller is usually just a script provided in the package or manual removal.
-# The CI didn't verify uninstall, but we can check if the uninstall script exists.
-
-UNINSTALL_SCRIPT="/usr/local/lib/jstorrent-native/uninstall.sh"
+# Verify Uninstall
+UNINSTALL_SCRIPT="$INSTALL_DIR/uninstall.sh"
 if [ -f "$UNINSTALL_SCRIPT" ]; then
     echo "Uninstall script found at $UNINSTALL_SCRIPT"
-    
+
     if [ "$CI" != "true" ]; then
         echo "Do you want to run the uninstaller now? (y/N)"
         read -r run_uninstall
         if [[ "$run_uninstall" =~ ^[Yy]$ ]]; then
             echo "Running uninstaller..."
-            sudo "$UNINSTALL_SCRIPT"
-            
-            if [ -f "/usr/local/lib/jstorrent-native/jstorrent-native-host" ]; then
+            "$UNINSTALL_SCRIPT"
+
+            # Verify uninstall removed files
+            if [ -f "$INSTALL_DIR/jstorrent-native-host" ]; then
                 echo "Error: Native host binary still exists after uninstall"
                 exit 1
             fi
-             echo "Uninstall verification passed!"
+
+            if [ -d "$APP_PATH" ]; then
+                echo "Error: Link handler app still exists after uninstall"
+                exit 1
+            fi
+
+            if [ -f "$MANIFEST_PATH" ]; then
+                echo "Error: Chrome manifest still exists after uninstall"
+                exit 1
+            fi
+
+            echo "Uninstall verification passed!"
         fi
+    else
+        # In CI, always run uninstall verification
+        echo "Running uninstaller (CI mode)..."
+        "$UNINSTALL_SCRIPT"
+
+        if [ -f "$INSTALL_DIR/jstorrent-native-host" ]; then
+            echo "Error: Native host binary still exists after uninstall"
+            exit 1
+        fi
+
+        if [ -d "$APP_PATH" ]; then
+            echo "Error: Link handler app still exists after uninstall"
+            exit 1
+        fi
+
+        echo "Uninstall verification passed!"
     fi
 else
-    echo "Warning: Uninstall script not found at $UNINSTALL_SCRIPT"
+    echo "Error: Uninstall script not found at $UNINSTALL_SCRIPT"
+    exit 1
 fi
 
 echo "macOS verification checks passed."

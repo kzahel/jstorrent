@@ -15,7 +15,6 @@ fi
 # Remove installed binaries and scripts
 if [ -d "$INSTALL_DIR" ]; then
     rm -f "$INSTALL_DIR/jstorrent-native-host"
-    rm -f "$INSTALL_DIR/jstorrent-link-handler"
     rm -f "$INSTALL_DIR/jstorrent-io-daemon"
     rm -f "$INSTALL_DIR/uninstall.sh"
     rm -f "$INSTALL_DIR/com.jstorrent.native.json.template"
@@ -36,19 +35,6 @@ APP_PATH="$HOME/Applications/JSTorrent Link Handler.app"
 if [ -d "$APP_PATH" ]; then
     rm -rf "$APP_PATH"
     echo "Removed app: $APP_PATH"
-fi
-
-# Also clean up old system location if it exists
-OLD_INSTALL_DIR="/usr/local/lib/jstorrent-native"
-if [ -d "$OLD_INSTALL_DIR" ]; then
-    echo "Found old system installation at $OLD_INSTALL_DIR"
-    echo "Run 'sudo rm -rf $OLD_INSTALL_DIR' to remove it"
-fi
-
-OLD_APP_PATH="/Applications/JSTorrent Link Handler.app"
-if [ -d "$OLD_APP_PATH" ]; then
-    echo "Found old system app at $OLD_APP_PATH"
-    echo "Run 'sudo rm -rf \"$OLD_APP_PATH\"' to remove it"
 fi
 
 echo "Uninstallation complete."

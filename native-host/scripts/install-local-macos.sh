@@ -17,7 +17,9 @@ if [ ! -f "$INSTALLER_PKG" ]; then
     exit 1
 fi
 
-echo "Installing locally (requires sudo)..."
-sudo installer -pkg "$INSTALLER_PKG" -target /
+echo "Installing locally (user-domain, no sudo required)..."
+installer -pkg "$INSTALLER_PKG" -target CurrentUserHomeDirectory
 
 echo "Local installation complete."
+echo "Installed to: $HOME/Library/Application Support/JSTorrent"
+echo "Link handler: $HOME/Applications/JSTorrent Link Handler.app"
