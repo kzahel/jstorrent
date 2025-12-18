@@ -32,3 +32,6 @@ jstorrent_common = { package = "jstorrent-host", path = "../" }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Threading"] }
+
+[build-dependencies]
+winres = "0.1"
