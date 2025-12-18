@@ -16,6 +16,8 @@
     <string>1.0</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
@@ -34,6 +36,8 @@
             <string>BitTorrent Document</string>
             <key>CFBundleTypeRole</key>
             <string>Viewer</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>AppIcon</string>
             <key>LSHandlerRank</key>
             <string>Default</string>
             <key>LSItemContentTypes</key>
@@ -49,6 +53,8 @@
             <string>org.bittorrent.torrent</string>
             <key>UTTypeDescription</key>
             <string>BitTorrent Document</string>
+            <key>UTTypeIconFile</key>
+            <string>AppIcon</string>
             <key>UTTypeConformsTo</key>
             <array>
                 <string>public.data</string>

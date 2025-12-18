@@ -51,6 +51,9 @@ if [ -d "$RESOURCES_DIR" ]; then
     # Copy the compiled AppleScript (droplet loads this at runtime)
     cp "$RESOURCES_DIR/Scripts/main.scpt" "$APP_PATH/Contents/Resources/Scripts/"
 
+    # Copy app icon
+    cp "$RESOURCES_DIR/AppIcon.icns" "$APP_PATH/Contents/Resources/"
+
     cp "$RESOURCES_DIR/Info.plist" "$APP_PATH/Contents/"
     cp "$RESOURCES_DIR/PkgInfo" "$APP_PATH/Contents/"
 
