@@ -64,7 +64,7 @@ describe('Advertised Bitfield', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Set some pieces as complete in internal bitfield
@@ -94,7 +94,7 @@ describe('Advertised Bitfield', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Set all pieces as complete in internal bitfield
@@ -125,7 +125,7 @@ describe('Advertised Bitfield', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Internal: only pieces 0 and 2 are set
@@ -152,7 +152,7 @@ describe('Advertised Bitfield', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Set all pieces in internal
@@ -181,7 +181,7 @@ describe('Advertised Bitfield', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       torrent.bitfield!.set(0, true)
@@ -196,7 +196,7 @@ describe('Advertised Bitfield', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       torrent.bitfield!.set(0, true)
@@ -213,7 +213,7 @@ describe('Advertised Bitfield', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Piece 0 not set in bitfield
@@ -229,7 +229,7 @@ describe('Advertised Bitfield', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       torrent.bitfield!.set(0, true)
@@ -252,7 +252,7 @@ describe('Advertised Bitfield', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       torrent.bitfield!.set(0, true)
@@ -276,7 +276,7 @@ describe('Advertised Bitfield', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // No pieces set
@@ -292,7 +292,7 @@ describe('Advertised Bitfield', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Set all pieces complete

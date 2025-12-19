@@ -154,7 +154,7 @@ describe('Tracker Integration', () => {
     const magnetLink = `magnet:?xt=urn:btih:${infoHashHex}&tr=${encodeURIComponent(trackerUrl)}`
 
     console.log('Adding torrent to Client A')
-    const torrentA = await clientA.addTorrent(magnetLink)
+    const { torrent: torrentA } = await clientA.addTorrent(magnetLink)
 
     // Handle incoming connections for Client A
     serverA.on('connection', (socket) => {
@@ -215,7 +215,7 @@ describe('Tracker Integration', () => {
 
     // Now add to Client B
     console.log('Adding torrent to Client B')
-    const torrentB = await clientB.addTorrent(magnetLink)
+    const { torrent: torrentB } = await clientB.addTorrent(magnetLink)
 
     // Wait for B to connect to A and handshake to complete
     await new Promise<void>((resolve, reject) => {

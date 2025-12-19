@@ -49,7 +49,7 @@ describe('Memory Swarm Integration', () => {
     })
 
     // 2. Add torrent to Client A (Seeder)
-    const torrentA = await clientA.addTorrent(torrentBuffer)
+    const { torrent: torrentA } = await clientA.addTorrent(torrentBuffer)
     if (!torrentA) throw new Error('Failed to add torrent A')
     expect(torrentA.infoHash).toBeDefined()
 
@@ -90,7 +90,7 @@ describe('Memory Swarm Integration', () => {
     )
 
     // Add torrent to Client A
-    const torrentA2 = await clientA.addTorrent(torrentBuffer2)
+    const { torrent: torrentA2 } = await clientA.addTorrent(torrentBuffer2)
     if (!torrentA2) throw new Error('Failed to add torrent A2')
 
     // Now verify data
@@ -99,7 +99,7 @@ describe('Memory Swarm Integration', () => {
 
     // 3. Add torrent to Client B via Magnet (Leecher)
     const magnetLink = `magnet:?xt=urn:btih:${torrentA2.infoHashStr}&tr=http://tracker.local`
-    const torrentB = await clientB.addTorrent(magnetLink)
+    const { torrent: torrentB } = await clientB.addTorrent(magnetLink)
     if (!torrentB) throw new Error('Failed to add torrent B')
 
     expect(torrentB.metadataComplete).toBe(false)

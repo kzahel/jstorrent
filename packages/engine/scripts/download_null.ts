@@ -30,7 +30,8 @@ async function main() {
   })
 
   console.log('Adding torrent...')
-  const torrent = await engine.addTorrent(magnetLink)
+  const { torrent } = await engine.addTorrent(magnetLink)
+  if (!torrent) throw new Error('Failed to add torrent')
   console.log(`Torrent added: ${torrent.infoHash}`)
   console.log(`Name: ${torrent.name}`)
   console.log(`Pieces: ${torrent.piecesCount}`)

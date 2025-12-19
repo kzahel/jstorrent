@@ -72,7 +72,7 @@ describe('Piece Selection Filtering', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip file A - pieces 0,1,2 are entirely in A (blacklisted)
@@ -94,7 +94,7 @@ describe('Piece Selection Filtering', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip file A - piece 3 spans A and B (boundary)
@@ -114,7 +114,7 @@ describe('Piece Selection Filtering', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // All files normal - all pieces wanted
@@ -132,7 +132,7 @@ describe('Piece Selection Filtering', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Piece 0 is wanted
@@ -156,7 +156,7 @@ describe('Piece Selection Filtering', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip file A
@@ -186,7 +186,7 @@ describe('Piece Selection Filtering', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip file A
@@ -207,7 +207,7 @@ describe('Piece Selection Filtering', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Complete pieces 0, 1, 2
@@ -238,7 +238,7 @@ describe('Piece Selection Filtering', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip file A -> pieces 0,1,2 blacklisted
@@ -273,7 +273,7 @@ describe('Piece Selection Filtering', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip file A
@@ -295,7 +295,7 @@ describe('Piece Selection Filtering', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Initially wanted
@@ -318,7 +318,7 @@ describe('Piece Selection Filtering', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // All pieces should be requestable (default is all normal)

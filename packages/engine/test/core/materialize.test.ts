@@ -74,7 +74,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip file A - piece 3 becomes boundary
@@ -120,7 +120,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip files A and C
@@ -155,7 +155,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // No pieces in .parts
@@ -175,7 +175,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Piece 3 is verified and in .parts
@@ -196,7 +196,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Initially in .parts
@@ -223,7 +223,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Piece 3 verified but in .parts
@@ -256,7 +256,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Setup: piece 3 is boundary and in .parts
@@ -292,7 +292,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Clear partsFile reference
@@ -310,7 +310,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       expect(torrent.partsFilePieces.size).toBe(0)
@@ -333,7 +333,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Create files in the mock filesystem (direct map access)
@@ -390,7 +390,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Create files in mock filesystem (direct map access)
@@ -448,7 +448,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Create files in mock filesystem
@@ -511,7 +511,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Create files in mock filesystem
@@ -566,7 +566,7 @@ describe('Materialization', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       const contentStorage = torrent.contentStorage

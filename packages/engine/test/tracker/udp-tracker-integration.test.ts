@@ -70,7 +70,7 @@ describe('UDP Tracker Integration', () => {
     })
 
     // Add torrent to Client A (Seeding)
-    const torrentA = await clientA.addTorrent(torrentBuffer)
+    const { torrent: torrentA } = await clientA.addTorrent(torrentBuffer)
     if (!torrentA) throw new Error('Failed to add torrent A')
     console.log('Client A added torrent, rechecking data...')
     await torrentA.recheckData()
@@ -80,7 +80,7 @@ describe('UDP Tracker Integration', () => {
     await torrentA.start()
 
     // Add torrent to Client B (Leeching)
-    const torrentB = await clientB.addTorrent(torrentBuffer)
+    const { torrent: torrentB } = await clientB.addTorrent(torrentBuffer)
     if (!torrentB) throw new Error('Failed to add torrent B')
     console.log('Client B added torrent')
 

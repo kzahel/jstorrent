@@ -81,12 +81,12 @@ describe('Rate Limiting Integration', () => {
         { pieceLength: 16384, announceList: [['http://tracker.local']] },
       )
 
-      const seederTorrent = await seeder.addTorrent(torrentBuffer)
+      const { torrent: seederTorrent } = await seeder.addTorrent(torrentBuffer)
       if (!seederTorrent) throw new Error('Failed to add torrent to seeder')
       await seederTorrent.recheckData()
 
       const magnet = `magnet:?xt=urn:btih:${seederTorrent.infoHashStr}`
-      const leecherTorrent = await leecher.addTorrent(magnet)
+      const { torrent: leecherTorrent } = await leecher.addTorrent(magnet)
       if (!leecherTorrent) throw new Error('Failed to add torrent to leecher')
 
       // Connect peers
@@ -149,12 +149,12 @@ describe('Rate Limiting Integration', () => {
         { pieceLength: 16384, announceList: [['http://tracker.local']] },
       )
 
-      const seederTorrent = await seeder.addTorrent(torrentBuffer)
+      const { torrent: seederTorrent } = await seeder.addTorrent(torrentBuffer)
       if (!seederTorrent) throw new Error('Failed to add torrent to seeder')
       await seederTorrent.recheckData()
 
       const magnet = `magnet:?xt=urn:btih:${seederTorrent.infoHashStr}`
-      const leecherTorrent = await leecher.addTorrent(magnet)
+      const { torrent: leecherTorrent } = await leecher.addTorrent(magnet)
       if (!leecherTorrent) throw new Error('Failed to add torrent to leecher')
 
       // Set very slow upload to build up queue

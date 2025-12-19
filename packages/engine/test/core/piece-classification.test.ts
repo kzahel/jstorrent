@@ -97,7 +97,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // By default all files are normal (priority 0)
@@ -112,7 +112,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip the only file
@@ -135,7 +135,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // All files normal - all pieces wanted
@@ -156,7 +156,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip file A (index 0)
@@ -182,7 +182,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip file A only - piece 3 should be boundary
@@ -202,7 +202,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // All files normal
@@ -220,7 +220,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip both files
@@ -245,7 +245,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip middle file (B)
@@ -268,7 +268,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip first and last files (A and C)
@@ -295,7 +295,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip all 5 files
@@ -319,7 +319,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // All files are normal by default
@@ -335,7 +335,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Initially wanted
@@ -360,7 +360,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip file B - piece 3 spans A and B, should be boundary
@@ -382,7 +382,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Initially all wanted
@@ -406,7 +406,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Batch skip files A and C
@@ -435,7 +435,7 @@ describe('Piece Classification', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       const totalPieces = torrent.piecesCount

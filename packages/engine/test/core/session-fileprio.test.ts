@@ -83,7 +83,7 @@ describe('Session File Priority Persistence', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       const infoHash = Buffer.from(torrent.infoHash).toString('hex')
@@ -114,7 +114,7 @@ describe('Session File Priority Persistence', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       const infoHash = Buffer.from(torrent.infoHash).toString('hex')
@@ -146,7 +146,7 @@ describe('Session File Priority Persistence', () => {
       })
 
       // Engine 1: Add torrent, set priorities, save
-      const torrent1 = await engine.addTorrent(buffer)
+      const { torrent: torrent1 } = await engine.addTorrent(buffer)
       if (!torrent1) throw new Error('Torrent is null')
 
       torrent1.setFilePriority(0, 1)
@@ -182,7 +182,7 @@ describe('Session File Priority Persistence', () => {
       })
 
       // Add torrent but don't set any file priorities
-      const torrent1 = await engine.addTorrent(buffer)
+      const { torrent: torrent1 } = await engine.addTorrent(buffer)
       if (!torrent1) throw new Error('Torrent is null')
 
       await engine.sessionPersistence!.saveTorrentList()
@@ -214,7 +214,7 @@ describe('Session File Priority Persistence', () => {
       })
 
       // Engine 1: Set up with skipped file
-      const torrent1 = await engine.addTorrent(buffer)
+      const { torrent: torrent1 } = await engine.addTorrent(buffer)
       if (!torrent1) throw new Error('Torrent is null')
 
       torrent1.setFilePriority(0, 1) // Skip file A
@@ -249,7 +249,7 @@ describe('Session File Priority Persistence', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Try to restore with wrong length array
@@ -262,7 +262,7 @@ describe('Session File Priority Persistence', () => {
     it('ignores if no metadata', async () => {
       // Add via magnet (no metadata)
       const magnetLink = 'magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn=Test'
-      const torrent = await engine.addTorrent(magnetLink)
+      const { torrent } = await engine.addTorrent(magnetLink)
       if (!torrent) throw new Error('Torrent is null')
 
       expect(torrent.hasMetadata).toBe(false)
@@ -287,7 +287,7 @@ describe('Session File Priority Persistence', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       const infoHash = Buffer.from(torrent.infoHash).toString('hex')

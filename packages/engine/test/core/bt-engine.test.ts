@@ -49,7 +49,7 @@ describe('BtEngine', () => {
 
     const buffer = Bencode.encode(torrentDict)
 
-    const torrent = await client.addTorrent(buffer)
+    const { torrent } = await client.addTorrent(buffer)
     if (!torrent) throw new Error('Torrent is null')
 
     expect(torrent).toBeDefined()
@@ -69,7 +69,7 @@ describe('BtEngine', () => {
   it('should add a torrent from a magnet link', async () => {
     const magnetLink =
       'magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn=Test+Torrent&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce'
-    const torrent = await client.addTorrent(magnetLink)
+    const { torrent } = await client.addTorrent(magnetLink)
     if (!torrent) throw new Error('Torrent is null')
 
     expect(torrent).toBeDefined()
@@ -94,7 +94,7 @@ describe('BtEngine', () => {
       info,
     })
 
-    const torrent = await client.addTorrent(buffer)
+    const { torrent } = await client.addTorrent(buffer)
     if (!torrent) throw new Error('Torrent is null')
 
     const hex = Buffer.from(torrent.infoHash).toString('hex')
@@ -114,7 +114,7 @@ describe('BtEngine', () => {
       info,
     })
 
-    const torrent = await client.addTorrent(buffer)
+    const { torrent } = await client.addTorrent(buffer)
     if (!torrent) throw new Error('Torrent is null')
 
     // Mock stop method
@@ -143,8 +143,8 @@ describe('BtEngine', () => {
     }
     const buffer2 = Bencode.encode({ info: info2 })
 
-    const t1 = await client.addTorrent(buffer1)
-    const t2 = await client.addTorrent(buffer2)
+    const { torrent: t1 } = await client.addTorrent(buffer1)
+    const { torrent: t2 } = await client.addTorrent(buffer2)
 
     if (!t1 || !t2) throw new Error('Failed to create torrents')
 

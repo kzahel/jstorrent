@@ -90,7 +90,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       expect(torrent.isFileComplete(0)).toBe(false)
@@ -103,7 +103,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Mark all pieces as complete via bitfield
@@ -121,7 +121,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Mark only some pieces as complete
@@ -143,7 +143,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // File A spans pieces 0-3 (piece 3 is boundary)
@@ -171,7 +171,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Complete all pieces
@@ -193,7 +193,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Only complete pieces 0,1,2 (missing piece 3)
@@ -215,7 +215,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // No pieces complete (default state)
@@ -238,7 +238,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // File 0: complete (piece 0)
@@ -272,7 +272,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Complete all pieces
@@ -306,7 +306,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // No pieces complete
@@ -333,7 +333,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Complete all
@@ -351,7 +351,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Only 50% complete
@@ -371,7 +371,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Skip then un-skip
@@ -390,7 +390,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Already normal (0)
@@ -407,7 +407,7 @@ describe('File Skip Prevention', () => {
         pieceLength: 16384,
       })
 
-      const torrent = await engine.addTorrent(buffer)
+      const { torrent } = await engine.addTorrent(buffer)
       if (!torrent) throw new Error('Torrent is null')
 
       // Invalid indices
@@ -418,7 +418,7 @@ describe('File Skip Prevention', () => {
     it('handles torrent without metadata', async () => {
       // Add magnet (no metadata)
       const magnetLink = 'magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn=Test'
-      const torrent = await engine.addTorrent(magnetLink)
+      const { torrent } = await engine.addTorrent(magnetLink)
       if (!torrent) throw new Error('Torrent is null')
 
       // No metadata - operations should fail gracefully
