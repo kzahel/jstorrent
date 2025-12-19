@@ -25,7 +25,7 @@ export interface EngineAdapter {
   addTorrent(
     magnetOrBuffer: string | Uint8Array,
     options?: { userState?: 'active' | 'stopped' },
-  ): Promise<Torrent | null>
+  ): Promise<{ torrent: Torrent | null; isDuplicate: boolean }>
 
   /** Remove a torrent */
   removeTorrent(torrent: Torrent): Promise<void>
@@ -85,7 +85,7 @@ export class DirectEngineAdapter implements EngineAdapter {
   async addTorrent(
     magnetOrBuffer: string | Uint8Array,
     options?: { userState?: 'active' | 'stopped' },
-  ): Promise<Torrent | null> {
+  ): Promise<{ torrent: Torrent | null; isDuplicate: boolean }> {
     return this.engine.addTorrent(magnetOrBuffer, options)
   }
 

@@ -257,6 +257,11 @@ function handleNotificationMessage(message: NotificationMessage): void {
     case 'notification:all-complete':
       notificationManager.onAllComplete()
       break
+    case 'notification:duplicate-torrent':
+      if (message.name) {
+        notificationManager.onDuplicateTorrent(message.name)
+      }
+      break
   }
 }
 

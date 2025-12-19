@@ -263,6 +263,32 @@ export class NotificationManager {
     }
   }
 
+  onDuplicateTorrent(name: string): void {
+    console.log('[NotificationManager] onDuplicateTorrent called:', { name })
+    chrome.notifications.create(
+      `jstorrent-duplicate-${Date.now()}`,
+      {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icons/js-128.png'),
+        title: 'Already Added',
+        message: `"${name}" is already in your torrent list`,
+        priority: 0,
+        requireInteraction: false,
+        silent: false,
+      },
+      (notificationId) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            '[NotificationManager] Duplicate notification failed:',
+            chrome.runtime.lastError.message,
+          )
+        } else {
+          console.log('[NotificationManager] Duplicate notification created:', notificationId)
+        }
+      },
+    )
+  }
+
   // ============================================================================
   // Internal Helpers
   // ============================================================================

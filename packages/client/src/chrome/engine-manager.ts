@@ -239,10 +239,13 @@ class EngineManager {
     console.log('[EngineManager] Engine resumed')
 
     // 8. Apply rate limits and connection limits from settings
-    this.setRateLimits(
-      settingsStore.get('downloadSpeedLimit'),
-      settingsStore.get('uploadSpeedLimit'),
-    )
+    const downloadLimit = settingsStore.get('downloadSpeedLimitUnlimited')
+      ? 0
+      : settingsStore.get('downloadSpeedLimit')
+    const uploadLimit = settingsStore.get('uploadSpeedLimitUnlimited')
+      ? 0
+      : settingsStore.get('uploadSpeedLimit')
+    this.setRateLimits(downloadLimit, uploadLimit)
     this.setConnectionLimits(
       settingsStore.get('maxPeersPerTorrent'),
       settingsStore.get('maxGlobalPeers'),
@@ -933,13 +936,13 @@ async function addTestTorrent(url?: string): Promise<Torrent | null> {
   magnet += '&x.pe=127.0.0.1:8998&x.pe=127.0.0.1:6082'
 
   const engine = await engineManager.init()
-  const torrent = await engine.addTorrent(magnet)
-  if (torrent) {
-    console.log('[addTestTorrent] Added:', torrent.name, toHex(torrent.infoHash))
+  const result = await engine.addTorrent(magnet)
+  if (result.torrent) {
+    console.log('[addTestTorrent] Added:', result.torrent.name, toHex(result.torrent.infoHash))
   } else {
     console.log('[addTestTorrent] Torrent already exists or failed to add')
   }
-  return torrent
+  return result.torrent
 }
 
 async function addTestTorrent2(): Promise<Torrent | null> {
@@ -963,9 +966,9 @@ async function addTestTorrents(n: number): Promise<Torrent[]> {
     const infoHash = i.toString(16).padStart(40, '0')
     const magnet = `magnet:?xt=urn:btih:${infoHash}&dn=test%20torrent%20${hexNum}`
 
-    const torrent = await engine.addTorrent(magnet, { userState: 'stopped' })
-    if (torrent) {
-      added.push(torrent)
+    const result = await engine.addTorrent(magnet, { userState: 'stopped' })
+    if (result.torrent) {
+      added.push(result.torrent)
     }
   }
 

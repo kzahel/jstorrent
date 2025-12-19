@@ -26,6 +26,7 @@ import { SystemIndicator } from './components/SystemIndicator'
 import { SystemBridgePanel } from './components/SystemBridgePanel'
 import { SettingsOverlay } from './components/SettingsOverlay'
 import { copyTextToClipboard } from './utils/clipboard'
+import { notificationBridge } from './chrome/notification-bridge'
 
 interface ContextMenuState {
   x: number
@@ -89,7 +90,11 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
     if (!file) return
     try {
       const buffer = await file.arrayBuffer()
-      await adapter.addTorrent(new Uint8Array(buffer))
+      const result = await adapter.addTorrent(new Uint8Array(buffer))
+
+      if (result.isDuplicate && result.torrent) {
+        notificationBridge.onDuplicateTorrent(result.torrent.name || 'Torrent')
+      }
     } catch (err) {
       console.error('Failed to add torrent file:', err)
     }
@@ -102,8 +107,12 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
       return
     }
     try {
-      await adapter.addTorrent(magnetInput)
+      const result = await adapter.addTorrent(magnetInput)
       setMagnetInput('')
+
+      if (result.isDuplicate && result.torrent) {
+        notificationBridge.onDuplicateTorrent(result.torrent.name || 'Torrent')
+      }
     } catch (e) {
       console.error('Failed to add torrent:', e)
     }
@@ -565,17 +574,31 @@ function App() {
   useEffect(() => {
     if (!settingsReady) return
 
-    // Subscribe to rate limit changes
-    const unsubDownload = settingsStore.subscribe('downloadSpeedLimit', (value) => {
-      engineManager.setRateLimits(value, settingsStore.get('uploadSpeedLimit'))
+    // Helper to get effective rate limit (0 if unlimited, otherwise the value)
+    const getEffectiveDownloadLimit = () =>
+      settingsStore.get('downloadSpeedLimitUnlimited') ? 0 : settingsStore.get('downloadSpeedLimit')
+    const getEffectiveUploadLimit = () =>
+      settingsStore.get('uploadSpeedLimitUnlimited') ? 0 : settingsStore.get('uploadSpeedLimit')
+
+    // Subscribe to rate limit changes (both value and unlimited flag)
+    const unsubDownload = settingsStore.subscribe('downloadSpeedLimit', () => {
+      engineManager.setRateLimits(getEffectiveDownloadLimit(), getEffectiveUploadLimit())
     })
-    const unsubUpload = settingsStore.subscribe('uploadSpeedLimit', (value) => {
-      engineManager.setRateLimits(settingsStore.get('downloadSpeedLimit'), value)
+    const unsubDownloadUnlimited = settingsStore.subscribe('downloadSpeedLimitUnlimited', () => {
+      engineManager.setRateLimits(getEffectiveDownloadLimit(), getEffectiveUploadLimit())
+    })
+    const unsubUpload = settingsStore.subscribe('uploadSpeedLimit', () => {
+      engineManager.setRateLimits(getEffectiveDownloadLimit(), getEffectiveUploadLimit())
+    })
+    const unsubUploadUnlimited = settingsStore.subscribe('uploadSpeedLimitUnlimited', () => {
+      engineManager.setRateLimits(getEffectiveDownloadLimit(), getEffectiveUploadLimit())
     })
 
     return () => {
       unsubDownload()
+      unsubDownloadUnlimited()
       unsubUpload()
+      unsubUploadUnlimited()
     }
   }, [settingsStore, settingsReady])
 

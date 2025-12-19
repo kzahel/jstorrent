@@ -119,14 +119,24 @@ export const settingsSchema = {
   downloadSpeedLimit: {
     type: 'number',
     storage: 'sync',
-    default: 0, // 0 = unlimited
+    default: 1024 * 100, // 100 KB/s
     min: 0,
+  },
+  downloadSpeedLimitUnlimited: {
+    type: 'boolean',
+    storage: 'sync',
+    default: true,
   },
   uploadSpeedLimit: {
     type: 'number',
     storage: 'sync',
-    default: 0, // 0 = unlimited
+    default: 1024 * 50, // 50 KB/s
     min: 0,
+  },
+  uploadSpeedLimitUnlimited: {
+    type: 'boolean',
+    storage: 'sync',
+    default: true,
   },
   maxPeersPerTorrent: {
     type: 'number',

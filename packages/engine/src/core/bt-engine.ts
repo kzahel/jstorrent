@@ -433,14 +433,14 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       source?: 'user' | 'restore'
       userState?: TorrentUserState
     } = {},
-  ): Promise<Torrent | null> {
+  ): Promise<{ torrent: Torrent | null; isDuplicate: boolean }> {
     // Parse the input (magnet link or torrent file)
     const input = await parseTorrentInput(magnetOrBuffer, this.hasher)
 
     // Check for existing torrent
     const existing = this.getTorrent(input.infoHashStr)
     if (existing) {
-      return existing
+      return { torrent: existing, isDuplicate: true }
     }
 
     // Register storage root for this torrent if provided
@@ -541,7 +541,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       await this.sessionPersistence.saveTorrentList()
     }
 
-    return torrent
+    return { torrent, isDuplicate: false }
   }
 
   async removeTorrent(torrent: Torrent) {

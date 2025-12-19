@@ -42,7 +42,10 @@ describe('MemorySettingsStore', () => {
     it('should get default values', () => {
       expect(store.get('theme')).toBe('system')
       expect(store.get('maxFps')).toBe(60)
-      expect(store.get('downloadSpeedLimit')).toBe(0)
+      expect(store.get('downloadSpeedLimit')).toBe(1024 * 100)
+      expect(store.get('downloadSpeedLimitUnlimited')).toBe(true)
+      expect(store.get('uploadSpeedLimit')).toBe(1024 * 50)
+      expect(store.get('uploadSpeedLimitUnlimited')).toBe(true)
     })
 
     it('should set and get values', async () => {

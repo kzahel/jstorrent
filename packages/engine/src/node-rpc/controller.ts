@@ -84,11 +84,13 @@ export class EngineController {
 
     let torrent: Torrent | null
     if (params.type === 'magnet') {
-      torrent = await this.engine.addTorrent(params.data)
+      const result = await this.engine.addTorrent(params.data)
+      torrent = result.torrent
     } else if (params.type === 'file') {
       // data is base64 encoded buffer
       const buffer = Buffer.from(params.data, 'base64')
-      torrent = await this.engine.addTorrent(buffer)
+      const result = await this.engine.addTorrent(buffer)
+      torrent = result.torrent
     } else {
       throw new Error('Invalid torrent type')
     }

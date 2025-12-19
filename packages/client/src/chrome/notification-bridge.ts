@@ -89,6 +89,13 @@ class NotificationBridge {
       type: 'notification:all-complete',
     })
   }
+
+  onDuplicateTorrent(name: string): void {
+    getBridge().postMessage({
+      type: 'notification:duplicate-torrent',
+      name,
+    })
+  }
 }
 
 // Singleton instance

@@ -467,12 +467,28 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
   // Apply rate limits to engine when settings change
   const handleDownloadLimitChange = (v: number) => {
     updateSetting('downloadSpeedLimit', v)
-    engineManager.setRateLimits(v, settings.uploadSpeedLimit)
+    const uploadLimit = settings.uploadSpeedLimitUnlimited ? 0 : settings.uploadSpeedLimit
+    engineManager.setRateLimits(settings.downloadSpeedLimitUnlimited ? 0 : v, uploadLimit)
+  }
+
+  const handleDownloadUnlimitedChange = (unlimited: boolean) => {
+    updateSetting('downloadSpeedLimitUnlimited', unlimited)
+    const downloadLimit = unlimited ? 0 : settings.downloadSpeedLimit
+    const uploadLimit = settings.uploadSpeedLimitUnlimited ? 0 : settings.uploadSpeedLimit
+    engineManager.setRateLimits(downloadLimit, uploadLimit)
   }
 
   const handleUploadLimitChange = (v: number) => {
     updateSetting('uploadSpeedLimit', v)
-    engineManager.setRateLimits(settings.downloadSpeedLimit, v)
+    const downloadLimit = settings.downloadSpeedLimitUnlimited ? 0 : settings.downloadSpeedLimit
+    engineManager.setRateLimits(downloadLimit, settings.uploadSpeedLimitUnlimited ? 0 : v)
+  }
+
+  const handleUploadUnlimitedChange = (unlimited: boolean) => {
+    updateSetting('uploadSpeedLimitUnlimited', unlimited)
+    const downloadLimit = settings.downloadSpeedLimitUnlimited ? 0 : settings.downloadSpeedLimit
+    const uploadLimit = unlimited ? 0 : settings.uploadSpeedLimit
+    engineManager.setRateLimits(downloadLimit, uploadLimit)
   }
 
   // Apply connection limits to engine when settings change
@@ -583,12 +599,16 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
         <SpeedLimitRow
           label="Download"
           value={settings.downloadSpeedLimit}
-          onChange={handleDownloadLimitChange}
+          unlimited={settings.downloadSpeedLimitUnlimited}
+          onValueChange={handleDownloadLimitChange}
+          onUnlimitedChange={handleDownloadUnlimitedChange}
         />
         <SpeedLimitRow
           label="Upload"
           value={settings.uploadSpeedLimit}
-          onChange={handleUploadLimitChange}
+          unlimited={settings.uploadSpeedLimitUnlimited}
+          onValueChange={handleUploadLimitChange}
+          onUnlimitedChange={handleUploadUnlimitedChange}
         />
       </Section>
 
@@ -808,12 +828,19 @@ const ToggleRow: React.FC<ToggleRowProps> = ({ label, sublabel, checked, onChang
 interface SpeedLimitRowProps {
   label: string
   value: number
-  onChange: (value: number) => void
+  unlimited: boolean
+  onValueChange: (value: number) => void
+  onUnlimitedChange: (unlimited: boolean) => void
 }
 
-const SpeedLimitRow: React.FC<SpeedLimitRowProps> = ({ label, value, onChange }) => {
-  const isUnlimited = value === 0
-  const derivedValue = isUnlimited ? '' : String(Math.round(value / 1024))
+const SpeedLimitRow: React.FC<SpeedLimitRowProps> = ({
+  label,
+  value,
+  unlimited,
+  onValueChange,
+  onUnlimitedChange,
+}) => {
+  const derivedValue = String(Math.round(value / 1024))
 
   // Track if user is actively editing (to prevent prop sync during edit)
   const [isEditing, setIsEditing] = useState(false)
@@ -831,10 +858,10 @@ const SpeedLimitRow: React.FC<SpeedLimitRowProps> = ({ label, value, onChange })
     setIsEditing(false)
     const kb = Number(editValue)
     if (Number.isFinite(kb) && kb > 0) {
-      onChange(kb * 1024)
+      onValueChange(kb * 1024)
     } else {
-      // Empty, zero, negative, or NaN means unlimited
-      onChange(0)
+      // Invalid or zero - reset to current value
+      setEditValue(derivedValue)
     }
   }
 
@@ -855,17 +882,17 @@ const SpeedLimitRow: React.FC<SpeedLimitRowProps> = ({ label, value, onChange })
         onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        disabled={isUnlimited}
+        disabled={unlimited}
         placeholder="0"
         min={0}
-        style={{ ...styles.numberInput, opacity: isUnlimited ? 0.5 : 1 }}
+        style={{ ...styles.numberInput, opacity: unlimited ? 0.5 : 1 }}
       />
       <span style={{ fontSize: '12px' }}>KB/s</span>
       <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '12px' }}>
         <input
           type="checkbox"
-          checked={isUnlimited}
-          onChange={(e) => onChange(e.target.checked ? 0 : 1024)}
+          checked={unlimited}
+          onChange={(e) => onUnlimitedChange(e.target.checked)}
         />
         Unlimited
       </label>

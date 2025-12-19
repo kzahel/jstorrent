@@ -248,22 +248,24 @@ export class SessionPersistence {
             this.logger.error(`Missing torrent file for ${entry.infoHash}, skipping`)
             continue
           }
-          torrent = await this.engine.addTorrent(torrentFile, {
+          const result = await this.engine.addTorrent(torrentFile, {
             storageKey: state?.storageKey,
             source: 'restore',
             userState: state?.userState ?? 'active',
           })
+          torrent = result.torrent
         } else {
           // Magnet-source: use magnetUri
           if (!entry.magnetUri) {
             this.logger.error(`Missing magnetUri for ${entry.infoHash}, skipping`)
             continue
           }
-          torrent = await this.engine.addTorrent(entry.magnetUri, {
+          const result = await this.engine.addTorrent(entry.magnetUri, {
             storageKey: state?.storageKey,
             source: 'restore',
             userState: state?.userState ?? 'active',
           })
+          torrent = result.torrent
 
           // If we have saved infodict, initialize metadata
           if (torrent && !torrent.hasMetadata) {
