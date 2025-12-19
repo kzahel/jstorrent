@@ -1,6 +1,7 @@
 use crate::protocol::ResponsePayload;
 use crate::state::State;
 use anyhow::{anyhow, Result};
+#[cfg(not(target_os = "macos"))]
 use rfd::AsyncFileDialog;
 use jstorrent_common::DownloadRoot;
 use std::path::PathBuf;
@@ -27,37 +28,70 @@ fn get_starting_directory(state: &State) -> Option<PathBuf> {
         }
     }
 
-    // 2. Fall back to system downloads folder
-    if let Ok(download_root) = state.download_root.lock() {
-        if download_root.exists() {
-            return Some(download_root.clone());
-        }
-    }
-
-    // 3. Fall back to home directory
+    // 2. Fall back to home directory (avoids TCC permission prompt on macOS)
+    // Using Downloads would trigger "would like to access files in your Downloads folder"
     dirs::home_dir()
 }
 
-pub async fn pick_download_directory(state: &State) -> Result<ResponsePayload> {
+/// macOS: Use osascript to show folder picker (works without NSApplication)
+#[cfg(target_os = "macos")]
+async fn pick_folder_platform(start_dir: Option<PathBuf>) -> Option<PathBuf> {
+    let start_path = start_dir
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| "~".to_string());
+
+    let script = format!(
+        r#"set defaultFolder to POSIX file "{}"
+try
+    set chosenFolder to choose folder with prompt "Select Download Directory" default location defaultFolder
+    return POSIX path of chosenFolder
+on error
+    return ""
+end try"#,
+        start_path
+    );
+
+    let output = tokio::task::spawn_blocking(move || {
+        std::process::Command::new("osascript")
+            .arg("-e")
+            .arg(&script)
+            .output()
+    })
+    .await
+    .ok()?
+    .ok()?;
+
+    if output.status.success() {
+        let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !path_str.is_empty() {
+            return Some(PathBuf::from(path_str));
+        }
+    }
+    None
+}
+
+/// Non-macOS: Use rfd
+#[cfg(not(target_os = "macos"))]
+async fn pick_folder_platform(start_dir: Option<PathBuf>) -> Option<PathBuf> {
     let mut dialog = AsyncFileDialog::new()
         .set_title("Select Download Directory");
 
-    if let Some(start_dir) = get_starting_directory(state) {
-        dialog = dialog.set_directory(&start_dir);
+    if let Some(dir) = start_dir {
+        dialog = dialog.set_directory(&dir);
     }
 
-    // Windows: Prepare process for foreground access so the dialog
-    // appears in front of the browser instead of behind it.
     #[cfg(target_os = "windows")]
     crate::win_foreground::prepare_for_foreground();
 
-    let task = dialog.pick_folder();
+    dialog.pick_folder().await.map(|h| h.path().to_path_buf())
+}
 
-    let handle = task.await;
+pub async fn pick_download_directory(state: &State) -> Result<ResponsePayload> {
+    let start_dir = get_starting_directory(state);
+    let path_opt = pick_folder_platform(start_dir).await;
 
-    match handle {
-        Some(path_handle) => {
-            let path = path_handle.path().to_path_buf();
+    match path_opt {
+        Some(path) => {
             let canonical = path.canonicalize().unwrap_or(path.clone());
             let path_str = canonical.to_string_lossy().to_string();
             

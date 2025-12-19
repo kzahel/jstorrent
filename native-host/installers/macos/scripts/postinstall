@@ -16,6 +16,13 @@ fi
 MANIFEST_TEMPLATE="$INSTALL_DIR/com.jstorrent.native.json.template"
 BINARY_PATH="$INSTALL_DIR/jstorrent-native-host"
 
+# Kill any running JSTorrent processes before updating binaries
+pkill -f "jstorrent-native-host" 2>/dev/null || true
+pkill -f "jstorrent-io-daemon" 2>/dev/null || true
+pkill -f "jstorrent-link-handler" 2>/dev/null || true
+# Give processes time to exit
+sleep 0.5
+
 # Ensure binaries are executable
 chmod 755 "$BINARY_PATH"
 chmod 755 "$INSTALL_DIR/jstorrent-io-daemon"
