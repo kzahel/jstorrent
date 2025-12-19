@@ -20,7 +20,7 @@ import { SettingsProvider } from './context/SettingsContext'
 import { getSettingsStore } from './settings'
 import { useEngineState } from './hooks/useEngineState'
 import { engineManager, DownloadRoot } from './chrome/engine-manager'
-import { useIOBridgeState } from './hooks/useIOBridgeState'
+import { useIOBridgeState, ConnectionStatus } from './hooks/useIOBridgeState'
 import { useSystemBridge } from './hooks/useSystemBridge'
 import { SystemIndicator } from './components/SystemIndicator'
 import { SystemBridgePanel } from './components/SystemBridgePanel'
@@ -750,6 +750,28 @@ function App() {
   } = useIOBridgeState({
     onNativeEvent: handleNativeEvent,
   })
+
+  // Track previous status to detect transitions
+  const prevStatusRef = useRef<ConnectionStatus | null>(null)
+
+  // Reset engine when daemon disconnects so we can reinitialize with fresh connection info
+  useEffect(() => {
+    const currentStatus = ioBridgeState.status
+    const prevStatus = prevStatusRef.current
+
+    // Detect transition from connected to disconnected
+    if (prevStatus === 'connected' && currentStatus === 'disconnected') {
+      console.log('[App] Daemon disconnected, resetting engine for reconnection')
+      engineManager.reset()
+      // Defer state updates to next microtask to avoid cascading renders
+      queueMicrotask(() => {
+        setEngine(null)
+        setInitError(null)
+      })
+    }
+
+    prevStatusRef.current = currentStatus
+  }, [ioBridgeState.status])
 
   // Get roots from connected state
   const roots: DownloadRoot[] =

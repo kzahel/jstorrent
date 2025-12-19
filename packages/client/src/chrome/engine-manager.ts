@@ -313,6 +313,38 @@ class EngineManager {
   }
 
   /**
+   * Reset engine state for reconnection.
+   * Unlike shutdown(), this doesn't notify the SW of UI closing.
+   * Called when the daemon disconnects so we can reinitialize with fresh connection info.
+   */
+  reset(): void {
+    console.log('[EngineManager] Resetting for reconnection...')
+
+    // Clean up notification interval
+    if (this.notificationProgressInterval) {
+      clearInterval(this.notificationProgressInterval)
+      this.notificationProgressInterval = null
+    }
+
+    // Close the daemon connection to stop reconnect attempts
+    if (this.daemonConnection) {
+      this.daemonConnection.close()
+      this.daemonConnection = null
+    }
+
+    // Destroy engine (will persist session)
+    if (this.engine) {
+      this.engine.destroy()
+      this.engine = null
+    }
+
+    // Clear pending events and init state
+    this.pendingNativeEvents = []
+    this.initPromise = null
+    this.swReconnectAttempts = 0
+  }
+
+  /**
    * Handle IO websocket disconnect.
    * Marks active torrents with error and shows notification.
    */
