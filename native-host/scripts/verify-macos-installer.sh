@@ -30,7 +30,13 @@ fi
 
 # Install PKG (user-domain, no sudo required)
 echo "Installing PKG..."
-installer -pkg "$INSTALLER_PKG" -target CurrentUserHomeDirectory
+# Remove quarantine attribute to avoid Gatekeeper prompts in CI
+if [ "$CI" = "true" ]; then
+    xattr -d com.apple.quarantine "$INSTALLER_PKG" 2>/dev/null || true
+    installer -pkg "$INSTALLER_PKG" -target CurrentUserHomeDirectory -verbose
+else
+    installer -pkg "$INSTALLER_PKG" -target CurrentUserHomeDirectory
+fi
 
 # Verify files
 echo "Verifying installed files..."
