@@ -83,7 +83,12 @@ async fn pick_folder_platform(start_dir: Option<PathBuf>) -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     crate::win_foreground::prepare_for_foreground();
 
-    dialog.pick_folder().await.map(|h| h.path().to_path_buf())
+    let result = dialog.pick_folder().await.map(|h| h.path().to_path_buf());
+
+    #[cfg(target_os = "windows")]
+    crate::win_foreground::dismiss_menu();
+
+    result
 }
 
 pub async fn pick_download_directory(state: &State) -> Result<ResponsePayload> {
