@@ -25,7 +25,6 @@ export type {
 export { App, AppContent } from './App'
 
 // Components
-export { DownloadRootsManager } from './components/DownloadRootsManager'
 export { SystemIndicator } from './components/SystemIndicator'
 export type { SystemIndicatorProps } from './components/SystemIndicator'
 export { SystemBridgePanel } from './components/SystemBridgePanel'

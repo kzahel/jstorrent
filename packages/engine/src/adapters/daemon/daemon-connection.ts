@@ -63,6 +63,15 @@ export class DaemonConnection {
   async connectWebSocket(): Promise<void> {
     if (this.ready) return
 
+    // Defensive cleanup: remove old websocket if it exists
+    if (this.ws) {
+      this.ws.onclose = null
+      this.ws.onerror = null
+      this.ws.onmessage = null
+      this.ws.close()
+      this.ws = null
+    }
+
     // Get fresh credentials
     let token: string
     let extensionId: string
@@ -201,6 +210,12 @@ export class DaemonConnection {
       )
 
       await new Promise((r) => setTimeout(r, delay))
+
+      // Check if reconnecting was cancelled during the delay
+      if (!this.reconnecting) {
+        console.log('[DaemonConnection] Reconnect cancelled')
+        return
+      }
 
       try {
         await this.connectWebSocket()

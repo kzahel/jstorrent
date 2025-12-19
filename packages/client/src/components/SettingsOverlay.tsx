@@ -8,6 +8,14 @@ type SettingsTab = 'general' | 'interface' | 'network' | 'advanced'
 type Theme = 'system' | 'dark' | 'light'
 type ProgressBarStyle = 'text' | 'bar'
 
+/** Strip Windows extended-length path prefix for display */
+function formatPathForDisplay(path: string): string {
+  if (path.startsWith('\\\\?\\')) {
+    return path.slice(4)
+  }
+  return path
+}
+
 const PROGRESS_BAR_STYLES: { value: ProgressBarStyle; label: string }[] = [
   { value: 'text', label: 'Text Only' },
   { value: 'bar', label: 'Progress Bar' },
@@ -307,7 +315,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {root.path}
+                      {formatPathForDisplay(root.path)}
                     </div>
                   </div>
                   <button
