@@ -33,7 +33,8 @@ echo "Installing PKG..."
 # Remove quarantine attribute to avoid Gatekeeper prompts in CI
 if [ "$CI" = "true" ]; then
     xattr -d com.apple.quarantine "$INSTALLER_PKG" 2>/dev/null || true
-    installer -pkg "$INSTALLER_PKG" -target CurrentUserHomeDirectory -verbose
+    # Use sudo in CI - the installer command without sudo gets killed in GitHub Actions
+    sudo installer -pkg "$INSTALLER_PKG" -target CurrentUserHomeDirectory -verbose
 else
     installer -pkg "$INSTALLER_PKG" -target CurrentUserHomeDirectory
 fi
