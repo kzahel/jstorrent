@@ -34,35 +34,19 @@ if mkdir -p "$USER_HOME/Library/Application Support/Google/Chrome/NativeMessagin
     sed "s|HOST_PATH_PLACEHOLDER|$BINARY_PATH|g" "$MANIFEST_TEMPLATE" > "$MANIFEST_DEST" 2>/dev/null && chmod 644 "$MANIFEST_DEST"
 fi
 
-# Build Link Handler app in ~/Applications from resources
-RESOURCES_DIR="$INSTALL_DIR/link-handler-resources"
+# Move pre-built Link Handler app to ~/Applications (preserves code signature)
+SRC_APP="$INSTALL_DIR/JSTorrent Link Handler.app"
 APP_PATH="$USER_HOME/Applications/JSTorrent Link Handler.app"
 
-if [ -d "$RESOURCES_DIR" ]; then
+if [ -d "$SRC_APP" ]; then
     # Ensure ~/Applications exists
     mkdir -p "$USER_HOME/Applications"
 
     # Remove old version if it exists
     rm -rf "$APP_PATH"
 
-    # Create .app bundle structure
-    mkdir -p "$APP_PATH/Contents/MacOS"
-    mkdir -p "$APP_PATH/Contents/Resources/Scripts"
-
-    # Copy executables - droplet receives Apple Events, binary does the work
-    cp "$RESOURCES_DIR/droplet" "$APP_PATH/Contents/MacOS/droplet"
-    chmod 755 "$APP_PATH/Contents/MacOS/droplet"
-    cp "$RESOURCES_DIR/jstorrent-link-handler-bin" "$APP_PATH/Contents/MacOS/jstorrent-link-handler-bin"
-    chmod 755 "$APP_PATH/Contents/MacOS/jstorrent-link-handler-bin"
-
-    # Copy the compiled AppleScript (droplet loads this at runtime)
-    cp "$RESOURCES_DIR/Scripts/main.scpt" "$APP_PATH/Contents/Resources/Scripts/"
-
-    # Copy app icon
-    cp "$RESOURCES_DIR/AppIcon.icns" "$APP_PATH/Contents/Resources/"
-
-    cp "$RESOURCES_DIR/Info.plist" "$APP_PATH/Contents/"
-    cp "$RESOURCES_DIR/PkgInfo" "$APP_PATH/Contents/"
+    # Move the signed app bundle to ~/Applications
+    mv "$SRC_APP" "$APP_PATH"
 
     # Register with LaunchServices
     /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH" 2>/dev/null
