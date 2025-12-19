@@ -306,6 +306,17 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
 
   // Handle keyboard navigation
   const handleKeyDown = (e: KeyboardEvent) => {
+    // Handle Escape to clear selection
+    if (e.key === 'Escape') {
+      if (props.onSelectionChange && selectedKeys().size > 0) {
+        e.preventDefault()
+        updateSelection(new Set())
+        anchorIndex = null
+        setFocusIndex(null)
+      }
+      return
+    }
+
     // Handle Ctrl+A / Cmd+A for select all
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
       e.preventDefault()
@@ -712,6 +723,22 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
       ref={containerRef}
       tabindex="0"
       onKeyDown={handleKeyDown}
+      onClick={(e) => {
+        // Clear selection when clicking empty space (not on a row, header, or menu)
+        const target = e.target as HTMLElement
+        if (
+          !target.closest('[data-testid="table-row"]') &&
+          !target.closest('[data-settings-menu]') &&
+          !target.closest('[data-header-menu]') &&
+          !target.closest('button') &&
+          props.onSelectionChange &&
+          selectedKeys().size > 0
+        ) {
+          updateSelection(new Set())
+          anchorIndex = null
+          setFocusIndex(null)
+        }
+      }}
       style={{
         height: '100%',
         overflow: 'auto',
