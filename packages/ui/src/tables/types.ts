@@ -79,4 +79,6 @@ export interface TableMountProps<T> {
   estimatedRowCount?: number
   /** Optional inline styles for the row based on row data */
   getRowStyle?: (row: T) => Record<string, string> | undefined
+  /** Key that triggers immediate refresh when changed (e.g., selected torrent hash) */
+  refreshKey?: string
 }

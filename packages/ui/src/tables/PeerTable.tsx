@@ -192,6 +192,7 @@ export function PeerTable(props: PeerTableProps) {
       getSelectedKeys={props.getSelectedKeys}
       onSelectionChange={props.onSelectionChange}
       getRowStyle={(p) => (p.state === 'connecting' ? { opacity: '0.5' } : undefined)}
+      refreshKey={props.torrentHash}
     />
   )
 }

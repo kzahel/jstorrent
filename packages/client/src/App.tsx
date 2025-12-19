@@ -40,6 +40,11 @@ interface AppContentProps {
 function AppContent({ onOpenLoggingSettings }: AppContentProps) {
   const [magnetInput, setMagnetInput] = useState('')
   const [selectedTorrents, setSelectedTorrents] = useState<Set<string>>(new Set())
+
+  // Selection change handler - refreshKey in detail tables handles immediate updates
+  const handleSelectionChange = useCallback((keys: Set<string>) => {
+    setSelectedTorrents(keys)
+  }, [])
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [confirmRemoveAll, setConfirmRemoveAll] = useState<Torrent[] | null>(null)
   const { adapter, torrents, refresh } = useEngineState()
@@ -414,7 +419,7 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
                 <TorrentTable
                   source={adapter}
                   getSelectedHashes={() => selectedTorrents}
-                  onSelectionChange={setSelectedTorrents}
+                  onSelectionChange={handleSelectionChange}
                   onRowContextMenu={handleContextMenu}
                 />
               )}

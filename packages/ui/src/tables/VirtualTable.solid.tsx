@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment, react/no-unknown-property */
 // @ts-nocheck - Solid JSX is handled by vite-plugin-solid, not tsc
-import { createSignal, For, onCleanup, onMount, createMemo } from 'solid-js'
+import { createSignal, createEffect, For, onCleanup, onMount, createMemo } from 'solid-js'
 import { createVirtualizer } from '@tanstack/solid-virtual'
 import type { ColumnDef, ColumnConfig } from './types'
 import {
@@ -25,6 +25,8 @@ export interface VirtualTableProps<T> {
   getRowTooltip?: (row: T) => string | undefined
   rowHeight?: number
   getRowStyle?: (row: T) => Record<string, string> | undefined
+  /** Callback to receive forceUpdate function for external refresh triggering */
+  onForceUpdate?: (forceUpdate: () => void) => void
 }
 
 /**
@@ -72,6 +74,9 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
 
   // RAF-based update loop for live data
   const [tick, forceUpdate] = createSignal({}, { equals: false })
+
+  // Expose forceUpdate to parent for external refresh triggering
+  props.onForceUpdate?.(() => forceUpdate({}))
 
   // Sorted keys - tracked by row key instead of index
   // This avoids full re-sort when items are added/removed
@@ -182,6 +187,13 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     getScrollElement: () => containerRef ?? null,
     estimateSize: () => rowHeight,
     overscan: 5,
+  })
+
+  // Virtual items - use effect + signal to force immediate updates when tick changes
+  const [virtualItems, setVirtualItems] = createSignal(virtualizer.getVirtualItems())
+  createEffect(() => {
+    tick() // Subscribe to RAF/forceUpdate
+    setVirtualItems(virtualizer.getVirtualItems())
   })
 
   // Throttled RAF loop for live updates (respects maxFps setting)
@@ -836,7 +848,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
           position: 'relative',
         }}
       >
-        <For each={virtualizer.getVirtualItems()}>
+        <For each={virtualItems()}>
           {(virtualRow) => {
             const row = () => rows()[virtualRow.index]
             const key = () => props.getRowKey(row())

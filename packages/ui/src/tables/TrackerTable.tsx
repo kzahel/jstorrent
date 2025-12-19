@@ -103,6 +103,7 @@ export function TrackerTable(props: TrackerTableProps) {
       rowHeight={24}
       getSelectedKeys={props.getSelectedKeys}
       onSelectionChange={props.onSelectionChange}
+      refreshKey={props.torrentHash}
     />
   )
 }

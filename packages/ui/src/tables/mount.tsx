@@ -10,6 +10,7 @@ import type { TableMountProps } from './types'
 export function TableMount<T>(props: TableMountProps<T>) {
   const containerRef = useRef<HTMLDivElement>(null)
   const disposeRef = useRef<(() => void) | null>(null)
+  const forceUpdateRef = useRef<(() => void) | null>(null)
 
   // Keep refs to props that may change - Solid captures these at mount time,
   // so we need refs to always get the current value
@@ -51,6 +52,9 @@ export function TableMount<T>(props: TableMountProps<T>) {
           getRowTooltip: props.getRowTooltip,
           rowHeight: props.rowHeight,
           getRowStyle: (row) => getRowStyleRef.current?.(row),
+          onForceUpdate: (fn) => {
+            forceUpdateRef.current = fn
+          },
         }) as unknown as Element,
       containerRef.current,
     )
@@ -58,12 +62,10 @@ export function TableMount<T>(props: TableMountProps<T>) {
     return () => {
       disposeRef.current?.()
       disposeRef.current = null
+      forceUpdateRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Only mount once - Solid handles internal updates via getRows callback
-
-  // Update props via Solid's reactivity (the getRows function is called each frame)
-  // Other props are stable references, so no re-mount needed
+  }, [props.refreshKey]) // Remount when refreshKey changes for immediate data refresh
 
   return (
     <div ref={containerRef} style={{ height: '100%', width: '100%' }} data-testid="table-mount" />

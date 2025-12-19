@@ -109,6 +109,7 @@ export function DiskTable(props: DiskTableProps) {
       rowHeight={24}
       getSelectedKeys={props.getSelectedKeys}
       onSelectionChange={props.onSelectionChange}
+      refreshKey={props.torrentHash}
     />
   )
 }

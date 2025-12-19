@@ -102,6 +102,7 @@ export function PieceTable(props: PieceTableProps) {
       rowHeight={24}
       getSelectedKeys={props.getSelectedKeys}
       onSelectionChange={props.onSelectionChange}
+      refreshKey={props.torrentHash}
     />
   )
 }

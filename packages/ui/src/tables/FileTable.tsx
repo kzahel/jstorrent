@@ -244,6 +244,7 @@ export function FileTable(props: FileTableProps) {
         onSelectionChange={props.onSelectionChange}
         onRowContextMenu={handleContextMenu}
         onRowDoubleClick={handleOpenFile}
+        refreshKey={props.torrentHash}
       />
 
       {contextMenu && (
