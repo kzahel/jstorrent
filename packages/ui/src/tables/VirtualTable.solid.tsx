@@ -163,6 +163,17 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
   // Focus index for keyboard navigation (tracks keyboard cursor position)
   const [focusIndex, setFocusIndex] = createSignal<number | null>(null)
 
+  // Local selection state for instant feedback (avoids React async state update delay)
+  const [selectedKeys, setSelectedKeys] = createSignal<Set<string>>(
+    props.getSelectedKeys?.() ?? new Set(),
+  )
+
+  // Update selection: local signal (instant) + notify parent
+  const updateSelection = (keys: Set<string>) => {
+    setSelectedKeys(keys)
+    props.onSelectionChange?.(keys)
+  }
+
   // Create virtualizer
   const virtualizer = createVirtualizer({
     get count() {
@@ -239,10 +250,10 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
   const handleRowClick = (row: T, index: number, e: MouseEvent) => {
     props.onRowClick?.(row)
 
-    if (!props.onSelectionChange || !props.getSelectedKeys) return
+    if (!props.onSelectionChange) return
 
     const key = props.getRowKey(row)
-    const current = props.getSelectedKeys()
+    const current = selectedKeys()
     const allRows = rows()
 
     if (e.shiftKey && anchorIndex !== null) {
@@ -261,9 +272,9 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
         for (const k of rangeKeys) {
           next.add(k)
         }
-        props.onSelectionChange(next)
+        updateSelection(next)
       } else {
-        props.onSelectionChange(rangeKeys)
+        updateSelection(rangeKeys)
       }
     } else if (e.ctrlKey || e.metaKey) {
       const next = new Set(current)
@@ -272,10 +283,10 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
       } else {
         next.add(key)
       }
-      props.onSelectionChange(next)
+      updateSelection(next)
       anchorIndex = index
     } else {
-      props.onSelectionChange(new Set([key]))
+      updateSelection(new Set([key]))
       anchorIndex = index
     }
     setFocusIndex(index)
@@ -286,19 +297,19 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     // Handle Ctrl+A / Cmd+A for select all
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
       e.preventDefault()
-      if (!props.onSelectionChange || !props.getSelectedKeys) return
+      if (!props.onSelectionChange) return
 
       const allRows = rows()
       const allKeys = new Set<string>()
       for (const row of allRows) {
         allKeys.add(props.getRowKey(row))
       }
-      props.onSelectionChange(allKeys)
+      updateSelection(allKeys)
       return
     }
 
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
-    if (!props.onSelectionChange || !props.getSelectedKeys) return
+    if (!props.onSelectionChange) return
 
     e.preventDefault()
     const allRows = rows()
@@ -324,10 +335,10 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
       for (let i = start; i <= end; i++) {
         rangeKeys.add(props.getRowKey(allRows[i]))
       }
-      props.onSelectionChange(rangeKeys)
+      updateSelection(rangeKeys)
     } else {
       // Single selection
-      props.onSelectionChange(new Set([key]))
+      updateSelection(new Set([key]))
       anchorIndex = newIndex
     }
 
@@ -829,10 +840,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
           {(virtualRow) => {
             const row = () => rows()[virtualRow.index]
             const key = () => props.getRowKey(row())
-            const isSelected = () => {
-              tick()
-              return props.getSelectedKeys?.().has(key()) ?? false
-            }
+            const isSelected = () => selectedKeys().has(key())
 
             return (
               <div
@@ -863,8 +871,8 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                   const r = row()
                   const k = props.getRowKey(r)
 
-                  if (!props.getSelectedKeys?.().has(k)) {
-                    props.onSelectionChange?.(new Set([k]))
+                  if (!selectedKeys().has(k)) {
+                    updateSelection(new Set([k]))
                     anchorIndex = virtualRow.index
                     setFocusIndex(virtualRow.index)
                   }
