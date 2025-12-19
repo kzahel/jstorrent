@@ -26,19 +26,19 @@ if %ERRORLEVEL% neq 0 (
     exit /b %ERRORLEVEL%
 )
 
-REM Determine installer path (check both normal and temp locations)
+REM Determine installer path (check temp first since WSL/network builds go there)
 set INSTALLER_NORMAL=installers\windows\Output\jstorrent-native-host-install-windows-x86_64.exe
 set INSTALLER_TEMP=%TEMP%\jstorrent-installer-output\jstorrent-native-host-install-windows-x86_64.exe
 set INSTALLER_PATH=
 
-if exist "%INSTALLER_NORMAL%" (
-    set INSTALLER_PATH=%INSTALLER_NORMAL%
-) else if exist "%INSTALLER_TEMP%" (
+if exist "%INSTALLER_TEMP%" (
     set INSTALLER_PATH=%INSTALLER_TEMP%
+) else if exist "%INSTALLER_NORMAL%" (
+    set INSTALLER_PATH=%INSTALLER_NORMAL%
 ) else (
     echo Error: Installer not found at expected locations:
-    echo   - %INSTALLER_NORMAL%
     echo   - %INSTALLER_TEMP%
+    echo   - %INSTALLER_NORMAL%
     exit /b 1
 )
 
