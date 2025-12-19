@@ -651,6 +651,9 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
   updateSetting,
   onResetAllSettings,
 }) => {
+  // Component overrides collapsed by default
+  const [overridesExpanded, setOverridesExpanded] = useState(false)
+
   // Apply daemon rate limit to engine when settings change
   const handleOpsPerSecondChange = (v: number) => {
     updateSetting('daemonOpsPerSecond', v)
@@ -693,30 +696,35 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
           </select>
         </div>
 
-        <div style={{ color: 'var(--text-secondary)', marginTop: '16px', marginBottom: '8px' }}>
+        <div
+          style={styles.collapsibleHeader}
+          onClick={() => setOverridesExpanded(!overridesExpanded)}
+        >
+          <span style={{ marginRight: '8px' }}>{overridesExpanded ? '▼' : '▶'}</span>
           Component Overrides (select &ldquo;Default&rdquo; to use global level)
         </div>
-        {LOG_COMPONENTS.map((comp) => {
-          const key = `logging.level.${comp}` as const
-          return (
-            <div key={comp} style={styles.fieldRow}>
-              <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '12px' }}>{comp}</span>
-              <select
-                value={settings[key]}
-                onChange={(e) => updateSetting(key, e.target.value as ComponentLogLevelValue)}
-                style={styles.select}
-              >
-                {COMPONENT_LOG_LEVELS.map((level) => (
-                  <option key={level} value={level}>
-                    {level === 'default'
-                      ? 'Default'
-                      : level.charAt(0).toUpperCase() + level.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )
-        })}
+        {overridesExpanded &&
+          LOG_COMPONENTS.map((comp) => {
+            const key = `logging.level.${comp}` as const
+            return (
+              <div key={comp} style={styles.fieldRow}>
+                <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '12px' }}>{comp}</span>
+                <select
+                  value={settings[key]}
+                  onChange={(e) => updateSetting(key, e.target.value as ComponentLogLevelValue)}
+                  style={styles.select}
+                >
+                  {COMPONENT_LOG_LEVELS.map((level) => (
+                    <option key={level} value={level}>
+                      {level === 'default'
+                        ? 'Default'
+                        : level.charAt(0).toUpperCase() + level.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )
+          })}
 
         <button
           onClick={handleResetLogging}
@@ -1095,5 +1103,12 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid var(--border-color)',
     background: 'var(--bg-secondary)',
     color: 'var(--text-primary)',
+  },
+  collapsibleHeader: {
+    color: 'var(--text-secondary)',
+    marginTop: '16px',
+    marginBottom: '8px',
+    cursor: 'pointer',
+    userSelect: 'none',
   },
 }
