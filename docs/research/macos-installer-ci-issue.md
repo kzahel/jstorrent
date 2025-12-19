@@ -33,4 +33,12 @@ sudo installer -pkg "$INSTALLER_PKG" -target /
 
 ## Status
 
-Testing option 1.
+**RESOLVED** - Implemented option 3 (Extract only).
+
+The verification script now uses `pkgutil --expand` to extract and verify the PKG contents without running the installer. This avoids the SIGTERM issue in CI while still verifying:
+- All binaries are present and executable
+- App bundle structure is correct
+- Chrome manifest exists
+- Uninstall script is included
+
+This is brittle (doesn't test actual installation), but provides reasonable confidence that the PKG is correctly structured.
