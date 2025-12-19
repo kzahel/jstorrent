@@ -551,6 +551,7 @@ export class DaemonBridge {
         if (response.id !== requestId) return
 
         if (response.ok && response.type === 'RootAdded' && response.payload?.root) {
+          this.addRoot(response.payload.root)
           resolve(response.payload.root)
         } else {
           resolve(null)
