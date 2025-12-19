@@ -880,7 +880,15 @@ function App() {
                 onLaunch={launch}
                 onCancel={cancel}
                 onAddFolder={async () => {
-                  await engineManager.pickDownloadFolder()
+                  const existingRoots = engineManager.getRoots().length
+                  const root = await engineManager.pickDownloadFolder()
+                  if (root) {
+                    // If this is the first root, set it as default
+                    if (existingRoots === 0) {
+                      setDefaultRootKey(root.key)
+                      await engineManager.setDefaultRoot(root.key)
+                    }
+                  }
                 }}
                 onSetDefaultRoot={(key) => {
                   setDefaultRootKey(key)
