@@ -275,9 +275,9 @@ export const settingsSchema = {
   daemonOpsPerSecond: {
     type: 'number',
     storage: 'sync',
-    default: 20,
+    default: 2,
     min: 1,
-    max: 100,
+    max: 20,
   },
   /**
    * Burst capacity for daemon operations.
@@ -286,9 +286,9 @@ export const settingsSchema = {
   daemonOpsBurst: {
     type: 'number',
     storage: 'sync',
-    default: 40,
+    default: 2,
     min: 1,
-    max: 200,
+    max: 40,
   },
 
   // -------------------------------------------------------------------------
