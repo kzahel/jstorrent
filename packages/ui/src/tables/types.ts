@@ -24,6 +24,8 @@ export interface ColumnDef<T> {
   defaultHidden?: boolean
   /** Optional inline styles for the cell based on row data */
   getCellStyle?: (row: T) => Record<string, string> | undefined
+  /** Optional tooltip text for the cell */
+  getCellTitle?: (row: T) => string | undefined
   /** Custom cell renderer. getValue is still used for sorting/export. */
   renderCell?: (row: T, value: string | number) => JSX.Element | string | number
 }

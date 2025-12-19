@@ -4,18 +4,6 @@ import { ColumnDef } from './types'
 import { formatBytes, parseClientName } from '../utils/format'
 import { countryCodeToFlag, countryCodeToName } from '../utils/country-flag'
 
-/** Render flag with tooltip (Solid-style function component) */
-function FlagWithTooltip(props: { code: string | null | undefined }) {
-  const flag = countryCodeToFlag(props.code)
-  const name = countryCodeToName(props.code)
-  if (!flag) return ''
-  // Using DOM API for Solid compatibility (called from column renderCell)
-  const span = document.createElement('span')
-  span.textContent = flag
-  if (name) span.title = name
-  return span
-}
-
 /**
  * Format peer flags (choking/interested states)
  * E = encrypted (MSE/PE), I = incoming connection
@@ -88,7 +76,7 @@ function createPeerColumns(getTorrent: () => Torrent | null): ColumnDef<DisplayP
       getValue: (p) => countryCodeToFlag(p.swarmPeer?.countryCode),
       width: 30,
       align: 'center',
-      renderCell: (p) => FlagWithTooltip({ code: p.swarmPeer?.countryCode }),
+      getCellTitle: (p) => countryCodeToName(p.swarmPeer?.countryCode) ?? undefined,
     },
     {
       id: 'client',

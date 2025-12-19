@@ -875,6 +875,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                 <For each={visibleColumns()}>
                   {(column) => (
                     <div
+                      title={column.getCellTitle?.(row())}
                       style={{
                         width: `${getColumnWidth(column, columnConfig())}px`,
                         padding: '0 12px',
