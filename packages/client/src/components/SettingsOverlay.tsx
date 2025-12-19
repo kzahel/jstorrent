@@ -816,8 +816,8 @@ const SpeedLimitRow: React.FC<SpeedLimitRowProps> = ({ label, value, onChange })
     const kb = Number(editValue)
     if (Number.isFinite(kb) && kb > 0) {
       onChange(kb * 1024)
-    } else if (editValue === '' || kb <= 0) {
-      // Empty or zero means unlimited
+    } else {
+      // Empty, zero, negative, or NaN means unlimited
       onChange(0)
     }
   }
@@ -841,6 +841,7 @@ const SpeedLimitRow: React.FC<SpeedLimitRowProps> = ({ label, value, onChange })
         onKeyDown={handleKeyDown}
         disabled={isUnlimited}
         placeholder="0"
+        min={0}
         style={{ ...styles.numberInput, opacity: isUnlimited ? 0.5 : 1 }}
       />
       <span style={{ fontSize: '12px' }}>KB/s</span>
