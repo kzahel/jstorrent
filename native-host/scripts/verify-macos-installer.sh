@@ -42,45 +42,46 @@ mkdir -p "$PAYLOAD_DIR"
 echo "Extracted payload structure:"
 find "$PAYLOAD_DIR" -type f -o -type d | head -20
 
-# Expected paths in the payload (relative to home directory)
-LIBRARY_DIR="$PAYLOAD_DIR/Library/Application Support/JSTorrent"
-APPS_DIR="$PAYLOAD_DIR/Applications/JSTorrent Link Handler.app"
-CHROME_DIR="$PAYLOAD_DIR/Library/Application Support/Google/Chrome/NativeMessagingHosts"
+# The payload contains files as they exist in pkgroot/ (flat structure).
+# The --install-location in pkgbuild specifies where they get installed,
+# but the extracted payload just has the raw source files at the root.
+# So we check for files directly in $PAYLOAD_DIR, not in subdirectories.
 
 echo "Verifying package structure..."
 
 # Verify binaries exist
-if [ ! -f "$LIBRARY_DIR/jstorrent-native-host" ]; then
+if [ ! -f "$PAYLOAD_DIR/jstorrent-native-host" ]; then
     echo "Error: Native host binary not found in payload"
-    ls -la "$LIBRARY_DIR" || echo "Directory not found: $LIBRARY_DIR"
+    ls -la "$PAYLOAD_DIR" || echo "Payload directory not found"
     exit 1
 fi
 echo "✓ Found jstorrent-native-host"
 
-if [ ! -f "$LIBRARY_DIR/jstorrent-io-daemon" ]; then
+if [ ! -f "$PAYLOAD_DIR/jstorrent-io-daemon" ]; then
     echo "Error: IO Daemon binary not found in payload"
-    ls -la "$LIBRARY_DIR" || echo "Directory not found: $LIBRARY_DIR"
+    ls -la "$PAYLOAD_DIR" || echo "Payload directory not found"
     exit 1
 fi
 echo "✓ Found jstorrent-io-daemon"
 
 # Verify binaries are executable
-if [ ! -x "$LIBRARY_DIR/jstorrent-native-host" ]; then
+if [ ! -x "$PAYLOAD_DIR/jstorrent-native-host" ]; then
     echo "Error: native-host is not executable in payload"
     exit 1
 fi
 echo "✓ jstorrent-native-host is executable"
 
-if [ ! -x "$LIBRARY_DIR/jstorrent-io-daemon" ]; then
+if [ ! -x "$PAYLOAD_DIR/jstorrent-io-daemon" ]; then
     echo "Error: io-daemon is not executable in payload"
     exit 1
 fi
 echo "✓ jstorrent-io-daemon is executable"
 
-# Verify Link Handler app
+# Verify Link Handler app (in payload root, will be installed to ~/Applications by postinstall)
+APPS_DIR="$PAYLOAD_DIR/JSTorrent Link Handler.app"
 if [ ! -d "$APPS_DIR" ]; then
     echo "Error: JSTorrent Link Handler app not found in payload"
-    ls -la "$PAYLOAD_DIR/Applications" || echo "Applications directory not found"
+    ls -la "$PAYLOAD_DIR" || echo "Payload directory not found"
     exit 1
 fi
 echo "✓ Found JSTorrent Link Handler.app"
@@ -99,29 +100,22 @@ if [ ! -x "$APPS_DIR/Contents/MacOS/jstorrent-link-handler-bin" ]; then
 fi
 echo "✓ Link handler binary is executable"
 
-# Verify Chrome manifest directory exists
-if [ ! -d "$CHROME_DIR" ]; then
-    echo "Error: Chrome NativeMessagingHosts directory not found in payload"
+# Verify manifest template exists (postinstall generates the actual manifest)
+if [ ! -f "$PAYLOAD_DIR/com.jstorrent.native.json.template" ]; then
+    echo "Error: Chrome manifest template not found in payload"
+    ls -la "$PAYLOAD_DIR" || echo "Payload directory not found"
     exit 1
 fi
-echo "✓ Found Chrome NativeMessagingHosts directory"
-
-# Verify Chrome manifest exists
-if [ ! -f "$CHROME_DIR/com.jstorrent.native.json" ]; then
-    echo "Error: Chrome manifest not found in payload"
-    ls -la "$CHROME_DIR" || echo "Directory empty"
-    exit 1
-fi
-echo "✓ Found Chrome manifest"
+echo "✓ Found Chrome manifest template"
 
 # Verify uninstall script
-if [ ! -f "$LIBRARY_DIR/uninstall.sh" ]; then
+if [ ! -f "$PAYLOAD_DIR/uninstall.sh" ]; then
     echo "Error: Uninstall script not found in payload"
     exit 1
 fi
 echo "✓ Found uninstall script"
 
-if [ ! -x "$LIBRARY_DIR/uninstall.sh" ]; then
+if [ ! -x "$PAYLOAD_DIR/uninstall.sh" ]; then
     echo "Error: Uninstall script is not executable"
     exit 1
 fi
