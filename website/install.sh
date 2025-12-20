@@ -2,7 +2,7 @@
 set -xe
 
 # Update this AND src/App.tsx TAG when releasing a new native version
-TAG="v0.1.4"
+TAG="v0.1.5"
 
 # Detect OS
 if [[ "$(uname -s)" != "Linux" ]]; then
