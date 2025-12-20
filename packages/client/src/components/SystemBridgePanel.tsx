@@ -345,9 +345,9 @@ export function SystemBridgePanel({
           // Desktop: show download/retry
           return (
             <>
-              {isFirstTime && (
+              {isFirstTime ? (
                 <a
-                  href="https://jstorrent.com/download"
+                  href="https://new.jstorrent.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -360,6 +360,20 @@ export function SystemBridgePanel({
                   }}
                 >
                   Download
+                </a>
+              ) : (
+                <a
+                  href="https://new.jstorrent.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '13px',
+                    textDecoration: 'none',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  Reinstall
                 </a>
               )}
               <button
