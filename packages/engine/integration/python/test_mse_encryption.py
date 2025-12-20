@@ -7,7 +7,7 @@ Tests:
 2. Rejection test: Plain connection rejected when peer requires encryption
 
 NOTE: These tests validate MSE/PE integration. Test 1 requires the jstorrent
-engine to send MSE encrypted handshakes when encryptionPolicy='enabled'.
+engine to send MSE encrypted handshakes when encryptionPolicy='prefer'.
 If test 1 fails with "incoming regular connections disabled" from libtorrent,
 it indicates jstorrent is sending plain BT handshakes instead of MSE handshakes.
 """
@@ -61,9 +61,9 @@ def run_encrypted_download_test() -> bool:
         actual_port = lt_session.listen_port()
         print(f"Libtorrent seeding on port {actual_port}")
 
-        # Start jstorrent engine with encryption ENABLED
+        # Start jstorrent engine with encryption PREFERRED
         # (will negotiate encryption with peer)
-        with test_engine(leecher_dir, encryptionPolicy='enabled') as engine:
+        with test_engine(leecher_dir, encryptionPolicy='prefer') as engine:
             tid = engine.add_torrent_file(torrent_path)
             engine.add_peer(tid, "127.0.0.1", actual_port)
 
