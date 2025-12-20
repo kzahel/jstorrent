@@ -95,6 +95,9 @@ jobs:
 
   build-macos:
     runs-on: macos-latest
+    env:
+      HAS_SIGNING_SECRETS: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 != '' }}
+      HAS_NOTARIZATION_SECRETS: ${{ secrets.ASC_API_KEY_P8_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -102,7 +105,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Set up code signing
-        if: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 != '' }}
+        if: env.HAS_SIGNING_SECRETS == 'true'
         env:
           MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -124,7 +127,7 @@ jobs:
           rm -f certificate.p12
 
       - name: Set up notarization credentials
-        if: ${{ secrets.ASC_API_KEY_P8_BASE64 != '' }}
+        if: env.HAS_NOTARIZATION_SECRETS == 'true'
         env:
           ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
           ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
@@ -134,7 +137,7 @@ jobs:
           chmod 600 ~/private_keys/AuthKey_${ASC_API_KEY_ID}.p8
 
       - name: Build Signed Installer
-        if: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 != '' }}
+        if: env.HAS_SIGNING_SECRETS == 'true'
         env:
           CODESIGN_IDENTITY: 'Developer ID Application: Kyle Graehl (VD7BYQ6ABM)'
           INSTALLER_IDENTITY: 'Developer ID Installer: Kyle Graehl (VD7BYQ6ABM)'
@@ -146,14 +149,14 @@ jobs:
           ./scripts/build-macos-installer.sh --notarize
 
       - name: Build Unsigned Installer
-        if: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 == '' }}
+        if: env.HAS_SIGNING_SECRETS != 'true'
         run: |
           chmod +x scripts/build-macos-installer.sh
           ./scripts/build-macos-installer.sh
           echo "::warning::Building unsigned installer - code signing secrets not configured"
 
       - name: Verify Package
-        if: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 != '' }}
+        if: env.HAS_SIGNING_SECRETS == 'true'
         run: |
           pkgutil --check-signature jstorrent-native-host-install-macos-x86_64.pkg
           spctl -a -vv -t install jstorrent-native-host-install-macos-x86_64.pkg
