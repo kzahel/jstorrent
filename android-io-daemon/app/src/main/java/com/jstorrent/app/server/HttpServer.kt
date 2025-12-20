@@ -44,12 +44,18 @@ private data class RootsResponse(
 )
 
 @Serializable
+private data class StatusRequest(
+    val token: String? = null
+)
+
+@Serializable
 private data class StatusResponse(
     val port: Int,
     val paired: Boolean,
     val extensionId: String? = null,
     val installId: String? = null,
-    val version: String? = null
+    val version: String? = null,
+    val tokenValid: Boolean? = null
 )
 
 @Serializable
@@ -174,12 +180,28 @@ class HttpServer(
                 if (!call.requireExtensionOrigin()) return@post
                 val headers = call.getExtensionHeaders() ?: return@post
 
+                // Parse optional request body
+                val request = try {
+                    val body = call.receiveText()
+                    if (body.isNotBlank()) {
+                        json.decodeFromString<StatusRequest>(body)
+                    } else {
+                        StatusRequest()
+                    }
+                } catch (e: Exception) {
+                    StatusRequest()
+                }
+
+                // Check token validity if provided
+                val tokenValid = request.token?.let { tokenStore.isTokenValid(it) }
+
                 val response = StatusResponse(
                     port = actualPort,
                     paired = tokenStore.hasToken(),
                     extensionId = tokenStore.extensionId,
                     installId = tokenStore.installId,
-                    version = BuildConfig.VERSION_NAME
+                    version = BuildConfig.VERSION_NAME,
+                    tokenValid = tokenValid
                 )
                 call.respondText(
                     json.encodeToString(response),

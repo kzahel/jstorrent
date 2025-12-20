@@ -45,6 +45,15 @@ class TokenStore(context: Context) {
     }
 
     /**
+     * Validate a token matches the stored token.
+     * Returns false if no token stored or doesn't match.
+     */
+    fun isTokenValid(checkToken: String): Boolean {
+        val storedToken = token ?: return false
+        return storedToken == checkToken
+    }
+
+    /**
      * Store pairing credentials atomically.
      */
     fun pair(newToken: String, newInstallId: String, newExtensionId: String) {
