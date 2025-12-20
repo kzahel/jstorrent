@@ -61,9 +61,13 @@ function App() {
       // @ts-expect-error - chrome is not defined in standard web types
       if (window.chrome && window.chrome.runtime) {
         // @ts-expect-error - sendMessage is valid
-        window.chrome.runtime.sendMessage(EXTENSION_ID, { type: 'launch-ping' }, (response: unknown) => {
-          console.log('Extension response:', response)
-        })
+        window.chrome.runtime.sendMessage(
+          EXTENSION_ID,
+          { type: 'launch-ping' },
+          (response: unknown) => {
+            console.log('Extension response:', response)
+          },
+        )
       } else {
         console.warn('Chrome runtime not available')
       }
@@ -76,8 +80,7 @@ function App() {
     <div className="container">
       <h1>JSTorrent</h1>
       <p>
-        Please visit the{' '}
-        <a href="https://github.com/kzahel/jstorrent">GitHub Repository</a> for
+        Please visit the <a href="https://github.com/kzahel/jstorrent">GitHub Repository</a> for
         installation instructions.
       </p>
 
