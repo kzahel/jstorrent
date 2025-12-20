@@ -1292,7 +1292,7 @@ dependencies = [
 
 [[package]]
 name = "jstorrent-host"
-version = "0.1.0"
+version = "0.1.4"
 dependencies = [
  "anyhow",
  "axum",
@@ -1323,7 +1323,7 @@ dependencies = [
 
 [[package]]
 name = "jstorrent-io-daemon"
-version = "0.1.0"
+version = "0.1.4"
 dependencies = [
  "anyhow",
  "axum",
