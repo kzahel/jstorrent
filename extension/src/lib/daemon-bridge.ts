@@ -42,6 +42,7 @@ export type EventListener = (event: NativeEvent) => void
 const STORAGE_KEY_TOKEN = 'android:authToken'
 const STORAGE_KEY_PORT = 'android:daemonPort'
 const STORAGE_KEY_HAS_CONNECTED = 'daemon:hasConnectedSuccessfully'
+const STORAGE_KEY_LAST_CONNECTED = 'daemon:lastConnectedTime'
 
 // ============================================================================
 // DaemonBridge Class
@@ -104,7 +105,10 @@ export class DaemonBridge {
         await this.connectChromeos()
       }
 
-      await chrome.storage.local.set({ [STORAGE_KEY_HAS_CONNECTED]: true })
+      await chrome.storage.local.set({
+        [STORAGE_KEY_HAS_CONNECTED]: true,
+        [STORAGE_KEY_LAST_CONNECTED]: Date.now(),
+      })
       return true
     } catch (e) {
       const error = e instanceof Error ? e.message : 'Unknown error'
@@ -131,6 +135,15 @@ export class DaemonBridge {
   async hasEverConnected(): Promise<boolean> {
     const result = await chrome.storage.local.get(STORAGE_KEY_HAS_CONNECTED)
     return result[STORAGE_KEY_HAS_CONNECTED] === true
+  }
+
+  /**
+   * Get the timestamp of the last successful connection (epoch ms).
+   */
+  async getLastConnectedTime(): Promise<number | null> {
+    const result = await chrome.storage.local.get(STORAGE_KEY_LAST_CONNECTED)
+    const value = result[STORAGE_KEY_LAST_CONNECTED]
+    return typeof value === 'number' ? value : null
   }
 
   /**

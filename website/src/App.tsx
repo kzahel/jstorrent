@@ -11,6 +11,18 @@ const MACOS_INSTALLER = `https://github.com/kzahel/jstorrent/releases/download/n
 
 type Platform = 'windows' | 'mac' | 'linux'
 
+interface StatusResponse {
+  ok: true
+  installed: true
+  extensionVersion: string
+  platform: 'desktop' | 'chromeos'
+  nativeHostConnected: boolean
+  nativeHostVersion?: string
+  hasEverConnected: boolean
+  lastConnectedTime?: number
+  installId: string
+}
+
 function detectPlatform(): Platform {
   const ua = navigator.userAgent.toLowerCase()
   if (ua.includes('win')) return 'windows'
@@ -18,26 +30,38 @@ function detectPlatform(): Platform {
   return 'linux'
 }
 
+function formatTimestamp(timestamp: number): string {
+  const date = new Date(timestamp)
+  return date.toLocaleString()
+}
+
 function App() {
   const [copied, setCopied] = useState(false)
   const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null)
+  const [status, setStatus] = useState<StatusResponse | null>(null)
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(detectPlatform)
 
   useEffect(() => {
-    // Check if extension is installed by trying to message it
+    // Check extension status with comprehensive info
     const checkExtension = () => {
       try {
         // @ts-expect-error - chrome is not defined in standard web types
         if (window.chrome && window.chrome.runtime) {
           // @ts-expect-error - sendMessage is valid
-          window.chrome.runtime.sendMessage(EXTENSION_ID, { type: 'ping' }, (response: unknown) => {
-            // @ts-expect-error - lastError is valid
-            if (window.chrome.runtime.lastError) {
-              setExtensionInstalled(false)
-            } else {
-              setExtensionInstalled(!!response)
-            }
-          })
+          window.chrome.runtime.sendMessage(
+            EXTENSION_ID,
+            { type: 'status' },
+            (response: StatusResponse | undefined) => {
+              // @ts-expect-error - lastError is valid
+              if (window.chrome.runtime.lastError || !response) {
+                setExtensionInstalled(false)
+                setStatus(null)
+              } else {
+                setExtensionInstalled(true)
+                setStatus(response)
+              }
+            },
+          )
         } else {
           setExtensionInstalled(false)
         }
@@ -87,11 +111,53 @@ function App() {
       {/* Extension status */}
       <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
         {extensionInstalled === true ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✓ JSTorrent is installed</span>
-            <button onClick={handleLaunch} style={{ padding: '10px 20px', fontSize: '1.2rem' }}>
-              Launch JSTorrent
-            </button>
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1rem',
+                flexWrap: 'wrap',
+                marginBottom: '1rem',
+              }}
+            >
+              <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✓ JSTorrent is installed</span>
+              <button onClick={handleLaunch} style={{ padding: '10px 20px', fontSize: '1.2rem' }}>
+                Launch JSTorrent
+              </button>
+            </div>
+            {status && (
+              <div style={{ fontSize: '0.9rem', color: '#aaa', lineHeight: '1.6' }}>
+                <div>Extension version: {status.extensionVersion}</div>
+                <div>Platform: {status.platform}</div>
+                <div>
+                  Install ID: <code style={{ fontSize: '0.8rem' }}>{status.installId}</code>
+                </div>
+                <div>
+                  Native host:{' '}
+                  {status.nativeHostConnected ? (
+                    <span style={{ color: '#4caf50' }}>
+                      ✓ Connected {status.nativeHostVersion && `(v${status.nativeHostVersion})`}
+                    </span>
+                  ) : (
+                    <span style={{ color: '#f44336' }}>✗ Not connected</span>
+                  )}
+                </div>
+                {status.hasEverConnected && (
+                  <div>
+                    Has connected before: ✓
+                    {status.lastConnectedTime && (
+                      <span> (last: {formatTimestamp(status.lastConnectedTime)})</span>
+                    )}
+                  </div>
+                )}
+                {!status.hasEverConnected && !status.nativeHostConnected && (
+                  <div style={{ color: '#ff9800', marginTop: '0.5rem' }}>
+                    ⚠ Native host has never connected. Please install it below.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : extensionInstalled === false ? (
           <div>

@@ -7,6 +7,7 @@ import { handleKVMessage } from './lib/kv-handlers'
 import { NotificationManager, ProgressStats } from './lib/notifications'
 import { PowerManager } from './lib/power'
 import { getOrCreateInstallId } from './lib/install-id'
+import { findAndroidDaemonPort } from './lib/platform'
 
 // ============================================================================
 // Notification Manager
@@ -411,6 +412,123 @@ function handleMessage(
 }
 
 // ============================================================================
+// Status Request Handler (for website installation diagnostics)
+// ============================================================================
+const STATUS_TIMEOUT_MS = 3000
+
+interface StatusResponse {
+  ok: true
+  installed: true
+  extensionVersion: string
+  platform: 'desktop' | 'chromeos'
+  nativeHostConnected: boolean
+  nativeHostVersion?: string
+  hasEverConnected: boolean
+  lastConnectedTime?: number
+  installId: string
+}
+
+async function handleStatusRequest(
+  sendResponse: (response: StatusResponse) => void,
+): Promise<void> {
+  const platform = bridge.getPlatform()
+  const manifest = chrome.runtime.getManifest()
+
+  // Gather static info first
+  const [installId, hasEverConnected, lastConnectedTime] = await Promise.all([
+    getOrCreateInstallId(),
+    bridge.hasEverConnected(),
+    bridge.getLastConnectedTime(),
+  ])
+
+  const baseResponse: StatusResponse = {
+    ok: true,
+    installed: true,
+    extensionVersion: manifest.version,
+    platform,
+    nativeHostConnected: false,
+    hasEverConnected,
+    lastConnectedTime: lastConnectedTime ?? undefined,
+    installId,
+  }
+
+  // Check current state first
+  const currentState = bridge.getState()
+  if (currentState.status === 'connected' && currentState.daemonInfo) {
+    sendResponse({
+      ...baseResponse,
+      nativeHostConnected: true,
+      nativeHostVersion: currentState.daemonInfo.version,
+    })
+    return
+  }
+
+  // For ChromeOS: passive detection only (no user gesture available)
+  if (platform === 'chromeos') {
+    // Try to detect if Android daemon is reachable without triggering pairing
+    try {
+      const port = await Promise.race([
+        findAndroidDaemonPort(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), STATUS_TIMEOUT_MS)),
+      ])
+
+      if (port) {
+        // Daemon is reachable, try to get version from /status endpoint
+        try {
+          const response = await fetch(`http://100.115.92.2:${port}/status`)
+          if (response.ok) {
+            const data = await response.json()
+            sendResponse({
+              ...baseResponse,
+              nativeHostConnected: true,
+              nativeHostVersion: data.version ?? 'unknown',
+            })
+            return
+          }
+        } catch {
+          // Status endpoint didn't return version, but daemon is reachable
+          sendResponse({
+            ...baseResponse,
+            nativeHostConnected: true,
+            nativeHostVersion: 'unknown',
+          })
+          return
+        }
+      }
+    } catch {
+      // Timeout or error - daemon not reachable
+    }
+
+    sendResponse(baseResponse)
+    return
+  }
+
+  // For desktop: actively try to connect with timeout
+  try {
+    const connected = await Promise.race([
+      bridge.connect(),
+      new Promise<false>((resolve) => setTimeout(() => resolve(false), STATUS_TIMEOUT_MS)),
+    ])
+
+    if (connected) {
+      const state = bridge.getState()
+      sendResponse({
+        ...baseResponse,
+        nativeHostConnected: true,
+        nativeHostVersion: state.daemonInfo?.version ?? 'unknown',
+        // Re-fetch these since connection just succeeded
+        hasEverConnected: true,
+        lastConnectedTime: Date.now(),
+      })
+    } else {
+      sendResponse(baseResponse)
+    }
+  } catch {
+    sendResponse(baseResponse)
+  }
+}
+
+// ============================================================================
 // External messages (from jstorrent.com launch page or localhost dev server)
 // ============================================================================
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
@@ -420,6 +538,12 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message.type === 'ping') {
     sendResponse({ ok: true, installed: true })
     return false
+  }
+
+  // Comprehensive status check
+  if (message.type === 'status') {
+    handleStatusRequest(sendResponse)
+    return true // async response
   }
 
   // Launch ping from website
