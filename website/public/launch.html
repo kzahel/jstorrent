@@ -57,45 +57,20 @@
           color: #f5a5a5;
         }
       }
-
-      #countdown {
-        margin-top: 1rem;
-        font-size: 0.9rem;
-        opacity: 0.7;
-      }
     </style>
   </head>
 
   <body>
     <h1>Launching JSTorrent...</h1>
     <div id="status" class="status">Connecting to extension...</div>
-    <div id="countdown"></div>
 
     <script>
       const EXTENSION_ID = 'dbokmlpefliilbjldladbimlcfgbolhk'
       const statusDiv = document.getElementById('status')
-      const countdownDiv = document.getElementById('countdown')
 
       function updateStatus(message, type) {
         statusDiv.textContent = message
         statusDiv.className = 'status ' + type
-      }
-
-      function startCountdown(seconds) {
-        let remaining = seconds
-        countdownDiv.textContent = `Closing in ${remaining}...`
-
-        const interval = setInterval(() => {
-          remaining--
-          if (remaining > 0) {
-            countdownDiv.textContent = `Closing in ${remaining}...`
-          } else {
-            countdownDiv.textContent = 'Closing...'
-            clearInterval(interval)
-            console.log('Countdown complete, calling window.close()')
-            window.close()
-          }
-        }, 1000)
       }
 
       console.log('Launch page loaded at', new Date().toISOString())
@@ -109,9 +84,7 @@
             updateStatus('Failed to connect to extension. Is it installed?', 'error')
           } else {
             console.log('Extension response:', response)
-            updateStatus('Connected to extension! Launching...', 'success')
-            // Start 5-second countdown before closing
-            startCountdown(5)
+            updateStatus('Connected! Opening JSTorrent...', 'success')
           }
         })
       } else {

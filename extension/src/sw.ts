@@ -424,7 +424,15 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
   // Launch ping from website
   if (message.type === 'launch-ping') {
-    openUiTab().then(() => sendResponse({ ok: true }))
+    openUiTab().then(() => {
+      sendResponse({ ok: true })
+      // Close the launch page tab if we have access to it
+      if (sender.tab?.id) {
+        chrome.tabs.remove(sender.tab.id).catch((err) => {
+          console.log('Could not close launch tab:', err)
+        })
+      }
+    })
     return true
   }
 
