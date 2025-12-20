@@ -16,10 +16,9 @@ fi
 
 echo "Verifying macOS Installer..."
 
-# Create temp directory for extraction
+# Create temp directory for extraction (pkgutil will create it, so just define the path)
 EXTRACT_DIR="/tmp/jstorrent-verify-$$-$(date +%s)"
 rm -rf "$EXTRACT_DIR" 2>/dev/null || true
-mkdir -p "$EXTRACT_DIR"
 trap 'rm -rf "$EXTRACT_DIR"' EXIT
 
 # Extract PKG contents without installing
