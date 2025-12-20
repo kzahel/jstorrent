@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# This script is for macOS only
+if [[ "$(uname)" != "Darwin" ]]; then
+    echo "Error: This script is for macOS only. Detected: $(uname)"
+    exit 1
+fi
+
 # Ensure we are in the native-host directory
 if [ ! -f "Cargo.toml" ]; then
     echo "Error: This script must be run from the native-host directory."

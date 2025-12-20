@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# This script is for Linux only
+if [[ "$(uname)" != "Linux" ]]; then
+    echo "Error: This script is for Linux only. Detected: $(uname)"
+    exit 1
+fi
+
 # Ensure we are in the native-host directory
 if [ ! -f "Cargo.toml" ]; then
     echo "Error: This script must be run from the native-host directory."
