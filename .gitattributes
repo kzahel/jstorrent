@@ -42,6 +42,5 @@
 *.tar binary
 *.gz binary
 
-# Preserve legacy-app and legacy-extension as-is (must be at end to override above rules)
-legacy-app/** -text
-legacy-extension/** -text
+# Preserve archive folder as-is (must be at end to override above rules)
+archive/** -text
