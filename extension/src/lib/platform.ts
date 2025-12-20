@@ -5,6 +5,12 @@
 export type Platform = 'chromeos' | 'desktop'
 
 /**
+ * Detailed platform type for metrics tracking.
+ * Distinguishes between different desktop operating systems.
+ */
+export type DetailedPlatform = 'mac' | 'win' | 'linux' | 'chromeos'
+
+/**
  * Detect if running on ChromeOS.
  * Uses navigator.userAgent which contains "CrOS" on ChromeOS.
  */
@@ -13,6 +19,30 @@ export function detectPlatform(): Platform {
     return 'chromeos'
   }
   return 'desktop'
+}
+
+/**
+ * Detect detailed platform from userAgent.
+ * Returns 'mac', 'win', 'linux', or 'chromeos'.
+ * Used for metrics tracking to understand platform distribution.
+ */
+export function detectDetailedPlatform(): DetailedPlatform {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+
+  // ChromeOS check first (most specific - contains "CrOS")
+  if (ua.includes('CrOS')) return 'chromeos'
+
+  // macOS detection
+  if (ua.includes('Macintosh') || ua.includes('Mac OS X')) return 'mac'
+
+  // Windows detection
+  if (ua.includes('Windows')) return 'win'
+
+  // Linux detection (after ChromeOS since CrOS userAgent also contains Linux)
+  if (ua.includes('Linux')) return 'linux'
+
+  // Fallback - treat unknown as linux (most permissive)
+  return 'linux'
 }
 
 /**

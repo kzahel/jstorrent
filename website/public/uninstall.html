@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSTorrent - We're Sorry to See You Go</title>
+    <meta
+      name="description"
+      content="Help us improve JSTorrent by sharing your feedback."
+    />
+
+    <!-- Open Graph for social sharing -->
+    <meta property="og:title" content="JSTorrent - Uninstall Feedback" />
+    <meta
+      property="og:description"
+      content="Help us improve JSTorrent by sharing your feedback."
+    />
+    <meta property="og:image" content="/cook/JSTorrent/js-512.png" />
+    <meta property="og:url" content="https://new.jstorrent.com/uninstall.html" />
+    <meta property="og:type" content="website" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/cook/JSTorrent/js-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/cook/JSTorrent/js-16.png" />
+
+    <!-- Google Analytics placeholder -->
+    <!-- TODO: Add Google Analytics tracking code
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'GA_MEASUREMENT_ID');
+    </script>
+    -->
+
+    <!-- Monospace font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* Theme variables - Dark (default) */
+      :root {
+        --bg-primary: #0d1117;
+        --bg-secondary: #161b22;
+        --bg-tertiary: #21262d;
+        --border: #30363d;
+        --text-primary: #e6edf3;
+        --text-secondary: #8b949e;
+        --text-muted: #6e7681;
+        --accent: #4a90d9;
+      }
+
+      /* Light theme */
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg-primary: #ffffff;
+          --bg-secondary: #f6f8fa;
+          --bg-tertiary: #eaeef2;
+          --border: #d0d7de;
+          --text-primary: #1f2328;
+          --text-secondary: #656d76;
+          --text-muted: #8c959f;
+          --accent: #0969da;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        min-height: 100vh;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .logo {
+        width: 64px;
+        height: 64px;
+      }
+
+      .header-text h1 {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+
+      .header-text p {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+      }
+
+      .content {
+        margin-bottom: 2rem;
+      }
+
+      .content h2 {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+      }
+
+      .content p {
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+      }
+
+      .stats {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+      }
+
+      .stats-title {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.5rem;
+      }
+
+      .stat-item {
+        color: var(--text-secondary);
+      }
+
+      .stat-item span {
+        color: var(--accent);
+      }
+
+      .form-container {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        overflow: hidden;
+      }
+
+      .form-container iframe {
+        display: block;
+        min-height: 1200px;
+      }
+
+      .footer {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border);
+        text-align: center;
+      }
+
+      .footer a {
+        color: var(--accent);
+        text-decoration: none;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <img src="/cook/JSTorrent/js-128.png" alt="JSTorrent" class="logo" />
+        <div class="header-text">
+          <h1>We're Sorry to See You Go</h1>
+          <p>Your feedback helps us improve JSTorrent</p>
+        </div>
+      </header>
+
+      <main class="content">
+        <p>
+          Thank you for trying JSTorrent. We'd love to hear why you decided to uninstall
+          so we can make the extension better for everyone.
+        </p>
+
+        <div style="display:none" class="stats" id="stats">
+          <div class="stats-title">Your Usage Summary</div>
+          <div class="stats-grid" id="stats-grid">
+            <!-- Populated by JavaScript from URL params -->
+          </div>
+        </div>
+
+        <h2>Quick Feedback</h2>
+        <div class="form-container">
+          <iframe
+            src="https://docs.google.com/forms/d/e/1FAIpQLSda66NBj22jMu1fBYnpAdC07E7dJaO4l-zG46I6_oQmazn-Pw/viewform?embedded=true"
+            width="100%"
+            height="500"
+            frameborder="0"
+            marginheight="0"
+            marginwidth="0"
+            style="border: none;"
+          >Loading...</iframe>
+        </div>
+      </main>
+
+      <footer class="footer">
+        <a href="https://new.jstorrent.com">Back to JSTorrent</a>
+      </footer>
+    </div>
+
+    <script>
+      // Parse URL parameters, detect platform, and pre-populate form
+      (function() {
+        const params = new URLSearchParams(window.location.search);
+        const statsGrid = document.getElementById('stats-grid');
+        const statsContainer = document.getElementById('stats');
+        const formIframe = document.querySelector('.form-container iframe');
+
+        // Platform detection (matches extension/src/lib/platform.ts)
+        function detectPlatform() {
+          const ua = navigator.userAgent;
+          if (ua.includes('CrOS')) return 'chromeos';
+          if (ua.includes('Macintosh') || ua.includes('Mac OS X')) return 'mac';
+          if (ua.includes('Windows')) return 'win';
+          if (ua.includes('Linux')) return 'linux';
+          return 'unknown';
+        }
+
+        // Get Chrome version from user agent
+        function getChromeVersion() {
+          const match = navigator.userAgent.match(/Chrome\/(\d+)/);
+          return match ? match[1] : 'unknown';
+        }
+
+        const statLabels = {
+          v: 'Version',
+          days: 'Days Installed',
+          connected: 'Connected',
+          downloads: 'Downloads',
+          added: 'Torrents Added',
+          sessions: 'Sessions',
+          devices: 'Devices'
+        };
+
+        const displayStats = [];
+
+        for (const [key, label] of Object.entries(statLabels)) {
+          const value = params.get(key);
+          if (value !== null) {
+            displayStats.push({ label, value });
+          }
+        }
+
+        if (displayStats.length === 0) {
+          statsContainer.style.display = 'none';
+        } else {
+          statsGrid.innerHTML = displayStats
+            .map(stat => `<div class="stat-item">${stat.label}: <span>${stat.value}</span></div>`)
+            .join('');
+        }
+
+        // Build system metrics string for form pre-population
+        const platform = detectPlatform();
+        const chromeVersion = getChromeVersion();
+
+        const metricsParts = [
+          `platform=${platform}`,
+          `chrome=${chromeVersion}`,
+        ];
+
+        // Add URL params to metrics string
+        for (const key of ['v', 'days', 'connected', 'downloads', 'added', 'sessions', 'devices', 'id']) {
+          const value = params.get(key);
+          if (value !== null) {
+            metricsParts.push(`${key}=${value}`);
+          }
+        }
+
+        const metricsString = metricsParts.join(', ');
+
+        // Pre-populate the System Information field (entry.463917333)
+        if (formIframe && metricsString) {
+          const baseUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSda66NBj22jMu1fBYnpAdC07E7dJaO4l-zG46I6_oQmazn-Pw/viewform';
+          const formParams = new URLSearchParams({
+            embedded: 'true',
+            'entry.463917333': metricsString,
+          });
+          formIframe.src = `${baseUrl}?${formParams.toString()}`;
+        }
+      })();
+    </script>
+  </body>
+</html>

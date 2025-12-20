@@ -2,15 +2,20 @@ const SW_START_TIME = new Date().toISOString()
 console.log(`[SW] Service Worker loaded at ${SW_START_TIME}`)
 console.log('[SW] Deploy test - this log confirms deploy workflow works!')
 
-// Set uninstall URL for feedback collection
-chrome.runtime.setUninstallURL('https://new.jstorrent.com/uninstall.html')
-
 import { getDaemonBridge, type NativeEvent, type DaemonBridgeState } from './lib/daemon-bridge'
 import { handleKVMessage } from './lib/kv-handlers'
 import { NotificationManager, ProgressStats } from './lib/notifications'
 import { PowerManager } from './lib/power'
 import { getOrCreateInstallId } from './lib/install-id'
 import { findAndroidDaemonPort } from './lib/platform'
+import {
+  registerDevice,
+  updateUninstallUrl,
+  setupSyncListener,
+  incrementTorrentsAdded,
+  incrementCompletedDownloads,
+  incrementSessionsStarted,
+} from './lib/metrics'
 
 // ============================================================================
 // Notification Manager
@@ -69,6 +74,9 @@ async function sendToUI(event: NativeEvent): Promise<void> {
 
 function handleUIPortConnect(port: chrome.runtime.Port): void {
   console.log('[SW] UI connected via port')
+
+  // Track session start for metrics
+  incrementSessionsStarted().catch((e) => console.error('[SW] Failed to track session:', e))
 
   // Cancel idle timeout since UI is now active
   clearIdleTimer()
@@ -157,6 +165,8 @@ bridge.onEvent(async (event: NativeEvent) => {
   console.log('[SW] Native event received:', event.event)
   await sendToUI(event) // Wait for storage write to complete before opening tab
   if (event.event === 'TorrentAdded' || event.event === 'MagnetAdded') {
+    // Track torrent added for metrics
+    incrementTorrentsAdded().catch((e) => console.error('[SW] Failed to track torrent added:', e))
     openUiTab()
   }
 })
@@ -176,6 +186,17 @@ bridge.subscribe((state: DaemonBridgeState) => {
 })
 
 console.log(`[SW] Daemon Bridge started, platform: ${bridge.getPlatform()}`)
+
+// ============================================================================
+// Metrics Initialization
+// ============================================================================
+// Set up sync listener (READ-ONLY - never writes, just updates local cache)
+setupSyncListener()
+
+// Register device and update uninstall URL with metrics
+registerDevice()
+  .then(() => updateUninstallUrl())
+  .catch((e) => console.error('[SW] Failed to initialize metrics:', e))
 
 // ============================================================================
 // Installation handler - generate install ID
@@ -251,6 +272,10 @@ function handleNotificationMessage(message: NotificationMessage): void {
     case 'notification:torrent-complete':
       if (message.infoHash && message.name) {
         notificationManager.onTorrentComplete(message.infoHash, message.name)
+        // Track completed download for metrics
+        incrementCompletedDownloads().catch((e) =>
+          console.error('[SW] Failed to track download complete:', e),
+        )
       }
       break
     case 'notification:torrent-error':
