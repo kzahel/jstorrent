@@ -4,7 +4,7 @@ const EXTENSION_ID = 'dbokmlpefliilbjldladbimlcfgbolhk'
 const WEBSTORE_URL = `https://chromewebstore.google.com/detail/jstorrent/${EXTENSION_ID}`
 
 // will be annoying to have to update this?
-const TAG = 'v0.1.2'
+const TAG = 'v0.1.4'
 
 const WINDOWS_INSTALLER = `https://github.com/kzahel/jstorrent/releases/download/native-${TAG}/jstorrent-native-host-install-windows-x86_64.exe`
 const MACOS_INSTALLER = `https://github.com/kzahel/jstorrent/releases/download/native-${TAG}/jstorrent-native-host-install-macos-x86_64.pkg`

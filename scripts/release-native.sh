@@ -26,7 +26,7 @@ sed -i '' "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/native-hos
 
 # Commit version bump
 git add "$REPO_ROOT/native-host/Cargo.toml" "$REPO_ROOT/native-host/io-daemon/Cargo.toml" "$REPO_ROOT/native-host/Cargo.lock"
-git commit -m "chore: bump native version to ${VERSION}"
+git commit -m "chore: bump native version to ${VERSION} [skip ci]"
 
 # Create and push tag
 git tag "$TAG"
