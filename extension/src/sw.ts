@@ -2,6 +2,9 @@ const SW_START_TIME = new Date().toISOString()
 console.log(`[SW] Service Worker loaded at ${SW_START_TIME}`)
 console.log('[SW] Deploy test - this log confirms deploy workflow works!')
 
+// Set uninstall URL for feedback collection
+chrome.runtime.setUninstallURL('https://new.jstorrent.com/uninstall.html')
+
 import { getDaemonBridge, type NativeEvent, type DaemonBridgeState } from './lib/daemon-bridge'
 import { handleKVMessage } from './lib/kv-handlers'
 import { NotificationManager, ProgressStats } from './lib/notifications'

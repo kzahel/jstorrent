@@ -107,9 +107,9 @@ function App() {
         <h1>JSTorrent</h1>
         <p className="subtitle">A BitTorrent client for Chrome.</p>
         <p className="description">
-          Download torrents directly in your browser. JSTorrent consists of a Chrome extension
-          and a small native helper for fast file and network access. No admin privileges needed.
-          Free and{' '}<a href="https://github.com/kzahel/jstorrent">open source</a>.
+          Download torrents directly in your browser. JSTorrent consists of a Chrome extension and a
+          small native helper for fast file and network access. No admin privileges needed. Free and{' '}
+          <a href="https://github.com/kzahel/jstorrent">open source</a>.
         </p>
       </header>
 
@@ -133,7 +133,12 @@ function App() {
               <span className="status-indicator" />
               <span>Not detected</span>
             </div>
-            <a href={WEBSTORE_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+            <a
+              href={WEBSTORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary"
+            >
               Install from Chrome Web Store
             </a>
           </>
@@ -149,7 +154,9 @@ function App() {
           <div className="status-row success">
             <span className="status-indicator success" />
             <span>Connected</span>
-            {status.nativeHostVersion && <span className="text-muted">v{status.nativeHostVersion}</span>}
+            {status.nativeHostVersion && (
+              <span className="text-muted">v{status.nativeHostVersion}</span>
+            )}
           </div>
         ) : status ? (
           <>
@@ -213,7 +220,11 @@ function App() {
               <p>Run this command in your terminal:</p>
               <div className="command-box">
                 <code>curl -fsSL https://new.jstorrent.com/install.sh | bash</code>
-                <button className="copy-btn" onClick={copyToClipboard} aria-label="Copy to clipboard">
+                <button
+                  className="copy-btn"
+                  onClick={copyToClipboard}
+                  aria-label="Copy to clipboard"
+                >
                   <svg
                     viewBox="0 0 16 16"
                     version="1.1"
