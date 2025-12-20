@@ -102,179 +102,133 @@ function App() {
 
   return (
     <div className="container">
-      <h1>JSTorrent</h1>
-      <p>
-        Please visit the <a href="https://github.com/kzahel/jstorrent">GitHub Repository</a> for
-        installation instructions.
-      </p>
+      <header className="header">
+        <img src="/cook/JSTorrent/js-128.png" alt="JSTorrent" className="logo" />
+        <h1>JSTorrent</h1>
+        <p className="subtitle">A BitTorrent client for Chrome.</p>
+        <p className="description">
+          Download torrents directly in your browser. JSTorrent consists of a Chrome extension
+          and a small native helper for fast file and network access. No admin privileges needed.
+          Free and{' '}<a href="https://github.com/kzahel/jstorrent">open source</a>.
+        </p>
+      </header>
 
-      {/* Extension status */}
-      <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+      {/* Extension section */}
+      <section className="section">
+        <h2>Extension</h2>
         {extensionInstalled === true ? (
-          <div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                flexWrap: 'wrap',
-                marginBottom: '1rem',
-              }}
-            >
-              <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✓ JSTorrent is installed</span>
-              <button onClick={handleLaunch} style={{ padding: '10px 20px', fontSize: '1.2rem' }}>
-                Launch JSTorrent
-              </button>
+          <>
+            <div className="status-row success">
+              <span className="status-indicator success" />
+              <span>Installed</span>
+              {status && <span className="text-muted">v{status.extensionVersion}</span>}
             </div>
-            {status && (
-              <div style={{ fontSize: '0.9rem', color: '#aaa', lineHeight: '1.6' }}>
-                <div>Extension version: {status.extensionVersion}</div>
-                <div>Platform: {status.platform}</div>
-                <div>
-                  Install ID: <code style={{ fontSize: '0.8rem' }}>{status.installId}</code>
-                </div>
-                <div>
-                  Native host:{' '}
-                  {status.nativeHostConnected ? (
-                    <span style={{ color: '#4caf50' }}>
-                      ✓ Connected {status.nativeHostVersion && `(v${status.nativeHostVersion})`}
-                    </span>
-                  ) : (
-                    <span style={{ color: '#f44336' }}>✗ Not connected</span>
-                  )}
-                </div>
-                {status.hasEverConnected && (
-                  <div>
-                    Has connected before: ✓
-                    {status.lastConnectedTime && (
-                      <span> (last: {formatTimestamp(status.lastConnectedTime)})</span>
-                    )}
-                  </div>
-                )}
-                {!status.hasEverConnected && !status.nativeHostConnected && (
-                  <div style={{ color: '#ff9800', marginTop: '0.5rem' }}>
-                    ⚠ Native host has never connected. Please install it below.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ) : extensionInstalled === false ? (
-          <div>
-            <p style={{ marginBottom: '0.5rem' }}>
-              Extension not detected.{' '}
-              <a href={WEBSTORE_URL} target="_blank" rel="noopener noreferrer">
-                Install JSTorrent from Chrome Web Store
-              </a>
-            </p>
-          </div>
-        ) : (
-          <p style={{ color: '#888' }}>Checking extension status...</p>
-        )}
-      </div>
-
-      {/* Platform tabs */}
-      <h2>Native Host Installation</h2>
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-        <button
-          onClick={() => setSelectedPlatform('windows')}
-          style={{
-            padding: '8px 16px',
-            background: selectedPlatform === 'windows' ? '#646cff' : '#333',
-            border: 'none',
-            borderRadius: '4px',
-            color: 'white',
-            cursor: 'pointer',
-          }}
-        >
-          Windows
-        </button>
-        <button
-          onClick={() => setSelectedPlatform('mac')}
-          style={{
-            padding: '8px 16px',
-            background: selectedPlatform === 'mac' ? '#646cff' : '#333',
-            border: 'none',
-            borderRadius: '4px',
-            color: 'white',
-            cursor: 'pointer',
-          }}
-        >
-          Mac
-        </button>
-        <button
-          onClick={() => setSelectedPlatform('linux')}
-          style={{
-            padding: '8px 16px',
-            background: selectedPlatform === 'linux' ? '#646cff' : '#333',
-            border: 'none',
-            borderRadius: '4px',
-            color: 'white',
-            cursor: 'pointer',
-          }}
-        >
-          Linux
-        </button>
-      </div>
-
-      {/* Platform-specific instructions */}
-      {selectedPlatform === 'windows' && (
-        <div>
-          <p>Download and run the Windows installer:</p>
-          <a
-            href={WINDOWS_INSTALLER}
-            style={{
-              display: 'inline-block',
-              padding: '10px 20px',
-              background: '#646cff',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '4px',
-            }}
-          >
-            Download for Windows ({TAG})
-          </a>
-        </div>
-      )}
-
-      {selectedPlatform === 'mac' && (
-        <div>
-          <p>Download and run the macOS installer:</p>
-          <a
-            href={MACOS_INSTALLER}
-            style={{
-              display: 'inline-block',
-              padding: '10px 20px',
-              background: '#646cff',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '4px',
-            }}
-          >
-            Download for macOS ({TAG})
-          </a>
-        </div>
-      )}
-
-      {selectedPlatform === 'linux' && (
-        <div>
-          <p>Run this command in your terminal:</p>
-          <div className="command-box">
-            <code>curl -fsSL https://new.jstorrent.com/install.sh | bash</code>
-            <button className="copy-btn" onClick={copyToClipboard} aria-label="Copy to clipboard">
-              <svg
-                viewBox="0 0 16 16"
-                version="1.1"
-                style={{ width: 16, height: 16, fill: 'currentColor' }}
-              >
-                <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path>
-                <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
-              </svg>
+            <button className="btn btn-primary btn-large" onClick={handleLaunch}>
+              Launch JSTorrent
             </button>
-            {copied && <div className="tooltip show">Copied!</div>}
+          </>
+        ) : extensionInstalled === false ? (
+          <>
+            <div className="status-row">
+              <span className="status-indicator" />
+              <span>Not detected</span>
+            </div>
+            <a href={WEBSTORE_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+              Install from Chrome Web Store
+            </a>
+          </>
+        ) : (
+          <p className="text-muted">Checking...</p>
+        )}
+      </section>
+
+      {/* Native Host section */}
+      <section className="section">
+        <h2>Native Host</h2>
+        {status?.nativeHostConnected ? (
+          <div className="status-row success">
+            <span className="status-indicator success" />
+            <span>Connected</span>
+            {status.nativeHostVersion && <span className="text-muted">v{status.nativeHostVersion}</span>}
           </div>
+        ) : status ? (
+          <>
+            <div className="status-row">
+              <span className="status-indicator" />
+              <span>Not connected</span>
+            </div>
+            {status.hasEverConnected && status.lastConnectedTime && (
+              <p className="text-muted" style={{ marginBottom: '1rem' }}>
+                Last connected: {formatTimestamp(status.lastConnectedTime)}
+              </p>
+            )}
+          </>
+        ) : extensionInstalled === false ? null : (
+          <p className="text-muted">Checking...</p>
+        )}
+
+        <h3>Install Native Host</h3>
+        <div className="tabs">
+          <button
+            className={`tab ${selectedPlatform === 'windows' ? 'active' : ''}`}
+            onClick={() => setSelectedPlatform('windows')}
+          >
+            Windows
+          </button>
+          <button
+            className={`tab ${selectedPlatform === 'mac' ? 'active' : ''}`}
+            onClick={() => setSelectedPlatform('mac')}
+          >
+            Mac
+          </button>
+          <button
+            className={`tab ${selectedPlatform === 'linux' ? 'active' : ''}`}
+            onClick={() => setSelectedPlatform('linux')}
+          >
+            Linux
+          </button>
         </div>
-      )}
+
+        <div className="tab-content">
+          {selectedPlatform === 'windows' && (
+            <>
+              <p>Download and run the Windows installer:</p>
+              <a href={WINDOWS_INSTALLER} className="btn btn-primary">
+                Download for Windows ({TAG})
+              </a>
+            </>
+          )}
+
+          {selectedPlatform === 'mac' && (
+            <>
+              <p>Download and run the macOS installer:</p>
+              <a href={MACOS_INSTALLER} className="btn btn-primary">
+                Download for macOS ({TAG})
+              </a>
+            </>
+          )}
+
+          {selectedPlatform === 'linux' && (
+            <>
+              <p>Run this command in your terminal:</p>
+              <div className="command-box">
+                <code>curl -fsSL https://new.jstorrent.com/install.sh | bash</code>
+                <button className="copy-btn" onClick={copyToClipboard} aria-label="Copy to clipboard">
+                  <svg
+                    viewBox="0 0 16 16"
+                    version="1.1"
+                    style={{ width: 16, height: 16, fill: 'currentColor' }}
+                  >
+                    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path>
+                    <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+                  </svg>
+                </button>
+                {copied && <div className="tooltip show">Copied!</div>}
+              </div>
+            </>
+          )}
+        </div>
+      </section>
     </div>
   )
 }
