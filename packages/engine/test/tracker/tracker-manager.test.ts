@@ -101,7 +101,7 @@ describe('TrackerManager', () => {
 
     await manager.announce('started')
 
-    console.log('HttpTracker announce calls:', httpTracker.announce.mock.calls.length)
+    console.log('HttpTracker announce calls:', (httpTracker.announce as any).mock.calls.length)
 
     expect(httpTracker.announce).toHaveBeenCalledWith('started')
     expect(udpTracker.announce).toHaveBeenCalledWith('started')

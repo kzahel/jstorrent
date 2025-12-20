@@ -29,7 +29,7 @@ export class LocalStorageSettingsStore extends BaseSettingsStore {
       try {
         const raw = localStorage.getItem(storageKey)
         if (raw !== null) {
-          result[key] = JSON.parse(raw)
+          ;(result as any)[key] = JSON.parse(raw)
         }
       } catch {
         // Ignore parse errors, will use default

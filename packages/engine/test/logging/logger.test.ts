@@ -30,7 +30,7 @@ class TestClient implements ILoggingEngine {
 
 class TestTorrent extends EngineComponent {
   static logName = 'torrent'
-  infoHash: string
+  declare infoHash: string
 
   constructor(engine: ILoggingEngine, infoHash: string) {
     super(engine)
@@ -45,8 +45,8 @@ class TestTorrent extends EngineComponent {
 
 class TestPeer extends EngineComponent {
   static logName = 'peer'
-  infoHash: string
-  peerId: string
+  declare infoHash: string
+  declare peerId: string
 
   constructor(engine: ILoggingEngine, infoHash: string, peerId: string) {
     super(engine)

@@ -10,7 +10,7 @@ import {
 
 // Helper to create SHA1 using SubtleCrypto
 async function sha1(data: Uint8Array): Promise<Uint8Array> {
-  const hash = await crypto.subtle.digest('SHA-1', data)
+  const hash = await crypto.subtle.digest('SHA-1', data as BufferSource)
   return new Uint8Array(hash)
 }
 

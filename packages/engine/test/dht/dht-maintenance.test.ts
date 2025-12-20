@@ -7,21 +7,20 @@ import { ISocketFactory, IUdpSocket } from '../../src/interfaces/socket'
 // Mock UDP socket
 class MockUdpSocket implements IUdpSocket {
   onMessageCallback: ((src: { addr: string; port: number }, data: Uint8Array) => void) | null = null
-  onErrorCallback: ((err: Error) => void) | null = null
   closed = false
 
   send(_addr: string, _port: number, _data: Uint8Array): void {}
   onMessage(cb: (src: { addr: string; port: number }, data: Uint8Array) => void): void {
     this.onMessageCallback = cb
   }
-  onError(cb: (err: Error) => void): void {
-    this.onErrorCallback = cb
-  }
   close(): void {
     this.closed = true
   }
-  address(): { port: number } {
-    return { port: 6881 }
+  joinMulticast(_group: string): Promise<void> {
+    return Promise.resolve()
+  }
+  leaveMulticast(_group: string): Promise<void> {
+    return Promise.resolve()
   }
 }
 

@@ -138,7 +138,7 @@ class UdpTrackerServer {
       this.socket.on('message', (msg, rinfo) => this.handleMessage(msg, rinfo))
       this.socket.on('error', reject)
       this.socket.bind(port, () => {
-        const addr = this.socket.address() as dgram.AddressInfo
+        const addr = this.socket.address() as { port: number; address: string }
         resolve(addr.port)
       })
     })
@@ -318,12 +318,12 @@ class HttpTrackerServer {
       return
     }
 
-    const infoHash = params.info_hash
-    const peerId = params.peer_id || Buffer.alloc(20)
+    const infoHash = params.info_hash as Buffer
+    const peerId = (params.peer_id as Buffer) || Buffer.alloc(20)
 
     const port = parseInt((params.port as string) || '0', 10)
     const left = parseInt((params.left as string) || '0', 10)
-    const event = (params.event as string) || ''
+    const event = ((params.event as string) || '') as '' | 'started' | 'stopped' | 'completed'
     const compact = (params.compact as string) === '1'
 
     // Get client IP

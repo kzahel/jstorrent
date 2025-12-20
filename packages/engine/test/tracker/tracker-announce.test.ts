@@ -221,7 +221,6 @@ describe('Tracker Integration', () => {
     await new Promise<void>((resolve, reject) => {
       const check = setInterval(() => {
         if (torrentB.numPeers > 0) {
-          // @ts-expect-error - accessing private property for test
           const peers = torrentB.peers
           if (peers.length > 0 && peers[0].handshakeReceived) {
             clearInterval(check)
@@ -237,7 +236,6 @@ describe('Tracker Integration', () => {
     })
 
     // Verify
-    // @ts-expect-error - accessing private property for test
     const peerB = torrentB.peers[0]
     if (peerB.peerId) {
       expect(Buffer.from(peerB.peerId).toString('hex')).toEqual(
@@ -245,7 +243,6 @@ describe('Tracker Integration', () => {
       )
     }
 
-    // @ts-expect-error - accessing private property for test
     const peersA = torrentA.peers
     expect(peersA.length).toBeGreaterThan(0)
     // We need to find the peer that corresponds to B.

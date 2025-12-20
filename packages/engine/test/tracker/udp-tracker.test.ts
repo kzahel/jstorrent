@@ -16,7 +16,12 @@ class MockUdpSocket implements IUdpSocket {
     this.onMessageCb = cb
   }
   close() {}
-  bind() {}
+  joinMulticast(_group: string): Promise<void> {
+    return Promise.resolve()
+  }
+  leaveMulticast(_group: string): Promise<void> {
+    return Promise.resolve()
+  }
 
   // Helper to simulate incoming message
   emitMessage(data: Uint8Array) {

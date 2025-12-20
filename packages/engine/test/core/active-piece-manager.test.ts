@@ -115,7 +115,7 @@ describe('ActivePieceManager', () => {
       expect(clearedByPeer.get('peer2')).toBe(1)
     })
 
-    it('should emit requestsCleared event with Map', (done) => {
+    it('should emit requestsCleared event with Map', (done: () => void) => {
       const piece = manager.getOrCreate(0)!
       piece.addRequest(0, 'peer1')
 

@@ -50,8 +50,8 @@ describe('ConnectionManager', () => {
       peer1.lastConnectSuccess = Date.now() - 1000
 
       // Access private method via type cast for testing
-      const calculateScore = (
-        connectionManager as ConnectionManagerWithPrivate
+      const calculateScore: (peer: SwarmPeer) => number = (
+        connectionManager as any
       ).calculateScore.bind(connectionManager)
 
       const score1 = calculateScore(peer1)
@@ -68,8 +68,8 @@ describe('ConnectionManager', () => {
       // Simulate peer2 has failures
       peer2.connectFailures = 3
 
-      const calculateScore = (
-        connectionManager as ConnectionManagerWithPrivate
+      const calculateScore: (peer: SwarmPeer) => number = (
+        connectionManager as any
       ).calculateScore.bind(connectionManager)
 
       const score1 = calculateScore(peer1)
@@ -84,8 +84,8 @@ describe('ConnectionManager', () => {
       const trackerPeer = swarm.addPeer({ ip: '1.2.3.2', port: 6881, family: 'ipv4' }, 'tracker')
       const pexPeer = swarm.addPeer({ ip: '1.2.3.3', port: 6881, family: 'ipv4' }, 'pex')
 
-      const calculateScore = (
-        connectionManager as ConnectionManagerWithPrivate
+      const calculateScore: (peer: SwarmPeer) => number = (
+        connectionManager as any
       ).calculateScore.bind(connectionManager)
 
       const manualScore = calculateScore(manualPeer)
@@ -103,8 +103,8 @@ describe('ConnectionManager', () => {
       // Simulate peer2 was tried recently
       peer2.lastConnectAttempt = Date.now() - 10000 // 10 seconds ago
 
-      const calculateScore = (
-        connectionManager as ConnectionManagerWithPrivate
+      const calculateScore: (peer: SwarmPeer) => number = (
+        connectionManager as any
       ).calculateScore.bind(connectionManager)
 
       const score1 = calculateScore(peer1)
@@ -121,8 +121,8 @@ describe('ConnectionManager', () => {
       // Simulate peer1 has 1MB download history
       peer1.totalDownloaded = 1024 * 1024
 
-      const calculateScore = (
-        connectionManager as ConnectionManagerWithPrivate
+      const calculateScore: (peer: SwarmPeer) => number = (
+        connectionManager as any
       ).calculateScore.bind(connectionManager)
 
       const score1 = calculateScore(peer1)

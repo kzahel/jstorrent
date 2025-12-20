@@ -13,7 +13,6 @@ const PROTOCOL_VERSION = 1
 export class DaemonTcpSocket implements ITcpSocket {
   private onDataCb: ((data: Uint8Array) => void) | null = null
   private onCloseCb: ((hadError: boolean) => void) | null = null
-  // @ts-expect-error - unused
   private onErrorCb: ((err: Error) => void) | null = null
   private closed = false
   private _isSecure = false

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Torrent } from '../../src/core/torrent'
-import type { Engine } from '../../src/core/engine'
-import type { SocketFactory } from '../../src/types'
+import type { BtEngine } from '../../src/core/bt-engine'
+import type { ISocketFactory } from '../../src/interfaces/socket'
 import { MockEngine } from '../utils/mock-engine'
 
 // Mock socket factory for Torrent constructor
@@ -22,15 +22,15 @@ describe('Torrent piece management', () => {
     const peerId = new Uint8Array(20).fill(2)
 
     torrent = new Torrent(
-      engine as unknown as Engine,
+      engine as unknown as BtEngine,
       infoHash,
       peerId,
-      mockSocketFactory as unknown as SocketFactory,
+      mockSocketFactory as unknown as ISocketFactory,
       6881,
       undefined, // contentStorage
       [], // announce
       50, // maxPeers
-      () => true, // globalLimitCheck
+      4, // maxUploadSlots
     )
   })
 

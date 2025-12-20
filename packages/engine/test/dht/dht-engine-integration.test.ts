@@ -8,21 +8,20 @@ import { IFileSystem } from '../../src/interfaces/filesystem'
 // Mock UDP socket for DHT
 class MockUdpSocket implements IUdpSocket {
   onMessageCallback: ((src: { addr: string; port: number }, data: Uint8Array) => void) | null = null
-  onErrorCallback: ((err: Error) => void) | null = null
   closed = false
 
   send(_addr: string, _port: number, _data: Uint8Array): void {}
   onMessage(cb: (src: { addr: string; port: number }, data: Uint8Array) => void): void {
     this.onMessageCallback = cb
   }
-  onError(cb: (err: Error) => void): void {
-    this.onErrorCallback = cb
-  }
   close(): void {
     this.closed = true
   }
-  address(): { port: number } {
-    return { port: 6881 }
+  joinMulticast(_group: string): Promise<void> {
+    return Promise.resolve()
+  }
+  leaveMulticast(_group: string): Promise<void> {
+    return Promise.resolve()
   }
 }
 
@@ -33,22 +32,22 @@ class MockTcpSocket implements ITcpSocket {
   connected = false
   closed = false
   private onDataCb: ((data: Uint8Array) => void) | null = null
-  private onCloseCb: (() => void) | null = null
+  private onCloseCb: ((hadError: boolean) => void) | null = null
   private onErrorCb: ((err: Error) => void) | null = null
 
-  connect(_host: string, _port: number): Promise<void> {
+  connect(_port: number, _host: string): Promise<void> {
     this.connected = true
     return Promise.resolve()
   }
-  write(_data: Uint8Array): void {}
+  send(_data: Uint8Array): void {}
   close(): void {
     this.closed = true
-    this.onCloseCb?.()
+    this.onCloseCb?.(false)
   }
   onData(cb: (data: Uint8Array) => void): void {
     this.onDataCb = cb
   }
-  onClose(cb: () => void): void {
+  onClose(cb: (hadError: boolean) => void): void {
     this.onCloseCb = cb
   }
   onError(cb: (err: Error) => void): void {
@@ -91,13 +90,12 @@ function createMockSocketFactory(): ISocketFactory {
 // Mock file system
 function createMockFileSystem(): IFileSystem {
   return {
-    readFile: () => Promise.resolve(new Uint8Array()),
-    writeFile: () => Promise.resolve(),
+    open: () => Promise.resolve({} as any),
     exists: () => Promise.resolve(false),
     mkdir: () => Promise.resolve(),
     readdir: () => Promise.resolve([]),
-    stat: () => Promise.resolve({ size: 0, isDirectory: false }),
-    remove: () => Promise.resolve(),
+    stat: () => Promise.resolve({ size: 0, mtime: new Date(), isDirectory: false, isFile: true }),
+    delete: () => Promise.resolve(),
   }
 }
 

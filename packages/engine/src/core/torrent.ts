@@ -117,8 +117,8 @@ export class Torrent extends EngineComponent {
   private _connectionManager: ConnectionManager // Handles outgoing connection lifecycle
   private connectionTiming: ConnectionTimingTracker // Tracks connection timing for adaptive timeouts
   private _peerCoordinator: PeerCoordinator // Coordinates choke/unchoke and peer dropping decisions
-  public infoHash: Uint8Array
-  public peerId: Uint8Array
+  declare public infoHash: Uint8Array
+  declare public peerId: Uint8Array
   public socketFactory: ISocketFactory
   public port: number
   private activePieces?: ActivePieceManager

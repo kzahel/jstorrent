@@ -14,6 +14,7 @@
     "test:all": "vitest run && vitest run --config vitest.daemon.config.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "typecheck:test": "tsc --project tsconfig.test.json",
     "download-memory": "node --import tsx scripts/download_memory.ts",
     "download-null": "node --import tsx scripts/download_null.ts"
   },
