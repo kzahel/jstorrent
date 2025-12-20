@@ -18,5 +18,5 @@ packages/legacy-jstorrent-engine/**/*.js
 
 android-io-daemon
 
-legacy-app
-legacy-extension
+archive/legacy-app
+archive/legacy-extension

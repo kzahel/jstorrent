@@ -14,8 +14,8 @@ export default tseslint.config(
       '.eslintrc.cjs',
       'packages/legacy-jstorrent-engine/**/*.js',
       '**/dist/**',
-      'legacy-app/**',
-      'legacy-extension/**',
+      'archive/legacy-app/**',
+      'archive/legacy-extension/**',
     ],
   },
   {
