@@ -29,6 +29,7 @@ export class LocalStorageSettingsStore extends BaseSettingsStore {
       try {
         const raw = localStorage.getItem(storageKey)
         if (raw !== null) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ;(result as any)[key] = JSON.parse(raw)
         }
       } catch {

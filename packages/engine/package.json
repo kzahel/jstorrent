@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:daemon": "vitest run --config vitest.daemon.config.ts",
-    "test:python": "cd integration/python && python run_tests.py",
+    "test:python": "cd integration/python && python3 run_tests.py",
     "test:all": "vitest run && vitest run --config vitest.daemon.config.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

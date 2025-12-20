@@ -101,6 +101,7 @@ describe('TrackerManager', () => {
 
     await manager.announce('started')
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     console.log('HttpTracker announce calls:', (httpTracker.announce as any).mock.calls.length)
 
     expect(httpTracker.announce).toHaveBeenCalledWith('started')

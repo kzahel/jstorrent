@@ -90,6 +90,7 @@ function createMockSocketFactory(): ISocketFactory {
 // Mock file system
 function createMockFileSystem(): IFileSystem {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     open: () => Promise.resolve({} as any),
     exists: () => Promise.resolve(false),
     mkdir: () => Promise.resolve(),
