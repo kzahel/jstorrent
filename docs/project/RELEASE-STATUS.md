@@ -1,6 +1,6 @@
 # JSTorrent Release Status
 
-*Last updated: December 11, 2025*
+*Last updated: December 20, 2025*
 
 ## Current State: Working Beta
 
@@ -14,45 +14,30 @@ The core functionality works end-to-end:
 - ✅ Multiple simultaneous torrents
 - ✅ Connection limits and backoff
 - ✅ Tracker announce (HTTP and UDP)
+- ✅ DHT (distributed hash table) for trackerless peer discovery
+- ✅ Protocol encryption (MSE/PE)
 - ✅ IO Bridge state machine (multi-platform connection management)
 - ✅ ChromeOS support via Android IO daemon
 
 ## Release Blockers
 
-### 1. Code Signing (Medium Priority)
+### 1. Code Signing
 
-**Status:** Not started
+**macOS:** ✅ Complete - Developer ID signing working, integrated into CI
 
-Native binaries ideally should be signed:
-- **Windows:** Authenticode signing. Without it, SmartScreen shows scary warning (user clicks "More info" → "Run anyway" to bypass)
-- **macOS:** Developer ID signing. Without it, Gatekeeper blocks by default (user right-clicks → "Open" to bypass)
+**Windows:** ⏳ In progress - Using Azure Trusted Signing, but identity verification is failing repeatedly. Investigating.
 
-**Cost options:**
-- EV certs: $200-400+/year (instant SmartScreen reputation)
-- OV certs: $70-150/year (reputation builds over time)
-- Budget providers (Certum, etc.): ~$30-50/year for open source
+### 2. Windows Testing
 
-**Soft launch option:** Release unsigned initially. Technical users (BitTorrent audience) can bypass warnings. Add signing later if user friction is too high.
+**Status:** ✅ Complete
 
-### 2. Windows Testing (High Priority)
+Tested extensively. File associations working well. Basic flows solid.
 
-**Status:** Tested. Works. Need to test file associations more.
+### 3. macOS Testing
 
-Weird things:
-- Download path display looks odd
-- Can't reinstall native host if it's running (blocks)
+**Status:** ✅ Complete
 
-### 3. macOS Testing (Medium Priority)
-
-**Status:** Not tested
-
-Need to:
-- Test native-host builds
-- Test installer (pkgbuild script exists)
-- Test native messaging registration
-- Test Gatekeeper behavior (right-click → Open bypasses)
-
-**Blocker:** No macOS machine available
+Tested extensively. File associations working well. Basic flows solid. Code signing verified.
 
 ### 4. ChromeOS Storage Access (Complete)
 
@@ -68,29 +53,13 @@ Need to:
 
 ## Known Limitations (Not Blocking)
 
-### DHT
-
-No DHT support. Relies entirely on trackers and pex for peer discovery.
-
-**Impact:** Trackerless torrents won't work. Most public torrents have trackers.
-
-**Future:** Nice to have, not blocking.
-
 ### uTP
 
 No uTP (UDP-based transport). TCP only.
 
 **Impact:** Some ISPs throttle TCP BitTorrent traffic. uTP can help avoid this.
 
-**Future:** Nice to have, not blocking.
-
-### Protocol Encryption
-
-No MSE/PE (Message Stream Encryption).
-
-**Impact:** Some ISPs or networks may block unencrypted BitTorrent.
-
-**Future:** Nice to have, not blocking.
+**Future:** Deferred for initial release. Complex to implement correctly.
 
 ## Infrastructure
 
@@ -114,15 +83,17 @@ No MSE/PE (Message Stream Encryption).
 
 ### Observability
 
-Need telemetry for crash reports and usage analytics.
+**Status:** Not implemented yet. Can be deferred for initial release.
 
-**Approach:** Google Analytics (free). Must scrub sensitive info from stack traces - remove `.name`, `.infoHash`, file paths, and similar PII/content-identifying data before sending.
+Need telemetry for crash reports and usage analytics. Approach: Google Analytics (free). Must scrub sensitive info from stack traces.
 
 ### Update Mechanism
 
+**Status:** Basic version check exists. No auto-update.
+
 Extension checks native-host version on startup. If outdated, prompts user to download and re-run the installer.
 
-Lightweight initial approach - no auto-update daemon.
+**Future:** Would like better "please update native host" messaging. Can be deferred for initial release.
 
 ### Build & Release
 
@@ -164,30 +135,30 @@ Installers built on GitHub Actions (`.github/workflows/`). No manual upload need
 
 | Platform | Engine | I/O Daemon | Connection | Testing |
 |----------|--------|------------|------------|---------|
-| Linux | ✅ | ✅ Rust | ✅ Native messaging | ✅ Primary dev |
-| Windows | ✅ | ✅ Rust | ✅ Native messaging | ⏳ Needs testing |
-| macOS | ✅ | ✅ Rust | ✅ Native messaging | ⏳ Needs testing |
+| Linux | ✅ | ✅ Rust | ✅ Native messaging | ✅ Tested |
+| Windows | ✅ | ✅ Rust | ✅ Native messaging | ✅ Tested |
+| macOS | ✅ | ✅ Rust | ✅ Native messaging | ✅ Tested |
 | ChromeOS | ✅ | ✅ Kotlin | ✅ HTTP to Android | ✅ Tested |
 
 ## Release Checklist
 
 ### Pre-Release
-- [ ] Windows testing complete
-- [ ] macOS testing complete (need machine access)
-- [ ] Code signing decision (signed vs soft launch unsigned)
+- [x] Windows testing complete
+- [x] macOS testing complete
+- [x] macOS code signing (Developer ID, CI integrated)
+- [ ] Windows code signing (Azure Trusted Signing - identity verification blocked)
 - [x] Chrome Web Store developer account
 - [ ] Extension listing assets (screenshots, description)
-- [ ] Play Store listing for Android companion (unlisted beta)
-- [ ] Observability/analytics integration
+- [ ] Observability/analytics integration (deferred)
 
 ### Release
 - [x] Tag release (triggers GitHub Actions build)
 - [ ] Verify installers in GitHub Releases
-- [x] Submit extension to Chrome Web Store
-- [ ] Upload Android APK to Play Store (unlisted)
+- [x] Submit extension to Chrome Web Store (unlisted)
+- [x] Submit Android app to Play Store (in review)
 - [ ] Update website with install instructions
 
 ### Post-Release
 - [ ] Monitor crash reports / analytics
-- [ ] Handle user feedback on unsigned binary warnings (if applicable)
+- [ ] Handle user feedback on unsigned Windows binary warnings
 - [ ] Notify waitlist from Chrome App deprecation banner
