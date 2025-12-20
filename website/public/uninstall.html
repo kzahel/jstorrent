@@ -4,17 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JSTorrent - We're Sorry to See You Go</title>
-    <meta
-      name="description"
-      content="Help us improve JSTorrent by sharing your feedback."
-    />
+    <meta name="description" content="Help us improve JSTorrent by sharing your feedback." />
 
     <!-- Open Graph for social sharing -->
     <meta property="og:title" content="JSTorrent - Uninstall Feedback" />
-    <meta
-      property="og:description"
-      content="Help us improve JSTorrent by sharing your feedback."
-    />
+    <meta property="og:description" content="Help us improve JSTorrent by sharing your feedback." />
     <meta property="og:image" content="/cook/JSTorrent/js-512.png" />
     <meta property="og:url" content="https://new.jstorrent.com/uninstall.html" />
     <meta property="og:type" content="website" />
@@ -207,11 +201,11 @@
 
       <main class="content">
         <p>
-          Thank you for trying JSTorrent. We'd love to hear why you decided to uninstall
-          so we can make the extension better for everyone.
+          Thank you for trying JSTorrent. We'd love to hear why you decided to uninstall so we can
+          make the extension better for everyone.
         </p>
 
-        <div style="display:none" class="stats" id="stats">
+        <div style="display: none" class="stats" id="stats">
           <div class="stats-title">Your Usage Summary</div>
           <div class="stats-grid" id="stats-grid">
             <!-- Populated by JavaScript from URL params -->
@@ -227,8 +221,9 @@
             frameborder="0"
             marginheight="0"
             marginwidth="0"
-            style="border: none;"
-          >Loading...</iframe>
+            style="border: none"
+            >Loading...</iframe
+          >
         </div>
       </main>
 
@@ -239,26 +234,26 @@
 
     <script>
       // Parse URL parameters, detect platform, and pre-populate form
-      (function() {
-        const params = new URLSearchParams(window.location.search);
-        const statsGrid = document.getElementById('stats-grid');
-        const statsContainer = document.getElementById('stats');
-        const formIframe = document.querySelector('.form-container iframe');
+      ;(function () {
+        const params = new URLSearchParams(window.location.search)
+        const statsGrid = document.getElementById('stats-grid')
+        const statsContainer = document.getElementById('stats')
+        const formIframe = document.querySelector('.form-container iframe')
 
         // Platform detection (matches extension/src/lib/platform.ts)
         function detectPlatform() {
-          const ua = navigator.userAgent;
-          if (ua.includes('CrOS')) return 'chromeos';
-          if (ua.includes('Macintosh') || ua.includes('Mac OS X')) return 'mac';
-          if (ua.includes('Windows')) return 'win';
-          if (ua.includes('Linux')) return 'linux';
-          return 'unknown';
+          const ua = navigator.userAgent
+          if (ua.includes('CrOS')) return 'chromeos'
+          if (ua.includes('Macintosh') || ua.includes('Mac OS X')) return 'mac'
+          if (ua.includes('Windows')) return 'win'
+          if (ua.includes('Linux')) return 'linux'
+          return 'unknown'
         }
 
         // Get Chrome version from user agent
         function getChromeVersion() {
-          const match = navigator.userAgent.match(/Chrome\/(\d+)/);
-          return match ? match[1] : 'unknown';
+          const match = navigator.userAgent.match(/Chrome\/(\d+)/)
+          return match ? match[1] : 'unknown'
         }
 
         const statLabels = {
@@ -268,55 +263,62 @@
           downloads: 'Downloads',
           added: 'Torrents Added',
           sessions: 'Sessions',
-          devices: 'Devices'
-        };
+          devices: 'Devices',
+        }
 
-        const displayStats = [];
+        const displayStats = []
 
         for (const [key, label] of Object.entries(statLabels)) {
-          const value = params.get(key);
+          const value = params.get(key)
           if (value !== null) {
-            displayStats.push({ label, value });
+            displayStats.push({ label, value })
           }
         }
 
         if (displayStats.length === 0) {
-          statsContainer.style.display = 'none';
+          statsContainer.style.display = 'none'
         } else {
           statsGrid.innerHTML = displayStats
-            .map(stat => `<div class="stat-item">${stat.label}: <span>${stat.value}</span></div>`)
-            .join('');
+            .map((stat) => `<div class="stat-item">${stat.label}: <span>${stat.value}</span></div>`)
+            .join('')
         }
 
         // Build system metrics string for form pre-population
-        const platform = detectPlatform();
-        const chromeVersion = getChromeVersion();
+        const platform = detectPlatform()
+        const chromeVersion = getChromeVersion()
 
-        const metricsParts = [
-          `platform=${platform}`,
-          `chrome=${chromeVersion}`,
-        ];
+        const metricsParts = [`platform=${platform}`, `chrome=${chromeVersion}`]
 
         // Add URL params to metrics string
-        for (const key of ['v', 'days', 'connected', 'downloads', 'added', 'sessions', 'devices', 'id']) {
-          const value = params.get(key);
+        for (const key of [
+          'v',
+          'days',
+          'connected',
+          'downloads',
+          'added',
+          'sessions',
+          'devices',
+          'id',
+        ]) {
+          const value = params.get(key)
           if (value !== null) {
-            metricsParts.push(`${key}=${value}`);
+            metricsParts.push(`${key}=${value}`)
           }
         }
 
-        const metricsString = metricsParts.join(', ');
+        const metricsString = metricsParts.join(', ')
 
         // Pre-populate the System Information field (entry.463917333)
         if (formIframe && metricsString) {
-          const baseUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSda66NBj22jMu1fBYnpAdC07E7dJaO4l-zG46I6_oQmazn-Pw/viewform';
+          const baseUrl =
+            'https://docs.google.com/forms/d/e/1FAIpQLSda66NBj22jMu1fBYnpAdC07E7dJaO4l-zG46I6_oQmazn-Pw/viewform'
           const formParams = new URLSearchParams({
             embedded: 'true',
             'entry.463917333': metricsString,
-          });
-          formIframe.src = `${baseUrl}?${formParams.toString()}`;
+          })
+          formIframe.src = `${baseUrl}?${formParams.toString()}`
         }
-      })();
+      })()
     </script>
   </body>
 </html>
