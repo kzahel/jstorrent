@@ -17,9 +17,14 @@ fi
 
 TAG="native-v${VERSION}"
 
-# Update Cargo.toml versions
-sed -i '' "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/native-host/Cargo.toml"
-sed -i '' "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/native-host/io-daemon/Cargo.toml"
+# Update Cargo.toml versions (cross-platform sed -i)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  sed -i '' "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/native-host/Cargo.toml"
+  sed -i '' "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/native-host/io-daemon/Cargo.toml"
+else
+  sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/native-host/Cargo.toml"
+  sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/native-host/io-daemon/Cargo.toml"
+fi
 
 # Update Cargo.lock
 (cd "$REPO_ROOT/native-host" && cargo check --quiet)
