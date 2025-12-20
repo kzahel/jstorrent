@@ -126,6 +126,11 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         onUnpair = {
+                            // Close all WebSocket connections before clearing token
+                            // This ensures the extension sees the disconnect
+                            lifecycleScope.launch {
+                                IoDaemonService.instance?.closeAllSessions()
+                            }
                             tokenStore.clear()
                             isPaired.value = false
                             backgroundModeEnabled.value = false

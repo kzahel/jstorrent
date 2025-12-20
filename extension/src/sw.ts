@@ -7,7 +7,8 @@ import { handleKVMessage } from './lib/kv-handlers'
 import { NotificationManager, ProgressStats } from './lib/notifications'
 import { PowerManager } from './lib/power'
 import { getOrCreateInstallId } from './lib/install-id'
-import { findAndroidDaemonPort } from './lib/platform'
+import { detectPlatform, findAndroidDaemonPort } from './lib/platform'
+import { getChromeOSBootstrap, type BootstrapState } from './lib/chromeos-bootstrap'
 import {
   registerDevice,
   updateUninstallUrl,
@@ -133,6 +134,27 @@ function handleUIPortConnect(port: chrome.runtime.Port): void {
       startIdleTimer()
     }
   })
+
+  // Start ChromeOS bootstrap if on ChromeOS
+  if (platform === 'chromeos' && chromeosBootstrap) {
+    const state = chromeosBootstrap.getState()
+    if (state.phase === 'idle') {
+      chromeosBootstrap
+        .start()
+        .then((result) => {
+          console.log('[SW] ChromeOS bootstrap connected, port:', result.port)
+          // daemon-bridge connection is triggered by the subscriber
+        })
+        .catch((e) => {
+          console.log('[SW] ChromeOS bootstrap stopped:', e)
+        })
+    }
+    // Send current state to new UI
+    port.postMessage({
+      type: 'CHROMEOS_BOOTSTRAP_STATE',
+      state,
+    })
+  }
 }
 
 // Internal port connections (from extension UI)
@@ -186,6 +208,43 @@ bridge.subscribe((state: DaemonBridgeState) => {
 })
 
 console.log(`[SW] Daemon Bridge started, platform: ${bridge.getPlatform()}`)
+
+// ============================================================================
+// ChromeOS Bootstrap (if on ChromeOS)
+// ============================================================================
+
+const platform = detectPlatform()
+let chromeosBootstrap: ReturnType<typeof getChromeOSBootstrap> | null = null
+
+if (platform === 'chromeos') {
+  chromeosBootstrap = getChromeOSBootstrap()
+
+  // Forward state to UI and trigger daemon-bridge on connection
+  let wasConnected = false
+  chromeosBootstrap.subscribe((state: BootstrapState) => {
+    console.log(
+      `[SW] ChromeOS bootstrap state changed: ${state.phase}, problem: ${state.problem}, hasUIPort: ${!!primaryUIPort}`,
+    )
+    if (primaryUIPort) {
+      primaryUIPort.postMessage({
+        type: 'CHROMEOS_BOOTSTRAP_STATE',
+        state,
+      })
+    }
+
+    // When bootstrap becomes connected, trigger daemon-bridge to connect
+    if (state.phase === 'connected' && !wasConnected) {
+      console.log('[SW] Bootstrap connected, triggering daemon-bridge connect')
+      bridge.connect().catch((e) => {
+        console.error('[SW] DaemonBridge connect after bootstrap failed:', e)
+      })
+    }
+    wasConnected = state.phase === 'connected'
+  })
+
+  // Start bootstrap when UI connects
+  // (handled in handleUIPortConnect)
+}
 
 // ============================================================================
 // Metrics Initialization
@@ -427,6 +486,26 @@ function handleMessage(
   // UI closing - no longer need to track UI count with simplified bridge
   if (message.type === 'UI_CLOSING') {
     sendResponse({ ok: true })
+    return true
+  }
+
+  // ChromeOS bootstrap actions
+  if (message.type === 'CHROMEOS_OPEN_INTENT') {
+    chromeosBootstrap?.openIntent()
+    sendResponse({ ok: true })
+    return true
+  }
+
+  if (message.type === 'CHROMEOS_RESET_PAIRING') {
+    chromeosBootstrap?.resetPairing().then(() => {
+      sendResponse({ ok: true })
+    })
+    return true
+  }
+
+  if (message.type === 'GET_CHROMEOS_BOOTSTRAP_STATE') {
+    const state = chromeosBootstrap?.getState() ?? null
+    sendResponse({ ok: true, state })
     return true
   }
 

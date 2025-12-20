@@ -67,6 +67,9 @@ class SocketSession(
     private val outgoing = Channel<ByteArray>(2000)
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    // Expose the WebSocket session for external close (e.g., unpair)
+    val webSocketSession: DefaultWebSocketServerSession get() = wsSession
     // Track dropped messages for diagnostics
     private val dropCount = java.util.concurrent.atomic.AtomicLong(0)
     // Track queue depth for diagnostics

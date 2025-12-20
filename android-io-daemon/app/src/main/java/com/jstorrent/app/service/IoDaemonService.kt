@@ -141,6 +141,14 @@ class IoDaemonService : Service() {
         httpServer?.hasActiveControlConnection() ?: false
 
     /**
+     * Close all connected WebSocket sessions.
+     * Call this when the user unpairs to disconnect the extension.
+     */
+    suspend fun closeAllSessions() {
+        httpServer?.closeAllSessions()
+    }
+
+    /**
      * Send a MagnetAdded event to the extension.
      */
     fun sendMagnetAdded(magnet: String) {

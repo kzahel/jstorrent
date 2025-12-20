@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getBridge } from '../chrome/extension-bridge'
+import type { BootstrapState } from '../../../../extension/src/lib/chromeos-bootstrap'
 
 /**
  * Platform type
@@ -65,6 +66,9 @@ export interface UseIOBridgeStateResult {
   retry: () => void
   launch: () => void
   cancel: () => void
+  /** ChromeOS bootstrap state (only relevant on ChromeOS) */
+  chromeosBootstrapState: BootstrapState | null
+  chromeosHasEverConnected: boolean
 }
 
 /**
@@ -77,6 +81,8 @@ export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBrid
   const { onNativeEvent } = config
   const [state, setState] = useState<DaemonBridgeState>(INITIAL_STATE)
   const [hasEverConnected, setHasEverConnected] = useState(false)
+  const [chromeosBootstrapState, setChromeosBootstrapState] = useState<BootstrapState | null>(null)
+  const [chromeosHasEverConnected, setChromeosHasEverConnected] = useState(false)
   const onNativeEventRef = useRef(onNativeEvent)
 
   // Keep ref updated
@@ -119,14 +125,25 @@ export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBrid
           type?: string
           event?: string
           payload?: unknown
-          state?: DaemonBridgeState
+          state?: DaemonBridgeState | BootstrapState
           hasEverConnected?: boolean
         }) => {
           // Handle DaemonBridge state changes
           if (msg.type === 'BRIDGE_STATE_CHANGED' && msg.state) {
-            setState(msg.state)
+            setState(msg.state as DaemonBridgeState)
             if (msg.hasEverConnected !== undefined) {
               setHasEverConnected(msg.hasEverConnected)
+            }
+          }
+          // Handle ChromeOS bootstrap state changes
+          else if (msg.type === 'CHROMEOS_BOOTSTRAP_STATE' && msg.state) {
+            const bootstrapState = msg.state as BootstrapState
+            console.log(
+              `[useIOBridgeState] ChromeOS bootstrap state: ${bootstrapState.phase}, problem: ${bootstrapState.problem}`,
+            )
+            setChromeosBootstrapState(bootstrapState)
+            if (bootstrapState.phase === 'connected') {
+              setChromeosHasEverConnected(true)
             }
           }
           // Handle CLOSE message (single UI enforcement)
@@ -174,5 +191,7 @@ export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBrid
     retry,
     launch,
     cancel,
+    chromeosBootstrapState,
+    chromeosHasEverConnected,
   }
 }

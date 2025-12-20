@@ -24,7 +24,9 @@ import { useIOBridgeState, ConnectionStatus } from './hooks/useIOBridgeState'
 import { useSystemBridge } from './hooks/useSystemBridge'
 import { SystemIndicator } from './components/SystemIndicator'
 import { SystemBridgePanel } from './components/SystemBridgePanel'
+import { SystemBridgePanelChromeos } from './components/SystemBridgePanelChromeos'
 import { SettingsOverlay } from './components/SettingsOverlay'
+import { useChromeOSBootstrap } from './hooks/useChromeOSBootstrap'
 import { copyTextToClipboard } from './utils/clipboard'
 import { notificationBridge } from './chrome/notification-bridge'
 
@@ -775,9 +777,14 @@ function App() {
     retry,
     launch,
     cancel,
+    chromeosBootstrapState,
+    chromeosHasEverConnected,
   } = useIOBridgeState({
     onNativeEvent: handleNativeEvent,
   })
+
+  // ChromeOS bootstrap action callbacks
+  const chromeosBootstrap = useChromeOSBootstrap()
 
   // Track previous status to detect transitions
   const prevStatusRef = useRef<ConnectionStatus | null>(null)
@@ -918,37 +925,60 @@ function App() {
               pulse={systemBridge.readiness.pulse}
               onClick={systemBridge.togglePanel}
             />
-            {systemBridge.panelOpen && (
-              <SystemBridgePanel
-                state={ioBridgeState as Parameters<typeof SystemBridgePanel>[0]['state']}
-                versionStatus={systemBridge.versionStatus}
-                daemonVersion={systemBridge.daemonVersion}
-                roots={roots}
-                defaultRootKey={defaultRootKey}
-                hasEverConnected={hasEverConnected}
-                onRetry={retry}
-                onLaunch={launch}
-                onCancel={cancel}
-                onAddFolder={async () => {
-                  const existingRoots = engineManager.getRoots().length
-                  const root = await engineManager.pickDownloadFolder()
-                  if (root) {
-                    // If this is the first root, set it as default
-                    if (existingRoots === 0) {
-                      setDefaultRootKey(root.key)
-                      await engineManager.setDefaultRoot(root.key)
+            {systemBridge.panelOpen &&
+              (ioBridgeState.platform === 'chromeos' && chromeosBootstrapState ? (
+                <SystemBridgePanelChromeos
+                  state={chromeosBootstrapState}
+                  daemonVersion={systemBridge.daemonVersion}
+                  roots={roots}
+                  defaultRootKey={defaultRootKey}
+                  hasEverConnected={chromeosHasEverConnected}
+                  onClose={systemBridge.closePanel}
+                  onLaunch={chromeosBootstrap.openIntent}
+                  onResetPairing={chromeosBootstrap.resetPairing}
+                  onAddFolder={async () => {
+                    const existingRoots = engineManager.getRoots().length
+                    const root = await engineManager.pickDownloadFolder()
+                    if (root) {
+                      if (existingRoots === 0) {
+                        setDefaultRootKey(root.key)
+                        await engineManager.setDefaultRoot(root.key)
+                      }
                     }
-                  }
-                }}
-                onSetDefaultRoot={(key) => {
-                  setDefaultRootKey(key)
-                  engineManager.setDefaultRoot(key)
-                }}
-                onClose={systemBridge.closePanel}
-                onOpenSettings={() => setSettingsOpen(true)}
-                anchorRef={indicatorRef}
-              />
-            )}
+                  }}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                  anchorRef={indicatorRef}
+                />
+              ) : (
+                <SystemBridgePanel
+                  state={ioBridgeState as Parameters<typeof SystemBridgePanel>[0]['state']}
+                  versionStatus={systemBridge.versionStatus}
+                  daemonVersion={systemBridge.daemonVersion}
+                  roots={roots}
+                  defaultRootKey={defaultRootKey}
+                  hasEverConnected={hasEverConnected}
+                  onRetry={retry}
+                  onLaunch={launch}
+                  onCancel={cancel}
+                  onAddFolder={async () => {
+                    const existingRoots = engineManager.getRoots().length
+                    const root = await engineManager.pickDownloadFolder()
+                    if (root) {
+                      if (existingRoots === 0) {
+                        setDefaultRootKey(root.key)
+                        await engineManager.setDefaultRoot(root.key)
+                      }
+                    }
+                  }}
+                  onSetDefaultRoot={(key) => {
+                    setDefaultRootKey(key)
+                    engineManager.setDefaultRoot(key)
+                  }}
+                  onClose={systemBridge.closePanel}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                  anchorRef={indicatorRef}
+                />
+              ))}
           </div>
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>

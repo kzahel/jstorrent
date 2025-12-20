@@ -410,6 +410,23 @@ class HttpServer(
     fun hasActiveControlConnection(): Boolean = controlSessions.isNotEmpty()
 
     /**
+     * Close all connected WebSocket sessions.
+     * Called when user unpairs to disconnect the extension.
+     */
+    suspend fun closeAllSessions() {
+        Log.i(TAG, "Closing all ${controlSessions.size} WebSocket sessions")
+        val sessionsToClose = controlSessions.toList()  // Copy to avoid concurrent modification
+        for (session in sessionsToClose) {
+            try {
+                session.webSocketSession.close(CloseReason(CloseReason.Codes.GOING_AWAY, "Unpaired"))
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to close session: ${e.message}")
+            }
+        }
+        controlSessions.clear()
+    }
+
+    /**
      * Broadcast ROOTS_CHANGED to all authenticated sessions.
      */
     fun broadcastRootsChanged(roots: List<DownloadRoot>) {
