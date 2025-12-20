@@ -17,7 +17,7 @@ fi
 echo "Verifying macOS Installer..."
 
 # Create temp directory for extraction
-EXTRACT_DIR=$(mktemp -d)
+EXTRACT_DIR=$(mktemp -d -t jstorrent-verify.XXXXXX)
 trap 'rm -rf "$EXTRACT_DIR"' EXIT
 
 # Extract PKG contents without installing
