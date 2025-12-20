@@ -54,12 +54,18 @@ fi
 
 # Validate environment variables for notarization
 if $NOTARIZE; then
-    if [ -z "$NOTARIZE_PROFILE" ]; then
-        echo "Error: NOTARIZE_PROFILE environment variable is required for notarization"
-        echo "This should be the keychain profile name from: xcrun notarytool store-credentials"
+    if [ -n "$NOTARIZE_PROFILE" ]; then
+        echo "Notarization enabled with keychain profile: $NOTARIZE_PROFILE"
+        NOTARIZE_MODE="profile"
+    elif [ -n "$ASC_API_KEY" ] && [ -n "$ASC_API_KEY_ID" ] && [ -n "$ASC_API_ISSUER_ID" ]; then
+        echo "Notarization enabled with App Store Connect API key"
+        NOTARIZE_MODE="api-key"
+    else
+        echo "Error: Notarization requires either:"
+        echo "  - NOTARIZE_PROFILE (keychain profile name from xcrun notarytool store-credentials)"
+        echo "  - OR: ASC_API_KEY, ASC_API_KEY_ID, ASC_API_ISSUER_ID (App Store Connect API)"
         exit 1
     fi
-    echo "Notarization enabled with keychain profile: $NOTARIZE_PROFILE"
 fi
 
 echo "Building release binaries..."
@@ -212,9 +218,18 @@ rm -f distribution.xml
 # Notarize if requested
 if $NOTARIZE; then
     echo "Submitting for notarization (this may take a few minutes)..."
-    xcrun notarytool submit "$OUTPUT_FILE" \
-        --keychain-profile "$NOTARIZE_PROFILE" \
-        --wait
+
+    if [ "$NOTARIZE_MODE" = "profile" ]; then
+        xcrun notarytool submit "$OUTPUT_FILE" \
+            --keychain-profile "$NOTARIZE_PROFILE" \
+            --wait
+    else
+        xcrun notarytool submit "$OUTPUT_FILE" \
+            --key "$ASC_API_KEY" \
+            --key-id "$ASC_API_KEY_ID" \
+            --issuer "$ASC_API_ISSUER_ID" \
+            --wait
+    fi
 
     echo "Stapling notarization ticket..."
     xcrun stapler staple "$OUTPUT_FILE"
