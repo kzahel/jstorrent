@@ -8,8 +8,9 @@ const TAG = 'v0.1.4'
 
 const WINDOWS_INSTALLER = `https://github.com/kzahel/jstorrent/releases/download/native-${TAG}/jstorrent-native-host-install-windows-x86_64.exe`
 const MACOS_INSTALLER = `https://github.com/kzahel/jstorrent/releases/download/native-${TAG}/jstorrent-native-host-install-macos-x86_64.pkg`
+const PLAYSTORE_URL = 'https://play.google.com/store/apps/details?id=com.jstorrent.app'
 
-type Platform = 'windows' | 'mac' | 'linux'
+type Platform = 'windows' | 'mac' | 'linux' | 'chromeos'
 
 interface StatusResponse {
   ok: true
@@ -194,6 +195,12 @@ function App() {
           >
             Linux
           </button>
+          <button
+            className={`tab ${selectedPlatform === 'chromeos' ? 'active' : ''}`}
+            onClick={() => setSelectedPlatform('chromeos')}
+          >
+            ChromeOS
+          </button>
         </div>
 
         <div className="tab-content">
@@ -236,6 +243,20 @@ function App() {
                 </button>
                 {copied && <div className="tooltip show">Copied!</div>}
               </div>
+            </>
+          )}
+
+          {selectedPlatform === 'chromeos' && (
+            <>
+              <p>Install the Android app from the Play Store:</p>
+              <a
+                href={PLAYSTORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary"
+              >
+                Get it on Google Play
+              </a>
             </>
           )}
         </div>

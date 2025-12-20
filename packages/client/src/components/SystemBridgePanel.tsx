@@ -4,7 +4,6 @@ import type { DownloadRoot } from '../chrome/engine-manager'
 
 // Version status from io-bridge
 export type VersionStatus = 'compatible' | 'update_suggested' | 'update_required'
-
 // Platform type
 export type Platform = 'desktop' | 'chromeos'
 
