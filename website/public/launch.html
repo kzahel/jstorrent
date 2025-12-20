@@ -6,11 +6,28 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/js-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/js-16.png" />
     <title>JSTorrent Launcher</title>
+    <!-- Immediate dark/light mode detection to prevent flash -->
     <style>
+      :root {
+        color-scheme: light dark;
+      }
       body {
         font-family: sans-serif;
         padding: 2rem;
         text-align: center;
+        /* Light mode defaults */
+        background-color: #ffffff;
+        color: #1a1a1a;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #1a1a1a;
+          color: #e0e0e0;
+        }
+      }
+
+      h1 {
+        margin-bottom: 1.5rem;
       }
 
       .status {
@@ -23,10 +40,28 @@
         background-color: #d4edda;
         color: #155724;
       }
+      @media (prefers-color-scheme: dark) {
+        .success {
+          background-color: #1e4620;
+          color: #a3d9a5;
+        }
+      }
 
       .error {
         background-color: #f8d7da;
         color: #721c24;
+      }
+      @media (prefers-color-scheme: dark) {
+        .error {
+          background-color: #4a1c1c;
+          color: #f5a5a5;
+        }
+      }
+
+      #countdown {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        opacity: 0.7;
       }
     </style>
   </head>
@@ -34,28 +69,49 @@
   <body>
     <h1>Launching JSTorrent...</h1>
     <div id="status" class="status">Connecting to extension...</div>
+    <div id="countdown"></div>
 
     <script>
       const EXTENSION_ID = 'dbokmlpefliilbjldladbimlcfgbolhk'
       const statusDiv = document.getElementById('status')
+      const countdownDiv = document.getElementById('countdown')
 
       function updateStatus(message, type) {
         statusDiv.textContent = message
         statusDiv.className = 'status ' + type
       }
 
+      function startCountdown(seconds) {
+        let remaining = seconds
+        countdownDiv.textContent = `Closing in ${remaining}...`
+        
+        const interval = setInterval(() => {
+          remaining--
+          if (remaining > 0) {
+            countdownDiv.textContent = `Closing in ${remaining}...`
+          } else {
+            countdownDiv.textContent = 'Closing...'
+            clearInterval(interval)
+            console.log('Countdown complete, calling window.close()')
+            window.close()
+          }
+        }, 1000)
+      }
+
+      console.log('Launch page loaded at', new Date().toISOString())
+
       if (window.chrome && window.chrome.runtime) {
+        console.log('Sending launch-ping to extension...')
         window.chrome.runtime.sendMessage(EXTENSION_ID, { type: 'launch-ping' }, (response) => {
+          console.log('Got response at', new Date().toISOString())
           if (chrome.runtime.lastError) {
-            console.error(chrome.runtime.lastError)
+            console.error('Extension error:', chrome.runtime.lastError)
             updateStatus('Failed to connect to extension. Is it installed?', 'error')
           } else {
             console.log('Extension response:', response)
             updateStatus('Connected to extension! Launching...', 'success')
-            // close the window after a short delay
-            setTimeout(() => {
-              window.close()
-            }, 1000)
+            // Start 5-second countdown before closing
+            startCountdown(5)
           }
         })
       } else {

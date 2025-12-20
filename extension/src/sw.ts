@@ -416,6 +416,12 @@ function handleMessage(
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   console.log('Received external message:', message, 'from:', sender.origin)
 
+  // Simple ping to detect if extension is installed
+  if (message.type === 'ping') {
+    sendResponse({ ok: true, installed: true })
+    return false
+  }
+
   // Launch ping from website
   if (message.type === 'launch-ping') {
     openUiTab().then(() => sendResponse({ ok: true }))
