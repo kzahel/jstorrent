@@ -38,6 +38,10 @@ PAYLOAD_DIR="$EXTRACT_DIR/payload"
 mkdir -p "$PAYLOAD_DIR"
 (cd "$PAYLOAD_DIR" && cat "$MAIN_PKG/Payload" | gunzip -dc | cpio -i 2>/dev/null)
 
+# Debug: Show what was actually extracted
+echo "Extracted payload structure:"
+find "$PAYLOAD_DIR" -type f -o -type d | head -20
+
 # Expected paths in the payload (relative to home directory)
 LIBRARY_DIR="$PAYLOAD_DIR/Library/Application Support/JSTorrent"
 APPS_DIR="$PAYLOAD_DIR/Applications/JSTorrent Link Handler.app"
