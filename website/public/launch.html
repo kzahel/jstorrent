@@ -51,9 +51,16 @@
         background-color: #f8d7da;
         color: #721c24;
       }
+      .error a {
+        color: #721c24;
+        font-weight: bold;
+      }
       @media (prefers-color-scheme: dark) {
         .error {
           background-color: #4a1c1c;
+          color: #f5a5a5;
+        }
+        .error a {
           color: #f5a5a5;
         }
       }
@@ -66,6 +73,8 @@
 
     <script>
       const EXTENSION_ID = 'dbokmlpefliilbjldladbimlcfgbolhk'
+      const WEBSTORE_URL = `https://chromewebstore.google.com/detail/jstorrent/${EXTENSION_ID}`
+
       const statusDiv = document.getElementById('status')
 
       function updateStatus(message, type) {
@@ -88,7 +97,8 @@
           }
         })
       } else {
-        updateStatus('Chrome runtime not available.', 'error')
+        statusDiv.innerHTML = `JSTorrent extension not detected. <a href="${WEBSTORE_URL}" target="_blank">Install from Chrome Web Store</a>`
+        statusDiv.className = 'status error'
       }
     </script>
   </body>
