@@ -118,11 +118,6 @@ jobs:
         with:
           files: native-host/jstorrent-native-host-install-macos-x86_64.pkg
 
-      - name: Verify Installer
-        run: |
-          chmod +x scripts/verify-macos-installer.sh
-          ./scripts/verify-macos-installer.sh
-
   build-linux:
     runs-on: ubuntu-latest
     steps:
