@@ -218,15 +218,22 @@ class HttpServer(
                 }
 
                 // Show dialog (async) and return 202
-                pairingDialogShowing = true
                 val isReplace = tokenStore.hasToken()
 
-                showPairingDialog(
-                    token = request.token,
-                    installId = headers.installId,
-                    extensionId = headers.extensionId,
-                    isReplace = isReplace
-                )
+                try {
+                    pairingDialogShowing = true
+                    showPairingDialog(
+                        token = request.token,
+                        installId = headers.installId,
+                        extensionId = headers.extensionId,
+                        isReplace = isReplace
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to show pairing dialog: ${e.message}")
+                    pairingDialogShowing = false
+                    call.respond(HttpStatusCode.InternalServerError, "Failed to show pairing dialog")
+                    return@post
+                }
 
                 call.respondText(
                     json.encodeToString(PairResponse("pending")),
