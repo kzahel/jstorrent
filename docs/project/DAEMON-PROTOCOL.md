@@ -246,7 +246,7 @@ Response: raw 20-byte SHA1 hash
 
 ### Desktop
 
-1. Extension calls `chrome.runtime.connectNative('com.anthropic.jstorrent')`
+1. Extension calls `chrome.runtime.connectNative('com.jstorrent.native')
 2. Chrome launches native-host (if not running)
 3. Extension sends `{op: "handshake", ...}`
 4. Native-host responds with `{type: "DaemonInfo", payload: {...}}`
