@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use axum::{
     routing::{get, post},
@@ -8,8 +7,6 @@ use axum::{
 };
 use uuid::Uuid;
 use std::fs;
-use std::io::Write;
-use sysinfo::{Pid, System};
 use crate::state::State as AppState;
 use crate::protocol::Event;
 

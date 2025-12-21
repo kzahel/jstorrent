@@ -1,21 +1,16 @@
 use anyhow::{Context, Result};
 use std::process::{Child, Command, Stdio};
-use std::sync::Arc;
-use std::time::Duration;
-use crate::state::State;
 use std::io::{BufRead, BufReader};
 
 pub struct DaemonManager {
-    state: Arc<State>,
     child: Option<Child>,
     pub port: Option<u16>,
     pub token: Option<String>,
 }
 
 impl DaemonManager {
-    pub fn new(state: Arc<State>) -> Self {
+    pub fn new() -> Self {
         Self {
-            state,
             child: None,
             port: None,
             token: None,

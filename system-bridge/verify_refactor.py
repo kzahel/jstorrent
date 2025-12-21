@@ -141,7 +141,7 @@ def main():
         env["JSTORRENT_CONFIG_DIR"] = temp_dir
         
         # Mock extension ID
-        args = ["./target/release/jstorrent-host", "chrome-extension://test-extension-id/"]
+        args = ["./target/debug/jstorrent-host", "chrome-extension://test-extension-id/"]
         
         print("Starting Native Host...")
         proc = subprocess.Popen(

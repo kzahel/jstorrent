@@ -115,7 +115,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let (tx, mut rx) = mpsc::channel::<Vec<u8>>(100);
 
     // Task to send binary frames to client
-    let mut send_task = tokio::spawn(async move {
+    let send_task = tokio::spawn(async move {
         while let Some(data) = rx.recv().await {
             if sender.send(Message::Binary(data)).await.is_err() {
                 break;
@@ -709,14 +709,14 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                                     let local_port = socket.local_addr().map(|a| a.port()).unwrap_or(0);
                                     let socket = Arc::new(socket);
                                     manager.lock().await.udp_sockets.insert(socket_id, socket.clone());
-                                    
+
                                     // Send UDP_BOUND
                                     // Payload: socketId(4), status(1), bound_port(2), errno(4)
                                     let mut resp = socket_id.to_le_bytes().to_vec();
                                     resp.push(0); // Success
                                     resp.extend_from_slice(&local_port.to_le_bytes());
                                     resp.extend_from_slice(&0u32.to_le_bytes());
-                                    
+
                                     let env = Envelope::new(OP_UDP_BOUND, req_id);
                                     let mut data = env.to_bytes().to_vec();
                                     data.extend_from_slice(&resp);
@@ -738,7 +738,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                                                     p.extend_from_slice(&(addr_str.len() as u16).to_le_bytes());
                                                     p.extend_from_slice(addr_str.as_bytes());
                                                     p.extend_from_slice(&buf[..n]);
-                                                    
+
                                                     let env = Envelope::new(OP_UDP_RECV, 0);
                                                     let mut d = env.to_bytes().to_vec();
                                                     d.extend_from_slice(&p);
@@ -759,7 +759,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                                         tx_read.send(d).await.ok();
                                     });
                                 }
-                                Err(e) => {
+                                Err(_e) => {
                                     // Send UDP_BOUND failure
                                     let mut resp = socket_id.to_le_bytes().to_vec();
                                     resp.push(1); // Failure

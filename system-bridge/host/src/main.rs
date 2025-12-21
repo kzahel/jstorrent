@@ -14,9 +14,8 @@ mod win_foreground;
 use anyhow::Result;
 use protocol::{Event, Operation, Request, Response, ResponsePayload};
 use state::State;
-use tokio::io::{self, AsyncWriteExt};
+use tokio::io;
 use tokio::sync::mpsc;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -30,12 +29,10 @@ async fn main() -> Result<()> {
     let (event_tx, mut event_rx) = mpsc::channel(32);
     
     // Initialize state with event sender
-    let download_root = dirs::download_dir().unwrap_or_else(|| PathBuf::from("."));
-    let state = Arc::new(State::new(download_root, Some(event_tx.clone())));
+    let state = Arc::new(State::new(Some(event_tx.clone())));
 
-    // Start Daemon
     // Start Daemon - DELAYED until Handshake
-    let mut daemon_manager = daemon_manager::DaemonManager::new(state.clone());
+    let mut daemon_manager = daemon_manager::DaemonManager::new();
     // if let Err(e) = daemon_manager.start().await {
     //     log!("Failed to start daemon: {}", e);
     //     // We continue, but the extension might fail to connect

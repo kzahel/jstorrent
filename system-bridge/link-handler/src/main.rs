@@ -4,14 +4,13 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use reqwest::blocking::Client;
-use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
 use sysinfo::{Pid, System};
-use jstorrent_common::{UnifiedRpcInfo, ProfileEntry, BrowserInfo, DownloadRoot, get_config_dir};
+use jstorrent_common::{UnifiedRpcInfo, ProfileEntry, get_config_dir};
 
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
@@ -35,13 +34,6 @@ enum Mode {
         file_name: String,
         contents_base64: String,
     },
-}
-
-#[derive(Deserialize, Debug)]
-struct HealthResponse {
-    status: String,
-    pid: u32,
-    version: u32,
 }
 
 mod logging;
