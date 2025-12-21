@@ -106,6 +106,7 @@ struct SocketManager {
     pending_connects: HashMap<u32, tokio::task::AbortHandle>,
     pending_tcp: HashMap<u32, TcpStream>,  // Connected but not yet reading/writing (for TLS upgrade)
     udp_sockets: HashMap<u32, Arc<UdpSocket>>,
+    udp_read_tasks: HashMap<u32, tokio::task::AbortHandle>,  // Track UDP read tasks for cleanup on disconnect
     tcp_servers: HashMap<u32, tokio::task::JoinHandle<()>>,
     next_socket_id: u32,
 }
@@ -128,6 +129,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
         pending_connects: HashMap::new(),
         pending_tcp: HashMap::new(),
         udp_sockets: HashMap::new(),
+        udp_read_tasks: HashMap::new(),
         tcp_servers: HashMap::new(),
         next_socket_id: 0x10000, // Start high to avoid collision with client-assigned IDs
     }));
@@ -724,7 +726,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
 
                                     // Read task
                                     let tx_read = tx_clone.clone();
-                                    tokio::spawn(async move {
+                                    let read_task = tokio::spawn(async move {
                                         let mut buf = [0u8; 65535];
                                         loop {
                                             match socket.recv_from(&mut buf).await {
@@ -758,6 +760,8 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                                         d.extend_from_slice(&p);
                                         tx_read.send(d).await.ok();
                                     });
+                                    // Track the read task so we can abort it on disconnect
+                                    manager.lock().await.udp_read_tasks.insert(socket_id, read_task.abort_handle());
                                 }
                                 Err(_e) => {
                                     // Send UDP_BOUND failure
@@ -798,7 +802,12 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                     // Payload: socketId(4)
                     if payload.len() >= 4 {
                         let socket_id = u32::from_le_bytes(payload[0..4].try_into().unwrap());
-                        socket_manager.lock().await.udp_sockets.remove(&socket_id);
+                        let mut mgr = socket_manager.lock().await;
+                        mgr.udp_sockets.remove(&socket_id);
+                        // Abort the read task to release the socket immediately
+                        if let Some(handle) = mgr.udp_read_tasks.remove(&socket_id) {
+                            handle.abort();
+                        }
                     }
                 }
                 OP_UDP_JOIN_MULTICAST => {
@@ -903,7 +912,12 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
         for (_, handle) in manager.tcp_servers.iter() {
             handle.abort();
         }
-        // TCP sockets and UDP sockets will be cleaned up when dropped
+        // Abort all UDP read tasks to release their sockets immediately
+        // This prevents "address already in use" errors on quick reconnect
+        for (_, handle) in manager.udp_read_tasks.iter() {
+            handle.abort();
+        }
+        // TCP sockets will be cleaned up when dropped
     }
 
     send_task.abort();
