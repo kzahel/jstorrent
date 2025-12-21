@@ -13,9 +13,8 @@ The system bridge includes binaries for Windows, macOS, and Linux.
 This will:
 - Update version in `system-bridge/Cargo.toml` and `system-bridge/io-daemon/Cargo.toml`
 - Regenerate `Cargo.lock`
-- Commit with `[skip ci]` to avoid duplicate builds
-- Create tag `system-bridge-v0.2.0`
-- Push commit and tag
+- Commit and push to main
+- Create and push tag `system-bridge-v0.2.0`
 
 ### 2. Monitor CI builds
 

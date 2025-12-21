@@ -31,9 +31,9 @@ fi
 
 # Commit version bump
 git add "$REPO_ROOT/system-bridge/Cargo.toml" "$REPO_ROOT/system-bridge/io-daemon/Cargo.toml" "$REPO_ROOT/system-bridge/Cargo.lock"
-git commit -m "chore: bump system-bridge version to ${VERSION} [skip ci]"
+git commit -m "chore: bump system-bridge version to ${VERSION}"
 
-# Push commit (with skip ci to avoid redundant build)
+# Push commit and tag
 git push origin HEAD
 
 # Create and push tag separately (this triggers the release build)
