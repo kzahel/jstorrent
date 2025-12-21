@@ -141,12 +141,20 @@ export class NotificationManager {
 
     // console.log(`[NotificationManager] UI visibility: ${wasVisible} -> ${visible}`)
 
-    if (visible && !wasVisible) {
-      // UI came to foreground - clear persistent notification
+    if (visible) {
+      // UI is visible - always clear the notification.
+      // We clear unconditionally to handle stale messages: a progress update sent
+      // while backgrounded may arrive after the visibility:true message, and its
+      // stale visible:false would otherwise re-show the notification.
       this.clearProgressNotification()
     } else if (!visible && wasVisible) {
       // UI went to background - maybe show persistent notification
-      if (this.shouldShowPersistentProgress() && this.lastProgressStats) {
+      // Only show if there are actually active downloads
+      if (
+        this.shouldShowPersistentProgress() &&
+        this.lastProgressStats &&
+        this.lastProgressStats.activeCount > 0
+      ) {
         this.showProgressNotification(this.lastProgressStats)
       }
     }
