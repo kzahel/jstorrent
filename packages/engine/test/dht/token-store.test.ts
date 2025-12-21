@@ -15,9 +15,23 @@ function createMockHash(): (data: Uint8Array) => Promise<Uint8Array> {
 
 describe('TokenStore', () => {
   let store: TokenStore
+  let randomCallCount = 0
 
   beforeEach(() => {
     vi.useFakeTimers()
+    // Mock crypto.getRandomValues for deterministic secrets
+    // Each call produces different values using call count as a seed
+    randomCallCount = 0
+    vi.spyOn(crypto, 'getRandomValues').mockImplementation((array) => {
+      const typed = array as Uint8Array
+      randomCallCount++
+      // Use prime multiplier to ensure different secrets have different sums
+      const seed = randomCallCount * 37
+      for (let i = 0; i < typed.length; i++) {
+        typed[i] = (seed + i * 7) % 256
+      }
+      return array
+    })
     store = new TokenStore({
       rotationMs: 5 * 60 * 1000, // 5 minutes
       maxAgeMs: 10 * 60 * 1000, // 10 minutes
