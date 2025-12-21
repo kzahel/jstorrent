@@ -41,7 +41,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'advanced', label: 'Advanced' },
 ]
 
-const FPS_OPTIONS = [1, 5, 10, 20, 30, 60, 120, 240, 0] // 0 = unlimited
+const FPS_OPTIONS = [1, 5, 10, 20, 30, 60, 120, 144, 165, 240, 0] // 0 = unlimited
 
 export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   isOpen,
@@ -433,7 +433,7 @@ const InterfaceTab: React.FC<InterfaceTabProps> = ({
         >
           {FPS_OPTIONS.map((fps) => (
             <option key={fps} value={fps}>
-              {fps === 0 ? 'Unlimited' : fps}
+              {fps === 0 ? 'Match refresh rate' : fps}
             </option>
           ))}
         </select>
