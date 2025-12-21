@@ -62,6 +62,11 @@ export default tseslint.config(
           selector: 'ImportExpression',
           message: 'Dynamic imports are banned in the engine package.',
         },
+        {
+          selector: "MemberExpression[object.object.name='chrome'][object.property.name='storage']",
+          message:
+            'Direct chrome.storage access is banned in UI packages. Use KV message handlers via the service worker.',
+        },
       ],
     },
   },
@@ -101,6 +106,20 @@ export default tseslint.config(
     },
     rules: {
       'import/no-nodejs-modules': 'error',
+    },
+  },
+  // Ban direct chrome.storage access in UI packages - use KV handlers via service worker
+  {
+    files: ['packages/client/**/*.{ts,tsx}', 'packages/ui/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[object.object.name='chrome'][object.property.name='storage']",
+          message:
+            'Direct chrome.storage access is banned in UI packages. Use KV message handlers via the service worker.',
+        },
+      ],
     },
   },
   // IMPORTANT: Keep this last to disable formatting rules that conflict with Prettier

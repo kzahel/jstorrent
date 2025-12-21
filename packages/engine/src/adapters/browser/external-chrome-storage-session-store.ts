@@ -22,15 +22,19 @@ declare const chrome: any
 
 /**
  * Session store that relays operations to the extension service worker
- * via externally_connectable messaging.
+ * via messaging.
  *
- * Use this when running the engine on jstorrent.com or localhost dev server.
+ * When extensionId is provided, uses externally_connectable messaging
+ * (for jstorrent.com or localhost dev server).
+ *
+ * When extensionId is undefined, uses internal messaging
+ * (for extension UI context).
  *
  * Binary values are base64 encoded for transport.
  * JSON values are passed directly.
  */
 export class ExternalChromeStorageSessionStore implements ISessionStore {
-  constructor(private extensionId: string) {}
+  constructor(private extensionId?: string) {}
 
   private async send<T>(message: unknown): Promise<T> {
     return new Promise((resolve, reject) => {
@@ -39,7 +43,7 @@ export class ExternalChromeStorageSessionStore implements ISessionStore {
         return
       }
 
-      chrome.runtime.sendMessage(this.extensionId, message, (response: T) => {
+      const callback = (response: T) => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message))
         } else if (!response) {
@@ -47,7 +51,15 @@ export class ExternalChromeStorageSessionStore implements ISessionStore {
         } else {
           resolve(response)
         }
-      })
+      }
+
+      if (this.extensionId) {
+        // External context: include extension ID
+        chrome.runtime.sendMessage(this.extensionId, message, callback)
+      } else {
+        // Internal context: message within extension
+        chrome.runtime.sendMessage(message, callback)
+      }
     })
   }
 

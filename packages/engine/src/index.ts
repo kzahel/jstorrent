@@ -35,7 +35,6 @@ export { LogStore, globalLogStore, defaultLogger } from './logging/logger'
 
 // Adapters
 export { MemorySessionStore } from './adapters/memory/memory-session-store'
-export { ChromeStorageSessionStore } from './adapters/browser/chrome-storage-session-store'
 export { LocalStorageSessionStore } from './adapters/browser/local-storage-session-store'
 export { ExternalChromeStorageSessionStore } from './adapters/browser/external-chrome-storage-session-store'
 export { SubtleCryptoHasher } from './adapters/browser/subtle-crypto-hasher'

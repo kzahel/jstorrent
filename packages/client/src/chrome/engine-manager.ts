@@ -5,7 +5,6 @@ import {
   DaemonFileSystem,
   DaemonHasher,
   StorageRootManager,
-  ChromeStorageSessionStore,
   ExternalChromeStorageSessionStore,
   globalLogStore,
   LogStore,
@@ -21,15 +20,72 @@ import { notificationBridge, ProgressStats } from './notification-bridge'
 // Session store key for default root key
 const DEFAULT_ROOT_KEY_KEY = 'settings:defaultRootKey'
 
+interface KVResponse<T = unknown> {
+  ok: boolean
+  value?: T
+  error?: string
+}
+
+/**
+ * Send a KV message to the service worker.
+ * Supports both internal (no extensionId) and external (with extensionId) contexts.
+ */
+async function sendKVMessage<T>(
+  extensionId: string | undefined,
+  message: unknown,
+): Promise<KVResponse<T>> {
+  return new Promise((resolve, reject) => {
+    if (!chrome?.runtime?.sendMessage) {
+      reject(new Error('chrome.runtime.sendMessage not available'))
+      return
+    }
+
+    const callback = (response: KVResponse<T>) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message))
+      } else if (!response) {
+        reject(new Error('No response from extension - is it installed?'))
+      } else {
+        resolve(response)
+      }
+    }
+
+    if (extensionId) {
+      chrome.runtime.sendMessage(extensionId, message, callback)
+    } else {
+      chrome.runtime.sendMessage(message, callback)
+    }
+  })
+}
+
 /**
  * Create credentials getter for DaemonConnection.
- * Reads fresh values from chrome.storage.local at connection time.
+ * Reads fresh values via KV handlers at connection time.
  */
 function createCredentialsGetter(): CredentialsGetter {
+  const bridge = getBridge()
+  // Convert null to undefined for type compatibility
+  const extensionId = bridge.isDevMode ? (bridge.extensionId ?? undefined) : undefined
+
   return async () => {
-    const stored = await chrome.storage.local.get(['android:authToken', 'installId'])
-    const token = stored['android:authToken'] as string | undefined
-    const installId = stored['installId'] as string | undefined
+    // Use KV handlers with empty prefix since these keys don't have a prefix
+    const [tokenResponse, installIdResponse] = await Promise.all([
+      sendKVMessage<string>(extensionId, {
+        type: 'KV_GET_JSON',
+        key: 'android:authToken',
+        keyPrefix: '',
+        area: 'local',
+      }),
+      sendKVMessage<string>(extensionId, {
+        type: 'KV_GET_JSON',
+        key: 'installId',
+        keyPrefix: '',
+        area: 'local',
+      }),
+    ])
+
+    const token = tokenResponse.ok ? tokenResponse.value : undefined
+    const installId = installIdResponse.ok ? installIdResponse.value : undefined
 
     if (!token) {
       throw new Error('No auth token in storage')
@@ -44,21 +100,18 @@ function createCredentialsGetter(): CredentialsGetter {
 }
 
 /**
- * Create the appropriate session store based on context.
+ * Create the session store.
+ * Both contexts use ExternalChromeStorageSessionStore, which relays
+ * operations to the service worker via chrome.runtime.sendMessage.
  */
 function createSessionStore(): ISessionStore {
   const bridge = getBridge()
-
-  if (!bridge.isDevMode) {
-    // Inside extension - use direct chrome.storage.local
-    return new ChromeStorageSessionStore(chrome.storage.local, 'session:')
-  }
-
-  // External (jstorrent.com or localhost) - relay through extension
-  if (!bridge.extensionId) {
-    throw new Error('Extension ID required for external session store')
-  }
-  return new ExternalChromeStorageSessionStore(bridge.extensionId)
+  // Extension context: no extensionId (internal messaging)
+  // External context: includes extensionId for external messaging
+  // Convert null to undefined for type compatibility
+  return new ExternalChromeStorageSessionStore(
+    bridge.isDevMode ? (bridge.extensionId ?? undefined) : undefined,
+  )
 }
 
 export interface DaemonInfo {

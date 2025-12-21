@@ -1,20 +1,13 @@
 /**
- * KV storage handlers for external session store.
+ * KV storage handlers for external session store and settings.
  *
- * Uses chrome.storage.local directly with 'session:' prefix.
+ * Supports configurable storage area (local/sync) and key prefix.
+ * Defaults to chrome.storage.local with 'session:' prefix for backward compatibility.
  * Binary values are stored as base64 strings.
  * JSON values are stored directly.
  */
 
-const PREFIX = 'session:'
-
-function prefixKey(key: string): string {
-  return PREFIX + key
-}
-
-function unprefixKey(key: string): string {
-  return key.startsWith(PREFIX) ? key.slice(PREFIX.length) : key
-}
+const DEFAULT_PREFIX = 'session:'
 
 export type KVSendResponse = (response: unknown) => void
 
@@ -25,12 +18,25 @@ export function handleKVMessage(
     keys?: string[]
     value?: string | unknown
     prefix?: string
+    keyPrefix?: string // The prefix to use for storage keys (defaults to 'session:')
+    area?: 'sync' | 'local' // Storage area (defaults to 'local')
   },
   sendResponse: KVSendResponse,
 ): boolean {
+  // Select storage area and prefix based on message parameters
+  const keyPrefix = message.keyPrefix ?? DEFAULT_PREFIX
+  const storage = message.area === 'sync' ? chrome.storage.sync : chrome.storage.local
+
+  function prefixKey(key: string): string {
+    return keyPrefix + key
+  }
+
+  function unprefixKey(key: string): string {
+    return key.startsWith(keyPrefix) ? key.slice(keyPrefix.length) : key
+  }
   if (message.type === 'KV_GET') {
     const prefixedKey = prefixKey(message.key!)
-    chrome.storage.local
+    storage
       .get(prefixedKey)
       .then((result) => {
         const value = result[prefixedKey] ?? null
@@ -44,7 +50,7 @@ export function handleKVMessage(
 
   if (message.type === 'KV_GET_MULTI') {
     const prefixedKeys = message.keys!.map(prefixKey)
-    chrome.storage.local
+    storage
       .get(prefixedKeys)
       .then((result) => {
         const values: Record<string, string | null> = {}
@@ -61,7 +67,7 @@ export function handleKVMessage(
 
   if (message.type === 'KV_SET') {
     const prefixedKey = prefixKey(message.key!)
-    chrome.storage.local
+    storage
       .set({ [prefixedKey]: message.value })
       .then(() => {
         sendResponse({ ok: true })
@@ -74,7 +80,7 @@ export function handleKVMessage(
 
   if (message.type === 'KV_DELETE') {
     const prefixedKey = prefixKey(message.key!)
-    chrome.storage.local
+    storage
       .remove(prefixedKey)
       .then(() => {
         sendResponse({ ok: true })
@@ -86,11 +92,11 @@ export function handleKVMessage(
   }
 
   if (message.type === 'KV_KEYS') {
-    chrome.storage.local
+    storage
       .get(null)
       .then((all) => {
         const keys = Object.keys(all)
-          .filter((k) => k.startsWith(PREFIX))
+          .filter((k) => k.startsWith(keyPrefix))
           .map(unprefixKey)
           .filter((k) => !message.prefix || k.startsWith(message.prefix))
         sendResponse({ ok: true, keys })
@@ -102,11 +108,11 @@ export function handleKVMessage(
   }
 
   if (message.type === 'KV_CLEAR') {
-    chrome.storage.local
+    storage
       .get(null)
       .then((all) => {
-        const keysToRemove = Object.keys(all).filter((k) => k.startsWith(PREFIX))
-        return chrome.storage.local.remove(keysToRemove)
+        const keysToRemove = Object.keys(all).filter((k) => k.startsWith(keyPrefix))
+        return storage.remove(keysToRemove)
       })
       .then(() => {
         sendResponse({ ok: true })
@@ -120,7 +126,7 @@ export function handleKVMessage(
   // JSON-specific handlers (stored directly, not as base64)
   if (message.type === 'KV_GET_JSON') {
     const prefixedKey = prefixKey(message.key!)
-    chrome.storage.local
+    storage
       .get(prefixedKey)
       .then((result) => {
         const value = result[prefixedKey] ?? null
@@ -134,7 +140,7 @@ export function handleKVMessage(
 
   if (message.type === 'KV_SET_JSON') {
     const prefixedKey = prefixKey(message.key!)
-    chrome.storage.local
+    storage
       .set({ [prefixedKey]: message.value })
       .then(() => {
         sendResponse({ ok: true })
