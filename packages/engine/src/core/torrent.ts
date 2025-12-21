@@ -164,6 +164,9 @@ export class Torrent extends EngineComponent {
   private uploadQueue: QueuedUploadRequest[] = []
   private uploadDrainScheduled = false
 
+  // Round-robin index for fair peer request scheduling
+  private _peerRequestRoundRobin = 0
+
   /**
    * The raw info dictionary buffer (verified via SHA1 against infoHash).
    * This is the bencoded "info" dictionary from the .torrent file.
@@ -2170,9 +2173,9 @@ export class Torrent extends EngineComponent {
       this.logger.debug(`Peer ${peerId} disconnected, cleared ${cleared} pending requests`)
     }
 
-    // If we still have peers, try to request more pieces
+    // If we still have peers, try to request more pieces (round-robin for fairness)
     if (this.numPeers > 0) {
-      for (const remainingPeer of this.connectedPeers) {
+      for (const remainingPeer of this.iteratePeersRoundRobin()) {
         if (!remainingPeer.peerChoking) {
           this.requestPieces(remainingPeer)
         }
@@ -2181,6 +2184,20 @@ export class Torrent extends EngineComponent {
 
     // Fill the vacated peer slot with a known peer
     this.fillPeerSlots()
+  }
+
+  /**
+   * Iterate connected peers starting from round-robin index.
+   * Advances the index for next call to ensure fair bandwidth distribution.
+   */
+  private *iteratePeersRoundRobin(): Generator<PeerConnection> {
+    const peers = this.connectedPeers
+    if (peers.length === 0) return
+    const startIndex = this._peerRequestRoundRobin % peers.length
+    for (let i = 0; i < peers.length; i++) {
+      yield peers[(startIndex + i) % peers.length]
+    }
+    this._peerRequestRoundRobin = (startIndex + 1) % peers.length
   }
 
   /**
@@ -2423,8 +2440,8 @@ export class Torrent extends EngineComponent {
             this.logger.debug(`Decremented ${cleared} pending requests for peer ${pId}`)
           }
         }
-        // Then re-request from all unchoked peers
-        for (const p of this.connectedPeers) {
+        // Then re-request from all unchoked peers (round-robin for fairness)
+        for (const p of this.iteratePeersRoundRobin()) {
           if (!p.peerChoking) {
             this.requestPieces(p)
           }
@@ -2562,8 +2579,8 @@ export class Torrent extends EngineComponent {
             this.logger.debug(`Decremented ${cleared} pending requests for peer ${pId}`)
           }
         }
-        // Then re-request from all unchoked peers
-        for (const p of this.connectedPeers) {
+        // Then re-request from all unchoked peers (round-robin for fairness)
+        for (const p of this.iteratePeersRoundRobin()) {
           if (!p.peerChoking) {
             this.requestPieces(p)
           }
