@@ -370,10 +370,10 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
           onChange={handleKeepAwakeChange}
         />
         <ToggleRow
-          label="Allow downloads in background"
-          sublabel="Plays silent audio to prevent browser throttling (shows audio icon)"
-          checked={settings.backgroundAudio}
-          onChange={(v) => updateSetting('backgroundAudio', v)}
+          label="Prevent background throttling"
+          sublabel="Keeps downloads running at full speed when tab is in background"
+          checked={settings.preventBackgroundThrottling}
+          onChange={(v) => updateSetting('preventBackgroundThrottling', v)}
         />
       </Section>
     </div>

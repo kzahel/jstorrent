@@ -17,6 +17,10 @@ import { getSettingsStore } from '../settings'
 import { getBridge } from './extension-bridge'
 import { notificationBridge, ProgressStats } from './notification-bridge'
 import { BackgroundAudioManager } from './background-audio'
+import { BackgroundWebRTCManager } from './background-webrtc'
+
+// Toggle: true = WebRTC (no audio icon), false = Audio (shows audio icon)
+const USE_WEBRTC_KEEP_ALIVE = true
 
 // Session store key for default root key
 const DEFAULT_ROOT_KEY_KEY = 'settings:defaultRootKey'
@@ -155,7 +159,9 @@ class EngineManager {
   private previousActiveCount: number = 0
   private previousCompletedCount: number = 0
   private pendingNativeEvents: Array<{ event: string; payload: unknown }> = []
-  private backgroundAudioManager = new BackgroundAudioManager()
+  private backgroundKeepAlive = USE_WEBRTC_KEEP_ALIVE
+    ? new BackgroundWebRTCManager()
+    : new BackgroundAudioManager()
 
   /**
    * Initialize the engine. Safe to call multiple times - returns cached engine.
@@ -316,10 +322,10 @@ class EngineManager {
       console.error('[EngineManager] DHT failed to start:', err)
     })
 
-    // Set up background audio anti-throttling from settings
-    this.backgroundAudioManager.setEnabled(settingsStore.get('backgroundAudio'))
-    settingsStore.subscribe('backgroundAudio', (enabled) => {
-      this.backgroundAudioManager.setEnabled(enabled)
+    // Set up background throttling prevention from settings
+    this.backgroundKeepAlive.setEnabled(settingsStore.get('preventBackgroundThrottling'))
+    settingsStore.subscribe('preventBackgroundThrottling', (enabled) => {
+      this.backgroundKeepAlive.setEnabled(enabled)
     })
 
     // 9. Set up beforeunload handler
@@ -818,7 +824,7 @@ class EngineManager {
     notificationBridge.updateProgress(stats)
 
     // Update background audio manager with active download count
-    this.backgroundAudioManager.updateActiveDownloads(stats.activeCount)
+    this.backgroundKeepAlive.updateActiveDownloads(stats.activeCount)
   }
 
   /**
