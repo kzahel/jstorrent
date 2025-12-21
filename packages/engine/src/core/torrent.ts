@@ -1675,9 +1675,11 @@ export class Torrent extends EngineComponent {
       this.applyUnchokeDecision(decision)
     }
 
-    // Apply drop decisions
-    for (const decision of drop) {
-      this.applyDropDecision(decision)
+    // Apply drop decisions (only when downloading - don't drop peers for slow download when seeding)
+    if (!this.isComplete) {
+      for (const decision of drop) {
+        this.applyDropDecision(decision)
+      }
     }
 
     // === Request connection slots from engine ===
