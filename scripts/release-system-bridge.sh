@@ -33,8 +33,11 @@ fi
 git add "$REPO_ROOT/system-bridge/Cargo.toml" "$REPO_ROOT/system-bridge/io-daemon/Cargo.toml" "$REPO_ROOT/system-bridge/Cargo.lock"
 git commit -m "chore: bump system-bridge version to ${VERSION} [skip ci]"
 
-# Create and push tag
+# Push commit (with skip ci to avoid redundant build)
+git push origin HEAD
+
+# Create and push tag separately (this triggers the release build)
 git tag "$TAG"
-git push origin HEAD "$TAG"
+git push origin "$TAG"
 
 echo "Created and pushed tag $TAG"
