@@ -36,12 +36,10 @@ Streams service worker console output to terminal and `/tmp/sw-logs.txt`. Auto-r
 ```bash
 # Install deps (one time)
 cd extension/tools
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync
 
 # Run
-python sw-log-stream.py
+uv run python sw-log-stream.py
 ```
 
 Output:
@@ -59,19 +57,19 @@ The script polls Chrome's debug endpoint every 2 seconds to detect extension rel
 Triggers `chrome.runtime.reload()` via CDP. Use after rebuilding the extension.
 
 ```bash
-python reload-extension.py
+uv run python reload-extension.py
 ```
 
 Typical workflow:
 ```bash
 # Terminal 1: watch logs
-python sw-log-stream.py
+uv run python sw-log-stream.py
 
 # Terminal 2: edit, build, reload
 cd extension
 pnpm build
 cd tools
-python reload-extension.py
+uv run python reload-extension.py
 ```
 
 ## Native Host Install/Uninstall
@@ -105,13 +103,13 @@ For AI agents debugging extension issues:
 
 2. **Start log streaming** (in background or separate terminal):
    ```bash
-   python sw-log-stream.py
+   uv run python sw-log-stream.py
    ```
 
 3. **Make code changes**, then:
    ```bash
    cd extension && pnpm build
-   cd tools && python reload-extension.py
+   cd tools && uv run python reload-extension.py
    ```
 
 4. **Check logs** for errors:
@@ -158,12 +156,10 @@ This may change if you load from a different path. Check `chrome://extensions` f
 ```bash
 # Install deps (one time)
 cd extension/tools
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-mcp.txt
+uv sync
 
 # Register with Claude Code
-claude mcp add ext-debug $(pwd)/.venv/bin/python3 $(pwd)/mcp_extension_debug.py
+claude mcp add ext-debug "uv run --directory $(pwd) python mcp_extension_debug.py"
 ```
 
 Or manually add to `~/.claude.json`:
@@ -171,8 +167,8 @@ Or manually add to `~/.claude.json`:
 {
   "mcpServers": {
     "ext-debug": {
-      "command": "/path/to/extension/tools/.venv/bin/python3",
-      "args": ["/path/to/extension/tools/mcp_extension_debug.py"]
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/extension/tools", "python", "mcp_extension_debug.py"]
     }
   }
 }

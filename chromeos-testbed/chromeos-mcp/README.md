@@ -22,12 +22,11 @@ Laptop                           Chromebook VT2 (root)
 
 ## Quick Start
 
-### 1. Setup Laptop (Python venv)
+### 1. Setup Laptop (uv)
 
 ```bash
 cd chromeos-testbed/chromeos-mcp
-python3 -m venv .venv
-.venv/bin/pip install mcp
+uv sync
 ```
 
 ### 2. Deploy client.py to Chromebook
@@ -55,7 +54,7 @@ echo '{"cmd": "info"}' | ssh chromeroot "LD_LIBRARY_PATH=/usr/local/lib64 python
 ### 4. Register MCP server with Claude
 
 ```bash
-claude mcp add chromeos $(pwd)/.venv/bin/python3 $(pwd)/mcp_chromeos.py
+claude mcp add chromeos "uv run --directory $(pwd) python mcp_chromeos.py"
 ```
 
 Or manually edit `~/.claude.json`:
@@ -63,8 +62,8 @@ Or manually edit `~/.claude.json`:
 {
   "mcpServers": {
     "chromeos": {
-      "command": "/path/to/chromeos-mcp/.venv/bin/python3",
-      "args": ["/path/to/chromeos-mcp/mcp_chromeos.py"]
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/chromeos-mcp", "python", "mcp_chromeos.py"]
     }
   }
 }
@@ -115,7 +114,7 @@ Commands are JSON lines over stdin/stdout:
 
 - `client.py` - Runs on Chromebook VT2 (root), handles input injection and screenshots
 - `mcp_chromeos.py` - MCP server running on laptop
-- `requirements.txt` - Python dependencies (mcp)
+- `pyproject.toml` - Python project configuration (dependencies managed by uv)
 
 ## Notes
 

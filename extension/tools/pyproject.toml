@@ -1,0 +1,12 @@
+[project]
+name = "jstorrent-extension-tools"
+version = "0.1.0"
+description = "Extension debugging tools for JSTorrent"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "websockets>=12.0",
+    "aiohttp>=3.9.0",
+    "pillow>=10.0.0",
+    "pytesseract>=0.3.10",
+]

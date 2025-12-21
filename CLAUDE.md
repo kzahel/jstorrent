@@ -48,6 +48,21 @@ git config user.email "user@email.com"
 
 This ensures proper commit history attribution across all work.
 
+## Python Workflow
+
+This project uses [uv](https://docs.astral.sh/uv/) for Python package management.
+
+When working with Python projects:
+1. Use `uv sync` to install dependencies
+2. Use `uv run python script.py` to run scripts
+3. Each Python project has its own `pyproject.toml` and `uv.lock`
+
+Python projects in this repo:
+- `system-bridge/` - Native host verification tests
+- `packages/engine/integration/python/` - Engine integration tests
+- `extension/tools/` - Extension debugging tools
+- `chromeos-testbed/chromeos-mcp/` - ChromeOS MCP server
+
 ## TypeScript Editing Workflow
 
 After editing TypeScript files, run the following checks in order:

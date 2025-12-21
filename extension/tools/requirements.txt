@@ -1,5 +1,0 @@
-mcp>=1.0.0
-websockets>=12.0
-aiohttp>=3.9.0
-pillow>=10.0.0
-pytesseract>=0.3.10

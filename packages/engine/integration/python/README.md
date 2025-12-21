@@ -1,37 +1,33 @@
 # Python Integration Tests
 
+## Prerequisites
+
+- Python 3.10+
+- [uv](https://docs.astral.sh/uv/) package manager
+- `libtorrent` may require system-level installation or building from source if a wheel is not available for your platform
+
 ## Setup
 
-1. Create a virtual environment and install dependencies:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -e .
-   ```
+Install dependencies with uv:
 
-   Or with `uv` (faster):
-   ```bash
-   uv venv .venv
-   source .venv/bin/activate
-   uv pip install -e .
-   ```
-
-   *Note: `libtorrent` might require system-level installation or building from source if a wheel is not available for your platform.*
+```bash
+uv sync
+```
 
 ## Running Tests
 
 ```bash
 # Run all tests
-python run_tests.py
+uv run python run_tests.py
 
 # Run specific test
-python test_download.py
+uv run python test_download.py
 
 # Run tests matching pattern
-python run_tests.py -k resume
+uv run python run_tests.py -k resume
 
 # Run specific test with arguments (e.g., piece length)
-python test_download.py 32768
+uv run python test_download.py 32768
 ```
 
 Each test is a standalone script that can be run directly.
