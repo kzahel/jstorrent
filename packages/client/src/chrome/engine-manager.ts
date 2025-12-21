@@ -16,6 +16,7 @@ import {
 import { getSettingsStore } from '../settings'
 import { getBridge } from './extension-bridge'
 import { notificationBridge, ProgressStats } from './notification-bridge'
+import { BackgroundAudioManager } from './background-audio'
 
 // Session store key for default root key
 const DEFAULT_ROOT_KEY_KEY = 'settings:defaultRootKey'
@@ -154,6 +155,7 @@ class EngineManager {
   private previousActiveCount: number = 0
   private previousCompletedCount: number = 0
   private pendingNativeEvents: Array<{ event: string; payload: unknown }> = []
+  private backgroundAudioManager = new BackgroundAudioManager()
 
   /**
    * Initialize the engine. Safe to call multiple times - returns cached engine.
@@ -312,6 +314,12 @@ class EngineManager {
     // Don't await - DHT bootstrap runs in background and can take a while
     this.setDHTEnabled(settingsStore.get('dht.enabled')).catch((err) => {
       console.error('[EngineManager] DHT failed to start:', err)
+    })
+
+    // Set up background audio anti-throttling from settings
+    this.backgroundAudioManager.setEnabled(settingsStore.get('backgroundAudio'))
+    settingsStore.subscribe('backgroundAudio', (enabled) => {
+      this.backgroundAudioManager.setEnabled(enabled)
     })
 
     // 9. Set up beforeunload handler
@@ -808,6 +816,9 @@ class EngineManager {
     this.previousCompletedCount = completedCount
 
     notificationBridge.updateProgress(stats)
+
+    // Update background audio manager with active download count
+    this.backgroundAudioManager.updateActiveDownloads(stats.activeCount)
   }
 
   /**

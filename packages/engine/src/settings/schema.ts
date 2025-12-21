@@ -112,6 +112,17 @@ export const settingsSchema = {
     default: false,
     // Note: Requires permission grant before enabling
   },
+  /**
+   * Play silent audio to prevent Chrome from throttling background tabs.
+   * When enabled and downloads are active, plays a 1Hz oscillator (inaudible)
+   * which keeps the tab exempt from background throttling.
+   * Note: Will show an audio icon in the tab.
+   */
+  backgroundAudio: {
+    type: 'boolean',
+    storage: 'sync',
+    default: false,
+  },
 
   // -------------------------------------------------------------------------
   // Network
