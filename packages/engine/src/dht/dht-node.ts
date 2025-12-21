@@ -8,6 +8,7 @@
  */
 
 import { EventEmitter } from '../utils/event-emitter'
+import { SleepWakeDetector, WakeEvent } from '../utils/sleep-wake-detector'
 import { ISocketFactory } from '../interfaces/socket'
 import type { Logger } from '../logging/logger'
 import { RoutingTable } from './routing-table'
@@ -213,6 +214,9 @@ export class DHTNode extends EventEmitter {
 
   /** Peer cleanup timer */
   private peerCleanupTimer: ReturnType<typeof setTimeout> | null = null
+
+  /** Sleep/wake detector for automatic refresh on system wake */
+  private sleepWakeDetector: SleepWakeDetector | null = null
 
   /** Skip maintenance timers (for tests) */
   private readonly skipMaintenance: boolean
@@ -788,6 +792,15 @@ export class DHTNode extends EventEmitter {
       }, PEER_CLEANUP_MS)
     }
     schedulePeerCleanup()
+
+    // Sleep/wake detection for automatic refresh on system wake
+    this.sleepWakeDetector = new SleepWakeDetector()
+    this.sleepWakeDetector.on('wake', (event: WakeEvent) => {
+      this.handleSystemWake(event).catch((err) => {
+        this.logger?.warn('Error handling system wake', err)
+      })
+    })
+    this.sleepWakeDetector.start()
   }
 
   /**
@@ -803,6 +816,68 @@ export class DHTNode extends EventEmitter {
       clearTimeout(this.peerCleanupTimer)
       this.peerCleanupTimer = null
     }
+
+    if (this.sleepWakeDetector) {
+      this.sleepWakeDetector.stop()
+      this.sleepWakeDetector = null
+    }
+  }
+
+  // ==========================================================================
+  // Sleep/Wake Detection
+  // ==========================================================================
+
+  /**
+   * Handle system wake from sleep.
+   * Refreshes the DHT routing table based on sleep duration.
+   */
+  private async handleSystemWake(event: WakeEvent): Promise<void> {
+    const sleepSeconds = Math.round(event.sleepDurationMs / 1000)
+    this.logger?.info(`System wake detected after ${sleepSeconds}s sleep, refreshing DHT`)
+
+    // Per BEP 5, buckets become stale after 15 minutes
+    if (event.sleepDurationMs > BUCKET_REFRESH_MS) {
+      await this.refreshAfterLongSleep()
+    } else {
+      await this.refreshAfterShortSleep()
+    }
+  }
+
+  /**
+   * Refresh after a long sleep (> 15 minutes).
+   * Re-bootstraps using existing nodes to rebuild routing table.
+   */
+  private async refreshAfterLongSleep(): Promise<void> {
+    const nodes = this.routingTable.getAllNodes()
+    if (nodes.length === 0) {
+      this.logger?.debug('No nodes in routing table, running full bootstrap')
+      await this.bootstrap()
+      return
+    }
+
+    // Use existing nodes as bootstrap seeds
+    this.logger?.info(`Re-bootstrapping with ${nodes.length} existing nodes`)
+    await this.bootstrap({
+      nodes: nodes.map((n) => ({ host: n.host, port: n.port })),
+    })
+  }
+
+  /**
+   * Refresh after a short sleep (< 15 minutes).
+   * Pings a sample of nodes to verify liveness and update lastSeen.
+   */
+  private async refreshAfterShortSleep(): Promise<void> {
+    const allNodes = this.routingTable.getAllNodes()
+    const nodesToPing = allNodes.slice(0, Math.min(8, allNodes.length))
+
+    if (nodesToPing.length === 0) {
+      this.logger?.debug('No nodes to ping after short sleep')
+      return
+    }
+
+    this.logger?.debug(`Pinging ${nodesToPing.length} nodes after wake`)
+    const pingPromises = nodesToPing.map((node) => this.ping(node).catch(() => false))
+    await Promise.all(pingPromises)
   }
 
   /**
