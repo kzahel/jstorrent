@@ -469,13 +469,17 @@ export class DaemonBridge {
 
   private async connectDesktop(): Promise<void> {
     const installId = await getOrCreateInstallId()
+    console.log('[DaemonBridge] connectDesktop() called, installId:', installId)
 
     return new Promise((resolve, reject) => {
+      console.log('[DaemonBridge] Calling chrome.runtime.connectNative("com.jstorrent.native")')
       const port = chrome.runtime.connectNative('com.jstorrent.native')
+      console.log('[DaemonBridge] connectNative returned port:', !!port)
 
       let resolved = false
       const timeout = setTimeout(() => {
         if (!resolved) {
+          console.log('[DaemonBridge] Handshake timeout after 10s')
           resolved = true
           port.disconnect()
           reject(new Error('Handshake timeout'))
@@ -483,10 +487,11 @@ export class DaemonBridge {
       }, 10000)
 
       port.onDisconnect.addListener(() => {
+        const error = chrome.runtime.lastError?.message || 'Disconnected'
+        console.log('[DaemonBridge] onDisconnect fired, resolved:', resolved, 'error:', error)
         if (!resolved) {
           resolved = true
           clearTimeout(timeout)
-          const error = chrome.runtime.lastError?.message || 'Disconnected'
           reject(new Error(error))
         } else {
           // Disconnected after successful connection
@@ -495,11 +500,13 @@ export class DaemonBridge {
       })
 
       port.onMessage.addListener((msg: unknown) => {
+        console.log('[DaemonBridge] Received message from native host:', msg)
         if (!resolved && this.isDaemonInfoMessage(msg)) {
           resolved = true
           clearTimeout(timeout)
 
           const payload = (msg as { payload: DaemonInfo }).payload
+          console.log('[DaemonBridge] Got DaemonInfo, version:', payload.version, 'roots:', payload.roots?.length)
           this.nativePort = port
           this.updateState({
             status: 'connected',
@@ -520,12 +527,14 @@ export class DaemonBridge {
       })
 
       // Send handshake
-      port.postMessage({
+      const handshakeMsg = {
         op: 'handshake',
         extensionId: chrome.runtime.id,
         installId,
         id: crypto.randomUUID(),
-      })
+      }
+      console.log('[DaemonBridge] Sending handshake:', handshakeMsg)
+      port.postMessage(handshakeMsg)
     })
   }
 

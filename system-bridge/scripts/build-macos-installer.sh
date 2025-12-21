@@ -235,6 +235,10 @@ fi
 rm -f "$COMPONENT_PKG"
 rm -f distribution.xml
 rm -f "$ICONSET_ICNS"
+# IMPORTANT: Remove pkgroot to prevent installer bundle relocation bug.
+# If pkgroot with app bundles exists during install, macOS relocates the
+# installation to the pkgroot directory instead of the target location.
+rm -rf pkgroot
 
 # Notarize if requested
 if $NOTARIZE; then
