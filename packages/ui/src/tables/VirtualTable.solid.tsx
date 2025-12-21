@@ -173,11 +173,60 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     props.getSelectedKeys?.() ?? new Set(),
   )
 
+  // Track if we're the source of the last selection change (to avoid sync loops).
+  // This is needed because selection state lives in two places:
+  // 1. React's selectedTorrents state in App.tsx (source of truth for toolbar actions)
+  // 2. Solid's selectedKeys signal here (for instant visual feedback on row clicks)
+  //
+  // When the user clicks a row, we update local state immediately for snappy UI,
+  // then notify React via onSelectionChange. React updates its state async.
+  // Without this flag, the sync effect below would see the mismatch and re-sync,
+  // potentially causing flicker or race conditions.
+  let localSelectionChange = false
+
   // Update selection: local signal (instant) + notify parent
   const updateSelection = (keys: Set<string>) => {
+    localSelectionChange = true
     setSelectedKeys(keys)
     props.onSelectionChange?.(keys)
+    // Reset flag after React has had time to process the state update.
+    // setTimeout(0) ensures this runs after the current event loop tick,
+    // giving React's setState time to batch and apply the change.
+    setTimeout(() => {
+      localSelectionChange = false
+    }, 0)
   }
+
+  // Sync local selection from parent when React changes selection externally.
+  //
+  // Problem: React can clear selection without going through this table (e.g., when
+  // "Reset State" action calls setSelectedTorrents(new Set()) in App.tsx). When this
+  // happens, React's toolbar shows "no selection" but Solid's local state still has
+  // the old selection, causing the row to stay visually highlighted - a desync.
+  //
+  // Solution: On each RAF tick, compare parent (React) and local (Solid) selection.
+  // If they differ and we didn't cause the change, sync local to match parent.
+  // This runs ~60fps but the comparison is cheap (just set size + membership check).
+  createEffect(() => {
+    tick() // Subscribe to RAF updates
+    if (localSelectionChange) return // Skip if we caused the change
+
+    const parentKeys = props.getSelectedKeys?.() ?? new Set()
+    const localKeys = selectedKeys()
+
+    // Check if they differ
+    if (parentKeys.size !== localKeys.size) {
+      setSelectedKeys(new Set(parentKeys))
+    } else if (parentKeys.size > 0) {
+      // Same size but check contents
+      for (const k of parentKeys) {
+        if (!localKeys.has(k)) {
+          setSelectedKeys(new Set(parentKeys))
+          break
+        }
+      }
+    }
+  })
 
   // Create virtualizer
   const virtualizer = createVirtualizer({

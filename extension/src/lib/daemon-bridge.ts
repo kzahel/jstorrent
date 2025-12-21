@@ -506,7 +506,12 @@ export class DaemonBridge {
           clearTimeout(timeout)
 
           const payload = (msg as { payload: DaemonInfo }).payload
-          console.log('[DaemonBridge] Got DaemonInfo, version:', payload.version, 'roots:', payload.roots?.length)
+          console.log(
+            '[DaemonBridge] Got DaemonInfo, version:',
+            payload.version,
+            'roots:',
+            payload.roots?.length,
+          )
           this.nativePort = port
           this.updateState({
             status: 'connected',
