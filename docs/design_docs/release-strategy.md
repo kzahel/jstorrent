@@ -7,7 +7,7 @@
 JSTorrent uses a monorepo containing multiple independently-versioned components:
 
 - `extension/`
-- `native-host/`
+- `system-bridge/`
 - `website/`
 - future: `apps/` (mobile)
 
@@ -22,7 +22,7 @@ To achieve this, each component uses **component-prefixed Git tags**, and each c
 Each component uses its own version namespace:
 
 ```
-native-v<semver>
+system-bridge-v<semver>
 extension-v<semver>
 website-v<semver>
 mobile-v<semver>     # future
@@ -31,7 +31,7 @@ mobile-v<semver>     # future
 Examples:
 
 ```
-native-v0.0.7
+system-bridge-v0.0.7
 extension-v1.2.0
 website-v0.3.1
 ```
@@ -53,7 +53,7 @@ Each component’s release workflow includes a tag filter:
 on:
   push:
     tags:
-      - 'native-v*'
+      - 'system-bridge-v*'
 ```
 
 Similarly:
@@ -76,7 +76,7 @@ All scripts follow the same pattern.
 
 ---
 
-### `scripts/release-native.sh`
+### `scripts/release-system-bridge.sh`
 
 ```bash
 #!/usr/bin/env bash
@@ -89,7 +89,7 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
-TAG="native-v${VERSION}"
+TAG="system-bridge-v${VERSION}"
 
 git tag "$TAG"
 git push origin "$TAG"
@@ -174,7 +174,7 @@ echo "Created and pushed tag $TAG"
 
 ```
 cd jstorrent-monorepo
-./scripts/release-native.sh 0.0.7
+./scripts/release-system-bridge.sh 0.0.7
 ```
 
 CI builds and uploads the appropriate artifact to a GitHub Release.
@@ -182,7 +182,7 @@ CI builds and uploads the appropriate artifact to a GitHub Release.
 ### Option B — From GitHub UI
 
 1. Navigate to **Releases → Draft new release**
-   `native-v0.0.7`
+   `system-bridge-v0.0.7`
 2. Publish release
 3. CI builds and attaches artifacts automatically
 

@@ -115,7 +115,7 @@ python3 verify_all.py                       # Integration tests (simulates exten
 - **Native CI** (`.github/workflows/native-ci.yml`):
   - Separate jobs for Windows/macOS/Linux
   - Builds installers, uploads artifacts, verifies installation
-  - Releases on tags like `native-v1.0.0`, `extension-v1.0.0`
+  - Releases on tags like `system-bridge-v1.0.0`, `extension-v1.0.0`
 
 - **Path filters**: Each workflow only runs when relevant files change
 

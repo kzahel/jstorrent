@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     tags:
-      - 'native-v*'
+      - 'system-bridge-v*'
     paths:
       - 'system-bridge/**'
       - 'packages/**'
