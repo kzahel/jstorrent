@@ -112,7 +112,7 @@ python3 verify_all.py                       # Integration tests (simulates exten
   - Triggers on `extension/**` or `packages/**` changes
   - Builds extension, installs native-host, runs Playwright tests
 
-- **Native CI** (`.github/workflows/native-ci.yml`):
+- **System Bridge CI** (`.github/workflows/system-bridge-ci.yml`):
   - Separate jobs for Windows/macOS/Linux
   - Builds installers, uploads artifacts, verifies installation
   - Releases on tags like `system-bridge-v1.0.0`, `extension-v1.0.0`

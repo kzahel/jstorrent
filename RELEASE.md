@@ -22,7 +22,7 @@ This will:
 Watch the GitHub Actions workflow at:
 https://github.com/kzahel/jstorrent/actions
 
-The `native-ci.yml` (System Bridge CI) workflow builds installers for all platforms:
+The `system-bridge-ci.yml` workflow builds installers for all platforms:
 - Windows: `.exe` (Inno Setup)
 - macOS: `.pkg` (signed and notarized if secrets configured)
 - Linux: `.tar.gz`

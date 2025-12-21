@@ -8,13 +8,13 @@ on:
     paths:
       - 'system-bridge/**'
       - 'packages/**'
-      - '.github/workflows/native-ci.yml'
+      - '.github/workflows/system-bridge-ci.yml'
   pull_request:
     branches: [main]
     paths:
       - 'system-bridge/**'
       - 'packages/**'
-      - '.github/workflows/native-ci.yml'
+      - '.github/workflows/system-bridge-ci.yml'
 
 permissions:
   contents: write
