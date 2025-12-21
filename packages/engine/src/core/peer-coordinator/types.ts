@@ -90,6 +90,19 @@ export interface DownloadOptimizerConfig {
 }
 
 /**
+ * Runtime context for DownloadOptimizer.evaluate().
+ * Separate from config since this is dynamic state, not persisted settings.
+ */
+export interface DownloadOptimizerContext {
+  /**
+   * Skip speed-based drop checks (too_slow, below_average).
+   * Useful when rate-limited so peers aren't dropped for appearing slow.
+   * Does NOT affect choked_timeout check.
+   */
+  skipSpeedChecks?: boolean
+}
+
+/**
  * Internal state of UnchokeAlgorithm (exposed for testing/debugging).
  */
 export interface UnchokeAlgorithmState {

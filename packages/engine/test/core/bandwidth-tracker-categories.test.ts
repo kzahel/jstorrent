@@ -198,4 +198,61 @@ describe('BandwidthTracker with categories', () => {
     const samples = tracker.getSamples('down', [], baseTime - 1000, baseTime + 1000)
     expect(samples).toEqual([])
   })
+
+  describe('isDownloadRateLimited', () => {
+    it('returns false when no limit is set', () => {
+      // Default is unlimited (0)
+      expect(tracker.isDownloadRateLimited()).toBe(false)
+    })
+
+    it('returns false when limit is set but no traffic recorded', () => {
+      tracker.setDownloadLimit(100000) // 100 KB/s
+      // No traffic recorded = 0 rate
+      expect(tracker.isDownloadRateLimited(0.8)).toBe(false)
+    })
+
+    it('returns true when rate is at or above threshold', () => {
+      // Set a very low limit so we can easily exceed it
+      tracker.setDownloadLimit(100) // 100 bytes/s
+
+      const now = Date.now()
+      // Record across multiple seconds to get a realistic rate
+      // getCurrentRate uses a 3-second window by default
+      tracker.record('peer:protocol', 500, 'down', now - 2000)
+      tracker.record('peer:protocol', 500, 'down', now - 1000)
+      tracker.record('peer:protocol', 500, 'down', now)
+
+      // With 1500 bytes over 3 seconds = 500 bytes/sec, way above 100 bytes/s limit
+      expect(tracker.isDownloadRateLimited(0.8)).toBe(true)
+    })
+
+    it('returns false when limit set but traffic is below threshold', () => {
+      // Set a limit higher than our traffic
+      tracker.setDownloadLimit(10000) // 10 KB/s
+
+      const now = Date.now()
+      // Record minimal traffic
+      tracker.record('peer:protocol', 100, 'down', now - 1000)
+      tracker.record('peer:protocol', 100, 'down', now)
+
+      // Rate is about 67 bytes/sec, way below 10 KB/s limit
+      expect(tracker.isDownloadRateLimited(0.8)).toBe(false)
+    })
+
+    it('respects custom threshold', () => {
+      // Set limit to 1000 bytes/s
+      tracker.setDownloadLimit(1000)
+
+      const now = Date.now()
+      // Record traffic to get rate around 600 bytes/s (60% of limit)
+      tracker.record('peer:protocol', 600, 'down', now - 2000)
+      tracker.record('peer:protocol', 600, 'down', now - 1000)
+      tracker.record('peer:protocol', 600, 'down', now)
+
+      // Rate is about 600 bytes/sec = 60% of 1000 limit
+      // Should be above 50% threshold but below 80%
+      expect(tracker.isDownloadRateLimited(0.5)).toBe(true)
+      expect(tracker.isDownloadRateLimited(0.8)).toBe(false)
+    })
+  })
 })

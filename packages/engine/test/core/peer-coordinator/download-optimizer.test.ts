@@ -272,4 +272,133 @@ describe('DownloadOptimizer', () => {
       expect(decisions).toHaveLength(0)
     })
   })
+
+  // ---------------------------------------------------------------------------
+  // Rate limiting context (skipSpeedChecks)
+  // ---------------------------------------------------------------------------
+
+  describe('rate limiting context', () => {
+    it('should skip too_slow check when skipSpeedChecks is true', () => {
+      const optimizer = new DownloadOptimizer(
+        { minSpeedBytes: 1000, minConnectionAgeMs: 0, minPeersBeforeDropping: 0 },
+        fakeClock,
+      )
+
+      const peers: DownloadPeerSnapshot[] = [
+        {
+          id: 'slow_peer',
+          peerChoking: false,
+          downloadRate: 100, // Below minSpeedBytes
+          connectedAt: 0,
+          lastDataReceived: clock,
+        },
+        {
+          id: 'another_peer',
+          peerChoking: false,
+          downloadRate: 10000,
+          connectedAt: 0,
+          lastDataReceived: clock,
+        },
+      ]
+
+      // Without context - should drop slow peer
+      const decisions1 = optimizer.evaluate(peers, new Set(), true)
+      expect(decisions1).toContainEqual({ peerId: 'slow_peer', reason: 'too_slow' })
+
+      // With skipSpeedChecks - should NOT drop slow peer
+      const decisions2 = optimizer.evaluate(peers, new Set(), true, { skipSpeedChecks: true })
+      expect(decisions2).toHaveLength(0)
+    })
+
+    it('should skip below_average check when skipSpeedChecks is true', () => {
+      const optimizer = new DownloadOptimizer(
+        {
+          dropBelowAverageRatio: 0.1,
+          minSpeedBytes: 0,
+          minConnectionAgeMs: 0,
+          minPeersBeforeDropping: 0,
+        },
+        fakeClock,
+      )
+
+      const peers: DownloadPeerSnapshot[] = [
+        {
+          id: 'fast1',
+          peerChoking: false,
+          downloadRate: 10000,
+          connectedAt: 0,
+          lastDataReceived: clock,
+        },
+        {
+          id: 'fast2',
+          peerChoking: false,
+          downloadRate: 10000,
+          connectedAt: 0,
+          lastDataReceived: clock,
+        },
+        {
+          id: 'slow',
+          peerChoking: false,
+          downloadRate: 100,
+          connectedAt: 0,
+          lastDataReceived: clock,
+        }, // 1% of avg
+      ]
+
+      // Without context - should drop slow peer for below_average
+      const decisions1 = optimizer.evaluate(peers, new Set(), true)
+      expect(decisions1).toContainEqual({ peerId: 'slow', reason: 'below_average' })
+
+      // With skipSpeedChecks - should NOT drop
+      const decisions2 = optimizer.evaluate(peers, new Set(), true, { skipSpeedChecks: true })
+      expect(decisions2).toHaveLength(0)
+    })
+
+    it('should still enforce choked_timeout when skipSpeedChecks is true', () => {
+      const optimizer = new DownloadOptimizer(
+        { chokedTimeoutMs: 60000, minPeersBeforeDropping: 0 },
+        fakeClock,
+      )
+
+      clock = 70000 // 70 seconds
+      const peers: DownloadPeerSnapshot[] = [
+        {
+          id: 'choked_stale',
+          peerChoking: true,
+          downloadRate: 0,
+          connectedAt: 0,
+          lastDataReceived: 0,
+        },
+      ]
+
+      // Even with skipSpeedChecks, choked_timeout should still work
+      const decisions = optimizer.evaluate(peers, new Set(), true, { skipSpeedChecks: true })
+      expect(decisions).toContainEqual({ peerId: 'choked_stale', reason: 'choked_timeout' })
+    })
+
+    it('should work with shouldDrop method as well', () => {
+      const optimizer = new DownloadOptimizer(
+        { minSpeedBytes: 1000, minConnectionAgeMs: 0 },
+        fakeClock,
+      )
+
+      const slowPeer: DownloadPeerSnapshot = {
+        id: 'slow_peer',
+        peerChoking: false,
+        downloadRate: 100,
+        connectedAt: 0,
+        lastDataReceived: clock,
+      }
+
+      // Without context - should recommend dropping
+      const decision1 = optimizer.shouldDrop(slowPeer, new Set(), 10000, true)
+      expect(decision1).toEqual({ peerId: 'slow_peer', reason: 'too_slow' })
+
+      // With skipSpeedChecks - should NOT recommend dropping
+      const decision2 = optimizer.shouldDrop(slowPeer, new Set(), 10000, true, {
+        skipSpeedChecks: true,
+      })
+      expect(decision2).toBeNull()
+    })
+  })
 })
