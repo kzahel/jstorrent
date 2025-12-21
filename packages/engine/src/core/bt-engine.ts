@@ -1151,8 +1151,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     const dhtLogger = this.scopedLoggerFor(dhtLoggable)
 
     // Retry logic for port binding failures (e.g., after quick reconnect)
-    const maxRetries = 3
-    const delays = [500, 1000, 2000]
+    const maxRetries = 5
+    const delays = [1000, 2000, 3000, 4000, 5000]
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       this._dhtNode = new DHTNode({
