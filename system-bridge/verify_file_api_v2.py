@@ -34,7 +34,6 @@ def main():
                 {
                     "install_id": install_id,
                     "extension_id": None,
-                    "salt": "test-salt",
                     "pid": os.getpid(),
                     "port": 0,
                     "token": token,
@@ -47,7 +46,7 @@ def main():
                     },
                     "download_roots": [
                         {
-                            "token": root_token,
+                            "key": root_token,
                             "path": download_root,
                             "display_name": "Test Downloads",
                             "removable": False,
