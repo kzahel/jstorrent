@@ -16,7 +16,7 @@ fi
 echo "Building Linux installer..."
 ./scripts/build-linux-installer.sh
 
-INSTALLER_TAR="dist/jstorrent-native-host-install-linux-x86_64.tar.gz"
+INSTALLER_TAR="dist/jstorrent-system-bridge-install-linux-x86_64.tar.gz"
 
 if [ ! -f "$INSTALLER_TAR" ]; then
     echo "Error: Installer tarball $INSTALLER_TAR not found."

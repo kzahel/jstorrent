@@ -1,4 +1,4 @@
-# Build Windows installer for JSTorrent Native Host
+# Build Windows installer for JSTorrent System Bridge
 #
 # Environment variables:
 #   SKIP_BUILD=1              - Skip cargo build, use existing binaries
@@ -151,7 +151,7 @@ if ($useAltOutput) {
 }
 
 # Output path - check temp dir first if we used it, otherwise project dir
-$installerName = "jstorrent-native-host-install-windows-x86_64.exe"
+$installerName = "jstorrent-system-bridge-install-windows-x86_64.exe"
 if ($useAltOutput) {
     $outputPath = Join-Path $tempOutputDir $installerName
 } else {

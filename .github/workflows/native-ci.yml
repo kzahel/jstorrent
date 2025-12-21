@@ -1,4 +1,4 @@
-name: Native Host CI
+name: System Bridge CI
 
 on:
   push:
@@ -43,19 +43,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: system-bridge/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe
+          path: system-bridge/installers/windows/Output/jstorrent-system-bridge-install-windows-x86_64.exe
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: system-bridge/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe
+          files: system-bridge/installers/windows/Output/jstorrent-system-bridge-install-windows-x86_64.exe
 
       - name: Verify Installer
         shell: pwsh
         run: |
           # Run installer silently with logging
-          $InstallerPath = ".\installers\windows\Output\jstorrent-native-host-install-windows-x86_64.exe"
+          $InstallerPath = ".\installers\windows\Output\jstorrent-system-bridge-install-windows-x86_64.exe"
           Start-Process -FilePath $InstallerPath -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LOG=install.log" -Wait -NoNewWindow
 
           # Verify files
@@ -158,8 +158,8 @@ jobs:
       - name: Verify Package
         if: env.HAS_SIGNING_SECRETS == 'true'
         run: |
-          pkgutil --check-signature jstorrent-native-host-install-macos-x86_64.pkg
-          spctl -a -vv -t install jstorrent-native-host-install-macos-x86_64.pkg
+          pkgutil --check-signature jstorrent-system-bridge-install-macos-x86_64.pkg
+          spctl -a -vv -t install jstorrent-system-bridge-install-macos-x86_64.pkg
 
       - name: Clean up
         if: always()
@@ -171,13 +171,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-installer
-          path: system-bridge/jstorrent-native-host-install-macos-x86_64.pkg
+          path: system-bridge/jstorrent-system-bridge-install-macos-x86_64.pkg
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: system-bridge/jstorrent-native-host-install-macos-x86_64.pkg
+          files: system-bridge/jstorrent-system-bridge-install-macos-x86_64.pkg
 
   build-linux:
     runs-on: ubuntu-latest
@@ -201,13 +201,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-installer
-          path: system-bridge/dist/jstorrent-native-host-install-linux-x86_64.tar.gz
+          path: system-bridge/dist/jstorrent-system-bridge-install-linux-x86_64.tar.gz
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: system-bridge/dist/jstorrent-native-host-install-linux-x86_64.tar.gz
+          files: system-bridge/dist/jstorrent-system-bridge-install-linux-x86_64.tar.gz
 
       - name: Verify Installer
         run: |

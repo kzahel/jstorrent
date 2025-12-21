@@ -26,7 +26,7 @@ cp manifests/com.jstorrent.native.json.template "$STAGING_DIR/manifests/"
 # Create dist directory
 mkdir -p dist
 
-OUTPUT_FILE="dist/jstorrent-native-host-install-linux-x86_64.tar.gz"
+OUTPUT_FILE="dist/jstorrent-system-bridge-install-linux-x86_64.tar.gz"
 tar -czvf "$OUTPUT_FILE" -C "$STAGING_DIR" .
 
 # Cleanup staging

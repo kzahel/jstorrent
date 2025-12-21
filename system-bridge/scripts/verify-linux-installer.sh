@@ -7,7 +7,7 @@ if [ ! -f "Cargo.toml" ]; then
     exit 1
 fi
 
-INSTALLER_TAR="dist/jstorrent-native-host-install-linux-x86_64.tar.gz"
+INSTALLER_TAR="dist/jstorrent-system-bridge-install-linux-x86_64.tar.gz"
 
 if [ ! -f "$INSTALLER_TAR" ]; then
     echo "Error: Installer tarball $INSTALLER_TAR not found. Run build-linux-installer.sh first."

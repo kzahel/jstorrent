@@ -1,5 +1,5 @@
 @echo off
-REM Install JSTorrent Native Host locally on Windows
+REM Install JSTorrent System Bridge locally on Windows
 REM Similar to install-local-linux.sh but for Windows
 
 setlocal enabledelayedexpansion
@@ -27,8 +27,8 @@ if %ERRORLEVEL% neq 0 (
 )
 
 REM Determine installer path (check temp first since WSL/network builds go there)
-set INSTALLER_NORMAL=installers\windows\Output\jstorrent-native-host-install-windows-x86_64.exe
-set INSTALLER_TEMP=%TEMP%\jstorrent-installer-output\jstorrent-native-host-install-windows-x86_64.exe
+set INSTALLER_NORMAL=installers\windows\Output\jstorrent-system-bridge-install-windows-x86_64.exe
+set INSTALLER_TEMP=%TEMP%\jstorrent-installer-output\jstorrent-system-bridge-install-windows-x86_64.exe
 set INSTALLER_PATH=
 
 if exist "%INSTALLER_TEMP%" (

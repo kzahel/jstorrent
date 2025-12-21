@@ -11,5 +11,5 @@ jstorrent-native.env
 # IDE
 .vscode/
 
-jstorrent-native-host-install-macos-x86_64.pkg
+jstorrent-system-bridge-install-macos-x86_64.pkg
 pkgroot

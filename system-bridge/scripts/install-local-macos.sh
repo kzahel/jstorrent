@@ -16,7 +16,7 @@ fi
 echo "Building macOS installer..."
 ./scripts/build-macos-installer.sh
 
-INSTALLER_PKG="jstorrent-native-host-install-macos-x86_64.pkg"
+INSTALLER_PKG="jstorrent-system-bridge-install-macos-x86_64.pkg"
 
 if [ ! -f "$INSTALLER_PKG" ]; then
     echo "Error: Installer PKG $INSTALLER_PKG not found."
