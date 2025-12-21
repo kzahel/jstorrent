@@ -44,7 +44,7 @@ export class JsBridgeSessionStore implements ISessionStore {
   async get(key: string): Promise<Uint8Array | null> {
     try {
       const value = this.kv.get(this.prefixKey(key))
-      if (value !== null && !value.startsWith(JSON_MARKER)) {
+      if (value != null && !value.startsWith(JSON_MARKER)) {
         return fromBase64(value)
       }
     } catch (e) {
@@ -96,7 +96,7 @@ export class JsBridgeSessionStore implements ISessionStore {
   async getJson<T>(key: string): Promise<T | null> {
     try {
       const value = this.kv.get(this.prefixKey(key))
-      if (value !== null) {
+      if (value != null) {
         // Handle both old format (direct JSON) and new format (json: prefix)
         if (value.startsWith(JSON_MARKER)) {
           return JSON.parse(value.slice(JSON_MARKER.length)) as T

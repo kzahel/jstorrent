@@ -17,9 +17,15 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    /* Path aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@jstorrent/engine": ["../packages/engine/src"],
+      "@jstorrent/engine/*": ["../packages/engine/src/*"]
+    }
   },
-  "include": ["src"],
+  "include": ["src", "standalone"],
   "references": [
     {
       "path": "./tsconfig.node.json"

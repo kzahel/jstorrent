@@ -209,17 +209,21 @@ class SocketSession(
                 val extensionId = parts[1]
                 val installId = parts[2]
 
-                val storedToken = tokenStore.token
-                if (storedToken != null &&
-                    token == storedToken &&
+                // For extension auth, also verify pairing
+                val isExtensionAuth = tokenStore.token != null &&
+                    token == tokenStore.token &&
                     tokenStore.isPairedWith(extensionId, installId)
-                ) {
+                // For standalone mode, just the standalone token is enough
+                val isStandaloneAuth = token == tokenStore.standaloneToken
+
+                if (isExtensionAuth || isStandaloneAuth) {
                     authenticated = true
                     send(Protocol.createMessage(Protocol.OP_AUTH_RESULT, envelope.requestId, byteArrayOf(0)))
-                    Log.i(TAG, "WebSocket authenticated (${sessionType.name})")
+                    val authType = if (isStandaloneAuth) "standalone" else "extension"
+                    Log.i(TAG, "WebSocket authenticated ($authType, ${sessionType.name})")
 
-                    // Only register control sessions for broadcasts
-                    if (sessionType == SessionType.CONTROL) {
+                    // Only register control sessions for broadcasts (not standalone)
+                    if (sessionType == SessionType.CONTROL && isExtensionAuth) {
                         httpServer.registerControlSession(this@SocketSession)
                         // Notify PendingLinkManager that a control connection is available
                         com.jstorrent.app.link.PendingLinkManager.notifyConnectionEstablished()
@@ -227,7 +231,7 @@ class SocketSession(
                 } else {
                     val errorMsg = "Invalid credentials".toByteArray()
                     send(Protocol.createMessage(Protocol.OP_AUTH_RESULT, envelope.requestId, byteArrayOf(1) + errorMsg))
-                    Log.w(TAG, "WebSocket auth failed: token=${token == storedToken}, paired=${tokenStore.isPairedWith(extensionId, installId)}")
+                    Log.w(TAG, "WebSocket auth failed: extensionAuth=$isExtensionAuth, standaloneAuth=$isStandaloneAuth")
                 }
             }
             else -> {

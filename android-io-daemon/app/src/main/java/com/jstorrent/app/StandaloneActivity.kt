@@ -10,9 +10,12 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import com.jstorrent.app.auth.TokenStore
 import com.jstorrent.app.bridge.KVBridge
 import com.jstorrent.app.bridge.RootsBridge
 import com.jstorrent.app.service.IoDaemonService
+import com.jstorrent.app.storage.RootStore
 
 private const val TAG = "StandaloneActivity"
 
@@ -21,19 +24,47 @@ class StandaloneActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var kvBridge: KVBridge
     private lateinit var rootsBridge: RootsBridge
+    private lateinit var tokenStore: TokenStore
+    private lateinit var rootStore: RootStore
     private var pendingIntent: Intent? = null
+
+    private val folderPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            Log.i(TAG, "Folder selected: $uri")
+            // Take persistent permission
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            // Add to root store
+            val root = rootStore.addRoot(uri)
+            Log.i(TAG, "Added root: ${root.key} -> ${root.displayName}")
+            // Notify WebView that roots changed
+            rootsBridge.reload()
+            Toast.makeText(this, "Added: ${root.displayName}", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.i(TAG, "onCreate")
 
+        // Enable remote debugging (chrome://inspect)
+        if (BuildConfig.DEBUG) {
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
+
         // Start IO daemon service
         IoDaemonService.start(this)
 
-        // Create bridges
+        // Create bridges and stores
         kvBridge = KVBridge(this)
         rootsBridge = RootsBridge(this)
+        tokenStore = TokenStore(this)
+        rootStore = RootStore(this)
 
         // Create WebView
         webView = WebView(this).apply {
@@ -61,6 +92,17 @@ class StandaloneActivity : ComponentActivity() {
                     pendingIntent?.let { handleIntent(it) }
                     pendingIntent = null
                 }
+
+                override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                    val url = request?.url ?: return false
+                    if (url.scheme == "jstorrent") {
+                        when (url.host) {
+                            "add-root" -> openFolderPicker()
+                        }
+                        return true // We handled it
+                    }
+                    return false // Let WebView handle it
+                }
             }
         }
 
@@ -77,7 +119,7 @@ class StandaloneActivity : ComponentActivity() {
         if (BuildConfig.DEBUG) {
             // Dev mode: load from dev server
             // 10.0.2.2 is host loopback from Android emulator
-            val devUrl = "http://10.0.2.2:3001/standalone.html"
+            val devUrl = "http://10.0.2.2:3000/standalone/standalone.html"
             Log.i(TAG, "Loading dev URL: $devUrl")
             webView.loadUrl(devUrl)
         } else {
@@ -86,12 +128,18 @@ class StandaloneActivity : ComponentActivity() {
         }
     }
 
+    private fun openFolderPicker() {
+        Log.i(TAG, "Opening folder picker")
+        folderPickerLauncher.launch(null)
+    }
+
     private fun injectConfig() {
         val port = IoDaemonService.instance?.port ?: 7800
+        val token = tokenStore.standaloneToken
         val script = """
             (function() {
                 window.JSTORRENT_CONFIG = {
-                    daemonUrl: 'http://127.0.0.1:$port',
+                    daemonUrl: 'http://127.0.0.1:$port?token=$token',
                     platform: 'android-standalone'
                 };
                 console.log('[JSTorrent] Config injected:', window.JSTORRENT_CONFIG);

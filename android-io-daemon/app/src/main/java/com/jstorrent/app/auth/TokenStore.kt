@@ -33,6 +33,20 @@ class TokenStore(context: Context) {
         get() = prefs.getBoolean(KEY_BACKGROUND_MODE, false)
         set(value) = prefs.edit { putBoolean(KEY_BACKGROUND_MODE, value) }
 
+    /**
+     * Token for standalone mode (local WebView).
+     * Auto-generated on first access, persisted across restarts.
+     */
+    val standaloneToken: String
+        get() {
+            var existing = prefs.getString(KEY_STANDALONE_TOKEN, null)
+            if (existing == null) {
+                existing = java.util.UUID.randomUUID().toString()
+                prefs.edit { putString(KEY_STANDALONE_TOKEN, existing) }
+            }
+            return existing
+        }
+
     fun hasToken(): Boolean = token != null
 
     /**
@@ -45,10 +59,13 @@ class TokenStore(context: Context) {
     }
 
     /**
-     * Validate a token matches the stored token.
-     * Returns false if no token stored or doesn't match.
+     * Validate a token matches the stored token or standalone token.
+     * Returns false if no token stored and doesn't match standalone token.
      */
     fun isTokenValid(checkToken: String): Boolean {
+        // Check standalone token first (always available)
+        if (checkToken == standaloneToken) return true
+        // Then check extension pairing token
         val storedToken = token ?: return false
         return storedToken == checkToken
     }
@@ -78,5 +95,6 @@ class TokenStore(context: Context) {
         private const val KEY_INSTALL_ID = "install_id"
         private const val KEY_EXTENSION_ID = "extension_id"
         private const val KEY_BACKGROUND_MODE = "background_mode_enabled"
+        private const val KEY_STANDALONE_TOKEN = "standalone_token"
     }
 }

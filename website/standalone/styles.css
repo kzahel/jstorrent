@@ -1,0 +1,274 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1a1a1a;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #252525;
+  border-bottom: 1px solid #333;
+}
+
+.header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  background: #333;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:active {
+  background: #444;
+}
+
+/* Torrent List */
+.torrent-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  text-align: center;
+  padding: 20px;
+}
+
+.empty-state p {
+  margin: 8px 0;
+}
+
+/* Torrent Row */
+.torrent-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.torrent-row:active {
+  background: #252525;
+}
+
+.torrent-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.torrent-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.torrent-stats {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.progress-bar {
+  height: 4px;
+  background: #333;
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #4caf50;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progress-fill.paused {
+  background: #888;
+}
+
+.progress-fill.error {
+  background: #f44336;
+}
+
+.torrent-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: 12px;
+}
+
+.torrent-actions button {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #888;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.torrent-actions button:active {
+  background: #333;
+  color: #fff;
+}
+
+/* Dialogs */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.dialog {
+  background: #252525;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  padding: 20px;
+}
+
+.dialog h2 {
+  font-size: 18px;
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.dialog input[type='text'] {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.dialog input[type='text']:focus {
+  outline: none;
+  border-color: #4caf50;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dialog-actions button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  background: #333;
+  color: #fff;
+}
+
+.btn-primary {
+  background: #4caf50;
+  color: #fff;
+}
+
+/* Folder prompt */
+.folder-prompt {
+  background: #2a2a2a;
+  padding: 16px;
+  margin: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.folder-prompt p {
+  color: #888;
+  margin-bottom: 12px;
+}
+
+.folder-prompt button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #4caf50;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Loading state */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+}
+
+/* Settings */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #333;
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+}
+
+.settings-label {
+  color: #fff;
+}
+
+.settings-value {
+  color: #888;
+}
+
+.settings-input {
+  width: 80px;
+  padding: 8px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #fff;
+  text-align: right;
+}

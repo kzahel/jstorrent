@@ -37,4 +37,12 @@ class RootsBridge(private val context: Context) {
     fun getDefaultRootKey(): String? {
         return rootStore.listRoots().firstOrNull()?.key
     }
+
+    /**
+     * Reload roots from disk.
+     * Call after adding roots from another component.
+     */
+    fun reload() {
+        rootStore.reload()
+    }
 }
