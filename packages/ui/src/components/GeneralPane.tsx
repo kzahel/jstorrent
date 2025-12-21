@@ -131,16 +131,27 @@ function buildTorrentInfo(torrent: Torrent): InfoGroup[] {
   groups.push({
     title: 'Persistence',
     rows: [
-      { label: 'Has Torrent File', value: persisted.torrentFileBase64 ? 'true' : 'false' },
       {
-        label: 'Has Info Buffer',
-        value: persisted.infoBuffer
-          ? `true (${formatBytes(persisted.infoBuffer.length)})`
-          : 'false',
+        label: 'Origin',
+        value: persisted.magnetLink
+          ? 'Magnet Link'
+          : persisted.torrentFileBase64
+            ? 'Torrent File'
+            : 'Unknown',
       },
       {
-        label: 'Bitfield',
-        value: `${torrent.piecesCount} bits, ${torrent.completedPiecesCount} set`,
+        label: 'Torrent File',
+        value: persisted.torrentFileBase64
+          ? formatBytes(Math.ceil((persisted.torrentFileBase64.length * 3) / 4))
+          : '(none)',
+      },
+      {
+        label: 'Info Buffer',
+        value: persisted.infoBuffer ? formatBytes(persisted.infoBuffer.length) : '(none)',
+      },
+      {
+        label: 'Completed Pieces',
+        value: `${persisted.completedPieces.length} / ${torrent.piecesCount}`,
       },
       { label: 'Total Downloaded', value: formatBytes(persisted.totalDownloaded) },
       { label: 'Total Uploaded', value: formatBytes(persisted.totalUploaded) },

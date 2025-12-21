@@ -97,6 +97,22 @@ const placeholderStyle: React.CSSProperties = {
   color: 'var(--text-secondary)',
 }
 
+function TorrentPlaceholder({
+  selectedCount,
+  tabName,
+}: {
+  selectedCount: number
+  tabName: string
+}) {
+  const message =
+    selectedCount === 0
+      ? `Select a torrent to view ${tabName}`
+      : selectedCount > 1
+        ? `${selectedCount} torrents selected`
+        : 'Torrent not found'
+  return <div style={placeholderStyle}>{message}</div>
+}
+
 /**
  * Detail pane showing info about the selected torrent.
  * Tab bar is always visible. Logs tab works without selection.
@@ -116,20 +132,6 @@ export function DetailPane(props: DetailPaneProps) {
   useEffect(() => {
     clearSelection()
   }, [activeTab, selectedHash, clearSelection])
-
-  // Helper to render torrent-specific content or placeholder
-  const renderTorrentContent = (content: React.ReactNode, tabName: string) => {
-    if (props.selectedHashes.size === 0) {
-      return <div style={placeholderStyle}>Select a torrent to view {tabName}</div>
-    }
-    if (props.selectedHashes.size > 1) {
-      return <div style={placeholderStyle}>{props.selectedHashes.size} torrents selected</div>
-    }
-    if (!torrent) {
-      return <div style={placeholderStyle}>Torrent not found</div>
-    }
-    return content
-  }
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -181,61 +183,70 @@ export function DetailPane(props: DetailPaneProps) {
       {/* Tab content */}
       <div style={{ flex: 1, minHeight: 0 }}>
         {activeTab === 'peers' &&
-          renderTorrentContent(
+          (selectedHash && torrent ? (
             <PeerTable
               source={props.source}
-              torrentHash={selectedHash!}
+              torrentHash={selectedHash}
               getSelectedKeys={getSelectedKeys}
               onSelectionChange={onSelectionChange}
-            />,
-            'peers',
-          )}
+            />
+          ) : (
+            <TorrentPlaceholder selectedCount={props.selectedHashes.size} tabName="peers" />
+          ))}
         {activeTab === 'swarm' &&
-          renderTorrentContent(
+          (selectedHash && torrent ? (
             <SwarmTable
               source={props.source}
-              torrentHash={selectedHash!}
+              torrentHash={selectedHash}
               getSelectedKeys={getSelectedKeys}
               onSelectionChange={onSelectionChange}
-            />,
-            'swarm',
-          )}
+            />
+          ) : (
+            <TorrentPlaceholder selectedCount={props.selectedHashes.size} tabName="swarm" />
+          ))}
         {activeTab === 'pieces' &&
-          renderTorrentContent(
+          (selectedHash && torrent ? (
             <PieceTable
               source={props.source}
-              torrentHash={selectedHash!}
+              torrentHash={selectedHash}
               getSelectedKeys={getSelectedKeys}
               onSelectionChange={onSelectionChange}
-            />,
-            'pieces',
-          )}
+            />
+          ) : (
+            <TorrentPlaceholder selectedCount={props.selectedHashes.size} tabName="pieces" />
+          ))}
         {activeTab === 'files' &&
-          renderTorrentContent(
+          (selectedHash && torrent ? (
             <FileTable
               source={props.source}
-              torrentHash={selectedHash!}
+              torrentHash={selectedHash}
               getSelectedKeys={getSelectedKeys}
               onSelectionChange={onSelectionChange}
               onOpenFile={props.onOpenFile}
               onRevealInFolder={props.onRevealInFolder}
               onCopyFilePath={props.onCopyFilePath}
               onSetFilePriority={props.onSetFilePriority}
-            />,
-            'files',
-          )}
+            />
+          ) : (
+            <TorrentPlaceholder selectedCount={props.selectedHashes.size} tabName="files" />
+          ))}
         {activeTab === 'general' &&
-          renderTorrentContent(<GeneralPane torrent={torrent!} />, 'general info')}
+          (torrent ? (
+            <GeneralPane torrent={torrent} />
+          ) : (
+            <TorrentPlaceholder selectedCount={props.selectedHashes.size} tabName="general info" />
+          ))}
         {activeTab === 'trackers' &&
-          renderTorrentContent(
+          (selectedHash && torrent ? (
             <TrackerTable
               source={props.source}
-              torrentHash={selectedHash!}
+              torrentHash={selectedHash}
               getSelectedKeys={getSelectedKeys}
               onSelectionChange={onSelectionChange}
-            />,
-            'trackers',
-          )}
+            />
+          ) : (
+            <TorrentPlaceholder selectedCount={props.selectedHashes.size} tabName="trackers" />
+          ))}
         {activeTab === 'logs' && (
           <LogTableWrapper
             logStore={props.source.getLogStore()}
@@ -249,15 +260,16 @@ export function DetailPane(props: DetailPaneProps) {
           <DhtTab stats={props.source.getDHTStats()} nodes={props.source.getDHTNodes()} />
         )}
         {activeTab === 'disk' &&
-          renderTorrentContent(
+          (selectedHash && torrent ? (
             <DiskTable
               source={props.source}
-              torrentHash={selectedHash!}
+              torrentHash={selectedHash}
               getSelectedKeys={getSelectedKeys}
               onSelectionChange={onSelectionChange}
-            />,
-            'disk activity',
-          )}
+            />
+          ) : (
+            <TorrentPlaceholder selectedCount={props.selectedHashes.size} tabName="disk activity" />
+          ))}
       </div>
     </div>
   )
