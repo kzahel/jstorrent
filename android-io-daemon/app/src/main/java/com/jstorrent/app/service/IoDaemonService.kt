@@ -117,6 +117,12 @@ class IoDaemonService : Service() {
     // =========================================================================
 
     /**
+     * Get the current server port.
+     */
+    val port: Int
+        get() = httpServer?.port ?: 7800
+
+    /**
      * Broadcast ROOTS_CHANGED to all connected WebSocket clients.
      * Call this after AddRootActivity adds a new root.
      */

@@ -84,14 +84,20 @@ class MainActivity : ComponentActivity() {
         val isChromebook = isRunningOnChromebook(this)
         Log.i(TAG, "Running on Chromebook: $isChromebook")
 
-        // Only start service and handle intents on Chromebook
-        if (isChromebook) {
-            // Handle pairing intent
-            handleIntent()
-
-            // Start service (background mode handled by service based on preference)
-            IoDaemonService.start(this)
+        // Non-Chromebook: launch standalone mode instead
+        if (!isChromebook) {
+            Log.i(TAG, "Not a Chromebook - launching standalone mode")
+            startActivity(Intent(this, StandaloneActivity::class.java).apply {
+                data = intent.data  // Forward any magnet/torrent intent
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            })
+            finish()
+            return
         }
+
+        // Chromebook: handle pairing intent and start service
+        handleIntent()
+        IoDaemonService.start(this)
 
         setContent {
             JSTorrentTheme {
