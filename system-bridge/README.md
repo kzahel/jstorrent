@@ -1,6 +1,8 @@
 # system-bridge
 
-Native subsystem for the JSTorrent Chrome extension. Provides filesystem access, network sockets, and system integration (magnet links, .torrent file handling) that the browser cannot perform directly.
+Native subsystem for the JSTorrent Chrome extension on **Windows, macOS, and Linux**. Provides filesystem access, network sockets, and system integration (magnet links, .torrent file handling) that the browser cannot perform directly.
+
+For **ChromeOS**, see [android-io-daemon](../android-io-daemon/) which provides similar functionality.
 
 ## Architecture
 
