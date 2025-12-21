@@ -1,20 +1,20 @@
 # Release Guide
 
-## Native Host Release
+## System Bridge Release
 
-The native host includes binaries for Windows, macOS, and Linux.
+The system bridge includes binaries for Windows, macOS, and Linux.
 
 ### 1. Run the release script
 
 ```bash
-./scripts/release-native.sh 0.2.0
+./scripts/release-system-bridge.sh 0.2.0
 ```
 
 This will:
-- Update version in `native-host/Cargo.toml` and `native-host/io-daemon/Cargo.toml`
+- Update version in `system-bridge/Cargo.toml` and `system-bridge/io-daemon/Cargo.toml`
 - Regenerate `Cargo.lock`
 - Commit with `[skip ci]` to avoid duplicate builds
-- Create tag `native-v0.2.0`
+- Create tag `system-bridge-v0.2.0`
 - Push commit and tag
 
 ### 2. Monitor CI builds
@@ -22,7 +22,7 @@ This will:
 Watch the GitHub Actions workflow at:
 https://github.com/kzahel/jstorrent/actions
 
-The `native-ci.yml` workflow builds installers for all platforms:
+The `native-ci.yml` (System Bridge CI) workflow builds installers for all platforms:
 - Windows: `.exe` (Inno Setup)
 - macOS: `.pkg` (signed and notarized if secrets configured)
 - Linux: `.tar.gz`
@@ -95,8 +95,8 @@ A tag can also be created for versioning purposes:
 
 | Component | File | Example |
 |-----------|------|---------|
-| Native Host | `native-host/Cargo.toml` | `version = "0.2.0"` |
-| IO Daemon | `native-host/io-daemon/Cargo.toml` | `version = "0.2.0"` |
+| System Bridge | `system-bridge/Cargo.toml` | `version = "0.2.0"` |
+| IO Daemon | `system-bridge/io-daemon/Cargo.toml` | `version = "0.2.0"` |
 | Website downloads | `website/src/App.tsx` | `const TAG = 'v0.2.0'` |
 | Linux installer | `website/install.sh` | `TAG="v0.2.0"` |
 | Android | `android-io-daemon/app/build.gradle.kts` | `versionName = "1.0.4"` |

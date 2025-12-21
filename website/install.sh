@@ -20,11 +20,11 @@ if [[ "$ARCH" != "x86_64" ]]; then
   exit 1
 fi
 
-echo "Downloading JSTorrent Native Host..."
+echo "Downloading JSTorrent System Bridge..."
 TMP_DIR=$(mktemp -d)
 cd "$TMP_DIR"
 
-ASSET_URL="https://github.com/kzahel/jstorrent/releases/download/native-${TAG}/jstorrent-native-host-install-linux-x86_64.tar.gz"
+ASSET_URL="https://github.com/kzahel/jstorrent/releases/download/system-bridge-${TAG}/jstorrent-system-bridge-install-linux-x86_64.tar.gz"
 
 if ! curl -fsSL "$ASSET_URL" -o jstorrent.tar.gz; then
   echo "Error: Failed to download release."

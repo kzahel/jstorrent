@@ -1,6 +1,6 @@
 packages:
   - 'extension'
-  - 'native-host'
+  - 'system-bridge'
   - 'packages/*'
   - 'apps/*'
   - 'website'
