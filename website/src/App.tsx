@@ -4,7 +4,7 @@ const EXTENSION_ID = 'dbokmlpefliilbjldladbimlcfgbolhk'
 const WEBSTORE_URL = `https://chromewebstore.google.com/detail/jstorrent/${EXTENSION_ID}`
 
 // Update this AND install.sh when releasing a new native version
-const TAG = 'v0.1.7'
+const TAG = 'v0.1.11'
 
 const WINDOWS_INSTALLER = `https://github.com/kzahel/jstorrent/releases/download/system-bridge-${TAG}/jstorrent-system-bridge-install-windows-x86_64.exe`
 const MACOS_INSTALLER = `https://github.com/kzahel/jstorrent/releases/download/system-bridge-${TAG}/jstorrent-system-bridge-install-macos-x86_64.pkg`
