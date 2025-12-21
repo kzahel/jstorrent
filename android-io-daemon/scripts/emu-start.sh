@@ -8,6 +8,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SDK_ROOT="${ANDROID_HOME:-$HOME/.android-sdk}"
 AVD_NAME="jstorrent-dev"
 DAEMON_PORT="${DAEMON_PORT:-7800}"
+#GPU_MODE="${GPU_MODE:-auto}"
+#ENABLE HW ACCEL
+GPU_MODE="${GPU_MODE:-host}"
 
 # Ensure tools are in PATH
 export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$SDK_ROOT/platform-tools:$SDK_ROOT/emulator:$PATH"
@@ -33,7 +36,7 @@ else
     emulator -avd "$AVD_NAME" \
         -no-snapshot \
         -no-audio \
-        -gpu auto \
+        -gpu "$GPU_MODE" \
         &>/tmp/emulator.log &
     
     EMULATOR_PID=$!
