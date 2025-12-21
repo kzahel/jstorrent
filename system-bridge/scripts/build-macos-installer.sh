@@ -199,13 +199,13 @@ pkgbuild --root pkgroot \
 cat > distribution.xml << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <installer-gui-script minSpecVersion="2">
-    <title>JSTorrent Native Host</title>
+    <title>JSTorrent System Bridge</title>
     <options customize="never" require-scripts="false" hostArchitectures="x86_64,arm64"/>
     <domains enable_localSystem="false" enable_currentUserHome="true"/>
     <choices-outline>
         <line choice="default"/>
     </choices-outline>
-    <choice id="default" title="JSTorrent Native Host">
+    <choice id="default" title="JSTorrent System Bridge">
         <pkg-ref id="com.jstorrent.native"/>
     </choice>
     <pkg-ref id="com.jstorrent.native" version="0.1.0" onConclusion="none">jstorrent-component.pkg</pkg-ref>
@@ -213,7 +213,7 @@ cat > distribution.xml << 'EOF'
 EOF
 
 # Build final product package with user-domain distribution
-OUTPUT_FILE="jstorrent-native-host-install-macos-x86_64.pkg"
+OUTPUT_FILE="jstorrent-system-bridge-install-macos-x86_64.pkg"
 
 if $SIGN; then
     # Build unsigned first, then sign with productsign

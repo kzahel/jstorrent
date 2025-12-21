@@ -1,5 +1,5 @@
 @echo off
-REM Build Windows installer for JSTorrent Native Host
+REM Build Windows installer for JSTorrent System Bridge
 REM This batch file sets up the environment and calls the PowerShell script
 
 cd /d "%~dp0.."
