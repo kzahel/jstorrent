@@ -1150,29 +1150,48 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
     const dhtLogger = this.scopedLoggerFor(dhtLoggable)
 
-    this._dhtNode = new DHTNode({
-      nodeId,
-      socketFactory: this.socketFactory,
-      krpcOptions: { bindPort: this.port + 1 }, // DHT uses port+1 to avoid conflicts
-      logger: dhtLogger,
-      bandwidthTracker: this.bandwidthTracker,
-    })
+    // Retry logic for port binding failures (e.g., after quick reconnect)
+    const maxRetries = 3
+    const delays = [500, 1000, 2000]
 
-    try {
-      await this._dhtNode.start()
-    } catch (err) {
-      // Clean up the broken DHTNode if start() fails (e.g., port already in use)
-      this.logger.error(`DHT: Failed to start: ${err instanceof Error ? err.message : err}`)
-      this._dhtNode = undefined
-      this._dhtEnabled = false
-      throw err
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      this._dhtNode = new DHTNode({
+        nodeId,
+        socketFactory: this.socketFactory,
+        krpcOptions: { bindPort: this.port + 1 }, // DHT uses port+1 to avoid conflicts
+        logger: dhtLogger,
+        bandwidthTracker: this.bandwidthTracker,
+      })
+
+      try {
+        await this._dhtNode.start()
+        break // Success
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err)
+        const isBindingError = errMsg.includes('status 1')
+
+        if (isBindingError && attempt < maxRetries - 1) {
+          this.logger.warn(`DHT: Port binding failed, retrying in ${delays[attempt]}ms...`)
+          this._dhtNode = undefined
+          await new Promise((r) => setTimeout(r, delays[attempt]))
+          continue
+        }
+        // Final failure - cleanup and throw
+        this.logger.error(`DHT: Failed to start: ${errMsg}`)
+        this._dhtNode = undefined
+        this._dhtEnabled = false
+        throw err
+      }
     }
+
+    // TypeScript can't infer that the loop either succeeds or throws
+    const dhtNode = this._dhtNode!
 
     // Restore routing table from persisted state
     if (persistedState && persistedState.nodes.length > 0) {
       this.logger.info(`DHT: Restoring ${persistedState.nodes.length} nodes from session`)
       for (const node of persistedState.nodes) {
-        this._dhtNode.addNode({
+        dhtNode.addNode({
           id: hexToNodeId(node.id),
           host: node.host,
           port: node.port,
@@ -1181,13 +1200,13 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     // Bootstrap if routing table is empty or small (skip for tests)
-    if (!this._skipDHTBootstrap && this._dhtNode.getNodeCount() < 10) {
+    if (!this._skipDHTBootstrap && dhtNode.getNodeCount() < 10) {
       this.logger.info('DHT: Bootstrapping...')
-      const stats = await this._dhtNode.bootstrap()
+      const stats = await dhtNode.bootstrap()
       this.logger.info(`DHT: Bootstrap complete - ${stats.routingTableSize} nodes in routing table`)
     }
 
-    this.logger.info(`DHT: Started with node ID ${this._dhtNode.nodeIdHex}`)
+    this.logger.info(`DHT: Started with node ID ${dhtNode.nodeIdHex}`)
     this.emit('dhtStatusChanged', true)
   }
 
