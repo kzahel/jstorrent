@@ -1,4 +1,9 @@
-import { DownloadPeerSnapshot, DropDecision, DownloadOptimizerConfig } from './types'
+import {
+  DownloadPeerSnapshot,
+  DropDecision,
+  DownloadOptimizerConfig,
+  DownloadOptimizerContext,
+} from './types'
 
 // ============================================================================
 // Default Configuration
@@ -48,12 +53,14 @@ export class DownloadOptimizer {
    * @param peers Current peer snapshots
    * @param protectedIds Peers that cannot be dropped (upload slot holders)
    * @param hasSwarmCandidates Whether swarm has peers we could replace with
+   * @param context Optional runtime context (e.g., rate limiting state)
    * @returns List of peers to drop
    */
   evaluate(
     peers: DownloadPeerSnapshot[],
     protectedIds: Set<string>,
     hasSwarmCandidates: boolean,
+    context?: DownloadOptimizerContext,
   ): DropDecision[] {
     const dominated: DropDecision[] = []
 
@@ -68,13 +75,14 @@ export class DownloadOptimizer {
     }
 
     const now = this.clock()
+    const skipSpeedChecks = context?.skipSpeedChecks ?? false
 
     // Calculate average download rate (excluding choked peers)
     const unchokingPeers = peers.filter((p) => !p.peerChoking)
     const avgRate = this.calculateAverageRate(unchokingPeers)
 
     for (const peer of peers) {
-      const decision = this.evaluatePeer(peer, protectedIds, avgRate, now)
+      const decision = this.evaluatePeer(peer, protectedIds, avgRate, now, skipSpeedChecks)
       if (decision) {
         dominated.push(decision)
       }
@@ -90,6 +98,7 @@ export class DownloadOptimizer {
    * @param protectedIds Protected peer IDs
    * @param avgDownloadRate Current average download rate
    * @param hasSwarmCandidates Whether replacements are available
+   * @param context Optional runtime context (e.g., rate limiting state)
    * @returns Drop decision or null
    */
   shouldDrop(
@@ -97,12 +106,19 @@ export class DownloadOptimizer {
     protectedIds: Set<string>,
     avgDownloadRate: number,
     hasSwarmCandidates: boolean,
+    context?: DownloadOptimizerContext,
   ): DropDecision | null {
     if (!hasSwarmCandidates) {
       return null
     }
 
-    return this.evaluatePeer(peer, protectedIds, avgDownloadRate, this.clock())
+    return this.evaluatePeer(
+      peer,
+      protectedIds,
+      avgDownloadRate,
+      this.clock(),
+      context?.skipSpeedChecks ?? false,
+    )
   }
 
   /**
@@ -131,6 +147,7 @@ export class DownloadOptimizer {
     protectedIds: Set<string>,
     avgRate: number,
     now: number,
+    skipSpeedChecks: boolean = false,
   ): DropDecision | null {
     // === Never drop protected peers (upload slot holders) ===
     if (protectedIds.has(peer.id)) {
@@ -146,6 +163,11 @@ export class DownloadOptimizer {
     }
 
     // === Check 2: Speed checks (only for established connections) ===
+    // Skip speed checks when rate-limited (peers appear slow due to our throttling)
+    if (skipSpeedChecks) {
+      return null
+    }
+
     if (connectionAge < this.config.minConnectionAgeMs) {
       return null // Too new to judge
     }

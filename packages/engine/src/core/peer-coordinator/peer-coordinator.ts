@@ -3,6 +3,7 @@ import {
   CoordinatorDecisions,
   UnchokeAlgorithmConfig,
   DownloadOptimizerConfig,
+  DownloadOptimizerContext,
   UnchokeAlgorithmState,
 } from './types'
 import { UnchokeAlgorithm } from './unchoke-algorithm'
@@ -49,9 +50,14 @@ export class PeerCoordinator {
    *
    * @param peers Current peer snapshots
    * @param hasSwarmCandidates Whether swarm has connectable peers
+   * @param context Optional runtime context for download optimizer
    * @returns Combined decisions from both algorithms
    */
-  evaluate(peers: PeerSnapshot[], hasSwarmCandidates: boolean): CoordinatorDecisions {
+  evaluate(
+    peers: PeerSnapshot[],
+    hasSwarmCandidates: boolean,
+    context?: DownloadOptimizerContext,
+  ): CoordinatorDecisions {
     // 1. Run unchoke algorithm first - it determines who's protected
     const unchokeDecisions = this.unchokeAlgorithm.evaluate(peers)
 
@@ -59,7 +65,12 @@ export class PeerCoordinator {
     const protectedIds = this.unchokeAlgorithm.getProtectedPeers()
 
     // 3. Run download optimizer with protected set
-    const dropDecisions = this.downloadOptimizer.evaluate(peers, protectedIds, hasSwarmCandidates)
+    const dropDecisions = this.downloadOptimizer.evaluate(
+      peers,
+      protectedIds,
+      hasSwarmCandidates,
+      context,
+    )
 
     return {
       unchoke: unchokeDecisions,

@@ -1657,7 +1657,13 @@ export class Torrent extends EngineComponent {
     const snapshots = this.buildPeerSnapshots()
     const hasSwarmCandidates = this._swarm.getConnectablePeers(1).length > 0
 
-    const { unchoke, drop } = this._peerCoordinator.evaluate(snapshots, hasSwarmCandidates)
+    // Skip speed-based peer drops when we're heavily rate-limited
+    // (peers appear slow due to our throttling, not their actual speed)
+    const skipSpeedChecks = this.btEngine.bandwidthTracker.isDownloadRateLimited()
+
+    const { unchoke, drop } = this._peerCoordinator.evaluate(snapshots, hasSwarmCandidates, {
+      skipSpeedChecks,
+    })
 
     // Apply unchoke decisions
     for (const decision of unchoke) {

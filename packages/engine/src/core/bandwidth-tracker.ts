@@ -304,4 +304,18 @@ export class BandwidthTracker {
   getUploadLimit(): number {
     return this.uploadBucket.refillRate
   }
+
+  /**
+   * Check if download is heavily rate-limited.
+   * Returns true if current rate is >= threshold * limit.
+   * Returns false if no limit is set.
+   *
+   * @param threshold - Fraction of limit to consider "heavily limited" (default 0.8)
+   */
+  isDownloadRateLimited(threshold: number = 0.8): boolean {
+    const limit = this.getDownloadLimit()
+    if (limit === 0) return false // No limit set
+    const rate = this.getDownloadRate()
+    return rate >= limit * threshold
+  }
 }
