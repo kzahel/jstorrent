@@ -907,7 +907,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
 
     // Clean up all resources when WebSocket disconnects
     {
-        let manager = socket_manager.lock().await;
+        let mut manager = socket_manager.lock().await;
         // Abort all TCP server tasks to release their ports
         for (_, handle) in manager.tcp_servers.iter() {
             handle.abort();
@@ -917,6 +917,9 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
         for (_, handle) in manager.udp_read_tasks.iter() {
             handle.abort();
         }
+        // Clear UDP sockets to release Arc references and unbind ports immediately
+        // Without this, the sockets remain bound until the function returns
+        manager.udp_sockets.clear();
         // TCP sockets will be cleaned up when dropped
     }
 
