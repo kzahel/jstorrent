@@ -160,6 +160,7 @@ const containerStyle: React.CSSProperties = {
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
   fontSize: '12px',
   lineHeight: '1.5',
+  userSelect: 'text',
 }
 
 const groupStyle: React.CSSProperties = {
