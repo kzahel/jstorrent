@@ -2452,7 +2452,21 @@ export class Torrent extends EngineComponent {
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
 
     // Use per-peer adaptive pipeline depth (starts at 10, ramps up for fast peers)
-    const pipelineLimit = peer.pipelineDepth
+    let pipelineLimit = peer.pipelineDepth
+
+    // Cap pipeline depth when rate limited to prevent fast peers from monopolizing bandwidth
+    const downloadBucket = this.btEngine.bandwidthTracker.downloadBucket
+    if (downloadBucket.isLimited) {
+      const rateLimit = downloadBucket.refillRate // bytes per second
+      const blockSize = 16384 // 16KB standard block
+
+      // Cap at ~1 second worth of bandwidth, minimum 1
+      // At 100KB/s: cap = floor(100000 / 16384) = 6
+      // At 50KB/s: cap = floor(50000 / 16384) = 3
+      // At 16KB/s or less: cap = 1
+      const rateLimitCap = Math.max(1, Math.floor(rateLimit / blockSize))
+      pipelineLimit = Math.min(pipelineLimit, rateLimitCap)
+    }
 
     // Use rarest-first piece selection if we have the necessary data
     let selectedPieces: number[]
