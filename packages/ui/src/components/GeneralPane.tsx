@@ -67,8 +67,7 @@ function buildTorrentInfo(torrent: Torrent): InfoGroup[] {
       { label: 'Piece Length', value: formatBytes(torrent.pieceLength) },
       { label: 'Piece Count', value: String(torrent.piecesCount) },
       { label: 'File Count', value: String(torrent.files.length) },
-      // TODO: Storage root requires engine access
-      // { label: 'Storage Root', value: '...' },
+      { label: 'Storage Root', value: torrent.storageRoot?.path ?? '(none)' },
     ],
   })
 

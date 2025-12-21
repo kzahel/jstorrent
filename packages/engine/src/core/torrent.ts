@@ -455,6 +455,11 @@ export class Torrent extends EngineComponent {
     return infoHashFromBytes(this.infoHash)
   }
 
+  /** Get the storage root for this torrent */
+  get storageRoot(): { key: string; label: string; path: string } | null {
+    return this.btEngine.storageRootManager.getRootForTorrent(this.infoHashStr)
+  }
+
   get bitfield(): BitField | undefined {
     return this._bitfield
   }

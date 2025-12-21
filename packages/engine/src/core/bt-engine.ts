@@ -2,7 +2,7 @@ import { EventEmitter } from '../utils/event-emitter'
 import { ISocketFactory } from '../interfaces/socket'
 import { IFileSystem } from '../interfaces/filesystem'
 import { randomBytes } from '../utils/hash'
-import { fromString, concat, toHex } from '../utils/buffer'
+import { fromString, concat, toHex, fromBase64 } from '../utils/buffer'
 import { VERSION, versionToAzureusCode } from '../version'
 import { TokenBucket } from '../utils/token-bucket'
 import { DHTNode, saveDHTState, loadDHTState, hexToNodeId } from '../dht'
@@ -429,8 +429,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     magnetOrBuffer: string | Uint8Array,
     options: {
       storageKey?: string
-      /** Whether this torrent is being restored from session or added by user action. Default: 'user' */
-      source?: 'user' | 'restore'
+      /** Whether this torrent is being restored from session, reset, or added by user action. Default: 'user' */
+      source?: 'user' | 'restore' | 'reset'
       userState?: TorrentUserState
     } = {},
   ): Promise<{ torrent: Torrent | null; isDuplicate: boolean }> {
@@ -532,12 +532,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     // Save torrent file for file-source torrents (write once)
-    if (options.source !== 'restore' && input.torrentFileBuffer) {
+    if (options.source !== 'restore' && options.source !== 'reset' && input.torrentFileBuffer) {
       await this.sessionPersistence.saveTorrentFile(input.infoHashStr, input.torrentFileBuffer)
     }
 
-    // Persist torrent list (unless restoring from session)
-    if (options.source !== 'restore') {
+    // Persist torrent list (unless restoring from session or resetting)
+    if (options.source !== 'restore' && options.source !== 'reset') {
       await this.sessionPersistence.saveTorrentList()
     }
 
@@ -653,29 +653,51 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    * Reset a torrent's state (progress, stats, file priorities) without removing it.
    * For magnet torrents, this preserves the infodict so metadata doesn't need to be re-fetched.
    * The torrent will be stopped after reset and needs to be started manually.
+   *
+   * This works by removing and re-adding the torrent from its original source (magnet or file),
+   * which ensures trackers and other metadata are properly restored.
    */
   async resetTorrent(torrent: Torrent): Promise<void> {
     const index = this.torrents.indexOf(torrent)
     if (index === -1) return
 
     const infoHash = toHex(torrent.infoHash)
+    const storageKey = this.storageRootManager.getRootForTorrent(infoHash)?.key
 
-    // Stop without tracker announce (much faster)
+    // Get original source for re-adding
+    const magnetLink = torrent.magnetLink
+    const torrentFileBase64 = torrent.torrentFileBase64
+
+    // Stop the torrent
     await torrent.stop({ skipAnnounce: true })
 
-    // Reset in-memory state
-    torrent.resetState()
+    // Remove from engine array (but keep in persisted list)
+    this.torrents.splice(index, 1)
 
-    // Reset persisted state (but preserve infodict for magnet torrents)
+    // Reset persisted state (clears progress, keeps source files + list entry)
     await this.sessionPersistence.resetState(infoHash)
 
-    // Set user state to stopped
-    torrent.userState = 'stopped'
+    // Re-add from original source
+    const source = magnetLink || (torrentFileBase64 ? fromBase64(torrentFileBase64) : null)
+    if (!source) {
+      throw new Error('Cannot reset: no source available')
+    }
 
-    // Save the new (empty) state
-    await this.sessionPersistence.saveTorrentState(torrent)
+    const result = await this.addTorrent(source, {
+      storageKey,
+      source: 'reset', // Skip saving source files and list (already saved)
+      userState: 'stopped',
+    })
 
-    this.emit('torrent-updated', torrent)
+    // For magnet torrents, restore infodict if available
+    if (result.torrent && !result.torrent.hasMetadata && magnetLink) {
+      const infoDict = await this.sessionPersistence.loadInfoDict(infoHash)
+      if (infoDict) {
+        await initializeTorrentMetadata(this, result.torrent, infoDict)
+      }
+    }
+
+    // Note: addTorrent() emits 'torrent' event, which updates UI with fresh torrent
   }
 
   getTorrent(infoHash: string): Torrent | undefined {

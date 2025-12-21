@@ -156,4 +156,58 @@ describe('BtEngine', () => {
     expect(stop1).toHaveBeenCalled()
     expect(stop2).toHaveBeenCalled()
   })
+
+  it('should preserve trackers when resetting torrent from torrent file', async () => {
+    const info = {
+      name: 'test-reset',
+      'piece length': 16384,
+      pieces: new Uint8Array(20),
+      length: 1000,
+    }
+    const buffer = Bencode.encode({
+      announce: 'http://localhost:9999/announce',
+      'announce-list': [['http://localhost:9998/announce'], ['http://localhost:9997/announce']],
+      info,
+    })
+
+    const { torrent } = await client.addTorrent(buffer)
+    if (!torrent) throw new Error('Torrent is null')
+
+    expect(torrent.announce).toContain('http://localhost:9998/announce')
+    expect(torrent.announce).toContain('http://localhost:9997/announce')
+
+    await client.resetTorrent(torrent)
+
+    // Get the new torrent (reset creates a new object)
+    const hex = Buffer.from(torrent.infoHash).toString('hex')
+    const resetTorrent = client.getTorrent(hex)
+    if (!resetTorrent) throw new Error('Reset torrent not found')
+
+    // Trackers should be preserved
+    expect(resetTorrent.announce).toContain('http://localhost:9998/announce')
+    expect(resetTorrent.announce).toContain('http://localhost:9997/announce')
+  })
+
+  it('should preserve trackers when resetting torrent from magnet link', async () => {
+    const magnetLink =
+      'magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn=Test&tr=udp%3A%2F%2Flocalhost%3A9998&tr=udp%3A%2F%2Flocalhost%3A9997'
+
+    const { torrent } = await client.addTorrent(magnetLink)
+    if (!torrent) throw new Error('Torrent is null')
+
+    expect(torrent.announce).toContain('udp://localhost:9998')
+    expect(torrent.announce).toContain('udp://localhost:9997')
+
+    await client.resetTorrent(torrent)
+
+    const resetTorrent = client.getTorrent('c12fe1c06bba254a9dc9f519b335aa7c1367a88a')
+    if (!resetTorrent) throw new Error('Reset torrent not found')
+
+    // Trackers should be preserved
+    expect(resetTorrent.announce).toContain('udp://localhost:9998')
+    expect(resetTorrent.announce).toContain('udp://localhost:9997')
+
+    // Clean up to avoid timeout from tracker connections
+    await client.destroy()
+  }, 15000)
 })
