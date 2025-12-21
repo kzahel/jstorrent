@@ -2,7 +2,7 @@
 set -e
 
 # Components to check
-COMPONENTS=("native" "extension" "website" "android")
+COMPONENTS=("system-bridge" "extension" "website" "android")
 
 echo "Fetching remote tags..."
 # We use git ls-remote to avoid modifying local tags
