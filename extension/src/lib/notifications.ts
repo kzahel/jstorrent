@@ -155,17 +155,18 @@ export class NotificationManager {
   updateProgress(stats: ProgressStats): void {
     this.lastProgressStats = stats
 
+    // Check if all downloads just completed FIRST (before showing "0 downloading")
+    if (stats.activeCount === 0 && this.progressNotificationActive) {
+      this.onAllComplete()
+      return
+    }
+
     if (this.progressNotificationActive) {
       // Update the existing notification
       this.showProgressNotification(stats)
     } else if (this.shouldShowPersistentProgress() && stats.activeCount > 0) {
       // Start showing persistent notification
       this.showProgressNotification(stats)
-    }
-
-    // Check if all downloads just completed
-    if (stats.activeCount === 0 && this.progressNotificationActive) {
-      this.onAllComplete()
     }
   }
 

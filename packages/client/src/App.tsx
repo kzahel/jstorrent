@@ -857,6 +857,11 @@ function App() {
       return
     }
 
+    // Wait for settings to be loaded before initializing engine
+    if (!settingsReady) {
+      return
+    }
+
     // Skip if engine already exists or init already started
     if (engineManager.engine || initStartedRef.current || initError) {
       return
@@ -879,7 +884,7 @@ function App() {
         setInitError(String(e))
         initStartedRef.current = false // Allow retry on error
       })
-  }, [isConnected, initError])
+  }, [isConnected, initError, settingsReady])
 
   // Wait for settings to load
   if (!settingsReady) {
