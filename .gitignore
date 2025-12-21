@@ -54,4 +54,4 @@ packages/engine/src/geo/ipv4-country-data.ts
 .claude/settings.local.json
 
 # Inno Setup output
-native-host/installers/windows/Output/
+system-bridge/installers/windows/Output/

@@ -1,0 +1,37 @@
+[package]
+name = "jstorrent-io-daemon"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+axum = { version = "0.7", features = ["ws", "multipart"] }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha1 = "0.10"
+sha2 = { workspace = true }
+hex = { workspace = true }
+base64 = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+clap = { workspace = true }
+chrono = { workspace = true }
+futures = "0.3"
+socket2 = "0.5"
+native-tls = "0.2"
+tokio-native-tls = "0.3"
+if-addrs = "0.12"
+tokio-util = { version = "0.7", features = ["io"] }
+uuid = { workspace = true }
+jstorrent-common = { path = "../common" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Threading"] }
+
+[build-dependencies]
+winres = "0.1"

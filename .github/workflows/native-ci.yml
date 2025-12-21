@@ -6,13 +6,13 @@ on:
     tags:
       - 'native-v*'
     paths:
-      - 'native-host/**'
+      - 'system-bridge/**'
       - 'packages/**'
       - '.github/workflows/native-ci.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'native-host/**'
+      - 'system-bridge/**'
       - 'packages/**'
       - '.github/workflows/native-ci.yml'
 
@@ -21,7 +21,7 @@ permissions:
 
 defaults:
   run:
-    working-directory: native-host
+    working-directory: system-bridge
 
 jobs:
   build-windows:
@@ -43,13 +43,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: native-host/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe
+          path: system-bridge/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: native-host/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe
+          files: system-bridge/installers/windows/Output/jstorrent-native-host-install-windows-x86_64.exe
 
       - name: Verify Installer
         shell: pwsh
@@ -171,13 +171,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-installer
-          path: native-host/jstorrent-native-host-install-macos-x86_64.pkg
+          path: system-bridge/jstorrent-native-host-install-macos-x86_64.pkg
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: native-host/jstorrent-native-host-install-macos-x86_64.pkg
+          files: system-bridge/jstorrent-native-host-install-macos-x86_64.pkg
 
   build-linux:
     runs-on: ubuntu-latest
@@ -201,13 +201,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-installer
-          path: native-host/dist/jstorrent-native-host-install-linux-x86_64.tar.gz
+          path: system-bridge/dist/jstorrent-native-host-install-linux-x86_64.tar.gz
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: native-host/dist/jstorrent-native-host-install-linux-x86_64.tar.gz
+          files: system-bridge/dist/jstorrent-native-host-install-linux-x86_64.tar.gz
 
       - name: Verify Installer
         run: |

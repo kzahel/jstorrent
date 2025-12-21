@@ -10,12 +10,13 @@ JSTorrent is a multi-platform BitTorrent client with a **Chrome MV3 extension** 
 extension/          Chrome MV3 extension (TypeScript + React + Vite)
 ├─ Service worker orchestrates torrent engine + native communication
 ├─ UI components use React with no HMR (MV3 CSP constraints)
-└─ Connects to native-host via chrome.runtime.connectNative
+└─ Connects to system-bridge via chrome.runtime.connectNative
 
-native-host/        Rust workspace with 3 binaries
-├─ jstorrent-native-host    Chrome native messaging coordinator
-├─ jstorrent-io-daemon      HTTP/WebSocket server for file/socket I/O
-└─ jstorrent-link-handler   OS magnet://.torrent protocol handler
+system-bridge/      Rust workspace with 4 packages
+├─ common/              Shared library (jstorrent_common)
+├─ host/                Chrome native messaging coordinator (jstorrent-host)
+├─ io-daemon/           HTTP/WebSocket server for file/socket I/O
+└─ link-handler/        OS magnet://.torrent protocol handler
 
 packages/engine/    Core BitTorrent engine (TypeScript, no dynamic imports)
 packages/shared-ts/ Shared TypeScript types and utilities
@@ -46,9 +47,9 @@ pnpm check_fast     # Fast checks: lint, format, typecheck, unit tests
 pnpm test:e2e       # Playwright integration tests (requires native-host)
 ```
 
-**Native-host (in native-host/):**
+**System Bridge (in system-bridge/):**
 ```bash
-cargo build --release --workspace           # Build all 3 binaries
+cargo build --release --workspace           # Build all binaries
 cargo test --workspace                      # Run Rust tests
 python3 verify_all.py                       # Integration tests (simulates extension)
 ./scripts/install-local-linux.sh            # Install for local testing
@@ -155,18 +156,18 @@ This ensures CI will pass and prevents wasted pipeline cycles.
 
 5. **pnpm workspace**: Use `pnpm --filter <package>` to run commands in specific packages. Filter names match `package.json` "name" field.
 
-6. **Rust workspace**: `native-host/` is workspace root, `io-daemon/` is a member. Use `--workspace` flag to build/test all.
+6. **Rust workspace**: `system-bridge/` is workspace root with members: `common/`, `host/`, `io-daemon/`, `link-handler/`. Use `--workspace` flag to build/test all.
 
 ## Code Reading Entry Points
 
 - Extension architecture: `extension/DESIGN.md`, `extension/DESIGN.md`
-- Native components: `native-host/DESIGN.md`, `design_docs/native-components.md`
+- System bridge components: `system-bridge/DESIGN.md`, `design_docs/native-components.md`
 - Monorepo migration: `design_docs/monorepo-migration.md`
 - Engine package: `packages/engine/` (core BitTorrent logic, no browser/node deps)
 
 ## Key Design Documents
 
-- `native-host/DESIGN.md`: Complete native stack architecture (lifecycle, auth, download roots)
+- `system-bridge/DESIGN.md`: Complete native stack architecture (lifecycle, auth, download roots)
 - `extension/DESIGN.md`: Build system, test framework, MV3 constraints
 - `design_docs/io-daemon-websocket-detail.md`: WebSocket protocol for socket operations
 - `packages/engine/docs/ARCHITECTURE-current.md`: BitTorrent engine architecture and roadmap

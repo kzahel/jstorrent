@@ -1,0 +1,32 @@
+[package]
+name = "jstorrent-link-handler"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+jstorrent-common = { path = "../common" }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+clap = { workspace = true }
+dirs = "5.0"
+base64 = { workspace = true }
+open = "5"
+lazy_static = "1.5.0"
+chrono = { workspace = true }
+sysinfo = "0.30"
+ctrlc = "3.5.1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = [
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Foundation",
+] }
+
+[build-dependencies]
+winres = "0.1"
+
+[[bin]]
+name = "jstorrent-link-handler"
+path = "src/main.rs"

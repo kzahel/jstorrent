@@ -1,0 +1,46 @@
+[package]
+name = "jstorrent-host"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+jstorrent-common = { path = "../common" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+byteorder = "1.4"
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+rfd = "0.15"
+base64 = { workspace = true }
+axum = "0.7"
+uuid = { workspace = true }
+sysinfo = "0.30"
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+clap = { workspace = true }
+dirs = "5.0"
+tempfile = "3.8"
+chrono = { workspace = true }
+lazy_static = "1.5.0"
+ctrlc = "3.5.1"
+sha2 = { workspace = true }
+hex = { workspace = true }
+open = "5"
+pollster = "0.4"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = [
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_Foundation",
+] }
+
+[dev-dependencies]
+serial_test = "3"
+
+[build-dependencies]
+winres = "0.1"
+
+[[bin]]
+name = "jstorrent-host"
+path = "src/main.rs"

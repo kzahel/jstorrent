@@ -1,0 +1,16 @@
+[package]
+name = "jstorrent-common"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "jstorrent_common"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+dirs = "5.0"

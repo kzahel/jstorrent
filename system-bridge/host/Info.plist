@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>jstorrent-host</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.jstorrent.native-host</string>
+    <key>CFBundleName</key>
+    <string>JSTorrent Native Host</string>
+    <key>CFBundleDisplayName</key>
+    <string>JSTorrent Native Host</string>
+    <key>CFBundleVersion</key>
+    <string>0.1.5</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.5</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>LSBackgroundOnly</key>
+    <true/>
+</dict>
+</plist>

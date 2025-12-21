@@ -102,12 +102,12 @@ pnpm test:e2e
 
 Requires native host installed locally.
 
-### 4. Native Host Tests (Python)
+### 4. System Bridge Tests (Python)
 
 Test Rust binaries directly.
 
 ```bash
-cd native-host
+cd system-bridge
 cargo build
 python verify_host.py
 python verify_torrent.py
@@ -150,7 +150,7 @@ cd android-io-daemon
 
 3. Install native host (builds and installs):
    ```bash
-   cd native-host
+   cd system-bridge
    ./scripts/install-local-linux.sh
    ```
 
@@ -218,16 +218,16 @@ sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
 Releases are built on GitHub Actions (see `.github/workflows/`). The `scripts/` folder has scripts for tagging releases.
 
-### Desktop (Native Host)
+### Desktop (System Bridge)
 
 ```bash
 # Local build for testing
-cd native-host
+cd system-bridge
 cargo build --workspace --release
 
 # Binaries at:
 # - target/release/jstorrent-host
-# - target/release/io-daemon  
+# - target/release/jstorrent-io-daemon
 # - target/release/jstorrent-link-handler
 ```
 
@@ -260,12 +260,12 @@ cd android-io-daemon
 
 ### Windows
 - Native messaging manifest in registry
-- NSIS installer at `native-host/installers/windows/`
+- Inno Setup installer at `system-bridge/installers/windows/`
 - Unsigned binaries trigger SmartScreen warning
 
 ### macOS
 - Native messaging manifest at `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/`
-- pkgbuild installer at `native-host/installers/macos/`
+- pkgbuild installer at `system-bridge/installers/macos/`
 - Unsigned binaries blocked by Gatekeeper (right-click → Open to bypass)
 
 ### ChromeOS

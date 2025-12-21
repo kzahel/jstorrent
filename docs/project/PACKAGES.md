@@ -14,7 +14,7 @@ jstorrent-monorepo/
 │   └── legacy-jstorrent-engine/ ← Migration docs from original engine
 │
 ├── extension/         ← Chrome extension entry points, manifest, daemon bridge
-├── native-host/       ← Rust binaries (jstorrent-host, io-daemon, link-handler)
+├── system-bridge/     ← Rust binaries (jstorrent-host, io-daemon, link-handler)
 ├── android-io-daemon/ ← Kotlin Android app for ChromeOS
 ├── website/           ← jstorrent.com landing/launch page
 │
@@ -160,33 +160,44 @@ test/                       ← Unit tests
 e2e/                        ← Playwright E2E tests
 ```
 
-### native-host/
+### system-bridge/
 
-Rust workspace with three binaries.
+Rust workspace with four packages.
 
 ```
-Cargo.toml                  ← Workspace root
-src/
-  main.rs                   ← jstorrent-host binary (coordination)
-  bin/
-    link-handler.rs         ← jstorrent-link-handler binary (protocol handler)
-  lib.rs                    ← Shared library (jstorrent_common)
-  daemon_manager.rs         ← io-daemon process management
-  folder_picker.rs          ← Native folder picker dialog
-  rpc.rs                    ← RPC protocol handling
-  ipc.rs                    ← Inter-process communication
-  path_safety.rs            ← Path validation and sanitization
-  protocol.rs               ← Native messaging protocol
-  logging.rs                ← Logging setup
-  state.rs                  ← Shared state
-
-io-daemon/src/              ← io-daemon binary (I/O)
-  main.rs
-  ws.rs                     ← WebSocket server, TCP/UDP multiplexing
-  files.rs                  ← File read/write endpoints
-  hashing.rs                ← SHA1/SHA256 endpoints
-  auth.rs                   ← Token validation middleware
-
+Cargo.toml                  ← Workspace root (no [package])
+common/
+  Cargo.toml
+  src/lib.rs                ← Shared library (jstorrent_common)
+host/
+  Cargo.toml
+  build.rs
+  Info.plist                ← macOS app bundle metadata
+  src/
+    main.rs                 ← jstorrent-host binary (coordination)
+    daemon_manager.rs       ← io-daemon process management
+    folder_picker.rs        ← Native folder picker dialog
+    rpc.rs                  ← RPC protocol handling
+    ipc.rs                  ← Inter-process communication
+    path_safety.rs          ← Path validation and sanitization
+    protocol.rs             ← Native messaging protocol
+    logging.rs              ← Logging setup
+    state.rs                ← Shared state
+io-daemon/
+  Cargo.toml
+  build.rs
+  Info.plist                ← macOS app bundle metadata
+  src/
+    main.rs
+    ws.rs                   ← WebSocket server, TCP/UDP multiplexing
+    files.rs                ← File read/write endpoints
+    hashing.rs              ← SHA1/SHA256 endpoints
+    auth.rs                 ← Token validation middleware
+link-handler/
+  Cargo.toml
+  build.rs
+  Info.plist                ← macOS app bundle metadata
+  src/main.rs               ← jstorrent-link-handler binary (protocol handler)
 installers/                 ← Platform installers (NSIS, pkgbuild, deb)
 manifests/                  ← Chrome native messaging manifests
 scripts/                    ← Build and install scripts
@@ -293,10 +304,10 @@ python run_tests.py           # All tests
 python test_download.py       # Single test
 ```
 
-### Native Host (Rust)
+### System Bridge (Rust)
 
 ```bash
-cd native-host
+cd system-bridge
 cargo build --workspace --release    # Build all binaries
 cargo test --workspace               # Run Rust tests
 
