@@ -115,17 +115,27 @@ class StandaloneActivity : ComponentActivity() {
         loadUI()
     }
 
+    private fun getUiPath(): String {
+        val uiMode = intent.getStringExtra("ui_mode")
+        return if (uiMode == "full") {
+            "standalone_full/standalone_full.html"
+        } else {
+            "standalone/standalone.html"
+        }
+    }
+
     private fun loadUI() {
+        val path = getUiPath()
         if (BuildConfig.DEBUG) {
             // Dev mode: load from dev server via adb reverse
             // Use 127.0.0.1 (not 10.0.2.2) so crypto.subtle works (secure context)
             // Requires: adb reverse tcp:3000 tcp:3000
-            val devUrl = "http://127.0.0.1:3000/standalone/standalone.html"
+            val devUrl = "http://127.0.0.1:3000/$path"
             Log.i(TAG, "Loading dev URL: $devUrl")
             webView.loadUrl(devUrl)
         } else {
             // Production: load from assets
-            webView.loadUrl("file:///android_asset/standalone/standalone.html")
+            webView.loadUrl("file:///android_asset/$path")
         }
     }
 

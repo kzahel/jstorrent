@@ -280,3 +280,33 @@ Approximate sizes:
 - AVD tablet (created): ~2-4GB
 
 Total: ~6-10GB
+
+## UI Mode (Standalone Full vs Light)
+
+The app supports two UI modes:
+
+| Mode | HTML Path | Description |
+|------|-----------|-------------|
+| `standalone` (default) | `standalone/standalone.html` | Lightweight UI |
+| `full` | `standalone_full/standalone_full.html` | Full-featured UI |
+
+### Switching UI Mode
+
+Pass `ui_mode` as an intent extra:
+
+```bash
+# Light UI (default)
+adb shell am start -n com.jstorrent.app/.StandaloneActivity
+
+# Full UI
+adb shell am start -n com.jstorrent.app/.StandaloneActivity --es ui_mode full
+```
+
+With shell integration:
+
+```bash
+source scripts/android-env.sh
+emu start
+emu install
+adb shell am start -n com.jstorrent.app/.StandaloneActivity --es ui_mode full
+```
