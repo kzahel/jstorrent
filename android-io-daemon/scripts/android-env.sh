@@ -24,6 +24,10 @@ alias emu-install="$_SCRIPTS_DIR/emu-install.sh"
 alias emu-logs="$_SCRIPTS_DIR/emu-logs.sh"
 alias emu-shell="adb shell"
 
+# Device-specific aliases
+alias emu-phone="AVD_NAME=jstorrent-dev $_SCRIPTS_DIR/emu-start.sh"
+alias emu-tablet="AVD_NAME=jstorrent-tablet $_SCRIPTS_DIR/emu-start.sh"
+
 # Quick status
 alias emu-status="adb devices && adb forward --list 2>/dev/null || echo 'No forwards'"
 
@@ -37,21 +41,25 @@ emu() {
         shell)   adb shell ;;
         status)  emu-status ;;
         restart) emu-stop; sleep 1; emu-start ;;
+        phone)   AVD_NAME=jstorrent-dev emu-start ;;
+        tablet)  AVD_NAME=jstorrent-tablet emu-start ;;
         *)
             echo "Usage: emu <command>"
             echo ""
             echo "Commands:"
-            echo "  start    - Start emulator with port forwarding"
+            echo "  start    - Start emulator (default: phone)"
             echo "  stop     - Stop emulator"
             echo "  install  - Build and install APK"
             echo "  logs     - Show filtered logcat"
             echo "  shell    - ADB shell into device"
             echo "  status   - Show devices and port forwards"
             echo "  restart  - Stop then start"
+            echo "  phone    - Start phone emulator (Pixel 6)"
+            echo "  tablet   - Start tablet emulator (Pixel Tablet)"
             ;;
     esac
 }
 
 echo "Android dev environment loaded"
 echo "  ANDROID_HOME=$ANDROID_HOME"
-echo "  Commands: emu start|stop|install|logs|shell|status|restart"
+echo "  Commands: emu start|stop|install|logs|shell|status|restart|phone|tablet"

@@ -205,3 +205,78 @@ Check AUTH token matches. The extension and app must have paired first.
 On some devices, battery optimization kills the service. Either:
 - Show a foreground notification (recommended)
 - Request user to disable battery optimization for the app
+
+## Local Emulator Development (No Android Studio)
+
+### Quick Start
+
+```bash
+# One-time setup (downloads SDK, creates phone + tablet AVDs)
+./scripts/setup-emulator.sh
+
+# Add to ~/.zshrc (setup script prints the exact lines)
+export ANDROID_HOME="$HOME/.android-sdk"
+export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+
+# Start phone emulator (default)
+./scripts/emu-start.sh
+
+# Or start tablet emulator
+AVD_NAME=jstorrent-tablet ./scripts/emu-start.sh
+
+# Build and install APK
+./scripts/emu-install.sh
+
+# Watch logs
+./scripts/emu-logs.sh
+```
+
+### Shell Integration
+
+Source the environment script for convenience aliases:
+
+```bash
+source scripts/android-env.sh
+
+# Now you can use:
+emu start     # Start emulator
+emu stop      # Stop emulator
+emu install   # Build and install
+emu logs      # Watch logs
+emu phone     # Start phone emulator
+emu tablet    # Start tablet emulator
+```
+
+### Phone vs Tablet
+
+Two AVDs are created by setup:
+
+| AVD Name | Device | Use Case |
+|----------|--------|----------|
+| `jstorrent-dev` | Pixel 6 (phone) | Default, quick iteration |
+| `jstorrent-tablet` | Pixel Tablet | ChromeOS-like form factor |
+
+Switch between them:
+
+```bash
+# Using env var
+AVD_NAME=jstorrent-tablet ./scripts/emu-start.sh
+
+# Or with shell integration (source android-env.sh first)
+emu phone    # Start phone
+emu tablet   # Start tablet
+```
+
+Only one emulator runs at a time. `emu-stop.sh` stops whichever is running.
+
+### Disk Usage
+
+Approximate sizes:
+- Command-line tools: ~150MB
+- Platform tools: ~50MB
+- Emulator: ~400MB
+- System image: ~1.2GB
+- AVD phone (created): ~2-4GB
+- AVD tablet (created): ~2-4GB
+
+Total: ~6-10GB
