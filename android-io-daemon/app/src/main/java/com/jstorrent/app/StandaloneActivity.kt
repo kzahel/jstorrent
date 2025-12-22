@@ -260,37 +260,64 @@ class StandaloneActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
-    private fun handleIntent(intent: Intent) {
+    private fun handleIntent(intent: Intent, retryCount: Int = 0) {
         val uri = intent.data ?: return
+        val maxRetries = 25  // 5 seconds max wait (25 * 200ms)
 
         when (uri.scheme) {
             "magnet" -> {
                 val magnetLink = uri.toString()
-                Log.i(TAG, "Handling magnet: $magnetLink")
-                val escaped = magnetLink.replace("\\", "\\\\").replace("'", "\\'")
-                webView.evaluateJavascript(
-                    "window.handleMagnet && window.handleMagnet('$escaped')",
-                    null
-                )
+                Log.i(TAG, "Handling magnet: $magnetLink (retry=$retryCount)")
+                // Check if handler is ready before calling
+                webView.evaluateJavascript("typeof window.handleMagnet === 'function'") { result ->
+                    if (result == "true") {
+                        val escaped = magnetLink.replace("\\", "\\\\").replace("'", "\\'")
+                        webView.evaluateJavascript("window.handleMagnet('$escaped')", null)
+                        Log.i(TAG, "Magnet link sent to handler")
+                    } else if (retryCount < maxRetries) {
+                        // Handler not ready, retry after delay
+                        Log.d(TAG, "handleMagnet not ready, retrying in 200ms")
+                        webView.postDelayed({ handleIntent(intent, retryCount + 1) }, 200)
+                    } else {
+                        Log.e(TAG, "handleMagnet still not ready after $maxRetries retries")
+                        Toast.makeText(this, "Failed to add magnet - app not ready", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
 
             "content", "file" -> {
                 // .torrent file - read and pass to engine
-                Log.i(TAG, "Handling torrent file: $uri")
-                try {
-                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                    if (bytes != null) {
-                        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                        val name = uri.lastPathSegment ?: "unknown.torrent"
-                        val escaped = name.replace("\\", "\\\\").replace("'", "\\'")
-                        webView.evaluateJavascript(
-                            "window.handleTorrentFile && window.handleTorrentFile('$escaped', '$base64')",
-                            null
-                        )
+                Log.i(TAG, "Handling torrent file: $uri (retry=$retryCount)")
+                // Check if handler is ready before reading file
+                webView.evaluateJavascript("typeof window.handleTorrentFile === 'function'") { result ->
+                    if (result == "true") {
+                        try {
+                            val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                            if (bytes != null) {
+                                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                                val name = uri.lastPathSegment ?: "unknown.torrent"
+                                val escaped = name.replace("\\", "\\\\").replace("'", "\\'")
+                                webView.evaluateJavascript(
+                                    "window.handleTorrentFile('$escaped', '$base64')",
+                                    null
+                                )
+                                Log.i(TAG, "Torrent file sent to handler: $name")
+                            } else {
+                                Log.e(TAG, "Failed to read torrent file: empty content")
+                                Toast.makeText(this, "Failed to open torrent file", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to read torrent file", e)
+                            Toast.makeText(this, "Failed to open torrent file", Toast.LENGTH_SHORT).show()
+                        }
+                    } else if (retryCount < maxRetries) {
+                        // Handler not ready, retry after delay
+                        Log.d(TAG, "handleTorrentFile not ready, retrying in 200ms")
+                        webView.postDelayed({ handleIntent(intent, retryCount + 1) }, 200)
+                    } else {
+                        Log.e(TAG, "handleTorrentFile still not ready after $maxRetries retries")
+                        Toast.makeText(this, "Failed to add torrent - app not ready", Toast.LENGTH_SHORT).show()
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to read torrent file", e)
-                    Toast.makeText(this, "Failed to open torrent file", Toast.LENGTH_SHORT).show()
                 }
             }
 

@@ -91,7 +91,11 @@ class MainActivity : ComponentActivity() {
             Log.i(TAG, "Not a Chromebook - launching standalone mode")
             startActivity(Intent(this, StandaloneActivity::class.java).apply {
                 data = intent.data  // Forward any magnet/torrent intent
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                // Preserve URI read permission from original intent (needed for content:// URIs)
+                if (intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) {
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             })
             finish()
             return
