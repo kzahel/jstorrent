@@ -26,6 +26,7 @@ class RootsBridge(private val context: Context) {
         for (root in roots) {
             arr.put(JSONObject().apply {
                 put("key", root.key)
+                put("uri", root.uri)
                 put("displayName", root.displayName)
                 put("available", root.lastStatOk)
             })

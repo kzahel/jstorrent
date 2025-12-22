@@ -141,6 +141,7 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
     if (rootsJson) {
       const roots = JSON.parse(rootsJson) as Array<{
         key: string
+        uri: string
         displayName: string
         available?: boolean
       }>
@@ -148,7 +149,7 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
         srm.addRoot({
           key: root.key,
           label: root.displayName,
-          path: root.key, // Android SAF URIs - key is the path
+          path: root.uri,
         })
       }
       console.log('[AndroidStandaloneEngineManager] Registered', roots.length, 'download roots')
