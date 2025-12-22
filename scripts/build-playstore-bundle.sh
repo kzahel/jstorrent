@@ -2,7 +2,12 @@
 # Build signed Android App Bundle for Play Store upload
 set -e
 
-cd "$(dirname "$0")/../android-io-daemon"
+SCRIPT_DIR="$(dirname "$0")"
+
+# Build and copy web assets first
+"$SCRIPT_DIR/update-android-web-assets.sh"
+
+cd "$SCRIPT_DIR/../android-io-daemon"
 
 # Path relative to app/ module (for gradle)
 KEYSTORE_PATH="signing/upload.keystore"

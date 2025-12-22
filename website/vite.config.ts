@@ -5,6 +5,8 @@ import { resolve } from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Relative paths needed for Android WebViewAssetLoader asset structure
+  base: './',
   plugins: [
     // Solid plugin MUST come first, only for .solid.tsx files
     solid({

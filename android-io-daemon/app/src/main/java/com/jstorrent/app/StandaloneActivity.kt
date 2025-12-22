@@ -9,12 +9,15 @@ import android.view.ContextMenu
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.webkit.WebViewAssetLoader
 import com.jstorrent.app.auth.TokenStore
 import com.jstorrent.app.bridge.KVBridge
 import com.jstorrent.app.bridge.RootsBridge
@@ -30,6 +33,7 @@ class StandaloneActivity : ComponentActivity() {
     private lateinit var rootsBridge: RootsBridge
     private lateinit var tokenStore: TokenStore
     private lateinit var rootStore: RootStore
+    private lateinit var assetLoader: WebViewAssetLoader
     private var pendingIntent: Intent? = null
 
     private val folderPickerLauncher = registerForActivityResult(
@@ -70,6 +74,11 @@ class StandaloneActivity : ComponentActivity() {
         tokenStore = TokenStore(this)
         rootStore = RootStore(this)
 
+        // Create asset loader for serving assets over https (avoids CORS issues with file://)
+        assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+
         // Create WebView
         webView = WebView(this).apply {
             settings.apply {
@@ -96,6 +105,14 @@ class StandaloneActivity : ComponentActivity() {
             addJavascriptInterface(rootsBridge, "RootsBridge")
 
             webViewClient = object : WebViewClient() {
+                override fun shouldInterceptRequest(
+                    view: WebView,
+                    request: WebResourceRequest
+                ): WebResourceResponse? {
+                    // Use asset loader for https://appassets.androidplatform.net/assets/...
+                    return assetLoader.shouldInterceptRequest(request.url)
+                }
+
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     Log.i(TAG, "Page finished loading: $url")
@@ -106,7 +123,7 @@ class StandaloneActivity : ComponentActivity() {
                     pendingIntent = null
                 }
 
-                override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val url = request?.url ?: return false
                     if (url.scheme == "jstorrent") {
                         when (url.host) {
@@ -160,8 +177,11 @@ class StandaloneActivity : ComponentActivity() {
             Log.i(TAG, "Loading dev URL: $devUrl")
             webView.loadUrl(devUrl)
         } else {
-            // Production: load from assets
-            webView.loadUrl("file:///android_asset/$path")
+            // Production: load from assets via WebViewAssetLoader
+            // This serves assets over https which avoids CORS issues with ES modules
+            val assetUrl = "https://appassets.androidplatform.net/assets/$path"
+            Log.i(TAG, "Loading asset URL: $assetUrl")
+            webView.loadUrl(assetUrl)
         }
     }
 

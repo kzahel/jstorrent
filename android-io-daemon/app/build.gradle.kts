@@ -116,6 +116,9 @@ dependencies {
     // AppCompat (needed for AddRootActivity)
     implementation(libs.androidx.appcompat)
 
+    // WebKit (for WebViewAssetLoader)
+    implementation(libs.androidx.webkit)
+
     testImplementation(libs.junit)
     testImplementation(libs.java.websocket)
     testImplementation(libs.kotlinx.serialization.json)

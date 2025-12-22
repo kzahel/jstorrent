@@ -15,3 +15,8 @@
 local.properties
 app/signing/upload.keystore
 .kotlin
+
+# Built standalone assets (copied from website/dist)
+app/src/main/assets/standalone
+app/src/main/assets/standalone_full
+app/src/main/assets/assets

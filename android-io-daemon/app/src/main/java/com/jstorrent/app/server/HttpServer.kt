@@ -144,11 +144,12 @@ class HttpServer(
     private fun Application.configureCors() {
         intercept(ApplicationCallPipeline.Plugins) {
             val origin = call.request.header(HttpHeaders.Origin)
-            // Allow localhost origins (standalone WebView in dev mode) and file:// (production)
+            // Allow localhost origins (standalone WebView in dev mode) and WebViewAssetLoader (production)
             val allowedOrigin = when {
                 origin == null -> null
                 origin.startsWith("http://127.0.0.1") -> origin
                 origin.startsWith("http://localhost") -> origin
+                origin.startsWith("https://appassets.androidplatform.net") -> origin
                 origin == "null" -> "*" // file:// URLs send "null" as origin
                 else -> null
             }
