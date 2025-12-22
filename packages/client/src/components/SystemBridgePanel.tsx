@@ -1,6 +1,6 @@
 import type { RefObject } from 'react'
 import { useEffect, useRef } from 'react'
-import type { DownloadRoot } from '../chrome/engine-manager'
+import type { DownloadRoot } from '../types'
 
 // Version status from io-bridge
 export type VersionStatus = 'compatible' | 'update_suggested' | 'update_required'

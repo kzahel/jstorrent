@@ -1,32 +1,23 @@
-// Adapters
-export { DirectEngineAdapter } from './adapters/types'
-export type { EngineAdapter } from './adapters/types'
+/**
+ * @jstorrent/client
+ *
+ * Full client exports including Chrome extension specific code.
+ * For Chrome-free usage, import from '@jstorrent/client/core' instead.
+ */
+
+// Re-export everything from core (Chrome-free)
+export * from './core'
 
 // Chrome extension specific
 export { engineManager } from './chrome/engine-manager'
-export type { DaemonInfo, DownloadRoot } from './chrome/engine-manager'
 export { getBridge } from './chrome/extension-bridge'
 export { notificationBridge } from './chrome/notification-bridge'
 export type { ProgressStats } from './chrome/notification-bridge'
 
-// React integration
-export { EngineProvider, useAdapter, useEngine } from './context/EngineContext'
-export type { EngineProviderProps } from './context/EngineContext'
-export { SettingsProvider, useSettings, useSettingSubscription } from './context/SettingsContext'
-export { useEngineState, useTorrentState } from './hooks/useEngineState'
-export { useSystemBridge } from './hooks/useSystemBridge'
-export type {
-  UseSystemBridgeConfig,
-  UseSystemBridgeResult,
-  ReadinessStatus,
-  IndicatorColor,
-} from './hooks/useSystemBridge'
+// App (the Chrome-specific wrapper that uses engineManager)
+export { App } from './App'
 
-// App
-export { App, AppContent } from './App'
-export type { AppContentProps } from './App'
-
-// Components
+// Components (may have Chrome dependencies via imports)
 export { SystemIndicator } from './components/SystemIndicator'
 export type { SystemIndicatorProps } from './components/SystemIndicator'
 export { SystemBridgePanel } from './components/SystemBridgePanel'

@@ -7,7 +7,7 @@ import {
   StorageRootManager,
 } from '@jstorrent/engine'
 import { JsBridgeSessionStore, JsBridgeSettingsStore } from '@jstorrent/engine/adapters/android'
-import { AppContent, EngineProvider, SettingsProvider } from '@jstorrent/client'
+import { AppContent, EngineProvider, SettingsProvider } from '@jstorrent/client/core'
 import { formatBytes, applyTheme, setMaxFpsCache, setProgressBarStyleCache } from '@jstorrent/ui'
 
 declare global {

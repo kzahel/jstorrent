@@ -18,6 +18,7 @@ import { getBridge } from './extension-bridge'
 import { notificationBridge, ProgressStats } from './notification-bridge'
 import { BackgroundAudioManager } from './background-audio'
 import { BackgroundWebRTCManager } from './background-webrtc'
+import type { DaemonInfo, DownloadRoot } from '../types'
 
 // Toggle: true = WebRTC (no audio icon), false = Audio (shows audio icon)
 const USE_WEBRTC_KEEP_ALIVE = true
@@ -119,30 +120,8 @@ function createSessionStore(): ISessionStore {
   )
 }
 
-export interface DaemonInfo {
-  port: number
-  token: string
-  version?: number
-  roots: Array<{
-    key: string
-    path: string
-    display_name: string
-    removable: boolean
-    last_stat_ok: boolean
-    last_checked: number
-  }>
-  /** Host address for daemon connection. Defaults to 127.0.0.1 on desktop, but differs on ChromeOS. */
-  host?: string
-}
-
-export interface DownloadRoot {
-  key: string
-  path: string
-  display_name: string
-  removable: boolean
-  last_stat_ok: boolean
-  last_checked: number
-}
+// Re-export types from ../types for backwards compatibility
+export type { DaemonInfo, DownloadRoot } from '../types'
 
 /**
  * Manages the BtEngine lifecycle in the UI thread.

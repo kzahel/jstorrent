@@ -1,10 +1,23 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import solid from 'vite-plugin-solid'
 import { resolve } from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    // Solid plugin MUST come first, only for .solid.tsx files
+    solid({
+      include: ['**/*.solid.tsx'],
+      solid: {
+        generate: 'dom',
+      },
+    }),
+    // React plugin for all other .tsx files
+    react({
+      exclude: ['**/*.solid.tsx'],
+    }),
+  ],
   build: {
     rollupOptions: {
       input: {
@@ -17,6 +30,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@jstorrent/engine': resolve(__dirname, '../packages/engine/src'),
+      '@jstorrent/client/core': resolve(__dirname, '../packages/client/src/core'),
       '@jstorrent/client': resolve(__dirname, '../packages/client/src'),
       '@jstorrent/ui': resolve(__dirname, '../packages/ui/src'),
     },

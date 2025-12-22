@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import type { DaemonBridgeState, VersionStatus } from '../components/SystemBridgePanel'
-import type { DownloadRoot } from '../chrome/engine-manager'
+import type { DownloadRoot } from '../types'
 import { copyTextToClipboard } from '../utils/clipboard'
 
 export type IndicatorColor = 'green' | 'yellow' | 'red'
@@ -173,10 +173,15 @@ export function useSystemBridge(config: UseSystemBridgeConfig): UseSystemBridgeR
 
   // Generate bug report URL with pre-filled info
   const getBugReportUrl = useCallback(() => {
-    const extVersion =
-      typeof chrome !== 'undefined' && chrome.runtime?.getManifest
-        ? chrome.runtime.getManifest().version
-        : 'unknown'
+    // Get extension version if in Chrome extension context, otherwise 'unknown'
+    let extVersion = 'unknown'
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime?.getManifest) {
+        extVersion = chrome.runtime.getManifest().version
+      }
+    } catch {
+      // Not in extension context or manifest not available
+    }
 
     const body = `**Environment:**
 - Extension: v${extVersion}
