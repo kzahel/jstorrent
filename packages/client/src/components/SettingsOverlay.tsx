@@ -112,15 +112,29 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   }
 
   const handleRemoveRoot = async (key: string) => {
-    if (!fileOps) return
+    console.log('[SettingsOverlay] handleRemoveRoot called:', key, 'fileOps:', !!fileOps)
+    if (!fileOps) {
+      console.warn('[SettingsOverlay] fileOps is null - supportsFileOperations:', engineManager.supportsFileOperations)
+      return
+    }
     const root = roots.find((r) => r.key === key)
-    const confirmed = window.confirm(
-      `Remove download location "${root?.label || key}"?\n\n` +
-        'Existing downloads using this location will need to be moved or removed.',
-    )
+
+    // Note: window.confirm may not work properly in Android WebView
+    // Skip confirmation for standalone Android for now
+    // TODO: Replace with a proper React modal dialog
+    let confirmed = true
+    if (!engineManager.isStandalone) {
+      confirmed = window.confirm(
+        `Remove download location "${root?.label || key}"?\n\n` +
+          'Existing downloads using this location will need to be moved or removed.',
+      )
+    }
+    console.log('[SettingsOverlay] confirmed:', confirmed)
     if (!confirmed) return
 
+    console.log('[SettingsOverlay] Calling removeDownloadRoot for key:', key)
     const success = await fileOps.removeDownloadRoot(key)
+    console.log('[SettingsOverlay] removeDownloadRoot returned:', success)
     if (success) {
       await reloadRoots()
     } else {
