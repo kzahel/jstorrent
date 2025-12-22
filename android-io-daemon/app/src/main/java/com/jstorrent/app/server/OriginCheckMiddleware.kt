@@ -29,13 +29,26 @@ suspend fun ApplicationCall.requireExtensionOrigin(): Boolean {
 
 /**
  * Extracts and validates required extension headers.
- * Returns null if headers are missing (after sending error response).
+ * For standalone mode (localhost origins), returns placeholder headers.
+ * Returns null if headers are missing for non-standalone requests (after sending error response).
  */
 suspend fun ApplicationCall.getExtensionHeaders(): ExtensionHeaders? {
     val extensionId = request.header("X-JST-ExtensionId")
     val installId = request.header("X-JST-InstallId")
 
+    // Check if this is a standalone mode request (localhost origin)
+    val origin = request.header(HttpHeaders.Origin)
+    val isStandalone = origin != null && (
+        origin.startsWith("http://127.0.0.1") ||
+        origin.startsWith("http://localhost") ||
+        origin == "null" // file:// URLs
+    )
+
     if (extensionId.isNullOrBlank() || installId.isNullOrBlank()) {
+        if (isStandalone) {
+            // Standalone mode: use placeholder headers
+            return ExtensionHeaders("standalone", "standalone")
+        }
         respond(HttpStatusCode.BadRequest, "Missing X-JST-ExtensionId or X-JST-InstallId headers")
         return null
     }

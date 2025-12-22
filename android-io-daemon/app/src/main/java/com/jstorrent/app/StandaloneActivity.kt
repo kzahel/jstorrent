@@ -117,9 +117,10 @@ class StandaloneActivity : ComponentActivity() {
 
     private fun loadUI() {
         if (BuildConfig.DEBUG) {
-            // Dev mode: load from dev server
-            // 10.0.2.2 is host loopback from Android emulator
-            val devUrl = "http://10.0.2.2:3000/standalone/standalone.html"
+            // Dev mode: load from dev server via adb reverse
+            // Use 127.0.0.1 (not 10.0.2.2) so crypto.subtle works (secure context)
+            // Requires: adb reverse tcp:3000 tcp:3000
+            val devUrl = "http://127.0.0.1:3000/standalone/standalone.html"
             Log.i(TAG, "Loading dev URL: $devUrl")
             webView.loadUrl(devUrl)
         } else {

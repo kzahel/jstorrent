@@ -48,6 +48,10 @@ fi
 echo ">>> Installing APK..."
 adb install -r "$APK_PATH"
 
+# Set up port forwarding for dev server (secure context requires 127.0.0.1)
+echo ">>> Setting up adb reverse for dev server..."
+adb reverse tcp:3000 tcp:3000
+
 # Launch app
 if $LAUNCH; then
     echo ">>> Launching app..."

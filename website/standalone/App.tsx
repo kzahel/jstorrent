@@ -11,6 +11,9 @@ declare global {
     onJSTorrentConfig?: (config: { daemonUrl: string; platform: string }) => void
     handleMagnet?: (link: string) => void
     handleTorrentFile?: (name: string, base64: string) => void
+    // Debug exports
+    engine?: unknown
+    daemonConnection?: unknown
   }
 }
 
@@ -74,7 +77,19 @@ function StandaloneAppInner({
     isReady,
     hasDownloadRoot,
     error,
+    engine,
+    connection,
   } = useEngine(config)
+
+  // Expose engine and connection on window for debugging
+  useEffect(() => {
+    window.engine = engine
+    window.daemonConnection = connection
+    return () => {
+      window.engine = undefined
+      window.daemonConnection = undefined
+    }
+  }, [engine, connection])
 
   // Set up global handlers for intents
   useEffect(() => {

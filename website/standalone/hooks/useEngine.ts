@@ -4,9 +4,7 @@ import {
   DaemonConnection,
   DaemonSocketFactory,
   DaemonFileSystem,
-  DaemonHasher,
   StorageRootManager,
-  SubtleCryptoHasher,
   toHex,
   Torrent,
   type TorrentUserState,
@@ -38,6 +36,8 @@ interface UseEngineResult {
   isReady: boolean
   hasDownloadRoot: boolean
   error: string | null
+  engine: BtEngine | null
+  connection: DaemonConnection | null
 }
 
 function mapUserStateToStatus(
@@ -89,6 +89,7 @@ function torrentToState(t: Torrent): TorrentState {
 
 export function useEngine(config: { daemonUrl: string }): UseEngineResult {
   const [engine, setEngine] = useState<BtEngine | null>(null)
+  const [connection, setConnection] = useState<DaemonConnection | null>(null)
   const [torrents, setTorrents] = useState<TorrentState[]>([])
   const [isReady, setIsReady] = useState(false)
   const [hasDownloadRoot, setHasDownloadRoot] = useState(false)
@@ -114,13 +115,14 @@ export function useEngine(config: { daemonUrl: string }): UseEngineResult {
         const authToken = url.searchParams.get('token') || ''
 
         // Connect to daemon
-        const connection = await DaemonConnection.connect(port, authToken)
-        await connection.connectWebSocket()
-        connectionRef.current = connection
+        const conn = await DaemonConnection.connect(port, authToken)
+        await conn.connectWebSocket()
+        connectionRef.current = conn
+        if (mounted) setConnection(conn)
 
         // Set up storage roots from RootsBridge
         const storageRootManager = new StorageRootManager((root) => {
-          return new DaemonFileSystem(connection, root.key)
+          return new DaemonFileSystem(conn, root.key)
         })
 
         // Add roots from bridge
@@ -141,16 +143,11 @@ export function useEngine(config: { daemonUrl: string }): UseEngineResult {
         // Create session store
         const sessionStore = new JsBridgeSessionStore()
 
-        // Use SubtleCryptoHasher in secure contexts, otherwise DaemonHasher
-        // (crypto.subtle requires secure context: HTTPS, localhost, or file://)
-        const hasher = crypto?.subtle ? new SubtleCryptoHasher() : new DaemonHasher(connection)
-
         // Create engine
         const eng = new BtEngine({
-          socketFactory: new DaemonSocketFactory(connection),
+          socketFactory: new DaemonSocketFactory(conn),
           storageRootManager,
           sessionStore,
-          hasher,
           port: 6881,
           startSuspended: true,
         })
@@ -263,5 +260,7 @@ export function useEngine(config: { daemonUrl: string }): UseEngineResult {
     isReady,
     hasDownloadRoot,
     error,
+    engine,
+    connection,
   }
 }

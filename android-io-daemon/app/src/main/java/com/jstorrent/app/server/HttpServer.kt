@@ -116,6 +116,7 @@ class HttpServer(
                         maxFrameSize = Long.MAX_VALUE
                         masking = false
                     }
+                    configureCors()
                     configureRouting()
                 }.start(wait = false)
 
@@ -135,6 +136,40 @@ class HttpServer(
         server = null
         actualPort = 0
         Log.i(TAG, "Server stopped")
+    }
+
+    /**
+     * Configure CORS at Application level to catch all requests including OPTIONS preflight.
+     */
+    private fun Application.configureCors() {
+        intercept(ApplicationCallPipeline.Plugins) {
+            val origin = call.request.header(HttpHeaders.Origin)
+            // Allow localhost origins (standalone WebView in dev mode) and file:// (production)
+            val allowedOrigin = when {
+                origin == null -> null
+                origin.startsWith("http://127.0.0.1") -> origin
+                origin.startsWith("http://localhost") -> origin
+                origin == "null" -> "*" // file:// URLs send "null" as origin
+                else -> null
+            }
+
+            if (allowedOrigin != null) {
+                call.response.header(HttpHeaders.AccessControlAllowOrigin, allowedOrigin)
+                call.response.header(HttpHeaders.AccessControlAllowMethods, "GET, POST, PUT, DELETE, OPTIONS")
+                // All custom headers used by DaemonConnection and DaemonFileHandle
+                call.response.header(HttpHeaders.AccessControlAllowHeaders,
+                    "Content-Type, Authorization, X-Requested-With, " +
+                    "X-JST-Auth, X-JST-ExtensionId, X-JST-InstallId, " +
+                    "X-Path-Base64, X-Offset, X-Length, X-Expected-SHA1")
+                call.response.header(HttpHeaders.AccessControlAllowCredentials, "true")
+            }
+
+            // Handle preflight OPTIONS requests
+            if (call.request.httpMethod == HttpMethod.Options) {
+                call.respond(HttpStatusCode.OK)
+                return@intercept finish()
+            }
+        }
     }
 
     private fun Application.configureRouting() {
@@ -353,25 +388,18 @@ class HttpServer(
                 intercept(ApplicationCallPipeline.Call) {
                     val path = call.request.path()
                     if (path.startsWith("/read/") || path.startsWith("/write/")) {
-                        // Validate extension headers
+                        // Validate extension headers (or allow standalone mode)
                         val headers = call.getExtensionHeaders()
                         if (headers == null) {
                             finish()
                             return@intercept
                         }
 
-                        // Validate token
-                        val storedToken = tokenStore.token
-                        if (storedToken == null) {
-                            call.respond(HttpStatusCode.ServiceUnavailable, "Not paired")
-                            finish()
-                            return@intercept
-                        }
-
+                        // Validate token (accepts both extension token and standalone token)
                         val providedToken = call.request.header("X-JST-Auth")
                             ?: call.request.header("Authorization")?.removePrefix("Bearer ")
 
-                        if (providedToken != storedToken) {
+                        if (providedToken == null || !tokenStore.isTokenValid(providedToken)) {
                             call.respond(HttpStatusCode.Unauthorized, "Invalid token")
                             finish()
                             return@intercept

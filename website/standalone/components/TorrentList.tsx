@@ -46,16 +46,24 @@ function TorrentRow({ torrent, onPause, onResume, onRemove }: TorrentRowProps) {
   const isPaused = status === 'paused'
   const isError = status === 'error'
   const isComplete = progress >= 1
+  const isStopped = isPaused || isError // Both need resume button
 
-  const statsText = isComplete
-    ? `${formatBytes(size)} - Seeding - ↑${formatSpeed(uploadSpeed)}`
-    : `${(progress * 100).toFixed(1)}% - ↓${formatSpeed(downloadSpeed)} - ${peers} peers${eta ? ` - ${formatEta(eta)}` : ''}`
+  let statsText: string
+  if (isError) {
+    statsText = `Error - ${(progress * 100).toFixed(1)}% complete`
+  } else if (isComplete) {
+    statsText = `${formatBytes(size)} - Seeding - ↑${formatSpeed(uploadSpeed)}`
+  } else if (isPaused) {
+    statsText = `Paused - ${(progress * 100).toFixed(1)}%`
+  } else {
+    statsText = `${(progress * 100).toFixed(1)}% - ↓${formatSpeed(downloadSpeed)} - ${peers} peers${eta ? ` - ${formatEta(eta)}` : ''}`
+  }
 
   return (
     <div className="torrent-row">
       <div className="torrent-info">
         <div className="torrent-name">{name || 'Loading metadata...'}</div>
-        <div className="torrent-stats">{statsText}</div>
+        <div className={`torrent-stats ${isError ? 'error' : ''}`}>{statsText}</div>
         <div className="progress-bar">
           <div
             className={`progress-fill ${isPaused ? 'paused' : ''} ${isError ? 'error' : ''}`}
@@ -64,8 +72,8 @@ function TorrentRow({ torrent, onPause, onResume, onRemove }: TorrentRowProps) {
         </div>
       </div>
       <div className="torrent-actions">
-        {isPaused ? (
-          <button onClick={onResume} title="Resume">
+        {isStopped ? (
+          <button onClick={onResume} title={isError ? 'Retry' : 'Resume'}>
             ▶
           </button>
         ) : (
