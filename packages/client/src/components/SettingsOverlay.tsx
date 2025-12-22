@@ -220,6 +220,7 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                 settings={settings}
                 updateSetting={updateSetting}
                 onResetUISettings={handleResetUISettings}
+                isStandalone={engineManager.isStandalone}
               />
             )}
             {activeTab === 'network' && (
@@ -435,38 +436,20 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
         />
       </Section>
 
-      {isStandalone && (
-        <Section title="Interface">
-          <div style={styles.fieldRow}>
-            <div style={{ flex: 1 }}>
-              <div>Interface Mode</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Currently using the full-featured interface
-              </div>
-            </div>
-            <button
-              style={styles.addButton}
-              onClick={() => {
-                window.location.href = 'jstorrent://switch-ui?mode=standalone'
-              }}
-            >
-              Switch to Light
-            </button>
-          </div>
-        </Section>
-      )}
     </div>
   )
 }
 
 interface InterfaceTabProps extends TabProps {
   onResetUISettings: () => void
+  isStandalone: boolean
 }
 
 const InterfaceTab: React.FC<InterfaceTabProps> = ({
   settings,
   updateSetting,
   onResetUISettings,
+  isStandalone,
 }) => (
   <div>
     <Section title="Appearance">
@@ -527,6 +510,27 @@ const InterfaceTab: React.FC<InterfaceTabProps> = ({
         Reset UI Settings
       </button>
     </Section>
+
+    {isStandalone && (
+      <Section title="Interface Mode">
+        <div style={styles.fieldRow}>
+          <div style={{ flex: 1 }}>
+            <div>Switch Interface</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Currently using the full-featured interface
+            </div>
+          </div>
+          <button
+            style={styles.addButton}
+            onClick={() => {
+              window.location.href = 'jstorrent://switch-ui?mode=standalone'
+            }}
+          >
+            Switch to Light
+          </button>
+        </div>
+      </Section>
+    )}
   </div>
 )
 
