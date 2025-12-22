@@ -1,5 +1,6 @@
 package com.jstorrent.app.server
 
+import com.jstorrent.io.protocol.Protocol
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

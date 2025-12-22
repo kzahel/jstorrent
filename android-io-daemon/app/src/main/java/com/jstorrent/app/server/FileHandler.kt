@@ -11,10 +11,10 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import com.jstorrent.io.hash.Hasher
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
-import java.security.MessageDigest
 
 private const val TAG = "FileHandler"
 private const val MAX_BODY_SIZE = 64 * 1024 * 1024 // 64MB
@@ -157,8 +157,7 @@ fun Route.fileRoutes(rootStore: RootStore, context: Context) {
 
         // Hash verification FIRST (before any file operations)
         if (expectedSha1 != null) {
-            val digest = MessageDigest.getInstance("SHA-1")
-            val actualHash = digest.digest(body).joinToString("") { "%02x".format(it) }
+            val actualHash = Hasher.sha1Hex(body)
             if (!actualHash.equals(expectedSha1, ignoreCase = true)) {
                 return@post call.respond(
                     HttpStatusCode.Conflict,

@@ -13,6 +13,7 @@ import com.jstorrent.app.PairingApprovalActivity
 import com.jstorrent.app.R
 import com.jstorrent.app.auth.TokenStore
 import com.jstorrent.app.storage.DownloadRoot
+import com.jstorrent.io.protocol.Protocol
 import com.jstorrent.app.storage.RootStore
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -30,9 +31,9 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.jstorrent.io.hash.Hasher
 import java.net.Inet4Address
 import java.net.NetworkInterface
-import java.security.MessageDigest
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -321,8 +322,7 @@ class HttpServer(
                 call.getExtensionHeaders() ?: return@post
                 requireAuth(tokenStore) {
                     val bytes = call.receive<ByteArray>()
-                    val digest = MessageDigest.getInstance("SHA-1")
-                    val hash = digest.digest(bytes)
+                    val hash = Hasher.sha1(bytes)
                     call.respondBytes(hash, ContentType.Application.OctetStream)
                 }
             }

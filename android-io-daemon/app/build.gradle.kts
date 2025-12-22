@@ -90,6 +90,10 @@ android {
 }
 
 dependencies {
+    // New: depend on our library modules
+    implementation(project(":io-core"))
+    implementation(project(":companion-server"))
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

@@ -4,10 +4,10 @@ import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.serialization.Serializable
+import com.jstorrent.io.hash.Hasher
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.security.MessageDigest
 
 /**
  * Persists SAF download roots to internal storage.
@@ -161,8 +161,7 @@ class RootStore(private val context: Context) {
     }
 
     private fun generateKey(uri: Uri): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hash = digest.digest(uri.toString().toByteArray())
+        val hash = Hasher.sha256(uri.toString().toByteArray())
         // Return first 16 hex chars (64 bits) - enough for uniqueness
         return hash.take(8).joinToString("") { "%02x".format(it) }
     }

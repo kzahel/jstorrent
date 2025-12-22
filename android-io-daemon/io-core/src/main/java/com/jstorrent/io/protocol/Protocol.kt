@@ -1,4 +1,4 @@
-package com.jstorrent.app.server
+package com.jstorrent.io.protocol
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
