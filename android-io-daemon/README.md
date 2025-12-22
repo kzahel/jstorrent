@@ -281,6 +281,12 @@ Approximate sizes:
 
 Total: ~6-10GB
 
+### Known Emulator Limitations
+
+**UDP does not work in the Android emulator.** This is a known Android emulator limitation. DHT and UDP trackers will not function when running in the emulator.
+
+While Linux has a workaround using host TAP network interfaces, the setup is complex and not recommended. For testing UDP functionality (DHT, UDP trackers), use a real Android device or ChromeOS with the Android container.
+
 ## UI Mode (Standalone Full vs Light)
 
 The app supports two UI modes:
