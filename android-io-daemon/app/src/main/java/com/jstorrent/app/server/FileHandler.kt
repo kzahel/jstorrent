@@ -1,67 +1,31 @@
 package com.jstorrent.app.server
 
 import android.content.Context
-import android.net.Uri
 import android.util.Base64
-import android.util.Log
-import androidx.documentfile.provider.DocumentFile
 import com.jstorrent.app.storage.RootStore
+import com.jstorrent.io.file.FileManager
+import com.jstorrent.io.file.FileManagerException
+import com.jstorrent.io.file.FileManagerImpl
+import com.jstorrent.io.hash.Hasher
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import com.jstorrent.io.hash.Hasher
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.nio.ByteBuffer
 
-private const val TAG = "FileHandler"
 private const val MAX_BODY_SIZE = 64 * 1024 * 1024 // 64MB
 
 /**
- * LRU cache for DocumentFile references to avoid repeated SAF traversals.
- * Key format: "$rootUri|$relativePath"
+ * HTTP routes for file read/write operations.
+ *
+ * This is a thin adapter layer that:
+ * - Validates HTTP parameters
+ * - Resolves root keys to SAF URIs via RootStore
+ * - Delegates to FileManager for actual I/O
+ * - Translates FileManagerException to HTTP status codes
  */
-private val documentFileCache = object : LinkedHashMap<String, DocumentFile>(100, 0.75f, true) {
-    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, DocumentFile>?): Boolean {
-        return size > 200 // Keep max 200 entries
-    }
-}
-private val cacheLock = Any()
-
-private fun getCachedFile(context: Context, rootUri: Uri, relativePath: String): DocumentFile? {
-    val cacheKey = "$rootUri|$relativePath"
-
-    synchronized(cacheLock) {
-        documentFileCache[cacheKey]?.let { cached ->
-            // Verify it still exists
-            if (cached.exists()) {
-                return cached
-            } else {
-                documentFileCache.remove(cacheKey)
-            }
-        }
-    }
-
-    // Cache miss - do the traversal
-    val file = resolveFile(context, rootUri, relativePath)
-    if (file != null) {
-        synchronized(cacheLock) {
-            documentFileCache[cacheKey] = file
-        }
-    }
-    return file
-}
-
-private fun cacheFile(rootUri: Uri, relativePath: String, file: DocumentFile) {
-    val cacheKey = "$rootUri|$relativePath"
-    synchronized(cacheLock) {
-        documentFileCache[cacheKey] = file
-    }
-}
-
 fun Route.fileRoutes(rootStore: RootStore, context: Context) {
+    val fileManager: FileManager = FileManagerImpl(context)
 
     get("/read/{root_key}") {
         val rootKey = call.parameters["root_key"]
@@ -77,7 +41,7 @@ fun Route.fileRoutes(rootStore: RootStore, context: Context) {
         }
 
         val offset = call.request.header("X-Offset")?.toLongOrNull() ?: 0L
-        val length = call.request.header("X-Length")?.toLongOrNull()
+        val length = call.request.header("X-Length")?.toIntOrNull()
             ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing X-Length header")
 
         // Validate path (prevent directory traversal)
@@ -90,37 +54,11 @@ fun Route.fileRoutes(rootStore: RootStore, context: Context) {
             ?: return@get call.respond(HttpStatusCode.Forbidden, "Invalid root key")
 
         try {
-            val file = getCachedFile(context, rootUri, relativePath)
-                ?: return@get call.respond(HttpStatusCode.NotFound, "File not found")
-
-            // Use ParcelFileDescriptor for random access reads
-            context.contentResolver.openFileDescriptor(file.uri, "r")?.use { pfd ->
-                val channel = FileInputStream(pfd.fileDescriptor).channel
-                channel.position(offset)
-
-                val buffer = ByteBuffer.allocate(length.toInt())
-                var totalRead = 0
-                while (buffer.hasRemaining()) {
-                    val read = channel.read(buffer)
-                    if (read == -1) break
-                    totalRead += read
-                }
-
-                if (totalRead < length) {
-                    return@get call.respond(
-                        HttpStatusCode.InternalServerError,
-                        "Could not read requested bytes (got $totalRead, wanted $length)"
-                    )
-                }
-
-                buffer.flip()
-                val bytes = ByteArray(buffer.remaining())
-                buffer.get(bytes)
-                call.respondBytes(bytes, ContentType.Application.OctetStream)
-            } ?: return@get call.respond(HttpStatusCode.InternalServerError, "Cannot open file")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reading file: ${e.message}", e)
-            call.respond(HttpStatusCode.InternalServerError, e.message ?: "Read error")
+            val bytes = fileManager.read(rootUri, relativePath, offset, length)
+            call.respondBytes(bytes, ContentType.Application.OctetStream)
+        } catch (e: FileManagerException) {
+            val (status, message) = e.toHttpResponse()
+            call.respond(status, message)
         }
     }
 
@@ -167,101 +105,26 @@ fun Route.fileRoutes(rootStore: RootStore, context: Context) {
         }
 
         try {
-            // Try cache first for existing files
-            var file = getCachedFile(context, rootUri, relativePath)
-
-            if (file == null) {
-                // Not in cache or doesn't exist - create it
-                file = getOrCreateFile(context, rootUri, relativePath)
-                    ?: return@post call.respond(
-                        HttpStatusCode.InternalServerError,
-                        "Cannot create file"
-                    )
-                // Cache the newly created file
-                cacheFile(rootUri, relativePath, file)
-            }
-
-            // Use ParcelFileDescriptor for true random access writes
-            // This is O(write_size), not O(file_size) like the stream approach
-            context.contentResolver.openFileDescriptor(file.uri, "rw")?.use { pfd ->
-                val channel = FileOutputStream(pfd.fileDescriptor).channel
-                channel.position(offset)
-                channel.write(ByteBuffer.wrap(body))
-            } ?: return@post call.respond(
-                HttpStatusCode.InternalServerError,
-                "Cannot open file for writing"
-            )
-
+            fileManager.write(rootUri, relativePath, offset, body)
             call.respond(HttpStatusCode.OK)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error writing file: ${e.message}", e)
-            when {
-                e.message?.contains("ENOSPC") == true ||
-                        e.message?.contains("No space") == true -> {
-                    call.respond(HttpStatusCode.InsufficientStorage, "Disk full")
-                }
-
-                else -> {
-                    call.respond(HttpStatusCode.InternalServerError, e.message ?: "Write error")
-                }
-            }
+        } catch (e: FileManagerException) {
+            val (status, message) = e.toHttpResponse()
+            call.respond(status, message)
         }
     }
 }
 
 /**
- * Resolve a relative path under a SAF tree URI to a DocumentFile.
- * Returns null if file doesn't exist.
+ * Convert FileManagerException to HTTP status code and message.
  */
-private fun resolveFile(context: Context, rootUri: Uri, relativePath: String): DocumentFile? {
-    var current = DocumentFile.fromTreeUri(context, rootUri) ?: return null
-
-    val segments = relativePath.trimStart('/').split('/')
-    for (segment in segments) {
-        current = current.findFile(segment) ?: return null
-    }
-
-    return if (current.isFile) current else null
-}
-
-/**
- * Get or create a file at the given path under a SAF tree.
- * Creates parent directories as needed.
- */
-private fun getOrCreateFile(context: Context, rootUri: Uri, relativePath: String): DocumentFile? {
-    var current = DocumentFile.fromTreeUri(context, rootUri) ?: return null
-
-    val segments = relativePath.trimStart('/').split('/')
-    val fileName = segments.lastOrNull() ?: return null
-    val dirSegments = segments.dropLast(1)
-
-    // Create/navigate directories
-    for (segment in dirSegments) {
-        val existing = current.findFile(segment)
-        current = if (existing != null && existing.isDirectory) {
-            existing
-        } else {
-            current.createDirectory(segment) ?: return null
-        }
-    }
-
-    // Get or create file
-    val existingFile = current.findFile(fileName)
-    return if (existingFile != null && existingFile.isFile) {
-        existingFile
-    } else {
-        // Guess MIME type from extension
-        val mimeType = when {
-            fileName.endsWith(".mp4") -> "video/mp4"
-            fileName.endsWith(".mkv") -> "video/x-matroska"
-            fileName.endsWith(".avi") -> "video/x-msvideo"
-            fileName.endsWith(".mp3") -> "audio/mpeg"
-            fileName.endsWith(".flac") -> "audio/flac"
-            fileName.endsWith(".zip") -> "application/zip"
-            fileName.endsWith(".rar") -> "application/x-rar-compressed"
-            fileName.endsWith(".torrent") -> "application/x-bittorrent"
-            else -> "application/octet-stream"
-        }
-        current.createFile(mimeType, fileName)
+private fun FileManagerException.toHttpResponse(): Pair<HttpStatusCode, String> {
+    return when (this) {
+        is FileManagerException.FileNotFound -> HttpStatusCode.NotFound to message!!
+        is FileManagerException.CannotCreateFile -> HttpStatusCode.InternalServerError to message!!
+        is FileManagerException.CannotOpenFile -> HttpStatusCode.InternalServerError to message!!
+        is FileManagerException.InsufficientData -> HttpStatusCode.InternalServerError to message!!
+        is FileManagerException.ReadError -> HttpStatusCode.InternalServerError to (message ?: "Read error")
+        is FileManagerException.WriteError -> HttpStatusCode.InternalServerError to (message ?: "Write error")
+        is FileManagerException.DiskFull -> HttpStatusCode.InsufficientStorage to message!!
     }
 }
