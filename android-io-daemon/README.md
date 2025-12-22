@@ -290,16 +290,21 @@ The app supports two UI modes:
 | `standalone` (default) | `standalone/standalone.html` | Lightweight UI |
 | `full` | `standalone_full/standalone_full.html` | Full-featured UI |
 
+The last used mode is saved and restored automatically on next launch.
+
 ### Switching UI Mode
 
 Pass `ui_mode` as an intent extra:
 
 ```bash
-# Light UI (default)
-adb shell am start -n com.jstorrent.app/.StandaloneActivity
-
-# Full UI
+# Full UI (saves preference)
 adb shell am start -n com.jstorrent.app/.StandaloneActivity --es ui_mode full
+
+# Light UI (saves preference)
+adb shell am start -n com.jstorrent.app/.StandaloneActivity --es ui_mode standalone
+
+# Use last saved mode
+adb shell am start -n com.jstorrent.app/.StandaloneActivity
 ```
 
 With shell integration:

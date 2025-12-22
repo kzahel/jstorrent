@@ -116,7 +116,14 @@ class StandaloneActivity : ComponentActivity() {
     }
 
     private fun getUiPath(): String {
-        val uiMode = intent.getStringExtra("ui_mode")
+        // Intent extra overrides saved preference
+        val intentMode = intent.getStringExtra("ui_mode")
+        val uiMode = if (intentMode != null) {
+            tokenStore.uiMode = intentMode  // Save for next launch
+            intentMode
+        } else {
+            tokenStore.uiMode  // Use saved preference
+        }
         return if (uiMode == "full") {
             "standalone_full/standalone_full.html"
         } else {

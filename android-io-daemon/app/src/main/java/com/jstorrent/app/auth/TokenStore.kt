@@ -33,6 +33,10 @@ class TokenStore(context: Context) {
         get() = prefs.getBoolean(KEY_BACKGROUND_MODE, false)
         set(value) = prefs.edit { putBoolean(KEY_BACKGROUND_MODE, value) }
 
+    var uiMode: String
+        get() = prefs.getString(KEY_UI_MODE, "standalone") ?: "standalone"
+        set(value) = prefs.edit { putString(KEY_UI_MODE, value) }
+
     /**
      * Token for standalone mode (local WebView).
      * Auto-generated on first access, persisted across restarts.
@@ -96,5 +100,6 @@ class TokenStore(context: Context) {
         private const val KEY_EXTENSION_ID = "extension_id"
         private const val KEY_BACKGROUND_MODE = "background_mode_enabled"
         private const val KEY_STANDALONE_TOKEN = "standalone_token"
+        private const val KEY_UI_MODE = "ui_mode"
     }
 }
