@@ -172,6 +172,16 @@ class StandaloneActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         Log.i(TAG, "onNewIntent: ${intent.data}")
+
+        // Check for UI mode change
+        val intentMode = intent.getStringExtra("ui_mode")
+        if (intentMode != null && intentMode != tokenStore.uiMode) {
+            Log.i(TAG, "UI mode changed to: $intentMode")
+            tokenStore.uiMode = intentMode
+            loadUI()
+            return  // Don't handle other intent data when switching modes
+        }
+
         handleIntent(intent)
     }
 
