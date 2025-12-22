@@ -83,12 +83,75 @@ export class HttpTracker extends EngineComponent implements ITracker {
       const parsed = Bencode.decode(bodyBuffer)
       this.handleResponse(parsed)
     } catch (err) {
-      const errMsg = `Failed to decode tracker response: ${err instanceof Error ? err.message : String(err)}`
+      // Bdecode failed - check if this is an HTML error page
+      const errorDetails = this.tryParseErrorResponse(bodyBuffer)
+      const errMsg = errorDetails
+        ? `Tracker returned error: ${errorDetails}`
+        : `Failed to decode tracker response: ${err instanceof Error ? err.message : String(err)}`
       this.logger.error(`HttpTracker: ${errMsg}`)
       this._status = 'error'
       this._lastError = errMsg
       this.emit('error', new Error(errMsg))
     }
+  }
+
+  /**
+   * Try to extract useful info from a non-bencoded response (likely HTML error page)
+   */
+  private tryParseErrorResponse(bodyBuffer: Uint8Array): string | null {
+    // Check if it looks like HTML (starts with < or whitespace then <)
+    const firstByte = bodyBuffer[0]
+    const looksLikeHtml =
+      firstByte === 0x3c || // '<'
+      (firstByte <= 0x20 && bodyBuffer.length > 1 && bodyBuffer.slice(0, 100).includes(0x3c))
+
+    if (!looksLikeHtml && bodyBuffer.length > 0) {
+      // Not HTML, might be plain text - show first 200 bytes
+      try {
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(bodyBuffer.slice(0, 200))
+        if (text.length > 0) {
+          return `Unexpected response: ${text}${bodyBuffer.length > 200 ? '...' : ''}`
+        }
+      } catch {
+        return null
+      }
+    }
+
+    if (!looksLikeHtml) return null
+
+    try {
+      const text = new TextDecoder('utf-8', { fatal: false }).decode(bodyBuffer)
+
+      // Try to extract HTTP status from <title> tag (e.g., "503 Service Unavailable")
+      const titleMatch = text.match(/<title>(\d{3}\s+[^<]+)<\/title>/i)
+      const httpStatus = titleMatch ? titleMatch[1].trim() : null
+
+      // Try to extract main message from <h1> tag
+      const h1Match = text.match(/<h1>([^<]+)<\/h1>/i)
+      const h1Text = h1Match ? h1Match[1].trim() : null
+
+      // Build error message
+      if (httpStatus) {
+        return h1Text && h1Text !== httpStatus ? `${httpStatus} - ${h1Text}` : httpStatus
+      }
+
+      if (h1Text) {
+        return h1Text
+      }
+
+      // Fall back to showing first 200 chars of the text content
+      const plainText = text
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 200)
+      if (plainText.length > 0) {
+        return `HTML response: ${plainText}${plainText.length >= 200 ? '...' : ''}`
+      }
+    } catch {
+      // Decoding failed, return null
+    }
+    return null
   }
 
   // Removed handleRawResponse as it is replaced by streaming logic above
