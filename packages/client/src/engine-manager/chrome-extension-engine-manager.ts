@@ -138,6 +138,7 @@ export class ChromeExtensionEngineManager implements IEngineManager {
   engine: BtEngine | null = null
   daemonConnection: DaemonConnection | null = null
   logStore: LogStore = globalLogStore
+  readonly isStandalone = false
   readonly supportsFileOperations = true
 
   private sessionStore: ISessionStore | null = null

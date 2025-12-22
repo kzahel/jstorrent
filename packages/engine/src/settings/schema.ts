@@ -19,6 +19,8 @@ interface BooleanSettingDef {
   storage: 'sync' | 'local'
   default: boolean
   restartRequired?: boolean
+  /** Setting only works in Chrome extension, not standalone Android */
+  extensionOnly?: boolean
 }
 
 interface NumberSettingDef {
@@ -28,6 +30,8 @@ interface NumberSettingDef {
   min?: number
   max?: number
   restartRequired?: boolean
+  /** Setting only works in Chrome extension, not standalone Android */
+  extensionOnly?: boolean
 }
 
 interface StringSettingDef {
@@ -35,6 +39,8 @@ interface StringSettingDef {
   storage: 'sync' | 'local'
   default: string | null
   restartRequired?: boolean
+  /** Setting only works in Chrome extension, not standalone Android */
+  extensionOnly?: boolean
 }
 
 interface EnumSettingDef<T extends readonly string[]> {
@@ -43,6 +49,8 @@ interface EnumSettingDef<T extends readonly string[]> {
   values: T
   default: T[number]
   restartRequired?: boolean
+  /** Setting only works in Chrome extension, not standalone Android */
+  extensionOnly?: boolean
 }
 
 type SettingDef =
@@ -82,45 +90,61 @@ export const settingsSchema = {
   // -------------------------------------------------------------------------
   // Notifications
   // -------------------------------------------------------------------------
+  /**
+   * Notification settings are extension-only because they use chrome.notifications API.
+   * Android standalone: Would require Android NotificationManager via JsBridge.
+   * Could wire up torrent-complete/error events to Android Activity for native notifications.
+   */
   'notifications.onTorrentComplete': {
     type: 'boolean',
     storage: 'sync',
     default: true,
+    extensionOnly: true,
   },
   'notifications.onAllComplete': {
     type: 'boolean',
     storage: 'sync',
     default: true,
+    extensionOnly: true,
   },
   'notifications.onError': {
     type: 'boolean',
     storage: 'sync',
     default: true,
+    extensionOnly: true,
   },
   'notifications.progressWhenBackgrounded': {
     type: 'boolean',
     storage: 'sync',
     default: false,
+    extensionOnly: true,
   },
 
   // -------------------------------------------------------------------------
   // Behavior
   // -------------------------------------------------------------------------
+  /**
+   * Keep system awake while downloading.
+   * Extension: Uses chrome.power.requestKeepAwake() API. Requires permission grant.
+   * Android standalone: Would require WAKE_LOCK permission and PowerManager.WakeLock via JsBridge.
+   */
   keepAwake: {
     type: 'boolean',
     storage: 'sync',
     default: false,
-    // Note: Requires permission grant before enabling
+    extensionOnly: true,
   },
   /**
    * Prevent Chrome from throttling the tab when backgrounded.
-   * Chrome normally limits setTimeout/setInterval to 1-second minimum
-   * for background tabs, which slows downloads. This keeps the tab active.
+   * Chrome limits setTimeout/setInterval to 1-second minimum for background tabs.
+   * Extension: Plays silent audio or uses WebRTC to prevent throttling.
+   * Android standalone: Not needed - foreground service prevents Android from throttling.
    */
   preventBackgroundThrottling: {
     type: 'boolean',
     storage: 'sync',
     default: false,
+    extensionOnly: true,
   },
 
   // -------------------------------------------------------------------------
@@ -380,6 +404,11 @@ export function getStorageClass(key: SettingKey): 'sync' | 'local' {
 /** Check if a setting requires restart */
 export function requiresRestart(key: SettingKey): boolean {
   return 'restartRequired' in settingsSchema[key] && settingsSchema[key].restartRequired === true
+}
+
+/** Check if a setting is extension-only (not available in standalone Android) */
+export function isExtensionOnly(key: SettingKey): boolean {
+  return 'extensionOnly' in settingsSchema[key] && settingsSchema[key].extensionOnly === true
 }
 
 /** Validate and coerce a value according to its schema */

@@ -29,6 +29,14 @@ export function useEngineManager(): IEngineManager {
 }
 
 /**
+ * Check if running in standalone mode (not Chrome extension).
+ * Used to disable extension-only features in the UI.
+ */
+export function useIsStandalone(): boolean {
+  return useEngineManager().isStandalone
+}
+
+/**
  * File operations interface for platforms that support it.
  */
 export interface FileOperations {

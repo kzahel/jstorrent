@@ -212,6 +212,7 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                 settings={settings}
                 updateSetting={updateSetting}
                 supportsFileOperations={engineManager.supportsFileOperations}
+                isStandalone={engineManager.isStandalone}
               />
             )}
             {activeTab === 'interface' && (
@@ -259,6 +260,7 @@ interface GeneralTabProps extends TabProps {
   onSetDefault: (key: string) => void
   onRemoveRoot: (key: string) => void
   supportsFileOperations: boolean
+  isStandalone: boolean
 }
 
 const GeneralTab: React.FC<GeneralTabProps> = ({
@@ -272,6 +274,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
   settings,
   updateSetting,
   supportsFileOperations,
+  isStandalone,
 }) => {
   // Handle keepAwake toggle with permission request (Chrome only)
   const handleKeepAwakeChange = async (enabled: boolean) => {
@@ -363,42 +366,72 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
       <Section title="Notifications">
         <ToggleRow
           label="Notify when torrent completes"
-          sublabel="Show notification when a single download finishes"
+          sublabel={
+            isStandalone
+              ? 'Not available in standalone mode'
+              : 'Show notification when a single download finishes'
+          }
           checked={settings['notifications.onTorrentComplete']}
           onChange={(v) => updateSetting('notifications.onTorrentComplete', v)}
+          disabled={isStandalone}
         />
         <ToggleRow
           label="Notify when all complete"
-          sublabel="Show notification when all downloads finish"
+          sublabel={
+            isStandalone
+              ? 'Not available in standalone mode'
+              : 'Show notification when all downloads finish'
+          }
           checked={settings['notifications.onAllComplete']}
           onChange={(v) => updateSetting('notifications.onAllComplete', v)}
+          disabled={isStandalone}
         />
         <ToggleRow
           label="Notify on errors"
-          sublabel="Show notification when a download fails"
+          sublabel={
+            isStandalone
+              ? 'Not available in standalone mode'
+              : 'Show notification when a download fails'
+          }
           checked={settings['notifications.onError']}
           onChange={(v) => updateSetting('notifications.onError', v)}
+          disabled={isStandalone}
         />
         <ToggleRow
           label="Show progress when backgrounded"
-          sublabel="Persistent notification with download progress when UI is hidden"
+          sublabel={
+            isStandalone
+              ? 'Not available in standalone mode'
+              : 'Persistent notification with download progress when UI is hidden'
+          }
           checked={settings['notifications.progressWhenBackgrounded']}
           onChange={(v) => updateSetting('notifications.progressWhenBackgrounded', v)}
+          disabled={isStandalone}
         />
       </Section>
 
       <Section title="Behavior">
         <ToggleRow
           label="Keep system awake while downloading"
-          sublabel="Prevents sleep during active downloads (requires permission)"
+          sublabel={
+            isStandalone
+              ? 'Not available in standalone mode'
+              : 'Prevents sleep during active downloads (requires permission)'
+          }
           checked={settings.keepAwake}
           onChange={handleKeepAwakeChange}
+          disabled={isStandalone}
         />
         <ToggleRow
           label="Prevent background throttling"
-          sublabel="Keeps downloads running at full speed when tab is in background"
+          sublabel={
+            isStandalone
+              ? 'Not available in standalone mode'
+              : 'Keeps downloads running at full speed when tab is in background'
+          }
           checked={settings.preventBackgroundThrottling}
           onChange={(v) => updateSetting('preventBackgroundThrottling', v)}
+          disabled={isStandalone}
         />
       </Section>
     </div>
@@ -848,17 +881,29 @@ interface ToggleRowProps {
   sublabel?: string
   checked: boolean
   onChange: (checked: boolean) => void
+  disabled?: boolean
 }
 
-const ToggleRow: React.FC<ToggleRowProps> = ({ label, sublabel, checked, onChange }) => (
-  <label style={styles.toggleRow}>
+const ToggleRow: React.FC<ToggleRowProps> = ({ label, sublabel, checked, onChange, disabled }) => (
+  <label
+    style={{
+      ...styles.toggleRow,
+      opacity: disabled ? 0.5 : 1,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+    }}
+  >
     <div style={{ flex: 1 }}>
       <div>{label}</div>
       {sublabel && (
         <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{sublabel}</div>
       )}
     </div>
-    <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={(e) => !disabled && onChange(e.target.checked)}
+      disabled={disabled}
+    />
   </label>
 )
 

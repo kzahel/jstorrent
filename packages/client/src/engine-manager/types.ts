@@ -29,6 +29,12 @@ export interface IEngineManager {
   readonly logStore: LogStore
 
   /**
+   * Whether this is a standalone app (not Chrome extension).
+   * Used to disable extension-only features in the UI.
+   */
+  readonly isStandalone: boolean
+
+  /**
    * Whether this implementation supports file operations
    * (open file, reveal in folder, pick download folder).
    * Chrome extension: true

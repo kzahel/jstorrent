@@ -45,6 +45,7 @@ declare global {
 export class AndroidStandaloneEngineManager implements IEngineManager {
   engine: BtEngine | null = null
   logStore: LogStore = globalLogStore
+  readonly isStandalone = true
   readonly supportsFileOperations = true
 
   private daemonConnection: DaemonConnection | null = null
