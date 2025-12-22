@@ -171,10 +171,9 @@ export class HttpTracker extends EngineComponent implements ITracker {
     q += `&port=${this.port}`
     q += `&uploaded=${uploaded}`
     q += `&downloaded=${downloaded}`
-    // Only include left if known (omit for magnets before metadata)
-    if (stats?.left !== undefined && stats.left !== null) {
-      q += `&left=${stats.left}`
-    }
+    // left is required by most trackers (BEP 3); use 0 for magnets before metadata
+    const left = stats?.left ?? 0
+    q += `&left=${left}`
     q += `&compact=1`
     q += `&event=${event}`
     return q

@@ -74,8 +74,8 @@ class StandaloneActivity : ComponentActivity() {
                 allowFileAccess = false
                 // Allow mixed content for localhost HTTP
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                // Improve performance
-                cacheMode = WebSettings.LOAD_DEFAULT
+                // Disable caching for development (HMR support)
+                cacheMode = WebSettings.LOAD_NO_CACHE
             }
 
             // Add JavaScript interfaces

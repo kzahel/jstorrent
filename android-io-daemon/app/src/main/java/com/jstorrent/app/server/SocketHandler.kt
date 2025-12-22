@@ -311,38 +311,55 @@ class SocketSession(
                     return@launch
                 }
 
-                val socket = Socket()
-                try {
-                    // Performance: disable Nagle's algorithm for lower latency
-                    socket.tcpNoDelay = true
-                    // Performance: larger receive buffer for better throughput
-                    socket.receiveBufferSize = 256 * 1024
-                    // Reliability: detect zombie connections that stop responding
-                    socket.soTimeout = 60_000 // 60 second read timeout
-                    // Reliability: TCP keep-alive for connection health
-                    socket.setKeepAlive(true)
-                    // 10s connect timeout - balance between resource usage and reaching slow peers
-                    socket.connect(InetSocketAddress(hostname, port), 10000)
+                // Resolve hostname to all addresses, prefer IPv6 for better peer discovery
+                val addresses = InetAddress.getAllByName(hostname)
+                    .sortedByDescending { it is java.net.Inet6Address }
 
-                    // Check if we were cancelled during connect
-                    if (!isActive) {
-                        Log.d(TAG, "TCP_CONNECT cancelled during connect: socketId=$socketId")
-                        socket.close()
-                        return@launch
+                var socket: Socket? = null
+                var lastException: Exception? = null
+
+                for (addr in addresses) {
+                    val s = Socket()
+                    try {
+                        // Performance: disable Nagle's algorithm for lower latency
+                        s.tcpNoDelay = true
+                        // Performance: larger receive buffer for better throughput
+                        s.receiveBufferSize = 256 * 1024
+                        // Reliability: detect zombie connections that stop responding
+                        s.soTimeout = 60_000 // 60 second read timeout
+                        // Reliability: TCP keep-alive for connection health
+                        s.setKeepAlive(true)
+                        // 10s connect timeout - balance between resource usage and reaching slow peers
+                        s.connect(InetSocketAddress(addr, port), 10000)
+                        socket = s
+                        Log.d(TAG, "TCP_CONNECT connected via ${addr.hostAddress}")
+                        break
+                    } catch (e: Exception) {
+                        lastException = e
+                        s.close()
+                        // Continue to try next address
                     }
-
-                    // Store in pending - don't start read/write tasks yet
-                    // This allows for TLS upgrade before activation
-                    pendingTcpSockets[socketId] = socket
-
-                    // Send TCP_CONNECTED success
-                    Log.i(TAG, "TCP_CONNECTED SUCCESS: socketId=$socketId, $hostname:$port")
-                    val response = socketId.toLEBytes() + byteArrayOf(0) + 0.toLEBytes()
-                    send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
-                } catch (e: Exception) {
-                    socket.close()
-                    throw e
                 }
+
+                if (socket == null) {
+                    throw lastException ?: Exception("No addresses found for $hostname")
+                }
+
+                // Check if we were cancelled during connect
+                if (!isActive) {
+                    Log.d(TAG, "TCP_CONNECT cancelled during connect: socketId=$socketId")
+                    socket.close()
+                    return@launch
+                }
+
+                // Store in pending - don't start read/write tasks yet
+                // This allows for TLS upgrade before activation
+                pendingTcpSockets[socketId] = socket
+
+                // Send TCP_CONNECTED success
+                Log.i(TAG, "TCP_CONNECTED SUCCESS: socketId=$socketId, $hostname:$port")
+                val response = socketId.toLEBytes() + byteArrayOf(0) + 0.toLEBytes()
+                send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
 
             } catch (e: CancellationException) {
                 Log.d(TAG, "TCP_CONNECT cancelled: socketId=$socketId, hadSemaphore=$acquiredSemaphore")
