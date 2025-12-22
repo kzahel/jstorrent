@@ -160,8 +160,10 @@ export function useEngine(config: { daemonUrl: string }): UseEngineResult {
           await eng.restoreSession()
           eng.resume()
 
-          // Enable DHT for peer discovery
-          await eng.setDHTEnabled(true)
+          // Enable DHT for peer discovery (don't await - bootstrap can take a while)
+          eng.setDHTEnabled(true).catch((err) => {
+            console.error('[useEngine] DHT failed to start:', err)
+          })
 
           setIsReady(true)
 
