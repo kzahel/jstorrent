@@ -22,19 +22,30 @@ export function StandaloneApp() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
 
-  // Set up callback for config injection (only if not already available)
+  // Set up callback for config injection and poll as fallback
   useEffect(() => {
     // Config already available from initial state, no need to do anything
     if (config) return
 
     // Set up callback for async config injection from Android WebView
     window.onJSTorrentConfig = (cfg) => {
-      console.log('[App] Config received:', cfg)
+      console.log('[App] Config received via callback:', cfg)
       setConfig(cfg)
     }
 
+    // Also poll for config in case onPageFinished fired before we set up the callback
+    // This handles the race condition where Android injects config before React mounts
+    const pollInterval = setInterval(() => {
+      if (window.JSTORRENT_CONFIG) {
+        console.log('[App] Config found via polling:', window.JSTORRENT_CONFIG)
+        setConfig(window.JSTORRENT_CONFIG)
+        clearInterval(pollInterval)
+      }
+    }, 100)
+
     return () => {
       window.onJSTorrentConfig = undefined
+      clearInterval(pollInterval)
     }
   }, [config])
 

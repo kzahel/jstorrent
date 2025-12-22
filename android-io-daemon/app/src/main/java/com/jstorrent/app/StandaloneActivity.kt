@@ -171,7 +171,14 @@ class StandaloneActivity : ComponentActivity() {
     }
 
     private fun injectConfig() {
-        val port = IoDaemonService.instance?.port ?: 7800
+        // Wait for service and server to be fully started
+        val service = IoDaemonService.instance
+        if (service == null || !service.isServerRunning) {
+            Log.w(TAG, "Service not ready yet (instance=${service != null}, running=${service?.isServerRunning}), retrying in 100ms")
+            webView.postDelayed({ injectConfig() }, 100)
+            return
+        }
+        val port = service.port
         val token = tokenStore.standaloneToken
         val script = """
             (function() {

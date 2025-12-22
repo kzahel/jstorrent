@@ -123,6 +123,12 @@ class IoDaemonService : Service() {
         get() = httpServer?.port ?: 7800
 
     /**
+     * Check if the HTTP server is running and ready.
+     */
+    val isServerRunning: Boolean
+        get() = httpServer?.isRunning == true
+
+    /**
      * Broadcast ROOTS_CHANGED to all connected WebSocket clients.
      * Call this after AddRootActivity adds a new root.
      */

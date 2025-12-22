@@ -95,8 +95,8 @@ class HttpServer(
     @Volatile
     private var pairingDialogShowing = false
 
-    val port: Int get() = actualPort
-    val isRunning: Boolean get() = server != null
+    val port: Int get() = if (actualPort > 0) actualPort else 7800
+    val isRunning: Boolean get() = server != null && actualPort > 0
 
     fun start(preferredPort: Int = 7800) {
         if (server != null) {
