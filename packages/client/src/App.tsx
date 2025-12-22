@@ -36,11 +36,29 @@ interface ContextMenuState {
   torrent: Torrent
 }
 
-interface AppContentProps {
-  onOpenLoggingSettings?: () => void
+export interface FileInfo {
+  path: string
 }
 
-function AppContent({ onOpenLoggingSettings }: AppContentProps) {
+export interface AppContentProps {
+  onOpenLoggingSettings?: () => void
+  /** Override for opening files (for standalone mode) */
+  onOpenFile?: (torrentHash: string, file: FileInfo) => Promise<void>
+  /** Override for reveal in folder (for standalone mode) */
+  onRevealInFolder?: (torrentHash: string, file: FileInfo) => Promise<void>
+  /** Override for copying file path (for standalone mode) */
+  onCopyFilePath?: (torrentHash: string, file: FileInfo) => Promise<void>
+  /** Override for opening torrent folder from context menu (for standalone mode) */
+  onOpenFolder?: (torrentHash: string) => Promise<void>
+}
+
+function AppContent({
+  onOpenLoggingSettings,
+  onOpenFile: onOpenFileProp,
+  onRevealInFolder: onRevealInFolderProp,
+  onCopyFilePath: onCopyFilePathProp,
+  onOpenFolder: onOpenFolderProp,
+}: AppContentProps) {
   const [magnetInput, setMagnetInput] = useState('')
   const [selectedTorrents, setSelectedTorrents] = useState<Set<string>>(new Set())
 
@@ -241,10 +259,14 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
 
   const handleOpenFolder = async () => {
     for (const t of selectedTorrentObjects) {
-      const result = await engineManager.openTorrentFolder(t.infoHashStr)
-      if (!result.ok) {
-        alert(`Failed to open folder: ${result.error}`)
-        break
+      if (onOpenFolderProp) {
+        await onOpenFolderProp(t.infoHashStr)
+      } else {
+        const result = await engineManager.openTorrentFolder(t.infoHashStr)
+        if (!result.ok) {
+          alert(`Failed to open folder: ${result.error}`)
+          break
+        }
       }
     }
   }
@@ -453,23 +475,35 @@ function AppContent({ onOpenLoggingSettings }: AppContentProps) {
                 activeTab={detailTab}
                 onTabChange={setDetailTab}
                 onOpenFile={async (torrentHash, file) => {
-                  const result = await engineManager.openFile(torrentHash, file.path)
-                  if (!result.ok) {
-                    alert(`Failed to open file: ${result.error}`)
+                  if (onOpenFileProp) {
+                    await onOpenFileProp(torrentHash, file)
+                  } else {
+                    const result = await engineManager.openFile(torrentHash, file.path)
+                    if (!result.ok) {
+                      alert(`Failed to open file: ${result.error}`)
+                    }
                   }
                 }}
                 onRevealInFolder={async (torrentHash, file) => {
-                  const result = await engineManager.revealInFolder(torrentHash, file.path)
-                  if (!result.ok) {
-                    alert(`Failed to reveal in folder: ${result.error}`)
+                  if (onRevealInFolderProp) {
+                    await onRevealInFolderProp(torrentHash, file)
+                  } else {
+                    const result = await engineManager.revealInFolder(torrentHash, file.path)
+                    if (!result.ok) {
+                      alert(`Failed to reveal in folder: ${result.error}`)
+                    }
                   }
                 }}
                 onCopyFilePath={async (torrentHash, file) => {
-                  const fullPath = engineManager.getFilePath(torrentHash, file.path)
-                  if (fullPath) {
-                    await copyTextToClipboard(fullPath)
+                  if (onCopyFilePathProp) {
+                    await onCopyFilePathProp(torrentHash, file)
                   } else {
-                    alert('Failed to get file path: storage root not found')
+                    const fullPath = engineManager.getFilePath(torrentHash, file.path)
+                    if (fullPath) {
+                      await copyTextToClipboard(fullPath)
+                    } else {
+                      alert('Failed to get file path: storage root not found')
+                    }
                   }
                 }}
                 onSetFilePriority={(torrentHash, fileIndex, priority) => {

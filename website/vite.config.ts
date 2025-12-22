@@ -10,12 +10,15 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         standalone: resolve(__dirname, 'standalone/standalone.html'),
+        standalone_full: resolve(__dirname, 'standalone_full/standalone_full.html'),
       },
     },
   },
   resolve: {
     alias: {
       '@jstorrent/engine': resolve(__dirname, '../packages/engine/src'),
+      '@jstorrent/client': resolve(__dirname, '../packages/client/src'),
+      '@jstorrent/ui': resolve(__dirname, '../packages/ui/src'),
     },
   },
   server: {

@@ -12,6 +12,7 @@ export type { ProgressStats } from './chrome/notification-bridge'
 // React integration
 export { EngineProvider, useAdapter, useEngine } from './context/EngineContext'
 export type { EngineProviderProps } from './context/EngineContext'
+export { SettingsProvider, useSettings, useSettingSubscription } from './context/SettingsContext'
 export { useEngineState, useTorrentState } from './hooks/useEngineState'
 export { useSystemBridge } from './hooks/useSystemBridge'
 export type {
@@ -23,6 +24,7 @@ export type {
 
 // App
 export { App, AppContent } from './App'
+export type { AppContentProps } from './App'
 
 // Components
 export { SystemIndicator } from './components/SystemIndicator'
