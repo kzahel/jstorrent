@@ -183,7 +183,7 @@ function StandaloneFullAppInner() {
               engine={engine}
               isConnected={true}
               onSettingsClick={() => setSettingsOpen(true)}
-              // No logoSrc - will use default or show none
+              logoSrc="/js-32.png"
               // No onBugReportClick - hide bug report on Android
             />
           }

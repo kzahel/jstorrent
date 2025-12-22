@@ -13,7 +13,12 @@ describe('MemorySettingsStore', () => {
     it('should load defaults when storage is empty', async () => {
       await store.init()
       const settings = store.getAll()
-      expect(settings).toEqual(getDefaults())
+      // listeningPort is randomized on first init (10000-60000)
+      const { listeningPort, ...rest } = settings
+      const { listeningPort: _, ...expectedRest } = getDefaults()
+      expect(rest).toEqual(expectedRest)
+      expect(listeningPort).toBeGreaterThanOrEqual(10000)
+      expect(listeningPort).toBeLessThanOrEqual(60000)
     })
 
     it('should load preloaded values', async () => {
@@ -177,7 +182,9 @@ describe('MemorySettingsStore', () => {
 
       await store.resetAll()
 
-      expect(store.getAll()).toEqual(getDefaults())
+      // listeningPort was set during init, resetAll restores true defaults
+      const settings = store.getAll()
+      expect(settings).toEqual(getDefaults())
     })
 
     it('should clear storage', async () => {

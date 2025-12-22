@@ -223,6 +223,10 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
     )
     this.setDaemonRateLimit(s.get('daemonOpsPerSecond'), s.get('daemonOpsBurst'))
     this.setEncryptionPolicy(s.get('encryptionPolicy'))
+    // Don't await - UPnP discovery runs in background
+    this.setUPnPEnabled(s.get('upnp.enabled')).catch((err) => {
+      console.error('[AndroidStandaloneEngineManager] UPnP failed to start:', err)
+    })
     // Don't await - DHT bootstrap runs in background
     this.setDHTEnabled(s.get('dht.enabled')).catch((err) => {
       console.error('[AndroidStandaloneEngineManager] DHT failed to start:', err)
