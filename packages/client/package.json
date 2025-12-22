@@ -13,6 +13,10 @@
     "./core": {
       "types": "./dist/core.d.ts",
       "import": "./dist/core.js"
+    },
+    "./android": {
+      "types": "./dist/android.d.ts",
+      "import": "./dist/android.js"
     }
   },
   "scripts": {

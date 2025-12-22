@@ -1,14 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { JsBridgeSettingsStore } from '@jstorrent/engine/adapters/android'
 import {
-  BtEngine,
-  DaemonConnection,
-  DaemonSocketFactory,
-  DaemonFileSystem,
-  StorageRootManager,
-} from '@jstorrent/engine'
-import { JsBridgeSessionStore, JsBridgeSettingsStore } from '@jstorrent/engine/adapters/android'
-import { AppContent, EngineProvider, SettingsProvider } from '@jstorrent/client/core'
-import { formatBytes, applyTheme, setMaxFpsCache, setProgressBarStyleCache } from '@jstorrent/ui'
+  AppContent,
+  AppShell,
+  AppHeader,
+  SettingsOverlay,
+  EngineProvider,
+  EngineManagerProvider,
+  SettingsProvider,
+  useSettingsInit,
+} from '@jstorrent/client/core'
+import { AndroidStandaloneEngineManager } from '@jstorrent/client/android'
+import type { BtEngine } from '@jstorrent/engine'
 
 declare global {
   interface Window {
@@ -16,16 +19,11 @@ declare global {
     onJSTorrentConfig?: (config: { daemonUrl: string; platform: string }) => void
     handleMagnet?: (link: string) => void
     handleTorrentFile?: (name: string, base64: string) => void
-    RootsBridge?: {
-      hasDownloadRoot(): boolean
-      getDownloadRoots(): string
-      getDefaultRootKey(): string | null
-    }
-    // Debug exports
-    engine?: unknown
-    daemonConnection?: unknown
   }
 }
+
+// Create engine manager singleton (will be configured when config is available)
+const engineManager = new AndroidStandaloneEngineManager()
 
 export function StandaloneFullApp() {
   const [config, setConfig] = useState(window.JSTORRENT_CONFIG || null)
@@ -52,50 +50,27 @@ export function StandaloneFullApp() {
     )
   }
 
-  return <StandaloneFullAppInner config={config} />
+  // Configure engine manager with the received config
+  engineManager.setConfig(config)
+
+  return <StandaloneFullAppInner />
 }
 
-interface StandaloneFullAppInnerProps {
-  config: { daemonUrl: string; platform: string }
-}
-
-function StandaloneFullAppInner({ config }: StandaloneFullAppInnerProps) {
+function StandaloneFullAppInner() {
   const [engine, setEngine] = useState<BtEngine | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Used to trigger periodic re-renders for stats
   const [, setStatsRevision] = useState(0)
-  const engineRef = useRef<BtEngine | null>(null)
-  const connectionRef = useRef<DaemonConnection | null>(null)
 
-  // Settings store
+  // Settings store and overlay state
   const [settingsStore] = useState(() => new JsBridgeSettingsStore())
-  const [settingsReady, setSettingsReady] = useState(false)
+  const settingsReady = useSettingsInit(settingsStore)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<'general' | 'interface' | 'network' | 'advanced'>(
+    'general',
+  )
 
-  // Initialize settings
-  useEffect(() => {
-    settingsStore.init().then(() => setSettingsReady(true))
-  }, [settingsStore])
-
-  // Keep UI caches updated from settings
-  useEffect(() => {
-    if (!settingsReady) return
-
-    setMaxFpsCache(settingsStore.get('maxFps'))
-    setProgressBarStyleCache(settingsStore.get('progressBarStyle'))
-    applyTheme(settingsStore.get('theme'))
-
-    const unsubMaxFps = settingsStore.subscribe('maxFps', setMaxFpsCache)
-    const unsubProgressBar = settingsStore.subscribe('progressBarStyle', setProgressBarStyleCache)
-    const unsubTheme = settingsStore.subscribe('theme', applyTheme)
-
-    return () => {
-      unsubMaxFps()
-      unsubProgressBar()
-      unsubTheme()
-    }
-  }, [settingsStore, settingsReady])
-
-  // Initialize engine
+  // Initialize engine using AndroidStandaloneEngineManager
   useEffect(() => {
     if (!settingsReady) return
 
@@ -103,66 +78,11 @@ function StandaloneFullAppInner({ config }: StandaloneFullAppInnerProps) {
 
     async function initEngine() {
       try {
-        console.log('[StandaloneFullApp] Initializing engine with config:', config)
-
-        // Parse daemon URL to get port and auth token
-        const url = new URL(config.daemonUrl)
-        const port = parseInt(url.port) || 8765
-        const authToken = url.searchParams.get('token') || ''
-
-        // Connect to daemon
-        const conn = await DaemonConnection.connect(port, authToken)
-        await conn.connectWebSocket()
-        connectionRef.current = conn
-
-        // Set up storage roots from RootsBridge
-        const storageRootManager = new StorageRootManager((root) => {
-          return new DaemonFileSystem(conn, root.key)
-        })
-
-        // Add roots from bridge
-        const rootsJson = window.RootsBridge?.getDownloadRoots()
-        const roots: Array<{ key: string; label: string; path: string }> = rootsJson
-          ? JSON.parse(rootsJson)
-          : []
-        for (const root of roots) {
-          storageRootManager.addRoot(root)
-        }
-
-        // Set default root
-        const defaultRootKey = window.RootsBridge?.getDefaultRootKey()
-        if (defaultRootKey) {
-          storageRootManager.setDefaultRoot(defaultRootKey)
-        }
-
-        // Create session store
-        const sessionStore = new JsBridgeSessionStore()
-
-        // Create engine
-        const eng = new BtEngine({
-          socketFactory: new DaemonSocketFactory(conn),
-          storageRootManager,
-          sessionStore,
-          port: 6881,
-          startSuspended: true,
-        })
+        console.log('[StandaloneFullApp] Initializing engine via AndroidStandaloneEngineManager')
+        const eng = await engineManager.init()
 
         if (mounted) {
-          engineRef.current = eng
           setEngine(eng)
-
-          // Debug exports
-          window.engine = eng
-          window.daemonConnection = conn
-
-          // Restore session
-          await eng.restoreSession()
-          eng.resume()
-
-          // Enable DHT for peer discovery (don't await - bootstrap can take a while)
-          eng.setDHTEnabled(true).catch((err) => {
-            console.error('[StandaloneFullApp] DHT failed to start:', err)
-          })
         }
       } catch (err) {
         console.error('[StandaloneFullApp] Failed to initialize:', err)
@@ -176,18 +96,10 @@ function StandaloneFullAppInner({ config }: StandaloneFullAppInnerProps) {
 
     return () => {
       mounted = false
-      if (engineRef.current) {
-        engineRef.current.destroy()
-        engineRef.current = null
-      }
-      if (connectionRef.current) {
-        connectionRef.current.close()
-        connectionRef.current = null
-      }
-      window.engine = undefined
-      window.daemonConnection = undefined
+      // Note: Don't shutdown the engine manager here since the singleton
+      // may be reused if the component remounts
     }
-  }, [config, settingsReady])
+  }, [settingsReady])
 
   // Periodic stats refresh
   useEffect(() => {
@@ -221,7 +133,7 @@ function StandaloneFullAppInner({ config }: StandaloneFullAppInnerProps) {
     }
   }, [engine])
 
-  // Stub callbacks for Chrome-specific features
+  // Stub callbacks for Chrome-specific features (not available on Android)
   const handleOpenFile = useCallback(async (_torrentHash: string, file: { path: string }) => {
     console.warn('[StandaloneFullApp] Open file not implemented for Android:', file.path)
   }, [])
@@ -231,7 +143,6 @@ function StandaloneFullAppInner({ config }: StandaloneFullAppInnerProps) {
   }, [])
 
   const handleCopyFilePath = useCallback(async (_torrentHash: string, file: { path: string }) => {
-    // This might work with clipboard API
     try {
       await navigator.clipboard.writeText(file.path)
       console.log('[StandaloneFullApp] Copied path to clipboard:', file.path)
@@ -265,39 +176,18 @@ function StandaloneFullAppInner({ config }: StandaloneFullAppInnerProps) {
 
   return (
     <SettingsProvider store={settingsStore}>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100vh',
-          fontFamily: 'sans-serif',
-        }}
-      >
-        {/* Simple header */}
-        <div
-          style={{
-            padding: '8px 16px',
-            borderBottom: '1px solid var(--border-color)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-          }}
+      <EngineManagerProvider manager={engineManager}>
+        <AppShell
+          header={
+            <AppHeader
+              engine={engine}
+              isConnected={true}
+              onSettingsClick={() => setSettingsOpen(true)}
+              // No logoSrc - will use default or show none
+              // No onBugReportClick - hide bug report on Android
+            />
+          }
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h1 style={{ margin: 0, fontSize: '18px' }}>JSTorrent</h1>
-          </div>
-
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
-              {engine.torrents.length} torrents | {engine.numConnections} peers | ↓{' '}
-              {formatBytes(engine.torrents.reduce((sum, t) => sum + t.downloadSpeed, 0))}/s | ↑{' '}
-              {formatBytes(engine.torrents.reduce((sum, t) => sum + t.uploadSpeed, 0))}/s
-            </span>
-          </div>
-        </div>
-
-        {/* Main content - wrapped AppContent from extension */}
-        <div style={{ flex: 1, overflow: 'hidden' }}>
           <EngineProvider engine={engine}>
             <AppContent
               onOpenFile={handleOpenFile}
@@ -305,8 +195,16 @@ function StandaloneFullAppInner({ config }: StandaloneFullAppInnerProps) {
               onCopyFilePath={handleCopyFilePath}
             />
           </EngineProvider>
-        </div>
-      </div>
+        </AppShell>
+
+        {/* Settings overlay - Download Locations section hidden since supportsFileOperations=false */}
+        <SettingsOverlay
+          isOpen={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          activeTab={settingsTab}
+          setActiveTab={setSettingsTab}
+        />
+      </EngineManagerProvider>
     </SettingsProvider>
   )
 }

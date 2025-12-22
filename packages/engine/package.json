@@ -2,8 +2,19 @@
   "name": "@jstorrent/engine",
   "version": "0.0.1",
   "description": "Core BitTorrent engine for JSTorrent",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./adapters/android": {
+      "types": "./dist/adapters/android/index.d.ts",
+      "import": "./dist/adapters/android/index.js"
+    }
+  },
   "scripts": {
     "postinstall": "[ -f src/geo/ipv4-country-data.ts ] || cp src/geo/ipv4-country-data.stub.ts src/geo/ipv4-country-data.ts",
     "build": "tsc",

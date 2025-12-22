@@ -12,14 +12,32 @@ export type { EngineAdapter } from './adapters/types'
 // Types (Chrome-free)
 export type { DaemonInfo, DownloadRoot } from './types'
 
+// Engine Manager types (implementations are platform-specific)
+export type { IEngineManager, StorageRoot, FileOperationResult } from './engine-manager/types'
+// Note: AndroidStandaloneEngineManager is exported from '@jstorrent/client/android'
+
 // React contexts
 export { EngineProvider, useAdapter, useEngine } from './context/EngineContext'
 export type { EngineProviderProps } from './context/EngineContext'
 export { SettingsProvider, useSettings, useSettingSubscription } from './context/SettingsContext'
+export {
+  EngineManagerProvider,
+  useEngineManager,
+  useFileOperations,
+} from './context/EngineManagerContext'
+export type { FileOperations } from './context/EngineManagerContext'
 
 // Hooks
 export { useEngineState, useTorrentState } from './hooks/useEngineState'
+export { useSettingsInit } from './hooks/useSettingsInit'
+
+// UI Components
+export { AppShell } from './components/AppShell'
+export { AppHeader } from './components/AppHeader'
 
 // App content (Chrome-free, callbacks optional)
 export { AppContent } from './AppContent'
 export type { AppContentProps, FileInfo } from './AppContent'
+
+// Settings overlay (platform-agnostic, uses EngineManagerContext)
+export { SettingsOverlay } from './components/SettingsOverlay'

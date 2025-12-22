@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { engineManager } from '../chrome/engine-manager'
+import { useEngineManager, useFileOperations } from '../context/EngineManagerContext'
 import { useSettings } from '../context/SettingsContext'
 import type { Settings, SettingKey, UPnPStatus } from '@jstorrent/engine'
 import { clearAllUISettings } from '@jstorrent/ui'
+import type { IEngineManager } from '../engine-manager/types'
+
+// Chrome extension API may not be available in non-extension contexts
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const chrome: any
 
 type SettingsTab = 'general' | 'interface' | 'network' | 'advanced'
 type Theme = 'system' | 'dark' | 'light'
@@ -50,6 +55,9 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   setActiveTab,
 }) => {
   const { settings, set: updateSetting, resetAll } = useSettings()
+  const engineManager = useEngineManager()
+  const fileOps = useFileOperations()
+
   // Download roots state
   const [roots, setRoots] = useState<DownloadRoot[]>([])
   const [defaultKey, setDefaultKey] = useState<string | null>(null)
@@ -69,7 +77,7 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
       }
       void doLoad()
     }
-  }, [isOpen])
+  }, [isOpen, engineManager])
 
   const reloadRoots = async () => {
     setLoadingRoots(true)
@@ -81,12 +89,13 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   }
 
   const handleAddRoot = () => {
+    if (!fileOps) return
     setAddingRoot(true)
     // Re-enable button after 2s (notification may be missed, allow retry)
     setTimeout(() => setAddingRoot(false), 2000)
 
     // Start picker in background, update UI when result comes back
-    engineManager.pickDownloadFolder().then(async (root) => {
+    fileOps.pickDownloadFolder().then(async (root) => {
       if (root) {
         await reloadRoots()
         // If this is the first root, set it as default
@@ -103,6 +112,7 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   }
 
   const handleRemoveRoot = async (key: string) => {
+    if (!fileOps) return
     const root = roots.find((r) => r.key === key)
     const confirmed = window.confirm(
       `Remove download location "${root?.label || key}"?\n\n` +
@@ -110,7 +120,7 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
     )
     if (!confirmed) return
 
-    const success = await engineManager.removeDownloadRoot(key)
+    const success = await fileOps.removeDownloadRoot(key)
     if (success) {
       await reloadRoots()
     } else {
@@ -201,6 +211,7 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                 onRemoveRoot={handleRemoveRoot}
                 settings={settings}
                 updateSetting={updateSetting}
+                supportsFileOperations={engineManager.supportsFileOperations}
               />
             )}
             {activeTab === 'interface' && (
@@ -211,13 +222,18 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
               />
             )}
             {activeTab === 'network' && (
-              <NetworkTab settings={settings} updateSetting={updateSetting} />
+              <NetworkTab
+                settings={settings}
+                updateSetting={updateSetting}
+                engineManager={engineManager}
+              />
             )}
             {activeTab === 'advanced' && (
               <AdvancedTab
                 settings={settings}
                 updateSetting={updateSetting}
                 onResetAllSettings={handleResetAllSettings}
+                engineManager={engineManager}
               />
             )}
           </div>
@@ -242,6 +258,7 @@ interface GeneralTabProps extends TabProps {
   onAddRoot: () => void
   onSetDefault: (key: string) => void
   onRemoveRoot: (key: string) => void
+  supportsFileOperations: boolean
 }
 
 const GeneralTab: React.FC<GeneralTabProps> = ({
@@ -254,19 +271,25 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
   onRemoveRoot,
   settings,
   updateSetting,
+  supportsFileOperations,
 }) => {
-  // Handle keepAwake toggle with permission request
+  // Handle keepAwake toggle with permission request (Chrome only)
   const handleKeepAwakeChange = async (enabled: boolean) => {
     if (enabled) {
-      // Request power permission before enabling
-      try {
-        const granted = await chrome.permissions.request({ permissions: ['power'] })
-        if (granted) {
-          updateSetting('keepAwake', true)
+      // Request power permission before enabling (Chrome extension only)
+      if (typeof chrome !== 'undefined' && chrome.permissions?.request) {
+        try {
+          const granted = await chrome.permissions.request({ permissions: ['power'] })
+          if (granted) {
+            updateSetting('keepAwake', true)
+          }
+          // If denied, toggle stays off (no action needed)
+        } catch (e) {
+          console.error('Failed to request power permission:', e)
         }
-        // If denied, toggle stays off (no action needed)
-      } catch (e) {
-        console.error('Failed to request power permission:', e)
+      } else {
+        // Non-Chrome platforms: just enable without permission request
+        updateSetting('keepAwake', true)
       }
     } else {
       updateSetting('keepAwake', false)
@@ -275,65 +298,67 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
 
   return (
     <div>
-      <Section title="Download Locations">
-        {loadingRoots ? (
-          <div style={{ color: 'var(--text-secondary)' }}>Loading...</div>
-        ) : roots.length === 0 ? (
-          <div style={styles.warning}>
-            <strong>No download location configured</strong>
-            <p style={{ margin: '8px 0 0 0' }}>
-              You need to select a download folder before you can add torrents.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div style={styles.fieldRow}>
-              <span>Default</span>
-              <select
-                value={defaultKey ?? ''}
-                onChange={(e) => onSetDefault(e.target.value)}
-                style={styles.select}
-              >
+      {supportsFileOperations && (
+        <Section title="Download Locations">
+          {loadingRoots ? (
+            <div style={{ color: 'var(--text-secondary)' }}>Loading...</div>
+          ) : roots.length === 0 ? (
+            <div style={styles.warning}>
+              <strong>No download location configured</strong>
+              <p style={{ margin: '8px 0 0 0' }}>
+                You need to select a download folder before you can add torrents.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div style={styles.fieldRow}>
+                <span>Default</span>
+                <select
+                  value={defaultKey ?? ''}
+                  onChange={(e) => onSetDefault(e.target.value)}
+                  style={styles.select}
+                >
+                  {roots.map((root) => (
+                    <option key={root.key} value={root.key}>
+                      {root.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {roots.map((root) => (
-                  <option key={root.key} value={root.key}>
-                    {root.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {roots.map((root) => (
-                <div key={root.key} style={styles.rootItem}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div>{root.label}</div>
-                    <div
-                      style={{
-                        fontSize: '12px',
-                        color: 'var(--text-secondary)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {formatPathForDisplay(root.path)}
+                  <div key={root.key} style={styles.rootItem}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div>{root.label}</div>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: 'var(--text-secondary)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {formatPathForDisplay(root.path)}
+                      </div>
                     </div>
+                    <button
+                      style={{ ...styles.iconButton, color: 'var(--accent-error, #ef4444)' }}
+                      onClick={() => onRemoveRoot(root.key)}
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <button
-                    style={{ ...styles.iconButton, color: 'var(--accent-error, #ef4444)' }}
-                    onClick={() => onRemoveRoot(root.key)}
-                    title="Remove"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-        <button onClick={onAddRoot} disabled={addingRoot} style={styles.addButton}>
-          {addingRoot ? 'Selecting...' : '+ Add Download Location'}
-        </button>
-      </Section>
+                ))}
+              </div>
+            </>
+          )}
+          <button onClick={onAddRoot} disabled={addingRoot} style={styles.addButton}>
+            {addingRoot ? 'Selecting...' : '+ Add Download Location'}
+          </button>
+        </Section>
+      )}
 
       <Section title="Notifications">
         <ToggleRow
@@ -451,7 +476,11 @@ const InterfaceTab: React.FC<InterfaceTabProps> = ({
   </div>
 )
 
-const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
+interface NetworkTabProps extends TabProps {
+  engineManager: IEngineManager
+}
+
+const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engineManager }) => {
   // UPnP status state - initialize from engine if available
   const [upnpStatus, setUpnpStatus] = useState<UPnPStatus>(
     () => engineManager.engine?.upnpStatus ?? 'disabled',
@@ -468,7 +497,7 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
     return () => {
       engine.off('upnpStatusChanged', handler)
     }
-  }, [])
+  }, [engineManager])
 
   // Apply rate limits to engine when settings change
   const handleDownloadLimitChange = (v: number) => {
@@ -656,6 +685,7 @@ const NetworkTab: React.FC<TabProps> = ({ settings, updateSetting }) => {
 
 interface AdvancedTabProps extends TabProps {
   onResetAllSettings: () => void
+  engineManager: IEngineManager
 }
 
 // Log level options for global setting
@@ -684,6 +714,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
   settings,
   updateSetting,
   onResetAllSettings,
+  engineManager,
 }) => {
   // Component overrides collapsed by default
   const [overridesExpanded, setOverridesExpanded] = useState(false)
