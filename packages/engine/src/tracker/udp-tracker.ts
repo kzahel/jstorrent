@@ -1,4 +1,5 @@
 import {
+  AnnounceStats,
   ITracker,
   TrackerAnnounceEvent,
   PeerInfo,
@@ -48,7 +49,7 @@ export class UdpTracker extends EngineComponent implements ITracker {
     super(engine)
   }
 
-  async announce(event: TrackerAnnounceEvent = 'started'): Promise<void> {
+  async announce(event: TrackerAnnounceEvent = 'started', stats?: AnnounceStats): Promise<void> {
     this.logger.info(`UdpTracker: Announcing '${event}' to ${this.announceUrl}`)
     this._status = 'announcing'
     try {
@@ -70,7 +71,7 @@ export class UdpTracker extends EngineComponent implements ITracker {
         this.logger.debug('UdpTracker: Connection established')
       }
 
-      await this.sendAnnounce(event)
+      await this.sendAnnounce(event, stats)
       this.logger.debug('UdpTracker: Announce packet sent')
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
@@ -106,7 +107,7 @@ export class UdpTracker extends EngineComponent implements ITracker {
     }
   }
 
-  private async sendAnnounce(event: string) {
+  private async sendAnnounce(event: string, stats?: AnnounceStats) {
     if (!this.socket || this.connectionId === null) return
 
     const url = new URL(this.announceUrl)
@@ -125,9 +126,15 @@ export class UdpTracker extends EngineComponent implements ITracker {
     buf.set(this.infoHash, 16)
     buf.set(this.peerId, 36)
 
-    view.setBigUint64(56, 0n, false) // downloaded
-    view.setBigUint64(64, 0n, false) // left
-    view.setBigUint64(72, 0n, false) // uploaded
+    const downloaded = BigInt(stats?.downloaded ?? 0)
+    const uploaded = BigInt(stats?.uploaded ?? 0)
+    // For UDP, left is required. Use a large value when unknown (magnet before metadata)
+    // to indicate we need to download. Using 2^62 as a safe large value.
+    const left = stats?.left !== null && stats?.left !== undefined ? BigInt(stats.left) : 1n << 62n
+
+    view.setBigUint64(56, downloaded, false)
+    view.setBigUint64(64, left, false)
+    view.setBigUint64(72, uploaded, false)
 
     let eventId = 0
     if (event === 'completed') eventId = 1

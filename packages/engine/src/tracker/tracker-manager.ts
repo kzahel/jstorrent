@@ -1,4 +1,4 @@
-import { ITracker, PeerInfo, TrackerStats } from '../interfaces/tracker'
+import { AnnounceStats, ITracker, PeerInfo, TrackerStats } from '../interfaces/tracker'
 import { HttpTracker } from './http-tracker'
 import { UdpTracker } from './udp-tracker'
 import { ISocketFactory } from '../interfaces/socket'
@@ -17,6 +17,12 @@ export class TrackerManager extends EngineComponent {
    */
   private pendingUdpAnnounces: Array<{ tracker: ITracker; event: TrackerAnnounceEvent }> = []
   private pendingHttpAnnounces: Array<{ tracker: ITracker; event: TrackerAnnounceEvent }> = []
+
+  /**
+   * Callback to get current announce stats from torrent.
+   * Set by Torrent after creating TrackerManager.
+   */
+  private statsGetter: (() => AnnounceStats) | null = null
 
   constructor(
     engine: ILoggingEngine,
@@ -89,6 +95,14 @@ export class TrackerManager extends EngineComponent {
   }
 
   /**
+   * Set the callback to get current announce stats.
+   * Called by Torrent after creating TrackerManager.
+   */
+  setStatsGetter(getter: () => AnnounceStats): void {
+    this.statsGetter = getter
+  }
+
+  /**
    * Queue announces for all trackers.
    * Returns counts by protocol type for use with requestDaemonOps().
    * @param event - The announce event type
@@ -125,12 +139,15 @@ export class TrackerManager extends EngineComponent {
    * @returns The protocol type announced, or null if queue empty
    */
   announceOne(): 'udp_announce' | 'http_announce' | null {
+    // Get current stats for the announce
+    const stats = this.statsGetter?.()
+
     // Try UDP first (typically faster)
     const udpPending = this.pendingUdpAnnounces.shift()
     if (udpPending) {
       const { tracker, event } = udpPending
       this.logger.debug(`TrackerManager: Announcing '${event}' to UDP ${tracker.url}`)
-      tracker.announce(event).catch((err) => {
+      tracker.announce(event, stats).catch((err) => {
         this.logger.warn(
           `TrackerManager: UDP announce failed: ${err instanceof Error ? err.message : String(err)}`,
         )
@@ -143,7 +160,7 @@ export class TrackerManager extends EngineComponent {
     if (httpPending) {
       const { tracker, event } = httpPending
       this.logger.debug(`TrackerManager: Announcing '${event}' to HTTP ${tracker.url}`)
-      tracker.announce(event).catch((err) => {
+      tracker.announce(event, stats).catch((err) => {
         this.logger.warn(
           `TrackerManager: HTTP announce failed: ${err instanceof Error ? err.message : String(err)}`,
         )
@@ -173,8 +190,9 @@ export class TrackerManager extends EngineComponent {
    */
   async announce(event: TrackerAnnounceEvent = 'started') {
     this.logger.info(`TrackerManager: Announcing '${event}' to ${this.trackers.length} trackers`)
+    const stats = this.statsGetter?.()
     const promises = this.trackers.map((t) =>
-      t.announce(event).catch((err) => {
+      t.announce(event, stats).catch((err) => {
         // Log the error - trackers also emit 'error' events
         this.logger.warn(
           `TrackerManager: Tracker announce threw: ${err instanceof Error ? err.message : String(err)}`,

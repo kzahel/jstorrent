@@ -1,4 +1,10 @@
-import { ITracker, PeerInfo, TrackerStats, TrackerStatus } from '../interfaces/tracker'
+import {
+  AnnounceStats,
+  ITracker,
+  PeerInfo,
+  TrackerStats,
+  TrackerStatus,
+} from '../interfaces/tracker'
 import { Bencode } from '../utils/bencode'
 import { ISocketFactory } from '../interfaces/socket'
 import { MinimalHttpClient } from '../utils/minimal-http-client'
@@ -41,8 +47,11 @@ export class HttpTracker extends EngineComponent implements ITracker {
     this.logger.debug(`HttpTracker created for ${announceUrl}`)
   }
 
-  async announce(event: 'started' | 'stopped' | 'completed' | 'update' = 'started'): Promise<void> {
-    const query = this.buildQuery(event)
+  async announce(
+    event: 'started' | 'stopped' | 'completed' | 'update' = 'started',
+    stats?: AnnounceStats,
+  ): Promise<void> {
+    const query = this.buildQuery(event, stats)
     const url = `${this.announceUrl}?${query}`
 
     this.logger.info(`HttpTracker: Announcing '${event}' to ${this.announceUrl}`)
@@ -90,13 +99,19 @@ export class HttpTracker extends EngineComponent implements ITracker {
       .join('')
   }
 
-  private buildQuery(event: string): string {
+  private buildQuery(event: string, stats?: AnnounceStats): string {
+    const uploaded = stats?.uploaded ?? 0
+    const downloaded = stats?.downloaded ?? 0
+
     let q = `info_hash=${this.escapeInfoHash(this._infoHash)}`
     q += `&peer_id=${this.escapeInfoHash(this._peerId)}` // PeerID is also binary usually
     q += `&port=${this.port}`
-    q += `&uploaded=0` // TODO: Track stats
-    q += `&downloaded=0`
-    q += `&left=0`
+    q += `&uploaded=${uploaded}`
+    q += `&downloaded=${downloaded}`
+    // Only include left if known (omit for magnets before metadata)
+    if (stats?.left !== undefined && stats.left !== null) {
+      q += `&left=${stats.left}`
+    }
     q += `&compact=1`
     q += `&event=${event}`
     return q

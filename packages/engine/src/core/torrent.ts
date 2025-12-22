@@ -11,7 +11,7 @@ import { InfoHashHex, infoHashFromBytes } from '../utils/infohash'
 import { Bencode } from '../utils/bencode'
 import { TrackerManager } from '../tracker/tracker-manager'
 import { ISocketFactory } from '../interfaces/socket'
-import { PeerInfo, TrackerStats } from '../interfaces/tracker'
+import { AnnounceStats, PeerInfo, TrackerStats } from '../interfaces/tracker'
 import { TorrentFileInfo } from './torrent-file-info'
 import { EngineComponent } from '../logging/logger'
 import type { BtEngine, DaemonOpType, PendingOpCounts } from './bt-engine'
@@ -1279,6 +1279,41 @@ export class Torrent extends EngineComponent {
   }
 
   /**
+   * Get stats for tracker announce (uploaded, downloaded, left).
+   * Used by TrackerManager to include accurate stats in announces.
+   */
+  getAnnounceStats(): AnnounceStats {
+    // If no metadata yet (magnet before metadata fetched), left is unknown
+    if (!this.hasMetadata) {
+      return {
+        uploaded: this.totalUploaded,
+        downloaded: this.totalDownloaded,
+        left: null,
+      }
+    }
+
+    // Calculate total size: (piecesCount - 1) * pieceLength + lastPieceLength
+    const totalSize =
+      this.piecesCount > 0 ? (this.piecesCount - 1) * this.pieceLength + this.lastPieceLength : 0
+
+    // Calculate bytes downloaded by summing completed piece sizes
+    let bytesDownloaded = 0
+    if (this._bitfield) {
+      for (let i = 0; i < this.piecesCount; i++) {
+        if (this._bitfield.get(i)) {
+          bytesDownloaded += this.getPieceLength(i)
+        }
+      }
+    }
+
+    return {
+      uploaded: this.totalUploaded,
+      downloaded: this.totalDownloaded,
+      left: totalSize - bytesDownloaded,
+    }
+  }
+
+  /**
    * Connect to one peer from the swarm.
    * Called by BtEngine when granting a connection slot.
    * @returns true if a connection was initiated, false if no candidates available
@@ -1724,6 +1759,9 @@ export class Torrent extends EngineComponent {
       this.port,
       (this.engine as BtEngine).bandwidthTracker,
     )
+
+    // Set the stats getter so trackers can include accurate uploaded/downloaded/left values
+    this.trackerManager.setStatsGetter(() => this.getAnnounceStats())
 
     this.trackerManager.on('peersDiscovered', (peers: PeerInfo[]) => {
       // Add peers to swarm for unified tracking

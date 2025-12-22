@@ -14,6 +14,17 @@ export interface TrackerAnnounceResponse {
 
 export type TrackerAnnounceEvent = 'started' | 'stopped' | 'completed' | 'update'
 
+/**
+ * Stats to include in tracker announce.
+ * All values in bytes.
+ */
+export interface AnnounceStats {
+  uploaded: number
+  downloaded: number
+  /** Bytes remaining. null = unknown (e.g., magnet before metadata received) */
+  left: number | null
+}
+
 export type TrackerStatus = 'idle' | 'announcing' | 'ok' | 'error'
 
 export interface TrackerStats {
@@ -30,7 +41,7 @@ export interface TrackerStats {
 
 export interface ITracker extends EventEmitter {
   readonly url: string
-  announce(event: TrackerAnnounceEvent): Promise<void>
+  announce(event: TrackerAnnounceEvent, stats?: AnnounceStats): Promise<void>
   destroy(): void
   getStats(): TrackerStats
 
