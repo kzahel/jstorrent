@@ -5,6 +5,10 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Base64
 import android.util.Log
+import android.view.ContextMenu
+import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.View
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -77,6 +81,15 @@ class StandaloneActivity : ComponentActivity() {
                 // Disable caching for development (HMR support)
                 cacheMode = WebSettings.LOAD_NO_CACHE
             }
+
+            // Prevent native Android context menus from showing
+            // Let JavaScript handle context menus instead
+            setOnLongClickListener { true }
+            isLongClickable = false
+            isHapticFeedbackEnabled = false
+
+            // Disable WebView's built-in context menu for right-click
+            setOnCreateContextMenuListener { _, _, _ -> }  // Empty listener, do nothing
 
             // Add JavaScript interfaces
             addJavascriptInterface(kvBridge, "KVBridge")
@@ -163,6 +176,55 @@ class StandaloneActivity : ComponentActivity() {
                 console.log('[JSTorrent] Config injected:', window.JSTORRENT_CONFIG);
                 if (window.onJSTorrentConfig) {
                     window.onJSTorrentConfig(window.JSTORRENT_CONFIG);
+                }
+
+                // Long-press to contextmenu for touch devices
+                if (!window._longPressInitialized) {
+                    window._longPressInitialized = true;
+                    let longPressTimer = null;
+                    let longPressTarget = null;
+                    const LONG_PRESS_DURATION = 500;
+
+                    document.addEventListener('touchstart', (e) => {
+                        if (e.touches.length !== 1) return;
+                        longPressTarget = e.target;
+                        const touch = e.touches[0];
+                        longPressTimer = setTimeout(() => {
+                            const contextEvent = new MouseEvent('contextmenu', {
+                                bubbles: true,
+                                cancelable: true,
+                                clientX: touch.clientX,
+                                clientY: touch.clientY,
+                                screenX: touch.screenX,
+                                screenY: touch.screenY
+                            });
+                            longPressTarget.dispatchEvent(contextEvent);
+                            longPressTarget = null;
+                        }, LONG_PRESS_DURATION);
+                    }, { passive: true });
+
+                    document.addEventListener('touchmove', () => {
+                        if (longPressTimer) {
+                            clearTimeout(longPressTimer);
+                            longPressTimer = null;
+                        }
+                    }, { passive: true });
+
+                    document.addEventListener('touchend', () => {
+                        if (longPressTimer) {
+                            clearTimeout(longPressTimer);
+                            longPressTimer = null;
+                        }
+                    }, { passive: true });
+
+                    document.addEventListener('touchcancel', () => {
+                        if (longPressTimer) {
+                            clearTimeout(longPressTimer);
+                            longPressTimer = null;
+                        }
+                    }, { passive: true });
+
+                    console.log('[JSTorrent] Long-press to contextmenu initialized');
                 }
             })();
         """.trimIndent()
@@ -258,5 +320,32 @@ class StandaloneActivity : ComponentActivity() {
             @Suppress("DEPRECATION")
             super.onBackPressed()
         }
+    }
+
+    // Prevent native context menu on right-click - let JavaScript handle it
+    override fun onCreateContextMenu(menu: ContextMenu?, v: View?, menuInfo: ContextMenu.ContextMenuInfo?) {
+        // Do nothing - don't call super, don't create menu
+    }
+
+    // Intercept mouse right-click (secondary button) to prevent system "back" behavior
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        // Check for secondary button (right-click) press
+        if (event.actionMasked == MotionEvent.ACTION_BUTTON_PRESS &&
+            event.actionButton == MotionEvent.BUTTON_SECONDARY) {
+            Log.d(TAG, "Right-click intercepted, letting WebView handle via JS contextmenu")
+            // Don't consume - let it reach WebView so JS contextmenu event fires
+            return super.dispatchGenericMotionEvent(event)
+        }
+        return super.dispatchGenericMotionEvent(event)
+    }
+
+    // Intercept back button which might be triggered by right-click on emulators
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_DOWN) {
+            Log.d(TAG, "Back key: source=${event.source}, repeat=${event.repeatCount}")
+            // Emulator maps right-click to back - let onBackPressed handle it instead
+            // This prevents the activity from being finished before we can check webView.canGoBack()
+        }
+        return super.dispatchKeyEvent(event)
     }
 }
