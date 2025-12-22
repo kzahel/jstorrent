@@ -4,6 +4,7 @@ import { useSettings } from '../context/SettingsContext'
 import type { Settings, SettingKey, UPnPStatus } from '@jstorrent/engine'
 import { clearAllUISettings } from '@jstorrent/ui'
 import type { IEngineManager } from '../engine-manager/types'
+import { standaloneConfirm, standaloneAlert } from '../utils/dialogs'
 
 // Chrome extension API may not be available in non-extension contexts
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,21 +115,18 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   const handleRemoveRoot = async (key: string) => {
     console.log('[SettingsOverlay] handleRemoveRoot called:', key, 'fileOps:', !!fileOps)
     if (!fileOps) {
-      console.warn('[SettingsOverlay] fileOps is null - supportsFileOperations:', engineManager.supportsFileOperations)
+      console.warn(
+        '[SettingsOverlay] fileOps is null - supportsFileOperations:',
+        engineManager.supportsFileOperations,
+      )
       return
     }
     const root = roots.find((r) => r.key === key)
 
-    // Note: window.confirm may not work properly in Android WebView
-    // Skip confirmation for standalone Android for now
-    // TODO: Replace with a proper React modal dialog
-    let confirmed = true
-    if (!engineManager.isStandalone) {
-      confirmed = window.confirm(
-        `Remove download location "${root?.label || key}"?\n\n` +
-          'Existing downloads using this location will need to be moved or removed.',
-      )
-    }
+    const confirmed = standaloneConfirm(
+      `Remove download location "${root?.label || key}"?\n\n` +
+        'Existing downloads using this location will need to be moved or removed.',
+    )
     console.log('[SettingsOverlay] confirmed:', confirmed)
     if (!confirmed) return
 
@@ -138,13 +136,13 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
     if (success) {
       await reloadRoots()
     } else {
-      alert('Failed to remove download location.')
+      standaloneAlert('Failed to remove download location.')
     }
   }
 
   // Handle reset UI settings
   const handleResetUISettings = () => {
-    const confirmed = window.confirm(
+    const confirmed = standaloneConfirm(
       'Reset all user interface settings to defaults?\n\n' +
         'This will restore default column configurations for all tables.\n' +
         'The page will reload to apply changes.',
@@ -157,7 +155,7 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
 
   // Handle reset all settings
   const handleResetAllSettings = async () => {
-    const confirmed = window.confirm(
+    const confirmed = standaloneConfirm(
       'Reset ALL settings to their default values?\n\n' +
         'This includes network limits, notification preferences, theme, and UI layout.\n' +
         'Your download locations and downloaded files will not be affected.\n\n' +
@@ -449,7 +447,6 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
           disabled={isStandalone}
         />
       </Section>
-
     </div>
   )
 }

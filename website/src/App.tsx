@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const chromeApi = (globalThis as any).chrome as any
+
 const EXTENSION_ID = 'dbokmlpefliilbjldladbimlcfgbolhk'
 const WEBSTORE_URL = `https://chromewebstore.google.com/detail/jstorrent/${EXTENSION_ID}`
 
@@ -46,15 +49,12 @@ function App() {
     // Check extension status with comprehensive info
     const checkExtension = () => {
       try {
-        // @ts-expect-error - chrome is not defined in standard web types
-        if (window.chrome && window.chrome.runtime) {
-          // @ts-expect-error - sendMessage is valid
-          window.chrome.runtime.sendMessage(
+        if (chromeApi && chromeApi.runtime) {
+          chromeApi.runtime.sendMessage(
             EXTENSION_ID,
             { type: 'status' },
             (response: StatusResponse | undefined) => {
-              // @ts-expect-error - lastError is valid
-              if (window.chrome.runtime.lastError || !response) {
+              if (chromeApi.runtime.lastError || !response) {
                 setExtensionInstalled(false)
                 setStatus(null)
               } else {
@@ -83,10 +83,8 @@ function App() {
 
   const handleLaunch = async () => {
     try {
-      // @ts-expect-error - chrome is not defined in standard web types
-      if (window.chrome && window.chrome.runtime) {
-        // @ts-expect-error - sendMessage is valid
-        window.chrome.runtime.sendMessage(
+      if (chromeApi && chromeApi.runtime) {
+        chromeApi.runtime.sendMessage(
           EXTENSION_ID,
           { type: 'launch-ping' },
           (response: unknown) => {

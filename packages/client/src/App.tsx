@@ -14,6 +14,7 @@ import { SettingsOverlay } from './components/SettingsOverlay'
 import { useChromeOSBootstrap } from './hooks/useChromeOSBootstrap'
 import { notificationBridge } from './chrome/notification-bridge'
 import { AppContent } from './AppContent'
+import { standaloneAlert } from './utils/dialogs'
 
 // Re-export types for backwards compatibility
 export type { AppContentProps, FileInfo } from './AppContent'
@@ -30,19 +31,19 @@ function ChromeAppContent({ onOpenLoggingSettings }: { onOpenLoggingSettings?: (
       onOpenFolder={async (torrentHash) => {
         const result = await engineManager.openTorrentFolder(torrentHash)
         if (!result.ok) {
-          alert(`Failed to open folder: ${result.error}`)
+          standaloneAlert(`Failed to open folder: ${result.error}`)
         }
       }}
       onOpenFile={async (torrentHash, file) => {
         const result = await engineManager.openFile(torrentHash, file.path)
         if (!result.ok) {
-          alert(`Failed to open file: ${result.error}`)
+          standaloneAlert(`Failed to open file: ${result.error}`)
         }
       }}
       onRevealInFolder={async (torrentHash, file) => {
         const result = await engineManager.revealInFolder(torrentHash, file.path)
         if (!result.ok) {
-          alert(`Failed to reveal in folder: ${result.error}`)
+          standaloneAlert(`Failed to reveal in folder: ${result.error}`)
         }
       }}
       onCopyFilePath={async (torrentHash, file) => {
@@ -50,7 +51,7 @@ function ChromeAppContent({ onOpenLoggingSettings }: { onOpenLoggingSettings?: (
         if (fullPath) {
           await navigator.clipboard.writeText(fullPath)
         } else {
-          alert('Failed to get file path: storage root not found')
+          standaloneAlert('Failed to get file path: storage root not found')
         }
       }}
       shareUrl={import.meta.env.SHARE_URL}

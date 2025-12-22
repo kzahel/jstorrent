@@ -122,6 +122,33 @@ export default tseslint.config(
       ],
     },
   },
+  // Prevent chrome-specific imports in core/standalone-safe code
+  // These files should work in Android WebView without Chrome extension APIs
+  {
+    files: [
+      'packages/client/src/utils/**/*.{ts,tsx}',
+      'packages/client/src/adapters/**/*.{ts,tsx}',
+      'packages/client/src/core.ts',
+      'packages/client/src/android.ts',
+      'packages/client/src/AppContent.tsx',
+      'packages/client/src/engine-manager/types.ts',
+      'packages/client/src/engine-manager/android-standalone-engine-manager.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/chrome/*', '**/chrome/**'],
+              message:
+                'Chrome-specific imports are banned in core/standalone code. This file must work without Chrome extension APIs.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // IMPORTANT: Keep this last to disable formatting rules that conflict with Prettier
   // This must come after all other configs to properly override formatting rules
   prettierConfig,

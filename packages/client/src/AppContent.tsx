@@ -20,6 +20,7 @@ import {
 } from '@jstorrent/ui'
 import { useEngineState } from './hooks/useEngineState'
 import { copyTextToClipboard } from './utils/clipboard'
+import { standaloneAlert } from './utils/dialogs'
 
 interface ContextMenuState {
   x: number
@@ -190,7 +191,7 @@ export function AppContent({
     setConfirmRemoveAll(null)
     setSelectedTorrents(new Set())
     if (errors.length > 0) {
-      alert(
+      standaloneAlert(
         `Some files could not be deleted:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...and ${errors.length - 5} more` : ''}`,
       )
     }
