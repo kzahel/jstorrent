@@ -222,11 +222,13 @@ class SocketSession(
                     val authType = if (isStandaloneAuth) "standalone" else "extension"
                     Log.i(TAG, "WebSocket authenticated ($authType, ${sessionType.name})")
 
-                    // Only register control sessions for broadcasts (not standalone)
-                    if (sessionType == SessionType.CONTROL && isExtensionAuth) {
+                    // Register all control sessions for broadcasts (ROOTS_CHANGED, EVENT)
+                    if (sessionType == SessionType.CONTROL) {
                         httpServer.registerControlSession(this@SocketSession)
-                        // Notify PendingLinkManager that a control connection is available
-                        com.jstorrent.app.link.PendingLinkManager.notifyConnectionEstablished()
+                        // Extension-only: notify PendingLinkManager for intent handling
+                        if (isExtensionAuth) {
+                            com.jstorrent.app.link.PendingLinkManager.notifyConnectionEstablished()
+                        }
                     }
                 } else {
                     val errorMsg = "Invalid credentials".toByteArray()

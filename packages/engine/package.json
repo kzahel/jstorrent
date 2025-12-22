@@ -13,6 +13,10 @@
     "./adapters/android": {
       "types": "./dist/adapters/android/index.d.ts",
       "import": "./dist/adapters/android/index.js"
+    },
+    "./adapters/daemon/control-connection": {
+      "types": "./dist/adapters/daemon/control-connection.d.ts",
+      "import": "./dist/adapters/daemon/control-connection.js"
     }
   },
   "scripts": {
