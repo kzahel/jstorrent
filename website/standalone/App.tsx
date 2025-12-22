@@ -119,14 +119,14 @@ function StandaloneAppInner({
       for (let i = 0; i < binary.length; i++) {
         bytes[i] = binary.charCodeAt(i)
       }
-      // TODO: Add torrent from bytes when API supports it
+      engine?.addTorrent(bytes).catch(console.error)
     }
 
     return () => {
       window.handleMagnet = undefined
       window.handleTorrentFile = undefined
     }
-  }, [isReady, addMagnet])
+  }, [isReady, addMagnet, engine])
 
   const handlePause = useCallback(
     (id: string) => {
