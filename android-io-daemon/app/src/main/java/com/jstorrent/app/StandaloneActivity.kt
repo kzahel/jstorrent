@@ -111,6 +111,12 @@ class StandaloneActivity : ComponentActivity() {
                     if (url.scheme == "jstorrent") {
                         when (url.host) {
                             "add-root" -> openFolderPicker()
+                            "switch-ui" -> {
+                                val mode = url.getQueryParameter("mode") ?: return false
+                                Log.i(TAG, "Switching UI to: $mode")
+                                tokenStore.uiMode = mode
+                                loadUI()
+                            }
                         }
                         return true // We handled it
                     }

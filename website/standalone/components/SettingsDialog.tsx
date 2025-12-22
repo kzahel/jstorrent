@@ -64,6 +64,18 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           </button>
         </div>
 
+        <div className="settings-row">
+          <span className="settings-label">Interface</span>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              window.location.href = 'jstorrent://switch-ui?mode=full'
+            }}
+          >
+            Switch to Full Interface
+          </button>
+        </div>
+
         <div className="dialog-actions" style={{ marginTop: '20px' }}>
           <button className="btn-primary" onClick={onClose}>
             Done

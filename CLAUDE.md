@@ -143,15 +143,25 @@ Sometimes Chrome unloads the extension. Re-load manually:
 Deploy the Android IO daemon to ChromeOS:
 
 ```bash
-./scripts/deploy-android-chromebook.sh          # Debug build
-./scripts/deploy-android-chromebook.sh release  # Release build
+./scripts/deploy-android-chromebook.sh              # Debug build
+./scripts/deploy-android-chromebook.sh release      # Release build
+./scripts/deploy-android-chromebook.sh --forward    # Debug + dev server forwarding
+./scripts/deploy-android-chromebook.sh release -f   # Release + dev server forwarding
 ```
 
 This builds the APK locally, copies to Chromebook (at `~/code/jstorrent-monorepo/android-io-daemon/`), and installs via ADB.
 
+**Dev server port forwarding (`--forward` or `-f`):**
+For debug builds that load from `localhost:3000`, use `--forward` to set up:
+1. SSH reverse tunnel: Your dev server → Chromebook's localhost:3000
+2. ADB reverse: Chromebook localhost:3000 → Android's localhost:3000
+
+The SSH tunnel runs in the background. To stop it: `pkill -f 'ssh.*-R 3000.*chromebook'`
+
 **Environment variables:**
 - `CHROMEBOOK_HOST` - SSH host (default: `chromebook`)
 - `REMOTE_PROJECT_DIR` - Path on Chromebook (default: `/home/graehlarts/code/jstorrent-monorepo/android-io-daemon`)
+- `DEV_SERVER_PORT` - Port to forward for dev server (default: `3000`)
 - `REMOTE_ADB` - Full path to adb on Chromebook (default: `/home/graehlarts/android-sdk/platform-tools/adb`)
 
 **ADB path on Chromebook:** `/home/graehlarts/android-sdk/platform-tools/adb`

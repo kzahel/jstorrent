@@ -434,6 +434,27 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
           disabled={isStandalone}
         />
       </Section>
+
+      {isStandalone && (
+        <Section title="Interface">
+          <div style={styles.fieldRow}>
+            <div style={{ flex: 1 }}>
+              <div>Interface Mode</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                Currently using the full-featured interface
+              </div>
+            </div>
+            <button
+              style={styles.addButton}
+              onClick={() => {
+                window.location.href = 'jstorrent://switch-ui?mode=standalone'
+              }}
+            >
+              Switch to Light
+            </button>
+          </div>
+        </Section>
+      )}
     </div>
   )
 }

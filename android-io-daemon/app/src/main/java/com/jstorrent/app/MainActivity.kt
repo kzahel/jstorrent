@@ -15,6 +15,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -140,6 +142,9 @@ class MainActivity : ComponentActivity() {
                             tokenStore.clear()
                             isPaired.value = false
                             backgroundModeEnabled.value = false
+                        },
+                        onLaunchStandalone = {
+                            startActivity(Intent(this@MainActivity, StandaloneActivity::class.java))
                         }
                     )
                 } else {
@@ -345,7 +350,8 @@ fun MainScreen(
     hasNotificationPermission: Boolean,
     onBackgroundModeToggle: (Boolean) -> Unit,
     onBackToJSTorrent: () -> Unit,
-    onUnpair: () -> Unit
+    onUnpair: () -> Unit,
+    onLaunchStandalone: () -> Unit
 ) {
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Column(
@@ -454,6 +460,44 @@ fun MainScreen(
 
                 OutlinedButton(onClick = onUnpair) {
                     Text("Unpair")
+                }
+
+                // More Options section (collapsed by default)
+                var showMoreOptions by remember { mutableStateOf(false) }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                TextButton(onClick = { showMoreOptions = !showMoreOptions }) {
+                    Text(if (showMoreOptions) "Hide Options" else "More Options")
+                }
+
+                if (showMoreOptions) {
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Experimental: Standalone Mode",
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Run JSTorrent directly in this app without the browser extension. " +
+                                       "Downloads will only work while this app is open.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedButton(onClick = onLaunchStandalone) {
+                                Text("Launch Standalone Mode")
+                            }
+                        }
+                    }
                 }
             } else {
                 // Unpaired state

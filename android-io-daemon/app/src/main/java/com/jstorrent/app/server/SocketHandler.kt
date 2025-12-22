@@ -589,7 +589,8 @@ class SocketSession(
                 // MulticastSocket works for both unicast and multicast
                 val socket = MulticastSocket(port)
                 socket.reuseAddress = true
-                socket.timeToLive = 1  // LAN only for multicast
+                // Don't set timeToLive - use system default (typically 64)
+                // TTL=1 was intended for multicast only but may affect unicast on some Android implementations
                 val boundPort = socket.localPort
 
                 val handler = UdpSocketHandler(socketId, socket, this@SocketSession)
