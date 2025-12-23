@@ -39,4 +39,6 @@ dependencies {
     implementation(libs.androidx.documentfile)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
