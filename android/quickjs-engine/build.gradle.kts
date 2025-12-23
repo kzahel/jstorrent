@@ -56,6 +56,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.core.ktx)  // For @Keep annotation
 
+    // io-core for native bindings (TCP, UDP, File, Hash)
+    implementation(project(":io-core"))
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)

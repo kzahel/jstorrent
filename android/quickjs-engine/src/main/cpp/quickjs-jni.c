@@ -9,6 +9,57 @@
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 
 // -----------------------------------------------------------------------------
+// ArrayBuffer helpers
+// -----------------------------------------------------------------------------
+
+/**
+ * Convert Java ByteArray to JS ArrayBuffer.
+ * Returns JS_UNDEFINED if data is NULL.
+ */
+static JSValue byte_array_to_array_buffer(JSContext *ctx, JNIEnv *env, jbyteArray data) {
+    if (!data) {
+        return JS_UNDEFINED;
+    }
+    jsize len = (*env)->GetArrayLength(env, data);
+    jbyte *bytes = (*env)->GetByteArrayElements(env, data, NULL);
+
+    JSValue arrayBuffer = JS_NewArrayBufferCopy(ctx, (uint8_t *)bytes, len);
+
+    (*env)->ReleaseByteArrayElements(env, data, bytes, JNI_ABORT);
+    return arrayBuffer;
+}
+
+/**
+ * Convert JS ArrayBuffer to Java ByteArray.
+ * Returns NULL if val is not an ArrayBuffer.
+ */
+static jbyteArray array_buffer_to_byte_array(JSContext *ctx, JNIEnv *env, JSValue val) {
+    size_t len;
+    uint8_t *buf = JS_GetArrayBuffer(ctx, &len, val);
+
+    if (!buf) {
+        // Try getting from typed array (e.g., Uint8Array)
+        size_t offset, elem_size;
+        JSValue abuf = JS_GetTypedArrayBuffer(ctx, val, &offset, &len, &elem_size);
+        if (!JS_IsException(abuf)) {
+            buf = JS_GetArrayBuffer(ctx, &len, abuf);
+            JS_FreeValue(ctx, abuf);
+            if (buf) {
+                buf += offset;
+            }
+        }
+    }
+
+    if (!buf) {
+        return NULL;
+    }
+
+    jbyteArray result = (*env)->NewByteArray(env, (jsize)len);
+    (*env)->SetByteArrayRegion(env, result, 0, (jsize)len, (jbyte *)buf);
+    return result;
+}
+
+// -----------------------------------------------------------------------------
 // Callback class for storing Kotlin callbacks
 // -----------------------------------------------------------------------------
 static JSClassID js_callback_class_id = 0;
@@ -311,4 +362,262 @@ Java_com_jstorrent_quickjs_QuickJsContext_nativeExecutePendingJob(JNIEnv *env, j
     JSContext *ctx2;
     int ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx2);
     return ret > 0 ? JNI_TRUE : JNI_FALSE;
+}
+
+// -----------------------------------------------------------------------------
+// Binary callback class for storing Kotlin callbacks that receive ByteArray
+// -----------------------------------------------------------------------------
+static JSClassID js_binary_callback_class_id = 0;
+
+typedef struct {
+    JavaVM *jvm;
+    jobject callback;           // Global ref to Kotlin callback
+    jmethodID invokeMethod;
+    int binaryArgIndex;         // Which argument is the ArrayBuffer (-1 = none)
+    int returnsBinary;          // Whether the callback returns ByteArray
+} JsBinaryCallbackData;
+
+static void js_binary_callback_finalizer(JSRuntime *rt, JSValue val) {
+    (void)rt;
+    JsBinaryCallbackData *data = (JsBinaryCallbackData *)JS_GetOpaque(val, js_binary_callback_class_id);
+    if (data) {
+        JNIEnv *env = NULL;
+        jint status = (*data->jvm)->GetEnv(data->jvm, (void **)&env, JNI_VERSION_1_6);
+        if (status == JNI_OK && env) {
+            (*env)->DeleteGlobalRef(env, data->callback);
+        }
+        free(data);
+        LOGD("Binary callback data finalized");
+    }
+}
+
+static JSClassDef js_binary_callback_class = {
+    "JsBinaryCallbackData",
+    .finalizer = js_binary_callback_finalizer,
+};
+
+// -----------------------------------------------------------------------------
+// JS function that calls back to Kotlin with binary data support
+// -----------------------------------------------------------------------------
+static JSValue js_kotlin_binary_callback(
+    JSContext *ctx,
+    JSValueConst this_val,
+    int argc,
+    JSValueConst *argv,
+    int magic,
+    JSValue *func_data
+) {
+    (void)this_val;
+    (void)magic;
+
+    JsBinaryCallbackData *data = (JsBinaryCallbackData *)JS_GetOpaque(*func_data, js_binary_callback_class_id);
+    if (!data) {
+        return JS_ThrowInternalError(ctx, "Binary callback data not found");
+    }
+
+    JNIEnv *env;
+    int attached = 0;
+
+    jint status = (*data->jvm)->GetEnv(data->jvm, (void **)&env, JNI_VERSION_1_6);
+    if (status == JNI_EDETACHED) {
+        (*data->jvm)->AttachCurrentThread(data->jvm, &env, NULL);
+        attached = 1;
+    }
+
+    // Build string args array (for non-binary args)
+    jclass stringClass = (*env)->FindClass(env, "java/lang/String");
+    jobjectArray jargs = (*env)->NewObjectArray(env, argc, stringClass, NULL);
+
+    jbyteArray binaryArg = NULL;
+
+    for (int i = 0; i < argc; i++) {
+        if (i == data->binaryArgIndex) {
+            // This arg is binary - convert to ByteArray
+            binaryArg = array_buffer_to_byte_array(ctx, env, argv[i]);
+            // Put placeholder in string array
+            (*env)->SetObjectArrayElement(env, jargs, i, NULL);
+        } else {
+            const char *str = JS_ToCString(ctx, argv[i]);
+            if (str) {
+                jstring jstr = (*env)->NewStringUTF(env, str);
+                (*env)->SetObjectArrayElement(env, jargs, i, jstr);
+                (*env)->DeleteLocalRef(env, jstr);
+                JS_FreeCString(ctx, str);
+            }
+        }
+    }
+
+    JSValue result = JS_UNDEFINED;
+
+    if (data->returnsBinary) {
+        // Call: invoke(args: Array<String>, binary: ByteArray?): ByteArray?
+        jbyteArray jresult = (jbyteArray)(*env)->CallObjectMethod(
+            env, data->callback, data->invokeMethod, jargs, binaryArg);
+
+        if (jresult) {
+            result = byte_array_to_array_buffer(ctx, env, jresult);
+            (*env)->DeleteLocalRef(env, jresult);
+        }
+    } else {
+        // Call: invoke(args: Array<String>, binary: ByteArray?): String?
+        jstring jresult = (jstring)(*env)->CallObjectMethod(
+            env, data->callback, data->invokeMethod, jargs, binaryArg);
+
+        if (jresult) {
+            const char *resultStr = (*env)->GetStringUTFChars(env, jresult, NULL);
+            result = JS_NewString(ctx, resultStr);
+            (*env)->ReleaseStringUTFChars(env, jresult, resultStr);
+            (*env)->DeleteLocalRef(env, jresult);
+        }
+    }
+
+    if (binaryArg) (*env)->DeleteLocalRef(env, binaryArg);
+    (*env)->DeleteLocalRef(env, jargs);
+
+    if (attached) {
+        (*data->jvm)->DetachCurrentThread(data->jvm);
+    }
+
+    return result;
+}
+
+// -----------------------------------------------------------------------------
+// JNI: Set a global function that handles binary data
+// binaryArgIndex: which argument is ArrayBuffer (-1 = none)
+// returnsBinary: if true, callback returns ByteArray; otherwise String
+// -----------------------------------------------------------------------------
+JNIEXPORT void JNICALL
+Java_com_jstorrent_quickjs_QuickJsContext_nativeSetGlobalFunctionWithBinary(
+    JNIEnv *env,
+    jclass clazz,
+    jlong ctxPtr,
+    jstring name,
+    jobject callback,
+    jint binaryArgIndex,
+    jboolean returnsBinary
+) {
+    (void)clazz;
+
+    JSContext *ctx = (JSContext *)(intptr_t)ctxPtr;
+    JSRuntime *rt = JS_GetRuntime(ctx);
+
+    // Register binary callback class if not yet registered
+    if (js_binary_callback_class_id == 0) {
+        JS_NewClassID(rt, &js_binary_callback_class_id);
+        JS_NewClass(rt, js_binary_callback_class_id, &js_binary_callback_class);
+    }
+
+    JavaVM *jvm;
+    (*env)->GetJavaVM(env, &jvm);
+
+    JsBinaryCallbackData *data = malloc(sizeof(JsBinaryCallbackData));
+    data->jvm = jvm;
+    data->callback = (*env)->NewGlobalRef(env, callback);
+    data->binaryArgIndex = binaryArgIndex;
+    data->returnsBinary = returnsBinary ? 1 : 0;
+
+    jclass callbackClass = (*env)->GetObjectClass(env, callback);
+    if (returnsBinary) {
+        // invoke(Array<String>, ByteArray?): ByteArray?
+        data->invokeMethod = (*env)->GetMethodID(env, callbackClass, "invoke",
+            "([Ljava/lang/String;[B)[B");
+    } else {
+        // invoke(Array<String>, ByteArray?): String?
+        data->invokeMethod = (*env)->GetMethodID(env, callbackClass, "invoke",
+            "([Ljava/lang/String;[B)Ljava/lang/String;");
+    }
+
+    JSValue funcData = JS_NewObjectClass(ctx, js_binary_callback_class_id);
+    JS_SetOpaque(funcData, data);
+
+    JSValue func = JS_NewCFunctionData(ctx, js_kotlin_binary_callback, 0, 0, 1, &funcData);
+    JS_FreeValue(ctx, funcData);
+
+    const char *nameStr = (*env)->GetStringUTFChars(env, name, NULL);
+    JSValue global = JS_GetGlobalObject(ctx);
+    JS_SetPropertyStr(ctx, global, nameStr, func);
+    JS_FreeValue(ctx, global);
+
+    LOGD("Registered binary global function: %s (binaryArg=%d, returnsBinary=%d)",
+         nameStr, binaryArgIndex, returnsBinary);
+    (*env)->ReleaseStringUTFChars(env, name, nameStr);
+}
+
+// -----------------------------------------------------------------------------
+// JNI: Call a global JS function from Kotlin
+// Returns the result as a Java object (String, Boolean, Integer, Double, ByteArray, or null)
+// -----------------------------------------------------------------------------
+JNIEXPORT jobject JNICALL
+Java_com_jstorrent_quickjs_QuickJsContext_nativeCallGlobalFunction(
+    JNIEnv *env,
+    jclass clazz,
+    jlong ctxPtr,
+    jstring funcName,
+    jobjectArray args,
+    jbyteArray binaryArg,
+    jint binaryArgIndex
+) {
+    (void)clazz;
+
+    JSContext *ctx = (JSContext *)(intptr_t)ctxPtr;
+
+    // Get the global function
+    const char *funcNameStr = (*env)->GetStringUTFChars(env, funcName, NULL);
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue func = JS_GetPropertyStr(ctx, global, funcNameStr);
+    (*env)->ReleaseStringUTFChars(env, funcName, funcNameStr);
+
+    if (!JS_IsFunction(ctx, func)) {
+        JS_FreeValue(ctx, func);
+        JS_FreeValue(ctx, global);
+        return NULL;  // Function not found
+    }
+
+    // Build args array
+    int argc = args ? (*env)->GetArrayLength(env, args) : 0;
+    JSValue *jsArgs = argc > 0 ? malloc(sizeof(JSValue) * argc) : NULL;
+
+    for (int i = 0; i < argc; i++) {
+        if (i == binaryArgIndex && binaryArg) {
+            jsArgs[i] = byte_array_to_array_buffer(ctx, env, binaryArg);
+        } else {
+            jstring jstr = (jstring)(*env)->GetObjectArrayElement(env, args, i);
+            if (jstr) {
+                const char *str = (*env)->GetStringUTFChars(env, jstr, NULL);
+                jsArgs[i] = JS_NewString(ctx, str);
+                (*env)->ReleaseStringUTFChars(env, jstr, str);
+                (*env)->DeleteLocalRef(env, jstr);
+            } else {
+                jsArgs[i] = JS_UNDEFINED;
+            }
+        }
+    }
+
+    // Call the function
+    JSValue result = JS_Call(ctx, func, global, argc, jsArgs);
+
+    // Free args
+    for (int i = 0; i < argc; i++) {
+        JS_FreeValue(ctx, jsArgs[i]);
+    }
+    if (jsArgs) free(jsArgs);
+    JS_FreeValue(ctx, func);
+    JS_FreeValue(ctx, global);
+
+    if (JS_IsException(result)) {
+        throw_js_exception(env, ctx);
+        return NULL;
+    }
+
+    // Convert result - check for ArrayBuffer first
+    jbyteArray binaryResult = array_buffer_to_byte_array(ctx, env, result);
+    if (binaryResult) {
+        JS_FreeValue(ctx, result);
+        return binaryResult;
+    }
+
+    jobject jresult = js_value_to_jobject(env, ctx, result);
+    JS_FreeValue(ctx, result);
+
+    return jresult;
 }

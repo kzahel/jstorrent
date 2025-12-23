@@ -474,15 +474,28 @@ see docs/tasks/2025-12-23-phase2-quickjs-jni-wrapper.md
 - Create esbuild config for QuickJS bundle (ES2020, single file)
 - Test: Bundle builds, loads in QuickJS without errors
 
-### Phase 3b: Kotlin Native Bindings
-- Extend QuickJsContext with `callGlobalFunction(name, ...args)` for Kotlin → JS
-- Implement bidirectional callback mechanism (dedicated QuickJS thread + handler)
-- Create `NativeBindings.kt` - register `__jstorrent_*` functions
-- Wire to io-core (TcpSocketManager, etc.)
+### Phase 3b: TCP Bindings (Core Pattern)
+- Extend QuickJsContext: Kotlin → JS callback mechanism
+- Binary data handling (ArrayBuffer ↔ ByteArray)
+- Implement TCP bindings only (7 functions)
+- Wire to TcpSocketManager from io-core
 - **Verification (emulator):** 
-  - Register bindings, initialize engine
-  - Call `engine.createTcpSocket()`, connect to test server
-  - Verify onConnected callback fires
+  - JS connects to test server
+  - Sends data, receives response
+  - onData/onClose callbacks fire correctly
+
+### Phase 3c: Remaining Bindings
+- UDP bindings (5 functions) → UdpSocketManager
+- File bindings (4 functions) → FileManager  
+- Hashing (1 function) → Hasher
+- Storage (4 functions) → SharedPreferences
+- Text encoding (2 functions)
+- Timers (2 functions)
+- Crypto (1 function)
+- **Verification (emulator):**
+  - UDP tracker announce works
+  - File write/read roundtrip works
+  - SHA1 hash matches expected
 
 ### Phase 4: Engine Integration
 - Create `EngineService.kt` (foreground service)

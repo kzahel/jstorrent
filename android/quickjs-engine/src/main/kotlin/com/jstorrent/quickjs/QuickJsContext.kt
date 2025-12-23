@@ -43,6 +43,24 @@ class QuickJsContext private constructor(
 
         @JvmStatic
         private external fun nativeExecutePendingJob(ctxPtr: Long): Boolean
+
+        @JvmStatic
+        private external fun nativeSetGlobalFunctionWithBinary(
+            ctxPtr: Long,
+            name: String,
+            callback: Any,
+            binaryArgIndex: Int,
+            returnsBinary: Boolean
+        )
+
+        @JvmStatic
+        private external fun nativeCallGlobalFunction(
+            ctxPtr: Long,
+            funcName: String,
+            args: Array<String?>?,
+            binaryArg: ByteArray?,
+            binaryArgIndex: Int
+        ): Any?
     }
 
     /**
@@ -73,6 +91,93 @@ class QuickJsContext private constructor(
     fun setGlobalFunction(name: String, callback: (Array<String>) -> String?) {
         checkNotClosed()
         nativeSetGlobalFunction(contextPtr, name, JsCallback(callback))
+    }
+
+    /**
+     * Register a global function that receives binary data (ArrayBuffer) at a specific argument position.
+     *
+     * @param name The function name in JavaScript
+     * @param binaryArgIndex Which argument is an ArrayBuffer (0-indexed)
+     * @param callback Receives string args array and the binary data; returns String
+     */
+    fun setGlobalFunctionWithBinary(
+        name: String,
+        binaryArgIndex: Int,
+        callback: (args: Array<String>, binary: ByteArray?) -> String?
+    ) {
+        checkNotClosed()
+        nativeSetGlobalFunctionWithBinary(
+            contextPtr,
+            name,
+            JsBinaryCallback(callback),
+            binaryArgIndex,
+            false
+        )
+    }
+
+    /**
+     * Register a global function that receives binary data and returns binary data.
+     *
+     * @param name The function name in JavaScript
+     * @param binaryArgIndex Which argument is an ArrayBuffer (-1 for none)
+     * @param callback Receives string args array and the binary data; returns ByteArray
+     */
+    fun setGlobalFunctionReturnsBinary(
+        name: String,
+        binaryArgIndex: Int = -1,
+        callback: (args: Array<String>, binary: ByteArray?) -> ByteArray?
+    ) {
+        checkNotClosed()
+        nativeSetGlobalFunctionWithBinary(
+            contextPtr,
+            name,
+            JsBinaryReturnCallback(callback),
+            binaryArgIndex,
+            true
+        )
+    }
+
+    /**
+     * Call a global JavaScript function from Kotlin.
+     *
+     * @param funcName The name of the global function to call
+     * @param args String arguments to pass
+     * @return The result (Boolean, Int, Double, String, ByteArray, or null)
+     */
+    fun callGlobalFunction(funcName: String, vararg args: String?): Any? {
+        checkNotClosed()
+        return nativeCallGlobalFunction(
+            contextPtr,
+            funcName,
+            if (args.isEmpty()) null else args.toList().toTypedArray(),
+            null,
+            -1
+        )
+    }
+
+    /**
+     * Call a global JavaScript function with a binary argument.
+     *
+     * @param funcName The name of the global function to call
+     * @param binaryArg The binary data to pass
+     * @param binaryArgIndex Position of the binary argument
+     * @param args String arguments (binary position will be null)
+     * @return The result (Boolean, Int, Double, String, ByteArray, or null)
+     */
+    fun callGlobalFunctionWithBinary(
+        funcName: String,
+        binaryArg: ByteArray,
+        binaryArgIndex: Int,
+        vararg args: String?
+    ): Any? {
+        checkNotClosed()
+        return nativeCallGlobalFunction(
+            contextPtr,
+            funcName,
+            if (args.isEmpty()) null else args.toList().toTypedArray(),
+            binaryArg,
+            binaryArgIndex
+        )
     }
 
     /**
@@ -131,4 +236,26 @@ internal class JsCallback(
 ) {
     @Keep
     fun invoke(args: Array<String>): String? = callback(args)
+}
+
+/**
+ * Callback for JS -> Kotlin calls with binary data, returning String.
+ */
+@Keep
+internal class JsBinaryCallback(
+    private val callback: (Array<String>, ByteArray?) -> String?
+) {
+    @Keep
+    fun invoke(args: Array<String>, binary: ByteArray?): String? = callback(args, binary)
+}
+
+/**
+ * Callback for JS -> Kotlin calls with binary data, returning ByteArray.
+ */
+@Keep
+internal class JsBinaryReturnCallback(
+    private val callback: (Array<String>, ByteArray?) -> ByteArray?
+) {
+    @Keep
+    fun invoke(args: Array<String>, binary: ByteArray?): ByteArray? = callback(args, binary)
 }

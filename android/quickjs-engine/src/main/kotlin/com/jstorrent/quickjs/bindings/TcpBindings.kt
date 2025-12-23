@@ -1,0 +1,162 @@
+package com.jstorrent.quickjs.bindings
+
+import com.jstorrent.io.socket.TcpSocketCallback
+import com.jstorrent.io.socket.TcpSocketManager
+import com.jstorrent.quickjs.JsThread
+import com.jstorrent.quickjs.QuickJsContext
+
+/**
+ * TCP socket bindings for QuickJS.
+ *
+ * Implements the following native functions:
+ * - __jstorrent_tcp_connect(socketId, host, port)
+ * - __jstorrent_tcp_send(socketId, data)
+ * - __jstorrent_tcp_close(socketId)
+ * - __jstorrent_tcp_on_data(callback)
+ * - __jstorrent_tcp_on_close(callback)
+ * - __jstorrent_tcp_on_error(callback)
+ * - __jstorrent_tcp_on_connected(callback)
+ *
+ * Threading model:
+ * - JS calls to __jstorrent_tcp_* happen on the JS thread
+ * - TcpSocketCallback events come from I/O threads
+ * - Events are posted back to JS thread before invoking JS callbacks
+ */
+class TcpBindings(
+    private val jsThread: JsThread,
+    private val tcpManager: TcpSocketManager
+) {
+    // JS callback names - stored when JS registers callbacks
+    private var hasDataCallback = false
+    private var hasCloseCallback = false
+    private var hasErrorCallback = false
+    private var hasConnectedCallback = false
+
+    /**
+     * Register all TCP bindings on the given context.
+     */
+    fun register(ctx: QuickJsContext) {
+        registerCommandFunctions(ctx)
+        registerCallbackFunctions(ctx)
+        setupNativeCallbacks(ctx)
+    }
+
+    private fun registerCommandFunctions(ctx: QuickJsContext) {
+        // __jstorrent_tcp_connect(socketId: number, host: string, port: number): void
+        ctx.setGlobalFunction("__jstorrent_tcp_connect") { args ->
+            val socketId = args.getOrNull(0)?.toIntOrNull()
+            val host = args.getOrNull(1)
+            val port = args.getOrNull(2)?.toIntOrNull()
+
+            if (socketId != null && host != null && port != null) {
+                tcpManager.connect(socketId, host, port)
+            }
+            null
+        }
+
+        // __jstorrent_tcp_send(socketId: number, data: ArrayBuffer): void
+        ctx.setGlobalFunctionWithBinary("__jstorrent_tcp_send", 1) { args, binary ->
+            val socketId = args.getOrNull(0)?.toIntOrNull()
+
+            if (socketId != null && binary != null) {
+                tcpManager.send(socketId, binary)
+            }
+            null
+        }
+
+        // __jstorrent_tcp_close(socketId: number): void
+        ctx.setGlobalFunction("__jstorrent_tcp_close") { args ->
+            val socketId = args.getOrNull(0)?.toIntOrNull()
+            socketId?.let { tcpManager.close(it) }
+            null
+        }
+    }
+
+    private fun registerCallbackFunctions(ctx: QuickJsContext) {
+        // __jstorrent_tcp_on_data(callback): void
+        // The callback is stored on the JS side. We just track that it was registered.
+        ctx.setGlobalFunction("__jstorrent_tcp_on_data") { _ ->
+            hasDataCallback = true
+            null
+        }
+
+        // __jstorrent_tcp_on_close(callback): void
+        ctx.setGlobalFunction("__jstorrent_tcp_on_close") { _ ->
+            hasCloseCallback = true
+            null
+        }
+
+        // __jstorrent_tcp_on_error(callback): void
+        ctx.setGlobalFunction("__jstorrent_tcp_on_error") { _ ->
+            hasErrorCallback = true
+            null
+        }
+
+        // __jstorrent_tcp_on_connected(callback): void
+        ctx.setGlobalFunction("__jstorrent_tcp_on_connected") { _ ->
+            hasConnectedCallback = true
+            null
+        }
+    }
+
+    private fun setupNativeCallbacks(ctx: QuickJsContext) {
+        tcpManager.setCallback(object : TcpSocketCallback {
+            override fun onTcpConnected(socketId: Int, success: Boolean, errorCode: Int) {
+                if (!hasConnectedCallback) return
+
+                jsThread.post {
+                    // Call the JS dispatcher: __jstorrent_tcp_dispatch_connected(socketId, success, errorMessage)
+                    val errorMessage = if (!success) "Connection failed (code: $errorCode)" else ""
+                    ctx.callGlobalFunction(
+                        "__jstorrent_tcp_dispatch_connected",
+                        socketId.toString(),
+                        success.toString(),
+                        errorMessage
+                    )
+                }
+            }
+
+            override fun onTcpData(socketId: Int, data: ByteArray) {
+                if (!hasDataCallback) return
+
+                jsThread.post {
+                    // Call the JS dispatcher with binary data
+                    ctx.callGlobalFunctionWithBinary(
+                        "__jstorrent_tcp_dispatch_data",
+                        data,
+                        1,
+                        socketId.toString()
+                    )
+                }
+            }
+
+            override fun onTcpClose(socketId: Int, hadError: Boolean, errorCode: Int) {
+                // Send error callback first if there was an error
+                if (hadError && hasErrorCallback) {
+                    jsThread.post {
+                        ctx.callGlobalFunction(
+                            "__jstorrent_tcp_dispatch_error",
+                            socketId.toString(),
+                            "Socket error (code: $errorCode)"
+                        )
+                    }
+                }
+
+                if (hasCloseCallback) {
+                    jsThread.post {
+                        ctx.callGlobalFunction(
+                            "__jstorrent_tcp_dispatch_close",
+                            socketId.toString(),
+                            hadError.toString()
+                        )
+                    }
+                }
+            }
+
+            override fun onTcpSecured(socketId: Int, success: Boolean) {
+                // TLS upgrade - not exposed via bindings in Phase 3b
+                // Could be added later if needed
+            }
+        })
+    }
+}
