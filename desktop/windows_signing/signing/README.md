@@ -52,15 +52,15 @@ Before signing, set these environment variables:
 
 ```powershell
 # PowerShell
-$env:AZURE_CLIENT_ID = "0f2201f6-45dc-4c8a-8aa5-3de10d5b1bfd"
-$env:AZURE_TENANT_ID = "776b33e3-c8b0-469a-9a5d-d7754693229b"
+$env:AZURE_CLIENT_ID = "<your-client-id>"
+$env:AZURE_TENANT_ID = "<your-tenant-id>"
 $env:AZURE_CLIENT_SECRET = "<your-secret-value>"
 ```
 
 ```cmd
 # CMD
-set AZURE_CLIENT_ID=0f2201f6-45dc-4c8a-8aa5-3de10d5b1bfd
-set AZURE_TENANT_ID=776b33e3-c8b0-469a-9a5d-d7754693229b
+set AZURE_CLIENT_ID=<your-client-id>
+set AZURE_TENANT_ID=<your-tenant-id>
 set AZURE_CLIENT_SECRET=<your-secret-value>
 ```
 

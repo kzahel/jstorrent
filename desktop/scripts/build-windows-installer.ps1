@@ -21,6 +21,16 @@ if (-not (Test-Path "Cargo.toml")) {
 
 $skipBuild = $env:SKIP_BUILD -eq "1"
 $signBinaries = $env:SIGN_BINARIES -eq "1"
+
+# Auto-detect WSL path and use C: for cargo target to avoid permission issues
+$currentPath = (Get-Location).Path
+$isWSLPath = $currentPath -match "^Z:\\" -or $currentPath -match "^\\\\wsl"
+
+if (-not $env:CARGO_TARGET_DIR -and $isWSLPath) {
+    $env:CARGO_TARGET_DIR = "C:\temp\jstorrent-target"
+    Write-Host "WSL path detected, using C:\temp\jstorrent-target for cargo build" -ForegroundColor Yellow
+}
+
 $targetDir = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
 
 Write-Host "Target directory: $targetDir" -ForegroundColor Cyan
@@ -126,7 +136,7 @@ if ($targetDir -ne "target") {
 if ($signBinaries) {
     Write-Host "`nSigning binaries..." -ForegroundColor Cyan
 
-    $signScript = Join-Path $PSScriptRoot "sign-binary.ps1"
+    $signScript = Join-Path (Split-Path $PSScriptRoot -Parent) "windows_signing\sign-binary.ps1"
     if (-not (Test-Path $signScript)) {
         Write-Error "Signing script not found at: $signScript"
         exit 1
@@ -203,7 +213,7 @@ if (Test-Path $outputPath) {
     # Sign installer if requested
     if ($signBinaries) {
         Write-Host "`nSigning installer..." -ForegroundColor Cyan
-        $signScript = Join-Path $PSScriptRoot "sign-binary.ps1"
+        $signScript = Join-Path (Split-Path $PSScriptRoot -Parent) "windows_signing\sign-binary.ps1"
         & $signScript -FilePath $outputPath
         if ($LASTEXITCODE -ne 0) {
             Write-Error "Failed to sign installer"

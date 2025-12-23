@@ -8,14 +8,14 @@
 #
 # Usage:
 #   .\sign-binary.ps1 -FilePath "path\to\file.exe"
-#   .\sign-binary.ps1 -FilePath "path\to\file.exe" -Verbose
+#   .\sign-binary.ps1 -FilePath "path\to\file.exe" -DebugOutput
 
 param(
     [Parameter(Mandatory=$true)]
     [string]$FilePath,
 
     [Parameter(Mandatory=$false)]
-    [switch]$Verbose
+    [switch]$DebugOutput
 )
 
 $ErrorActionPreference = "Stop"
@@ -98,7 +98,7 @@ $signtoolArgs = @(
     $FilePath
 )
 
-if ($Verbose) {
+if ($DebugOutput) {
     $signtoolArgs = @("/debug") + $signtoolArgs
 }
 

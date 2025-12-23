@@ -57,8 +57,8 @@ Your Azure Trusted Signing is configured with:
 ```
 
 **Azure Credentials (from [azure-trusted-signing-setup.md](../azure-trusted-signing-setup.md)):**
-- **Client ID:** `0f2201f6-45dc-4c8a-8aa5-3de10d5b1bfd`
-- **Tenant ID:** `776b33e3-c8b0-469a-9a5d-d7754693229b`
+- **Client ID:** `<your-client-id>`
+- **Tenant ID:** `<your-tenant-id>`
 - **Secret ID:** `adda34ba-566e-4d55-bf76-f226371127a6` (expires 12/19/2027)
 - **Secret Value:** `<REDACTED>` - You need this for signing
 
@@ -107,8 +107,8 @@ You need to set three environment variables before signing will work.
 
 ```powershell
 # Open PowerShell and run:
-$env:AZURE_CLIENT_ID = "0f2201f6-45dc-4c8a-8aa5-3de10d5b1bfd"
-$env:AZURE_TENANT_ID = "776b33e3-c8b0-469a-9a5d-d7754693229b"
+$env:AZURE_CLIENT_ID = "<your-client-id>"
+$env:AZURE_TENANT_ID = "<your-tenant-id>"
 $env:AZURE_CLIENT_SECRET = "<YOUR_SECRET_VALUE>"
 ```
 
@@ -124,8 +124,8 @@ If you don't have the secret value:
 
 ```powershell
 # Open PowerShell as Administrator
-[System.Environment]::SetEnvironmentVariable('AZURE_CLIENT_ID', '0f2201f6-45dc-4c8a-8aa5-3de10d5b1bfd', 'User')
-[System.Environment]::SetEnvironmentVariable('AZURE_TENANT_ID', '776b33e3-c8b0-469a-9a5d-d7754693229b', 'User')
+[System.Environment]::SetEnvironmentVariable('AZURE_CLIENT_ID', '<your-client-id>', 'User')
+[System.Environment]::SetEnvironmentVariable('AZURE_TENANT_ID', '<your-tenant-id>', 'User')
 [System.Environment]::SetEnvironmentVariable('AZURE_CLIENT_SECRET', '<YOUR_SECRET_VALUE>', 'User')
 
 # Restart your terminal for changes to take effect
@@ -136,8 +136,8 @@ If you don't have the secret value:
 Create a file `desktop/.env` (never commit this!):
 
 ```bash
-AZURE_CLIENT_ID=0f2201f6-45dc-4c8a-8aa5-3de10d5b1bfd
-AZURE_TENANT_ID=776b33e3-c8b0-469a-9a5d-d7754693229b
+AZURE_CLIENT_ID=<your-client-id>
+AZURE_TENANT_ID=<your-tenant-id>
 AZURE_CLIENT_SECRET=<YOUR_SECRET_VALUE>
 ```
 
@@ -522,8 +522,8 @@ For when you come back to this later:
 
 ```powershell
 # 1. Set environment variables (if not already set)
-$env:AZURE_CLIENT_ID = "0f2201f6-45dc-4c8a-8aa5-3de10d5b1bfd"
-$env:AZURE_TENANT_ID = "776b33e3-c8b0-469a-9a5d-d7754693229b"
+$env:AZURE_CLIENT_ID = "<your-client-id>"
+$env:AZURE_TENANT_ID = "<your-tenant-id>"
 $env:AZURE_CLIENT_SECRET = "<YOUR_SECRET_VALUE>"
 
 # 2. Navigate to desktop directory

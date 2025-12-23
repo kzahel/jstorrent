@@ -1,5 +1,5 @@
 {
-  "Endpoint": "https://wus2.codesigning.azure.net/",
+  "Endpoint": "https://eus.codesigning.azure.net/",
   "CodeSigningAccountName": "kylegraehl",
   "CertificateProfileName": "jstorrent-profile"
 }

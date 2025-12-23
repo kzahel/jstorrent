@@ -33,8 +33,8 @@ $env:AZURE_TENANT_ID
 $env:AZURE_CLIENT_SECRET
 ```
 
-- [ ] `AZURE_CLIENT_ID` = `0f2201f6-45dc-4c8a-8aa5-3de10d5b1bfd`
-- [ ] `AZURE_TENANT_ID` = `776b33e3-c8b0-469a-9a5d-d7754693229b`
+- [ ] `AZURE_CLIENT_ID` = `<your-client-id>`
+- [ ] `AZURE_TENANT_ID` = `<your-tenant-id>`
 - [ ] `AZURE_CLIENT_SECRET` = **secret VALUE** (not the ID!)
 
 ### Test Signing
