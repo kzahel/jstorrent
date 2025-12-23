@@ -464,23 +464,26 @@ Before QuickJS work begins, rename folders for clarity:
 - Create bundle config in `packages/engine/bundle/`
 - Test bundle builds (output should be valid ES2020 JS)
 
-### Phase 2: QuickJS Module Scaffolding
-- Create `android/quickjs-engine/` module
-- Integrate QuickJS library (find pre-built AAR or build from source)
-- Implement `QuickJSRuntime.kt` for lifecycle management
-- Test: Load and execute simple JS code
+### Phase 2: QuickJS Module with quickjs-kt
 
-### Phase 3: JNI Bindings
-- Implement `NativeBindings.kt` - register all `__jstorrent_*` functions
-- Wire bindings to io-core (TcpSocketManager, UdpSocketManager, FileManager, Hasher)
-- Handle threading: callbacks from io-core → QuickJS thread
-- Test: Simple socket connection from JS
+Create android/quickjs-engine/ module
+Add quickjs-kt dependency
+Create QuickJsRuntime.kt wrapper (thin layer over quickjs-kt)
+Test: evaluate<Int>("1 + 2") works
+Test: Define a simple function("echo"), call from JS
 
-### Phase 4: Engine Integration
-- Create `EngineService.kt` (foreground service)
-- Load `engine.bundle.js` in QuickJS runtime
-- Expose engine control API (addTorrent, removeTorrent, getStatus)
-- Test: Add a magnet link, verify engine starts downloading
+### Phase 3: Native Bindings
+
+Implement NativeBindings.kt using quickjs-kt's asyncFunction DSL
+Wire TCP bindings to io-core's TcpSocketManager
+Handle the callback direction (native → JS when data arrives)
+Test: JS calls __jstorrent_tcp_connect, socket actually opens
+
+### Phase 4: Engine Integration 
+
+EngineService.kt foreground service
+Load engine.bundle.js
+Expose control API
 
 ### Phase 5: Native UI
 - Create basic Compose UI screens
