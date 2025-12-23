@@ -468,33 +468,45 @@ Before QuickJS work begins, rename folders for clarity:
 
 see docs/tasks/2025-12-23-phase2-quickjs-jni-wrapper.md
 
-### Phase 3: Native Bindings
+### Phase 3a: TypeScript Native Adapter
+- Create `packages/engine/src/adapters/native/` 
+- Implement NativeSocketFactory, NativeFileSystem, NativeHasher calling `__jstorrent_*` globals
+- Create esbuild config for QuickJS bundle (ES2020, single file)
+- Test: Bundle builds, loads in QuickJS without errors
 
-TBD
+### Phase 3b: Kotlin Native Bindings
+- Extend QuickJsContext with `callGlobalFunction(name, ...args)` for Kotlin → JS
+- Implement bidirectional callback mechanism (dedicated QuickJS thread + handler)
+- Create `NativeBindings.kt` - register `__jstorrent_*` functions
+- Wire to io-core (TcpSocketManager, etc.)
+- Test: TCP connect from JS, receive onConnected callback
 
-### Phase 4: Engine Integration 
+### Phase 4: Engine Integration
+- Create `EngineService.kt` (foreground service)
+- Load `engine.bundle.js` in QuickJS runtime
+- Expose control API (addTorrent, removeTorrent, getStatus)
+- Test: Add magnet link, verify download starts
 
-TBD
+### Phase 5: Minimal UI
+- Simple Activity with:
+  - Add magnet button
+  - List of torrents (name + progress)
+  - Basic status display
+- Wire to EngineService
+- Test: Full flow works
 
-### Phase 5: Native UI
-- Create basic Compose UI screens
-  - TorrentListScreen (name, progress, speed)
-  - FileListScreen (tap a torrent to see files)
-  - SettingsScreen (download folder, mode switch)
-- Wire UI to EngineService via Binder
-- Test: Full flow from add → download → view files
+### Phase 6: Mode Integration  
+- Add NativeStandalone to ModeManager
+- Settings toggle between Companion/Native modes
+- Clean mode transitions
+- Test: Switch modes without crashes
 
-### Phase 6: Mode Integration
-- Update `ModeManager.kt` to support three modes
-- Settings UI for switching modes
-- Handle transitions cleanly (stop old mode, start new mode)
-- Test: Switch between all three modes
-
-### Phase 7: Polish & Testing
+### Phase 7: Polish
+- Compose UI (TorrentListScreen, FileListScreen, SettingsScreen)
 - Error handling and crash recovery
-- Session persistence across app restarts
-- Background execution testing (download continues when backgrounded)
-- Performance benchmarks (compare to WebView standalone)
+- Session persistence
+- Background execution testing
+- Performance benchmarks
 
 ---
 
