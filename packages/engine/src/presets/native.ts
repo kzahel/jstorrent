@@ -33,6 +33,13 @@ export interface NativeEngineConfig {
    * Callback for log entries.
    */
   onLog?: (entry: LogEntry) => void
+
+  /**
+   * Start the engine in suspended state (no network activity).
+   * Use this when you need to restore session before starting networking.
+   * Call engine.resume() after setup/restore is complete.
+   */
+  startSuspended?: boolean
 }
 
 /**
@@ -58,5 +65,6 @@ export function createNativeEngine(config: NativeEngineConfig): BtEngine {
     hasher: new NativeHasher(),
     port: config.port,
     onLog: config.onLog,
+    startSuspended: config.startSuspended,
   })
 }

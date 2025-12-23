@@ -1,5 +1,6 @@
 package com.jstorrent.quickjs.bindings
 
+import android.util.Log
 import com.jstorrent.io.socket.UdpSocketCallback
 import com.jstorrent.io.socket.UdpSocketManager
 import com.jstorrent.quickjs.JsThread
@@ -26,6 +27,10 @@ class UdpBindings(
     private val jsThread: JsThread,
     private val udpManager: UdpSocketManager
 ) {
+    companion object {
+        private const val TAG = "UdpBindings"
+    }
+
     // Track whether JS has registered callbacks
     private var hasBoundCallback = false
     private var hasMessageCallback = false
@@ -113,6 +118,7 @@ class UdpBindings(
     private fun setupNativeCallbacks(ctx: QuickJsContext) {
         udpManager.setCallback(object : UdpSocketCallback {
             override fun onUdpBound(socketId: Int, success: Boolean, boundPort: Int, errorCode: Int) {
+                Log.d(TAG, "onUdpBound: socket=$socketId, success=$success, port=$boundPort, errorCode=$errorCode")
                 if (!hasBoundCallback) return
 
                 jsThread.post {
@@ -128,17 +134,20 @@ class UdpBindings(
             }
 
             override fun onUdpMessage(socketId: Int, srcAddr: String, srcPort: Int, data: ByteArray) {
+                Log.d(TAG, "onUdpMessage: socket=$socketId, from=$srcAddr:$srcPort, bytes=${data.size}")
                 if (!hasMessageCallback) return
 
                 jsThread.post {
                     // Call the JS dispatcher with binary data
+                    // Note: null placeholder at index 3 where binary data will be inserted
                     ctx.callGlobalFunctionWithBinary(
                         "__jstorrent_udp_dispatch_message",
                         data,
                         3,  // binary arg index
                         socketId.toString(),
                         srcAddr,
-                        srcPort.toString()
+                        srcPort.toString(),
+                        null  // placeholder for binary arg at index 3
                     )
                     ctx.executeAllPendingJobs()
                 }

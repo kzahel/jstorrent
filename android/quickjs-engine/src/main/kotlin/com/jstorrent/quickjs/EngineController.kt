@@ -155,6 +155,16 @@ class EngineController(
     }
 
     /**
+     * Add a test torrent with hardcoded peer hint for debugging.
+     * Uses a local qBittorrent seeder at 192.168.1.112:6082.
+     */
+    fun addTestTorrent() {
+        checkLoaded()
+        engine!!.callGlobalFunction("__jstorrent_cmd_add_test_torrent")
+        Log.i(TAG, "addTestTorrent called")
+    }
+
+    /**
      * Get the full torrent list with detailed info.
      *
      * For frequent updates, prefer observing [state] instead.

@@ -29,16 +29,25 @@ export class NativeTcpSocket implements ITcpSocket {
       this.remotePort = options.remotePort
     }
 
+    console.log(`[NativeTcpSocket] Creating socket ${this.id}`)
+
     callbackManager.registerTcp(id, {
-      onData: (data) => this.onDataCb?.(data),
+      onData: (data) => {
+        console.log(`[NativeTcpSocket ${this.id}] onData: ${data.length} bytes`)
+        this.onDataCb?.(data)
+      },
       onClose: (hadError) => {
         if (this.closeFired) return
         this.closeFired = true
         this.closed = true
+        console.log(`[NativeTcpSocket ${this.id}] onClose: hadError=${hadError}`)
         this.onCloseCb?.(hadError)
         callbackManager.unregisterTcp(this.id)
       },
-      onError: (err) => this.onErrorCb?.(err),
+      onError: (err) => {
+        console.log(`[NativeTcpSocket ${this.id}] onError: ${err.message}`)
+        this.onErrorCb?.(err)
+      },
     })
   }
 
@@ -51,8 +60,13 @@ export class NativeTcpSocket implements ITcpSocket {
       throw new Error('Socket is closed')
     }
 
+    console.log(`[NativeTcpSocket ${this.id}] Connecting to ${host}:${port}`)
+
     return new Promise((resolve, reject) => {
       callbackManager.updateTcpHandler(this.id, 'onConnect', (success, errorMessage) => {
+        console.log(
+          `[NativeTcpSocket ${this.id}] Connect result: success=${success}, error=${errorMessage}`,
+        )
         if (success) {
           this.remoteAddress = host
           this.remotePort = port

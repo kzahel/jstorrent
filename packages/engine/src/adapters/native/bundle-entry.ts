@@ -25,6 +25,9 @@ const jstorrentApi = {
   /**
    * Initialize the engine with configuration.
    * Must be called before any other methods.
+   *
+   * Note: This is async but we expose it synchronously to native.
+   * The engine will be functional immediately, session restore happens in background.
    */
   init(config: {
     contentRoots: Array<{
@@ -49,6 +52,7 @@ const jstorrentApi = {
       ),
       defaultContentRoot: config.defaultContentRoot,
       port: config.port,
+      startSuspended: true, // Start suspended to restore session first
       onLog: (entry) => {
         // Forward logs to console (which is polyfilled to native)
         const level = entry.level || 'info'
@@ -65,9 +69,31 @@ const jstorrentApi = {
 
     engine = createNativeEngine(nativeConfig)
     setupController(engine)
-    stopStatePush = startStatePushLoop(engine)
 
-    console.log('JSTorrent engine initialized')
+    // Restore session, resume engine, then start state push
+    // This ensures proper startup sequence:
+    // 1. Engine created in suspended state
+    // 2. Session restored (torrents re-added)
+    // 3. Engine resumed (networking starts)
+    // 4. State push begins (UI reflects correct state)
+    ;(async () => {
+      try {
+        const restored = await engine!.restoreSession()
+        if (restored > 0) {
+          console.log(`JSTorrent: Restored ${restored} torrents from session`)
+        }
+      } catch (e) {
+        console.error('JSTorrent: Failed to restore session:', e)
+      }
+
+      // Resume engine after restoration
+      engine!.resume()
+
+      // Start state push AFTER restoration and resume
+      stopStatePush = startStatePushLoop(engine!)
+
+      console.log('JSTorrent engine initialized')
+    })()
   },
 
   /**

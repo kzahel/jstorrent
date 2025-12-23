@@ -39,15 +39,21 @@ export function setupController(engine: BtEngine): void {
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_add_torrent = (
     magnetOrBase64: string,
   ): string => {
+    console.log(
+      `[controller] addTorrent called: ${magnetOrBase64.startsWith('magnet:') ? 'magnet link' : 'base64 data'}`,
+    )
+
     // Start async operation
     ;(async () => {
       try {
         let result: { torrent: Torrent | null; isDuplicate: boolean }
 
         if (magnetOrBase64.startsWith('magnet:')) {
+          console.log('[controller] Adding magnet link...')
           result = await engine.addTorrent(magnetOrBase64)
         } else {
           // Assume base64-encoded .torrent file
+          console.log('[controller] Adding base64 torrent file...')
           const binary = atob(magnetOrBase64)
           const bytes = new Uint8Array(binary.length)
           for (let i = 0; i < binary.length; i++) {
@@ -57,9 +63,14 @@ export function setupController(engine: BtEngine): void {
         }
 
         if (result.torrent) {
-          // Torrent was added successfully - state push will notify
+          console.log(
+            `[controller] Torrent added: ${result.torrent.name || 'unnamed'}, isDuplicate=${result.isDuplicate}`,
+          )
+        } else {
+          console.log('[controller] Torrent was null (duplicate or error)')
         }
       } catch (e) {
+        console.error('[controller] addTorrent error:', e)
         __jstorrent_on_error(JSON.stringify({ error: String(e) }))
       }
     })()
@@ -103,6 +114,28 @@ export function setupController(engine: BtEngine): void {
         })
       }
     }
+  }
+
+  /**
+   * Add test torrent with local peer hint for debugging.
+   * Hardcoded magnet link pointing to local qBittorrent seeder.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_add_test_torrent = (): string => {
+    const testMagnet =
+      'magnet:?xt=urn:btih:68e52e19f423308ba4f330d5a9b7fb68cec36355&dn=remy%20reads%20a%20book.mp4&x.pe=192.168.1.112:6082'
+    console.log('[controller] Adding test torrent with peer hint...')
+    ;(async () => {
+      try {
+        const result = await engine.addTorrent(testMagnet)
+        if (result.torrent) {
+          console.log(`[controller] Test torrent added: ${result.torrent.name || 'unnamed'}`)
+        }
+      } catch (e) {
+        console.error('[controller] addTestTorrent error:', e)
+        __jstorrent_on_error(JSON.stringify({ error: String(e) }))
+      }
+    })()
+    return JSON.stringify({ ok: true, pending: true })
   }
 
   // ============================================================

@@ -11,6 +11,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -70,10 +72,28 @@ class NativeStandaloneActivity : ComponentActivity() {
                     onAddRoot = { launchAddRoot() },
                     onPauseTorrent = { hash -> EngineService.instance?.pauseTorrent(hash) },
                     onResumeTorrent = { hash -> EngineService.instance?.resumeTorrent(hash) },
-                    onRemoveTorrent = { hash -> EngineService.instance?.removeTorrent(hash, false) }
+                    onRemoveTorrent = { hash -> EngineService.instance?.removeTorrent(hash, false) },
+                    onSwitchToWebView = { switchToWebViewMode() },
+                    onAddTestTorrent = { EngineService.instance?.addTestTorrent() }
                 )
             }
         }
+    }
+
+    private fun switchToWebViewMode() {
+        // Stop the engine service
+        EngineService.stop(this)
+        
+        // Save preference for WebView mode
+        getSharedPreferences("jstorrent", MODE_PRIVATE).edit()
+            .putString("standalone_mode", "webview")
+            .apply()
+        
+        // Launch WebView standalone activity
+        startActivity(Intent(this, StandaloneActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
+        finish()
     }
 
     override fun onStart() {
@@ -113,6 +133,17 @@ class NativeStandaloneActivity : ComponentActivity() {
             "jstorrent" -> {
                 // Handle jstorrent://native launch intent
                 Log.i(TAG, "Launch intent received")
+                
+                // Check for magnet query parameter: jstorrent://native?magnet=<encoded_magnet>
+                val magnetParam = uri.getQueryParameter("magnet")
+                if (!magnetParam.isNullOrEmpty()) {
+                    Log.i(TAG, "Magnet from query param: $magnetParam")
+                    if (isEngineLoaded.value) {
+                        addTorrent(magnetParam)
+                    } else {
+                        pendingMagnet = magnetParam
+                    }
+                }
             }
         }
     }
@@ -186,6 +217,7 @@ class NativeStandaloneActivity : ComponentActivity() {
 // Composables
 // =============================================================================
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NativeStandaloneScreen(
     hasRoots: Boolean,
@@ -198,23 +230,61 @@ fun NativeStandaloneScreen(
     onAddRoot: () -> Unit,
     onPauseTorrent: (String) -> Unit,
     onResumeTorrent: (String) -> Unit,
-    onRemoveTorrent: (String) -> Unit
+    onRemoveTorrent: (String) -> Unit,
+    onSwitchToWebView: () -> Unit,
+    onAddTestTorrent: () -> Unit = {}
 ) {
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+    var showMenu by remember { mutableStateOf(false) }
+    
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("JSTorrent (Native)") },
+                actions = {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Menu"
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Add Test Torrent") },
+                            onClick = {
+                                showMenu = false
+                                onAddTestTorrent()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Add Download Folder") },
+                            onClick = {
+                                showMenu = false
+                                onAddRoot()
+                            }
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Switch to WebView Mode") },
+                            onClick = {
+                                showMenu = false
+                                onSwitchToWebView()
+                            }
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            // Header
-            Text(
-                text = "JSTorrent",
-                style = MaterialTheme.typography.headlineMedium
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Error banner
             lastError?.let { error ->
                 Card(

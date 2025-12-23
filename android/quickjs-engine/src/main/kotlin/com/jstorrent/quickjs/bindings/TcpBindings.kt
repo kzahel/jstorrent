@@ -1,5 +1,6 @@
 package com.jstorrent.quickjs.bindings
 
+import android.util.Log
 import com.jstorrent.io.socket.TcpSocketCallback
 import com.jstorrent.io.socket.TcpSocketManager
 import com.jstorrent.quickjs.JsThread
@@ -26,6 +27,10 @@ class TcpBindings(
     private val jsThread: JsThread,
     private val tcpManager: TcpSocketManager
 ) {
+    companion object {
+        private const val TAG = "TcpBindings"
+    }
+
     // JS callback names - stored when JS registers callbacks
     private var hasDataCallback = false
     private var hasCloseCallback = false
@@ -102,6 +107,7 @@ class TcpBindings(
     private fun setupNativeCallbacks(ctx: QuickJsContext) {
         tcpManager.setCallback(object : TcpSocketCallback {
             override fun onTcpConnected(socketId: Int, success: Boolean, errorCode: Int) {
+                Log.d(TAG, "onTcpConnected: socket=$socketId, success=$success, errorCode=$errorCode")
                 if (!hasConnectedCallback) return
 
                 jsThread.post {
@@ -118,21 +124,25 @@ class TcpBindings(
             }
 
             override fun onTcpData(socketId: Int, data: ByteArray) {
+                Log.d(TAG, "onTcpData: socket=$socketId, bytes=${data.size}")
                 if (!hasDataCallback) return
 
                 jsThread.post {
                     // Call the JS dispatcher with binary data
+                    // Note: null placeholder at index 1 where binary data will be inserted
                     ctx.callGlobalFunctionWithBinary(
                         "__jstorrent_tcp_dispatch_data",
                         data,
                         1,
-                        socketId.toString()
+                        socketId.toString(),
+                        null  // placeholder for binary arg at index 1
                     )
                     ctx.executeAllPendingJobs()
                 }
             }
 
             override fun onTcpClose(socketId: Int, hadError: Boolean, errorCode: Int) {
+                Log.d(TAG, "onTcpClose: socket=$socketId, hadError=$hadError, errorCode=$errorCode")
                 // Send error callback first if there was an error
                 if (hadError && hasErrorCallback) {
                     jsThread.post {

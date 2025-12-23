@@ -116,6 +116,13 @@ class EngineService : Service() {
     }
 
     /**
+     * Add test torrent with hardcoded peer hint for debugging.
+     */
+    fun addTestTorrent() {
+        controller?.addTestTorrent()
+    }
+
+    /**
      * Pause a torrent.
      */
     fun pauseTorrent(infoHash: String) {
