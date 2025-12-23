@@ -123,6 +123,7 @@ class UdpBindings(
                         success.toString(),
                         boundPort.toString()
                     )
+                    ctx.executeAllPendingJobs()
                 }
             }
 
@@ -139,6 +140,7 @@ class UdpBindings(
                         srcAddr,
                         srcPort.toString()
                     )
+                    ctx.executeAllPendingJobs()
                 }
             }
 

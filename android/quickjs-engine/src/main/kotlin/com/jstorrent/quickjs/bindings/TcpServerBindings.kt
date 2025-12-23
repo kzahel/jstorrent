@@ -83,6 +83,7 @@ class TcpServerBindings(
                         success.toString(),
                         boundPort.toString()
                     )
+                    ctx.executeAllPendingJobs()
                 }
             }
 
@@ -98,6 +99,7 @@ class TcpServerBindings(
                         peerAddr,
                         peerPort.toString()
                     )
+                    ctx.executeAllPendingJobs()
                 }
             }
         })

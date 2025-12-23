@@ -10,7 +10,7 @@ import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.jstorrent.app.MainActivity
+import com.jstorrent.app.NativeStandaloneActivity
 import com.jstorrent.app.R
 import com.jstorrent.app.storage.RootStore
 import com.jstorrent.quickjs.EngineController
@@ -195,10 +195,12 @@ class EngineService : Service() {
     }
 
     private fun createNotification(status: String): Notification {
+        // Open NativeStandaloneActivity when notification is tapped
+        // (EngineService is only used in native standalone mode)
         val pendingIntent = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, MainActivity::class.java),
+            Intent(this, NativeStandaloneActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE
         )
 

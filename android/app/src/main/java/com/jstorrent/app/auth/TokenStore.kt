@@ -5,6 +5,16 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 
 /**
+ * Standalone app mode for non-Chromebook devices.
+ */
+enum class StandaloneMode(val value: String) {
+    /** WebView-based UI (loads HTML from assets) */
+    WEBVIEW("standalone"),
+    /** Native Compose UI with QuickJS engine */
+    NATIVE("native")
+}
+
+/**
  * Stores the authentication credentials shared between the extension and this app.
  * - token: The shared secret for authenticating requests
  * - installId: Identifies which extension installation is paired (detects reinstalls)
@@ -36,6 +46,17 @@ class TokenStore(context: Context) {
     var uiMode: String
         get() = prefs.getString(KEY_UI_MODE, "standalone") ?: "standalone"
         set(value) = prefs.edit { putString(KEY_UI_MODE, value) }
+
+    /**
+     * Typed standalone mode setting.
+     * Defaults to WEBVIEW for backwards compatibility.
+     */
+    var standaloneMode: StandaloneMode
+        get() = when (prefs.getString(KEY_UI_MODE, "standalone")) {
+            "native" -> StandaloneMode.NATIVE
+            else -> StandaloneMode.WEBVIEW
+        }
+        set(value) = prefs.edit { putString(KEY_UI_MODE, value.value) }
 
     /**
      * Token for standalone mode (local WebView).

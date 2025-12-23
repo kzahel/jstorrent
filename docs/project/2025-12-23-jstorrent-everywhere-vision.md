@@ -521,13 +521,41 @@ see docs/tasks/2025-12-23-phase2-quickjs-jni-wrapper.md
 - getStatus() shows torrent added with correct name/infoHash
 - Bonus: peer connections appear (needs network)
 
-### Phase 5: Minimal UI
-- Simple Activity with:
-  - Add magnet button
-  - List of torrents (name + progress)
-  - Basic status display
-- Wire to EngineService
-- Test: Full flow works
+### Phase 5: Minimal UI ✅
+
+**NativeStandaloneActivity.kt:**
+- ✅ Bind to EngineService in onStart, unbind in onStop
+- ✅ Simple Compose layout (no need for fancy design)
+
+**UI elements:**
+- ✅ TextField + "Add" button for magnet link paste
+- ✅ LazyColumn showing torrents:
+  - Name
+  - State (downloading/seeding/paused)
+  - Progress % + simple progress bar
+  - Download speed
+- ✅ StateFlow collection for reactive updates (every 500ms)
+
+**Service communication:**
+- ✅ `engineService.addTorrent(magnetLink)`
+- ✅ `engineService.state` StateFlow for reactive updates
+- ✅ Pause/resume/remove controls
+
+**Intent filter:**
+- ✅ Register for `jstorrent://native` scheme in manifest
+- ✅ Activity receives magnet/torrent intents via MainActivity routing
+
+**Mode switching:**
+- ✅ `StandaloneMode` enum in TokenStore (WEBVIEW/NATIVE)
+- ✅ Toggle in MainActivity "More Options" section
+- ✅ Automatic routing based on setting
+
+**Verification (device/emulator):**
+- Launch app → empty list shown
+- Paste magnet link → tap Add → torrent appears in list
+- Progress updates over time (if peers available)
+- Kill app → relaunch → torrent still there (session persistence)
+- Bonus: tap magnet link in browser → opens app, adds torrent
 
 ### Phase 6: Mode Integration  
 - Add NativeStandalone to ModeManager

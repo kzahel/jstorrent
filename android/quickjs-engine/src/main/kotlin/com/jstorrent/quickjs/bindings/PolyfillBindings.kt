@@ -95,6 +95,8 @@ class PolyfillBindings(
             val timerId = jsThread.setTimeout(ms) {
                 // Call the JS dispatcher function with the callback ID
                 ctx.callGlobalFunction("__jstorrent_timer_dispatch", callbackId.toString())
+                // Execute pending jobs (promises) after timer callback
+                ctx.executeAllPendingJobs()
             }
             timerId.toString()
         }
@@ -113,6 +115,8 @@ class PolyfillBindings(
 
             val intervalId = jsThread.setInterval(ms) {
                 ctx.callGlobalFunction("__jstorrent_timer_dispatch", callbackId.toString())
+                // Execute pending jobs (promises) after timer callback
+                ctx.executeAllPendingJobs()
             }
             intervalId.toString()
         }

@@ -187,6 +187,237 @@ if (typeof atob === 'undefined') {
 }
 
 // ============================================================
+// URL
+// ============================================================
+
+if (typeof URL === 'undefined') {
+  ;(globalThis as Record<string, unknown>).URL = class URL {
+    href: string
+    origin: string
+    protocol: string
+    username: string
+    password: string
+    host: string
+    hostname: string
+    port: string
+    pathname: string
+    search: string
+    hash: string
+    searchParams: URLSearchParams
+
+    constructor(url: string, base?: string | URL) {
+      // Handle base URL
+      let fullUrl = url
+      if (base) {
+        const baseStr = typeof base === 'string' ? base : base.href
+        // Simple base URL handling
+        if (!url.includes('://')) {
+          if (url.startsWith('/')) {
+            // Absolute path
+            const baseMatch = baseStr.match(/^([a-z][a-z0-9+.-]*:\/\/[^/]+)/i)
+            fullUrl = baseMatch ? baseMatch[1] + url : url
+          } else if (url.startsWith('?') || url.startsWith('#')) {
+            // Query or hash only
+            fullUrl = baseStr.split(/[?#]/)[0] + url
+          } else {
+            // Relative path
+            const lastSlash = baseStr.lastIndexOf('/')
+            fullUrl = baseStr.substring(0, lastSlash + 1) + url
+          }
+        }
+      }
+
+      // Parse the URL
+      // Format: protocol://[username:password@]hostname[:port]/pathname[?search][#hash]
+      const protocolMatch = fullUrl.match(/^([a-z][a-z0-9+.-]*):(?:\/\/)?/i)
+      if (!protocolMatch) {
+        throw new TypeError(`Invalid URL: ${url}`)
+      }
+
+      this.protocol = protocolMatch[1].toLowerCase() + ':'
+      let rest = fullUrl.substring(protocolMatch[0].length)
+
+      // Extract hash
+      const hashIndex = rest.indexOf('#')
+      if (hashIndex !== -1) {
+        this.hash = rest.substring(hashIndex)
+        rest = rest.substring(0, hashIndex)
+      } else {
+        this.hash = ''
+      }
+
+      // Extract search
+      const searchIndex = rest.indexOf('?')
+      if (searchIndex !== -1) {
+        this.search = rest.substring(searchIndex)
+        rest = rest.substring(0, searchIndex)
+      } else {
+        this.search = ''
+      }
+
+      // Extract pathname
+      const pathIndex = rest.indexOf('/')
+      if (pathIndex !== -1) {
+        this.pathname = rest.substring(pathIndex)
+        rest = rest.substring(0, pathIndex)
+      } else {
+        this.pathname = '/'
+      }
+
+      // Extract username/password
+      const atIndex = rest.indexOf('@')
+      if (atIndex !== -1) {
+        const userInfo = rest.substring(0, atIndex)
+        rest = rest.substring(atIndex + 1)
+        const colonIndex = userInfo.indexOf(':')
+        if (colonIndex !== -1) {
+          this.username = decodeURIComponent(userInfo.substring(0, colonIndex))
+          this.password = decodeURIComponent(userInfo.substring(colonIndex + 1))
+        } else {
+          this.username = decodeURIComponent(userInfo)
+          this.password = ''
+        }
+      } else {
+        this.username = ''
+        this.password = ''
+      }
+
+      // Extract port
+      const portMatch = rest.match(/:(\d+)$/)
+      if (portMatch) {
+        this.port = portMatch[1]
+        this.hostname = rest.substring(0, rest.length - portMatch[0].length)
+      } else {
+        this.port = ''
+        this.hostname = rest
+      }
+
+      this.host = this.port ? `${this.hostname}:${this.port}` : this.hostname
+      this.origin = `${this.protocol}//${this.host}`
+      this.href = this.toString()
+      this.searchParams = new URLSearchParams(this.search)
+    }
+
+    toString(): string {
+      let url = `${this.protocol}//`
+      if (this.username) {
+        url += encodeURIComponent(this.username)
+        if (this.password) {
+          url += ':' + encodeURIComponent(this.password)
+        }
+        url += '@'
+      }
+      url += this.host + this.pathname + this.search + this.hash
+      return url
+    }
+
+    toJSON(): string {
+      return this.href
+    }
+  }
+}
+
+if (typeof URLSearchParams === 'undefined') {
+  ;(globalThis as Record<string, unknown>).URLSearchParams = class URLSearchParams {
+    private params: Map<string, string[]> = new Map()
+
+    constructor(init?: string | string[][] | Record<string, string> | URLSearchParams) {
+      if (typeof init === 'string') {
+        // Remove leading '?'
+        const queryString = init.startsWith('?') ? init.substring(1) : init
+        if (queryString) {
+          for (const part of queryString.split('&')) {
+            const [key, value = ''] = part.split('=').map(decodeURIComponent)
+            this.append(key, value)
+          }
+        }
+      } else if (Array.isArray(init)) {
+        for (const [key, value] of init) {
+          this.append(key, value)
+        }
+      } else if (init && typeof init === 'object') {
+        if (init instanceof URLSearchParams) {
+          init.forEach((value, key) => this.append(key, value))
+        } else {
+          for (const [key, value] of Object.entries(init)) {
+            this.append(key, value)
+          }
+        }
+      }
+    }
+
+    append(name: string, value: string): void {
+      const values = this.params.get(name) || []
+      values.push(value)
+      this.params.set(name, values)
+    }
+
+    delete(name: string): void {
+      this.params.delete(name)
+    }
+
+    get(name: string): string | null {
+      const values = this.params.get(name)
+      return values ? values[0] : null
+    }
+
+    getAll(name: string): string[] {
+      return this.params.get(name) || []
+    }
+
+    has(name: string): boolean {
+      return this.params.has(name)
+    }
+
+    set(name: string, value: string): void {
+      this.params.set(name, [value])
+    }
+
+    toString(): string {
+      const parts: string[] = []
+      this.params.forEach((values, key) => {
+        for (const value of values) {
+          parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+        }
+      })
+      return parts.join('&')
+    }
+
+    forEach(callback: (value: string, key: string, parent: URLSearchParams) => void): void {
+      this.params.forEach((values, key) => {
+        for (const value of values) {
+          callback(value, key, this)
+        }
+      })
+    }
+
+    *entries(): IterableIterator<[string, string]> {
+      for (const [key, values] of this.params) {
+        for (const value of values) {
+          yield [key, value]
+        }
+      }
+    }
+
+    *keys(): IterableIterator<string> {
+      for (const [key] of this.entries()) {
+        yield key
+      }
+    }
+
+    *values(): IterableIterator<string> {
+      for (const [, value] of this.entries()) {
+        yield value
+      }
+    }
+
+    [Symbol.iterator](): IterableIterator<[string, string]> {
+      return this.entries()
+    }
+  }
+}
+
+// ============================================================
 // console
 // ============================================================
 

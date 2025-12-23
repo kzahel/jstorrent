@@ -113,6 +113,7 @@ class TcpBindings(
                         success.toString(),
                         errorMessage
                     )
+                    ctx.executeAllPendingJobs()
                 }
             }
 
@@ -127,6 +128,7 @@ class TcpBindings(
                         1,
                         socketId.toString()
                     )
+                    ctx.executeAllPendingJobs()
                 }
             }
 
@@ -139,6 +141,7 @@ class TcpBindings(
                             socketId.toString(),
                             "Socket error (code: $errorCode)"
                         )
+                        ctx.executeAllPendingJobs()
                     }
                 }
 
@@ -149,6 +152,7 @@ class TcpBindings(
                             socketId.toString(),
                             hadError.toString()
                         )
+                        ctx.executeAllPendingJobs()
                     }
                 }
             }

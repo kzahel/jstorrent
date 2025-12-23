@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.jstorrent.app.auth.StandaloneMode
 import com.jstorrent.app.auth.TokenStore
 import com.jstorrent.app.link.PendingLink
 import com.jstorrent.app.mode.ModeDetector
@@ -44,6 +45,7 @@ class MainActivity : ComponentActivity() {
     private var isPaired = mutableStateOf(false)
     private var backgroundModeEnabled = mutableStateOf(false)
     private var hasNotificationPermission = mutableStateOf(false)
+    private var standaloneMode = mutableStateOf(StandaloneMode.WEBVIEW)
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -70,15 +72,25 @@ class MainActivity : ComponentActivity() {
         isPaired.value = tokenStore.hasToken()
         backgroundModeEnabled.value = tokenStore.backgroundModeEnabled
         hasNotificationPermission.value = checkNotificationPermission()
+        standaloneMode.value = tokenStore.standaloneMode
 
         // Check if running on Chromebook
         val isChromebook = ModeDetector.isChromebook(this)
         Log.i(TAG, "Running on Chromebook: $isChromebook")
 
-        // Non-Chromebook: launch standalone mode instead
+        // Non-Chromebook: launch standalone mode based on setting
         if (!isChromebook) {
-            Log.i(TAG, "Not a Chromebook - launching standalone mode")
-            startActivity(Intent(this, StandaloneActivity::class.java).apply {
+            val targetActivity = when (tokenStore.standaloneMode) {
+                StandaloneMode.NATIVE -> {
+                    Log.i(TAG, "Not a Chromebook - launching native standalone mode")
+                    NativeStandaloneActivity::class.java
+                }
+                StandaloneMode.WEBVIEW -> {
+                    Log.i(TAG, "Not a Chromebook - launching WebView standalone mode")
+                    StandaloneActivity::class.java
+                }
+            }
+            startActivity(Intent(this, targetActivity).apply {
                 data = intent.data  // Forward any magnet/torrent intent
                 // Preserve URI read permission from original intent (needed for content:// URIs)
                 if (intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) {
@@ -100,6 +112,7 @@ class MainActivity : ComponentActivity() {
                     isPaired = isPaired.value,
                     backgroundModeEnabled = backgroundModeEnabled.value,
                     hasNotificationPermission = hasNotificationPermission.value,
+                    standaloneMode = standaloneMode.value,
                     onBackgroundModeToggle = { enabled ->
                         if (enabled) {
                             // Request permission when enabling
@@ -110,6 +123,10 @@ class MainActivity : ComponentActivity() {
                             backgroundModeEnabled.value = false
                             IoDaemonService.instance?.setForegroundMode(false)
                         }
+                    },
+                    onStandaloneModeChange = { mode ->
+                        tokenStore.standaloneMode = mode
+                        standaloneMode.value = mode
                     },
                     onBackToJSTorrent = {
                         // Check actual current state before deciding to close
@@ -136,7 +153,11 @@ class MainActivity : ComponentActivity() {
                         backgroundModeEnabled.value = false
                     },
                     onLaunchStandalone = {
-                        startActivity(Intent(this@MainActivity, StandaloneActivity::class.java))
+                        val targetActivity = when (standaloneMode.value) {
+                            StandaloneMode.NATIVE -> NativeStandaloneActivity::class.java
+                            StandaloneMode.WEBVIEW -> StandaloneActivity::class.java
+                        }
+                        startActivity(Intent(this@MainActivity, targetActivity))
                     }
                 )
             }
@@ -337,7 +358,9 @@ fun MainScreen(
     isPaired: Boolean,
     backgroundModeEnabled: Boolean,
     hasNotificationPermission: Boolean,
+    standaloneMode: StandaloneMode,
     onBackgroundModeToggle: (Boolean) -> Unit,
+    onStandaloneModeChange: (StandaloneMode) -> Unit,
     onBackToJSTorrent: () -> Unit,
     onUnpair: () -> Unit,
     onLaunchStandalone: () -> Unit
@@ -481,6 +504,38 @@ fun MainScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Mode toggle
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Use Native UI",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = if (standaloneMode == StandaloneMode.NATIVE)
+                                            "Compose UI with QuickJS engine"
+                                        else
+                                            "WebView-based UI",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = standaloneMode == StandaloneMode.NATIVE,
+                                    onCheckedChange = { isNative ->
+                                        onStandaloneModeChange(
+                                            if (isNative) StandaloneMode.NATIVE else StandaloneMode.WEBVIEW
+                                        )
+                                    }
+                                )
+                            }
+
                             Spacer(modifier = Modifier.height(12.dp))
                             OutlinedButton(onClick = onLaunchStandalone) {
                                 Text("Launch Standalone Mode")
