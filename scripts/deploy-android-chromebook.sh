@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deploy android-io-daemon APK to Chromebook
+# Deploy Android APK to Chromebook
 #
 # Usage:
 #   ./scripts/deploy-android-chromebook.sh           # Deploy debug APK
@@ -35,11 +35,11 @@ done
 # Get remote home directory for path expansion
 REMOTE_HOME=$(ssh "$CHROMEBOOK_HOST" 'echo $HOME')
 # Use same project path structure on Chromebook crostini
-REMOTE_PROJECT_DIR="${REMOTE_PROJECT_DIR:-$REMOTE_HOME/code/jstorrent-monorepo/android-io-daemon}"
+REMOTE_PROJECT_DIR="${REMOTE_PROJECT_DIR:-$REMOTE_HOME/code/jstorrent-monorepo/android}"
 # Full path to adb (needed for non-interactive SSH since .bashrc exits early)
 REMOTE_ADB="${REMOTE_ADB:-$REMOTE_HOME/android-sdk/platform-tools/adb}"
 
-cd "$(dirname "$0")/../android-io-daemon"
+cd "$(dirname "$0")/../android"
 
 # Build APK
 echo "Building $BUILD_TYPE APK..."

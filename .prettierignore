@@ -16,7 +16,7 @@ yarn.lock
 *.md
 packages/legacy-jstorrent-engine/**/*.js
 
-android-io-daemon
+android
 
 archive/legacy-app
 archive/legacy-extension

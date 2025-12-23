@@ -50,7 +50,7 @@ Android is versioned **independently** due to Play Store review cycles.
 
 ### Version numbers
 
-Edit `android-io-daemon/app/build.gradle.kts`:
+Edit `android/app/build.gradle.kts`:
 - `versionCode`: Integer, must increment for each Play Store upload
 - `versionName`: User-facing string (e.g., "1.0.4")
 
@@ -98,5 +98,5 @@ A tag can also be created for versioning purposes:
 | IO Daemon | `system-bridge/io-daemon/Cargo.toml` | `version = "0.2.0"` |
 | Website downloads | `website/src/App.tsx` | `const TAG = 'v0.2.0'` |
 | Linux installer | `website/install.sh` | `TAG="v0.2.0"` |
-| Android | `android-io-daemon/app/build.gradle.kts` | `versionName = "1.0.4"` |
+| Android | `android/app/build.gradle.kts` | `versionName = "1.0.4"` |
 | Extension | `extension/public/manifest.json` | `"version": "0.0.6"` |

@@ -7,13 +7,13 @@ SCRIPT_DIR="$(dirname "$0")"
 # Build and copy web assets first
 "$SCRIPT_DIR/update-android-web-assets.sh"
 
-cd "$SCRIPT_DIR/../android-io-daemon"
+cd "$SCRIPT_DIR/../android"
 
 # Path relative to app/ module (for gradle)
 KEYSTORE_PATH="signing/upload.keystore"
 KEY_ALIAS="upload"
 
-# Check file exists (path relative to android-io-daemon/)
+# Check file exists (path relative to android/)
 if [ ! -f "app/$KEYSTORE_PATH" ]; then
     echo "Error: Keystore not found at app/$KEYSTORE_PATH"
     exit 1

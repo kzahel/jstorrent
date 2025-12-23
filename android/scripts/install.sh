@@ -1,5 +1,5 @@
 #!/bin/bash
-# Install android-io-daemon APK to ChromeOS Android container
+# Install Android APK to ChromeOS Android container
 #
 # Usage:
 #   ./scripts/install.sh                    # Install debug APK

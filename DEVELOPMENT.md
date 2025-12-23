@@ -8,7 +8,7 @@ Supporting ChromeOS, Mac, Windows, and Linux
 
 - `extension/`: Chrome extension source code.
 - `system-bridge/`: Native messaging host and IO daemon (Rust) source code.
-- `android-io-daemon/`: ChromeOS supporting android app (headless io-daemon)
+- `android/`: Android app (ChromeOS companion + standalone modes)
 - `apps/`: Mobile applications (React Native, Android, iOS).
 - `packages/`: Shared libraries and packages.
 - `website/`: Source for the JSTorrent website.

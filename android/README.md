@@ -1,4 +1,4 @@
-# android-io-daemon
+# android
 
 Kotlin I/O daemon for JSTorrent on ChromeOS (and experimental Android standalone).
 
@@ -16,7 +16,7 @@ Provides TCP/UDP sockets, file I/O, and hashing over HTTP/WebSocket. The BitTorr
 ```bash
 # Clone and open in Android Studio
 git clone <repo>
-cd android-io-daemon
+cd android
 # Open in Android Studio: File → Open → select this folder
 ```
 

@@ -113,12 +113,12 @@ python verify_host.py
 python verify_torrent.py
 ```
 
-### 5. Android Daemon Tests
+### 5. Android Tests
 
 Test Kotlin Android app.
 
 ```bash
-cd android-io-daemon
+cd android
 ./gradlew test                # Unit tests
 ./gradlew connectedAndroidTest # Instrumented tests (requires device)
 ```
@@ -172,7 +172,7 @@ For testing on ChromeOS with the Android daemon:
 
 2. **Build Android APK:**
    ```bash
-   cd android-io-daemon
+   cd android
    ./gradlew assembleDebug
    ```
 
@@ -242,10 +242,10 @@ cd extension
 pnpm package  # Creates .zip in dist/
 ```
 
-### Android Daemon
+### Android
 
 ```bash
-cd android-io-daemon
+cd android
 ./gradlew assembleRelease
 
 # APK at app/build/outputs/apk/release/

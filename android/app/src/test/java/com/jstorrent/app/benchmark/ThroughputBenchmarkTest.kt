@@ -4,7 +4,7 @@ import org.junit.Ignore
 import org.junit.Test
 
 /**
- * TCP receive throughput benchmark for android-io-daemon.
+ * TCP receive throughput benchmark for Android app.
  *
  * Measures download path throughput:
  * Mock Seeder (TCP) → Daemon (TCP read) → WebSocket TCP_RECV frames → Test Client

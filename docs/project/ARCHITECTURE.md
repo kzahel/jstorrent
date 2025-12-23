@@ -86,8 +86,8 @@ Chrome Extension
 │                                                                 │
 │   Chrome Browser                      Android Container         │
 │   ┌─────────────────┐                ┌─────────────────┐       │
-│   │  Extension      │                │  android-io-    │       │
-│   │                 │  HTTP/WS       │  daemon         │       │
+│   │  Extension      │                │  Android app    │       │
+│   │                 │  HTTP/WS       │                 │       │
 │   │  @jstorrent/    │◄──────────────►│                 │       │
 │   │  engine         │ 100.115.92.2   │  (Kotlin)       │       │
 │   │  @jstorrent/    │                │                 │       │
@@ -99,7 +99,7 @@ Chrome Extension
 
 On ChromeOS, there's no native messaging. Instead:
 - Extension connects via HTTP/WebSocket to `100.115.92.2` (stable ARC bridge IP)
-- Android app (`android-io-daemon`) provides identical I/O endpoints as Rust daemon
+- Android app provides identical I/O endpoints as Rust daemon
 - User must launch Android app (extension shows launch prompt)
 
 ## Platform Differences

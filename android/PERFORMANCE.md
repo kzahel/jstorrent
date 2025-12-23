@@ -1,6 +1,6 @@
 # Android IO-Daemon Performance
 
-This document covers performance tuning and benchmarking for the android-io-daemon.
+This document covers performance tuning and benchmarking for the Android app.
 
 ## Benchmark Results (JVM Baseline)
 
@@ -61,7 +61,7 @@ Mock Seeder (TCP) → Daemon (TCP read) → WebSocket TCP_RECV frames → Test C
 These tests run entirely in JVM with no external dependencies:
 
 ```bash
-cd android-io-daemon
+cd android
 
 # Quick 10 MB test
 ./gradlew :app:testDebugUnitTest --tests "*.ThroughputBenchmarkTest.standalone_10MB"

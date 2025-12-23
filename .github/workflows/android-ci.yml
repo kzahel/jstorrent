@@ -6,12 +6,12 @@ on:
     tags:
       - 'android-v*'
     paths:
-      - 'android-io-daemon/**'
+      - 'android/**'
       - '.github/workflows/android-ci.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'android-io-daemon/**'
+      - 'android/**'
       - '.github/workflows/android-ci.yml'
 
 permissions:
@@ -19,7 +19,7 @@ permissions:
 
 defaults:
   run:
-    working-directory: android-io-daemon
+    working-directory: android
 
 jobs:
   build-android:
@@ -49,7 +49,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk
-          path: android-io-daemon/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
 
   release-android:
     runs-on: ubuntu-latest
@@ -74,7 +74,7 @@ jobs:
 
       - name: Build Release APK
         env:
-          UPLOAD_KEYSTORE_PATH: ${{ github.workspace }}/android-io-daemon/app/signing/upload.keystore
+          UPLOAD_KEYSTORE_PATH: ${{ github.workspace }}/android/app/signing/upload.keystore
           UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
           UPLOAD_KEY_ALIAS: upload
           UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
@@ -84,9 +84,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-release-apk
-          path: android-io-daemon/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/apk/release/app-release.apk
 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: android-io-daemon/app/build/outputs/apk/release/app-release.apk
+          files: android/app/build/outputs/apk/release/app-release.apk

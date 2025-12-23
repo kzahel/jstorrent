@@ -15,7 +15,7 @@ jstorrent-monorepo/
 │
 ├── extension/         ← Chrome extension entry points, manifest, daemon bridge
 ├── system-bridge/     ← Rust binaries (jstorrent-host, io-daemon, link-handler)
-├── android-io-daemon/ ← Kotlin Android app for ChromeOS
+├── android/           ← Kotlin Android app (ChromeOS companion + standalone)
 ├── website/           ← jstorrent.com landing/launch page
 │
 ├── chromeos-testbed/  ← ChromeOS testing infrastructure
@@ -204,9 +204,9 @@ scripts/                    ← Build and install scripts
 verify_*.py                 ← Python integration tests
 ```
 
-### android-io-daemon/
+### android/
 
-Kotlin Android app providing I/O daemon for ChromeOS.
+Kotlin Android app providing I/O daemon for ChromeOS and standalone modes.
 
 ```
 app/src/main/java/com/jstorrent/app/
@@ -316,10 +316,10 @@ python verify_host.py
 python verify_torrent.py
 ```
 
-### Android IO Daemon (Kotlin)
+### Android (Kotlin)
 
 ```bash
-cd android-io-daemon
+cd android
 ./gradlew build                      # Build APK
 ./gradlew assembleDebug              # Debug APK only
 ./gradlew test                       # Run unit tests

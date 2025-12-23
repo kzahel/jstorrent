@@ -443,18 +443,18 @@ tasks.named("preBuild") {
 
 Before QuickJS work begins, rename folders for clarity:
 
-| Current | New | Reason |
+| Current | New | Status |
 |---------|-----|--------|
-| `android-io-daemon/` | `android/` | It's the entire Android project, not just a daemon |
-| `system-bridge/` | `desktop/` | Clearer, matches other platform folders |
+| `android-io-daemon/` | `android/` | ✅ Done |
+| `system-bridge/` | `desktop/` | Pending |
 
 ---
 
 ## Initial Phases (High-Level)
 
 ### Phase 0: Renames
-- Rename `android-io-daemon/` → `android/`
-- Rename `system-bridge/` → `desktop/`
+- ✅ Rename `android-io-daemon/` → `android/`
+- ⏳ Rename `system-bridge/` → `desktop/`
 - Update all scripts, CI, docs that reference old paths
 
 ### Phase 1: Native Adapter Interface

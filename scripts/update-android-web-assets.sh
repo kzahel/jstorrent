@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 WEBSITE_DIR="website"
-ANDROID_ASSETS="android-io-daemon/app/src/main/assets"
+ANDROID_ASSETS="android/app/src/main/assets"
 
 echo "Building website..."
 cd "$WEBSITE_DIR"

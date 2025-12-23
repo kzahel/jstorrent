@@ -140,7 +140,7 @@ Sometimes Chrome unloads the extension. Re-load manually:
 
 ### Android App Deployment
 
-Deploy the Android IO daemon to ChromeOS:
+Deploy the Android app to ChromeOS:
 
 ```bash
 ./scripts/deploy-android-chromebook.sh              # Debug build
@@ -149,7 +149,7 @@ Deploy the Android IO daemon to ChromeOS:
 ./scripts/deploy-android-chromebook.sh release -f   # Release + dev server forwarding
 ```
 
-This builds the APK locally, copies to Chromebook (at `~/code/jstorrent-monorepo/android-io-daemon/`), and installs via ADB.
+This builds the APK locally, copies to Chromebook (at `~/code/jstorrent-monorepo/android/`), and installs via ADB.
 
 **Dev server port forwarding (`--forward` or `-f`):**
 For debug builds that load from `localhost:3000`, use `--forward` to set up:
@@ -160,7 +160,7 @@ The SSH tunnel runs in the background. To stop it: `pkill -f 'ssh.*-R 3000.*chro
 
 **Environment variables:**
 - `CHROMEBOOK_HOST` - SSH host (default: `chromebook`)
-- `REMOTE_PROJECT_DIR` - Path on Chromebook (default: `/home/graehlarts/code/jstorrent-monorepo/android-io-daemon`)
+- `REMOTE_PROJECT_DIR` - Path on Chromebook (default: `/home/graehlarts/code/jstorrent-monorepo/android`)
 - `DEV_SERVER_PORT` - Port to forward for dev server (default: `3000`)
 - `REMOTE_ADB` - Full path to adb on Chromebook (default: `/home/graehlarts/android-sdk/platform-tools/adb`)
 

@@ -57,7 +57,7 @@ This mirrors the desktop architecture:
 | | Desktop | ChromeOS |
 |---|---------|----------|
 | Engine runs in | Browser | Browser |
-| I/O daemon | Rust (`io-daemon`) | Kotlin (`android-io-daemon`) |
+| I/O daemon | Rust (`io-daemon`) | Kotlin (`android`) |
 | Connection | `127.0.0.1` via native messaging | `100.115.92.2` via HTTP/WS |
 
 **Why this works:** We tested direct HTTP from Chrome to an Android app on ChromeOS. The IP `100.115.92.2` (the ARC bridge) has been stable for 8+ years.
