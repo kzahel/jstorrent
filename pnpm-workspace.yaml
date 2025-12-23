@@ -1,6 +1,6 @@
 packages:
   - 'extension'
-  - 'system-bridge'
+  - 'desktop'
   - 'packages/*'
   - 'apps/*'
   - 'website'

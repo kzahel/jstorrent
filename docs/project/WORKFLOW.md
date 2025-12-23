@@ -107,7 +107,7 @@ Requires native host installed locally.
 Test Rust binaries directly.
 
 ```bash
-cd system-bridge
+cd desktop
 cargo build
 python verify_host.py
 python verify_torrent.py
@@ -150,7 +150,7 @@ cd android
 
 3. Install native host (builds and installs):
    ```bash
-   cd system-bridge
+   cd desktop
    ./scripts/install-local-linux.sh
    ```
 
@@ -222,7 +222,7 @@ Releases are built on GitHub Actions (see `.github/workflows/`). The `scripts/` 
 
 ```bash
 # Local build for testing
-cd system-bridge
+cd desktop
 cargo build --workspace --release
 
 # Binaries at:
@@ -260,12 +260,12 @@ cd android
 
 ### Windows
 - Native messaging manifest in registry
-- Inno Setup installer at `system-bridge/installers/windows/`
+- Inno Setup installer at `desktop/installers/windows/`
 - Unsigned binaries trigger SmartScreen warning
 
 ### macOS
 - Native messaging manifest at `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/`
-- pkgbuild installer at `system-bridge/installers/macos/`
+- pkgbuild installer at `desktop/installers/macos/`
 - Unsigned binaries blocked by Gatekeeper (right-click → Open to bypass)
 
 ### ChromeOS

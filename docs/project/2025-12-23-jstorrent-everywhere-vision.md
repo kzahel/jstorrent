@@ -446,7 +446,7 @@ Before QuickJS work begins, rename folders for clarity:
 | Current | New | Status |
 |---------|-----|--------|
 | `android-io-daemon/` | `android/` | ✅ Done |
-| `system-bridge/` | `desktop/` | Pending |
+| `system-bridge/` | `desktop/` | ✅ Done |
 
 ---
 
@@ -454,7 +454,7 @@ Before QuickJS work begins, rename folders for clarity:
 
 ### Phase 0: Renames
 - ✅ Rename `android-io-daemon/` → `android/`
-- ⏳ Rename `system-bridge/` → `desktop/`
+- ✅ Rename `system-bridge/` → `desktop/`
 - Update all scripts, CI, docs that reference old paths
 
 ### Phase 1: Native Adapter Interface

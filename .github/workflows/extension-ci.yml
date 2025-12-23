@@ -52,7 +52,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Native Host
-        working-directory: system-bridge
+        working-directory: desktop
         run: ./scripts/install-local-linux.sh
 
       - name: Install Playwright Browsers

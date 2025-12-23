@@ -1,4 +1,4 @@
-# system-bridge
+# desktop
 
 Native subsystem for the JSTorrent Chrome extension on **Windows, macOS, and Linux**. Provides filesystem access, network sockets, and system integration (magnet links, .torrent file handling) that the browser cannot perform directly.
 
@@ -33,7 +33,7 @@ See [DESIGN.md](DESIGN.md) for detailed architecture documentation.
 ## Building
 
 ```bash
-# From system-bridge directory
+# From desktop directory
 
 # Debug build
 cargo build

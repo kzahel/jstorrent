@@ -6,13 +6,13 @@ on:
     tags:
       - 'system-bridge-v*'
     paths:
-      - 'system-bridge/**'
+      - 'desktop/**'
       - 'packages/**'
       - '.github/workflows/system-bridge-ci.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'system-bridge/**'
+      - 'desktop/**'
       - 'packages/**'
       - '.github/workflows/system-bridge-ci.yml'
 
@@ -21,7 +21,7 @@ permissions:
 
 defaults:
   run:
-    working-directory: system-bridge
+    working-directory: desktop
 
 jobs:
   build-windows:
@@ -43,13 +43,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: system-bridge/installers/windows/Output/jstorrent-system-bridge-install-windows-x86_64.exe
+          path: desktop/installers/windows/Output/jstorrent-system-bridge-install-windows-x86_64.exe
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: system-bridge/installers/windows/Output/jstorrent-system-bridge-install-windows-x86_64.exe
+          files: desktop/installers/windows/Output/jstorrent-system-bridge-install-windows-x86_64.exe
 
       - name: Verify Installer
         shell: pwsh
@@ -171,13 +171,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-installer
-          path: system-bridge/jstorrent-system-bridge-install-macos-x86_64.pkg
+          path: desktop/jstorrent-system-bridge-install-macos-x86_64.pkg
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: system-bridge/jstorrent-system-bridge-install-macos-x86_64.pkg
+          files: desktop/jstorrent-system-bridge-install-macos-x86_64.pkg
 
   build-linux:
     runs-on: ubuntu-latest
@@ -201,13 +201,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-installer
-          path: system-bridge/dist/jstorrent-system-bridge-install-linux-x86_64.tar.gz
+          path: desktop/dist/jstorrent-system-bridge-install-linux-x86_64.tar.gz
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: system-bridge/dist/jstorrent-system-bridge-install-linux-x86_64.tar.gz
+          files: desktop/dist/jstorrent-system-bridge-install-linux-x86_64.tar.gz
 
       - name: Verify Installer
         run: |

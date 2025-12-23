@@ -11,7 +11,7 @@ The system bridge includes binaries for Windows, macOS, and Linux.
 ```
 
 This will:
-- Update version in `system-bridge/Cargo.toml` and `system-bridge/io-daemon/Cargo.toml`
+- Update version in `desktop/Cargo.toml` and `desktop/io-daemon/Cargo.toml`
 - Regenerate `Cargo.lock`
 - Commit and push to main
 - Create and push tag `system-bridge-v0.2.0`
@@ -94,8 +94,8 @@ A tag can also be created for versioning purposes:
 
 | Component | File | Example |
 |-----------|------|---------|
-| System Bridge | `system-bridge/Cargo.toml` | `version = "0.2.0"` |
-| IO Daemon | `system-bridge/io-daemon/Cargo.toml` | `version = "0.2.0"` |
+| System Bridge | `desktop/Cargo.toml` | `version = "0.2.0"` |
+| IO Daemon | `desktop/io-daemon/Cargo.toml` | `version = "0.2.0"` |
 | Website downloads | `website/src/App.tsx` | `const TAG = 'v0.2.0'` |
 | Linux installer | `website/install.sh` | `TAG="v0.2.0"` |
 | Android | `android/app/build.gradle.kts` | `versionName = "1.0.4"` |

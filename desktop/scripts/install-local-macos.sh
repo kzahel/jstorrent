@@ -7,9 +7,9 @@ if [[ "$(uname)" != "Darwin" ]]; then
     exit 1
 fi
 
-# Ensure we are in the system-bridge directory
+# Ensure we are in the desktop directory
 if [ ! -f "Cargo.toml" ]; then
-    echo "Error: This script must be run from the system-bridge directory."
+    echo "Error: This script must be run from the desktop directory."
     exit 1
 fi
 

@@ -7,7 +7,7 @@ Supporting ChromeOS, Mac, Windows, and Linux
 ## Repository Structure
 
 - `extension/`: Chrome extension source code.
-- `system-bridge/`: Native messaging host and IO daemon (Rust) source code.
+- `desktop/`: Native messaging host and IO daemon (Rust) source code.
 - `android/`: Android app (ChromeOS companion + standalone modes)
 - `apps/`: Mobile applications (React Native, Android, iOS).
 - `packages/`: Shared libraries and packages.
@@ -111,7 +111,7 @@ Supporting ChromeOS, Mac, Windows, and Linux
 
 ### System Bridge (Native Host)
 
-The native messaging host and IO daemon are located in the `system-bridge/` directory.
+The native messaging host and IO daemon are located in the `desktop/` directory.
 
 #### Prerequisites
 
@@ -132,29 +132,29 @@ On ubuntu you may need `libgtk-3-dev` installed with apt
 #### Build
 
 ```bash
-cd system-bridge
+cd desktop
 cargo build --release --workspace
 ```
 
 The binaries will be located at:
-- `system-bridge/target/release/jstorrent-host`
-- `system-bridge/target/release/jstorrent-io-daemon`
-- `system-bridge/target/release/jstorrent-link-handler`
+- `desktop/target/release/jstorrent-host`
+- `desktop/target/release/jstorrent-io-daemon`
+- `desktop/target/release/jstorrent-link-handler`
 
 #### Test
 
 ```bash
-cd system-bridge
+cd desktop
 cargo test --workspace
 ```
 
 #### Verification Scripts
 
-There are several Python scripts in `system-bridge/` to verify the native components in isolation (simulating the browser extension).
+There are several Python scripts in `desktop/` to verify the native components in isolation (simulating the browser extension).
 
 To run all verification scripts at once:
 ```bash
-cd system-bridge
+cd desktop
 python3 verify_all.py
 ```
 
@@ -164,13 +164,13 @@ To install the native host locally for development (e.g., to test with a local C
 
 **Linux:**
 ```bash
-./system-bridge/scripts/install-local-linux.sh
+./desktop/scripts/install-local-linux.sh
 ```
 This builds the release binaries, creates the installer, and installs it to `~/.local/lib/jstorrent-native`. It also kills any running host process.
 
 **macOS:**
 ```bash
-./system-bridge/scripts/install-local-macos.sh
+./desktop/scripts/install-local-macos.sh
 ```
 This builds the release binaries, creates the installer package, and installs it (requires `sudo`).
 
@@ -179,4 +179,4 @@ This builds the release binaries, creates the installer package, and installs it
 Continuous Integration is handled via GitHub Actions. Workflows are located in `.github/workflows/`.
 
 - **Extension CI**: Runs on changes to `extension/**` and `packages/**`.
-- **Native Host CI**: Runs on changes to `system-bridge/**` and `packages/**`.
+- **Native Host CI**: Runs on changes to `desktop/**` and `packages/**`.

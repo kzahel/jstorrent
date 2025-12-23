@@ -58,7 +58,7 @@ When working with Python projects:
 3. Each Python project has its own `pyproject.toml` and `uv.lock`
 
 Python projects in this repo:
-- `system-bridge/` - Native host verification tests
+- `desktop/` - Native host verification tests
 - `packages/engine/integration/python/` - Engine integration tests
 - `extension/tools/` - Extension debugging tools
 - `chromeos-testbed/chromeos-mcp/` - ChromeOS MCP server

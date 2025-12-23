@@ -14,7 +14,7 @@ jstorrent-monorepo/
 │   └── legacy-jstorrent-engine/ ← Migration docs from original engine
 │
 ├── extension/         ← Chrome extension entry points, manifest, daemon bridge
-├── system-bridge/     ← Rust binaries (jstorrent-host, io-daemon, link-handler)
+├── desktop/           ← Rust binaries (jstorrent-host, io-daemon, link-handler)
 ├── android/           ← Kotlin Android app (ChromeOS companion + standalone)
 ├── website/           ← jstorrent.com landing/launch page
 │
@@ -160,7 +160,7 @@ test/                       ← Unit tests
 e2e/                        ← Playwright E2E tests
 ```
 
-### system-bridge/
+### desktop/
 
 Rust workspace with four packages.
 
@@ -307,7 +307,7 @@ python test_download.py       # Single test
 ### System Bridge (Rust)
 
 ```bash
-cd system-bridge
+cd desktop
 cargo build --workspace --release    # Build all binaries
 cargo test --workspace               # Run Rust tests
 

@@ -19,18 +19,18 @@ TAG="system-bridge-v${VERSION}"
 
 # Update Cargo.toml versions (cross-platform sed -i)
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  sed -i '' "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/system-bridge/Cargo.toml"
-  sed -i '' "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/system-bridge/io-daemon/Cargo.toml"
+  sed -i '' "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/desktop/Cargo.toml"
+  sed -i '' "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/desktop/io-daemon/Cargo.toml"
 else
-  sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/system-bridge/Cargo.toml"
-  sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/system-bridge/io-daemon/Cargo.toml"
+  sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/desktop/Cargo.toml"
+  sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" "$REPO_ROOT/desktop/io-daemon/Cargo.toml"
 fi
 
 # Update Cargo.lock
-(cd "$REPO_ROOT/system-bridge" && cargo check --quiet)
+(cd "$REPO_ROOT/desktop" && cargo check --quiet)
 
 # Commit version bump
-git add "$REPO_ROOT/system-bridge/Cargo.toml" "$REPO_ROOT/system-bridge/io-daemon/Cargo.toml" "$REPO_ROOT/system-bridge/Cargo.lock"
+git add "$REPO_ROOT/desktop/Cargo.toml" "$REPO_ROOT/desktop/io-daemon/Cargo.toml" "$REPO_ROOT/desktop/Cargo.lock"
 git commit -m "chore: bump system-bridge version to ${VERSION}"
 
 # Push commit and tag
