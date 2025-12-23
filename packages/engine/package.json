@@ -17,11 +17,20 @@
     "./adapters/daemon/control-connection": {
       "types": "./dist/adapters/daemon/control-connection.d.ts",
       "import": "./dist/adapters/daemon/control-connection.js"
+    },
+    "./adapters/native": {
+      "types": "./dist/adapters/native/index.d.ts",
+      "import": "./dist/adapters/native/index.js"
+    },
+    "./presets/native": {
+      "types": "./dist/presets/native.d.ts",
+      "import": "./dist/presets/native.js"
     }
   },
   "scripts": {
     "postinstall": "[ -f src/geo/ipv4-country-data.ts ] || cp src/geo/ipv4-country-data.stub.ts src/geo/ipv4-country-data.ts",
     "build": "tsc",
+    "bundle:native": "node bundle/build-native.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:daemon": "vitest run --config vitest.daemon.config.ts",
@@ -46,6 +55,7 @@
   "devDependencies": {
     "@types/bn.js": "^5.1.5",
     "@types/node": "^20.10.0",
+    "esbuild": "^0.24.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
