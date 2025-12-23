@@ -1,0 +1,11 @@
+# Azure Trusted Signing Client DLL (download from NuGet)
+Azure.CodeSigning.Dlib.dll
+
+# Never commit secrets
+*.secret
+*.key
+.env
+
+# Temporary signing files
+*.signed
+*.unsigned

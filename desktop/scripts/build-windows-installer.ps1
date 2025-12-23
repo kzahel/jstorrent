@@ -3,11 +3,13 @@
 # Environment variables:
 #   SKIP_BUILD=1              - Skip cargo build, use existing binaries
 #   CARGO_TARGET_DIR=<path>   - Use alternate target directory (useful for WSL filesystems)
+#   SIGN_BINARIES=1           - Sign binaries and installer with Azure Trusted Signing
 #
 # Examples:
 #   .\scripts\build-windows-installer.ps1                    # Normal build
 #   $env:SKIP_BUILD=1; .\scripts\build-windows-installer.ps1 # Skip build, just create installer
 #   $env:CARGO_TARGET_DIR="C:\temp\jstorrent-target"; .\scripts\build-windows-installer.ps1
+#   $env:SIGN_BINARIES=1; .\scripts\build-windows-installer.ps1 # Build and sign
 #
 $ErrorActionPreference = "Stop"
 
@@ -18,9 +20,15 @@ if (-not (Test-Path "Cargo.toml")) {
 }
 
 $skipBuild = $env:SKIP_BUILD -eq "1"
+$signBinaries = $env:SIGN_BINARIES -eq "1"
 $targetDir = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
 
 Write-Host "Target directory: $targetDir" -ForegroundColor Cyan
+if ($signBinaries) {
+    Write-Host "Code signing: ENABLED" -ForegroundColor Yellow
+} else {
+    Write-Host "Code signing: DISABLED (set SIGN_BINARIES=1 to enable)" -ForegroundColor Gray
+}
 if ($skipBuild) {
     Write-Host "SKIP_BUILD=1: Skipping cargo build" -ForegroundColor Yellow
 } else {
@@ -114,6 +122,39 @@ if ($targetDir -ne "target") {
     Write-Host "Binaries copied." -ForegroundColor Green
 }
 
+# Sign binaries if requested
+if ($signBinaries) {
+    Write-Host "`nSigning binaries..." -ForegroundColor Cyan
+
+    $signScript = Join-Path $PSScriptRoot "sign-binary.ps1"
+    if (-not (Test-Path $signScript)) {
+        Write-Error "Signing script not found at: $signScript"
+        exit 1
+    }
+
+    $binariesToSign = @(
+        "target\release\jstorrent-host.exe",
+        "target\release\jstorrent-io-daemon.exe",
+        "target\release\jstorrent-link-handler.exe"
+    )
+
+    foreach ($binary in $binariesToSign) {
+        if (Test-Path $binary) {
+            Write-Host "  Signing: $binary" -ForegroundColor Cyan
+            & $signScript -FilePath $binary
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Failed to sign $binary"
+                exit 1
+            }
+        } else {
+            Write-Error "Binary not found for signing: $binary"
+            exit 1
+        }
+    }
+
+    Write-Host "All binaries signed successfully." -ForegroundColor Green
+}
+
 # Build installer
 Write-Host "`nCompiling installer..." -ForegroundColor Cyan
 
@@ -159,11 +200,28 @@ if ($useAltOutput) {
 }
 
 if (Test-Path $outputPath) {
+    # Sign installer if requested
+    if ($signBinaries) {
+        Write-Host "`nSigning installer..." -ForegroundColor Cyan
+        $signScript = Join-Path $PSScriptRoot "sign-binary.ps1"
+        & $signScript -FilePath $outputPath
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to sign installer"
+            exit 1
+        }
+        Write-Host "Installer signed successfully." -ForegroundColor Green
+    }
+
     $finalOutputDir = Split-Path $outputPath -Parent
     Write-Host "`n========================================" -ForegroundColor Green
     Write-Host "Installer created successfully!" -ForegroundColor Green
     Write-Host "Folder: $finalOutputDir" -ForegroundColor Cyan
     Write-Host "Output: $outputPath" -ForegroundColor Cyan
+    if ($signBinaries) {
+        Write-Host "Status: SIGNED" -ForegroundColor Green
+    } else {
+        Write-Host "Status: UNSIGNED (set SIGN_BINARIES=1 to sign)" -ForegroundColor Yellow
+    }
     Write-Host "========================================" -ForegroundColor Green
 } else {
     Write-Error "Installer not found at expected path: $outputPath"
