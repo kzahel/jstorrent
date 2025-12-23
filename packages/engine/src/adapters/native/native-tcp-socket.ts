@@ -33,7 +33,8 @@ export class NativeTcpSocket implements ITcpSocket {
 
     callbackManager.registerTcp(id, {
       onData: (data) => {
-        console.log(`[NativeTcpSocket ${this.id}] onData: ${data.length} bytes`)
+        // Note: Logging disabled for performance
+        // console.log(`[NativeTcpSocket ${this.id}] onData: ${data.length} bytes`)
         this.onDataCb?.(data)
       },
       onClose: (hadError) => {

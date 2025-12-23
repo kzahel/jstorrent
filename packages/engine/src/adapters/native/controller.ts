@@ -84,7 +84,9 @@ export function setupController(engine: BtEngine): void {
    */
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_pause = (infoHash: string): void => {
     const torrent = engine.getTorrent(infoHash)
-    torrent?.stop()
+    if (torrent) {
+      torrent.userStop()  // Use userStop() to update userState and persist
+    }
   }
 
   /**
@@ -92,7 +94,7 @@ export function setupController(engine: BtEngine): void {
    */
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_resume = (infoHash: string): void => {
     const torrent = engine.getTorrent(infoHash)
-    torrent?.start()
+    torrent?.userStart()  // Use userStart() to update userState and persist
   }
 
   /**

@@ -124,7 +124,8 @@ class TcpBindings(
             }
 
             override fun onTcpData(socketId: Int, data: ByteArray) {
-                Log.d(TAG, "onTcpData: socket=$socketId, bytes=${data.size}")
+                // Note: Logging disabled for performance - uncomment for debugging
+                // Log.d(TAG, "onTcpData: socket=$socketId, bytes=${data.size}")
                 if (!hasDataCallback) return
 
                 jsThread.post {
