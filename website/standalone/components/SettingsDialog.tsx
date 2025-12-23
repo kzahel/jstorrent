@@ -76,6 +76,18 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           </button>
         </div>
 
+        <div className="settings-row">
+          <span className="settings-label">Native UI</span>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              window.location.href = 'jstorrent://switch-ui?mode=native'
+            }}
+          >
+            Switch to Native Interface
+          </button>
+        </div>
+
         <div className="dialog-actions" style={{ marginTop: '20px' }}>
           <button className="btn-primary" onClick={onClose}>
             Done

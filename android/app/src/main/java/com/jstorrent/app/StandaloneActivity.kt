@@ -132,7 +132,13 @@ class StandaloneActivity : ComponentActivity() {
                                 val mode = url.getQueryParameter("mode") ?: return false
                                 Log.i(TAG, "Switching UI to: $mode")
                                 tokenStore.uiMode = mode
-                                loadUI()
+                                if (mode == "native") {
+                                    // Launch NativeStandaloneActivity and finish this one
+                                    startActivity(Intent(this@StandaloneActivity, NativeStandaloneActivity::class.java))
+                                    finish()
+                                } else {
+                                    loadUI()
+                                }
                             }
                         }
                         return true // We handled it
