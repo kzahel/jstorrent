@@ -133,38 +133,77 @@ The app receives the token via intent filter and stores it. Subsequent WebSocket
 
 ## Architecture
 
+The codebase is split into three Gradle modules:
+
 ```
-┌─────────────────────────────────────────┐
-│  MainActivity                           │
-│  - Pairing UI                           │
-│  - Start/stop service                   │
-│  - Status display                       │
-└─────────────────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────┐
-│  DaemonService (Foreground Service)     │
-│  - Ktor HTTP server                     │
-│  - WebSocket endpoint /io               │
-│  - Manages socket/file state            │
-└─────────────────────────────────────────┘
-                    │
-        ┌───────────┼───────────┐
-        ▼           ▼           ▼
-   SocketManager  FileManager  HashManager
-   (TCP/UDP)      (read/write) (SHA1)
+┌──────────────────────────────────────────────────────────────────┐
+│  app module (com.jstorrent.app)                                  │
+│  ├── Activities: MainActivity, StandaloneActivity, AddRoot...   │
+│  ├── Service: IoDaemonService (foreground service)              │
+│  ├── Mode: ModeDetector (companion vs standalone routing)       │
+│  ├── Auth: TokenStore (SharedPreferences)                       │
+│  ├── Storage: RootStore, DownloadRoot                           │
+│  └── Bridges: KVBridge, RootsBridge (WebView JS interfaces)     │
+└──────────────────────────────────────────────────────────────────┘
+                         │ depends on
+          ┌──────────────┴──────────────┐
+          ▼                              ▼
+┌─────────────────────────┐    ┌─────────────────────────────────┐
+│  companion-server       │    │  io-core                         │
+│  (HTTP/WebSocket layer) │    │  (Pure I/O, no HTTP deps)        │
+│                         │    │                                   │
+│  • CompanionHttpServer  │    │  • TcpSocketService               │
+│  • IoWebSocketHandler   │    │  • UdpSocketManagerImpl           │
+│  • ControlWebSocketHandler│  │  • FileManagerImpl                │
+│  • FileRoutes           │    │  • Protocol (opcodes, framing)    │
+│  • SocketManagerFactory │    │  • Hasher (SHA1/SHA256)           │
+└─────────────────────────┘    └─────────────────────────────────┘
+          │ depends on                    │
+          └───────────────────────────────┘
 ```
+
+### Module Responsibilities
+
+- **io-core**: Pure I/O library with zero HTTP dependencies. Contains TCP/UDP socket services, file manager, protocol definitions, and hashing utilities. Designed for reuse with future Hermes JS engine integration.
+
+- **companion-server**: HTTP/WebSocket adapter layer using Ktor. Wraps io-core operations and exposes them over WebSocket for the Chrome extension.
+
+- **app**: Android-specific code including Activities, Services, storage, and authentication.
 
 ## Key Files
 
 ```
-app/src/main/java/com/jstorrent/
-├── MainActivity.kt       # UI, pairing, service control
-├── DaemonService.kt      # Foreground service, Ktor server
-├── SocketManager.kt      # TCP/UDP socket multiplexing
-├── FileManager.kt        # File read/write operations
-├── HashManager.kt        # SHA1 hashing
-└── Protocol.kt           # WebSocket frame parsing, opcodes
+app/src/main/java/com/jstorrent/app/
+├── MainActivity.kt           # Companion mode UI, mode routing
+├── StandaloneActivity.kt     # Standalone WebView app
+├── service/
+│   └── IoDaemonService.kt    # Foreground service, starts server
+├── mode/
+│   └── ModeDetector.kt       # ChromeOS vs Android detection
+├── auth/
+│   └── TokenStore.kt         # Pairing token storage
+├── storage/
+│   ├── RootStore.kt          # Download roots persistence
+│   └── DownloadRoot.kt       # Root data class
+└── CompanionServerDepsImpl.kt # Wires app deps to companion-server
+
+companion-server/src/main/java/com/jstorrent/companion/server/
+├── CompanionHttpServer.kt    # Ktor HTTP/WS server
+├── IoWebSocketHandler.kt     # Socket multiplexing over WS
+├── ControlWebSocketHandler.kt# Control plane (events, roots)
+├── FileRoutes.kt             # /read, /write endpoints
+└── SocketManagerFactory.kt   # Creates per-session socket services
+
+io-core/src/main/java/com/jstorrent/io/
+├── protocol/Protocol.kt      # Opcodes, framing
+├── socket/
+│   ├── TcpSocketService.kt   # TCP connection management
+│   ├── UdpSocketManagerImpl.kt# UDP socket management
+│   └── *Callback.kt          # Event callbacks
+├── file/
+│   ├── FileManager.kt        # Interface
+│   └── FileManagerImpl.kt    # SAF file I/O
+└── hash/Hasher.kt            # Hashing utilities
 ```
 
 ## Endpoints

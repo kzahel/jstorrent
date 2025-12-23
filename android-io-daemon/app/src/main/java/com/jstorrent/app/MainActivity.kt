@@ -20,14 +20,12 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.jstorrent.app.auth.TokenStore
 import com.jstorrent.app.link.PendingLink
+import com.jstorrent.app.mode.ModeDetector
 import com.jstorrent.app.link.PendingLinkManager
 import com.jstorrent.app.service.IoDaemonService
 import com.jstorrent.app.ui.theme.JSTorrentTheme
@@ -39,15 +37,6 @@ private const val FALLBACK_URL = "https://new.jstorrent.com/launch"
 private const val CONNECTION_TIMEOUT_MS = 5000L
 private const val POLL_INTERVAL_MS = 200L
 private const val LEARN_MORE_URL = "https://new.jstorrent.com/android"
-
-/**
- * Detect if the app is running on ChromeOS (via ARC - Android Runtime for Chrome).
- * Returns true if running on a Chromebook, false otherwise.
- */
-fun isRunningOnChromebook(context: Context): Boolean {
-    return context.packageManager.hasSystemFeature("org.chromium.arc") ||
-            context.packageManager.hasSystemFeature("org.chromium.arc.device_management")
-}
 
 class MainActivity : ComponentActivity() {
 
@@ -83,7 +72,7 @@ class MainActivity : ComponentActivity() {
         hasNotificationPermission.value = checkNotificationPermission()
 
         // Check if running on Chromebook
-        val isChromebook = isRunningOnChromebook(this)
+        val isChromebook = ModeDetector.isChromebook(this)
         Log.i(TAG, "Running on Chromebook: $isChromebook")
 
         // Non-Chromebook: launch standalone mode instead
@@ -107,53 +96,49 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             JSTorrentTheme {
-                if (isChromebook) {
-                    MainScreen(
-                        isPaired = isPaired.value,
-                        backgroundModeEnabled = backgroundModeEnabled.value,
-                        hasNotificationPermission = hasNotificationPermission.value,
-                        onBackgroundModeToggle = { enabled ->
-                            if (enabled) {
-                                // Request permission when enabling
-                                requestNotificationPermission()
-                            } else {
-                                // Disable background mode
-                                tokenStore.backgroundModeEnabled = false
-                                backgroundModeEnabled.value = false
-                                IoDaemonService.instance?.setForegroundMode(false)
-                            }
-                        },
-                        onBackToJSTorrent = {
-                            // Check actual current state before deciding to close
-                            val bgEnabled = tokenStore.backgroundModeEnabled
-                            val hasPermission = checkNotificationPermission()
-                            Log.i(TAG, "Back to JSTorrent: bgEnabled=$bgEnabled, hasPermission=$hasPermission")
-                            launchBrowserFallback()
-                            // Only close this window if background mode is fully enabled
-                            if (bgEnabled && hasPermission) {
-                                Log.i(TAG, "Closing window - background mode active")
-                                finish()
-                            } else {
-                                Log.i(TAG, "Keeping window open - background mode not active")
-                            }
-                        },
-                        onUnpair = {
-                            // Close all WebSocket connections before clearing token
-                            // This ensures the extension sees the disconnect
-                            lifecycleScope.launch {
-                                IoDaemonService.instance?.closeAllSessions()
-                            }
-                            tokenStore.clear()
-                            isPaired.value = false
+                MainScreen(
+                    isPaired = isPaired.value,
+                    backgroundModeEnabled = backgroundModeEnabled.value,
+                    hasNotificationPermission = hasNotificationPermission.value,
+                    onBackgroundModeToggle = { enabled ->
+                        if (enabled) {
+                            // Request permission when enabling
+                            requestNotificationPermission()
+                        } else {
+                            // Disable background mode
+                            tokenStore.backgroundModeEnabled = false
                             backgroundModeEnabled.value = false
-                        },
-                        onLaunchStandalone = {
-                            startActivity(Intent(this@MainActivity, StandaloneActivity::class.java))
+                            IoDaemonService.instance?.setForegroundMode(false)
                         }
-                    )
-                } else {
-                    NonChromebookScreen()
-                }
+                    },
+                    onBackToJSTorrent = {
+                        // Check actual current state before deciding to close
+                        val bgEnabled = tokenStore.backgroundModeEnabled
+                        val hasPermission = checkNotificationPermission()
+                        Log.i(TAG, "Back to JSTorrent: bgEnabled=$bgEnabled, hasPermission=$hasPermission")
+                        launchBrowserFallback()
+                        // Only close this window if background mode is fully enabled
+                        if (bgEnabled && hasPermission) {
+                            Log.i(TAG, "Closing window - background mode active")
+                            finish()
+                        } else {
+                            Log.i(TAG, "Keeping window open - background mode not active")
+                        }
+                    },
+                    onUnpair = {
+                        // Close all WebSocket connections before clearing token
+                        // This ensures the extension sees the disconnect
+                        lifecycleScope.launch {
+                            IoDaemonService.instance?.closeAllSessions()
+                        }
+                        tokenStore.clear()
+                        isPaired.value = false
+                        backgroundModeEnabled.value = false
+                    },
+                    onLaunchStandalone = {
+                        startActivity(Intent(this@MainActivity, StandaloneActivity::class.java))
+                    }
+                )
             }
         }
     }
@@ -524,58 +509,6 @@ fun MainScreen(
                     Text("Back to JSTorrent")
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun NonChromebookScreen() {
-    val uriHandler = LocalUriHandler.current
-
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "JSTorrent System Bridge",
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                text = "This app is a companion to the JSTorrent extension and only works on Chromebooks.",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Learn more at",
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "jstorrent.com/android",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.primary,
-                    textDecoration = TextDecoration.Underline
-                ),
-                modifier = Modifier.clickable {
-                    uriHandler.openUri(LEARN_MORE_URL)
-                }
-            )
         }
     }
 }
