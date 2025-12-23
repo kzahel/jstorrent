@@ -412,10 +412,9 @@ class IoWebSocketHandler(
             errorCode.toLEBytes()
         send(Protocol.createMessage(Protocol.OP_TCP_CONNECTED, requestId, response))
 
-        // Auto-activate on success (start I/O loops)
-        if (success) {
-            tcpService.activate(socketId)
-        }
+        // Don't auto-activate here - leave socket in pending state.
+        // This allows TLS upgrade via TCP_SECURE before activation.
+        // Socket will be activated on first send() or explicit activate().
     }
 
     override fun onTcpData(socketId: Int, data: ByteArray) {
