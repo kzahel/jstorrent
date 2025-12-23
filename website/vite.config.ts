@@ -24,6 +24,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        app: resolve(__dirname, 'app/app.html'),
         standalone: resolve(__dirname, 'standalone/standalone.html'),
         standalone_full: resolve(__dirname, 'standalone_full/standalone_full.html'),
       },
@@ -40,6 +41,6 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true, // Allow external access for Android emulator
-    allowedHosts: ['local.jstorrent.com'],
+    allowedHosts: ['local.jstorrent.com', 'new.jstorrent.com'],
   },
 })

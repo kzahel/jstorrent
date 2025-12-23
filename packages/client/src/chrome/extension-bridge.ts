@@ -100,9 +100,15 @@ class ExternalBridge implements ExtensionBridge {
 const EXTENSION_ID_KEY = 'jstorrent_extension_id'
 
 /**
- * Get extension ID from various sources (for dev mode).
+ * Published Chrome Web Store extension ID.
  */
-function getExtensionId(): string | null {
+const PUBLISHED_EXTENSION_ID = 'dbokmlpefliilbjldladbimlcfgbolhk'
+
+/**
+ * Get extension ID from various sources.
+ * Falls back to published Chrome Web Store extension ID.
+ */
+function getExtensionId(): string {
   // 1. Check Vite env variable
   const envExtensionId =
     typeof import.meta !== 'undefined'
@@ -133,7 +139,8 @@ function getExtensionId(): string | null {
     // URL parsing might fail
   }
 
-  return null
+  // 4. Fall back to published extension ID
+  return PUBLISHED_EXTENSION_ID
 }
 
 /**
@@ -174,8 +181,7 @@ function isExtensionContext(): boolean {
  * Create the appropriate bridge based on context.
  *
  * - Inside extension: returns InternalBridge
- * - On localhost with extension ID: returns ExternalBridge
- * - On localhost without extension ID: throws error with instructions
+ * - External website/localhost: returns ExternalBridge with extension ID
  */
 export function createBridge(): ExtensionBridge {
   // Inside extension context - use internal bridge
@@ -184,33 +190,9 @@ export function createBridge(): ExtensionBridge {
     return new InternalBridge()
   }
 
-  // Dev mode - need extension ID for external messaging
+  // External context - use extension ID for external messaging
   const extensionId = getExtensionId()
-
-  if (!extensionId) {
-    const msg = `
-[ExtensionBridge] Dev mode detected but no extension ID found.
-
-To connect to the extension from localhost:
-
-1. Load the extension in Chrome and find its ID:
-   chrome://extensions → Your extension → Copy ID
-
-2. Provide the extension ID via one of:
-   - URL param: ?extensionId=YOUR_EXTENSION_ID
-   - Env var: DEV_EXTENSION_ID=YOUR_EXTENSION_ID npm run dev
-   - localStorage: localStorage.setItem('jstorrent_extension_id', 'YOUR_EXTENSION_ID')
-
-3. Make sure the extension's manifest.json has your dev origin in externally_connectable:
-   "externally_connectable": {
-     "matches": ["http://local.jstorrent.com:*", ...]
-   }
-`.trim()
-    console.error(msg)
-    throw new Error('Extension ID required for dev mode. See console for instructions.')
-  }
-
-  console.log(`[ExtensionBridge] Dev mode with extension ID: ${extensionId}`)
+  console.log(`[ExtensionBridge] External mode with extension ID: ${extensionId}`)
   return new ExternalBridge(extensionId)
 }
 
