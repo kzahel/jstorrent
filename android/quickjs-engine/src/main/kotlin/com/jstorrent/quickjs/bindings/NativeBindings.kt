@@ -1,9 +1,12 @@
 package com.jstorrent.quickjs.bindings
 
+import android.content.Context
 import com.jstorrent.io.socket.TcpSocketManager
 import com.jstorrent.io.socket.TcpSocketService
+import com.jstorrent.io.socket.UdpSocketManagerImpl
 import com.jstorrent.quickjs.JsThread
 import com.jstorrent.quickjs.QuickJsContext
+import com.jstorrent.quickjs.file.FileHandleManager
 import kotlinx.coroutines.CoroutineScope
 
 /**
@@ -12,14 +15,17 @@ import kotlinx.coroutines.CoroutineScope
  * Registers all __jstorrent_* functions on a QuickJsContext, enabling
  * the TypeScript engine to perform I/O operations via the native layer.
  *
- * Phase 3b includes:
+ * Phase 3c includes:
  * - Polyfill bindings (TextEncoder, SHA1, timers, etc.)
- * - TCP socket bindings
+ * - TCP socket bindings (client and server)
+ * - UDP socket bindings
+ * - File I/O bindings
+ * - Storage bindings
  * - State/error callback bindings
  *
  * Usage:
  * ```
- * val bindings = NativeBindings(jsThread, scope)
+ * val bindings = NativeBindings(context, jsThread, scope)
  * bindings.registerAll(ctx)
  *
  * // Set listeners for engine events
@@ -28,15 +34,22 @@ import kotlinx.coroutines.CoroutineScope
  * ```
  */
 class NativeBindings(
+    context: Context,
     private val jsThread: JsThread,
     scope: CoroutineScope
 ) {
     // I/O services
     private val tcpService = TcpSocketService(scope)
+    private val udpManager = UdpSocketManagerImpl(scope)
+    private val fileHandleManager = FileHandleManager(context)
 
     // Individual binding modules
     private val polyfillBindings = PolyfillBindings(jsThread)
     private val tcpBindings = TcpBindings(jsThread, tcpService)
+    private val tcpServerBindings = TcpServerBindings(jsThread, tcpService)
+    private val udpBindings = UdpBindings(jsThread, udpManager)
+    private val fileBindings = FileBindings(fileHandleManager)
+    private val storageBindings = StorageBindings(context)
     private val callbackBindings = CallbackBindings()
 
     /**
@@ -70,8 +83,18 @@ class NativeBindings(
         // Register polyfills first (no dependencies)
         polyfillBindings.register(ctx)
 
-        // Register TCP bindings
+        // Register TCP bindings (client and server)
         tcpBindings.register(ctx)
+        tcpServerBindings.register(ctx)
+
+        // Register UDP bindings
+        udpBindings.register(ctx)
+
+        // Register file bindings
+        fileBindings.register(ctx)
+
+        // Register storage bindings
+        storageBindings.register(ctx)
 
         // Register callback bindings
         callbackBindings.register(ctx)
@@ -81,6 +104,9 @@ class NativeBindings(
 
         // Register TCP dispatchers (used by TCP bindings)
         registerTcpDispatchers(ctx)
+
+        // Register UDP dispatchers (used by UDP bindings)
+        registerUdpDispatchers(ctx)
     }
 
     /**
@@ -88,6 +114,8 @@ class NativeBindings(
      */
     fun shutdown() {
         tcpService.shutdown()
+        udpManager.shutdown()
+        fileHandleManager.closeAll()
     }
 
     /**
@@ -104,11 +132,12 @@ class NativeBindings(
                 globalThis.__jstorrent_timer_next_id = 1;
 
                 globalThis.__jstorrent_timer_dispatch = function(callbackId) {
-                    const callback = globalThis.__jstorrent_timer_callbacks.get(callbackId);
+                    const id = parseInt(callbackId);
+                    const callback = globalThis.__jstorrent_timer_callbacks.get(id);
                     if (callback) {
                         // For setTimeout, remove after dispatch
                         if (callback.once) {
-                            globalThis.__jstorrent_timer_callbacks.delete(callbackId);
+                            globalThis.__jstorrent_timer_callbacks.delete(id);
                         }
                         callback.fn();
                     }
@@ -157,15 +186,17 @@ class NativeBindings(
     private fun registerTcpDispatchers(ctx: QuickJsContext) {
         ctx.evaluate("""
             (function() {
-                // Storage for TCP callbacks
+                // Storage for TCP callbacks (client and server)
                 globalThis.__jstorrent_tcp_callbacks = {
                     onData: null,
                     onClose: null,
                     onError: null,
-                    onConnected: null
+                    onConnected: null,
+                    onListening: null,
+                    onAccept: null
                 };
 
-                // Wrap the on_* functions to store callbacks
+                // Wrap the on_* functions to store callbacks (client)
                 const origOnData = globalThis.__jstorrent_tcp_on_data;
                 globalThis.__jstorrent_tcp_on_data = function(callback) {
                     globalThis.__jstorrent_tcp_callbacks.onData = callback;
@@ -190,7 +221,20 @@ class NativeBindings(
                     origOnConnected(callback);
                 };
 
-                // Dispatcher functions called by Kotlin
+                // Wrap the on_* functions to store callbacks (server)
+                const origOnListening = globalThis.__jstorrent_tcp_on_listening;
+                globalThis.__jstorrent_tcp_on_listening = function(callback) {
+                    globalThis.__jstorrent_tcp_callbacks.onListening = callback;
+                    origOnListening(callback);
+                };
+
+                const origOnAccept = globalThis.__jstorrent_tcp_on_accept;
+                globalThis.__jstorrent_tcp_on_accept = function(callback) {
+                    globalThis.__jstorrent_tcp_callbacks.onAccept = callback;
+                    origOnAccept(callback);
+                };
+
+                // Dispatcher functions called by Kotlin (client)
                 globalThis.__jstorrent_tcp_dispatch_connected = function(socketId, success, errorMessage) {
                     const callback = globalThis.__jstorrent_tcp_callbacks.onConnected;
                     if (callback) {
@@ -218,7 +262,68 @@ class NativeBindings(
                         callback(parseInt(socketId), message);
                     }
                 };
+
+                // Dispatcher functions called by Kotlin (server)
+                globalThis.__jstorrent_tcp_dispatch_listening = function(serverId, success, port) {
+                    const callback = globalThis.__jstorrent_tcp_callbacks.onListening;
+                    if (callback) {
+                        callback(parseInt(serverId), success === 'true', parseInt(port));
+                    }
+                };
+
+                globalThis.__jstorrent_tcp_dispatch_accept = function(serverId, socketId, remoteAddr, remotePort) {
+                    const callback = globalThis.__jstorrent_tcp_callbacks.onAccept;
+                    if (callback) {
+                        callback(parseInt(serverId), parseInt(socketId), remoteAddr, parseInt(remotePort));
+                    }
+                };
             })();
         """.trimIndent(), "tcp-dispatcher.js")
+    }
+
+    /**
+     * Register UDP dispatcher functions.
+     *
+     * These JS functions are called when UDP events occur. They look up and invoke
+     * the callbacks that were registered with __jstorrent_udp_on_*.
+     */
+    private fun registerUdpDispatchers(ctx: QuickJsContext) {
+        ctx.evaluate("""
+            (function() {
+                // Storage for UDP callbacks
+                globalThis.__jstorrent_udp_callbacks = {
+                    onBound: null,
+                    onMessage: null
+                };
+
+                // Wrap the on_* functions to store callbacks
+                const origOnBound = globalThis.__jstorrent_udp_on_bound;
+                globalThis.__jstorrent_udp_on_bound = function(callback) {
+                    globalThis.__jstorrent_udp_callbacks.onBound = callback;
+                    origOnBound(callback);
+                };
+
+                const origOnMessage = globalThis.__jstorrent_udp_on_message;
+                globalThis.__jstorrent_udp_on_message = function(callback) {
+                    globalThis.__jstorrent_udp_callbacks.onMessage = callback;
+                    origOnMessage(callback);
+                };
+
+                // Dispatcher functions called by Kotlin
+                globalThis.__jstorrent_udp_dispatch_bound = function(socketId, success, port) {
+                    const callback = globalThis.__jstorrent_udp_callbacks.onBound;
+                    if (callback) {
+                        callback(parseInt(socketId), success === 'true', parseInt(port));
+                    }
+                };
+
+                globalThis.__jstorrent_udp_dispatch_message = function(socketId, addr, port, data) {
+                    const callback = globalThis.__jstorrent_udp_callbacks.onMessage;
+                    if (callback) {
+                        callback(parseInt(socketId), addr, parseInt(port), data);
+                    }
+                };
+            })();
+        """.trimIndent(), "udp-dispatcher.js")
     }
 }

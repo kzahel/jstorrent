@@ -1,6 +1,7 @@
 package com.jstorrent.quickjs
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.jstorrent.quickjs.bindings.EngineStateListener
 import com.jstorrent.quickjs.bindings.NativeBindings
 import kotlinx.coroutines.CoroutineScope
@@ -25,8 +26,9 @@ class NativeBindingsTest {
 
     @Before
     fun setUp() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         engine = QuickJsEngine()
-        bindings = NativeBindings(engine.jsThread, scope)
+        bindings = NativeBindings(context, engine.jsThread, scope)
         engine.postAndWait {
             bindings.registerAll(engine.context)
         }
@@ -188,8 +190,8 @@ class NativeBindingsTest {
 
     @Test
     fun setTimeoutFiresCallback() {
-        val latch = CountDownLatch(1)
         var fired = false
+        var attempts = 0
 
         engine.postAndWait {
             engine.context.evaluate("""
@@ -200,17 +202,18 @@ class NativeBindingsTest {
             """.trimIndent())
         }
 
-        // Wait for timer to fire
-        Thread.sleep(150)
+        // Poll for result with timeout (timer + dispatch may take time)
+        while (attempts < 20 && !fired) {
+            Thread.sleep(50)
+            attempts++
 
-        engine.postAndWait {
-            val result = engine.context.evaluate("globalThis.timerFired")
-            fired = result == true
-            latch.countDown()
+            engine.postAndWait {
+                val result = engine.context.evaluate("globalThis.timerFired")
+                fired = result == true
+            }
         }
 
-        latch.await(1, TimeUnit.SECONDS)
-        assertTrue(fired, "Timer should have fired")
+        assertTrue(fired, "Timer should have fired (attempts: $attempts)")
     }
 
     @Test
@@ -277,5 +280,230 @@ class NativeBindingsTest {
         """.trimIndent())
 
         assertEquals("Hello Binary", result)
+    }
+
+    // ========================================
+    // UDP Binding Tests (Phase 3c)
+    // ========================================
+
+    @Test
+    fun udpBindFiresCallback() {
+        var boundSuccess = false
+        var boundPort = 0
+        var attempts = 0
+
+        engine.postAndWait {
+            engine.context.evaluate("""
+                globalThis.udpBoundResult = null;
+                __jstorrent_udp_on_bound(function(socketId, success, port) {
+                    globalThis.udpBoundResult = { socketId, success, port };
+                });
+                __jstorrent_udp_bind(100, "", 0);
+            """.trimIndent())
+        }
+
+        // Poll for result with timeout (async callback may take time)
+        while (attempts < 20 && !boundSuccess) {
+            Thread.sleep(100)
+            attempts++
+
+            engine.postAndWait {
+                val result = engine.context.evaluate("globalThis.udpBoundResult")
+                if (result != null) {
+                    val success = engine.context.evaluate("globalThis.udpBoundResult.success")
+                    val port = engine.context.evaluate("globalThis.udpBoundResult.port")
+                    boundSuccess = success == true
+                    boundPort = (port as? Number)?.toInt() ?: 0
+                }
+            }
+        }
+
+        assertTrue(boundSuccess, "UDP bind should succeed (attempts: $attempts)")
+        assertTrue(boundPort > 0, "UDP should bind to a port > 0, got $boundPort")
+    }
+
+    @Test
+    fun udpCloseDoesNotThrow() {
+        // Bind then close - should not throw
+        engine.postAndWait {
+            engine.context.evaluate("""
+                __jstorrent_udp_on_bound(function() {});
+                __jstorrent_udp_bind(2, "", 0);
+            """.trimIndent())
+        }
+
+        Thread.sleep(100)
+
+        engine.evaluate("__jstorrent_udp_close(2)")
+        // If we get here without exception, test passes
+    }
+
+    // ========================================
+    // File I/O Binding Tests (Phase 3c)
+    // ========================================
+
+    @Test
+    fun fileWriteReadRoundTrip() {
+        val testData = "Hello, JSTorrent File System!"
+
+        val result = engine.evaluate("""
+            // Open file for writing
+            const opened = __jstorrent_file_open(1, "default", "test_roundtrip.txt", "w");
+            if (opened !== "true" && opened !== true) {
+                throw new Error("Failed to open file for write: " + opened);
+            }
+
+            // Write data
+            const data = __jstorrent_text_encode("$testData");
+            const written = __jstorrent_file_write(1, data, 0);
+
+            // Close file
+            __jstorrent_file_close(1);
+
+            // Open file for reading
+            const opened2 = __jstorrent_file_open(2, "default", "test_roundtrip.txt", "r");
+            if (opened2 !== "true" && opened2 !== true) {
+                throw new Error("Failed to open file for read");
+            }
+
+            // Read data back
+            const readData = __jstorrent_file_read(2, 0, ${testData.length}, 0);
+            __jstorrent_file_close(2);
+
+            // Decode and return
+            __jstorrent_text_decode(readData);
+        """.trimIndent())
+
+        assertEquals(testData, result)
+    }
+
+    @Test
+    fun fileExistsWorks() {
+        // Create a file
+        engine.evaluate("""
+            __jstorrent_file_open(10, "default", "exists_test.txt", "w");
+            const data = __jstorrent_text_encode("test");
+            __jstorrent_file_write(10, data, 0);
+            __jstorrent_file_close(10);
+        """.trimIndent())
+
+        val exists = engine.evaluate("""
+            __jstorrent_file_exists("default", "exists_test.txt");
+        """.trimIndent())
+
+        assertEquals("true", exists)
+    }
+
+    @Test
+    fun fileStatReturnsSize() {
+        val testContent = "12345678901234567890" // 20 bytes
+
+        engine.evaluate("""
+            __jstorrent_file_open(11, "default", "stat_test.txt", "w");
+            const data = __jstorrent_text_encode("$testContent");
+            __jstorrent_file_write(11, data, 0);
+            __jstorrent_file_close(11);
+        """.trimIndent())
+
+        val stat = engine.evaluate("""
+            const statJson = __jstorrent_file_stat("default", "stat_test.txt");
+            JSON.parse(statJson).size;
+        """.trimIndent())
+
+        assertEquals(20, stat)
+    }
+
+    @Test
+    fun fileMkdirWorks() {
+        val result = engine.evaluate("""
+            __jstorrent_file_mkdir("default", "test_subdir");
+        """.trimIndent())
+
+        assertEquals("true", result)
+
+        val exists = engine.evaluate("""
+            __jstorrent_file_exists("default", "test_subdir");
+        """.trimIndent())
+
+        assertEquals("true", exists)
+    }
+
+    @Test
+    fun fileDeleteWorks() {
+        // Create then delete
+        engine.evaluate("""
+            __jstorrent_file_open(12, "default", "delete_test.txt", "w");
+            const data = __jstorrent_text_encode("delete me");
+            __jstorrent_file_write(12, data, 0);
+            __jstorrent_file_close(12);
+        """.trimIndent())
+
+        val deleted = engine.evaluate("""
+            __jstorrent_file_delete("default", "delete_test.txt");
+        """.trimIndent())
+
+        assertEquals("true", deleted)
+
+        val existsAfter = engine.evaluate("""
+            __jstorrent_file_exists("default", "delete_test.txt");
+        """.trimIndent())
+
+        assertEquals("false", existsAfter)
+    }
+
+    // ========================================
+    // Storage Binding Tests (Phase 3c)
+    // ========================================
+
+    @Test
+    fun storageSetGetWorks() {
+        engine.evaluate("""
+            __jstorrent_storage_set("test_key_1", "test_value_1");
+        """.trimIndent())
+
+        val result = engine.evaluate("""
+            __jstorrent_storage_get("test_key_1");
+        """.trimIndent())
+
+        assertEquals("test_value_1", result)
+    }
+
+    @Test
+    fun storageGetReturnsNullForMissing() {
+        val result = engine.evaluate("""
+            __jstorrent_storage_get("nonexistent_key_xyz");
+        """.trimIndent())
+
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun storageDeleteWorks() {
+        engine.evaluate("""
+            __jstorrent_storage_set("delete_me_key", "some_value");
+            __jstorrent_storage_delete("delete_me_key");
+        """.trimIndent())
+
+        val result = engine.evaluate("""
+            __jstorrent_storage_get("delete_me_key");
+        """.trimIndent())
+
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun storageKeysWithPrefix() {
+        engine.evaluate("""
+            __jstorrent_storage_set("prefix_a", "1");
+            __jstorrent_storage_set("prefix_b", "2");
+            __jstorrent_storage_set("other_c", "3");
+        """.trimIndent())
+
+        val result = engine.evaluate("""
+            const keys = JSON.parse(__jstorrent_storage_keys("prefix_"));
+            keys.filter(k => k.startsWith("prefix_")).length;
+        """.trimIndent())
+
+        assertTrue((result as Number).toInt() >= 2, "Should find at least 2 keys with prefix_")
     }
 }
