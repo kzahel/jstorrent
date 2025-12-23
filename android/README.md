@@ -17,6 +17,10 @@ Provides TCP/UDP sockets, file I/O, and hashing over HTTP/WebSocket. The BitTorr
 # Clone and open in Android Studio
 git clone <repo>
 cd android
+
+# Initialize submodules (required for quickjs-engine)
+git submodule update --init --recursive
+
 # Open in Android Studio: File → Open → select this folder
 ```
 
@@ -39,6 +43,34 @@ APK output: `app/build/outputs/apk/debug/app-debug.apk`
 ```
 
 Requires signing config in `app/build.gradle.kts`.
+
+### QuickJS Engine Module
+
+The quickjs-engine module requires the QuickJS-NG submodule to be initialized before building.
+
+```bash
+# Initialize submodule (if not done during clone)
+git submodule update --init android/quickjs-engine/src/main/cpp/quickjs-ng
+
+# Build the module (compiles native C code for all ABIs)
+./gradlew :quickjs-engine:build
+
+# Run unit tests only
+./gradlew :quickjs-engine:test
+
+# Build just the AAR (debug)
+./gradlew :quickjs-engine:assembleDebug
+
+# Build just the AAR (release)
+./gradlew :quickjs-engine:assembleRelease
+```
+
+The build compiles native libraries for three Android ABIs:
+- `arm64-v8a` (64-bit ARM, most modern devices)
+- `armeabi-v7a` (32-bit ARM, older devices)
+- `x86_64` (Intel/AMD, emulators)
+
+AAR output: `quickjs-engine/build/outputs/aar/`
 
 ## Installing
 
@@ -133,7 +165,7 @@ The app receives the token via intent filter and stores it. Subsequent WebSocket
 
 ## Architecture
 
-The codebase is split into three Gradle modules:
+The codebase is split into four Gradle modules:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -146,8 +178,8 @@ The codebase is split into three Gradle modules:
 │  └── Bridges: KVBridge, RootsBridge (WebView JS interfaces)     │
 └──────────────────────────────────────────────────────────────────┘
                          │ depends on
-          ┌──────────────┴──────────────┐
-          ▼                              ▼
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
 ┌─────────────────────────┐    ┌─────────────────────────────────┐
 │  companion-server       │    │  io-core                         │
 │  (HTTP/WebSocket layer) │    │  (Pure I/O, no HTTP deps)        │
@@ -160,6 +192,15 @@ The codebase is split into three Gradle modules:
 └─────────────────────────┘    └─────────────────────────────────┘
           │ depends on                    │
           └───────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  quickjs-engine (com.aspect.aspect.engine)                       │
+│  (JavaScript engine via QuickJS-NG)                              │
+│                                                                   │
+│  • QuickJSEngine.kt      - Kotlin API for JS evaluation          │
+│  • quickjs_jni.cpp       - JNI bindings to QuickJS-NG            │
+│  • quickjs-ng/           - Git submodule (C library)             │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Module Responsibilities
@@ -169,6 +210,8 @@ The codebase is split into three Gradle modules:
 - **companion-server**: HTTP/WebSocket adapter layer using Ktor. Wraps io-core operations and exposes them over WebSocket for the Chrome extension.
 
 - **app**: Android-specific code including Activities, Services, storage, and authentication.
+
+- **quickjs-engine**: Embedded JavaScript engine using QuickJS-NG. Provides a Kotlin API for evaluating JavaScript code natively on Android via JNI bindings. This enables running the JSTorrent engine directly on Android without a WebView.
 
 ## Key Files
 
@@ -204,6 +247,14 @@ io-core/src/main/java/com/jstorrent/io/
 │   ├── FileManager.kt        # Interface
 │   └── FileManagerImpl.kt    # SAF file I/O
 └── hash/Hasher.kt            # Hashing utilities
+
+quickjs-engine/src/main/
+├── java/com/aspect/aspect/engine/
+│   └── QuickJSEngine.kt      # Kotlin API for JS evaluation
+└── cpp/
+    ├── CMakeLists.txt        # Native build config
+    ├── quickjs_jni.cpp       # JNI bindings
+    └── quickjs-ng/           # Git submodule (QuickJS-NG source)
 ```
 
 ## Endpoints
@@ -244,6 +295,14 @@ Check AUTH token matches. The extension and app must have paired first.
 On some devices, battery optimization kills the service. Either:
 - Show a foreground notification (recommended)
 - Request user to disable battery optimization for the app
+
+### quickjs-engine build fails with "Cannot find source file: quickjs-ng/cutils.c"
+
+The QuickJS-NG submodule is not initialized:
+
+```bash
+git submodule update --init android/quickjs-engine/src/main/cpp/quickjs-ng
+```
 
 ## Local Emulator Development (No Android Studio)
 
