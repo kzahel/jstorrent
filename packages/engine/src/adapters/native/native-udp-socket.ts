@@ -9,9 +9,8 @@ import { callbackManager } from './callback-manager'
 import './bindings.d.ts'
 
 export class NativeUdpSocket implements IUdpSocket {
-  private onMessageCb:
-    | ((src: { addr: string; port: number }, data: Uint8Array) => void)
-    | null = null
+  private onMessageCb: ((src: { addr: string; port: number }, data: Uint8Array) => void) | null =
+    null
   private closed = false
 
   constructor(private readonly id: number) {
@@ -36,9 +35,7 @@ export class NativeUdpSocket implements IUdpSocket {
   /**
    * Register a callback for incoming messages.
    */
-  onMessage(
-    cb: (src: { addr: string; port: number }, data: Uint8Array) => void,
-  ): void {
+  onMessage(cb: (src: { addr: string; port: number }, data: Uint8Array) => void): void {
     this.onMessageCb = cb
   }
 

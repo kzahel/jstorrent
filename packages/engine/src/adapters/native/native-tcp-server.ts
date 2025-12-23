@@ -41,19 +41,15 @@ export class NativeTcpServer implements ITcpServer {
       throw new Error('Server is closed')
     }
 
-    callbackManager.updateTcpServerHandler(
-      this.serverId,
-      'onListening',
-      (success, boundPort) => {
-        if (success) {
-          this.boundPort = boundPort
-          callback?.()
-        } else {
-          // Listening failed - could emit an error event if we had one
-          console.error('Failed to start TCP server on port', port)
-        }
-      },
-    )
+    callbackManager.updateTcpServerHandler(this.serverId, 'onListening', (success, boundPort) => {
+      if (success) {
+        this.boundPort = boundPort
+        callback?.()
+      } else {
+        // Listening failed - could emit an error event if we had one
+        console.error('Failed to start TCP server on port', port)
+      }
+    })
 
     __jstorrent_tcp_listen(this.serverId, port)
   }

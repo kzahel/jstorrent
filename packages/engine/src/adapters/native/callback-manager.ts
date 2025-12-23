@@ -13,18 +13,11 @@ type TcpCloseHandler = (hadError: boolean) => void
 type TcpErrorHandler = (err: Error) => void
 type TcpConnectHandler = (success: boolean, errorMessage?: string) => void
 
-type UdpMessageHandler = (
-  src: { addr: string; port: number },
-  data: Uint8Array,
-) => void
+type UdpMessageHandler = (src: { addr: string; port: number }, data: Uint8Array) => void
 type UdpBoundHandler = (success: boolean, port: number) => void
 
 type TcpServerListeningHandler = (success: boolean, port: number) => void
-type TcpServerAcceptHandler = (
-  socketId: number,
-  remoteAddr: string,
-  remotePort: number,
-) => void
+type TcpServerAcceptHandler = (socketId: number, remoteAddr: string, remotePort: number) => void
 
 interface TcpSocketHandlers {
   onData?: TcpDataHandler

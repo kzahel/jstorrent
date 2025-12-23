@@ -61,11 +61,7 @@ export class NativeFileHandle implements IFileHandle {
       data.byteOffset + data.byteLength,
     ) as ArrayBuffer
 
-    const bytesWritten = __jstorrent_file_write(
-      this.handleId,
-      arrayBuffer,
-      position,
-    )
+    const bytesWritten = __jstorrent_file_write(this.handleId, arrayBuffer, position)
 
     if (bytesWritten < 0) {
       throw new Error('Write failed')

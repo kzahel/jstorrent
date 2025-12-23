@@ -52,19 +52,15 @@ export class NativeTcpSocket implements ITcpSocket {
     }
 
     return new Promise((resolve, reject) => {
-      callbackManager.updateTcpHandler(
-        this.id,
-        'onConnect',
-        (success, errorMessage) => {
-          if (success) {
-            this.remoteAddress = host
-            this.remotePort = port
-            resolve()
-          } else {
-            reject(new Error(errorMessage || 'Connection failed'))
-          }
-        },
-      )
+      callbackManager.updateTcpHandler(this.id, 'onConnect', (success, errorMessage) => {
+        if (success) {
+          this.remoteAddress = host
+          this.remotePort = port
+          resolve()
+        } else {
+          reject(new Error(errorMessage || 'Connection failed'))
+        }
+      })
       __jstorrent_tcp_connect(this.id, host, port)
     })
   }

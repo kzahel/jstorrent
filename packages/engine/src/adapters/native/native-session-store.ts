@@ -139,10 +139,7 @@ export class NativeSessionStore implements ISessionStore {
   async setJson<T>(key: string, value: T): Promise<void> {
     try {
       // Prefix with 'json:' to distinguish from binary base64 data
-      __jstorrent_storage_set(
-        this.prefixKey(key),
-        JSON_MARKER + JSON.stringify(value),
-      )
+      __jstorrent_storage_set(this.prefixKey(key), JSON_MARKER + JSON.stringify(value))
     } catch (e) {
       console.error('[NativeSessionStore] setJson error:', e)
       throw e

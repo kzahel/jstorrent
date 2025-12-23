@@ -4,12 +4,7 @@
  * Implements ISocketFactory using native bindings.
  */
 
-import type {
-  ISocketFactory,
-  ITcpSocket,
-  IUdpSocket,
-  ITcpServer,
-} from '../../interfaces/socket'
+import type { ISocketFactory, ITcpSocket, IUdpSocket, ITcpServer } from '../../interfaces/socket'
 import { callbackManager } from './callback-manager'
 import { NativeTcpSocket } from './native-tcp-socket'
 import { NativeUdpSocket } from './native-udp-socket'
@@ -48,25 +43,18 @@ export class NativeSocketFactory implements ISocketFactory {
   /**
    * Create a new UDP socket bound to the specified address and port.
    */
-  async createUdpSocket(
-    bindAddr: string = '',
-    bindPort: number = 0,
-  ): Promise<IUdpSocket> {
+  async createUdpSocket(bindAddr: string = '', bindPort: number = 0): Promise<IUdpSocket> {
     const socketId = this.getNextId()
     const socket = new NativeUdpSocket(socketId)
 
     return new Promise((resolve, reject) => {
-      callbackManager.updateUdpHandler(
-        socketId,
-        'onBound',
-        (success, _port) => {
-          if (success) {
-            resolve(socket)
-          } else {
-            reject(new Error('Failed to bind UDP socket'))
-          }
-        },
-      )
+      callbackManager.updateUdpHandler(socketId, 'onBound', (success, _port) => {
+        if (success) {
+          resolve(socket)
+        } else {
+          reject(new Error('Failed to bind UDP socket'))
+        }
+      })
       __jstorrent_udp_bind(socketId, bindAddr, bindPort)
     })
   }

@@ -19,10 +19,7 @@ if (typeof TextEncoder === 'undefined') {
       return new Uint8Array(__jstorrent_text_encode(str))
     }
 
-    encodeInto(
-      str: string,
-      dest: Uint8Array,
-    ): { read: number; written: number } {
+    encodeInto(str: string, dest: Uint8Array): { read: number; written: number } {
       const encoded = this.encode(str)
       const written = Math.min(encoded.length, dest.length)
       dest.set(encoded.subarray(0, written))
@@ -113,9 +110,7 @@ if (typeof crypto === 'undefined' || !crypto.getRandomValues) {
       // Set version (4) and variant (RFC4122)
       bytes[6] = (bytes[6] & 0x0f) | 0x40
       bytes[8] = (bytes[8] & 0x3f) | 0x80
-      const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join(
-        '',
-      )
+      const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
       return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}` as `${string}-${string}-${string}-${string}-${string}`
     },
   }
@@ -123,11 +118,9 @@ if (typeof crypto === 'undefined' || !crypto.getRandomValues) {
   if (typeof crypto === 'undefined') {
     ;(globalThis as Record<string, unknown>).crypto = cryptoPolyfill
   } else {
-    ;(crypto as unknown as Record<string, unknown>).getRandomValues =
-      cryptoPolyfill.getRandomValues
+    ;(crypto as unknown as Record<string, unknown>).getRandomValues = cryptoPolyfill.getRandomValues
     if (!crypto.randomUUID) {
-      ;(crypto as unknown as Record<string, unknown>).randomUUID =
-        cryptoPolyfill.randomUUID
+      ;(crypto as unknown as Record<string, unknown>).randomUUID = cryptoPolyfill.randomUUID
     }
   }
 }
@@ -136,8 +129,7 @@ if (typeof crypto === 'undefined' || !crypto.getRandomValues) {
 // btoa / atob (Base64)
 // ============================================================
 
-const BASE64_CHARS =
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 
 if (typeof btoa === 'undefined') {
   ;(globalThis as Record<string, unknown>).btoa = (str: string): string => {
@@ -146,9 +138,7 @@ if (typeof btoa === 'undefined') {
     for (let i = 0; i < str.length; i++) {
       const charCode = str.charCodeAt(i)
       if (charCode > 255) {
-        throw new Error(
-          "btoa: Character out of range. Use encodeURIComponent for Unicode.",
-        )
+        throw new Error('btoa: Character out of range. Use encodeURIComponent for Unicode.')
       }
       bytes[i] = charCode
     }
@@ -161,8 +151,7 @@ if (typeof btoa === 'undefined') {
 
       result += BASE64_CHARS[a >> 2]
       result += BASE64_CHARS[((a & 3) << 4) | (b >> 4)]
-      result +=
-        i + 1 < bytes.length ? BASE64_CHARS[((b & 15) << 2) | (c >> 6)] : '='
+      result += i + 1 < bytes.length ? BASE64_CHARS[((b & 15) << 2) | (c >> 6)] : '='
       result += i + 2 < bytes.length ? BASE64_CHARS[c & 63] : '='
     }
     return result

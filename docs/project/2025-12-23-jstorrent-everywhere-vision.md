@@ -498,10 +498,28 @@ see docs/tasks/2025-12-23-phase2-quickjs-jni-wrapper.md
   - SHA1 hash matches expected
 
 ### Phase 4: Engine Integration
-- Create `EngineService.kt` (foreground service)
-- Load `engine.bundle.js` in QuickJS runtime
-- Expose control API (addTorrent, removeTorrent, getStatus)
-- Test: Add magnet link, verify download starts
+
+**Bundle pipeline:**
+- Gradle task to run `pnpm bundle:native` and copy result to `assets/engine.bundle.js`
+- Verify bundle exists at build time
+
+**EngineService.kt (foreground service):**
+- onCreate: QuickJsContext + NativeBindings registration
+- Load bundle from assets, evaluate
+- Foreground notification (required for Android background execution)
+- Binder interface for Activity to call control methods
+
+**Engine bridge (Kotlin ↔ JS):**
+- `loadEngine()` - evaluate bundle, call `jstorrentEngine.initialize()`
+- `addTorrent(magnetLink: String)` - `evaluate("jstorrentEngine.addTorrent('...')")`
+- `getStatus(): EngineStatus` - `evaluate("JSON.stringify(...)")` → parse JSON
+
+**Verification (emulator):**
+- Service starts, bundle loads without errors
+- addTorrent() with real magnet link (ubuntu iso or similar)
+  (magnet:?xt=urn%3Abtih%3A95c6c298c84fee2eee10c044d673537da158f0f8&dn=ubuntu-22.04.5-live-server-amd64.iso&tr=https%3A%2F%2Ftorrent.ubuntu.com%2Fannounce&tr=https%3A%2F%2Fipv6.torrent.ubuntu.com%2Fannounce)
+- getStatus() shows torrent added with correct name/infoHash
+- Bonus: peer connections appear (needs network)
 
 ### Phase 5: Minimal UI
 - Simple Activity with:

@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -54,6 +55,7 @@ android {
 
 dependencies {
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.core.ktx)  // For @Keep annotation
 
     // io-core for native bindings (TCP, UDP, File, Hash)
@@ -66,4 +68,46 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.kotlin.test)
+}
+
+// Task to build the TypeScript engine bundle for QuickJS
+tasks.register("buildEngineBundle") {
+    description = "Builds the TypeScript engine bundle for QuickJS"
+
+    // Define inputs/outputs for incremental builds
+    inputs.dir(rootProject.file("../packages/engine/src"))
+    inputs.file(rootProject.file("../packages/engine/bundle/esbuild.native.config.mjs"))
+    outputs.file(file("src/main/assets/engine.bundle.js"))
+
+    doLast {
+        // Run pnpm bundle:native in packages/engine
+        exec {
+            workingDir = rootProject.file("../packages/engine")
+            commandLine("pnpm", "bundle:native")
+        }
+
+        // Ensure assets directory exists
+        val assetsDir = file("src/main/assets")
+        assetsDir.mkdirs()
+
+        // Copy bundle to assets
+        copy {
+            from(rootProject.file("../packages/engine/dist/engine.native.js"))
+            into(assetsDir)
+            rename { "engine.bundle.js" }
+        }
+
+        // Verify bundle exists
+        val bundleFile = file("src/main/assets/engine.bundle.js")
+        if (!bundleFile.exists()) {
+            throw GradleException("Engine bundle not found at ${bundleFile.absolutePath}")
+        }
+
+        println("Engine bundle copied: ${bundleFile.length() / 1024} KB")
+    }
+}
+
+// Make preBuild depend on bundle task
+tasks.named("preBuild") {
+    dependsOn("buildEngineBundle")
 }

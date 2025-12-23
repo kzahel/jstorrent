@@ -71,9 +71,7 @@ export function setupController(engine: BtEngine): void {
   /**
    * Pause a torrent.
    */
-  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_pause = (
-    infoHash: string,
-  ): void => {
+  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_pause = (infoHash: string): void => {
     const torrent = engine.getTorrent(infoHash)
     torrent?.stop()
   }
@@ -81,9 +79,7 @@ export function setupController(engine: BtEngine): void {
   /**
    * Resume a torrent.
    */
-  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_resume = (
-    infoHash: string,
-  ): void => {
+  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_resume = (infoHash: string): void => {
     const torrent = engine.getTorrent(infoHash)
     torrent?.start()
   }
@@ -116,30 +112,27 @@ export function setupController(engine: BtEngine): void {
   /**
    * Get the list of all torrents with summary info.
    */
-  ;(globalThis as Record<string, unknown>).__jstorrent_query_torrent_list =
-    (): string => {
-      return JSON.stringify({
-        torrents: engine.torrents.map((t) => ({
-          infoHash: toHex(t.infoHash),
-          name: t.name,
-          progress: t.progress,
-          downloadSpeed: t.downloadSpeed,
-          uploadSpeed: t.uploadSpeed,
-          status: t.userState,
-          size: getTorrentSize(t),
-          downloaded: t.totalDownloaded,
-          uploaded: t.totalUploaded,
-          peersConnected: t.peers.length,
-        })),
-      })
-    }
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_torrent_list = (): string => {
+    return JSON.stringify({
+      torrents: engine.torrents.map((t) => ({
+        infoHash: toHex(t.infoHash),
+        name: t.name,
+        progress: t.progress,
+        downloadSpeed: t.downloadSpeed,
+        uploadSpeed: t.uploadSpeed,
+        status: t.userState,
+        size: getTorrentSize(t),
+        downloaded: t.totalDownloaded,
+        uploaded: t.totalUploaded,
+        peersConnected: t.peers.length,
+      })),
+    })
+  }
 
   /**
    * Get the file list for a specific torrent.
    */
-  ;(globalThis as Record<string, unknown>).__jstorrent_query_files = (
-    infoHash: string,
-  ): string => {
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_files = (infoHash: string): string => {
     const torrent = engine.getTorrent(infoHash)
     if (!torrent || !torrent.files) {
       return JSON.stringify({ files: [] })

@@ -11,9 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /** @type {import('esbuild').BuildOptions} */
 export default {
-  entryPoints: [
-    path.resolve(__dirname, '../src/adapters/native/bundle-entry.ts'),
-  ],
+  entryPoints: [path.resolve(__dirname, '../src/adapters/native/bundle-entry.ts')],
   bundle: true,
   outfile: path.resolve(__dirname, '../dist/engine.native.js'),
   format: 'iife', // Immediately invoked function expression

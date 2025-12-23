@@ -90,9 +90,10 @@ android {
 }
 
 dependencies {
-    // New: depend on our library modules
+    // Library modules
     implementation(project(":io-core"))
     implementation(project(":companion-server"))
+    implementation(project(":quickjs-engine"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

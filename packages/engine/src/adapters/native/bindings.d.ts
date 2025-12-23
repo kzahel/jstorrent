@@ -17,11 +17,7 @@ declare global {
    * Initiate a TCP connection.
    * Result delivered via __jstorrent_tcp_on_connected callback.
    */
-  function __jstorrent_tcp_connect(
-    socketId: number,
-    host: string,
-    port: number,
-  ): void
+  function __jstorrent_tcp_connect(socketId: number, host: string, port: number): void
 
   /**
    * Send data on a TCP socket.
@@ -36,33 +32,23 @@ declare global {
   /**
    * Register callback for incoming TCP data.
    */
-  function __jstorrent_tcp_on_data(
-    callback: (socketId: number, data: ArrayBuffer) => void,
-  ): void
+  function __jstorrent_tcp_on_data(callback: (socketId: number, data: ArrayBuffer) => void): void
 
   /**
    * Register callback for TCP socket close.
    */
-  function __jstorrent_tcp_on_close(
-    callback: (socketId: number, hadError: boolean) => void,
-  ): void
+  function __jstorrent_tcp_on_close(callback: (socketId: number, hadError: boolean) => void): void
 
   /**
    * Register callback for TCP errors.
    */
-  function __jstorrent_tcp_on_error(
-    callback: (socketId: number, message: string) => void,
-  ): void
+  function __jstorrent_tcp_on_error(callback: (socketId: number, message: string) => void): void
 
   /**
    * Register callback for TCP connection result.
    */
   function __jstorrent_tcp_on_connected(
-    callback: (
-      socketId: number,
-      success: boolean,
-      errorMessage: string,
-    ) => void,
+    callback: (socketId: number, success: boolean, errorMessage: string) => void,
   ): void
 
   // ============================================================
@@ -92,12 +78,7 @@ declare global {
    * Register callback for TCP server accepting a connection.
    */
   function __jstorrent_tcp_on_accept(
-    callback: (
-      serverId: number,
-      socketId: number,
-      remoteAddr: string,
-      remotePort: number,
-    ) => void,
+    callback: (serverId: number, socketId: number, remoteAddr: string, remotePort: number) => void,
   ): void
 
   // ============================================================
@@ -108,11 +89,7 @@ declare global {
    * Bind a UDP socket to an address and port.
    * Result delivered via __jstorrent_udp_on_bound callback.
    */
-  function __jstorrent_udp_bind(
-    socketId: number,
-    addr: string,
-    port: number,
-  ): void
+  function __jstorrent_udp_bind(socketId: number, addr: string, port: number): void
 
   /**
    * Send a UDP datagram.
@@ -132,18 +109,12 @@ declare global {
   /**
    * Join a multicast group.
    */
-  function __jstorrent_udp_join_multicast(
-    socketId: number,
-    group: string,
-  ): void
+  function __jstorrent_udp_join_multicast(socketId: number, group: string): void
 
   /**
    * Leave a multicast group.
    */
-  function __jstorrent_udp_leave_multicast(
-    socketId: number,
-    group: string,
-  ): void
+  function __jstorrent_udp_leave_multicast(socketId: number, group: string): void
 
   /**
    * Register callback for UDP bind result.
@@ -156,12 +127,7 @@ declare global {
    * Register callback for incoming UDP messages.
    */
   function __jstorrent_udp_on_message(
-    callback: (
-      socketId: number,
-      addr: string,
-      port: number,
-      data: ArrayBuffer,
-    ) => void,
+    callback: (socketId: number, addr: string, port: number, data: ArrayBuffer) => void,
   ): void
 
   // ============================================================
@@ -194,11 +160,7 @@ declare global {
    * Write data to a file.
    * Returns number of bytes written, or -1 on error.
    */
-  function __jstorrent_file_write(
-    handleId: number,
-    data: ArrayBuffer,
-    position: number,
-  ): number
+  function __jstorrent_file_write(handleId: number, data: ArrayBuffer, position: number): number
 
   /**
    * Truncate a file to the specified length.

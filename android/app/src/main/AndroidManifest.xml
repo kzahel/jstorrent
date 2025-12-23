@@ -92,6 +92,12 @@
             android:foregroundServiceType="dataSync"
             android:exported="false" />
 
+        <!-- QuickJS engine foreground service -->
+        <service
+            android:name=".service.EngineService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
         <!-- Pairing approval activity -->
         <activity
             android:name=".PairingApprovalActivity"
