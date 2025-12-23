@@ -20,3 +20,6 @@ app/signing/upload.keystore
 app/src/main/assets/standalone
 app/src/main/assets/standalone_full
 app/src/main/assets/assets
+
+# Built engine bundle (copied from packages/engine/dist)
+quickjs-engine/src/main/assets/engine.bundle.js

@@ -38,6 +38,9 @@ packages/*/src/**/*.js
 packages/*/src/**/*.d.ts
 packages/*/src/**/*.d.ts.map
 
+# Exception: Native adapter bindings (source file, not generated)
+!packages/engine/src/adapters/native/bindings.d.ts
+
 # agent crap?
 **/.pad
 

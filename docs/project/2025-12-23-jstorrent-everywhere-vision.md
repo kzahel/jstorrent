@@ -479,7 +479,10 @@ see docs/tasks/2025-12-23-phase2-quickjs-jni-wrapper.md
 - Implement bidirectional callback mechanism (dedicated QuickJS thread + handler)
 - Create `NativeBindings.kt` - register `__jstorrent_*` functions
 - Wire to io-core (TcpSocketManager, etc.)
-- Test: TCP connect from JS, receive onConnected callback
+- **Verification (emulator):** 
+  - Register bindings, initialize engine
+  - Call `engine.createTcpSocket()`, connect to test server
+  - Verify onConnected callback fires
 
 ### Phase 4: Engine Integration
 - Create `EngineService.kt` (foreground service)
