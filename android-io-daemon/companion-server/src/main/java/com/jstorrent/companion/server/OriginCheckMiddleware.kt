@@ -1,4 +1,4 @@
-package com.jstorrent.app.server
+package com.jstorrent.companion.server
 
 import android.util.Log
 import io.ktor.http.*

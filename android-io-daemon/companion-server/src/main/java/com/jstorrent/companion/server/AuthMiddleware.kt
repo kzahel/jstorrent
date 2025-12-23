@@ -1,6 +1,5 @@
-package com.jstorrent.app.server
+package com.jstorrent.companion.server
 
-import com.jstorrent.app.auth.TokenStore
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -16,7 +15,7 @@ import io.ktor.util.pipeline.*
  * Accepts both extension pairing token and standalone token.
  */
 suspend fun PipelineContext<Unit, ApplicationCall>.requireAuth(
-    tokenStore: TokenStore,
+    tokenStore: TokenStoreProvider,
     block: suspend PipelineContext<Unit, ApplicationCall>.() -> Unit
 ) {
     val providedToken = call.request.header("X-JST-Auth")

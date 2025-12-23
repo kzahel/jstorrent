@@ -10,11 +10,14 @@ import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.jstorrent.app.CompanionServerDepsImpl
 import com.jstorrent.app.MainActivity
 import com.jstorrent.app.R
 import com.jstorrent.app.auth.TokenStore
-import com.jstorrent.app.server.HttpServer
 import com.jstorrent.app.storage.RootStore
+import com.jstorrent.companion.server.CompanionHttpServer
+import com.jstorrent.companion.server.DownloadRoot
+import com.jstorrent.io.file.FileManagerImpl
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -27,7 +30,7 @@ class IoDaemonService : Service() {
 
     private lateinit var tokenStore: TokenStore
     private lateinit var rootStore: RootStore
-    private var httpServer: HttpServer? = null
+    private var httpServer: CompanionHttpServer? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -78,7 +81,9 @@ class IoDaemonService : Service() {
             return
         }
 
-        httpServer = HttpServer(tokenStore, rootStore, this)
+        val deps = CompanionServerDepsImpl(this, tokenStore, rootStore)
+        val fileManager = FileManagerImpl(this)
+        httpServer = CompanionHttpServer(deps, fileManager)
 
         try {
             httpServer?.start()
@@ -133,7 +138,18 @@ class IoDaemonService : Service() {
      * Call this after AddRootActivity adds a new root.
      */
     fun broadcastRootsChanged() {
-        val roots = rootStore.refreshAvailability()
+        val appRoots = rootStore.refreshAvailability()
+        // Convert app DownloadRoot to companion-server DownloadRoot
+        val roots = appRoots.map { root ->
+            DownloadRoot(
+                key = root.key,
+                uri = root.uri,
+                displayName = root.displayName,
+                removable = root.removable,
+                lastStatOk = root.lastStatOk,
+                lastChecked = root.lastChecked
+            )
+        }
         httpServer?.broadcastRootsChanged(roots)
         Log.i(TAG, "Broadcast ROOTS_CHANGED with ${roots.size} roots")
     }

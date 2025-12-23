@@ -1,20 +1,9 @@
-package com.jstorrent.app.server
+package com.jstorrent.companion.server
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
 import android.util.Log
-import androidx.core.app.NotificationCompat
-import com.jstorrent.app.AddRootActivity
-import com.jstorrent.app.BuildConfig
-import com.jstorrent.app.PairingApprovalActivity
-import com.jstorrent.app.R
-import com.jstorrent.app.auth.TokenStore
-import com.jstorrent.app.storage.DownloadRoot
+import com.jstorrent.io.file.FileManager
+import com.jstorrent.io.hash.Hasher
 import com.jstorrent.io.protocol.Protocol
-import com.jstorrent.app.storage.RootStore
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
@@ -23,7 +12,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
-import io.ktor.util.pipeline.*
 import io.ktor.websocket.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -31,13 +19,12 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import com.jstorrent.io.hash.Hasher
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 
-private const val TAG = "HttpServer"
+private const val TAG = "CompanionHttpServer"
 
 @Serializable
 private data class RootsResponse(
@@ -81,16 +68,23 @@ private val json = Json {
     ignoreUnknownKeys = true
 }
 
-class HttpServer(
-    private val tokenStore: TokenStore,
-    private val rootStore: RootStore,
-    private val appContext: Context
+/**
+ * HTTP/WebSocket server for the companion mode.
+ *
+ * Provides:
+ * - HTTP endpoints for status, pairing, roots, file I/O
+ * - WebSocket /io endpoint for socket operations
+ * - WebSocket /control endpoint for control plane broadcasts
+ */
+class CompanionHttpServer(
+    private val deps: CompanionServerDeps,
+    private val fileManager: FileManager
 ) {
     private var server: NettyApplicationEngine? = null
     private var actualPort: Int = 0
 
     // Connected WebSocket sessions for control broadcasts
-    private val controlSessions = CopyOnWriteArrayList<SocketSession>()
+    private val controlSessions = CopyOnWriteArrayList<ControlWebSocketHandler>()
 
     // Is a pairing dialog currently showing?
     @Volatile
@@ -158,7 +152,6 @@ class HttpServer(
             if (allowedOrigin != null) {
                 call.response.header(HttpHeaders.AccessControlAllowOrigin, allowedOrigin)
                 call.response.header(HttpHeaders.AccessControlAllowMethods, "GET, POST, PUT, DELETE, OPTIONS")
-                // All custom headers used by DaemonConnection and DaemonFileHandle
                 call.response.header(HttpHeaders.AccessControlAllowHeaders,
                     "Content-Type, Authorization, X-Requested-With, " +
                     "X-JST-Auth, X-JST-ExtensionId, X-JST-InstallId, " +
@@ -230,14 +223,14 @@ class HttpServer(
                 }
 
                 // Check token validity if provided
-                val tokenValid = request.token?.let { tokenStore.isTokenValid(it) }
+                val tokenValid = request.token?.let { deps.tokenStore.isTokenValid(it) }
 
                 val response = StatusResponse(
                     port = actualPort,
-                    paired = tokenStore.hasToken(),
-                    extensionId = tokenStore.extensionId,
-                    installId = tokenStore.installId,
-                    version = BuildConfig.VERSION_NAME,
+                    paired = deps.tokenStore.hasToken(),
+                    extensionId = deps.tokenStore.extensionId,
+                    installId = deps.tokenStore.installId,
+                    version = deps.versionName,
                     tokenValid = tokenValid
                 )
                 call.respondText(
@@ -259,8 +252,8 @@ class HttpServer(
                 }
 
                 // Same extensionId AND installId = silent re-pair (token refresh)
-                if (tokenStore.isPairedWith(headers.extensionId, headers.installId)) {
-                    tokenStore.pair(request.token, headers.installId, headers.extensionId)
+                if (deps.tokenStore.isPairedWith(headers.extensionId, headers.installId)) {
+                    deps.tokenStore.pair(request.token, headers.installId, headers.extensionId)
                     Log.i(TAG, "Silent re-pair: same extensionId and installId")
                     call.respondText(
                         json.encodeToString(PairResponse("approved")),
@@ -277,11 +270,11 @@ class HttpServer(
                 }
 
                 // Show dialog (async) and return 202
-                val isReplace = tokenStore.hasToken()
+                val isReplace = deps.tokenStore.hasToken()
 
                 try {
                     pairingDialogShowing = true
-                    showPairingDialog(
+                    deps.showPairingDialog(
                         token = request.token,
                         installId = headers.installId,
                         extensionId = headers.extensionId,
@@ -301,26 +294,31 @@ class HttpServer(
                 )
             }
 
-            // WebSocket endpoint for I/O operations (sockets, files)
+            // WebSocket endpoint for I/O operations (sockets)
             webSocket("/io") {
                 Log.i(TAG, "WebSocket /io connected")
-                val session = SocketSession(this, tokenStore, this@HttpServer, SessionType.IO)
-                session.run()
+                val handler = IoWebSocketHandler(this, deps)
+                handler.run()
                 Log.i(TAG, "WebSocket /io disconnected")
             }
 
             // WebSocket endpoint for control plane (roots, events)
             webSocket("/control") {
                 Log.i(TAG, "WebSocket /control connected")
-                val session = SocketSession(this, tokenStore, this@HttpServer, SessionType.CONTROL)
-                session.run()
+                val handler = ControlWebSocketHandler(
+                    this,
+                    deps,
+                    onSessionRegistered = { session -> registerControlSession(session) },
+                    onSessionUnregistered = { session -> unregisterControlSession(session) }
+                )
+                handler.run()
                 Log.i(TAG, "WebSocket /control disconnected")
             }
 
             // Protected endpoints
             post("/hash/sha1") {
                 call.getExtensionHeaders() ?: return@post
-                requireAuth(tokenStore) {
+                requireAuth(deps.tokenStore) {
                     val bytes = call.receive<ByteArray>()
                     val hash = Hasher.sha1(bytes)
                     call.respondBytes(hash, ContentType.Application.OctetStream)
@@ -330,8 +328,8 @@ class HttpServer(
             // Roots endpoint - returns available download roots
             get("/roots") {
                 call.getExtensionHeaders() ?: return@get
-                requireAuth(tokenStore) {
-                    val roots = rootStore.refreshAvailability()
+                requireAuth(deps.tokenStore) {
+                    val roots = deps.rootStore.refreshAvailability()
                     val response = RootsResponse(roots = roots)
                     call.respondText(
                         json.encodeToString(response),
@@ -343,7 +341,7 @@ class HttpServer(
             // Delete root endpoint - removes a download root
             delete("/roots/{key}") {
                 call.getExtensionHeaders() ?: return@delete
-                requireAuth(tokenStore) {
+                requireAuth(deps.tokenStore) {
                     val key = call.parameters["key"]
                     if (key.isNullOrBlank()) {
                         call.respond(HttpStatusCode.BadRequest, "Missing key")
@@ -351,27 +349,17 @@ class HttpServer(
                     }
 
                     // Get root before removal (for SAF permission cleanup)
-                    val root = rootStore.getRoot(key)
-                    val removed = rootStore.removeRoot(key)
+                    val root = deps.rootStore.getRoot(key)
+                    val removed = deps.rootStore.removeRoot(key)
 
                     if (removed) {
                         // Release SAF permission
                         root?.let { r ->
-                            try {
-                                val uri = android.net.Uri.parse(r.uri)
-                                appContext.contentResolver.releasePersistableUriPermission(
-                                    uri,
-                                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                                )
-                                Log.i(TAG, "Released SAF permission for ${r.displayName}")
-                            } catch (e: Exception) {
-                                Log.w(TAG, "Failed to release SAF permission: ${e.message}")
-                            }
+                            deps.releaseSafPermission(r.uri)
                         }
 
                         // Broadcast change to connected clients
-                        val updatedRoots = rootStore.refreshAvailability()
+                        val updatedRoots = deps.rootStore.refreshAvailability()
                         broadcastRootsChanged(updatedRoots)
 
                         call.respondText(
@@ -400,7 +388,7 @@ class HttpServer(
                         val providedToken = call.request.header("X-JST-Auth")
                             ?: call.request.header("Authorization")?.removePrefix("Bearer ")
 
-                        if (providedToken == null || !tokenStore.isTokenValid(providedToken)) {
+                        if (providedToken == null || !deps.tokenStore.isTokenValid(providedToken)) {
                             call.respond(HttpStatusCode.Unauthorized, "Invalid token")
                             finish()
                             return@intercept
@@ -408,7 +396,7 @@ class HttpServer(
                     }
                 }
 
-                fileRoutes(rootStore, appContext)
+                fileRoutes(deps.rootStore, fileManager)
             }
         }
     }
@@ -417,18 +405,12 @@ class HttpServer(
     // Control Plane
     // =========================================================================
 
-    /**
-     * Register a WebSocket session for control broadcasts.
-     */
-    fun registerControlSession(session: SocketSession) {
+    private fun registerControlSession(session: ControlWebSocketHandler) {
         controlSessions.add(session)
         Log.d(TAG, "Control session registered, total: ${controlSessions.size}")
     }
 
-    /**
-     * Unregister a WebSocket session.
-     */
-    fun unregisterControlSession(session: SocketSession) {
+    private fun unregisterControlSession(session: ControlWebSocketHandler) {
         controlSessions.remove(session)
         Log.d(TAG, "Control session unregistered, total: ${controlSessions.size}")
     }
@@ -444,7 +426,7 @@ class HttpServer(
      */
     suspend fun closeAllSessions() {
         Log.i(TAG, "Closing all ${controlSessions.size} WebSocket sessions")
-        val sessionsToClose = controlSessions.toList()  // Copy to avoid concurrent modification
+        val sessionsToClose = controlSessions.toList()
         for (session in sessionsToClose) {
             try {
                 session.webSocketSession.close(CloseReason(CloseReason.Codes.GOING_AWAY, "Unpaired"))
@@ -486,97 +468,11 @@ class HttpServer(
     }
 
     /**
-     * Open the SAF folder picker activity.
-     * Called from WebSocket handler when client sends OP_CTRL_OPEN_FOLDER_PICKER.
-     *
-     * Uses two approaches simultaneously:
-     * 1. Direct activity start (works when app is in foreground/recently used)
-     * 2. Notification with full-screen intent (fallback for background restrictions)
-     *
-     * The activity cancels the notification when it starts, so if direct start works,
-     * the user won't see the notification.
+     * Mark pairing dialog as closed.
+     * Called from app after pairing dialog result.
      */
-    fun openFolderPicker() {
-        val intent = Intent(appContext, AddRootActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT
-        }
-
-        // Post notification first (as safety net) - activity will cancel it when it starts
-        val channelId = "jstorrent_folder_picker"
-        val notificationId = AddRootActivity.FOLDER_PICKER_NOTIFICATION_ID
-
-        val channel = NotificationChannel(
-            channelId,
-            "Folder Picker",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Shows folder picker when requested by extension"
-        }
-        val notificationManager = appContext.getSystemService(NotificationManager::class.java)
-        notificationManager.createNotificationChannel(channel)
-
-        // Cancel any existing notification first - this forces Android to show
-        // a fresh heads-up notification even if one was recently dismissed
-        notificationManager.cancel(notificationId)
-
-        val pendingIntent = PendingIntent.getActivity(
-            appContext,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val notification = NotificationCompat.Builder(appContext, channelId)
-            .setContentTitle("Add Download Folder")
-            .setContentText("Tap to select a download folder")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setFullScreenIntent(pendingIntent, true)
-            .setAutoCancel(true)
-            .build()
-
-        notificationManager.notify(notificationId, notification)
-        Log.i(TAG, "Folder picker notification posted")
-
-        // Also try direct activity start - on Android 10+ this may silently fail
-        // to bring activity to foreground if app is backgrounded, but notification
-        // will serve as fallback
-        try {
-            appContext.startActivity(intent)
-            Log.i(TAG, "Folder picker activity start attempted")
-        } catch (e: Exception) {
-            Log.w(TAG, "Direct activity start failed: ${e.message}")
-        }
-    }
-
-    /**
-     * Show pairing approval dialog. Runs async - result stored when user acts.
-     */
-    private fun showPairingDialog(
-        token: String,
-        installId: String,
-        extensionId: String,
-        isReplace: Boolean
-    ) {
-        PairingApprovalActivity.pendingCallback = { approved, approvedToken, approvedInstallId, approvedExtensionId ->
-            pairingDialogShowing = false
-            if (approved && approvedToken != null && approvedInstallId != null && approvedExtensionId != null) {
-                tokenStore.pair(approvedToken, approvedInstallId, approvedExtensionId)
-                Log.i(TAG, "Pairing approved and stored")
-            } else {
-                Log.i(TAG, "Pairing denied or dismissed")
-            }
-        }
-
-        val intent = Intent(appContext, PairingApprovalActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            putExtra(PairingApprovalActivity.EXTRA_TOKEN, token)
-            putExtra(PairingApprovalActivity.EXTRA_INSTALL_ID, installId)
-            putExtra(PairingApprovalActivity.EXTRA_EXTENSION_ID, extensionId)
-            putExtra(PairingApprovalActivity.EXTRA_IS_REPLACE, isReplace)
-        }
-        appContext.startActivity(intent)
+    fun onPairingDialogClosed() {
+        pairingDialogShowing = false
     }
 
     companion object {

@@ -1,5 +1,6 @@
 package com.jstorrent.app.server
 
+import com.jstorrent.companion.server.ExtensionHeaders
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

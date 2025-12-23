@@ -1,11 +1,8 @@
-package com.jstorrent.app.server
+package com.jstorrent.companion.server
 
-import android.content.Context
 import android.util.Base64
-import com.jstorrent.app.storage.RootStore
 import com.jstorrent.io.file.FileManager
 import com.jstorrent.io.file.FileManagerException
-import com.jstorrent.io.file.FileManagerImpl
 import com.jstorrent.io.hash.Hasher
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -20,12 +17,11 @@ private const val MAX_BODY_SIZE = 64 * 1024 * 1024 // 64MB
  *
  * This is a thin adapter layer that:
  * - Validates HTTP parameters
- * - Resolves root keys to SAF URIs via RootStore
+ * - Resolves root keys to SAF URIs via RootStoreProvider
  * - Delegates to FileManager for actual I/O
  * - Translates FileManagerException to HTTP status codes
  */
-fun Route.fileRoutes(rootStore: RootStore, context: Context) {
-    val fileManager: FileManager = FileManagerImpl(context)
+fun Route.fileRoutes(rootStore: RootStoreProvider, fileManager: FileManager) {
 
     get("/read/{root_key}") {
         val rootKey = call.parameters["root_key"]
