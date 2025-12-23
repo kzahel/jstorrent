@@ -22,4 +22,5 @@ dependencyResolutionManagement {
 rootProject.name = "JSTorrent"
 include(":io-core")
 include(":companion-server")
+include(":quickjs-engine")
 include(":app")

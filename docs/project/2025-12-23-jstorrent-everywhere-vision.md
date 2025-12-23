@@ -464,26 +464,17 @@ Before QuickJS work begins, rename folders for clarity:
 - Create bundle config in `packages/engine/bundle/`
 - Test bundle builds (output should be valid ES2020 JS)
 
-### Phase 2: QuickJS Module with quickjs-kt
+### Phase 2: QuickJS Module with quickjs-ng
 
-Create android/quickjs-engine/ module
-Add quickjs-kt dependency
-Create QuickJsRuntime.kt wrapper (thin layer over quickjs-kt)
-Test: evaluate<Int>("1 + 2") works
-Test: Define a simple function("echo"), call from JS
+see docs/tasks/2025-12-23-phase2-quickjs-jni-wrapper.md
 
 ### Phase 3: Native Bindings
 
-Implement NativeBindings.kt using quickjs-kt's asyncFunction DSL
-Wire TCP bindings to io-core's TcpSocketManager
-Handle the callback direction (native → JS when data arrives)
-Test: JS calls __jstorrent_tcp_connect, socket actually opens
+TBD
 
 ### Phase 4: Engine Integration 
 
-EngineService.kt foreground service
-Load engine.bundle.js
-Expose control API
+TBD
 
 ### Phase 5: Native UI
 - Create basic Compose UI screens
