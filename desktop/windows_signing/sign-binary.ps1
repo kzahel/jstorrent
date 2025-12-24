@@ -22,6 +22,28 @@ $ErrorActionPreference = "Stop"
 
 # Resolve to absolute path
 $FilePath = Resolve-Path $FilePath -ErrorAction Stop
+$OriginalFilePath = $FilePath
+
+# Check if path is WSL or network path (signtool can be finicky with these)
+$isWSLOrNetworkPath = $FilePath -match "^Z:\\" -or $FilePath -match "^\\\\wsl" -or $FilePath -match "^\\\\"
+
+if ($isWSLOrNetworkPath) {
+    Write-Host "WSL/network path detected, copying to local temp directory..." -ForegroundColor Yellow
+    Write-Host "Original path: $FilePath" -ForegroundColor Gray
+
+    # Create temp directory and copy file
+    $tempDir = "C:\temp\jstorrent-signing"
+    New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+
+    $fileName = Split-Path $FilePath -Leaf
+    $tempFilePath = Join-Path $tempDir $fileName
+
+    Copy-Item $FilePath $tempFilePath -Force
+    Write-Host "Copied to: $tempFilePath" -ForegroundColor Gray
+
+    # Use temp path for signing
+    $FilePath = $tempFilePath
+}
 
 Write-Host "Signing: $FilePath" -ForegroundColor Cyan
 
@@ -112,6 +134,16 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Successfully signed: $FilePath" -ForegroundColor Green
+
+# Copy signed file back to original location if we used temp directory
+if ($isWSLOrNetworkPath) {
+    Write-Host "Copying signed file back to original location..." -ForegroundColor Cyan
+    Copy-Item $FilePath $OriginalFilePath -Force
+    Write-Host "Copied to: $OriginalFilePath" -ForegroundColor Green
+
+    # Update FilePath for verification step
+    $FilePath = $OriginalFilePath
+}
 
 # Verify signature
 Write-Host "`nVerifying signature..." -ForegroundColor Cyan
