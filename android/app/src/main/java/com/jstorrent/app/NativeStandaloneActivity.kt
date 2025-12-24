@@ -133,15 +133,27 @@ class NativeStandaloneActivity : ComponentActivity() {
             "jstorrent" -> {
                 // Handle jstorrent://native launch intent
                 Log.i(TAG, "Launch intent received")
-                
-                // Check for magnet query parameter: jstorrent://native?magnet=<encoded_magnet>
-                val magnetParam = uri.getQueryParameter("magnet")
-                if (!magnetParam.isNullOrEmpty()) {
-                    Log.i(TAG, "Magnet from query param: $magnetParam")
+
+                // Check for base64-encoded magnet: jstorrent://native?magnet_b64=<base64>
+                val magnetB64 = uri.getQueryParameter("magnet_b64")
+                if (!magnetB64.isNullOrEmpty()) {
+                    val magnet = String(Base64.decode(magnetB64, Base64.DEFAULT), Charsets.UTF_8)
+                    Log.i(TAG, "Magnet from base64 param: $magnet")
                     if (isEngineLoaded.value) {
-                        addTorrent(magnetParam)
+                        addTorrent(magnet)
                     } else {
-                        pendingMagnet = magnetParam
+                        pendingMagnet = magnet
+                    }
+                } else {
+                    // Fallback: Check for plain magnet query parameter
+                    val magnetParam = uri.getQueryParameter("magnet")
+                    if (!magnetParam.isNullOrEmpty()) {
+                        Log.i(TAG, "Magnet from query param: $magnetParam")
+                        if (isEngineLoaded.value) {
+                            addTorrent(magnetParam)
+                        } else {
+                            pendingMagnet = magnetParam
+                        }
                     }
                 }
             }
