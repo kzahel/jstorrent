@@ -4,6 +4,18 @@ import shutil
 import time
 from typing import Tuple
 
+
+def get_v1_info_hash(info: lt.torrent_info) -> str:
+    """Get the v1 info hash from a torrent_info object.
+
+    For hybrid v1+v2 torrents, info_hash() returns the truncated v2 hash.
+    We need the v1 hash (SHA1 of full info dict) for compatibility with JSTEngine.
+    """
+    hashes = info.info_hashes()
+    if hashes.has_v1():
+        return str(hashes.v1)
+    return str(info.info_hash())
+
 class LibtorrentSession:
     def __init__(self, root_dir: str, port: int = 40000):
         self.root_dir = root_dir
@@ -70,8 +82,8 @@ class LibtorrentSession:
             f.write(lt.bencode(t.generate()))
             
         info = lt.torrent_info(torrent_path)
-        info_hash = str(info.info_hash())
-        return torrent_path, str(info_hash)
+        info_hash = get_v1_info_hash(info)
+        return torrent_path, info_hash
 
     def create_multi_file_torrent(self, dir_name: str, files: list[Tuple[str, int]], piece_length: int = 0, tracker_url: str = None) -> Tuple[str, str]:
         """
@@ -103,8 +115,8 @@ class LibtorrentSession:
             f.write(lt.bencode(t.generate()))
             
         info = lt.torrent_info(torrent_path)
-        info_hash = str(info.info_hash())
-        return torrent_path, str(info_hash)
+        info_hash = get_v1_info_hash(info)
+        return torrent_path, info_hash
 
     def add_torrent(self, torrent_path: str, save_path: str, seed_mode: bool = False):
         params = lt.add_torrent_params()

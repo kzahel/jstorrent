@@ -4,6 +4,8 @@ import sys
 import tempfile
 import shutil
 
+from libtorrent_utils import get_v1_info_hash
+
 def verify_libtorrent():
     print(f"Libtorrent version: {lt.version}")
     
@@ -33,7 +35,7 @@ def verify_libtorrent():
         # 3. Load torrent back
         ti = lt.torrent_info(torrent_filename)
         print(f"Loaded torrent info.")
-        print(f"Info Hash: {ti.info_hash()}")
+        print(f"Info Hash: {get_v1_info_hash(ti)}")
         print(f"Num Files: {ti.num_files()}")
         print(f"Total Size: {ti.total_size()}")
         

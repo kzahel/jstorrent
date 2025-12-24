@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-Standalone libtorrent seeder for Android emulator testing.
+Seeder for Android emulator testing.
 
-Generates deterministic test data and seeds it via libtorrent.
+Generates deterministic test data and seeds it via libtorrent or JSTEngine.
 Data is cached in ~/.jstorrent-test-seed/ for fast subsequent runs.
 
 The same seed always produces the same data, which means the same infohash.
 This allows using a predictable magnet link for testing.
 
 Usage:
-    uv run python libtorrent_seed_for_test.py              # Seed 1GB file
-    uv run python libtorrent_seed_for_test.py --size 100mb # Seed 100MB file
-    uv run python libtorrent_seed_for_test.py --regenerate # Force regenerate data
-    uv run python libtorrent_seed_for_test.py --quiet      # Machine-parseable output
+    uv run python seed_for_test.py                        # Seed 1GB file with libtorrent
+    uv run python seed_for_test.py --engine jstengine     # Seed with JSTEngine
+    uv run python seed_for_test.py --size 100mb           # Seed 100MB file
+    uv run python seed_for_test.py --regenerate           # Force regenerate data
+    uv run python seed_for_test.py --quiet                # Machine-parseable output
 """
 import argparse
-import os
 import signal
 import sys
 import time
@@ -25,6 +25,8 @@ from urllib.parse import quote
 
 import libtorrent as lt
 import numpy as np
+
+from jst import JSTEngine
 
 # =============================================================================
 # Constants - DO NOT CHANGE SEED (it would change the infohash)
@@ -110,7 +112,13 @@ def create_torrent_for_file(
         f.write(lt.bencode(t.generate()))
 
     info = lt.torrent_info(str(torrent_path))
-    info_hash = str(info.info_hash())
+    # For hybrid v1+v2 torrents, info_hash() returns the v2 hash (truncated).
+    # We need the v1 hash (SHA1 of full info dict) for compatibility with JSTEngine.
+    hashes = info.info_hashes()
+    if hashes.has_v1():
+        info_hash = str(hashes.v1)
+    else:
+        info_hash = str(info.info_hash())
 
     return torrent_path, info_hash
 
@@ -147,8 +155,14 @@ def ensure_data_exists(
         )
     else:
         # Load existing torrent to get info_hash
+        # For hybrid v1+v2 torrents, info_hash() returns the v2 hash (truncated).
+        # We need the v1 hash (SHA1 of full info dict) for compatibility with JSTEngine.
         info = lt.torrent_info(str(torrent_path))
-        info_hash = str(info.info_hash())
+        hashes = info.info_hashes()
+        if hashes.has_v1():
+            info_hash = str(hashes.v1)
+        else:
+            info_hash = str(info.info_hash())
 
     if not quiet and not needs_data:
         print(f"Using existing data at {data_path}")
@@ -167,12 +181,14 @@ def create_seeding_session(port: int, bind_addr: str = "0.0.0.0") -> lt.session:
         "enable_lsd": False,
         "enable_upnp": False,
         "enable_natpmp": False,
-        "in_enc_policy": 0,  # pe_disabled - allow plaintext
-        "out_enc_policy": 0,
-        "allowed_enc_level": 0,  # plaintext
+        # Encryption: pe_enabled (1) = accept both plaintext and encrypted
+        # This provides maximum compatibility
+        "in_enc_policy": 1,  # pe_enabled - accept both
+        "out_enc_policy": 1,  # pe_enabled - accept both
+        "allowed_enc_level": 3,  # both (1=plaintext, 2=rc4, 3=both)
+        "prefer_rc4": False,
         "enable_incoming_utp": False,
         "enable_outgoing_utp": False,
-        "prefer_rc4": False,
         "user_agent": "jstorrent_test_seeder",
         "alert_mask": lt.alert.category_t.all_categories,
         "allow_multiple_connections_per_ip": True,
@@ -198,6 +214,8 @@ def seed_torrent(
 
     handle = session.add_torrent(params)
     handle.resume()
+    # Force recheck to verify we have the data and transition to seeding state
+    handle.force_recheck()
 
     return handle
 
@@ -259,6 +277,13 @@ def main() -> int:
         default=DEFAULT_DATA_DIR,
         help=f"Data directory (default: {DEFAULT_DATA_DIR})",
     )
+    parser.add_argument(
+        "--engine",
+        "-e",
+        choices=["libtorrent", "jstengine"],
+        default="libtorrent",
+        help="Seeding engine to use (default: libtorrent)",
+    )
 
     args = parser.parse_args()
 
@@ -271,8 +296,29 @@ def main() -> int:
         args.data_dir, args.size, args.regenerate, args.quiet
     )
 
+    config = SIZE_CONFIGS[args.size]
+
+    if args.engine == "libtorrent":
+        return run_libtorrent_seeder(args, data_path, torrent_path, info_hash, config)
+    else:
+        return run_jstengine_seeder(args, data_path, torrent_path, info_hash, config)
+
+
+def run_libtorrent_seeder(args, data_path, torrent_path, info_hash, config) -> int:
+    """Run seeder using libtorrent."""
     # Create session and start seeding
     session = create_seeding_session(args.port, args.bind)
+
+    # Verify we got the port we asked for
+    actual_port = session.listen_port()
+    if actual_port != args.port:
+        print(
+            f"ERROR: Requested port {args.port} but got {actual_port}. "
+            f"Port {args.port} may be in use.",
+            file=sys.stderr,
+        )
+        return 1
+
     handle = seed_torrent(session, torrent_path, args.data_dir)
 
     # Wait for seeding state
@@ -284,37 +330,18 @@ def main() -> int:
             return 1
         time.sleep(0.1)
 
-    actual_port = session.listen_port()
-    config = SIZE_CONFIGS[args.size]
     magnet = build_magnet_link(info_hash, config["filename"], args.host, actual_port)
+
+    magnet_localhost = build_magnet_link(info_hash, config["filename"], "127.0.0.1", actual_port)
 
     if args.quiet:
         # Machine-parseable output
         print(f"INFOHASH={info_hash}")
         print(f"PORT={actual_port}")
         print(f"MAGNET={magnet}")
+        print(f"MAGNET_LOCALHOST={magnet_localhost}")
     else:
-        # Human-readable output
-        print()
-        print("=" * 80)
-        print("JSTorrent Test Seeder")
-        print("=" * 80)
-        print(f"Data directory: {args.data_dir}")
-        print(f"Data file: {data_path} ({config['size']} bytes)")
-        print(f"Torrent file: {torrent_path}")
-        print(f"Info hash: {info_hash}")
-        print()
-        print(f"Libtorrent seeder listening on port {actual_port}")
-        print(f"Peer hint host: {args.host}")
-        print()
-        print("=" * 80)
-        print("MAGNET LINK (copy this):")
-        print("=" * 80)
-        print(magnet)
-        print()
-        print("=" * 80)
-        print("Press Ctrl+C to stop seeding")
-        print("=" * 80)
+        print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, "libtorrent")
 
     # Main loop - keep seeding until Ctrl+C
     try:
@@ -342,6 +369,110 @@ def main() -> int:
         print("\nShutting down...")
 
     return 0
+
+
+def run_jstengine_seeder(args, data_path, torrent_path, info_hash, config) -> int:
+    """Run seeder using JSTEngine."""
+    engine = None
+    try:
+        # Start JSTEngine
+        engine = JSTEngine(
+            port=0,  # RPC port (auto-assign)
+            config={"port": args.port, "downloadPath": str(args.data_dir)},
+            verbose=not args.quiet,
+        )
+
+        # Add torrent and recheck to discover existing pieces
+        tid = engine.add_torrent_file(str(torrent_path))
+        engine.recheck(tid)
+
+        # Verify JSTEngine computed the same infohash as libtorrent (using v1 hash)
+        if tid.lower() != info_hash.lower():
+            print(f"ERROR: JSTEngine infohash ({tid}) differs from libtorrent v1 hash ({info_hash})", file=sys.stderr)
+            return 1
+
+        # Wait for seeding state (progress >= 1.0)
+        timeout = 60
+        start = time.time()
+        while True:
+            status = engine.get_torrent_status(tid)
+            if status.get("progress", 0) >= 1.0:
+                break
+            if time.time() - start > timeout:
+                print("ERROR: Timeout waiting for seeding state", file=sys.stderr)
+                return 1
+            time.sleep(0.5)
+
+        actual_port = engine.bt_port
+        magnet = build_magnet_link(info_hash, config["filename"], args.host, actual_port)
+        magnet_localhost = build_magnet_link(info_hash, config["filename"], "127.0.0.1", actual_port)
+
+        if args.quiet:
+            # Machine-parseable output
+            print(f"INFOHASH={info_hash}")
+            print(f"PORT={actual_port}")
+            print(f"MAGNET={magnet}")
+            print(f"MAGNET_LOCALHOST={magnet_localhost}")
+        else:
+            print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, "JSTEngine")
+
+        # Main loop - keep seeding until Ctrl+C
+        try:
+            while not shutdown_requested:
+                time.sleep(1)
+                if not args.quiet:
+                    status = engine.get_torrent_status(tid)
+                    peers = status.get("peers", 0)
+                    upload_rate = status.get("uploadRate", 0) / 1024
+                    uploaded = status.get("totalUploaded", 0) / (1024 * 1024)
+                    print(
+                        f"\rSeeding... (peers: {peers}, "
+                        f"upload: {upload_rate:.1f} KB/s, "
+                        f"uploaded: {uploaded:.1f} MB)",
+                        end="",
+                        flush=True,
+                    )
+        except KeyboardInterrupt:
+            pass
+
+        if not args.quiet:
+            print("\nShutting down...")
+
+        return 0
+
+    finally:
+        if engine:
+            engine.close()
+
+
+def print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, engine_name):
+    """Print human-readable banner."""
+    print()
+    print("=" * 80)
+    print("JSTorrent Test Seeder")
+    print("=" * 80)
+    print(f"Engine: {engine_name}")
+    print(f"Data directory: {args.data_dir}")
+    print(f"Data file: {data_path} ({config['size']} bytes)")
+    print(f"Torrent file: {torrent_path}")
+    print(f"Info hash: {info_hash}")
+    print()
+    print(f"Seeder listening on port {actual_port}")
+    print(f"Peer hint host: {args.host}")
+    print()
+    print("=" * 80)
+    print(f"MAGNET LINK ({args.host}):")
+    print("=" * 80)
+    print(magnet)
+    print()
+    print("=" * 80)
+    print("MAGNET LINK (127.0.0.1):")
+    print("=" * 80)
+    print(magnet_localhost)
+    print()
+    print("=" * 80)
+    print("Press Ctrl+C to stop seeding")
+    print("=" * 80)
 
 
 if __name__ == "__main__":

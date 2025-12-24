@@ -19,6 +19,7 @@ export interface TorrentStatus {
   progress: number
   downloadRate: number
   uploadRate: number
+  totalUploaded: number
   peers: number
 }
 
@@ -118,8 +119,9 @@ export class EngineController {
       id,
       state: torrent.progress >= 1.0 ? 'seeding' : 'downloading',
       progress: torrent.progress,
-      downloadRate: 0, // TODO: implement actual rate tracking
-      uploadRate: 0, // TODO: implement actual rate tracking
+      downloadRate: torrent.downloadSpeed,
+      uploadRate: torrent.uploadSpeed,
+      totalUploaded: torrent.totalUploaded,
       peers: torrent.numPeers,
     }
   }

@@ -27,6 +27,8 @@ TEST_TIMEOUTS = {
 # Skip List - tests to skip (with reasons)
 # =============================================================================
 SKIP_TESTS = {
+    "test_jstengine_with_seeder.py": "Requires running seeder (pnpm seed-for-test)",
+    "test_seed_for_test.py": "Requires running seeder (pnpm seed-for-test)",
 }
 # =============================================================================
 

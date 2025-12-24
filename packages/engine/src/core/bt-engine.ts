@@ -419,7 +419,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         peer.isIncoming = true
         torrent.addPeer(peer)
       } else {
-        this.logger.warn(`Incoming connection for unknown torrent ${infoHashStr}`)
+        const knownHashes = this.torrents.map((t) => toHex(t.infoHash))
+        this.logger.warn(
+          `Incoming connection for unknown torrent ${infoHashStr}. ` +
+            `Known torrents (${this.torrents.length}): ${knownHashes.join(', ') || 'none'}`,
+        )
         peer.close()
       }
     })

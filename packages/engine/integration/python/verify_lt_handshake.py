@@ -4,6 +4,8 @@ import time
 import shutil
 import sys
 
+from libtorrent_utils import get_v1_info_hash
+
 def create_session(port):
     settings = {
         'listen_interfaces': '0.0.0.0:%d' % port,
@@ -54,7 +56,7 @@ def verify_handshake():
     t = lt.create_torrent(fs)
     lt.set_piece_hashes(t, os.path.dirname(filepath))
     torrent_info = lt.torrent_info(t.generate())
-    info_hash = torrent_info.info_hash()
+    info_hash = get_v1_info_hash(torrent_info)
     print(f"Info Hash: {info_hash}")
     
     # Start Sessions

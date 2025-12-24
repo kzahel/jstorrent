@@ -285,6 +285,16 @@ class JSTEngine:
         status = self.get_torrent_status(tid)
         return status.get("downloadRate", 0)
 
+    def get_upload_rate(self, tid):
+        """Get current upload rate in bytes/sec."""
+        status = self.get_torrent_status(tid)
+        return status.get("uploadRate", 0)
+
+    def get_total_uploaded(self, tid):
+        """Get total bytes uploaded."""
+        status = self.get_torrent_status(tid)
+        return status.get("totalUploaded", 0)
+
     def set_max_peers(self, tid, max_peers):
         """Set maximum peers for a torrent."""
         return self._req("POST", f"/torrent/{tid}/settings", json={"maxPeers": max_peers})

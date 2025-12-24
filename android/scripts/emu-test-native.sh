@@ -29,7 +29,8 @@ export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$SDK_ROOT/platform-tools:$SDK_RO
 # Default test magnet (1GB deterministic test data from libtorrent seeder)
 # Run `pnpm seed-for-test` to start the seeder on the host machine
 # Peer hints: 10.0.2.2 (emulator->host), 127.0.0.1 (desktop/extension)
-DEFAULT_MAGNET="magnet:?xt=urn:btih:7fdbc712b94e57b5ff395ee1ce336fa7cef960ad&dn=testdata_1gb.bin&x.pe=10.0.2.2:6881&x.pe=127.0.0.1:6881"
+# Uses v1 infohash (SHA1 of full info dict), not truncated v2 hash
+DEFAULT_MAGNET="magnet:?xt=urn:btih:18a7aacab6d2bc518e336921ccd4b6cc32a9624b&dn=testdata_1gb.bin&x.pe=10.0.2.2:6881&x.pe=127.0.0.1:6881"
 
 # Parse arguments
 BUILD=true
