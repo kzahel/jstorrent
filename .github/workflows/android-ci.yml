@@ -7,11 +7,13 @@ on:
       - 'android-v*'
     paths:
       - 'android/**'
+      - 'packages/engine/**'
       - '.github/workflows/android-ci.yml'
   pull_request:
     branches: [main]
     paths:
       - 'android/**'
+      - 'packages/engine/**'
       - '.github/workflows/android-ci.yml'
 
 permissions:
@@ -37,6 +39,19 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: corepack enable pnpm
+        working-directory: .
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -69,6 +84,19 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: corepack enable pnpm
+        working-directory: .
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
