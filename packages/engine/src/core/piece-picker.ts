@@ -1,3 +1,9 @@
+/**
+ * DEPRECATED: This module is no longer used in production.
+ * Performance testing with QuickJS showed it decreased download rate on Android
+ * from 30 MB/s to <2 MB/s. Kept for reference and tests only.
+ */
+
 import { BitField } from '../utils/bitfield'
 
 /**
