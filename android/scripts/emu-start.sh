@@ -8,7 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SDK_ROOT="${ANDROID_HOME:-$HOME/.android-sdk}"
 AVD_NAME="${AVD_NAME:-jstorrent-dev}"
 DAEMON_PORT="${DAEMON_PORT:-7800}"
-GPU_MODE="${GPU_MODE:-auto}"
+#GPU_MODE="${GPU_MODE:-auto}"
+GPU_MODE="${GPU_MODE:-off}"
 #ENABLE HW ACCEL (not good on my machine, crashes and visual glitch in host OS
 #GPU_MODE="${GPU_MODE:-host}"
 
