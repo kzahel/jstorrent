@@ -1,7 +1,10 @@
 package com.jstorrent.quickjs
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
+import com.jstorrent.io.file.FileManager
+import com.jstorrent.io.file.FileManagerImpl
 import com.jstorrent.quickjs.bindings.EngineErrorListener
 import com.jstorrent.quickjs.bindings.EngineStateListener
 import com.jstorrent.quickjs.bindings.NativeBindings
@@ -35,10 +38,17 @@ private const val TAG = "EngineController"
  * controller.state.collect { state -> updateUI(state) }
  * controller.close()
  * ```
+ *
+ * @param context Android context
+ * @param scope Coroutine scope for I/O operations
+ * @param fileManager Optional FileManager for file I/O (defaults to FileManagerImpl)
+ * @param rootResolver Optional resolver for rootKey → SAF URI (defaults to app-private fallback)
  */
 class EngineController(
     private val context: Context,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val fileManager: FileManager = FileManagerImpl(context),
+    private val rootResolver: (String) -> Uri? = { null },
 ) : Closeable {
 
     private val json = Json {
@@ -74,7 +84,7 @@ class EngineController(
         engine = QuickJsEngine()
 
         // Register native bindings
-        bindings = NativeBindings(context, engine!!.jsThread, scope).apply {
+        bindings = NativeBindings(context, engine!!.jsThread, scope, fileManager, rootResolver).apply {
             stateListener = object : EngineStateListener {
                 override fun onStateUpdate(stateJson: String) {
                     handleStateUpdate(stateJson)

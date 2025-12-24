@@ -131,52 +131,33 @@ declare global {
   ): void
 
   // ============================================================
-  // File System Functions
+  // File System Functions (Stateless API)
   // ============================================================
 
   /**
-   * Open a file.
-   * Returns true on success, false on failure.
-   */
-  function __jstorrent_file_open(
-    handleId: number,
-    rootKey: string,
-    path: string,
-    mode: string,
-  ): boolean
-
-  /**
-   * Read data from a file.
-   * Returns ArrayBuffer with read data (may be empty).
+   * Read data from a file at a specific offset.
+   * Each call opens, seeks, reads, and closes internally.
+   * Returns ArrayBuffer with read data (may be empty on error/EOF).
    */
   function __jstorrent_file_read(
-    handleId: number,
+    rootKey: string,
+    path: string,
     offset: number,
     length: number,
-    position: number,
   ): ArrayBuffer
 
   /**
-   * Write data to a file.
+   * Write data to a file at a specific offset.
+   * Each call opens, seeks, writes, syncs, and closes internally.
+   * Creates file and parent directories if needed.
    * Returns number of bytes written, or -1 on error.
    */
-  function __jstorrent_file_write(handleId: number, data: ArrayBuffer, position: number): number
-
-  /**
-   * Truncate a file to the specified length.
-   * Returns true on success.
-   */
-  function __jstorrent_file_truncate(handleId: number, len: number): boolean
-
-  /**
-   * Flush file changes to storage.
-   */
-  function __jstorrent_file_sync(handleId: number): void
-
-  /**
-   * Close a file handle.
-   */
-  function __jstorrent_file_close(handleId: number): void
+  function __jstorrent_file_write(
+    rootKey: string,
+    path: string,
+    offset: number,
+    data: ArrayBuffer,
+  ): number
 
   /**
    * Get file statistics.

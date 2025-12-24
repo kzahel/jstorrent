@@ -1,7 +1,8 @@
 /**
  * Native File Handle
  *
- * Implements IFileHandle using native bindings.
+ * Implements IFileHandle using stateless native bindings.
+ * Each read/write is a complete operation - no persistent file handle is maintained.
  */
 
 import type { IFileHandle } from '../../interfaces/filesystem'
@@ -10,10 +11,14 @@ import './bindings.d.ts'
 export class NativeFileHandle implements IFileHandle {
   private closed = false
 
-  constructor(private readonly handleId: number) {}
+  constructor(
+    private readonly rootKey: string,
+    private readonly path: string,
+  ) {}
 
   /**
    * Read data from the file at a specific position.
+   * Each call is stateless - Kotlin opens, seeks, reads, closes internally.
    */
   async read(
     buffer: Uint8Array,
@@ -25,7 +30,7 @@ export class NativeFileHandle implements IFileHandle {
       throw new Error('File handle is closed')
     }
 
-    const result = __jstorrent_file_read(this.handleId, offset, length, position)
+    const result = __jstorrent_file_read(this.rootKey, this.path, position, length)
 
     if (!result || result.byteLength === 0) {
       return { bytesRead: 0 }
@@ -41,6 +46,7 @@ export class NativeFileHandle implements IFileHandle {
 
   /**
    * Write data to the file at a specific position.
+   * Each call is stateless - Kotlin opens, seeks, writes, syncs, closes internally.
    */
   async write(
     buffer: Uint8Array,
@@ -61,7 +67,7 @@ export class NativeFileHandle implements IFileHandle {
       data.byteOffset + data.byteLength,
     ) as ArrayBuffer
 
-    const bytesWritten = __jstorrent_file_write(this.handleId, arrayBuffer, position)
+    const bytesWritten = __jstorrent_file_write(this.rootKey, this.path, position, arrayBuffer)
 
     if (bytesWritten < 0) {
       throw new Error('Write failed')
@@ -72,35 +78,25 @@ export class NativeFileHandle implements IFileHandle {
 
   /**
    * Truncate the file to a specific size.
+   * Not supported in stateless mode - can be added later if needed.
    */
-  async truncate(len: number): Promise<void> {
-    if (this.closed) {
-      throw new Error('File handle is closed')
-    }
-
-    const success = __jstorrent_file_truncate(this.handleId, len)
-    if (!success) {
-      throw new Error('Truncate failed')
-    }
+  async truncate(_len: number): Promise<void> {
+    throw new Error('Truncate not supported in stateless mode')
   }
 
   /**
    * Flush changes to storage.
+   * No-op - each write already syncs to storage.
    */
   async sync(): Promise<void> {
-    if (this.closed) {
-      throw new Error('File handle is closed')
-    }
-
-    __jstorrent_file_sync(this.handleId)
+    // No-op - each write is already synced
   }
 
   /**
    * Close the file handle.
+   * No-op - there's no actual handle to close. Just marks as closed.
    */
   async close(): Promise<void> {
-    if (this.closed) return
     this.closed = true
-    __jstorrent_file_close(this.handleId)
   }
 }

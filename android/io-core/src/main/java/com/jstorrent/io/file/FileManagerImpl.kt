@@ -121,6 +121,55 @@ class FileManagerImpl(
         }
     }
 
+    override fun stat(rootUri: Uri, relativePath: String): FileStat? {
+        val doc = resolvePath(rootUri, relativePath) ?: return null
+        return FileStat(
+            size = doc.length(),
+            mtime = doc.lastModified(),
+            isDirectory = doc.isDirectory,
+            isFile = doc.isFile,
+        )
+    }
+
+    override fun mkdir(rootUri: Uri, relativePath: String): Boolean {
+        if (relativePath.isEmpty() || relativePath == "/") {
+            // Root already exists
+            return true
+        }
+
+        var current = DocumentFile.fromTreeUri(context, rootUri) ?: return false
+
+        val segments = relativePath.trimStart('/').split('/').filter { it.isNotEmpty() }
+        for (segment in segments) {
+            val existing = current.findFile(segment)
+            current = when {
+                existing?.isDirectory == true -> existing
+                existing != null -> return false // File exists, not a directory
+                else -> current.createDirectory(segment) ?: return false
+            }
+        }
+        return true
+    }
+
+    override fun readdir(rootUri: Uri, relativePath: String): List<String> {
+        val doc = resolvePath(rootUri, relativePath) ?: return emptyList()
+        if (!doc.isDirectory) return emptyList()
+        return doc.listFiles().mapNotNull { it.name }
+    }
+
+    override fun delete(rootUri: Uri, relativePath: String): Boolean {
+        val doc = resolvePath(rootUri, relativePath) ?: return false
+        val deleted = doc.delete()
+        if (deleted) {
+            // Invalidate cache entries for this path and descendants
+            val cachePrefix = "$rootUri|$relativePath"
+            synchronized(cacheLock) {
+                documentFileCache.keys.removeAll { it.startsWith(cachePrefix) }
+            }
+        }
+        return deleted
+    }
+
     // =========================================================================
     // Internal helpers
     // =========================================================================
@@ -164,18 +213,31 @@ class FileManagerImpl(
     }
 
     /**
-     * Resolve a relative path under a SAF tree URI to a DocumentFile.
-     * Returns null if file doesn't exist.
+     * Resolve a relative path under a SAF tree URI to a DocumentFile (file only).
+     * Returns null if path doesn't exist or is not a file.
      */
     private fun resolveFile(rootUri: Uri, relativePath: String): DocumentFile? {
+        val doc = resolvePath(rootUri, relativePath) ?: return null
+        return if (doc.isFile) doc else null
+    }
+
+    /**
+     * Resolve a relative path under a SAF tree URI to a DocumentFile (file or directory).
+     * Returns null if path doesn't exist.
+     */
+    private fun resolvePath(rootUri: Uri, relativePath: String): DocumentFile? {
         var current = DocumentFile.fromTreeUri(context, rootUri) ?: return null
 
-        val segments = relativePath.trimStart('/').split('/')
+        if (relativePath.isEmpty() || relativePath == "/") {
+            return current
+        }
+
+        val segments = relativePath.trimStart('/').split('/').filter { it.isNotEmpty() }
         for (segment in segments) {
             current = current.findFile(segment) ?: return null
         }
 
-        return if (current.isFile) current else null
+        return current
     }
 
     /**

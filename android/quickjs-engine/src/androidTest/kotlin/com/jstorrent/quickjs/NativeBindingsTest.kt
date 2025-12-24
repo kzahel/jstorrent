@@ -2,6 +2,7 @@ package com.jstorrent.quickjs
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.jstorrent.io.file.FileManagerImpl
 import com.jstorrent.quickjs.bindings.EngineStateListener
 import com.jstorrent.quickjs.bindings.NativeBindings
 import kotlinx.coroutines.CoroutineScope
@@ -27,8 +28,9 @@ class NativeBindingsTest {
     @Before
     fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val fileManager = FileManagerImpl(context)
         engine = QuickJsEngine()
-        bindings = NativeBindings(context, engine.jsThread, scope)
+        bindings = NativeBindings(context, engine.jsThread, scope, fileManager)
         engine.postAndWait {
             bindings.registerAll(engine.context)
         }
@@ -339,7 +341,7 @@ class NativeBindingsTest {
     }
 
     // ========================================
-    // File I/O Binding Tests (Phase 3c)
+    // File I/O Binding Tests (Stateless API)
     // ========================================
 
     @Test
@@ -347,28 +349,16 @@ class NativeBindingsTest {
         val testData = "Hello, JSTorrent File System!"
 
         val result = engine.evaluate("""
-            // Open file for writing
-            const opened = __jstorrent_file_open(1, "default", "test_roundtrip.txt", "w");
-            if (opened !== "true" && opened !== true) {
-                throw new Error("Failed to open file for write: " + opened);
-            }
-
-            // Write data
+            // Write data (stateless - creates file automatically)
             const data = __jstorrent_text_encode("$testData");
-            const written = __jstorrent_file_write(1, data, 0);
+            const written = __jstorrent_file_write("default", "test_roundtrip.txt", 0, data);
 
-            // Close file
-            __jstorrent_file_close(1);
-
-            // Open file for reading
-            const opened2 = __jstorrent_file_open(2, "default", "test_roundtrip.txt", "r");
-            if (opened2 !== "true" && opened2 !== true) {
-                throw new Error("Failed to open file for read");
+            if (written < 0) {
+                throw new Error("Failed to write file: " + written);
             }
 
-            // Read data back
-            const readData = __jstorrent_file_read(2, 0, ${testData.length}, 0);
-            __jstorrent_file_close(2);
+            // Read data back (stateless)
+            const readData = __jstorrent_file_read("default", "test_roundtrip.txt", 0, ${testData.length});
 
             // Decode and return
             __jstorrent_text_decode(readData);
@@ -379,12 +369,10 @@ class NativeBindingsTest {
 
     @Test
     fun fileExistsWorks() {
-        // Create a file
+        // Create a file using stateless write
         engine.evaluate("""
-            __jstorrent_file_open(10, "default", "exists_test.txt", "w");
             const data = __jstorrent_text_encode("test");
-            __jstorrent_file_write(10, data, 0);
-            __jstorrent_file_close(10);
+            __jstorrent_file_write("default", "exists_test.txt", 0, data);
         """.trimIndent())
 
         val exists = engine.evaluate("""
@@ -399,10 +387,8 @@ class NativeBindingsTest {
         val testContent = "12345678901234567890" // 20 bytes
 
         engine.evaluate("""
-            __jstorrent_file_open(11, "default", "stat_test.txt", "w");
             const data = __jstorrent_text_encode("$testContent");
-            __jstorrent_file_write(11, data, 0);
-            __jstorrent_file_close(11);
+            __jstorrent_file_write("default", "stat_test.txt", 0, data);
         """.trimIndent())
 
         val stat = engine.evaluate("""
@@ -430,12 +416,10 @@ class NativeBindingsTest {
 
     @Test
     fun fileDeleteWorks() {
-        // Create then delete
+        // Create then delete using stateless API
         engine.evaluate("""
-            __jstorrent_file_open(12, "default", "delete_test.txt", "w");
             const data = __jstorrent_text_encode("delete me");
-            __jstorrent_file_write(12, data, 0);
-            __jstorrent_file_close(12);
+            __jstorrent_file_write("default", "delete_test.txt", 0, data);
         """.trimIndent())
 
         val deleted = engine.evaluate("""

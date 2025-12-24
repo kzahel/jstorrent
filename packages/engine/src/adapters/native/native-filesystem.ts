@@ -1,7 +1,7 @@
 /**
  * Native File System
  *
- * Implements IFileSystem using native bindings.
+ * Implements IFileSystem using stateless native bindings.
  * Each instance is scoped to a specific storage root.
  */
 
@@ -10,22 +10,17 @@ import { NativeFileHandle } from './native-file-handle'
 import './bindings.d.ts'
 
 export class NativeFileSystem implements IFileSystem {
-  private nextHandleId = 1
-
   constructor(private readonly rootKey: string) {}
 
   /**
    * Open a file.
+   * Returns a stateless handle that stores (rootKey, path).
+   * The mode parameter is ignored - actual file operations determine read/write behavior.
    */
-  async open(path: string, mode: 'r' | 'w' | 'r+'): Promise<IFileHandle> {
-    const handleId = this.nextHandleId++
-    const success = __jstorrent_file_open(handleId, this.rootKey, path, mode)
-
-    if (!success) {
-      throw new Error(`Failed to open file: ${path}`)
-    }
-
-    return new NativeFileHandle(handleId)
+  async open(path: string, _mode: 'r' | 'w' | 'r+'): Promise<IFileHandle> {
+    // Stateless - just return a handle that stores the path
+    // The actual file operations happen on read/write
+    return new NativeFileHandle(this.rootKey, path)
   }
 
   /**

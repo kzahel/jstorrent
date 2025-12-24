@@ -1,12 +1,13 @@
 package com.jstorrent.quickjs.bindings
 
 import android.content.Context
+import android.net.Uri
+import com.jstorrent.io.file.FileManager
 import com.jstorrent.io.socket.TcpSocketManager
 import com.jstorrent.io.socket.TcpSocketService
 import com.jstorrent.io.socket.UdpSocketManagerImpl
 import com.jstorrent.quickjs.JsThread
 import com.jstorrent.quickjs.QuickJsContext
-import com.jstorrent.quickjs.file.FileHandleManager
 import kotlinx.coroutines.CoroutineScope
 
 /**
@@ -15,17 +16,21 @@ import kotlinx.coroutines.CoroutineScope
  * Registers all __jstorrent_* functions on a QuickJsContext, enabling
  * the TypeScript engine to perform I/O operations via the native layer.
  *
- * Phase 3c includes:
+ * Includes:
  * - Polyfill bindings (TextEncoder, SHA1, timers, etc.)
  * - TCP socket bindings (client and server)
  * - UDP socket bindings
- * - File I/O bindings
+ * - File I/O bindings (stateless, using FileManager)
  * - Storage bindings
  * - State/error callback bindings
  *
  * Usage:
  * ```
- * val bindings = NativeBindings(context, jsThread, scope)
+ * val fileManager = FileManagerImpl(context)
+ * val bindings = NativeBindings(context, jsThread, scope, fileManager) { rootKey ->
+ *     // Resolve rootKey to SAF URI (or null for app-private fallback)
+ *     rootStore.resolveKey(rootKey)
+ * }
  * bindings.registerAll(ctx)
  *
  * // Set listeners for engine events
@@ -36,19 +41,20 @@ import kotlinx.coroutines.CoroutineScope
 class NativeBindings(
     context: Context,
     private val jsThread: JsThread,
-    scope: CoroutineScope
+    scope: CoroutineScope,
+    fileManager: FileManager,
+    rootResolver: (String) -> Uri? = { null },
 ) {
     // I/O services
     private val tcpService = TcpSocketService(scope)
     private val udpManager = UdpSocketManagerImpl(scope)
-    private val fileHandleManager = FileHandleManager(context)
 
     // Individual binding modules
     private val polyfillBindings = PolyfillBindings(jsThread)
     private val tcpBindings = TcpBindings(jsThread, tcpService)
     private val tcpServerBindings = TcpServerBindings(jsThread, tcpService)
     private val udpBindings = UdpBindings(jsThread, udpManager)
-    private val fileBindings = FileBindings(fileHandleManager)
+    private val fileBindings = FileBindings(context, fileManager, rootResolver)
     private val storageBindings = StorageBindings(context)
     private val callbackBindings = CallbackBindings()
 
@@ -115,7 +121,6 @@ class NativeBindings(
     fun shutdown() {
         tcpService.shutdown()
         udpManager.shutdown()
-        fileHandleManager.closeAll()
     }
 
     /**

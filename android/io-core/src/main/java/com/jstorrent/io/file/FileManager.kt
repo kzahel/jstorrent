@@ -4,6 +4,16 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 
 /**
+ * File statistics returned by [FileManager.stat].
+ */
+data class FileStat(
+    val size: Long,
+    val mtime: Long,
+    val isDirectory: Boolean,
+    val isFile: Boolean,
+)
+
+/**
  * Manages file read/write operations using Android's Storage Access Framework (SAF).
  *
  * This interface abstracts file I/O operations, allowing different implementations
@@ -76,4 +86,44 @@ interface FileManager {
      * if you want to free memory.
      */
     fun clearCache()
+
+    /**
+     * Get file or directory statistics.
+     *
+     * @param rootUri SAF tree URI for the root
+     * @param relativePath Path relative to root (empty string for root itself)
+     * @return File statistics, or null if path doesn't exist
+     */
+    fun stat(rootUri: Uri, relativePath: String): FileStat?
+
+    /**
+     * Create a directory at the given path.
+     *
+     * Creates parent directories as needed.
+     *
+     * @param rootUri SAF tree URI for the root
+     * @param relativePath Path relative to root
+     * @return true if directory was created or already exists, false on failure
+     */
+    fun mkdir(rootUri: Uri, relativePath: String): Boolean
+
+    /**
+     * List contents of a directory.
+     *
+     * @param rootUri SAF tree URI for the root
+     * @param relativePath Path relative to root (empty string for root itself)
+     * @return List of filenames (not full paths), or empty list if path doesn't exist or isn't a directory
+     */
+    fun readdir(rootUri: Uri, relativePath: String): List<String>
+
+    /**
+     * Delete a file or directory.
+     *
+     * For directories, deletes recursively.
+     *
+     * @param rootUri SAF tree URI for the root
+     * @param relativePath Path relative to root
+     * @return true if deleted successfully, false if doesn't exist or deletion failed
+     */
+    fun delete(rootUri: Uri, relativePath: String): Boolean
 }
