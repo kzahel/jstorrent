@@ -25,7 +25,6 @@ import { initializeTorrentStorage } from './torrent-initializer'
 import { TorrentDiskQueue, DiskQueueSnapshot } from './disk-queue'
 import { EndgameManager } from './endgame-manager'
 import { PartsFile } from './parts-file'
-import { PiecePicker } from './piece-picker'
 import type { LookupResult } from '../dht'
 
 /**
@@ -131,7 +130,6 @@ export class Torrent extends EngineComponent {
   public contentStorage?: TorrentContentStorage
   private _diskQueue: TorrentDiskQueue = new TorrentDiskQueue()
   private _endgameManager: EndgameManager = new EndgameManager()
-  private _piecePicker: PiecePicker = new PiecePicker()
   private _bitfield?: BitField
   public announce: string[] = []
   public trackerManager?: TrackerManager
@@ -2453,15 +2451,8 @@ export class Torrent extends EngineComponent {
 
   private requestPieces(peer: PeerConnection) {
     if (this.isKillSwitchEnabled) return
-
-    if (peer.peerChoking) {
-      // console.error(`requestPieces: Peer is choking us`)
-      return
-    }
-
-    if (!this.hasMetadata) {
-      return
-    }
+    if (peer.peerChoking) return
+    if (!this.hasMetadata) return
 
     // Initialize activePieces if needed (lazy init after metadata is available)
     if (!this.activePieces) {
@@ -2487,8 +2478,6 @@ export class Torrent extends EngineComponent {
       })
     }
 
-    const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
-
     // Use per-peer adaptive pipeline depth (starts at 10, ramps up for fast peers)
     let pipelineLimit = peer.pipelineDepth
 
@@ -2506,93 +2495,99 @@ export class Torrent extends EngineComponent {
       pipelineLimit = Math.min(pipelineLimit, rateLimitCap)
     }
 
-    // Use rarest-first piece selection if we have the necessary data
-    let selectedPieces: number[]
-    if (this._pieceAvailability && this._piecePriority && this._bitfield && peer.bitfield) {
-      const result = this._piecePicker.selectPieces({
-        peerBitfield: peer.bitfield,
-        ownBitfield: this._bitfield,
-        piecePriority: this._piecePriority,
-        pieceAvailability: this._pieceAvailability,
-        startedPieces: new Set(this.activePieces?.activeIndices ?? []),
-        maxPieces: 100, // Reasonable upper bound per peer
-      })
-      selectedPieces = result.pieces
-    } else {
-      // Fallback to sequential order (getMissingPieces filters by what peer has)
-      selectedPieces = this.getMissingPieces().filter((i) => peer.bitfield?.get(i))
-    }
+    // Early exit if pipeline is already full
+    if (peer.requestsPending >= pipelineLimit) return
 
-    let _requestsMade = 0
-    let _skippedComplete = 0
-    let _skippedCapacity = 0
-    let _skippedNoNeeded = 0
+    const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
+    const peerBitfield = peer.bitfield
 
-    pieceLoop: for (const index of selectedPieces) {
-      if (peer.requestsPending >= pipelineLimit) {
-        break
-      }
+    // PHASE 1: Request from existing active pieces first
+    // This is O(A) where A = active pieces count (typically small)
+    // Avoids expensive piece selection on every block received
+    for (const piece of this.activePieces.activePieces) {
+      if (peer.requestsPending >= pipelineLimit) return
 
-      // Get or create active piece
-      let piece = this.activePieces.get(index)
+      // Skip if peer doesn't have this piece
+      if (!peerBitfield?.get(piece.index)) continue
 
-      // If piece has all blocks, skip (waiting for hash/flush)
-      if (piece?.haveAllBlocks) {
-        _skippedComplete++
-        continue
-      }
-
-      // Try to create if doesn't exist
-      if (!piece) {
-        const newPiece = this.activePieces.getOrCreate(index)
-        if (!newPiece) {
-          _skippedCapacity++
-          continue // At capacity
-        }
-        piece = newPiece
-      }
+      // Skip if piece is complete (waiting for hash/flush)
+      if (piece.haveAllBlocks) continue
 
       // Get blocks we can request from this piece
-      // In endgame mode, use peer-specific method to allow duplicate requests
       const neededBlocks = this._endgameManager.isEndgame
         ? piece.getNeededBlocksEndgame(peerId, pipelineLimit - peer.requestsPending)
         : piece.getNeededBlocks(pipelineLimit - peer.requestsPending)
 
-      if (neededBlocks.length === 0) {
-        _skippedNoNeeded++
-        continue
+      for (const block of neededBlocks) {
+        if (peer.requestsPending >= pipelineLimit) return
+
+        // Rate limit check
+        if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
+          return
+        }
+
+        peer.sendRequest(piece.index, block.begin, block.length)
+        peer.requestsPending++
+
+        const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
+        piece.addRequest(blockIndex, peerId)
       }
+    }
+
+    // PHASE 2: If still room, select new pieces sequentially (no sorting)
+    // Only runs when we need NEW pieces, not on every block
+    if (peer.requestsPending >= pipelineLimit) return
+    if (!peerBitfield || !this._bitfield || !this._piecePriority) return
+
+    const pieceCount = this.piecesCount
+    for (let i = 0; i < pieceCount; i++) {
+      if (peer.requestsPending >= pipelineLimit) break
+
+      // Skip if we have it
+      if (this._bitfield.get(i)) continue
+
+      // Skip if peer doesn't have it
+      if (!peerBitfield.get(i)) continue
+
+      // Skip if priority is 0 (skipped file)
+      if (this._piecePriority[i] === 0) continue
+
+      // Skip if already active (handled in phase 1)
+      if (this.activePieces.has(i)) continue
+
+      // Create new active piece
+      const piece = this.activePieces.getOrCreate(i)
+      if (!piece) break // At capacity
+
+      const neededBlocks = this._endgameManager.isEndgame
+        ? piece.getNeededBlocksEndgame(peerId, pipelineLimit - peer.requestsPending)
+        : piece.getNeededBlocks(pipelineLimit - peer.requestsPending)
 
       for (const block of neededBlocks) {
         if (peer.requestsPending >= pipelineLimit) break
 
-        // Rate limit check - bail if out of tokens
-        const downloadBucket = this.btEngine.bandwidthTracker.downloadBucket
+        // Rate limit check
         if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
-          break pieceLoop // Out of budget - stop creating new active pieces too
+          return
         }
 
-        peer.sendRequest(index, block.begin, block.length)
+        peer.sendRequest(i, block.begin, block.length)
         peer.requestsPending++
-        _requestsMade++
 
-        // Track request in ActivePiece (tied to this peer)
         const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
         piece.addRequest(blockIndex, peerId)
       }
     }
 
     // Check if we should enter/exit endgame mode
-    if (this.activePieces) {
-      const missingCount = this.piecesCount - this.completedPiecesCount
-      const decision = this._endgameManager.evaluate(
-        missingCount,
-        this.activePieces.activeCount,
-        this.activePieces.hasUnrequestedBlocks(),
-      )
-      if (decision) {
-        this.logger.info(`Endgame: ${decision.type}`)
-      }
+    const missingCount = this.piecesCount - this.completedPiecesCount
+    const decision = this._endgameManager.evaluate(
+      missingCount,
+      this.activePieces.activeCount,
+      this.activePieces.hasUnrequestedBlocks(),
+    )
+    if (decision) {
+      this.logger.info(`Endgame: ${decision.type}`)
     }
   }
 
