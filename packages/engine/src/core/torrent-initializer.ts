@@ -50,6 +50,11 @@ export async function initializeTorrentMetadata(
   // Set metadata on torrent
   torrent.setMetadata(infoBuffer)
 
+  // Set private flag (BEP 27) - disables DHT/PEX for private torrents
+  if (parsedTorrent.isPrivate) {
+    torrent.isPrivate = true
+  }
+
   // Initialize bitfield (torrent owns the bitfield)
   torrent.initBitfield(parsedTorrent.pieces.length)
   torrent.initPieceAvailability(parsedTorrent.pieces.length)

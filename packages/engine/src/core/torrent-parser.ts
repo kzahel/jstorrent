@@ -11,6 +11,7 @@ export interface ParsedTorrent {
   length: number
   announce: string[]
   infoBuffer?: Uint8Array
+  isPrivate?: boolean
 }
 
 export class TorrentParser {
@@ -113,6 +114,7 @@ export class TorrentParser {
       length: totalLength,
       announce,
       infoBuffer,
+      isPrivate: info.private === 1,
     }
   }
 }

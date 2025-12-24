@@ -2159,6 +2159,10 @@ export class Torrent extends EngineComponent {
     // Note: pex_peers is emitted by PexHandler using (peer as any).emit()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(peer as any).on('pex_peers', (peers: import('./swarm').PeerAddress[]) => {
+      // BEP 27: Private torrents must not use PEX
+      if (this.isPrivate) {
+        return
+      }
       const added = this._swarm.addPeers(peers, 'pex')
       if (added > 0) {
         this.logger.debug(`Added ${added} PEX peers to swarm (total: ${this._swarm.size})`)
