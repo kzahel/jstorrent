@@ -8,9 +8,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SDK_ROOT="${ANDROID_HOME:-$HOME/.android-sdk}"
 AVD_NAME="${AVD_NAME:-jstorrent-dev}"
 DAEMON_PORT="${DAEMON_PORT:-7800}"
-#GPU_MODE="${GPU_MODE:-auto}"
-#ENABLE HW ACCEL
-GPU_MODE="${GPU_MODE:-host}"
+GPU_MODE="${GPU_MODE:-auto}"
+#ENABLE HW ACCEL (not good on my machine, crashes and visual glitch in host OS
+#GPU_MODE="${GPU_MODE:-host}"
 
 # Ensure tools are in PATH
 export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$SDK_ROOT/platform-tools:$SDK_ROOT/emulator:$PATH"
