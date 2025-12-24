@@ -10,6 +10,7 @@ import { ISocketFactory } from '../interfaces/socket'
 import { MinimalHttpClient } from '../utils/minimal-http-client'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
 import type { BandwidthTracker } from '../core/bandwidth-tracker'
+import { parseCompactPeers } from '../core/swarm'
 
 export class HttpTracker extends EngineComponent implements ITracker {
   static logName = 'http-tracker'
@@ -210,6 +211,17 @@ export class HttpTracker extends EngineComponent implements ITracker {
       const peers = this.parsePeers(data['peers'])
       if (peers.length > 0) {
         this.emit('peersDiscovered', peers)
+      }
+    }
+
+    // BEP 7: IPv6 peers in 'peers6' field (compact format: 18 bytes per peer)
+    if (data['peers6'] && data['peers6'] instanceof Uint8Array) {
+      const peers6 = parseCompactPeers(data['peers6'], 'ipv6')
+      if (peers6.length > 0) {
+        this.emit(
+          'peersDiscovered',
+          peers6.map((p) => ({ ip: p.ip, port: p.port })),
+        )
       }
     }
   }
