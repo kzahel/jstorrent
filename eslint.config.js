@@ -16,6 +16,9 @@ export default tseslint.config(
       '**/dist/**',
       'archive/legacy-app/**',
       'archive/legacy-extension/**',
+      'android/**/build/**',
+      'android/**/src/main/assets/*.js',
+      'android/**/quickjs-ng/**',
     ],
   },
   {
