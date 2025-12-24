@@ -7,6 +7,7 @@
 import { BtEngine } from '../core/bt-engine'
 import { NativeSocketFactory } from '../adapters/native/native-socket-factory'
 import { NativeFileSystem } from '../adapters/native/native-filesystem'
+import { NullFileSystem } from '../adapters/null/null-filesystem'
 import { NativeSessionStore } from '../adapters/native/native-session-store'
 import { NativeHasher } from '../adapters/native/native-hasher'
 import { StorageRootManager, StorageRoot } from '../storage/storage-root-manager'
@@ -40,6 +41,13 @@ export interface NativeEngineConfig {
    * Call engine.resume() after setup/restore is complete.
    */
   startSuspended?: boolean
+
+  /**
+   * Storage mode: 'native' uses NativeFileSystem, 'null' discards all writes.
+   * Use 'null' for performance testing without I/O overhead.
+   * Default: 'native'
+   */
+  storageMode?: 'native' | 'null'
 }
 
 /**
@@ -47,8 +55,19 @@ export interface NativeEngineConfig {
  */
 export function createNativeEngine(config: NativeEngineConfig): BtEngine {
   const storageRootManager = new StorageRootManager((root) => {
+    if (config.storageMode === 'null') {
+      return new NullFileSystem()
+    }
     return new NativeFileSystem(root.key)
   })
+
+  // In null mode, add a synthetic root so the engine has a valid storage target
+  // (all writes will be discarded by NullFileSystem anyway)
+  if (config.storageMode === 'null') {
+    const nullRoot = { key: '__null__', label: 'Null Storage', path: '/dev/null' }
+    storageRootManager.addRoot(nullRoot)
+    storageRootManager.setDefaultRoot('__null__')
+  }
 
   for (const root of config.contentRoots) {
     storageRootManager.addRoot(root)

@@ -42,6 +42,7 @@ class NativeStandaloneActivity : ComponentActivity() {
     private var torrents = mutableStateOf<List<TorrentSummary>>(emptyList())
     private var isEngineLoaded = mutableStateOf(false)
     private var lastError = mutableStateOf<String?>(null)
+    private var testStorageMode = mutableStateOf<String?>(null)
 
     // For handling magnet intents while engine is loading
     private var pendingMagnet: String? = null
@@ -56,13 +57,13 @@ class NativeStandaloneActivity : ComponentActivity() {
         // Handle incoming intent (magnet link or torrent file)
         handleIncomingIntent(intent)
 
-        // Start EngineService
-        EngineService.start(this)
+        // Start EngineService with storage mode from intent
+        EngineService.start(this, storageMode = testStorageMode.value)
 
         setContent {
             JSTorrentTheme {
                 NativeStandaloneScreen(
-                    hasRoots = hasRoots.value,
+                    hasRoots = hasRoots.value || testStorageMode.value != null,
                     magnetInput = magnetInput.value,
                     onMagnetInputChange = { magnetInput.value = it },
                     onAddTorrent = { addTorrent(it) },
@@ -133,6 +134,13 @@ class NativeStandaloneActivity : ComponentActivity() {
             "jstorrent" -> {
                 // Handle jstorrent://native launch intent
                 Log.i(TAG, "Launch intent received")
+
+                // Parse storage mode: ?storage=private or ?storage=null
+                val storageParam = uri.getQueryParameter("storage")
+                if (storageParam != null) {
+                    testStorageMode.value = storageParam.lowercase()
+                    Log.i(TAG, "Test storage mode: $storageParam")
+                }
 
                 // Check for base64-encoded magnet: jstorrent://native?magnet_b64=<base64>
                 val magnetB64 = uri.getQueryParameter("magnet_b64")

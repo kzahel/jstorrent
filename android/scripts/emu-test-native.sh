@@ -8,14 +8,16 @@
 #
 # This script:
 #   1. Checks if emulator is running, starts phone emulator if not
-#   2. Clears app storage entirely
-#   3. Builds and installs debug APK
-#   4. Launches NativeStandaloneActivity with base64-encoded magnet URL
+#   2. Builds the TypeScript engine bundle
+#   3. Clears app storage entirely
+#   4. Builds and installs debug APK
+#   5. Launches NativeStandaloneActivity with base64-encoded magnet URL
 #
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+MONOREPO_ROOT="$(cd "$PROJECT_DIR/.." && pwd)"
 SDK_ROOT="${ANDROID_HOME:-$HOME/.android-sdk}"
 AVD_NAME="${AVD_NAME:-jstorrent-dev}"
 PACKAGE="com.jstorrent.app"
@@ -30,26 +32,58 @@ DEFAULT_MAGNET="magnet:?xt=urn:btih:68e52e19f423308ba4f330d5a9b7fb68cec36355&xt=
 
 # Parse arguments
 BUILD=true
+BUILD_BUNDLE=true
 MAGNET=""
+STORAGE_MODE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --no-build)
             BUILD=false
+            BUILD_BUNDLE=false
+            shift
+            ;;
+        --no-bundle)
+            BUILD_BUNDLE=false
+            shift
+            ;;
+        --private|--test)
+            if [[ "$STORAGE_MODE" == "null" ]]; then
+                echo "Error: --private and --null are mutually exclusive"
+                exit 1
+            fi
+            STORAGE_MODE="private"
+            shift
+            ;;
+        --null)
+            if [[ "$STORAGE_MODE" == "private" ]]; then
+                echo "Error: --null and --private are mutually exclusive"
+                exit 1
+            fi
+            STORAGE_MODE="null"
             shift
             ;;
         -h|--help)
-            echo "Usage: $0 [--no-build] [\"magnet:?xt=urn:btih:...\"]"
+            echo "Usage: $0 [--no-build] [--no-bundle] [--private|--null] [\"magnet:?xt=urn:btih:...\"]"
             echo ""
             echo "Options:"
-            echo "  --no-build    Skip gradle build (use existing APK)"
+            echo "  --no-build    Skip gradle build AND engine bundle (use existing APK)"
+            echo "  --no-bundle   Skip engine bundle build only (gradle still runs)"
+            echo "  --private     Use private app storage (bypasses SAF folder picker)"
+            echo "  --null        Discard all writes (performance testing, bypasses SAF)"
             echo "  -h, --help    Show this help"
+            echo ""
+            echo "Storage modes (mutually exclusive, both bypass SAF dialog):"
+            echo "  --private     Writes to app's private storage directory"
+            echo "  --null        Discards all writes (for testing download speed)"
             echo ""
             echo "If no magnet is specified, uses default test torrent with peer hints."
             echo ""
             echo "Example:"
-            echo "  $0                          # Use default test magnet"
-            echo "  $0 --no-build               # Use default, skip build"
+            echo "  $0                          # Use default test magnet (full build)"
+            echo "  $0 --null                   # Null storage (discards writes)"
+            echo "  $0 --private                # Private app storage"
+            echo "  $0 --no-bundle --null       # Skip bundle build, null storage"
             echo "  $0 \"magnet:?xt=urn:btih:...\" # Use custom magnet"
             exit 0
             ;;
@@ -59,7 +93,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Error: Unknown option: $1"
-            echo "Usage: $0 [--no-build] [\"magnet:?xt=urn:btih:...\"]"
+            echo "Usage: $0 [--no-build] [--no-bundle] [--private|--null] [\"magnet:?xt=urn:btih:...\"]"
             exit 1
             ;;
     esac
@@ -89,7 +123,20 @@ else
     echo "    (App not installed yet, skipping clear)"
 fi
 
-# --- Step 3: Build and install debug APK ---
+# --- Step 3: Build engine bundle ---
+if $BUILD_BUNDLE; then
+    echo ""
+    echo ">>> Building TypeScript engine bundle..."
+    cd "$MONOREPO_ROOT/packages/engine"
+    pnpm bundle:native
+
+    # Copy bundle to Android assets
+    mkdir -p "$PROJECT_DIR/quickjs-engine/src/main/assets"
+    cp dist/engine.native.js "$PROJECT_DIR/quickjs-engine/src/main/assets/engine.bundle.js"
+    echo "    Bundle copied to Android assets"
+fi
+
+# --- Step 4: Build and install debug APK ---
 cd "$PROJECT_DIR"
 
 if $BUILD; then
@@ -109,12 +156,12 @@ echo ""
 echo ">>> Installing APK..."
 adb install -r "$APK_PATH"
 
-# --- Step 4: Set up port forwarding ---
+# --- Step 5: Set up port forwarding ---
 echo ""
 echo ">>> Setting up adb reverse for dev server..."
 adb reverse tcp:3000 tcp:3000
 
-# --- Step 5: Launch NativeStandaloneActivity with magnet URL ---
+# --- Step 6: Launch NativeStandaloneActivity with magnet URL ---
 echo ""
 echo ">>> Launching NativeStandaloneActivity with magnet..."
 
@@ -123,12 +170,19 @@ ENCODED_MAGNET=$(echo -n "$MAGNET" | base64 -w0)
 
 # Build the intent URI
 INTENT_URI="jstorrent://native?magnet_b64=$ENCODED_MAGNET"
+if [[ -n "$STORAGE_MODE" ]]; then
+    INTENT_URI="${INTENT_URI}&storage=$STORAGE_MODE"
+    echo ">>> Using storage mode: $STORAGE_MODE"
+fi
 
 echo "    Magnet: $MAGNET"
 echo "    Base64: $ENCODED_MAGNET"
+echo "    Intent URI: $INTENT_URI"
 
 # Launch the activity with the intent
-adb shell am start -n "$ACTIVITY" -a android.intent.action.VIEW -d "$INTENT_URI"
+# Note: & must be escaped for adb shell (double escape: \& -> & in remote shell)
+ESCAPED_URI="${INTENT_URI//&/\\&}"
+adb shell am start -n "$ACTIVITY" -a android.intent.action.VIEW -d "$ESCAPED_URI"
 
 echo ""
 echo "=== Test Started ==="

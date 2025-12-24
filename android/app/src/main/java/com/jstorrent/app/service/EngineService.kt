@@ -176,7 +176,8 @@ class EngineService : Service() {
                     path = root.uri  // SAF URI as path
                 )
             },
-            defaultContentRoot = roots.firstOrNull()?.key
+            defaultContentRoot = roots.firstOrNull()?.key,
+            storageMode = if (storageMode == "null") "null" else null
         )
 
         controller!!.loadEngine(config)
@@ -231,7 +232,12 @@ class EngineService : Service() {
         var instance: EngineService? = null
             private set
 
-        fun start(context: Context) {
+        @Volatile
+        var storageMode: String? = null
+            private set
+
+        fun start(context: Context, storageMode: String? = null) {
+            this.storageMode = storageMode
             val intent = Intent(context, EngineService::class.java)
             context.startForegroundService(intent)
         }

@@ -75,7 +75,8 @@ data class TorrentSummary(
 data class EngineConfig(
     val contentRoots: List<ContentRoot>,
     val defaultContentRoot: String? = null,
-    val port: Int? = null
+    val port: Int? = null,
+    val storageMode: String? = null  // "native" or "null" (for performance testing)
 )
 
 /**

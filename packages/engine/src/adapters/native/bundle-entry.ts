@@ -37,6 +37,7 @@ const jstorrentApi = {
     }>
     defaultContentRoot?: string
     port?: number
+    storageMode?: 'native' | 'null'
   }): void {
     if (engine) {
       throw new Error('Engine already initialized')
@@ -52,6 +53,7 @@ const jstorrentApi = {
       ),
       defaultContentRoot: config.defaultContentRoot,
       port: config.port,
+      storageMode: config.storageMode,
       startSuspended: true, // Start suspended to restore session first
       onLog: (entry) => {
         // Forward logs to console (which is polyfilled to native)
