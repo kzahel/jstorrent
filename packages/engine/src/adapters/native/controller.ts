@@ -120,11 +120,12 @@ export function setupController(engine: BtEngine): void {
 
   /**
    * Add test torrent with local peer hints for debugging.
-   * Peer hints: localhost, emulator->host (10.0.2.2), and local network IP.
+   * 1GB deterministic test data - run `pnpm seed-for-test` on host to seed.
+   * Peer hints: 10.0.2.2 (emulator->host), 127.0.0.1 (desktop/extension).
    */
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_add_test_torrent = (): string => {
     const testMagnet =
-      'magnet:?xt=urn:btih:68e52e19f423308ba4f330d5a9b7fb68cec36355&xt=urn:btmh:1220d501d9530fb0563cb8113adb85a69df2cf5997f59b1927d302fc807e407dc0ee&dn=remy%20reads%20a%20book.mp4&x.pe=127.0.0.1:6082&x.pe=10.0.2.2:6082&x.pe=192.168.1.112:6082'
+      'magnet:?xt=urn:btih:7fdbc712b94e57b5ff395ee1ce336fa7cef960ad&dn=testdata_1gb.bin&x.pe=10.0.2.2:6881&x.pe=127.0.0.1:6881'
     console.log('[controller] Adding test torrent with peer hint...')
     ;(async () => {
       try {

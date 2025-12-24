@@ -18,6 +18,7 @@
     "format": "prettier --check .",
     "test": "pnpm --recursive test",
     "test:python": "pnpm --filter @jstorrent/engine test:python",
+    "seed-for-test": "cd packages/engine/integration/python && uv run python libtorrent_seed_for_test.py",
     "typecheck": "pnpm --recursive typecheck",
     "build": "pnpm --recursive build",
     "check:static": "npm-run-all --parallel lint format typecheck",
