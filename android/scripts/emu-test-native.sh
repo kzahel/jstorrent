@@ -33,6 +33,7 @@ DEFAULT_MAGNET="magnet:?xt=urn:btih:68e52e19f423308ba4f330d5a9b7fb68cec36355&xt=
 # Parse arguments
 BUILD=true
 BUILD_BUNDLE=true
+BUILD_TYPE="debug"
 MAGNET=""
 STORAGE_MODE=""
 
@@ -45,6 +46,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-bundle)
             BUILD_BUNDLE=false
+            shift
+            ;;
+        --release)
+            BUILD_TYPE="release"
             shift
             ;;
         --private|--test)
@@ -64,11 +69,12 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            echo "Usage: $0 [--no-build] [--no-bundle] [--private|--null] [\"magnet:?xt=urn:btih:...\"]"
+            echo "Usage: $0 [--no-build] [--no-bundle] [--release] [--private|--null] [\"magnet:?xt=urn:btih:...\"]"
             echo ""
             echo "Options:"
             echo "  --no-build    Skip gradle build AND engine bundle (use existing APK)"
             echo "  --no-bundle   Skip engine bundle build only (gradle still runs)"
+            echo "  --release     Build and install release APK instead of debug"
             echo "  --private     Use private app storage (bypasses SAF folder picker)"
             echo "  --null        Discard all writes (performance testing, bypasses SAF)"
             echo "  -h, --help    Show this help"
@@ -80,7 +86,8 @@ while [[ $# -gt 0 ]]; do
             echo "If no magnet is specified, uses default test torrent with peer hints."
             echo ""
             echo "Example:"
-            echo "  $0                          # Use default test magnet (full build)"
+            echo "  $0                          # Use default test magnet (debug build)"
+            echo "  $0 --release                # Release build"
             echo "  $0 --null                   # Null storage (discards writes)"
             echo "  $0 --private                # Private app storage"
             echo "  $0 --no-bundle --null       # Skip bundle build, null storage"
@@ -93,7 +100,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Error: Unknown option: $1"
-            echo "Usage: $0 [--no-build] [--no-bundle] [--private|--null] [\"magnet:?xt=urn:btih:...\"]"
+            echo "Usage: $0 [--no-build] [--no-bundle] [--release] [--private|--null] [\"magnet:?xt=urn:btih:...\"]"
             exit 1
             ;;
     esac
@@ -136,19 +143,23 @@ if $BUILD_BUNDLE; then
     echo "    Bundle copied to Android assets"
 fi
 
-# --- Step 4: Build and install debug APK ---
+# --- Step 4: Build and install APK ---
 cd "$PROJECT_DIR"
 
 if $BUILD; then
     echo ""
-    echo ">>> Building debug APK..."
-    ./gradlew assembleDebug --quiet
+    echo ">>> Building $BUILD_TYPE APK..."
+    if [[ "$BUILD_TYPE" == "release" ]]; then
+        ./gradlew assembleRelease --quiet
+    else
+        ./gradlew assembleDebug --quiet
+    fi
 fi
 
-APK_PATH="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+APK_PATH="$PROJECT_DIR/app/build/outputs/apk/$BUILD_TYPE/app-$BUILD_TYPE.apk"
 if [[ ! -f "$APK_PATH" ]]; then
     echo "Error: APK not found at $APK_PATH"
-    echo "Run ./gradlew assembleDebug first or remove --no-build flag"
+    echo "Run ./gradlew assemble${BUILD_TYPE^} first or remove --no-build flag"
     exit 1
 fi
 
