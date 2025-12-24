@@ -70,18 +70,16 @@ cat ~/.android/avd/*.avd/config.ini | grep -E "hw.cpu|hw.ram|image"
 
 ---
 
-## Results Template
-
-Fill in and report back:
+## Linux Results
 
 | Metric | Value |
 |--------|-------|
-| Host arch | |
-| Emulator CPU ABI | |
-| Emulator RAM | |
-| Ping latency | |
-| iperf3 throughput (Mbits/sec) | |
-| iperf3 throughput (MB/s) | |
+| Host arch | x86_64 |
+| Emulator CPU ABI | x86_64 (native) |
+| Emulator RAM | 2048 MB |
+| Ping latency | ~0.48ms |
+| iperf3 throughput (Mbits/sec) | 348-352 Mbits/sec |
+| iperf3 throughput (MB/s) | **43.5-44 MB/s** |
 
 ---
 
@@ -94,3 +92,14 @@ Fill in and report back:
 | Emulator RAM | 2048 MB |
 | Ping latency | ~1ms |
 | iperf3 throughput | 259 Mbits/sec = **32.4 MB/s** |
+
+---
+
+## Comparison
+
+| Platform | Throughput | vs Mac |
+|----------|------------|--------|
+| Mac (M4, arm64) | 32.4 MB/s | baseline |
+| Linux (x86_64) | 43.5-44 MB/s | **+35% faster** |
+
+Linux x86_64 native emulator shows ~35% higher TCP throughput than Mac arm64 emulator.
