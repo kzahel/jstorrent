@@ -1,7 +1,7 @@
 # JSTorrent Everywhere: Architecture Vision
 
 **Date:** December 2025  
-**Status:** Planning  
+**Status:** Implemented  
 **Author:** Kyle / Claude
 
 ---
@@ -18,15 +18,17 @@ JSTorrent is the torrent client that truly runs everywhere, powered by a single 
 │    Only the I/O layer differs.                                     │
 └────────────────────────────────────────────────────────────────────┘
                                   │
-         ┌────────────────────────┼────────────────────────┐
-         │                        │                        │
-         ▼                        ▼                        ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│    Browser V8   │    │     QuickJS     │    │ JavaScriptCore  │
-│                 │    │                 │    │                 │
-│  Chrome ext +   │    │ Android native  │    │   iOS native    │
-│  Rust/Kotlin IO │    │   standalone    │    │   standalone    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+    ┌──────────────┬──────────────┼──────────────┬──────────────┐
+    │              │              │              │              │
+    ▼              ▼              ▼              ▼              ▼
+┌────────┐  ┌────────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+│ Chrome │  │ Any Browser│  │ QuickJS  │  │   JSC    │  │ Chrome   │
+│  ext   │  │ (no ext)   │  │          │  │          │  │  ext     │
+│        │  │            │  │          │  │          │  │          │
+│Desktop │  │ jstorrent  │  │ Android  │  │   iOS    │  │ ChromeOS │
+│Rust IO │  │ .com +     │  │standalone│  │standalone│  │Kotlin IO │
+│        │  │ Rust IO    │  │          │  │          │  │          │
+└────────┘  └────────────┘  └──────────┘  └──────────┘  └──────────┘
 ```
 
 **Why this matters:**
@@ -43,9 +45,12 @@ JSTorrent is the torrent client that truly runs everywhere, powered by a single 
 | Platform | JS Runtime | I/O Layer | UI | Distribution |
 |----------|------------|-----------|-----|--------------|
 | Desktop (Linux/Win/Mac) | Chrome V8 (extension) | Rust native host | Web (React/Solid) | Chrome Web Store + installers |
+| Desktop (any browser) | Any browser V8* | Rust native host | Web (React/Solid) | jstorrent.com + installers |
 | ChromeOS | Chrome V8 (extension) | Kotlin companion | Web (React/Solid) | Chrome Web Store + Play Store |
 | Android Standalone | QuickJS | Kotlin io-core | Jetpack Compose | Play Store |
 | iOS | JavaScriptCore | Swift io-core | SwiftUI | App Store / AltStore / Sideload |
+
+\* Works in Firefox, Edge, Brave, etc. via jstorrent.com connecting to localhost. Safari excluded (127.0.0.1 not a secure context).
 
 ---
 
@@ -374,34 +379,6 @@ packages/engine/
 │   └── index.ts                  # Entry point that wires everything
 ```
 
-### Bundle Entry Point
-
-```typescript
-// packages/engine/src/adapters/native/index.ts
-
-import { BtEngine } from '../../core/bt-engine'
-import { NativeSocketFactory } from './socket-factory'
-import { NativeFileSystem } from './filesystem'
-import { NativeSessionStore } from './session-store'
-import { NativeHasher } from './hasher'
-
-// Create engine with native adapters
-const engine = new BtEngine({
-  socketFactory: new NativeSocketFactory(),
-  fileSystem: new NativeFileSystem(),
-  sessionStore: new NativeSessionStore(),
-  hasher: new NativeHasher(),
-})
-
-// Expose to native layer
-;(globalThis as any).jstorrentEngine = engine
-
-// Native layer can now call:
-// jstorrentEngine.addTorrent(magnetLink)
-// jstorrentEngine.torrents
-// etc.
-```
-
 ### npm Script
 
 ```json
@@ -436,163 +413,6 @@ tasks.named("preBuild") {
     dependsOn("buildEngineBundle")
 }
 ```
-
----
-
-## Folder Renames
-
-Before QuickJS work begins, rename folders for clarity:
-
-| Current | New | Status |
-|---------|-----|--------|
-| `android-io-daemon/` | `android/` | ✅ Done |
-| `system-bridge/` | `desktop/` | ✅ Done |
-
----
-
-## Initial Phases (High-Level)
-
-### Phase 0: Renames
-- ✅ Rename `android-io-daemon/` → `android/`
-- ✅ Rename `system-bridge/` → `desktop/`
-- Update all scripts, CI, docs that reference old paths
-
-### Phase 1: Native Adapter Interface
-- Create `packages/engine/src/adapters/native/`
-- Define `bindings.d.ts` with all `__jstorrent_*` declarations
-- Implement adapter classes (NativeSocketFactory, NativeFileSystem, etc.)
-- Create bundle config in `packages/engine/bundle/`
-- Test bundle builds (output should be valid ES2020 JS)
-
-### Phase 2: QuickJS Module with quickjs-ng
-
-see docs/tasks/2025-12-23-phase2-quickjs-jni-wrapper.md
-
-### Phase 3a: TypeScript Native Adapter
-- Create `packages/engine/src/adapters/native/` 
-- Implement NativeSocketFactory, NativeFileSystem, NativeHasher calling `__jstorrent_*` globals
-- Create esbuild config for QuickJS bundle (ES2020, single file)
-- Test: Bundle builds, loads in QuickJS without errors
-
-### Phase 3b: TCP Bindings (Core Pattern)
-- Extend QuickJsContext: Kotlin → JS callback mechanism
-- Binary data handling (ArrayBuffer ↔ ByteArray)
-- Implement TCP bindings only (7 functions)
-- Wire to TcpSocketManager from io-core
-- **Verification (emulator):** 
-  - JS connects to test server
-  - Sends data, receives response
-  - onData/onClose callbacks fire correctly
-
-### Phase 3c: Remaining Bindings
-- UDP bindings (5 functions) → UdpSocketManager
-- File bindings (4 functions) → FileManager  
-- Hashing (1 function) → Hasher
-- Storage (4 functions) → SharedPreferences
-- Text encoding (2 functions)
-- Timers (2 functions)
-- Crypto (1 function)
-- **Verification (emulator):**
-  - UDP tracker announce works
-  - File write/read roundtrip works
-  - SHA1 hash matches expected
-
-### Phase 4: Engine Integration
-
-**Bundle pipeline:**
-- Gradle task to run `pnpm bundle:native` and copy result to `assets/engine.bundle.js`
-- Verify bundle exists at build time
-
-**EngineService.kt (foreground service):**
-- onCreate: QuickJsContext + NativeBindings registration
-- Load bundle from assets, evaluate
-- Foreground notification (required for Android background execution)
-- Binder interface for Activity to call control methods
-
-**Engine bridge (Kotlin ↔ JS):**
-- `loadEngine()` - evaluate bundle, call `jstorrentEngine.initialize()`
-- `addTorrent(magnetLink: String)` - `evaluate("jstorrentEngine.addTorrent('...')")`
-- `getStatus(): EngineStatus` - `evaluate("JSON.stringify(...)")` → parse JSON
-
-**Verification (emulator):**
-- Service starts, bundle loads without errors
-- addTorrent() with real magnet link (ubuntu iso or similar)
-  (magnet:?xt=urn%3Abtih%3A95c6c298c84fee2eee10c044d673537da158f0f8&dn=ubuntu-22.04.5-live-server-amd64.iso&tr=https%3A%2F%2Ftorrent.ubuntu.com%2Fannounce&tr=https%3A%2F%2Fipv6.torrent.ubuntu.com%2Fannounce)
-- getStatus() shows torrent added with correct name/infoHash
-- Bonus: peer connections appear (needs network)
-
-### Phase 5: Minimal UI ✅
-
-**NativeStandaloneActivity.kt:**
-- ✅ Bind to EngineService in onStart, unbind in onStop
-- ✅ Simple Compose layout (no need for fancy design)
-
-**UI elements:**
-- ✅ TextField + "Add" button for magnet link paste
-- ✅ LazyColumn showing torrents:
-  - Name
-  - State (downloading/seeding/paused)
-  - Progress % + simple progress bar
-  - Download speed
-- ✅ StateFlow collection for reactive updates (every 500ms)
-
-**Service communication:**
-- ✅ `engineService.addTorrent(magnetLink)`
-- ✅ `engineService.state` StateFlow for reactive updates
-- ✅ Pause/resume/remove controls
-
-**Intent filter:**
-- ✅ Register for `jstorrent://native` scheme in manifest
-- ✅ Activity receives magnet/torrent intents via MainActivity routing
-
-**Mode switching:**
-- ✅ `StandaloneMode` enum in TokenStore (WEBVIEW/NATIVE)
-- ✅ Toggle in MainActivity "More Options" section
-- ✅ Automatic routing based on setting
-
-**Verification (device/emulator):**
-- Launch app → empty list shown
-- Paste magnet link → tap Add → torrent appears in list
-- Progress updates over time (if peers available)
-- Kill app → relaunch → torrent still there (session persistence)
-- Bonus: tap magnet link in browser → opens app, adds torrent
-
-### Phase 6: Mode Integration  
-- Add NativeStandalone to ModeManager
-- Settings toggle between Companion/Native modes
-- Clean mode transitions
-- Test: Switch modes without crashes
-
-### Phase 7: Polish
-- Compose UI (TorrentListScreen, FileListScreen, SettingsScreen)
-- Error handling and crash recovery
-- Session persistence
-- Background execution testing
-- Performance benchmarks
-
----
-
-## Success Criteria
-
-| Metric | Target |
-|--------|--------|
-| Download throughput | ≥20 MB/s (matching companion mode) |
-| Memory usage | <100 MB for engine |
-| Cold start time | <2 seconds to first peer connection |
-| Background stability | 24-hour soak test without crashes |
-| UI responsiveness | 60 FPS during active downloads |
-
----
-
-## Open Questions
-
-1. **QuickJS library choice:** Use an existing Android wrapper (like quickjs-ng) or build from source?
-
-2. **Bytecode compilation:** QuickJS supports bytecode (`.qbc`), which speeds up parsing. Worth adding later as optimization?
-
-3. **iOS background execution:** What strategies exist for keeping downloads alive? Background audio trick? App Refresh?
-
-4. **Shared engine state:** If user has both Companion and Native modes configured, should they share torrent state? Current answer: No, keep them isolated.
 
 ---
 
