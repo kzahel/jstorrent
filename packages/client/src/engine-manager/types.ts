@@ -1,4 +1,4 @@
-import type { BtEngine, LogStore, EngineLoggingConfig } from '@jstorrent/engine'
+import type { BtEngine, LogStore, EngineLoggingConfig, ConfigHub } from '@jstorrent/engine'
 
 /**
  * Storage root representing a download location.
@@ -27,6 +27,7 @@ export interface IEngineManager {
   // Current state
   readonly engine: BtEngine | null
   readonly logStore: LogStore
+  readonly configHub: ConfigHub | null
 
   /**
    * Whether this is a standalone app (not Chrome extension).

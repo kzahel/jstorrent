@@ -568,60 +568,61 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engine
     }
   }, [engineManager])
 
-  // Apply rate limits to engine when settings change
+  // Rate limit handlers - update settings store (for UI) and ConfigHub (for engine)
+  // ConfigHub automatically propagates changes to engine via subscriptions
   const handleDownloadLimitChange = (v: number) => {
     updateSetting('downloadSpeedLimit', v)
-    const uploadLimit = settings.uploadSpeedLimitUnlimited ? 0 : settings.uploadSpeedLimit
-    engineManager.setRateLimits(settings.downloadSpeedLimitUnlimited ? 0 : v, uploadLimit)
+    // Update ConfigHub - engine subscribes to this
+    const effectiveValue = settings.downloadSpeedLimitUnlimited ? 0 : v
+    engineManager.configHub?.set('downloadSpeedLimit', effectiveValue)
   }
 
   const handleDownloadUnlimitedChange = (unlimited: boolean) => {
     updateSetting('downloadSpeedLimitUnlimited', unlimited)
-    const downloadLimit = unlimited ? 0 : settings.downloadSpeedLimit
-    const uploadLimit = settings.uploadSpeedLimitUnlimited ? 0 : settings.uploadSpeedLimit
-    engineManager.setRateLimits(downloadLimit, uploadLimit)
+    // Update ConfigHub with effective value (0 = unlimited)
+    const effectiveValue = unlimited ? 0 : settings.downloadSpeedLimit
+    engineManager.configHub?.set('downloadSpeedLimit', effectiveValue)
   }
 
   const handleUploadLimitChange = (v: number) => {
     updateSetting('uploadSpeedLimit', v)
-    const downloadLimit = settings.downloadSpeedLimitUnlimited ? 0 : settings.downloadSpeedLimit
-    engineManager.setRateLimits(downloadLimit, settings.uploadSpeedLimitUnlimited ? 0 : v)
+    const effectiveValue = settings.uploadSpeedLimitUnlimited ? 0 : v
+    engineManager.configHub?.set('uploadSpeedLimit', effectiveValue)
   }
 
   const handleUploadUnlimitedChange = (unlimited: boolean) => {
     updateSetting('uploadSpeedLimitUnlimited', unlimited)
-    const downloadLimit = settings.downloadSpeedLimitUnlimited ? 0 : settings.downloadSpeedLimit
-    const uploadLimit = unlimited ? 0 : settings.uploadSpeedLimit
-    engineManager.setRateLimits(downloadLimit, uploadLimit)
+    const effectiveValue = unlimited ? 0 : settings.uploadSpeedLimit
+    engineManager.configHub?.set('uploadSpeedLimit', effectiveValue)
   }
 
-  // Apply connection limits to engine when settings change
+  // Connection limit handlers
   const handleMaxPeersPerTorrentChange = (v: number) => {
     updateSetting('maxPeersPerTorrent', v)
-    engineManager.setConnectionLimits(v, settings.maxGlobalPeers, settings.maxUploadSlots)
+    engineManager.configHub?.set('maxPeersPerTorrent', v)
   }
 
   const handleMaxGlobalPeersChange = (v: number) => {
     updateSetting('maxGlobalPeers', v)
-    engineManager.setConnectionLimits(settings.maxPeersPerTorrent, v, settings.maxUploadSlots)
+    engineManager.configHub?.set('maxGlobalPeers', v)
   }
 
   const handleMaxUploadSlotsChange = (v: number) => {
     updateSetting('maxUploadSlots', v)
-    engineManager.setConnectionLimits(settings.maxPeersPerTorrent, settings.maxGlobalPeers, v)
+    engineManager.configHub?.set('maxUploadSlots', v)
   }
 
-  // Apply encryption policy to engine when settings change
+  // Encryption policy handler
   const handleEncryptionPolicyChange = (v: string) => {
     const policy = v as 'disabled' | 'allow' | 'prefer' | 'required'
     updateSetting('encryptionPolicy', policy)
-    engineManager.setEncryptionPolicy(policy)
+    engineManager.configHub?.set('encryptionPolicy', policy)
   }
 
-  // Apply DHT setting to engine when it changes
+  // DHT toggle handler
   const handleDHTEnabledChange = async (enabled: boolean) => {
     await updateSetting('dht.enabled', enabled)
-    await engineManager.setDHTEnabled(enabled)
+    engineManager.configHub?.set('dhtEnabled', enabled)
   }
 
   // UPnP status indicator
@@ -673,7 +674,10 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engine
           <input
             type="checkbox"
             checked={settings['upnp.enabled']}
-            onChange={(e) => updateSetting('upnp.enabled', e.target.checked)}
+            onChange={(e) => {
+              updateSetting('upnp.enabled', e.target.checked)
+              engineManager.configHub?.set('upnpEnabled', e.target.checked)
+            }}
           />
         </label>
       </Section>
@@ -788,15 +792,15 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
   // Component overrides collapsed by default
   const [overridesExpanded, setOverridesExpanded] = useState(false)
 
-  // Apply daemon rate limit to engine when settings change
+  // Daemon rate limit handlers - update via ConfigHub
   const handleOpsPerSecondChange = (v: number) => {
     updateSetting('daemonOpsPerSecond', v)
-    engineManager.setDaemonRateLimit(v, settings.daemonOpsBurst)
+    engineManager.configHub?.set('daemonOpsPerSecond', v)
   }
 
   const handleOpsBurstChange = (v: number) => {
     updateSetting('daemonOpsBurst', v)
-    engineManager.setDaemonRateLimit(settings.daemonOpsPerSecond, v)
+    engineManager.configHub?.set('daemonOpsBurst', v)
   }
 
   // Reset logging settings to defaults
@@ -819,7 +823,11 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
           <span style={{ flex: 1 }}>Global log level</span>
           <select
             value={settings['logging.level']}
-            onChange={(e) => updateSetting('logging.level', e.target.value as LogLevelValue)}
+            onChange={(e) => {
+              const level = e.target.value as LogLevelValue
+              updateSetting('logging.level', level)
+              engineManager.configHub?.set('loggingLevel', level)
+            }}
             style={styles.select}
           >
             {LOG_LEVELS.map((level) => (

@@ -50,6 +50,7 @@ export { DaemonHasher } from './adapters/daemon/daemon-hasher'
 
 // Storage
 export { StorageRootManager, MissingStorageRootError } from './storage/storage-root-manager'
+export type { StorageRoot } from './storage/storage-root-manager'
 
 // Presets
 export { createDaemonEngine } from './presets/daemon'
@@ -129,8 +130,21 @@ export type {
   AnyConfigChangeCallback,
   ConfigKey,
   ConfigType,
+  SettingConfigKey,
+  RuntimeConfigKey,
+  ConfigCategory,
+  ConfigStorageClass,
 } from './config'
-export { MemoryConfigHub, BaseConfigHub } from './config'
+export {
+  MemoryConfigHub,
+  BaseConfigHub,
+  configSchema,
+  getConfigCategory,
+  getConfigStorageClass,
+  getConfigDefault,
+  getConfigDefaults,
+  validateConfigValue,
+} from './config'
 
 // Version
 export { VERSION, versionToAzureusCode, azureusCodeToVersion } from './version'

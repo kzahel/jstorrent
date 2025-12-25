@@ -13,8 +13,10 @@ import {
   toHex,
   type CredentialsGetter,
   type EngineLoggingConfig,
+  type ConfigHub,
+  type StorageRoot as EngineStorageRoot,
 } from '@jstorrent/engine'
-import { getSettingsStore } from '../settings'
+import { ChromeConfigHub } from '../config'
 import { getBridge } from '../chrome/extension-bridge'
 import { notificationBridge, ProgressStats } from '../chrome/notification-bridge'
 import { BackgroundAudioManager } from '../chrome/background-audio'
@@ -136,6 +138,7 @@ function createSessionStore(): ISessionStore {
  */
 export class ChromeExtensionEngineManager implements IEngineManager {
   engine: BtEngine | null = null
+  configHub: ConfigHub | null = null
   daemonConnection: DaemonConnection | null = null
   logStore: LogStore = globalLogStore
   readonly isStandalone = false
@@ -269,68 +272,68 @@ export class ChromeExtensionEngineManager implements IEngineManager {
       console.warn('[ChromeExtensionEngineManager] No download roots configured!')
     }
 
-    // 5. Create engine (suspended)
+    // 5. Create and init ConfigHub
+    const extensionId = bridge.isDevMode ? (bridge.extensionId ?? undefined) : undefined
+    const configHub = new ChromeConfigHub(extensionId)
+    await configHub.init()
+    this.configHub = configHub
+    console.log('[ChromeExtensionEngineManager] ConfigHub initialized')
+
+    // Set initial runtime values from daemon info
+    configHub.setRuntime('daemonPort', daemonInfo.port)
+    configHub.setRuntime('daemonHost', daemonInfo.host ?? '127.0.0.1')
+    configHub.setRuntime('daemonConnected', true) // We just connected
+    configHub.setRuntime('daemonVersion', daemonInfo.version?.toString() ?? null)
+    configHub.setRuntime('platformType', isChromeos ? 'chromeos' : 'desktop')
+
+    // Set storage roots in ConfigHub (mirrors what StorageRootManager has)
+    const storageRootsForConfig: EngineStorageRoot[] = roots.map((r) => ({
+      key: r.key,
+      label: r.display_name,
+      path: r.path,
+    }))
+    configHub.setRuntime('storageRoots', storageRootsForConfig)
+
+    // 6. Create engine (suspended) with ConfigHub
+    // Engine will auto-apply settings and subscribe to changes via ConfigHub
     const hasher = new DaemonHasher(this.daemonConnection)
-    const settingsStore = getSettingsStore()
     this.engine = new BtEngine({
       socketFactory: new DaemonSocketFactory(this.daemonConnection),
       storageRootManager: srm,
       sessionStore: this.sessionStore,
       hasher,
-      port: settingsStore.get('listeningPort'),
+      port: configHub.listeningPort.get(),
       startSuspended: true,
       getNetworkInterfaces: () => this.daemonConnection!.getNetworkInterfaces(),
+      config: configHub,
     })
     window.engine = this.engine // expose for debugging
     console.log('[ChromeExtensionEngineManager] Engine created (suspended)')
 
-    // 6. Restore session
+    // 7. Restore session
     const restored = await this.engine.restoreSession()
     console.log(`[ChromeExtensionEngineManager] Restored ${restored} torrents`)
 
-    // 7. Resume engine
+    // 8. Resume engine
     this.engine.resume()
     console.log('[ChromeExtensionEngineManager] Engine resumed')
 
-    // 8. Apply rate limits and connection limits from settings
-    const downloadLimit = settingsStore.get('downloadSpeedLimitUnlimited')
-      ? 0
-      : settingsStore.get('downloadSpeedLimit')
-    const uploadLimit = settingsStore.get('uploadSpeedLimitUnlimited')
-      ? 0
-      : settingsStore.get('uploadSpeedLimit')
-    this.setRateLimits(downloadLimit, uploadLimit)
-    this.setConnectionLimits(
-      settingsStore.get('maxPeersPerTorrent'),
-      settingsStore.get('maxGlobalPeers'),
-      settingsStore.get('maxUploadSlots'),
-    )
-    this.setDaemonRateLimit(
-      settingsStore.get('daemonOpsPerSecond'),
-      settingsStore.get('daemonOpsBurst'),
-    )
-    this.setEncryptionPolicy(settingsStore.get('encryptionPolicy'))
-    // Don't await - DHT bootstrap runs in background and can take a while
-    this.setDHTEnabled(settingsStore.get('dht.enabled')).catch((err) => {
-      console.error('[ChromeExtensionEngineManager] DHT failed to start:', err)
-    })
-
-    // Set up background throttling prevention from settings
-    this.backgroundKeepAlive.setEnabled(settingsStore.get('preventBackgroundThrottling'))
-    settingsStore.subscribe('preventBackgroundThrottling', (enabled) => {
+    // 9. Set up background throttling prevention (UI-only, not engine)
+    this.backgroundKeepAlive.setEnabled(configHub.preventBackgroundThrottling.get())
+    configHub.preventBackgroundThrottling.subscribe((enabled) => {
       this.backgroundKeepAlive.setEnabled(enabled)
     })
 
-    // 9. Set up beforeunload handler
+    // 10. Set up beforeunload handler
     window.addEventListener('beforeunload', () => {
       this.shutdown()
     })
 
-    // 10. Set up notification handling
+    // 11. Set up notification handling
     // Note: Port connection for native events is now handled by useIOBridgeState in App.tsx
     this.setupNotifications()
 
-    // 11. Process any native events that arrived during initialization
+    // 12. Process any native events that arrived during initialization
     if (this.pendingNativeEvents.length > 0) {
       console.log(
         '[ChromeExtensionEngineManager] Processing',
@@ -366,6 +369,9 @@ export class ChromeExtensionEngineManager implements IEngineManager {
       this.engine.destroy()
       this.engine = null
     }
+
+    // Clean up configHub
+    this.configHub = null
 
     // Clear any pending events
     this.pendingNativeEvents = []
@@ -405,6 +411,9 @@ export class ChromeExtensionEngineManager implements IEngineManager {
       this.engine = null
     }
 
+    // Clean up configHub
+    this.configHub = null
+
     // Clear pending events and init state
     this.pendingNativeEvents = []
     this.initPromise = null
@@ -416,6 +425,11 @@ export class ChromeExtensionEngineManager implements IEngineManager {
    * Marks active torrents with error and shows notification.
    */
   private handleIoDisconnect(_reason: string): void {
+    // Update runtime state
+    if (this.configHub) {
+      ;(this.configHub as ChromeConfigHub).setRuntime('daemonConnected', false)
+    }
+
     if (!this.engine) return
 
     // Mark all active torrents with IO error
@@ -431,6 +445,11 @@ export class ChromeExtensionEngineManager implements IEngineManager {
    * Clears IO errors and resumes torrents.
    */
   private handleIoReconnect(): void {
+    // Update runtime state
+    if (this.configHub) {
+      ;(this.configHub as ChromeConfigHub).setRuntime('daemonConnected', true)
+    }
+
     if (!this.engine) return
 
     // Clear IO-related errors and let torrents resume naturally
@@ -456,14 +475,21 @@ export class ChromeExtensionEngineManager implements IEngineManager {
       return null
     }
 
+    const newRoot: EngineStorageRoot = {
+      key: response.root.key,
+      label: response.root.display_name,
+      path: response.root.path,
+    }
+
     // Register with StorageRootManager
     if (this.engine) {
-      const root = response.root
-      this.engine.storageRootManager.addRoot({
-        key: root.key,
-        label: root.display_name,
-        path: root.path,
-      })
+      this.engine.storageRootManager.addRoot(newRoot)
+    }
+
+    // Update ConfigHub storageRoots
+    if (this.configHub) {
+      const currentRoots = this.configHub.storageRoots.get()
+      ;(this.configHub as ChromeConfigHub).setRuntime('storageRoots', [...currentRoots, newRoot])
     }
 
     // Convert to StorageRoot interface
@@ -512,6 +538,13 @@ export class ChromeExtensionEngineManager implements IEngineManager {
           await this.sessionStore.delete(DEFAULT_ROOT_KEY_KEY)
         }
       }
+    }
+
+    // Update ConfigHub storageRoots
+    if (this.configHub) {
+      const currentRoots = this.configHub.storageRoots.get()
+      const updatedRoots = currentRoots.filter((r) => r.key !== key)
+      ;(this.configHub as ChromeConfigHub).setRuntime('storageRoots', updatedRoots)
     }
 
     return true

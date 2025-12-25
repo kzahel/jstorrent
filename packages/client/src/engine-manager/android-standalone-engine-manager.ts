@@ -44,6 +44,7 @@ declare global {
  */
 export class AndroidStandaloneEngineManager implements IEngineManager {
   engine: BtEngine | null = null
+  configHub: null = null // TODO: Phase 4 - implement NativeConfigHub
   logStore: LogStore = globalLogStore
   readonly isStandalone = true
   readonly supportsFileOperations = true
