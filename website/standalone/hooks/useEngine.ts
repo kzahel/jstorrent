@@ -171,7 +171,7 @@ export function useEngine(config: { daemonUrl: string }): UseEngineResult {
           eng.resume()
 
           // Enable DHT for peer discovery via ConfigHub (triggers enableDHT() internally)
-          hub.dhtEnabled.set(true)
+          hub.set('dhtEnabled', true)
 
           setIsReady(true)
 
