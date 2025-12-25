@@ -58,6 +58,7 @@ class EngineController(
 
     private var engine: QuickJsEngine? = null
     private var bindings: NativeBindings? = null
+    private var configBridge: ConfigBridge? = null
 
     // State exposed to UI
     private val _state = MutableStateFlow<EngineState?>(null)
@@ -115,8 +116,24 @@ class EngineController(
         engine!!.evaluate("globalThis.jstorrent.init($configJson)", "init.js")
         Log.i(TAG, "Engine initialized with ${config.contentRoots.size} content roots")
 
+        // Create ConfigBridge for config management
+        configBridge = ConfigBridge(engine!!)
+
+        // Sync initial roots via ConfigBridge
+        config.contentRoots.let { roots ->
+            if (roots.isNotEmpty()) {
+                configBridge?.syncRoots(roots, config.defaultContentRoot)
+            }
+        }
+
         _isLoaded.value = true
     }
+
+    /**
+     * Get the ConfigBridge for managing engine configuration.
+     * Returns null if engine is not loaded.
+     */
+    fun getConfigBridge(): ConfigBridge? = configBridge
 
     /**
      * Add a torrent from magnet link or base64-encoded .torrent file.
@@ -175,7 +192,7 @@ class EngineController(
     }
 
     // =========================================================================
-    // Root Management
+    // Root Management (Deprecated - use ConfigBridge.syncRoots instead)
     // =========================================================================
 
     /**
@@ -185,7 +202,13 @@ class EngineController(
      * @param key Unique identifier for the root (SHA256 prefix)
      * @param label Human-readable name
      * @param uri SAF tree URI
+     *
+     * @deprecated Use [getConfigBridge].[syncRoots] instead for unified config management.
      */
+    @Deprecated(
+        message = "Use ConfigBridge.syncRoots() instead",
+        replaceWith = ReplaceWith("getConfigBridge()?.syncRoots(roots, defaultKey)")
+    )
     fun addRoot(key: String, label: String, uri: String) {
         checkLoaded()
         engine!!.callGlobalFunction(
@@ -200,7 +223,13 @@ class EngineController(
     /**
      * Set the default storage root.
      * New torrents will use this root unless explicitly assigned.
+     *
+     * @deprecated Use [getConfigBridge].[syncRoots] instead for unified config management.
      */
+    @Deprecated(
+        message = "Use ConfigBridge.syncRoots() instead",
+        replaceWith = ReplaceWith("getConfigBridge()?.syncRoots(roots, defaultKey)")
+    )
     fun setDefaultRoot(key: String) {
         checkLoaded()
         engine!!.callGlobalFunction("__jstorrent_cmd_set_default_root", key.escapeJs())
@@ -209,7 +238,13 @@ class EngineController(
 
     /**
      * Remove a storage root.
+     *
+     * @deprecated Use [getConfigBridge].[syncRoots] instead for unified config management.
      */
+    @Deprecated(
+        message = "Use ConfigBridge.syncRoots() instead",
+        replaceWith = ReplaceWith("getConfigBridge()?.syncRoots(roots, defaultKey)")
+    )
     fun removeRoot(key: String) {
         checkLoaded()
         engine!!.callGlobalFunction("__jstorrent_cmd_remove_root", key.escapeJs())
@@ -257,6 +292,8 @@ class EngineController(
      */
     override fun close() {
         Log.i(TAG, "Shutting down engine...")
+
+        configBridge = null
 
         bindings?.shutdown()
         bindings = null

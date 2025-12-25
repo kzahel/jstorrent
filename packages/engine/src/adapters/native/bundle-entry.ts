@@ -11,6 +11,7 @@ import './polyfills'
 // Import preset and controller
 import { createNativeEngine, NativeEngineConfig } from '../../presets/native'
 import { setupController, startStatePushLoop } from './controller'
+import { NativeConfigHub } from './native-config-hub'
 import type { BtEngine } from '../../core/bt-engine'
 import type { StorageRoot } from '../../storage/storage-root-manager'
 
@@ -43,58 +44,82 @@ const jstorrentApi = {
       throw new Error('Engine already initialized')
     }
 
-    const nativeConfig: NativeEngineConfig = {
-      contentRoots: config.contentRoots.map(
-        (r): StorageRoot => ({
+    // Start async initialization
+    ;(async () => {
+      try {
+        // Create and initialize ConfigHub first
+        const configHub = new NativeConfigHub()
+        await configHub.init()
+        console.log('JSTorrent: ConfigHub initialized')
+
+        // Convert content roots to StorageRoot format
+        const storageRoots: StorageRoot[] = config.contentRoots.map((r) => ({
           key: r.key,
           label: r.label,
           path: r.path ?? '',
-        }),
-      ),
-      defaultContentRoot: config.defaultContentRoot,
-      port: config.port,
-      storageMode: config.storageMode,
-      startSuspended: true, // Start suspended to restore session first
-      onLog: (entry) => {
-        // Forward logs to console (which is polyfilled to native)
-        const level = entry.level || 'info'
-        const message = `[engine] ${entry.message}`
-        if (level === 'error') {
-          console.error(message)
-        } else if (level === 'warn') {
-          console.warn(message)
-        } else {
-          console.log(message)
-        }
-      },
-    }
+        }))
 
-    engine = createNativeEngine(nativeConfig)
-    setupController(engine)
-
-    // Restore session, resume engine, then start state push
-    // This ensures proper startup sequence:
-    // 1. Engine created in suspended state
-    // 2. Session restored (torrents re-added)
-    // 3. Engine resumed (networking starts)
-    // 4. State push begins (UI reflects correct state)
-    ;(async () => {
-      try {
-        const restored = await engine!.restoreSession()
-        if (restored > 0) {
-          console.log(`JSTorrent: Restored ${restored} torrents from session`)
+        // Push initial roots to ConfigHub
+        if (storageRoots.length > 0) {
+          configHub.setRuntime('storageRoots', storageRoots)
         }
+        if (config.defaultContentRoot) {
+          configHub.setRuntime('defaultRootKey', config.defaultContentRoot)
+        }
+
+        // Set platform type
+        configHub.setRuntime('platformType', 'android-standalone')
+
+        const nativeConfig: NativeEngineConfig = {
+          contentRoots: storageRoots,
+          defaultContentRoot: config.defaultContentRoot,
+          port: config.port ?? configHub.listeningPort.get(),
+          storageMode: config.storageMode,
+          startSuspended: true, // Start suspended to restore session first
+          config: configHub,
+          onLog: (entry) => {
+            // Forward logs to console (which is polyfilled to native)
+            const level = entry.level || 'info'
+            const message = `[engine] ${entry.message}`
+            if (level === 'error') {
+              console.error(message)
+            } else if (level === 'warn') {
+              console.warn(message)
+            } else {
+              console.log(message)
+            }
+          },
+        }
+
+        engine = createNativeEngine(nativeConfig)
+        setupController(engine)
+
+        // Restore session, resume engine, then start state push
+        // This ensures proper startup sequence:
+        // 1. Engine created in suspended state
+        // 2. Session restored (torrents re-added)
+        // 3. Engine resumed (networking starts)
+        // 4. State push begins (UI reflects correct state)
+        try {
+          const restored = await engine.restoreSession()
+          if (restored > 0) {
+            console.log(`JSTorrent: Restored ${restored} torrents from session`)
+          }
+        } catch (e) {
+          console.error('JSTorrent: Failed to restore session:', e)
+        }
+
+        // Resume engine after restoration
+        engine.resume()
+
+        // Start state push AFTER restoration and resume
+        stopStatePush = startStatePushLoop(engine)
+
+        console.log('JSTorrent engine initialized')
       } catch (e) {
-        console.error('JSTorrent: Failed to restore session:', e)
+        console.error('JSTorrent: Failed to initialize engine:', e)
+        __jstorrent_on_error(JSON.stringify({ error: String(e) }))
       }
-
-      // Resume engine after restoration
-      engine!.resume()
-
-      // Start state push AFTER restoration and resume
-      stopStatePush = startStatePushLoop(engine!)
-
-      console.log('JSTorrent engine initialized')
     })()
   },
 

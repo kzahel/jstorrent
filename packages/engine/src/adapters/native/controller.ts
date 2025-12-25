@@ -12,7 +12,10 @@
 
 import type { BtEngine } from '../../core/bt-engine'
 import type { Torrent } from '../../core/torrent'
+import type { StorageRoot } from '../../storage/types'
+import type { ConfigKey } from '../../config'
 import { toHex } from '../../utils/buffer'
+import type { NativeConfigHub } from './native-config-hub'
 import './bindings.d.ts'
 
 /**
@@ -156,6 +159,86 @@ export function setupController(engine: BtEngine): void {
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_remove_root = (key: string): void => {
     engine.storageRootManager.removeRoot(key)
     console.log(`[controller] Removed root: ${key}`)
+  }
+
+  // ============================================================
+  // CONFIG MANAGEMENT (Native → JS)
+  // ============================================================
+
+  /**
+   * Set a config value from native layer.
+   * Called by Kotlin ConfigBridge.
+   *
+   * @param key - Config key (e.g., "downloadSpeedLimit")
+   * @param valueJson - JSON-encoded value
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_config_set = (
+    key: string,
+    valueJson: string,
+  ): void => {
+    if (!engine.config) {
+      console.warn('[controller] config_set called but no ConfigHub configured')
+      return
+    }
+    try {
+      const value = JSON.parse(valueJson)
+      engine.config.set(key as ConfigKey, value)
+      console.log(`[controller] Config set: ${key} = ${valueJson}`)
+    } catch (e) {
+      console.error(`[controller] Failed to set config ${key}:`, e)
+    }
+  }
+
+  /**
+   * Batch set multiple config values at once.
+   * Called by Kotlin ConfigBridge.
+   *
+   * @param updatesJson - JSON object of key-value pairs
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_config_batch = (
+    updatesJson: string,
+  ): void => {
+    if (!engine.config) {
+      console.warn('[controller] config_batch called but no ConfigHub configured')
+      return
+    }
+    try {
+      const updates = JSON.parse(updatesJson)
+      engine.config.batch(updates)
+      console.log(`[controller] Config batch update: ${Object.keys(updates).length} keys`)
+    } catch (e) {
+      console.error('[controller] Failed to batch update config:', e)
+    }
+  }
+
+  /**
+   * Push storage roots from Kotlin (RootStore is source of truth).
+   * Called when roots change on native side.
+   *
+   * @param rootsJson - JSON array of StorageRoot objects
+   * @param defaultKey - Default root key (or null/empty)
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_config_set_roots = (
+    rootsJson: string,
+    defaultKey: string | null,
+  ): void => {
+    if (!engine.config) {
+      console.warn('[controller] config_set_roots called but no ConfigHub configured')
+      return
+    }
+    try {
+      const roots = JSON.parse(rootsJson) as StorageRoot[]
+      const nativeConfig = engine.config as NativeConfigHub
+      nativeConfig.setRuntime('storageRoots', roots)
+      if (defaultKey) {
+        nativeConfig.setRuntime('defaultRootKey', defaultKey)
+      }
+      console.log(
+        `[controller] Storage roots updated: ${roots.length} roots, default=${defaultKey}`,
+      )
+    } catch (e) {
+      console.error('[controller] Failed to set storage roots:', e)
+    }
   }
 
   /**
