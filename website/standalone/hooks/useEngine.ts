@@ -175,13 +175,19 @@ export function useEngine(config: { daemonUrl: string }): UseEngineResult {
 
           setIsReady(true)
 
-          // Poll for state updates
+          // Poll for state updates (1s interval to reduce UI thread contention)
+          // NOTE: This approach is slower than standalone_full's revision-counter pattern.
+          // Here we eagerly compute torrentToState() for all torrents every interval,
+          // which iterates all peers (for downloadSpeed/uploadSpeed) and all files (for size).
+          // standalone_full just bumps a revision counter and lets components read from
+          // engine.torrents lazily during render, avoiding unnecessary getter calls.
+          // This costs ~4MB/s throughput vs standalone_full in WebView testing.
           pollInterval = setInterval(() => {
             if (engineRef.current) {
               const states = engineRef.current.torrents.map(torrentToState)
               setTorrents(states)
             }
-          }, 500)
+          }, 1000)
         }
       } catch (err) {
         console.error('[useEngine] Failed to initialize:', err)
