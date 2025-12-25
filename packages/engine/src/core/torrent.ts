@@ -162,6 +162,9 @@ export class Torrent extends EngineComponent {
   private uploadQueue: QueuedUploadRequest[] = []
   private uploadDrainScheduled = false
 
+  // Download rate limit retry scheduling
+  private downloadRateLimitRetryScheduled = false
+
   // Round-robin index for fair peer request scheduling
   private _peerRequestRoundRobin = 0
 
@@ -2268,6 +2271,30 @@ export class Torrent extends EngineComponent {
   }
 
   /**
+   * Schedule retry when download rate limit blocks requests.
+   * Uses round-robin to be fair across peers when resuming.
+   */
+  private scheduleDownloadRateLimitRetry(blockSize: number): void {
+    if (this.downloadRateLimitRetryScheduled) return
+
+    const downloadBucket = this.btEngine.bandwidthTracker.downloadBucket
+    const delayMs = downloadBucket.msUntilAvailable(blockSize)
+    this.downloadRateLimitRetryScheduled = true
+    setTimeout(
+      () => {
+        this.downloadRateLimitRetryScheduled = false
+        // Use round-robin for fair bandwidth distribution across peers
+        for (const peer of this.iteratePeersRoundRobin()) {
+          if (!peer.peerChoking) {
+            this.requestPieces(peer)
+          }
+        }
+      },
+      Math.max(delayMs, 10),
+    )
+  }
+
+  /**
    * Fill peer slots from the swarm.
    * Delegates to runMaintenance() for single codepath.
    */
@@ -2588,6 +2615,7 @@ export class Torrent extends EngineComponent {
 
         // Rate limit check
         if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
+          this.scheduleDownloadRateLimitRetry(block.length)
           return
         }
 
@@ -2633,6 +2661,7 @@ export class Torrent extends EngineComponent {
 
         // Rate limit check
         if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
+          this.scheduleDownloadRateLimitRetry(block.length)
           return
         }
 

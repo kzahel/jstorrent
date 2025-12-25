@@ -194,4 +194,52 @@ describe('Rate Limiting Integration', () => {
       expect(true).toBe(true)
     }, 10000)
   })
+
+  describe('download rate limit retry mechanism', () => {
+    it('rate limiting API is exposed on bandwidth tracker', () => {
+      // Verify the API used by the retry mechanism is available
+      leecher.bandwidthTracker.setDownloadLimit(16384)
+      const bucket = leecher.bandwidthTracker.downloadBucket
+
+      expect(bucket.isLimited).toBe(true)
+      expect(bucket.refillRate).toBe(16384)
+      expect(bucket.capacity).toBe(32768) // 2x burst
+      expect(typeof bucket.msUntilAvailable).toBe('function')
+      expect(typeof bucket.tryConsume).toBe('function')
+    })
+
+    it('msUntilAvailable returns correct delay when bucket is empty', () => {
+      // Set 1KB/s limit
+      leecher.bandwidthTracker.setDownloadLimit(1024)
+      const bucket = leecher.bandwidthTracker.downloadBucket
+
+      expect(bucket.capacity).toBe(2048)
+
+      // Bucket starts empty when transitioning from unlimited
+      // At 1024 bytes/sec, waiting for 1024 bytes = 1000ms
+      expect(bucket.msUntilAvailable(1024)).toBe(1000)
+
+      // Waiting for 512 bytes = 500ms
+      expect(bucket.msUntilAvailable(512)).toBe(500)
+    })
+
+    it('tryConsume returns false when insufficient tokens', () => {
+      leecher.bandwidthTracker.setDownloadLimit(16384) // 16KB/sec
+      const bucket = leecher.bandwidthTracker.downloadBucket
+
+      // Bucket starts empty when first limited, so tryConsume should fail
+      expect(bucket.tryConsume(16384)).toBe(false)
+
+      // Delay should be approximately 1 second (may be slightly less due to elapsed time)
+      const delay = bucket.msUntilAvailable(16384)
+      expect(delay).toBeGreaterThan(900)
+      expect(delay).toBeLessThanOrEqual(1000)
+    })
+
+    it('unlimited bucket always allows consumption', () => {
+      // Default is unlimited
+      expect(leecher.bandwidthTracker.downloadBucket.isLimited).toBe(false)
+      expect(leecher.bandwidthTracker.downloadBucket.tryConsume(1_000_000)).toBe(true)
+    })
+  })
 })
