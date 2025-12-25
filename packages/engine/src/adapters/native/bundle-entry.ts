@@ -18,6 +18,11 @@ import type { StorageRoot } from '../../storage/storage-root-manager'
 // Global engine instance
 let engine: BtEngine | null = null
 let stopStatePush: (() => void) | null = null
+let engineReady = false
+
+// Register controller functions early (before async init completes)
+// These will check if engine is ready before executing
+setupController(() => engine, () => engineReady)
 
 /**
  * API exposed to native layer via globalThis.jstorrent
@@ -92,7 +97,7 @@ const jstorrentApi = {
         }
 
         engine = createNativeEngine(nativeConfig)
-        setupController(engine)
+        engineReady = true
 
         // Restore session, resume engine, then start state push
         // This ensures proper startup sequence:

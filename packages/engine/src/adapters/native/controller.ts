@@ -28,9 +28,32 @@ function getTorrentSize(t: Torrent): number {
 
 /**
  * Set up the controller commands and queries.
- * Call this after creating the engine.
+ * Called early during initialization, before engine is ready.
+ * Commands will check if engine is ready before executing.
+ *
+ * @param getEngine - Getter function that returns the engine (or null if not ready)
+ * @param isReady - Getter function that returns true when engine is fully initialized
  */
-export function setupController(engine: BtEngine): void {
+export function setupController(
+  getEngine: () => BtEngine | null,
+  isReady: () => boolean,
+): void {
+  /**
+   * Helper to get engine, logging error if not ready.
+   */
+  const requireEngine = (caller: string): BtEngine | null => {
+    if (!isReady()) {
+      console.warn(`[controller] ${caller}: Engine not ready yet`)
+      return null
+    }
+    const engine = getEngine()
+    if (!engine) {
+      console.warn(`[controller] ${caller}: Engine is null`)
+      return null
+    }
+    return engine
+  }
+
   // ============================================================
   // COMMANDS (Native → JS)
   // ============================================================
@@ -42,6 +65,11 @@ export function setupController(engine: BtEngine): void {
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_add_torrent = (
     magnetOrBase64: string,
   ): string => {
+    const engine = requireEngine('addTorrent')
+    if (!engine) {
+      return JSON.stringify({ ok: false, error: 'Engine not ready' })
+    }
+
     console.log(
       `[controller] addTorrent called: ${magnetOrBase64.startsWith('magnet:') ? 'magnet link' : 'base64 data'}`,
     )
@@ -86,6 +114,8 @@ export function setupController(engine: BtEngine): void {
    * Pause a torrent.
    */
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_pause = (infoHash: string): void => {
+    const engine = requireEngine('pause')
+    if (!engine) return
     const torrent = engine.getTorrent(infoHash)
     if (torrent) {
       torrent.userStop() // Use userStop() to update userState and persist
@@ -96,6 +126,8 @@ export function setupController(engine: BtEngine): void {
    * Resume a torrent.
    */
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_resume = (infoHash: string): void => {
+    const engine = requireEngine('resume')
+    if (!engine) return
     const torrent = engine.getTorrent(infoHash)
     torrent?.userStart() // Use userStart() to update userState and persist
   }
@@ -107,6 +139,8 @@ export function setupController(engine: BtEngine): void {
     infoHash: string,
     deleteFiles: boolean,
   ): void => {
+    const engine = requireEngine('remove')
+    if (!engine) return
     const torrent = engine.getTorrent(infoHash)
     if (torrent) {
       if (deleteFiles) {
@@ -134,6 +168,8 @@ export function setupController(engine: BtEngine): void {
     label: string,
     path: string,
   ): void => {
+    const engine = requireEngine('add_root')
+    if (!engine) return
     engine.storageRootManager.addRoot({ key, label, path })
     console.log(`[controller] Added root: ${key} -> ${label}`)
   }
@@ -145,6 +181,8 @@ export function setupController(engine: BtEngine): void {
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_set_default_root = (
     key: string,
   ): void => {
+    const engine = requireEngine('set_default_root')
+    if (!engine) return
     try {
       engine.storageRootManager.setDefaultRoot(key)
       console.log(`[controller] Set default root: ${key}`)
@@ -157,6 +195,8 @@ export function setupController(engine: BtEngine): void {
    * Remove a storage root.
    */
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_remove_root = (key: string): void => {
+    const engine = requireEngine('remove_root')
+    if (!engine) return
     engine.storageRootManager.removeRoot(key)
     console.log(`[controller] Removed root: ${key}`)
   }
@@ -176,6 +216,8 @@ export function setupController(engine: BtEngine): void {
     key: string,
     valueJson: string,
   ): void => {
+    const engine = requireEngine('config_set')
+    if (!engine) return
     if (!engine.config) {
       console.warn('[controller] config_set called but no ConfigHub configured')
       return
@@ -198,6 +240,8 @@ export function setupController(engine: BtEngine): void {
   ;(globalThis as Record<string, unknown>).__jstorrent_config_batch = (
     updatesJson: string,
   ): void => {
+    const engine = requireEngine('config_batch')
+    if (!engine) return
     if (!engine.config) {
       console.warn('[controller] config_batch called but no ConfigHub configured')
       return
@@ -222,6 +266,8 @@ export function setupController(engine: BtEngine): void {
     rootsJson: string,
     defaultKey: string | null,
   ): void => {
+    const engine = requireEngine('config_set_roots')
+    if (!engine) return
     if (!engine.config) {
       console.warn('[controller] config_set_roots called but no ConfigHub configured')
       return
@@ -248,6 +294,11 @@ export function setupController(engine: BtEngine): void {
    * Uses v1 infohash (SHA1 of full info dict), not truncated v2 hash.
    */
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_add_test_torrent = (): string => {
+    const engine = requireEngine('add_test_torrent')
+    if (!engine) {
+      return JSON.stringify({ ok: false, error: 'Engine not ready' })
+    }
+
     const testMagnet =
       'magnet:?xt=urn:btih:18a7aacab6d2bc518e336921ccd4b6cc32a9624b&dn=testdata_1gb.bin&x.pe=10.0.2.2:6881&x.pe=127.0.0.1:6881'
     console.log('[controller] Adding test torrent with peer hint...')
@@ -273,6 +324,10 @@ export function setupController(engine: BtEngine): void {
    * Get the list of all torrents with summary info.
    */
   ;(globalThis as Record<string, unknown>).__jstorrent_query_torrent_list = (): string => {
+    const engine = requireEngine('query_torrent_list')
+    if (!engine) {
+      return JSON.stringify({ torrents: [] })
+    }
     return JSON.stringify({
       torrents: engine.torrents.map((t) => ({
         infoHash: toHex(t.infoHash),
@@ -293,6 +348,10 @@ export function setupController(engine: BtEngine): void {
    * Get the file list for a specific torrent.
    */
   ;(globalThis as Record<string, unknown>).__jstorrent_query_files = (infoHash: string): string => {
+    const engine = requireEngine('query_files')
+    if (!engine) {
+      return JSON.stringify({ files: [] })
+    }
     const torrent = engine.getTorrent(infoHash)
     if (!torrent || !torrent.files) {
       return JSON.stringify({ files: [] })

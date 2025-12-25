@@ -114,6 +114,10 @@ class EngineController(
         // Initialize engine with config
         val configJson = json.encodeToString(config)
         engine!!.evaluate("globalThis.jstorrent.init($configJson)", "init.js")
+
+        // Execute pending jobs to complete async initialization
+        // The init() call starts async work that needs microtasks to be pumped
+        engine!!.executeAllPendingJobs()
         Log.i(TAG, "Engine initialized with ${config.contentRoots.size} content roots")
 
         // Create ConfigBridge for config management
