@@ -165,10 +165,7 @@ describe('Fast Restart', () => {
 
     // Wait for a new piece (or timeout)
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error('Download did not resume within 2s')),
-        2000,
-      )
+      const timeout = setTimeout(() => reject(new Error('Download did not resume within 2s')), 2000)
       leecherTorrent.on('piece', () => {
         clearTimeout(timeout)
         resolve()
