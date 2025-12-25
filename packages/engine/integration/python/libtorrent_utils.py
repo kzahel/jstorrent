@@ -207,3 +207,50 @@ class EncryptedLibtorrentSession(LibtorrentSession):
         print(f"DEBUG (encrypted): in_enc_policy={applied.get('in_enc_policy')} (expect: 2/pe_forced)")
         print(f"DEBUG (encrypted): allowed_enc_level={applied.get('allowed_enc_level')} (expect: 3/both)")
         print(f"DEBUG (encrypted): prefer_rc4={applied.get('prefer_rc4')}")
+
+
+def create_v2_hybrid_torrent(root_dir: str, name: str, size: int = 1024 * 1024) -> Tuple[str, str, str]:
+    """
+    Create a v2 hybrid torrent (has both v1 and v2 hashes).
+
+    This is useful for testing detection of truncated v2 hash connections.
+    When a v1-only client connects using the first 20 bytes of a v2 hash,
+    the peer will include info_hash2 in the extended handshake.
+
+    Args:
+        root_dir: Directory to create the file and torrent in
+        name: Name of the file to create
+        size: Size of the random file in bytes
+
+    Returns:
+        Tuple of (torrent_path, v1_hash, truncated_v2_hash)
+        Returns (None, None, None) if libtorrent doesn't support v2
+    """
+    file_path = os.path.join(root_dir, name)
+    with open(file_path, "wb") as f:
+        f.write(os.urandom(size))
+
+    fs = lt.file_storage()
+    lt.add_files(fs, file_path)
+
+    # Default behavior in libtorrent 2.x creates hybrid (v1+v2) torrents
+    t = lt.create_torrent(fs)
+    t.set_creator('jstorrent_v2_test')
+    lt.set_piece_hashes(t, root_dir)
+
+    torrent_path = os.path.join(root_dir, name + ".torrent")
+    with open(torrent_path, "wb") as f:
+        f.write(lt.bencode(t.generate()))
+
+    info = lt.torrent_info(torrent_path)
+    hashes = info.info_hashes()
+
+    # Check if this is actually a hybrid torrent
+    if not hashes.has_v1() or not hashes.has_v2():
+        return None, None, None
+
+    v1_hash = str(hashes.v1)
+    # str(info.info_hash()) gives truncated v2 for hybrid torrents
+    truncated_v2_hash = str(info.info_hash())
+
+    return torrent_path, v1_hash, truncated_v2_hash

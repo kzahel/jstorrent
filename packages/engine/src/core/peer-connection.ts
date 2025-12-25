@@ -3,6 +3,7 @@ import { ITcpSocket } from '../interfaces/socket'
 import { PeerWireProtocol, MessageType, WireMessage } from '../protocol/wire-protocol'
 import { BitField } from '../utils/bitfield'
 import { Bencode } from '../utils/bencode'
+import { toHex } from '../utils/buffer'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
 import { SpeedCalculator } from '../utils/speed-calculator'
 
@@ -326,6 +327,24 @@ export class PeerConnection extends EngineComponent {
     try {
       const dict = Bencode.decode(payload) as Record<string, unknown>
       this.logger.debug('Extended Handshake payload:', dict)
+
+      // BEP 52: info_hash2 presence means we connected with truncated v2 hash
+      // This happens when we accidentally use the first 20 bytes of a v2 SHA256 hash
+      // instead of the proper v1 SHA1 hash. Piece indices won't align, so disconnect.
+      if (dict.info_hash2 instanceof Uint8Array && dict.info_hash2.length === 32) {
+        const fullV2Hex = toHex(dict.info_hash2)
+        const truncatedHex = toHex(dict.info_hash2.slice(0, 20))
+
+        this.logger.warn(
+          `Connected with truncated v2 info hash to hybrid torrent. ` +
+            `Piece indices will not align - disconnecting. ` +
+            `Full v2 hash: ${fullV2Hex}, truncated (what we used): ${truncatedHex}. ` +
+            `Use the v1 info hash instead.`,
+        )
+
+        this.close()
+        return // Don't emit extension_handshake or continue processing
+      }
 
       // Extract ut_metadata ID from 'm' dictionary
       if (dict.m && typeof dict.m === 'object') {

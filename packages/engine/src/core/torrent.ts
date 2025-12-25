@@ -3271,7 +3271,12 @@ export class Torrent extends EngineComponent {
       // Let's emit 'metadata' and expect the listener (BtEngine) to call a method to initialize?
       // Or we can import TorrentParser.
     } else {
-      this.logger.warn('Metadata hash mismatch')
+      this.logger.warn(
+        `Metadata hash mismatch - peer sent info dict that doesn't match expected hash. ` +
+          `This could be: (1) peer sent invalid/corrupted data, or ` +
+          `(2) you connected with a truncated v2 info hash to a hybrid torrent ` +
+          `(use the v1 SHA-1 hash instead). Will retry with other peers.`,
+      )
       this.metadataPiecesReceived.clear()
       this.metadataBuffer = new Uint8Array(this.metadataSize!)
       // Retry?
