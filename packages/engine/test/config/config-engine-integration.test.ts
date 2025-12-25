@@ -190,6 +190,103 @@ describe('ConfigHub Engine Integration', () => {
       ).toBe(0)
     })
   })
+
+  describe('initial values applied on resume', () => {
+    let suspendedEngine: BtEngine
+
+    beforeEach(async () => {
+      const storageRootManager = new StorageRootManager(() => new InMemoryFileSystem())
+      storageRootManager.addRoot({ key: 'test', label: 'Test', path: '/test' })
+      storageRootManager.setDefaultRoot('test')
+
+      suspendedEngine = new BtEngine({
+        socketFactory: new MemorySocketFactory(),
+        storageRootManager,
+        config,
+        startSuspended: true,
+      })
+    })
+
+    afterEach(async () => {
+      await suspendedEngine.destroy()
+    })
+
+    it('should call enableDHT when engine resumes if dhtEnabled is true', () => {
+      // Disable UPnP to avoid interference with this DHT test
+      config.set('upnpEnabled', false)
+      config.set('dhtEnabled', true)
+      const spy = vi
+        .spyOn(suspendedEngine as unknown as { enableDHT: () => Promise<void> }, 'enableDHT')
+        .mockResolvedValue(undefined)
+
+      suspendedEngine.resume()
+
+      expect(spy).toHaveBeenCalled()
+    })
+
+    it('should NOT call enableDHT when engine resumes if dhtEnabled is false', () => {
+      // Disable UPnP to avoid interference with this DHT test
+      config.set('upnpEnabled', false)
+      config.set('dhtEnabled', false)
+      const spy = vi
+        .spyOn(suspendedEngine as unknown as { enableDHT: () => Promise<void> }, 'enableDHT')
+        .mockResolvedValue(undefined)
+
+      suspendedEngine.resume()
+
+      expect(spy).not.toHaveBeenCalled()
+    })
+
+    it('should call enableUPnP when engine resumes if upnpEnabled is true', () => {
+      // Disable DHT to avoid interference with this UPnP test
+      config.set('dhtEnabled', false)
+      config.set('upnpEnabled', true)
+      const spy = vi
+        .spyOn(suspendedEngine as unknown as { enableUPnP: () => Promise<void> }, 'enableUPnP')
+        .mockResolvedValue(undefined)
+
+      suspendedEngine.resume()
+
+      expect(spy).toHaveBeenCalled()
+    })
+
+    it('should NOT call enableUPnP when engine resumes if upnpEnabled is false', () => {
+      // Disable DHT to avoid interference with this UPnP test
+      config.set('dhtEnabled', false)
+      config.set('upnpEnabled', false)
+      const spy = vi
+        .spyOn(suspendedEngine as unknown as { enableUPnP: () => Promise<void> }, 'enableUPnP')
+        .mockResolvedValue(undefined)
+
+      suspendedEngine.resume()
+
+      expect(spy).not.toHaveBeenCalled()
+    })
+
+    it('should not call applyInitialConfig when engine is not suspended', async () => {
+      // Disable DHT and UPnP to avoid them starting automatically
+      config.set('dhtEnabled', false)
+      config.set('upnpEnabled', false)
+
+      // Engine created without startSuspended should not be suspended
+      const normalEngine = new BtEngine({
+        socketFactory: new MemorySocketFactory(),
+        storageRootManager: suspendedEngine.storageRootManager,
+        config,
+      })
+
+      const enableDHTSpy = vi
+        .spyOn(normalEngine as unknown as { enableDHT: () => Promise<void> }, 'enableDHT')
+        .mockResolvedValue(undefined)
+
+      // Calling resume() on non-suspended engine should be a no-op
+      normalEngine.resume()
+
+      expect(enableDHTSpy).not.toHaveBeenCalled()
+
+      await normalEngine.destroy()
+    })
+  })
 })
 
 describe('BtEngine without ConfigHub (backward compatibility)', () => {

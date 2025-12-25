@@ -40,9 +40,11 @@ function deepEqual(a: unknown, b: unknown): boolean {
 }
 
 // KV response type
+// Note: KV_GET returns "value", KV_GET_MULTI returns "values"
 interface KVResponse<T = unknown> {
   ok: boolean
   value?: T
+  values?: Record<string, unknown> // KV_GET_MULTI returns this instead of value
   error?: string
 }
 
@@ -126,6 +128,7 @@ export class ChromeConfigHub extends BaseConfigHub {
    * Load all persisted settings from chrome.storage.
    */
   protected async loadFromStorage(): Promise<Partial<ConfigType>> {
+    console.log('[ChromeConfigHub] loadFromStorage called')
     const result: Partial<ConfigType> = {}
 
     // Get all setting keys (category === 'setting' or has storage class)
@@ -133,35 +136,73 @@ export class ChromeConfigHub extends BaseConfigHub {
       (key) => getConfigCategory(key) === 'setting',
     )
 
-    // Build list of old settings keys to fetch
-    const keysToFetch: string[] = []
+    // Group keys by their storage area (sync vs local)
+    const syncKeys: string[] = []
+    const localKeys: string[] = []
+
     for (const configKey of settingKeys) {
       const settingsKey = this.getSettingsKey(configKey)
-      keysToFetch.push(SETTINGS_KEY_PREFIX + settingsKey)
+      const storageClass = getConfigStorageClass(configKey) ?? 'sync'
+      const prefixedKey = SETTINGS_KEY_PREFIX + settingsKey
 
-      // Also fetch unlimited boolean if this key has one
+      if (storageClass === 'local') {
+        localKeys.push(prefixedKey)
+      } else {
+        syncKeys.push(prefixedKey)
+      }
+
+      // Also fetch unlimited boolean if this key has one (same storage area)
       if (configKey in UNLIMITED_PAIRS) {
-        keysToFetch.push(SETTINGS_KEY_PREFIX + UNLIMITED_PAIRS[configKey])
+        const unlimitedPrefixedKey = SETTINGS_KEY_PREFIX + UNLIMITED_PAIRS[configKey]
+        if (storageClass === 'local') {
+          localKeys.push(unlimitedPrefixedKey)
+        } else {
+          syncKeys.push(unlimitedPrefixedKey)
+        }
       }
     }
 
-    // Also fetch defaultRootKey (storage category)
-    keysToFetch.push(SETTINGS_KEY_PREFIX + 'defaultRootKey')
+    // Also fetch defaultRootKey (storage category, uses 'local')
+    localKeys.push(SETTINGS_KEY_PREFIX + 'defaultRootKey')
 
-    // Fetch all values in one request
-    // Use KV_GET_MULTI with empty prefix since we include the prefix ourselves
-    const response = await sendKVMessage<Record<string, unknown>>(this.extensionId, {
-      type: 'KV_GET_MULTI',
-      keys: keysToFetch,
-      keyPrefix: '',
-    })
+    // Fetch values from both storage areas
+    let stored: Record<string, unknown> = {}
 
-    if (!response.ok || !response.value) {
-      console.warn('[ChromeConfigHub] Failed to load settings:', response.error)
-      return result
+    // Fetch sync storage
+    if (syncKeys.length > 0) {
+      const syncResponse = await sendKVMessage<Record<string, unknown>>(this.extensionId, {
+        type: 'KV_GET_MULTI',
+        keys: syncKeys,
+        keyPrefix: '',
+        area: 'sync',
+      })
+      if (syncResponse.ok && syncResponse.values) {
+        stored = { ...stored, ...syncResponse.values }
+      } else {
+        console.warn('[ChromeConfigHub] Failed to load sync settings:', syncResponse.error)
+      }
     }
 
-    const stored = response.value
+    // Fetch local storage
+    if (localKeys.length > 0) {
+      const localResponse = await sendKVMessage<Record<string, unknown>>(this.extensionId, {
+        type: 'KV_GET_MULTI',
+        keys: localKeys,
+        keyPrefix: '',
+        area: 'local',
+      })
+      if (localResponse.ok && localResponse.values) {
+        stored = { ...stored, ...localResponse.values }
+      } else {
+        console.warn('[ChromeConfigHub] Failed to load local settings:', localResponse.error)
+      }
+    }
+    console.log('[ChromeConfigHub] KV_GET_MULTI response:', {
+      downloadSpeedLimit: stored[SETTINGS_KEY_PREFIX + 'downloadSpeedLimit'],
+      downloadSpeedLimitUnlimited: stored[SETTINGS_KEY_PREFIX + 'downloadSpeedLimitUnlimited'],
+      uploadSpeedLimit: stored[SETTINGS_KEY_PREFIX + 'uploadSpeedLimit'],
+      uploadSpeedLimitUnlimited: stored[SETTINGS_KEY_PREFIX + 'uploadSpeedLimitUnlimited'],
+    })
 
     // Map stored values back to ConfigHub keys
     for (const configKey of settingKeys) {
@@ -189,6 +230,14 @@ export class ChromeConfigHub extends BaseConfigHub {
     if (defaultRootKey !== undefined) {
       result.defaultRootKey = defaultRootKey as string | null
     }
+
+    // Debug logging for rate limit loading
+    console.log('[ChromeConfigHub] Loaded rate limits:', {
+      downloadSpeedLimit: result.downloadSpeedLimit,
+      uploadSpeedLimit: result.uploadSpeedLimit,
+      downloadUnlimited: stored[SETTINGS_KEY_PREFIX + 'downloadSpeedLimitUnlimited'],
+      uploadUnlimited: stored[SETTINGS_KEY_PREFIX + 'uploadSpeedLimitUnlimited'],
+    })
 
     return result
   }

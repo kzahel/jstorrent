@@ -369,6 +369,37 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         torrent.resumeNetwork()
       }
     }
+
+    // Apply initial config for subsystems that depend on non-suspended state
+    this.applyInitialConfig()
+  }
+
+  /**
+   * Apply initial configuration from ConfigHub.
+   * Called once after engine resumes to start subsystems based on saved settings.
+   * Subscriptions only fire on CHANGES, so initial values need explicit application.
+   */
+  private applyInitialConfig(): void {
+    if (!this.config) return
+
+    // Log initial rate limits for debugging
+    const downloadLimit = this.config.downloadSpeedLimit.get()
+    const uploadLimit = this.config.uploadSpeedLimit.get()
+    this.logger.info(
+      `Initial rate limits - download: ${downloadLimit === 0 ? 'unlimited' : downloadLimit + ' B/s'}, upload: ${uploadLimit === 0 ? 'unlimited' : uploadLimit + ' B/s'}`,
+    )
+
+    // Start DHT if enabled (constructor only reads the flag, doesn't start)
+    if (this.config.dhtEnabled.get()) {
+      this.logger.info('Starting DHT (from initial config)')
+      this.enableDHT().catch((e) => this.logger.error('Failed to enable DHT on startup', e))
+    }
+
+    // Start UPnP if enabled (constructor doesn't read initial value)
+    if (this.config.upnpEnabled.get()) {
+      this.logger.info('Starting UPnP (from initial config)')
+      this.enableUPnP().catch((e) => this.logger.error('Failed to enable UPnP on startup', e))
+    }
   }
 
   private startServer() {
