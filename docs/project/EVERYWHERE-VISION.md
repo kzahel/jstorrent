@@ -69,10 +69,12 @@ packages/engine/
 │   ├── interfaces/     # ISocketFactory, IFileSystem, ISessionStore, IHasher
 │   └── adapters/       # Platform-specific implementations
 │       ├── daemon/     # WebSocket to Rust/Kotlin daemon (extension mode)
-│       ├── native/     # Direct native bindings (QuickJS/JSC mode) ← NEW
+│       ├── native/     # Direct native bindings (QuickJS/JSC mode)
+│       ├── browser/    # Browser APIs (SubtleCrypto, localStorage)
 │       ├── android/    # WebView bridges (legacy standalone)
 │       ├── node/       # Node.js (testing)
-│       └── memory/     # In-memory (unit tests)
+│       ├── memory/     # In-memory (unit tests)
+│       └── null/       # No-op implementations (testing)
 ```
 
 ### Interface Surface
@@ -174,7 +176,7 @@ Both Kotlin (for Android) and Swift (for iOS) implement these identical function
 
 ## Android Architecture
 
-### Current State (After Phase 1-8)
+### Base Structure (Companion Mode Only)
 
 ```
 android/                          # Renamed from android-io-daemon
@@ -191,9 +193,9 @@ android/                          # Renamed from android-io-daemon
 │
 ├── companion-server/             # HTTP/WS server for extension mode
 │   └── com/jstorrent/companion/
-│       ├── CompanionServer.kt
-│       ├── SocketHandler.kt      # WebSocket /io endpoint
-│       └── FileHandler.kt        # HTTP /read, /write endpoints
+│       ├── CompanionHttpServer.kt    # Ktor server setup
+│       ├── IoWebSocketHandler.kt     # WebSocket /io endpoint
+│       └── FileRoutes.kt             # HTTP /read, /write endpoints
 │
 └── app/                          # Main application
     └── com/jstorrent/app/
@@ -203,42 +205,44 @@ android/                          # Renamed from android-io-daemon
             └── ModeManager.kt
 ```
 
-### Future State (With QuickJS)
+### Current State (With QuickJS)
 
 ```
 android/
-├── io-core/                      # (unchanged)
+├── io-core/                      # Pure I/O primitives (unchanged)
 │
-├── companion-server/             # (unchanged)
+├── companion-server/             # HTTP/WS server (unchanged)
 │
-├── quickjs-engine/               # NEW: QuickJS runtime module
+├── quickjs-engine/               # QuickJS runtime module
 │   ├── build.gradle.kts
 │   ├── src/main/
 │   │   ├── kotlin/com/jstorrent/quickjs/
-│   │   │   ├── QuickJSRuntime.kt       # Lifecycle, script loading
-│   │   │   ├── NativeBindings.kt       # Registers __jstorrent_* functions
-│   │   │   ├── EngineService.kt        # Foreground service
-│   │   │   └── EngineController.kt     # Start/stop/status API
-│   │   ├── jniLibs/                    # Pre-built QuickJS .so files
-│   │   │   ├── arm64-v8a/libquickjs.so
-│   │   │   ├── armeabi-v7a/libquickjs.so
-│   │   │   └── x86_64/libquickjs.so
+│   │   │   ├── QuickJsEngine.kt        # QuickJS context wrapper
+│   │   │   ├── JsThread.kt             # Dedicated single JS thread
+│   │   │   ├── EngineController.kt     # Start/stop/status API
+│   │   │   └── bindings/
+│   │   │       ├── NativeBindings.kt   # Registers __jstorrent_* functions
+│   │   │       ├── TcpBindings.kt      # TCP socket bindings
+│   │   │       ├── UdpBindings.kt      # UDP socket bindings
+│   │   │       ├── FileBindings.kt     # File I/O bindings
+│   │   │       ├── StorageBindings.kt  # SharedPreferences bindings
+│   │   │       └── PolyfillBindings.kt # TextEncoder, timers, etc.
+│   │   ├── jni/                        # QuickJS CMake build (from submodule)
 │   │   └── assets/
 │   │       └── engine.bundle.js        # Bundled engine code
 │   └── src/test/                       # Unit tests
 │
 └── app/
     └── com/jstorrent/app/
-        ├── MainActivity.kt
-        ├── mode/
-        │   └── ModeManager.kt          # Companion | WebView | Native
-        ├── standalone/
-        │   ├── StandaloneActivity.kt       # WebView (debug mode)
-        │   └── NativeStandaloneActivity.kt # Compose UI ← NEW
-        └── ui/
-            ├── TorrentListScreen.kt    # Compose UI ← NEW
-            ├── FileListScreen.kt       # Compose UI ← NEW
-            └── SettingsScreen.kt       # Compose UI ← NEW
+        ├── MainActivity.kt             # Companion mode entry
+        ├── StandaloneActivity.kt       # WebView standalone (debug)
+        ├── NativeStandaloneActivity.kt # Compose UI + QuickJS engine
+        │   └── (contains composables: NativeStandaloneScreen,
+        │       TorrentCard, AddTorrentRow, SetupRequiredCard)
+        ├── service/
+        │   └── EngineService.kt        # Foreground service for QuickJS
+        └── mode/
+            └── ModeDetector.kt         # Chromebook vs Android detection
 ```
 
 ### Android App Modes
