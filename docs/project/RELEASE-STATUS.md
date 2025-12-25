@@ -1,6 +1,6 @@
 # JSTorrent Release Status
 
-*Last updated: December 20, 2025*
+*Last updated: December 25, 2025*
 
 ## Current State: Working Beta
 
@@ -25,7 +25,7 @@ The core functionality works end-to-end:
 
 **macOS:** ✅ Complete - Developer ID signing working, integrated into CI
 
-**Windows:** ⏳ In progress - Using Azure Trusted Signing, but identity verification is failing repeatedly. Investigating.
+**Windows:** ⏳ In progress - Using Azure Trusted Signing, Identity has been verified but signing is still failing.
 
 ### 2. Windows Testing
 
@@ -85,6 +85,8 @@ No uTP (UDP-based transport). TCP only.
 
 **Status:** Not implemented yet. Can be deferred for initial release.
 
+We track some basic user metrics in chrome.storage locally. These can be used in the future for showing notifications to users. (track # of sessions, # of downloads, # of devices the user has etc)
+
 Need telemetry for crash reports and usage analytics. Approach: Google Analytics (free). Must scrub sensitive info from stack traces.
 
 ### Update Mechanism
@@ -127,9 +129,7 @@ Installers built on GitHub Actions (`.github/workflows/`). No manual upload need
 - ✅ System Bridge indicator (connection status in toolbar)
 - ✅ System Bridge panel (connection config dropdown)
 - ✅ Log viewer tab
-
-### Remaining
-- File priority selection (files tab exists but no priority control)
+- ✅ File priority selection and file skipping
 
 ## Platform Status
 
@@ -139,6 +139,43 @@ Installers built on GitHub Actions (`.github/workflows/`). No manual upload need
 | Windows | ✅ | ✅ Rust | ✅ Native messaging | ✅ Tested |
 | macOS | ✅ | ✅ Rust | ✅ Native messaging | ✅ Tested |
 | ChromeOS | ✅ | ✅ Kotlin | ✅ HTTP to Android | ✅ Tested |
+
+## Standalone Native Apps
+
+In addition to the Chrome extension architecture (extension + native IO daemon), we're building standalone native apps that embed the JS engine directly. These provide a simpler installation experience with no browser dependency.
+
+### Android Standalone (New)
+
+**Status:** ✅ Working
+
+**Architecture:** QuickJS + Kotlin + JNI + Jetpack Compose UI
+
+The standalone Android app embeds the JSTorrent engine directly via QuickJS, a lightweight JavaScript runtime. The Kotlin layer handles:
+- Native I/O (file system, network sockets)
+- JNI bridge to QuickJS for JS↔Kotlin communication
+- Jetpack Compose UI (Material 3) for modern Android interface
+- SAF (Storage Access Framework) folder picker for download location
+
+**Benefits over extension+daemon approach:**
+- Single APK install (no extension required)
+- Works on any Android device (not just ChromeOS)
+- Background service for continuous downloads
+
+### iOS (Planned)
+
+**Status:** 🔜 Planned
+
+**Architecture:** Swift + JavaScriptCore + SwiftUI
+
+The planned iOS app will use a similar embedded-engine approach:
+- JavaScriptCore for JS execution (Apple's built-in JS runtime)
+- Swift for native I/O and SwiftUI interface
+
+**Distribution:** European App Store (Digital Markets Act) or sideloading. The app will not be submitted to the main Apple App Store.
+
+**Challenges:**
+- iOS background execution restrictions
+- Network Extension entitlements may be needed
 
 ## Release Checklist
 
