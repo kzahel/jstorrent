@@ -34,10 +34,7 @@ function getTorrentSize(t: Torrent): number {
  * @param getEngine - Getter function that returns the engine (or null if not ready)
  * @param isReady - Getter function that returns true when engine is fully initialized
  */
-export function setupController(
-  getEngine: () => BtEngine | null,
-  isReady: () => boolean,
-): void {
+export function setupController(getEngine: () => BtEngine | null, isReady: () => boolean): void {
   /**
    * Helper to get engine, logging error if not ready.
    */

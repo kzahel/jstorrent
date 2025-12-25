@@ -22,7 +22,10 @@ let engineReady = false
 
 // Register controller functions early (before async init completes)
 // These will check if engine is ready before executing
-setupController(() => engine, () => engineReady)
+setupController(
+  () => engine,
+  () => engineReady,
+)
 
 /**
  * API exposed to native layer via globalThis.jstorrent
