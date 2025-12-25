@@ -104,42 +104,46 @@ describe('ConfigHub Engine Integration', () => {
   })
 
   describe('reactive updates - DHT and UPnP', () => {
-    it('should call setDHTEnabled when dhtEnabled changes', () => {
-      const spy = vi.spyOn(engine, 'setDHTEnabled')
+    it('should update dhtEnabled state when config changes', async () => {
+      // dhtEnabled defaults to true
+      expect(engine.dhtEnabled).toBe(true)
 
       config.set('dhtEnabled', false)
+      // Wait for async disableDHT to complete
+      await new Promise((resolve) => setTimeout(resolve, 10))
 
-      expect(spy).toHaveBeenCalledWith(false)
+      expect(engine.dhtEnabled).toBe(false)
     })
 
-    it('should call setUPnPEnabled when upnpEnabled changes', () => {
-      const spy = vi.spyOn(engine, 'setUPnPEnabled')
-
-      // upnpEnabled defaults to true, so we need to toggle it to false first
+    it('should update upnpStatus when upnpEnabled changes', async () => {
+      // upnpEnabled defaults to true, status starts as 'discovering' or 'failed' (no network in test)
       config.set('upnpEnabled', false)
-      expect(spy).toHaveBeenCalledWith(false)
+      // Wait for async disableUPnP to complete
+      await new Promise((resolve) => setTimeout(resolve, 10))
 
-      spy.mockClear()
-      config.set('upnpEnabled', true)
-      expect(spy).toHaveBeenCalledWith(true)
+      expect(engine.upnpStatus).toBe('disabled')
     })
   })
 
   describe('reactive updates - daemon rate limit', () => {
-    it('should call setDaemonRateLimit when daemonOpsPerSecond changes', () => {
-      const spy = vi.spyOn(engine, 'setDaemonRateLimit')
+    it('should update daemon rate limiter when daemonOpsPerSecond changes', () => {
+      const setLimitSpy = vi.spyOn(engine.daemonRateLimiter, 'setLimit')
 
       config.set('daemonOpsPerSecond', 10)
 
-      expect(spy).toHaveBeenCalledWith(10, config.daemonOpsBurst.get())
+      // Should call setLimit with the new rate (10 ops/s) and burst window (burst / rate)
+      const burst = config.daemonOpsBurst.get()
+      expect(setLimitSpy).toHaveBeenCalledWith(10, burst / 10)
     })
 
-    it('should call setDaemonRateLimit when daemonOpsBurst changes', () => {
-      const spy = vi.spyOn(engine, 'setDaemonRateLimit')
+    it('should update daemon rate limiter when daemonOpsBurst changes', () => {
+      const setLimitSpy = vi.spyOn(engine.daemonRateLimiter, 'setLimit')
 
       config.set('daemonOpsBurst', 30)
 
-      expect(spy).toHaveBeenCalledWith(config.daemonOpsPerSecond.get(), 30)
+      // Should call setLimit with current rate and new burst window
+      const opsPerSec = config.daemonOpsPerSecond.get()
+      expect(setLimitSpy).toHaveBeenCalledWith(opsPerSec, 30 / Math.max(1, opsPerSec))
     })
   })
 

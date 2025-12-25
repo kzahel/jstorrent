@@ -4,6 +4,7 @@ import { ISocketFactory, IUdpSocket, ITcpSocket, ITcpServer } from '../../src/in
 import { MemorySessionStore } from '../../src/adapters/memory/memory-session-store'
 import { StorageRootManager } from '../../src/storage/storage-root-manager'
 import { IFileSystem } from '../../src/interfaces/filesystem'
+import { MemoryConfigHub } from '../../src/config/memory-config-hub'
 
 // Mock UDP socket for DHT
 class MockUdpSocket implements IUdpSocket {
@@ -105,8 +106,9 @@ describe('DHT Engine Integration', () => {
   let sessionStore: MemorySessionStore
   let socketFactory: ISocketFactory
   let storageRootManager: StorageRootManager
+  let config: MemoryConfigHub
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Use real timers for integration tests since DHT involves network timeouts
     sessionStore = new MemorySessionStore()
     socketFactory = createMockSocketFactory()
@@ -119,6 +121,10 @@ describe('DHT Engine Integration', () => {
       path: '/downloads',
     })
     storageRootManager.setDefaultRoot('default')
+
+    // Create ConfigHub for tests
+    config = new MemoryConfigHub()
+    await config.init()
   })
 
   afterEach(async () => {
@@ -141,55 +147,64 @@ describe('DHT Engine Integration', () => {
       expect(engine.dhtNode).toBeUndefined()
     })
 
-    it('can enable DHT after creation', async () => {
+    it('can enable DHT after creation via ConfigHub', async () => {
+      config.set('dhtEnabled', false)
       engine = new BtEngine({
         socketFactory,
         storageRootManager,
         sessionStore,
-        dhtEnabled: false,
+        config,
         _skipDHTBootstrap: true,
       })
 
       expect(engine.dhtEnabled).toBe(false)
 
-      await engine.setDHTEnabled(true)
+      config.set('dhtEnabled', true)
+      // Wait for async enableDHT to complete
+      await new Promise((resolve) => setTimeout(resolve, 10))
 
       expect(engine.dhtEnabled).toBe(true)
       expect(engine.dhtNode).toBeDefined()
       expect(engine.dhtNode?.ready).toBe(true)
     })
 
-    it('can disable DHT after enabling', async () => {
+    it('can disable DHT after enabling via ConfigHub', async () => {
+      config.set('dhtEnabled', false)
       engine = new BtEngine({
         socketFactory,
         storageRootManager,
         sessionStore,
-        dhtEnabled: false,
+        config,
         _skipDHTBootstrap: true,
       })
 
-      await engine.setDHTEnabled(true)
+      config.set('dhtEnabled', true)
+      await new Promise((resolve) => setTimeout(resolve, 10))
       expect(engine.dhtNode).toBeDefined()
 
-      await engine.setDHTEnabled(false)
+      config.set('dhtEnabled', false)
+      await new Promise((resolve) => setTimeout(resolve, 10))
 
       expect(engine.dhtEnabled).toBe(false)
       expect(engine.dhtNode).toBeUndefined()
     })
 
     it('saves DHT state on disable', async () => {
+      config.set('dhtEnabled', false)
       engine = new BtEngine({
         socketFactory,
         storageRootManager,
         sessionStore,
-        dhtEnabled: false,
+        config,
         _skipDHTBootstrap: true,
       })
 
-      await engine.setDHTEnabled(true)
+      config.set('dhtEnabled', true)
+      await new Promise((resolve) => setTimeout(resolve, 10))
       const nodeId = engine.dhtNode?.nodeIdHex
 
-      await engine.setDHTEnabled(false)
+      config.set('dhtEnabled', false)
+      await new Promise((resolve) => setTimeout(resolve, 10))
 
       // Check that state was saved
       const savedState = await sessionStore.getJson<{ nodeId: string }>('dht:state')
@@ -199,44 +214,55 @@ describe('DHT Engine Integration', () => {
 
     it('restores DHT node ID from persisted state', async () => {
       // First engine - enable DHT and save state
+      config.set('dhtEnabled', false)
       engine = new BtEngine({
         socketFactory,
         storageRootManager,
         sessionStore,
-        dhtEnabled: false,
+        config,
         _skipDHTBootstrap: true,
       })
 
-      await engine.setDHTEnabled(true)
+      config.set('dhtEnabled', true)
+      await new Promise((resolve) => setTimeout(resolve, 10))
       const originalNodeId = engine.dhtNode?.nodeIdHex
-      await engine.setDHTEnabled(false)
+      config.set('dhtEnabled', false)
+      await new Promise((resolve) => setTimeout(resolve, 10))
       await engine.destroy()
+
+      // Create new config for second engine
+      const config2 = new MemoryConfigHub()
+      await config2.init()
+      config2.set('dhtEnabled', false)
 
       // Second engine - should restore the same node ID
       engine = new BtEngine({
         socketFactory,
         storageRootManager,
         sessionStore,
-        dhtEnabled: false,
+        config: config2,
         _skipDHTBootstrap: true,
       })
 
-      await engine.setDHTEnabled(true)
+      config2.set('dhtEnabled', true)
+      await new Promise((resolve) => setTimeout(resolve, 10))
       const restoredNodeId = engine.dhtNode?.nodeIdHex
 
       expect(restoredNodeId).toBe(originalNodeId)
     })
 
     it('stops DHT on engine destroy', async () => {
+      config.set('dhtEnabled', false)
       engine = new BtEngine({
         socketFactory,
         storageRootManager,
         sessionStore,
-        dhtEnabled: false,
+        config,
         _skipDHTBootstrap: true,
       })
 
-      await engine.setDHTEnabled(true)
+      config.set('dhtEnabled', true)
+      await new Promise((resolve) => setTimeout(resolve, 10))
       expect(engine.dhtNode).toBeDefined()
 
       await engine.destroy()

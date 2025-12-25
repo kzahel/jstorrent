@@ -7,8 +7,10 @@ import {
   globalLogStore,
   LogStore,
   type EngineLoggingConfig,
+  type ConfigHub,
+  type StorageRoot as EngineStorageRoot,
 } from '@jstorrent/engine'
-import { JsBridgeSessionStore, JsBridgeSettingsStore } from '@jstorrent/engine/adapters/android'
+import { JsBridgeSessionStore, WebViewConfigHub } from '@jstorrent/engine/adapters/android'
 import {
   ControlConnection,
   type ControlRoot,
@@ -44,7 +46,7 @@ declare global {
  */
 export class AndroidStandaloneEngineManager implements IEngineManager {
   engine: BtEngine | null = null
-  configHub: null = null // TODO: Phase 4 - implement NativeConfigHub
+  configHub: ConfigHub | null = null
   logStore: LogStore = globalLogStore
   readonly isStandalone = true
   readonly supportsFileOperations = true
@@ -52,7 +54,7 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
   private daemonConnection: DaemonConnection | null = null
   private controlConnection: ControlConnection | null = null
   private sessionStore: JsBridgeSessionStore | null = null
-  private settingsStore: JsBridgeSettingsStore | null = null
+  private _configHub: WebViewConfigHub | null = null
   private initPromise: Promise<BtEngine> | null = null
   private config: { daemonUrl: string; platform: string } | null = null
   private pendingNativeEvents: Array<{ event: string; payload: unknown }> = []
@@ -132,13 +134,16 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
       (root) => new DaemonFileSystem(this.daemonConnection!, root.key),
     )
 
-    // 4. Create session store and settings store
+    // 4. Create session store and ConfigHub
     this.sessionStore = new JsBridgeSessionStore()
-    this.settingsStore = new JsBridgeSettingsStore()
-    await this.settingsStore.init()
+    this._configHub = new WebViewConfigHub()
+    await this._configHub.init()
+    this.configHub = this._configHub
+    console.log('[AndroidStandaloneEngineManager] ConfigHub initialized')
 
     // 5. Load roots from RootsBridge
     const rootsJson = window.RootsBridge?.getDownloadRoots()
+    let storageRootsForConfig: EngineStorageRoot[] = []
     if (rootsJson) {
       const roots = JSON.parse(rootsJson) as Array<{
         key: string
@@ -154,6 +159,13 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
         })
       }
       console.log('[AndroidStandaloneEngineManager] Registered', roots.length, 'download roots')
+
+      // Build storage roots for ConfigHub
+      storageRootsForConfig = roots.map((r) => ({
+        key: r.key,
+        label: r.displayName,
+        path: r.uri,
+      }))
 
       // Set default root
       const savedDefaultBytes = await this.sessionStore.get(DEFAULT_ROOT_KEY_KEY)
@@ -174,27 +186,33 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
       console.warn('[AndroidStandaloneEngineManager] No download roots configured!')
     }
 
-    // 6. Create engine (suspended)
+    // 6. Set runtime values in ConfigHub
+    this._configHub.setRuntime('daemonPort', port)
+    this._configHub.setRuntime('daemonHost', host)
+    this._configHub.setRuntime('daemonConnected', true)
+    this._configHub.setRuntime('platformType', 'chromeos') // Android standalone uses chromeos platform type
+    this._configHub.setRuntime('storageRoots', storageRootsForConfig)
+
+    // 7. Create engine (suspended) with ConfigHub
+    // Engine will auto-apply settings and subscribe to changes via ConfigHub
     this.engine = new BtEngine({
       socketFactory: new DaemonSocketFactory(this.daemonConnection),
       storageRootManager: srm,
       sessionStore: this.sessionStore,
-      port: this.settingsStore.get('listeningPort'),
+      port: this._configHub.listeningPort.get(),
       startSuspended: true,
+      config: this._configHub,
     })
     window.engine = this.engine // expose for debugging
     console.log('[AndroidStandaloneEngineManager] Engine created (suspended)')
 
-    // 7. Restore session
+    // 8. Restore session
     const restored = await this.engine.restoreSession()
     console.log(`[AndroidStandaloneEngineManager] Restored ${restored} torrents`)
 
-    // 8. Resume engine
+    // 9. Resume engine
     this.engine.resume()
     console.log('[AndroidStandaloneEngineManager] Engine resumed')
-
-    // 9. Apply initial settings
-    this.applyInitialSettings()
 
     // 10. Process any native events that arrived during initialization
     if (this.pendingNativeEvents.length > 0) {
@@ -210,30 +228,6 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
     }
 
     return this.engine
-  }
-
-  private applyInitialSettings(): void {
-    if (!this.engine || !this.settingsStore) return
-
-    const s = this.settingsStore
-    const downloadLimit = s.get('downloadSpeedLimitUnlimited') ? 0 : s.get('downloadSpeedLimit')
-    const uploadLimit = s.get('uploadSpeedLimitUnlimited') ? 0 : s.get('uploadSpeedLimit')
-    this.setRateLimits(downloadLimit, uploadLimit)
-    this.setConnectionLimits(
-      s.get('maxPeersPerTorrent'),
-      s.get('maxGlobalPeers'),
-      s.get('maxUploadSlots'),
-    )
-    this.setDaemonRateLimit(s.get('daemonOpsPerSecond'), s.get('daemonOpsBurst'))
-    this.setEncryptionPolicy(s.get('encryptionPolicy'))
-    // Don't await - UPnP discovery runs in background
-    this.setUPnPEnabled(s.get('upnp.enabled')).catch((err) => {
-      console.error('[AndroidStandaloneEngineManager] UPnP failed to start:', err)
-    })
-    // Don't await - DHT bootstrap runs in background
-    this.setDHTEnabled(s.get('dht.enabled')).catch((err) => {
-      console.error('[AndroidStandaloneEngineManager] DHT failed to start:', err)
-    })
   }
 
   /**
@@ -292,6 +286,16 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
       }
     }
 
+    // Update ConfigHub storageRoots
+    if (this._configHub) {
+      const storageRootsForConfig: EngineStorageRoot[] = roots.map((r) => ({
+        key: r.key,
+        label: r.displayName || r.key,
+        path: r.uri || r.key,
+      }))
+      this._configHub.setRuntime('storageRoots', storageRootsForConfig)
+    }
+
     // Notify any waiting promises
     this.emitRootsChanged(roots)
   }
@@ -335,6 +339,8 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
       this.engine = null
     }
 
+    this._configHub = null
+    this.configHub = null
     this.pendingNativeEvents = []
     this.rootsChangedResolvers = []
     this.daemonConnection = null
@@ -362,6 +368,8 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
       this.engine = null
     }
 
+    this._configHub = null
+    this.configHub = null
     this.pendingNativeEvents = []
     this.rootsChangedResolvers = []
     this.initPromise = null
@@ -393,78 +401,6 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
   }
 
   // ============ Settings ============
-
-  setRateLimits(downloadLimit: number, uploadLimit: number): void {
-    if (!this.engine) {
-      console.warn(
-        '[AndroidStandaloneEngineManager] Cannot set rate limits: engine not initialized',
-      )
-      return
-    }
-    this.engine.bandwidthTracker.setDownloadLimit(downloadLimit)
-    this.engine.bandwidthTracker.setUploadLimit(uploadLimit)
-    console.log(
-      `[AndroidStandaloneEngineManager] Rate limits set: download=${downloadLimit === 0 ? 'unlimited' : downloadLimit + ' B/s'}, upload=${uploadLimit === 0 ? 'unlimited' : uploadLimit + ' B/s'}`,
-    )
-  }
-
-  setConnectionLimits(
-    maxPeersPerTorrent: number,
-    maxGlobalPeers: number,
-    maxUploadSlots: number,
-  ): void {
-    if (!this.engine) {
-      console.warn(
-        '[AndroidStandaloneEngineManager] Cannot set connection limits: engine not initialized',
-      )
-      return
-    }
-    this.engine.setConnectionLimits(maxPeersPerTorrent, maxGlobalPeers, maxUploadSlots)
-    console.log(
-      `[AndroidStandaloneEngineManager] Connection limits set: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}, maxUploadSlots=${maxUploadSlots}`,
-    )
-  }
-
-  setDaemonRateLimit(opsPerSecond: number, burstSize: number): void {
-    if (!this.engine) {
-      console.warn(
-        '[AndroidStandaloneEngineManager] Cannot set daemon rate limit: engine not initialized',
-      )
-      return
-    }
-    this.engine.setDaemonRateLimit(opsPerSecond, burstSize)
-    console.log(
-      `[AndroidStandaloneEngineManager] Daemon rate limit set: ${opsPerSecond} ops/sec, burst=${burstSize}`,
-    )
-  }
-
-  setEncryptionPolicy(policy: 'disabled' | 'allow' | 'prefer' | 'required'): void {
-    if (!this.engine) {
-      console.warn(
-        '[AndroidStandaloneEngineManager] Cannot set encryption policy: engine not initialized',
-      )
-      return
-    }
-    this.engine.setEncryptionPolicy(policy)
-    console.log(`[AndroidStandaloneEngineManager] Encryption policy set: ${policy}`)
-  }
-
-  async setUPnPEnabled(enabled: boolean): Promise<void> {
-    if (!this.engine) {
-      console.warn('[AndroidStandaloneEngineManager] Cannot set UPnP: engine not initialized')
-      return
-    }
-    await this.engine.setUPnPEnabled(enabled)
-  }
-
-  async setDHTEnabled(enabled: boolean): Promise<void> {
-    if (!this.engine) {
-      console.warn('[AndroidStandaloneEngineManager] Cannot set DHT: engine not initialized')
-      return
-    }
-    await this.engine.setDHTEnabled(enabled)
-    console.log(`[AndroidStandaloneEngineManager] DHT ${enabled ? 'enabled' : 'disabled'}`)
-  }
 
   setLoggingConfig(config: EngineLoggingConfig): void {
     if (!this.engine) {

@@ -1,43 +1,29 @@
 import { useState, useEffect } from 'react'
-import { JsBridgeSettingsStore } from '@jstorrent/engine/adapters/android'
-import type { Settings } from '@jstorrent/engine'
+import type { ConfigHub } from '@jstorrent/engine'
 
 interface SettingsDialogProps {
+  configHub: ConfigHub
   onClose: () => void
 }
 
-export function SettingsDialog({ onClose }: SettingsDialogProps) {
-  const [settings, setSettings] = useState<Partial<Settings>>({})
-  const [loading, setLoading] = useState(true)
-  const [settingsStore] = useState(() => new JsBridgeSettingsStore())
+export function SettingsDialog({ configHub, onClose }: SettingsDialogProps) {
+  const [maxGlobalPeers, setMaxGlobalPeers] = useState(configHub.maxGlobalPeers.get())
 
+  // Subscribe to config changes
   useEffect(() => {
-    // Initialize store first (async), then get all settings
-    settingsStore.init().then(() => {
-      setSettings(settingsStore.getAll())
-      setLoading(false)
+    const unsubscribe = configHub.maxGlobalPeers.subscribe((value) => {
+      setMaxGlobalPeers(value)
     })
-  }, [settingsStore])
+    return unsubscribe
+  }, [configHub])
 
-  const updateSetting = async <K extends keyof Settings>(key: K, value: Settings[K]) => {
-    const updated = { ...settings, [key]: value }
-    setSettings(updated)
-    await settingsStore.set(key, value)
+  const updateMaxPeers = (value: number) => {
+    setMaxGlobalPeers(value)
+    configHub.set('maxGlobalPeers', value)
   }
 
   const openFolderPicker = () => {
     window.location.href = 'jstorrent://add-root'
-  }
-
-  if (loading) {
-    return (
-      <div className="dialog-overlay" onClick={onClose}>
-        <div className="dialog" onClick={(e) => e.stopPropagation()}>
-          <h2>Settings</h2>
-          <p>Loading...</p>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -50,8 +36,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           <input
             type="number"
             className="settings-input"
-            value={settings.maxGlobalPeers ?? 50}
-            onChange={(e) => updateSetting('maxGlobalPeers', parseInt(e.target.value) || 50)}
+            value={maxGlobalPeers}
+            onChange={(e) => updateMaxPeers(parseInt(e.target.value) || 50)}
             min={1}
             max={200}
           />

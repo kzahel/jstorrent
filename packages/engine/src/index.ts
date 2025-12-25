@@ -93,9 +93,8 @@ export { LPDService } from './lpd'
 // DHT
 export type { DHTStats, DHTNodeInfo } from './dht'
 
-// Settings
+// Settings (schema only - use ConfigHub for settings access)
 export {
-  // Schema and types
   settingsSchema,
   type SettingsSchema,
   type SettingKey,
@@ -110,16 +109,6 @@ export {
   getDefaults,
   SETTINGS_KEY_PREFIX,
   getStorageKey,
-  // Interface
-  type ISettingsStore,
-  type SettingChangeCallback,
-  type AnySettingChangeCallback,
-  type Unsubscribe,
-  // Base class
-  BaseSettingsStore,
-  // Adapters
-  MemorySettingsStore,
-  LocalStorageSettingsStore,
 } from './settings'
 
 // Config

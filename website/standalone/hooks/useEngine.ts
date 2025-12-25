@@ -8,8 +8,9 @@ import {
   toHex,
   Torrent,
   type TorrentUserState,
+  type ConfigHub,
 } from '@jstorrent/engine'
-import { JsBridgeSessionStore } from '@jstorrent/engine/adapters/android'
+import { JsBridgeSessionStore, WebViewConfigHub } from '@jstorrent/engine/adapters/android'
 
 export interface TorrentState {
   id: string
@@ -38,6 +39,7 @@ interface UseEngineResult {
   error: string | null
   engine: BtEngine | null
   connection: DaemonConnection | null
+  configHub: ConfigHub | null
 }
 
 function mapUserStateToStatus(
@@ -90,12 +92,14 @@ function torrentToState(t: Torrent): TorrentState {
 export function useEngine(config: { daemonUrl: string }): UseEngineResult {
   const [engine, setEngine] = useState<BtEngine | null>(null)
   const [connection, setConnection] = useState<DaemonConnection | null>(null)
+  const [configHub, setConfigHub] = useState<ConfigHub | null>(null)
   const [torrents, setTorrents] = useState<TorrentState[]>([])
   const [isReady, setIsReady] = useState(false)
   const [hasDownloadRoot, setHasDownloadRoot] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const engineRef = useRef<BtEngine | null>(null)
   const connectionRef = useRef<DaemonConnection | null>(null)
+  const configHubRef = useRef<WebViewConfigHub | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -140,16 +144,22 @@ export function useEngine(config: { daemonUrl: string }): UseEngineResult {
           storageRootManager.setDefaultRoot(defaultRootKey)
         }
 
-        // Create session store
+        // Create session store and ConfigHub
         const sessionStore = new JsBridgeSessionStore()
+        const hub = new WebViewConfigHub()
+        await hub.init()
+        configHubRef.current = hub
+        if (mounted) setConfigHub(hub)
+        console.log('[useEngine] ConfigHub initialized')
 
-        // Create engine
+        // Create engine with ConfigHub
         const eng = new BtEngine({
           socketFactory: new DaemonSocketFactory(conn),
           storageRootManager,
           sessionStore,
-          port: 6881,
+          port: hub.listeningPort.get(),
           startSuspended: true,
+          config: hub,
         })
 
         if (mounted) {
@@ -160,10 +170,8 @@ export function useEngine(config: { daemonUrl: string }): UseEngineResult {
           await eng.restoreSession()
           eng.resume()
 
-          // Enable DHT for peer discovery (don't await - bootstrap can take a while)
-          eng.setDHTEnabled(true).catch((err) => {
-            console.error('[useEngine] DHT failed to start:', err)
-          })
+          // Enable DHT for peer discovery via ConfigHub (triggers enableDHT() internally)
+          hub.dhtEnabled.set(true)
 
           setIsReady(true)
 
@@ -264,5 +272,6 @@ export function useEngine(config: { daemonUrl: string }): UseEngineResult {
     error,
     engine,
     connection,
+    configHub,
   }
 }

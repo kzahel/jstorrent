@@ -90,6 +90,7 @@ function StandaloneAppInner({
     error,
     engine,
     connection,
+    configHub,
   } = useEngine(config)
 
   // Expose engine and connection on window for debugging
@@ -202,7 +203,9 @@ function StandaloneAppInner({
         <AddTorrentDialog onAdd={handleAddMagnet} onClose={() => setShowAddDialog(false)} />
       )}
 
-      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
+      {showSettings && configHub && (
+        <SettingsDialog configHub={configHub} onClose={() => setShowSettings(false)} />
+      )}
     </div>
   )
 }

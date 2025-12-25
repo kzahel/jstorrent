@@ -48,17 +48,7 @@ export interface IEngineManager {
   shutdown(): void
   reset(): void
 
-  // Settings application
-  setRateLimits(downloadLimit: number, uploadLimit: number): void
-  setConnectionLimits(
-    maxPeersPerTorrent: number,
-    maxGlobalPeers: number,
-    maxUploadSlots: number,
-  ): void
-  setDaemonRateLimit(opsPerSecond: number, burstSize: number): void
-  setEncryptionPolicy(policy: 'disabled' | 'allow' | 'prefer' | 'required'): void
-  setDHTEnabled(enabled: boolean): Promise<void>
-  setUPnPEnabled(enabled: boolean): Promise<void>
+  // Settings application (ConfigHub handles most settings reactively)
   setLoggingConfig(config: EngineLoggingConfig): void
 
   // Storage roots

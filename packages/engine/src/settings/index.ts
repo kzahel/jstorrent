@@ -1,7 +1,8 @@
 /**
  * Settings Module
  *
- * Exports schema, types, interface, and adapters.
+ * Exports settings schema and types.
+ * Note: ISettingsStore and adapters have been removed. Use ConfigHub instead.
  */
 
 // Schema and types
@@ -21,18 +22,3 @@ export {
   SETTINGS_KEY_PREFIX,
   getStorageKey,
 } from './schema'
-
-// Interface
-export {
-  type ISettingsStore,
-  type SettingChangeCallback,
-  type AnySettingChangeCallback,
-  type Unsubscribe,
-} from './settings-store'
-
-// Base class (for implementing custom adapters)
-export { BaseSettingsStore } from './base-settings-store'
-
-// Adapters
-export { MemorySettingsStore } from './adapters/memory-settings-store'
-export { LocalStorageSettingsStore } from './adapters/local-storage-settings-store'

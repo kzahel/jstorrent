@@ -1,3 +1,3 @@
 export { JsBridgeKVStore } from './JsBridgeKVStore'
 export { JsBridgeSessionStore } from './JsBridgeSessionStore'
-export { JsBridgeSettingsStore } from './JsBridgeSettingsStore'
+export { WebViewConfigHub } from './webview-config-hub'

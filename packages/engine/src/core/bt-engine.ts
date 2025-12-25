@@ -847,44 +847,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     return this.torrents.reduce((acc, t) => acc + t.numPeers, 0)
   }
 
-  /**
-   * Set connection limits for the engine.
-   * @param maxPeersPerTorrent - Maximum peers per torrent (applied to new and existing torrents)
-   * @param maxGlobalPeers - Maximum total connections across all torrents
-   * @param maxUploadSlots - Maximum simultaneously unchoked peers per torrent
-   */
-  setConnectionLimits(
-    maxPeersPerTorrent: number,
-    maxGlobalPeers: number,
-    maxUploadSlots: number,
-  ): void {
-    this.maxPeers = maxPeersPerTorrent
-    this.maxConnections = maxGlobalPeers
-    this.maxUploadSlots = maxUploadSlots
-    // Apply to all existing torrents
-    for (const torrent of this.torrents) {
-      torrent.setMaxPeers(maxPeersPerTorrent)
-      torrent.setMaxUploadSlots(maxUploadSlots)
-    }
-    this.logger.info(
-      `Connection limits updated: maxPeersPerTorrent=${maxPeersPerTorrent}, maxGlobalPeers=${maxGlobalPeers}, maxUploadSlots=${maxUploadSlots}`,
-    )
-  }
-
-  /**
-   * Set encryption policy for the engine.
-   * Takes effect for new connections on all torrents.
-   * @param policy - 'disabled' | 'allow' | 'prefer' | 'required'
-   */
-  setEncryptionPolicy(policy: EncryptionPolicy): void {
-    this.encryptionPolicy = policy
-    // Apply to all existing torrents
-    for (const torrent of this.torrents) {
-      torrent.setEncryptionPolicy(policy)
-    }
-    this.logger.info(`Encryption policy updated: ${policy}`)
-  }
-
   // === ConfigHub Subscription Wiring ===
 
   /**
@@ -913,70 +875,81 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       }),
     )
 
-    // Connection Limits - each key triggers a full setConnectionLimits call
+    // Connection Limits - inline the logic from the removed setConnectionLimits method
     this.configUnsubscribers.push(
       this.config.maxPeersPerTorrent.subscribe((maxPeers) => {
-        this.setConnectionLimits(
-          maxPeers,
-          this.config!.maxGlobalPeers.get(),
-          this.config!.maxUploadSlots.get(),
-        )
+        this.maxPeers = maxPeers
+        for (const torrent of this.torrents) {
+          torrent.setMaxPeers(maxPeers)
+        }
+        this.logger.info(`Max peers per torrent updated: ${maxPeers}`)
       }),
     )
 
     this.configUnsubscribers.push(
       this.config.maxGlobalPeers.subscribe((maxGlobal) => {
-        this.setConnectionLimits(
-          this.config!.maxPeersPerTorrent.get(),
-          maxGlobal,
-          this.config!.maxUploadSlots.get(),
-        )
+        this.maxConnections = maxGlobal
+        this.logger.info(`Max global peers updated: ${maxGlobal}`)
       }),
     )
 
     this.configUnsubscribers.push(
       this.config.maxUploadSlots.subscribe((maxSlots) => {
-        this.setConnectionLimits(
-          this.config!.maxPeersPerTorrent.get(),
-          this.config!.maxGlobalPeers.get(),
-          maxSlots,
-        )
+        this.maxUploadSlots = maxSlots
+        for (const torrent of this.torrents) {
+          torrent.setMaxUploadSlots(maxSlots)
+        }
+        this.logger.info(`Max upload slots updated: ${maxSlots}`)
       }),
     )
 
-    // Encryption Policy
+    // Encryption Policy - inline the logic from the removed setEncryptionPolicy method
     this.configUnsubscribers.push(
       this.config.encryptionPolicy.subscribe((policy) => {
-        this.setEncryptionPolicy(policy)
+        this.encryptionPolicy = policy
+        for (const torrent of this.torrents) {
+          torrent.setEncryptionPolicy(policy)
+        }
+        this.logger.info(`Encryption policy updated: ${policy}`)
       }),
     )
 
-    // DHT
+    // DHT - call private methods directly (the public setDHTEnabled was removed)
     this.configUnsubscribers.push(
       this.config.dhtEnabled.subscribe((enabled) => {
-        this.setDHTEnabled(enabled)
+        if (enabled) {
+          this.enableDHT()
+        } else {
+          this.disableDHT()
+        }
       }),
     )
 
-    // UPnP
+    // UPnP - call private methods directly (the public setUPnPEnabled was removed)
     this.configUnsubscribers.push(
       this.config.upnpEnabled.subscribe((enabled) => {
-        this.setUPnPEnabled(enabled)
+        if (enabled) {
+          this.enableUPnP()
+        } else {
+          this.disableUPnP()
+        }
       }),
     )
 
-    // Daemon Rate Limit - both keys need to trigger update
+    // Daemon Rate Limit - inline the logic from the removed setDaemonRateLimit method
     this.configUnsubscribers.push(
       this.config.daemonOpsPerSecond.subscribe((opsPerSec) => {
         const burst = this.config!.daemonOpsBurst.get()
-        this.setDaemonRateLimit(opsPerSec, burst)
+        this.daemonRateLimiter.setLimit(opsPerSec, burst / Math.max(1, opsPerSec))
+        this.logger.info(`Daemon rate limit updated: ${opsPerSec} ops/s, burst ${burst}`)
       }),
     )
 
     this.configUnsubscribers.push(
       this.config.daemonOpsBurst.subscribe((burst) => {
         const opsPerSec = this.config!.daemonOpsPerSecond.get()
-        this.setDaemonRateLimit(opsPerSec, burst)
+        this.daemonRateLimiter.setLimit(opsPerSec, burst / Math.max(1, opsPerSec))
+        this.logger.info(`Daemon rate limit updated: ${opsPerSec} ops/s, burst ${burst}`)
       }),
     )
 
@@ -1224,24 +1197,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
   }
 
-  /**
-   * Configure daemon operation rate limit.
-   * @param opsPerSecond - Rate limit (0 = unlimited)
-   * @param burstSize - Maximum burst (default: 2x rate)
-   */
-  setDaemonRateLimit(opsPerSecond: number, burstSize?: number): void {
-    const burst = burstSize ?? opsPerSecond * 2
-    this.daemonRateLimiter.setLimit(opsPerSecond, burst / Math.max(1, opsPerSecond))
-  }
-
-  /**
-   * Configure global connection rate limit.
-   * @deprecated Use setDaemonRateLimit() instead.
-   */
-  setConnectionRateLimit(connectionsPerSecond: number, burstSize?: number): void {
-    this.setDaemonRateLimit(connectionsPerSecond, burstSize)
-  }
-
   // === UPnP Methods ===
 
   /**
@@ -1257,19 +1212,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    */
   get upnpExternalIP(): string | null {
     return this.upnpManager?.externalIP ?? null
-  }
-
-  /**
-   * Enable or disable UPnP port mapping.
-   * When enabled, discovers gateway and maps the listening port.
-   * When disabled, removes any active mappings.
-   */
-  async setUPnPEnabled(enabled: boolean): Promise<void> {
-    if (enabled) {
-      await this.enableUPnP()
-    } else {
-      await this.disableUPnP()
-    }
   }
 
   private async enableUPnP(): Promise<void> {
@@ -1344,19 +1286,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    */
   get dhtNode(): DHTNode | undefined {
     return this._dhtNode
-  }
-
-  /**
-   * Enable or disable DHT.
-   * When enabled, starts the DHT node and begins peer discovery.
-   * When disabled, stops the DHT node and saves state for persistence.
-   */
-  async setDHTEnabled(enabled: boolean): Promise<void> {
-    if (enabled) {
-      await this.enableDHT()
-    } else {
-      await this.disableDHT()
-    }
   }
 
   /**
