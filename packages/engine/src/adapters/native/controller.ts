@@ -93,7 +93,18 @@ export function setupController(engine: BtEngine): void {
    * Resume a torrent.
    */
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_resume = (infoHash: string): void => {
+    // Debug: log storage root state before resume
+    const roots = engine.storageRootManager.getRoots()
+    const defaultKey = engine.storageRootManager.getDefaultRoot()
+    console.log(
+      `[controller] resume: roots=${JSON.stringify(roots.map((r) => r.key))}, defaultKey=${defaultKey}`,
+    )
+
     const torrent = engine.getTorrent(infoHash)
+    if (torrent) {
+      const root = engine.storageRootManager.getRootForTorrent(infoHash)
+      console.log(`[controller] resume: torrent=${infoHash}, rootForTorrent=${root?.key ?? 'null'}`)
+    }
     torrent?.userStart() // Use userStart() to update userState and persist
   }
 
@@ -116,6 +127,46 @@ export function setupController(engine: BtEngine): void {
         })
       }
     }
+  }
+
+  // ============================================================
+  // ROOT MANAGEMENT (Native → JS)
+  // ============================================================
+
+  /**
+   * Add a storage root at runtime.
+   * Call this when user selects a new SAF folder.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_add_root = (
+    key: string,
+    label: string,
+    path: string,
+  ): void => {
+    engine.storageRootManager.addRoot({ key, label, path })
+    console.log(`[controller] Added root: ${key} -> ${label}`)
+  }
+
+  /**
+   * Set the default storage root.
+   * New torrents will use this root unless explicitly assigned.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_set_default_root = (
+    key: string,
+  ): void => {
+    try {
+      engine.storageRootManager.setDefaultRoot(key)
+      console.log(`[controller] Set default root: ${key}`)
+    } catch (e) {
+      console.error(`[controller] Failed to set default root: ${e}`)
+    }
+  }
+
+  /**
+   * Remove a storage root.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_remove_root = (key: string): void => {
+    engine.storageRootManager.removeRoot(key)
+    console.log(`[controller] Removed root: ${key}`)
   }
 
   /**
@@ -183,6 +234,18 @@ export function setupController(engine: BtEngine): void {
         downloaded: f.downloaded,
         progress: f.length > 0 ? f.downloaded / f.length : 0,
       })),
+    })
+  }
+
+  /**
+   * Debug: Get storage root manager state.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_storage_roots = (): string => {
+    const roots = engine.storageRootManager.getRoots()
+    const defaultKey = engine.storageRootManager.getDefaultRoot()
+    return JSON.stringify({
+      roots: roots.map((r) => ({ key: r.key, label: r.label, path: r.path })),
+      defaultKey,
     })
   }
 }

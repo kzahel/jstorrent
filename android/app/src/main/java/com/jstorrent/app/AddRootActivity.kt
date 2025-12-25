@@ -8,6 +8,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import com.jstorrent.app.service.EngineService
 import com.jstorrent.app.service.IoDaemonService
 import com.jstorrent.app.storage.RootStore
 
@@ -83,7 +84,17 @@ class AddRootActivity : AppCompatActivity() {
         val root = rootStore.addRoot(uri)
         Log.i(TAG, "Added root: key=${root.key}, label=${root.displayName}")
 
-        // Notify connected clients about new root
+        // Notify EngineService (native standalone mode)
+        EngineService.instance?.controller?.let { controller ->
+            controller.addRoot(root.key, root.displayName, root.uri)
+            // Set as default if this is the first root
+            if (rootStore.listRoots().size == 1) {
+                controller.setDefaultRoot(root.key)
+            }
+            Log.i(TAG, "Notified engine of new root: ${root.key}")
+        }
+
+        // Notify connected clients about new root (companion mode)
         IoDaemonService.instance?.broadcastRootsChanged()
 
         Toast.makeText(

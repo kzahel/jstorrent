@@ -98,7 +98,9 @@ if $LAUNCH; then
     echo ">>> Launching app (UI mode: $UI_MODE)..."
     case "$UI_MODE" in
         native)
-            adb shell am start -n "com.jstorrent.app/.MainActivity"
+            adb shell am start -n "com.jstorrent.app/.NativeStandaloneActivity" \
+                -a android.intent.action.VIEW \
+                -d "jstorrent://native"
             ;;
         standalone)
             adb shell am start -n "com.jstorrent.app/.MainActivity" \

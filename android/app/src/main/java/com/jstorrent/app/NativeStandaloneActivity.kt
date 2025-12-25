@@ -47,6 +47,9 @@ class NativeStandaloneActivity : ComponentActivity() {
     // For handling magnet intents while engine is loading
     private var pendingMagnet: String? = null
 
+    // Track which roots we've already synced with the engine
+    private var knownRootKeys = mutableSetOf<String>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -107,6 +110,37 @@ class NativeStandaloneActivity : ComponentActivity() {
         // Refresh roots (may have been added via AddRootActivity)
         rootStore.reload()
         hasRoots.value = rootStore.listRoots().isNotEmpty()
+
+        // Sync any new roots with the running engine
+        syncRootsWithEngine()
+    }
+
+    /**
+     * Sync roots with the running engine.
+     * Called on resume to handle roots added while activity was paused.
+     */
+    private fun syncRootsWithEngine() {
+        val controller = EngineService.instance?.controller ?: return
+
+        val currentRoots = rootStore.listRoots()
+        val currentKeys = currentRoots.map { it.key }.toSet()
+
+        // Add new roots to engine
+        for (root in currentRoots) {
+            if (root.key !in knownRootKeys) {
+                controller.addRoot(root.key, root.displayName, root.uri)
+                Log.i(TAG, "Synced new root to engine: ${root.key}")
+            }
+        }
+
+        // Set default if we didn't have one before
+        if (knownRootKeys.isEmpty() && currentRoots.isNotEmpty()) {
+            controller.setDefaultRoot(currentRoots.first().key)
+            Log.i(TAG, "Set default root: ${currentRoots.first().key}")
+        }
+
+        // Update known keys
+        knownRootKeys = currentKeys.toMutableSet()
     }
 
     override fun onNewIntent(intent: Intent) {

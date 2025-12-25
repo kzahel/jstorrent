@@ -174,6 +174,52 @@ class EngineController(
         Log.i(TAG, "addTestTorrent called")
     }
 
+    // =========================================================================
+    // Root Management
+    // =========================================================================
+
+    /**
+     * Add a storage root at runtime.
+     * Call this when user selects a new SAF folder.
+     *
+     * @param key Unique identifier for the root (SHA256 prefix)
+     * @param label Human-readable name
+     * @param uri SAF tree URI
+     */
+    fun addRoot(key: String, label: String, uri: String) {
+        checkLoaded()
+        engine!!.callGlobalFunction(
+            "__jstorrent_cmd_add_root",
+            key.escapeJs(),
+            label.escapeJs(),
+            uri.escapeJs()
+        )
+        Log.i(TAG, "Added root to engine: $key -> $label")
+    }
+
+    /**
+     * Set the default storage root.
+     * New torrents will use this root unless explicitly assigned.
+     */
+    fun setDefaultRoot(key: String) {
+        checkLoaded()
+        engine!!.callGlobalFunction("__jstorrent_cmd_set_default_root", key.escapeJs())
+        Log.i(TAG, "Set default root: $key")
+    }
+
+    /**
+     * Remove a storage root.
+     */
+    fun removeRoot(key: String) {
+        checkLoaded()
+        engine!!.callGlobalFunction("__jstorrent_cmd_remove_root", key.escapeJs())
+        Log.i(TAG, "Removed root: $key")
+    }
+
+    private fun String.escapeJs(): String {
+        return this.replace("\\", "\\\\").replace("'", "\\'")
+    }
+
     /**
      * Get the full torrent list with detailed info.
      *

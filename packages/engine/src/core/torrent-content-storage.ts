@@ -99,21 +99,26 @@ export class TorrentContentStorage extends EngineComponent {
       `DiskManager ${this.id}: Opening file '${path}' (cache miss). Current keys: ${Array.from(this.fileHandles.keys())}`,
     )
 
+    // Important: We must add to openingFiles BEFORE starting the async work,
+    // and ensure cleanup happens even if getFileSystem() throws synchronously.
+    // Using a wrapper promise that handles both sync and async errors properly.
     const openPromise = (async () => {
-      try {
-        const fs = this.storageHandle.getFileSystem()
-        const handle = await fs.open(path, 'r+')
-        this.fileHandles.set(path, handle)
-        this.logger.debug(
-          `DiskManager ${this.id}: Set handle for '${path}'. Keys now: ${Array.from(this.fileHandles.keys())}`,
-        )
-        return handle
-      } finally {
-        this.openingFiles.delete(path)
-      }
+      const fs = this.storageHandle.getFileSystem()
+      const handle = await fs.open(path, 'r+')
+      this.fileHandles.set(path, handle)
+      this.logger.debug(
+        `DiskManager ${this.id}: Set handle for '${path}'. Keys now: ${Array.from(this.fileHandles.keys())}`,
+      )
+      return handle
     })()
 
     this.openingFiles.set(path, openPromise)
+
+    // Clean up openingFiles when done (success or failure)
+    openPromise.finally(() => {
+      this.openingFiles.delete(path)
+    })
+
     return openPromise
   }
 

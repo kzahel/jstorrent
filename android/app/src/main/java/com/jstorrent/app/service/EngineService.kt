@@ -48,7 +48,11 @@ class EngineService : Service() {
     // Use IO dispatcher for network/file operations in the engine
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var rootStore: RootStore
-    private var controller: EngineController? = null
+    private var _controller: EngineController? = null
+
+    /** Public access to controller for root management */
+    val controller: EngineController?
+        get() = _controller
 
     // Exposed state for UI
     val state: StateFlow<EngineState?>?
@@ -95,8 +99,8 @@ class EngineService : Service() {
         Log.i(TAG, "Service destroying")
         instance = null
 
-        controller?.close()
-        controller = null
+        _controller?.close()
+        _controller = null
 
         ioScope.cancel()
         super.onDestroy()
@@ -164,7 +168,19 @@ class EngineService : Service() {
     private fun initializeEngine() {
         Log.i(TAG, "Initializing engine...")
 
-        controller = EngineController(this, ioScope)
+        // Create rootResolver that queries RootStore dynamically
+        // This allows FileBindings to find roots added after engine startup
+        // We reload() before each resolve to pick up changes from AddRootActivity
+        val rootResolver: (String) -> android.net.Uri? = { key ->
+            rootStore.reload()
+            rootStore.resolveKey(key)
+        }
+
+        _controller = EngineController(
+            context = this,
+            scope = ioScope,
+            rootResolver = rootResolver
+        )
 
         // Build config from RootStore
         val roots = rootStore.listRoots()
@@ -180,7 +196,7 @@ class EngineService : Service() {
             storageMode = if (storageMode == "null") "null" else null
         )
 
-        controller!!.loadEngine(config)
+        _controller!!.loadEngine(config)
         Log.i(TAG, "Engine loaded successfully")
     }
 
