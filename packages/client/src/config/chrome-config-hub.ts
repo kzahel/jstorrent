@@ -48,41 +48,8 @@ interface KVResponse<T = unknown> {
   error?: string
 }
 
-// Settings key prefix (must match kv-settings-store.ts)
+// Settings key prefix for chrome.storage
 const SETTINGS_KEY_PREFIX = 'settings:'
-
-/**
- * Map from ConfigHub keys to old settings schema keys.
- * Only keys that differ need to be mapped.
- */
-const CONFIG_TO_SETTINGS_KEY: Partial<Record<ConfigKey, string>> = {
-  dhtEnabled: 'dht.enabled',
-  upnpEnabled: 'upnp.enabled',
-  notifyOnTorrentComplete: 'notifications.onTorrentComplete',
-  notifyOnAllComplete: 'notifications.onAllComplete',
-  notifyOnError: 'notifications.onError',
-  notifyProgressWhenBackgrounded: 'notifications.progressWhenBackgrounded',
-  loggingLevel: 'logging.level',
-  loggingLevelClient: 'logging.level.client',
-  loggingLevelTorrent: 'logging.level.torrent',
-  loggingLevelPeer: 'logging.level.peer',
-  loggingLevelActivePieces: 'logging.level.active-pieces',
-  loggingLevelContentStorage: 'logging.level.content-storage',
-  loggingLevelPartsFile: 'logging.level.parts-file',
-  loggingLevelTrackerManager: 'logging.level.tracker-manager',
-  loggingLevelHttpTracker: 'logging.level.http-tracker',
-  loggingLevelUdpTracker: 'logging.level.udp-tracker',
-  loggingLevelDht: 'logging.level.dht',
-}
-
-/**
- * Keys that use paired "unlimited" booleans in old settings.
- * When unlimited is true, the ConfigHub value is 0.
- */
-const UNLIMITED_PAIRS: Record<string, string> = {
-  downloadSpeedLimit: 'downloadSpeedLimitUnlimited',
-  uploadSpeedLimit: 'uploadSpeedLimitUnlimited',
-}
 
 /**
  * Send a KV message to the service worker.
@@ -122,10 +89,6 @@ async function sendKVMessage<T>(
  * - Settings are persisted to chrome.storage via KV message handlers
  * - Runtime values are ephemeral (not persisted)
  * - Storage roots come from DaemonBridge
- *
- * Key mapping:
- * - Translates between ConfigHub keys and old settings schema keys for backward compatibility
- * - Handles "unlimited" boolean pairs (downloadSpeedLimitUnlimited → downloadSpeedLimit: 0)
  */
 export class ChromeConfigHub extends BaseConfigHub {
   private extensionId?: string
@@ -142,7 +105,7 @@ export class ChromeConfigHub extends BaseConfigHub {
     console.log('[ChromeConfigHub] loadFromStorage called')
     const result: Partial<ConfigType> = {}
 
-    // Get all setting keys (category === 'setting' or has storage class)
+    // Get all setting keys (category === 'setting')
     const settingKeys = (Object.keys(configSchema) as ConfigKey[]).filter(
       (key) => getConfigCategory(key) === 'setting',
     )
@@ -152,24 +115,13 @@ export class ChromeConfigHub extends BaseConfigHub {
     const localKeys: string[] = []
 
     for (const configKey of settingKeys) {
-      const settingsKey = this.getSettingsKey(configKey)
       const storageClass = getConfigStorageClass(configKey) ?? 'sync'
-      const prefixedKey = SETTINGS_KEY_PREFIX + settingsKey
+      const prefixedKey = SETTINGS_KEY_PREFIX + configKey
 
       if (storageClass === 'local') {
         localKeys.push(prefixedKey)
       } else {
         syncKeys.push(prefixedKey)
-      }
-
-      // Also fetch unlimited boolean if this key has one (same storage area)
-      if (configKey in UNLIMITED_PAIRS) {
-        const unlimitedPrefixedKey = SETTINGS_KEY_PREFIX + UNLIMITED_PAIRS[configKey]
-        if (storageClass === 'local') {
-          localKeys.push(unlimitedPrefixedKey)
-        } else {
-          syncKeys.push(unlimitedPrefixedKey)
-        }
       }
     }
 
@@ -208,28 +160,11 @@ export class ChromeConfigHub extends BaseConfigHub {
         console.warn('[ChromeConfigHub] Failed to load local settings:', localResponse.error)
       }
     }
-    console.log('[ChromeConfigHub] KV_GET_MULTI response:', {
-      downloadSpeedLimit: stored[SETTINGS_KEY_PREFIX + 'downloadSpeedLimit'],
-      downloadSpeedLimitUnlimited: stored[SETTINGS_KEY_PREFIX + 'downloadSpeedLimitUnlimited'],
-      uploadSpeedLimit: stored[SETTINGS_KEY_PREFIX + 'uploadSpeedLimit'],
-      uploadSpeedLimitUnlimited: stored[SETTINGS_KEY_PREFIX + 'uploadSpeedLimitUnlimited'],
-    })
 
     // Map stored values back to ConfigHub keys
     for (const configKey of settingKeys) {
-      const settingsKey = this.getSettingsKey(configKey)
-      const storageKey = SETTINGS_KEY_PREFIX + settingsKey
+      const storageKey = SETTINGS_KEY_PREFIX + configKey
       const value = stored[storageKey]
-
-      // Handle unlimited pairs
-      if (configKey in UNLIMITED_PAIRS) {
-        const unlimitedKey = SETTINGS_KEY_PREFIX + UNLIMITED_PAIRS[configKey]
-        const unlimited = stored[unlimitedKey]
-        if (unlimited === true) {
-          ;(result as Record<string, unknown>)[configKey] = 0
-          continue
-        }
-      }
 
       if (value !== undefined) {
         ;(result as Record<string, unknown>)[configKey] = value
@@ -242,12 +177,9 @@ export class ChromeConfigHub extends BaseConfigHub {
       result.defaultRootKey = defaultRootKey as string | null
     }
 
-    // Debug logging for rate limit loading
-    console.log('[ChromeConfigHub] Loaded rate limits:', {
+    console.log('[ChromeConfigHub] Loaded settings:', {
       downloadSpeedLimit: result.downloadSpeedLimit,
       uploadSpeedLimit: result.uploadSpeedLimit,
-      downloadUnlimited: stored[SETTINGS_KEY_PREFIX + 'downloadSpeedLimitUnlimited'],
-      uploadUnlimited: stored[SETTINGS_KEY_PREFIX + 'uploadSpeedLimitUnlimited'],
     })
 
     return result
@@ -269,42 +201,15 @@ export class ChromeConfigHub extends BaseConfigHub {
       return
     }
 
-    const storageClass = getConfigStorageClass(key) ?? 'local'
-    const settingsKey = this.getSettingsKey(key)
+    const storageClass = getConfigStorageClass(key) ?? 'sync'
 
-    // Handle unlimited pairs - write both the value and the unlimited flag
-    if (key in UNLIMITED_PAIRS) {
-      const unlimitedKey = UNLIMITED_PAIRS[key]
-      const unlimited = value === 0
-
-      // Write unlimited flag
-      await sendKVMessage(this.extensionId, {
-        type: 'KV_SET_JSON',
-        key: SETTINGS_KEY_PREFIX + unlimitedKey,
-        value: unlimited,
-        keyPrefix: '',
-        area: storageClass,
-      })
-
-      // Write the value (use default non-zero value if unlimited)
-      const numValue = unlimited ? this.getDefaultNonZeroValue(key) : value
-      await sendKVMessage(this.extensionId, {
-        type: 'KV_SET_JSON',
-        key: SETTINGS_KEY_PREFIX + settingsKey,
-        value: numValue,
-        keyPrefix: '',
-        area: storageClass,
-      })
-    } else {
-      // Normal value - just write it
-      await sendKVMessage(this.extensionId, {
-        type: 'KV_SET_JSON',
-        key: SETTINGS_KEY_PREFIX + settingsKey,
-        value,
-        keyPrefix: '',
-        area: storageClass,
-      })
-    }
+    await sendKVMessage(this.extensionId, {
+      type: 'KV_SET_JSON',
+      key: SETTINGS_KEY_PREFIX + key,
+      value,
+      keyPrefix: '',
+      area: storageClass,
+    })
   }
 
   /**
@@ -329,23 +234,6 @@ export class ChromeConfigHub extends BaseConfigHub {
 
     // Notify subscribers
     this.notifyRuntimeSubscribers(key, value, oldValue)
-  }
-
-  /**
-   * Get the old settings schema key for a ConfigHub key.
-   */
-  private getSettingsKey(configKey: ConfigKey): string {
-    return CONFIG_TO_SETTINGS_KEY[configKey] ?? configKey
-  }
-
-  /**
-   * Get a reasonable non-zero default for rate limit keys.
-   * Used when saving unlimited (0) to also write a non-zero value for old UI compatibility.
-   */
-  private getDefaultNonZeroValue(key: ConfigKey): number {
-    if (key === 'downloadSpeedLimit') return 1024 * 100 // 100 KB/s
-    if (key === 'uploadSpeedLimit') return 1024 * 50 // 50 KB/s
-    return 0
   }
 
   /**
