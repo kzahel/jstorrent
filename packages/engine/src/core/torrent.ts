@@ -309,8 +309,15 @@ export class Torrent extends EngineComponent {
 
   /**
    * Periodic maintenance interval for peer slot filling.
+   * Uses setTimeout for adaptive intervals (not setInterval).
    */
-  private _maintenanceInterval: ReturnType<typeof setInterval> | null = null
+  private _maintenanceInterval: ReturnType<typeof setTimeout> | null = null
+
+  /** Tracks which interval step we're on for adaptive maintenance */
+  private _maintenanceStep: number = 0
+
+  /** Adaptive maintenance intervals: run frequently at first, then back off */
+  private static readonly MAINTENANCE_INTERVALS = [500, 1000, 1000, 2000, 2000, 5000]
 
   /** DHT lookup timer - periodically queries DHT for peers */
   private _dhtLookupTimer: ReturnType<typeof setTimeout> | null = null
@@ -1491,6 +1498,9 @@ export class Torrent extends EngineComponent {
 
     // Reset endgame state
     this._endgameManager.reset()
+
+    // Reset peer coordinator so next start gets fresh isFirstEvaluation
+    this._peerCoordinator.reset()
   }
 
   /**
@@ -1533,15 +1543,31 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Start periodic maintenance to fill peer slots.
-   * Runs every 5 seconds to check if we need more peers.
+   * Start adaptive maintenance - runs frequently at first, then backs off.
+   * Intervals: 500ms, 1s, 1s, 2s, 2s, then 5s steady-state
    */
   private startMaintenance(): void {
     if (this._maintenanceInterval) return
 
-    this._maintenanceInterval = setInterval(() => {
+    this._maintenanceStep = 0
+    this.scheduleNextMaintenance()
+  }
+
+  /**
+   * Schedule the next maintenance cycle with adaptive interval.
+   */
+  private scheduleNextMaintenance(): void {
+    const intervals = Torrent.MAINTENANCE_INTERVALS
+    const delay = intervals[Math.min(this._maintenanceStep, intervals.length - 1)]
+
+    this._maintenanceInterval = setTimeout(() => {
       this.runMaintenance()
-    }, 5000) // Run every 5 seconds
+      this._maintenanceStep++
+
+      if (this._networkActive) {
+        this.scheduleNextMaintenance()
+      }
+    }, delay)
   }
 
   /**
@@ -1549,9 +1575,10 @@ export class Torrent extends EngineComponent {
    */
   private stopMaintenance(): void {
     if (this._maintenanceInterval) {
-      clearInterval(this._maintenanceInterval)
+      clearTimeout(this._maintenanceInterval)
       this._maintenanceInterval = null
     }
+    this._maintenanceStep = 0
   }
 
   // ==========================================================================
@@ -2413,9 +2440,41 @@ export class Torrent extends EngineComponent {
 
   private handleInterested(peer: PeerConnection) {
     peer.peerInterested = true
-    // Don't unchoke immediately - let the choke algorithm decide on next tick
-    // This prevents fibrillation (rapid choke/unchoke cycling)
-    this.logger.debug(`Peer ${peer.remoteAddress} is interested (will evaluate on next tick)`)
+    // Try quick unchoke if slots available (otherwise algorithm handles on next maintenance)
+    this.tryQuickUnchoke(peer)
+  }
+
+  /**
+   * Quick unchoke for new peers when slots are available.
+   * Provides immediate reciprocity without waiting for maintenance cycle.
+   * The regular unchoke algorithm may adjust later if needed.
+   */
+  private tryQuickUnchoke(peer: PeerConnection): void {
+    if (!this._networkActive) return
+    if (!peer.amChoking) return // Already unchoked
+
+    // Only consider peers where there's mutual potential benefit
+    // - Peer is interested in us (they want to download)
+    // - OR we're interested in them (we want reciprocity)
+    if (!peer.peerInterested && !peer.amInterested) return
+
+    // Count currently unchoked interested peers
+    const unchokedCount = this.peers.filter((p) => !p.amChoking && p.peerInterested).length
+    const maxSlots = this._peerCoordinator.getConfig().unchoke.maxUploadSlots
+
+    if (unchokedCount < maxSlots) {
+      peer.amChoking = false
+      peer.sendMessage(MessageType.UNCHOKE)
+      this.logger.debug(
+        `Quick unchoke for ${peerKey(peer.remoteAddress!, peer.remotePort!)} ` +
+          `(${unchokedCount + 1}/${maxSlots} slots)`,
+      )
+    }
+
+    // Also check if we can start downloading (peer already unchoked us)
+    if (peer.amInterested && !peer.peerChoking) {
+      this.requestPieces(peer)
+    }
   }
 
   private updateInterest(peer: PeerConnection) {
@@ -2438,6 +2497,8 @@ export class Torrent extends EngineComponent {
       this.logger.debug('Sending INTERESTED')
       peer.sendMessage(MessageType.INTERESTED)
       peer.amInterested = true
+      // Try to get reciprocity by unchoking them if we have slots
+      this.tryQuickUnchoke(peer)
     }
 
     // Send NOT_INTERESTED if no longer interested
