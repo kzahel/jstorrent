@@ -5,6 +5,7 @@ import { DaemonSocketFactory } from '../adapters/daemon/daemon-socket-factory'
 import { StorageRootManager, StorageRoot } from '../storage/storage-root-manager'
 import { ISessionStore } from '../interfaces/session-store'
 import { LogEntry } from '../logging/logger'
+import type { ConfigHub } from '../config/config-hub'
 
 export interface DaemonEngineConfig {
   daemon: {
@@ -16,6 +17,10 @@ export interface DaemonEngineConfig {
   sessionStore: ISessionStore
   onLog?: (entry: LogEntry) => void
   port?: number
+  /**
+   * Optional ConfigHub for reactive configuration.
+   */
+  config?: ConfigHub
 }
 
 export async function createDaemonEngine(config: DaemonEngineConfig): Promise<BtEngine> {
@@ -40,5 +45,6 @@ export async function createDaemonEngine(config: DaemonEngineConfig): Promise<Bt
     sessionStore: config.sessionStore,
     port: config.port,
     onLog: config.onLog,
+    config: config.config,
   })
 }

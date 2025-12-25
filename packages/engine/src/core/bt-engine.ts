@@ -26,6 +26,8 @@ import { SubtleCryptoHasher } from '../adapters/browser/subtle-crypto-hasher'
 import { type EncryptionPolicy, MseSocket } from '../crypto'
 import { MemorySessionStore } from '../adapters/memory/memory-session-store'
 import { StorageRootManager } from '../storage/storage-root-manager'
+import type { StorageRoot } from '../storage/types'
+import type { ConfigHub } from '../config/config-hub'
 import { SessionPersistence } from './session-persistence'
 import { Torrent } from './torrent'
 import { PeerConnection } from './peer-connection'
@@ -134,6 +136,14 @@ export interface BtEngineOptions {
    * @internal
    */
   _skipDHTBootstrap?: boolean
+
+  /**
+   * Optional ConfigHub for reactive configuration.
+   * When provided, settings are read from ConfigHub and subscriptions are
+   * set up for automatic propagation. Individual options like maxConnections,
+   * encryptionPolicy, etc. are ignored when config is provided.
+   */
+  config?: ConfigHub
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -154,6 +164,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public maxPeers: number
   public maxUploadSlots: number
   public encryptionPolicy: EncryptionPolicy
+
+  /** Optional ConfigHub for reactive configuration */
+  public readonly config?: ConfigHub
+
+  /** Cleanup functions for config subscriptions */
+  private configUnsubscribers: Array<() => void> = []
 
   /**
    * Whether the engine is suspended (no network activity).
@@ -233,22 +249,47 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.clientId = randomClientId()
     this.onLogCallback = options.onLog
     this.filterFn = createFilter(options.logging ?? { level: 'info' })
-    this.maxConnections = options.maxConnections ?? 100
-    this.maxPeers = options.maxPeers ?? 20
-    this.maxUploadSlots = options.maxUploadSlots ?? 4
-    this.encryptionPolicy = options.encryptionPolicy ?? 'disabled'
     this._suspended = options.startSuspended ?? false
-
-    // Initialize daemon rate limiter from options
-    const opsPerSec = options.daemonOpsPerSecond ?? 20
-    const burst = options.daemonOpsBurst ?? opsPerSec * 2
-    this.daemonRateLimiter = new TokenBucket(opsPerSec, burst)
 
     // Save network interface getter for UPnP
     this.getNetworkInterfaces = options.getNetworkInterfaces
 
-    // Initialize DHT setting
-    this._dhtEnabled = options.dhtEnabled ?? true
+    // Store config reference
+    this.config = options.config
+
+    if (this.config) {
+      // Read initial values from ConfigHub
+      this.maxConnections = this.config.maxGlobalPeers.get()
+      this.maxPeers = this.config.maxPeersPerTorrent.get()
+      this.maxUploadSlots = this.config.maxUploadSlots.get()
+      this.encryptionPolicy = this.config.encryptionPolicy.get()
+      this._dhtEnabled = this.config.dhtEnabled.get()
+
+      // Set up bandwidth limits from config
+      this.bandwidthTracker.setDownloadLimit(this.config.downloadSpeedLimit.get())
+      this.bandwidthTracker.setUploadLimit(this.config.uploadSpeedLimit.get())
+
+      // Initialize daemon rate limiter from config
+      const opsPerSec = this.config.daemonOpsPerSecond.get()
+      const burst = this.config.daemonOpsBurst.get()
+      this.daemonRateLimiter = new TokenBucket(opsPerSec, burst)
+
+      // Wire up config subscriptions
+      this.wireConfigSubscriptions()
+    } else {
+      // Use individual options (backward compatibility)
+      this.maxConnections = options.maxConnections ?? 100
+      this.maxPeers = options.maxPeers ?? 20
+      this.maxUploadSlots = options.maxUploadSlots ?? 4
+      this.encryptionPolicy = options.encryptionPolicy ?? 'disabled'
+      this._dhtEnabled = options.dhtEnabled ?? true
+
+      // Initialize daemon rate limiter from options
+      const opsPerSec = options.daemonOpsPerSecond ?? 20
+      const burst = options.daemonOpsBurst ?? opsPerSec * 2
+      this.daemonRateLimiter = new TokenBucket(opsPerSec, burst)
+    }
+
     this._skipDHTBootstrap = options._skipDHTBootstrap ?? false
 
     // Initialize logger for BtEngine itself
@@ -711,6 +752,17 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   async destroy() {
     this.logger.info('Destroying engine')
 
+    // Clean up config subscriptions
+    for (const unsubscribe of this.configUnsubscribers) {
+      unsubscribe()
+    }
+    this.configUnsubscribers = []
+
+    // Notify ConfigHub that engine is stopping (clears pending restart-required changes)
+    if (this.config && 'setEngineRunning' in this.config) {
+      ;(this.config as { setEngineRunning: (running: boolean) => void }).setEngineRunning(false)
+    }
+
     // Stop operation drain loop
     this.stopOpDrainLoop()
 
@@ -788,6 +840,144 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       torrent.setEncryptionPolicy(policy)
     }
     this.logger.info(`Encryption policy updated: ${policy}`)
+  }
+
+  // === ConfigHub Subscription Wiring ===
+
+  /**
+   * Wire up ConfigHub subscriptions for reactive configuration.
+   * Called once during construction when config is provided.
+   */
+  private wireConfigSubscriptions(): void {
+    if (!this.config) return
+
+    // Rate Limits
+    this.configUnsubscribers.push(
+      this.config.downloadSpeedLimit.subscribe((limit) => {
+        this.bandwidthTracker.setDownloadLimit(limit)
+        this.logger.info(
+          `Download speed limit updated: ${limit === 0 ? 'unlimited' : limit + ' B/s'}`,
+        )
+      }),
+    )
+
+    this.configUnsubscribers.push(
+      this.config.uploadSpeedLimit.subscribe((limit) => {
+        this.bandwidthTracker.setUploadLimit(limit)
+        this.logger.info(
+          `Upload speed limit updated: ${limit === 0 ? 'unlimited' : limit + ' B/s'}`,
+        )
+      }),
+    )
+
+    // Connection Limits - each key triggers a full setConnectionLimits call
+    this.configUnsubscribers.push(
+      this.config.maxPeersPerTorrent.subscribe((maxPeers) => {
+        this.setConnectionLimits(
+          maxPeers,
+          this.config!.maxGlobalPeers.get(),
+          this.config!.maxUploadSlots.get(),
+        )
+      }),
+    )
+
+    this.configUnsubscribers.push(
+      this.config.maxGlobalPeers.subscribe((maxGlobal) => {
+        this.setConnectionLimits(
+          this.config!.maxPeersPerTorrent.get(),
+          maxGlobal,
+          this.config!.maxUploadSlots.get(),
+        )
+      }),
+    )
+
+    this.configUnsubscribers.push(
+      this.config.maxUploadSlots.subscribe((maxSlots) => {
+        this.setConnectionLimits(
+          this.config!.maxPeersPerTorrent.get(),
+          this.config!.maxGlobalPeers.get(),
+          maxSlots,
+        )
+      }),
+    )
+
+    // Encryption Policy
+    this.configUnsubscribers.push(
+      this.config.encryptionPolicy.subscribe((policy) => {
+        this.setEncryptionPolicy(policy)
+      }),
+    )
+
+    // DHT
+    this.configUnsubscribers.push(
+      this.config.dhtEnabled.subscribe((enabled) => {
+        this.setDHTEnabled(enabled)
+      }),
+    )
+
+    // UPnP
+    this.configUnsubscribers.push(
+      this.config.upnpEnabled.subscribe((enabled) => {
+        this.setUPnPEnabled(enabled)
+      }),
+    )
+
+    // Daemon Rate Limit - both keys need to trigger update
+    this.configUnsubscribers.push(
+      this.config.daemonOpsPerSecond.subscribe((opsPerSec) => {
+        const burst = this.config!.daemonOpsBurst.get()
+        this.setDaemonRateLimit(opsPerSec, burst)
+      }),
+    )
+
+    this.configUnsubscribers.push(
+      this.config.daemonOpsBurst.subscribe((burst) => {
+        const opsPerSec = this.config!.daemonOpsPerSecond.get()
+        this.setDaemonRateLimit(opsPerSec, burst)
+      }),
+    )
+
+    // Storage Roots
+    this.configUnsubscribers.push(
+      this.config.storageRoots.subscribe((roots) => {
+        this.syncStorageRoots(roots)
+      }),
+    )
+
+    this.configUnsubscribers.push(
+      this.config.defaultRootKey.subscribe((key) => {
+        if (key && this.storageRootManager.getRoots().some((r) => r.key === key)) {
+          this.storageRootManager.setDefaultRoot(key)
+          this.logger.info(`Default storage root updated: ${key}`)
+        }
+      }),
+    )
+  }
+
+  /**
+   * Sync storage roots from ConfigHub to StorageRootManager.
+   * Adds new roots, removes missing roots, preserves torrent mappings.
+   */
+  private syncStorageRoots(configRoots: StorageRoot[]): void {
+    const currentRoots = this.storageRootManager.getRoots()
+    const currentKeys = new Set(currentRoots.map((r) => r.key))
+    const newKeys = new Set(configRoots.map((r) => r.key))
+
+    // Add new roots
+    for (const root of configRoots) {
+      if (!currentKeys.has(root.key)) {
+        this.storageRootManager.addRoot(root)
+        this.logger.info(`Storage root added: ${root.label} (${root.key})`)
+      }
+    }
+
+    // Remove old roots
+    for (const root of currentRoots) {
+      if (!newKeys.has(root.key)) {
+        this.storageRootManager.removeRoot(root.key)
+        this.logger.info(`Storage root removed: ${root.label} (${root.key})`)
+      }
+    }
   }
 
   // === Unified Daemon Operation Queue Methods ===

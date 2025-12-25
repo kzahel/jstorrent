@@ -12,6 +12,7 @@ import { NativeSessionStore } from '../adapters/native/native-session-store'
 import { NativeHasher } from '../adapters/native/native-hasher'
 import { StorageRootManager, StorageRoot } from '../storage/storage-root-manager'
 import type { LogEntry } from '../logging/logger'
+import type { ConfigHub } from '../config/config-hub'
 
 export interface NativeEngineConfig {
   /**
@@ -48,6 +49,11 @@ export interface NativeEngineConfig {
    * Default: 'native'
    */
   storageMode?: 'native' | 'null'
+
+  /**
+   * Optional ConfigHub for reactive configuration.
+   */
+  config?: ConfigHub
 }
 
 /**
@@ -85,5 +91,6 @@ export function createNativeEngine(config: NativeEngineConfig): BtEngine {
     port: config.port,
     onLog: config.onLog,
     startSuspended: config.startSuspended,
+    config: config.config,
   })
 }

@@ -121,5 +121,16 @@ export {
   LocalStorageSettingsStore,
 } from './settings'
 
+// Config
+export type {
+  ConfigHub,
+  ConfigValue,
+  ConfigValueCallback,
+  AnyConfigChangeCallback,
+  ConfigKey,
+  ConfigType,
+} from './config'
+export { MemoryConfigHub, BaseConfigHub } from './config'
+
 // Version
 export { VERSION, versionToAzureusCode, azureusCodeToVersion } from './version'
