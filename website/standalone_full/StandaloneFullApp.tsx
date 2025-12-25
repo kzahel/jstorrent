@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { JsBridgeSettingsStore } from '@jstorrent/engine/adapters/android'
+import { getConfigDefault } from '@jstorrent/engine'
 import {
   AppContent,
   AppShell,
@@ -7,8 +7,8 @@ import {
   SettingsOverlay,
   EngineProvider,
   EngineManagerProvider,
-  SettingsProvider,
-  useSettingsInit,
+  ConfigProvider,
+  useConfigInit,
 } from '@jstorrent/client/core'
 import { AndroidStandaloneEngineManager } from '@jstorrent/client/android'
 import type { BtEngine } from '@jstorrent/engine'
@@ -73,18 +73,18 @@ function StandaloneFullAppInner() {
   // Used to trigger periodic re-renders for stats
   const [, setStatsRevision] = useState(0)
 
-  // Settings store and overlay state
-  const [settingsStore] = useState(() => new JsBridgeSettingsStore())
-  const settingsReady = useSettingsInit(settingsStore)
+  // Settings overlay state
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<'general' | 'interface' | 'network' | 'advanced'>(
     'general',
   )
 
+  // ConfigHub is available after engine init - apply UI caches when ready
+  const configHub = engineManager.configHub
+  useConfigInit(configHub)
+
   // Initialize engine using AndroidStandaloneEngineManager
   useEffect(() => {
-    if (!settingsReady) return
-
     let mounted = true
 
     async function initEngine() {
@@ -110,7 +110,7 @@ function StandaloneFullAppInner() {
       // Note: Don't shutdown the engine manager here since the singleton
       // may be reused if the component remounts
     }
-  }, [settingsReady])
+  }, [])
 
   // Periodic stats refresh
   useEffect(() => {
@@ -162,15 +162,6 @@ function StandaloneFullAppInner() {
     }
   }, [])
 
-  // Wait for settings to load
-  if (!settingsReady) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center', color: '#e0e0e0' }}>
-        Loading settings...
-      </div>
-    )
-  }
-
   if (error) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: '#f44336' }}>Error: {error}</div>
@@ -185,8 +176,9 @@ function StandaloneFullAppInner() {
     )
   }
 
+  // configHub is guaranteed to be available when engine is available
   return (
-    <SettingsProvider store={settingsStore}>
+    <ConfigProvider config={configHub!} getDefault={getConfigDefault}>
       <EngineManagerProvider manager={engineManager}>
         <AppShell
           header={
@@ -216,6 +208,6 @@ function StandaloneFullAppInner() {
           setActiveTab={setSettingsTab}
         />
       </EngineManagerProvider>
-    </SettingsProvider>
+    </ConfigProvider>
   )
 }

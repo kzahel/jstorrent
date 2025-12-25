@@ -29,6 +29,9 @@ export type ProgressBarStyle = 'text' | 'bar'
 /** Platform type */
 export type PlatformType = 'desktop' | 'chromeos' | 'android-standalone'
 
+/** Component log level (includes 'default' to inherit from global level) */
+export type ComponentLogLevel = 'default' | 'debug' | 'info' | 'warn' | 'error'
+
 // ============================================================================
 // Schema Definition Types
 // ============================================================================
@@ -281,6 +284,15 @@ export const configSchema = {
     extensionOnly: true,
   },
 
+  /** Show progress notification when UI is backgrounded. */
+  notifyProgressWhenBackgrounded: {
+    type: 'boolean',
+    category: 'setting',
+    storage: 'sync',
+    default: false,
+    extensionOnly: true,
+  },
+
   // ===========================================================================
   // Settings: Behavior
   // ===========================================================================
@@ -314,6 +326,101 @@ export const configSchema = {
     storage: 'sync',
     values: ['debug', 'info', 'warn', 'error'] as const,
     default: 'info' as LogLevel,
+  },
+
+  // ---------------------------------------------------------------------------
+  // Per-component logging level overrides
+  // 'default' means use the global loggingLevel setting
+  // ---------------------------------------------------------------------------
+
+  /** Client component log level override. */
+  loggingLevelClient: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default' as ComponentLogLevel,
+  },
+
+  /** Torrent component log level override. */
+  loggingLevelTorrent: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default' as ComponentLogLevel,
+  },
+
+  /** Peer component log level override. */
+  loggingLevelPeer: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default' as ComponentLogLevel,
+  },
+
+  /** Active pieces component log level override. */
+  loggingLevelActivePieces: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default' as ComponentLogLevel,
+  },
+
+  /** Content storage component log level override. */
+  loggingLevelContentStorage: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default' as ComponentLogLevel,
+  },
+
+  /** Parts file component log level override. */
+  loggingLevelPartsFile: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default' as ComponentLogLevel,
+  },
+
+  /** Tracker manager component log level override. */
+  loggingLevelTrackerManager: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default' as ComponentLogLevel,
+  },
+
+  /** HTTP tracker component log level override. */
+  loggingLevelHttpTracker: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default' as ComponentLogLevel,
+  },
+
+  /** UDP tracker component log level override. */
+  loggingLevelUdpTracker: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default' as ComponentLogLevel,
+  },
+
+  /** DHT component log level override. */
+  loggingLevelDht: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['default', 'debug', 'info', 'warn', 'error'] as const,
+    default: 'default' as ComponentLogLevel,
   },
 
   // ===========================================================================

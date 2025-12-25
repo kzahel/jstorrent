@@ -61,7 +61,18 @@ const CONFIG_TO_SETTINGS_KEY: Partial<Record<ConfigKey, string>> = {
   notifyOnTorrentComplete: 'notifications.onTorrentComplete',
   notifyOnAllComplete: 'notifications.onAllComplete',
   notifyOnError: 'notifications.onError',
+  notifyProgressWhenBackgrounded: 'notifications.progressWhenBackgrounded',
   loggingLevel: 'logging.level',
+  loggingLevelClient: 'logging.level.client',
+  loggingLevelTorrent: 'logging.level.torrent',
+  loggingLevelPeer: 'logging.level.peer',
+  loggingLevelActivePieces: 'logging.level.active-pieces',
+  loggingLevelContentStorage: 'logging.level.content-storage',
+  loggingLevelPartsFile: 'logging.level.parts-file',
+  loggingLevelTrackerManager: 'logging.level.tracker-manager',
+  loggingLevelHttpTracker: 'logging.level.http-tracker',
+  loggingLevelUdpTracker: 'logging.level.udp-tracker',
+  loggingLevelDht: 'logging.level.dht',
 }
 
 /**

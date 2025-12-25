@@ -1,10 +1,102 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useSyncExternalStore, useCallback } from 'react'
 import { useEngineManager, useFileOperations } from '../context/EngineManagerContext'
-import { useSettings } from '../context/SettingsContext'
-import type { Settings, SettingKey, UPnPStatus } from '@jstorrent/engine'
+import { useConfig } from '../context/ConfigContext'
+import type { ConfigHub, UPnPStatus } from '@jstorrent/engine'
 import { clearAllUISettings } from '@jstorrent/ui'
 import type { IEngineManager } from '../engine-manager/types'
 import { standaloneConfirm, standaloneAlert } from '../utils/dialogs'
+
+// Component log level type (matches ConfigHub's ComponentLogLevel)
+type ComponentLogLevel = 'default' | 'debug' | 'info' | 'warn' | 'error'
+
+/**
+ * Build a config snapshot object from ConfigHub.
+ * This is extracted to ensure consistent structure.
+ */
+function buildConfigSnapshot(config: ConfigHub) {
+  return {
+    // Notifications
+    notifyOnTorrentComplete: config.notifyOnTorrentComplete.get(),
+    notifyOnAllComplete: config.notifyOnAllComplete.get(),
+    notifyOnError: config.notifyOnError.get(),
+    notifyProgressWhenBackgrounded: config.notifyProgressWhenBackgrounded.get(),
+    // Behavior
+    keepAwake: config.keepAwake.get(),
+    preventBackgroundThrottling: config.preventBackgroundThrottling.get(),
+    // UI
+    theme: config.theme.get(),
+    progressBarStyle: config.progressBarStyle.get(),
+    maxFps: config.maxFps.get(),
+    // Network
+    listeningPort: config.listeningPort.get(),
+    upnpEnabled: config.upnpEnabled.get(),
+    encryptionPolicy: config.encryptionPolicy.get(),
+    downloadSpeedLimit: config.downloadSpeedLimit.get(),
+    uploadSpeedLimit: config.uploadSpeedLimit.get(),
+    maxPeersPerTorrent: config.maxPeersPerTorrent.get(),
+    maxGlobalPeers: config.maxGlobalPeers.get(),
+    maxUploadSlots: config.maxUploadSlots.get(),
+    dhtEnabled: config.dhtEnabled.get(),
+    // Advanced
+    loggingLevel: config.loggingLevel.get(),
+    loggingLevelClient: config.loggingLevelClient.get(),
+    loggingLevelTorrent: config.loggingLevelTorrent.get(),
+    loggingLevelPeer: config.loggingLevelPeer.get(),
+    loggingLevelActivePieces: config.loggingLevelActivePieces.get(),
+    loggingLevelContentStorage: config.loggingLevelContentStorage.get(),
+    loggingLevelPartsFile: config.loggingLevelPartsFile.get(),
+    loggingLevelTrackerManager: config.loggingLevelTrackerManager.get(),
+    loggingLevelHttpTracker: config.loggingLevelHttpTracker.get(),
+    loggingLevelUdpTracker: config.loggingLevelUdpTracker.get(),
+    loggingLevelDht: config.loggingLevelDht.get(),
+    daemonOpsPerSecond: config.daemonOpsPerSecond.get(),
+    daemonOpsBurst: config.daemonOpsBurst.get(),
+  }
+}
+
+/**
+ * Hook to read all config values as a snapshot for UI rendering.
+ * This provides a settings-like object for backward compatibility while
+ * using ConfigHub as the source of truth.
+ *
+ * Uses a ref to cache the snapshot and only creates a new object when
+ * values actually change (required by useSyncExternalStore).
+ */
+function useConfigSnapshot(config: ConfigHub) {
+  // Cache the last snapshot to return same reference if unchanged
+  const cacheRef = React.useRef<ReturnType<typeof buildConfigSnapshot> | null>(null)
+
+  // getSnapshot must return cached value if nothing changed
+  const getSnapshot = useCallback(() => {
+    const newSnapshot = buildConfigSnapshot(config)
+
+    // Compare with cached - if all values match, return cached reference
+    if (cacheRef.current) {
+      const cached = cacheRef.current
+      const keys = Object.keys(newSnapshot) as (keyof typeof newSnapshot)[]
+      const hasChanges = keys.some((key) => cached[key] !== newSnapshot[key])
+      if (!hasChanges) {
+        return cached
+      }
+    }
+
+    // Values changed, update cache and return new snapshot
+    cacheRef.current = newSnapshot
+    return newSnapshot
+  }, [config])
+
+  // Subscribe to all changes
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return config.subscribeAll(onStoreChange)
+    },
+    [config],
+  )
+
+  return useSyncExternalStore(subscribe, getSnapshot)
+}
+
+type ConfigSnapshot = ReturnType<typeof useConfigSnapshot>
 
 // Chrome extension API may not be available in non-extension contexts
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -55,7 +147,8 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   activeTab,
   setActiveTab,
 }) => {
-  const { settings, set: updateSetting, resetAll } = useSettings()
+  const { config, resetAll } = useConfig()
+  const settings = useConfigSnapshot(config)
   const engineManager = useEngineManager()
   const fileOps = useFileOperations()
 
@@ -222,7 +315,7 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                 onSetDefault={handleSetDefault}
                 onRemoveRoot={handleRemoveRoot}
                 settings={settings}
-                updateSetting={updateSetting}
+                config={config}
                 supportsFileOperations={engineManager.supportsFileOperations}
                 isStandalone={engineManager.isStandalone}
               />
@@ -230,24 +323,19 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
             {activeTab === 'interface' && (
               <InterfaceTab
                 settings={settings}
-                updateSetting={updateSetting}
+                config={config}
                 onResetUISettings={handleResetUISettings}
                 isStandalone={engineManager.isStandalone}
               />
             )}
             {activeTab === 'network' && (
-              <NetworkTab
-                settings={settings}
-                updateSetting={updateSetting}
-                engineManager={engineManager}
-              />
+              <NetworkTab settings={settings} config={config} engineManager={engineManager} />
             )}
             {activeTab === 'advanced' && (
               <AdvancedTab
                 settings={settings}
-                updateSetting={updateSetting}
+                config={config}
                 onResetAllSettings={handleResetAllSettings}
-                engineManager={engineManager}
               />
             )}
           </div>
@@ -260,8 +348,8 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
 // ============ Tab Components ============
 
 interface TabProps {
-  settings: Settings
-  updateSetting: <K extends SettingKey>(key: K, value: Settings[K]) => Promise<void>
+  settings: ConfigSnapshot
+  config: ConfigHub
 }
 
 interface GeneralTabProps extends TabProps {
@@ -285,7 +373,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
   onSetDefault,
   onRemoveRoot,
   settings,
-  updateSetting,
+  config,
   supportsFileOperations,
   isStandalone,
 }) => {
@@ -297,7 +385,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
         try {
           const granted = await chrome.permissions.request({ permissions: ['power'] })
           if (granted) {
-            updateSetting('keepAwake', true)
+            config.set('keepAwake', true)
           }
           // If denied, toggle stays off (no action needed)
         } catch (e) {
@@ -305,10 +393,10 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
         }
       } else {
         // Non-Chrome platforms: just enable without permission request
-        updateSetting('keepAwake', true)
+        config.set('keepAwake', true)
       }
     } else {
-      updateSetting('keepAwake', false)
+      config.set('keepAwake', false)
     }
   }
 
@@ -384,8 +472,8 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
               ? 'Not available in standalone mode'
               : 'Show notification when a single download finishes'
           }
-          checked={settings['notifications.onTorrentComplete']}
-          onChange={(v) => updateSetting('notifications.onTorrentComplete', v)}
+          checked={settings.notifyOnTorrentComplete}
+          onChange={(v) => config.set('notifyOnTorrentComplete', v)}
           disabled={isStandalone}
         />
         <ToggleRow
@@ -395,8 +483,8 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
               ? 'Not available in standalone mode'
               : 'Show notification when all downloads finish'
           }
-          checked={settings['notifications.onAllComplete']}
-          onChange={(v) => updateSetting('notifications.onAllComplete', v)}
+          checked={settings.notifyOnAllComplete}
+          onChange={(v) => config.set('notifyOnAllComplete', v)}
           disabled={isStandalone}
         />
         <ToggleRow
@@ -406,8 +494,8 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
               ? 'Not available in standalone mode'
               : 'Show notification when a download fails'
           }
-          checked={settings['notifications.onError']}
-          onChange={(v) => updateSetting('notifications.onError', v)}
+          checked={settings.notifyOnError}
+          onChange={(v) => config.set('notifyOnError', v)}
           disabled={isStandalone}
         />
         <ToggleRow
@@ -417,8 +505,8 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
               ? 'Not available in standalone mode'
               : 'Persistent notification with download progress when UI is hidden'
           }
-          checked={settings['notifications.progressWhenBackgrounded']}
-          onChange={(v) => updateSetting('notifications.progressWhenBackgrounded', v)}
+          checked={settings.notifyProgressWhenBackgrounded}
+          onChange={(v) => config.set('notifyProgressWhenBackgrounded', v)}
           disabled={isStandalone}
         />
       </Section>
@@ -443,7 +531,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
               : 'Keeps downloads running at full speed when tab is in background'
           }
           checked={settings.preventBackgroundThrottling}
-          onChange={(v) => updateSetting('preventBackgroundThrottling', v)}
+          onChange={(v) => config.set('preventBackgroundThrottling', v)}
           disabled={isStandalone}
         />
       </Section>
@@ -458,7 +546,7 @@ interface InterfaceTabProps extends TabProps {
 
 const InterfaceTab: React.FC<InterfaceTabProps> = ({
   settings,
-  updateSetting,
+  config,
   onResetUISettings,
   isStandalone,
 }) => (
@@ -473,7 +561,7 @@ const InterfaceTab: React.FC<InterfaceTabProps> = ({
                 type="radio"
                 name="theme"
                 checked={settings.theme === theme}
-                onChange={() => updateSetting('theme', theme)}
+                onChange={() => config.set('theme', theme)}
               />
               {theme.charAt(0).toUpperCase() + theme.slice(1)}
             </label>
@@ -484,7 +572,7 @@ const InterfaceTab: React.FC<InterfaceTabProps> = ({
         <span>Progress Bar Style</span>
         <select
           value={settings.progressBarStyle}
-          onChange={(e) => updateSetting('progressBarStyle', e.target.value as ProgressBarStyle)}
+          onChange={(e) => config.set('progressBarStyle', e.target.value as ProgressBarStyle)}
           style={styles.select}
         >
           {PROGRESS_BAR_STYLES.map(({ value, label }) => (
@@ -501,7 +589,7 @@ const InterfaceTab: React.FC<InterfaceTabProps> = ({
         <span>Max FPS</span>
         <select
           value={settings.maxFps}
-          onChange={(e) => updateSetting('maxFps', Number(e.target.value))}
+          onChange={(e) => config.set('maxFps', Number(e.target.value))}
           style={styles.select}
         >
           {FPS_OPTIONS.map((fps) => (
@@ -549,11 +637,27 @@ interface NetworkTabProps extends TabProps {
   engineManager: IEngineManager
 }
 
-const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engineManager }) => {
+// Default display value for speed limit when unlimited (1 MB/s)
+const DEFAULT_SPEED_LIMIT_BYTES = 1024 * 1024
+
+const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager }) => {
   // UPnP status state - initialize from engine if available
   const [upnpStatus, setUpnpStatus] = useState<UPnPStatus>(
     () => engineManager.engine?.upnpStatus ?? 'disabled',
   )
+
+  // Speed limit display values (ConfigHub stores 0 for unlimited, but UI needs a display value)
+  // When config value is 0 (unlimited), we use a default display value
+  const [downloadDisplayValue, setDownloadDisplayValue] = useState(() =>
+    settings.downloadSpeedLimit > 0 ? settings.downloadSpeedLimit : DEFAULT_SPEED_LIMIT_BYTES,
+  )
+  const [uploadDisplayValue, setUploadDisplayValue] = useState(() =>
+    settings.uploadSpeedLimit > 0 ? settings.uploadSpeedLimit : DEFAULT_SPEED_LIMIT_BYTES,
+  )
+
+  // Derive unlimited state from config (0 = unlimited)
+  const downloadUnlimited = settings.downloadSpeedLimit === 0
+  const uploadUnlimited = settings.uploadSpeedLimit === 0
 
   // Subscribe to UPnP status changes
   useEffect(() => {
@@ -568,61 +672,27 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engine
     }
   }, [engineManager])
 
-  // Rate limit handlers - update settings store (for UI) and ConfigHub (for engine)
-  // ConfigHub automatically propagates changes to engine via subscriptions
+  // Rate limit handlers - ConfigHub stores effective value (0 = unlimited)
   const handleDownloadLimitChange = (v: number) => {
-    updateSetting('downloadSpeedLimit', v)
-    // Update ConfigHub - engine subscribes to this
-    const effectiveValue = settings.downloadSpeedLimitUnlimited ? 0 : v
-    engineManager.configHub?.set('downloadSpeedLimit', effectiveValue)
+    setDownloadDisplayValue(v)
+    if (!downloadUnlimited) {
+      config.set('downloadSpeedLimit', v)
+    }
   }
 
   const handleDownloadUnlimitedChange = (unlimited: boolean) => {
-    updateSetting('downloadSpeedLimitUnlimited', unlimited)
-    // Update ConfigHub with effective value (0 = unlimited)
-    const effectiveValue = unlimited ? 0 : settings.downloadSpeedLimit
-    engineManager.configHub?.set('downloadSpeedLimit', effectiveValue)
+    config.set('downloadSpeedLimit', unlimited ? 0 : downloadDisplayValue)
   }
 
   const handleUploadLimitChange = (v: number) => {
-    updateSetting('uploadSpeedLimit', v)
-    const effectiveValue = settings.uploadSpeedLimitUnlimited ? 0 : v
-    engineManager.configHub?.set('uploadSpeedLimit', effectiveValue)
+    setUploadDisplayValue(v)
+    if (!uploadUnlimited) {
+      config.set('uploadSpeedLimit', v)
+    }
   }
 
   const handleUploadUnlimitedChange = (unlimited: boolean) => {
-    updateSetting('uploadSpeedLimitUnlimited', unlimited)
-    const effectiveValue = unlimited ? 0 : settings.uploadSpeedLimit
-    engineManager.configHub?.set('uploadSpeedLimit', effectiveValue)
-  }
-
-  // Connection limit handlers
-  const handleMaxPeersPerTorrentChange = (v: number) => {
-    updateSetting('maxPeersPerTorrent', v)
-    engineManager.configHub?.set('maxPeersPerTorrent', v)
-  }
-
-  const handleMaxGlobalPeersChange = (v: number) => {
-    updateSetting('maxGlobalPeers', v)
-    engineManager.configHub?.set('maxGlobalPeers', v)
-  }
-
-  const handleMaxUploadSlotsChange = (v: number) => {
-    updateSetting('maxUploadSlots', v)
-    engineManager.configHub?.set('maxUploadSlots', v)
-  }
-
-  // Encryption policy handler
-  const handleEncryptionPolicyChange = (v: string) => {
-    const policy = v as 'disabled' | 'allow' | 'prefer' | 'required'
-    updateSetting('encryptionPolicy', policy)
-    engineManager.configHub?.set('encryptionPolicy', policy)
-  }
-
-  // DHT toggle handler
-  const handleDHTEnabledChange = async (enabled: boolean) => {
-    await updateSetting('dht.enabled', enabled)
-    engineManager.configHub?.set('dhtEnabled', enabled)
+    config.set('uploadSpeedLimit', unlimited ? 0 : uploadDisplayValue)
   }
 
   // UPnP status indicator
@@ -649,7 +719,7 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engine
         <NumberRow
           label="Port for incoming connections"
           value={settings.listeningPort}
-          onChange={(v) => updateSetting('listeningPort', v)}
+          onChange={(v) => config.set('listeningPort', v)}
           min={1024}
           max={65535}
         />
@@ -673,11 +743,8 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engine
           )}
           <input
             type="checkbox"
-            checked={settings['upnp.enabled']}
-            onChange={(e) => {
-              updateSetting('upnp.enabled', e.target.checked)
-              engineManager.configHub?.set('upnpEnabled', e.target.checked)
-            }}
+            checked={settings.upnpEnabled}
+            onChange={(e) => config.set('upnpEnabled', e.target.checked)}
           />
         </label>
       </Section>
@@ -692,7 +759,12 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engine
           </div>
           <select
             value={settings.encryptionPolicy}
-            onChange={(e) => handleEncryptionPolicyChange(e.target.value)}
+            onChange={(e) =>
+              config.set(
+                'encryptionPolicy',
+                e.target.value as 'disabled' | 'allow' | 'prefer' | 'required',
+              )
+            }
             style={styles.select}
           >
             <option value="disabled">Disable</option>
@@ -706,15 +778,15 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engine
       <Section title="Speed Limits">
         <SpeedLimitRow
           label="Download"
-          value={settings.downloadSpeedLimit}
-          unlimited={settings.downloadSpeedLimitUnlimited}
+          value={downloadDisplayValue}
+          unlimited={downloadUnlimited}
           onValueChange={handleDownloadLimitChange}
           onUnlimitedChange={handleDownloadUnlimitedChange}
         />
         <SpeedLimitRow
           label="Upload"
-          value={settings.uploadSpeedLimit}
-          unlimited={settings.uploadSpeedLimitUnlimited}
+          value={uploadDisplayValue}
+          unlimited={uploadUnlimited}
           onValueChange={handleUploadLimitChange}
           onUnlimitedChange={handleUploadUnlimitedChange}
         />
@@ -724,21 +796,21 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engine
         <NumberRow
           label="Max peers per torrent"
           value={settings.maxPeersPerTorrent}
-          onChange={handleMaxPeersPerTorrentChange}
+          onChange={(v) => config.set('maxPeersPerTorrent', v)}
           min={1}
           max={500}
         />
         <NumberRow
           label="Global max peers"
           value={settings.maxGlobalPeers}
-          onChange={handleMaxGlobalPeersChange}
+          onChange={(v) => config.set('maxGlobalPeers', v)}
           min={1}
           max={2000}
         />
         <NumberRow
           label="Max upload slots"
           value={settings.maxUploadSlots}
-          onChange={handleMaxUploadSlotsChange}
+          onChange={(v) => config.set('maxUploadSlots', v)}
           min={0}
           max={50}
         />
@@ -748,8 +820,8 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engine
         <ToggleRow
           label="Enable DHT"
           sublabel="Distributed Hash Table for finding peers without trackers"
-          checked={settings['dht.enabled']}
-          onChange={handleDHTEnabledChange}
+          checked={settings.dhtEnabled}
+          onChange={(enabled) => config.set('dhtEnabled', enabled)}
         />
       </Section>
     </div>
@@ -758,7 +830,6 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, updateSetting, engine
 
 interface AdvancedTabProps extends TabProps {
   onResetAllSettings: () => void
-  engineManager: IEngineManager
 }
 
 // Log level options for global setting
@@ -767,48 +838,44 @@ type LogLevelValue = (typeof LOG_LEVELS)[number]
 
 // Log level options for per-component setting (includes 'default')
 const COMPONENT_LOG_LEVELS = ['default', 'debug', 'info', 'warn', 'error'] as const
-type ComponentLogLevelValue = (typeof COMPONENT_LOG_LEVELS)[number]
 
-// Component names for logging settings
-const LOG_COMPONENTS = [
-  'client',
-  'torrent',
-  'peer',
-  'active-pieces',
-  'content-storage',
-  'parts-file',
-  'tracker-manager',
-  'http-tracker',
-  'udp-tracker',
-  'dht',
-] as const
+// Component config keys for logging (maps display name -> ConfigHub key)
+const LOG_COMPONENT_CONFIG_KEYS = {
+  client: 'loggingLevelClient',
+  torrent: 'loggingLevelTorrent',
+  peer: 'loggingLevelPeer',
+  'active-pieces': 'loggingLevelActivePieces',
+  'content-storage': 'loggingLevelContentStorage',
+  'parts-file': 'loggingLevelPartsFile',
+  'tracker-manager': 'loggingLevelTrackerManager',
+  'http-tracker': 'loggingLevelHttpTracker',
+  'udp-tracker': 'loggingLevelUdpTracker',
+  dht: 'loggingLevelDht',
+} as const
 
-const AdvancedTab: React.FC<AdvancedTabProps> = ({
-  settings,
-  updateSetting,
-  onResetAllSettings,
-  engineManager,
-}) => {
+type LogComponentName = keyof typeof LOG_COMPONENT_CONFIG_KEYS
+
+const AdvancedTab: React.FC<AdvancedTabProps> = ({ settings, config, onResetAllSettings }) => {
   // Component overrides collapsed by default
   const [overridesExpanded, setOverridesExpanded] = useState(false)
 
-  // Daemon rate limit handlers - update via ConfigHub
-  const handleOpsPerSecondChange = (v: number) => {
-    updateSetting('daemonOpsPerSecond', v)
-    engineManager.configHub?.set('daemonOpsPerSecond', v)
+  // Get the value for a component log level from the snapshot
+  const getComponentLogLevel = (comp: LogComponentName): ComponentLogLevel => {
+    const key = LOG_COMPONENT_CONFIG_KEYS[comp]
+    return settings[key]
   }
 
-  const handleOpsBurstChange = (v: number) => {
-    updateSetting('daemonOpsBurst', v)
-    engineManager.configHub?.set('daemonOpsBurst', v)
+  // Set a component log level
+  const setComponentLogLevel = (comp: LogComponentName, level: ComponentLogLevel) => {
+    const key = LOG_COMPONENT_CONFIG_KEYS[comp]
+    config.set(key, level)
   }
 
   // Reset logging settings to defaults
   const handleResetLogging = () => {
-    updateSetting('logging.level', 'info')
-    for (const comp of LOG_COMPONENTS) {
-      const key = `logging.level.${comp}` as const
-      updateSetting(key, 'default')
+    config.set('loggingLevel', 'info')
+    for (const comp of Object.keys(LOG_COMPONENT_CONFIG_KEYS) as LogComponentName[]) {
+      setComponentLogLevel(comp, 'default')
     }
   }
 
@@ -822,12 +889,8 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
         <div style={styles.fieldRow}>
           <span style={{ flex: 1 }}>Global log level</span>
           <select
-            value={settings['logging.level']}
-            onChange={(e) => {
-              const level = e.target.value as LogLevelValue
-              updateSetting('logging.level', level)
-              engineManager.configHub?.set('loggingLevel', level)
-            }}
+            value={settings.loggingLevel}
+            onChange={(e) => config.set('loggingLevel', e.target.value as LogLevelValue)}
             style={styles.select}
           >
             {LOG_LEVELS.map((level) => (
@@ -846,27 +909,24 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
           Component Overrides (select &ldquo;Default&rdquo; to use global level)
         </div>
         {overridesExpanded &&
-          LOG_COMPONENTS.map((comp) => {
-            const key = `logging.level.${comp}` as const
-            return (
-              <div key={comp} style={styles.fieldRow}>
-                <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '12px' }}>{comp}</span>
-                <select
-                  value={settings[key]}
-                  onChange={(e) => updateSetting(key, e.target.value as ComponentLogLevelValue)}
-                  style={styles.select}
-                >
-                  {COMPONENT_LOG_LEVELS.map((level) => (
-                    <option key={level} value={level}>
-                      {level === 'default'
-                        ? 'Default'
-                        : level.charAt(0).toUpperCase() + level.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )
-          })}
+          (Object.keys(LOG_COMPONENT_CONFIG_KEYS) as LogComponentName[]).map((comp) => (
+            <div key={comp} style={styles.fieldRow}>
+              <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '12px' }}>{comp}</span>
+              <select
+                value={getComponentLogLevel(comp)}
+                onChange={(e) => setComponentLogLevel(comp, e.target.value as ComponentLogLevel)}
+                style={styles.select}
+              >
+                {COMPONENT_LOG_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level === 'default'
+                      ? 'Default'
+                      : level.charAt(0).toUpperCase() + level.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
 
         <button
           onClick={handleResetLogging}
@@ -884,14 +944,14 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({
         <NumberRow
           label="Operations per second"
           value={settings.daemonOpsPerSecond}
-          onChange={handleOpsPerSecondChange}
+          onChange={(v) => config.set('daemonOpsPerSecond', v)}
           min={1}
           max={100}
         />
         <NumberRow
           label="Burst capacity"
           value={settings.daemonOpsBurst}
-          onChange={handleOpsBurstChange}
+          onChange={(v) => config.set('daemonOpsBurst', v)}
           min={1}
           max={200}
         />

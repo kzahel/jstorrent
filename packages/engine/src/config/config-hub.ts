@@ -16,6 +16,7 @@ import type {
   ProgressBarStyle,
   PlatformType,
   UPnPStatus,
+  ComponentLogLevel,
 } from './config-schema'
 import type { LogLevel } from '../logging/logger'
 import type { EncryptionPolicy } from '../crypto'
@@ -113,6 +114,9 @@ export interface ConfigHub {
   /** Notify on errors. */
   readonly notifyOnError: ConfigValue<boolean>
 
+  /** Show progress notification when UI is backgrounded. */
+  readonly notifyProgressWhenBackgrounded: ConfigValue<boolean>
+
   // ===========================================================================
   // Settings: Behavior
   // ===========================================================================
@@ -129,6 +133,40 @@ export interface ConfigHub {
 
   /** Global logging level. */
   readonly loggingLevel: ConfigValue<LogLevel>
+
+  // ---------------------------------------------------------------------------
+  // Per-component logging level overrides
+  // ---------------------------------------------------------------------------
+
+  /** Client component log level override. */
+  readonly loggingLevelClient: ConfigValue<ComponentLogLevel>
+
+  /** Torrent component log level override. */
+  readonly loggingLevelTorrent: ConfigValue<ComponentLogLevel>
+
+  /** Peer component log level override. */
+  readonly loggingLevelPeer: ConfigValue<ComponentLogLevel>
+
+  /** Active pieces component log level override. */
+  readonly loggingLevelActivePieces: ConfigValue<ComponentLogLevel>
+
+  /** Content storage component log level override. */
+  readonly loggingLevelContentStorage: ConfigValue<ComponentLogLevel>
+
+  /** Parts file component log level override. */
+  readonly loggingLevelPartsFile: ConfigValue<ComponentLogLevel>
+
+  /** Tracker manager component log level override. */
+  readonly loggingLevelTrackerManager: ConfigValue<ComponentLogLevel>
+
+  /** HTTP tracker component log level override. */
+  readonly loggingLevelHttpTracker: ConfigValue<ComponentLogLevel>
+
+  /** UDP tracker component log level override. */
+  readonly loggingLevelUdpTracker: ConfigValue<ComponentLogLevel>
+
+  /** DHT component log level override. */
+  readonly loggingLevelDht: ConfigValue<ComponentLogLevel>
 
   // ===========================================================================
   // Runtime: Daemon State

@@ -98,6 +98,10 @@ export abstract class BaseConfigHub implements ConfigHub {
   readonly notifyOnTorrentComplete = createConfigValue(this, 'notifyOnTorrentComplete')
   readonly notifyOnAllComplete = createConfigValue(this, 'notifyOnAllComplete')
   readonly notifyOnError = createConfigValue(this, 'notifyOnError')
+  readonly notifyProgressWhenBackgrounded = createConfigValue(
+    this,
+    'notifyProgressWhenBackgrounded',
+  )
 
   // Settings: Behavior
   readonly keepAwake = createConfigValue(this, 'keepAwake')
@@ -105,6 +109,18 @@ export abstract class BaseConfigHub implements ConfigHub {
 
   // Settings: Logging
   readonly loggingLevel = createConfigValue(this, 'loggingLevel')
+
+  // Settings: Per-component logging level overrides
+  readonly loggingLevelClient = createConfigValue(this, 'loggingLevelClient')
+  readonly loggingLevelTorrent = createConfigValue(this, 'loggingLevelTorrent')
+  readonly loggingLevelPeer = createConfigValue(this, 'loggingLevelPeer')
+  readonly loggingLevelActivePieces = createConfigValue(this, 'loggingLevelActivePieces')
+  readonly loggingLevelContentStorage = createConfigValue(this, 'loggingLevelContentStorage')
+  readonly loggingLevelPartsFile = createConfigValue(this, 'loggingLevelPartsFile')
+  readonly loggingLevelTrackerManager = createConfigValue(this, 'loggingLevelTrackerManager')
+  readonly loggingLevelHttpTracker = createConfigValue(this, 'loggingLevelHttpTracker')
+  readonly loggingLevelUdpTracker = createConfigValue(this, 'loggingLevelUdpTracker')
+  readonly loggingLevelDht = createConfigValue(this, 'loggingLevelDht')
 
   // Runtime
   readonly daemonPort = createConfigValue(this, 'daemonPort')

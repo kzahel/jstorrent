@@ -19,7 +19,12 @@ export type { IEngineManager, StorageRoot, FileOperationResult } from './engine-
 // React contexts
 export { EngineProvider, useAdapter, useEngine } from './context/EngineContext'
 export type { EngineProviderProps } from './context/EngineContext'
-export { SettingsProvider, useSettings, useSettingSubscription } from './context/SettingsContext'
+export {
+  ConfigProvider,
+  useConfig,
+  useConfigValue,
+  useConfigSubscription,
+} from './context/ConfigContext'
 export {
   EngineManagerProvider,
   useEngineManager,
@@ -29,7 +34,7 @@ export type { FileOperations } from './context/EngineManagerContext'
 
 // Hooks
 export { useEngineState, useTorrentState } from './hooks/useEngineState'
-export { useSettingsInit } from './hooks/useSettingsInit'
+export { useConfigInit } from './hooks/useConfigInit'
 
 // UI Components
 export { AppShell } from './components/AppShell'
