@@ -93,18 +93,7 @@ export function setupController(engine: BtEngine): void {
    * Resume a torrent.
    */
   ;(globalThis as Record<string, unknown>).__jstorrent_cmd_resume = (infoHash: string): void => {
-    // Debug: log storage root state before resume
-    const roots = engine.storageRootManager.getRoots()
-    const defaultKey = engine.storageRootManager.getDefaultRoot()
-    console.log(
-      `[controller] resume: roots=${JSON.stringify(roots.map((r) => r.key))}, defaultKey=${defaultKey}`,
-    )
-
     const torrent = engine.getTorrent(infoHash)
-    if (torrent) {
-      const root = engine.storageRootManager.getRootForTorrent(infoHash)
-      console.log(`[controller] resume: torrent=${infoHash}, rootForTorrent=${root?.key ?? 'null'}`)
-    }
     torrent?.userStart() // Use userStart() to update userState and persist
   }
 
@@ -234,18 +223,6 @@ export function setupController(engine: BtEngine): void {
         downloaded: f.downloaded,
         progress: f.length > 0 ? f.downloaded / f.length : 0,
       })),
-    })
-  }
-
-  /**
-   * Debug: Get storage root manager state.
-   */
-  ;(globalThis as Record<string, unknown>).__jstorrent_query_storage_roots = (): string => {
-    const roots = engine.storageRootManager.getRoots()
-    const defaultKey = engine.storageRootManager.getDefaultRoot()
-    return JSON.stringify({
-      roots: roots.map((r) => ({ key: r.key, label: r.label, path: r.path })),
-      defaultKey,
     })
   }
 }
