@@ -595,17 +595,35 @@ packages/engine/src/adapters/native/
 
 **Verification:** Android standalone settings work. Root addition works.
 
-### Phase 5: Cleanup
 
-**Goal:** Remove deprecated code, single path everywhere.
+### Phase 5: Test Migration
 
-1. Remove `ISettingsStore` and related classes
-2. Remove deprecated engine setter methods (`setConnectionLimits`, etc.)
-3. Remove old settings schema (consolidated into config schema)
-4. Update all documentation
-5. Remove backward-compat code paths in engine
+Update engine tests to use MemoryConfigHub
+Update integration tests
+Verify all tests pass with ConfigHub
 
-**Verification:** All tests pass. Codebase is simpler.
+### Phase 6: ConfigContext
+
+Create ConfigContext (React wrapper around ConfigHub)
+Migrate SettingsOverlay to use ConfigContext
+Migrate other components using useSettings()
+Remove SettingsContext
+
+### Phase 7: Remove ISettingsStore
+
+Remove KVSettingsStore
+Remove BaseSettingsStore
+Update imports
+
+### Phase 8: Remove Deprecated Engine Methods
+
+Remove setConnectionLimits, setRateLimits, setDHTEnabled, etc.
+Update any remaining callers
+
+### Phase 9: Schema Consolidation
+
+Remove old settings/schema.ts
+Ensure config-schema.ts is the single source
 
 ---
 

@@ -289,7 +289,7 @@ describe('ConfigHub Engine Integration', () => {
   })
 })
 
-describe('BtEngine without ConfigHub (backward compatibility)', () => {
+describe('BtEngine with individual options (mapped to internal ConfigHub)', () => {
   it('should use individual options when config not provided', async () => {
     const storageRootManager = new StorageRootManager(() => new InMemoryFileSystem())
     storageRootManager.addRoot({ key: 'test', label: 'Test', path: '/test' })
@@ -308,12 +308,14 @@ describe('BtEngine without ConfigHub (backward compatibility)', () => {
     expect(engine.maxPeers).toBe(30)
     expect(engine.maxUploadSlots).toBe(6)
     expect(engine.encryptionPolicy).toBe('prefer')
-    expect(engine.config).toBeUndefined()
+    // Now engine always has a ConfigHub (created internally if not provided)
+    expect(engine.config).toBeDefined()
+    expect(engine.config!.maxGlobalPeers.get()).toBe(150)
 
     await engine.destroy()
   })
 
-  it('should use defaults when neither config nor individual options provided', async () => {
+  it('should use ConfigHub defaults when neither config nor individual options provided', async () => {
     const storageRootManager = new StorageRootManager(() => new InMemoryFileSystem())
     storageRootManager.addRoot({ key: 'test', label: 'Test', path: '/test' })
     storageRootManager.setDefaultRoot('test')
@@ -323,11 +325,11 @@ describe('BtEngine without ConfigHub (backward compatibility)', () => {
       storageRootManager,
     })
 
-    // Default values
-    expect(engine.maxConnections).toBe(100)
-    expect(engine.maxPeers).toBe(20)
+    // ConfigHub defaults (from config-schema.ts)
+    expect(engine.maxConnections).toBe(200) // maxGlobalPeers default
+    expect(engine.maxPeers).toBe(20) // maxPeersPerTorrent default
     expect(engine.maxUploadSlots).toBe(4)
-    expect(engine.encryptionPolicy).toBe('disabled')
+    expect(engine.encryptionPolicy).toBe('allow') // ConfigHub default
 
     await engine.destroy()
   })

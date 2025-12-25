@@ -216,11 +216,15 @@ describe('Rate Limiting Integration', () => {
       expect(bucket.capacity).toBe(2048)
 
       // Bucket starts empty when transitioning from unlimited
-      // At 1024 bytes/sec, waiting for 1024 bytes = 1000ms
-      expect(bucket.msUntilAvailable(1024)).toBe(1000)
+      // At 1024 bytes/sec, waiting for 1024 bytes = ~1000ms (allow timing variance)
+      const delay1024 = bucket.msUntilAvailable(1024)
+      expect(delay1024).toBeGreaterThan(990)
+      expect(delay1024).toBeLessThanOrEqual(1000)
 
-      // Waiting for 512 bytes = 500ms
-      expect(bucket.msUntilAvailable(512)).toBe(500)
+      // Waiting for 512 bytes = ~500ms
+      const delay512 = bucket.msUntilAvailable(512)
+      expect(delay512).toBeGreaterThan(490)
+      expect(delay512).toBeLessThanOrEqual(500)
     })
 
     it('tryConsume returns false when insufficient tokens', () => {

@@ -15,13 +15,22 @@ export class MemoryConfigHub extends BaseConfigHub {
   /**
    * Create a MemoryConfigHub.
    * @param initialValues Optional initial values (applied after defaults)
+   *
+   * Unlike other ConfigHub implementations, MemoryConfigHub synchronously
+   * applies initial values to the cache in the constructor, making it
+   * immediately usable without calling init().
    */
   constructor(initialValues?: Partial<ConfigType>) {
     super()
 
     if (initialValues) {
       for (const [key, value] of Object.entries(initialValues)) {
-        this.storage.set(key as ConfigKey, value)
+        const configKey = key as ConfigKey
+        this.storage.set(configKey, value)
+        // Also apply directly to cache for immediate availability
+        // (no async storage to wait for)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(this.cache as any)[configKey] = value
       }
     }
   }

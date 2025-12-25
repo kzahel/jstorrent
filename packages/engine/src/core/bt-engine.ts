@@ -28,6 +28,8 @@ import { MemorySessionStore } from '../adapters/memory/memory-session-store'
 import { StorageRootManager } from '../storage/storage-root-manager'
 import type { StorageRoot } from '../storage/types'
 import type { ConfigHub } from '../config/config-hub'
+import { MemoryConfigHub } from '../config/memory-config-hub'
+import type { ConfigType } from '../config/config-schema'
 import { SessionPersistence } from './session-persistence'
 import { Torrent } from './torrent'
 import { PeerConnection } from './peer-connection'
@@ -70,6 +72,13 @@ function emptyOpCounts(): PendingOpCounts {
     udp_announce: 0,
     http_announce: 0,
   }
+}
+
+/**
+ * Filter out undefined values from an object.
+ */
+function filterUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>
 }
 
 export interface BtEngineOptions {
@@ -165,8 +174,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public maxUploadSlots: number
   public encryptionPolicy: EncryptionPolicy
 
-  /** Optional ConfigHub for reactive configuration */
-  public readonly config?: ConfigHub
+  /** Optional ConfigHub for reactive configuration (created internally if not provided) */
+  public config?: ConfigHub
 
   /** Cleanup functions for config subscriptions */
   private configUnsubscribers: Array<() => void> = []
@@ -254,41 +263,44 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     // Save network interface getter for UPnP
     this.getNetworkInterfaces = options.getNetworkInterfaces
 
-    // Store config reference
-    this.config = options.config
-
-    if (this.config) {
-      // Read initial values from ConfigHub
-      this.maxConnections = this.config.maxGlobalPeers.get()
-      this.maxPeers = this.config.maxPeersPerTorrent.get()
-      this.maxUploadSlots = this.config.maxUploadSlots.get()
-      this.encryptionPolicy = this.config.encryptionPolicy.get()
-      this._dhtEnabled = this.config.dhtEnabled.get()
-
-      // Set up bandwidth limits from config
-      this.bandwidthTracker.setDownloadLimit(this.config.downloadSpeedLimit.get())
-      this.bandwidthTracker.setUploadLimit(this.config.uploadSpeedLimit.get())
-
-      // Initialize daemon rate limiter from config
-      const opsPerSec = this.config.daemonOpsPerSecond.get()
-      const burst = this.config.daemonOpsBurst.get()
-      this.daemonRateLimiter = new TokenBucket(opsPerSec, burst)
-
-      // Wire up config subscriptions
-      this.wireConfigSubscriptions()
+    // Create ConfigHub if not provided, mapping individual options as overrides
+    if (options.config) {
+      this.config = options.config
     } else {
-      // Use individual options (backward compatibility)
-      this.maxConnections = options.maxConnections ?? 100
-      this.maxPeers = options.maxPeers ?? 20
-      this.maxUploadSlots = options.maxUploadSlots ?? 4
-      this.encryptionPolicy = options.encryptionPolicy ?? 'disabled'
-      this._dhtEnabled = options.dhtEnabled ?? true
-
-      // Initialize daemon rate limiter from options
-      const opsPerSec = options.daemonOpsPerSecond ?? 20
-      const burst = options.daemonOpsBurst ?? opsPerSec * 2
-      this.daemonRateLimiter = new TokenBucket(opsPerSec, burst)
+      // Create default MemoryConfigHub with individual options as overrides
+      const overrides = filterUndefined({
+        maxGlobalPeers: options.maxConnections,
+        maxPeersPerTorrent: options.maxPeers,
+        maxUploadSlots: options.maxUploadSlots,
+        encryptionPolicy: options.encryptionPolicy,
+        dhtEnabled: options.dhtEnabled,
+        daemonOpsPerSecond: options.daemonOpsPerSecond,
+        daemonOpsBurst: options.daemonOpsBurst,
+      }) as Partial<ConfigType>
+      const internalConfig = new MemoryConfigHub(overrides)
+      // MemoryConfigHub.init() is synchronous (loads from empty storage)
+      void internalConfig.init()
+      this.config = internalConfig
     }
+
+    // Always read from ConfigHub
+    this.maxConnections = this.config.maxGlobalPeers.get()
+    this.maxPeers = this.config.maxPeersPerTorrent.get()
+    this.maxUploadSlots = this.config.maxUploadSlots.get()
+    this.encryptionPolicy = this.config.encryptionPolicy.get()
+    this._dhtEnabled = this.config.dhtEnabled.get()
+
+    // Set up bandwidth limits from config
+    this.bandwidthTracker.setDownloadLimit(this.config.downloadSpeedLimit.get())
+    this.bandwidthTracker.setUploadLimit(this.config.uploadSpeedLimit.get())
+
+    // Initialize daemon rate limiter from config
+    const opsPerSec = this.config.daemonOpsPerSecond.get()
+    const burst = this.config.daemonOpsBurst.get()
+    this.daemonRateLimiter = new TokenBucket(opsPerSec, burst)
+
+    // Wire up config subscriptions
+    this.wireConfigSubscriptions()
 
     this._skipDHTBootstrap = options._skipDHTBootstrap ?? false
 
