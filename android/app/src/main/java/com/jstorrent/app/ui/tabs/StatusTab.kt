@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.jstorrent.app.model.TorrentDetailUi
+import com.jstorrent.app.ui.components.SpeedDirection
 import com.jstorrent.app.ui.components.SpeedIndicator
 import com.jstorrent.app.ui.components.StatRow
 import com.jstorrent.app.ui.components.StatRowPair
@@ -132,8 +133,9 @@ private fun SpeedSection(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 SpeedIndicator(
-                    speed = torrent.downloadSpeed,
-                    isDownload = true
+                    bytesPerSecond = torrent.downloadSpeed,
+                    direction = SpeedDirection.DOWN,
+                    showZero = true
                 )
             }
 
@@ -146,8 +148,9 @@ private fun SpeedSection(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 SpeedIndicator(
-                    speed = torrent.uploadSpeed,
-                    isDownload = false
+                    bytesPerSecond = torrent.uploadSpeed,
+                    direction = SpeedDirection.UP,
+                    showZero = true
                 )
             }
         }
