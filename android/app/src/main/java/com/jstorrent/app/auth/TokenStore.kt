@@ -49,12 +49,12 @@ class TokenStore(context: Context) {
 
     /**
      * Typed standalone mode setting.
-     * Defaults to WEBVIEW for backwards compatibility.
+     * Defaults to NATIVE for non-Chromebook devices.
      */
     var standaloneMode: StandaloneMode
-        get() = when (prefs.getString(KEY_UI_MODE, "standalone")) {
-            "native" -> StandaloneMode.NATIVE
-            else -> StandaloneMode.WEBVIEW
+        get() = when (prefs.getString(KEY_UI_MODE, "native")) {
+            "standalone" -> StandaloneMode.WEBVIEW
+            else -> StandaloneMode.NATIVE
         }
         set(value) = prefs.edit { putString(KEY_UI_MODE, value.value) }
 

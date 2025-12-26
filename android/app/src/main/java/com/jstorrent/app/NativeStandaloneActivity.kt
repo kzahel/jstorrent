@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +55,7 @@ class NativeStandaloneActivity : ComponentActivity() {
     // UI State
     private var hasRoots = mutableStateOf(false)
     private var testStorageMode = mutableStateOf<String?>(null)
+    private var isAddingRoot = mutableStateOf(false)
 
     // For handling magnet intents while engine is loading
     private var pendingMagnet: String? = null
@@ -75,7 +78,13 @@ class NativeStandaloneActivity : ComponentActivity() {
 
         setContent {
             JSTorrentTheme {
-                if (!hasRoots.value && testStorageMode.value == null) {
+                // Show blank screen while adding root to avoid flash
+                if (isAddingRoot.value) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {}
+                } else if (!hasRoots.value && testStorageMode.value == null) {
                     // Setup required
                     SetupRequiredScreen(onAddRoot = { launchAddRoot() })
                 } else {
@@ -99,6 +108,9 @@ class NativeStandaloneActivity : ComponentActivity() {
         // Refresh roots (may have been added via AddRootActivity)
         rootStore.reload()
         hasRoots.value = rootStore.listRoots().isNotEmpty()
+
+        // Clear the adding root flag (we're back from the picker)
+        isAddingRoot.value = false
 
         // Sync any new roots with the running engine
         syncRootsWithEngine()
@@ -226,6 +238,7 @@ class NativeStandaloneActivity : ComponentActivity() {
     }
 
     private fun launchAddRoot() {
+        isAddingRoot.value = true
         startActivity(Intent(this, AddRootActivity::class.java))
     }
 }
@@ -242,34 +255,39 @@ fun SetupRequiredScreen(
     onAddRoot: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Surface(
         modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        color = MaterialTheme.colorScheme.background
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(32.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
             ) {
-                Text(
-                    text = "Setup Required",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Please select a download folder to store your torrents.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = onAddRoot) {
-                    Text("Select Download Folder")
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Setup Required",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Please select a download folder to store your torrents.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(onClick = onAddRoot) {
+                        Text("Select Download Folder")
+                    }
                 }
             }
         }

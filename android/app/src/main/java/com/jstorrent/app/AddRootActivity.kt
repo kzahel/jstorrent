@@ -1,13 +1,19 @@
 package com.jstorrent.app
 
 import android.app.NotificationManager
+import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.DocumentsContract
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import java.io.File
 import com.jstorrent.app.service.EngineService
 import com.jstorrent.app.service.IoDaemonService
 import com.jstorrent.app.storage.RootStore
@@ -48,8 +54,67 @@ class AddRootActivity : AppCompatActivity() {
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.cancel(FOLDER_PICKER_NOTIFICATION_ID)
 
-        // Launch picker immediately
-        pickFolder.launch(null)
+        // Create JSTorrent folder in Downloads
+        val folderCreated = createJSTorrentFolder()
+
+        // Launch picker at Download/JSTorrent if created, otherwise Downloads
+        val initialUri = if (folderCreated) {
+            DocumentsContract.buildDocumentUri(
+                "com.android.externalstorage.documents",
+                "primary:Download/JSTorrent"
+            )
+        } else {
+            DocumentsContract.buildDocumentUri(
+                "com.android.externalstorage.documents",
+                "primary:Download"
+            )
+        }
+        pickFolder.launch(initialUri)
+    }
+
+    /**
+     * Create the JSTorrent folder in Downloads.
+     * Uses different methods depending on Android version:
+     * - Android 9 and below: Direct file system access
+     * - Android 10+: MediaStore API (create a temp file to force folder creation)
+     */
+    private fun createJSTorrentFolder(): Boolean {
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val jstorrentDir = File(downloadsDir, "JSTorrent")
+
+        // Check if folder already exists
+        if (jstorrentDir.exists()) {
+            Log.i(TAG, "JSTorrent folder already exists")
+            return true
+        }
+
+        // Try direct file system access first (works on Android 9 and below)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            val created = jstorrentDir.mkdirs()
+            Log.i(TAG, "Created JSTorrent folder via File API: $created")
+            return created
+        }
+
+        // Android 10+: Use MediaStore to create a temp file, which creates the folder
+        return try {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, ".jstorrent_init")
+                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/JSTorrent")
+            }
+            val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            if (uri != null) {
+                // File created, now delete it (folder remains)
+                contentResolver.delete(uri, null, null)
+                Log.i(TAG, "Created JSTorrent folder via MediaStore")
+                true
+            } else {
+                Log.w(TAG, "Failed to create temp file via MediaStore")
+                false
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to create JSTorrent folder via MediaStore: ${e.message}")
+            false
+        }
     }
 
     private fun handleFolderSelected(uri: Uri) {
