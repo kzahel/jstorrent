@@ -61,9 +61,7 @@ declare global {
   /**
    * Register callback for TLS upgrade result.
    */
-  function __jstorrent_tcp_on_secured(
-    callback: (socketId: number, success: boolean) => void,
-  ): void
+  function __jstorrent_tcp_on_secured(callback: (socketId: number, success: boolean) => void): void
 
   // ============================================================
   // TCP Server Functions
