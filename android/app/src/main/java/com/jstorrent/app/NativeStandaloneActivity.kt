@@ -34,8 +34,10 @@ import com.jstorrent.app.storage.RootStore
 import com.jstorrent.app.ui.navigation.TorrentNavHost
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.viewmodel.TorrentListViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val TAG = "NativeStandaloneActivity"
 
@@ -112,8 +114,11 @@ class NativeStandaloneActivity : ComponentActivity() {
         // Clear the adding root flag (we're back from the picker)
         isAddingRoot.value = false
 
-        // Sync any new roots with the running engine
-        syncRootsWithEngine()
+        // Sync any new roots with the running engine (on IO thread to avoid ANR)
+        // The engine's callGlobalFunction uses latch.await() which blocks the calling thread
+        lifecycleScope.launch(Dispatchers.IO) {
+            syncRootsWithEngine()
+        }
     }
 
     /**
@@ -226,14 +231,19 @@ class NativeStandaloneActivity : ComponentActivity() {
     }
 
     private fun handleTorrentFile(uri: Uri) {
-        try {
-            val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            if (bytes != null) {
-                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                addOrQueueMagnet(base64)
+        // Read file on IO thread to avoid blocking main thread
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes != null) {
+                    val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                    withContext(Dispatchers.Main) {
+                        addOrQueueMagnet(base64)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to read torrent file", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to read torrent file", e)
         }
     }
 
