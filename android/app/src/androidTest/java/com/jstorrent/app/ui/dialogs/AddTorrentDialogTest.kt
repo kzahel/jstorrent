@@ -187,8 +187,8 @@ class AddTorrentDialogTest {
             }
         }
 
-        // Verify placeholder is displayed
-        composeTestRule.onNodeWithText("magnet:?xt=urn:btih:...").assertIsDisplayed()
+        // Verify placeholder is displayed (useUnmergedTree needed for OutlinedTextField placeholder)
+        composeTestRule.onNodeWithText("magnet:?xt=urn:btih:...", useUnmergedTree = true).assertIsDisplayed()
     }
 }
 
