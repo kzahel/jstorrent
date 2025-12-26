@@ -317,7 +317,7 @@ jobs:
           working-directory: android
           script: |
             # Start the Python seeder in background and run tests
-            (cd ../packages/engine/integration/python && ~/.local/bin/uv run python seed_for_test.py --size 100mb --quiet &) && sleep 5 && ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
+            (cd ../packages/engine/integration/python && ~/.local/bin/uv run python seed_for_test.py --size 100mb --quiet &) && sleep 5 && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
 
       - name: Show Test Failures
         if: failure()
