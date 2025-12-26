@@ -11,6 +11,7 @@ set -euo pipefail
 SDK_ROOT="${ANDROID_HOME:-$HOME/.android-sdk}"
 AVD_NAME="jstorrent-dev"
 AVD_NAME_TABLET="jstorrent-tablet"
+AVD_NAME_PLAYSTORE="jstorrent-playstore"
 API_LEVEL="34"
 CMDLINE_TOOLS_VERSION="11076708"  # Update if needed
 
@@ -94,7 +95,8 @@ echo ">>> Installing SDK components..."
     "platform-tools" \
     "emulator" \
     "platforms;android-$API_LEVEL" \
-    "system-images;android-$API_LEVEL;google_apis;$SYSTEM_IMAGE"
+    "system-images;android-$API_LEVEL;google_apis;$SYSTEM_IMAGE" \
+    "system-images;android-$API_LEVEL;google_apis_playstore;$SYSTEM_IMAGE"
 
 # Create AVD if it doesn't exist
 echo ""
@@ -147,6 +149,31 @@ EOF
     fi
 fi
 
+# Create Play Store AVD if it doesn't exist
+echo ""
+if "$AVDMANAGER" list avd -c | grep -q "^${AVD_NAME_PLAYSTORE}$"; then
+    echo ">>> AVD '$AVD_NAME_PLAYSTORE' already exists"
+else
+    echo ">>> Creating AVD '$AVD_NAME_PLAYSTORE' (phone with Play Store)..."
+    echo "no" | "$AVDMANAGER" create avd \
+        --name "$AVD_NAME_PLAYSTORE" \
+        --package "system-images;android-$API_LEVEL;google_apis_playstore;$SYSTEM_IMAGE" \
+        --device "pixel_6"
+
+    # Configure Play Store AVD for performance
+    AVD_CONFIG_PLAYSTORE="$HOME/.android/avd/${AVD_NAME_PLAYSTORE}.avd/config.ini"
+    if [[ -f "$AVD_CONFIG_PLAYSTORE" ]]; then
+        cat >> "$AVD_CONFIG_PLAYSTORE" << 'EOF'
+hw.ramSize=2048
+disk.dataPartition.size=4G
+hw.keyboard=yes
+hw.gpu.enabled=yes
+hw.gpu.mode=auto
+EOF
+        echo "    Configured with 2GB RAM, 4GB storage"
+    fi
+fi
+
 # Print shell configuration
 echo ""
 echo "=== Setup Complete ==="
@@ -160,13 +187,15 @@ echo "Then run:"
 echo "    source ~/.zshrc  # or restart terminal"
 echo ""
 echo "Quick start:"
-echo "    ./emu-start.sh                    # Start phone emulator"
-echo "    AVD_NAME=jstorrent-tablet ./emu-start.sh  # Start tablet emulator"
-echo "    ./emu-install.sh                  # Build and install APK"
-echo "    ./emu-logs.sh                     # View filtered logs"
-echo "    ./emu-stop.sh                     # Stop emulator"
+echo "    ./emu-start.sh                        # Start phone emulator"
+echo "    AVD_NAME=jstorrent-tablet ./emu-start.sh    # Start tablet emulator"
+echo "    AVD_NAME=jstorrent-playstore ./emu-start.sh # Start phone with Play Store"
+echo "    ./emu-install.sh                      # Build and install APK"
+echo "    ./emu-logs.sh                         # View filtered logs"
+echo "    ./emu-stop.sh                         # Stop emulator"
 echo ""
 echo "AVDs created:"
-echo "    jstorrent-dev    (Pixel 6 - phone)"
-echo "    jstorrent-tablet (Pixel Tablet)"
+echo "    jstorrent-dev       (Pixel 6 - phone)"
+echo "    jstorrent-tablet    (Pixel Tablet)"
+echo "    jstorrent-playstore (Pixel 6 - phone with Play Store)"
 echo ""
