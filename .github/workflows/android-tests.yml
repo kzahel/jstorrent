@@ -1,0 +1,344 @@
+name: Android E2E Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'packages/engine/**'
+      - '.github/workflows/android-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'packages/engine/**'
+      - '.github/workflows/android-tests.yml'
+  workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: 'Run full E2E tests with seeder'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: android
+
+jobs:
+  # Unit tests run on every push/PR (fast, no emulator needed)
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: corepack enable pnpm
+        working-directory: .
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Show Test Failures
+        if: failure()
+        run: |
+          echo "=== Unit Test Failures ==="
+          find . -path "*/test-results/testDebugUnitTest/*.xml" -type f | while read xml_file; do
+            if grep -q 'failures="[1-9]' "$xml_file" 2>/dev/null || grep -q '<failure' "$xml_file" 2>/dev/null; then
+              echo ""
+              echo "--- $xml_file ---"
+              grep -o 'classname="[^"]*"' "$xml_file" | head -1 || true
+              grep -A 10 '<failure' "$xml_file" | head -50 || true
+            fi
+          done
+
+      - name: Upload Unit Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: android/app/build/reports/tests/testDebugUnitTest/
+
+  # Instrumented tests require Android emulator
+  instrumented-tests:
+    runs-on: ubuntu-latest
+    # TODO: Change back to main-only after verification:
+    # if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    strategy:
+      matrix:
+        api-level: [30] # Android 11 - good balance of features and stability
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: corepack enable pnpm
+        working-directory: .
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Debug APK and Test APK
+        run: ./gradlew assembleDebug assembleDebugAndroidTest
+
+      - name: Free disk space for AVD
+        run: |
+          # Remove unnecessary large packages to free space for AVD (~7.4GB needed)
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/lib/android/sdk/ndk
+          sudo rm -rf /usr/local/lib/android/sdk/cmake
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /opt/hostedtoolcache/go
+          sudo rm -rf /opt/hostedtoolcache/node
+          df -h
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: AVD Cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ matrix.api-level }}-x86_64
+
+      - name: Create AVD and generate snapshot for caching
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: echo "Generated AVD snapshot for caching."
+
+      - name: Run Instrumented Tests (excluding E2E)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: android
+          script: |
+            # Run all instrumented tests EXCEPT E2E tests (which need external seeder)
+            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
+
+      - name: Show Test Failures
+        if: failure()
+        run: |
+          echo "=== Test Failures ==="
+          # Find all XML result files and extract failures
+          find . -path "*/androidTest-results/connected/*.xml" -type f | while read xml_file; do
+            # Extract test failures using grep/sed
+            if grep -q 'failures="[1-9]' "$xml_file" 2>/dev/null || grep -q '<failure' "$xml_file" 2>/dev/null; then
+              echo ""
+              echo "--- $xml_file ---"
+              # Show the test class name
+              grep -o 'classname="[^"]*"' "$xml_file" | head -1 || true
+              # Extract and display failure messages
+              grep -A 5 '<failure' "$xml_file" | head -50 || true
+            fi
+          done
+          echo ""
+          echo "Full reports available as artifacts"
+
+      - name: Upload Instrumented Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrumented-test-results-api${{ matrix.api-level }}
+          path: |
+            android/app/build/reports/androidTests/connected/
+            android/app/build/outputs/androidTest-results/
+
+  # E2E tests with external seeder
+  e2e-tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        api-level: [30]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: corepack enable pnpm
+        working-directory: .
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Setup Python for seeder
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+        working-directory: .
+
+      - name: Install seeder dependencies
+        run: |
+          cd packages/engine/integration/python
+          ~/.local/bin/uv sync
+        working-directory: .
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Debug APK and Test APK
+        run: ./gradlew assembleDebug assembleDebugAndroidTest
+
+      - name: Free disk space for AVD
+        run: |
+          # Remove unnecessary large packages to free space for AVD (~7.4GB needed)
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/lib/android/sdk/ndk
+          sudo rm -rf /usr/local/lib/android/sdk/cmake
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /opt/hostedtoolcache/go
+          sudo rm -rf /opt/hostedtoolcache/node
+          # Show available space
+          df -h
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: AVD Cache
+        uses: actions/cache@v4
+        id: avd-cache-e2e
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-e2e-${{ matrix.api-level }}-x86_64
+
+      - name: Create AVD and generate snapshot for caching
+        if: steps.avd-cache-e2e.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: echo "Generated AVD snapshot for caching."
+
+      - name: Run E2E Tests with Seeder
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: android
+          script: |
+            # Start the Python seeder in background and run tests
+            (cd ../packages/engine/integration/python && ~/.local/bin/uv run python seed_for_test.py --size 100mb --quiet &) && sleep 5 && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
+
+      - name: Show Test Failures
+        if: failure()
+        run: |
+          echo "=== E2E Test Failures ==="
+          find . -path "*/androidTest-results/connected/*.xml" -type f | while read xml_file; do
+            if grep -q 'failures="[1-9]' "$xml_file" 2>/dev/null || grep -q '<failure' "$xml_file" 2>/dev/null; then
+              echo ""
+              echo "--- $xml_file ---"
+              grep -o 'classname="[^"]*"' "$xml_file" | head -1 || true
+              grep -A 5 '<failure' "$xml_file" | head -50 || true
+            fi
+          done
+          echo ""
+          echo "Full reports available as artifacts"
+
+      - name: Upload E2E Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results-api${{ matrix.api-level }}
+          path: |
+            android/app/build/reports/androidTests/connected/
+            android/app/build/outputs/androidTest-results/

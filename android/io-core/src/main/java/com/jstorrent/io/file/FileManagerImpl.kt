@@ -4,14 +4,17 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.documentfile.provider.DocumentFile
+import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 
 private const val TAG = "FileManagerImpl"
 
 /**
  * SAF-based FileManager implementation with LRU caching.
+ * Also supports file:// URIs using standard Java File I/O.
  *
  * @param context Android context for SAF operations (ContentResolver access)
  * @param maxCacheSize Maximum number of DocumentFile references to cache (default: 200)
@@ -32,7 +35,22 @@ class FileManagerImpl(
     }
     private val cacheLock = Any()
 
+    /**
+     * Check if URI is a file:// scheme that should use native File I/O.
+     */
+    private fun isFileUri(uri: Uri): Boolean = uri.scheme == "file"
+
+    /**
+     * Convert file:// URI to File object.
+     */
+    private fun uriToFile(uri: Uri): File? = uri.path?.let { File(it) }
+
     override fun read(rootUri: Uri, relativePath: String, offset: Long, length: Int): ByteArray {
+        // Handle file:// URIs with native File I/O
+        if (isFileUri(rootUri)) {
+            return readNative(rootUri, relativePath, offset, length)
+        }
+
         val file = getCachedFile(rootUri, relativePath)
             ?: throw FileManagerException.FileNotFound(relativePath)
 
@@ -67,6 +85,11 @@ class FileManagerImpl(
     }
 
     override fun write(rootUri: Uri, relativePath: String, offset: Long, data: ByteArray) {
+        // Handle file:// URIs with native File I/O
+        if (isFileUri(rootUri)) {
+            return writeNative(rootUri, relativePath, offset, data)
+        }
+
         try {
             // Try cache first for existing files
             var file = getCachedFile(rootUri, relativePath)
@@ -102,6 +125,9 @@ class FileManagerImpl(
     }
 
     override fun exists(rootUri: Uri, relativePath: String): Boolean {
+        if (isFileUri(rootUri)) {
+            return existsNative(rootUri, relativePath)
+        }
         return getCachedFile(rootUri, relativePath) != null
     }
 
@@ -122,6 +148,9 @@ class FileManagerImpl(
     }
 
     override fun stat(rootUri: Uri, relativePath: String): FileStat? {
+        if (isFileUri(rootUri)) {
+            return statNative(rootUri, relativePath)
+        }
         val doc = resolvePath(rootUri, relativePath) ?: return null
         return FileStat(
             size = doc.length(),
@@ -132,6 +161,9 @@ class FileManagerImpl(
     }
 
     override fun mkdir(rootUri: Uri, relativePath: String): Boolean {
+        if (isFileUri(rootUri)) {
+            return mkdirNative(rootUri, relativePath)
+        }
         if (relativePath.isEmpty() || relativePath == "/") {
             // Root already exists
             return true
@@ -152,12 +184,18 @@ class FileManagerImpl(
     }
 
     override fun readdir(rootUri: Uri, relativePath: String): List<String> {
+        if (isFileUri(rootUri)) {
+            return readdirNative(rootUri, relativePath)
+        }
         val doc = resolvePath(rootUri, relativePath) ?: return emptyList()
         if (!doc.isDirectory) return emptyList()
         return doc.listFiles().mapNotNull { it.name }
     }
 
     override fun delete(rootUri: Uri, relativePath: String): Boolean {
+        if (isFileUri(rootUri)) {
+            return deleteNative(rootUri, relativePath)
+        }
         val doc = resolvePath(rootUri, relativePath) ?: return false
         val deleted = doc.delete()
         if (deleted) {
@@ -286,6 +324,113 @@ class FileManagerImpl(
             fileName.endsWith(".rar") -> "application/x-rar-compressed"
             fileName.endsWith(".torrent") -> "application/x-bittorrent"
             else -> "application/octet-stream"
+        }
+    }
+
+    // =========================================================================
+    // Native File I/O helpers (for file:// URIs)
+    // =========================================================================
+
+    /**
+     * Resolve a file:// URI + relative path to a File object.
+     */
+    private fun resolveNativeFile(rootUri: Uri, relativePath: String): File {
+        val root = uriToFile(rootUri) ?: throw FileManagerException.CannotOpenFile(relativePath)
+        return if (relativePath.isEmpty() || relativePath == "/") {
+            root
+        } else {
+            File(root, relativePath.trimStart('/'))
+        }
+    }
+
+    private fun readNative(rootUri: Uri, relativePath: String, offset: Long, length: Int): ByteArray {
+        val file = resolveNativeFile(rootUri, relativePath)
+        if (!file.exists()) {
+            throw FileManagerException.FileNotFound(relativePath)
+        }
+        try {
+            RandomAccessFile(file, "r").use { raf ->
+                raf.seek(offset)
+                val buffer = ByteArray(length)
+                var totalRead = 0
+                while (totalRead < length) {
+                    val read = raf.read(buffer, totalRead, length - totalRead)
+                    if (read == -1) break
+                    totalRead += read
+                }
+                if (totalRead < length) {
+                    throw FileManagerException.InsufficientData(relativePath, length, totalRead)
+                }
+                return buffer
+            }
+        } catch (e: FileManagerException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Native read failed: ${e.message}", e)
+            throw FileManagerException.ReadError(relativePath, e)
+        }
+    }
+
+    private fun writeNative(rootUri: Uri, relativePath: String, offset: Long, data: ByteArray) {
+        val file = resolveNativeFile(rootUri, relativePath)
+        try {
+            // Create parent directories if needed
+            file.parentFile?.mkdirs()
+
+            RandomAccessFile(file, "rw").use { raf ->
+                raf.seek(offset)
+                raf.write(data)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Native write failed: ${e.message}", e)
+            when {
+                e.message?.contains("ENOSPC") == true ||
+                        e.message?.contains("No space") == true -> {
+                    throw FileManagerException.DiskFull(relativePath)
+                }
+                else -> {
+                    throw FileManagerException.WriteError(relativePath, e)
+                }
+            }
+        }
+    }
+
+    private fun existsNative(rootUri: Uri, relativePath: String): Boolean {
+        return resolveNativeFile(rootUri, relativePath).exists()
+    }
+
+    private fun statNative(rootUri: Uri, relativePath: String): FileStat? {
+        val file = resolveNativeFile(rootUri, relativePath)
+        if (!file.exists()) return null
+        return FileStat(
+            size = file.length(),
+            mtime = file.lastModified(),
+            isDirectory = file.isDirectory,
+            isFile = file.isFile,
+        )
+    }
+
+    private fun mkdirNative(rootUri: Uri, relativePath: String): Boolean {
+        if (relativePath.isEmpty() || relativePath == "/") {
+            return true
+        }
+        val dir = resolveNativeFile(rootUri, relativePath)
+        return dir.exists() || dir.mkdirs()
+    }
+
+    private fun readdirNative(rootUri: Uri, relativePath: String): List<String> {
+        val dir = resolveNativeFile(rootUri, relativePath)
+        if (!dir.isDirectory) return emptyList()
+        return dir.listFiles()?.mapNotNull { it.name } ?: emptyList()
+    }
+
+    private fun deleteNative(rootUri: Uri, relativePath: String): Boolean {
+        val file = resolveNativeFile(rootUri, relativePath)
+        if (!file.exists()) return false
+        return if (file.isDirectory) {
+            file.deleteRecursively()
+        } else {
+            file.delete()
         }
     }
 }

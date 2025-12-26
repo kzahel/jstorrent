@@ -173,7 +173,7 @@ class AddTorrentDialogTest {
     }
 
     @Test
-    fun placeholder_isDisplayed() {
+    fun magnetLinkField_isDisplayed() {
         composeTestRule.setContent {
             JSTorrentTheme {
                 AddTorrentContent(
@@ -187,8 +187,10 @@ class AddTorrentDialogTest {
             }
         }
 
-        // Verify placeholder is displayed
-        composeTestRule.onNodeWithText("magnet:?xt=urn:btih:...").assertIsDisplayed()
+        // Verify the magnet link text field label is displayed
+        composeTestRule.onNodeWithText("Magnet link").assertIsDisplayed()
+        // Verify paste button is displayed
+        composeTestRule.onNodeWithContentDescription("Paste from clipboard").assertIsDisplayed()
     }
 }
 
