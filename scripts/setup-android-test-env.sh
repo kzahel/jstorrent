@@ -15,8 +15,23 @@ GRADLE_HOME="$HOME/.gradle/wrapper/dists/gradle-$GRADLE_VERSION-bin/anydir/gradl
 
 echo "=== Setting up Android test environment ==="
 
-# Check if proxy is already running
-if curl -s --connect-timeout 2 -x http://127.0.0.1:$PROXY_PORT https://dl.google.com > /dev/null 2>&1; then
+# Check if upstream proxy is configured
+if [ -z "$https_proxy" ] && [ -z "$HTTP_PROXY" ]; then
+    echo "WARNING: No upstream proxy configured (https_proxy or HTTP_PROXY not set)"
+    echo "This script is designed for Claude Code's sandboxed environment"
+fi
+
+# Check if proxy is already running by testing the port
+proxy_running=false
+if command -v nc &> /dev/null; then
+    if nc -z 127.0.0.1 $PROXY_PORT 2>/dev/null; then
+        proxy_running=true
+    fi
+elif curl -s --connect-timeout 2 -x http://127.0.0.1:$PROXY_PORT https://dl.google.com > /dev/null 2>&1; then
+    proxy_running=true
+fi
+
+if [ "$proxy_running" = true ]; then
     echo "Local proxy already running on port $PROXY_PORT"
 else
     echo "Starting local forwarding proxy..."
@@ -142,13 +157,22 @@ if [ ! -d "$SDK_DIR/platforms/android-35" ]; then
     if [ ! -f "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" ]; then
         echo "Downloading SDK command line tools..."
         curl -L -o /tmp/cmdline-tools.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
-        unzip -q -o /tmp/cmdline-tools.zip -d "$SDK_DIR"
-        mkdir -p "$SDK_DIR/cmdline-tools/latest"
-        mv "$SDK_DIR/cmdline-tools/"* "$SDK_DIR/cmdline-tools/latest/" 2>/dev/null || true
+        # The zip contains a 'cmdline-tools' folder, we need to restructure it
+        rm -rf /tmp/cmdline-tools-extract
+        unzip -q -o /tmp/cmdline-tools.zip -d /tmp/cmdline-tools-extract
+        mkdir -p "$SDK_DIR/cmdline-tools"
+        rm -rf "$SDK_DIR/cmdline-tools/latest"
+        mv /tmp/cmdline-tools-extract/cmdline-tools "$SDK_DIR/cmdline-tools/latest"
+        echo "SDK command line tools installed"
     fi
 
     echo "Installing SDK platform and build tools..."
-    printf 'y\n' | "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" \
+    # Accept all licenses first
+    mkdir -p "$SDK_DIR/licenses"
+    echo -e "\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$SDK_DIR/licenses/android-sdk-license"
+    echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > "$SDK_DIR/licenses/android-sdk-preview-license"
+
+    "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" \
         --proxy=http --proxy_host=127.0.0.1 --proxy_port=$PROXY_PORT \
         "platforms;android-35" "build-tools;35.0.0"
 fi
@@ -177,6 +201,12 @@ if ! grep -q "systemProp.http.proxyHost=127.0.0.1" "$ANDROID_DIR/gradle.properti
     echo "systemProp.https.proxyHost=127.0.0.1" >> "$ANDROID_DIR/gradle.properties"
     echo "systemProp.https.proxyPort=$PROXY_PORT" >> "$ANDROID_DIR/gradle.properties"
     echo "Added proxy settings to gradle.properties"
+fi
+
+# Install npm dependencies if needed (required for engine bundle build)
+if [ ! -d "$PROJECT_ROOT/node_modules" ]; then
+    echo "Installing npm dependencies..."
+    cd "$PROJECT_ROOT" && pnpm install
 fi
 
 echo ""
