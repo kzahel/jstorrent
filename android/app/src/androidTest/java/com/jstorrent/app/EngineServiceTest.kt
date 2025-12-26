@@ -3,6 +3,7 @@ package com.jstorrent.app
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.jstorrent.app.e2e.TestMagnets
 import com.jstorrent.app.service.EngineService
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,8 +25,8 @@ class EngineServiceTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         Log.i(TAG, "Starting EngineService test")
 
-        // Start the service
-        EngineService.start(context)
+        // Start the service with null storage mode (in-memory, no SAF permissions needed)
+        EngineService.start(context, "null")
         Log.i(TAG, "EngineService.start() called")
 
         // Wait for service to initialize
@@ -62,10 +63,14 @@ class EngineServiceTest {
         if (instance != null && loaded) {
             Log.i(TAG, "SUCCESS: Engine service started and loaded")
 
-            // Try adding a torrent
-            val magnetLink = "magnet:?xt=urn:btih:95c6c298c84fee2eee10c044d673537da158f0f8&dn=ubuntu-22.04.5-live-server-amd64.iso&tr=https://torrent.ubuntu.com/announce"
+            // Try adding a torrent using deterministic test data
+            // This uses known info hash from seed_for_test.py with seed 0xDEADBEEF
+            val magnetLink = TestMagnets.buildMagnetLink(
+                infoHash = TestMagnets.InfoHashes.TEST_100MB,
+                displayName = TestMagnets.DisplayNames.TEST_100MB
+            )
             instance.addTorrent(magnetLink)
-            Log.i(TAG, "addTorrent called with Ubuntu ISO magnet")
+            Log.i(TAG, "addTorrent called with test magnet: $magnetLink")
 
             // Wait a bit for the torrent to be processed
             Thread.sleep(2000)
@@ -77,12 +82,26 @@ class EngineServiceTest {
                 Log.i(TAG, "Torrent: name=${t.name}, infoHash=${t.infoHash}, status=${t.status}")
             }
 
+            // Verify the torrent was added with the expected info hash
+            val expectedHash = TestMagnets.InfoHashes.TEST_100MB
+            val addedTorrent = torrents.find {
+                it.infoHash.equals(expectedHash, ignoreCase = true)
+            }
+            assert(addedTorrent != null) {
+                "Expected torrent with hash $expectedHash not found in list"
+            }
+            Log.i(TAG, "Verified torrent added: ${addedTorrent?.name}")
+
             // Check state flow
             val state = instance.state?.value
             Log.i(TAG, "State flow value: ${state?.torrents?.size ?: 0} torrents")
             state?.torrents?.forEach { t ->
                 Log.i(TAG, "State torrent: name=${t.name}, progress=${t.progress}")
             }
+
+            // Clean up - remove the test torrent
+            instance.removeTorrent(expectedHash, deleteFiles = true)
+            Log.i(TAG, "Removed test torrent")
         }
 
         // Stop service
