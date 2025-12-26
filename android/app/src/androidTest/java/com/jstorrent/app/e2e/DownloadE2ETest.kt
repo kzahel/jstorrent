@@ -61,14 +61,11 @@ class DownloadE2ETest : E2EBaseTest() {
     /**
      * Test downloading from a running seeder.
      *
-     * This test is @Ignore by default because it requires external setup:
-     * 1. Start the Python seeder on the host machine
-     * 2. Ensure the emulator can reach the host (10.0.2.2 or port forwarding)
-     *
-     * Remove @Ignore to run manually or in CI with proper seeder setup.
+     * Requires the Python seeder to be running on the host.
+     * In CI, the seeder is started automatically before this test.
+     * The emulator reaches the host via 10.0.2.2.
      */
     @Test
-    @Ignore("Requires external seeder - run manually or in CI with seeder")
     fun downloadFromSeeder_makesProgress() {
         val engine = requireEngine()
         val magnet = TestMagnets.getMagnetForTest(arguments, "100mb")

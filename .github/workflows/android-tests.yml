@@ -195,10 +195,9 @@ jobs:
             android/app/build/reports/androidTests/connected/
             android/app/build/outputs/androidTest-results/
 
-  # E2E tests with external seeder - manual trigger only (saves disk space)
+  # E2E tests with external seeder
   e2e-tests:
     runs-on: ubuntu-latest
-    if: github.event.inputs.run_e2e == 'true'
 
     strategy:
       matrix:
@@ -252,6 +251,14 @@ jobs:
       - name: Build Debug APK and Test APK
         run: ./gradlew assembleDebug assembleDebugAndroidTest
 
+      - name: Free disk space for AVD
+        run: |
+          # Remove unnecessary large packages to free space for AVD (~7.4GB needed)
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          df -h
+
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -299,8 +306,8 @@ jobs:
             # Go back to android directory
             cd ../../../../android
 
-            # Run E2E tests - just run the test that doesn't require seeder
-            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest#addMagnet_torrentAppearsInList
+            # Run all E2E tests (non-@Ignore tests will run)
+            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
 
             # Cleanup seeder
             kill $SEEDER_PID 2>/dev/null || true
