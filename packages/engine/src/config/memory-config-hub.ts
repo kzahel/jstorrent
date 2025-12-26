@@ -32,7 +32,13 @@ export class MemoryConfigHub extends BaseConfigHub {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(this.cache as any)[configKey] = value
       }
+      // When initialValues are provided, mark as initialized immediately
+      // since values are applied synchronously (no async storage to load from).
+      // This allows BtEngine to use the config immediately without awaiting init().
+      this.initialized = true
     }
+    // When no initialValues, leave initialized = false so tests can use
+    // preloadStorage() + init() to simulate async storage loading.
   }
 
   protected async loadFromStorage(): Promise<Partial<ConfigType>> {

@@ -47,7 +47,7 @@ export abstract class BaseConfigHub implements ConfigHub {
   private allSubscribers = new Set<AnyConfigChangeCallback>()
 
   /** Init state */
-  private initialized = false
+  protected initialized = false
   protected initPromise: Promise<void> | null = null
 
   constructor() {
