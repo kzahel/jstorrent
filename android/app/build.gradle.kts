@@ -104,7 +104,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.navigation.compose)
     implementation("androidx.compose.material:material-icons-extended")
+    // Foundation for HorizontalPager
+    implementation("androidx.compose.foundation:foundation")
 
     // Ktor server
     implementation(libs.ktor.server.core)

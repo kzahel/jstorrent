@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.jstorrent.app.service.EngineService
 import com.jstorrent.app.storage.RootStore
-import com.jstorrent.app.ui.screens.TorrentListScreen
+import com.jstorrent.app.ui.navigation.TorrentNavHost
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.viewmodel.TorrentListViewModel
 import kotlinx.coroutines.delay
@@ -79,18 +79,10 @@ class NativeStandaloneActivity : ComponentActivity() {
                     // Setup required
                     SetupRequiredScreen(onAddRoot = { launchAddRoot() })
                 } else {
-                    // Main torrent list screen
-                    TorrentListScreen(
-                        viewModel = viewModel,
-                        onTorrentClick = { infoHash ->
-                            // TODO: Navigate to detail screen in Phase 3
-                            Log.d(TAG, "Torrent clicked: $infoHash")
-                        },
-                        onAddRootClick = { launchAddRoot() },
-                        onSearchClick = {
-                            // TODO: Implement search in future phase
-                            Log.d(TAG, "Search clicked")
-                        }
+                    // Main navigation host
+                    TorrentNavHost(
+                        listViewModel = viewModel,
+                        onAddRootClick = { launchAddRoot() }
                     )
                 }
             }
