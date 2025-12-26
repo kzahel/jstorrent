@@ -195,11 +195,10 @@ jobs:
             android/app/build/reports/androidTests/connected/
             android/app/build/outputs/androidTest-results/
 
-  # E2E tests with external seeder - runs by default for now (testing)
+  # E2E tests with external seeder - manual trigger only (saves disk space)
   e2e-tests:
     runs-on: ubuntu-latest
-    # TODO: Change back to manual trigger after verification:
-    # if: github.event.inputs.run_e2e == 'true'
+    if: github.event.inputs.run_e2e == 'true'
 
     strategy:
       matrix:
