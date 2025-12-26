@@ -14,11 +14,12 @@ export interface ProgressStats {
 }
 
 // Settings keys (prefixed as stored in chrome.storage.sync)
+// Must match the keys from @jstorrent/engine config-schema.ts
 const SETTING_KEYS = {
-  onTorrentComplete: 'settings:notifications.onTorrentComplete',
-  onAllComplete: 'settings:notifications.onAllComplete',
-  onError: 'settings:notifications.onError',
-  progressWhenBackgrounded: 'settings:notifications.progressWhenBackgrounded',
+  onTorrentComplete: 'settings:notifyOnTorrentComplete',
+  onAllComplete: 'settings:notifyOnAllComplete',
+  onError: 'settings:notifyOnError',
+  progressWhenBackgrounded: 'settings:notifyProgressWhenBackgrounded',
 } as const
 
 // Default values (must match schema in @jstorrent/engine)
