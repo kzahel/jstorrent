@@ -295,16 +295,13 @@ jobs:
           disable-animations: true
           working-directory: android
           script: |
-            # Start the Python seeder in background
-            cd ../packages/engine/integration/python
-            ~/.local/bin/uv run python seed_for_test.py --size 100mb --quiet &
+            # Start the Python seeder in background (use absolute path)
+            SEEDER_DIR="${GITHUB_WORKSPACE}/packages/engine/integration/python"
+            (cd "$SEEDER_DIR" && ~/.local/bin/uv run python seed_for_test.py --size 100mb --quiet) &
             SEEDER_PID=$!
 
             # Wait for seeder to start
             sleep 5
-
-            # Go back to android directory
-            cd ../../../../android
 
             # Run all E2E tests (non-@Ignore tests will run)
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
