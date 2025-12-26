@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -42,6 +43,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.jstorrent.app.model.TorrentFilter
 import com.jstorrent.app.model.TorrentListUiState
+import com.jstorrent.app.model.TorrentSortOrder
 import com.jstorrent.app.ui.components.TorrentCard
 import com.jstorrent.app.ui.dialogs.AddTorrentDialog
 import com.jstorrent.app.ui.theme.JSTorrentTheme
@@ -58,14 +60,17 @@ fun TorrentListScreen(
     viewModel: TorrentListViewModel,
     onTorrentClick: (String) -> Unit = {},
     onAddRootClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentFilter by viewModel.filter.collectAsState()
+    val currentSortOrder by viewModel.sortOrder.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -73,6 +78,38 @@ fun TorrentListScreen(
             TopAppBar(
                 title = { Text("JSTorrent") },
                 actions = {
+                    // Sort button with dropdown
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Sort,
+                                contentDescription = "Sort"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            TorrentSortOrder.entries.forEach { sortOrder ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = getSortOrderDisplayName(sortOrder),
+                                            color = if (sortOrder == currentSortOrder) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            }
+                                        )
+                                    },
+                                    onClick = {
+                                        showSortMenu = false
+                                        viewModel.setSortOrder(sortOrder)
+                                    }
+                                )
+                            }
+                        }
+                    }
                     IconButton(onClick = onSearchClick) {
                         Icon(
                             imageVector = Icons.Default.Search,
@@ -109,6 +146,13 @@ fun TorrentListScreen(
                             onClick = {
                                 showMenu = false
                                 onAddRootClick()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Settings") },
+                            onClick = {
+                                showMenu = false
+                                onSettingsClick()
                             }
                         )
                     }
@@ -363,5 +407,22 @@ private fun LoadingContentPreview() {
 private fun ErrorContentPreview() {
     JSTorrentTheme {
         ErrorContent(message = "Failed to initialize engine")
+    }
+}
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+/**
+ * Get display name for sort order.
+ */
+private fun getSortOrderDisplayName(sortOrder: TorrentSortOrder): String {
+    return when (sortOrder) {
+        TorrentSortOrder.QUEUE_ORDER -> "Queue Order"
+        TorrentSortOrder.NAME -> "Name"
+        TorrentSortOrder.DATE_ADDED -> "Date Added"
+        TorrentSortOrder.DOWNLOAD_SPEED -> "Download Speed"
+        TorrentSortOrder.ETA -> "ETA"
     }
 }
