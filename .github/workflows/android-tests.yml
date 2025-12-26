@@ -152,8 +152,7 @@ jobs:
           working-directory: android
           script: |
             # Run all instrumented tests EXCEPT E2E tests (which need external seeder)
-            ./gradlew connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
+            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
 
       - name: Upload Instrumented Test Results
         if: always()
@@ -269,11 +268,8 @@ jobs:
             # Go back to android directory
             cd ../../../../android
 
-            # Run E2E tests (remove @Ignore for CI run)
-            # Note: In a real scenario, you'd modify the test or use a test filter
-            # For now, just run the test that doesn't require seeder
-            ./gradlew connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest#addMagnet_torrentAppearsInList
+            # Run E2E tests - just run the test that doesn't require seeder
+            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest#addMagnet_torrentAppearsInList
 
             # Cleanup seeder
             kill $SEEDER_PID 2>/dev/null || true
