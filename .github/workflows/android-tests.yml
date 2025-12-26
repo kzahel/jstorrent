@@ -75,8 +75,8 @@ jobs:
   # Instrumented tests require Android emulator
   instrumented-tests:
     runs-on: ubuntu-latest
-    # Only run on main branch or when manually triggered
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    # TODO: Change back to main-only after verification:
+    # if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
 
     strategy:
       matrix:
@@ -164,10 +164,11 @@ jobs:
             android/app/build/reports/androidTests/connected/
             android/app/build/outputs/androidTest-results/
 
-  # E2E tests with external seeder - only on manual trigger
+  # E2E tests with external seeder - runs by default for now (testing)
   e2e-tests:
     runs-on: ubuntu-latest
-    if: github.event.inputs.run_e2e == 'true'
+    # TODO: Change back to manual trigger after verification:
+    # if: github.event.inputs.run_e2e == 'true'
 
     strategy:
       matrix:
