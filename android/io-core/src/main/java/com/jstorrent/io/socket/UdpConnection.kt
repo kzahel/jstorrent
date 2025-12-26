@@ -76,14 +76,21 @@ internal class UdpConnection(
 
     /**
      * Close the socket and stop I/O loops.
+     * Blocks until the receive loop exits and onClose callback fires.
      */
     fun close() {
         sendQueue.close()
         senderJob?.cancel()
-        receiverJob?.cancel()
+        // Close socket first - this causes receive() to throw and exit the loop
         try {
             socket.close()
         } catch (_: Exception) {}
+        // Cancel the receiver job (will run finally block with onClose)
+        receiverJob?.cancel()
+        // Wait for receiver to finish so onClose callback fires before we return
+        runBlocking {
+            receiverJob?.join()
+        }
     }
 
     private fun startReceiving() {
