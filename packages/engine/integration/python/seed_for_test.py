@@ -34,6 +34,7 @@ from jst import JSTEngine
 SEED = 0xDEADBEEF
 DEFAULT_DATA_DIR = Path.home() / ".jstorrent-test-seed"
 ANDROID_EMU_HOST = "10.0.2.2"
+CROSTINI_HOST = "100.115.92.206"
 DEFAULT_PORT = 6881
 
 SIZE_CONFIGS = {
@@ -331,8 +332,8 @@ def run_libtorrent_seeder(args, data_path, torrent_path, info_hash, config) -> i
         time.sleep(0.1)
 
     magnet = build_magnet_link(info_hash, config["filename"], args.host, actual_port)
-
     magnet_localhost = build_magnet_link(info_hash, config["filename"], "127.0.0.1", actual_port)
+    magnet_crostini = build_magnet_link(info_hash, config["filename"], CROSTINI_HOST, actual_port)
 
     if args.quiet:
         # Machine-parseable output
@@ -340,8 +341,9 @@ def run_libtorrent_seeder(args, data_path, torrent_path, info_hash, config) -> i
         print(f"PORT={actual_port}")
         print(f"MAGNET={magnet}")
         print(f"MAGNET_LOCALHOST={magnet_localhost}")
+        print(f"MAGNET_CROSTINI={magnet_crostini}")
     else:
-        print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, "libtorrent")
+        print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, "libtorrent")
 
     # Main loop - keep seeding until Ctrl+C
     try:
@@ -406,6 +408,7 @@ def run_jstengine_seeder(args, data_path, torrent_path, info_hash, config) -> in
         actual_port = engine.bt_port
         magnet = build_magnet_link(info_hash, config["filename"], args.host, actual_port)
         magnet_localhost = build_magnet_link(info_hash, config["filename"], "127.0.0.1", actual_port)
+        magnet_crostini = build_magnet_link(info_hash, config["filename"], CROSTINI_HOST, actual_port)
 
         if args.quiet:
             # Machine-parseable output
@@ -413,8 +416,9 @@ def run_jstengine_seeder(args, data_path, torrent_path, info_hash, config) -> in
             print(f"PORT={actual_port}")
             print(f"MAGNET={magnet}")
             print(f"MAGNET_LOCALHOST={magnet_localhost}")
+            print(f"MAGNET_CROSTINI={magnet_crostini}")
         else:
-            print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, "JSTEngine")
+            print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, "JSTEngine")
 
         # Main loop - keep seeding until Ctrl+C
         try:
@@ -445,7 +449,7 @@ def run_jstengine_seeder(args, data_path, torrent_path, info_hash, config) -> in
             engine.close()
 
 
-def print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, engine_name):
+def print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, engine_name):
     """Print human-readable banner."""
     print()
     print("=" * 80)
@@ -469,6 +473,11 @@ def print_banner(args, data_path, torrent_path, info_hash, config, actual_port, 
     print("MAGNET LINK (127.0.0.1):")
     print("=" * 80)
     print(magnet_localhost)
+    print()
+    print("=" * 80)
+    print(f"MAGNET LINK (Crostini: {CROSTINI_HOST}):")
+    print("=" * 80)
+    print(magnet_crostini)
     print()
     print("=" * 80)
     print("Press Ctrl+C to stop seeding")
