@@ -32,7 +32,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +49,6 @@ import com.jstorrent.app.ui.tabs.StatusTab
 import com.jstorrent.app.ui.tabs.TrackersTab
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.viewmodel.TorrentDetailViewModel
-import kotlinx.coroutines.launch
 
 /**
  * Torrent detail screen.
@@ -240,7 +238,6 @@ private fun DetailContent(
         initialPage = tabs.indexOf(selectedTab),
         pageCount = { tabs.size }
     )
-    val scope = rememberCoroutineScope()
 
     // Sync pager with tab selection
     LaunchedEffect(selectedTab) {
@@ -250,9 +247,9 @@ private fun DetailContent(
         }
     }
 
-    // Sync tab selection with pager
-    LaunchedEffect(pagerState.currentPage) {
-        val currentTab = tabs[pagerState.currentPage]
+    // Sync tab selection with pager (use settledPage to avoid mid-animation triggers)
+    LaunchedEffect(pagerState.settledPage) {
+        val currentTab = tabs[pagerState.settledPage]
         if (currentTab != selectedTab) {
             onTabSelected(currentTab)
         }
@@ -267,12 +264,7 @@ private fun DetailContent(
             tabs.forEach { tab ->
                 Tab(
                     selected = tab == selectedTab,
-                    onClick = {
-                        onTabSelected(tab)
-                        scope.launch {
-                            pagerState.animateScrollToPage(tabs.indexOf(tab))
-                        }
-                    },
+                    onClick = { onTabSelected(tab) },
                     text = {
                         Text(
                             text = tab.name,
