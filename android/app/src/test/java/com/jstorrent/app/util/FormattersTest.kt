@@ -33,7 +33,7 @@ class FormattersTest {
     fun `formatBytes kilobytes`() {
         assertEquals("1.0 KB", Formatters.formatBytes(1024))
         assertEquals("1.5 KB", Formatters.formatBytes(1536))
-        assertEquals("999.0 KB", Formatters.formatBytes(1023 * 1024))
+        assertEquals("1023.0 KB", Formatters.formatBytes(1023 * 1024))
     }
 
     @Test
@@ -78,7 +78,7 @@ class FormattersTest {
     @Test
     fun `formatSpeed kilobytes per second`() {
         assertEquals("1.0 KB/s", Formatters.formatSpeed(1024))
-        assertEquals("500.0 KB/s", Formatters.formatSpeed(512 * 1024))
+        assertEquals("512.0 KB/s", Formatters.formatSpeed(512 * 1024))
     }
 
     @Test
