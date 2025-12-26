@@ -6,6 +6,17 @@ Strategic documentation for AI-assisted development conversations.
 
 **Not for:** Task-executing agents. They should use `docs/tasks/` and package-level READMEs instead.
 
+## Platform Status (December 2025)
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| **Chrome Extension + Desktop** (Linux/Win/Mac) | ✅ Fully Functional | Rust native host, production ready |
+| **Chrome Extension + ChromeOS** | ✅ Fully Functional | Kotlin Android companion app |
+| **Android Standalone Native** | ✅ Fully Functional | QuickJS + Kotlin + Compose UI + SAF folder picker. UI is minimal but complete. |
+| **iOS Standalone** | 🔜 Planned | JavaScriptCore + Swift + SwiftUI |
+
+All "fully functional" platforms support: magnet links, .torrent files, multi-file torrents, session persistence, seeding, DHT, protocol encryption, and SAF/native folder picker for download location.
+
 ## Files
 
 | File | Purpose |
