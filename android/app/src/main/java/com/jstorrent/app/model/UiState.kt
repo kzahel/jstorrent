@@ -39,13 +39,13 @@ sealed class TorrentListUiState {
 /**
  * Filter options for torrent list.
  */
-enum class TorrentFilter {
+enum class TorrentFilter(val displayName: String) {
     /** Show all torrents */
-    ALL,
+    ALL("All"),
     /** Show active/queued torrents (downloading, downloading_metadata, checking) */
-    QUEUED,
+    QUEUED("Queued"),
     /** Show completed torrents (seeding, stopped with progress = 1.0) */
-    FINISHED
+    FINISHED("Finished")
 }
 
 /**
