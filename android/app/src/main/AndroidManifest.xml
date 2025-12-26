@@ -137,6 +137,7 @@
         </activity>
 
         <!-- Native standalone activity (Compose UI with QuickJS engine) -->
+        <!-- Note: External intents (magnet, torrent files) go through MainActivity which routes here -->
         <activity
             android:name=".NativeStandaloneActivity"
             android:exported="true"
@@ -150,39 +151,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="jstorrent" android:host="native" />
-            </intent-filter>
-
-            <!-- Magnet links -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="magnet" />
-            </intent-filter>
-
-            <!-- Torrent files via MIME type -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:mimeType="application/x-bittorrent" />
-            </intent-filter>
-
-            <!-- Torrent files via file extension (content:// URIs) -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="content" />
-                <data android:host="*" />
-                <data android:pathPattern=".*\\.torrent" />
-            </intent-filter>
-
-            <!-- Torrent files via file extension (file:// URIs) -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="file" />
-                <data android:pathPattern=".*\\.torrent" />
             </intent-filter>
         </activity>
 
