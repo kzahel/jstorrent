@@ -65,6 +65,19 @@ jobs:
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest
 
+      - name: Show Test Failures
+        if: failure()
+        run: |
+          echo "=== Unit Test Failures ==="
+          find . -path "*/test-results/testDebugUnitTest/*.xml" -type f | while read xml_file; do
+            if grep -q 'failures="[1-9]' "$xml_file" 2>/dev/null || grep -q '<failure' "$xml_file" 2>/dev/null; then
+              echo ""
+              echo "--- $xml_file ---"
+              grep -o 'classname="[^"]*"' "$xml_file" | head -1 || true
+              grep -A 10 '<failure' "$xml_file" | head -50 || true
+            fi
+          done
+
       - name: Upload Unit Test Results
         if: always()
         uses: actions/upload-artifact@v4
@@ -153,6 +166,25 @@ jobs:
           script: |
             # Run all instrumented tests EXCEPT E2E tests (which need external seeder)
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
+
+      - name: Show Test Failures
+        if: failure()
+        run: |
+          echo "=== Test Failures ==="
+          # Find all XML result files and extract failures
+          find . -path "*/androidTest-results/connected/*.xml" -type f | while read xml_file; do
+            # Extract test failures using grep/sed
+            if grep -q 'failures="[1-9]' "$xml_file" 2>/dev/null || grep -q '<failure' "$xml_file" 2>/dev/null; then
+              echo ""
+              echo "--- $xml_file ---"
+              # Show the test class name
+              grep -o 'classname="[^"]*"' "$xml_file" | head -1 || true
+              # Extract and display failure messages
+              grep -A 5 '<failure' "$xml_file" | head -50 || true
+            fi
+          done
+          echo ""
+          echo "Full reports available as artifacts"
 
       - name: Upload Instrumented Test Results
         if: always()
@@ -273,6 +305,21 @@ jobs:
 
             # Cleanup seeder
             kill $SEEDER_PID 2>/dev/null || true
+
+      - name: Show Test Failures
+        if: failure()
+        run: |
+          echo "=== E2E Test Failures ==="
+          find . -path "*/androidTest-results/connected/*.xml" -type f | while read xml_file; do
+            if grep -q 'failures="[1-9]' "$xml_file" 2>/dev/null || grep -q '<failure' "$xml_file" 2>/dev/null; then
+              echo ""
+              echo "--- $xml_file ---"
+              grep -o 'classname="[^"]*"' "$xml_file" | head -1 || true
+              grep -A 5 '<failure' "$xml_file" | head -50 || true
+            fi
+          done
+          echo ""
+          echo "Full reports available as artifacts"
 
       - name: Upload E2E Test Results
         if: always()
