@@ -166,6 +166,12 @@ class EngineService : Service() {
     // =========================================================================
 
     private fun initializeEngine() {
+        // Don't reinitialize if already loaded
+        if (_controller?.isLoaded?.value == true) {
+            Log.i(TAG, "Engine already loaded, skipping initialization")
+            return
+        }
+
         Log.i(TAG, "Initializing engine...")
 
         // Create rootResolver that queries RootStore dynamically
