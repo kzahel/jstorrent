@@ -63,4 +63,55 @@ describe('Magnet Parser', () => {
 
     expect(parsed.peers).toBeUndefined()
   })
+
+  it('should parse URL-encoded display name with special characters', () => {
+    const uri =
+      'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da&dn=%5BTest%5D%20File%20%26%20More%20%2B%20Stuff'
+    const parsed = parseMagnet(uri)
+
+    expect(parsed.name).toBe('[Test] File & More + Stuff')
+  })
+
+  it('should parse web seeds (ws parameter)', () => {
+    const uri =
+      'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da&ws=http%3A%2F%2Fexample.com%2Ffile.bin&ws=http%3A%2F%2Fmirror.com%2Ffile.bin'
+    const parsed = parseMagnet(uri)
+
+    expect(parsed.urlList).toEqual(['http://example.com/file.bin', 'http://mirror.com/file.bin'])
+  })
+
+  it('should handle parameters with empty values', () => {
+    const uri = 'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da&dn='
+    const parsed = parseMagnet(uri)
+
+    // Empty string becomes undefined via `|| undefined` in parseMagnet
+    expect(parsed.name).toBeUndefined()
+  })
+
+  it('should skip parameters without equals sign', () => {
+    const uri = 'magnet:?xt=urn:btih:a4e71df0553e6c565df4958a817b1f1a780503da&invalidparam&dn=test'
+    const parsed = parseMagnet(uri)
+
+    expect(parsed.name).toBe('test')
+  })
+
+  it('should handle uppercase info hash', () => {
+    const uri = 'magnet:?xt=urn:btih:A4E71DF0553E6C565DF4958A817B1F1A780503DA'
+    const parsed = parseMagnet(uri)
+
+    // Should normalize to lowercase
+    expect(parsed.infoHash).toBe('a4e71df0553e6c565df4958a817b1f1a780503da')
+  })
+
+  it('should parse magnet link used in real test scenario', () => {
+    // The exact magnet link from the user's test
+    const uri =
+      'magnet:?xt=urn:btih:18a7aacab6d2bc518e336921ccd4b6cc32a9624b&dn=testdata_1gb.bin&x.pe=192.168.1.131:6881'
+    const parsed = parseMagnet(uri)
+
+    expect(parsed.infoHash).toBe('18a7aacab6d2bc518e336921ccd4b6cc32a9624b')
+    expect(parsed.name).toBe('testdata_1gb.bin')
+    expect(parsed.peers).toHaveLength(1)
+    expect(parsed.peers![0]).toEqual({ ip: '192.168.1.131', port: 6881, family: 'ipv4' })
+  })
 })

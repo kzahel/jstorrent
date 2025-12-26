@@ -48,13 +48,53 @@ function parsePeerHint(address: string): PeerAddress | null {
   }
 }
 
+/**
+ * Parse a magnet URI query string into a map of key -> values.
+ * This avoids using URL.searchParams which is not available in QuickJS polyfill
+ * (searchParams requires UTF-8 decoding which can fail on binary data in tracker URLs,
+ * though magnet links themselves are UTF-8 safe).
+ */
+function parseMagnetQuery(uri: string): {
+  get: (key: string) => string | null
+  getAll: (key: string) => string[]
+} {
+  // Find the query string (everything after the first ?)
+  const queryStart = uri.indexOf('?')
+  if (queryStart === -1) {
+    return { get: () => null, getAll: () => [] }
+  }
+
+  const query = uri.slice(queryStart + 1)
+  const params = new Map<string, string[]>()
+
+  for (const part of query.split('&')) {
+    const eqIndex = part.indexOf('=')
+    if (eqIndex === -1) continue
+
+    // Replace + with space before decoding (application/x-www-form-urlencoded)
+    const key = decodeURIComponent(part.slice(0, eqIndex).replace(/\+/g, ' '))
+    const value = decodeURIComponent(part.slice(eqIndex + 1).replace(/\+/g, ' '))
+
+    const existing = params.get(key)
+    if (existing) {
+      existing.push(value)
+    } else {
+      params.set(key, [value])
+    }
+  }
+
+  return {
+    get: (key: string) => params.get(key)?.[0] ?? null,
+    getAll: (key: string) => params.get(key) ?? [],
+  }
+}
+
 export function parseMagnet(uri: string): ParsedMagnet {
   if (!uri.startsWith('magnet:')) {
     throw new Error('Invalid magnet URI')
   }
 
-  const url = new URL(uri)
-  const params = url.searchParams
+  const params = parseMagnetQuery(uri)
 
   const xt = params.get('xt')
   if (!xt || !xt.startsWith('urn:btih:')) {
