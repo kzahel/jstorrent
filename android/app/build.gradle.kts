@@ -97,12 +97,14 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.compose.material:material-icons-extended")
 
     // Ktor server
     implementation(libs.ktor.server.core)
@@ -127,6 +129,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.java.websocket)
     testImplementation(libs.kotlinx.serialization.json)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
