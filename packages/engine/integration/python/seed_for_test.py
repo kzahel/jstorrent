@@ -17,10 +17,11 @@ Usage:
 """
 import argparse
 import signal
+import socket
 import sys
 import time
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 from urllib.parse import quote
 
 import libtorrent as lt
@@ -36,6 +37,22 @@ DEFAULT_DATA_DIR = Path.home() / ".jstorrent-test-seed"
 ANDROID_EMU_HOST = "10.0.2.2"
 CROSTINI_HOST = "100.115.92.206"
 DEFAULT_PORT = 6881
+
+
+def get_lan_ip() -> Optional[str]:
+    """Get the local LAN IP address."""
+    try:
+        # Connect to an external address to determine which interface would be used
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.1)
+        # Doesn't actually send anything, just determines the route
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return None
+
 
 SIZE_CONFIGS = {
     "100mb": {
@@ -334,6 +351,8 @@ def run_libtorrent_seeder(args, data_path, torrent_path, info_hash, config) -> i
     magnet = build_magnet_link(info_hash, config["filename"], args.host, actual_port)
     magnet_localhost = build_magnet_link(info_hash, config["filename"], "127.0.0.1", actual_port)
     magnet_crostini = build_magnet_link(info_hash, config["filename"], CROSTINI_HOST, actual_port)
+    lan_ip = get_lan_ip()
+    magnet_lan = build_magnet_link(info_hash, config["filename"], lan_ip, actual_port) if lan_ip else None
 
     if args.quiet:
         # Machine-parseable output
@@ -342,8 +361,11 @@ def run_libtorrent_seeder(args, data_path, torrent_path, info_hash, config) -> i
         print(f"MAGNET={magnet}")
         print(f"MAGNET_LOCALHOST={magnet_localhost}")
         print(f"MAGNET_CROSTINI={magnet_crostini}")
+        if lan_ip:
+            print(f"LAN_IP={lan_ip}")
+            print(f"MAGNET_LAN={magnet_lan}")
     else:
-        print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, "libtorrent")
+        print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, magnet_lan, lan_ip, "libtorrent")
 
     # Main loop - keep seeding until Ctrl+C
     try:
@@ -409,6 +431,8 @@ def run_jstengine_seeder(args, data_path, torrent_path, info_hash, config) -> in
         magnet = build_magnet_link(info_hash, config["filename"], args.host, actual_port)
         magnet_localhost = build_magnet_link(info_hash, config["filename"], "127.0.0.1", actual_port)
         magnet_crostini = build_magnet_link(info_hash, config["filename"], CROSTINI_HOST, actual_port)
+        lan_ip = get_lan_ip()
+        magnet_lan = build_magnet_link(info_hash, config["filename"], lan_ip, actual_port) if lan_ip else None
 
         if args.quiet:
             # Machine-parseable output
@@ -417,8 +441,11 @@ def run_jstengine_seeder(args, data_path, torrent_path, info_hash, config) -> in
             print(f"MAGNET={magnet}")
             print(f"MAGNET_LOCALHOST={magnet_localhost}")
             print(f"MAGNET_CROSTINI={magnet_crostini}")
+            if lan_ip:
+                print(f"LAN_IP={lan_ip}")
+                print(f"MAGNET_LAN={magnet_lan}")
         else:
-            print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, "JSTEngine")
+            print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, magnet_lan, lan_ip, "JSTEngine")
 
         # Main loop - keep seeding until Ctrl+C
         try:
@@ -449,7 +476,7 @@ def run_jstengine_seeder(args, data_path, torrent_path, info_hash, config) -> in
             engine.close()
 
 
-def print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, engine_name):
+def print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, magnet_lan, lan_ip, engine_name):
     """Print human-readable banner."""
     print()
     print("=" * 80)
@@ -463,6 +490,8 @@ def print_banner(args, data_path, torrent_path, info_hash, config, actual_port, 
     print()
     print(f"Seeder listening on port {actual_port}")
     print(f"Peer hint host: {args.host}")
+    if lan_ip:
+        print(f"LAN IP: {lan_ip}")
     print()
     print("=" * 80)
     print(f"MAGNET LINK ({args.host}):")
@@ -478,6 +507,12 @@ def print_banner(args, data_path, torrent_path, info_hash, config, actual_port, 
     print(f"MAGNET LINK (Crostini: {CROSTINI_HOST}):")
     print("=" * 80)
     print(magnet_crostini)
+    if magnet_lan:
+        print()
+        print("=" * 80)
+        print(f"MAGNET LINK (LAN: {lan_ip}):")
+        print("=" * 80)
+        print(magnet_lan)
     print()
     print("=" * 80)
     print("Press Ctrl+C to stop seeding")
