@@ -128,6 +128,20 @@ jobs:
       - name: Build Debug APK and Test APK
         run: ./gradlew assembleDebug assembleDebugAndroidTest
 
+      - name: Free disk space for AVD
+        run: |
+          # Remove unnecessary large packages to free space for AVD (~7.4GB needed)
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/lib/android/sdk/ndk
+          sudo rm -rf /usr/local/lib/android/sdk/cmake
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /opt/hostedtoolcache/go
+          sudo rm -rf /opt/hostedtoolcache/node
+          df -h
+
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
