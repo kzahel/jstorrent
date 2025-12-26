@@ -36,6 +36,7 @@ class TcpBindings(
     private var hasCloseCallback = false
     private var hasErrorCallback = false
     private var hasConnectedCallback = false
+    private var hasSecuredCallback = false
 
     /**
      * Register all TCP bindings on the given context.
@@ -75,6 +76,18 @@ class TcpBindings(
             socketId?.let { tcpManager.close(it) }
             null
         }
+
+        // __jstorrent_tcp_secure(socketId: number, hostname: string): void
+        ctx.setGlobalFunction("__jstorrent_tcp_secure") { args ->
+            val socketId = args.getOrNull(0)?.toIntOrNull()
+            val hostname = args.getOrNull(1) ?: ""
+
+            if (socketId != null) {
+                // skipValidation = false for proper certificate validation
+                tcpManager.secure(socketId, hostname, skipValidation = false)
+            }
+            null
+        }
     }
 
     private fun registerCallbackFunctions(ctx: QuickJsContext) {
@@ -100,6 +113,12 @@ class TcpBindings(
         // __jstorrent_tcp_on_connected(callback): void
         ctx.setGlobalFunction("__jstorrent_tcp_on_connected") { _ ->
             hasConnectedCallback = true
+            null
+        }
+
+        // __jstorrent_tcp_on_secured(callback): void
+        ctx.setGlobalFunction("__jstorrent_tcp_on_secured") { _ ->
+            hasSecuredCallback = true
             null
         }
     }
@@ -169,8 +188,17 @@ class TcpBindings(
             }
 
             override fun onTcpSecured(socketId: Int, success: Boolean) {
-                // TLS upgrade - not exposed via bindings in Phase 3b
-                // Could be added later if needed
+                Log.d(TAG, "onTcpSecured: socket=$socketId, success=$success")
+                if (!hasSecuredCallback) return
+
+                jsThread.post {
+                    ctx.callGlobalFunction(
+                        "__jstorrent_tcp_dispatch_secured",
+                        socketId.toString(),
+                        success.toString()
+                    )
+                    ctx.executeAllPendingJobs()
+                }
             }
         })
     }

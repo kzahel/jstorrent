@@ -131,9 +131,28 @@ export class NativeTcpSocket implements ITcpSocket {
   }
 
   /**
-   * TLS upgrade is not supported in native mode.
+   * Upgrade the connection to TLS.
    */
-  async secure(): Promise<void> {
-    throw new Error('TLS upgrade not supported in native mode')
+  async secure(hostname?: string): Promise<void> {
+    if (this.closed) {
+      throw new Error('Socket is closed')
+    }
+
+    const host = hostname || this.remoteAddress || ''
+    console.log(`[NativeTcpSocket ${this.id}] Upgrading to TLS for ${host}`)
+
+    return new Promise((resolve, reject) => {
+      callbackManager.updateTcpHandler(this.id, 'onSecured', (success) => {
+        console.log(`[NativeTcpSocket ${this.id}] TLS upgrade result: success=${success}`)
+        if (success) {
+          this.isSecure = true
+          this.isEncrypted = true
+          resolve()
+        } else {
+          reject(new Error('TLS upgrade failed'))
+        }
+      })
+      __jstorrent_tcp_secure(this.id, host)
+    })
   }
 }

@@ -51,6 +51,20 @@ declare global {
     callback: (socketId: number, success: boolean, errorMessage: string) => void,
   ): void
 
+  /**
+   * Upgrade a TCP socket to TLS.
+   * Must be called on a connected but not yet activated socket.
+   * Result delivered via __jstorrent_tcp_on_secured callback.
+   */
+  function __jstorrent_tcp_secure(socketId: number, hostname: string): void
+
+  /**
+   * Register callback for TLS upgrade result.
+   */
+  function __jstorrent_tcp_on_secured(
+    callback: (socketId: number, success: boolean) => void,
+  ): void
+
   // ============================================================
   // TCP Server Functions
   // ============================================================

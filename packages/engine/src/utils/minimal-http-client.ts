@@ -17,6 +17,32 @@ function findSequence(buffer: Uint8Array, sequence: Uint8Array): number {
 
 const CRLF_CRLF = new Uint8Array([13, 10, 13, 10]) // \r\n\r\n
 
+/**
+ * Parse URL without decoding percent-encoded sequences.
+ * This avoids UTF-8 decoding issues with binary data in query strings.
+ */
+function parseUrl(url: string): {
+  protocol: string
+  hostname: string
+  port: number | null
+  pathname: string
+  search: string
+} {
+  // Match: protocol://host[:port][/path][?query]
+  const match = url.match(/^(https?):\/\/([^/:]+)(?::(\d+))?(\/[^?]*)?(\?.*)?$/)
+  if (!match) {
+    throw new Error(`Invalid URL: ${url}`)
+  }
+  const [, protocol, hostname, portStr, pathname = '/', search = ''] = match
+  return {
+    protocol: protocol + ':',
+    hostname,
+    port: portStr ? parseInt(portStr, 10) : null,
+    pathname,
+    search,
+  }
+}
+
 export class MinimalHttpClient {
   constructor(
     private socketFactory: ISocketFactory,
@@ -24,10 +50,10 @@ export class MinimalHttpClient {
   ) {}
 
   async get(url: string, headers: Record<string, string> = {}): Promise<Uint8Array> {
-    const urlObj = new URL(url)
+    const urlObj = parseUrl(url)
     const host = urlObj.hostname
     const isHttps = urlObj.protocol === 'https:'
-    const port = urlObj.port ? parseInt(urlObj.port, 10) : isHttps ? 443 : 80
+    const port = urlObj.port ?? (isHttps ? 443 : 80)
     const path = urlObj.pathname + urlObj.search
 
     this.logger?.debug(
@@ -227,10 +253,10 @@ export class MinimalHttpClient {
   }
 
   async post(url: string, body: string, headers: Record<string, string> = {}): Promise<Uint8Array> {
-    const urlObj = new URL(url)
+    const urlObj = parseUrl(url)
     const host = urlObj.hostname
     const isHttps = urlObj.protocol === 'https:'
-    const port = urlObj.port ? parseInt(urlObj.port, 10) : isHttps ? 443 : 80
+    const port = urlObj.port ?? (isHttps ? 443 : 80)
     const path = urlObj.pathname + urlObj.search
 
     this.logger?.debug(

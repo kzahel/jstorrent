@@ -226,6 +226,12 @@ class NativeBindings(
                     origOnConnected(callback);
                 };
 
+                const origOnSecured = globalThis.__jstorrent_tcp_on_secured;
+                globalThis.__jstorrent_tcp_on_secured = function(callback) {
+                    globalThis.__jstorrent_tcp_callbacks.onSecured = callback;
+                    origOnSecured(callback);
+                };
+
                 // Wrap the on_* functions to store callbacks (server)
                 const origOnListening = globalThis.__jstorrent_tcp_on_listening;
                 globalThis.__jstorrent_tcp_on_listening = function(callback) {
@@ -265,6 +271,13 @@ class NativeBindings(
                     const callback = globalThis.__jstorrent_tcp_callbacks.onError;
                     if (callback) {
                         callback(parseInt(socketId), message);
+                    }
+                };
+
+                globalThis.__jstorrent_tcp_dispatch_secured = function(socketId, success) {
+                    const callback = globalThis.__jstorrent_tcp_callbacks.onSecured;
+                    if (callback) {
+                        callback(parseInt(socketId), success === 'true');
                     }
                 };
 

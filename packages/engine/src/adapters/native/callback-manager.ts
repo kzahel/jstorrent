@@ -12,6 +12,7 @@ type TcpDataHandler = (data: Uint8Array) => void
 type TcpCloseHandler = (hadError: boolean) => void
 type TcpErrorHandler = (err: Error) => void
 type TcpConnectHandler = (success: boolean, errorMessage?: string) => void
+type TcpSecuredHandler = (success: boolean) => void
 
 type UdpMessageHandler = (src: { addr: string; port: number }, data: Uint8Array) => void
 type UdpBoundHandler = (success: boolean, port: number) => void
@@ -24,6 +25,7 @@ interface TcpSocketHandlers {
   onClose?: TcpCloseHandler
   onError?: TcpErrorHandler
   onConnect?: TcpConnectHandler
+  onSecured?: TcpSecuredHandler
 }
 
 interface UdpSocketHandlers {
@@ -73,6 +75,12 @@ class CallbackManager {
     __jstorrent_tcp_on_connected((socketId, success, errorMessage) => {
       const handlers = this.tcpHandlers.get(socketId)
       handlers?.onConnect?.(success, errorMessage)
+    })
+
+    // TCP secured callback (TLS upgrade result)
+    __jstorrent_tcp_on_secured((socketId, success) => {
+      const handlers = this.tcpHandlers.get(socketId)
+      handlers?.onSecured?.(success)
     })
 
     // TCP Server listening callback
