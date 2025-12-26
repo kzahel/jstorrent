@@ -189,132 +189,183 @@ if (typeof atob === 'undefined') {
 // ============================================================
 // URL
 // ============================================================
+//
+// IMPORTANT: This is a LIMITED polyfill for QuickJS which lacks a native URL class.
+//
+// Limitation: `searchParams` is NOT supported and will throw if accessed.
+//
+// Why? The WHATWG URL standard requires URLSearchParams to decode percent-encoded
+// query parameters as UTF-8. When decoding fails (invalid UTF-8), browsers like
+// Chrome silently replace invalid bytes with U+FFFD (�) replacement characters.
+//
+// This is problematic for BitTorrent tracker URLs which contain binary data
+// (info_hash) as percent-encoded bytes that are NOT valid UTF-8. For example:
+//   ?info_hash=%95%c6%1b... (20-byte SHA1 hash, arbitrary binary)
+//
+// If we implemented the full spec, accessing searchParams.get('info_hash') would
+// return garbled data like '��\x1B' instead of the original bytes - a silent
+// data corruption footgun.
+//
+// JavaScript's decodeURIComponent() throws on invalid UTF-8, which is actually
+// safer than silent corruption, but it would break URL construction entirely.
+//
+// Solution: This polyfill supports extracting URL components (hostname, port,
+// pathname, search) without decoding. The raw `search` string can be used
+// directly for HTTP requests. If you need parsed query params, use a custom
+// parser that handles your specific encoding requirements.
+//
+// See also: packages/engine/src/utils/minimal-http-client.ts parseUrl()
+// ============================================================
 
-if (typeof URL === 'undefined') {
-  ;(globalThis as Record<string, unknown>).URL = class URL {
-    href: string
-    origin: string
-    protocol: string
-    username: string
-    password: string
-    host: string
-    hostname: string
-    port: string
-    pathname: string
-    search: string
-    hash: string
-    searchParams: URLSearchParams
+/**
+ * Limited URL polyfill for QuickJS.
+ * Exported for testing - use globalThis.URL at runtime.
+ */
+export class PolyfillURL {
+  href: string
+  origin: string
+  protocol: string
+  username: string
+  password: string
+  host: string
+  hostname: string
+  port: string
+  pathname: string
+  search: string
+  hash: string
 
-    constructor(url: string, base?: string | URL) {
-      // Handle base URL
-      let fullUrl = url
-      if (base) {
-        const baseStr = typeof base === 'string' ? base : base.href
-        // Simple base URL handling
-        if (!url.includes('://')) {
-          if (url.startsWith('/')) {
-            // Absolute path
-            const baseMatch = baseStr.match(/^([a-z][a-z0-9+.-]*:\/\/[^/]+)/i)
-            fullUrl = baseMatch ? baseMatch[1] + url : url
-          } else if (url.startsWith('?') || url.startsWith('#')) {
-            // Query or hash only
-            fullUrl = baseStr.split(/[?#]/)[0] + url
-          } else {
-            // Relative path
-            const lastSlash = baseStr.lastIndexOf('/')
-            fullUrl = baseStr.substring(0, lastSlash + 1) + url
-          }
-        }
-      }
-
-      // Parse the URL
-      // Format: protocol://[username:password@]hostname[:port]/pathname[?search][#hash]
-      const protocolMatch = fullUrl.match(/^([a-z][a-z0-9+.-]*):(?:\/\/)?/i)
-      if (!protocolMatch) {
-        throw new TypeError(`Invalid URL: ${url}`)
-      }
-
-      this.protocol = protocolMatch[1].toLowerCase() + ':'
-      let rest = fullUrl.substring(protocolMatch[0].length)
-
-      // Extract hash
-      const hashIndex = rest.indexOf('#')
-      if (hashIndex !== -1) {
-        this.hash = rest.substring(hashIndex)
-        rest = rest.substring(0, hashIndex)
-      } else {
-        this.hash = ''
-      }
-
-      // Extract search
-      const searchIndex = rest.indexOf('?')
-      if (searchIndex !== -1) {
-        this.search = rest.substring(searchIndex)
-        rest = rest.substring(0, searchIndex)
-      } else {
-        this.search = ''
-      }
-
-      // Extract pathname
-      const pathIndex = rest.indexOf('/')
-      if (pathIndex !== -1) {
-        this.pathname = rest.substring(pathIndex)
-        rest = rest.substring(0, pathIndex)
-      } else {
-        this.pathname = '/'
-      }
-
-      // Extract username/password
-      const atIndex = rest.indexOf('@')
-      if (atIndex !== -1) {
-        const userInfo = rest.substring(0, atIndex)
-        rest = rest.substring(atIndex + 1)
-        const colonIndex = userInfo.indexOf(':')
-        if (colonIndex !== -1) {
-          this.username = decodeURIComponent(userInfo.substring(0, colonIndex))
-          this.password = decodeURIComponent(userInfo.substring(colonIndex + 1))
+  constructor(url: string, base?: string | PolyfillURL) {
+    // Handle base URL
+    let fullUrl = url
+    if (base) {
+      const baseStr = typeof base === 'string' ? base : base.href
+      // Simple base URL handling
+      if (!url.includes('://')) {
+        if (url.startsWith('/')) {
+          // Absolute path
+          const baseMatch = baseStr.match(/^([a-z][a-z0-9+.-]*:\/\/[^/]+)/i)
+          fullUrl = baseMatch ? baseMatch[1] + url : url
+        } else if (url.startsWith('?') || url.startsWith('#')) {
+          // Query or hash only
+          fullUrl = baseStr.split(/[?#]/)[0] + url
         } else {
-          this.username = decodeURIComponent(userInfo)
-          this.password = ''
+          // Relative path
+          const lastSlash = baseStr.lastIndexOf('/')
+          fullUrl = baseStr.substring(0, lastSlash + 1) + url
         }
+      }
+    }
+
+    // Parse the URL
+    // Format: protocol://[username:password@]hostname[:port]/pathname[?search][#hash]
+    const protocolMatch = fullUrl.match(/^([a-z][a-z0-9+.-]*):(?:\/\/)?/i)
+    if (!protocolMatch) {
+      throw new TypeError(`Invalid URL: ${url}`)
+    }
+
+    this.protocol = protocolMatch[1].toLowerCase() + ':'
+    let rest = fullUrl.substring(protocolMatch[0].length)
+
+    // Extract hash
+    const hashIndex = rest.indexOf('#')
+    if (hashIndex !== -1) {
+      this.hash = rest.substring(hashIndex)
+      rest = rest.substring(0, hashIndex)
+    } else {
+      this.hash = ''
+    }
+
+    // Extract search
+    const searchIndex = rest.indexOf('?')
+    if (searchIndex !== -1) {
+      this.search = rest.substring(searchIndex)
+      rest = rest.substring(0, searchIndex)
+    } else {
+      this.search = ''
+    }
+
+    // Extract pathname
+    const pathIndex = rest.indexOf('/')
+    if (pathIndex !== -1) {
+      this.pathname = rest.substring(pathIndex)
+      rest = rest.substring(0, pathIndex)
+    } else {
+      this.pathname = '/'
+    }
+
+    // Extract username/password
+    const atIndex = rest.indexOf('@')
+    if (atIndex !== -1) {
+      const userInfo = rest.substring(0, atIndex)
+      rest = rest.substring(atIndex + 1)
+      const colonIndex = userInfo.indexOf(':')
+      if (colonIndex !== -1) {
+        this.username = decodeURIComponent(userInfo.substring(0, colonIndex))
+        this.password = decodeURIComponent(userInfo.substring(colonIndex + 1))
       } else {
-        this.username = ''
+        this.username = decodeURIComponent(userInfo)
         this.password = ''
       }
-
-      // Extract port
-      const portMatch = rest.match(/:(\d+)$/)
-      if (portMatch) {
-        this.port = portMatch[1]
-        this.hostname = rest.substring(0, rest.length - portMatch[0].length)
-      } else {
-        this.port = ''
-        this.hostname = rest
-      }
-
-      this.host = this.port ? `${this.hostname}:${this.port}` : this.hostname
-      this.origin = `${this.protocol}//${this.host}`
-      this.href = this.toString()
-      this.searchParams = new URLSearchParams(this.search)
+    } else {
+      this.username = ''
+      this.password = ''
     }
 
-    toString(): string {
-      let url = `${this.protocol}//`
-      if (this.username) {
-        url += encodeURIComponent(this.username)
-        if (this.password) {
-          url += ':' + encodeURIComponent(this.password)
-        }
-        url += '@'
-      }
-      url += this.host + this.pathname + this.search + this.hash
-      return url
+    // Extract port
+    const portMatch = rest.match(/:(\d+)$/)
+    if (portMatch) {
+      this.port = portMatch[1]
+      this.hostname = rest.substring(0, rest.length - portMatch[0].length)
+    } else {
+      this.port = ''
+      this.hostname = rest
     }
 
-    toJSON(): string {
-      return this.href
-    }
+    this.host = this.port ? `${this.hostname}:${this.port}` : this.hostname
+    this.origin = `${this.protocol}//${this.host}`
+    this.href = this.toString()
   }
+
+  /**
+   * NOT SUPPORTED - throws an error.
+   *
+   * This polyfill intentionally does not support searchParams because:
+   * 1. URLSearchParams decodes percent-encoded values as UTF-8
+   * 2. Invalid UTF-8 (like binary info_hash in tracker URLs) would either
+   *    throw (with decodeURIComponent) or silently corrupt data (Chrome's
+   *    replacement character behavior)
+   *
+   * Use the raw `search` property instead and parse it yourself if needed.
+   */
+  get searchParams(): never {
+    throw new Error(
+      'URL.searchParams is not supported in this QuickJS polyfill. ' +
+        'URLSearchParams decodes query values as UTF-8, which corrupts binary data ' +
+        '(e.g., BitTorrent info_hash). Use the raw `url.search` property instead ' +
+        'and parse it manually if needed. See polyfills.ts for details.',
+    )
+  }
+
+  toString(): string {
+    let url = `${this.protocol}//`
+    if (this.username) {
+      url += encodeURIComponent(this.username)
+      if (this.password) {
+        url += ':' + encodeURIComponent(this.password)
+      }
+      url += '@'
+    }
+    url += this.host + this.pathname + this.search + this.hash
+    return url
+  }
+
+  toJSON(): string {
+    return this.href
+  }
+}
+
+if (typeof URL === 'undefined') {
+  ;(globalThis as Record<string, unknown>).URL = PolyfillURL
 }
 
 if (typeof URLSearchParams === 'undefined') {
