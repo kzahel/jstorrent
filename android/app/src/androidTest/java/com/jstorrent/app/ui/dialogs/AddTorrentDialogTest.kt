@@ -1,6 +1,5 @@
 package com.jstorrent.app.ui.dialogs
 
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -174,7 +173,7 @@ class AddTorrentDialogTest {
     }
 
     @Test
-    fun placeholder_isDisplayed() {
+    fun magnetLinkField_isDisplayed() {
         composeTestRule.setContent {
             JSTorrentTheme {
                 AddTorrentContent(
@@ -188,9 +187,10 @@ class AddTorrentDialogTest {
             }
         }
 
-        // Verify placeholder exists (useUnmergedTree needed for OutlinedTextField placeholder)
-        // Using assertExists() since placeholder may not pass display checks depending on Material implementation
-        composeTestRule.onNodeWithText("magnet:?xt=urn:btih:...", useUnmergedTree = true).assertExists()
+        // Verify the magnet link text field label is displayed
+        composeTestRule.onNodeWithText("Magnet link").assertIsDisplayed()
+        // Verify paste button is displayed
+        composeTestRule.onNodeWithContentDescription("Paste from clipboard").assertIsDisplayed()
     }
 }
 
