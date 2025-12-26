@@ -170,6 +170,46 @@ The SSH tunnel runs in the background. To stop it: `pkill -f 'ssh.*-R 3000.*chro
 - Signature mismatch: `ssh chromebook "/home/graehlarts/android-sdk/platform-tools/adb uninstall com.jstorrent.app"` then redeploy
 - ADB not available: Enable "Linux development environment" and "Android apps" in ChromeOS settings
 
+### Real Device Testing (dev command)
+
+The `dev` command provides unified deployment to real devices (phones and Chromebook).
+
+**Setup:**
+```bash
+# Create device config (see android/scripts/devices.example)
+cat >> ~/.jstorrent-devices << 'EOF'
+pixel9=serial:XXXXXXXXX
+motog=wifi:192.168.1.50:5555
+chromebook=ssh:chromebook:~/android-sdk/platform-tools/adb
+EOF
+
+# Load shell environment (provides both emu and dev commands)
+source android/scripts/android-env.sh
+```
+
+**Device config format:**
+- `serial` - USB-connected device (use serial from `adb devices`)
+- `wifi` - WiFi ADB device (ip:port)
+- `ssh` - Remote ADB over SSH (host:adb_path)
+
+**Commands:**
+```bash
+dev list                      # List configured devices and status
+dev install pixel9            # Build and install debug APK
+dev install pixel9 --release  # Release build
+dev install pixel9 --forward  # Debug + port forwarding for dev server
+dev logs pixel9               # Watch logcat
+dev shell pixel9              # ADB shell
+dev reset pixel9              # Clear app data
+dev connect motog             # Connect WiFi ADB device
+```
+
+**Aliases:** Per-device aliases are auto-generated from your config:
+```bash
+dev-pixel9        # Shortcut for: dev install pixel9
+dev-chromebook    # Shortcut for: dev install chromebook
+```
+
 ## Running Android Tests in Claude Code (Sandboxed Environment)
 
 Claude Code's sandboxed environment has network restrictions that require special handling for Gradle/Maven:

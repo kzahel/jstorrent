@@ -1,0 +1,23 @@
+# JSTorrent Device Configuration
+# Copy this file to ~/.jstorrent-devices and customize
+#
+# Format: name=type:connection_info
+#
+# Types:
+#   serial - USB-connected device (connection is ADB serial number)
+#   wifi   - WiFi ADB device (connection is ip:port)
+#   ssh    - Remote ADB over SSH (connection is host:adb_path)
+#
+# Get your device serial: adb devices
+
+# Example USB phones (get serial from 'adb devices')
+pixel9=serial:XXXXXXXXX
+pixel7a=serial:YYYYYYYYY
+motog=serial:ZZZZZZZZZ
+
+# Example WiFi ADB device (enable wireless debugging on phone first)
+# pixel9-wifi=wifi:192.168.1.100:5555
+
+# Chromebook with Android container (SSH access required)
+# The adb_path should be the full path to adb on the Chromebook
+chromebook=ssh:chromebook:~/android-sdk/platform-tools/adb

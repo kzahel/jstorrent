@@ -4,7 +4,11 @@
 #
 # Provides:
 #   - ANDROID_HOME and PATH setup
-#   - Convenience aliases: emu, emu-start, emu-stop, etc.
+#   - emu command for emulator control
+#   - dev command for real device deployment
+#
+# Requires for dev command: ~/.jstorrent-devices config file
+# See: scripts/devices.example for format
 
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/.android-sdk}"
 export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
@@ -16,6 +20,9 @@ if [[ -d "$(dirname "$_SCRIPT_SOURCE")" ]]; then
 else
     _SCRIPTS_DIR="./scripts"
 fi
+
+# Device config file for real devices
+_DEV_CONFIG_FILE="${DEVICE_CONFIG_FILE:-$HOME/.jstorrent-devices}"
 
 # Aliases
 alias emu-start="$_SCRIPTS_DIR/emu-start.sh"
@@ -63,6 +70,89 @@ emu() {
     esac
 }
 
+# =============================================================================
+# Real device commands (dev)
+# =============================================================================
+
+# Aliases for dev scripts
+alias dev-list="$_SCRIPTS_DIR/dev-list.sh"
+alias dev-install="$_SCRIPTS_DIR/dev-install.sh"
+alias dev-logs="$_SCRIPTS_DIR/dev-logs.sh"
+alias dev-shell="$_SCRIPTS_DIR/dev-shell.sh"
+alias dev-reset="$_SCRIPTS_DIR/dev-reset.sh"
+alias dev-connect="$_SCRIPTS_DIR/dev-connect.sh"
+
+# Main dev command
+dev() {
+    case "${1:-}" in
+        list)
+            dev-list
+            ;;
+        install)
+            shift
+            dev-install "$@"
+            ;;
+        logs)
+            shift
+            dev-logs "$@"
+            ;;
+        shell)
+            shift
+            dev-shell "$@"
+            ;;
+        reset)
+            shift
+            dev-reset "$@"
+            ;;
+        connect)
+            shift
+            dev-connect "$@"
+            ;;
+        disconnect)
+            shift
+            dev-connect "$@" --disconnect
+            ;;
+        *)
+            echo "Usage: dev <command> [device] [options]"
+            echo ""
+            echo "Commands:"
+            echo "  list                    - List configured devices and status"
+            echo "  install <device>        - Build and install APK to device"
+            echo "  logs <device>           - Watch logcat from device"
+            echo "  shell <device>          - Open ADB shell on device"
+            echo "  reset <device>          - Clear app data on device"
+            echo "  connect <device>        - Connect WiFi ADB device"
+            echo "  disconnect <device>     - Disconnect WiFi ADB device"
+            echo ""
+            echo "Device config: $_DEV_CONFIG_FILE"
+            if [[ -f "$_DEV_CONFIG_FILE" ]]; then
+                echo ""
+                echo "Configured devices:"
+                grep -v '^#' "$_DEV_CONFIG_FILE" | grep -v '^$' | cut -d= -f1 | sed 's/^/  /'
+            fi
+            ;;
+    esac
+}
+
+# Create per-device aliases if config exists (e.g., dev-pixel9)
+if [[ -f "$_DEV_CONFIG_FILE" ]]; then
+    while IFS='=' read -r name _config || [[ -n "$name" ]]; do
+        # Skip empty lines and comments
+        [[ -z "$name" || "$name" =~ ^[[:space:]]*# ]] && continue
+        # shellcheck disable=SC2139
+        alias "dev-$name=$_SCRIPTS_DIR/dev-install.sh $name"
+    done < "$_DEV_CONFIG_FILE"
+fi
+
+# =============================================================================
+# Summary
+# =============================================================================
+
 echo "Android dev environment loaded"
 echo "  ANDROID_HOME=$ANDROID_HOME"
-echo "  Commands: emu start|stop|install|logs|shell|status|restart|phone|tablet|test-native"
+echo "  emu: start|stop|install|logs|shell|status|restart|phone|tablet|test-native"
+echo "  dev: list|install|logs|shell|reset|connect|disconnect"
+if [[ -f "$_DEV_CONFIG_FILE" ]]; then
+    _device_count=$(grep -v '^#' "$_DEV_CONFIG_FILE" | grep -v '^$' | wc -l | tr -d ' ')
+    echo "  Devices: $_device_count configured in $_DEV_CONFIG_FILE"
+fi
