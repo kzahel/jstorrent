@@ -169,3 +169,40 @@ The SSH tunnel runs in the background. To stop it: `pkill -f 'ssh.*-R 3000.*chro
 **Troubleshooting:**
 - Signature mismatch: `ssh chromebook "/home/graehlarts/android-sdk/platform-tools/adb uninstall com.jstorrent.app"` then redeploy
 - ADB not available: Enable "Linux development environment" and "Android apps" in ChromeOS settings
+
+## Running Android Tests in Claude Code (Sandboxed Environment)
+
+Claude Code's sandboxed environment has network restrictions that require special handling for Gradle/Maven:
+
+### The Problem
+- Java's HttpURLConnection doesn't properly authenticate with the HTTP proxy (returns 401 for HTTPS tunneling)
+- No DNS resolution (`/etc/resolv.conf` is empty)
+- Network access only works through the proxy
+
+### The Solution
+Run the setup script at the start of each session:
+
+```bash
+./scripts/setup-android-test-env.sh
+```
+
+This script:
+1. Starts a local Python proxy (127.0.0.1:18080) that handles authentication
+2. Installs Android SDK to /opt/android-sdk
+3. Installs Gradle 8.13
+4. Configures gradle.properties with proxy settings
+
+### Running Tests
+
+```bash
+cd android
+/root/.gradle/wrapper/dists/gradle-8.13-bin/anydir/gradle-8.13/bin/gradle testDebugUnitTest
+```
+
+### Cleanup Before Committing
+
+The setup script modifies gradle.properties with proxy settings. Always revert before committing:
+
+```bash
+git checkout android/gradle.properties
+```
