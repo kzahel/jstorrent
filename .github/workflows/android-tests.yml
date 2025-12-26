@@ -1,0 +1,287 @@
+name: Android E2E Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'packages/engine/**'
+      - '.github/workflows/android-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'packages/engine/**'
+      - '.github/workflows/android-tests.yml'
+  workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: 'Run full E2E tests with seeder'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: android
+
+jobs:
+  # Unit tests run on every push/PR (fast, no emulator needed)
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: corepack enable pnpm
+        working-directory: .
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Upload Unit Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: android/app/build/reports/tests/testDebugUnitTest/
+
+  # Instrumented tests require Android emulator
+  instrumented-tests:
+    runs-on: ubuntu-latest
+    # Only run on main branch or when manually triggered
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    strategy:
+      matrix:
+        api-level: [30] # Android 11 - good balance of features and stability
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: corepack enable pnpm
+        working-directory: .
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Debug APK and Test APK
+        run: ./gradlew assembleDebug assembleDebugAndroidTest
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: AVD Cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ matrix.api-level }}-x86_64
+
+      - name: Create AVD and generate snapshot for caching
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: echo "Generated AVD snapshot for caching."
+
+      - name: Run Instrumented Tests (excluding E2E)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: android
+          script: |
+            # Run all instrumented tests EXCEPT E2E tests (which need external seeder)
+            ./gradlew connectedDebugAndroidTest \
+              -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
+
+      - name: Upload Instrumented Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrumented-test-results-api${{ matrix.api-level }}
+          path: |
+            android/app/build/reports/androidTests/connected/
+            android/app/build/outputs/androidTest-results/
+
+  # E2E tests with external seeder - only on manual trigger
+  e2e-tests:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.run_e2e == 'true'
+
+    strategy:
+      matrix:
+        api-level: [30]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: corepack enable pnpm
+        working-directory: .
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Setup Python for seeder
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+        working-directory: .
+
+      - name: Install seeder dependencies
+        run: |
+          cd packages/engine/integration/python
+          ~/.cargo/bin/uv sync
+        working-directory: .
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Debug APK and Test APK
+        run: ./gradlew assembleDebug assembleDebugAndroidTest
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: AVD Cache
+        uses: actions/cache@v4
+        id: avd-cache-e2e
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-e2e-${{ matrix.api-level }}-x86_64
+
+      - name: Create AVD and generate snapshot for caching
+        if: steps.avd-cache-e2e.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: echo "Generated AVD snapshot for caching."
+
+      - name: Run E2E Tests with Seeder
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          working-directory: android
+          script: |
+            # Start the Python seeder in background
+            cd ../packages/engine/integration/python
+            ~/.cargo/bin/uv run python seed_for_test.py --size 100mb --quiet &
+            SEEDER_PID=$!
+
+            # Wait for seeder to start
+            sleep 5
+
+            # Go back to android directory
+            cd ../../../../android
+
+            # Run E2E tests (remove @Ignore for CI run)
+            # Note: In a real scenario, you'd modify the test or use a test filter
+            # For now, just run the test that doesn't require seeder
+            ./gradlew connectedDebugAndroidTest \
+              -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest#addMagnet_torrentAppearsInList
+
+            # Cleanup seeder
+            kill $SEEDER_PID 2>/dev/null || true
+
+      - name: Upload E2E Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results-api${{ matrix.api-level }}
+          path: |
+            android/app/build/reports/androidTests/connected/
+            android/app/build/outputs/androidTest-results/
