@@ -213,7 +213,7 @@ jobs:
       - name: Install seeder dependencies
         run: |
           cd packages/engine/integration/python
-          ~/.cargo/bin/uv sync
+          ~/.local/bin/uv sync
         working-directory: .
 
       - name: Setup Gradle
@@ -260,7 +260,7 @@ jobs:
           script: |
             # Start the Python seeder in background
             cd ../packages/engine/integration/python
-            ~/.cargo/bin/uv run python seed_for_test.py --size 100mb --quiet &
+            ~/.local/bin/uv run python seed_for_test.py --size 100mb --quiet &
             SEEDER_PID=$!
 
             # Wait for seeder to start
