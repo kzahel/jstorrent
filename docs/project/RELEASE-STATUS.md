@@ -133,6 +133,14 @@ Installers built on GitHub Actions (`.github/workflows/`). No manual upload need
 
 ## Platform Status
 
+### Fully Functional Platforms
+
+Three deployment configurations are fully functional and tested:
+
+1. **Chrome Extension + Desktop** (Linux/Windows/macOS) - Rust native host
+2. **Chrome Extension + ChromeOS** - Kotlin Android companion app
+3. **Android Standalone Native** - QuickJS + Compose UI (minimal UI)
+
 | Platform | Engine | I/O Daemon | Connection | Testing |
 |----------|--------|------------|------------|---------|
 | Linux | ✅ | ✅ Rust | ✅ Native messaging | ✅ Tested |
@@ -144,9 +152,9 @@ Installers built on GitHub Actions (`.github/workflows/`). No manual upload need
 
 In addition to the Chrome extension architecture (extension + native IO daemon), we're building standalone native apps that embed the JS engine directly. These provide a simpler installation experience with no browser dependency.
 
-### Android Standalone (New)
+### Android Standalone
 
-**Status:** ✅ Working
+**Status:** ✅ Fully Functional
 
 **Architecture:** QuickJS + Kotlin + JNI + Jetpack Compose UI
 
@@ -155,6 +163,15 @@ The standalone Android app embeds the JSTorrent engine directly via QuickJS, a l
 - JNI bridge to QuickJS for JS↔Kotlin communication
 - Jetpack Compose UI (Material 3) for modern Android interface
 - SAF (Storage Access Framework) folder picker for download location
+
+**What works:**
+- ✅ Full BitTorrent protocol (download, seed, DHT, trackers, protocol encryption)
+- ✅ SAF folder picker (user selects download location, cloud providers blocked)
+- ✅ Session persistence (survives app restart)
+- ✅ Background service for continuous downloads
+- ✅ Magnet link and .torrent file handling
+
+**UI status:** The Compose UI is minimal but functional - shows torrent list with progress, add torrent input, and download folder selection. No detail views (peers, files, pieces) yet.
 
 **Benefits over extension+daemon approach:**
 - Single APK install (no extension required)
