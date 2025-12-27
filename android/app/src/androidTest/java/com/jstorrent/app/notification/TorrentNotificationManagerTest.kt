@@ -4,6 +4,7 @@ import android.app.NotificationManager
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.jstorrent.app.JSTorrentApplication
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -41,10 +42,11 @@ class TorrentNotificationManagerTest {
     // =========================================================================
 
     @Test
-    fun createsNotificationChannelOnInit() {
-        val channel = notificationManager.getNotificationChannel("jstorrent_download_complete")
+    fun channelExistsFromApplication() {
+        // Channel is now created by JSTorrentApplication, not TorrentNotificationManager
+        val channel = notificationManager.getNotificationChannel(JSTorrentApplication.NotificationChannels.COMPLETE)
 
-        assertNotNull("Notification channel should be created", channel)
+        assertNotNull("Notification channel should be created by Application", channel)
         assertEquals("Download Complete", channel.name)
         assertEquals(NotificationManager.IMPORTANCE_DEFAULT, channel.importance)
     }

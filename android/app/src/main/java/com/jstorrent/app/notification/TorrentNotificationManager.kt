@@ -1,7 +1,6 @@
 package com.jstorrent.app.notification
 
 import android.Manifest
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -11,6 +10,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.jstorrent.app.JSTorrentApplication
 import com.jstorrent.app.NativeStandaloneActivity
 import com.jstorrent.app.R
 
@@ -30,30 +30,7 @@ import com.jstorrent.app.R
 class TorrentNotificationManager(private val context: Context) {
 
     companion object {
-        private const val CHANNEL_ID_DOWNLOAD_COMPLETE = "jstorrent_download_complete"
         private const val NOTIFICATION_ID_BASE = 1000 // Use different range from service notification
-    }
-
-    init {
-        createNotificationChannels()
-    }
-
-    /**
-     * Create notification channels. Required for Android O+.
-     */
-    private fun createNotificationChannels() {
-        val channel = NotificationChannel(
-            CHANNEL_ID_DOWNLOAD_COMPLETE,
-            "Download Complete",
-            NotificationManager.IMPORTANCE_DEFAULT
-        ).apply {
-            description = "Notifications when a torrent download completes"
-            enableVibration(true)
-            setShowBadge(true)
-        }
-
-        val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
     }
 
     /**
@@ -107,7 +84,7 @@ class TorrentNotificationManager(private val context: Context) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_DOWNLOAD_COMPLETE)
+        val notification = NotificationCompat.Builder(context, JSTorrentApplication.NotificationChannels.COMPLETE)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("Download Complete")
             .setContentText(torrentName)

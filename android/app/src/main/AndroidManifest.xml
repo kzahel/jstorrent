@@ -20,6 +20,7 @@
         tools:ignore="ScopedStorage" />
 
     <application
+        android:name=".JSTorrentApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -103,6 +104,17 @@
             android:name=".service.EngineService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+
+        <!-- Notification action receiver for pause/resume/quit buttons -->
+        <receiver
+            android:name=".notification.NotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.jstorrent.app.action.PAUSE_ALL" />
+                <action android:name="com.jstorrent.app.action.RESUME_ALL" />
+                <action android:name="com.jstorrent.app.action.QUIT" />
+            </intent-filter>
+        </receiver>
 
         <!-- Pairing approval activity -->
         <activity

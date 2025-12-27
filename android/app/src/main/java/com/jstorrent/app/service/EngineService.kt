@@ -1,9 +1,5 @@
 package com.jstorrent.app.service
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -11,9 +7,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import androidx.core.app.NotificationCompat
-import com.jstorrent.app.NativeStandaloneActivity
-import com.jstorrent.app.R
+import com.jstorrent.app.notification.ForegroundNotificationManager
 import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.RootStore
 import com.jstorrent.quickjs.EngineController
@@ -24,14 +18,15 @@ import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.TorrentInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private const val TAG = "EngineService"
-private const val NOTIFICATION_ID = 2  // Different from IoDaemonService
-private const val CHANNEL_ID = "jstorrent_engine"
 
 /**
  * Foreground service for the JSTorrent engine.
@@ -54,6 +49,10 @@ class EngineService : Service() {
     private lateinit var settingsStore: SettingsStore
     private var _controller: EngineController? = null
 
+    // Notification management
+    private lateinit var notificationManager: ForegroundNotificationManager
+    private var notificationUpdateJob: Job? = null
+
     /** Public access to controller for root management */
     val controller: EngineController?
         get() = _controller
@@ -74,7 +73,7 @@ class EngineService : Service() {
 
         rootStore = RootStore(this)
         settingsStore = SettingsStore(this)
-        createNotificationChannel()
+        notificationManager = ForegroundNotificationManager(this)
 
         // Set singleton
         instance = this
@@ -85,24 +84,24 @@ class EngineService : Service() {
 
         // Must call startForeground immediately (Android requirement)
         // Android 14+ requires specifying foreground service type
+        val initialNotification = notificationManager.buildNotification(emptyList())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
-                NOTIFICATION_ID,
-                createNotification("Starting engine..."),
+                ForegroundNotificationManager.NOTIFICATION_ID,
+                initialNotification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             )
         } else {
-            startForeground(NOTIFICATION_ID, createNotification("Starting engine..."))
+            startForeground(ForegroundNotificationManager.NOTIFICATION_ID, initialNotification)
         }
 
         // Initialize engine on IO thread
         ioScope.launch {
             try {
                 initializeEngine()
-                updateNotification("Engine running")
+                startNotificationUpdates()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize engine", e)
-                updateNotification("Engine failed: ${e.message}")
             }
         }
 
@@ -112,6 +111,9 @@ class EngineService : Service() {
     override fun onDestroy() {
         Log.i(TAG, "Service destroying")
         instance = null
+
+        notificationUpdateJob?.cancel()
+        notificationUpdateJob = null
 
         _controller?.close()
         _controller = null
@@ -335,43 +337,46 @@ class EngineService : Service() {
     // Notification
     // =========================================================================
 
-    private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "JSTorrent Engine",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Shows when JSTorrent engine is running"
-            setShowBadge(false)
+    /**
+     * Start the notification update loop.
+     * Updates notification every 1 second with current torrent stats.
+     */
+    private fun startNotificationUpdates() {
+        notificationUpdateJob = ioScope.launch {
+            while (isActive) {
+                val torrents = state?.value?.torrents ?: emptyList()
+                notificationManager.updateNotification(torrents)
+                delay(1000)  // Update every 1 second
+            }
         }
-
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
     }
 
-    private fun createNotification(status: String): Notification {
-        // Open NativeStandaloneActivity when notification is tapped
-        // (EngineService is only used in native standalone mode)
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, NativeStandaloneActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("JSTorrent")
-            .setContentText(status)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .setSilent(true)
-            .build()
+    /**
+     * Pause all active torrents. Called from notification action.
+     */
+    fun pauseAllTorrents() {
+        ioScope.launch {
+            val torrents = state?.value?.torrents ?: return@launch
+            for (torrent in torrents) {
+                if (torrent.status != "stopped") {
+                    pauseTorrentAsync(torrent.infoHash)
+                }
+            }
+        }
     }
 
-    private fun updateNotification(status: String) {
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIFICATION_ID, createNotification(status))
+    /**
+     * Resume all stopped torrents. Called from notification action.
+     */
+    fun resumeAllTorrents() {
+        ioScope.launch {
+            val torrents = state?.value?.torrents ?: return@launch
+            for (torrent in torrents) {
+                if (torrent.status == "stopped") {
+                    resumeTorrentAsync(torrent.infoHash)
+                }
+            }
+        }
     }
 
     companion object {
