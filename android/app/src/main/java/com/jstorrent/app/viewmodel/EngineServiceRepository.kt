@@ -4,31 +4,60 @@ import com.jstorrent.app.service.EngineService
 import com.jstorrent.quickjs.model.EngineState
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.TorrentInfo
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * TorrentRepository implementation that wraps EngineService singleton.
+ *
+ * Uses bridged StateFlows to handle the race condition where the ViewModel
+ * may be created before EngineService.instance is available. The bridge
+ * flows are updated by a coroutine that polls for the service and then
+ * forwards updates from the real service flows.
  */
 class EngineServiceRepository : TorrentRepository {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val service: EngineService?
         get() = EngineService.instance
 
-    // Fallback empty state flows for when service is not available
-    private val emptyState = MutableStateFlow<EngineState?>(null)
-    private val emptyLoaded = MutableStateFlow(false)
-    private val emptyError = MutableStateFlow<String?>(null)
+    // Bridged state flows that forward from the real service when available
+    private val _state = MutableStateFlow<EngineState?>(null)
+    private val _isLoaded = MutableStateFlow(false)
+    private val _lastError = MutableStateFlow<String?>(null)
 
-    override val state: StateFlow<EngineState?>
-        get() = service?.state ?: emptyState.asStateFlow()
+    override val state: StateFlow<EngineState?> = _state.asStateFlow()
+    override val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
+    override val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
-    override val isLoaded: StateFlow<Boolean>
-        get() = service?.isLoaded ?: emptyLoaded.asStateFlow()
+    init {
+        // Start forwarding from service flows when service becomes available
+        scope.launch {
+            // Wait for service to be available
+            while (EngineService.instance == null) {
+                delay(50)
+            }
+            val svc = EngineService.instance!!
 
-    override val lastError: StateFlow<String?>
-        get() = service?.lastError ?: emptyError.asStateFlow()
+            // Forward state updates
+            launch {
+                svc.state?.collect { _state.value = it }
+            }
+            launch {
+                svc.isLoaded?.collect { _isLoaded.value = it }
+            }
+            launch {
+                svc.lastError?.collect { _lastError.value = it }
+            }
+        }
+    }
 
     override fun addTorrent(magnetOrBase64: String) {
         service?.addTorrent(magnetOrBase64)
