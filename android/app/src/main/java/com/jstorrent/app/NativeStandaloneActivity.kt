@@ -124,24 +124,25 @@ class NativeStandaloneActivity : ComponentActivity() {
     /**
      * Sync roots with the running engine.
      * Called on resume to handle roots added while activity was paused.
+     * Uses async methods to avoid blocking.
      */
-    private fun syncRootsWithEngine() {
+    private suspend fun syncRootsWithEngine() {
         val controller = EngineService.instance?.controller ?: return
 
         val currentRoots = rootStore.listRoots()
         val currentKeys = currentRoots.map { it.key }.toSet()
 
-        // Add new roots to engine
+        // Add new roots to engine using async methods
         for (root in currentRoots) {
             if (root.key !in knownRootKeys) {
-                controller.addRoot(root.key, root.displayName, root.uri)
+                controller.addRootAsync(root.key, root.displayName, root.uri)
                 Log.i(TAG, "Synced new root to engine: ${root.key}")
             }
         }
 
         // Set default if we didn't have one before
         if (knownRootKeys.isEmpty() && currentRoots.isNotEmpty()) {
-            controller.setDefaultRoot(currentRoots.first().key)
+            controller.setDefaultRootAsync(currentRoots.first().key)
             Log.i(TAG, "Set default root: ${currentRoots.first().key}")
         }
 

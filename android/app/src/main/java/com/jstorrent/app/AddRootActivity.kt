@@ -13,6 +13,9 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 import com.jstorrent.app.service.EngineService
 import com.jstorrent.app.service.IoDaemonService
@@ -149,14 +152,17 @@ class AddRootActivity : AppCompatActivity() {
         val root = rootStore.addRoot(uri)
         Log.i(TAG, "Added root: key=${root.key}, label=${root.displayName}")
 
-        // Notify EngineService (native standalone mode)
+        // Notify EngineService (native standalone mode) - async to avoid blocking Main
         EngineService.instance?.controller?.let { controller ->
-            controller.addRoot(root.key, root.displayName, root.uri)
-            // Set as default if this is the first root
-            if (rootStore.listRoots().size == 1) {
-                controller.setDefaultRoot(root.key)
+            val isFirstRoot = rootStore.listRoots().size == 1
+            lifecycleScope.launch(Dispatchers.IO) {
+                controller.addRootAsync(root.key, root.displayName, root.uri)
+                // Set as default if this is the first root
+                if (isFirstRoot) {
+                    controller.setDefaultRootAsync(root.key)
+                }
+                Log.i(TAG, "Notified engine of new root: ${root.key}")
             }
-            Log.i(TAG, "Notified engine of new root: ${root.key}")
         }
 
         // Notify connected clients about new root (companion mode)
