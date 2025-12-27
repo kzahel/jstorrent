@@ -40,8 +40,9 @@ class EngineServiceRepository : TorrentRepository {
     init {
         // Start forwarding from service flows when service becomes available
         scope.launch {
-            // Wait for service to be available
-            while (EngineService.instance == null) {
+            // Wait for service AND controller to be available
+            // The controller is initialized async after service.onCreate
+            while (EngineService.instance?.isLoaded == null) {
                 delay(50)
             }
             val svc = EngineService.instance!!

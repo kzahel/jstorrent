@@ -45,7 +45,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.jstorrent.app.BuildConfig
 import com.jstorrent.app.R
+import com.jstorrent.app.debug.TestTorrentHelper
 import com.jstorrent.app.model.TorrentFilter
 import com.jstorrent.app.model.TorrentListUiState
 import com.jstorrent.app.model.TorrentSortOrder
@@ -190,6 +192,17 @@ fun TorrentListScreen(
                                 onSettingsClick()
                             }
                         )
+                        // Debug-only: Add test torrent with kitchen sink peer hints
+                        if (BuildConfig.DEBUG) {
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Add Test Torrent") },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.addTorrent(TestTorrentHelper.buildKitchenSinkMagnet())
+                                }
+                            )
+                        }
                     }
                 }
             )
