@@ -65,6 +65,8 @@ Python projects in this repo:
 
 ## TypeScript Editing Workflow
 
+The `pnpm` scripts are for TypeScript packages (extension, engine, etc.).
+
 After editing TypeScript files, run the following checks in order:
 
 1. `pnpm run typecheck` - Verify type correctness
@@ -76,6 +78,33 @@ After editing TypeScript files, run the following checks in order:
 3. `pnpm format:fix` - Fix formatting issues
 
 Run `format:fix` last because fixing type errors or tests may introduce formatting issues that need to be cleaned up at the very end.
+
+## Android/Kotlin Editing Workflow
+
+After editing Kotlin/Java files in `android/`:
+
+1. `./gradlew :app:compileDebugKotlin` - Compile Kotlin (validates types)
+2. `./gradlew testDebugUnitTest` - Run unit tests
+3. `./gradlew lint` - Run Android lint
+
+For larger changes, test on emulator:
+
+```bash
+source android/scripts/android-env.sh   # Load emu/dev commands
+emu start                               # Start emulator
+
+# Instrumented tests (fast, no external deps)
+./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
+
+# E2E tests (requires Python seeder)
+pnpm seed-for-test &                    # Start seeder in background
+./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
+
+# Manual E2E testing
+emu test-native                         # Install app, launch with test magnet
+```
+
+See `android/scripts/` for more: `emu-logs.sh`, `emu-install.sh`, `dev` commands for real devices.
 
 ## Extension Debugging (MCP)
 
