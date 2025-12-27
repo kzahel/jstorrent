@@ -136,11 +136,11 @@ class FakeTorrentRepository : TorrentRepository {
         }
     }
 
-    override fun getTorrentList(): List<TorrentInfo> {
+    override suspend fun getTorrentList(): List<TorrentInfo> {
         return torrentListData
     }
 
-    override fun getFiles(infoHash: String): List<FileInfo> {
+    override suspend fun getFiles(infoHash: String): List<FileInfo> {
         return filesData[infoHash] ?: emptyList()
     }
 }

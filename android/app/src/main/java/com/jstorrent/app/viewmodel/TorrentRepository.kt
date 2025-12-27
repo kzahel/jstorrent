@@ -58,12 +58,12 @@ interface TorrentRepository {
     fun resumeAll()
 
     /**
-     * Get detailed torrent list (synchronous query).
+     * Get detailed torrent list (suspend query).
      */
-    fun getTorrentList(): List<TorrentInfo>
+    suspend fun getTorrentList(): List<TorrentInfo>
 
     /**
-     * Get file list for a specific torrent.
+     * Get file list for a specific torrent (suspend query).
      */
-    fun getFiles(infoHash: String): List<FileInfo>
+    suspend fun getFiles(infoHash: String): List<FileInfo>
 }

@@ -13,6 +13,7 @@ import com.jstorrent.app.model.TrackerStatus
 import com.jstorrent.app.model.TrackerUi
 import com.jstorrent.app.model.toUi
 import com.jstorrent.quickjs.model.TorrentSummary
+import com.jstorrent.quickjs.model.FileInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,14 +38,37 @@ class TorrentDetailViewModel(
     private val _fileSelections = MutableStateFlow<Map<Int, Boolean>>(emptyMap())
     val fileSelections: StateFlow<Map<Int, Boolean>> = _fileSelections
 
+    // Cached files (fetched asynchronously)
+    private val _cachedFiles = MutableStateFlow<List<FileInfo>>(emptyList())
+
+    init {
+        // Fetch files when engine state changes
+        viewModelScope.launch {
+            repository.state.collect { state ->
+                if (state?.torrents?.any { it.infoHash == infoHash } == true) {
+                    _cachedFiles.value = repository.getFiles(infoHash)
+                }
+            }
+        }
+    }
+
     // Combined UI state
     val uiState: StateFlow<TorrentDetailUiState> = combine(
         repository.isLoaded,
         repository.state,
         repository.lastError,
         _selectedTab,
-        _fileSelections
-    ) { isLoaded, state, error, tab, selections ->
+        _fileSelections,
+        _cachedFiles
+    ) { values ->
+        val isLoaded = values[0] as Boolean
+        val state = values[1] as? com.jstorrent.quickjs.model.EngineState
+        val error = values[2] as? String
+        val tab = values[3] as DetailTab
+        @Suppress("UNCHECKED_CAST")
+        val selections = values[4] as Map<Int, Boolean>
+        @Suppress("UNCHECKED_CAST")
+        val files = values[5] as List<FileInfo>
         when {
             error != null && !isLoaded -> TorrentDetailUiState.Error(error)
             !isLoaded -> TorrentDetailUiState.Loading
@@ -54,7 +78,7 @@ class TorrentDetailViewModel(
                     TorrentDetailUiState.Error("Torrent not found")
                 } else {
                     TorrentDetailUiState.Loaded(
-                        torrent = createTorrentDetailUi(torrent, selections),
+                        torrent = createTorrentDetailUi(torrent, selections, files),
                         selectedTab = tab
                     )
                 }
@@ -89,18 +113,22 @@ class TorrentDetailViewModel(
      * Select all files in the torrent.
      */
     fun selectAllFiles() {
-        val files = repository.getFiles(infoHash)
-        val selections = files.associate { it.index to true }
-        _fileSelections.value = selections
+        viewModelScope.launch {
+            val files = repository.getFiles(infoHash)
+            val selections = files.associate { it.index to true }
+            _fileSelections.value = selections
+        }
     }
 
     /**
      * Deselect all files in the torrent.
      */
     fun deselectAllFiles() {
-        val files = repository.getFiles(infoHash)
-        val selections = files.associate { it.index to false }
-        _fileSelections.value = selections
+        viewModelScope.launch {
+            val files = repository.getFiles(infoHash)
+            val selections = files.associate { it.index to false }
+            _fileSelections.value = selections
+        }
     }
 
     /**
@@ -141,10 +169,9 @@ class TorrentDetailViewModel(
      */
     private fun createTorrentDetailUi(
         summary: TorrentSummary,
-        fileSelections: Map<Int, Boolean>
+        fileSelections: Map<Int, Boolean>,
+        files: List<FileInfo>
     ): TorrentDetailUi {
-        // Get full file list from repository
-        val files = repository.getFiles(infoHash)
         val fileUis = files.map { file ->
             val isSelected = fileSelections[file.index] ?: true
             file.toUi(isSelected)
