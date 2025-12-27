@@ -7,6 +7,8 @@ import com.jstorrent.app.e2e.TestMagnets
 import com.jstorrent.app.service.EngineService
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -109,5 +111,73 @@ class EngineServiceTest {
         Log.i(TAG, "EngineService.stop() called")
 
         assert(loaded) { "Engine failed to load" }
+    }
+
+    @Test
+    fun testAsyncMethods() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        Log.i(TAG, "Starting async methods test")
+
+        // Start the service with null storage mode (in-memory, no SAF permissions needed)
+        EngineService.start(context, "null")
+        Log.i(TAG, "EngineService.start() called")
+
+        // Wait for engine to load (polling with coroutine delay)
+        var instance: EngineService? = null
+        repeat(30) {
+            instance = EngineService.instance
+            if (instance?.isLoaded?.value == true) return@repeat
+            delay(500)
+        }
+        requireNotNull(instance) { "Engine failed to load" }
+        assert(instance!!.isLoaded?.value == true) { "Engine not loaded" }
+        Log.i(TAG, "Engine loaded, testing async methods")
+
+        // Test async add
+        val magnetLink = TestMagnets.buildMagnetLink(
+            infoHash = TestMagnets.InfoHashes.TEST_100MB,
+            displayName = TestMagnets.DisplayNames.TEST_100MB
+        )
+        instance!!.addTorrentAsync(magnetLink)
+        Log.i(TAG, "addTorrentAsync called with test magnet")
+        delay(2000)
+
+        // Test async query
+        val torrents = instance!!.getTorrentListAsync()
+        val infoHash = TestMagnets.InfoHashes.TEST_100MB
+        Log.i(TAG, "getTorrentListAsync returned ${torrents.size} torrents")
+        assert(torrents.any { it.infoHash.equals(infoHash, ignoreCase = true) }) {
+            "Expected torrent with hash $infoHash not found"
+        }
+
+        // Test async file query
+        val files = instance!!.getFilesAsync(infoHash)
+        Log.i(TAG, "getFilesAsync returned ${files.size} files")
+
+        // Test async pause/resume
+        instance!!.pauseTorrentAsync(infoHash)
+        Log.i(TAG, "pauseTorrentAsync called")
+        delay(500)
+
+        instance!!.resumeTorrentAsync(infoHash)
+        Log.i(TAG, "resumeTorrentAsync called")
+        delay(500)
+
+        // Test async remove
+        instance!!.removeTorrentAsync(infoHash, deleteFiles = true)
+        Log.i(TAG, "removeTorrentAsync called")
+        delay(500)
+
+        // Verify removal
+        val torrentsAfterRemove = instance!!.getTorrentListAsync()
+        assert(torrentsAfterRemove.none { it.infoHash.equals(infoHash, ignoreCase = true) }) {
+            "Torrent should have been removed"
+        }
+        Log.i(TAG, "Verified torrent removed")
+
+        // Cleanup
+        EngineService.stop(context)
+        Log.i(TAG, "Async methods test completed successfully")
+        Unit
     }
 }

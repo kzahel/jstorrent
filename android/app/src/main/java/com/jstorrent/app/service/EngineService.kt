@@ -162,6 +162,59 @@ class EngineService : Service() {
     }
 
     // =========================================================================
+    // Async Engine Control API
+    // =========================================================================
+
+    /**
+     * Add a torrent from magnet link or base64-encoded .torrent file (async).
+     */
+    suspend fun addTorrentAsync(magnetOrBase64: String) {
+        controller?.addTorrentAsync(magnetOrBase64)
+    }
+
+    /**
+     * Add test torrent with hardcoded peer hint for debugging (async).
+     */
+    suspend fun addTestTorrentAsync() {
+        controller?.addTestTorrentAsync()
+    }
+
+    /**
+     * Pause a torrent (async).
+     */
+    suspend fun pauseTorrentAsync(infoHash: String) {
+        controller?.pauseTorrentAsync(infoHash)
+    }
+
+    /**
+     * Resume a paused torrent (async).
+     */
+    suspend fun resumeTorrentAsync(infoHash: String) {
+        controller?.resumeTorrentAsync(infoHash)
+    }
+
+    /**
+     * Remove a torrent (async).
+     */
+    suspend fun removeTorrentAsync(infoHash: String, deleteFiles: Boolean = false) {
+        controller?.removeTorrentAsync(infoHash, deleteFiles)
+    }
+
+    /**
+     * Get full torrent list (async).
+     */
+    suspend fun getTorrentListAsync(): List<TorrentInfo> {
+        return controller?.getTorrentListAsync() ?: emptyList()
+    }
+
+    /**
+     * Get files for a torrent (async).
+     */
+    suspend fun getFilesAsync(infoHash: String): List<FileInfo> {
+        return controller?.getFilesAsync(infoHash) ?: emptyList()
+    }
+
+    // =========================================================================
     // Private Implementation
     // =========================================================================
 
