@@ -87,6 +87,13 @@ class ConfigBridge(
     }
 
     /**
+     * Enable or disable PEX (Peer Exchange).
+     */
+    fun setPexEnabled(enabled: Boolean) {
+        setConfig("pexEnabled", enabled)
+    }
+
+    /**
      * Enable or disable UPnP port mapping.
      */
     fun setUpnpEnabled(enabled: Boolean) {

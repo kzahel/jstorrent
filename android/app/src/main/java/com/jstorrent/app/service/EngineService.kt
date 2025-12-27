@@ -267,6 +267,53 @@ class EngineService : Service() {
     fun getUploadSpeedLimit(): Int = settingsStore.uploadSpeedLimit
 
     // =========================================================================
+    // Network Settings API
+    // =========================================================================
+
+    /**
+     * Enable or disable DHT and persist to settings.
+     */
+    fun setDhtEnabled(enabled: Boolean) {
+        settingsStore.dhtEnabled = enabled
+        controller?.getConfigBridge()?.setDhtEnabled(enabled)
+        Log.i(TAG, "DHT ${if (enabled) "enabled" else "disabled"}")
+    }
+
+    /**
+     * Get whether DHT is enabled.
+     */
+    fun getDhtEnabled(): Boolean = settingsStore.dhtEnabled
+
+    /**
+     * Enable or disable PEX and persist to settings.
+     */
+    fun setPexEnabled(enabled: Boolean) {
+        settingsStore.pexEnabled = enabled
+        controller?.getConfigBridge()?.setPexEnabled(enabled)
+        Log.i(TAG, "PEX ${if (enabled) "enabled" else "disabled"}")
+    }
+
+    /**
+     * Get whether PEX is enabled.
+     */
+    fun getPexEnabled(): Boolean = settingsStore.pexEnabled
+
+    /**
+     * Set encryption policy and persist to settings.
+     * @param policy One of: "disabled", "allow", "prefer", "required"
+     */
+    fun setEncryptionPolicy(policy: String) {
+        settingsStore.encryptionPolicy = policy
+        controller?.getConfigBridge()?.setEncryptionPolicy(policy)
+        Log.i(TAG, "Encryption policy set: $policy")
+    }
+
+    /**
+     * Get the current encryption policy.
+     */
+    fun getEncryptionPolicy(): String = settingsStore.encryptionPolicy
+
+    // =========================================================================
     // Private Implementation
     // =========================================================================
 
@@ -295,6 +342,11 @@ class EngineService : Service() {
 
         // Build config from RootStore
         val roots = rootStore.listRoots()
+        // Use saved default root key, or fall back to first root
+        val defaultKey = settingsStore.defaultRootKey?.takeIf { key ->
+            roots.any { it.key == key }
+        } ?: roots.firstOrNull()?.key
+
         val config = EngineConfig(
             contentRoots = roots.map { root ->
                 ContentRoot(
@@ -303,23 +355,24 @@ class EngineService : Service() {
                     path = root.uri  // SAF URI as path
                 )
             },
-            defaultContentRoot = roots.firstOrNull()?.key,
+            defaultContentRoot = defaultKey,
             storageMode = if (storageMode == "null") "null" else null
         )
 
         _controller!!.loadEngine(config)
         Log.i(TAG, "Engine loaded successfully")
 
-        // Apply saved bandwidth settings
-        applyBandwidthSettings()
+        // Apply all saved settings to engine
+        applyEngineSettings()
     }
 
     /**
-     * Apply saved bandwidth settings from SettingsStore to the engine.
+     * Apply all saved settings from SettingsStore to the engine.
      */
-    private fun applyBandwidthSettings() {
+    private fun applyEngineSettings() {
         val configBridge = _controller?.getConfigBridge() ?: return
 
+        // Bandwidth settings
         val downloadLimit = settingsStore.downloadSpeedLimit
         val uploadLimit = settingsStore.uploadSpeedLimit
 
@@ -330,7 +383,14 @@ class EngineService : Service() {
             configBridge.setUploadSpeedLimit(uploadLimit)
         }
 
-        Log.i(TAG, "Applied bandwidth limits: download=${downloadLimit}B/s, upload=${uploadLimit}B/s")
+        // Network settings
+        configBridge.setDhtEnabled(settingsStore.dhtEnabled)
+        configBridge.setPexEnabled(settingsStore.pexEnabled)
+        configBridge.setEncryptionPolicy(settingsStore.encryptionPolicy)
+
+        Log.i(TAG, "Applied engine settings: download=${downloadLimit}B/s, upload=${uploadLimit}B/s, " +
+            "dht=${settingsStore.dhtEnabled}, pex=${settingsStore.pexEnabled}, " +
+            "encryption=${settingsStore.encryptionPolicy}")
     }
 
     // =========================================================================

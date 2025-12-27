@@ -68,10 +68,8 @@ class ForegroundNotificationManager(private val context: Context) {
         var hasActive = false
 
         for (torrent in torrents) {
-            Log.d(TAG, "Torrent: ${torrent.name}, status='${torrent.status}', " +
-                "down=${torrent.downloadSpeed}, up=${torrent.uploadSpeed}, progress=${torrent.progress}")
-
             // Check status - also consider progress and speeds for detection
+            // (status string may not always match expected values)
             val isDownloading = torrent.status in listOf("downloading", "downloading_metadata", "checking", "queued") ||
                 (torrent.progress < 1.0 && torrent.downloadSpeed > 0)
             val isSeeding = torrent.status == "seeding" ||
@@ -91,9 +89,6 @@ class ForegroundNotificationManager(private val context: Context) {
             totalDown += torrent.downloadSpeed
             totalUp += torrent.uploadSpeed
         }
-
-        Log.d(TAG, "Computed state: downloading=$downloading, seeding=$seeding, " +
-            "totalDown=$totalDown, totalUp=$totalUp, hasActive=$hasActive")
 
         return NotificationState(
             downloadingCount = downloading,
