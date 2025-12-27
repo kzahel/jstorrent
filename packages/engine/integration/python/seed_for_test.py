@@ -244,6 +244,16 @@ def build_magnet_link(info_hash: str, name: str, host: str, port: int) -> str:
     return f"magnet:?xt=urn:btih:{info_hash}&dn={encoded_name}&x.pe={host}:{port}"
 
 
+def build_kitchen_sink_magnet(info_hash: str, name: str, port: int, lan_ip: Optional[str]) -> str:
+    """Build magnet link with all peer hints for all interfaces."""
+    encoded_name = quote(name)
+    hosts = [ANDROID_EMU_HOST, "127.0.0.1", CROSTINI_HOST]
+    if lan_ip:
+        hosts.append(lan_ip)
+    peer_hints = "&".join(f"x.pe={host}:{port}" for host in hosts)
+    return f"magnet:?xt=urn:btih:{info_hash}&dn={encoded_name}&{peer_hints}"
+
+
 # =============================================================================
 # Main
 # =============================================================================
