@@ -363,6 +363,7 @@ def run_libtorrent_seeder(args, data_path, torrent_path, info_hash, config) -> i
     magnet_crostini = build_magnet_link(info_hash, config["filename"], CROSTINI_HOST, actual_port)
     lan_ip = get_lan_ip()
     magnet_lan = build_magnet_link(info_hash, config["filename"], lan_ip, actual_port) if lan_ip else None
+    magnet_kitchen_sink = build_kitchen_sink_magnet(info_hash, config["filename"], actual_port, lan_ip)
 
     if args.quiet:
         # Machine-parseable output
@@ -374,8 +375,9 @@ def run_libtorrent_seeder(args, data_path, torrent_path, info_hash, config) -> i
         if lan_ip:
             print(f"LAN_IP={lan_ip}")
             print(f"MAGNET_LAN={magnet_lan}")
+        print(f"MAGNET_KITCHEN_SINK={magnet_kitchen_sink}")
     else:
-        print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, magnet_lan, lan_ip, "libtorrent")
+        print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, magnet_lan, magnet_kitchen_sink, lan_ip, "libtorrent")
 
     # Main loop - keep seeding until Ctrl+C
     try:
@@ -443,6 +445,7 @@ def run_jstengine_seeder(args, data_path, torrent_path, info_hash, config) -> in
         magnet_crostini = build_magnet_link(info_hash, config["filename"], CROSTINI_HOST, actual_port)
         lan_ip = get_lan_ip()
         magnet_lan = build_magnet_link(info_hash, config["filename"], lan_ip, actual_port) if lan_ip else None
+        magnet_kitchen_sink = build_kitchen_sink_magnet(info_hash, config["filename"], actual_port, lan_ip)
 
         if args.quiet:
             # Machine-parseable output
@@ -454,8 +457,9 @@ def run_jstengine_seeder(args, data_path, torrent_path, info_hash, config) -> in
             if lan_ip:
                 print(f"LAN_IP={lan_ip}")
                 print(f"MAGNET_LAN={magnet_lan}")
+            print(f"MAGNET_KITCHEN_SINK={magnet_kitchen_sink}")
         else:
-            print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, magnet_lan, lan_ip, "JSTEngine")
+            print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, magnet_lan, magnet_kitchen_sink, lan_ip, "JSTEngine")
 
         # Main loop - keep seeding until Ctrl+C
         try:
@@ -486,7 +490,7 @@ def run_jstengine_seeder(args, data_path, torrent_path, info_hash, config) -> in
             engine.close()
 
 
-def print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, magnet_lan, lan_ip, engine_name):
+def print_banner(args, data_path, torrent_path, info_hash, config, actual_port, magnet, magnet_localhost, magnet_crostini, magnet_lan, magnet_kitchen_sink, lan_ip, engine_name):
     """Print human-readable banner."""
     print()
     print("=" * 80)
@@ -502,6 +506,11 @@ def print_banner(args, data_path, torrent_path, info_hash, config, actual_port, 
     print(f"Peer hint host: {args.host}")
     if lan_ip:
         print(f"LAN IP: {lan_ip}")
+    print()
+    print("=" * 80)
+    print("KITCHEN SINK (all interfaces):")
+    print("=" * 80)
+    print(magnet_kitchen_sink)
     print()
     print("=" * 80)
     print(f"MAGNET LINK ({args.host}):")
