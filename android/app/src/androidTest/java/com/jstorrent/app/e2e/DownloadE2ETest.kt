@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -99,7 +98,6 @@ class DownloadE2ETest : E2EBaseTest() {
      * Test that pausing stops download progress.
      */
     @Test
-    @Ignore("Requires external seeder - run manually or in CI with seeder")
     fun pauseTorrent_stopsDownload() {
         val engine = requireEngine()
         val magnet = TestMagnets.getMagnetForTest(arguments, "100mb")
@@ -140,7 +138,6 @@ class DownloadE2ETest : E2EBaseTest() {
      * Test that resuming continues download.
      */
     @Test
-    @Ignore("Requires external seeder - run manually or in CI with seeder")
     fun resumeTorrent_continuesDownload() {
         val engine = requireEngine()
         val magnet = TestMagnets.getMagnetForTest(arguments, "100mb")
@@ -173,7 +170,6 @@ class DownloadE2ETest : E2EBaseTest() {
      * Only run in CI or when specifically testing download completion.
      */
     @Test
-    @Ignore("Long-running test - requires seeder and takes several minutes")
     fun fullDownload_completes() {
         val engine = requireEngine()
         val magnet = TestMagnets.getMagnetForTest(arguments, "100mb")
@@ -186,8 +182,8 @@ class DownloadE2ETest : E2EBaseTest() {
         waitForTorrent(expectedHash)
         waitForPeers(expectedHash)
 
-        // Wait for completion (5 minute timeout for 100MB)
-        val completed = waitForComplete(expectedHash, timeoutMs = 5 * 60 * 1000)
+        // Wait for completion (2 minute timeout for 100MB)
+        val completed = waitForComplete(expectedHash, timeoutMs = 2 * 60_000)
         logTorrentState()
 
         assertTrue("Download should complete", completed)
