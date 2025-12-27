@@ -131,6 +131,14 @@ async fn main() -> anyhow::Result<()> {
             }
         }
 
+        // Add production website origins
+        for origin in &["https://new.jstorrent.com", "https://jstorrent.com"] {
+            tracing::info!("CORS: Adding production origin: {}", origin);
+            if let Ok(val) = origin.parse() {
+                allowed_origins.push(val);
+            }
+        }
+
         // Add dev origins from environment (set by native-host from jstorrent-native.env)
         if let Ok(dev_origins) = std::env::var("JSTORRENT_DEV_ORIGINS") {
             for origin in dev_origins.split(',') {
