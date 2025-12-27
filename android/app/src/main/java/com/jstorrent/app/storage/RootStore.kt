@@ -138,6 +138,26 @@ class RootStore(private val context: Context) {
         return config.roots.find { it.key == key }
     }
 
+    /**
+     * Add a test root with explicit values. For instrumented tests only.
+     * Bypasses SAF validation to allow file:// URIs.
+     */
+    @androidx.annotation.VisibleForTesting
+    internal fun addTestRoot(uri: String, displayName: String): DownloadRoot {
+        val key = generateKey(Uri.parse(uri))
+        val root = DownloadRoot(
+            key = key,
+            uri = uri,
+            displayName = displayName,
+            removable = false,
+            lastStatOk = true,
+            lastChecked = System.currentTimeMillis()
+        )
+        config = config.copy(roots = config.roots + root)
+        save()
+        return root
+    }
+
     // =========================================================================
     // Internal helpers
     // =========================================================================
