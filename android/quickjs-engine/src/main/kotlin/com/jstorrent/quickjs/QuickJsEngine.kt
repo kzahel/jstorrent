@@ -4,6 +4,9 @@ import java.io.Closeable
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * High-level QuickJS engine wrapper.
@@ -246,5 +249,152 @@ class QuickJsEngine : Closeable {
         }
         jsThread.quitSafely()
         jsThread.join(1000)
+    }
+
+    // =========================================================================
+    // Suspend (async) variants - safe to call from Main thread
+    // =========================================================================
+
+    /**
+     * Evaluate JavaScript code on the JS thread (suspend version).
+     *
+     * Suspends until evaluation completes. Safe to call from any thread including Main.
+     */
+    suspend fun evaluateAsync(script: String, filename: String = "script.js"): Any? {
+        return suspendCancellableCoroutine { cont ->
+            jsThread.post {
+                try {
+                    val result = context.evaluate(script, filename)
+                    cont.resume(result)
+                } catch (e: Throwable) {
+                    cont.resumeWithException(e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Register a global function (suspend version).
+     */
+    suspend fun setGlobalFunctionAsync(name: String, callback: (Array<String>) -> String?) {
+        return suspendCancellableCoroutine { cont ->
+            jsThread.post {
+                try {
+                    context.setGlobalFunction(name, callback)
+                    cont.resume(Unit)
+                } catch (e: Throwable) {
+                    cont.resumeWithException(e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Register a global function with binary data (suspend version).
+     */
+    suspend fun setGlobalFunctionWithBinaryAsync(
+        name: String,
+        binaryArgIndex: Int,
+        callback: (args: Array<String>, binary: ByteArray?) -> String?
+    ) {
+        return suspendCancellableCoroutine { cont ->
+            jsThread.post {
+                try {
+                    context.setGlobalFunctionWithBinary(name, binaryArgIndex, callback)
+                    cont.resume(Unit)
+                } catch (e: Throwable) {
+                    cont.resumeWithException(e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Register a global function that returns binary (suspend version).
+     */
+    suspend fun setGlobalFunctionReturnsBinaryAsync(
+        name: String,
+        binaryArgIndex: Int = -1,
+        callback: (args: Array<String>, binary: ByteArray?) -> ByteArray?
+    ) {
+        return suspendCancellableCoroutine { cont ->
+            jsThread.post {
+                try {
+                    context.setGlobalFunctionReturnsBinary(name, binaryArgIndex, callback)
+                    cont.resume(Unit)
+                } catch (e: Throwable) {
+                    cont.resumeWithException(e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Call a global JavaScript function (suspend version).
+     */
+    suspend fun callGlobalFunctionAsync(funcName: String, vararg args: String?): Any? {
+        return suspendCancellableCoroutine { cont ->
+            jsThread.post {
+                try {
+                    val result = context.callGlobalFunction(funcName, *args)
+                    cont.resume(result)
+                } catch (e: Throwable) {
+                    cont.resumeWithException(e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Call a global JavaScript function with binary data (suspend version).
+     */
+    suspend fun callGlobalFunctionWithBinaryAsync(
+        funcName: String,
+        binaryArg: ByteArray,
+        binaryArgIndex: Int,
+        vararg args: String?
+    ): Any? {
+        return suspendCancellableCoroutine { cont ->
+            jsThread.post {
+                try {
+                    val result = context.callGlobalFunctionWithBinary(funcName, binaryArg, binaryArgIndex, *args)
+                    cont.resume(result)
+                } catch (e: Throwable) {
+                    cont.resumeWithException(e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Execute all pending jobs (suspend version).
+     */
+    suspend fun executeAllPendingJobsAsync() {
+        return suspendCancellableCoroutine { cont ->
+            jsThread.post {
+                try {
+                    context.executeAllPendingJobs()
+                    cont.resume(Unit)
+                } catch (e: Throwable) {
+                    cont.resumeWithException(e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Post work and wait for completion (suspend version).
+     */
+    suspend fun postAndWaitAsync(block: () -> Unit) {
+        return suspendCancellableCoroutine { cont ->
+            jsThread.post {
+                try {
+                    block()
+                    cont.resume(Unit)
+                } catch (e: Throwable) {
+                    cont.resumeWithException(e)
+                }
+            }
+        }
     }
 }

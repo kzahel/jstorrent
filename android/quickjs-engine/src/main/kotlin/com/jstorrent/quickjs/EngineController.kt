@@ -291,6 +291,130 @@ class EngineController(
         }
     }
 
+    // =========================================================================
+    // Async Command API - safe to call from Main thread
+    // =========================================================================
+
+    /**
+     * Add a torrent (suspend version).
+     */
+    suspend fun addTorrentAsync(magnetOrBase64: String) {
+        checkLoaded()
+        val escaped = magnetOrBase64.replace("\\", "\\\\").replace("'", "\\'")
+        engine!!.callGlobalFunctionAsync("__jstorrent_cmd_add_torrent", escaped)
+        Log.i(TAG, "addTorrentAsync called")
+    }
+
+    /**
+     * Pause a torrent (suspend version).
+     */
+    suspend fun pauseTorrentAsync(infoHash: String) {
+        checkLoaded()
+        engine!!.callGlobalFunctionAsync("__jstorrent_cmd_pause", infoHash)
+        Log.i(TAG, "pauseTorrentAsync: $infoHash")
+    }
+
+    /**
+     * Resume a torrent (suspend version).
+     */
+    suspend fun resumeTorrentAsync(infoHash: String) {
+        checkLoaded()
+        engine!!.callGlobalFunctionAsync("__jstorrent_cmd_resume", infoHash)
+        Log.i(TAG, "resumeTorrentAsync: $infoHash")
+    }
+
+    /**
+     * Remove a torrent (suspend version).
+     */
+    suspend fun removeTorrentAsync(infoHash: String, deleteFiles: Boolean = false) {
+        checkLoaded()
+        engine!!.callGlobalFunctionAsync(
+            "__jstorrent_cmd_remove",
+            infoHash,
+            deleteFiles.toString()
+        )
+        Log.i(TAG, "removeTorrentAsync: $infoHash (deleteFiles=$deleteFiles)")
+    }
+
+    /**
+     * Add test torrent (suspend version).
+     */
+    suspend fun addTestTorrentAsync() {
+        checkLoaded()
+        engine!!.callGlobalFunctionAsync("__jstorrent_cmd_add_test_torrent")
+        Log.i(TAG, "addTestTorrentAsync called")
+    }
+
+    // =========================================================================
+    // Async Root Management - safe to call from Main thread
+    // =========================================================================
+
+    /**
+     * Add a storage root (suspend version).
+     */
+    suspend fun addRootAsync(key: String, label: String, uri: String) {
+        checkLoaded()
+        engine!!.callGlobalFunctionAsync(
+            "__jstorrent_cmd_add_root",
+            key.escapeJs(),
+            label.escapeJs(),
+            uri.escapeJs()
+        )
+        Log.i(TAG, "Added root to engine (async): $key -> $label")
+    }
+
+    /**
+     * Set default storage root (suspend version).
+     */
+    suspend fun setDefaultRootAsync(key: String) {
+        checkLoaded()
+        engine!!.callGlobalFunctionAsync("__jstorrent_cmd_set_default_root", key.escapeJs())
+        Log.i(TAG, "Set default root (async): $key")
+    }
+
+    /**
+     * Remove a storage root (suspend version).
+     */
+    suspend fun removeRootAsync(key: String) {
+        checkLoaded()
+        engine!!.callGlobalFunctionAsync("__jstorrent_cmd_remove_root", key.escapeJs())
+        Log.i(TAG, "Removed root (async): $key")
+    }
+
+    // =========================================================================
+    // Async Query API - safe to call from Main thread
+    // =========================================================================
+
+    /**
+     * Get torrent list (suspend version).
+     */
+    suspend fun getTorrentListAsync(): List<TorrentInfo> {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunctionAsync("__jstorrent_query_torrent_list") as? String
+            ?: return emptyList()
+        return try {
+            json.decodeFromString<TorrentListResponse>(resultJson).torrents
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse torrent list", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Get files for a torrent (suspend version).
+     */
+    suspend fun getFilesAsync(infoHash: String): List<FileInfo> {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunctionAsync("__jstorrent_query_files", infoHash) as? String
+            ?: return emptyList()
+        return try {
+            json.decodeFromString<FileListResponse>(resultJson).files
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse file list", e)
+            emptyList()
+        }
+    }
+
     /**
      * Shutdown the engine and release resources.
      */
