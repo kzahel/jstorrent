@@ -1,14 +1,19 @@
 package com.jstorrent.app
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Base64
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
+import androidx.core.content.PermissionChecker
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +35,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.jstorrent.app.service.EngineService
+import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.RootStore
+import com.jstorrent.app.ui.dialogs.NotificationPermissionDialog
 import com.jstorrent.app.ui.navigation.TorrentNavHost
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.viewmodel.TorrentListViewModel
@@ -48,6 +55,7 @@ private const val TAG = "NativeStandaloneActivity"
 class NativeStandaloneActivity : ComponentActivity() {
 
     private lateinit var rootStore: RootStore
+    private lateinit var settingsStore: SettingsStore
 
     // ViewModel for torrent list
     private val viewModel: TorrentListViewModel by viewModels {
@@ -58,6 +66,7 @@ class NativeStandaloneActivity : ComponentActivity() {
     private var hasRoots = mutableStateOf(false)
     private var testStorageMode = mutableStateOf<String?>(null)
     private var isAddingRoot = mutableStateOf(false)
+    private var showNotificationDialog = mutableStateOf(false)
 
     // For handling magnet intents while engine is loading
     private var pendingMagnet: String? = null
@@ -65,11 +74,20 @@ class NativeStandaloneActivity : ComponentActivity() {
     // Track which roots we've already synced with the engine
     private var knownRootKeys = mutableSetOf<String>()
 
+    // Notification permission launcher
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Permission result handled - dialog was dismissed
+        showNotificationDialog.value = false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         rootStore = RootStore(this)
+        settingsStore = SettingsStore(this)
         hasRoots.value = rootStore.listRoots().isNotEmpty()
 
         // Handle incoming intent (magnet link or torrent file)
@@ -78,10 +96,22 @@ class NativeStandaloneActivity : ComponentActivity() {
         // Start EngineService with storage mode from intent
         EngineService.start(this, storageMode = testStorageMode.value)
 
+        // Check if we should show notification permission dialog (first launch only)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PermissionChecker.PERMISSION_GRANTED
+
+            if (!granted && !settingsStore.hasShownNotificationPrompt) {
+                showNotificationDialog.value = true
+            }
+        }
+
         setContent {
             JSTorrentTheme {
-                // Show blank screen while adding root to avoid flash
-                if (isAddingRoot.value) {
+                // Show blank screen while notification dialog or adding root
+                if (showNotificationDialog.value || isAddingRoot.value) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
@@ -94,6 +124,24 @@ class NativeStandaloneActivity : ComponentActivity() {
                     TorrentNavHost(
                         listViewModel = viewModel,
                         onAddRootClick = { launchAddRoot() }
+                    )
+                }
+
+                // Notification permission dialog (first launch only)
+                if (showNotificationDialog.value) {
+                    NotificationPermissionDialog(
+                        onEnable = {
+                            settingsStore.hasShownNotificationPrompt = true
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notificationPermissionLauncher.launch(
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                )
+                            }
+                        },
+                        onNotNow = {
+                            settingsStore.hasShownNotificationPrompt = true
+                            showNotificationDialog.value = false
+                        }
                     )
                 }
             }

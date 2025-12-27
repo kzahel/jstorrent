@@ -71,6 +71,13 @@ class SettingsStore(context: Context) {
         get() = prefs.getString(KEY_ENCRYPTION_POLICY, "allow") ?: "allow"
         set(value) = prefs.edit { putString(KEY_ENCRYPTION_POLICY, value) }
 
+    /**
+     * Whether we've shown the notification permission prompt (first launch only).
+     */
+    var hasShownNotificationPrompt: Boolean
+        get() = prefs.getBoolean(KEY_HAS_SHOWN_NOTIFICATION_PROMPT, false)
+        set(value) = prefs.edit { putBoolean(KEY_HAS_SHOWN_NOTIFICATION_PROMPT, value) }
+
     companion object {
         private const val PREFS_NAME = "jstorrent_settings"
         private const val KEY_DOWNLOAD_SPEED_LIMIT = "download_speed_limit"
@@ -81,5 +88,6 @@ class SettingsStore(context: Context) {
         private const val KEY_DHT_ENABLED = "dht_enabled"
         private const val KEY_PEX_ENABLED = "pex_enabled"
         private const val KEY_ENCRYPTION_POLICY = "encryption_policy"
+        private const val KEY_HAS_SHOWN_NOTIFICATION_PROMPT = "has_shown_notification_prompt"
     }
 }

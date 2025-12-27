@@ -445,6 +445,109 @@ class SettingsScreenTest {
         composeTestRule.onNodeWithText("Enable").assertIsDisplayed()
     }
 
+    @Test
+    fun notificationSection_showsSettingsButtonWhenCantRequestInline() {
+        composeTestRule.setContent {
+            JSTorrentTheme {
+                SettingsScreenContent(
+                    uiState = SettingsUiState(
+                        notificationPermissionGranted = false,
+                        canRequestNotificationPermission = false
+                    ),
+                    onNavigateBack = {},
+                    onAddRootClick = {},
+                    onSetDefaultRoot = {},
+                    onRemoveRoot = {},
+                    onShowClearConfirmation = {},
+                    onDismissClearConfirmation = {},
+                    onClearAll = {},
+                    onDownloadSpeedLimitChange = {},
+                    onUploadSpeedLimitChange = {},
+                    onWhenDownloadsCompleteChange = {},
+                    onWifiOnlyChange = {},
+                    onDhtEnabledChange = {},
+                    onPexEnabledChange = {},
+                    onEncryptionPolicyChange = {},
+                    onRequestNotificationPermission = {},
+                    onOpenNotificationSettings = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Disabled").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Settings").assertIsDisplayed()
+    }
+
+    @Test
+    fun notificationSection_enableButtonTriggersCallback() {
+        var requestCalled = false
+
+        composeTestRule.setContent {
+            JSTorrentTheme {
+                SettingsScreenContent(
+                    uiState = SettingsUiState(
+                        notificationPermissionGranted = false,
+                        canRequestNotificationPermission = true
+                    ),
+                    onNavigateBack = {},
+                    onAddRootClick = {},
+                    onSetDefaultRoot = {},
+                    onRemoveRoot = {},
+                    onShowClearConfirmation = {},
+                    onDismissClearConfirmation = {},
+                    onClearAll = {},
+                    onDownloadSpeedLimitChange = {},
+                    onUploadSpeedLimitChange = {},
+                    onWhenDownloadsCompleteChange = {},
+                    onWifiOnlyChange = {},
+                    onDhtEnabledChange = {},
+                    onPexEnabledChange = {},
+                    onEncryptionPolicyChange = {},
+                    onRequestNotificationPermission = { requestCalled = true },
+                    onOpenNotificationSettings = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Enable").performClick()
+        assert(requestCalled) { "Expected onRequestNotificationPermission to be called" }
+    }
+
+    @Test
+    fun notificationSection_settingsButtonTriggersCallback() {
+        var settingsCalled = false
+
+        composeTestRule.setContent {
+            JSTorrentTheme {
+                SettingsScreenContent(
+                    uiState = SettingsUiState(
+                        notificationPermissionGranted = false,
+                        canRequestNotificationPermission = false
+                    ),
+                    onNavigateBack = {},
+                    onAddRootClick = {},
+                    onSetDefaultRoot = {},
+                    onRemoveRoot = {},
+                    onShowClearConfirmation = {},
+                    onDismissClearConfirmation = {},
+                    onClearAll = {},
+                    onDownloadSpeedLimitChange = {},
+                    onUploadSpeedLimitChange = {},
+                    onWhenDownloadsCompleteChange = {},
+                    onWifiOnlyChange = {},
+                    onDhtEnabledChange = {},
+                    onPexEnabledChange = {},
+                    onEncryptionPolicyChange = {},
+                    onRequestNotificationPermission = {},
+                    onOpenNotificationSettings = { settingsCalled = true }
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Settings").performClick()
+        assert(settingsCalled) { "Expected onOpenNotificationSettings to be called" }
+    }
+
     // =========================================================================
     // Clear Settings Tests
     // =========================================================================
