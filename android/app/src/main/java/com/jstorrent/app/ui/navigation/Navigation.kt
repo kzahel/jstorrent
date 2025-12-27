@@ -41,14 +41,24 @@ object Routes {
 /**
  * Main navigation host for the app.
  * Handles navigation between torrent list, detail, and settings screens.
+ *
+ * @param initialInfoHash Optional infoHash to navigate to on launch (from notification tap)
  */
 @Composable
 fun TorrentNavHost(
     listViewModel: TorrentListViewModel,
     onAddRootClick: () -> Unit,
     modifier: Modifier = Modifier,
+    initialInfoHash: String? = null,
     navController: NavHostController = rememberNavController()
 ) {
+    // Navigate to detail screen if launched with an infoHash
+    LaunchedEffect(initialInfoHash) {
+        if (!initialInfoHash.isNullOrEmpty()) {
+            navController.navigate(Routes.torrentDetail(initialInfoHash))
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Routes.TORRENT_LIST,

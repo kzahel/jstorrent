@@ -4,7 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.DocumentsContract
 import android.util.Log
+import android.widget.Toast
 import com.jstorrent.app.service.EngineService
 
 private const val TAG = "NotificationActionReceiver"
@@ -57,42 +60,73 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
     /**
      * Open the file manager at the specified folder URI.
+     * Tries multiple approaches for compatibility across devices.
      */
     private fun openFolder(context: Context, folderUri: Uri) {
-        try {
-            // Try to open with document UI (preferred for SAF URIs)
-            val viewIntent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(folderUri, "resource/folder")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
+        Log.i(TAG, "Attempting to open folder: $folderUri")
 
-            // Check if any app can handle this intent
-            if (viewIntent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(viewIntent)
-                return
-            }
+        // Try approach 1: Use DocumentsUI with BROWSE_DOCUMENT_ROOT action (Android 11+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                // Build a document URI from the tree URI
+                val documentId = DocumentsContract.getTreeDocumentId(folderUri)
+                val documentUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, documentId)
 
-            // Fallback: try with vnd.android.document/directory mime type
-            val documentIntent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(folderUri, "vnd.android.document/directory")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
+                val browseIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(documentUri, DocumentsContract.Document.MIME_TYPE_DIR)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
 
-            if (documentIntent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(documentIntent)
-                return
+                if (browseIntent.resolveActivity(context.packageManager) != null) {
+                    context.startActivity(browseIntent)
+                    Log.i(TAG, "Opened folder with DocumentsContract approach")
+                    return
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "DocumentsContract approach failed", e)
             }
-
-            // Last fallback: open without specific mime type
-            val genericIntent = Intent(Intent.ACTION_VIEW, folderUri).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(genericIntent)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to open folder: $folderUri", e)
         }
+
+        // Try approach 2: Open Google Files app directly (common on Pixel)
+        try {
+            val filesIntent = Intent(Intent.ACTION_VIEW).apply {
+                setPackage("com.google.android.apps.nbu.files")
+                data = folderUri
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            if (filesIntent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(filesIntent)
+                Log.i(TAG, "Opened folder with Google Files app")
+                return
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Google Files approach failed", e)
+        }
+
+        // Try approach 3: Generic file manager with chooser
+        try {
+            val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                data = folderUri
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            val chooser = Intent.createChooser(viewIntent, "Open folder with").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            context.startActivity(chooser)
+            Log.i(TAG, "Opened folder with chooser")
+            return
+        } catch (e: Exception) {
+            Log.w(TAG, "Chooser approach failed", e)
+        }
+
+        // All approaches failed - show toast
+        Toast.makeText(context, "Could not open folder", Toast.LENGTH_SHORT).show()
+        Log.w(TAG, "All approaches to open folder failed for: $folderUri")
     }
 }

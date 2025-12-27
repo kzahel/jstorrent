@@ -26,11 +26,13 @@ object TestTorrentHelper {
      * - 10.0.2.2: Android emulator → host loopback
      * - 127.0.0.1: localhost (ADB reverse port forwarding)
      * - 100.115.92.206: Crostini container IP on ChromeOS
+     * - 192.168.1.131: Dev machine LAN IP (for real device testing)
      */
     private val KITCHEN_SINK_HOSTS = listOf(
-        "10.0.2.2",      // Emulator → host
-        "127.0.0.1",     // Localhost (ADB reverse)
-        "100.115.92.206" // Crostini on ChromeOS
+        "10.0.2.2",       // Emulator → host
+        "127.0.0.1",      // Localhost (ADB reverse)
+        "100.115.92.206", // Crostini on ChromeOS
+        "192.168.1.131"   // Dev machine LAN IP
     )
 
     /**

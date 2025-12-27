@@ -71,6 +71,9 @@ class NativeStandaloneActivity : ComponentActivity() {
     // For handling magnet intents while engine is loading
     private var pendingMagnet: String? = null
 
+    // For navigating to a specific torrent from notification tap
+    private var initialInfoHash = mutableStateOf<String?>(null)
+
     // Track which roots we've already synced with the engine
     private var knownRootKeys = mutableSetOf<String>()
 
@@ -123,7 +126,8 @@ class NativeStandaloneActivity : ComponentActivity() {
                     // Main navigation host
                     TorrentNavHost(
                         listViewModel = viewModel,
-                        onAddRootClick = { launchAddRoot() }
+                        onAddRootClick = { launchAddRoot() },
+                        initialInfoHash = initialInfoHash.value
                     )
                 }
 
@@ -205,6 +209,14 @@ class NativeStandaloneActivity : ComponentActivity() {
     }
 
     private fun handleIncomingIntent(intent: Intent?) {
+        // Check for infoHash extra from notification tap
+        val infoHash = intent?.getStringExtra("infoHash")
+        if (!infoHash.isNullOrEmpty()) {
+            Log.i(TAG, "Navigating to torrent from notification: $infoHash")
+            initialInfoHash.value = infoHash
+            return
+        }
+
         val uri = intent?.data ?: return
         Log.d(TAG, "Received intent: $uri")
 
