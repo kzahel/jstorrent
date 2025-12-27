@@ -171,9 +171,11 @@ class SettingsViewModel(
 
     /**
      * Set WiFi-only mode.
+     * Also notifies running service to start/stop WiFi monitoring.
      */
     fun setWifiOnly(enabled: Boolean) {
-        settingsStore.wifiOnlyEnabled = enabled
+        EngineService.instance?.setWifiOnlyEnabled(enabled)
+            ?: run { settingsStore.wifiOnlyEnabled = enabled }
         _uiState.value = _uiState.value.copy(wifiOnlyEnabled = enabled)
     }
 

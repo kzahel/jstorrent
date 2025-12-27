@@ -7,7 +7,11 @@ import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.widget.Toast
+import com.jstorrent.app.network.NetworkMonitor
 import com.jstorrent.app.notification.ForegroundNotificationManager
 import com.jstorrent.app.notification.TorrentNotificationManager
 import com.jstorrent.app.settings.SettingsStore
@@ -25,7 +29,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -64,6 +71,18 @@ class EngineService : Service() {
     )
     private val previousStates = mutableMapOf<String, TorrentStateSnapshot>()
 
+    // Network monitoring for WiFi-only mode
+    private var networkMonitor: NetworkMonitor? = null
+    private var wifiMonitorJob: Job? = null
+    private var wasPausedByWifi = false  // Track if we paused due to WiFi loss
+
+    // Service lifecycle state
+    private val _serviceState = MutableStateFlow(ServiceState.RUNNING)
+    val serviceState: StateFlow<ServiceState> = _serviceState.asStateFlow()
+
+    // Main thread handler for toasts
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     /** Public access to controller for root management */
     val controller: EngineController?
         get() = _controller
@@ -86,6 +105,7 @@ class EngineService : Service() {
         settingsStore = SettingsStore(this)
         notificationManager = ForegroundNotificationManager(this)
         torrentNotificationManager = TorrentNotificationManager(this)
+        networkMonitor = NetworkMonitor(this)
 
         // Set singleton
         instance = this
@@ -112,6 +132,11 @@ class EngineService : Service() {
             try {
                 initializeEngine()
                 startNotificationUpdates()
+
+                // Start WiFi monitoring if WiFi-only mode is enabled
+                if (settingsStore.wifiOnlyEnabled) {
+                    startWifiMonitoring()
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize engine", e)
             }
@@ -124,12 +149,18 @@ class EngineService : Service() {
         Log.i(TAG, "Service destroying")
         instance = null
 
+        // Stop WiFi monitoring
+        stopWifiMonitoring()
+        networkMonitor?.stop()
+        networkMonitor = null
+
         notificationUpdateJob?.cancel()
         notificationUpdateJob = null
 
         _controller?.close()
         _controller = null
 
+        _serviceState.value = ServiceState.STOPPED
         ioScope.cancel()
         super.onDestroy()
     }
@@ -456,6 +487,9 @@ class EngineService : Service() {
         // Clean up removed torrents from tracking
         val currentHashes = torrents.map { it.infoHash }.toSet()
         previousStates.keys.removeAll { it !in currentHashes }
+
+        // Check if all torrents are complete for auto-stop
+        checkAllComplete(torrents)
     }
 
     /**
@@ -536,6 +570,141 @@ class EngineService : Service() {
                     resumeTorrentAsync(torrent.infoHash)
                 }
             }
+        }
+    }
+
+    // =========================================================================
+    // WiFi Monitoring for WiFi-Only Mode
+    // =========================================================================
+
+    /**
+     * Start monitoring WiFi state for WiFi-only mode.
+     */
+    private fun startWifiMonitoring() {
+        networkMonitor?.start()
+
+        wifiMonitorJob?.cancel()
+        wifiMonitorJob = ioScope.launch {
+            networkMonitor?.isWifiConnected?.collectLatest { isWifi ->
+                handleWifiStateChange(isWifi)
+            }
+        }
+        Log.i(TAG, "WiFi monitoring started")
+    }
+
+    /**
+     * Stop WiFi monitoring.
+     */
+    private fun stopWifiMonitoring() {
+        wifiMonitorJob?.cancel()
+        wifiMonitorJob = null
+        Log.i(TAG, "WiFi monitoring stopped")
+    }
+
+    /**
+     * Handle WiFi state changes when WiFi-only mode is enabled.
+     */
+    private fun handleWifiStateChange(isWifiConnected: Boolean) {
+        if (!settingsStore.wifiOnlyEnabled) return
+
+        if (!isWifiConnected && _serviceState.value == ServiceState.RUNNING) {
+            // Lost WiFi, pause everything
+            Log.i(TAG, "WiFi lost, pausing all torrents")
+            _serviceState.value = ServiceState.PAUSED_WIFI
+            wasPausedByWifi = true
+            pauseAllTorrents()
+
+            // Show toast on main thread
+            mainHandler.post {
+                Toast.makeText(
+                    this@EngineService,
+                    "Paused - waiting for WiFi",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        } else if (isWifiConnected && _serviceState.value == ServiceState.PAUSED_WIFI) {
+            // WiFi restored, resume
+            Log.i(TAG, "WiFi restored, resuming all torrents")
+            _serviceState.value = ServiceState.RUNNING
+            if (wasPausedByWifi) {
+                resumeAllTorrents()
+                wasPausedByWifi = false
+            }
+
+            mainHandler.post {
+                Toast.makeText(
+                    this@EngineService,
+                    "WiFi connected - resuming",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    /**
+     * Enable or disable WiFi-only mode at runtime.
+     * Called from SettingsViewModel when user toggles the setting.
+     */
+    fun setWifiOnlyEnabled(enabled: Boolean) {
+        settingsStore.wifiOnlyEnabled = enabled
+
+        if (enabled) {
+            startWifiMonitoring()
+            // Check current state immediately
+            val isWifi = networkMonitor?.isWifiConnected?.value ?: true
+            if (!isWifi) {
+                handleWifiStateChange(false)
+            }
+        } else {
+            // Disable WiFi-only: resume if we were paused
+            if (_serviceState.value == ServiceState.PAUSED_WIFI) {
+                _serviceState.value = ServiceState.RUNNING
+                if (wasPausedByWifi) {
+                    resumeAllTorrents()
+                    wasPausedByWifi = false
+                }
+            }
+            stopWifiMonitoring()
+        }
+
+        Log.i(TAG, "WiFi-only mode ${if (enabled) "enabled" else "disabled"}")
+    }
+
+    // =========================================================================
+    // All-Complete Detection for Auto-Stop
+    // =========================================================================
+
+    /**
+     * Check if all torrents are complete and handle auto-stop.
+     * Called from the notification update loop after state transitions.
+     */
+    private fun checkAllComplete(torrents: List<TorrentSummary>) {
+        // Don't auto-stop if:
+        // - No torrents
+        // - Keep seeding is enabled
+        // - Already in PAUSED_WIFI state (waiting for WiFi)
+        if (torrents.isEmpty()) return
+        if (settingsStore.whenDownloadsComplete != "stop_and_close") return
+        if (_serviceState.value == ServiceState.PAUSED_WIFI) return
+
+        // Check if ALL torrents are complete (progress >= 1.0)
+        val allComplete = torrents.all { it.progress >= 1.0 }
+
+        if (allComplete) {
+            Log.i(TAG, "All torrents complete, stopping service")
+
+            // Show toast on main thread before stopping
+            mainHandler.post {
+                Toast.makeText(
+                    this@EngineService,
+                    "All downloads complete",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            // Stop the service
+            _serviceState.value = ServiceState.STOPPED
+            stopSelf()
         }
     }
 
