@@ -4,10 +4,12 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import com.jstorrent.app.notification.ForegroundNotificationManager
+import com.jstorrent.app.notification.TorrentNotificationManager
 import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.RootStore
 import com.jstorrent.quickjs.EngineController
@@ -16,6 +18,7 @@ import com.jstorrent.quickjs.model.EngineConfig
 import com.jstorrent.quickjs.model.EngineState
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.TorrentInfo
+import com.jstorrent.quickjs.model.TorrentSummary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,7 +54,15 @@ class EngineService : Service() {
 
     // Notification management
     private lateinit var notificationManager: ForegroundNotificationManager
+    private lateinit var torrentNotificationManager: TorrentNotificationManager
     private var notificationUpdateJob: Job? = null
+
+    // State tracking for completion/error notifications
+    private data class TorrentStateSnapshot(
+        val progress: Double,
+        val status: String
+    )
+    private val previousStates = mutableMapOf<String, TorrentStateSnapshot>()
 
     /** Public access to controller for root management */
     val controller: EngineController?
@@ -74,6 +85,7 @@ class EngineService : Service() {
         rootStore = RootStore(this)
         settingsStore = SettingsStore(this)
         notificationManager = ForegroundNotificationManager(this)
+        torrentNotificationManager = TorrentNotificationManager(this)
 
         // Set singleton
         instance = this
@@ -400,15 +412,103 @@ class EngineService : Service() {
     /**
      * Start the notification update loop.
      * Updates notification every 1 second with current torrent stats.
+     * Also detects completion and error state transitions to show notifications.
      */
     private fun startNotificationUpdates() {
         notificationUpdateJob = ioScope.launch {
             while (isActive) {
                 val torrents = state?.value?.torrents ?: emptyList()
+
+                // Check for state transitions
+                checkStateTransitions(torrents)
+
+                // Update foreground notification
                 notificationManager.updateNotification(torrents)
                 delay(1000)  // Update every 1 second
             }
         }
+    }
+
+    /**
+     * Check for torrent state transitions and show notifications.
+     */
+    private suspend fun checkStateTransitions(torrents: List<TorrentSummary>) {
+        for (torrent in torrents) {
+            val prev = previousStates[torrent.infoHash]
+
+            // Detect completion: wasn't complete before, now is
+            if (torrent.progress >= 1.0 && (prev == null || prev.progress < 1.0)) {
+                showCompletionNotification(torrent)
+            }
+
+            // Detect error: wasn't error before, now is
+            if (torrent.status == "error" && prev?.status != "error") {
+                showErrorNotification(torrent)
+            }
+
+            // Update previous state
+            previousStates[torrent.infoHash] = TorrentStateSnapshot(
+                progress = torrent.progress,
+                status = torrent.status
+            )
+        }
+
+        // Clean up removed torrents from tracking
+        val currentHashes = torrents.map { it.infoHash }.toSet()
+        previousStates.keys.removeAll { it !in currentHashes }
+    }
+
+    /**
+     * Show a completion notification for a torrent.
+     */
+    private suspend fun showCompletionNotification(torrent: TorrentSummary) {
+        Log.i(TAG, "Torrent completed: ${torrent.name}")
+
+        // Get full TorrentInfo for size
+        val info = controller?.getTorrentListAsync()
+            ?.find { it.infoHash == torrent.infoHash }
+
+        val size = info?.size ?: 0L
+
+        // Get default download folder URI
+        val folderUri = getDefaultFolderUri()
+
+        torrentNotificationManager.showDownloadComplete(
+            torrentName = torrent.name,
+            infoHash = torrent.infoHash,
+            sizeBytes = size,
+            folderUri = folderUri
+        )
+    }
+
+    /**
+     * Show an error notification for a torrent.
+     */
+    private fun showErrorNotification(torrent: TorrentSummary) {
+        Log.w(TAG, "Torrent error: ${torrent.name}")
+
+        // TODO: Get specific error message from engine when available
+        val errorMessage = "Download error"
+
+        torrentNotificationManager.showError(
+            torrentName = torrent.name,
+            infoHash = torrent.infoHash,
+            errorMessage = errorMessage
+        )
+    }
+
+    /**
+     * Get the URI for the default download folder.
+     */
+    private fun getDefaultFolderUri(): Uri? {
+        val defaultKey = settingsStore.defaultRootKey
+        if (defaultKey != null) {
+            return rootStore.resolveKey(defaultKey)
+        }
+
+        // Fall back to first available root
+        val roots = rootStore.listRoots()
+        return roots.firstOrNull()?.let { Uri.parse(it.uri) }
     }
 
     /**

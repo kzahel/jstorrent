@@ -105,7 +105,7 @@
             android:foregroundServiceType="dataSync"
             android:exported="false" />
 
-        <!-- Notification action receiver for pause/resume/quit buttons -->
+        <!-- Notification action receiver for pause/resume/quit/open folder buttons -->
         <receiver
             android:name=".notification.NotificationActionReceiver"
             android:exported="false">
@@ -113,6 +113,7 @@
                 <action android:name="com.jstorrent.app.action.PAUSE_ALL" />
                 <action android:name="com.jstorrent.app.action.RESUME_ALL" />
                 <action android:name="com.jstorrent.app.action.QUIT" />
+                <action android:name="com.jstorrent.app.action.OPEN_FOLDER" />
             </intent-filter>
         </receiver>
 

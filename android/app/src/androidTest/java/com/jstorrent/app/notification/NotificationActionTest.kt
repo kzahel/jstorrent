@@ -197,6 +197,44 @@ class NotificationActionTest {
         assertNotNull("Service should still be running", EngineService.instance)
     }
 
+    @Test
+    fun openFolderActionDoesNotCrash() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+        // Send OPEN_FOLDER action with a test URI
+        // This will try to open a file manager which may not exist, but shouldn't crash
+        val openFolderIntent = Intent(NotificationActionReceiver.ACTION_OPEN_FOLDER)
+        openFolderIntent.setPackage(context.packageName)
+        openFolderIntent.putExtra(
+            NotificationActionReceiver.EXTRA_FOLDER_URI,
+            "content://com.android.externalstorage.documents/tree/primary%3ADownload"
+        )
+        context.sendBroadcast(openFolderIntent)
+
+        // Wait a bit - action should complete without crashing
+        Thread.sleep(500)
+
+        // Test passes if we get here without crashing
+        assertTrue("Open folder action should not crash", true)
+    }
+
+    @Test
+    fun openFolderActionWithNullUriDoesNotCrash() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+        // Send OPEN_FOLDER action without URI extra
+        // Should handle gracefully
+        val openFolderIntent = Intent(NotificationActionReceiver.ACTION_OPEN_FOLDER)
+        openFolderIntent.setPackage(context.packageName)
+        context.sendBroadcast(openFolderIntent)
+
+        // Wait a bit
+        Thread.sleep(500)
+
+        // Test passes if we get here without crashing
+        assertTrue("Open folder action with null URI should not crash", true)
+    }
+
     // =========================================================================
     // Helper methods
     // =========================================================================
