@@ -7,11 +7,14 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.jstorrent.app.NativeStandaloneActivity
 import com.jstorrent.app.R
+import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.RootStore
 import com.jstorrent.quickjs.EngineController
 import com.jstorrent.quickjs.model.ContentRoot
@@ -48,6 +51,7 @@ class EngineService : Service() {
     // Use IO dispatcher for network/file operations in the engine
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var rootStore: RootStore
+    private lateinit var settingsStore: SettingsStore
     private var _controller: EngineController? = null
 
     /** Public access to controller for root management */
@@ -69,6 +73,7 @@ class EngineService : Service() {
         Log.i(TAG, "Service created")
 
         rootStore = RootStore(this)
+        settingsStore = SettingsStore(this)
         createNotificationChannel()
 
         // Set singleton
@@ -79,7 +84,16 @@ class EngineService : Service() {
         Log.i(TAG, "Service starting")
 
         // Must call startForeground immediately (Android requirement)
-        startForeground(NOTIFICATION_ID, createNotification("Starting engine..."))
+        // Android 14+ requires specifying foreground service type
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                NOTIFICATION_ID,
+                createNotification("Starting engine..."),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, createNotification("Starting engine..."))
+        }
 
         // Initialize engine on IO thread
         ioScope.launch {
@@ -215,6 +229,42 @@ class EngineService : Service() {
     }
 
     // =========================================================================
+    // Bandwidth Control API
+    // =========================================================================
+
+    /**
+     * Set download speed limit and persist to settings.
+     * @param bytesPerSec Limit in bytes/sec (0 = unlimited)
+     */
+    fun setDownloadSpeedLimit(bytesPerSec: Int) {
+        settingsStore.downloadSpeedLimit = bytesPerSec
+        controller?.getConfigBridge()?.setDownloadSpeedLimit(bytesPerSec)
+        Log.i(TAG, "Download limit set: $bytesPerSec B/s")
+    }
+
+    /**
+     * Set upload speed limit and persist to settings.
+     * @param bytesPerSec Limit in bytes/sec (0 = unlimited)
+     */
+    fun setUploadSpeedLimit(bytesPerSec: Int) {
+        settingsStore.uploadSpeedLimit = bytesPerSec
+        controller?.getConfigBridge()?.setUploadSpeedLimit(bytesPerSec)
+        Log.i(TAG, "Upload limit set: $bytesPerSec B/s")
+    }
+
+    /**
+     * Get the current download speed limit.
+     * @return Limit in bytes/sec (0 = unlimited)
+     */
+    fun getDownloadSpeedLimit(): Int = settingsStore.downloadSpeedLimit
+
+    /**
+     * Get the current upload speed limit.
+     * @return Limit in bytes/sec (0 = unlimited)
+     */
+    fun getUploadSpeedLimit(): Int = settingsStore.uploadSpeedLimit
+
+    // =========================================================================
     // Private Implementation
     // =========================================================================
 
@@ -257,6 +307,28 @@ class EngineService : Service() {
 
         _controller!!.loadEngine(config)
         Log.i(TAG, "Engine loaded successfully")
+
+        // Apply saved bandwidth settings
+        applyBandwidthSettings()
+    }
+
+    /**
+     * Apply saved bandwidth settings from SettingsStore to the engine.
+     */
+    private fun applyBandwidthSettings() {
+        val configBridge = _controller?.getConfigBridge() ?: return
+
+        val downloadLimit = settingsStore.downloadSpeedLimit
+        val uploadLimit = settingsStore.uploadSpeedLimit
+
+        if (downloadLimit > 0) {
+            configBridge.setDownloadSpeedLimit(downloadLimit)
+        }
+        if (uploadLimit > 0) {
+            configBridge.setUploadSpeedLimit(uploadLimit)
+        }
+
+        Log.i(TAG, "Applied bandwidth limits: download=${downloadLimit}B/s, upload=${uploadLimit}B/s")
     }
 
     // =========================================================================

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -58,6 +59,30 @@ class TorrentListViewModel(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = TorrentListUiState.Loading
+    )
+
+    /**
+     * Aggregate download speed across all torrents (bytes/sec).
+     * Updates every 500ms when engine state changes.
+     */
+    val aggregateDownloadSpeed: StateFlow<Long> = repository.state.map { state ->
+        state?.torrents?.sumOf { it.downloadSpeed } ?: 0L
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = 0L
+    )
+
+    /**
+     * Aggregate upload speed across all torrents (bytes/sec).
+     * Updates every 500ms when engine state changes.
+     */
+    val aggregateUploadSpeed: StateFlow<Long> = repository.state.map { state ->
+        state?.torrents?.sumOf { it.uploadSpeed } ?: 0L
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = 0L
     )
 
     /**

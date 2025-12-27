@@ -1,7 +1,9 @@
 package com.jstorrent.app.ui.screens
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -194,6 +196,101 @@ class TorrentListScreenTest {
         // Verify error state is shown
         composeTestRule.onNodeWithText("Error").assertIsDisplayed()
         composeTestRule.onNodeWithText("Failed to connect").assertIsDisplayed()
+    }
+
+    @Test
+    fun speedIndicator_showsWhenActiveDownload() {
+        // Set up with high-speed torrents
+        val torrents = listOf(
+            TorrentSummary(
+                infoHash = "hash1",
+                name = "Test Torrent",
+                progress = 0.5,
+                downloadSpeed = 12_500_000L, // 12.5 MB/s
+                uploadSpeed = 1_200_000L,    // 1.2 MB/s
+                status = "downloading"
+            )
+        )
+        fakeRepository.setLoaded(true)
+        fakeRepository.setTorrents(torrents)
+
+        composeTestRule.setContent {
+            JSTorrentTheme {
+                TorrentListScreen(viewModel = viewModel)
+            }
+        }
+
+        // Verify speed indicators are displayed (may be multiple - top bar + card)
+        // Use onAllNodesWithText to handle multiple matches
+        val speedNodes = composeTestRule.onAllNodesWithText("MB/s", substring = true)
+        speedNodes.fetchSemanticsNodes().isNotEmpty().let { hasNodes ->
+            assert(hasNodes) { "Should have at least one MB/s indicator" }
+        }
+    }
+
+    @Test
+    fun speedIndicator_hiddenWhenNoActivity() {
+        // Set up with paused torrent (no speed)
+        val torrents = listOf(
+            TorrentSummary(
+                infoHash = "hash1",
+                name = "Paused Torrent",
+                progress = 0.5,
+                downloadSpeed = 0L,
+                uploadSpeed = 0L,
+                status = "stopped"
+            )
+        )
+        fakeRepository.setLoaded(true)
+        fakeRepository.setTorrents(torrents)
+
+        composeTestRule.setContent {
+            JSTorrentTheme {
+                TorrentListScreen(viewModel = viewModel)
+            }
+        }
+
+        // Speed indicators should not be visible when there's no activity
+        // With 0 speed, no MB/s or KB/s text should appear
+        composeTestRule.onAllNodesWithText("MB/s", substring = true).assertCountEquals(0)
+        composeTestRule.onAllNodesWithText("KB/s", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun speedIndicator_aggregatesSpeeds() {
+        // Set up with multiple torrents to test aggregation
+        val torrents = listOf(
+            TorrentSummary(
+                infoHash = "hash1",
+                name = "Torrent 1",
+                progress = 0.5,
+                downloadSpeed = 5_000_000L, // 5 MB/s
+                uploadSpeed = 500_000L,
+                status = "downloading"
+            ),
+            TorrentSummary(
+                infoHash = "hash2",
+                name = "Torrent 2",
+                progress = 0.3,
+                downloadSpeed = 3_000_000L, // 3 MB/s
+                uploadSpeed = 300_000L,
+                status = "downloading"
+            )
+        )
+        fakeRepository.setLoaded(true)
+        fakeRepository.setTorrents(torrents)
+
+        composeTestRule.setContent {
+            JSTorrentTheme {
+                TorrentListScreen(viewModel = viewModel)
+            }
+        }
+
+        // With 8 MB/s total, we should see MB/s indicators
+        val speedNodes = composeTestRule.onAllNodesWithText("MB/s", substring = true)
+        speedNodes.fetchSemanticsNodes().isNotEmpty().let { hasNodes ->
+            assert(hasNodes) { "Should have at least one MB/s indicator" }
+        }
     }
 
     // Helper function

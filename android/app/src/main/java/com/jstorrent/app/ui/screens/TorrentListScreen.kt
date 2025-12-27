@@ -49,6 +49,7 @@ import com.jstorrent.app.R
 import com.jstorrent.app.model.TorrentFilter
 import com.jstorrent.app.model.TorrentListUiState
 import com.jstorrent.app.model.TorrentSortOrder
+import com.jstorrent.app.ui.components.CombinedSpeedIndicator
 import com.jstorrent.app.ui.components.TorrentCard
 import com.jstorrent.app.ui.dialogs.AddTorrentDialog
 import com.jstorrent.app.ui.theme.JSTorrentTheme
@@ -72,6 +73,8 @@ fun TorrentListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentFilter by viewModel.filter.collectAsState()
     val currentSortOrder by viewModel.sortOrder.collectAsState()
+    val aggregateDownloadSpeed by viewModel.aggregateDownloadSpeed.collectAsState()
+    val aggregateUploadSpeed by viewModel.aggregateUploadSpeed.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -82,13 +85,31 @@ fun TorrentListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Text("JSTorrent")
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        // Left side: Logo and title
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Text("JSTorrent")
+                        }
+
+                        // Right side: Speed indicators (when loaded and has activity)
+                        if (uiState is TorrentListUiState.Loaded &&
+                            (aggregateDownloadSpeed > 0 || aggregateUploadSpeed > 0)) {
+                            CombinedSpeedIndicator(
+                                downloadSpeed = aggregateDownloadSpeed,
+                                uploadSpeed = aggregateUploadSpeed,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 },
                 actions = {
