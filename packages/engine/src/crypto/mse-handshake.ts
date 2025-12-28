@@ -77,6 +77,10 @@ export class MseHandshake {
   private req1Hash: Uint8Array | null = null
   // Track bytes searched for sync pattern
   private syncBytesSearched = 0
+  // Processing lock to prevent concurrent async operations
+  private processing = false
+  // Store onSend callback for re-processing after async completes
+  private pendingOnSend: ((data: Uint8Array) => void) | null = null
 
   constructor(options: MseHandshakeOptions) {
     this.options = options
@@ -206,10 +210,17 @@ export class MseHandshake {
 
     if (this.buffer.length < 14) return // Need at least VC + crypto_select + len
 
-    // Search for VC in the stream
+    // Check if we've already exceeded the search limit
+    if (this.syncBytesSearched > MSE_SYNC_MAX_BYTES) {
+      this.fail('VC not found within sync limit')
+      return
+    }
+
+    // Search for VC in the stream, starting from where we left off
+    const startOffset = this.syncBytesSearched
     const maxSearch = Math.min(this.buffer.length - 14, MSE_SYNC_MAX_BYTES)
 
-    for (let offset = 0; offset <= maxSearch; offset++) {
+    for (let offset = startOffset; offset <= maxSearch; offset++) {
       // Create a test decryptor at the same keystream position
       // We need to derive fresh keys and advance to the same position
       const testDecrypt = await this.createFreshDecrypt()
@@ -230,7 +241,7 @@ export class MseHandshake {
       if (allZero) {
         // Found VC! Skip padding and process the rest
         this.buffer = this.buffer.slice(offset)
-        this.syncBytesSearched = offset
+        this.syncBytesSearched = 0 // Reset for future use
 
         // Now process with the real decrypt
         await this.decodePe4()
@@ -238,8 +249,11 @@ export class MseHandshake {
       }
     }
 
-    // Haven't found it yet - wait for more data
-    if (this.buffer.length > MSE_SYNC_MAX_BYTES + 14) {
+    // Track how far we've searched
+    this.syncBytesSearched = maxSearch + 1
+
+    // Check limit
+    if (this.syncBytesSearched > MSE_SYNC_MAX_BYTES) {
       this.fail('VC not found within sync limit')
     }
   }
@@ -302,7 +316,7 @@ export class MseHandshake {
   // Responder Flow
   // ============================================================
 
-  private processFirstByte(onSend: (data: Uint8Array) => void): void {
+  private processFirstByte(_onSend: (data: Uint8Array) => void): void {
     if (this.buffer.length < 1) return
 
     const firstByte = this.buffer[0]
@@ -318,8 +332,8 @@ export class MseHandshake {
     }
 
     // Likely MSE - wait for full public key
+    // Just set state, let processBufferAsync handle the next step
     this.state = 'received_pubkey'
-    this.processPe1(onSend)
   }
 
   private async processPe1(onSend: (data: Uint8Array) => void): Promise<void> {
@@ -503,6 +517,36 @@ export class MseHandshake {
   // ============================================================
 
   private processBuffer(onSend: (data: Uint8Array) => void): void {
+    // Skip if terminal state or already processing
+    if (this.processing || this.state === 'complete' || this.state === 'failed') return
+
+    this.processing = true
+    this.pendingOnSend = onSend
+    const bufferLenBefore = this.buffer.length
+    const stateBefore = this.state
+    this.processBufferAsync(onSend).finally(() => {
+      this.processing = false
+      // Re-process if:
+      // - Handler consumed data (buffer shrank)
+      // - State changed
+      // - New data arrived while we were processing (buffer grew)
+      const consumed = this.buffer.length < bufferLenBefore
+      const stateChanged = this.state !== stateBefore
+      const newDataArrived = this.buffer.length > bufferLenBefore
+      const shouldReprocess = consumed || stateChanged || newDataArrived
+      if (
+        shouldReprocess &&
+        this.buffer.length > 0 &&
+        this.state !== 'complete' &&
+        this.state !== 'failed' &&
+        this.pendingOnSend
+      ) {
+        this.processBuffer(this.pendingOnSend)
+      }
+    })
+  }
+
+  private async processBufferAsync(onSend: (data: Uint8Array) => void): Promise<void> {
     // Process based on state
     switch (this.state) {
       case 'idle':
@@ -511,16 +555,16 @@ export class MseHandshake {
         }
         break
       case 'sent_pubkey':
-        this.processPe2(onSend)
+        await this.processPe2(onSend)
         break
       case 'received_pubkey':
-        this.processPe1(onSend)
+        await this.processPe1(onSend)
         break
       case 'waiting_req1_sync':
-        this.processReq1Sync(onSend)
+        await this.processReq1Sync(onSend)
         break
       case 'waiting_vc_sync':
-        this.processPe4()
+        await this.processPe4()
         break
     }
   }
