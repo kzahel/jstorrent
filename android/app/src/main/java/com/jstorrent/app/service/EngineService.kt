@@ -688,18 +688,16 @@ class EngineService : Service() {
     // =========================================================================
 
     /**
-     * Check if all torrents are complete and handle auto-stop.
+     * Check if service should auto-stop and handle shutdown.
      * Called from the notification update loop after state transitions.
+     *
+     * Auto-stops when:
+     * - No torrents exist (empty list)
+     * - All torrents are paused by user
+     * - All torrents are complete (and at least one completed during this session)
      */
     private fun checkAllComplete(torrents: List<TorrentSummary>) {
-        // Don't auto-stop if:
-        // - No torrents
-        // - Keep seeding is enabled
-        // - Already in PAUSED_WIFI state (waiting for WiFi)
-        // - Within startup grace period (prevent race on launch)
-        // - Activity is in foreground (user is actively viewing app)
-        // - No torrent has completed during this session (all were already complete)
-        if (torrents.isEmpty()) return
+        // Common guards - these apply to all auto-stop conditions
         if (settingsStore.whenDownloadsComplete != "stop_and_close") return
         if (_serviceState.value == ServiceState.PAUSED_WIFI) return
 
@@ -713,6 +711,23 @@ class EngineService : Service() {
         // Don't auto-stop while activity is in foreground
         if (isActivityInForeground) {
             Log.d(TAG, "Skipping auto-stop: activity is in foreground")
+            return
+        }
+
+        // Stop if no torrents exist
+        if (torrents.isEmpty()) {
+            Log.i(TAG, "No torrents exist, stopping service")
+            _serviceState.value = ServiceState.STOPPED
+            stopSelf()
+            return
+        }
+
+        // Stop if all torrents are paused by user
+        val allPaused = torrents.all { it.status == "stopped" }
+        if (allPaused) {
+            Log.i(TAG, "All torrents paused, stopping service")
+            _serviceState.value = ServiceState.STOPPED
+            stopSelf()
             return
         }
 

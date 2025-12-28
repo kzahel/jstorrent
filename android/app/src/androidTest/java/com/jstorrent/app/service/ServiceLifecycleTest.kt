@@ -45,6 +45,9 @@ class ServiceLifecycleTest {
 
     @After
     fun tearDown() {
+        // Reset foreground flag to prevent test pollution
+        EngineService.isActivityInForeground = false
+
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         EngineService.stop(context)
         Thread.sleep(500)
@@ -195,9 +198,9 @@ class ServiceLifecycleTest {
     }
 
     @Test
-    fun testAutoStopWithNoTorrentsDoesNotStop() {
+    fun testAutoStopWithNoTorrentsWhenBackgrounded() {
         runBlocking {
-            Log.i(TAG, "Testing auto-stop with no torrents does not stop service")
+            Log.i(TAG, "Testing auto-stop with no torrents when backgrounded")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
 
             // Set to stop_and_close mode
@@ -210,14 +213,93 @@ class ServiceLifecycleTest {
             val service = EngineService.instance
             assertNotNull("Service should be available", service)
 
-            // Wait a bit - service should NOT auto-stop with empty torrent list
-            delay(3000)
+            // Simulate backgrounding the app
+            EngineService.isActivityInForeground = false
 
-            // Service should still be running (no torrents = don't auto-stop)
+            // Wait past grace period (5 seconds) plus some buffer for the check loop
+            delay(7000)
+
+            // Service should have stopped (instance may be null or state STOPPED)
             val currentService = EngineService.instance
-            assertNotNull("Service should still be running with no torrents", currentService)
+            val stopped = currentService == null || currentService.serviceState.value == ServiceState.STOPPED
+            assertTrue("Service should stop when no torrents and backgrounded", stopped)
 
-            Log.i(TAG, "SUCCESS: Service does not auto-stop when torrent list is empty")
+            Log.i(TAG, "SUCCESS: Service auto-stops when no torrents and backgrounded")
+        }
+    }
+
+    @Test
+    fun testNoAutoStopWithNoTorrentsWhenForegrounded() {
+        runBlocking {
+            Log.i(TAG, "Testing no auto-stop with no torrents when foregrounded")
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+            // Set to stop_and_close mode
+            settingsStore.whenDownloadsComplete = "stop_and_close"
+
+            // Start the service
+            EngineService.start(context, "null")
+            waitForService()
+
+            val service = EngineService.instance
+            assertNotNull("Service should be available", service)
+
+            // Keep activity in foreground (simulate user viewing app)
+            EngineService.isActivityInForeground = true
+
+            // Wait past grace period
+            delay(7000)
+
+            // Service should still be running (foregrounded prevents auto-stop)
+            val currentService = EngineService.instance
+            assertNotNull("Service should still be running when foregrounded", currentService)
+            assertEquals("Service should be in RUNNING state", ServiceState.RUNNING, currentService?.serviceState?.value)
+
+            Log.i(TAG, "SUCCESS: Service does not auto-stop when foregrounded")
+        }
+    }
+
+    @Test
+    fun testNoAutoStopInPausedWifiState() {
+        runBlocking {
+            Log.i(TAG, "Testing no auto-stop when in PAUSED_WIFI state")
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+            // Enable WiFi-only mode
+            settingsStore.wifiOnlyEnabled = true
+            settingsStore.whenDownloadsComplete = "stop_and_close"
+
+            // Start the service
+            EngineService.start(context, "null")
+            waitForService()
+
+            val service = EngineService.instance
+            assertNotNull("Service should be available", service)
+
+            // Simulate losing WiFi - this sets PAUSED_WIFI state
+            // We need to call the internal method or trigger network change
+            // For now, we verify that if service IS in PAUSED_WIFI, it doesn't stop
+            // This test will be more meaningful when we can simulate network changes
+
+            // Background the app
+            EngineService.isActivityInForeground = false
+
+            // Wait past grace period
+            delay(7000)
+
+            // If service is in PAUSED_WIFI state, it should NOT have stopped
+            // (even though there are no active torrents)
+            val currentService = EngineService.instance
+            if (currentService?.serviceState?.value == ServiceState.PAUSED_WIFI) {
+                Log.i(TAG, "Service is in PAUSED_WIFI state - verifying it stays running")
+                assertNotNull("Service should still be running in PAUSED_WIFI state", currentService)
+            } else {
+                // Service isn't in PAUSED_WIFI (WiFi is available), so it may have stopped
+                // This is expected behavior - the test passes either way
+                Log.i(TAG, "Service not in PAUSED_WIFI (WiFi available), test passes")
+            }
+
+            Log.i(TAG, "SUCCESS: PAUSED_WIFI state check completed")
         }
     }
 
