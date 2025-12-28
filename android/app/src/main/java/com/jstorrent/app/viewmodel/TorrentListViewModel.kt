@@ -166,12 +166,12 @@ class TorrentListViewModel(
      * Factory for creating TorrentListViewModel with dependencies.
      */
     class Factory(
-        private val repository: TorrentRepository = EngineServiceRepository()
+        private val application: android.app.Application
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(TorrentListViewModel::class.java)) {
-                return TorrentListViewModel(repository) as T
+                return TorrentListViewModel(EngineServiceRepository(application)) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

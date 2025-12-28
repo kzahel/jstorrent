@@ -89,8 +89,9 @@ fun TorrentNavHost(
             )
         ) { backStackEntry ->
             val infoHash = backStackEntry.arguments?.getString("infoHash") ?: ""
+            val application = LocalContext.current.applicationContext as android.app.Application
             val detailViewModel: TorrentDetailViewModel = viewModel(
-                factory = TorrentDetailViewModel.Factory(infoHash)
+                factory = TorrentDetailViewModel.Factory(application, infoHash)
             )
             TorrentDetailScreen(
                 viewModel = detailViewModel,

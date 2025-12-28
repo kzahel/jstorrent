@@ -63,7 +63,7 @@ class NativeStandaloneActivity : ComponentActivity() {
 
     // ViewModel for torrent list
     private val viewModel: TorrentListViewModel by viewModels {
-        TorrentListViewModel.Factory()
+        TorrentListViewModel.Factory(application)
     }
 
     // UI State

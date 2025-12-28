@@ -52,16 +52,15 @@ class RepositoryAsyncTest {
             Log.i(TAG, "Starting EngineService")
             EngineService.start(context, "null")
 
-            // Wait for engine to be fully loaded and service to start
+            // Wait for engine to be fully loaded
             repeat(30) {
-                if (app.engineController?.isLoaded?.value == true && EngineService.instance != null) return@repeat
+                if (app.engineController?.isLoaded?.value == true) return@repeat
                 delay(500)
             }
             assertTrue("Engine not loaded", app.engineController?.isLoaded?.value == true)
-            assertNotNull("Service not started", EngineService.instance)
 
-            repository = EngineServiceRepository()
-            Log.i(TAG, "Engine loaded, service started, repository created")
+            repository = EngineServiceRepository(app)
+            Log.i(TAG, "Engine loaded, repository created")
         }
     }
 

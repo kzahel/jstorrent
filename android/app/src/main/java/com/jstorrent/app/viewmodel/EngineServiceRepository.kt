@@ -1,6 +1,8 @@
 package com.jstorrent.app.viewmodel
 
-import com.jstorrent.app.service.EngineService
+import android.app.Application
+import com.jstorrent.app.JSTorrentApplication
+import com.jstorrent.quickjs.EngineController
 import com.jstorrent.quickjs.model.EngineState
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.TorrentInfo
@@ -15,24 +17,29 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * TorrentRepository implementation that wraps EngineService singleton.
+ * TorrentRepository implementation that accesses the engine.
+ *
+ * Connects to the EngineController directly from the Application.
+ * The engine lives for the process lifetime in JSTorrentApplication,
+ * independent of whether EngineService is running (service only runs
+ * when there's background work to do).
  *
  * Uses bridged StateFlows to handle the race condition where the ViewModel
- * may be created before EngineService.instance is available. The bridge
- * flows are updated by a coroutine that polls for the service and then
- * forwards updates from the real service flows.
- *
- * Handles service restart: when the service is destroyed (quit) and a new
- * service is started, this repository reconnects to the new service's flows.
+ * may be created before the engine is initialized.
  */
-class EngineServiceRepository : TorrentRepository {
+class EngineServiceRepository(
+    private val application: Application
+) : TorrentRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val service: EngineService?
-        get() = EngineService.instance
+    private val app: JSTorrentApplication
+        get() = application as JSTorrentApplication
 
-    // Bridged state flows that forward from the real service when available
+    private val controller: EngineController?
+        get() = app.engineController
+
+    // Bridged state flows that forward from the engine controller
     private val _state = MutableStateFlow<EngineState?>(null)
     private val _isLoaded = MutableStateFlow(false)
     private val _lastError = MutableStateFlow<String?>(null)
@@ -41,39 +48,36 @@ class EngineServiceRepository : TorrentRepository {
     override val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
     override val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
-    // Track the service we're connected to and collection jobs
-    private var connectedService: EngineService? = null
+    // Track the controller we're connected to and collection jobs
+    private var connectedController: EngineController? = null
     private var collectionJobs: List<Job> = emptyList()
 
     init {
-        // Continuously monitor for service availability
-        // Reconnects when service is destroyed and new one is created
+        // Continuously monitor for engine controller availability
+        // Reconnects when engine is restarted
         scope.launch {
             while (true) {
-                val currentService = EngineService.instance
+                val currentController = app.engineController
 
-                // Check if we need to disconnect from old service
-                if (connectedService != null && currentService !== connectedService) {
-                    // Service changed - cancel old collections and reset state
+                // Check if we need to disconnect from old controller
+                if (connectedController != null && currentController !== connectedController) {
+                    // Controller changed - cancel old collections and reset state
                     collectionJobs.forEach { it.cancel() }
                     collectionJobs = emptyList()
-                    connectedService = null
+                    connectedController = null
                     _isLoaded.value = false
                     _state.value = null
                     _lastError.value = null
                 }
 
-                // Check if we need to connect to new service
-                if (currentService != null && currentService !== connectedService) {
-                    // Wait for controller to be initialized
-                    if (currentService.isLoaded != null) {
-                        connectedService = currentService
-                        collectionJobs = listOf(
-                            launch { currentService.state?.collect { _state.value = it } },
-                            launch { currentService.isLoaded?.collect { _isLoaded.value = it } },
-                            launch { currentService.lastError?.collect { _lastError.value = it } }
-                        )
-                    }
+                // Check if we need to connect to new controller
+                if (currentController != null && currentController !== connectedController) {
+                    connectedController = currentController
+                    collectionJobs = listOf(
+                        launch { currentController.state.collect { _state.value = it } },
+                        launch { currentController.isLoaded.collect { _isLoaded.value = it } },
+                        launch { currentController.lastError.collect { _lastError.value = it } }
+                    )
                 }
 
                 delay(50)
@@ -82,19 +86,19 @@ class EngineServiceRepository : TorrentRepository {
     }
 
     override fun addTorrent(magnetOrBase64: String) {
-        scope.launch { service?.addTorrentAsync(magnetOrBase64) }
+        scope.launch { controller?.addTorrentAsync(magnetOrBase64) }
     }
 
     override fun pauseTorrent(infoHash: String) {
-        scope.launch { service?.pauseTorrentAsync(infoHash) }
+        scope.launch { controller?.pauseTorrentAsync(infoHash) }
     }
 
     override fun resumeTorrent(infoHash: String) {
-        scope.launch { service?.resumeTorrentAsync(infoHash) }
+        scope.launch { controller?.resumeTorrentAsync(infoHash) }
     }
 
     override fun removeTorrent(infoHash: String, deleteFiles: Boolean) {
-        scope.launch { service?.removeTorrentAsync(infoHash, deleteFiles) }
+        scope.launch { controller?.removeTorrentAsync(infoHash, deleteFiles) }
     }
 
     override fun pauseAll() {
@@ -103,7 +107,7 @@ class EngineServiceRepository : TorrentRepository {
         scope.launch {
             torrents.forEach { torrent ->
                 if (torrent.status != "stopped") {
-                    service?.pauseTorrentAsync(torrent.infoHash)
+                    controller?.pauseTorrentAsync(torrent.infoHash)
                 }
             }
         }
@@ -115,17 +119,17 @@ class EngineServiceRepository : TorrentRepository {
         scope.launch {
             torrents.forEach { torrent ->
                 if (torrent.status == "stopped") {
-                    service?.resumeTorrentAsync(torrent.infoHash)
+                    controller?.resumeTorrentAsync(torrent.infoHash)
                 }
             }
         }
     }
 
     override suspend fun getTorrentList(): List<TorrentInfo> {
-        return service?.getTorrentListAsync() ?: emptyList()
+        return controller?.getTorrentListAsync() ?: emptyList()
     }
 
     override suspend fun getFiles(infoHash: String): List<FileInfo> {
-        return service?.getFilesAsync(infoHash) ?: emptyList()
+        return controller?.getFilesAsync(infoHash) ?: emptyList()
     }
 }
