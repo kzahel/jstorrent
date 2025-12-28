@@ -42,10 +42,10 @@ class NotificationActionTest {
 
     @After
     fun tearDown() {
-        // Reset foreground flag to prevent test pollution
-        EngineService.isActivityInForeground = false
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val app = context.applicationContext as JSTorrentApplication
+        // Reset foreground flag to prevent test pollution
+        app.serviceLifecycleManager.setActivityForeground(false)
 
         // Stop the engine service if running
         if (EngineService.instance != null) {
@@ -93,8 +93,8 @@ class NotificationActionTest {
         // Initialize engine via Application
         app.initializeEngine(storageMode = "null")
 
-        // Mark activity as in foreground to prevent auto-stop on empty torrent list
-        EngineService.isActivityInForeground = true
+        // Mark activity as in foreground via lifecycle manager
+        app.serviceLifecycleManager.setActivityForeground(true)
 
         // Start the service
         EngineService.start(context, "null")
@@ -146,8 +146,8 @@ class NotificationActionTest {
         // Initialize engine via Application
         app.initializeEngine(storageMode = "null")
 
-        // Mark activity as in foreground to prevent auto-stop on empty torrent list
-        EngineService.isActivityInForeground = true
+        // Mark activity as in foreground via lifecycle manager
+        app.serviceLifecycleManager.setActivityForeground(true)
 
         // Start the service
         EngineService.start(context, "null")
@@ -177,8 +177,8 @@ class NotificationActionTest {
         // Initialize engine via Application
         app.initializeEngine(storageMode = "null")
 
-        // Mark activity as in foreground to prevent auto-stop on empty torrent list
-        EngineService.isActivityInForeground = true
+        // Mark activity as in foreground via lifecycle manager
+        app.serviceLifecycleManager.setActivityForeground(true)
 
         // Start the service
         EngineService.start(context, "null")
@@ -207,8 +207,8 @@ class NotificationActionTest {
         // Initialize engine via Application
         app.initializeEngine(storageMode = "null")
 
-        // Mark activity as in foreground to prevent auto-stop on empty torrent list
-        EngineService.isActivityInForeground = true
+        // Mark activity as in foreground via lifecycle manager
+        app.serviceLifecycleManager.setActivityForeground(true)
 
         // Start the service
         EngineService.start(context, "null")

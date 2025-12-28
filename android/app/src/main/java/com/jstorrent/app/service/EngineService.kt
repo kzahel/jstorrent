@@ -401,9 +401,6 @@ class EngineService : Service() {
         // Clean up removed torrents from tracking
         val currentHashes = torrents.map { it.infoHash }.toSet()
         previousStates.keys.removeAll { it !in currentHashes }
-
-        // Check if all torrents are complete for auto-stop
-        checkAllComplete(torrents)
     }
 
     /**
@@ -584,68 +581,6 @@ class EngineService : Service() {
         Log.i(TAG, "WiFi-only mode ${if (enabled) "enabled" else "disabled"}")
     }
 
-    // =========================================================================
-    // All-Complete Detection for Auto-Stop
-    // =========================================================================
-
-    /**
-     * Check if service should auto-stop and handle shutdown.
-     * Called from the notification update loop after state transitions.
-     *
-     * Auto-stops when:
-     * - No torrents exist (empty list)
-     * - All torrents are paused by user
-     * - All torrents are complete
-     */
-    private fun checkAllComplete(torrents: List<TorrentSummary>) {
-        // Common guards - these apply to all auto-stop conditions
-        if (settingsStore.whenDownloadsComplete != "stop_and_close") return
-        if (_serviceState.value == ServiceState.PAUSED_WIFI) return
-
-        // Don't auto-stop while activity is in foreground
-        if (isActivityInForeground) {
-            Log.d(TAG, "Skipping auto-stop: activity is in foreground")
-            return
-        }
-
-        // Stop if no torrents exist
-        if (torrents.isEmpty()) {
-            Log.i(TAG, "No torrents exist, stopping service")
-            _serviceState.value = ServiceState.STOPPED
-            stopSelf()
-            return
-        }
-
-        // Stop if all torrents are paused by user
-        val allPaused = torrents.all { it.status == "stopped" }
-        if (allPaused) {
-            Log.i(TAG, "All torrents paused, stopping service")
-            _serviceState.value = ServiceState.STOPPED
-            stopSelf()
-            return
-        }
-
-        // Check if ALL torrents are complete (progress >= 1.0)
-        val allComplete = torrents.all { it.progress >= 1.0 }
-
-        if (allComplete) {
-            Log.i(TAG, "All torrents complete, stopping service")
-
-            // Show toast on main thread before stopping
-            mainHandler.post {
-                Toast.makeText(
-                    this@EngineService,
-                    "All downloads complete",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-
-            // Stop the service
-            _serviceState.value = ServiceState.STOPPED
-            stopSelf()
-        }
-    }
-
     companion object {
         @Volatile
         var instance: EngineService? = null
@@ -654,13 +589,6 @@ class EngineService : Service() {
         @Volatile
         var storageMode: String? = null
             private set
-
-        /**
-         * Set by activity to indicate it's in foreground.
-         * When true, auto-stop on completion is disabled.
-         */
-        @Volatile
-        var isActivityInForeground: Boolean = false
 
         fun start(context: Context, storageMode: String? = null) {
             this.storageMode = storageMode

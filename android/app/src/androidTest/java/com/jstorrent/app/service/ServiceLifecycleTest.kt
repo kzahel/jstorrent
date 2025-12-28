@@ -12,19 +12,17 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 private const val TAG = "ServiceLifecycleTest"
 
 /**
- * Instrumentation tests for Phase 6: Service Lifecycle Management.
+ * Instrumentation tests for Service Lifecycle Management.
  *
  * Tests:
  * - Service starts in RUNNING state
  * - Settings persistence (wifiOnlyEnabled, whenDownloadsComplete)
  * - WiFi-only setting changes take effect at runtime
- * - Auto-stop behavior with "stop_and_close" setting
+ * - ServiceLifecycleManager controls service start/stop
  *
  * Run with:
  * ./gradlew :app:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.service.ServiceLifecycleTest
@@ -33,28 +31,28 @@ private const val TAG = "ServiceLifecycleTest"
 class ServiceLifecycleTest {
 
     private lateinit var settingsStore: SettingsStore
+    private lateinit var app: JSTorrentApplication
 
     @Before
     fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        app = context.applicationContext as JSTorrentApplication
         settingsStore = SettingsStore(context)
 
         // Reset settings to defaults for each test
         settingsStore.whenDownloadsComplete = "stop_and_close"
         settingsStore.wifiOnlyEnabled = false
 
-        // Set activity in foreground to prevent auto-stop on empty torrent list
-        // Tests that want to test background behavior should set this to false
-        EngineService.isActivityInForeground = true
+        // Set activity in foreground via lifecycle manager
+        app.serviceLifecycleManager.setActivityForeground(true)
     }
 
     @After
     fun tearDown() {
         // Reset foreground flag to prevent test pollution
-        EngineService.isActivityInForeground = false
+        app.serviceLifecycleManager.setActivityForeground(false)
 
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val app = context.applicationContext as JSTorrentApplication
         EngineService.stop(context)
         app.shutdownEngine()
         Thread.sleep(500)
@@ -65,12 +63,11 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing service starts in RUNNING state")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
-            val app = context.applicationContext as JSTorrentApplication
 
             // Initialize engine via Application
             app.initializeEngine(storageMode = "null")
 
-            // Start the service
+            // Start the service directly (for testing purposes)
             EngineService.start(context, "null")
 
             // Wait for service to start
@@ -126,7 +123,6 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing WiFi-only runtime toggle")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
-            val app = context.applicationContext as JSTorrentApplication
 
             // Ensure WiFi-only is disabled initially
             settingsStore.wifiOnlyEnabled = false
@@ -164,7 +160,6 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing serviceState is exposed correctly")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
-            val app = context.applicationContext as JSTorrentApplication
 
             // Initialize engine via Application
             app.initializeEngine(storageMode = "null")
@@ -193,7 +188,6 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing keep_seeding does not trigger auto-stop")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
-            val app = context.applicationContext as JSTorrentApplication
 
             // Set to keep_seeding mode
             settingsStore.whenDownloadsComplete = "keep_seeding"
@@ -221,72 +215,22 @@ class ServiceLifecycleTest {
     }
 
     @Test
-    fun testAutoStopWithNoTorrentsWhenBackgrounded() {
+    fun testLifecycleManagerForegroundState() {
         runBlocking {
-            Log.i(TAG, "Testing auto-stop with no torrents when backgrounded")
-            val context = InstrumentationRegistry.getInstrumentation().targetContext
-            val app = context.applicationContext as JSTorrentApplication
+            Log.i(TAG, "Testing lifecycle manager foreground state tracking")
 
-            // Set to stop_and_close mode
-            settingsStore.whenDownloadsComplete = "stop_and_close"
+            // Initially should be foreground (set in setUp)
+            assertTrue("Initial state should be foreground", app.serviceLifecycleManager.isActivityForeground.value)
 
-            // Initialize engine via Application
-            app.initializeEngine(storageMode = "null")
+            // Set to background
+            app.serviceLifecycleManager.setActivityForeground(false)
+            assertFalse("Should be background after setting false", app.serviceLifecycleManager.isActivityForeground.value)
 
-            // Start the service
-            EngineService.start(context, "null")
-            waitForService()
+            // Set back to foreground
+            app.serviceLifecycleManager.setActivityForeground(true)
+            assertTrue("Should be foreground after setting true", app.serviceLifecycleManager.isActivityForeground.value)
 
-            val service = EngineService.instance
-            assertNotNull("Service should be available", service)
-
-            // Simulate backgrounding the app
-            EngineService.isActivityInForeground = false
-
-            // Wait past grace period (5 seconds) plus some buffer for the check loop
-            delay(7000)
-
-            // Service should have stopped (instance may be null or state STOPPED)
-            val currentService = EngineService.instance
-            val stopped = currentService == null || currentService.serviceState.value == ServiceState.STOPPED
-            assertTrue("Service should stop when no torrents and backgrounded", stopped)
-
-            Log.i(TAG, "SUCCESS: Service auto-stops when no torrents and backgrounded")
-        }
-    }
-
-    @Test
-    fun testNoAutoStopWithNoTorrentsWhenForegrounded() {
-        runBlocking {
-            Log.i(TAG, "Testing no auto-stop with no torrents when foregrounded")
-            val context = InstrumentationRegistry.getInstrumentation().targetContext
-            val app = context.applicationContext as JSTorrentApplication
-
-            // Set to stop_and_close mode
-            settingsStore.whenDownloadsComplete = "stop_and_close"
-
-            // Initialize engine via Application
-            app.initializeEngine(storageMode = "null")
-
-            // Start the service
-            EngineService.start(context, "null")
-            waitForService()
-
-            val service = EngineService.instance
-            assertNotNull("Service should be available", service)
-
-            // Keep activity in foreground (simulate user viewing app)
-            EngineService.isActivityInForeground = true
-
-            // Wait past grace period
-            delay(7000)
-
-            // Service should still be running (foregrounded prevents auto-stop)
-            val currentService = EngineService.instance
-            assertNotNull("Service should still be running when foregrounded", currentService)
-            assertEquals("Service should be in RUNNING state", ServiceState.RUNNING, currentService?.serviceState?.value)
-
-            Log.i(TAG, "SUCCESS: Service does not auto-stop when foregrounded")
+            Log.i(TAG, "SUCCESS: Lifecycle manager foreground state tracking works")
         }
     }
 
@@ -295,7 +239,6 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing no auto-stop when in PAUSED_WIFI state")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
-            val app = context.applicationContext as JSTorrentApplication
 
             // Enable WiFi-only mode
             settingsStore.wifiOnlyEnabled = true
@@ -311,16 +254,11 @@ class ServiceLifecycleTest {
             val service = EngineService.instance
             assertNotNull("Service should be available", service)
 
-            // Simulate losing WiFi - this sets PAUSED_WIFI state
-            // We need to call the internal method or trigger network change
-            // For now, we verify that if service IS in PAUSED_WIFI, it doesn't stop
-            // This test will be more meaningful when we can simulate network changes
+            // Background the app via lifecycle manager
+            app.serviceLifecycleManager.setActivityForeground(false)
 
-            // Background the app
-            EngineService.isActivityInForeground = false
-
-            // Wait past grace period
-            delay(7000)
+            // Wait a bit
+            delay(2000)
 
             // If service is in PAUSED_WIFI state, it should NOT have stopped
             // (even though there are no active torrents)
@@ -329,8 +267,7 @@ class ServiceLifecycleTest {
                 Log.i(TAG, "Service is in PAUSED_WIFI state - verifying it stays running")
                 assertNotNull("Service should still be running in PAUSED_WIFI state", currentService)
             } else {
-                // Service isn't in PAUSED_WIFI (WiFi is available), so it may have stopped
-                // This is expected behavior - the test passes either way
+                // Service isn't in PAUSED_WIFI (WiFi is available)
                 Log.i(TAG, "Service not in PAUSED_WIFI (WiFi available), test passes")
             }
 

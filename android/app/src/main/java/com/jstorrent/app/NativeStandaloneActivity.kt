@@ -100,11 +100,11 @@ class NativeStandaloneActivity : ComponentActivity() {
         // Handle incoming intent (magnet link or torrent file)
         handleIncomingIntent(intent)
 
-        // Initialize engine (idempotent) - BEFORE starting service
+        // Initialize engine (idempotent)
         app.initializeEngine(storageMode = testStorageMode.value)
 
-        // Start EngineService for notification
-        EngineService.start(this, storageMode = testStorageMode.value)
+        // Observe torrent state changes to update service lifecycle
+        observeTorrentStateForServiceLifecycle()
 
         // Check if we should show notification permission dialog (first launch only)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -161,20 +161,17 @@ class NativeStandaloneActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        app.serviceLifecycleManager.onActivityStart()
         observeEngineForPendingMagnet()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        app.serviceLifecycleManager.onActivityStop()
     }
 
     override fun onResume() {
         super.onResume()
-        // Mark activity as in foreground to prevent auto-stop
-        EngineService.isActivityInForeground = true
-
-        // Ensure service is running - handles case where user quit via notification
-        // but Activity was still alive in the back stack
-        if (EngineService.instance == null) {
-            Log.i(TAG, "Service not running, restarting from onResume")
-            EngineService.start(this, storageMode = testStorageMode.value)
-        }
 
         // Refresh roots (may have been added via AddRootActivity)
         rootStore.reload()
@@ -190,10 +187,17 @@ class NativeStandaloneActivity : ComponentActivity() {
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        // Allow auto-stop when activity goes to background
-        EngineService.isActivityInForeground = false
+    /**
+     * Observe torrent state changes to update service lifecycle.
+     * The lifecycle manager decides when to start/stop the foreground service.
+     */
+    private fun observeTorrentStateForServiceLifecycle() {
+        lifecycleScope.launch {
+            app.engineController?.state?.collect { state ->
+                val torrents = state?.torrents ?: emptyList()
+                app.serviceLifecycleManager.onTorrentStateChanged(torrents)
+            }
+        }
     }
 
     /**

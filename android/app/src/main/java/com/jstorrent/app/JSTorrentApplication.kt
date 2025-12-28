@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.net.Uri
 import android.util.Log
+import com.jstorrent.app.service.ServiceLifecycleManager
 import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.RootStore
 import com.jstorrent.quickjs.EngineController
@@ -40,10 +41,17 @@ class JSTorrentApplication : Application() {
         const val ERRORS = "jstorrent_errors"
     }
 
+    // Service lifecycle management
+    lateinit var serviceLifecycleManager: ServiceLifecycleManager
+        private set
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
         deleteLegacyChannels()
+
+        // Initialize service lifecycle manager
+        serviceLifecycleManager = ServiceLifecycleManager(this, SettingsStore(this))
     }
 
     private fun createNotificationChannels() {
