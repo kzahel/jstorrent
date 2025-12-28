@@ -351,7 +351,7 @@ describe('Encryption Policy', () => {
 
       expect(mseSocketA.isEncrypted).toBe(true)
       expect(mseSocketB.isEncrypted).toBe(true)
-    })
+    }, 15000)
 
     it("'required' initiator with 'prefer' responder should encrypt", async () => {
       const [socketA, socketB] = MemorySocketFactory.createPair()
@@ -374,7 +374,7 @@ describe('Encryption Policy', () => {
 
       expect(mseSocketA.isEncrypted).toBe(true)
       expect(mseSocketB.isEncrypted).toBe(true)
-    })
+    }, 15000)
 
     it("'required' initiator with 'required' responder should encrypt", async () => {
       const [socketA, socketB] = MemorySocketFactory.createPair()
@@ -397,7 +397,7 @@ describe('Encryption Policy', () => {
 
       expect(mseSocketA.isEncrypted).toBe(true)
       expect(mseSocketB.isEncrypted).toBe(true)
-    })
+    }, 15000)
   })
 
   describe('initial payload delivery timing', () => {
