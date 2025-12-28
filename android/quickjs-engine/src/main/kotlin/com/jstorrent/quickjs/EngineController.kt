@@ -71,6 +71,13 @@ class EngineController(
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
     /**
+     * Check if the engine is healthy and responsive.
+     * Returns false if engine is not loaded or has been closed.
+     */
+    val isHealthy: Boolean
+        get() = engine != null && _isLoaded.value
+
+    /**
      * Load the engine bundle and initialize with configuration.
      *
      * @param config Engine configuration including content roots

@@ -275,6 +275,30 @@ class ServiceLifecycleTest {
         }
     }
 
+    @Test
+    fun testEngineHealthCheck() {
+        runBlocking {
+            Log.i(TAG, "Testing engine health check")
+
+            // Initialize engine
+            val engine = app.initializeEngine(storageMode = "null")
+
+            // Engine should be healthy
+            assertTrue("Newly initialized engine should be healthy", engine.isHealthy)
+
+            // After shutdown, engine should not be healthy
+            app.shutdownEngine()
+            assertFalse("Shutdown engine should not be healthy", engine.isHealthy)
+
+            // ensureEngine should create new engine after shutdown
+            assertNull("Controller should be null after shutdown", app.engineController)
+            val newEngine = app.ensureEngine(storageMode = "null")
+            assertTrue("Ensured engine should be healthy", newEngine.isHealthy)
+
+            Log.i(TAG, "SUCCESS: Engine health check works correctly")
+        }
+    }
+
     /**
      * Wait for the EngineService to be available and loaded.
      */

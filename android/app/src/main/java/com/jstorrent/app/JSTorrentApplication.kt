@@ -183,6 +183,29 @@ class JSTorrentApplication : Application() {
         _engineController = null
     }
 
+    /**
+     * Ensure the engine is healthy. If engine crashed or was closed,
+     * reinitialize it.
+     *
+     * @param storageMode Optional storage mode for testing
+     * @return The healthy engine controller
+     */
+    fun ensureEngine(storageMode: String? = null): EngineController {
+        _engineController?.let { controller ->
+            if (controller.isHealthy) {
+                return controller
+            }
+            Log.w(TAG, "Engine unhealthy, reinitializing...")
+            try {
+                controller.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error closing unhealthy engine", e)
+            }
+            _engineController = null
+        }
+        return initializeEngine(storageMode)
+    }
+
     private fun applyEngineSettings(controller: EngineController, settingsStore: SettingsStore) {
         val configBridge = controller.getConfigBridge() ?: return
 
