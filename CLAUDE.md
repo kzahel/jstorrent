@@ -97,7 +97,8 @@ emu start                               # Start emulator
 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
 
 # E2E tests (requires Python seeder)
-pnpm seed-for-test &                    # Start seeder in background
+# Kill any existing process on port 6881, then start fresh
+lsof -ti :6881 | xargs kill 2>/dev/null; sleep 1; pnpm seed-for-test &
 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
 
 # Manual E2E testing
