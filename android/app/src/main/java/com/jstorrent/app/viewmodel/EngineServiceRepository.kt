@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +21,9 @@ import kotlinx.coroutines.launch
  * may be created before EngineService.instance is available. The bridge
  * flows are updated by a coroutine that polls for the service and then
  * forwards updates from the real service flows.
+ *
+ * Handles service restart: when the service is destroyed (quit) and a new
+ * service is started, this repository reconnects to the new service's flows.
  */
 class EngineServiceRepository : TorrentRepository {
 
@@ -37,25 +41,42 @@ class EngineServiceRepository : TorrentRepository {
     override val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
     override val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
-    init {
-        // Start forwarding from service flows when service becomes available
-        scope.launch {
-            // Wait for service AND controller to be available
-            // The controller is initialized async after service.onCreate
-            while (EngineService.instance?.isLoaded == null) {
-                delay(50)
-            }
-            val svc = EngineService.instance!!
+    // Track the service we're connected to and collection jobs
+    private var connectedService: EngineService? = null
+    private var collectionJobs: List<Job> = emptyList()
 
-            // Forward state updates
-            launch {
-                svc.state?.collect { _state.value = it }
-            }
-            launch {
-                svc.isLoaded?.collect { _isLoaded.value = it }
-            }
-            launch {
-                svc.lastError?.collect { _lastError.value = it }
+    init {
+        // Continuously monitor for service availability
+        // Reconnects when service is destroyed and new one is created
+        scope.launch {
+            while (true) {
+                val currentService = EngineService.instance
+
+                // Check if we need to disconnect from old service
+                if (connectedService != null && currentService !== connectedService) {
+                    // Service changed - cancel old collections and reset state
+                    collectionJobs.forEach { it.cancel() }
+                    collectionJobs = emptyList()
+                    connectedService = null
+                    _isLoaded.value = false
+                    _state.value = null
+                    _lastError.value = null
+                }
+
+                // Check if we need to connect to new service
+                if (currentService != null && currentService !== connectedService) {
+                    // Wait for controller to be initialized
+                    if (currentService.isLoaded != null) {
+                        connectedService = currentService
+                        collectionJobs = listOf(
+                            launch { currentService.state?.collect { _state.value = it } },
+                            launch { currentService.isLoaded?.collect { _isLoaded.value = it } },
+                            launch { currentService.lastError?.collect { _lastError.value = it } }
+                        )
+                    }
+                }
+
+                delay(50)
             }
         }
     }

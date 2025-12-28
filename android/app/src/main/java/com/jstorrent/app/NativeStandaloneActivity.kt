@@ -162,6 +162,13 @@ class NativeStandaloneActivity : ComponentActivity() {
         // Mark activity as in foreground to prevent auto-stop
         EngineService.isActivityInForeground = true
 
+        // Ensure service is running - handles case where user quit via notification
+        // but Activity was still alive in the back stack
+        if (EngineService.instance == null) {
+            Log.i(TAG, "Service not running, restarting from onResume")
+            EngineService.start(this, storageMode = testStorageMode.value)
+        }
+
         // Refresh roots (may have been added via AddRootActivity)
         rootStore.reload()
         hasRoots.value = rootStore.listRoots().isNotEmpty()
