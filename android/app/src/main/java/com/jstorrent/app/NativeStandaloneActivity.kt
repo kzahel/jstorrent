@@ -159,6 +159,9 @@ class NativeStandaloneActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Mark activity as in foreground to prevent auto-stop
+        EngineService.isActivityInForeground = true
+
         // Refresh roots (may have been added via AddRootActivity)
         rootStore.reload()
         hasRoots.value = rootStore.listRoots().isNotEmpty()
@@ -171,6 +174,12 @@ class NativeStandaloneActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             syncRootsWithEngine()
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Allow auto-stop when activity goes to background
+        EngineService.isActivityInForeground = false
     }
 
     /**

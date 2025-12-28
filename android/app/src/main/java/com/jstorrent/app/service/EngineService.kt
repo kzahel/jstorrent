@@ -83,6 +83,13 @@ class EngineService : Service() {
     // Main thread handler for toasts
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    // Timestamp when engine finished loading (for startup grace period)
+    private var engineLoadedAtMs: Long = 0L
+
+    // Track if we've seen at least one torrent complete during this session
+    // Used to prevent auto-stop when all torrents are already complete at startup
+    private var hasSeenCompletionDuringSession = false
+
     /** Public access to controller for root management */
     val controller: EngineController?
         get() = _controller
@@ -403,6 +410,7 @@ class EngineService : Service() {
         )
 
         _controller!!.loadEngine(config)
+        engineLoadedAtMs = System.currentTimeMillis()
         Log.i(TAG, "Engine loaded successfully")
 
         // Apply all saved settings to engine
@@ -470,6 +478,11 @@ class EngineService : Service() {
             // Detect completion: wasn't complete before, now is
             if (torrent.progress >= 1.0 && (prev == null || prev.progress < 1.0)) {
                 showCompletionNotification(torrent)
+                // Only count as "seen completion" if torrent was previously incomplete
+                // (not if it was already complete at startup)
+                if (prev != null && prev.progress < 1.0) {
+                    hasSeenCompletionDuringSession = true
+                }
             }
 
             // Detect error: wasn't error before, now is
@@ -683,9 +696,32 @@ class EngineService : Service() {
         // - No torrents
         // - Keep seeding is enabled
         // - Already in PAUSED_WIFI state (waiting for WiFi)
+        // - Within startup grace period (prevent race on launch)
+        // - Activity is in foreground (user is actively viewing app)
+        // - No torrent has completed during this session (all were already complete)
         if (torrents.isEmpty()) return
         if (settingsStore.whenDownloadsComplete != "stop_and_close") return
         if (_serviceState.value == ServiceState.PAUSED_WIFI) return
+
+        // Don't auto-stop during startup grace period
+        val timeSinceLoad = System.currentTimeMillis() - engineLoadedAtMs
+        if (timeSinceLoad < STARTUP_GRACE_PERIOD_MS) {
+            Log.d(TAG, "Skipping auto-stop: within startup grace period (${timeSinceLoad}ms)")
+            return
+        }
+
+        // Don't auto-stop while activity is in foreground
+        if (isActivityInForeground) {
+            Log.d(TAG, "Skipping auto-stop: activity is in foreground")
+            return
+        }
+
+        // Don't auto-stop if all torrents were already complete at startup
+        // Only auto-stop when at least one torrent has actually completed during this session
+        if (!hasSeenCompletionDuringSession) {
+            Log.d(TAG, "Skipping auto-stop: no torrents completed during this session")
+            return
+        }
 
         // Check if ALL torrents are complete (progress >= 1.0)
         val allComplete = torrents.all { it.progress >= 1.0 }
@@ -709,6 +745,9 @@ class EngineService : Service() {
     }
 
     companion object {
+        /** Grace period after engine init before auto-stop is allowed (ms) */
+        private const val STARTUP_GRACE_PERIOD_MS = 5000L
+
         @Volatile
         var instance: EngineService? = null
             private set
@@ -716,6 +755,13 @@ class EngineService : Service() {
         @Volatile
         var storageMode: String? = null
             private set
+
+        /**
+         * Set by activity to indicate it's in foreground.
+         * When true, auto-stop on completion is disabled.
+         */
+        @Volatile
+        var isActivityInForeground: Boolean = false
 
         fun start(context: Context, storageMode: String? = null) {
             this.storageMode = storageMode
