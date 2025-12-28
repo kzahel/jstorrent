@@ -11,14 +11,13 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import com.jstorrent.app.JSTorrentApplication
 import com.jstorrent.app.network.NetworkMonitor
 import com.jstorrent.app.notification.ForegroundNotificationManager
 import com.jstorrent.app.notification.TorrentNotificationManager
 import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.RootStore
 import com.jstorrent.quickjs.EngineController
-import com.jstorrent.quickjs.model.ContentRoot
-import com.jstorrent.quickjs.model.EngineConfig
 import com.jstorrent.quickjs.model.EngineState
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.TorrentInfo
@@ -57,7 +56,10 @@ class EngineService : Service() {
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var rootStore: RootStore
     private lateinit var settingsStore: SettingsStore
-    private var _controller: EngineController? = null
+
+    // Access engine from Application (engine lives for process lifetime)
+    private val app: JSTorrentApplication
+        get() = application as JSTorrentApplication
 
     // Notification management
     private lateinit var notificationManager: ForegroundNotificationManager
@@ -92,7 +94,7 @@ class EngineService : Service() {
 
     /** Public access to controller for root management */
     val controller: EngineController?
-        get() = _controller
+        get() = app.engineController
 
     // Exposed state for UI
     val state: StateFlow<EngineState?>?
@@ -134,10 +136,14 @@ class EngineService : Service() {
             startForeground(ForegroundNotificationManager.NOTIFICATION_ID, initialNotification)
         }
 
-        // Initialize engine on IO thread
+        // Wait for engine (initialized by Activity) and start updates
         ioScope.launch {
             try {
-                initializeEngine()
+                // Wait for engine to be initialized (by Activity)
+                while (app.engineController == null) {
+                    delay(50)
+                }
+                engineLoadedAtMs = System.currentTimeMillis()
                 startNotificationUpdates()
 
                 // Start WiFi monitoring if WiFi-only mode is enabled
@@ -145,7 +151,7 @@ class EngineService : Service() {
                     startWifiMonitoring()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to initialize engine", e)
+                Log.e(TAG, "Failed to start notification updates", e)
             }
         }
 
@@ -164,8 +170,8 @@ class EngineService : Service() {
         notificationUpdateJob?.cancel()
         notificationUpdateJob = null
 
-        _controller?.close()
-        _controller = null
+        // NOTE: Engine is NOT destroyed here - it lives in Application
+        // and survives service restarts
 
         _serviceState.value = ServiceState.STOPPED
         ioScope.cancel()
@@ -362,87 +368,6 @@ class EngineService : Service() {
      * Get the current encryption policy.
      */
     fun getEncryptionPolicy(): String = settingsStore.encryptionPolicy
-
-    // =========================================================================
-    // Private Implementation
-    // =========================================================================
-
-    private fun initializeEngine() {
-        // Don't reinitialize if already loaded
-        if (_controller?.isLoaded?.value == true) {
-            Log.i(TAG, "Engine already loaded, skipping initialization")
-            return
-        }
-
-        Log.i(TAG, "Initializing engine...")
-
-        // Create rootResolver that queries RootStore dynamically
-        // This allows FileBindings to find roots added after engine startup
-        // We reload() before each resolve to pick up changes from AddRootActivity
-        val rootResolver: (String) -> android.net.Uri? = { key ->
-            rootStore.reload()
-            rootStore.resolveKey(key)
-        }
-
-        _controller = EngineController(
-            context = this,
-            scope = ioScope,
-            rootResolver = rootResolver
-        )
-
-        // Build config from RootStore
-        val roots = rootStore.listRoots()
-        // Use saved default root key, or fall back to first root
-        val defaultKey = settingsStore.defaultRootKey?.takeIf { key ->
-            roots.any { it.key == key }
-        } ?: roots.firstOrNull()?.key
-
-        val config = EngineConfig(
-            contentRoots = roots.map { root ->
-                ContentRoot(
-                    key = root.key,
-                    label = root.displayName,
-                    path = root.uri  // SAF URI as path
-                )
-            },
-            defaultContentRoot = defaultKey,
-            storageMode = if (storageMode == "null") "null" else null
-        )
-
-        _controller!!.loadEngine(config)
-        engineLoadedAtMs = System.currentTimeMillis()
-        Log.i(TAG, "Engine loaded successfully")
-
-        // Apply all saved settings to engine
-        applyEngineSettings()
-    }
-
-    /**
-     * Apply all saved settings from SettingsStore to the engine.
-     */
-    private fun applyEngineSettings() {
-        val configBridge = _controller?.getConfigBridge() ?: return
-
-        // Bandwidth settings
-        val downloadLimit = settingsStore.downloadSpeedLimit
-        val uploadLimit = settingsStore.uploadSpeedLimit
-
-        if (downloadLimit > 0) {
-            configBridge.setDownloadSpeedLimit(downloadLimit)
-        }
-        if (uploadLimit > 0) {
-            configBridge.setUploadSpeedLimit(uploadLimit)
-        }
-
-        // Network settings
-        configBridge.setDhtEnabled(settingsStore.dhtEnabled)
-        configBridge.setPexEnabled(settingsStore.pexEnabled)
-        configBridge.setEncryptionPolicy(settingsStore.encryptionPolicy)
-
-        Log.i(TAG, "Applied engine settings: download=${downloadLimit}B/s, upload=${uploadLimit}B/s, " +
-            "dht=${settingsStore.dhtEnabled}, pex=${settingsStore.pexEnabled}, " +
-            "encryption=${settingsStore.encryptionPolicy}")
-    }
 
     // =========================================================================
     // Notification

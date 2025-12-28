@@ -3,6 +3,7 @@ package com.jstorrent.app.service
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.jstorrent.app.JSTorrentApplication
 import com.jstorrent.app.settings.SettingsStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -49,7 +50,9 @@ class ServiceLifecycleTest {
         EngineService.isActivityInForeground = false
 
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
         EngineService.stop(context)
+        app.shutdownEngine()
         Thread.sleep(500)
     }
 
@@ -58,6 +61,10 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing service starts in RUNNING state")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val app = context.applicationContext as JSTorrentApplication
+
+            // Initialize engine via Application
+            app.initializeEngine(storageMode = "null")
 
             // Start the service
             EngineService.start(context, "null")
@@ -115,9 +122,13 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing WiFi-only runtime toggle")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val app = context.applicationContext as JSTorrentApplication
 
             // Ensure WiFi-only is disabled initially
             settingsStore.wifiOnlyEnabled = false
+
+            // Initialize engine via Application
+            app.initializeEngine(storageMode = "null")
 
             // Start the service
             EngineService.start(context, "null")
@@ -149,6 +160,10 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing serviceState is exposed correctly")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val app = context.applicationContext as JSTorrentApplication
+
+            // Initialize engine via Application
+            app.initializeEngine(storageMode = "null")
 
             // Start the service
             EngineService.start(context, "null")
@@ -174,9 +189,13 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing keep_seeding does not trigger auto-stop")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val app = context.applicationContext as JSTorrentApplication
 
             // Set to keep_seeding mode
             settingsStore.whenDownloadsComplete = "keep_seeding"
+
+            // Initialize engine via Application
+            app.initializeEngine(storageMode = "null")
 
             // Start the service
             EngineService.start(context, "null")
@@ -202,9 +221,13 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing auto-stop with no torrents when backgrounded")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val app = context.applicationContext as JSTorrentApplication
 
             // Set to stop_and_close mode
             settingsStore.whenDownloadsComplete = "stop_and_close"
+
+            // Initialize engine via Application
+            app.initializeEngine(storageMode = "null")
 
             // Start the service
             EngineService.start(context, "null")
@@ -233,9 +256,13 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing no auto-stop with no torrents when foregrounded")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val app = context.applicationContext as JSTorrentApplication
 
             // Set to stop_and_close mode
             settingsStore.whenDownloadsComplete = "stop_and_close"
+
+            // Initialize engine via Application
+            app.initializeEngine(storageMode = "null")
 
             // Start the service
             EngineService.start(context, "null")
@@ -264,10 +291,14 @@ class ServiceLifecycleTest {
         runBlocking {
             Log.i(TAG, "Testing no auto-stop when in PAUSED_WIFI state")
             val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val app = context.applicationContext as JSTorrentApplication
 
             // Enable WiFi-only mode
             settingsStore.wifiOnlyEnabled = true
             settingsStore.whenDownloadsComplete = "stop_and_close"
+
+            // Initialize engine via Application
+            app.initializeEngine(storageMode = "null")
 
             // Start the service
             EngineService.start(context, "null")

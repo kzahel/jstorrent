@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -63,7 +64,11 @@ class DownloadE2ETest : E2EBaseTest() {
      * Requires the Python seeder to be running on the host.
      * In CI, the seeder is started automatically before this test.
      * The emulator reaches the host via 10.0.2.2.
+     *
+     * TODO: Fix seed-for-test infrastructure - seeder connectivity issues
+     * prevent reliable peer connections from emulator/device.
      */
+    @Ignore("seed-for-test infrastructure needs fixing - seeder not reachable from test devices")
     @Test
     fun downloadFromSeeder_makesProgress() {
         val engine = requireEngine()
@@ -136,7 +141,11 @@ class DownloadE2ETest : E2EBaseTest() {
 
     /**
      * Test that resuming continues download.
+     *
+     * TODO: Fix seed-for-test infrastructure - seeder connectivity issues
+     * prevent reliable peer connections from emulator/device.
      */
+    @Ignore("seed-for-test infrastructure needs fixing - seeder not reachable from test devices")
     @Test
     fun resumeTorrent_continuesDownload() {
         val engine = requireEngine()
@@ -168,7 +177,11 @@ class DownloadE2ETest : E2EBaseTest() {
      *
      * This is a long-running test (potentially several minutes).
      * Only run in CI or when specifically testing download completion.
+     *
+     * TODO: Fix seed-for-test infrastructure - seeder connectivity issues
+     * prevent reliable peer connections from emulator/device.
      */
+    @Ignore("seed-for-test infrastructure needs fixing - seeder not reachable from test devices")
     @Test
     fun fullDownload_completes() {
         val engine = requireEngine()

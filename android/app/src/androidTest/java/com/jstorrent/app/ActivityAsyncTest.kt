@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -34,34 +35,48 @@ class ActivityAsyncTest {
     fun setup() {
         runBlocking {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
-            Log.i(TAG, "Starting EngineService")
+            val app = context.applicationContext as JSTorrentApplication
+            Log.i(TAG, "Initializing engine via Application")
 
-            // Start service with null storage mode (in-memory)
+            // Initialize engine via Application (with null storage mode for in-memory)
+            app.initializeEngine(storageMode = "null")
+
+            // Start service (it will use the Application's engine)
+            Log.i(TAG, "Starting EngineService")
             EngineService.start(context, "null")
 
-            // Wait for engine to load
+            // Wait for engine to be fully loaded and service to start
             repeat(30) {
-                if (EngineService.instance?.isLoaded?.value == true) return@repeat
+                if (app.engineController?.isLoaded?.value == true && EngineService.instance != null) return@repeat
                 delay(500)
             }
-            requireNotNull(EngineService.instance) { "Engine failed to start" }
-            assertTrue("Engine not loaded", EngineService.instance!!.isLoaded?.value == true)
+            assertTrue("Engine not loaded", app.engineController?.isLoaded?.value == true)
+            assertNotNull("Service not started", EngineService.instance)
 
-            Log.i(TAG, "Engine loaded")
+            Log.i(TAG, "Engine loaded, service started")
         }
     }
 
     @After
     fun teardown() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
         EngineService.stop(context)
+        app.shutdownEngine()
+        // Wait for service to fully stop to avoid race conditions with next test
+        Thread.sleep(1000)
         Log.i(TAG, "EngineService stopped")
+    }
+
+    private fun getController(): com.jstorrent.quickjs.EngineController {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
+        return app.engineController ?: throw IllegalStateException("Controller not available")
     }
 
     @Test
     fun addRootAsync_returnsImmediately() {
-        val controller = EngineService.instance?.controller
-            ?: throw IllegalStateException("Controller not available")
+        val controller = getController()
 
         // Async root addition should return quickly
         val elapsed = measureTimeMillis {
@@ -75,8 +90,7 @@ class ActivityAsyncTest {
 
     @Test
     fun setDefaultRootAsync_returnsImmediately() {
-        val controller = EngineService.instance?.controller
-            ?: throw IllegalStateException("Controller not available")
+        val controller = getController()
 
         // First add a root
         runBlocking {
@@ -95,8 +109,7 @@ class ActivityAsyncTest {
 
     @Test
     fun multipleRoots_addedWithoutBlocking() {
-        val controller = EngineService.instance?.controller
-            ?: throw IllegalStateException("Controller not available")
+        val controller = getController()
 
         // Adding multiple roots should not cause cumulative blocking
         val elapsed = measureTimeMillis {
@@ -113,8 +126,7 @@ class ActivityAsyncTest {
 
     @Test
     fun removeRootAsync_returnsImmediately() {
-        val controller = EngineService.instance?.controller
-            ?: throw IllegalStateException("Controller not available")
+        val controller = getController()
 
         // First add a root
         runBlocking {

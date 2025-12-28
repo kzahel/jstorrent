@@ -3,12 +3,26 @@ package com.jstorrent.app
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.net.Uri
+import android.util.Log
+import com.jstorrent.app.settings.SettingsStore
+import com.jstorrent.app.storage.RootStore
+import com.jstorrent.quickjs.EngineController
+import com.jstorrent.quickjs.model.ContentRoot
+import com.jstorrent.quickjs.model.EngineConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+
+private const val TAG = "JSTorrentApplication"
 
 /**
  * Application class for JSTorrent.
  *
  * Creates notification channels on startup. This ensures channels exist
  * before any service tries to use them.
+ *
+ * Also hosts the engine controller which lives for the process lifetime.
  */
 class JSTorrentApplication : Application() {
 
@@ -88,5 +102,94 @@ class JSTorrentApplication : Application() {
         for (channelId in legacyChannels) {
             manager.deleteNotificationChannel(channelId)
         }
+    }
+
+    // =========================================================================
+    // Engine Controller - lives for process lifetime
+    // =========================================================================
+
+    private var _engineController: EngineController? = null
+
+    val engineController: EngineController?
+        get() = _engineController
+
+    // Scope for engine - lives for process lifetime
+    private val engineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * Initialize the engine. Called from Activity on first launch.
+     * Idempotent - safe to call multiple times.
+     */
+    fun initializeEngine(storageMode: String? = null): EngineController {
+        _engineController?.let { return it }
+
+        Log.i(TAG, "Initializing engine...")
+
+        val rootStore = RootStore(this)
+        val settingsStore = SettingsStore(this)
+
+        // Create rootResolver that queries RootStore dynamically
+        val rootResolver: (String) -> Uri? = { key ->
+            rootStore.reload()
+            rootStore.resolveKey(key)
+        }
+
+        val controller = EngineController(
+            context = this,
+            scope = engineScope,
+            rootResolver = rootResolver
+        )
+
+        // Build config from RootStore
+        val roots = rootStore.listRoots()
+        val defaultKey = settingsStore.defaultRootKey?.takeIf { key ->
+            roots.any { it.key == key }
+        } ?: roots.firstOrNull()?.key
+
+        val config = EngineConfig(
+            contentRoots = roots.map { root ->
+                ContentRoot(key = root.key, label = root.displayName, path = root.uri)
+            },
+            defaultContentRoot = defaultKey,
+            storageMode = if (storageMode == "null") "null" else null
+        )
+
+        controller.loadEngine(config)
+        _engineController = controller
+        Log.i(TAG, "Engine loaded successfully")
+
+        // Apply saved settings
+        applyEngineSettings(controller, settingsStore)
+
+        return controller
+    }
+
+    val isEngineInitialized: Boolean
+        get() = _engineController != null
+
+    /**
+     * Shutdown engine. Called on explicit quit or for testing.
+     */
+    fun shutdownEngine() {
+        _engineController?.close()
+        _engineController = null
+    }
+
+    private fun applyEngineSettings(controller: EngineController, settingsStore: SettingsStore) {
+        val configBridge = controller.getConfigBridge() ?: return
+
+        val downloadLimit = settingsStore.downloadSpeedLimit
+        val uploadLimit = settingsStore.uploadSpeedLimit
+
+        if (downloadLimit > 0) configBridge.setDownloadSpeedLimit(downloadLimit)
+        if (uploadLimit > 0) configBridge.setUploadSpeedLimit(uploadLimit)
+
+        configBridge.setDhtEnabled(settingsStore.dhtEnabled)
+        configBridge.setPexEnabled(settingsStore.pexEnabled)
+        configBridge.setEncryptionPolicy(settingsStore.encryptionPolicy)
+
+        Log.i(TAG, "Applied engine settings: download=${downloadLimit}B/s, upload=${uploadLimit}B/s, " +
+            "dht=${settingsStore.dhtEnabled}, pex=${settingsStore.pexEnabled}, " +
+            "encryption=${settingsStore.encryptionPolicy}")
     }
 }

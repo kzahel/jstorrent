@@ -3,6 +3,7 @@ package com.jstorrent.app.e2e
 import android.os.Bundle
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
+import com.jstorrent.app.JSTorrentApplication
 import com.jstorrent.app.service.EngineService
 import com.jstorrent.quickjs.model.TorrentInfo
 import org.junit.After
@@ -46,13 +47,18 @@ abstract class E2EBaseTest {
     open fun setUp() {
         arguments = InstrumentationRegistry.getArguments()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
 
         Log.i(TAG, "Starting E2E test setup")
         Log.i(TAG, "Seeder host: ${E2ETestConfig.getSeederHost(arguments)}")
         Log.i(TAG, "Seeder port: ${E2ETestConfig.getSeederPort(arguments)}")
 
-        // Start the engine service with null storage mode (in-memory)
+        // Initialize engine via Application (with null storage mode for in-memory)
         // This avoids SAF permission issues during tests
+        app.initializeEngine(storageMode = "null")
+        Log.i(TAG, "Engine initialized via Application")
+
+        // Start the service (it will use the Application's engine)
         EngineService.start(context, "null")
 
         // Wait for engine to load
@@ -69,6 +75,7 @@ abstract class E2EBaseTest {
     open fun tearDown() {
         Log.i(TAG, "Starting E2E test teardown")
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
 
         // Remove all torrents added during the test
         try {
@@ -82,6 +89,9 @@ abstract class E2EBaseTest {
 
         // Stop the engine service
         EngineService.stop(context)
+
+        // Shutdown engine
+        app.shutdownEngine()
 
         // Wait a bit for service to fully stop
         Thread.sleep(500)

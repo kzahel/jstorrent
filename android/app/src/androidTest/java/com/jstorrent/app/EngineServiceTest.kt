@@ -25,9 +25,14 @@ class EngineServiceTest {
     @Test
     fun testEngineServiceStartsAndLoads() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
         Log.i(TAG, "Starting EngineService test")
 
-        // Start the service with null storage mode (in-memory, no SAF permissions needed)
+        // Initialize engine via Application (with null storage mode for in-memory)
+        app.initializeEngine(storageMode = "null")
+        Log.i(TAG, "Engine initialized via Application")
+
+        // Start the service (it will use the Application's engine)
         EngineService.start(context, "null")
         Log.i(TAG, "EngineService.start() called")
 
@@ -108,6 +113,7 @@ class EngineServiceTest {
 
         // Stop service
         EngineService.stop(context)
+        app.shutdownEngine()
         Log.i(TAG, "EngineService.stop() called")
 
         assert(loaded) { "Engine failed to load" }
@@ -116,9 +122,14 @@ class EngineServiceTest {
     @Test
     fun testAsyncMethods() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
         Log.i(TAG, "Starting async methods test")
 
-        // Start the service with null storage mode (in-memory, no SAF permissions needed)
+        // Initialize engine via Application (with null storage mode for in-memory)
+        app.initializeEngine(storageMode = "null")
+        Log.i(TAG, "Engine initialized via Application")
+
+        // Start the service (it will use the Application's engine)
         EngineService.start(context, "null")
         Log.i(TAG, "EngineService.start() called")
 
@@ -177,6 +188,7 @@ class EngineServiceTest {
 
         // Cleanup
         EngineService.stop(context)
+        app.shutdownEngine()
         Log.i(TAG, "Async methods test completed successfully")
         Unit
     }

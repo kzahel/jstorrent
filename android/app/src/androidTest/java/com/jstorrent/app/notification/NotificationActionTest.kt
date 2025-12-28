@@ -43,10 +43,12 @@ class NotificationActionTest {
     @After
     fun tearDown() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
 
         // Stop the engine service if running
         if (EngineService.instance != null) {
             EngineService.stop(context)
+            app.shutdownEngine()
             Thread.sleep(500)
         }
     }
@@ -84,6 +86,10 @@ class NotificationActionTest {
     @Test
     fun serviceStartsSuccessfullyWithForegroundNotification() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
+
+        // Initialize engine via Application
+        app.initializeEngine(storageMode = "null")
 
         // Start the service
         EngineService.start(context, "null")
@@ -130,6 +136,10 @@ class NotificationActionTest {
     @Test
     fun quitActionStopsService() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
+
+        // Initialize engine via Application
+        app.initializeEngine(storageMode = "null")
 
         // Start the service
         EngineService.start(context, "null")
@@ -154,6 +164,10 @@ class NotificationActionTest {
     @Test
     fun pauseAllActionDoesNotCrash() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
+
+        // Initialize engine via Application
+        app.initializeEngine(storageMode = "null")
 
         // Start the service
         EngineService.start(context, "null")
@@ -177,6 +191,10 @@ class NotificationActionTest {
     @Test
     fun resumeAllActionDoesNotCrash() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val app = context.applicationContext as JSTorrentApplication
+
+        // Initialize engine via Application
+        app.initializeEngine(storageMode = "null")
 
         // Start the service
         EngineService.start(context, "null")

@@ -57,6 +57,10 @@ class NativeStandaloneActivity : ComponentActivity() {
     private lateinit var rootStore: RootStore
     private lateinit var settingsStore: SettingsStore
 
+    // Access Application for engine initialization
+    private val app: JSTorrentApplication
+        get() = application as JSTorrentApplication
+
     // ViewModel for torrent list
     private val viewModel: TorrentListViewModel by viewModels {
         TorrentListViewModel.Factory()
@@ -96,7 +100,10 @@ class NativeStandaloneActivity : ComponentActivity() {
         // Handle incoming intent (magnet link or torrent file)
         handleIncomingIntent(intent)
 
-        // Start EngineService with storage mode from intent
+        // Initialize engine (idempotent) - BEFORE starting service
+        app.initializeEngine(storageMode = testStorageMode.value)
+
+        // Start EngineService for notification
         EngineService.start(this, storageMode = testStorageMode.value)
 
         // Check if we should show notification permission dialog (first launch only)
@@ -195,7 +202,7 @@ class NativeStandaloneActivity : ComponentActivity() {
      * Uses async methods to avoid blocking.
      */
     private suspend fun syncRootsWithEngine() {
-        val controller = EngineService.instance?.controller ?: return
+        val controller = app.engineController ?: return
 
         val currentRoots = rootStore.listRoots()
         val currentKeys = currentRoots.map { it.key }.toSet()
