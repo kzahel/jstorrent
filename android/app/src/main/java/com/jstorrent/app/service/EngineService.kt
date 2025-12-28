@@ -85,13 +85,6 @@ class EngineService : Service() {
     // Main thread handler for toasts
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // Timestamp when engine finished loading (for startup grace period)
-    private var engineLoadedAtMs: Long = 0L
-
-    // Track if we've seen at least one torrent complete during this session
-    // Used to prevent auto-stop when all torrents are already complete at startup
-    private var hasSeenCompletionDuringSession = false
-
     /** Public access to controller for root management */
     val controller: EngineController?
         get() = app.engineController
@@ -136,23 +129,11 @@ class EngineService : Service() {
             startForeground(ForegroundNotificationManager.NOTIFICATION_ID, initialNotification)
         }
 
-        // Wait for engine (initialized by Activity) and start updates
-        ioScope.launch {
-            try {
-                // Wait for engine to be initialized (by Activity)
-                while (app.engineController == null) {
-                    delay(50)
-                }
-                engineLoadedAtMs = System.currentTimeMillis()
-                startNotificationUpdates()
-
-                // Start WiFi monitoring if WiFi-only mode is enabled
-                if (settingsStore.wifiOnlyEnabled) {
-                    startWifiMonitoring()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to start notification updates", e)
-            }
+        // Start notification updates and WiFi monitoring
+        // Engine is already initialized by Activity before service starts
+        startNotificationUpdates()
+        if (settingsStore.wifiOnlyEnabled) {
+            startWifiMonitoring()
         }
 
         return START_STICKY
@@ -403,11 +384,6 @@ class EngineService : Service() {
             // Detect completion: wasn't complete before, now is
             if (torrent.progress >= 1.0 && (prev == null || prev.progress < 1.0)) {
                 showCompletionNotification(torrent)
-                // Only count as "seen completion" if torrent was previously incomplete
-                // (not if it was already complete at startup)
-                if (prev != null && prev.progress < 1.0) {
-                    hasSeenCompletionDuringSession = true
-                }
             }
 
             // Detect error: wasn't error before, now is
@@ -619,19 +595,12 @@ class EngineService : Service() {
      * Auto-stops when:
      * - No torrents exist (empty list)
      * - All torrents are paused by user
-     * - All torrents are complete (and at least one completed during this session)
+     * - All torrents are complete
      */
     private fun checkAllComplete(torrents: List<TorrentSummary>) {
         // Common guards - these apply to all auto-stop conditions
         if (settingsStore.whenDownloadsComplete != "stop_and_close") return
         if (_serviceState.value == ServiceState.PAUSED_WIFI) return
-
-        // Don't auto-stop during startup grace period
-        val timeSinceLoad = System.currentTimeMillis() - engineLoadedAtMs
-        if (timeSinceLoad < STARTUP_GRACE_PERIOD_MS) {
-            Log.d(TAG, "Skipping auto-stop: within startup grace period (${timeSinceLoad}ms)")
-            return
-        }
 
         // Don't auto-stop while activity is in foreground
         if (isActivityInForeground) {
@@ -653,13 +622,6 @@ class EngineService : Service() {
             Log.i(TAG, "All torrents paused, stopping service")
             _serviceState.value = ServiceState.STOPPED
             stopSelf()
-            return
-        }
-
-        // Don't auto-stop if all torrents were already complete at startup
-        // Only auto-stop when at least one torrent has actually completed during this session
-        if (!hasSeenCompletionDuringSession) {
-            Log.d(TAG, "Skipping auto-stop: no torrents completed during this session")
             return
         }
 
@@ -685,9 +647,6 @@ class EngineService : Service() {
     }
 
     companion object {
-        /** Grace period after engine init before auto-stop is allowed (ms) */
-        private const val STARTUP_GRACE_PERIOD_MS = 5000L
-
         @Volatile
         var instance: EngineService? = null
             private set

@@ -42,6 +42,8 @@ class NotificationActionTest {
 
     @After
     fun tearDown() {
+        // Reset foreground flag to prevent test pollution
+        EngineService.isActivityInForeground = false
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val app = context.applicationContext as JSTorrentApplication
 
@@ -90,6 +92,9 @@ class NotificationActionTest {
 
         // Initialize engine via Application
         app.initializeEngine(storageMode = "null")
+
+        // Mark activity as in foreground to prevent auto-stop on empty torrent list
+        EngineService.isActivityInForeground = true
 
         // Start the service
         EngineService.start(context, "null")
@@ -141,6 +146,9 @@ class NotificationActionTest {
         // Initialize engine via Application
         app.initializeEngine(storageMode = "null")
 
+        // Mark activity as in foreground to prevent auto-stop on empty torrent list
+        EngineService.isActivityInForeground = true
+
         // Start the service
         EngineService.start(context, "null")
 
@@ -169,6 +177,9 @@ class NotificationActionTest {
         // Initialize engine via Application
         app.initializeEngine(storageMode = "null")
 
+        // Mark activity as in foreground to prevent auto-stop on empty torrent list
+        EngineService.isActivityInForeground = true
+
         // Start the service
         EngineService.start(context, "null")
 
@@ -195,6 +206,9 @@ class NotificationActionTest {
 
         // Initialize engine via Application
         app.initializeEngine(storageMode = "null")
+
+        // Mark activity as in foreground to prevent auto-stop on empty torrent list
+        EngineService.isActivityInForeground = true
 
         // Start the service
         EngineService.start(context, "null")

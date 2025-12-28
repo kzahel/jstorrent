@@ -42,6 +42,10 @@ class ServiceLifecycleTest {
         // Reset settings to defaults for each test
         settingsStore.whenDownloadsComplete = "stop_and_close"
         settingsStore.wifiOnlyEnabled = false
+
+        // Set activity in foreground to prevent auto-stop on empty torrent list
+        // Tests that want to test background behavior should set this to false
+        EngineService.isActivityInForeground = true
     }
 
     @After

@@ -58,6 +58,9 @@ abstract class E2EBaseTest {
         app.initializeEngine(storageMode = "null")
         Log.i(TAG, "Engine initialized via Application")
 
+        // Mark activity as in foreground to prevent auto-stop on empty torrent list
+        EngineService.isActivityInForeground = true
+
         // Start the service (it will use the Application's engine)
         EngineService.start(context, "null")
 
@@ -74,6 +77,8 @@ abstract class E2EBaseTest {
     @After
     open fun tearDown() {
         Log.i(TAG, "Starting E2E test teardown")
+        // Reset foreground flag to prevent test pollution
+        EngineService.isActivityInForeground = false
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val app = context.applicationContext as JSTorrentApplication
 

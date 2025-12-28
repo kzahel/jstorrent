@@ -41,6 +41,9 @@ class ActivityAsyncTest {
             // Initialize engine via Application (with null storage mode for in-memory)
             app.initializeEngine(storageMode = "null")
 
+            // Mark activity as in foreground to prevent auto-stop on empty torrent list
+            EngineService.isActivityInForeground = true
+
             // Start service (it will use the Application's engine)
             Log.i(TAG, "Starting EngineService")
             EngineService.start(context, "null")
@@ -59,6 +62,8 @@ class ActivityAsyncTest {
 
     @After
     fun teardown() {
+        // Reset foreground flag to prevent test pollution
+        EngineService.isActivityInForeground = false
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val app = context.applicationContext as JSTorrentApplication
         EngineService.stop(context)

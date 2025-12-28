@@ -32,6 +32,9 @@ class EngineServiceTest {
         app.initializeEngine(storageMode = "null")
         Log.i(TAG, "Engine initialized via Application")
 
+        // Mark activity as in foreground to prevent auto-stop on empty torrent list
+        EngineService.isActivityInForeground = true
+
         // Start the service (it will use the Application's engine)
         EngineService.start(context, "null")
         Log.i(TAG, "EngineService.start() called")
@@ -112,6 +115,7 @@ class EngineServiceTest {
         }
 
         // Stop service
+        EngineService.isActivityInForeground = false
         EngineService.stop(context)
         app.shutdownEngine()
         Log.i(TAG, "EngineService.stop() called")
@@ -128,6 +132,9 @@ class EngineServiceTest {
         // Initialize engine via Application (with null storage mode for in-memory)
         app.initializeEngine(storageMode = "null")
         Log.i(TAG, "Engine initialized via Application")
+
+        // Mark activity as in foreground to prevent auto-stop on empty torrent list
+        EngineService.isActivityInForeground = true
 
         // Start the service (it will use the Application's engine)
         EngineService.start(context, "null")
@@ -187,6 +194,7 @@ class EngineServiceTest {
         Log.i(TAG, "Verified torrent removed")
 
         // Cleanup
+        EngineService.isActivityInForeground = false
         EngineService.stop(context)
         app.shutdownEngine()
         Log.i(TAG, "Async methods test completed successfully")
