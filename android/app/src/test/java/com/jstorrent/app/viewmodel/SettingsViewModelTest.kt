@@ -1,5 +1,6 @@
 package com.jstorrent.app.viewmodel
 
+import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.DownloadRoot
 import com.jstorrent.app.storage.RootStore
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +14,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -22,6 +24,7 @@ class SettingsViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var rootStore: RootStore
+    private lateinit var settingsStore: SettingsStore
     private lateinit var viewModel: SettingsViewModel
 
     private val testRoot1 = DownloadRoot(
@@ -46,6 +49,16 @@ class SettingsViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         rootStore = mock()
+        settingsStore = mock {
+            on { defaultRootKey } doReturn null
+            on { downloadSpeedLimit } doReturn 0
+            on { uploadSpeedLimit } doReturn 0
+            on { whenDownloadsComplete } doReturn "stop_and_close"
+            on { wifiOnlyEnabled } doReturn false
+            on { dhtEnabled } doReturn true
+            on { pexEnabled } doReturn true
+            on { encryptionPolicy } doReturn "allow"
+        }
     }
 
     @After
@@ -61,7 +74,7 @@ class SettingsViewModelTest {
     fun `initial state loads roots from store`() {
         whenever(rootStore.refreshAvailability()).thenReturn(listOf(testRoot1, testRoot2))
 
-        viewModel = SettingsViewModel(rootStore)
+        viewModel = SettingsViewModel(rootStore, settingsStore)
 
         val state = viewModel.uiState.value
         assertEquals(2, state.downloadRoots.size)
@@ -73,7 +86,7 @@ class SettingsViewModelTest {
     fun `initial state with empty roots`() {
         whenever(rootStore.refreshAvailability()).thenReturn(emptyList())
 
-        viewModel = SettingsViewModel(rootStore)
+        viewModel = SettingsViewModel(rootStore, settingsStore)
 
         val state = viewModel.uiState.value
         assertTrue(state.downloadRoots.isEmpty())
@@ -87,7 +100,7 @@ class SettingsViewModelTest {
     fun `refreshRoots updates state`() {
         whenever(rootStore.refreshAvailability()).thenReturn(listOf(testRoot1))
 
-        viewModel = SettingsViewModel(rootStore)
+        viewModel = SettingsViewModel(rootStore, settingsStore)
 
         whenever(rootStore.refreshAvailability()).thenReturn(listOf(testRoot1, testRoot2))
 
@@ -106,7 +119,7 @@ class SettingsViewModelTest {
         whenever(rootStore.refreshAvailability()).thenReturn(listOf(testRoot1, testRoot2))
         whenever(rootStore.removeRoot("key1")).thenReturn(true)
 
-        viewModel = SettingsViewModel(rootStore)
+        viewModel = SettingsViewModel(rootStore, settingsStore)
 
         whenever(rootStore.refreshAvailability()).thenReturn(listOf(testRoot2))
 
@@ -127,7 +140,7 @@ class SettingsViewModelTest {
     fun `showClearConfirmation sets flag`() {
         whenever(rootStore.refreshAvailability()).thenReturn(emptyList())
 
-        viewModel = SettingsViewModel(rootStore)
+        viewModel = SettingsViewModel(rootStore, settingsStore)
 
         viewModel.showClearConfirmation()
 
@@ -138,7 +151,7 @@ class SettingsViewModelTest {
     fun `dismissClearConfirmation clears flag`() {
         whenever(rootStore.refreshAvailability()).thenReturn(emptyList())
 
-        viewModel = SettingsViewModel(rootStore)
+        viewModel = SettingsViewModel(rootStore, settingsStore)
         viewModel.showClearConfirmation()
         viewModel.dismissClearConfirmation()
 
@@ -156,7 +169,7 @@ class SettingsViewModelTest {
         whenever(rootStore.removeRoot("key1")).thenReturn(true)
         whenever(rootStore.removeRoot("key2")).thenReturn(true)
 
-        viewModel = SettingsViewModel(rootStore)
+        viewModel = SettingsViewModel(rootStore, settingsStore)
         viewModel.showClearConfirmation()
 
         whenever(rootStore.refreshAvailability()).thenReturn(emptyList())
