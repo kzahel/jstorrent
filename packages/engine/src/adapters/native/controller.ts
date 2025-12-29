@@ -332,7 +332,7 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
         progress: t.progress,
         downloadSpeed: t.downloadSpeed,
         uploadSpeed: t.uploadSpeed,
-        status: t.userState,
+        status: t.activityState,
         size: getTorrentSize(t),
         downloaded: t.totalDownloaded,
         uploaded: t.totalUploaded,
@@ -382,7 +382,7 @@ export function startStatePushLoop(engine: BtEngine): () => void {
           progress: t.progress,
           downloadSpeed: t.downloadSpeed,
           uploadSpeed: t.uploadSpeed,
-          status: t.userState,
+          status: t.activityState,
         })),
       })
 
