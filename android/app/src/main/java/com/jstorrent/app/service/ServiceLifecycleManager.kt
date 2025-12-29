@@ -101,7 +101,9 @@ class ServiceLifecycleManager(
         }
 
         // Only start service if background downloads are enabled
-        val shouldRun = backgroundEnabled && hasActiveWork && goingToBackground
+        // Also require activity to have been foreground at least once - prevents starting
+        // during app initialization before onActivityStart() is called
+        val shouldRun = backgroundEnabled && hasActiveWork && goingToBackground && hasEverBeenForeground
 
         if (shouldRun && !serviceRunning) {
             Log.i(TAG, "Starting service: active work in background")

@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.provider.DocumentsContract
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -113,18 +114,13 @@ class TorrentNotificationManager(private val context: Context) {
             .setContentIntent(pendingIntent)
 
         // Add "Open Folder" action if folder URI is available
+        // Use PendingIntent.getActivity() instead of getBroadcast() to avoid
+        // Android's Background Activity Launch (BAL) restrictions
         if (folderUri != null) {
-            val openFolderIntent = Intent(context, NotificationActionReceiver::class.java).apply {
-                action = NotificationActionReceiver.ACTION_OPEN_FOLDER
-                putExtra(NotificationActionReceiver.EXTRA_FOLDER_URI, folderUri.toString())
+            val openFolderPendingIntent = createOpenFolderPendingIntent(folderUri, infoHash)
+            if (openFolderPendingIntent != null) {
+                builder.addAction(0, "Open Folder", openFolderPendingIntent)
             }
-            val openFolderPendingIntent = PendingIntent.getBroadcast(
-                context,
-                (infoHash.hashCode() + 1), // Different request code from content intent
-                openFolderIntent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            builder.addAction(0, "Open Folder", openFolderPendingIntent)
         }
 
         val notificationId = NOTIFICATION_ID_BASE + (infoHash.hashCode() and 0xFFFF)
@@ -134,6 +130,34 @@ class TorrentNotificationManager(private val context: Context) {
         } catch (e: SecurityException) {
             // Permission was revoked between check and notify
         }
+    }
+
+    /**
+     * Create a PendingIntent to open the folder in a file manager.
+     * Uses PendingIntent.getActivity() so the system launches the activity directly,
+     * avoiding Background Activity Launch (BAL) restrictions.
+     */
+    private fun createOpenFolderPendingIntent(folderUri: Uri, infoHash: String): PendingIntent? {
+        // Build a document URI from the tree URI for the file manager
+        val documentId = try {
+            DocumentsContract.getTreeDocumentId(folderUri)
+        } catch (e: Exception) {
+            return null
+        }
+        val documentUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, documentId)
+
+        val openFolderIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(documentUri, DocumentsContract.Document.MIME_TYPE_DIR)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        return PendingIntent.getActivity(
+            context,
+            infoHash.hashCode() + 1, // Different request code from content intent
+            openFolderIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
     }
 
     /**
