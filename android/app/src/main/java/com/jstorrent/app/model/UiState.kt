@@ -129,7 +129,11 @@ data class TorrentDetailUi(
     val pieceSize: Long?,
     val files: List<TorrentFileUi>,
     val trackers: List<TrackerUi>,
-    val peers: List<PeerUi>
+    val peers: List<PeerUi>,
+    // Peer discovery status (for TrackersTab)
+    val dhtEnabled: Boolean = true,   // Engine always has DHT enabled
+    val lsdEnabled: Boolean = false,  // LSD not implemented
+    val pexEnabled: Boolean = true    // PeX enabled per-connection
 )
 
 /**

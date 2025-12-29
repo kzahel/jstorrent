@@ -3,6 +3,7 @@ package com.jstorrent.app.viewmodel
 import com.jstorrent.quickjs.model.EngineState
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.TorrentInfo
+import com.jstorrent.quickjs.model.TrackerInfo
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -66,4 +67,9 @@ interface TorrentRepository {
      * Get file list for a specific torrent (suspend query).
      */
     suspend fun getFiles(infoHash: String): List<FileInfo>
+
+    /**
+     * Get tracker list for a specific torrent (suspend query).
+     */
+    suspend fun getTrackers(infoHash: String): List<TrackerInfo>
 }

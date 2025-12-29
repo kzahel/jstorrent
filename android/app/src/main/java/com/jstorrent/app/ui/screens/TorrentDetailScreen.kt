@@ -288,9 +288,9 @@ private fun DetailContent(
                 )
                 DetailTab.TRACKERS -> TrackersTab(
                     trackers = torrent.trackers,
-                    dhtEnabled = true, // TODO: Get from engine
-                    lsdEnabled = true,
-                    pexEnabled = true
+                    dhtEnabled = torrent.dhtEnabled,
+                    lsdEnabled = torrent.lsdEnabled,
+                    pexEnabled = torrent.pexEnabled
                 )
                 DetailTab.PEERS -> PeersTab(peers = torrent.peers)
                 DetailTab.PIECES -> PiecesTab(

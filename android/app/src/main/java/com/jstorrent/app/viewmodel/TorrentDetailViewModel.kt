@@ -14,6 +14,7 @@ import com.jstorrent.app.model.TrackerUi
 import com.jstorrent.app.model.toUi
 import com.jstorrent.quickjs.model.TorrentSummary
 import com.jstorrent.quickjs.model.FileInfo
+import com.jstorrent.quickjs.model.TrackerInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -41,12 +42,16 @@ class TorrentDetailViewModel(
     // Cached files (fetched asynchronously)
     private val _cachedFiles = MutableStateFlow<List<FileInfo>>(emptyList())
 
+    // Cached trackers (fetched asynchronously)
+    private val _cachedTrackers = MutableStateFlow<List<TrackerInfo>>(emptyList())
+
     init {
-        // Fetch files when engine state changes
+        // Fetch files and trackers when engine state changes
         viewModelScope.launch {
             repository.state.collect { state ->
                 if (state?.torrents?.any { it.infoHash == infoHash } == true) {
                     _cachedFiles.value = repository.getFiles(infoHash)
+                    _cachedTrackers.value = repository.getTrackers(infoHash)
                 }
             }
         }
@@ -59,7 +64,8 @@ class TorrentDetailViewModel(
         repository.lastError,
         _selectedTab,
         _fileSelections,
-        _cachedFiles
+        _cachedFiles,
+        _cachedTrackers
     ) { values ->
         val isLoaded = values[0] as Boolean
         val state = values[1] as? com.jstorrent.quickjs.model.EngineState
@@ -69,6 +75,8 @@ class TorrentDetailViewModel(
         val selections = values[4] as Map<Int, Boolean>
         @Suppress("UNCHECKED_CAST")
         val files = values[5] as List<FileInfo>
+        @Suppress("UNCHECKED_CAST")
+        val trackers = values[6] as List<TrackerInfo>
         when {
             error != null && !isLoaded -> TorrentDetailUiState.Error(error)
             !isLoaded -> TorrentDetailUiState.Loading
@@ -78,7 +86,7 @@ class TorrentDetailViewModel(
                     TorrentDetailUiState.Error("Torrent not found")
                 } else {
                     TorrentDetailUiState.Loaded(
-                        torrent = createTorrentDetailUi(torrent, selections, files),
+                        torrent = createTorrentDetailUi(torrent, selections, files, trackers),
                         selectedTab = tab
                     )
                 }
@@ -170,11 +178,22 @@ class TorrentDetailViewModel(
     private fun createTorrentDetailUi(
         summary: TorrentSummary,
         fileSelections: Map<Int, Boolean>,
-        files: List<FileInfo>
+        files: List<FileInfo>,
+        trackers: List<TrackerInfo>
     ): TorrentDetailUi {
         val fileUis = files.map { file ->
             val isSelected = fileSelections[file.index] ?: true
             file.toUi(isSelected)
+        }
+
+        // Map tracker info to UI models
+        val trackerUis = trackers.map { tracker ->
+            TrackerUi(
+                url = tracker.url,
+                status = mapTrackerStatus(tracker.status),
+                message = tracker.lastError,
+                peers = (tracker.seeders ?: 0) + (tracker.leechers ?: 0)
+            )
         }
 
         // Calculate totals from files
@@ -208,9 +227,21 @@ class TorrentDetailViewModel(
             piecesTotal = null,
             pieceSize = null,
             files = fileUis,
-            trackers = emptyList(), // TODO: Get from engine
+            trackers = trackerUis,
             peers = emptyList() // TODO: Get from engine
         )
+    }
+
+    /**
+     * Map engine tracker status to UI status.
+     */
+    private fun mapTrackerStatus(status: String): TrackerStatus {
+        return when (status) {
+            "ok" -> TrackerStatus.OK
+            "announcing" -> TrackerStatus.UPDATING
+            "error" -> TrackerStatus.ERROR
+            else -> TrackerStatus.DISABLED // 'idle' = not contacted yet
+        }
     }
 
     /**

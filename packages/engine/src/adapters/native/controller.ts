@@ -364,6 +364,32 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
       })),
     })
   }
+
+  /**
+   * Get the tracker list for a specific torrent.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_trackers = (infoHash: string): string => {
+    const engine = requireEngine('query_trackers')
+    if (!engine) {
+      return JSON.stringify({ trackers: [] })
+    }
+    const torrent = engine.getTorrent(infoHash)
+    if (!torrent) {
+      return JSON.stringify({ trackers: [] })
+    }
+
+    const stats = torrent.getTrackerStats()
+    return JSON.stringify({
+      trackers: stats.map((t) => ({
+        url: t.url,
+        type: t.type,
+        status: t.status, // 'idle' | 'announcing' | 'ok' | 'error'
+        seeders: t.seeders,
+        leechers: t.leechers,
+        lastError: t.lastError,
+      })),
+    })
+  }
 }
 
 /**

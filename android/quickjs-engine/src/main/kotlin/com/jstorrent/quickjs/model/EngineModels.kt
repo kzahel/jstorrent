@@ -48,6 +48,27 @@ data class FileListResponse(
 )
 
 /**
+ * Tracker information from __jstorrent_query_trackers.
+ */
+@Serializable
+data class TrackerInfo(
+    val url: String,
+    val type: String,
+    val status: String, // 'idle' | 'announcing' | 'ok' | 'error'
+    val seeders: Int? = null,
+    val leechers: Int? = null,
+    val lastError: String? = null
+)
+
+/**
+ * Wrapper for tracker list query response.
+ */
+@Serializable
+data class TrackerListResponse(
+    val trackers: List<TrackerInfo>
+)
+
+/**
  * Compact state pushed from engine every 500ms.
  */
 @Serializable

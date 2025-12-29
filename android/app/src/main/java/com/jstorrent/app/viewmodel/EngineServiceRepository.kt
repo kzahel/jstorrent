@@ -6,6 +6,7 @@ import com.jstorrent.quickjs.EngineController
 import com.jstorrent.quickjs.model.EngineState
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.TorrentInfo
+import com.jstorrent.quickjs.model.TrackerInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -131,5 +132,9 @@ class EngineServiceRepository(
 
     override suspend fun getFiles(infoHash: String): List<FileInfo> {
         return controller?.getFilesAsync(infoHash) ?: emptyList()
+    }
+
+    override suspend fun getTrackers(infoHash: String): List<TrackerInfo> {
+        return controller?.getTrackersAsync(infoHash) ?: emptyList()
     }
 }

@@ -14,6 +14,8 @@ import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.FileListResponse
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TorrentListResponse
+import com.jstorrent.quickjs.model.TrackerInfo
+import com.jstorrent.quickjs.model.TrackerListResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -298,6 +300,21 @@ class EngineController(
         }
     }
 
+    /**
+     * Get tracker list for a specific torrent.
+     */
+    fun getTrackers(infoHash: String): List<TrackerInfo> {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunction("__jstorrent_query_trackers", infoHash) as? String
+            ?: return emptyList()
+        return try {
+            json.decodeFromString<TrackerListResponse>(resultJson).trackers
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse tracker list", e)
+            emptyList()
+        }
+    }
+
     // =========================================================================
     // Async Command API - safe to call from Main thread
     // =========================================================================
@@ -418,6 +435,21 @@ class EngineController(
             json.decodeFromString<FileListResponse>(resultJson).files
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse file list", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Get trackers for a torrent (suspend version).
+     */
+    suspend fun getTrackersAsync(infoHash: String): List<TrackerInfo> {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunctionAsync("__jstorrent_query_trackers", infoHash) as? String
+            ?: return emptyList()
+        return try {
+            json.decodeFromString<TrackerListResponse>(resultJson).trackers
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse tracker list", e)
             emptyList()
         }
     }
