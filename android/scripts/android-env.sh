@@ -31,6 +31,7 @@ alias emu-install="$_SCRIPTS_DIR/emu-install.sh"
 alias emu-logs="$_SCRIPTS_DIR/emu-logs.sh"
 alias emu-shell="adb shell"
 alias emu-test-native="$_SCRIPTS_DIR/emu-test-native.sh"
+alias emu-reset="adb shell pm clear com.jstorrent.app"
 
 # Device-specific aliases
 alias emu-phone="AVD_NAME=jstorrent-dev $_SCRIPTS_DIR/emu-start.sh"
@@ -52,6 +53,7 @@ emu() {
         phone)       AVD_NAME=jstorrent-dev emu-start ;;
         tablet)      AVD_NAME=jstorrent-tablet emu-start ;;
         test-native) shift; emu-test-native "$@" ;;
+        reset)       emu-reset ;;
         *)
             echo "Usage: emu <command>"
             echo ""
@@ -62,6 +64,7 @@ emu() {
             echo "  logs        - Show filtered logcat"
             echo "  shell       - ADB shell into device"
             echo "  status      - Show devices and port forwards"
+            echo "  reset       - Clear app data (settings, cache, databases)"
             echo "  restart     - Stop then start"
             echo "  phone       - Start phone emulator (Pixel 6)"
             echo "  tablet      - Start tablet emulator (Pixel Tablet)"
@@ -150,7 +153,7 @@ fi
 
 echo "Android dev environment loaded"
 echo "  ANDROID_HOME=$ANDROID_HOME"
-echo "  emu: start|stop|install|logs|shell|status|restart|phone|tablet|test-native"
+echo "  emu: start|stop|install|logs|shell|status|reset|restart|phone|tablet|test-native"
 echo "  dev: list|install|logs|shell|reset|connect|disconnect"
 if [[ -f "$_DEV_CONFIG_FILE" ]]; then
     _device_count=$(grep -v '^#' "$_DEV_CONFIG_FILE" | grep -v '^$' | wc -l | tr -d ' ')
