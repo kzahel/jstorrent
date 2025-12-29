@@ -141,7 +141,7 @@ class JSTorrentApplication : Application() {
 
         // Legacy channel IDs that are no longer used
         val legacyChannels = listOf(
-            "jstorrent_engine",           // Old EngineService channel
+            "jstorrent_engine",           // Old ForegroundNotificationService channel
             "jstorrent_download_complete" // Old TorrentNotificationManager channel
         )
 

@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.jstorrent.app.JSTorrentApplication
-import com.jstorrent.app.service.EngineService
+import com.jstorrent.app.service.ForegroundNotificationService
 import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.DownloadRoot
 import com.jstorrent.app.storage.RootStore
@@ -181,8 +181,8 @@ class SettingsViewModel(
      */
     fun setWifiOnly(enabled: Boolean) {
         settingsStore.wifiOnlyEnabled = enabled
-        // WiFi monitoring is handled by EngineService, notify it if running
-        EngineService.instance?.setWifiOnlyEnabled(enabled)
+        // WiFi monitoring is handled by ForegroundNotificationService, notify it if running
+        ForegroundNotificationService.instance?.setWifiOnlyEnabled(enabled)
         _uiState.value = _uiState.value.copy(wifiOnlyEnabled = enabled)
     }
 

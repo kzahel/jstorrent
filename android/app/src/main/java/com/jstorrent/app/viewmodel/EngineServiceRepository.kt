@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
  *
  * Connects to the EngineController directly from the Application.
  * The engine lives for the process lifetime in JSTorrentApplication,
- * independent of whether EngineService is running (service only runs
+ * independent of whether ForegroundNotificationService is running (service only runs
  * when there's background work to do).
  *
  * Uses bridged StateFlows to handle the race condition where the ViewModel

@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 private const val TAG = "ServiceLifecycleMgr"
 
 /**
- * Decides when EngineService should run.
+ * Decides when ForegroundNotificationService should run.
  *
  * Service runs when: background downloads enabled AND active downloads/seeding AND user not in app
  * Service stops when: background downloads disabled OR idle OR user in app
@@ -107,7 +107,7 @@ class ServiceLifecycleManager(
 
         if (shouldRun && !serviceRunning) {
             Log.i(TAG, "Starting service: active work in background")
-            EngineService.start(context)
+            ForegroundNotificationService.start(context)
             serviceRunning = true
         } else if (!shouldRun && serviceRunning) {
             val reason = when {
@@ -117,7 +117,7 @@ class ServiceLifecycleManager(
                 else -> "unknown"
             }
             Log.i(TAG, "Stopping service: $reason")
-            EngineService.stop(context)
+            ForegroundNotificationService.stop(context)
             serviceRunning = false
         }
     }

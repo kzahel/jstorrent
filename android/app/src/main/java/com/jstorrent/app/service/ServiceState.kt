@@ -1,7 +1,7 @@
 package com.jstorrent.app.service
 
 /**
- * Service lifecycle states for EngineService.
+ * Service lifecycle states for ForegroundNotificationService.
  */
 enum class ServiceState {
     /** Service is not running */

@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.jstorrent.app.e2e.TestMagnets
-import com.jstorrent.app.service.EngineService
+import com.jstorrent.app.service.ForegroundNotificationService
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlinx.coroutines.delay
@@ -12,21 +12,21 @@ import kotlinx.coroutines.runBlocking
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-private const val TAG = "EngineServiceTest"
+private const val TAG = "ForegroundNotificationServiceTest"
 
 /**
- * Instrumentation test for EngineService.
+ * Instrumentation test for ForegroundNotificationService.
  *
- * Run with: ./gradlew :app:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.EngineServiceTest
+ * Run with: ./gradlew :app:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.ForegroundNotificationServiceTest
  */
 @RunWith(AndroidJUnit4::class)
-class EngineServiceTest {
+class ForegroundNotificationServiceTest {
 
     @Test
-    fun testEngineServiceStartsAndLoads() {
+    fun testForegroundNotificationServiceStartsAndLoads() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val app = context.applicationContext as JSTorrentApplication
-        Log.i(TAG, "Starting EngineService test")
+        Log.i(TAG, "Starting ForegroundNotificationService test")
 
         // Initialize engine via Application (with null storage mode for in-memory)
         app.initializeEngine(storageMode = "null")
@@ -36,8 +36,8 @@ class EngineServiceTest {
         app.serviceLifecycleManager.setActivityForeground(true)
 
         // Start the service (it will use the Application's engine)
-        EngineService.start(context, "null")
-        Log.i(TAG, "EngineService.start() called")
+        ForegroundNotificationService.start(context, "null")
+        Log.i(TAG, "ForegroundNotificationService.start() called")
 
         // Wait for service to initialize
         val latch = CountDownLatch(1)
@@ -46,7 +46,7 @@ class EngineServiceTest {
         Thread {
             // Poll for service instance and loaded state
             repeat(30) { attempt ->
-                val instance = EngineService.instance
+                val instance = ForegroundNotificationService.instance
                 if (instance != null) {
                     Log.i(TAG, "Service instance available (attempt $attempt)")
 
@@ -67,7 +67,7 @@ class EngineServiceTest {
         latch.await(20, TimeUnit.SECONDS)
 
         // Check result
-        val instance = EngineService.instance
+        val instance = ForegroundNotificationService.instance
         Log.i(TAG, "Final check - instance: ${instance != null}, loaded: $loaded")
 
         if (instance != null && loaded) {
@@ -116,9 +116,9 @@ class EngineServiceTest {
 
         // Stop service
         app.serviceLifecycleManager.setActivityForeground(false)
-        EngineService.stop(context)
+        ForegroundNotificationService.stop(context)
         app.shutdownEngine()
-        Log.i(TAG, "EngineService.stop() called")
+        Log.i(TAG, "ForegroundNotificationService.stop() called")
 
         assert(loaded) { "Engine failed to load" }
     }
@@ -137,13 +137,13 @@ class EngineServiceTest {
         app.serviceLifecycleManager.setActivityForeground(true)
 
         // Start the service (it will use the Application's engine)
-        EngineService.start(context, "null")
-        Log.i(TAG, "EngineService.start() called")
+        ForegroundNotificationService.start(context, "null")
+        Log.i(TAG, "ForegroundNotificationService.start() called")
 
         // Wait for engine to load (polling with coroutine delay)
-        var instance: EngineService? = null
+        var instance: ForegroundNotificationService? = null
         repeat(30) {
-            instance = EngineService.instance
+            instance = ForegroundNotificationService.instance
             if (instance?.isLoaded?.value == true) return@repeat
             delay(500)
         }
@@ -195,7 +195,7 @@ class EngineServiceTest {
 
         // Cleanup
         app.serviceLifecycleManager.setActivityForeground(false)
-        EngineService.stop(context)
+        ForegroundNotificationService.stop(context)
         app.shutdownEngine()
         Log.i(TAG, "Async methods test completed successfully")
         Unit

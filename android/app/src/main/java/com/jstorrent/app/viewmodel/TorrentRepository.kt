@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Interface for accessing torrent engine functionality.
- * Abstracts the EngineService/EngineController for testability.
+ * Abstracts the EngineController for testability.
  */
 interface TorrentRepository {
     /**

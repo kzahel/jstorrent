@@ -34,7 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import com.jstorrent.app.service.EngineService
+import com.jstorrent.app.service.ForegroundNotificationService
 import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.RootStore
 import com.jstorrent.app.ui.dialogs.NotificationPermissionDialog
@@ -50,7 +50,7 @@ private const val TAG = "NativeStandaloneActivity"
 
 /**
  * Native standalone activity with Compose UI.
- * Binds to EngineService to display and control torrents.
+ * Uses the engine from the Application to display and control torrents.
  */
 class NativeStandaloneActivity : ComponentActivity() {
 

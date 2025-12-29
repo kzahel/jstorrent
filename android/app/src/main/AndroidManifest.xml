@@ -99,9 +99,9 @@
             android:foregroundServiceType="dataSync"
             android:exported="false" />
 
-        <!-- QuickJS engine foreground service -->
+        <!-- Foreground service for background downloads -->
         <service
-            android:name=".service.EngineService"
+            android:name=".service.ForegroundNotificationService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
 

@@ -3,7 +3,7 @@ package com.jstorrent.app
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.jstorrent.app.service.EngineService
+import com.jstorrent.app.service.ForegroundNotificationService
 import com.jstorrent.app.storage.RootStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -45,16 +45,16 @@ class ActivityAsyncTest {
             app.serviceLifecycleManager.setActivityForeground(true)
 
             // Start service (it will use the Application's engine)
-            Log.i(TAG, "Starting EngineService")
-            EngineService.start(context, "null")
+            Log.i(TAG, "Starting ForegroundNotificationService")
+            ForegroundNotificationService.start(context, "null")
 
             // Wait for engine to be fully loaded and service to start
             repeat(30) {
-                if (app.engineController?.isLoaded?.value == true && EngineService.instance != null) return@repeat
+                if (app.engineController?.isLoaded?.value == true && ForegroundNotificationService.instance != null) return@repeat
                 delay(500)
             }
             assertTrue("Engine not loaded", app.engineController?.isLoaded?.value == true)
-            assertNotNull("Service not started", EngineService.instance)
+            assertNotNull("Service not started", ForegroundNotificationService.instance)
 
             Log.i(TAG, "Engine loaded, service started")
         }
@@ -66,11 +66,11 @@ class ActivityAsyncTest {
         val app = context.applicationContext as JSTorrentApplication
         // Reset foreground flag to prevent test pollution
         app.serviceLifecycleManager.setActivityForeground(false)
-        EngineService.stop(context)
+        ForegroundNotificationService.stop(context)
         app.shutdownEngine()
         // Wait for service to fully stop to avoid race conditions with next test
         Thread.sleep(1000)
-        Log.i(TAG, "EngineService stopped")
+        Log.i(TAG, "ForegroundNotificationService stopped")
     }
 
     private fun getController(): com.jstorrent.quickjs.EngineController {

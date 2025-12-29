@@ -53,7 +53,7 @@ class ServiceLifecycleTest {
         app.serviceLifecycleManager.setActivityForeground(false)
 
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        EngineService.stop(context)
+        ForegroundNotificationService.stop(context)
         app.shutdownEngine()
         Thread.sleep(500)
     }
@@ -68,13 +68,13 @@ class ServiceLifecycleTest {
             app.initializeEngine(storageMode = "null")
 
             // Start the service directly (for testing purposes)
-            EngineService.start(context, "null")
+            ForegroundNotificationService.start(context, "null")
 
             // Wait for service to start
             waitForService()
 
             // Check service state is RUNNING
-            val service = EngineService.instance
+            val service = ForegroundNotificationService.instance
             assertNotNull("Service should be available", service)
             assertEquals("Service should be in RUNNING state", ServiceState.RUNNING, service?.serviceState?.value)
 
@@ -131,10 +131,10 @@ class ServiceLifecycleTest {
             app.initializeEngine(storageMode = "null")
 
             // Start the service
-            EngineService.start(context, "null")
+            ForegroundNotificationService.start(context, "null")
             waitForService()
 
-            val service = EngineService.instance
+            val service = ForegroundNotificationService.instance
             assertNotNull("Service should be available", service)
 
             // Enable WiFi-only at runtime
@@ -165,10 +165,10 @@ class ServiceLifecycleTest {
             app.initializeEngine(storageMode = "null")
 
             // Start the service
-            EngineService.start(context, "null")
+            ForegroundNotificationService.start(context, "null")
             waitForService()
 
-            val service = EngineService.instance
+            val service = ForegroundNotificationService.instance
             assertNotNull("Service should be available", service)
 
             // Verify serviceState StateFlow is accessible
@@ -196,17 +196,17 @@ class ServiceLifecycleTest {
             app.initializeEngine(storageMode = "null")
 
             // Start the service
-            EngineService.start(context, "null")
+            ForegroundNotificationService.start(context, "null")
             waitForService()
 
-            val service = EngineService.instance
+            val service = ForegroundNotificationService.instance
             assertNotNull("Service should be available", service)
 
             // Wait a bit to ensure service doesn't auto-stop
             delay(2000)
 
             // Service should still be running
-            val currentService = EngineService.instance
+            val currentService = ForegroundNotificationService.instance
             assertNotNull("Service should still be running with keep_seeding setting", currentService)
             assertEquals("Service should be in RUNNING state", ServiceState.RUNNING, currentService?.serviceState?.value)
 
@@ -248,10 +248,10 @@ class ServiceLifecycleTest {
             app.initializeEngine(storageMode = "null")
 
             // Start the service
-            EngineService.start(context, "null")
+            ForegroundNotificationService.start(context, "null")
             waitForService()
 
-            val service = EngineService.instance
+            val service = ForegroundNotificationService.instance
             assertNotNull("Service should be available", service)
 
             // Background the app via lifecycle manager
@@ -262,7 +262,7 @@ class ServiceLifecycleTest {
 
             // If service is in PAUSED_WIFI state, it should NOT have stopped
             // (even though there are no active torrents)
-            val currentService = EngineService.instance
+            val currentService = ForegroundNotificationService.instance
             if (currentService?.serviceState?.value == ServiceState.PAUSED_WIFI) {
                 Log.i(TAG, "Service is in PAUSED_WIFI state - verifying it stays running")
                 assertNotNull("Service should still be running in PAUSED_WIFI state", currentService)
@@ -300,12 +300,12 @@ class ServiceLifecycleTest {
     }
 
     /**
-     * Wait for the EngineService to be available and loaded.
+     * Wait for the ForegroundNotificationService to be available and loaded.
      */
     private fun waitForService(timeoutMs: Long = 15000): Boolean {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
-            if (EngineService.instance?.isLoaded?.value == true) {
+            if (ForegroundNotificationService.instance?.isLoaded?.value == true) {
                 return true
             }
             Thread.sleep(100)

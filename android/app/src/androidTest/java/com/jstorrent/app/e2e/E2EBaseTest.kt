@@ -4,7 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import com.jstorrent.app.JSTorrentApplication
-import com.jstorrent.app.service.EngineService
+import com.jstorrent.app.service.ForegroundNotificationService
 import com.jstorrent.quickjs.model.TorrentInfo
 import org.junit.After
 import org.junit.Before
@@ -14,13 +14,13 @@ import java.util.concurrent.TimeUnit
 /**
  * Base class for E2E tests that interact with the full engine stack.
  *
- * Provides setup/teardown for EngineService and helper methods for
+ * Provides setup/teardown for ForegroundNotificationService and helper methods for
  * waiting on engine state, checking torrent progress, etc.
  *
  * ## Test Flow
- * 1. @Before starts EngineService and waits for it to load
+ * 1. @Before starts ForegroundNotificationService and waits for it to load
  * 2. Test adds torrents, checks progress, etc.
- * 3. @After removes all torrents and stops EngineService
+ * 3. @After removes all torrents and stops ForegroundNotificationService
  *
  * ## Instrumentation Arguments
  * - seeder_host: Override seeder host (default: 10.0.2.2 for emulator)
@@ -41,7 +41,7 @@ abstract class E2EBaseTest {
     }
 
     protected lateinit var arguments: Bundle
-    protected var engineService: EngineService? = null
+    protected var engineService: ForegroundNotificationService? = null
 
     @Before
     open fun setUp() {
@@ -62,7 +62,7 @@ abstract class E2EBaseTest {
         app.serviceLifecycleManager.setActivityForeground(true)
 
         // Start the service (it will use the Application's engine)
-        EngineService.start(context, "null")
+        ForegroundNotificationService.start(context, "null")
 
         // Wait for engine to load
         val loaded = waitForEngineLoad()
@@ -70,7 +70,7 @@ abstract class E2EBaseTest {
             throw AssertionError("Engine failed to load within timeout")
         }
 
-        engineService = EngineService.instance
+        engineService = ForegroundNotificationService.instance
         Log.i(TAG, "E2E test setup complete - engine loaded")
     }
 
@@ -93,7 +93,7 @@ abstract class E2EBaseTest {
         }
 
         // Stop the engine service
-        EngineService.stop(context)
+        ForegroundNotificationService.stop(context)
 
         // Shutdown engine
         app.shutdownEngine()
@@ -120,7 +120,7 @@ abstract class E2EBaseTest {
         Thread {
             val deadline = System.currentTimeMillis() + timeoutMs
             while (System.currentTimeMillis() < deadline) {
-                val instance = EngineService.instance
+                val instance = ForegroundNotificationService.instance
                 if (instance?.isLoaded?.value == true) {
                     loaded = true
                     latch.countDown()
@@ -242,8 +242,8 @@ abstract class E2EBaseTest {
     /**
      * Assert that engine is loaded and return the service.
      */
-    protected fun requireEngine(): EngineService {
-        return engineService ?: throw AssertionError("EngineService not available")
+    protected fun requireEngine(): ForegroundNotificationService {
+        return engineService ?: throw AssertionError("ForegroundNotificationService not available")
     }
 
     /**

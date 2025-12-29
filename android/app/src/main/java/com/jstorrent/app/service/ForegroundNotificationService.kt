@@ -35,22 +35,27 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-private const val TAG = "EngineService"
+private const val TAG = "ForegroundNotificationService"
 
 /**
- * Foreground service for the JSTorrent engine.
+ * Foreground service that keeps the app alive during background downloads.
  *
- * Runs the QuickJS engine with the TypeScript BitTorrent implementation.
- * Provides singleton access for Activities to control torrents.
+ * Responsibilities:
+ * - Runs as a foreground service to prevent process death
+ * - Shows persistent notification with pause/resume/quit actions
+ * - Monitors WiFi state for wifi-only mode
+ * - Sends completion/error notifications for torrents
+ *
+ * Note: The engine itself lives in the Application (app.engineController),
+ * not in this service. This service just keeps the process alive.
  *
  * Usage:
  * ```kotlin
- * EngineService.start(context)
- * EngineService.instance?.addTorrent("magnet:...")
- * EngineService.stop(context)
+ * ForegroundNotificationService.start(context)
+ * ForegroundNotificationService.stop(context)
  * ```
  */
-class EngineService : Service() {
+class ForegroundNotificationService : Service() {
 
     // Use IO dispatcher for network/file operations in the engine
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -528,7 +533,7 @@ class EngineService : Service() {
             // Show toast on main thread
             mainHandler.post {
                 Toast.makeText(
-                    this@EngineService,
+                    this@ForegroundNotificationService,
                     "Paused - waiting for WiFi",
                     Toast.LENGTH_SHORT
                 ).show()
@@ -544,7 +549,7 @@ class EngineService : Service() {
 
             mainHandler.post {
                 Toast.makeText(
-                    this@EngineService,
+                    this@ForegroundNotificationService,
                     "WiFi connected - resuming",
                     Toast.LENGTH_SHORT
                 ).show()
@@ -583,7 +588,7 @@ class EngineService : Service() {
 
     companion object {
         /**
-         * Reference to the running EngineService instance, or null if service is not running.
+         * Reference to the running service instance, or null if service is not running.
          *
          * IMPORTANT: Do NOT use this for engine operations (pause/resume torrents, add torrents,
          * change settings, etc). The engine lives in the Application (app.engineController) and
@@ -591,10 +596,10 @@ class EngineService : Service() {
          * downloads - using this for engine operations will silently fail when the service
          * isn't running. Use app.engineController instead.
          *
-         * Valid uses: checking if service is running, service-specific operations.
+         * Valid uses: checking if service is running, service-specific operations like WiFi monitoring.
          */
         @Volatile
-        var instance: EngineService? = null
+        var instance: ForegroundNotificationService? = null
             private set
 
         @Volatile
@@ -603,12 +608,12 @@ class EngineService : Service() {
 
         fun start(context: Context, storageMode: String? = null) {
             this.storageMode = storageMode
-            val intent = Intent(context, EngineService::class.java)
+            val intent = Intent(context, ForegroundNotificationService::class.java)
             context.startForegroundService(intent)
         }
 
         fun stop(context: Context) {
-            val intent = Intent(context, EngineService::class.java)
+            val intent = Intent(context, ForegroundNotificationService::class.java)
             context.stopService(intent)
         }
     }

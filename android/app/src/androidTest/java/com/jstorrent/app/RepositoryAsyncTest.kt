@@ -4,8 +4,8 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.jstorrent.app.e2e.TestMagnets
-import com.jstorrent.app.service.EngineService
-import com.jstorrent.app.viewmodel.EngineServiceRepository
+import com.jstorrent.app.service.ForegroundNotificationService
+import com.jstorrent.app.viewmodel.ForegroundNotificationServiceRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -33,7 +33,7 @@ private const val TAG = "RepositoryAsyncTest"
 @RunWith(AndroidJUnit4::class)
 class RepositoryAsyncTest {
 
-    private lateinit var repository: EngineServiceRepository
+    private lateinit var repository: ForegroundNotificationServiceRepository
 
     @Before
     fun setup() {
@@ -49,8 +49,8 @@ class RepositoryAsyncTest {
             app.serviceLifecycleManager.setActivityForeground(true)
 
             // Start service (it will use the Application's engine)
-            Log.i(TAG, "Starting EngineService")
-            EngineService.start(context, "null")
+            Log.i(TAG, "Starting ForegroundNotificationService")
+            ForegroundNotificationService.start(context, "null")
 
             // Wait for engine to be fully loaded
             repeat(30) {
@@ -59,7 +59,7 @@ class RepositoryAsyncTest {
             }
             assertTrue("Engine not loaded", app.engineController?.isLoaded?.value == true)
 
-            repository = EngineServiceRepository(app)
+            repository = ForegroundNotificationServiceRepository(app)
             Log.i(TAG, "Engine loaded, repository created")
         }
     }
@@ -70,11 +70,11 @@ class RepositoryAsyncTest {
         val app = context.applicationContext as JSTorrentApplication
         // Reset foreground flag to prevent test pollution
         app.serviceLifecycleManager.setActivityForeground(false)
-        EngineService.stop(context)
+        ForegroundNotificationService.stop(context)
         app.shutdownEngine()
         // Wait for service to fully stop to avoid race conditions with next test
         Thread.sleep(1000)
-        Log.i(TAG, "EngineService stopped")
+        Log.i(TAG, "ForegroundNotificationService stopped")
     }
 
     @Test

@@ -9,7 +9,7 @@ import android.provider.DocumentsContract
 import android.util.Log
 import android.widget.Toast
 import com.jstorrent.app.JSTorrentApplication
-import com.jstorrent.app.service.EngineService
+import com.jstorrent.app.service.ForegroundNotificationService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -50,7 +50,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
             }
             ACTION_QUIT -> {
                 Log.i(TAG, "Stopping service")
-                EngineService.stop(context)
+                ForegroundNotificationService.stop(context)
             }
             ACTION_OPEN_FOLDER -> {
                 val uriString = intent.getStringExtra(EXTRA_FOLDER_URI)
@@ -136,7 +136,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
     /**
      * Pause all active torrents using the engine controller from the Application.
-     * Works regardless of whether the EngineService is running.
+     * Works regardless of whether the ForegroundNotificationService is running.
      */
     private fun pauseAllTorrents(context: Context) {
         val app = context.applicationContext as? JSTorrentApplication ?: return
@@ -154,7 +154,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
     /**
      * Resume all stopped torrents using the engine controller from the Application.
-     * Works regardless of whether the EngineService is running.
+     * Works regardless of whether the ForegroundNotificationService is running.
      */
     private fun resumeAllTorrents(context: Context) {
         val app = context.applicationContext as? JSTorrentApplication ?: return

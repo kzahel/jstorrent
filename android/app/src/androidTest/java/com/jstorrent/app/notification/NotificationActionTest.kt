@@ -6,7 +6,7 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.jstorrent.app.JSTorrentApplication
-import com.jstorrent.app.service.EngineService
+import com.jstorrent.app.service.ForegroundNotificationService
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -48,8 +48,8 @@ class NotificationActionTest {
         app.serviceLifecycleManager.setActivityForeground(false)
 
         // Stop the engine service if running
-        if (EngineService.instance != null) {
-            EngineService.stop(context)
+        if (ForegroundNotificationService.instance != null) {
+            ForegroundNotificationService.stop(context)
             app.shutdownEngine()
             Thread.sleep(500)
         }
@@ -97,7 +97,7 @@ class NotificationActionTest {
         app.serviceLifecycleManager.setActivityForeground(true)
 
         // Start the service
-        EngineService.start(context, "null")
+        ForegroundNotificationService.start(context, "null")
 
         // Wait for engine to load
         val loaded = waitForEngineLoad()
@@ -105,13 +105,13 @@ class NotificationActionTest {
 
         // If we get here without crashing, the foreground notification was posted
         // (Android requires foreground services to call startForeground() immediately)
-        assertNotNull("Service should be running", EngineService.instance)
+        assertNotNull("Service should be running", ForegroundNotificationService.instance)
 
         // Wait a bit for notification update loop to start
         Thread.sleep(1500)
 
         // Service should still be running (notification update loop didn't crash)
-        assertNotNull("Service should still be running after notification updates", EngineService.instance)
+        assertNotNull("Service should still be running after notification updates", ForegroundNotificationService.instance)
     }
 
     @Test
@@ -150,13 +150,13 @@ class NotificationActionTest {
         app.serviceLifecycleManager.setActivityForeground(true)
 
         // Start the service
-        EngineService.start(context, "null")
+        ForegroundNotificationService.start(context, "null")
 
         // Wait for engine to load
         val loaded = waitForEngineLoad()
         assertTrue("Engine should load", loaded)
 
-        assertNotNull("Service instance should exist before quit", EngineService.instance)
+        assertNotNull("Service instance should exist before quit", ForegroundNotificationService.instance)
 
         // Send QUIT action
         val quitIntent = Intent(NotificationActionReceiver.ACTION_QUIT)
@@ -166,7 +166,7 @@ class NotificationActionTest {
         // Wait for service to stop
         Thread.sleep(1000)
 
-        assertNull("Service instance should be null after quit", EngineService.instance)
+        assertNull("Service instance should be null after quit", ForegroundNotificationService.instance)
     }
 
     @Test
@@ -181,7 +181,7 @@ class NotificationActionTest {
         app.serviceLifecycleManager.setActivityForeground(true)
 
         // Start the service
-        EngineService.start(context, "null")
+        ForegroundNotificationService.start(context, "null")
 
         // Wait for engine to load
         val loaded = waitForEngineLoad()
@@ -196,7 +196,7 @@ class NotificationActionTest {
         Thread.sleep(500)
 
         // Service should still be running
-        assertNotNull("Service should still be running", EngineService.instance)
+        assertNotNull("Service should still be running", ForegroundNotificationService.instance)
     }
 
     @Test
@@ -211,7 +211,7 @@ class NotificationActionTest {
         app.serviceLifecycleManager.setActivityForeground(true)
 
         // Start the service
-        EngineService.start(context, "null")
+        ForegroundNotificationService.start(context, "null")
 
         // Wait for engine to load
         val loaded = waitForEngineLoad()
@@ -226,7 +226,7 @@ class NotificationActionTest {
         Thread.sleep(500)
 
         // Service should still be running
-        assertNotNull("Service should still be running", EngineService.instance)
+        assertNotNull("Service should still be running", ForegroundNotificationService.instance)
     }
 
     @Test
@@ -278,7 +278,7 @@ class NotificationActionTest {
         Thread {
             val deadline = System.currentTimeMillis() + timeoutMs
             while (System.currentTimeMillis() < deadline) {
-                val instance = EngineService.instance
+                val instance = ForegroundNotificationService.instance
                 if (instance?.isLoaded?.value == true) {
                     loaded = true
                     latch.countDown()
