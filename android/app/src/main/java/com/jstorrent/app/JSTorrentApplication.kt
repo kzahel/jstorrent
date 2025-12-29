@@ -51,8 +51,45 @@ class JSTorrentApplication : Application() {
         createNotificationChannels()
         deleteLegacyChannels()
 
-        // Initialize service lifecycle manager
-        serviceLifecycleManager = ServiceLifecycleManager(this, SettingsStore(this))
+        // Initialize service lifecycle manager with pause/resume callbacks
+        serviceLifecycleManager = ServiceLifecycleManager(
+            context = this,
+            settingsStore = SettingsStore(this),
+            onPauseAll = { pauseAllTorrents() },
+            onResumeAll = { resumeAllTorrents() }
+        )
+    }
+
+    /**
+     * Pause all active torrents. Used when background downloads are disabled
+     * and the app goes to the background.
+     */
+    private fun pauseAllTorrents() {
+        val controller = _engineController ?: return
+        val torrents = controller.state.value?.torrents ?: return
+
+        for (torrent in torrents) {
+            if (torrent.status in listOf("downloading", "downloading_metadata", "checking", "seeding")) {
+                controller.pauseTorrent(torrent.infoHash)
+            }
+        }
+        Log.i(TAG, "Paused all torrents for background")
+    }
+
+    /**
+     * Resume torrents that were paused when going to background.
+     * Called when the app comes back to the foreground.
+     */
+    private fun resumeAllTorrents() {
+        val controller = _engineController ?: return
+        val torrents = controller.state.value?.torrents ?: return
+
+        for (torrent in torrents) {
+            if (torrent.status == "stopped") {
+                controller.resumeTorrent(torrent.infoHash)
+            }
+        }
+        Log.i(TAG, "Resumed all torrents from background pause")
     }
 
     private fun createNotificationChannels() {

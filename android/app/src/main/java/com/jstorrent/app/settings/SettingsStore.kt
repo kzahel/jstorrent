@@ -78,6 +78,14 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_HAS_SHOWN_NOTIFICATION_PROMPT, false)
         set(value) = prefs.edit { putBoolean(KEY_HAS_SHOWN_NOTIFICATION_PROMPT, value) }
 
+    /**
+     * Whether to continue downloads in the background when the app is closed.
+     * OFF by default - user must opt-in. Requires notification permission.
+     */
+    var backgroundDownloadsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_BACKGROUND_DOWNLOADS_ENABLED, false)
+        set(value) = prefs.edit { putBoolean(KEY_BACKGROUND_DOWNLOADS_ENABLED, value) }
+
     companion object {
         private const val PREFS_NAME = "jstorrent_settings"
         private const val KEY_DOWNLOAD_SPEED_LIMIT = "download_speed_limit"
@@ -89,5 +97,6 @@ class SettingsStore(context: Context) {
         private const val KEY_PEX_ENABLED = "pex_enabled"
         private const val KEY_ENCRYPTION_POLICY = "encryption_policy"
         private const val KEY_HAS_SHOWN_NOTIFICATION_PROMPT = "has_shown_notification_prompt"
+        private const val KEY_BACKGROUND_DOWNLOADS_ENABLED = "background_downloads_enabled"
     }
 }

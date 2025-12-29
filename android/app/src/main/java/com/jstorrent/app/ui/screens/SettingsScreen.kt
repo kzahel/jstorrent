@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.jstorrent.app.storage.DownloadRoot
+import com.jstorrent.app.ui.dialogs.NotificationRequiredDialog
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.viewmodel.SettingsUiState
 import com.jstorrent.app.viewmodel.SettingsViewModel
@@ -98,6 +99,8 @@ fun SettingsScreen(
         onDhtEnabledChange = { viewModel.setDhtEnabled(it) },
         onPexEnabledChange = { viewModel.setPexEnabled(it) },
         onEncryptionPolicyChange = { viewModel.setEncryptionPolicy(it) },
+        onBackgroundDownloadsChange = { viewModel.setBackgroundDownloadsEnabled(it) },
+        onDismissNotificationRequiredDialog = { viewModel.dismissNotificationRequiredDialog() },
         onRequestNotificationPermission = onRequestNotificationPermission,
         onOpenNotificationSettings = onOpenNotificationSettings,
         modifier = modifier
@@ -122,6 +125,8 @@ fun SettingsScreenContent(
     onDhtEnabledChange: (Boolean) -> Unit,
     onPexEnabledChange: (Boolean) -> Unit,
     onEncryptionPolicyChange: (String) -> Unit,
+    onBackgroundDownloadsChange: (Boolean) -> Unit,
+    onDismissNotificationRequiredDialog: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     modifier: Modifier = Modifier
@@ -260,6 +265,25 @@ fun SettingsScreenContent(
             }
 
             // =====================================================================
+            // Power Management
+            // =====================================================================
+            item {
+                SectionHeader(title = "Power Management")
+            }
+
+            item {
+                PowerManagementSection(
+                    backgroundDownloadsEnabled = uiState.backgroundDownloadsEnabled,
+                    notificationPermissionGranted = uiState.notificationPermissionGranted,
+                    onBackgroundDownloadsChange = onBackgroundDownloadsChange
+                )
+            }
+
+            item {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+            }
+
+            // =====================================================================
             // Danger Zone
             // =====================================================================
             item {
@@ -284,6 +308,17 @@ fun SettingsScreenContent(
         ClearConfirmationDialog(
             onDismiss = onDismissClearConfirmation,
             onConfirm = onClearAll
+        )
+    }
+
+    // Notification required dialog (shown when trying to enable background downloads without permission)
+    if (uiState.showNotificationRequiredDialog) {
+        NotificationRequiredDialog(
+            onOpenSettings = {
+                onDismissNotificationRequiredDialog()
+                onOpenNotificationSettings()
+            },
+            onDismiss = onDismissNotificationRequiredDialog
         )
     }
 }
@@ -702,6 +737,35 @@ private fun NotificationsSection(
 }
 
 // =============================================================================
+// Power Management Section
+// =============================================================================
+
+@Composable
+private fun PowerManagementSection(
+    backgroundDownloadsEnabled: Boolean,
+    notificationPermissionGranted: Boolean,
+    onBackgroundDownloadsChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        SettingToggleRow(
+            label = "Download in background",
+            description = if (notificationPermissionGranted) {
+                "Continue downloads when app is closed"
+            } else {
+                "Requires notification permission"
+            },
+            checked = backgroundDownloadsEnabled,
+            onCheckedChange = onBackgroundDownloadsChange
+        )
+    }
+}
+
+// =============================================================================
 // Network Section
 // =============================================================================
 
@@ -975,6 +1039,8 @@ private fun SettingsScreenEmptyPreview() {
             onDhtEnabledChange = {},
             onPexEnabledChange = {},
             onEncryptionPolicyChange = {},
+            onBackgroundDownloadsChange = {},
+            onDismissNotificationRequiredDialog = {},
             onRequestNotificationPermission = {},
             onOpenNotificationSettings = {}
         )
@@ -1009,6 +1075,7 @@ private fun SettingsScreenWithRootsPreview() {
                 downloadSpeedLimit = 1048576,
                 uploadSpeedLimit = 512000,
                 notificationPermissionGranted = true,
+                backgroundDownloadsEnabled = true,
                 dhtEnabled = true,
                 pexEnabled = true,
                 wifiOnlyEnabled = false,
@@ -1028,6 +1095,8 @@ private fun SettingsScreenWithRootsPreview() {
             onDhtEnabledChange = {},
             onPexEnabledChange = {},
             onEncryptionPolicyChange = {},
+            onBackgroundDownloadsChange = {},
+            onDismissNotificationRequiredDialog = {},
             onRequestNotificationPermission = {},
             onOpenNotificationSettings = {}
         )

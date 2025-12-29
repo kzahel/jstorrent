@@ -12,15 +12,17 @@ private const val TAG = "ServiceLifecycleMgr"
 /**
  * Decides when EngineService should run.
  *
- * Service runs when: active downloads/seeding AND user not in app
- * Service stops when: idle OR user in app
+ * Service runs when: background downloads enabled AND active downloads/seeding AND user not in app
+ * Service stops when: background downloads disabled OR idle OR user in app
  *
- * This eliminates notification spam by only showing the foreground service
- * notification when there's actual background work happening.
+ * When background downloads are disabled and user leaves the app, all torrents are paused.
+ * This prevents silent battery drain - users must opt-in to background downloads.
  */
 class ServiceLifecycleManager(
     private val context: Context,
-    private val settingsStore: SettingsStore
+    private val settingsStore: SettingsStore,
+    private val onPauseAll: () -> Unit = {},
+    private val onResumeAll: () -> Unit = {}
 ) {
 
     private val _isActivityForeground = MutableStateFlow(false)
@@ -28,6 +30,8 @@ class ServiceLifecycleManager(
 
     private var hasActiveWork = false
     private var serviceRunning = false
+    private var pausedForBackground = false
+    private var hasEverBeenForeground = false  // Track if activity has ever been visible
 
     /**
      * Called from Activity.onStart()
@@ -35,6 +39,7 @@ class ServiceLifecycleManager(
     fun onActivityStart() {
         Log.d(TAG, "Activity started (foreground)")
         _isActivityForeground.value = true
+        hasEverBeenForeground = true
         updateServiceState()
     }
 
@@ -80,7 +85,23 @@ class ServiceLifecycleManager(
     }
 
     private fun updateServiceState() {
-        val shouldRun = hasActiveWork && !_isActivityForeground.value
+        val backgroundEnabled = settingsStore.backgroundDownloadsEnabled
+        val goingToBackground = !_isActivityForeground.value
+
+        // Handle pause/resume when background downloads are disabled
+        // Only pause when transitioning FROM foreground TO background (not on initial startup)
+        if (!backgroundEnabled && goingToBackground && hasActiveWork && !pausedForBackground && hasEverBeenForeground) {
+            Log.i(TAG, "Background downloads disabled - pausing all torrents")
+            onPauseAll()
+            pausedForBackground = true
+        } else if (_isActivityForeground.value && pausedForBackground) {
+            Log.i(TAG, "Resuming torrents after background pause")
+            onResumeAll()
+            pausedForBackground = false
+        }
+
+        // Only start service if background downloads are enabled
+        val shouldRun = backgroundEnabled && hasActiveWork && goingToBackground
 
         if (shouldRun && !serviceRunning) {
             Log.i(TAG, "Starting service: active work in background")
@@ -88,6 +109,7 @@ class ServiceLifecycleManager(
             serviceRunning = true
         } else if (!shouldRun && serviceRunning) {
             val reason = when {
+                !backgroundEnabled -> "background downloads disabled"
                 !hasActiveWork -> "idle"
                 _isActivityForeground.value -> "user in app"
                 else -> "unknown"

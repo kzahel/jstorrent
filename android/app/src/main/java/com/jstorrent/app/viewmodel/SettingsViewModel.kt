@@ -30,9 +30,12 @@ data class SettingsUiState(
     val dhtEnabled: Boolean = true,
     val pexEnabled: Boolean = true,
     val encryptionPolicy: String = "allow",
+    // Power Management
+    val backgroundDownloadsEnabled: Boolean = false,
     // Notifications
     val notificationPermissionGranted: Boolean = false,
-    val canRequestNotificationPermission: Boolean = true
+    val canRequestNotificationPermission: Boolean = true,
+    val showNotificationRequiredDialog: Boolean = false
 )
 
 /**
@@ -66,7 +69,8 @@ class SettingsViewModel(
             wifiOnlyEnabled = settingsStore.wifiOnlyEnabled,
             dhtEnabled = settingsStore.dhtEnabled,
             pexEnabled = settingsStore.pexEnabled,
-            encryptionPolicy = settingsStore.encryptionPolicy
+            encryptionPolicy = settingsStore.encryptionPolicy,
+            backgroundDownloadsEnabled = settingsStore.backgroundDownloadsEnabled
         )
     }
 
@@ -210,16 +214,52 @@ class SettingsViewModel(
     }
 
     // =========================================================================
+    // Power Management Settings
+    // =========================================================================
+
+    /**
+     * Set background downloads enabled.
+     * Requires notification permission - if not granted, shows the permission required dialog.
+     */
+    fun setBackgroundDownloadsEnabled(enabled: Boolean) {
+        if (enabled && !_uiState.value.notificationPermissionGranted) {
+            // Can't enable without notification permission - show dialog
+            _uiState.value = _uiState.value.copy(showNotificationRequiredDialog = true)
+            return
+        }
+
+        settingsStore.backgroundDownloadsEnabled = enabled
+        _uiState.value = _uiState.value.copy(backgroundDownloadsEnabled = enabled)
+    }
+
+    /**
+     * Dismiss the notification required dialog.
+     */
+    fun dismissNotificationRequiredDialog() {
+        _uiState.value = _uiState.value.copy(showNotificationRequiredDialog = false)
+    }
+
+    // =========================================================================
     // Notification Settings
     // =========================================================================
 
     /**
      * Update notification permission state.
+     * Also disables background downloads if permission is revoked.
      */
     fun updateNotificationPermissionState(granted: Boolean, canRequest: Boolean) {
+        // If permission was revoked and background downloads was enabled, disable it
+        val backgroundEnabled = if (!granted && settingsStore.backgroundDownloadsEnabled) {
+            settingsStore.backgroundDownloadsEnabled = false
+            false
+        } else {
+            settingsStore.backgroundDownloadsEnabled
+        }
+
         _uiState.value = _uiState.value.copy(
             notificationPermissionGranted = granted,
-            canRequestNotificationPermission = canRequest
+            canRequestNotificationPermission = canRequest,
+            backgroundDownloadsEnabled = backgroundEnabled
         )
     }
 
