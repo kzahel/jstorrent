@@ -228,6 +228,15 @@ class NativeStandaloneActivity : ComponentActivity() {
             return
         }
 
+        // Check for pre-read torrent file (base64 from MainActivity)
+        // MainActivity reads the file while it has URI permission, then passes base64 here
+        val torrentBase64 = intent?.getStringExtra("torrent_base64")
+        if (!torrentBase64.isNullOrEmpty()) {
+            Log.i(TAG, "Received torrent from MainActivity (${torrentBase64.length} chars)")
+            addOrQueueMagnet(torrentBase64)
+            return
+        }
+
         val uri = intent?.data ?: return
         Log.d(TAG, "Received intent: $uri")
 
@@ -272,10 +281,12 @@ class NativeStandaloneActivity : ComponentActivity() {
      * Add magnet immediately if engine is loaded, otherwise queue it.
      */
     private fun addOrQueueMagnet(magnet: String) {
-        val service = EngineService.instance
-        if (service != null && service.isLoaded?.value == true) {
+        val controller = app.engineController
+        if (controller != null && controller.isLoaded?.value == true) {
+            Log.i(TAG, "Engine loaded, adding torrent immediately")
             viewModel.addTorrent(magnet)
         } else {
+            Log.i(TAG, "Engine not loaded yet, queuing torrent")
             pendingMagnet = magnet
         }
     }
@@ -285,16 +296,17 @@ class NativeStandaloneActivity : ComponentActivity() {
      */
     private fun observeEngineForPendingMagnet() {
         lifecycleScope.launch {
-            // Wait for service instance
-            while (EngineService.instance == null) {
+            // Wait for engine controller to be available
+            while (app.engineController == null) {
                 delay(100)
             }
 
-            val service = EngineService.instance!!
+            val controller = app.engineController!!
 
             // Collect isLoaded to handle pending magnet
-            service.isLoaded?.collect { loaded ->
+            controller.isLoaded?.collect { loaded ->
                 if (loaded && pendingMagnet != null) {
+                    Log.i(TAG, "Engine now loaded, adding queued torrent")
                     viewModel.addTorrent(pendingMagnet!!)
                     pendingMagnet = null
                 }
@@ -304,14 +316,18 @@ class NativeStandaloneActivity : ComponentActivity() {
 
     private fun handleTorrentFile(uri: Uri) {
         // Read file on IO thread to avoid blocking main thread
+        // Note: This is a fallback path. Normally MainActivity reads the file and passes base64.
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 if (bytes != null) {
                     val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                    Log.i(TAG, "Read torrent file directly: ${bytes.size} bytes")
                     withContext(Dispatchers.Main) {
                         addOrQueueMagnet(base64)
                     }
+                } else {
+                    Log.e(TAG, "Failed to read torrent file: openInputStream returned null (permission issue?)")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to read torrent file", e)

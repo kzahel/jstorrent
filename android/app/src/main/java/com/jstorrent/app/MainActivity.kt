@@ -90,11 +90,30 @@ class MainActivity : ComponentActivity() {
                     StandaloneActivity::class.java
                 }
             }
+
+            // Read torrent file now (we have URI permission) and pass as extra
+            // This avoids permission issues when forwarding content:// URIs between activities
+            var torrentBase64: String? = null
+            val uri = intent.data
+            if (uri != null && (uri.scheme == "content" || uri.scheme == "file")) {
+                try {
+                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    if (bytes != null) {
+                        torrentBase64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                        Log.i(TAG, "Read torrent file: ${bytes.size} bytes")
+                    } else {
+                        Log.e(TAG, "Failed to read torrent file: openInputStream returned null")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to read torrent file", e)
+                }
+            }
+
             startActivity(Intent(this, targetActivity).apply {
-                data = intent.data  // Forward any magnet/torrent intent
-                // Preserve URI read permission from original intent (needed for content:// URIs)
-                if (intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) {
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                if (torrentBase64 != null) {
+                    putExtra("torrent_base64", torrentBase64)
+                } else {
+                    data = intent.data  // Magnet links pass through as URI
                 }
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             })
