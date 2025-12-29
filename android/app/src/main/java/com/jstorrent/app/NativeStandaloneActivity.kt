@@ -103,9 +103,6 @@ class NativeStandaloneActivity : ComponentActivity() {
         // Initialize engine (idempotent)
         app.initializeEngine(storageMode = testStorageMode.value)
 
-        // Observe torrent state changes to update service lifecycle
-        observeTorrentStateForServiceLifecycle()
-
         // Check if we should show notification permission dialog (first launch only)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val granted = ContextCompat.checkSelfPermission(
@@ -184,19 +181,6 @@ class NativeStandaloneActivity : ComponentActivity() {
         // The engine's callGlobalFunction uses latch.await() which blocks the calling thread
         lifecycleScope.launch(Dispatchers.IO) {
             syncRootsWithEngine()
-        }
-    }
-
-    /**
-     * Observe torrent state changes to update service lifecycle.
-     * The lifecycle manager decides when to start/stop the foreground service.
-     */
-    private fun observeTorrentStateForServiceLifecycle() {
-        lifecycleScope.launch {
-            app.engineController?.state?.collect { state ->
-                val torrents = state?.torrents ?: emptyList()
-                app.serviceLifecycleManager.onTorrentStateChanged(torrents)
-            }
         }
     }
 

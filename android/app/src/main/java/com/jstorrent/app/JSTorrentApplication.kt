@@ -14,6 +14,7 @@ import com.jstorrent.quickjs.model.EngineConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 private const val TAG = "JSTorrentApplication"
 
@@ -166,6 +167,9 @@ class JSTorrentApplication : Application() {
         _engineController = controller
         Log.i(TAG, "Engine loaded successfully")
 
+        // Start observing torrent state for service lifecycle decisions
+        startTorrentStateObservation(controller)
+
         // Apply saved settings
         applyEngineSettings(controller, settingsStore)
 
@@ -204,6 +208,19 @@ class JSTorrentApplication : Application() {
             _engineController = null
         }
         return initializeEngine(storageMode)
+    }
+
+    /**
+     * Observe torrent state changes and notify the service lifecycle manager.
+     * Runs in engineScope so it lives for the process lifetime.
+     */
+    private fun startTorrentStateObservation(controller: EngineController) {
+        engineScope.launch {
+            controller.state.collect { state ->
+                val torrents = state?.torrents ?: emptyList()
+                serviceLifecycleManager.onTorrentStateChanged(torrents)
+            }
+        }
     }
 
     private fun applyEngineSettings(controller: EngineController, settingsStore: SettingsStore) {
