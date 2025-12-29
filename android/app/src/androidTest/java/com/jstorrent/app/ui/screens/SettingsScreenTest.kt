@@ -51,6 +51,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -88,6 +90,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -125,6 +129,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -162,6 +168,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -201,6 +209,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -236,6 +246,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -267,6 +279,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -301,6 +315,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -333,6 +349,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -372,6 +390,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -406,6 +426,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -438,6 +460,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -471,6 +495,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )
@@ -506,6 +532,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = { requestCalled = true },
                     onOpenNotificationSettings = {}
                 )
@@ -541,6 +569,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = { settingsCalled = true }
                 )
@@ -578,6 +608,8 @@ class SettingsScreenTest {
                     onDhtEnabledChange = {},
                     onPexEnabledChange = {},
                     onEncryptionPolicyChange = {},
+                    onBackgroundDownloadsChange = {},
+                    onDismissNotificationRequiredDialog = {},
                     onRequestNotificationPermission = {},
                     onOpenNotificationSettings = {}
                 )

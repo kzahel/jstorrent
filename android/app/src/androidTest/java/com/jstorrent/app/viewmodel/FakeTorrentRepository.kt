@@ -2,8 +2,10 @@ package com.jstorrent.app.viewmodel
 
 import com.jstorrent.quickjs.model.EngineState
 import com.jstorrent.quickjs.model.FileInfo
+import com.jstorrent.quickjs.model.PeerInfo
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TorrentSummary
+import com.jstorrent.quickjs.model.TrackerInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +36,8 @@ class FakeTorrentRepository : TorrentRepository {
     // Data for queries
     var torrentListData: List<TorrentInfo> = emptyList()
     var filesData: Map<String, List<FileInfo>> = emptyMap()
+    var trackersData: Map<String, List<TrackerInfo>> = emptyMap()
+    var peersData: Map<String, List<PeerInfo>> = emptyMap()
 
     // ==========================================================================
     // Test control methods
@@ -63,6 +67,8 @@ class FakeTorrentRepository : TorrentRepository {
         resumeAllCalled = false
         torrentListData = emptyList()
         filesData = emptyMap()
+        trackersData = emptyMap()
+        peersData = emptyMap()
     }
 
     // ==========================================================================
@@ -142,6 +148,14 @@ class FakeTorrentRepository : TorrentRepository {
 
     override suspend fun getFiles(infoHash: String): List<FileInfo> {
         return filesData[infoHash] ?: emptyList()
+    }
+
+    override suspend fun getTrackers(infoHash: String): List<TrackerInfo> {
+        return trackersData[infoHash] ?: emptyList()
+    }
+
+    override suspend fun getPeers(infoHash: String): List<PeerInfo> {
+        return peersData[infoHash] ?: emptyList()
     }
 }
 
