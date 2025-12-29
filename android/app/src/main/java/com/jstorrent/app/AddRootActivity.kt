@@ -17,7 +17,6 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
-import com.jstorrent.app.service.EngineService
 import com.jstorrent.app.service.IoDaemonService
 import com.jstorrent.app.storage.RootStore
 
@@ -152,8 +151,8 @@ class AddRootActivity : AppCompatActivity() {
         val root = rootStore.addRoot(uri)
         Log.i(TAG, "Added root: key=${root.key}, label=${root.displayName}")
 
-        // Notify EngineService (native standalone mode) - async to avoid blocking Main
-        EngineService.instance?.controller?.let { controller ->
+        // Notify engine (native standalone mode) - async to avoid blocking Main
+        (application as JSTorrentApplication).engineController?.let { controller ->
             val isFirstRoot = rootStore.listRoots().size == 1
             lifecycleScope.launch(Dispatchers.IO) {
                 controller.addRootAsync(root.key, root.displayName, root.uri)

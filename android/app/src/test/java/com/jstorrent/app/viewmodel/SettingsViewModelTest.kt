@@ -1,5 +1,6 @@
 package com.jstorrent.app.viewmodel
 
+import com.jstorrent.app.JSTorrentApplication
 import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.DownloadRoot
 import com.jstorrent.app.storage.RootStore
@@ -23,6 +24,7 @@ import org.mockito.kotlin.whenever
 class SettingsViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
+    private lateinit var app: JSTorrentApplication
     private lateinit var rootStore: RootStore
     private lateinit var settingsStore: SettingsStore
     private lateinit var viewModel: SettingsViewModel
@@ -48,6 +50,9 @@ class SettingsViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+        app = mock {
+            on { engineController } doReturn null
+        }
         rootStore = mock()
         settingsStore = mock {
             on { defaultRootKey } doReturn null
@@ -74,7 +79,7 @@ class SettingsViewModelTest {
     fun `initial state loads roots from store`() {
         whenever(rootStore.refreshAvailability()).thenReturn(listOf(testRoot1, testRoot2))
 
-        viewModel = SettingsViewModel(rootStore, settingsStore)
+        viewModel = SettingsViewModel(app, rootStore, settingsStore)
 
         val state = viewModel.uiState.value
         assertEquals(2, state.downloadRoots.size)
@@ -86,7 +91,7 @@ class SettingsViewModelTest {
     fun `initial state with empty roots`() {
         whenever(rootStore.refreshAvailability()).thenReturn(emptyList())
 
-        viewModel = SettingsViewModel(rootStore, settingsStore)
+        viewModel = SettingsViewModel(app, rootStore, settingsStore)
 
         val state = viewModel.uiState.value
         assertTrue(state.downloadRoots.isEmpty())
@@ -100,7 +105,7 @@ class SettingsViewModelTest {
     fun `refreshRoots updates state`() {
         whenever(rootStore.refreshAvailability()).thenReturn(listOf(testRoot1))
 
-        viewModel = SettingsViewModel(rootStore, settingsStore)
+        viewModel = SettingsViewModel(app, rootStore, settingsStore)
 
         whenever(rootStore.refreshAvailability()).thenReturn(listOf(testRoot1, testRoot2))
 
@@ -119,7 +124,7 @@ class SettingsViewModelTest {
         whenever(rootStore.refreshAvailability()).thenReturn(listOf(testRoot1, testRoot2))
         whenever(rootStore.removeRoot("key1")).thenReturn(true)
 
-        viewModel = SettingsViewModel(rootStore, settingsStore)
+        viewModel = SettingsViewModel(app, rootStore, settingsStore)
 
         whenever(rootStore.refreshAvailability()).thenReturn(listOf(testRoot2))
 
@@ -140,7 +145,7 @@ class SettingsViewModelTest {
     fun `showClearConfirmation sets flag`() {
         whenever(rootStore.refreshAvailability()).thenReturn(emptyList())
 
-        viewModel = SettingsViewModel(rootStore, settingsStore)
+        viewModel = SettingsViewModel(app, rootStore, settingsStore)
 
         viewModel.showClearConfirmation()
 
@@ -151,7 +156,7 @@ class SettingsViewModelTest {
     fun `dismissClearConfirmation clears flag`() {
         whenever(rootStore.refreshAvailability()).thenReturn(emptyList())
 
-        viewModel = SettingsViewModel(rootStore, settingsStore)
+        viewModel = SettingsViewModel(app, rootStore, settingsStore)
         viewModel.showClearConfirmation()
         viewModel.dismissClearConfirmation()
 
@@ -169,7 +174,7 @@ class SettingsViewModelTest {
         whenever(rootStore.removeRoot("key1")).thenReturn(true)
         whenever(rootStore.removeRoot("key2")).thenReturn(true)
 
-        viewModel = SettingsViewModel(rootStore, settingsStore)
+        viewModel = SettingsViewModel(app, rootStore, settingsStore)
         viewModel.showClearConfirmation()
 
         whenever(rootStore.refreshAvailability()).thenReturn(emptyList())

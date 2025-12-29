@@ -3,6 +3,7 @@ package com.jstorrent.app.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.jstorrent.app.JSTorrentApplication
 import com.jstorrent.app.service.EngineService
 import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.DownloadRoot
@@ -39,6 +40,7 @@ data class SettingsUiState(
  * Manages storage roots and app settings.
  */
 class SettingsViewModel(
+    private val app: JSTorrentApplication,
     private val rootStore: RootStore,
     private val settingsStore: SettingsStore
 ) : ViewModel() {
@@ -139,8 +141,8 @@ class SettingsViewModel(
      * Set download speed limit.
      */
     fun setDownloadSpeedLimit(bytesPerSec: Int) {
-        EngineService.instance?.setDownloadSpeedLimit(bytesPerSec)
-            ?: run { settingsStore.downloadSpeedLimit = bytesPerSec }
+        settingsStore.downloadSpeedLimit = bytesPerSec
+        app.engineController?.getConfigBridge()?.setDownloadSpeedLimit(bytesPerSec)
         _uiState.value = _uiState.value.copy(downloadSpeedLimit = bytesPerSec)
     }
 
@@ -148,8 +150,8 @@ class SettingsViewModel(
      * Set upload speed limit.
      */
     fun setUploadSpeedLimit(bytesPerSec: Int) {
-        EngineService.instance?.setUploadSpeedLimit(bytesPerSec)
-            ?: run { settingsStore.uploadSpeedLimit = bytesPerSec }
+        settingsStore.uploadSpeedLimit = bytesPerSec
+        app.engineController?.getConfigBridge()?.setUploadSpeedLimit(bytesPerSec)
         _uiState.value = _uiState.value.copy(uploadSpeedLimit = bytesPerSec)
     }
 
@@ -171,11 +173,12 @@ class SettingsViewModel(
 
     /**
      * Set WiFi-only mode.
-     * Also notifies running service to start/stop WiFi monitoring.
+     * Persists the setting and also notifies running service to start/stop WiFi monitoring.
      */
     fun setWifiOnly(enabled: Boolean) {
+        settingsStore.wifiOnlyEnabled = enabled
+        // WiFi monitoring is handled by EngineService, notify it if running
         EngineService.instance?.setWifiOnlyEnabled(enabled)
-            ?: run { settingsStore.wifiOnlyEnabled = enabled }
         _uiState.value = _uiState.value.copy(wifiOnlyEnabled = enabled)
     }
 
@@ -183,8 +186,8 @@ class SettingsViewModel(
      * Set DHT enabled state.
      */
     fun setDhtEnabled(enabled: Boolean) {
-        EngineService.instance?.setDhtEnabled(enabled)
-            ?: run { settingsStore.dhtEnabled = enabled }
+        settingsStore.dhtEnabled = enabled
+        app.engineController?.getConfigBridge()?.setDhtEnabled(enabled)
         _uiState.value = _uiState.value.copy(dhtEnabled = enabled)
     }
 
@@ -192,8 +195,8 @@ class SettingsViewModel(
      * Set PEX enabled state.
      */
     fun setPexEnabled(enabled: Boolean) {
-        EngineService.instance?.setPexEnabled(enabled)
-            ?: run { settingsStore.pexEnabled = enabled }
+        settingsStore.pexEnabled = enabled
+        app.engineController?.getConfigBridge()?.setPexEnabled(enabled)
         _uiState.value = _uiState.value.copy(pexEnabled = enabled)
     }
 
@@ -201,8 +204,8 @@ class SettingsViewModel(
      * Set encryption policy.
      */
     fun setEncryptionPolicy(policy: String) {
-        EngineService.instance?.setEncryptionPolicy(policy)
-            ?: run { settingsStore.encryptionPolicy = policy }
+        settingsStore.encryptionPolicy = policy
+        app.engineController?.getConfigBridge()?.setEncryptionPolicy(policy)
         _uiState.value = _uiState.value.copy(encryptionPolicy = policy)
     }
 
@@ -229,7 +232,9 @@ class SettingsViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(SettingsViewModel::class.java)) {
+                val app = context.applicationContext as JSTorrentApplication
                 return SettingsViewModel(
+                    app,
                     RootStore(context),
                     SettingsStore(context)
                 ) as T
