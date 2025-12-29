@@ -1,5 +1,6 @@
 package com.jstorrent.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -52,8 +53,10 @@ import com.jstorrent.app.model.TorrentFilter
 import com.jstorrent.app.model.TorrentListUiState
 import com.jstorrent.app.model.TorrentSortOrder
 import com.jstorrent.app.ui.components.CombinedSpeedIndicator
+import com.jstorrent.app.ui.components.SelectionActionBar
 import com.jstorrent.app.ui.components.TorrentCard
 import com.jstorrent.app.ui.dialogs.AddTorrentDialog
+import com.jstorrent.app.ui.dialogs.BulkRemoveTorrentDialog
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.viewmodel.TorrentListViewModel
 import com.jstorrent.quickjs.model.TorrentSummary
@@ -77,10 +80,18 @@ fun TorrentListScreen(
     val currentSortOrder by viewModel.sortOrder.collectAsState()
     val aggregateDownloadSpeed by viewModel.aggregateDownloadSpeed.collectAsState()
     val aggregateUploadSpeed by viewModel.aggregateUploadSpeed.collectAsState()
+    val selectedTorrents by viewModel.selectedTorrents.collectAsState()
+    val isSelectionMode by viewModel.isSelectionMode.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var showBulkDeleteDialog by remember { mutableStateOf(false) }
+
+    // Handle back press in selection mode
+    BackHandler(enabled = isSelectionMode) {
+        viewModel.clearSelection()
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -208,7 +219,7 @@ fun TorrentListScreen(
             )
         },
         floatingActionButton = {
-            if (uiState is TorrentListUiState.Loaded) {
+            if (uiState is TorrentListUiState.Loaded && !isSelectionMode) {
                 FloatingActionButton(
                     onClick = { showAddDialog = true }
                 ) {
@@ -231,17 +242,42 @@ fun TorrentListScreen(
                 )
             }
             is TorrentListUiState.Loaded -> {
-                TorrentListContent(
-                    torrents = state.torrents,
-                    currentFilter = currentFilter,
-                    onFilterChange = { viewModel.setFilter(it) },
-                    getFilterCount = { viewModel.getFilterCount(it) },
-                    onTorrentClick = onTorrentClick,
-                    onPauseTorrent = { viewModel.pauseTorrent(it) },
-                    onResumeTorrent = { viewModel.resumeTorrent(it) },
-                    isPaused = { viewModel.isPaused(it) },
-                    modifier = Modifier.padding(innerPadding)
-                )
+                Box(modifier = Modifier.padding(innerPadding)) {
+                    TorrentListContent(
+                        torrents = state.torrents,
+                        currentFilter = currentFilter,
+                        onFilterChange = { viewModel.setFilter(it) },
+                        getFilterCount = { viewModel.getFilterCount(it) },
+                        onTorrentClick = { infoHash ->
+                            if (isSelectionMode) {
+                                viewModel.toggleSelection(infoHash)
+                            } else {
+                                onTorrentClick(infoHash)
+                            }
+                        },
+                        onTorrentLongClick = { infoHash ->
+                            viewModel.selectTorrent(infoHash)
+                        },
+                        onPauseTorrent = { viewModel.pauseTorrent(it) },
+                        onResumeTorrent = { viewModel.resumeTorrent(it) },
+                        isPaused = { viewModel.isPaused(it) },
+                        isSelectionMode = isSelectionMode,
+                        selectedTorrents = selectedTorrents,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    // Selection action bar at bottom
+                    if (isSelectionMode) {
+                        SelectionActionBar(
+                            selectedCount = selectedTorrents.size,
+                            onStartAll = { viewModel.resumeSelected() },
+                            onStopAll = { viewModel.pauseSelected() },
+                            onDeleteAll = { showBulkDeleteDialog = true },
+                            onClearSelection = { viewModel.clearSelection() },
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        )
+                    }
+                }
             }
         }
     }
@@ -253,6 +289,18 @@ fun TorrentListScreen(
             onAddTorrent = { magnetLink ->
                 viewModel.addTorrent(magnetLink)
                 showAddDialog = false
+            }
+        )
+    }
+
+    // Bulk delete dialog
+    if (showBulkDeleteDialog) {
+        BulkRemoveTorrentDialog(
+            count = selectedTorrents.size,
+            onDismiss = { showBulkDeleteDialog = false },
+            onConfirm = { deleteFiles ->
+                viewModel.removeSelected(deleteFiles)
+                showBulkDeleteDialog = false
             }
         )
     }
@@ -319,9 +367,12 @@ private fun TorrentListContent(
     onFilterChange: (TorrentFilter) -> Unit,
     getFilterCount: (TorrentFilter) -> Int,
     onTorrentClick: (String) -> Unit,
+    onTorrentLongClick: (String) -> Unit,
     onPauseTorrent: (String) -> Unit,
     onResumeTorrent: (String) -> Unit,
     isPaused: (TorrentSummary) -> Boolean,
+    isSelectionMode: Boolean,
+    selectedTorrents: Set<String>,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -338,7 +389,13 @@ private fun TorrentListContent(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 8.dp,
+                    // Extra padding at bottom when selection bar is visible
+                    bottom = if (isSelectionMode) 80.dp else 8.dp
+                ),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(torrents, key = { it.infoHash }) { torrent ->
@@ -346,7 +403,10 @@ private fun TorrentListContent(
                         torrent = torrent,
                         onPause = { onPauseTorrent(torrent.infoHash) },
                         onResume = { onResumeTorrent(torrent.infoHash) },
-                        onClick = { onTorrentClick(torrent.infoHash) }
+                        onClick = { onTorrentClick(torrent.infoHash) },
+                        onLongClick = { onTorrentLongClick(torrent.infoHash) },
+                        isSelectionMode = isSelectionMode,
+                        isSelected = torrent.infoHash in selectedTorrents
                     )
                 }
             }

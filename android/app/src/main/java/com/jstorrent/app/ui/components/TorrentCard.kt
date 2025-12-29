@@ -1,6 +1,8 @@
 package com.jstorrent.app.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,9 +10,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,20 +30,27 @@ import com.jstorrent.quickjs.model.TorrentSummary
 /**
  * Torrent card for the main list screen.
  * Displays torrent info with play/pause control, progress, and stats.
- * Matches Flud's card design.
+ * Supports multi-select mode with long-press.
  *
  * @param torrent The torrent summary data
  * @param onPause Callback when pause is requested
  * @param onResume Callback when resume is requested
- * @param onClick Callback when card is clicked (navigate to detail)
+ * @param onClick Callback when card is clicked (navigate to detail or toggle selection)
+ * @param onLongClick Callback when card is long-pressed (enter selection mode)
+ * @param isSelectionMode Whether multi-select mode is active
+ * @param isSelected Whether this card is currently selected
  * @param modifier Optional modifier
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TorrentCard(
     torrent: TorrentSummary,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onClick: () -> Unit = {},
+    onLongClick: () -> Unit = {},
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val isPaused = torrent.status == "stopped"
@@ -47,9 +58,16 @@ fun TorrentCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         )
     ) {
         Row(
@@ -58,11 +76,19 @@ fun TorrentCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Play/Pause button on left
-            CompactPlayPauseButton(
-                isPaused = isPaused,
-                onToggle = if (isPaused) onResume else onPause
-            )
+            // Selection checkbox OR Play/Pause button on left
+            if (isSelectionMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = null, // Click handled by card
+                    modifier = Modifier.size(36.dp)
+                )
+            } else {
+                CompactPlayPauseButton(
+                    isPaused = isPaused,
+                    onToggle = if (isPaused) onResume else onPause
+                )
+            }
 
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -300,6 +326,50 @@ private fun SimpleTorrentCardPreview() {
                 uploadSpeed = 0,
                 status = "stopped"
             ),
+            modifier = Modifier.padding(8.dp)
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TorrentCardSelectedPreview() {
+    JSTorrentTheme {
+        TorrentCard(
+            torrent = TorrentSummary(
+                infoHash = "sel123",
+                name = "Selected Torrent",
+                progress = 0.5,
+                downloadSpeed = 1_500_000,
+                uploadSpeed = 100_000,
+                status = "downloading"
+            ),
+            onPause = {},
+            onResume = {},
+            isSelectionMode = true,
+            isSelected = true,
+            modifier = Modifier.padding(8.dp)
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TorrentCardUnselectedPreview() {
+    JSTorrentTheme {
+        TorrentCard(
+            torrent = TorrentSummary(
+                infoHash = "unsel456",
+                name = "Unselected Torrent",
+                progress = 0.75,
+                downloadSpeed = 500_000,
+                uploadSpeed = 50_000,
+                status = "downloading"
+            ),
+            onPause = {},
+            onResume = {},
+            isSelectionMode = true,
+            isSelected = false,
             modifier = Modifier.padding(8.dp)
         )
     }

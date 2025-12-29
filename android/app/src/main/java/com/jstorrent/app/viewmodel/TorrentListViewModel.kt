@@ -12,6 +12,7 @@ import com.jstorrent.quickjs.model.TorrentSummary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -31,6 +32,13 @@ class TorrentListViewModel(
 
     private val _sortOrder = MutableStateFlow(TorrentSortOrder.QUEUE_ORDER)
     val sortOrder: StateFlow<TorrentSortOrder> = _sortOrder
+
+    // Selection state for multi-select mode
+    private val _selectedTorrents = MutableStateFlow<Set<String>>(emptySet())
+    val selectedTorrents: StateFlow<Set<String>> = _selectedTorrents.asStateFlow()
+
+    val isSelectionMode: StateFlow<Boolean> = _selectedTorrents.map { it.isNotEmpty() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     // Combined UI state
     val uiState: StateFlow<TorrentListUiState> = combine(
@@ -160,6 +168,65 @@ class TorrentListViewModel(
      */
     fun isPaused(torrent: TorrentSummary): Boolean {
         return torrent.status == "stopped"
+    }
+
+    // =========================================================================
+    // Selection mode methods
+    // =========================================================================
+
+    /**
+     * Select a torrent (enters selection mode if not already).
+     */
+    fun selectTorrent(infoHash: String) {
+        _selectedTorrents.value = _selectedTorrents.value + infoHash
+    }
+
+    /**
+     * Toggle selection state for a torrent.
+     */
+    fun toggleSelection(infoHash: String) {
+        _selectedTorrents.value = if (infoHash in _selectedTorrents.value) {
+            _selectedTorrents.value - infoHash
+        } else {
+            _selectedTorrents.value + infoHash
+        }
+    }
+
+    /**
+     * Clear all selections (exits selection mode).
+     */
+    fun clearSelection() {
+        _selectedTorrents.value = emptySet()
+    }
+
+    /**
+     * Pause all selected torrents.
+     */
+    fun pauseSelected() {
+        _selectedTorrents.value.forEach { hash ->
+            repository.pauseTorrent(hash)
+        }
+        clearSelection()
+    }
+
+    /**
+     * Resume all selected torrents.
+     */
+    fun resumeSelected() {
+        _selectedTorrents.value.forEach { hash ->
+            repository.resumeTorrent(hash)
+        }
+        clearSelection()
+    }
+
+    /**
+     * Remove all selected torrents.
+     */
+    fun removeSelected(deleteFiles: Boolean) {
+        _selectedTorrents.value.forEach { hash ->
+            repository.removeTorrent(hash, deleteFiles)
+        }
+        clearSelection()
     }
 
     /**
