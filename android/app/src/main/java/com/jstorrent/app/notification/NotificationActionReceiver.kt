@@ -78,11 +78,11 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
 
-                if (browseIntent.resolveActivity(context.packageManager) != null) {
-                    context.startActivity(browseIntent)
-                    Log.i(TAG, "Opened folder with DocumentsContract approach")
-                    return
-                }
+                // Note: Don't use resolveActivity() - it returns null on Android 11+
+                // due to package visibility. Just try to start and catch any exception.
+                context.startActivity(browseIntent)
+                Log.i(TAG, "Opened folder with DocumentsContract approach")
+                return
             } catch (e: Exception) {
                 Log.w(TAG, "DocumentsContract approach failed", e)
             }
@@ -97,11 +97,11 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
-            if (filesIntent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(filesIntent)
-                Log.i(TAG, "Opened folder with Google Files app")
-                return
-            }
+            // Note: Don't use resolveActivity() - it returns null on Android 11+
+            // due to package visibility. Just try to start and catch any exception.
+            context.startActivity(filesIntent)
+            Log.i(TAG, "Opened folder with Google Files app")
+            return
         } catch (e: Exception) {
             Log.w(TAG, "Google Files approach failed", e)
         }
