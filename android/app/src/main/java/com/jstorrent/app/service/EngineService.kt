@@ -582,6 +582,17 @@ class EngineService : Service() {
     }
 
     companion object {
+        /**
+         * Reference to the running EngineService instance, or null if service is not running.
+         *
+         * IMPORTANT: Do NOT use this for engine operations (pause/resume torrents, add torrents,
+         * change settings, etc). The engine lives in the Application (app.engineController) and
+         * persists for the process lifetime. The service is only running during background
+         * downloads - using this for engine operations will silently fail when the service
+         * isn't running. Use app.engineController instead.
+         *
+         * Valid uses: checking if service is running, service-specific operations.
+         */
         @Volatile
         var instance: EngineService? = null
             private set

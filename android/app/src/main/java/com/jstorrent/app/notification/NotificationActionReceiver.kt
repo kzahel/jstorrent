@@ -8,7 +8,11 @@ import android.os.Build
 import android.provider.DocumentsContract
 import android.util.Log
 import android.widget.Toast
+import com.jstorrent.app.JSTorrentApplication
 import com.jstorrent.app.service.EngineService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 private const val TAG = "NotificationActionReceiver"
 
@@ -38,11 +42,11 @@ class NotificationActionReceiver : BroadcastReceiver() {
         when (intent.action) {
             ACTION_PAUSE_ALL -> {
                 Log.i(TAG, "Pausing all torrents")
-                EngineService.instance?.pauseAllTorrents()
+                pauseAllTorrents(context)
             }
             ACTION_RESUME_ALL -> {
                 Log.i(TAG, "Resuming all torrents")
-                EngineService.instance?.resumeAllTorrents()
+                resumeAllTorrents(context)
             }
             ACTION_QUIT -> {
                 Log.i(TAG, "Stopping service")
@@ -128,5 +132,41 @@ class NotificationActionReceiver : BroadcastReceiver() {
         // All approaches failed - show toast
         Toast.makeText(context, "Could not open folder", Toast.LENGTH_SHORT).show()
         Log.w(TAG, "All approaches to open folder failed for: $folderUri")
+    }
+
+    /**
+     * Pause all active torrents using the engine controller from the Application.
+     * Works regardless of whether the EngineService is running.
+     */
+    private fun pauseAllTorrents(context: Context) {
+        val app = context.applicationContext as? JSTorrentApplication ?: return
+        val controller = app.engineController ?: return
+        val torrents = controller.state.value?.torrents ?: return
+
+        GlobalScope.launch(Dispatchers.IO) {
+            torrents.forEach { torrent ->
+                if (torrent.status != "stopped") {
+                    controller.pauseTorrentAsync(torrent.infoHash)
+                }
+            }
+        }
+    }
+
+    /**
+     * Resume all stopped torrents using the engine controller from the Application.
+     * Works regardless of whether the EngineService is running.
+     */
+    private fun resumeAllTorrents(context: Context) {
+        val app = context.applicationContext as? JSTorrentApplication ?: return
+        val controller = app.engineController ?: return
+        val torrents = controller.state.value?.torrents ?: return
+
+        GlobalScope.launch(Dispatchers.IO) {
+            torrents.forEach { torrent ->
+                if (torrent.status == "stopped") {
+                    controller.resumeTorrentAsync(torrent.infoHash)
+                }
+            }
+        }
     }
 }
