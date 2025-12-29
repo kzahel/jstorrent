@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.provider.DocumentsContract
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -114,13 +113,10 @@ class TorrentNotificationManager(private val context: Context) {
             .setContentIntent(pendingIntent)
 
         // Add "Open Folder" action if folder URI is available
-        // Use PendingIntent.getActivity() instead of getBroadcast() to avoid
-        // Android's Background Activity Launch (BAL) restrictions
+        // Uses OpenFolderActivity trampoline to dismiss notification and open file manager
         if (folderUri != null) {
             val openFolderPendingIntent = createOpenFolderPendingIntent(folderUri, infoHash)
-            if (openFolderPendingIntent != null) {
-                builder.addAction(0, "Open Folder", openFolderPendingIntent)
-            }
+            builder.addAction(0, "Open Folder", openFolderPendingIntent)
         }
 
         val notificationId = NOTIFICATION_ID_BASE + (infoHash.hashCode() and 0xFFFF)
@@ -134,22 +130,17 @@ class TorrentNotificationManager(private val context: Context) {
 
     /**
      * Create a PendingIntent to open the folder in a file manager.
-     * Uses PendingIntent.getActivity() so the system launches the activity directly,
-     * avoiding Background Activity Launch (BAL) restrictions.
+     * Uses OpenFolderActivity trampoline to:
+     * 1. Cancel the notification (action buttons don't auto-cancel)
+     * 2. Open the file manager (avoids BAL restrictions)
      */
-    private fun createOpenFolderPendingIntent(folderUri: Uri, infoHash: String): PendingIntent? {
-        // Build a document URI from the tree URI for the file manager
-        val documentId = try {
-            DocumentsContract.getTreeDocumentId(folderUri)
-        } catch (e: Exception) {
-            return null
-        }
-        val documentUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, documentId)
+    private fun createOpenFolderPendingIntent(folderUri: Uri, infoHash: String): PendingIntent {
+        val notificationId = NOTIFICATION_ID_BASE + (infoHash.hashCode() and 0xFFFF)
 
-        val openFolderIntent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(documentUri, DocumentsContract.Document.MIME_TYPE_DIR)
+        val openFolderIntent = Intent(context, OpenFolderActivity::class.java).apply {
+            putExtra(OpenFolderActivity.EXTRA_FOLDER_URI, folderUri.toString())
+            putExtra(OpenFolderActivity.EXTRA_NOTIFICATION_ID, notificationId)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 
         return PendingIntent.getActivity(

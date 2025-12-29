@@ -117,6 +117,14 @@
             </intent-filter>
         </receiver>
 
+        <!-- Open folder trampoline activity (for notification action) -->
+        <activity
+            android:name=".notification.OpenFolderActivity"
+            android:exported="false"
+            android:theme="@style/Theme.JSTorrent.Transparent"
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
+
         <!-- Pairing approval activity -->
         <activity
             android:name=".PairingApprovalActivity"
