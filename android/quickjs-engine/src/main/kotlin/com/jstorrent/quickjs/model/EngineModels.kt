@@ -69,6 +69,30 @@ data class TrackerListResponse(
 )
 
 /**
+ * Peer information from __jstorrent_query_peers.
+ */
+@Serializable
+data class PeerInfo(
+    val key: String,
+    val ip: String,
+    val port: Int,
+    val state: String,
+    val downloadSpeed: Long = 0,
+    val uploadSpeed: Long = 0,
+    val progress: Double = 0.0,
+    val isEncrypted: Boolean = false,
+    val clientName: String? = null
+)
+
+/**
+ * Wrapper for peer list query response.
+ */
+@Serializable
+data class PeerListResponse(
+    val peers: List<PeerInfo>
+)
+
+/**
  * Compact state pushed from engine every 500ms.
  */
 @Serializable

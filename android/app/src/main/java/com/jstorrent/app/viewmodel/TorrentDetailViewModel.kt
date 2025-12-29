@@ -14,6 +14,7 @@ import com.jstorrent.app.model.TrackerUi
 import com.jstorrent.app.model.toUi
 import com.jstorrent.quickjs.model.TorrentSummary
 import com.jstorrent.quickjs.model.FileInfo
+import com.jstorrent.quickjs.model.PeerInfo
 import com.jstorrent.quickjs.model.TrackerInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -45,13 +46,17 @@ class TorrentDetailViewModel(
     // Cached trackers (fetched asynchronously)
     private val _cachedTrackers = MutableStateFlow<List<TrackerInfo>>(emptyList())
 
+    // Cached peers (fetched asynchronously)
+    private val _cachedPeers = MutableStateFlow<List<PeerInfo>>(emptyList())
+
     init {
-        // Fetch files and trackers when engine state changes
+        // Fetch files, trackers, and peers when engine state changes
         viewModelScope.launch {
             repository.state.collect { state ->
                 if (state?.torrents?.any { it.infoHash == infoHash } == true) {
                     _cachedFiles.value = repository.getFiles(infoHash)
                     _cachedTrackers.value = repository.getTrackers(infoHash)
+                    _cachedPeers.value = repository.getPeers(infoHash)
                 }
             }
         }
@@ -65,7 +70,8 @@ class TorrentDetailViewModel(
         _selectedTab,
         _fileSelections,
         _cachedFiles,
-        _cachedTrackers
+        _cachedTrackers,
+        _cachedPeers
     ) { values ->
         val isLoaded = values[0] as Boolean
         val state = values[1] as? com.jstorrent.quickjs.model.EngineState
@@ -77,6 +83,8 @@ class TorrentDetailViewModel(
         val files = values[5] as List<FileInfo>
         @Suppress("UNCHECKED_CAST")
         val trackers = values[6] as List<TrackerInfo>
+        @Suppress("UNCHECKED_CAST")
+        val peers = values[7] as List<PeerInfo>
         when {
             error != null && !isLoaded -> TorrentDetailUiState.Error(error)
             !isLoaded -> TorrentDetailUiState.Loading
@@ -86,7 +94,7 @@ class TorrentDetailViewModel(
                     TorrentDetailUiState.Error("Torrent not found")
                 } else {
                     TorrentDetailUiState.Loaded(
-                        torrent = createTorrentDetailUi(torrent, selections, files, trackers),
+                        torrent = createTorrentDetailUi(torrent, selections, files, trackers, peers),
                         selectedTab = tab
                     )
                 }
@@ -179,7 +187,8 @@ class TorrentDetailViewModel(
         summary: TorrentSummary,
         fileSelections: Map<Int, Boolean>,
         files: List<FileInfo>,
-        trackers: List<TrackerInfo>
+        trackers: List<TrackerInfo>,
+        peers: List<PeerInfo>
     ): TorrentDetailUi {
         val fileUis = files.map { file ->
             val isSelected = fileSelections[file.index] ?: true
@@ -193,6 +202,18 @@ class TorrentDetailViewModel(
                 status = mapTrackerStatus(tracker.status),
                 message = tracker.lastError,
                 peers = (tracker.seeders ?: 0) + (tracker.leechers ?: 0)
+            )
+        }
+
+        // Map peer info to UI models
+        val peerUis = peers.map { peer ->
+            PeerUi(
+                address = "${peer.ip}:${peer.port}",
+                client = peer.clientName,
+                downloadSpeed = peer.downloadSpeed,
+                uploadSpeed = peer.uploadSpeed,
+                progress = peer.progress,
+                flags = if (peer.isEncrypted) "E" else null
             )
         }
 
@@ -215,7 +236,7 @@ class TorrentDetailViewModel(
             downloaded = downloaded,
             uploaded = uploaded,
             size = totalSize,
-            peersConnected = 0, // TODO: Get from engine
+            peersConnected = peers.count { it.state == "connected" },
             peersTotal = null,
             seedersConnected = null,
             seedersTotal = null,
@@ -228,7 +249,7 @@ class TorrentDetailViewModel(
             pieceSize = null,
             files = fileUis,
             trackers = trackerUis,
-            peers = emptyList() // TODO: Get from engine
+            peers = peerUis
         )
     }
 

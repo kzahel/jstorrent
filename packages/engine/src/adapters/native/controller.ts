@@ -390,6 +390,37 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
       })),
     })
   }
+
+  /**
+   * Get the peer list for a specific torrent.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_peers = (infoHash: string): string => {
+    const engine = requireEngine('query_peers')
+    if (!engine) {
+      return JSON.stringify({ peers: [] })
+    }
+    const torrent = engine.getTorrent(infoHash)
+    if (!torrent) {
+      return JSON.stringify({ peers: [] })
+    }
+
+    const displayPeers = torrent.getDisplayPeers()
+    return JSON.stringify({
+      peers: displayPeers.map((p) => ({
+        key: p.key,
+        ip: p.ip,
+        port: p.port,
+        state: p.state,
+        downloadSpeed: p.connection?.downloadSpeed ?? 0,
+        uploadSpeed: p.connection?.uploadSpeed ?? 0,
+        progress: p.connection?.bitfield
+          ? p.connection.bitfield.count() / p.connection.bitfield.size
+          : 0,
+        isEncrypted: p.connection?.isEncrypted ?? false,
+        clientName: p.swarmPeer?.clientName ?? null,
+      })),
+    })
+  }
 }
 
 /**

@@ -16,6 +16,8 @@ import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TorrentListResponse
 import com.jstorrent.quickjs.model.TrackerInfo
 import com.jstorrent.quickjs.model.TrackerListResponse
+import com.jstorrent.quickjs.model.PeerInfo
+import com.jstorrent.quickjs.model.PeerListResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -315,6 +317,21 @@ class EngineController(
         }
     }
 
+    /**
+     * Get peer list for a specific torrent.
+     */
+    fun getPeers(infoHash: String): List<PeerInfo> {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunction("__jstorrent_query_peers", infoHash) as? String
+            ?: return emptyList()
+        return try {
+            json.decodeFromString<PeerListResponse>(resultJson).peers
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse peer list", e)
+            emptyList()
+        }
+    }
+
     // =========================================================================
     // Async Command API - safe to call from Main thread
     // =========================================================================
@@ -450,6 +467,21 @@ class EngineController(
             json.decodeFromString<TrackerListResponse>(resultJson).trackers
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse tracker list", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Get peers for a torrent (suspend version).
+     */
+    suspend fun getPeersAsync(infoHash: String): List<PeerInfo> {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunctionAsync("__jstorrent_query_peers", infoHash) as? String
+            ?: return emptyList()
+        return try {
+            json.decodeFromString<PeerListResponse>(resultJson).peers
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse peer list", e)
             emptyList()
         }
     }
