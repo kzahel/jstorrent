@@ -285,6 +285,40 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
   }
 
   /**
+   * Set logging level for debugging.
+   * Valid levels: 'debug' | 'info' | 'warn' | 'error'
+   * Optionally filter by components or include specific hashes.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_set_log_level = (
+    level: string,
+    componentsJson?: string,
+  ): void => {
+    const engine = requireEngine('set_log_level')
+    if (!engine) return
+
+    const validLevels = ['debug', 'info', 'warn', 'error']
+    if (!validLevels.includes(level)) {
+      console.warn(`[controller] Invalid log level: ${level}`)
+      return
+    }
+
+    let components: string[] | undefined
+    if (componentsJson) {
+      try {
+        components = JSON.parse(componentsJson)
+      } catch {
+        console.warn(`[controller] Invalid components JSON: ${componentsJson}`)
+      }
+    }
+
+    engine.setLoggingConfig({
+      level: level as 'debug' | 'info' | 'warn' | 'error',
+      includeComponents: components,
+    })
+    console.log(`[controller] Log level set to: ${level}${components ? `, components: ${components.join(',')}` : ''}`)
+  }
+
+  /**
    * Add test torrent with local peer hints for debugging.
    * 1GB deterministic test data - run `pnpm seed-for-test` on host to seed.
    * Peer hints: 10.0.2.2 (emulator->host), 127.0.0.1 (desktop/extension).
@@ -418,6 +452,46 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
           : 0,
         isEncrypted: p.connection?.isEncrypted ?? false,
         clientName: p.swarmPeer?.clientName ?? null,
+      })),
+    })
+  }
+
+  /**
+   * Get detailed swarm stats for debugging peer connection issues.
+   * Shows all peers in swarm with their connection state and history.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_swarm_debug = (infoHash: string): string => {
+    const engine = requireEngine('query_swarm_debug')
+    if (!engine) {
+      return JSON.stringify({ error: 'Engine not ready' })
+    }
+    const torrent = engine.getTorrent(infoHash)
+    if (!torrent) {
+      return JSON.stringify({ error: 'Torrent not found' })
+    }
+
+    const swarmStats = torrent.swarm
+    const allPeers = torrent.swarmPeersArray
+
+    return JSON.stringify({
+      stats: swarmStats,
+      peers: allPeers.map((p: import('../../core/swarm').SwarmPeer) => ({
+        key: `${p.ip}:${p.port}`,
+        ip: p.ip,
+        port: p.port,
+        family: p.family,
+        source: p.source,
+        state: p.state,
+        connectAttempts: p.connectAttempts,
+        connectFailures: p.connectFailures,
+        lastConnectAttempt: p.lastConnectAttempt,
+        lastConnectSuccess: p.lastConnectSuccess,
+        lastConnectError: p.lastConnectError,
+        quickDisconnects: p.quickDisconnects,
+        banReason: p.banReason,
+        suspiciousPort: p.suspiciousPort,
+        countryCode: p.countryCode,
+        totalDownloaded: p.totalDownloaded,
       })),
     })
   }

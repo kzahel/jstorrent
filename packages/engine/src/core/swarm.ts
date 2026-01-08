@@ -479,20 +479,45 @@ export class Swarm extends EventEmitter {
    */
   addPeers(addresses: PeerAddress[], source: DiscoverySource): number {
     let added = 0
+    let addedIpv4 = 0
+    let addedIpv6 = 0
+    let skippedInvalidPort = 0
+    let skippedInvalidIp = 0
+    let skippedDuplicate = 0
+
     for (const addr of addresses) {
       // Skip invalid ports
-      if (!isValidPort(addr.port)) continue
+      if (!isValidPort(addr.port)) {
+        skippedInvalidPort++
+        continue
+      }
       // Skip invalid IPs
-      if (!isValidPeerIp(addr.ip)) continue
+      if (!isValidPeerIp(addr.ip)) {
+        skippedInvalidIp++
+        continue
+      }
 
       const key = addressKey(addr)
-      if (!this.peers.has(key)) {
-        if (this.addPeer(addr, source)) {
-          added++
+      if (this.peers.has(key)) {
+        skippedDuplicate++
+        continue
+      }
+
+      if (this.addPeer(addr, source)) {
+        added++
+        if (addr.family === 'ipv6') {
+          addedIpv6++
+        } else {
+          addedIpv4++
         }
       }
     }
+
     if (added > 0) {
+      this.logger.debug(
+        `Added ${added} peers from ${source}: ${addedIpv4} IPv4, ${addedIpv6} IPv6 ` +
+          `(skipped: ${skippedDuplicate} dup, ${skippedInvalidPort} port, ${skippedInvalidIp} ip)`,
+      )
       this.emit('peersAdded', added)
     }
     return added

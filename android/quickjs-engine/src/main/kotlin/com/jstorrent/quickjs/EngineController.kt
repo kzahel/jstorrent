@@ -333,6 +333,36 @@ class EngineController(
     }
 
     // =========================================================================
+    // Debug API
+    // =========================================================================
+
+    /**
+     * Set log level for debugging.
+     * Valid levels: "debug", "info", "warn", "error"
+     * Optionally filter by components.
+     */
+    fun setLogLevel(level: String, components: List<String>? = null) {
+        checkLoaded()
+        val componentsJson = components?.let { json.encodeToString(it) }
+        if (componentsJson != null) {
+            engine!!.callGlobalFunction("__jstorrent_cmd_set_log_level", level, componentsJson)
+        } else {
+            engine!!.callGlobalFunction("__jstorrent_cmd_set_log_level", level)
+        }
+        Log.i(TAG, "setLogLevel: $level${components?.let { ", components: $it" } ?: ""}")
+    }
+
+    /**
+     * Get detailed swarm debug info for a torrent.
+     * Returns JSON with all peers and their connection states.
+     */
+    fun getSwarmDebug(infoHash: String): String {
+        checkLoaded()
+        return engine!!.callGlobalFunction("__jstorrent_query_swarm_debug", infoHash) as? String
+            ?: """{"error": "No result"}"""
+    }
+
+    // =========================================================================
     // Async Command API - safe to call from Main thread
     // =========================================================================
 

@@ -210,6 +210,7 @@ export class HttpTracker extends EngineComponent implements ITracker {
     if (data['peers']) {
       const peers = this.parsePeers(data['peers'])
       if (peers.length > 0) {
+        this.logger.debug(`Tracker ${this.announceUrl}: Discovered ${peers.length} IPv4 peers`)
         this.emit('peersDiscovered', peers)
       }
     }
@@ -217,12 +218,19 @@ export class HttpTracker extends EngineComponent implements ITracker {
     // BEP 7: IPv6 peers in 'peers6' field (compact format: 18 bytes per peer)
     if (data['peers6'] && data['peers6'] instanceof Uint8Array) {
       const peers6 = parseCompactPeers(data['peers6'], 'ipv6')
+      this.logger.debug(
+        `Tracker ${this.announceUrl}: peers6 field present, ${data['peers6'].length} bytes -> ${peers6.length} IPv6 peers`,
+      )
       if (peers6.length > 0) {
         this.emit(
           'peersDiscovered',
           peers6.map((p) => ({ ip: p.ip, port: p.port })),
         )
       }
+    } else if (data['peers6']) {
+      this.logger.debug(
+        `Tracker ${this.announceUrl}: peers6 field present but not Uint8Array: ${typeof data['peers6']}`,
+      )
     }
   }
 
