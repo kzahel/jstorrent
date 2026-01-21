@@ -240,39 +240,73 @@ dev-pixel9        # Shortcut for: dev install pixel9
 dev-chromebook    # Shortcut for: dev install chromebook
 ```
 
-## Running Android Tests in Claude Code (Sandboxed Environment)
+## Android SDK Location
 
-Claude Code's sandboxed environment has network restrictions that require special handling for Gradle/Maven:
+The Android SDK is installed at `~/Android/Sdk` (configured in `~/.bashrc`).
 
-### The Problem
-- Java's HttpURLConnection doesn't properly authenticate with the HTTP proxy (returns 401 for HTTPS tunneling)
-- No DNS resolution (`/etc/resolv.conf` is empty)
-- Network access only works through the proxy
-
-### The Solution
-Run the setup script at the start of each session:
-
+**Finding the SDK path:**
 ```bash
-./scripts/setup-android-test-env.sh
+# Check .bashrc for ANDROID_HOME
+grep -i "android\|sdk" ~/.bashrc ~/.profile ~/.bash_profile 2>/dev/null
 ```
 
-This script:
-1. Starts a local Python proxy (127.0.0.1:18080) that handles authentication
-2. Installs Android SDK to /opt/android-sdk
-3. Installs Gradle 8.13
-4. Configures gradle.properties with proxy settings
+**local.properties:** Gradle needs `sdk.dir` set. Create if missing:
+```bash
+echo "sdk.dir=$HOME/Android/Sdk" > android/local.properties
+```
+
+Note: `local.properties` is gitignored - each machine needs its own.
+
+## Running Android Tests in Claude Code
+
+### Setup
+
+1. **Create local.properties** (if missing):
+   ```bash
+   echo "sdk.dir=$HOME/Android/Sdk" > android/local.properties
+   ```
+
+2. **First-time emulator setup:**
+   ```bash
+   android/scripts/setup-emulator.sh
+   ```
+   This downloads SDK components and creates AVDs: `jstorrent-dev`, `jstorrent-tablet`, `jstorrent-playstore`
 
 ### Running Tests
 
+**Unit tests** (no emulator needed):
 ```bash
-cd android
-/root/.gradle/wrapper/dists/gradle-8.13-bin/anydir/gradle-8.13/bin/gradle testDebugUnitTest
+cd android && ./gradlew testDebugUnitTest
 ```
 
-### Cleanup Before Committing
-
-The setup script modifies gradle.properties with proxy settings. Always revert before committing:
-
+**Instrumented tests** (requires emulator):
 ```bash
-git checkout android/gradle.properties
+# Start emulator (headless for CI/sandbox environments)
+export ANDROID_HOME="$HOME/Android/Sdk"
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+emulator -avd jstorrent-dev -no-snapshot -no-audio -no-window -gpu swiftshader_indirect &
+
+# Wait for boot
+adb wait-for-device
+while [ "$(adb shell getprop sys.boot_completed 2>/dev/null)" != "1" ]; do sleep 2; done
+
+# Run tests (exclude E2E download test which needs seeder)
+./gradlew connectedDebugAndroidTest --no-configuration-cache \
+  -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
+```
+
+### KVM Access (for hardware acceleration)
+
+If you see "This user doesn't have permissions to use KVM":
+```bash
+sudo gpasswd -a $USER kvm
+# Then use newgrp or re-login
+newgrp kvm
+```
+
+### Cleanup
+
+Stop emulator when done:
+```bash
+adb emu kill
 ```
