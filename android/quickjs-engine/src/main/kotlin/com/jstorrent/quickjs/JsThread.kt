@@ -115,6 +115,19 @@ class JsThread : Thread("quickjs-engine") {
     }
 
     /**
+     * Clear all pending timers (both timeouts and intervals).
+     *
+     * Should be called before closing the QuickJS context to prevent
+     * timer callbacks from firing after the context is closed.
+     */
+    fun clearAllTimers() {
+        timers.forEach { (_, runnable) ->
+            handler.removeCallbacks(runnable)
+        }
+        timers.clear()
+    }
+
+    /**
      * Stop the thread's looper and terminate the thread.
      */
     fun quit() {

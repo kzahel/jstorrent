@@ -244,6 +244,8 @@ class QuickJsEngine : Closeable {
      * Close the engine and release resources.
      */
     override fun close() {
+        // Clear all timers first to prevent callbacks from firing after context is closed
+        jsThread.clearAllTimers()
         jsThread.post {
             context.close()
         }

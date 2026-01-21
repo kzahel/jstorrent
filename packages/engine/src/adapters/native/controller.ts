@@ -315,7 +315,9 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
       level: level as 'debug' | 'info' | 'warn' | 'error',
       includeComponents: components,
     })
-    console.log(`[controller] Log level set to: ${level}${components ? `, components: ${components.join(',')}` : ''}`)
+    console.log(
+      `[controller] Log level set to: ${level}${components ? `, components: ${components.join(',')}` : ''}`,
+    )
   }
 
   /**
@@ -402,7 +404,9 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
   /**
    * Get the tracker list for a specific torrent.
    */
-  ;(globalThis as Record<string, unknown>).__jstorrent_query_trackers = (infoHash: string): string => {
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_trackers = (
+    infoHash: string,
+  ): string => {
     const engine = requireEngine('query_trackers')
     if (!engine) {
       return JSON.stringify({ trackers: [] })
@@ -460,7 +464,9 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
    * Get detailed swarm stats for debugging peer connection issues.
    * Shows all peers in swarm with their connection state and history.
    */
-  ;(globalThis as Record<string, unknown>).__jstorrent_query_swarm_debug = (infoHash: string): string => {
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_swarm_debug = (
+    infoHash: string,
+  ): string => {
     const engine = requireEngine('query_swarm_debug')
     if (!engine) {
       return JSON.stringify({ error: 'Engine not ready' })
