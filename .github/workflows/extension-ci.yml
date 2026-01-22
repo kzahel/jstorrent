@@ -58,5 +58,25 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install Python seeder dependencies
+        working-directory: packages/engine/integration/python
+        run: uv sync
+
+      - name: Start test seeder
+        working-directory: packages/engine/integration/python
+        run: |
+          uv run python seed_for_test.py --size 100mb --quiet &
+          # Wait for seeder to be ready (it binds to port 6881)
+          for i in {1..30}; do
+            if nc -z 127.0.0.1 6881 2>/dev/null; then
+              echo "Seeder ready on port 6881"
+              break
+            fi
+            sleep 1
+          done
+
       - name: Run Playwright tests
         run: pnpm run test:e2e
