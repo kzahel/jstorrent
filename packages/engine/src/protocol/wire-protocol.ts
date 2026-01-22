@@ -8,6 +8,9 @@ export enum MessageType {
   REQUEST = 6,
   PIECE = 7,
   CANCEL = 8,
+  // BEP 6 Fast Extension messages
+  HAVE_ALL = 0x0e,
+  HAVE_NONE = 0x0f,
   EXTENDED = 20,
   KEEP_ALIVE = -1, // Internal representation
   HANDSHAKE = -2, // Internal representation
@@ -34,9 +37,13 @@ export interface WireMessage {
 }
 
 export class PeerWireProtocol {
-  static parseHandshake(
-    buffer: Uint8Array,
-  ): { infoHash: Uint8Array; peerId: Uint8Array; protocol: string; extensions: boolean } | null {
+  static parseHandshake(buffer: Uint8Array): {
+    infoHash: Uint8Array
+    peerId: Uint8Array
+    protocol: string
+    extensions: boolean
+    fastExtension: boolean
+  } | null {
     if (buffer.length < 68) {
       // console.error(`PeerWireProtocol: buffer too short ${buffer.length}`)
       // console.error('Buffer:', buffer)
@@ -55,25 +62,30 @@ export class PeerWireProtocol {
 
     // 8 reserved bytes at offset 20
     const reserved = buffer.slice(20, 28)
-    const extensions = !!(reserved[5] & 0x10)
+    const extensions = !!(reserved[5] & 0x10) // BEP 10 Extension Protocol
+    const fastExtension = !!(reserved[7] & 0x04) // BEP 6 Fast Extension
 
     const infoHash = buffer.slice(28, 48)
     const peerId = buffer.slice(48, 68)
 
-    return { infoHash, peerId, protocol: pstr, extensions }
+    return { infoHash, peerId, protocol: pstr, extensions, fastExtension }
   }
 
   static createHandshake(
     infoHash: Uint8Array,
     peerId: Uint8Array,
-    extensions: boolean = true,
+    options: { extensions?: boolean; fastExtension?: boolean } = {},
   ): Uint8Array {
+    const { extensions = true, fastExtension = true } = options
     const buffer = new Uint8Array(68)
     buffer[0] = 19
     buffer.set(new TextEncoder().encode('BitTorrent protocol'), 1)
     // Reserved bytes (zeroed by default)
     if (extensions) {
       buffer[25] |= 0x10 // BEP 10 Extension Protocol
+    }
+    if (fastExtension) {
+      buffer[27] |= 0x04 // BEP 6 Fast Extension
     }
     buffer.set(infoHash, 28)
     buffer.set(peerId, 48)

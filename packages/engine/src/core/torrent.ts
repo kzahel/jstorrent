@@ -2038,12 +2038,20 @@ export class Torrent extends EngineComponent {
       }
 
       if (extensions) {
-        peer.sendExtendedHandshake()
+        // BEP 21: Send upload_only: 1 when we're seeding (complete)
+        peer.sendExtendedHandshake({ uploadOnly: this.isComplete })
       }
 
-      // Send BitField (advertised bitfield excludes boundary pieces in .parts)
+      // Send piece availability (BitField, Have All, or Have None)
+      // BEP 6: Use Have All/Have None if peer supports Fast Extension
       const advertisedBitfield = this.getAdvertisedBitfield()
-      if (advertisedBitfield) {
+      if (peer.peerFastExtension && advertisedBitfield?.hasAll()) {
+        this.logger.debug('Sending Have All to peer (Fast Extension)')
+        peer.sendHaveAll()
+      } else if (peer.peerFastExtension && advertisedBitfield?.hasNone()) {
+        this.logger.debug('Sending Have None to peer (Fast Extension)')
+        peer.sendHaveNone()
+      } else if (advertisedBitfield) {
         this.logger.debug('Sending BitField to peer')
         peer.sendMessage(MessageType.BITFIELD, advertisedBitfield.toBuffer())
       } else {
@@ -2121,6 +2129,36 @@ export class Torrent extends EngineComponent {
       }
 
       // Update interest
+      this.updateInterest(peer)
+    })
+
+    // BEP 6 Fast Extension: Handle Have All
+    peer.on('have_all', () => {
+      this.logger.debug('Have All received (peer is a seeder)')
+
+      // Create a full bitfield for the peer
+      peer.bitfield = BitField.createFull(this.piecesCount)
+
+      // Update piece availability - all pieces are available from this peer
+      if (this._pieceAvailability) {
+        for (let i = 0; i < this.piecesCount; i++) {
+          this._pieceAvailability[i]++
+        }
+      }
+
+      // Update interest
+      this.updateInterest(peer)
+    })
+
+    // BEP 6 Fast Extension: Handle Have None
+    peer.on('have_none', () => {
+      this.logger.debug('Have None received (peer has no pieces)')
+
+      // Create an empty bitfield for the peer
+      peer.bitfield = BitField.createEmpty(this.piecesCount)
+
+      // No availability updates needed - peer has nothing
+      // Update interest (we won't be interested)
       this.updateInterest(peer)
     })
 
@@ -3198,8 +3236,8 @@ export class Torrent extends EngineComponent {
       this.logger.info('Download complete!')
       this.emit('done')
       this.emit('complete')
-      // Tell all peers we're no longer interested
-      this.recheckPeers()
+      // Tell all peers we're no longer interested and that we're now a seeder
+      this.notifyPeersWeAreSeeding()
     }
   }
 
@@ -3207,6 +3245,27 @@ export class Torrent extends EngineComponent {
     this.logger.debug('Rechecking all peers')
     for (const peer of this.connectedPeers) {
       this.updateInterest(peer)
+    }
+  }
+
+  /**
+   * Notify all connected peers that we've become a seeder.
+   * - Re-send extension handshake with upload_only: 1 (BEP 21)
+   * - Send NOT_INTERESTED to all peers
+   */
+  private notifyPeersWeAreSeeding() {
+    this.logger.debug('Notifying peers we are now seeding')
+    for (const peer of this.connectedPeers) {
+      // Re-send extension handshake with upload_only: 1 (BEP 10 allows multiple handshakes)
+      if (peer.peerExtensions) {
+        peer.sendExtendedHandshake({ uploadOnly: true })
+      }
+
+      // Send NOT_INTERESTED if we were interested
+      if (peer.amInterested) {
+        peer.sendMessage(MessageType.NOT_INTERESTED)
+        peer.amInterested = false
+      }
     }
   }
 

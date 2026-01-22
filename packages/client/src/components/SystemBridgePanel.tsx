@@ -1,6 +1,21 @@
 import type { RefObject } from 'react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import type { DownloadRoot } from '../types'
+
+/**
+ * Stats from the daemon about socket and connection state
+ */
+export interface DaemonStats {
+  tcp_sockets: number
+  pending_connects: number
+  pending_tcp: number
+  udp_sockets: number
+  tcp_servers: number
+  ws_connections: number
+  bytes_sent: number
+  bytes_received: number
+  uptime_secs: number
+}
 
 // Version status from io-bridge
 export type VersionStatus = 'compatible' | 'update_suggested' | 'update_required'
@@ -44,6 +59,8 @@ export interface SystemBridgePanelProps {
   onOpenSettings?: () => void
   /** Ref to the anchor element (toggle button) - clicks on it won't trigger close */
   anchorRef?: RefObject<HTMLElement | null>
+  /** Optional callback to fetch daemon stats */
+  onFetchStats?: () => Promise<DaemonStats | null>
 }
 
 export function SystemBridgePanel({
@@ -61,11 +78,50 @@ export function SystemBridgePanel({
   // onSetDefaultRoot - selection moved to Settings
   onOpenSettings,
   anchorRef,
+  onFetchStats,
 }: SystemBridgePanelProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const [showStats, setShowStats] = useState(false)
+  const [stats, setStats] = useState<DaemonStats | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
 
   // First time = never successfully connected before (persistent across restarts)
   const isFirstTime = !hasEverConnected
+
+  // Fetch stats when expanded
+  const handleToggleStats = useCallback(async () => {
+    if (showStats) {
+      setShowStats(false)
+      return
+    }
+    setShowStats(true)
+    if (onFetchStats) {
+      setStatsLoading(true)
+      try {
+        const result = await onFetchStats()
+        setStats(result)
+      } finally {
+        setStatsLoading(false)
+      }
+    }
+  }, [showStats, onFetchStats])
+
+  // Format bytes to human-readable
+  const formatBytes = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+  }
+
+  // Format uptime to human-readable
+  const formatUptime = (seconds: number): string => {
+    if (seconds < 60) return `${seconds}s`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    return `${hours}h ${minutes}m`
+  }
 
   // Click-outside to close
   useEffect(() => {
@@ -329,6 +385,82 @@ export function SystemBridgePanel({
             )}
           </div>
         </div>
+
+        {/* Stats section - only show if onFetchStats is provided */}
+        {onFetchStats && (
+          <div
+            style={{
+              marginTop: '16px',
+              borderTop: '1px solid var(--border-color, #e5e7eb)',
+              paddingTop: '12px',
+            }}
+          >
+            <button
+              onClick={handleToggleStats}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontSize: '13px',
+                cursor: 'pointer',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <span
+                style={{
+                  transform: showStats ? 'rotate(90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.15s',
+                }}
+              >
+                &#x25B6;
+              </span>
+              Debug Stats
+            </button>
+
+            {showStats && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  fontSize: '12px',
+                  fontFamily: 'monospace',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {statsLoading ? (
+                  <div>Loading...</div>
+                ) : stats ? (
+                  <div
+                    style={{ display: 'grid', gridTemplateColumns: 'auto auto', gap: '2px 12px' }}
+                  >
+                    <span>Uptime:</span>
+                    <span>{formatUptime(stats.uptime_secs)}</span>
+                    <span>TCP Sockets:</span>
+                    <span>{stats.tcp_sockets}</span>
+                    <span>Pending TCP:</span>
+                    <span>{stats.pending_tcp}</span>
+                    <span>Pending Connects:</span>
+                    <span>{stats.pending_connects}</span>
+                    <span>UDP Sockets:</span>
+                    <span>{stats.udp_sockets}</span>
+                    <span>TCP Servers:</span>
+                    <span>{stats.tcp_servers}</span>
+                    <span>WS Connections:</span>
+                    <span>{stats.ws_connections}</span>
+                    <span>Bytes Sent:</span>
+                    <span>{formatBytes(stats.bytes_sent)}</span>
+                    <span>Bytes Received:</span>
+                    <span>{formatBytes(stats.bytes_received)}</span>
+                  </div>
+                ) : (
+                  <div>Unable to fetch stats</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </>
     )
   }

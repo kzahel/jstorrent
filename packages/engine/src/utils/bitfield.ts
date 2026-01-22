@@ -15,6 +15,30 @@ export class BitField {
     return bf
   }
 
+  /**
+   * Create a bitfield with all bits set (BEP 6 Have All).
+   */
+  static createFull(length: number): BitField {
+    const bf = new BitField(length)
+    // Set all bytes to 0xFF
+    bf.buffer.fill(0xff)
+    // Clear spare bits at the end (bits beyond length should be 0)
+    const remainingBits = length % 8
+    if (remainingBits > 0) {
+      // Mask to keep only the first 'remainingBits' bits of last byte
+      const mask = (0xff << (8 - remainingBits)) & 0xff
+      bf.buffer[bf.buffer.length - 1] = mask
+    }
+    return bf
+  }
+
+  /**
+   * Create a bitfield with no bits set (BEP 6 Have None).
+   */
+  static createEmpty(length: number): BitField {
+    return new BitField(length) // Buffer is already zeroed
+  }
+
   constructor(lengthOrBuffer: number | Uint8Array) {
     if (typeof lengthOrBuffer === 'number') {
       this.length = lengthOrBuffer

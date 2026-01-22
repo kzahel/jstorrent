@@ -13,6 +13,21 @@ import { getOrCreateInstallId } from './install-id'
 // Re-export types for convenience
 export type { DaemonInfo, DownloadRoot } from './native-connection'
 
+/**
+ * Stats from the daemon about socket and connection state
+ */
+export interface DaemonStats {
+  tcp_sockets: number
+  pending_connects: number
+  pending_tcp: number
+  udp_sockets: number
+  tcp_servers: number
+  ws_connections: number
+  bytes_sent: number
+  bytes_received: number
+  uptime_secs: number
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -422,6 +437,35 @@ export class DaemonBridge {
       return { ok: false, error: 'Not supported on this platform' }
     }
     return this.sendNativeRequest('revealInFolder', { rootKey, path })
+  }
+
+  /**
+   * Get stats from the daemon about socket and connection state.
+   * Useful for debugging.
+   */
+  async getStats(): Promise<DaemonStats | null> {
+    if (this.state.status !== 'connected' || !this.state.daemonInfo) {
+      return null
+    }
+
+    const { port, token, host } = this.state.daemonInfo
+    const baseHost = host ?? '127.0.0.1'
+
+    try {
+      const response = await fetch(`http://${baseHost}:${port}/stats`, {
+        headers: {
+          'X-JST-Auth': token,
+        },
+      })
+      if (!response.ok) {
+        console.error('[DaemonBridge] getStats failed:', response.status)
+        return null
+      }
+      return (await response.json()) as DaemonStats
+    } catch (e) {
+      console.error('[DaemonBridge] getStats error:', e)
+      return null
+    }
   }
 
   /**

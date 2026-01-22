@@ -17,6 +17,8 @@ export interface PeerConnection {
   ): this
   on(event: 'message', listener: (message: WireMessage) => void): this
   on(event: 'bitfield', listener: (bitfield: BitField) => void): this
+  on(event: 'have_all', listener: () => void): this
+  on(event: 'have_none', listener: () => void): this
   on(event: 'have', listener: (index: number) => void): this
   on(event: 'choke', listener: () => void): this
   on(event: 'unchoke', listener: () => void): this
@@ -58,6 +60,7 @@ export class PeerConnection extends EngineComponent {
   public amChoking = true
   public amInterested = false
   public peerExtensions = false
+  public peerFastExtension = false // BEP 6 Fast Extension support
   public requestsPending = 0 // Number of outstanding requests
 
   // Adaptive pipeline depth - starts conservative, ramps up for fast peers
@@ -116,7 +119,10 @@ export class PeerConnection extends EngineComponent {
   }
 
   sendHandshake(infoHash: Uint8Array, peerId: Uint8Array, extensions: boolean = true) {
-    const handshake = PeerWireProtocol.createHandshake(infoHash, peerId, extensions)
+    const handshake = PeerWireProtocol.createHandshake(infoHash, peerId, {
+      extensions,
+      fastExtension: true,
+    })
     this.send(handshake)
   }
 
@@ -157,12 +163,35 @@ export class PeerConnection extends EngineComponent {
     this.send(message)
   }
 
-  sendExtendedHandshake() {
-    // Simple dictionary: { m: { ut_metadata: 1 } }
-    // We construct it manually as bencoded string
-    // d1:md11:ut_metadatai1eee
-    const payload = new TextEncoder().encode(`d1:md11:ut_metadatai${this.myMetadataId}eee`)
-    this.sendExtendedMessage(0, payload)
+  sendExtendedHandshake(options: { uploadOnly?: boolean } = {}) {
+    // Build extension handshake dictionary
+    // Base: { m: { ut_metadata: 1 } }
+    // With upload_only: { m: { ut_metadata: 1 }, upload_only: 1 }
+    let payload: string
+    if (options.uploadOnly) {
+      // d1:md11:ut_metadatai1ee11:upload_onlyi1ee
+      payload = `d1:md11:ut_metadatai${this.myMetadataId}ee11:upload_onlyi1ee`
+    } else {
+      // d1:md11:ut_metadatai1eee
+      payload = `d1:md11:ut_metadatai${this.myMetadataId}eee`
+    }
+    this.sendExtendedMessage(0, new TextEncoder().encode(payload))
+  }
+
+  /**
+   * Send BEP 6 Have All message (we have all pieces).
+   * Only valid if both peers support Fast Extension.
+   */
+  sendHaveAll() {
+    this.sendMessage(MessageType.HAVE_ALL)
+  }
+
+  /**
+   * Send BEP 6 Have None message (we have no pieces).
+   * Only valid if both peers support Fast Extension.
+   */
+  sendHaveNone() {
+    this.sendMessage(MessageType.HAVE_NONE)
   }
 
   sendMetadataRequest(piece: number) {
@@ -210,7 +239,8 @@ export class PeerConnection extends EngineComponent {
         this.infoHash = result.infoHash
         this.peerId = result.peerId
         this.peerExtensions = result.extensions
-        // this.logger.debug('Handshake parsed, extensions:', this.peerExtensions)
+        this.peerFastExtension = result.fastExtension
+        // this.logger.debug('Handshake parsed, extensions:', this.peerExtensions, 'fast:', this.peerFastExtension)
         this.buffer = this.buffer.slice(68)
         this.emit('handshake', this.infoHash, this.peerId, this.peerExtensions)
         // Continue processing in case there are more messages
@@ -275,6 +305,15 @@ export class PeerConnection extends EngineComponent {
           this.bitfield = new BitField(message.payload)
           this.emit('bitfield', this.bitfield)
         }
+        break
+      case MessageType.HAVE_ALL:
+        // BEP 6: Peer has all pieces. Emit event for torrent to create bitfield.
+        // Only valid if peer supports Fast Extension (already verified by message receipt).
+        this.emit('have_all')
+        break
+      case MessageType.HAVE_NONE:
+        // BEP 6: Peer has no pieces. Emit event for torrent to create empty bitfield.
+        this.emit('have_none')
         break
       case MessageType.EXTENDED:
         // this.logger.debug(

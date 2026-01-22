@@ -12,6 +12,7 @@ const X_EXPECTED_SHA1: HeaderName = HeaderName::from_static("x-expected-sha1");
 use clap::Parser;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::signal;
 use tower_http::cors::CorsLayer;
@@ -48,12 +49,50 @@ struct Args {
     install_id: String,
 }
 
+/// Live daemon statistics for debugging
+#[derive(Default)]
+pub struct DaemonStats {
+    /// Number of active TCP sockets
+    pub tcp_sockets: AtomicU32,
+    /// Number of pending TCP connections (not yet established)
+    pub pending_connects: AtomicU32,
+    /// Number of pending TCP streams (connected but not activated)
+    pub pending_tcp: AtomicU32,
+    /// Number of active UDP sockets
+    pub udp_sockets: AtomicU32,
+    /// Number of active TCP servers (listeners)
+    pub tcp_servers: AtomicU32,
+    /// Number of active WebSocket connections
+    pub ws_connections: AtomicU32,
+    /// Total bytes sent via TCP/UDP
+    pub bytes_sent: AtomicU64,
+    /// Total bytes received via TCP/UDP
+    pub bytes_received: AtomicU64,
+    /// Daemon start time (epoch seconds)
+    pub start_time: AtomicU64,
+}
+
+impl DaemonStats {
+    pub fn new() -> Self {
+        let stats = Self::default();
+        stats.start_time.store(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+            Ordering::Relaxed,
+        );
+        stats
+    }
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub token: String,
     pub install_id: String,
     pub extension_id: Arc<std::sync::RwLock<Option<String>>>,
     pub download_roots: Arc<std::sync::RwLock<Vec<jstorrent_common::DownloadRoot>>>,
+    pub stats: Arc<DaemonStats>,
 }
 
 #[tokio::main]
@@ -108,6 +147,7 @@ async fn main() -> anyhow::Result<()> {
         install_id: args.install_id.clone(),
         extension_id: Arc::new(std::sync::RwLock::new(extension_id.clone())),
         download_roots: Arc::new(std::sync::RwLock::new(roots)),
+        stats: Arc::new(DaemonStats::new()),
     });
 
     // Monitor parent process if specified

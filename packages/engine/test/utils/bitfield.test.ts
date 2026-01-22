@@ -45,4 +45,31 @@ describe('BitField', () => {
     bf.set(9, false)
     expect(bf.hasAll()).toBe(false)
   })
+
+  it('should create full bitfield with createFull', () => {
+    // Exact byte boundary
+    const bf8 = BitField.createFull(8)
+    expect(bf8.hasAll()).toBe(true)
+    expect(bf8.count()).toBe(8)
+    for (let i = 0; i < 8; i++) expect(bf8.get(i)).toBe(true)
+
+    // Partial last byte
+    const bf10 = BitField.createFull(10)
+    expect(bf10.hasAll()).toBe(true)
+    expect(bf10.count()).toBe(10)
+    expect(bf10.size).toBe(10) // size returns the logical length, not buffer size
+    for (let i = 0; i < 10; i++) expect(bf10.get(i)).toBe(true)
+
+    // Large count
+    const bf100 = BitField.createFull(100)
+    expect(bf100.hasAll()).toBe(true)
+    expect(bf100.count()).toBe(100)
+  })
+
+  it('should create empty bitfield with createEmpty', () => {
+    const bf = BitField.createEmpty(10)
+    expect(bf.hasNone()).toBe(true)
+    expect(bf.count()).toBe(0)
+    for (let i = 0; i < 10; i++) expect(bf.get(i)).toBe(false)
+  })
 })
