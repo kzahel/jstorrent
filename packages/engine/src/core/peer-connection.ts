@@ -88,6 +88,9 @@ export class PeerConnection extends EngineComponent {
   public remotePort?: number
   public isIncoming = false
 
+  /** BEP 6: Peer sent HAVE_ALL before we had metadata to create bitfield */
+  public deferredHaveAll = false
+
   /** Whether this connection is encrypted (MSE/PE) */
   get isEncrypted(): boolean {
     return this.socket.isEncrypted ?? false

@@ -2136,6 +2136,14 @@ export class Torrent extends EngineComponent {
     peer.on('have_all', () => {
       this.logger.debug('Have All received (peer is a seeder)')
 
+      // If we don't have metadata yet, defer creating the bitfield
+      // recheckPeers() will handle it when metadata arrives
+      if (this.piecesCount === 0) {
+        this.logger.debug('Deferring have_all - no metadata yet')
+        peer.deferredHaveAll = true
+        return
+      }
+
       // Create a full bitfield for the peer
       peer.bitfield = BitField.createFull(this.piecesCount)
 
@@ -3244,6 +3252,20 @@ export class Torrent extends EngineComponent {
   public recheckPeers() {
     this.logger.debug('Rechecking all peers')
     for (const peer of this.connectedPeers) {
+      // Handle deferred have_all - peer sent HAVE_ALL before we had metadata
+      if (peer.deferredHaveAll && this.piecesCount > 0) {
+        this.logger.debug('Processing deferred have_all for peer')
+        peer.deferredHaveAll = false
+        peer.bitfield = BitField.createFull(this.piecesCount)
+
+        // Update piece availability - all pieces are available from this peer
+        if (this._pieceAvailability) {
+          for (let i = 0; i < this.piecesCount; i++) {
+            this._pieceAvailability[i]++
+          }
+        }
+      }
+
       this.updateInterest(peer)
     }
   }
