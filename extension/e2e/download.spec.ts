@@ -313,7 +313,7 @@ test.describe('Real-world Torrent E2E', () => {
 
     // Add torrent and wait for some download progress
     const result = await page.evaluate(
-      async ({ torrentBytes, timeoutMs, rootKey, rootPath, minProgress }) => {
+      async ({ torrentBytes, timeoutMs, rootKey, rootPath, minProgress, isCI }) => {
         type Torrent = {
           infoHash: string
           progress: number
@@ -462,14 +462,18 @@ test.describe('Real-world Torrent E2E', () => {
         }
 
         // Timeout - return final state
-        // Even without peers, having metadata is still a partial success
+        // On CI: metadata-only is acceptable (NAT/firewall prevents peer connections)
+        // Locally: require actual download progress
         const finalProgress = torrent.progress
+        const metMinProgress = finalProgress >= minProgress
         const finalState = {
-          success: gotMetadata, // Partial success if we at least got metadata
-          partialSuccess: gotMetadata && !gotPeers,
-          error: gotMetadata
-            ? 'Metadata loaded but no peers found (network/NAT issue)'
-            : 'Timeout waiting for metadata',
+          success: isCI ? gotMetadata : metMinProgress,
+          partialSuccess: gotMetadata && !metMinProgress,
+          error: metMinProgress
+            ? undefined
+            : gotMetadata
+              ? 'Metadata loaded but no download progress (network/NAT issue)'
+              : 'Timeout waiting for metadata',
           progress: finalProgress,
           downloadedMB: (finalProgress * totalSize) / 1024 / 1024,
           peerCount: torrent.peers.length,
@@ -490,6 +494,7 @@ test.describe('Real-world Torrent E2E', () => {
         rootKey: TEST_DOWNLOAD_ROOT_KEY,
         rootPath: TEST_DOWNLOAD_PATH,
         minProgress: MIN_PROGRESS_THRESHOLD,
+        isCI,
       },
     )
 
