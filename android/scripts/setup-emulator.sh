@@ -8,7 +8,7 @@
 set -euo pipefail
 
 # Configuration
-SDK_ROOT="${ANDROID_HOME:-$HOME/.android-sdk}"
+SDK_ROOT="${ANDROID_HOME:-$HOME/Android/Sdk}"
 AVD_NAME="jstorrent-dev"
 AVD_NAME_TABLET="jstorrent-tablet"
 AVD_NAME_PLAYSTORE="jstorrent-playstore"

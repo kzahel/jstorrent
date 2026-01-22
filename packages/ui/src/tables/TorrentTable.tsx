@@ -54,6 +54,7 @@ export const torrentColumns: ColumnDef<Torrent>[] = [
       return t.activityState
     },
     width: 100,
+    getCellTitle: (t) => t.errorMessage,
     getCellStyle: (t) =>
       t.errorMessage
         ? {

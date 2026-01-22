@@ -306,10 +306,26 @@ export function SystemBridgePanel({
             <div style={{ fontWeight: 500, color: 'var(--accent-error)', marginBottom: '4px' }}>
               Update Required
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              The companion app (v{daemonVersion ?? '?'}) is too old. Please download the latest
-              version.
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              The companion app (v{daemonVersion ?? '?'}) is too old. Please download and install
+              the latest version.
             </div>
+            <a
+              href="https://new.jstorrent.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                padding: '6px 12px',
+                background: 'var(--accent-primary)',
+                color: 'white',
+                textDecoration: 'none',
+                borderRadius: '4px',
+                fontSize: '13px',
+              }}
+            >
+              Download Update
+            </a>
           </div>
         </div>
       )

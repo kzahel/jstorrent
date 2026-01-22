@@ -410,7 +410,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
             <div style={styles.warning}>
               <strong>No download location configured</strong>
               <p style={{ margin: '8px 0 0 0' }}>
-                You need to select a download folder before you can add torrents.
+                You need to select a download folder before you can download torrents.
               </p>
             </div>
           ) : (

@@ -35,8 +35,8 @@ export const SystemIndicator = forwardRef<HTMLButtonElement, SystemIndicatorProp
       style.id = styleId
       style.textContent = `
       @keyframes system-indicator-pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.8; transform: scale(1.02); }
+        0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 currentColor; }
+        50% { opacity: 0.9; transform: scale(1.08); box-shadow: 0 0 8px 2px currentColor; }
       }
     `
       document.head.appendChild(style)

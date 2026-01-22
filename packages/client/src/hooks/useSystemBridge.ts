@@ -3,6 +3,12 @@ import type { DaemonBridgeState, VersionStatus } from '../components/SystemBridg
 import type { DownloadRoot } from '../types'
 import { copyTextToClipboard } from '../utils/clipboard'
 
+/**
+ * Minimum required native host version.
+ * Update this when extension changes require native host updates.
+ */
+export const MIN_NATIVE_VERSION = '0.1.11'
+
 export type IndicatorColor = 'green' | 'yellow' | 'red'
 
 export interface ReadinessStatus {
@@ -24,7 +30,7 @@ function getReadiness(
   state: DaemonBridgeState,
   versionStatus: VersionStatus,
   roots: DownloadRoot[],
-  hasPendingTorrents: boolean,
+  _hasPendingTorrents: boolean,
 ): ReadinessStatus {
   const issues: Array<'not_connected' | 'update_required' | 'no_root'> = []
 
@@ -45,7 +51,8 @@ function getReadiness(
   const ready = issues.length === 0
   const canSuggestUpdate = isConnected && versionStatus === 'update_suggested'
   const indicator = computeIndicator(state, versionStatus, hasRoot, canSuggestUpdate)
-  const pulse = !ready && hasPendingTorrents
+  // Pulse when setup is needed (yellow "Setup" state) to draw user attention
+  const pulse = indicator.label === 'Setup'
 
   return { ready, indicator, issues, canSuggestUpdate, pulse }
 }
@@ -80,14 +87,34 @@ function computeIndicator(
 }
 
 /**
+ * Compare two semver version strings.
+ * Returns: -1 if a < b, 0 if a == b, 1 if a > b
+ */
+function compareVersions(a: string, b: string): number {
+  const partsA = a.split('.').map((n) => parseInt(n, 10) || 0)
+  const partsB = b.split('.').map((n) => parseInt(n, 10) || 0)
+
+  const maxLen = Math.max(partsA.length, partsB.length)
+  for (let i = 0; i < maxLen; i++) {
+    const numA = partsA[i] ?? 0
+    const numB = partsB[i] ?? 0
+    if (numA < numB) return -1
+    if (numA > numB) return 1
+  }
+  return 0
+}
+
+/**
  * Get version status from daemon version.
- * Version is a semver string like "1.0.2".
+ * Version is a semver string like "0.1.11".
  */
 function getVersionStatus(daemonVersion: string | undefined): VersionStatus {
-  // Simple version check - expand this when versioning becomes more complex
-  // For now, any valid version is compatible
   if (daemonVersion === undefined || daemonVersion === 'unknown') return 'compatible'
-  // Could add semver comparison here if needed
+
+  const cmp = compareVersions(daemonVersion, MIN_NATIVE_VERSION)
+  if (cmp < 0) {
+    return 'update_required'
+  }
   return 'compatible'
 }
 
