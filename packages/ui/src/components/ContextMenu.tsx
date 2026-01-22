@@ -40,6 +40,7 @@ const itemStyle: React.CSSProperties = {
   width: '100%',
   textAlign: 'left',
   color: 'var(--text-primary)',
+  fontSize: 'var(--font-base, 13px)',
 }
 
 const disabledStyle: React.CSSProperties = {
@@ -131,7 +132,14 @@ export function ContextMenu({ x, y, items, onSelect, onClose }: ContextMenuProps
             }}
           >
             {item.icon && (
-              <span style={{ width: '16px', textAlign: 'center', flexShrink: 0, lineHeight: 1 }}>
+              <span
+                style={{
+                  width: 'var(--icon-size)',
+                  textAlign: 'center',
+                  flexShrink: 0,
+                  lineHeight: 1,
+                }}
+              >
                 {item.icon}
               </span>
             )}

@@ -15,6 +15,11 @@
   --spacing-md: 14px;
   --spacing-lg: 18px;
 
+  /* Button and control sizing */
+  --button-height: 30px;
+  --icon-button-size: 32px;
+  --icon-size: 18px;
+
   /* Light mode colors (default) */
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f5;
@@ -185,6 +190,7 @@ body {
   margin: 0;
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  font-size: var(--font-base);
   -webkit-user-select: none;
   user-select: none;
 }
@@ -193,6 +199,7 @@ input,
 select,
 button {
   color-scheme: inherit;
+  font-size: inherit;
   background-color: var(--input-bg);
   color: var(--text-primary);
   border: 1px solid var(--input-border);
@@ -226,6 +233,9 @@ button:disabled {
   --spacing-sm: 7px;
   --spacing-md: 10px;
   --spacing-lg: 14px;
+  --button-height: 22px;
+  --icon-button-size: 24px;
+  --icon-size: 14px;
 }
 
 :root[data-scale='default'] {
@@ -241,6 +251,9 @@ button:disabled {
   --spacing-sm: 8px;
   --spacing-md: 12px;
   --spacing-lg: 16px;
+  --button-height: 26px;
+  --icon-button-size: 28px;
+  --icon-size: 16px;
 }
 
 :root[data-scale='large'] {
@@ -256,6 +269,9 @@ button:disabled {
   --spacing-sm: 9px;
   --spacing-md: 14px;
   --spacing-lg: 18px;
+  --button-height: 30px;
+  --icon-button-size: 32px;
+  --icon-size: 18px;
 }
 
 :root[data-scale='larger'] {
@@ -271,4 +287,7 @@ button:disabled {
   --spacing-sm: 10px;
   --spacing-md: 16px;
   --spacing-lg: 21px;
+  --button-height: 34px;
+  --icon-button-size: 36px;
+  --icon-size: 20px;
 }

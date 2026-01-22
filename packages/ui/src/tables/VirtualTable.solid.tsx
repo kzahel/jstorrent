@@ -5,6 +5,9 @@ import { createVirtualizer } from '@tanstack/solid-virtual'
 import type { ColumnDef, ColumnConfig } from './types'
 import {
   getColumnWidth,
+  getBaseWidthForStorage,
+  getScaledMinWidth,
+  getUiScale,
   loadColumnConfig,
   saveColumnConfig,
   createCompareFunction,
@@ -65,6 +68,9 @@ function getRowHeightFromCSS(): number {
 export function VirtualTable<T>(props: VirtualTableProps<T>) {
   // Use CSS variable for row height, re-read on scale changes
   const [rowHeight, setRowHeight] = createSignal(props.rowHeight ?? getRowHeightFromCSS())
+
+  // Track UI scale for column width scaling (signal triggers re-computation of widths)
+  const [uiScale, setUiScale] = createSignal(getUiScale())
 
   // Column configuration (persisted)
   const [columnConfig, setColumnConfig] = createSignal<ColumnConfig>(
@@ -261,20 +267,21 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
     throttledRaf.start()
 
     // Watch for UI scale changes via MutationObserver on data-scale attribute
-    if (!props.rowHeight) {
-      const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          if (mutation.attributeName === 'data-scale') {
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === 'data-scale') {
+          if (!props.rowHeight) {
             setRowHeight(getRowHeightFromCSS())
           }
+          setUiScale(getUiScale())
         }
-      })
-      observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['data-scale'],
-      })
-      onCleanup(() => observer.disconnect())
-    }
+      }
+    })
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-scale'],
+    })
+    onCleanup(() => observer.disconnect())
   })
 
   onCleanup(() => {
@@ -291,9 +298,10 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
       .filter((c): c is ColumnDef<T> => c !== undefined)
   })
 
-  // Calculate total width
+  // Calculate total width (re-computes when scale changes via uiScale signal)
   const totalWidth = createMemo(() => {
     const config = columnConfig()
+    uiScale() // Subscribe to scale changes
     return visibleColumns().reduce((sum, col) => sum + getColumnWidth(col, config), 0)
   })
 
@@ -732,12 +740,12 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
       if (!r) return
 
       const delta = e.clientX - r.startX
-      const newWidth = Math.max(column.minWidth ?? 40, r.startWidth + delta)
+      const newWidth = Math.max(getScaledMinWidth(column), r.startWidth + delta)
 
       const config = columnConfig()
       saveConfig({
         ...config,
-        widths: { ...config.widths, [r.columnId]: newWidth },
+        widths: { ...config.widths, [r.columnId]: getBaseWidthForStorage(newWidth) },
       })
     }
 
@@ -772,12 +780,12 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
 
       const touch = e.touches[0]
       const delta = touch.clientX - r.startX
-      const newWidth = Math.max(column.minWidth ?? 40, r.startWidth + delta)
+      const newWidth = Math.max(getScaledMinWidth(column), r.startWidth + delta)
 
       const config = columnConfig()
       saveConfig({
         ...config,
-        widths: { ...config.widths, [r.columnId]: newWidth },
+        widths: { ...config.widths, [r.columnId]: getBaseWidthForStorage(newWidth) },
       })
     }
 

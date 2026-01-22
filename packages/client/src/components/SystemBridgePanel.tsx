@@ -167,7 +167,7 @@ export function SystemBridgePanel({
         position: 'absolute',
         top: '100%',
         left: 0,
-        marginTop: '4px',
+        marginTop: 'var(--spacing-xs, 4px)',
         width: '320px',
         background: 'var(--bg-primary, white)',
         border: '1px solid var(--border-color, #e5e7eb)',
@@ -182,20 +182,20 @@ export function SystemBridgePanel({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '12px 16px',
+          padding: 'var(--spacing-md, 12px) var(--spacing-lg, 16px)',
           borderBottom: '1px solid var(--border-color, #e5e7eb)',
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: '14px' }}>System Bridge</span>
+        <span style={{ fontWeight: 600, fontSize: 'var(--font-md, 14px)' }}>System Bridge</span>
         <button
           onClick={onClose}
           style={{
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            fontSize: '18px',
+            fontSize: 'var(--font-lg, 18px)',
             lineHeight: 1,
-            padding: '4px',
+            padding: 'var(--spacing-xs, 4px)',
             color: 'var(--text-secondary)',
           }}
         >
@@ -204,16 +204,16 @@ export function SystemBridgePanel({
       </div>
 
       {/* Content */}
-      <div style={{ padding: '16px' }}>{renderContent()}</div>
+      <div style={{ padding: 'var(--spacing-lg, 16px)' }}>{renderContent()}</div>
 
       {/* Footer - only show when disconnected (has actions) */}
       {state.status === 'disconnected' && (
         <div
           style={{
-            padding: '12px 16px',
+            padding: 'var(--spacing-md, 12px) var(--spacing-lg, 16px)',
             borderTop: '1px solid var(--border-color, #e5e7eb)',
             display: 'flex',
-            gap: '8px',
+            gap: 'var(--spacing-sm, 8px)',
           }}
         >
           {renderActions()}
@@ -226,9 +226,9 @@ export function SystemBridgePanel({
     switch (state.status) {
       case 'connecting':
         return (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ marginBottom: '8px' }}>Connecting...</div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+          <div style={{ textAlign: 'center', padding: 'var(--spacing-lg, 20px) 0' }}>
+            <div style={{ marginBottom: 'var(--spacing-sm, 8px)' }}>Connecting...</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-base, 13px)' }}>
               Looking for companion app
             </div>
           </div>
@@ -239,11 +239,15 @@ export function SystemBridgePanel({
         if (state.platform === 'desktop') {
           return (
             <div>
-              <div style={{ marginBottom: '12px', fontWeight: 500 }}>
+              <div style={{ marginBottom: 'var(--spacing-md, 12px)', fontWeight: 500 }}>
                 {state.lastError ? 'Connection Lost' : 'Companion App Required'}
               </div>
               <div
-                style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}
+                style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: 'var(--font-base, 13px)',
+                  marginBottom: 'var(--spacing-lg, 16px)',
+                }}
               >
                 {state.lastError ? (
                   <>Connection to companion app was lost. Click retry to reconnect.</>
@@ -260,11 +264,15 @@ export function SystemBridgePanel({
           // ChromeOS
           return (
             <div>
-              <div style={{ marginBottom: '12px', fontWeight: 500 }}>
+              <div style={{ marginBottom: 'var(--spacing-md, 12px)', fontWeight: 500 }}>
                 {state.lastError ? 'Connection Lost' : 'Launch Companion App'}
               </div>
               <div
-                style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}
+                style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: 'var(--font-base, 13px)',
+                  marginBottom: 'var(--spacing-lg, 16px)',
+                }}
               >
                 {state.lastError ? (
                   <>Connection to companion app was lost. Click Launch to reconnect.</>
@@ -297,16 +305,28 @@ export function SystemBridgePanel({
         <div>
           <div
             style={{
-              padding: '12px',
+              padding: 'var(--spacing-md, 12px)',
               background: 'var(--accent-error-bg, #fef2f2)',
               borderRadius: '6px',
-              marginBottom: '16px',
+              marginBottom: 'var(--spacing-lg, 16px)',
             }}
           >
-            <div style={{ fontWeight: 500, color: 'var(--accent-error)', marginBottom: '4px' }}>
+            <div
+              style={{
+                fontWeight: 500,
+                color: 'var(--accent-error)',
+                marginBottom: 'var(--spacing-xs, 4px)',
+              }}
+            >
               Update Required
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+            <div
+              style={{
+                fontSize: 'var(--font-base, 13px)',
+                color: 'var(--text-secondary)',
+                marginBottom: 'var(--spacing-md, 12px)',
+              }}
+            >
               The companion app (v{daemonVersion ?? '?'}) is too old. Please download and install
               the latest version.
             </div>
@@ -316,12 +336,12 @@ export function SystemBridgePanel({
               rel="noopener noreferrer"
               style={{
                 display: 'inline-block',
-                padding: '6px 12px',
+                padding: 'var(--spacing-xs, 6px) var(--spacing-md, 12px)',
                 background: 'var(--accent-primary)',
                 color: 'white',
                 textDecoration: 'none',
                 borderRadius: '4px',
-                fontSize: '13px',
+                fontSize: 'var(--font-base, 13px)',
               }}
             >
               Download Update
@@ -334,11 +354,13 @@ export function SystemBridgePanel({
     return (
       <>
         {/* Connection info */}
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontWeight: 500, marginBottom: '8px' }}>Companion App</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+        <div style={{ marginBottom: 'var(--spacing-lg, 16px)' }}>
+          <div style={{ fontWeight: 500, marginBottom: 'var(--spacing-sm, 8px)' }}>
+            Companion App
+          </div>
+          <div style={{ fontSize: 'var(--font-base, 13px)', color: 'var(--text-secondary)' }}>
             <div>&#x25CF; Connected &mdash; v{daemonVersion ?? '?'}</div>
-            <div style={{ marginTop: '4px' }}>
+            <div style={{ marginTop: 'var(--spacing-xs, 4px)' }}>
               {daemonInfo.host ?? '127.0.0.1'}:{daemonInfo.port}
             </div>
           </div>
@@ -346,11 +368,11 @@ export function SystemBridgePanel({
           {versionStatus === 'update_suggested' && (
             <div
               style={{
-                marginTop: '8px',
-                padding: '8px',
+                marginTop: 'var(--spacing-sm, 8px)',
+                padding: 'var(--spacing-sm, 8px)',
                 background: 'var(--accent-info-bg, #eff6ff)',
                 borderRadius: '4px',
-                fontSize: '13px',
+                fontSize: 'var(--font-base, 13px)',
               }}
             >
               Update available
@@ -360,22 +382,31 @@ export function SystemBridgePanel({
 
         {/* Download location */}
         <div>
-          <div style={{ fontWeight: 500, marginBottom: '4px' }}>Download Location</div>
+          <div style={{ fontWeight: 500, marginBottom: 'var(--spacing-xs, 4px)' }}>
+            Download Location
+          </div>
           {roots.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: 'var(--font-base, 13px)', color: 'var(--text-secondary)' }}>
               No download folder configured.
             </div>
           ) : (
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: 'var(--font-base, 13px)', color: 'var(--text-secondary)' }}>
               {roots.find((r) => r.key === defaultRootKey)?.display_name ?? 'None selected'}
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-sm, 8px)',
+              marginTop: 'var(--spacing-sm, 8px)',
+            }}
+          >
             <button
               onClick={onAddFolder}
               style={{
-                padding: '6px 12px',
-                fontSize: '13px',
+                padding: 'var(--spacing-xs, 6px) var(--spacing-md, 12px)',
+                fontSize: 'var(--font-base, 13px)',
                 cursor: 'pointer',
               }}
             >
@@ -391,9 +422,9 @@ export function SystemBridgePanel({
                   background: 'none',
                   border: 'none',
                   color: 'var(--accent-primary)',
-                  fontSize: '13px',
+                  fontSize: 'var(--font-base, 13px)',
                   cursor: 'pointer',
-                  padding: '6px 0',
+                  padding: 'var(--spacing-xs, 6px) 0',
                 }}
               >
                 Manage in Settings
@@ -406,9 +437,9 @@ export function SystemBridgePanel({
         {onFetchStats && (
           <div
             style={{
-              marginTop: '16px',
+              marginTop: 'var(--spacing-lg, 16px)',
               borderTop: '1px solid var(--border-color, #e5e7eb)',
-              paddingTop: '12px',
+              paddingTop: 'var(--spacing-md, 12px)',
             }}
           >
             <button
@@ -417,12 +448,12 @@ export function SystemBridgePanel({
                 background: 'none',
                 border: 'none',
                 color: 'var(--text-secondary)',
-                fontSize: '13px',
+                fontSize: 'var(--font-base, 13px)',
                 cursor: 'pointer',
                 padding: 0,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
+                gap: 'var(--spacing-xs, 4px)',
               }}
             >
               <span
@@ -439,8 +470,8 @@ export function SystemBridgePanel({
             {showStats && (
               <div
                 style={{
-                  marginTop: '8px',
-                  fontSize: '12px',
+                  marginTop: 'var(--spacing-sm, 8px)',
+                  fontSize: 'var(--font-sm, 12px)',
                   fontFamily: 'monospace',
                   color: 'var(--text-secondary)',
                 }}
@@ -449,7 +480,11 @@ export function SystemBridgePanel({
                   <div>Loading...</div>
                 ) : stats ? (
                   <div
-                    style={{ display: 'grid', gridTemplateColumns: 'auto auto', gap: '2px 12px' }}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'auto auto',
+                      gap: '2px var(--spacing-md, 12px)',
+                    }}
                   >
                     <span>Uptime:</span>
                     <span>{formatUptime(stats.uptime_secs)}</span>
@@ -498,12 +533,12 @@ export function SystemBridgePanel({
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
-                    padding: '6px 12px',
+                    padding: 'var(--spacing-xs, 6px) var(--spacing-md, 12px)',
                     background: 'var(--accent-primary)',
                     color: 'white',
                     textDecoration: 'none',
                     borderRadius: '4px',
-                    fontSize: '13px',
+                    fontSize: 'var(--font-base, 13px)',
                   }}
                 >
                   Download
@@ -514,8 +549,8 @@ export function SystemBridgePanel({
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
-                    padding: '6px 12px',
-                    fontSize: '13px',
+                    padding: 'var(--spacing-xs, 6px) var(--spacing-md, 12px)',
+                    fontSize: 'var(--font-base, 13px)',
                     textDecoration: 'none',
                     color: 'var(--text-secondary)',
                   }}
@@ -526,8 +561,8 @@ export function SystemBridgePanel({
               <button
                 onClick={onRetry}
                 style={{
-                  padding: '6px 12px',
-                  fontSize: '13px',
+                  padding: 'var(--spacing-xs, 6px) var(--spacing-md, 12px)',
+                  fontSize: 'var(--font-base, 13px)',
                   ...(isFirstTime
                     ? {}
                     : {
@@ -550,12 +585,12 @@ export function SystemBridgePanel({
               <button
                 onClick={onLaunch}
                 style={{
-                  padding: '6px 12px',
+                  padding: 'var(--spacing-xs, 6px) var(--spacing-md, 12px)',
                   background: 'var(--accent-primary)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
-                  fontSize: '13px',
+                  fontSize: 'var(--font-base, 13px)',
                   cursor: 'pointer',
                 }}
               >
@@ -567,8 +602,8 @@ export function SystemBridgePanel({
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
-                    padding: '6px 12px',
-                    fontSize: '13px',
+                    padding: 'var(--spacing-xs, 6px) var(--spacing-md, 12px)',
+                    fontSize: 'var(--font-base, 13px)',
                     textDecoration: 'none',
                     color: 'var(--text-secondary)',
                   }}

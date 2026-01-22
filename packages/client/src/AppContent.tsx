@@ -311,10 +311,10 @@ export function AppContent({
           {/* Toolbar */}
           <div
             style={{
-              padding: '6px 16px',
+              padding: 'var(--spacing-xs) var(--spacing-md)',
               borderBottom: '1px solid var(--border-color)',
               display: 'flex',
-              gap: '6px',
+              gap: 'var(--spacing-xs)',
               alignItems: 'center',
             }}
           >
@@ -336,20 +336,20 @@ export function AppContent({
               placeholder="Magnet link or URL"
               style={{
                 flex: 1,
-                padding: '0 8px',
+                padding: '0 var(--spacing-sm)',
                 maxWidth: '350px',
-                fontSize: '13px',
-                height: '26px',
+                fontSize: 'var(--font-base)',
+                height: 'var(--button-height)',
                 boxSizing: 'border-box',
               }}
             />
             <button
               onClick={handleAddTorrent}
               style={{
-                padding: '0 10px',
+                padding: '0 var(--spacing-sm)',
                 cursor: 'pointer',
-                fontSize: '13px',
-                height: '26px',
+                fontSize: 'var(--font-base)',
+                height: 'var(--button-height)',
                 boxSizing: 'border-box',
                 display: 'flex',
                 alignItems: 'center',
@@ -358,20 +358,26 @@ export function AppContent({
               Add
             </button>
 
-            <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
+            <div
+              style={{
+                width: '1px',
+                height: 'var(--button-height)',
+                background: 'var(--border-color)',
+              }}
+            />
 
             <button
               onClick={handleStartSelected}
               disabled={!hasSelection || allActive || anyChecking}
               style={{
-                padding: '0 10px',
+                padding: '0 var(--spacing-sm)',
                 cursor: hasSelection && !allActive && !anyChecking ? 'pointer' : 'default',
-                fontSize: '13px',
-                height: '26px',
+                fontSize: 'var(--font-base)',
+                height: 'var(--button-height)',
                 boxSizing: 'border-box',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
+                gap: 'var(--spacing-xs)',
                 opacity: !hasSelection || allActive || anyChecking ? 0.5 : 1,
               }}
               title="Start selected"
@@ -383,15 +389,15 @@ export function AppContent({
               onClick={handleStopSelected}
               disabled={!hasSelection || allEffectivelyStopped || anyChecking}
               style={{
-                padding: '0 10px',
+                padding: '0 var(--spacing-sm)',
                 cursor:
                   hasSelection && !allEffectivelyStopped && !anyChecking ? 'pointer' : 'default',
-                fontSize: '13px',
-                height: '26px',
+                fontSize: 'var(--font-base)',
+                height: 'var(--button-height)',
                 boxSizing: 'border-box',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
+                gap: 'var(--spacing-xs)',
                 opacity: !hasSelection || allEffectivelyStopped || anyChecking ? 0.5 : 1,
               }}
               title="Stop selected"
@@ -403,14 +409,14 @@ export function AppContent({
               onClick={handleDeleteSelected}
               disabled={!hasSelection}
               style={{
-                padding: '0 10px',
+                padding: '0 var(--spacing-sm)',
                 cursor: hasSelection ? 'pointer' : 'default',
-                fontSize: '13px',
-                height: '26px',
+                fontSize: 'var(--font-base)',
+                height: 'var(--button-height)',
                 boxSizing: 'border-box',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
+                gap: 'var(--spacing-xs)',
                 color: 'var(--accent-error)',
                 opacity: hasSelection ? 1 : 0.5,
               }}

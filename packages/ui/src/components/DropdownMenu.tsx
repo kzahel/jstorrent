@@ -9,14 +9,14 @@ export interface DropdownMenuProps {
 }
 
 const buttonStyle: React.CSSProperties = {
-  padding: '0 10px',
+  padding: '0 var(--spacing-sm)',
   cursor: 'pointer',
-  fontSize: '13px',
-  height: '26px',
+  fontSize: 'var(--font-base)',
+  height: 'var(--button-height)',
   boxSizing: 'border-box',
   display: 'flex',
   alignItems: 'center',
-  gap: '4px',
+  gap: 'var(--spacing-xs)',
   border: '1px solid var(--border-color)',
   borderRadius: '4px',
   background: 'var(--button-bg)',
@@ -27,28 +27,29 @@ const menuStyle: React.CSSProperties = {
   position: 'absolute',
   top: '100%',
   right: 0,
-  marginTop: '4px',
+  marginTop: 'var(--spacing-xs)',
   background: 'var(--bg-primary, #fff)',
   border: '1px solid var(--border-color, #ddd)',
   borderRadius: '6px',
   boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-  padding: '4px 0',
+  padding: 'var(--spacing-xs) 0',
   minWidth: '160px',
   zIndex: 1000,
-  fontSize: '13px',
+  fontSize: 'var(--font-base)',
 }
 
 const itemStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
-  padding: '8px 12px',
+  gap: 'var(--spacing-sm)',
+  padding: 'var(--spacing-sm) var(--spacing-md)',
   cursor: 'pointer',
   border: 'none',
   background: 'none',
   width: '100%',
   textAlign: 'left',
   color: 'var(--text-primary)',
+  fontSize: 'var(--font-base)',
 }
 
 const dangerStyle: React.CSSProperties = {
@@ -59,7 +60,7 @@ const dangerStyle: React.CSSProperties = {
 const separatorStyle: React.CSSProperties = {
   height: '1px',
   background: 'var(--border-color, #ddd)',
-  margin: '4px 0',
+  margin: 'var(--spacing-xs) 0',
 }
 
 export function DropdownMenu({ label, items, onSelect, disabled }: DropdownMenuProps) {
@@ -91,7 +92,7 @@ export function DropdownMenu({ label, items, onSelect, disabled }: DropdownMenuP
         onClick={() => setOpen(!open)}
       >
         {label}
-        <span style={{ fontSize: '10px' }}>▼</span>
+        <span style={{ fontSize: 'var(--font-xs)' }}>▼</span>
       </button>
 
       {open && (
@@ -129,7 +130,12 @@ export function DropdownMenu({ label, items, onSelect, disabled }: DropdownMenuP
               >
                 {item.icon && (
                   <span
-                    style={{ width: '16px', textAlign: 'center', flexShrink: 0, lineHeight: 1 }}
+                    style={{
+                      width: 'var(--icon-size)',
+                      textAlign: 'center',
+                      flexShrink: 0,
+                      lineHeight: 1,
+                    }}
                   >
                     {item.icon}
                   </span>

@@ -5,6 +5,17 @@ const STORAGE_PREFIX = 'jstorrent:columns:'
 const UI_STATE_KEY = 'jstorrent:uiState'
 
 /**
+ * Get the current UI scale factor from CSS.
+ * Returns 1.0 if not set or invalid.
+ */
+export function getUiScale(): number {
+  const style = getComputedStyle(document.documentElement)
+  const value = style.getPropertyValue('--ui-scale')
+  const parsed = parseFloat(value)
+  return isNaN(parsed) ? 1 : parsed
+}
+
+/**
  * Load column config from storage.
  */
 export function loadColumnConfig<T>(
@@ -75,10 +86,28 @@ export function saveColumnConfig(storageKey: string, config: ColumnConfig): void
 }
 
 /**
- * Get effective width for a column.
+ * Get effective width for a column, scaled by UI scale.
+ * Widths are stored as "base" values (at scale 1.0) and scaled on read.
  */
 export function getColumnWidth<T>(column: ColumnDef<T>, config: ColumnConfig): number {
-  return config.widths[column.id] ?? column.width
+  const baseWidth = config.widths[column.id] ?? column.width
+  return Math.round(baseWidth * getUiScale())
+}
+
+/**
+ * Get the base (unscaled) width to store when user resizes a column.
+ * Divides the displayed width by current scale to normalize.
+ */
+export function getBaseWidthForStorage(displayedWidth: number): number {
+  return Math.round(displayedWidth / getUiScale())
+}
+
+/**
+ * Get the minimum width for a column, scaled by UI scale.
+ */
+export function getScaledMinWidth<T>(column: ColumnDef<T>): number {
+  const baseMin = column.minWidth ?? 40
+  return Math.round(baseMin * getUiScale())
 }
 
 /**

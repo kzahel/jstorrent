@@ -80,11 +80,8 @@ const tabStyle: React.CSSProperties = {
   textAlign: 'center',
 }
 
-const TAB_WIDTH = 80
-
 const getTabStyle = (isActive: boolean): React.CSSProperties => ({
   ...tabStyle,
-  width: TAB_WIDTH,
   color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
   borderBottomColor: isActive ? 'var(--accent-primary)' : 'transparent',
 })

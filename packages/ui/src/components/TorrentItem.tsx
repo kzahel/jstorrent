@@ -3,8 +3,8 @@ import { Torrent } from '@jstorrent/engine'
 import { formatBytes } from '../utils/format'
 
 const iconButtonStyle: React.CSSProperties = {
-  width: '28px',
-  height: '28px',
+  width: 'var(--icon-button-size)',
+  height: 'var(--icon-button-size)',
   padding: 0,
   border: '1px solid var(--border-color)',
   borderRadius: '4px',
@@ -14,14 +14,14 @@ const iconButtonStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontSize: '14px',
+  fontSize: 'var(--font-md)',
 }
 
 const dropdownMenuStyle: React.CSSProperties = {
   position: 'absolute',
   top: '100%',
   right: 0,
-  marginTop: '4px',
+  marginTop: 'var(--spacing-xs)',
   background: 'var(--bg-primary)',
   border: '1px solid var(--border-color)',
   borderRadius: '4px',
@@ -33,13 +33,13 @@ const dropdownMenuStyle: React.CSSProperties = {
 const dropdownItemStyle: React.CSSProperties = {
   display: 'block',
   width: '100%',
-  padding: '8px 12px',
+  padding: 'var(--spacing-sm) var(--spacing-md)',
   border: 'none',
   background: 'none',
   color: 'var(--text-primary)',
   textAlign: 'left',
   cursor: 'pointer',
-  fontSize: '13px',
+  fontSize: 'var(--font-base)',
 }
 
 export interface TorrentItemProps {
@@ -86,27 +86,27 @@ export const TorrentItem: React.FC<TorrentItemProps> = ({
       style={{
         border: '1px solid var(--border-color)',
         borderRadius: '4px',
-        padding: '12px',
-        marginBottom: '8px',
+        padding: 'var(--spacing-md)',
+        marginBottom: 'var(--spacing-sm)',
         cursor: 'pointer',
       }}
       onClick={() => console.log(torrent)}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--spacing-md)' }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 'bold' }}>{torrent.name || 'Loading metadata...'}</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: 'var(--font-sm)', color: 'var(--text-secondary)' }}>
             {torrent.activityState} | {(torrent.progress * 100).toFixed(1)}% | {torrent.numPeers}{' '}
             peers | {torrent.files.length} files
             {torrent.contentStorage?.getTotalSize()
               ? ` | ${formatBytes(torrent.contentStorage.getTotalSize())}`
               : ''}
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: 'var(--font-sm)', color: 'var(--text-secondary)' }}>
             {formatBytes(torrent.downloadSpeed)}/s | {formatBytes(torrent.uploadSpeed)}/s
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '4px' }}>
+        <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
           {isStopped ? (
             <button
               style={iconButtonStyle}
@@ -196,7 +196,7 @@ export const TorrentItem: React.FC<TorrentItemProps> = ({
           height: '4px',
           background: 'var(--progress-bg)',
           borderRadius: '2px',
-          marginTop: '8px',
+          marginTop: 'var(--spacing-sm)',
         }}
       >
         <div
