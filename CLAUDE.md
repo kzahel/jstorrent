@@ -97,8 +97,7 @@ emu start                               # Start emulator
 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
 
 # E2E tests (requires Python seeder)
-# Kill any existing process on port 6881, then start fresh
-lsof -ti :6881 | xargs kill 2>/dev/null; sleep 1; pnpm seed-for-test &
+pnpm seed-for-test &  # Auto-kills any existing seeder on port 6881
 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
 
 # Manual E2E testing
@@ -242,7 +241,12 @@ dev-chromebook    # Shortcut for: dev install chromebook
 
 ## Android SDK Setup
 
-The Android SDK is at `~/Android/Sdk`. Gradle needs `local.properties`:
+The Android SDK is at `~/Android/Sdk`. Gradle needs to know the SDK location via one of:
+- `local.properties` with `sdk.dir` (recommended)
+- `ANDROID_HOME` environment variable
+- `ANDROID_SDK_ROOT` environment variable
+
+To create `local.properties`:
 
 ```bash
 echo "sdk.dir=$HOME/Android/Sdk" > android/local.properties

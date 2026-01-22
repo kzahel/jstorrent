@@ -137,8 +137,12 @@ class LibtorrentSession:
             
         return handle
 
+    def remove_torrent(self, handle):
+        """Remove a torrent from the session."""
+        self.session.remove_torrent(handle)
+
     def stop(self):
-        # libtorrent session doesn't strictly need a stop method in python bindings, 
+        # libtorrent session doesn't strictly need a stop method in python bindings,
         # but good for cleanup if needed
         pass
 

@@ -18,6 +18,7 @@ Usage:
 import argparse
 import signal
 import socket
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -66,6 +67,36 @@ SIZE_CONFIGS = {
         "filename": "testdata_1gb.bin",
     },
 }
+
+# =============================================================================
+# Port Management
+# =============================================================================
+def kill_existing_on_port(port: int, quiet: bool = False) -> bool:
+    """Kill any existing process listening on the given port. Returns True if something was killed."""
+    try:
+        result = subprocess.run(
+            ["lsof", "-ti", f":{port}"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            pids = result.stdout.strip().split("\n")
+            for pid in pids:
+                if pid:
+                    try:
+                        subprocess.run(["kill", pid], check=True)
+                        if not quiet:
+                            print(f"Killed existing process on port {port} (PID {pid})")
+                    except subprocess.CalledProcessError:
+                        pass  # Process may have already exited
+            # Give it a moment to release the port
+            time.sleep(0.5)
+            return True
+    except FileNotFoundError:
+        # lsof not available, skip
+        pass
+    return False
+
 
 # =============================================================================
 # Signal Handling
@@ -318,6 +349,9 @@ def main() -> int:
     # Setup signal handlers
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
+
+    # Kill any existing seeder on our port
+    kill_existing_on_port(args.port, args.quiet)
 
     # Ensure data exists
     data_path, torrent_path, info_hash = ensure_data_exists(

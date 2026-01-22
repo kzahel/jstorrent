@@ -16,7 +16,7 @@ export class NativeTcpServer implements ITcpServer {
 
   constructor(
     private readonly serverId: number,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     _getNextSocketId: () => number,
   ) {
     callbackManager.registerTcpServer(serverId, {

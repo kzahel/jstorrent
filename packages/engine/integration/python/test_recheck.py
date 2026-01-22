@@ -44,24 +44,22 @@ def main() -> int:
                 time.sleep(2)  # Wait for persistence
 
                 # Corrupt a piece
-                print("Corrupting piece 0...")
                 download_path = os.path.join(leecher_dir, "recheck_payload.bin")
                 with open(download_path, "r+b") as f:
                     f.seek(0)
                     f.write(b"\x00" * 100)  # Overwrite first 100 bytes
 
-                # Trigger Recheck
-                print("Triggering recheck...")
+                # Remove torrent from seeder to prevent re-download after recheck
+                lt_session.remove_torrent(lt_handle)
+
+                # Trigger recheck
                 engine.recheck(tid)
 
-                # Verify that piece 0 is now missing via progress
-                time.sleep(2)  # Wait for recheck and state update
-
+                # Check progress immediately - recheck is synchronous
                 status = engine.get_torrent_status(tid)
                 progress = status.get("progress", 0)
-                print(f"Progress after recheck: {progress * 100:.1f}%")
 
-                # Progress should be slightly less than 100% now
+                # Progress should be slightly less than 100% now (piece 0 is corrupted)
                 if progress >= 1.0:
                     return fail("Piece 0 should be missing after corruption and recheck")
 
