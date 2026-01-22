@@ -9,6 +9,7 @@
 
 export type Theme = 'system' | 'dark' | 'light'
 export type ProgressBarStyle = 'text' | 'bar'
+export type UiScale = 'small' | 'default' | 'large' | 'larger'
 
 // ============ MaxFps Cache ============
 
@@ -60,4 +61,14 @@ export function getEffectiveTheme(theme: Theme): 'dark' | 'light' {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   }
   return theme
+}
+
+// ============ UI Scale Utilities ============
+
+/** Apply UI scale by setting data-scale attribute on root element */
+export function applyUiScale(scale: UiScale): void {
+  const root = document.documentElement
+  // Set data-scale attribute - CSS uses this to set --ui-scale variable
+  // which is then applied via `zoom` on the body element
+  root.setAttribute('data-scale', scale)
 }

@@ -25,6 +25,7 @@ export {
   type RestartRequiredKey,
   type Theme,
   type ProgressBarStyle,
+  type UiScale,
   type PlatformType,
   type UPnPStatus,
   getConfigDef,

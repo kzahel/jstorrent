@@ -28,8 +28,9 @@ export {
   setMaxFpsCache,
   getProgressBarStyle,
   setProgressBarStyleCache,
+  applyUiScale,
 } from './hooks/useAppSettings'
-export type { Theme, ProgressBarStyle } from './hooks/useAppSettings'
+export type { Theme, ProgressBarStyle, UiScale } from './hooks/useAppSettings'
 
 // Tables
 export { TorrentTable, torrentColumns } from './tables/TorrentTable'

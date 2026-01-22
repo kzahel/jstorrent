@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { applyTheme, setMaxFpsCache, setProgressBarStyleCache } from '@jstorrent/ui'
+import { applyTheme, setMaxFpsCache, setProgressBarStyleCache, applyUiScale } from '@jstorrent/ui'
 import type { ConfigHub } from '@jstorrent/engine'
 
 /**
@@ -18,16 +18,19 @@ export function useConfigInit(configHub: ConfigHub | null | undefined): void {
     setMaxFpsCache(configHub.maxFps.get())
     setProgressBarStyleCache(configHub.progressBarStyle.get())
     applyTheme(configHub.theme.get())
+    applyUiScale(configHub.uiScale.get())
 
     // Subscribe to changes
     const unsubMaxFps = configHub.maxFps.subscribe(setMaxFpsCache)
     const unsubProgressBar = configHub.progressBarStyle.subscribe(setProgressBarStyleCache)
     const unsubTheme = configHub.theme.subscribe(applyTheme)
+    const unsubUiScale = configHub.uiScale.subscribe(applyUiScale)
 
     return () => {
       unsubMaxFps()
       unsubProgressBar()
       unsubTheme()
+      unsubUiScale()
     }
   }, [configHub])
 }

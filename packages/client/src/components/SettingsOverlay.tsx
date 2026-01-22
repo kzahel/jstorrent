@@ -26,6 +26,7 @@ function buildConfigSnapshot(config: ConfigHub) {
     // UI
     theme: config.theme.get(),
     progressBarStyle: config.progressBarStyle.get(),
+    uiScale: config.uiScale.get(),
     maxFps: config.maxFps.get(),
     // Network
     listeningPort: config.listeningPort.get(),
@@ -105,6 +106,7 @@ declare const chrome: any
 type SettingsTab = 'general' | 'interface' | 'network' | 'advanced'
 type Theme = 'system' | 'dark' | 'light'
 type ProgressBarStyle = 'text' | 'bar'
+type UiScale = 'small' | 'default' | 'large' | 'larger'
 
 /** Strip Windows extended-length path prefix for display */
 function formatPathForDisplay(path: string): string {
@@ -117,6 +119,13 @@ function formatPathForDisplay(path: string): string {
 const PROGRESS_BAR_STYLES: { value: ProgressBarStyle; label: string }[] = [
   { value: 'text', label: 'Text Only' },
   { value: 'bar', label: 'Progress Bar' },
+]
+
+const UI_SCALES: { value: UiScale; label: string }[] = [
+  { value: 'small', label: 'Small (85%)' },
+  { value: 'default', label: 'Default (100%)' },
+  { value: 'large', label: 'Large (115%)' },
+  { value: 'larger', label: 'Larger (130%)' },
 ]
 
 interface DownloadRoot {
@@ -576,6 +585,20 @@ const InterfaceTab: React.FC<InterfaceTabProps> = ({
           style={styles.select}
         >
           {PROGRESS_BAR_STYLES.map(({ value, label }) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div style={styles.fieldRow}>
+        <span>UI Scale</span>
+        <select
+          value={settings.uiScale}
+          onChange={(e) => config.set('uiScale', e.target.value as UiScale)}
+          style={styles.select}
+        >
+          {UI_SCALES.map(({ value, label }) => (
             <option key={value} value={value}>
               {label}
             </option>

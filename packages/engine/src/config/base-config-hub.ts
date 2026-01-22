@@ -93,6 +93,7 @@ export abstract class BaseConfigHub implements ConfigHub {
   readonly theme = createConfigValue(this, 'theme')
   readonly maxFps = createConfigValue(this, 'maxFps')
   readonly progressBarStyle = createConfigValue(this, 'progressBarStyle')
+  readonly uiScale = createConfigValue(this, 'uiScale')
 
   // Settings: Notifications
   readonly notifyOnTorrentComplete = createConfigValue(this, 'notifyOnTorrentComplete')

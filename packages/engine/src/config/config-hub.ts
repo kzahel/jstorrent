@@ -14,6 +14,7 @@ import type {
   ConfigType,
   Theme,
   ProgressBarStyle,
+  UiScale,
   PlatformType,
   UPnPStatus,
   ComponentLogLevel,
@@ -100,6 +101,9 @@ export interface ConfigHub {
 
   /** Progress bar display style. */
   readonly progressBarStyle: ConfigValue<ProgressBarStyle>
+
+  /** UI scale for fonts and spacing. */
+  readonly uiScale: ConfigValue<UiScale>
 
   // ===========================================================================
   // Settings: Notifications (extension-only)

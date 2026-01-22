@@ -1,6 +1,20 @@
 :root {
   color-scheme: light dark;
 
+  /* UI Scale - default is 'large' (1.15x) for better readability */
+  --ui-scale: 1.15;
+  --font-xs: 12px;
+  --font-sm: 14px;
+  --font-base: 15px;
+  --font-md: 16px;
+  --font-lg: 21px;
+  --font-xl: 25px;
+  --row-height: 37px;
+  --spacing-xs: 5px;
+  --spacing-sm: 9px;
+  --spacing-md: 14px;
+  --spacing-lg: 18px;
+
   /* Light mode colors (default) */
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f5;
@@ -193,4 +207,68 @@ button {
 
 button:disabled {
   cursor: default;
+}
+
+/* ============ UI Scale ============ */
+/* Scale values: small=0.85, default=1.0, large=1.15, larger=1.3 */
+/* Default is 'large' (1.15) - set in :root above */
+
+:root[data-scale='small'] {
+  --ui-scale: 0.85;
+  --font-xs: 9px;
+  --font-sm: 10px;
+  --font-base: 11px;
+  --font-md: 12px;
+  --font-lg: 15px;
+  --font-xl: 18px;
+  --row-height: 27px;
+  --spacing-xs: 3px;
+  --spacing-sm: 7px;
+  --spacing-md: 10px;
+  --spacing-lg: 14px;
+}
+
+:root[data-scale='default'] {
+  --ui-scale: 1;
+  --font-xs: 10px;
+  --font-sm: 12px;
+  --font-base: 13px;
+  --font-md: 14px;
+  --font-lg: 18px;
+  --font-xl: 22px;
+  --row-height: 32px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+}
+
+:root[data-scale='large'] {
+  --ui-scale: 1.15;
+  --font-xs: 12px;
+  --font-sm: 14px;
+  --font-base: 15px;
+  --font-md: 16px;
+  --font-lg: 21px;
+  --font-xl: 25px;
+  --row-height: 37px;
+  --spacing-xs: 5px;
+  --spacing-sm: 9px;
+  --spacing-md: 14px;
+  --spacing-lg: 18px;
+}
+
+:root[data-scale='larger'] {
+  --ui-scale: 1.3;
+  --font-xs: 13px;
+  --font-sm: 16px;
+  --font-base: 17px;
+  --font-md: 18px;
+  --font-lg: 23px;
+  --font-xl: 29px;
+  --row-height: 42px;
+  --spacing-xs: 5px;
+  --spacing-sm: 10px;
+  --spacing-md: 16px;
+  --spacing-lg: 21px;
 }

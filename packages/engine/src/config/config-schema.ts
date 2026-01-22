@@ -26,6 +26,9 @@ export type Theme = 'system' | 'dark' | 'light'
 /** Progress bar display style */
 export type ProgressBarStyle = 'text' | 'bar'
 
+/** UI scale for font and spacing sizes */
+export type UiScale = 'small' | 'default' | 'large' | 'larger'
+
 /** Platform type */
 export type PlatformType = 'desktop' | 'chromeos' | 'android-standalone'
 
@@ -251,6 +254,15 @@ export const configSchema = {
     storage: 'sync',
     values: ['text', 'bar'] as const,
     default: 'bar' as ProgressBarStyle,
+  },
+
+  /** UI scale for fonts and spacing. */
+  uiScale: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['small', 'default', 'large', 'larger'] as const,
+    default: 'large' as UiScale, // Default to 'large' for better readability
   },
 
   // ===========================================================================

@@ -55,8 +55,16 @@ function insertionSortStep<T>(
   return swaps > 0
 }
 
+// Get row height from CSS variable (with fallback)
+function getRowHeightFromCSS(): number {
+  const style = getComputedStyle(document.documentElement)
+  const value = style.getPropertyValue('--row-height')
+  return value ? parseInt(value, 10) : 32
+}
+
 export function VirtualTable<T>(props: VirtualTableProps<T>) {
-  const rowHeight = props.rowHeight ?? 32
+  // Use CSS variable for row height, re-read on scale changes
+  const [rowHeight, setRowHeight] = createSignal(props.rowHeight ?? getRowHeightFromCSS())
 
   // Column configuration (persisted)
   const [columnConfig, setColumnConfig] = createSignal<ColumnConfig>(
@@ -234,7 +242,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
       return rows().length
     },
     getScrollElement: () => containerRef ?? null,
-    estimateSize: () => rowHeight,
+    estimateSize: () => rowHeight(),
     overscan: 5,
   })
 
@@ -251,6 +259,22 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
   onMount(() => {
     throttledRaf = createThrottledRaf(() => forceUpdate({}), getMaxFps)
     throttledRaf.start()
+
+    // Watch for UI scale changes via MutationObserver on data-scale attribute
+    if (!props.rowHeight) {
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.attributeName === 'data-scale') {
+            setRowHeight(getRowHeightFromCSS())
+          }
+        }
+      })
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-scale'],
+      })
+      onCleanup(() => observer.disconnect())
+    }
   })
 
   onCleanup(() => {
@@ -792,7 +816,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
         height: '100%',
         overflow: 'auto',
         'font-family': 'system-ui, sans-serif',
-        'font-size': '13px',
+        'font-size': 'var(--font-base, 13px)',
         'user-select': 'none',
         position: 'relative',
         outline: 'none',
@@ -826,7 +850,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                 <div
                   style={{
                     width: `${getColumnWidth(column, columnConfig())}px`,
-                    padding: '8px 12px',
+                    padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
                     'box-sizing': 'border-box',
                     'text-align': column.align ?? 'left',
                     'white-space': 'nowrap',
@@ -838,7 +862,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                     display: 'flex',
                     'align-items': 'center',
                     'justify-content': column.align === 'right' ? 'flex-end' : 'flex-start',
-                    gap: '4px',
+                    gap: 'var(--spacing-xs, 4px)',
                     position: 'relative',
                     background: 'var(--bg-secondary, #f5f5f5)',
                   }}
@@ -847,7 +871,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                 >
                   <span>{column.header}</span>
                   {isSorted() && (
-                    <span style={{ 'font-size': '10px', opacity: 0.7 }}>
+                    <span style={{ 'font-size': 'var(--font-xs, 10px)', opacity: 0.7 }}>
                       {sortDir() === 'asc' ? '\u25B2' : '\u25BC'}
                     </span>
                   )}
@@ -974,7 +998,7 @@ export function VirtualTable<T>(props: VirtualTableProps<T>) {
                       title={column.getCellTitle?.(row())}
                       style={{
                         width: `${getColumnWidth(column, columnConfig())}px`,
-                        padding: '0 12px',
+                        padding: '0 var(--spacing-md, 12px)',
                         'box-sizing': 'border-box',
                         'text-align': column.align ?? 'left',
                         'white-space': 'nowrap',

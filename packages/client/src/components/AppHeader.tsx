@@ -35,24 +35,31 @@ export function AppHeader({
   return (
     <div
       style={{
-        padding: '8px 16px',
+        padding: 'var(--spacing-sm, 8px) var(--spacing-lg, 16px)',
         borderBottom: '1px solid var(--border-color)',
         display: 'flex',
         alignItems: 'center',
-        gap: '16px',
+        gap: 'var(--spacing-lg, 16px)',
       }}
     >
       {/* Logo + Title */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm, 8px)' }}>
         <img src={logoSrc} alt="JSTorrent" style={{ width: '24px', height: '24px' }} />
-        <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>JSTorrent</h1>
+        <h1 style={{ margin: 0, fontSize: 'var(--font-lg, 18px)', fontWeight: 600 }}>JSTorrent</h1>
       </div>
 
       {/* Platform-specific indicator */}
       {leadingSlot}
 
       {/* Stats + Actions */}
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div
+        style={{
+          marginLeft: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--spacing-md, 12px)',
+        }}
+      >
         <StatsDisplay engine={engine} isConnected={isConnected} />
         {trailingSlot}
         {onBugReportClick && (
@@ -62,17 +69,17 @@ export function AppHeader({
               background: 'var(--button-bg)',
               border: '1px solid var(--border-color)',
               cursor: 'pointer',
-              padding: '6px 12px',
-              fontSize: '13px',
+              padding: 'var(--spacing-xs, 6px) var(--spacing-md, 12px)',
+              fontSize: 'var(--font-base, 13px)',
               color: 'var(--text-primary)',
               borderRadius: '4px',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: 'var(--spacing-xs, 6px)',
             }}
             title="Report a bug"
           >
-            <span style={{ fontSize: '14px' }}>🐛</span>
+            <span style={{ fontSize: 'var(--font-md, 14px)' }}>🐛</span>
             Report Bug
           </button>
         )}
@@ -83,16 +90,16 @@ export function AppHeader({
               background: 'var(--button-bg)',
               border: '1px solid var(--border-color)',
               cursor: 'pointer',
-              padding: '6px 12px',
-              fontSize: '13px',
+              padding: 'var(--spacing-xs, 6px) var(--spacing-md, 12px)',
+              fontSize: 'var(--font-base, 13px)',
               color: 'var(--text-primary)',
               borderRadius: '4px',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: 'var(--spacing-xs, 6px)',
             }}
           >
-            <span style={{ fontSize: '16px' }}>⚙</span>
+            <span style={{ fontSize: 'var(--font-md, 16px)' }}>⚙</span>
             Settings
           </button>
         )}
@@ -114,14 +121,14 @@ function StatsDisplay({ engine, isConnected }: StatsDisplayProps) {
     const downloadSpeed = engine.torrents.reduce((sum, t) => sum + t.downloadSpeed, 0)
     const uploadSpeed = engine.torrents.reduce((sum, t) => sum + t.uploadSpeed, 0)
     return (
-      <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+      <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-sm, 12px)' }}>
         {engine.torrents.length} torrents | {engine.numConnections} peers | ↓{' '}
         {formatBytes(downloadSpeed)}/s | ↑ {formatBytes(uploadSpeed)}/s
       </span>
     )
   }
   return (
-    <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+    <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-sm, 12px)' }}>
       {isConnected ? 'Initializing...' : 'Not connected'}
     </span>
   )
