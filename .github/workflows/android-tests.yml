@@ -316,8 +316,17 @@ jobs:
           disable-animations: true
           working-directory: android
           script: |
-            # Start the Python seeder in background and run tests
-            (cd ../packages/engine/integration/python && ~/.local/bin/uv run python seed_for_test.py --size 100mb --quiet &) && sleep 5 && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
+            # Start the Python seeder in background
+            (cd ../packages/engine/integration/python && ~/.local/bin/uv run python seed_for_test.py --size 100mb --quiet) &
+            SEEDER_PID=$!
+            sleep 5
+            # Run tests and capture result
+            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
+            TEST_RESULT=$?
+            # Kill the seeder and wait for cleanup
+            kill $SEEDER_PID 2>/dev/null || true
+            wait $SEEDER_PID 2>/dev/null || true
+            exit $TEST_RESULT
 
       - name: Show Test Failures
         if: failure()
