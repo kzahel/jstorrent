@@ -69,14 +69,7 @@ jobs:
         working-directory: packages/engine/integration/python
         run: |
           uv run python seed_for_test.py --size 100mb --quiet &
-          # Wait for seeder to be ready (it binds to port 6881)
-          for i in {1..30}; do
-            if nc -z 127.0.0.1 6881 2>/dev/null; then
-              echo "Seeder ready on port 6881"
-              break
-            fi
-            sleep 1
-          done
+          sleep 2  # Give seeder a moment to bind
 
       - name: Run Playwright tests
         run: pnpm run test:e2e
