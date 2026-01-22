@@ -17,9 +17,11 @@ const UBUNTU_TORRENT_URL =
 const isCI = process.env.CI === 'true'
 const DOWNLOAD_TIMEOUT_MS = isCI ? 60_000 : 10_000
 // Longer timeout for real-world torrent (peer discovery takes longer)
-const REAL_TORRENT_TIMEOUT_MS = isCI ? 120_000 : 60_000
-// Minimum progress to verify download is working (0.1% of ~3.3GB = ~3.3MB)
-const MIN_PROGRESS_THRESHOLD = 0.001
+// Use FULL_DOWNLOAD=1 to test complete download (takes ~2 minutes)
+const FULL_DOWNLOAD = process.env.FULL_DOWNLOAD === '1'
+const REAL_TORRENT_TIMEOUT_MS = FULL_DOWNLOAD ? 600_000 : isCI ? 120_000 : 60_000
+// Minimum progress: 1% proves download works, 100% for full validation
+const MIN_PROGRESS_THRESHOLD = FULL_DOWNLOAD ? 1.0 : 0.01
 const TEST_DOWNLOAD_ROOT_KEY = 'e2e-test-downloads'
 const TEST_DOWNLOAD_PATH = '/tmp/jstorrent-e2e-downloads'
 
@@ -440,9 +442,9 @@ test.describe('Real-world Torrent E2E', () => {
             lastProgress = progress
           }
 
-          // Success condition: we have metadata and either have peers or have made progress
+          // Success condition: we have metadata AND made actual download progress
           // Note: peer discovery depends on network conditions (trackers, DHT, NAT)
-          if (gotMetadata && (gotPeers || progress >= minProgress)) {
+          if (gotMetadata && progress >= minProgress) {
             // Clean up - remove torrent and files
             em.engine!.removeTorrent(torrent.infoHash, true)
             return {
