@@ -127,6 +127,7 @@ function App() {
     retry,
     launch,
     cancel,
+    getStats,
     chromeosBootstrapState,
     chromeosHasEverConnected,
   } = useIOBridgeState({
@@ -322,6 +323,7 @@ function App() {
                   }}
                   onClose={systemBridge.closePanel}
                   onOpenSettings={() => setSettingsOpen(true)}
+                  onFetchStats={getStats}
                   anchorRef={indicatorRef}
                 />
               ))}

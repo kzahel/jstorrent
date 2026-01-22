@@ -21,9 +21,11 @@ export class BackgroundWebRTCManager {
   private pingIntervalId: ReturnType<typeof setInterval> | null = null
 
   // Throttle detection
+  // Note: WebRTC only prevents intensive throttling (60s), not basic throttling (1s)
+  // Chrome still batches background tab timers to run once per second
   private checkIntervalId: ReturnType<typeof setInterval> | null = null
   private lastCheckTime = 0
-  private readonly CHECK_INTERVAL_MS = 200
+  private readonly CHECK_INTERVAL_MS = 1000
   private readonly THROTTLE_THRESHOLD_MS = 500
 
   constructor() {

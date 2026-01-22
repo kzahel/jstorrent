@@ -59,6 +59,21 @@ export interface UseIOBridgeStateConfig {
   onNativeEvent?: (event: string, payload: unknown) => void
 }
 
+/**
+ * Stats from the daemon about socket and connection state
+ */
+export interface DaemonStats {
+  tcp_sockets: number
+  pending_connects: number
+  pending_tcp: number
+  udp_sockets: number
+  tcp_servers: number
+  ws_connections: number
+  bytes_sent: number
+  bytes_received: number
+  uptime_secs: number
+}
+
 export interface UseIOBridgeStateResult {
   state: DaemonBridgeState
   isConnected: boolean
@@ -66,6 +81,8 @@ export interface UseIOBridgeStateResult {
   retry: () => void
   launch: () => void
   cancel: () => void
+  /** Fetch daemon stats for debug panel */
+  getStats: () => Promise<DaemonStats | null>
   /** ChromeOS bootstrap state (only relevant on ChromeOS) */
   chromeosBootstrapState: BootstrapState | null
   chromeosHasEverConnected: boolean
@@ -184,6 +201,21 @@ export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBrid
     console.log('[useIOBridgeState] cancel() called - no-op in simplified bridge')
   }, [])
 
+  const getStats = useCallback(async (): Promise<DaemonStats | null> => {
+    try {
+      const response = await getBridge().sendMessage<{ ok: boolean; stats?: DaemonStats }>({
+        type: 'GET_DAEMON_STATS',
+      })
+      if (response.ok && response.stats) {
+        return response.stats
+      }
+      return null
+    } catch (e) {
+      console.error('[useIOBridgeState] Failed to get stats:', e)
+      return null
+    }
+  }, [])
+
   return {
     state,
     isConnected: state.status === 'connected',
@@ -191,6 +223,7 @@ export function useIOBridgeState(config: UseIOBridgeStateConfig = {}): UseIOBrid
     retry,
     launch,
     cancel,
+    getStats,
     chromeosBootstrapState,
     chromeosHasEverConnected,
   }

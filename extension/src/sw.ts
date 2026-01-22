@@ -387,6 +387,14 @@ function handleMessage(
     return true
   }
 
+  // Get daemon stats (for debug panel)
+  if (message.type === 'GET_DAEMON_STATS') {
+    bridge.getStats().then((stats) => {
+      sendResponse({ ok: true, stats })
+    })
+    return true
+  }
+
   // Get daemon info (for engine initialization)
   if (message.type === 'GET_DAEMON_INFO') {
     const state = bridge.getState()
