@@ -418,7 +418,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
           ) : roots.length === 0 ? (
             <div style={styles.warning}>
               <strong>No download location configured</strong>
-              <p style={{ margin: '8px 0 0 0' }}>
+              <p style={{ margin: 'var(--spacing-sm, 8px) 0 0 0' }}>
                 You need to select a download folder before you can download torrents.
               </p>
             </div>
@@ -438,14 +438,16 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
                   ))}
                 </select>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs, 4px)' }}
+              >
                 {roots.map((root) => (
                   <div key={root.key} style={styles.rootItem}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div>{root.label}</div>
                       <div
                         style={{
-                          fontSize: '12px',
+                          fontSize: 'var(--font-xs, 12px)',
                           color: 'var(--text-secondary)',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -625,7 +627,7 @@ const InterfaceTab: React.FC<InterfaceTabProps> = ({
     </Section>
 
     <Section title="User Interface">
-      <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+      <div style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md, 12px)' }}>
         Restore default column visibility, order, and sizes for all tables.
       </div>
       <button onClick={onResetUISettings} style={styles.dangerButton}>
@@ -638,7 +640,7 @@ const InterfaceTab: React.FC<InterfaceTabProps> = ({
         <div style={styles.fieldRow}>
           <div style={{ flex: 1 }}>
             <div>Switch Interface</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: 'var(--font-xs, 12px)', color: 'var(--text-secondary)' }}>
               Currently using the full-featured interface
             </div>
           </div>
@@ -746,7 +748,13 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager
           min={1024}
           max={65535}
         />
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+        <div
+          style={{
+            fontSize: 'var(--font-xs, 12px)',
+            color: 'var(--text-secondary)',
+            marginTop: 'var(--spacing-sm, 8px)',
+          }}
+        >
           Changes require restart to take effect.
         </div>
       </Section>
@@ -755,12 +763,18 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager
         <label style={styles.toggleRow}>
           <div style={{ flex: 1 }}>
             <div>Enable UPnP</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: 'var(--font-xs, 12px)', color: 'var(--text-secondary)' }}>
               Automatically configure router for incoming connections
             </div>
           </div>
           {statusInfo.text && (
-            <span style={{ fontSize: '12px', color: statusInfo.color, marginRight: '12px' }}>
+            <span
+              style={{
+                fontSize: 'var(--font-xs, 12px)',
+                color: statusInfo.color,
+                marginRight: 'var(--spacing-md, 12px)',
+              }}
+            >
               {statusInfo.text}
             </span>
           )}
@@ -776,7 +790,7 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager
         <label style={styles.toggleRow}>
           <div style={{ flex: 1 }}>
             <div>Protocol encryption (MSE/PE)</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: 'var(--font-xs, 12px)', color: 'var(--text-secondary)' }}>
               Encrypts BitTorrent protocol traffic
             </div>
           </div>
@@ -905,7 +919,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ settings, config, onResetAllS
   return (
     <div>
       <Section title="Logging">
-        <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+        <div style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md, 12px)' }}>
           Controls the verbosity of engine logs. More verbose levels (debug) may generate
           significant output.
         </div>
@@ -928,13 +942,17 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ settings, config, onResetAllS
           style={styles.collapsibleHeader}
           onClick={() => setOverridesExpanded(!overridesExpanded)}
         >
-          <span style={{ marginRight: '8px' }}>{overridesExpanded ? '▼' : '▶'}</span>
+          <span style={{ marginRight: 'var(--spacing-sm, 8px)' }}>
+            {overridesExpanded ? '▼' : '▶'}
+          </span>
           Component Overrides (select &ldquo;Default&rdquo; to use global level)
         </div>
         {overridesExpanded &&
           (Object.keys(LOG_COMPONENT_CONFIG_KEYS) as LogComponentName[]).map((comp) => (
             <div key={comp} style={styles.fieldRow}>
-              <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '12px' }}>{comp}</span>
+              <span style={{ flex: 1, fontFamily: 'monospace', fontSize: 'var(--font-xs, 12px)' }}>
+                {comp}
+              </span>
               <select
                 value={getComponentLogLevel(comp)}
                 onChange={(e) => setComponentLogLevel(comp, e.target.value as ComponentLogLevel)}
@@ -953,14 +971,18 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ settings, config, onResetAllS
 
         <button
           onClick={handleResetLogging}
-          style={{ ...styles.addButton, marginTop: '16px', background: 'var(--accent-primary)' }}
+          style={{
+            ...styles.addButton,
+            marginTop: 'var(--spacing-lg, 16px)',
+            background: 'var(--accent-primary)',
+          }}
         >
           Reset Logging to Defaults
         </button>
       </Section>
 
       <Section title="Daemon Rate Limiting">
-        <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+        <div style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md, 12px)' }}>
           Controls how fast new connections and tracker announces are initiated. Lower values reduce
           resource usage but slow down peer discovery.
         </div>
@@ -981,7 +1003,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ settings, config, onResetAllS
       </Section>
 
       <Section title="Danger Zone">
-        <div style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+        <div style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md, 12px)' }}>
           Restore all settings to their default values. This includes network limits, notification
           preferences, theme, and UI layout. Your download locations and downloaded files will not
           be affected.
@@ -1022,7 +1044,9 @@ const ToggleRow: React.FC<ToggleRowProps> = ({ label, sublabel, checked, onChang
     <div style={{ flex: 1 }}>
       <div>{label}</div>
       {sublabel && (
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{sublabel}</div>
+        <div style={{ fontSize: 'var(--font-xs, 12px)', color: 'var(--text-secondary)' }}>
+          {sublabel}
+        </div>
       )}
     </div>
     <input
@@ -1096,8 +1120,15 @@ const SpeedLimitRow: React.FC<SpeedLimitRowProps> = ({
         min={0}
         style={{ ...styles.numberInput, opacity: unlimited ? 0.5 : 1 }}
       />
-      <span style={{ fontSize: '12px' }}>KB/s</span>
-      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '12px' }}>
+      <span style={{ fontSize: 'var(--font-xs, 12px)' }}>KB/s</span>
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--spacing-xs, 4px)',
+          marginLeft: 'var(--spacing-md, 12px)',
+        }}
+      >
         <input
           type="checkbox"
           checked={unlimited}
@@ -1173,7 +1204,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   modal: {
     background: 'var(--bg-primary)',
-    borderRadius: '8px',
+    borderRadius: 'var(--spacing-sm, 8px)',
     width: '90%',
     maxWidth: '800px',
     minHeight: '500px',
@@ -1187,21 +1218,21 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '16px 20px',
+    padding: 'var(--spacing-lg, 16px) var(--spacing-lg, 20px)',
     borderBottom: '1px solid var(--border-color)',
   },
   title: {
     margin: 0,
-    fontSize: '18px',
+    fontSize: 'var(--font-lg, 18px)',
     fontWeight: 600,
   },
   closeButton: {
     background: 'none',
     border: 'none',
-    fontSize: '24px',
+    fontSize: 'var(--font-xl, 24px)',
     cursor: 'pointer',
     color: 'var(--text-secondary)',
-    padding: '0 4px',
+    padding: '0 var(--spacing-xs, 4px)',
     lineHeight: 1,
   },
   content: {
@@ -1212,22 +1243,22 @@ const styles: Record<string, React.CSSProperties> = {
   sidebar: {
     width: '140px',
     borderRight: '1px solid var(--border-color)',
-    padding: '8px',
+    padding: 'var(--spacing-sm, 8px)',
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: 'var(--spacing-xs, 4px)',
     flexShrink: 0,
     background: 'var(--bg-secondary)',
   },
   tabButton: {
     background: 'transparent',
     border: 'none',
-    padding: '10px 12px',
+    padding: 'var(--spacing-sm, 10px) var(--spacing-md, 12px)',
     textAlign: 'left',
     cursor: 'pointer',
     borderRadius: '4px',
     color: 'var(--text-primary)',
-    fontSize: '14px',
+    fontSize: 'var(--font-sm, 14px)',
   },
   tabButtonActive: {
     background: 'var(--accent-primary)',
@@ -1235,37 +1266,37 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tabContent: {
     flex: 1,
-    padding: '20px',
+    padding: 'var(--spacing-lg, 20px)',
     overflowY: 'auto',
     background: 'var(--bg-primary)',
   },
   section: {
-    marginBottom: '16px',
-    padding: '12px',
+    marginBottom: 'var(--spacing-lg, 16px)',
+    padding: 'var(--spacing-md, 12px)',
     background: 'var(--bg-secondary)',
     borderRadius: '6px',
     border: '1px solid var(--border-color)',
   },
   sectionTitle: {
-    margin: '0 0 12px 0',
-    fontSize: '12px',
+    margin: '0 0 var(--spacing-md, 12px) 0',
+    fontSize: 'var(--font-xs, 12px)',
     fontWeight: 600,
     textTransform: 'uppercase',
     color: 'var(--text-secondary)',
     letterSpacing: '0.5px',
   },
   warning: {
-    padding: '12px',
+    padding: 'var(--spacing-md, 12px)',
     background: 'var(--bg-warning, rgba(234, 179, 8, 0.1))',
     border: '1px solid var(--border-warning, #eab308)',
     borderRadius: '4px',
-    marginBottom: '12px',
+    marginBottom: 'var(--spacing-md, 12px)',
   },
   rootItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '8px',
+    gap: 'var(--spacing-sm, 8px)',
+    padding: 'var(--spacing-sm, 8px)',
     background: 'var(--bg-tertiary)',
     border: '1px solid var(--border-light)',
     borderRadius: '4px',
@@ -1274,20 +1305,20 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: '4px',
-    fontSize: '16px',
+    padding: 'var(--spacing-xs, 4px)',
+    fontSize: 'var(--font-md, 16px)',
     opacity: 0.6,
   },
   defaultBadge: {
-    padding: '4px 8px',
+    padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
     background: 'var(--accent-primary)',
     color: 'white',
     borderRadius: '4px',
-    fontSize: '12px',
+    fontSize: 'var(--font-xs, 12px)',
   },
   addButton: {
-    marginTop: '12px',
-    padding: '8px 16px',
+    marginTop: 'var(--spacing-md, 12px)',
+    padding: 'var(--spacing-sm, 8px) var(--spacing-lg, 16px)',
     background: 'var(--accent-success)',
     color: 'white',
     border: 'none',
@@ -1295,7 +1326,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
   },
   dangerButton: {
-    padding: '8px 16px',
+    padding: 'var(--spacing-sm, 8px) var(--spacing-lg, 16px)',
     background: 'var(--accent-error, #ef4444)',
     color: 'white',
     border: 'none',
@@ -1305,9 +1336,9 @@ const styles: Record<string, React.CSSProperties> = {
   fieldRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    marginBottom: '8px',
-    padding: '10px 12px',
+    gap: 'var(--spacing-md, 12px)',
+    marginBottom: 'var(--spacing-sm, 8px)',
+    padding: 'var(--spacing-sm, 10px) var(--spacing-md, 12px)',
     background: 'var(--bg-tertiary)',
     borderRadius: '4px',
     border: '1px solid var(--border-light)',
@@ -1315,9 +1346,9 @@ const styles: Record<string, React.CSSProperties> = {
   toggleRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    marginBottom: '8px',
-    padding: '10px 12px',
+    gap: 'var(--spacing-md, 12px)',
+    marginBottom: 'var(--spacing-sm, 8px)',
+    padding: 'var(--spacing-sm, 10px) var(--spacing-md, 12px)',
     background: 'var(--bg-tertiary)',
     borderRadius: '4px',
     border: '1px solid var(--border-light)',
@@ -1325,16 +1356,16 @@ const styles: Record<string, React.CSSProperties> = {
   },
   radioGroup: {
     display: 'flex',
-    gap: '16px',
+    gap: 'var(--spacing-lg, 16px)',
   },
   radioLabel: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
+    gap: 'var(--spacing-xs, 6px)',
     cursor: 'pointer',
   },
   select: {
-    padding: '6px 10px',
+    padding: 'var(--spacing-xs, 6px) var(--spacing-sm, 10px)',
     borderRadius: '4px',
     border: '1px solid var(--border-color)',
     background: 'var(--bg-secondary)',
@@ -1342,7 +1373,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   numberInput: {
     width: '80px',
-    padding: '6px 10px',
+    padding: 'var(--spacing-xs, 6px) var(--spacing-sm, 10px)',
     borderRadius: '4px',
     border: '1px solid var(--border-color)',
     background: 'var(--bg-secondary)',
@@ -1350,8 +1381,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   collapsibleHeader: {
     color: 'var(--text-secondary)',
-    marginTop: '16px',
-    marginBottom: '8px',
+    marginTop: 'var(--spacing-lg, 16px)',
+    marginBottom: 'var(--spacing-sm, 8px)',
     cursor: 'pointer',
     userSelect: 'none',
   },

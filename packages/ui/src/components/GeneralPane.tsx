@@ -167,21 +167,21 @@ function buildTorrentInfo(torrent: Torrent): InfoGroup[] {
 const containerStyle: React.CSSProperties = {
   height: '100%',
   overflow: 'auto',
-  padding: '12px 16px',
+  padding: 'var(--spacing-md, 12px) var(--spacing-lg, 16px)',
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-  fontSize: '12px',
+  fontSize: 'var(--font-xs, 12px)',
   lineHeight: '1.5',
   userSelect: 'text',
 }
 
 const groupStyle: React.CSSProperties = {
-  marginBottom: '16px',
+  marginBottom: 'var(--spacing-lg, 16px)',
 }
 
 const groupTitleStyle: React.CSSProperties = {
   color: 'var(--text-secondary)',
-  marginBottom: '6px',
-  fontSize: '11px',
+  marginBottom: 'var(--spacing-xs, 6px)',
+  fontSize: 'calc(var(--font-xs, 12px) - 1px)',
   textTransform: 'uppercase',
   letterSpacing: '0.5px',
 }
@@ -190,7 +190,7 @@ const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
   padding: '2px 0',
-  gap: '12px',
+  gap: 'var(--spacing-md, 12px)',
 }
 
 const labelStyle: React.CSSProperties = {
@@ -206,9 +206,9 @@ const valueStyle: React.CSSProperties = {
 }
 
 const copyButtonStyle: React.CSSProperties = {
-  padding: '2px 6px',
-  fontSize: '10px',
-  marginLeft: '8px',
+  padding: '2px var(--spacing-xs, 6px)',
+  fontSize: 'calc(var(--font-xs, 12px) - 2px)',
+  marginLeft: 'var(--spacing-sm, 8px)',
   cursor: 'pointer',
   background: 'var(--button-bg)',
   border: '1px solid var(--border-color)',

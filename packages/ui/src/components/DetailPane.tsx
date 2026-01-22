@@ -69,12 +69,12 @@ export interface DetailPaneProps {
 }
 
 const tabStyle: React.CSSProperties = {
-  padding: '8px 12px',
+  padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
   border: 'none',
   borderBottom: '2px solid transparent',
   background: 'none',
   cursor: 'pointer',
-  fontSize: '13px',
+  fontSize: 'var(--font-base, 13px)',
   color: 'var(--text-secondary)',
   whiteSpace: 'nowrap',
   textAlign: 'center',

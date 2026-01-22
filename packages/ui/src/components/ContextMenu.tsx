@@ -23,17 +23,17 @@ const menuStyle: React.CSSProperties = {
   border: '1px solid var(--border-color, #ddd)',
   borderRadius: '6px',
   boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-  padding: '4px 0',
+  padding: 'var(--spacing-xs, 4px) 0',
   minWidth: '160px',
   zIndex: 1000,
-  fontSize: '13px',
+  fontSize: 'var(--font-base, 13px)',
 }
 
 const itemStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
-  padding: '8px 12px',
+  gap: 'var(--spacing-sm, 8px)',
+  padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
   cursor: 'pointer',
   border: 'none',
   background: 'none',
@@ -56,7 +56,7 @@ const dangerStyle: React.CSSProperties = {
 const separatorStyle: React.CSSProperties = {
   height: '1px',
   background: 'var(--border-color, #ddd)',
-  margin: '4px 0',
+  margin: 'var(--spacing-xs, 4px) 0',
 }
 
 export function ContextMenu({ x, y, items, onSelect, onClose }: ContextMenuProps) {

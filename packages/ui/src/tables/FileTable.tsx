@@ -239,7 +239,6 @@ export function FileTable(props: FileTableProps) {
         getRowKey={(f) => String(f.index)}
         columns={fileColumns}
         storageKey="files"
-        rowHeight={24}
         getSelectedKeys={props.getSelectedKeys}
         onSelectionChange={props.onSelectionChange}
         onRowContextMenu={handleContextMenu}

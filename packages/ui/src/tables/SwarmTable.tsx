@@ -194,7 +194,6 @@ export function SwarmTable(props: SwarmTableProps) {
       getRowKey={(p) => addressKey(p)}
       columns={swarmColumns}
       storageKey="swarm"
-      rowHeight={24}
       getSelectedKeys={props.getSelectedKeys}
       onSelectionChange={props.onSelectionChange}
       refreshKey={props.torrentHash}

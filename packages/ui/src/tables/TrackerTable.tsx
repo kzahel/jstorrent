@@ -100,7 +100,6 @@ export function TrackerTable(props: TrackerTableProps) {
       getRowKey={(t) => t.url}
       columns={trackerColumns}
       storageKey="tracker"
-      rowHeight={24}
       getSelectedKeys={props.getSelectedKeys}
       onSelectionChange={props.onSelectionChange}
       refreshKey={props.torrentHash}
