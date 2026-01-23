@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tap Test</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: white;
+        overflow: hidden;
+        touch-action: none;
+      }
+      canvas {
+        display: block;
+        cursor: crosshair;
+      }
+      #coords {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        font-family: monospace;
+        font-size: 14px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <div id="coords">Tap anywhere</div>
+
+    <script>
+      const canvas = document.getElementById('canvas')
+      const ctx = canvas.getContext('2d')
+      const coordsDiv = document.getElementById('coords')
+
+      function resize() {
+        canvas.width = window.innerWidth
+        canvas.height = window.innerHeight
+      }
+      resize()
+      window.addEventListener('resize', resize)
+
+      function drawDot(x, y, color = 'red', radius = 6) {
+        ctx.beginPath()
+        ctx.arc(x, y, radius, 0, Math.PI * 2)
+        ctx.fillStyle = color
+        ctx.fill()
+
+        // Draw crosshair for precision
+        ctx.strokeStyle = color
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(x - 15, y)
+        ctx.lineTo(x + 15, y)
+        ctx.moveTo(x, y - 15)
+        ctx.lineTo(x, y + 15)
+        ctx.stroke()
+
+        // Label with coordinates
+        ctx.fillStyle = 'black'
+        ctx.font = '12px monospace'
+        ctx.fillText(`(${x}, ${y})`, x + 10, y - 10)
+      }
+
+      function handleTap(e) {
+        e.preventDefault()
+        const rect = canvas.getBoundingClientRect()
+        let x, y
+
+        if (e.touches) {
+          x = Math.round(e.touches[0].clientX - rect.left)
+          y = Math.round(e.touches[0].clientY - rect.top)
+        } else {
+          x = Math.round(e.clientX - rect.left)
+          y = Math.round(e.clientY - rect.top)
+        }
+
+        drawDot(x, y)
+        coordsDiv.textContent = `Last tap: (${x}, ${y})`
+      }
+
+      canvas.addEventListener('click', handleTap)
+      canvas.addEventListener('touchstart', handleTap)
+    </script>
+  </body>
+</html>
