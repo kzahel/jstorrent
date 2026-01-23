@@ -2993,11 +2993,18 @@ export class Torrent extends EngineComponent {
     }
 
     // Check completion first so completedAt is set before persisting
+    const hadCompletedAt = !!this.completedAt
     this.checkCompletion()
 
-    // Persist state immediately (includes completedAt if just completed)
     const btEngine = this.engine as BtEngine
-    btEngine.sessionPersistence?.saveTorrentState(this)
+    if (!hadCompletedAt && this.completedAt) {
+      // Torrent just completed - save immediately
+      btEngine.sessionPersistence?.saveTorrentState(this)
+    } else {
+      // Schedule throttled persistence for piece completions
+      // (avoids excessive storage writes during fast downloads)
+      btEngine.sessionPersistence?.schedulePiecePersistence(this)
+    }
   }
 
   /**

@@ -67,6 +67,11 @@ export interface TorrentStateData {
 export class SessionPersistence {
   private _logger: Logger | null = null
 
+  // Throttled piece persistence: tracks torrents with pending saves
+  private _pendingPieceSaves = new Set<string>() // infoHash hex strings
+  private _pieceFlushTimer: ReturnType<typeof setTimeout> | null = null
+  private _pieceFlushIntervalMs = 1000 // Flush every 1 second
+
   constructor(
     private _store: ISessionStore,
     private engine: BtEngine,
@@ -136,6 +141,39 @@ export class SessionPersistence {
   }
 
   /**
+   * Schedule a throttled save for piece completion.
+   * Unlike saveTorrentState(), this batches multiple piece completions into
+   * periodic flushes to avoid excessive storage writes during fast downloads.
+   */
+  schedulePiecePersistence(torrent: Torrent): void {
+    const infoHash = toHex(torrent.infoHash)
+    this._pendingPieceSaves.add(infoHash)
+
+    // Start flush timer if not already running
+    if (!this._pieceFlushTimer) {
+      this._pieceFlushTimer = setTimeout(() => {
+        this._pieceFlushTimer = null
+        void this._flushPendingPieceSaves()
+      }, this._pieceFlushIntervalMs)
+    }
+  }
+
+  /**
+   * Flush all pending piece persistence saves.
+   */
+  private async _flushPendingPieceSaves(): Promise<void> {
+    const pending = Array.from(this._pendingPieceSaves)
+    this._pendingPieceSaves.clear()
+
+    for (const infoHash of pending) {
+      const torrent = this.engine.torrents.find((t) => toHex(t.infoHash) === infoHash)
+      if (torrent) {
+        await this.saveTorrentState(torrent)
+      }
+    }
+  }
+
+  /**
    * Save the .torrent file bytes. Called once when adding a file-source torrent.
    */
   async saveTorrentFile(infoHash: string, torrentFile: Uint8Array): Promise<void> {
@@ -156,6 +194,14 @@ export class SessionPersistence {
    * Call this on shutdown.
    */
   async flushPendingSaves(): Promise<void> {
+    // Cancel any pending throttle timer
+    if (this._pieceFlushTimer) {
+      clearTimeout(this._pieceFlushTimer)
+      this._pieceFlushTimer = null
+    }
+    this._pendingPieceSaves.clear()
+
+    // Save all torrents immediately
     for (const torrent of this.engine.torrents) {
       await this.saveTorrentState(torrent)
     }
