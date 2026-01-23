@@ -205,9 +205,9 @@ Default extension ID is `dbokmlpefliilbjldladbimlcfgbolhk` (unpacked from extens
 Control ChromeOS devices via SSH. Requires the client script running on the Chromebook.
 
 **Tools:**
-- `screenshot` - Capture full ChromeOS screen with OCR
-- `tap` - Tap at screen coordinates
-- `swipe` - Swipe gesture
+- `screenshot` - Capture full ChromeOS screen (MUST call before tap/swipe)
+- `tap` - Tap at screen coordinates (use coords from screenshot)
+- `swipe` - Swipe gesture (use coords from screenshot)
 - `type_text` - Type text (keyboard layout-aware)
 - `press_keys` - Press key combination by Linux keycodes
 - `shortcut` - Execute keyboard shortcut with modifier remapping
@@ -218,16 +218,29 @@ Control ChromeOS devices via SSH. Requires the client script running on the Chro
 2. Client script deployed: `chromeos-testbed/chromeos-mcp/client.py` → `/mnt/stateful_partition/c2/client.py`
 3. Client running on VT2 with root access
 
+**IMPORTANT - How to tap/swipe:**
+
+1. **Take a screenshot first** - This establishes the coordinate mapping
+2. **Identify the target** in the screenshot image (e.g., a button at x=800, y=450)
+3. **Use those exact coordinates** in tap/swipe - they auto-scale to the actual screen
+4. Accuracy is within 1 pixel
+
+The screenshot is scaled down for display (e.g., 3840x2160 → 1920x1080), and tap/swipe coordinates are automatically scaled back up. Just use what you see in the image.
+
 **Usage:**
 
 ```
-# Take screenshot of ChromeOS desktop
+# Always screenshot first, then tap using coordinates from the image
 screenshot
+tap x=800 y=450       # Coordinates as seen in the screenshot
 
-# Interact with the device
-tap x=800 y=600
+# Swipe example
+screenshot
+swipe x1=500 y1=600 x2=500 y2=200   # Swipe up
+
+# Type and keyboard
 type_text text="hello world"
-shortcut keys="ctrl+t"  # New tab
+shortcut key="t" modifiers=["ctrl"]  # New tab
 
 # Get device info
 chromeos_info

@@ -282,26 +282,33 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="tap",
-            description="Tap at screen coordinates on ChromeOS. Coordinates are auto-scaled from screenshot space to actual screen space (e.g., if screenshot was scaled 2x, tap coords are scaled 2x).",
+            description="""Tap at screen coordinates on ChromeOS.
+
+IMPORTANT: Take a screenshot FIRST, then use coordinates as you see them in the screenshot image.
+The coordinates are auto-scaled from screenshot space to actual screen space.
+Accuracy is within 1 pixel.""",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "x": {"type": "integer", "description": "X coordinate (in screenshot space, auto-scaled to screen)"},
-                    "y": {"type": "integer", "description": "Y coordinate (in screenshot space, auto-scaled to screen)"},
+                    "x": {"type": "integer", "description": "X coordinate as seen in the screenshot image"},
+                    "y": {"type": "integer", "description": "Y coordinate as seen in the screenshot image"},
                 },
                 "required": ["x", "y"],
             },
         ),
         Tool(
             name="swipe",
-            description="Swipe gesture on ChromeOS touchscreen. Coordinates are auto-scaled from screenshot space to actual screen space.",
+            description="""Swipe gesture on ChromeOS touchscreen.
+
+IMPORTANT: Take a screenshot FIRST, then use coordinates as you see them in the screenshot image.
+The coordinates are auto-scaled from screenshot space to actual screen space.""",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "x1": {"type": "integer", "description": "Start X coordinate (screenshot space)"},
-                    "y1": {"type": "integer", "description": "Start Y coordinate (screenshot space)"},
-                    "x2": {"type": "integer", "description": "End X coordinate (screenshot space)"},
-                    "y2": {"type": "integer", "description": "End Y coordinate (screenshot space)"},
+                    "x1": {"type": "integer", "description": "Start X coordinate (as seen in screenshot)"},
+                    "y1": {"type": "integer", "description": "Start Y coordinate (as seen in screenshot)"},
+                    "x2": {"type": "integer", "description": "End X coordinate (as seen in screenshot)"},
+                    "y2": {"type": "integer", "description": "End Y coordinate (as seen in screenshot)"},
                     "duration_ms": {"type": "integer", "description": "Duration in milliseconds (default 300)"},
                 },
                 "required": ["x1", "y1", "x2", "y2"],
