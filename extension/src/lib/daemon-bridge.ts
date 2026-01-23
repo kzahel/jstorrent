@@ -948,6 +948,10 @@ export class DaemonBridge {
   }
 
   private startHealthCheck(host: string, port: number): void {
+    // Clear any existing interval to prevent stacking
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval)
+    }
     this.healthCheckInterval = setInterval(async () => {
       try {
         const response = await fetch(`http://${host}:${port}/health`)
