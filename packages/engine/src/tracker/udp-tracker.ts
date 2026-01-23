@@ -26,6 +26,8 @@ export class UdpTracker extends EngineComponent implements ITracker {
   private _status: TrackerStatus = 'idle'
   private _seeders: number | null = null
   private _leechers: number | null = null
+  private _lastPeersReceived: number = 0
+  private _knownPeers: Set<string> = new Set()
   private _lastError: string | null = null
   private _lastAnnounceTime: number | null = null
 
@@ -195,7 +197,9 @@ export class UdpTracker extends EngineComponent implements ITracker {
         const ip = `${msg[i]}.${msg[i + 1]}.${msg[i + 2]}.${msg[i + 3]}`
         const port = (msg[i + 4] << 8) | msg[i + 5]
         peers.push({ ip, port })
+        this._knownPeers.add(`${ip}:${port}`)
       }
+      this._lastPeersReceived = peers.length
       if (peers.length > 0) {
         this.emit('peersDiscovered', peers)
       }
@@ -220,6 +224,8 @@ export class UdpTracker extends EngineComponent implements ITracker {
       interval: this._interval,
       seeders: this._seeders,
       leechers: this._leechers,
+      lastPeersReceived: this._lastPeersReceived,
+      uniquePeersDiscovered: this._knownPeers.size,
       lastError: this._lastError,
       nextAnnounce: this._lastAnnounceTime ? this._lastAnnounceTime + this._interval * 1000 : null,
     }

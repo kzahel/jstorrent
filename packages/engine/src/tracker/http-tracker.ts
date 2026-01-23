@@ -21,6 +21,8 @@ export class HttpTracker extends EngineComponent implements ITracker {
   private _status: TrackerStatus = 'idle'
   private _seeders: number | null = null
   private _leechers: number | null = null
+  private _lastPeersReceived: number = 0
+  private _knownPeers: Set<string> = new Set()
   private _lastError: string | null = null
   private _lastAnnounceTime: number | null = null
 
@@ -207,8 +209,15 @@ export class HttpTracker extends EngineComponent implements ITracker {
       this._leechers = data['incomplete']
     }
 
+    // Track peers received in this response
+    let peersThisResponse = 0
+
     if (data['peers']) {
       const peers = this.parsePeers(data['peers'])
+      peersThisResponse += peers.length
+      for (const p of peers) {
+        this._knownPeers.add(`${p.ip}:${p.port}`)
+      }
       if (peers.length > 0) {
         this.logger.debug(`Tracker ${this.announceUrl}: Discovered ${peers.length} IPv4 peers`)
         this.emit('peersDiscovered', peers)
@@ -218,6 +227,10 @@ export class HttpTracker extends EngineComponent implements ITracker {
     // BEP 7: IPv6 peers in 'peers6' field (compact format: 18 bytes per peer)
     if (data['peers6'] && data['peers6'] instanceof Uint8Array) {
       const peers6 = parseCompactPeers(data['peers6'], 'ipv6')
+      peersThisResponse += peers6.length
+      for (const p of peers6) {
+        this._knownPeers.add(`${p.ip}:${p.port}`)
+      }
       this.logger.debug(
         `Tracker ${this.announceUrl}: peers6 field present, ${data['peers6'].length} bytes -> ${peers6.length} IPv6 peers`,
       )
@@ -232,6 +245,8 @@ export class HttpTracker extends EngineComponent implements ITracker {
         `Tracker ${this.announceUrl}: peers6 field present but not Uint8Array: ${typeof data['peers6']}`,
       )
     }
+
+    this._lastPeersReceived = peersThisResponse
   }
 
   private parsePeers(peersData: unknown): PeerInfo[] {
@@ -263,6 +278,8 @@ export class HttpTracker extends EngineComponent implements ITracker {
       interval: this._interval,
       seeders: this._seeders,
       leechers: this._leechers,
+      lastPeersReceived: this._lastPeersReceived,
+      uniquePeersDiscovered: this._knownPeers.size,
       lastError: this._lastError,
       nextAnnounce: this._lastAnnounceTime ? this._lastAnnounceTime + this._interval * 1000 : null,
     }

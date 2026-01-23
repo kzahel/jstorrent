@@ -34,6 +34,10 @@ export interface TrackerStats {
   interval: number
   seeders: number | null
   leechers: number | null
+  /** Number of peers received in the most recent announce response */
+  lastPeersReceived: number
+  /** Cumulative count of unique peers discovered from this tracker */
+  uniquePeersDiscovered: number
   lastError: string | null
   /** Timestamp (ms) when next announce should occur, or null if not yet announced */
   nextAnnounce: number | null

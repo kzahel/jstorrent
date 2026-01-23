@@ -19,6 +19,8 @@ Enable Chrome DevTools remote debugging on a ChromeOS device.
 
 ## Enable Remote Debugging
 
+**Note:** ChromeOS updates reset `/etc/chrome_dev.conf` and re-enable rootfs verification. After an update, you'll need to repeat both the rootfs verification removal and this step.
+
 SSH into the Chromebook as root and run:
 
 ```bash
