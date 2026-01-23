@@ -166,17 +166,21 @@ export class PeerConnection extends EngineComponent {
     this.send(message)
   }
 
+  // Our local extension IDs (peers use these when sending to us)
+  readonly myPexId = 2
+
   sendExtendedHandshake(options: { uploadOnly?: boolean } = {}) {
     // Build extension handshake dictionary
-    // Base: { m: { ut_metadata: 1 } }
-    // With upload_only: { m: { ut_metadata: 1 }, upload_only: 1 }
+    // Base: { m: { ut_metadata: 1, ut_pex: 2 } }
+    // With upload_only: { m: { ut_metadata: 1, ut_pex: 2 }, upload_only: 1 }
+    // Note: bencode requires sorted keys, so ut_metadata comes before ut_pex
     let payload: string
     if (options.uploadOnly) {
-      // d1:md11:ut_metadatai1ee11:upload_onlyi1ee
-      payload = `d1:md11:ut_metadatai${this.myMetadataId}ee11:upload_onlyi1ee`
+      // d1:md11:ut_metadatai1e6:ut_pexi2ee11:upload_onlyi1ee
+      payload = `d1:md11:ut_metadatai${this.myMetadataId}e6:ut_pexi${this.myPexId}ee11:upload_onlyi1ee`
     } else {
-      // d1:md11:ut_metadatai1eee
-      payload = `d1:md11:ut_metadatai${this.myMetadataId}eee`
+      // d1:md11:ut_metadatai1e6:ut_pexi2eee
+      payload = `d1:md11:ut_metadatai${this.myMetadataId}e6:ut_pexi${this.myPexId}eee`
     }
     this.sendExtendedMessage(0, new TextEncoder().encode(payload))
   }

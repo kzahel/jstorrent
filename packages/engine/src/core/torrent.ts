@@ -26,6 +26,7 @@ import { TorrentDiskQueue, DiskQueueSnapshot } from './disk-queue'
 import { EndgameManager } from './endgame-manager'
 import { PartsFile } from './parts-file'
 import type { LookupResult } from '../dht'
+import { PexHandler } from '../extensions/pex-handler'
 
 /**
  * Piece classification for file priority system.
@@ -2016,6 +2017,12 @@ export class Torrent extends EngineComponent {
   }
 
   private setupPeerListeners(peer: PeerConnection) {
+    // BEP 11: Enable PEX for non-private torrents
+    // PexHandler listens for extended messages and emits 'pex_peers' events
+    if (!this.isPrivate) {
+      new PexHandler(peer)
+    }
+
     const onHandshake = (_infoHash: Uint8Array, peerId: Uint8Array, extensions: boolean) => {
       this.logger.debug('Handshake received')
 

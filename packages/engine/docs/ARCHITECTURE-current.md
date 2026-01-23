@@ -288,8 +288,7 @@ According to `ENGINE_ANALYSIS.md`, the engine is a **functional skeleton** with 
 3. **Choking algorithm** - No tit-for-tat
 4. **Rarest-first piece selection** - Sequential only
 5. **End-game mode** - Not implemented
-6. **PEX** - Stub only
-7. **Resume/recheck** - Incomplete
+6. **Resume/recheck** - Incomplete
 
 ## Design Patterns
 

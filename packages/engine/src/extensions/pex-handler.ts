@@ -1,47 +1,41 @@
 import { PeerConnection } from '../core/peer-connection'
 import { Bencode } from '../utils/bencode'
 import { parseCompactPeers, PeerAddress } from '../core/swarm'
-import { VERSION } from '../version'
 
 const EXT_HANDSHAKE_ID = 0
 
 export class PexHandler {
-  private _pexId: number | null = null
+  // The peer's ut_pex ID (used when we send PEX messages TO them)
+  private _peerPexId: number | null = null
 
   constructor(private peer: PeerConnection) {
-    this.peer.on('handshake', (_infoHash, _peerId, extensions) => {
-      if (extensions) {
-        this.sendExtendedHandshake()
-      }
-    })
-
+    // Listen for extended messages
+    // - ID 0 = extended handshake (extract peer's ut_pex ID)
+    // - ID = peer.myPexId = incoming PEX message (peer uses OUR ID when sending to us)
     this.peer.on('extended', (id, payload) => {
       if (id === EXT_HANDSHAKE_ID) {
         this.handleExtendedHandshake(payload)
-      } else if (id === this._pexId) {
+      } else if (id === this.peer.myPexId) {
         this.handlePexMessage(payload)
       }
     })
-  }
-
-  private sendExtendedHandshake() {
-    const payload = {
-      m: { ut_pex: 1 }, // We support PEX with ID 1
-      v: `JSTorrent ${VERSION}`,
-    }
-    const encoded = Bencode.encode(payload)
-    this.peer.sendExtendedMessage(EXT_HANDSHAKE_ID, encoded)
   }
 
   private handleExtendedHandshake(payload: Uint8Array) {
     try {
       const dict = Bencode.decode(payload)
       if (dict && dict.m && dict.m['ut_pex']) {
-        this._pexId = dict.m['ut_pex']
+        // Store peer's PEX ID for when we want to send PEX messages to them
+        this._peerPexId = dict.m['ut_pex']
       }
     } catch (_err) {
       // Ignore invalid extended handshake
     }
+  }
+
+  /** Returns whether the peer supports PEX */
+  get peerSupportsPex(): boolean {
+    return this._peerPexId !== null
   }
 
   private handlePexMessage(payload: Uint8Array) {

@@ -7,4 +7,5 @@ dependencies = [
     "mcp>=1.0.0",
     "pillow>=10.0.0",
     "pytesseract>=0.3.10",
+    "aiohttp>=3.9.0",
 ]

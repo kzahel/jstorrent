@@ -119,9 +119,53 @@ emu test-native                         # Install app, launch with test magnet
 
 See `android/scripts/` for more: `emu-logs.sh`, `emu-install.sh`, `dev` commands for real devices.
 
-## Extension Debugging (MCP)
+## MCP Servers
 
-Use the `ext-debug` MCP server for extension debugging:
+This project has two MCP servers for debugging and controlling Chrome/ChromeOS.
+
+### Registration
+
+Register the MCP servers with Claude Code (project-scoped via `--scope project`):
+
+```bash
+# Extension debugging via Chrome DevTools Protocol
+claude mcp add ext-debug "uv run --directory $(pwd)/extension/tools python mcp_extension_debug.py" --scope project
+
+# ChromeOS device control (screenshots, input injection)
+claude mcp add chromeos "uv run --directory $(pwd)/chromeos-testbed/chromeos-mcp python mcp_chromeos.py" --scope project
+```
+
+This creates `.mcp.json` in the project root. Restart Claude Code session after registering.
+
+### ext-debug - Extension Debugging (CDP)
+
+**Location:** `extension/tools/mcp_extension_debug.py`
+
+Debug Chrome extensions via Chrome DevTools Protocol. Supports multiple connections (local Chrome, Chromebook via SSH tunnel).
+
+**Tools:**
+- `ext_status` - Check CDP connectivity and extension state
+- `ext_reload` - Reload extension via `chrome.runtime.reload()`
+- `ext_evaluate` - Run JavaScript in service worker or extension page
+- `ext_get_storage` - Read from `chrome.storage` (local/sync/session)
+- `ext_start_logs` / `ext_get_logs` - Collect and filter console logs
+- `ext_screenshot` - Capture extension page screenshot with OCR
+- `ext_list_connections` - List configured connections
+- `ext_list_targets` - List debuggable targets
+
+**Configuration:** `~/.config/ext-debug/config.json` or `./ext-debug.json`
+
+```json
+{
+  "connections": {
+    "local": { "port": 9223, "extension_id": "dbokmlpefliilbjldladbimlcfgbolhk" },
+    "chromebook": { "port": 9222, "extension_id": "dbokmlpefliilbjldladbimlcfgbolhk" }
+  },
+  "default": "local"
+}
+```
+
+**Usage:**
 
 ```
 # Always start with status check
@@ -140,9 +184,47 @@ ext_evaluate expression="ioBridge.getState()"
 
 # Check storage
 ext_get_storage keys=["settings", "torrents"]
+
+# Screenshot extension page
+ext_screenshot
 ```
 
 Default extension ID is `dbokmlpefliilbjldladbimlcfgbolhk` (unpacked from extension/dist/).
+
+### chromeos - ChromeOS Device Control
+
+**Location:** `chromeos-testbed/chromeos-mcp/mcp_chromeos.py`
+
+Control ChromeOS devices via SSH. Requires the client script running on the Chromebook.
+
+**Tools:**
+- `screenshot` - Capture full ChromeOS screen with OCR
+- `tap` - Tap at screen coordinates
+- `swipe` - Swipe gesture
+- `type_text` - Type text (keyboard layout-aware)
+- `press_keys` - Press key combination by Linux keycodes
+- `shortcut` - Execute keyboard shortcut with modifier remapping
+- `chromeos_info` - Get device info (resolution, keyboard layout)
+
+**Prerequisites:**
+1. SSH access to Chromebook configured (host: `chromebook` or `chromeroot`)
+2. Client script deployed: `chromeos-testbed/chromeos-mcp/client.py` → `/mnt/stateful_partition/c2/client.py`
+3. Client running on VT2 with root access
+
+**Usage:**
+
+```
+# Take screenshot of ChromeOS desktop
+screenshot
+
+# Interact with the device
+tap x=800 y=600
+type_text text="hello world"
+shortcut keys="ctrl+t"  # New tab
+
+# Get device info
+chromeos_info
+```
 
 ## ChromeOS Development
 
