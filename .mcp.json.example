@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "ext-debug": {
+      "type": "stdio",
+      "command": "/Users/YOUR_USERNAME/.local/bin/uv",
+      "args": [
+        "run",
+        "--directory",
+        "/Users/YOUR_USERNAME/code/jstorrent/extension/tools",
+        "python",
+        "mcp_extension_debug.py"
+      ],
+      "env": {}
+    },
+    "chromeos": {
+      "type": "stdio",
+      "command": "/Users/YOUR_USERNAME/.local/bin/uv",
+      "args": [
+        "run",
+        "--directory",
+        "/Users/YOUR_USERNAME/code/jstorrent/chromeos-testbed/chromeos-mcp",
+        "python",
+        "mcp_chromeos.py"
+      ],
+      "env": {}
+    }
+  }
+}

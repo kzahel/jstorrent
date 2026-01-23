@@ -123,19 +123,26 @@ See `android/scripts/` for more: `emu-logs.sh`, `emu-install.sh`, `dev` commands
 
 This project has two MCP servers for debugging and controlling Chrome/ChromeOS.
 
-### Registration
+### Setup
 
-Register the MCP servers with Claude Code (project-scoped via `--scope project`):
+To enable MCP tools, create `.mcp.json` in the project root (gitignored). Copy from the example and update paths:
 
 ```bash
-# Extension debugging via Chrome DevTools Protocol
-claude mcp add ext-debug "uv run --directory $(pwd)/extension/tools python mcp_extension_debug.py" --scope project
-
-# ChromeOS device control (screenshots, input injection)
-claude mcp add chromeos "uv run --directory $(pwd)/chromeos-testbed/chromeos-mcp python mcp_chromeos.py" --scope project
+cp .mcp.json.example .mcp.json
+# Edit .mcp.json to use your actual paths (find uv path with: which uv)
 ```
 
-This creates `.mcp.json` in the project root. Restart Claude Code session after registering.
+**Important:** Use absolute paths and the full path to `uv` (the SDK spawns processes without a shell, so PATH isn't available).
+
+Also add to your global Claude settings (`~/.claude/settings.json`):
+
+```json
+{
+  "enableAllProjectMcpServers": true
+}
+```
+
+Restart Claude Code session after setup.
 
 ### ext-debug - Extension Debugging (CDP)
 
