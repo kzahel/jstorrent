@@ -202,37 +202,50 @@ Default extension ID is `dbokmlpefliilbjldladbimlcfgbolhk` (unpacked from extens
 
 **Location:** `chromeos-testbed/chromeos-mcp/mcp_chromeos.py`
 
-Control ChromeOS devices via SSH. Requires the client script running on the Chromebook.
+Control ChromeOS devices via SSH. Raw touchscreen and keyboard input via evdev.
 
 **Tools:**
 - `screenshot` - Capture full ChromeOS screen
-- `tap` - Tap at coordinates (passed directly to touchscreen)
-- `swipe` - Swipe gesture (passed directly to touchscreen)
-- `type_text` - Type text (keyboard layout-aware)
+- `tap` - Tap at raw touchscreen coordinates
+- `swipe` - Swipe between raw touchscreen coordinates
+- `type_text` - Type text (keyboard layout-aware, handles Dvorak)
 - `press_keys` - Press key combination by Linux keycodes
-- `shortcut` - Execute keyboard shortcut with modifier remapping
-- `chromeos_info` - Get device info (touchscreen range, keyboard layout)
+- `shortcut` - Keyboard shortcut with modifier remapping (handles Ctrl↔Search swap)
+- `chromeos_info` - Get touchscreen range, keyboard layout, modifier remappings
+- `reload_keyboard_config` - Reload keyboard settings if changed
 
 **Prerequisites:**
-1. SSH access to Chromebook configured (host: `chromebook` or `chromeroot`)
-2. Client script deployed: `chromeos-testbed/chromeos-mcp/client.py` → `/mnt/stateful_partition/c2/client.py`
-3. Client running on VT2 with root access
+1. SSH access to Chromebook configured (host: `chromeroot`)
+2. Client auto-deploys to `/mnt/stateful_partition/c2/client.py`
 
-**Coordinate System:**
+**Coordinate System - Visual Percentage Estimation:**
 
-Use `chromeos_info` to get `touch_max`: [max_x, max_y] - the touchscreen coordinate range.
+Use visual estimation to tap on UI elements. This approach is more reliable than pixel calculations.
 
-Screenshot is scaled down for display. Info text reports original and displayed dimensions.
+1. Take a `screenshot` to see the current UI
+2. Visually estimate the target element's position as a percentage:
+   - X: 0% = left edge, 100% = right edge
+   - Y: 0% = top edge, 100% = bottom edge
+3. Get `touch_max` from `chromeos_info`: [max_x, max_y]
+4. Convert percentages to touch coordinates:
+   - `touch_x = percent_x * max_x / 100`
+   - `touch_y = percent_y * max_y / 100`
+5. Call `tap(touch_x, touch_y)`
 
 **Usage:**
 
 ```
-chromeos_info   # Get touchscreen range
-screenshot      # Capture screen
-tap x=1644 y=834   # You compute the coordinates
+chromeos_info   # Get touch_max (e.g., [3492, 1968])
+screenshot      # View the UI
+
+# Example: Button appears at roughly 75% across, 85% down
+# touch_x = 75 * 3492 / 100 = 2619
+# touch_y = 85 * 1968 / 100 = 1673
+tap x=2619 y=1673
 
 type_text text="hello world"
-shortcut key="t" modifiers=["ctrl"]
+shortcut key="t" modifiers=["ctrl"]  # Handles modifier remapping
+press_keys keys=[29, 20]  # Raw keycodes (no remapping)
 ```
 
 ## ChromeOS Development

@@ -1,547 +1,266 @@
 #!/usr/bin/env python3
 """
-ChromeOS C2 MCP Server
-Exposes ChromeOS control tools to Claude via MCP protocol.
+ChromeOS MCP Server - Simplified
+Exposes raw touchscreen and keyboard input to Claude.
 
-Usage:
-    python3 mcp_chromeos.py
-
-Register with Claude:
-    claude mcp add chromeos python3 /path/to/mcp_chromeos.py
+Coordinates are raw touchscreen values. Use chromeos_info to get touch_max.
+Screenshot returns the image - Claude figures out coordinates from there.
 """
 
 import asyncio
 import json
 import base64
-import aiohttp
 from io import BytesIO
-from typing import Any, Optional
 
 from PIL import Image
-import pytesseract
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, ImageContent, Tool
 
-try:
-    import websockets
-except ImportError:
-    websockets = None
-
-# SSH connection details
 SSH_HOST = "chromeroot"
 CLIENT_PATH = "/mnt/stateful_partition/c2/client.py"
-SSH_ENV = "LD_LIBRARY_PATH=/usr/local/lib64"
-
-# CDP connection details (via SSH tunnel)
-CDP_HOST = "localhost"
-CDP_PORT = 9222
 
 server = Server("chromeos")
 
 
-class ChromeOSConnection:
-    """Manages SSH subprocess to Chromebook."""
+class Connection:
+    """SSH connection to Chromebook."""
 
     def __init__(self):
         self.process = None
         self._lock = asyncio.Lock()
 
-    async def connect(self):
-        """Start SSH subprocess."""
-        if self.process is not None and self.process.returncode is None:
-            return  # Already connected
+    async def _ensure_client(self):
+        """Deploy client.py if needed."""
+        from pathlib import Path
+        local = Path(__file__).parent / "client.py"
 
+        proc = await asyncio.create_subprocess_exec(
+            "ssh", SSH_HOST, f"mkdir -p /mnt/stateful_partition/c2",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        await proc.wait()
+
+        proc = await asyncio.create_subprocess_exec(
+            "scp", str(local), f"{SSH_HOST}:{CLIENT_PATH}",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        await proc.wait()
+
+    async def connect(self):
+        if self.process and self.process.returncode is None:
+            return
+        await self._ensure_client()
         self.process = await asyncio.create_subprocess_exec(
-            "ssh", SSH_HOST,
-            f"{SSH_ENV} python3 {CLIENT_PATH}",
+            "ssh", SSH_HOST, f"LD_LIBRARY_PATH=/usr/local/lib64 python3 {CLIENT_PATH}",
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            limit=50 * 1024 * 1024,  # 50MB buffer for large screenshots
-        )
+            limit=50 * 1024 * 1024)
 
-    async def send_command(self, cmd: dict, timeout: float = 30) -> dict:
-        """Send command, wait for response."""
+    async def send(self, cmd: dict, timeout: float = 30) -> dict:
         async with self._lock:
-            if self.process is None or self.process.returncode is not None:
+            if not self.process or self.process.returncode is not None:
                 await self.connect()
-
-            line = json.dumps(cmd) + "\n"
-            self.process.stdin.write(line.encode())
+            self.process.stdin.write((json.dumps(cmd) + "\n").encode())
             await self.process.stdin.drain()
-
             try:
-                response_line = await asyncio.wait_for(
-                    self.process.stdout.readline(),
-                    timeout=timeout
-                )
-                if not response_line:
-                    # Connection closed, try to reconnect
-                    self.process = None
-                    return {"error": "Connection closed"}
-                return json.loads(response_line.decode())
+                line = await asyncio.wait_for(self.process.stdout.readline(), timeout)
+                return json.loads(line.decode()) if line else {"error": "Connection closed"}
             except asyncio.TimeoutError:
-                return {"error": "Command timed out"}
-            except json.JSONDecodeError as e:
-                return {"error": f"Invalid response: {e}"}
-
-    async def close(self):
-        """Close SSH connection."""
-        if self.process:
-            self.process.terminate()
-            await self.process.wait()
-            self.process = None
+                return {"error": "Timeout"}
 
 
-# Global connection instance
-connection = ChromeOSConnection()
-
-# Track last screenshot dimensions for reference
-class ScreenState:
-    def __init__(self):
-        self.last_screenshot_width = None
-        self.last_screenshot_height = None
-
-screen_state = ScreenState()
-
-
-class CDPInput:
-    """Handles input injection via Chrome DevTools Protocol."""
-
-    def __init__(self):
-        self._msg_id = 0
-
-    async def _get_active_page_ws_url(self) -> Optional[str]:
-        """Get the WebSocket debugger URL for the active/focused page."""
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"http://{CDP_HOST}:{CDP_PORT}/json") as resp:
-                    if resp.status != 200:
-                        return None
-                    targets = await resp.json()
-
-            # Find a suitable page target (prefer non-extension pages)
-            for target in targets:
-                if target.get("type") == "page":
-                    url = target.get("url", "")
-                    # Skip extension and system pages
-                    if not url.startswith("chrome-extension://") and not url.startswith("chrome://"):
-                        return target.get("webSocketDebuggerUrl")
-
-            # Fall back to any page
-            for target in targets:
-                if target.get("type") == "page":
-                    return target.get("webSocketDebuggerUrl")
-
-            return None
-        except Exception:
-            return None
-
-    async def tap(self, x: int, y: int) -> dict:
-        """Send a tap/click at the given coordinates via CDP."""
-        if websockets is None:
-            return {"error": "websockets module not available"}
-
-        ws_url = await self._get_active_page_ws_url()
-        if not ws_url:
-            return {"error": "No CDP page target available"}
-
-        try:
-            async with websockets.connect(ws_url) as ws:
-                self._msg_id += 1
-                # Mouse pressed
-                await ws.send(json.dumps({
-                    "id": self._msg_id,
-                    "method": "Input.dispatchMouseEvent",
-                    "params": {
-                        "type": "mousePressed",
-                        "x": x,
-                        "y": y,
-                        "button": "left",
-                        "clickCount": 1
-                    }
-                }))
-                await ws.recv()
-
-                await asyncio.sleep(0.05)
-
-                self._msg_id += 1
-                # Mouse released
-                await ws.send(json.dumps({
-                    "id": self._msg_id,
-                    "method": "Input.dispatchMouseEvent",
-                    "params": {
-                        "type": "mouseReleased",
-                        "x": x,
-                        "y": y,
-                        "button": "left",
-                        "clickCount": 1
-                    }
-                }))
-                await ws.recv()
-
-            return {"ok": True, "method": "cdp"}
-        except Exception as e:
-            return {"error": f"CDP tap failed: {e}"}
-
-    async def swipe(self, x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> dict:
-        """Send a swipe/drag gesture via CDP."""
-        if websockets is None:
-            return {"error": "websockets module not available"}
-
-        ws_url = await self._get_active_page_ws_url()
-        if not ws_url:
-            return {"error": "No CDP page target available"}
-
-        try:
-            async with websockets.connect(ws_url) as ws:
-                steps = 20
-                delay = (duration_ms / 1000) / steps
-
-                self._msg_id += 1
-                # Start drag
-                await ws.send(json.dumps({
-                    "id": self._msg_id,
-                    "method": "Input.dispatchMouseEvent",
-                    "params": {
-                        "type": "mousePressed",
-                        "x": x1,
-                        "y": y1,
-                        "button": "left",
-                        "clickCount": 1
-                    }
-                }))
-                await ws.recv()
-
-                # Move through points
-                for i in range(1, steps + 1):
-                    t = i / steps
-                    x = int(x1 + (x2 - x1) * t)
-                    y = int(y1 + (y2 - y1) * t)
-
-                    self._msg_id += 1
-                    await ws.send(json.dumps({
-                        "id": self._msg_id,
-                        "method": "Input.dispatchMouseEvent",
-                        "params": {
-                            "type": "mouseMoved",
-                            "x": x,
-                            "y": y,
-                            "button": "left"
-                        }
-                    }))
-                    await ws.recv()
-                    await asyncio.sleep(delay)
-
-                self._msg_id += 1
-                # Release
-                await ws.send(json.dumps({
-                    "id": self._msg_id,
-                    "method": "Input.dispatchMouseEvent",
-                    "params": {
-                        "type": "mouseReleased",
-                        "x": x2,
-                        "y": y2,
-                        "button": "left",
-                        "clickCount": 1
-                    }
-                }))
-                await ws.recv()
-
-            return {"ok": True, "method": "cdp"}
-        except Exception as e:
-            return {"error": f"CDP swipe failed: {e}"}
-
-
-# Global CDP input instance
-cdp_input = CDPInput()
+conn = Connection()
 
 
 @server.list_tools()
 async def list_tools() -> list[Tool]:
-    """List available tools."""
     return [
         Tool(
             name="screenshot",
-            description="Capture ChromeOS screenshot. Returns the image.",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-            },
+            description="""Capture ChromeOS screenshot. Returns the image.
+
+To tap on UI elements, use visual percentage estimation:
+1. Take a screenshot and identify the target element
+2. Estimate its position as a percentage of the screen (0-100%):
+   - X: 0% = left edge, 100% = right edge
+   - Y: 0% = top edge, 100% = bottom edge
+3. Get touch_max from chromeos_info: [max_x, max_y]
+4. Convert: touch_x = percent_x * max_x / 100, touch_y = percent_y * max_y / 100
+5. Call tap with the calculated coordinates
+
+Example: Element appears at roughly 75% across and 85% down the screen.
+With touch_max [3492, 1968]: tap(x=2619, y=1673)""",
+            inputSchema={"type": "object", "properties": {}},
         ),
         Tool(
             name="tap",
-            description="""Tap at coordinates on ChromeOS.
+            description="""Tap at raw touchscreen coordinates.
 
-Coordinates are passed directly to the touchscreen.
-Use chromeos_info to get touchscreen range (touch_max).""",
+Workflow:
+1. Take a screenshot to see the UI
+2. Visually estimate target position as percentage (0-100% for X and Y)
+3. Get touch_max from chromeos_info
+4. Convert: x = percent_x * touch_max_x / 100, y = percent_y * touch_max_y / 100
+
+Example: To tap a button at 50% X, 30% Y with touch_max [3492, 1968]:
+x = 50 * 3492 / 100 = 1746, y = 30 * 1968 / 100 = 590""",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "x": {"type": "integer", "description": "X coordinate"},
-                    "y": {"type": "integer", "description": "Y coordinate"},
+                    "x": {"type": "integer", "description": "X coordinate (raw touchscreen)"},
+                    "y": {"type": "integer", "description": "Y coordinate (raw touchscreen)"},
                 },
                 "required": ["x", "y"],
             },
         ),
         Tool(
             name="swipe",
-            description="""Swipe gesture on ChromeOS touchscreen.
+            description="""Swipe between raw touchscreen coordinates.
 
-Coordinates are passed directly to the touchscreen.
-Use chromeos_info to get touchscreen range (touch_max).""",
+Use the same percentage-based estimation as tap:
+1. Estimate start and end positions as percentages
+2. Convert to touch coordinates using touch_max from chromeos_info""",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "x1": {"type": "integer", "description": "Start X coordinate"},
-                    "y1": {"type": "integer", "description": "Start Y coordinate"},
-                    "x2": {"type": "integer", "description": "End X coordinate"},
-                    "y2": {"type": "integer", "description": "End Y coordinate"},
-                    "duration_ms": {"type": "integer", "description": "Duration in milliseconds (default 300)"},
+                    "x1": {"type": "integer"}, "y1": {"type": "integer"},
+                    "x2": {"type": "integer"}, "y2": {"type": "integer"},
+                    "duration_ms": {"type": "integer", "description": "Duration (default 300)"},
                 },
                 "required": ["x1", "y1", "x2", "y2"],
             },
         ),
         Tool(
             name="type_text",
-            description="Type text on ChromeOS keyboard.",
+            description="Type text on keyboard.",
             inputSchema={
                 "type": "object",
-                "properties": {
-                    "text": {"type": "string", "description": "Text to type"},
-                },
+                "properties": {"text": {"type": "string"}},
                 "required": ["text"],
             },
         ),
         Tool(
             name="press_keys",
-            description="""Press key combination by Linux keycodes.
-Common keys: Enter=28, Space=57, Tab=15, Esc=1, Backspace=14
-Modifiers: Ctrl=29, Alt=56, Shift=42, Search/Meta=125
-Function: F1=59, F2=60, F3=61, F4=62, F5=63
-Arrows: Left=105, Right=106, Up=103, Down=108
-Screenshot: Search+F5 = [125, 63]""",
+            description="Press key combination by Linux keycodes. Common: Enter=28, Space=57, Esc=1, Ctrl=29, Alt=56, Shift=42, Search=125, F1-F12=59-70, Arrows: Left=105, Right=106, Up=103, Down=108",
             inputSchema={
                 "type": "object",
-                "properties": {
-                    "keys": {
-                        "type": "array",
-                        "items": {"type": "integer"},
-                        "description": "Array of Linux keycodes to press simultaneously",
-                    },
-                },
+                "properties": {"keys": {"type": "array", "items": {"type": "integer"}}},
                 "required": ["keys"],
             },
         ),
         Tool(
-            name="chromeos_info",
-            description="""Get ChromeOS device info. Returns:
-- touch_max: [max_x, max_y] - touchscreen coordinate range (use for tap/swipe)
-- device: touchscreen device path
-- keyboard: layout and modifier remappings""",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-            },
-        ),
-        Tool(
             name="shortcut",
-            description="""Execute a keyboard shortcut with automatic modifier key remapping.
-This automatically handles the user's Ctrl↔Search swap and other modifier remappings.
-Use this instead of press_keys when you want logical modifier behavior (e.g., "Ctrl+T" for new tab).
-Modifiers: ctrl, alt, shift, search
-Keys: a-z, 0-9, f1-f12, and symbols""",
+            description="Execute keyboard shortcut with automatic modifier remapping (handles Ctrl↔Search swap). Modifiers: ctrl, alt, shift, search. Keys: a-z, 0-9, f1-f12.",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "modifiers": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Modifier keys: ctrl, alt, shift, search",
-                    },
-                    "key": {
-                        "type": "string",
-                        "description": "The main key (e.g., 't', 'f5', 'a')",
-                    },
+                    "modifiers": {"type": "array", "items": {"type": "string"}, "description": "Modifier keys"},
+                    "key": {"type": "string", "description": "Main key (e.g., 't', 'f5')"},
                 },
                 "required": ["key"],
             },
         ),
         Tool(
+            name="chromeos_info",
+            description="Get device info: touchscreen range, keyboard layout, modifier remappings.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
             name="reload_keyboard_config",
-            description="Reload keyboard configuration from ChromeOS preferences. Call this if user changes keyboard settings during the session.",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-            },
+            description="Reload keyboard config from ChromeOS preferences (call if settings changed).",
+            inputSchema={"type": "object", "properties": {}},
         ),
     ]
 
 
 @server.call_tool()
-async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | ImageContent]:
-    """Handle tool calls."""
+async def call_tool(name: str, arguments: dict) -> list[TextContent | ImageContent]:
 
     if name == "screenshot":
-        result = await connection.send_command({"cmd": "screenshot"}, timeout=15)
-
+        result = await conn.send({"cmd": "screenshot"}, timeout=15)
         if "error" in result:
             return [TextContent(type="text", text=f"Error: {result['error']}")]
 
-        image_data = result.get("image")
-        if not image_data:
-            return [TextContent(type="text", text="Error: No image data returned")]
+        img_data = base64.b64decode(result["image"])
+        img = Image.open(BytesIO(img_data))
+        orig_w, orig_h = img.width, img.height
 
-        # Get image and track original dimensions
-        image_bytes = base64.b64decode(image_data)
-        img = Image.open(BytesIO(image_bytes))
-        original_width = img.width
-        original_height = img.height
-        screen_state.last_screenshot_width = original_width
-        screen_state.last_screenshot_height = original_height
+        # Resize for display
+        if img.width > 1920:
+            ratio = 1920 / img.width
+            img = img.resize((1920, int(img.height * ratio)), Image.LANCZOS)
 
-        # Resize to max 1920px width for display (saves context)
-        max_width = 1920
-        if img.width > max_width:
-            ratio = max_width / img.width
-            new_size = (max_width, int(img.height * ratio))
-            img = img.resize(new_size, Image.LANCZOS)
-
-        # Run OCR
-        try:
-            ocr_text = pytesseract.image_to_string(img)
-        except Exception as e:
-            ocr_text = f"OCR failed: {e}"
-
-        # Re-encode resized image
-        output = BytesIO()
-        img.save(output, format="PNG", optimize=True)
-        resized_data = base64.b64encode(output.getvalue()).decode('ascii')
-
-        info = f"Screenshot: {original_width}x{original_height} (displayed at {img.width}x{img.height})"
+        out = BytesIO()
+        img.save(out, format="PNG", optimize=True)
+        resized = base64.b64encode(out.getvalue()).decode('ascii')
 
         return [
-            ImageContent(type="image", data=resized_data, mimeType="image/png"),
-            TextContent(type="text", text=f"{info}\nOCR Text:\n{ocr_text}"),
+            ImageContent(type="image", data=resized, mimeType="image/png"),
+            TextContent(type="text", text=f"Screenshot: {orig_w}x{orig_h} (displayed at {img.width}x{img.height})"),
         ]
 
     elif name == "tap":
-        x = arguments.get("x")
-        y = arguments.get("y")
-
-        # First check display state to decide method
-        info_result = await connection.send_command({"cmd": "info"})
-        display = info_result.get("display", {})
-        internal_enabled = display.get("internal_enabled", True)
-
-        # Use CDP when internal display is disabled (external monitor mode)
-        if not internal_enabled and websockets is not None:
-            result = await cdp_input.tap(x, y)
-            if "error" not in result:
-                return [TextContent(type="text", text=f"Tapped at ({x}, {y}) [method=CDP]")]
-            # Fall through to SSH method if CDP fails
-
-        # SSH-based method (works when internal display is enabled)
-        result = await connection.send_command({"cmd": "tap", "x": x, "y": y})
-
+        result = await conn.send({"cmd": "tap", "x": arguments["x"], "y": arguments["y"]})
         if "error" in result:
             return [TextContent(type="text", text=f"Error: {result['error']}")]
-        device_type = result.get("device_type", "unknown")
-        return [TextContent(type="text", text=f"Tapped at ({x}, {y}) [device={device_type}]")]
+        return [TextContent(type="text", text=f"Tapped at ({arguments['x']}, {arguments['y']})")]
 
     elif name == "swipe":
-        x1 = arguments.get("x1")
-        y1 = arguments.get("y1")
-        x2 = arguments.get("x2")
-        y2 = arguments.get("y2")
-        duration_ms = arguments.get("duration_ms", 300)
-
-        # First check display state to decide method
-        info_result = await connection.send_command({"cmd": "info"})
-        display = info_result.get("display", {})
-        internal_enabled = display.get("internal_enabled", True)
-
-        # Use CDP when internal display is disabled (external monitor mode)
-        if not internal_enabled and websockets is not None:
-            result = await cdp_input.swipe(x1, y1, x2, y2, duration_ms)
-            if "error" not in result:
-                return [TextContent(type="text", text=f"Swiped ({x1},{y1}) -> ({x2},{y2}) [method=CDP]")]
-            # Fall through to SSH method if CDP fails
-
-        # SSH-based method
-        result = await connection.send_command({
+        result = await conn.send({
             "cmd": "swipe",
-            "x1": x1, "y1": y1,
-            "x2": x2, "y2": y2,
-            "duration_ms": duration_ms
+            "x1": arguments["x1"], "y1": arguments["y1"],
+            "x2": arguments["x2"], "y2": arguments["y2"],
+            "duration_ms": arguments.get("duration_ms", 300)
         })
-
         if "error" in result:
             return [TextContent(type="text", text=f"Error: {result['error']}")]
-        return [TextContent(type="text", text=f"Swiped ({x1},{y1}) -> ({x2},{y2})")]
+        return [TextContent(type="text", text=f"Swiped ({arguments['x1']},{arguments['y1']}) -> ({arguments['x2']},{arguments['y2']})")]
 
     elif name == "type_text":
-        text = arguments.get("text", "")
-        result = await connection.send_command({"cmd": "type", "text": text})
-
+        result = await conn.send({"cmd": "type", "text": arguments["text"]})
         if "error" in result:
             return [TextContent(type="text", text=f"Error: {result['error']}")]
-        return [TextContent(type="text", text=f"Typed: {text}")]
+        return [TextContent(type="text", text=f"Typed: {arguments['text']}")]
 
     elif name == "press_keys":
-        keys = arguments.get("keys", [])
-        result = await connection.send_command({"cmd": "key", "keys": keys})
-
+        result = await conn.send({"cmd": "key", "keys": arguments["keys"]})
         if "error" in result:
             return [TextContent(type="text", text=f"Error: {result['error']}")]
-        return [TextContent(type="text", text=f"Pressed keys: {keys}")]
-
-    elif name == "chromeos_info":
-        result = await connection.send_command({"cmd": "info"})
-
-        if "error" in result:
-            return [TextContent(type="text", text=f"Error: {result['error']}")]
-
-        kb = result.get('keyboard', {})
-        info_text = f"""ChromeOS Device Info:
-  Touch max: {result.get('touch_max', ['?', '?'])}
-  Device: {result.get('device', '?')}
-  Keyboard layout: {kb.get('layout', 'qwerty')}
-  Modifier remappings: {kb.get('modifier_remappings', {})}"""
-        return [TextContent(type="text", text=info_text)]
+        return [TextContent(type="text", text=f"Pressed keys: {arguments['keys']}")]
 
     elif name == "shortcut":
-        modifiers = arguments.get("modifiers", [])
-        key = arguments.get("key", "")
-        result = await connection.send_command({
+        result = await conn.send({
             "cmd": "shortcut",
-            "modifiers": modifiers,
-            "key": key
+            "modifiers": arguments.get("modifiers", []),
+            "key": arguments["key"]
         })
-
         if "error" in result:
             return [TextContent(type="text", text=f"Error: {result['error']}")]
+        mods = "+".join(arguments.get("modifiers", [])) + "+" if arguments.get("modifiers") else ""
+        return [TextContent(type="text", text=f"Shortcut: {mods}{arguments['key']} (keycodes: {result.get('keycodes', [])})")]
 
-        keycodes = result.get("keycodes_sent", [])
-        mod_str = "+".join(modifiers) + "+" if modifiers else ""
-        return [TextContent(type="text", text=f"Executed shortcut: {mod_str}{key} (keycodes: {keycodes})")]
+    elif name == "chromeos_info":
+        result = await conn.send({"cmd": "info"})
+        if "error" in result:
+            return [TextContent(type="text", text=f"Error: {result['error']}")]
+        kb = result.get('keyboard', {})
+        info = f"""Device: {result['device']}
+Touch max: {result['touch_max']}
+Keyboard layout: {kb.get('layout', 'qwerty')}
+Modifier remappings: {kb.get('modifier_remappings', {})}"""
+        return [TextContent(type="text", text=info)]
 
     elif name == "reload_keyboard_config":
-        result = await connection.send_command({"cmd": "reload_config"})
-
+        result = await conn.send({"cmd": "reload_config"})
         if "error" in result:
             return [TextContent(type="text", text=f"Error: {result['error']}")]
-
         kb = result.get('keyboard', {})
-        return [TextContent(type="text", text=f"Keyboard config reloaded: layout={kb.get('layout')}, remappings={kb.get('modifier_remappings', {})}")]
+        return [TextContent(type="text", text=f"Reloaded: layout={kb.get('layout')}, remappings={kb.get('modifier_remappings', {})}")]
 
-    else:
-        return [TextContent(type="text", text=f"Unknown tool: {name}")]
+    return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
 
 async def main():
-    """Run the MCP server."""
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream, server.create_initialization_options())
 
