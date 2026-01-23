@@ -7,6 +7,7 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.MulticastSocket
 import java.net.SocketTimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Internal handler for a single UDP socket.
@@ -30,6 +31,7 @@ internal class UdpConnection(
     private val sendQueue = Channel<Triple<String, Int, ByteArray>>(100)
     private var senderJob: Job? = null
     private var receiverJob: Job? = null
+    private val closeCalled = AtomicBoolean(false)
 
     companion object {
         private const val RECEIVE_BUFFER_SIZE = 65535 // Max UDP packet size
@@ -85,11 +87,23 @@ internal class UdpConnection(
         try {
             socket.close()
         } catch (_: Exception) {}
-        // Cancel the receiver job (will run finally block with onClose)
+        // Cancel the receiver job
         receiverJob?.cancel()
-        // Wait for receiver to finish so onClose callback fires before we return
+        // Wait for receiver to finish
         runBlocking {
             receiverJob?.join()
+        }
+        // Always fire onClose callback - the finally block in the receiver may not
+        // run if the job was cancelled before it started executing
+        fireOnClose(false, 0)
+    }
+
+    /**
+     * Fire onClose callback exactly once, regardless of how many times this is called.
+     */
+    private fun fireOnClose(hadError: Boolean, errorCode: Int) {
+        if (closeCalled.compareAndSet(false, true)) {
+            onClose(hadError, errorCode)
         }
     }
 
@@ -117,7 +131,7 @@ internal class UdpConnection(
             } catch (_: Exception) {
                 // Socket closed or error
             } finally {
-                onClose(false, 0)
+                fireOnClose(false, 0)
             }
         }
     }
