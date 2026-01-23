@@ -60,6 +60,16 @@ const STORAGE_KEY_HAS_CONNECTED = 'daemon:hasConnectedSuccessfully'
 const STORAGE_KEY_LAST_CONNECTED = 'daemon:lastConnectedTime'
 
 // ============================================================================
+// Host Constants
+// ============================================================================
+
+/** Host for desktop (macOS/Windows/Linux) native messaging daemon */
+const DESKTOP_HOST = '127.0.0.1'
+
+/** Host for ChromeOS Android app daemon (Crostini container IP) */
+const CHROMEOS_HOST = '100.115.92.2'
+
+// ============================================================================
 // DaemonBridge Class
 // ============================================================================
 
@@ -307,7 +317,7 @@ export class DaemonBridge {
     version: string | null
   }> {
     const headers = await this.buildHeaders()
-    const response = await fetch(`http://100.115.92.2:${port}/status`, {
+    const response = await fetch(`http://${CHROMEOS_HOST}:${port}/status`, {
       method: 'POST',
       headers,
     })
@@ -325,7 +335,7 @@ export class DaemonBridge {
     headers['Content-Type'] = 'application/json'
 
     try {
-      const response = await fetch(`http://100.115.92.2:${port}/pair`, {
+      const response = await fetch(`http://${CHROMEOS_HOST}:${port}/pair`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ token }),
@@ -351,7 +361,7 @@ export class DaemonBridge {
     const headers = await this.buildHeaders(true)
 
     // Fetch roots with auth
-    const rootsResponse = await fetch(`http://100.115.92.2:${port}/roots`, { headers })
+    const rootsResponse = await fetch(`http://${CHROMEOS_HOST}:${port}/roots`, { headers })
     const rootsData = (await rootsResponse.json()) as {
       roots: Array<{
         key: string
@@ -381,13 +391,13 @@ export class DaemonBridge {
 
     this.updateState({
       status: 'connected',
-      daemonInfo: { port, token, version: version ?? 'unknown', roots, host: '100.115.92.2' },
+      daemonInfo: { port, token, version: version ?? 'unknown', roots, host: CHROMEOS_HOST },
       roots,
       lastError: null,
     })
 
     await chrome.storage.local.set({ [STORAGE_KEY_HAS_CONNECTED]: true })
-    this.startHealthCheck(port)
+    this.startHealthCheck(CHROMEOS_HOST, port)
     console.log('[DaemonBridge] Connected successfully')
   }
 
@@ -564,9 +574,11 @@ export class DaemonBridge {
               token: payload.token,
               version: payload.version ?? 'unknown',
               roots: payload.roots || [],
+              host: DESKTOP_HOST,
             },
             roots: payload.roots || [],
           })
+          this.startHealthCheck(DESKTOP_HOST, payload.port)
 
           resolve()
         } else if (resolved) {
@@ -712,7 +724,7 @@ export class DaemonBridge {
     const installId = await getOrCreateInstallId()
 
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(`ws://100.115.92.2:${port}/control`)
+      const ws = new WebSocket(`ws://${CHROMEOS_HOST}:${port}/control`)
       ws.binaryType = 'arraybuffer'
 
       const timeout = setTimeout(() => {
@@ -863,10 +875,13 @@ export class DaemonBridge {
 
     try {
       const headers = await this.buildHeaders(true)
-      const response = await fetch(`http://100.115.92.2:${port}/roots/${encodeURIComponent(key)}`, {
-        method: 'DELETE',
-        headers,
-      })
+      const response = await fetch(
+        `http://${CHROMEOS_HOST}:${port}/roots/${encodeURIComponent(key)}`,
+        {
+          method: 'DELETE',
+          headers,
+        },
+      )
 
       if (response.ok) {
         // Root will be updated via ROOTS_CHANGED WebSocket message
@@ -907,7 +922,7 @@ export class DaemonBridge {
         setTimeout(() => controller.abort(), 2000)
 
         // Use /health endpoint which doesn't require headers
-        const response = await fetch(`http://100.115.92.2:${port}/health`, {
+        const response = await fetch(`http://${CHROMEOS_HOST}:${port}/health`, {
           signal: controller.signal,
         })
 
@@ -932,10 +947,10 @@ export class DaemonBridge {
     return token
   }
 
-  private startHealthCheck(port: number): void {
+  private startHealthCheck(host: string, port: number): void {
     this.healthCheckInterval = setInterval(async () => {
       try {
-        const response = await fetch(`http://100.115.92.2:${port}/health`)
+        const response = await fetch(`http://${host}:${port}/health`)
         if (!response.ok) throw new Error('Health check failed')
       } catch {
         this.handleDisconnect()
