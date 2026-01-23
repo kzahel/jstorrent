@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">JSTorrent</string>
+    <string name="file_handler_standalone">JSTorrent (Standalone)</string>
+    <string name="file_handler_extension">JSTorrent (Extension)</string>
 </resources>

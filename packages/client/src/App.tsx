@@ -295,6 +295,7 @@ function App() {
                   }}
                   onOpenSettings={() => setSettingsOpen(true)}
                   anchorRef={indicatorRef}
+                  onFetchStats={getStats}
                 />
               ) : (
                 <SystemBridgePanel

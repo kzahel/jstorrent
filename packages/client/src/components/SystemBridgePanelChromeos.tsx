@@ -1,9 +1,10 @@
 import type { RefObject } from 'react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type {
   BootstrapState,
   BootstrapProblem,
 } from '../../../../extension/src/lib/chromeos-bootstrap'
+import type { DaemonStats } from './SystemBridgePanel'
 
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.jstorrent.app'
 
@@ -19,6 +20,8 @@ export interface SystemBridgePanelChromeosProps {
   onAddFolder: () => void
   onOpenSettings?: () => void
   anchorRef?: RefObject<HTMLElement | null>
+  /** Optional callback to fetch daemon stats */
+  onFetchStats?: () => Promise<DaemonStats | null>
 }
 
 interface StateDisplay {
@@ -126,6 +129,7 @@ export function SystemBridgePanelChromeos({
   onAddFolder,
   onOpenSettings,
   anchorRef,
+  onFetchStats,
 }: SystemBridgePanelChromeosProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const display = getStateDisplay(state.phase, state.problem, hasEverConnected)
@@ -217,6 +221,7 @@ export function SystemBridgePanelChromeos({
             onAddFolder={onAddFolder}
             onOpenSettings={onOpenSettings}
             onClose={onClose}
+            onFetchStats={onFetchStats}
           />
         ) : (
           <DisconnectedContent
@@ -325,6 +330,7 @@ function ConnectedContent({
   onAddFolder,
   onOpenSettings,
   onClose,
+  onFetchStats,
 }: {
   port: number
   daemonVersion?: string
@@ -333,7 +339,70 @@ function ConnectedContent({
   onAddFolder: () => void
   onOpenSettings?: () => void
   onClose: () => void
+  onFetchStats?: () => Promise<DaemonStats | null>
 }) {
+  const [showStats, setShowStats] = useState(false)
+  const [stats, setStats] = useState<DaemonStats | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
+
+  // Toggle stats visibility
+  const handleToggleStats = () => {
+    setShowStats((prev) => !prev)
+  }
+
+  // Poll stats while expanded
+  useEffect(() => {
+    if (!showStats || !onFetchStats) return
+
+    let cancelled = false
+    let isFirstFetch = true
+
+    const fetchStats = async () => {
+      if (cancelled) return
+      if (isFirstFetch) {
+        setStatsLoading(true)
+        isFirstFetch = false
+      }
+      try {
+        const result = await onFetchStats()
+        if (!cancelled) {
+          setStats(result)
+          setStatsLoading(false)
+        }
+      } catch {
+        if (!cancelled) setStatsLoading(false)
+      }
+    }
+
+    // Fetch immediately
+    fetchStats()
+
+    // Poll every 2 seconds
+    const interval = setInterval(fetchStats, 2000)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [showStats, onFetchStats])
+
+  // Format bytes to human-readable
+  const formatBytes = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+  }
+
+  // Format uptime to human-readable
+  const formatUptime = (seconds: number): string => {
+    if (seconds < 60) return `${seconds}s`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    return `${hours}h ${minutes}m`
+  }
+
   return (
     <>
       <div style={{ marginBottom: '16px' }}>
@@ -382,6 +451,86 @@ function ConnectedContent({
           )}
         </div>
       </div>
+
+      {/* Stats section - only show if onFetchStats is provided */}
+      {onFetchStats && (
+        <div
+          style={{
+            marginTop: '16px',
+            borderTop: '1px solid var(--border-color, #e5e7eb)',
+            paddingTop: '12px',
+          }}
+        >
+          <button
+            onClick={handleToggleStats}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: '13px',
+              cursor: 'pointer',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <span
+              style={{
+                transform: showStats ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: 'transform 0.15s',
+              }}
+            >
+              &#x25B6;
+            </span>
+            Debug Stats
+          </button>
+
+          {showStats && (
+            <div
+              style={{
+                marginTop: '8px',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {statsLoading ? (
+                <div>Loading...</div>
+              ) : stats ? (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'auto auto',
+                    gap: '2px 12px',
+                  }}
+                >
+                  <span>Uptime:</span>
+                  <span>{formatUptime(stats.uptime_secs)}</span>
+                  <span>TCP Sockets:</span>
+                  <span>{stats.tcp_sockets}</span>
+                  <span>Pending TCP:</span>
+                  <span>{stats.pending_tcp}</span>
+                  <span>Pending Connects:</span>
+                  <span>{stats.pending_connects}</span>
+                  <span>UDP Sockets:</span>
+                  <span>{stats.udp_sockets}</span>
+                  <span>TCP Servers:</span>
+                  <span>{stats.tcp_servers}</span>
+                  <span>WS Connections:</span>
+                  <span>{stats.ws_connections}</span>
+                  <span>Bytes Sent:</span>
+                  <span>{formatBytes(stats.bytes_sent)}</span>
+                  <span>Bytes Received:</span>
+                  <span>{formatBytes(stats.bytes_received)}</span>
+                </div>
+              ) : (
+                <div>Unable to fetch stats</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </>
   )
 }

@@ -57,6 +57,12 @@ class IoWebSocketHandler(
     private val tcpListenRequests = ConcurrentHashMap<Int, Int>()  // serverId → requestId
     private val udpBindRequests = ConcurrentHashMap<Int, Int>()    // socketId → requestId
 
+    // Track socket states for global stats
+    private val activatedTcpSockets = ConcurrentHashMap.newKeySet<Int>() // socketIds that have been activated
+    private val pendingTcpSockets = ConcurrentHashMap.newKeySet<Int>()   // socketIds in pending (connected, not activated)
+    private val activeServerIds = ConcurrentHashMap.newKeySet<Int>()     // serverIds with active listeners
+    private val activeUdpSockets = ConcurrentHashMap.newKeySet<Int>()    // socketIds with active UDP bindings
+
     // Outgoing message queue - large buffer for high throughput
     // At 65KB frames, 2000 frames = ~130MB buffer capacity
     private val outgoing = Channel<ByteArray>(2000)
@@ -90,6 +96,9 @@ class IoWebSocketHandler(
     // ==========================================================================
 
     suspend fun run() {
+        // Track global WS connection
+        DaemonStats.wsConnections.incrementAndGet()
+
         // Start sender coroutine
         val senderJob = scope.launch {
             var sendCount = 0L
@@ -266,6 +275,9 @@ class IoWebSocketHandler(
         // Track requestId for response
         tcpConnectRequests[socketId] = requestId
 
+        // Track global pending connects
+        DaemonStats.pendingConnects.incrementAndGet()
+
         // Delegate to io-core
         tcpService.connect(socketId, hostname, port)
     }
@@ -278,9 +290,29 @@ class IoWebSocketHandler(
 
         Log.d(TAG, "TCP_SEND: socketId=$socketId, ${data.size} bytes")
 
+        // Track activation for global stats
+        trackTcpActivation(socketId)
+
         // Activate and send - TcpSocketService handles pending sockets
         tcpService.activate(socketId)
         tcpService.send(socketId, data)
+
+        // Track bytes sent
+        DaemonStats.bytesSent.addAndGet(data.size.toLong())
+    }
+
+    /**
+     * Track TCP socket activation for global stats.
+     * When a pending socket is activated, it transitions from pendingTcp to tcpSockets.
+     */
+    private fun trackTcpActivation(socketId: Int) {
+        if (activatedTcpSockets.add(socketId)) {
+            // First activation - transition from pending to active
+            if (pendingTcpSockets.remove(socketId)) {
+                DaemonStats.pendingTcp.decrementAndGet()
+            }
+            DaemonStats.tcpSockets.incrementAndGet()
+        }
     }
 
     private fun handleTcpClose(payload: ByteArray) {
@@ -334,6 +366,11 @@ class IoWebSocketHandler(
         val serverId = payload.getUIntLE(0)
         Log.d(TAG, "TCP_STOP_LISTEN: serverId=$serverId")
 
+        // Update global stats: TCP server stopped
+        if (activeServerIds.remove(serverId)) {
+            DaemonStats.tcpServers.decrementAndGet()
+        }
+
         tcpListenRequests.remove(serverId)
         tcpService.stopListen(serverId)
     }
@@ -367,6 +404,9 @@ class IoWebSocketHandler(
 
         val destAddr = String(payload, 8, addrLen)
         val data = payload.copyOfRange(8 + addrLen, payload.size)
+
+        // Track bytes sent
+        DaemonStats.bytesSent.addAndGet(data.size.toLong())
 
         udpManager.send(socketId, destAddr, destPort, data)
     }
@@ -407,6 +447,14 @@ class IoWebSocketHandler(
         val requestId = tcpConnectRequests.remove(socketId) ?: 0
         Log.i(TAG, "TCP_CONNECTED: socketId=$socketId, success=$success, errorCode=$errorCode")
 
+        // Update global stats: pending connect finished
+        DaemonStats.pendingConnects.decrementAndGet()
+        if (success) {
+            // Socket is connected but not yet activated (pending TCP)
+            pendingTcpSockets.add(socketId)
+            DaemonStats.pendingTcp.incrementAndGet()
+        }
+
         val response = socketId.toLEBytes() +
             byteArrayOf(if (success) 0 else 1) +
             errorCode.toLEBytes()
@@ -418,6 +466,9 @@ class IoWebSocketHandler(
     }
 
     override fun onTcpData(socketId: Int, data: ByteArray) {
+        // Track bytes received
+        DaemonStats.bytesReceived.addAndGet(data.size.toLong())
+
         // Build TCP_RECV frame with minimal allocations
         // Frame structure: [header:8][socketId:4][data:N]
         val frameSize = 8 + 4 + data.size
@@ -444,6 +495,13 @@ class IoWebSocketHandler(
     override fun onTcpClose(socketId: Int, hadError: Boolean, errorCode: Int) {
         Log.d(TAG, "TCP_CLOSE: socketId=$socketId, hadError=$hadError, errorCode=$errorCode")
 
+        // Update global stats: socket closed
+        if (activatedTcpSockets.remove(socketId)) {
+            DaemonStats.tcpSockets.decrementAndGet()
+        } else if (pendingTcpSockets.remove(socketId)) {
+            DaemonStats.pendingTcp.decrementAndGet()
+        }
+
         val payload = socketId.toLEBytes() +
             byteArrayOf(if (hadError) 1 else 0) +
             errorCode.toLEBytes()
@@ -459,6 +517,7 @@ class IoWebSocketHandler(
 
         // Auto-activate on success
         if (success) {
+            trackTcpActivation(socketId)
             tcpService.activate(socketId)
         }
     }
@@ -470,6 +529,11 @@ class IoWebSocketHandler(
     override fun onTcpListenResult(serverId: Int, success: Boolean, boundPort: Int, errorCode: Int) {
         val requestId = tcpListenRequests.remove(serverId) ?: 0
         Log.i(TAG, "TCP_LISTEN_RESULT: serverId=$serverId, success=$success, boundPort=$boundPort")
+
+        // Update global stats: TCP server listening
+        if (success && activeServerIds.add(serverId)) {
+            DaemonStats.tcpServers.incrementAndGet()
+        }
 
         val response = serverId.toLEBytes() +
             byteArrayOf(if (success) 0 else 1) +
@@ -497,6 +561,11 @@ class IoWebSocketHandler(
         val requestId = udpBindRequests.remove(socketId) ?: 0
         Log.i(TAG, "UDP_BOUND: socketId=$socketId, success=$success, boundPort=$boundPort")
 
+        // Update global stats: UDP socket bound
+        if (success && activeUdpSockets.add(socketId)) {
+            DaemonStats.udpSockets.incrementAndGet()
+        }
+
         val response = socketId.toLEBytes() +
             byteArrayOf(if (success) 0 else 1) +
             boundPort.toShort().toLEBytes() +
@@ -506,6 +575,9 @@ class IoWebSocketHandler(
 
     override fun onUdpMessage(socketId: Int, srcAddr: String, srcPort: Int, data: ByteArray) {
         Log.d(TAG, "UDP_RECV: socketId=$socketId, from=$srcAddr:$srcPort, ${data.size} bytes")
+
+        // Track bytes received
+        DaemonStats.bytesReceived.addAndGet(data.size.toLong())
 
         val addrBytes = srcAddr.toByteArray()
         val payloadSize = 4 + 2 + 2 + addrBytes.size + data.size
@@ -536,6 +608,11 @@ class IoWebSocketHandler(
 
     override fun onUdpClose(socketId: Int, hadError: Boolean, errorCode: Int) {
         Log.d(TAG, "UDP_CLOSE: socketId=$socketId, hadError=$hadError, errorCode=$errorCode")
+
+        // Update global stats: UDP socket closed
+        if (activeUdpSockets.remove(socketId)) {
+            DaemonStats.udpSockets.decrementAndGet()
+        }
 
         val payload = socketId.toLEBytes() +
             byteArrayOf(if (hadError) 1 else 0) +
@@ -593,6 +670,9 @@ class IoWebSocketHandler(
     // ==========================================================================
 
     private fun cleanup() {
+        // Update global stats
+        DaemonStats.wsConnections.decrementAndGet()
+
         // Log session statistics
         val duration = (System.currentTimeMillis() - connectTime) / 1000.0
         val recvMB = bytesReceived.get() / 1024.0 / 1024.0
@@ -607,6 +687,34 @@ class IoWebSocketHandler(
         tcpSecureRequests.clear()
         tcpListenRequests.clear()
         udpBindRequests.clear()
+
+        // Clean up global stats for any sockets not properly closed
+        val pendingConnects = tcpConnectRequests.size
+        if (pendingConnects > 0) {
+            DaemonStats.pendingConnects.addAndGet(-pendingConnects)
+        }
+        val pendingTcpCount = pendingTcpSockets.size
+        if (pendingTcpCount > 0) {
+            DaemonStats.pendingTcp.addAndGet(-pendingTcpCount)
+        }
+        val activeTcpCount = activatedTcpSockets.size
+        if (activeTcpCount > 0) {
+            DaemonStats.tcpSockets.addAndGet(-activeTcpCount)
+        }
+        val activeServerCount = activeServerIds.size
+        if (activeServerCount > 0) {
+            DaemonStats.tcpServers.addAndGet(-activeServerCount)
+        }
+        val activeUdpCount = activeUdpSockets.size
+        if (activeUdpCount > 0) {
+            DaemonStats.udpSockets.addAndGet(-activeUdpCount)
+        }
+
+        // Clear session tracking sets
+        pendingTcpSockets.clear()
+        activatedTcpSockets.clear()
+        activeServerIds.clear()
+        activeUdpSockets.clear()
 
         // Shutdown io-core managers
         tcpService.shutdown()

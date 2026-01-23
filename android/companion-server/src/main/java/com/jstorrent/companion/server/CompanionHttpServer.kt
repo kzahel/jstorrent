@@ -63,6 +63,19 @@ private data class NetworkInterfaceInfo(
     val prefixLength: Int
 )
 
+@Serializable
+private data class StatsResponse(
+    val tcp_sockets: Int,
+    val pending_connects: Int,
+    val pending_tcp: Int,
+    val udp_sockets: Int,
+    val tcp_servers: Int,
+    val ws_connections: Int,
+    val bytes_sent: Long,
+    val bytes_received: Long,
+    val uptime_secs: Long
+)
+
 private val json = Json {
     encodeDefaults = true
     ignoreUnknownKeys = true
@@ -98,6 +111,9 @@ class CompanionHttpServer(
             Log.w(TAG, "Server already running on port $actualPort")
             return
         }
+
+        // Reset stats when server starts
+        DaemonStats.reset()
 
         // Try preferred port, then fallback ports
         val portsToTry = generatePortSequence(preferredPort).take(10).toList()
@@ -172,6 +188,30 @@ class CompanionHttpServer(
             // Health check - no auth required
             get("/health") {
                 call.respondText("ok", ContentType.Text.Plain)
+            }
+
+            // Stats endpoint - returns daemon statistics
+            // Only requires auth token, not extension headers (consistent with desktop daemon)
+            get("/stats") {
+                Log.d(TAG, "GET /stats received")
+                requireAuth(deps.tokenStore) {
+                    Log.d(TAG, "GET /stats auth passed")
+                    val response = StatsResponse(
+                        tcp_sockets = DaemonStats.tcpSockets.get(),
+                        pending_connects = DaemonStats.pendingConnects.get(),
+                        pending_tcp = DaemonStats.pendingTcp.get(),
+                        udp_sockets = DaemonStats.udpSockets.get(),
+                        tcp_servers = DaemonStats.tcpServers.get(),
+                        ws_connections = DaemonStats.wsConnections.get(),
+                        bytes_sent = DaemonStats.bytesSent.get(),
+                        bytes_received = DaemonStats.bytesReceived.get(),
+                        uptime_secs = DaemonStats.uptimeSecs()
+                    )
+                    call.respondText(
+                        json.encodeToString(response),
+                        ContentType.Application.Json
+                    )
+                }
             }
 
             // Network interfaces - returns available network interfaces for UPnP subnet matching

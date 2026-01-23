@@ -88,21 +88,44 @@ export function SystemBridgePanel({
   // First time = never successfully connected before (persistent across restarts)
   const isFirstTime = !hasEverConnected
 
-  // Fetch stats when expanded
-  const handleToggleStats = useCallback(async () => {
-    if (showStats) {
-      setShowStats(false)
-      return
-    }
-    setShowStats(true)
-    if (onFetchStats) {
-      setStatsLoading(true)
+  // Toggle stats visibility
+  const handleToggleStats = useCallback(() => {
+    setShowStats((prev) => !prev)
+  }, [])
+
+  // Poll stats while expanded
+  useEffect(() => {
+    if (!showStats || !onFetchStats) return
+
+    let cancelled = false
+    let isFirstFetch = true
+
+    const fetchStats = async () => {
+      if (cancelled) return
+      if (isFirstFetch) {
+        setStatsLoading(true)
+        isFirstFetch = false
+      }
       try {
         const result = await onFetchStats()
-        setStats(result)
-      } finally {
-        setStatsLoading(false)
+        if (!cancelled) {
+          setStats(result)
+          setStatsLoading(false)
+        }
+      } catch {
+        if (!cancelled) setStatsLoading(false)
       }
+    }
+
+    // Fetch immediately
+    fetchStats()
+
+    // Poll every 2 seconds
+    const interval = setInterval(fetchStats, 2000)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
     }
   }, [showStats, onFetchStats])
 

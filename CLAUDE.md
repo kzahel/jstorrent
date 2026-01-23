@@ -1,5 +1,18 @@
 # Claude Instructions
 
+## Environment Setup
+
+Before running commands that require Java, Rust, or other development tools, source the shell profile:
+
+```bash
+source ~/.profile
+```
+
+This loads PATH entries for:
+- Java (required for Android/Gradle builds)
+- Rust/Cargo
+- Other development tools
+
 ## Git Configuration and Commit Attribution
 
 ### User Identity Management
