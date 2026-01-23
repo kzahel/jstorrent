@@ -174,7 +174,7 @@ jobs:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
           disable-animations: true
           working-directory: android
           script: |
@@ -312,7 +312,7 @@ jobs:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
           disable-animations: true
           working-directory: android
           script: |
