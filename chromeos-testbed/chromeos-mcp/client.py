@@ -53,9 +53,11 @@ ABS_MT_TRACKING_ID = 0x39
 ABS_MT_POSITION_X = 0x35
 ABS_MT_POSITION_Y = 0x36
 
-# Default screen resolution (can be overridden)
-SCREEN_WIDTH = 1600
-SCREEN_HEIGHT = 900
+# Default screen resolution for touchscreen coordinate mapping
+# This should be the PHYSICAL resolution, not logical (DPI-scaled) resolution
+# The touchscreen hardware maps to the physical display
+SCREEN_WIDTH = 3840
+SCREEN_HEIGHT = 2160
 
 # Paths
 SCREENSHOT_DIR = "/home/chronos/user/MyFiles/Downloads"
@@ -955,14 +957,13 @@ def cmd_info(msg):
     kb_config = KeyboardConfig.get_instance()
     kb_info = kb_config.get_info()
 
-    # Use detected resolution if available, otherwise use configured
-    if display_info['active_resolution']:
-        screen = list(display_info['active_resolution'])
-    else:
-        screen = [SCREEN_WIDTH, SCREEN_HEIGHT]
+    # Return the logical screen resolution used for touch coordinate conversion
+    # This is SCREEN_WIDTH/SCREEN_HEIGHT which accounts for display scaling
+    # (e.g., 1600x900 logical on a 3840x2160 physical display at 240% scaling)
+    screen = [SCREEN_WIDTH, SCREEN_HEIGHT]
 
     return {
-        "screen": screen,
+        "screen": screen,  # Logical resolution for coordinate mapping
         "touch_max": [ts_info['max_x'], ts_info['max_y']],
         "device": ts_info['device'],
         "device_type": ts_info.get('type', 'physical'),
@@ -970,7 +971,7 @@ def cmd_info(msg):
         "display": {
             "internal_enabled": display_info['internal_enabled'],
             "external_enabled": display_info['external_enabled'],
-            "active_resolution": display_info['active_resolution'],
+            "physical_resolution": display_info['active_resolution'],  # Renamed for clarity
         },
     }
 

@@ -97,6 +97,24 @@ class ChromeOSConnection:
 # Global connection instance
 connection = ChromeOSConnection()
 
+# Track screenshot scaling for coordinate mapping
+# Screenshots are captured at physical resolution - we scale back to physical for touch input
+class ScreenState:
+    def __init__(self):
+        self.screenshot_width = None  # Width after scaling for display
+        self.screenshot_height = None
+        self.physical_width = None  # Physical screen resolution (what touchscreen maps to)
+        self.physical_height = None
+
+    @property
+    def scale_factor(self) -> float:
+        """Returns scale factor to convert screenshot coords to physical screen coords."""
+        if self.physical_width and self.screenshot_width:
+            return self.physical_width / self.screenshot_width
+        return 1.0
+
+screen_state = ScreenState()
+
 
 class CDPInput:
     """Handles input injection via Chrome DevTools Protocol."""
@@ -264,26 +282,26 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="tap",
-            description="Tap at screen coordinates on ChromeOS.",
+            description="Tap at screen coordinates on ChromeOS. Coordinates are auto-scaled from screenshot space to actual screen space (e.g., if screenshot was scaled 2x, tap coords are scaled 2x).",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "x": {"type": "integer", "description": "X coordinate"},
-                    "y": {"type": "integer", "description": "Y coordinate"},
+                    "x": {"type": "integer", "description": "X coordinate (in screenshot space, auto-scaled to screen)"},
+                    "y": {"type": "integer", "description": "Y coordinate (in screenshot space, auto-scaled to screen)"},
                 },
                 "required": ["x", "y"],
             },
         ),
         Tool(
             name="swipe",
-            description="Swipe gesture on ChromeOS touchscreen.",
+            description="Swipe gesture on ChromeOS touchscreen. Coordinates are auto-scaled from screenshot space to actual screen space.",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "x1": {"type": "integer", "description": "Start X coordinate"},
-                    "y1": {"type": "integer", "description": "Start Y coordinate"},
-                    "x2": {"type": "integer", "description": "End X coordinate"},
-                    "y2": {"type": "integer", "description": "End Y coordinate"},
+                    "x1": {"type": "integer", "description": "Start X coordinate (screenshot space)"},
+                    "y1": {"type": "integer", "description": "Start Y coordinate (screenshot space)"},
+                    "x2": {"type": "integer", "description": "End X coordinate (screenshot space)"},
+                    "y2": {"type": "integer", "description": "End Y coordinate (screenshot space)"},
                     "duration_ms": {"type": "integer", "description": "Duration in milliseconds (default 300)"},
                 },
                 "required": ["x1", "y1", "x2", "y2"],
@@ -392,11 +410,19 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | 
         image_bytes = base64.b64decode(image_data)
         img = Image.open(BytesIO(image_bytes))
 
+        # Track physical dimensions (touchscreen is calibrated to physical display)
+        screen_state.physical_width = img.width
+        screen_state.physical_height = img.height
+
         max_width = 1920
         if img.width > max_width:
             ratio = max_width / img.width
             new_size = (max_width, int(img.height * ratio))
             img = img.resize(new_size, Image.LANCZOS)
+
+        # Track scaled dimensions for coordinate mapping
+        screen_state.screenshot_width = img.width
+        screen_state.screenshot_height = img.height
 
         # Run OCR on resized image
         try:
@@ -409,14 +435,26 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | 
         img.save(output, format="PNG", optimize=True)
         resized_data = base64.b64encode(output.getvalue()).decode('ascii')
 
+        scale_info = f"Screenshot: {screen_state.screenshot_width}x{screen_state.screenshot_height} (physical: {screen_state.physical_width}x{screen_state.physical_height}, scale: {screen_state.scale_factor:.2f}x)"
+
         return [
             ImageContent(type="image", data=resized_data, mimeType="image/png"),
-            TextContent(type="text", text=f"OCR Text:\n{ocr_text}"),
+            TextContent(type="text", text=f"{scale_info}\nOCR Text:\n{ocr_text}"),
         ]
 
     elif name == "tap":
         x = arguments.get("x")
         y = arguments.get("y")
+
+        # Auto-scale coordinates from screenshot space to actual screen space
+        scale = screen_state.scale_factor
+        if scale != 1.0:
+            orig_x, orig_y = x, y
+            x = int(x * scale)
+            y = int(y * scale)
+            scale_msg = f" (scaled from {orig_x},{orig_y} by {scale:.2f}x)"
+        else:
+            scale_msg = ""
 
         # First check display state to decide method
         info_result = await connection.send_command({"cmd": "info"})
@@ -427,7 +465,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | 
         if not internal_enabled and websockets is not None:
             result = await cdp_input.tap(x, y)
             if "error" not in result:
-                return [TextContent(type="text", text=f"Tapped at ({x}, {y}) [method=CDP]")]
+                return [TextContent(type="text", text=f"Tapped at ({x}, {y}){scale_msg} [method=CDP]")]
             # Fall through to SSH method if CDP fails
 
         # SSH-based method (works when internal display is enabled)
@@ -436,7 +474,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | 
         if "error" in result:
             return [TextContent(type="text", text=f"Error: {result['error']}")]
         device_type = result.get("device_type", "unknown")
-        return [TextContent(type="text", text=f"Tapped at ({x}, {y}) [device={device_type}]")]
+        return [TextContent(type="text", text=f"Tapped at ({x}, {y}){scale_msg} [device={device_type}]")]
 
     elif name == "swipe":
         x1 = arguments.get("x1")
@@ -444,6 +482,18 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | 
         x2 = arguments.get("x2")
         y2 = arguments.get("y2")
         duration_ms = arguments.get("duration_ms", 300)
+
+        # Auto-scale coordinates from screenshot space to actual screen space
+        scale = screen_state.scale_factor
+        if scale != 1.0:
+            orig = (x1, y1, x2, y2)
+            x1 = int(x1 * scale)
+            y1 = int(y1 * scale)
+            x2 = int(x2 * scale)
+            y2 = int(y2 * scale)
+            scale_msg = f" (scaled by {scale:.2f}x)"
+        else:
+            scale_msg = ""
 
         # First check display state to decide method
         info_result = await connection.send_command({"cmd": "info"})
@@ -454,7 +504,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | 
         if not internal_enabled and websockets is not None:
             result = await cdp_input.swipe(x1, y1, x2, y2, duration_ms)
             if "error" not in result:
-                return [TextContent(type="text", text=f"Swiped ({x1},{y1}) -> ({x2},{y2}) [method=CDP]")]
+                return [TextContent(type="text", text=f"Swiped ({x1},{y1}) -> ({x2},{y2}){scale_msg} [method=CDP]")]
             # Fall through to SSH method if CDP fails
 
         # SSH-based method
@@ -467,7 +517,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | 
 
         if "error" in result:
             return [TextContent(type="text", text=f"Error: {result['error']}")]
-        return [TextContent(type="text", text=f"Swiped ({x1},{y1}) -> ({x2},{y2})")]
+        return [TextContent(type="text", text=f"Swiped ({x1},{y1}) -> ({x2},{y2}){scale_msg}")]
 
     elif name == "type_text":
         text = arguments.get("text", "")
