@@ -109,8 +109,11 @@ class BandwidthLimitE2ETest : E2EBaseTest() {
         engine.setDownloadSpeedLimit(LIMIT_100KB)
         Log.i(TAG, "Applied limit: $LIMIT_100KB B/s (100 KB/s)")
 
-        // Wait for limit to take effect (burst capacity drains)
-        Thread.sleep(4000)
+        // Wait for limit to take effect.
+        // SpeedCalculator uses a 5-second rolling window, so we need to wait
+        // at least 5 seconds for the window to "flush out" old high-speed data.
+        // We add 1 extra second for TokenBucket burst capacity.
+        Thread.sleep(6000)
 
         // Measure new speed
         val limitedTorrent = getTorrentByHash(expectedHash)
