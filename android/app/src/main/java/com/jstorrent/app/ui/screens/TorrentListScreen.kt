@@ -203,14 +203,21 @@ fun TorrentListScreen(
                                 onSettingsClick()
                             }
                         )
-                        // Debug-only: Add test torrent with kitchen sink peer hints
+                        // Debug-only: Add test torrents with kitchen sink peer hints
                         if (BuildConfig.DEBUG) {
                             HorizontalDivider()
                             DropdownMenuItem(
-                                text = { Text("Add Test Torrent") },
+                                text = { Text("Add Test Torrent (100MB)") },
                                 onClick = {
                                     showMenu = false
-                                    viewModel.addTorrent(TestTorrentHelper.buildKitchenSinkMagnet())
+                                    viewModel.addTorrent(TestTorrentHelper.buildKitchenSinkMagnet100MB())
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Add Test Torrent (1GB)") },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.addTorrent(TestTorrentHelper.buildKitchenSinkMagnet1GB())
                                 }
                             )
                         }

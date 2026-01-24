@@ -10,6 +10,13 @@ import java.net.URLEncoder
  */
 object TestTorrentHelper {
     /**
+     * Info hash for 100MB test file (testdata_100mb.bin).
+     * Generated with 256KB piece size and seed 0xDEADBEEF.
+     */
+    private const val INFO_HASH_100MB = "67d01ece1b99c49c257baada0f760b770a7530b9"
+    private const val DISPLAY_NAME_100MB = "testdata_100mb.bin"
+
+    /**
      * Info hash for 1GB test file (testdata_1gb.bin).
      * Generated with 1MB piece size and seed 0xDEADBEEF.
      */
@@ -36,6 +43,23 @@ object TestTorrentHelper {
     )
 
     /**
+     * Build a magnet link for the 100MB test file with kitchen sink peer hints.
+     *
+     * This includes peer hints for all common test environments so the torrent
+     * will connect to the seeder regardless of how the device is connected.
+     *
+     * @param port The seeder port (default: 6881)
+     * @return A magnet link with multiple x.pe peer hints
+     */
+    fun buildKitchenSinkMagnet100MB(port: Int = DEFAULT_PORT): String {
+        val encodedName = URLEncoder.encode(DISPLAY_NAME_100MB, "UTF-8")
+        val peerHints = KITCHEN_SINK_HOSTS.joinToString("&") { host ->
+            "x.pe=$host:$port"
+        }
+        return "magnet:?xt=urn:btih:$INFO_HASH_100MB&dn=$encodedName&$peerHints"
+    }
+
+    /**
      * Build a magnet link for the 1GB test file with kitchen sink peer hints.
      *
      * This includes peer hints for all common test environments so the torrent
@@ -44,11 +68,17 @@ object TestTorrentHelper {
      * @param port The seeder port (default: 6881)
      * @return A magnet link with multiple x.pe peer hints
      */
-    fun buildKitchenSinkMagnet(port: Int = DEFAULT_PORT): String {
+    fun buildKitchenSinkMagnet1GB(port: Int = DEFAULT_PORT): String {
         val encodedName = URLEncoder.encode(DISPLAY_NAME_1GB, "UTF-8")
         val peerHints = KITCHEN_SINK_HOSTS.joinToString("&") { host ->
             "x.pe=$host:$port"
         }
         return "magnet:?xt=urn:btih:$INFO_HASH_1GB&dn=$encodedName&$peerHints"
     }
+
+    /**
+     * @deprecated Use buildKitchenSinkMagnet1GB instead
+     */
+    @Deprecated("Use buildKitchenSinkMagnet1GB instead", ReplaceWith("buildKitchenSinkMagnet1GB(port)"))
+    fun buildKitchenSinkMagnet(port: Int = DEFAULT_PORT): String = buildKitchenSinkMagnet1GB(port)
 }
