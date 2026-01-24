@@ -16,7 +16,15 @@ import { TorrentFileInfo } from './torrent-file-info'
 import { EngineComponent } from '../logging/logger'
 import type { BtEngine, DaemonOpType, PendingOpCounts } from './bt-engine'
 import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
-import { Swarm, SwarmStats, SwarmPeer, detectAddressFamily, peerKey, PeerAddress } from './swarm'
+import {
+  Swarm,
+  SwarmStats,
+  SwarmPeer,
+  detectAddressFamily,
+  peerKey,
+  addressKey,
+  PeerAddress,
+} from './swarm'
 import { ConnectionManager } from './connection-manager'
 import type { EncryptionPolicy } from '../crypto'
 import { randomBytes } from '../utils/hash'
@@ -27,6 +35,7 @@ import { EndgameManager } from './endgame-manager'
 import { PartsFile } from './parts-file'
 import type { LookupResult } from '../dht'
 import { PexHandler } from '../extensions/pex-handler'
+import { CorruptionTracker, BanDecision } from './corruption-tracker'
 
 /**
  * Piece classification for file priority system.
@@ -114,6 +123,7 @@ export class Torrent extends EngineComponent {
 
   private btEngine: BtEngine
   private _swarm: Swarm // Single source of truth for peer state
+  private _corruptionTracker: CorruptionTracker = new CorruptionTracker()
   private _connectionManager: ConnectionManager // Handles outgoing connection lifecycle
   private connectionTiming: ConnectionTimingTracker // Tracks connection timing for adaptive timeouts
   private _peerCoordinator: PeerCoordinator // Coordinates choke/unchoke and peer dropping decisions
@@ -3015,19 +3025,57 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Handle hash mismatch for a piece - log, track contributors, and discard.
+   * Handle hash mismatch for a piece - log, track contributors, and potentially ban.
+   *
+   * Uses a Bayesian-inspired corruption tracker to decide when to ban:
+   * - Sole contributor to a failed piece = immediate ban (proof of guilt)
+   * - Multiple failures with same peer as common denominator = likely ban
+   * - Swarm health affects threshold (sparse swarm = more cautious)
    */
   private handleHashMismatch(index: number, piece: ActivePiece): void {
-    const contributors = piece.getContributingPeers()
-    this.logger.warn(
-      `Piece ${index} failed hash check. Contributors: ${Array.from(contributors).join(', ')}`,
-    )
+    const contributors = Array.from(piece.getContributingPeers())
+    this.logger.warn(`Piece ${index} failed hash check. Contributors: ${contributors.join(', ')}`)
 
-    // TODO: Increment suspicion count for these peers
-    // TODO: Ban peers with too many failed pieces
+    // Get swarm health for threshold adjustment
+    const swarmHealth = {
+      connected: this._swarm.connectedCount,
+      total: this._swarm.size,
+    }
+
+    // Record failure and get ban recommendations
+    const banDecisions = this._corruptionTracker.recordHashFailure(index, contributors, swarmHealth)
+
+    // Execute bans
+    for (const decision of banDecisions) {
+      this.banPeerByPeerId(decision)
+    }
 
     // Discard the failed piece data
     this.activePieces?.remove(index)
+  }
+
+  /**
+   * Ban a peer by their peer ID (from corruption tracker decision).
+   * Looks up all swarm entries for this peer ID and bans them.
+   */
+  private banPeerByPeerId(decision: BanDecision): void {
+    const swarmPeers = this._swarm.getPeersByPeerId(decision.peerId)
+
+    if (swarmPeers.length === 0) {
+      this.logger.warn(
+        `Cannot ban peer ${decision.peerId}: not found in swarm (may have disconnected)`,
+      )
+      return
+    }
+
+    for (const peer of swarmPeers) {
+      const key = addressKey(peer)
+      this._swarm.ban(key, decision.reason)
+      this.logger.info(`Banned ${key} (${peer.clientName ?? 'unknown client'}): ${decision.reason}`)
+    }
+
+    // Remove from corruption tracker (no need to track banned peers)
+    this._corruptionTracker.removePeer(decision.peerId)
   }
 
   private async verifyPiece(index: number): Promise<boolean> {

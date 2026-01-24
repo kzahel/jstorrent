@@ -366,6 +366,17 @@ class ForegroundNotificationService : Service() {
      */
     private fun startNotificationUpdates() {
         notificationUpdateJob = ioScope.launch {
+            // Seed previousStates with current state before starting the loop.
+            // This prevents showing completion notifications for torrents that were
+            // already complete before the service started (e.g., after service restart).
+            val initialTorrents = state?.value?.torrents ?: emptyList()
+            for (torrent in initialTorrents) {
+                previousStates[torrent.infoHash] = TorrentStateSnapshot(
+                    progress = torrent.progress,
+                    status = torrent.status
+                )
+            }
+
             while (isActive) {
                 val torrents = state?.value?.torrents ?: emptyList()
 
