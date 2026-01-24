@@ -26,11 +26,11 @@ ACTIVITY="com.jstorrent.app/.NativeStandaloneActivity"
 # Ensure tools are in PATH
 export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$SDK_ROOT/platform-tools:$SDK_ROOT/emulator:$PATH"
 
-# Default test magnet (1GB deterministic test data from libtorrent seeder)
+# Default test magnet (100MB deterministic test data from libtorrent seeder)
 # Run `pnpm seed-for-test` to start the seeder on the host machine
 # Peer hints: 10.0.2.2 (emulator->host), 127.0.0.1 (desktop/extension)
 # Uses v1 infohash (SHA1 of full info dict), not truncated v2 hash
-DEFAULT_MAGNET="magnet:?xt=urn:btih:18a7aacab6d2bc518e336921ccd4b6cc32a9624b&dn=testdata_1gb.bin&x.pe=10.0.2.2:6881&x.pe=127.0.0.1:6881"
+DEFAULT_MAGNET="magnet:?xt=urn:btih:67d01ece1b99c49c257baada0f760b770a7530b9&dn=testdata_100mb.bin&x.pe=10.0.2.2:6881&x.pe=127.0.0.1:6881"
 
 # Parse arguments
 BUILD=true

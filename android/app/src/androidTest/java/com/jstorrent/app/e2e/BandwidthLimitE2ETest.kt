@@ -10,8 +10,7 @@ import org.junit.runner.RunWith
  * E2E tests for bandwidth limiting.
  *
  * These tests require the Python seeder to be running:
- *   cd packages/engine/integration/python
- *   uv run python seed_for_test.py --size 100mb --quiet
+ *   pnpm seed-for-test
  *
  * Run with:
  *   ./gradlew :app:connectedAndroidTest \

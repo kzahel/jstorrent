@@ -1,6 +1,8 @@
 package com.jstorrent.app.ui.screens
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -10,7 +12,6 @@ import androidx.compose.ui.test.performScrollTo
 import com.jstorrent.app.storage.DownloadRoot
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.viewmodel.SettingsUiState
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 
@@ -20,8 +21,6 @@ import org.junit.Test
  * Run with:
  * ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.ui.screens.SettingsScreenTest
  */
-// TODO: Compose UI tests are flaky on emulator - investigate timing/rendering issues
-@Ignore("Compose UI tests failing intermittently - needs investigation")
 class SettingsScreenTest {
 
     @get:Rule
@@ -504,7 +503,8 @@ class SettingsScreenTest {
         }
 
         composeTestRule.onNodeWithText("Disabled").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Settings").assertIsDisplayed()
+        // Use hasClickAction to match the button, not the page title
+        composeTestRule.onNode(hasText("Settings") and hasClickAction()).assertIsDisplayed()
     }
 
     @Test
@@ -577,7 +577,8 @@ class SettingsScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Settings").performClick()
+        // Use hasClickAction to match the button, not the page title
+        composeTestRule.onNode(hasText("Settings") and hasClickAction()).performClick()
         assert(settingsCalled) { "Expected onOpenNotificationSettings to be called" }
     }
 

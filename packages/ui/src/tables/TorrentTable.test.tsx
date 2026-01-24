@@ -17,7 +17,6 @@ import { createMockSource } from '../test/mocks'
  * to calculate which virtual items are visible. Happy-dom doesn't compute
  * layout/dimensions, so getVirtualItems() returns an empty array.
  *
- * Tests that require row rendering are skipped with explanation.
  * Header-level features (sorting, settings menu) can be tested.
  */
 
@@ -383,49 +382,6 @@ describe('TorrentTable', () => {
         expect(screen.getByText('Hide Column')).toBeInTheDocument()
         expect(screen.getByText('Table Settings...')).toBeInTheDocument()
       })
-    })
-  })
-
-  // The following tests are skipped because TanStack Virtual requires
-  // accurate element dimensions to render virtual items, which happy-dom
-  // doesn't provide. These should be tested via E2E tests (Playwright).
-
-  describe('selection (skipped - requires row rendering)', () => {
-    it.skip('calls onSelectionChange with clicked row key', async () => {
-      const source = createMockSource(3)
-      const onSelectionChange = vi.fn()
-      const user = userEvent.setup()
-
-      render(
-        <div style={{ height: 400 }}>
-          <TorrentTable
-            source={source as never}
-            getSelectedHashes={() => new Set()}
-            onSelectionChange={onSelectionChange}
-          />
-        </div>,
-      )
-
-      await waitForTable()
-
-      const rows = screen.getAllByTestId('table-row')
-      await user.click(rows[0])
-
-      expect(onSelectionChange).toHaveBeenCalledWith(new Set([source.torrents[0].infoHashStr]))
-    })
-
-    it.skip('preserves selection after sort', async () => {
-      // Would need row rendering to verify selection state
-    })
-  })
-
-  describe('sort order (skipped - requires row rendering)', () => {
-    it.skip('sorts rows ascending on first header click', async () => {
-      // Would need row rendering to verify sort order
-    })
-
-    it.skip('sorts rows descending on second header click', async () => {
-      // Would need row rendering to verify sort order
     })
   })
 })

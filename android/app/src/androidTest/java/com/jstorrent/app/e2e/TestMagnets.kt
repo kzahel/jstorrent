@@ -9,8 +9,7 @@ import java.net.URLEncoder
  * using a fixed seed (0xDEADBEEF) which produces deterministic data and consistent info hashes.
  *
  * To regenerate test data:
- *   cd packages/engine/integration/python
- *   uv run python seed_for_test.py --size 100mb --quiet
+ *   pnpm seed-for-test --regenerate
  */
 object TestMagnets {
     /**

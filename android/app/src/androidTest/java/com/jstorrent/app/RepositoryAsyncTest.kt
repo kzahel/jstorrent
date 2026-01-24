@@ -16,7 +16,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.junit.Ignore
 import kotlin.system.measureTimeMillis
 
 private const val TAG = "RepositoryAsyncTest"
@@ -31,8 +30,6 @@ private const val TAG = "RepositoryAsyncTest"
  * Run with:
  * ./gradlew :app:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.RepositoryAsyncTest
  */
-// TODO: Foreground service tests are flaky due to startForeground timing requirements
-@Ignore("Foreground service timing is unreliable in test environment - needs alternative test approach")
 @RunWith(AndroidJUnit4::class)
 class RepositoryAsyncTest {
 

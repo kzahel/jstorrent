@@ -113,7 +113,7 @@ test.describe('Download E2E', () => {
     const seederRunning = await isSeederRunning()
     if (!seederRunning) {
       throw new Error(
-        `Seeder not running on port ${SEEDER_PORT}. Start it with: pnpm seed-for-test --size 100mb`,
+        `Seeder not running on port ${SEEDER_PORT}. Start it with: pnpm seed-for-test`,
       )
     }
     console.log(`Seeder detected on port ${SEEDER_PORT}`)

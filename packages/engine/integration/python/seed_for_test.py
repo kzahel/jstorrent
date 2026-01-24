@@ -9,9 +9,9 @@ The same seed always produces the same data, which means the same infohash.
 This allows using a predictable magnet link for testing.
 
 Usage:
-    uv run python seed_for_test.py                        # Seed 1GB file with libtorrent
+    uv run python seed_for_test.py                        # Seed 100MB file with libtorrent
     uv run python seed_for_test.py --engine jstengine     # Seed with JSTEngine
-    uv run python seed_for_test.py --size 100mb           # Seed 100MB file
+    uv run python seed_for_test.py --size 1gb             # Seed 1GB file
     uv run python seed_for_test.py --regenerate           # Force regenerate data
     uv run python seed_for_test.py --quiet                # Machine-parseable output
 """
@@ -302,8 +302,8 @@ def main() -> int:
         "--size",
         "-s",
         choices=["100mb", "1gb"],
-        default="1gb",
-        help="Data size to generate/seed (default: 1gb)",
+        default="100mb",
+        help="Data size to generate/seed (default: 100mb)",
     )
     parser.add_argument(
         "--port",
