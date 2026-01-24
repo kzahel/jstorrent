@@ -3275,16 +3275,15 @@ export class Torrent extends EngineComponent {
       // Reset endgame state
       this._endgameManager.reset()
 
-      // Record completion time (only if not already set, e.g., from persisted state)
+      // Only emit completion events once (completedAt guards against duplicates)
       if (!this.completedAt) {
         this.completedAt = Date.now()
+        this.logger.info('Download complete!')
+        this.emit('done')
+        this.emit('complete')
+        // Tell all peers we're no longer interested and that we're now a seeder
+        this.notifyPeersWeAreSeeding()
       }
-
-      this.logger.info('Download complete!')
-      this.emit('done')
-      this.emit('complete')
-      // Tell all peers we're no longer interested and that we're now a seeder
-      this.notifyPeersWeAreSeeding()
     }
   }
 

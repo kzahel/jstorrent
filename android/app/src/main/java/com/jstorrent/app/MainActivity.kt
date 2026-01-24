@@ -1,7 +1,6 @@
 package com.jstorrent.app
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -25,19 +24,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.jstorrent.app.auth.StandaloneMode
 import com.jstorrent.app.auth.TokenStore
-import com.jstorrent.app.link.PendingLink
 import com.jstorrent.app.mode.ModeDetector
-import com.jstorrent.app.link.PendingLinkManager
 import com.jstorrent.app.service.IoDaemonService
 import com.jstorrent.app.ui.theme.JSTorrentTheme
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val TAG = "MainActivity"
 private const val FALLBACK_URL = "https://new.jstorrent.com/launch"
-private const val CONNECTION_TIMEOUT_MS = 5000L
-private const val POLL_INTERVAL_MS = 200L
-private const val LEARN_MORE_URL = "https://new.jstorrent.com/android"
 
 class MainActivity : ComponentActivity() {
 
@@ -79,6 +72,7 @@ class MainActivity : ComponentActivity() {
         Log.i(TAG, "Running on Chromebook: $isChromebook")
 
         // Non-Chromebook: launch standalone mode based on setting
+        // Note: Magnet/torrent links go through LinkHandlerActivity, not here
         if (!isChromebook) {
             val targetActivity = when (tokenStore.standaloneMode) {
                 StandaloneMode.NATIVE -> {
@@ -91,30 +85,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Read torrent file now (we have URI permission) and pass as extra
-            // This avoids permission issues when forwarding content:// URIs between activities
-            var torrentBase64: String? = null
-            val uri = intent.data
-            if (uri != null && (uri.scheme == "content" || uri.scheme == "file")) {
-                try {
-                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                    if (bytes != null) {
-                        torrentBase64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                        Log.i(TAG, "Read torrent file: ${bytes.size} bytes")
-                    } else {
-                        Log.e(TAG, "Failed to read torrent file: openInputStream returned null")
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to read torrent file", e)
-                }
-            }
-
             startActivity(Intent(this, targetActivity).apply {
-                if (torrentBase64 != null) {
-                    putExtra("torrent_base64", torrentBase64)
-                } else {
-                    data = intent.data  // Magnet links pass through as URI
-                }
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             })
             finish()
@@ -211,6 +182,8 @@ class MainActivity : ComponentActivity() {
         val uri = intent?.data ?: return
         Log.d(TAG, "Received intent: $uri")
 
+        // Only handle jstorrent:// scheme intents here
+        // Magnet/torrent links are handled by LinkHandlerActivity
         when {
             uri.scheme == "jstorrent" && uri.host == "launch" -> {
                 Log.i(TAG, "Launch intent - app started")
@@ -219,110 +192,7 @@ class MainActivity : ComponentActivity() {
                 // Pairing happens via HTTP POST /pair, not via intent
                 Log.i(TAG, "Pair intent - ignored, use POST /pair")
             }
-            uri.scheme == "magnet" -> {
-                Log.i(TAG, "Magnet link: $uri")
-                handleMagnetLink(uri.toString())
-            }
-            // Handle .torrent files (file:// or content:// URIs)
-            uri.scheme == "file" || uri.scheme == "content" -> {
-                Log.i(TAG, "Torrent file: $uri")
-                handleTorrentFile(uri)
-            }
         }
-    }
-
-    private fun handleMagnetLink(magnetLink: String) {
-        val service = IoDaemonService.instance
-
-        if (service?.hasActiveControlConnection() == true) {
-            // Connection exists - send immediately
-            Log.i(TAG, "Control connection active, sending magnet immediately")
-            service.sendMagnetAdded(magnetLink)
-        } else {
-            // No connection - queue link, launch browser fallback, wait for connection
-            Log.i(TAG, "No control connection, initiating fallback flow")
-            PendingLinkManager.addMagnet(magnetLink)
-            startFallbackFlow()
-        }
-    }
-
-    private fun handleTorrentFile(uri: Uri) {
-        // Read torrent file and encode as base64
-        val name = uri.lastPathSegment ?: "unknown.torrent"
-        val bytes = try {
-            contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to read torrent file: ${e.message}")
-            return
-        }
-
-        if (bytes == null) {
-            Log.e(TAG, "Failed to read torrent file: empty content")
-            return
-        }
-
-        val contentsBase64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-
-        val service = IoDaemonService.instance
-
-        if (service?.hasActiveControlConnection() == true) {
-            Log.i(TAG, "Control connection active, sending torrent immediately")
-            service.sendTorrentAdded(name, contentsBase64)
-        } else {
-            Log.i(TAG, "No control connection, initiating fallback flow")
-            PendingLinkManager.addTorrent(name, contentsBase64)
-            startFallbackFlow()
-        }
-    }
-
-    private fun startFallbackFlow() {
-        // Set up listener for when connection is established
-        PendingLinkManager.setConnectionListener {
-            lifecycleScope.launch {
-                Log.i(TAG, "Control connection established, forwarding pending links")
-                forwardPendingLinks()
-            }
-        }
-
-        // Start timeout coroutine
-        lifecycleScope.launch {
-            val startTime = System.currentTimeMillis()
-
-            // Poll for connection for up to TIMEOUT
-            while (System.currentTimeMillis() - startTime < CONNECTION_TIMEOUT_MS) {
-                if (IoDaemonService.instance?.hasActiveControlConnection() == true) {
-                    Log.i(TAG, "Control connection established within timeout")
-                    forwardPendingLinks()
-                    return@launch
-                }
-                delay(POLL_INTERVAL_MS)
-            }
-
-            // Timeout - launch browser fallback
-            Log.i(TAG, "Connection timeout, launching browser fallback")
-            launchBrowserFallback()
-        }
-    }
-
-    private fun forwardPendingLinks() {
-        val service = IoDaemonService.instance ?: return
-        val links = PendingLinkManager.getPendingLinks()
-
-        for (link in links) {
-            when (link) {
-                is PendingLink.Magnet -> {
-                    Log.i(TAG, "Forwarding queued magnet: ${link.link}")
-                    service.sendMagnetAdded(link.link)
-                }
-                is PendingLink.Torrent -> {
-                    Log.i(TAG, "Forwarding queued torrent: ${link.name}")
-                    service.sendTorrentAdded(link.name, link.contentsBase64)
-                }
-            }
-        }
-
-        PendingLinkManager.clearPendingLinks()
-        PendingLinkManager.setConnectionListener(null)
     }
 
     private fun launchBrowserFallback() {
