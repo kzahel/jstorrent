@@ -103,7 +103,7 @@ abstract class E2EBaseTest {
         app.shutdownEngine()
 
         // Wait a bit for service to fully stop
-        Thread.sleep(500)
+        Thread.sleep(2000)
 
         engineService = null
         Log.i(TAG, "E2E test teardown complete")
@@ -268,12 +268,20 @@ abstract class E2EBaseTest {
      *
      * The engine persists torrent metadata in SharedPreferences. Without clearing,
      * data from previous tests can leak into subsequent tests (e.g., a torrent
-     * appearing as "complete" when it should start fresh).
+     * appearing as "complete" when it should start fresh, or bandwidth limits
+     * from BandwidthLimitE2ETest affecting other tests).
      */
     private fun clearSessionStorage(context: Context) {
-        val prefs = context.getSharedPreferences("jstorrent_session", Context.MODE_PRIVATE)
-        val keyCount = prefs.all.size
-        prefs.edit().clear().commit()
-        Log.i(TAG, "Cleared session storage ($keyCount keys)")
+        // Clear session data (torrent metadata)
+        val sessionPrefs = context.getSharedPreferences("jstorrent_session", Context.MODE_PRIVATE)
+        val sessionKeyCount = sessionPrefs.all.size
+        sessionPrefs.edit().clear().commit()
+        Log.i(TAG, "Cleared session storage ($sessionKeyCount keys)")
+
+        // Clear settings (bandwidth limits, etc.) to prevent test pollution
+        val settingsPrefs = context.getSharedPreferences("jstorrent_settings", Context.MODE_PRIVATE)
+        val settingsKeyCount = settingsPrefs.all.size
+        settingsPrefs.edit().clear().commit()
+        Log.i(TAG, "Cleared settings storage ($settingsKeyCount keys)")
     }
 }
