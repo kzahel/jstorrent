@@ -88,6 +88,7 @@ jobs:
   # Instrumented tests require Android emulator
   instrumented-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # TODO: Change back to main-only after verification:
     # if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
 
@@ -180,6 +181,10 @@ jobs:
           script: |
             # Run all instrumented tests EXCEPT E2E tests (which need external seeder)
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
+            TEST_RESULT=$?
+            # Force kill emulator to prevent hang on termination
+            adb emu kill || true
+            exit $TEST_RESULT
 
       - name: Show Test Failures
         if: failure()
@@ -212,6 +217,7 @@ jobs:
   # E2E tests with external seeder
   e2e-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     strategy:
       matrix:
@@ -326,6 +332,8 @@ jobs:
             # Kill the seeder and wait for cleanup
             kill $SEEDER_PID 2>/dev/null || true
             wait $SEEDER_PID 2>/dev/null || true
+            # Force kill emulator to prevent hang on termination
+            adb emu kill || true
             exit $TEST_RESULT
 
       - name: Show Test Failures
