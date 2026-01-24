@@ -15,6 +15,11 @@ export class NativeTcpSocket implements ITcpSocket {
   private closed = false
   private closeFired = false
 
+  // Track pending connect promise for cancellation
+  private pendingConnectReject: ((err: Error) => void) | null = null
+  // Track pending secure promise for cancellation
+  private pendingSecureReject: ((err: Error) => void) | null = null
+
   public remoteAddress?: string
   public remotePort?: number
   public isEncrypted?: boolean
@@ -64,7 +69,13 @@ export class NativeTcpSocket implements ITcpSocket {
     console.log(`[NativeTcpSocket ${this.id}] Connecting to ${host}:${port}`)
 
     return new Promise((resolve, reject) => {
+      // Store reject for cancellation on close()
+      this.pendingConnectReject = reject
+
       callbackManager.updateTcpHandler(this.id, 'onConnect', (success, errorMessage) => {
+        // Clear pending reject - promise is settling normally
+        this.pendingConnectReject = null
+
         console.log(
           `[NativeTcpSocket ${this.id}] Connect result: success=${success}, error=${errorMessage}`,
         )
@@ -122,6 +133,20 @@ export class NativeTcpSocket implements ITcpSocket {
     this.closed = true
     __jstorrent_tcp_close(this.id)
 
+    // Reject any pending connect promise so it doesn't hang
+    if (this.pendingConnectReject) {
+      console.log(`[NativeTcpSocket ${this.id}] Rejecting pending connect promise (socket closed)`)
+      this.pendingConnectReject(new Error('Socket closed'))
+      this.pendingConnectReject = null
+    }
+
+    // Reject any pending secure promise so it doesn't hang
+    if (this.pendingSecureReject) {
+      console.log(`[NativeTcpSocket ${this.id}] Rejecting pending secure promise (socket closed)`)
+      this.pendingSecureReject(new Error('Socket closed'))
+      this.pendingSecureReject = null
+    }
+
     // Fire close callback if not already fired
     if (!this.closeFired) {
       this.closeFired = true
@@ -142,7 +167,13 @@ export class NativeTcpSocket implements ITcpSocket {
     console.log(`[NativeTcpSocket ${this.id}] Upgrading to TLS for ${host}`)
 
     return new Promise((resolve, reject) => {
+      // Store reject for cancellation on close()
+      this.pendingSecureReject = reject
+
       callbackManager.updateTcpHandler(this.id, 'onSecured', (success) => {
+        // Clear pending reject - promise is settling normally
+        this.pendingSecureReject = null
+
         console.log(`[NativeTcpSocket ${this.id}] TLS upgrade result: success=${success}`)
         if (success) {
           this.isSecure = true

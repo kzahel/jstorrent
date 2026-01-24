@@ -192,10 +192,38 @@ class QuickJsContext private constructor(
 
     /**
      * Execute all pending jobs.
+     * WARNING: This can block the Handler for a long time if there are many jobs
+     * or if jobs are waiting for callbacks. Prefer pumpJobsBatched() for
+     * callback-driven scenarios.
      */
     fun executeAllPendingJobs() {
+        var count = 0
+        val start = System.currentTimeMillis()
         while (executePendingJob()) {
-            // Keep executing until no more jobs
+            count++
+            if (count % 1000 == 0) {
+                android.util.Log.d("QuickJsContext", "executeAllPendingJobs: $count jobs in ${System.currentTimeMillis() - start}ms")
+            }
+        }
+        val elapsed = System.currentTimeMillis() - start
+        if (count > 0 || elapsed > 100) {
+            android.util.Log.d("QuickJsContext", "executeAllPendingJobs: completed $count jobs in ${elapsed}ms")
+        }
+    }
+
+    /**
+     * Process up to [maxJobs] pending jobs.
+     * @return true if there may be more jobs to process (should pump again)
+     */
+    fun pumpJobsBatched(maxJobs: Int = 50): Boolean {
+        var count = 0
+        while (count < maxJobs && executePendingJob()) {
+            count++
+        }
+        // Check if there are more jobs pending
+        return executePendingJob().also { hasMore ->
+            // If we found another job, we executed it, so there might be even more
+            // The return value indicates "keep pumping"
         }
     }
 

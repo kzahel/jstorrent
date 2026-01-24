@@ -83,7 +83,8 @@ class TcpServerBindings(
                         success.toString(),
                         boundPort.toString()
                     )
-                    ctx.executeAllPendingJobs()
+                    // Schedule job processing for the NEXT message to avoid deadlock
+                    jsThread.scheduleJobPump(ctx)
                 }
             }
 
@@ -99,7 +100,8 @@ class TcpServerBindings(
                         peerAddr,
                         peerPort.toString()
                     )
-                    ctx.executeAllPendingJobs()
+                    // Schedule job processing for the NEXT message to avoid deadlock
+                    jsThread.scheduleJobPump(ctx)
                 }
             }
         })

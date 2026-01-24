@@ -286,5 +286,7 @@ export class HttpTracker extends EngineComponent implements ITracker {
 
   destroy(): void {
     if (this.timer) clearInterval(this.timer)
+    // Abort any in-flight HTTP requests
+    this.httpClient.abort()
   }
 }

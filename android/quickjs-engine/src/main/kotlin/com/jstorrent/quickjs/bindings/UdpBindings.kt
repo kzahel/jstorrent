@@ -129,7 +129,8 @@ class UdpBindings(
                         success.toString(),
                         boundPort.toString()
                     )
-                    ctx.executeAllPendingJobs()
+                    // Schedule job processing for the NEXT message to avoid deadlock
+                    jsThread.scheduleJobPump(ctx)
                 }
             }
 
@@ -149,7 +150,8 @@ class UdpBindings(
                         srcPort.toString(),
                         null  // placeholder for binary arg at index 3
                     )
-                    ctx.executeAllPendingJobs()
+                    // Schedule job processing for the NEXT message to avoid deadlock
+                    jsThread.scheduleJobPump(ctx)
                 }
             }
 

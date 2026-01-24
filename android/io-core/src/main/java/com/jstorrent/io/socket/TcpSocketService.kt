@@ -163,10 +163,28 @@ class TcpSocketService(
         pendingConnects.remove(socketId)?.cancel()
 
         // Close pending socket (connected but not activated)
-        pendingSockets.remove(socketId)?.close()
+        pendingSockets.remove(socketId)?.let { socket ->
+            closeSocketFast(socket)
+        }
 
         // Close active connection
         activeConnections.remove(socketId)?.close()
+    }
+
+    /**
+     * Close a raw socket quickly without blocking.
+     * Calls shutdownInput/Output first to unblock any pending I/O.
+     */
+    private fun closeSocketFast(socket: java.net.Socket) {
+        try {
+            if (!socket.isInputShutdown) {
+                socket.shutdownInput()
+            }
+            if (!socket.isOutputShutdown) {
+                socket.shutdownOutput()
+            }
+            socket.close()
+        } catch (_: Exception) {}
     }
 
     override fun secure(socketId: Int, hostname: String, skipValidation: Boolean) {
@@ -271,8 +289,8 @@ class TcpSocketService(
         pendingConnects.values.forEach { it.cancel() }
         pendingConnects.clear()
 
-        // Close pending sockets
-        pendingSockets.values.forEach { it.close() }
+        // Close pending sockets (use fast close to avoid blocking)
+        pendingSockets.values.forEach { closeSocketFast(it) }
         pendingSockets.clear()
 
         // Close active connections

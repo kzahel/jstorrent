@@ -356,6 +356,36 @@ dev-pixel9        # Shortcut for: dev install pixel9
 dev-chromebook    # Shortcut for: dev install chromebook
 ```
 
+## Viewing QuickJS JavaScript Logs
+
+The QuickJS engine routes `console.log` to Android's logcat with tag `JSTorrent-JS`.
+
+**Important:** Tag-based filtering (`-s JSTorrent-JS:*`) is unreliable because the logcat buffer is shared across all apps. Use PID-based filtering instead:
+
+```bash
+# Most reliable: filter by app PID
+adb logcat --pid=$(adb shell pidof com.jstorrent.app) -t 100
+
+# Real-time streaming by PID
+adb logcat --pid=$(adb shell pidof com.jstorrent.app)
+
+# Using emu/dev helpers (recommended)
+source android/scripts/android-env.sh
+emu logs --js          # Emulator: QuickJS logs only (PID-filtered)
+dev logs pixel9 --js   # Real device: QuickJS logs only (PID-filtered)
+```
+
+**Log levels:**
+- `console.log()` → `Log.i` (INFO) - tag: `JSTorrent-JS`
+- `console.debug()` → `Log.d` (DEBUG)
+- `console.warn()` → `Log.w` (WARN)
+- `console.error()` → `Log.e` (ERROR)
+
+**Related Kotlin tags for debugging:**
+- `EngineController` - Kotlin engine wrapper
+- `QuickJsContext` - JS execution and job scheduling
+- `TcpBindings`, `UdpBindings`, `FileBindings` - Native I/O
+
 ## Android SDK Setup
 
 The Android SDK is at `~/Android/Sdk`. Gradle needs to know the SDK location via one of:

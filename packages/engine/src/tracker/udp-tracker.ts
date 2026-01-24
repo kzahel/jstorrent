@@ -231,6 +231,11 @@ export class UdpTracker extends EngineComponent implements ITracker {
   }
 
   destroy(): void {
+    // Reject any pending connect promise
+    if (this.connectPromise) {
+      this.connectPromise.reject(new Error('Tracker destroyed'))
+      this.connectPromise = null
+    }
     if (this.socket) {
       this.socket.close()
       this.socket = null

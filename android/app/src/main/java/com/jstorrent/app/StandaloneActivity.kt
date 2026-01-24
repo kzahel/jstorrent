@@ -406,6 +406,7 @@ class StandaloneActivity : ComponentActivity() {
     }
 
     // Intercept back button which might be triggered by right-click on emulators
+    @android.annotation.SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_DOWN) {
             Log.d(TAG, "Back key: source=${event.source}, repeat=${event.repeatCount}")

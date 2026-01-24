@@ -79,12 +79,23 @@ internal class TcpConnection(
      * Close the connection.
      *
      * Stops I/O loops and closes the underlying socket.
+     * Uses shutdownInput/Output to immediately unblock any pending I/O
+     * before closing, preventing socket.close() from blocking.
      */
     fun close() {
+        isActive = false
         sendQueue.close()
         senderJob?.cancel()
         readerJob?.cancel()
         try {
+            // Shutdown streams first to unblock any pending I/O operations.
+            // This prevents socket.close() from blocking on read/write completion.
+            if (!socket.isInputShutdown) {
+                socket.shutdownInput()
+            }
+            if (!socket.isOutputShutdown) {
+                socket.shutdownOutput()
+            }
             socket.close()
         } catch (_: Exception) {}
     }

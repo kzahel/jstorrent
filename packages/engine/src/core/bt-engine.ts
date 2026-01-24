@@ -647,11 +647,20 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       const infoHash = toHex(torrent.infoHash)
 
       // Remove persisted data
+      const t0 = Date.now()
       await this.sessionPersistence.removeTorrentData(infoHash)
-      await this.sessionPersistence.saveTorrentList()
+      console.log(`[removeTorrent] removeTorrentData took ${Date.now() - t0}ms`)
 
-      torrent.stop()
+      const t1 = Date.now()
+      await this.sessionPersistence.saveTorrentList()
+      console.log(`[removeTorrent] saveTorrentList took ${Date.now() - t1}ms`)
+
+      const t2 = Date.now()
+      await torrent.stop({ skipAnnounce: true })
+      console.log(`[removeTorrent] stop took ${Date.now() - t2}ms`)
+
       this.emit('torrent-removed', torrent)
+      console.log(`[removeTorrent] complete, total ${Date.now() - t0}ms`)
     }
   }
 
@@ -675,7 +684,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     if (torrent.contentStorage) {
       await torrent.contentStorage.close()
     }
-    torrent.stop()
+    await torrent.stop({ skipAnnounce: true })
 
     // 2. Get filesystem for this torrent (may throw if no storage root)
     let fs: IFileSystem | null = null

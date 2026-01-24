@@ -2594,6 +2594,7 @@ export class Torrent extends EngineComponent {
   }
 
   private requestPieces(peer: PeerConnection) {
+    if (!this._networkActive) return
     if (this.isKillSwitchEnabled) return
     if (peer.peerChoking) return
     if (!this.hasMetadata) return
@@ -3048,39 +3049,64 @@ export class Torrent extends EngineComponent {
     return compare(hash, expectedHash) === 0
   }
   async stop(options?: { skipAnnounce?: boolean }) {
-    this.logger.info('Stopping')
+    const t0 = Date.now()
+    this.logger.info(`Stopping (skipAnnounce=${options?.skipAnnounce ?? false})`)
+
+    // CRITICAL: Disable network activity FIRST to prevent new connections.
+    // When we close peers below, the 'close' event triggers removePeer() which
+    // calls fillPeerSlots() -> runMaintenance() -> requestConnections().
+    // Without this flag, we'd create 45+ new connection promises while stopping.
+    this._networkActive = false
 
     // Stop periodic maintenance
     this.stopMaintenance()
+    this.logger.info(`stopMaintenance done at ${Date.now() - t0}ms`)
 
     // Cancel any pending connection attempts
     this._connectionManager.destroy()
+    this.logger.info(`connectionManager.destroy done at ${Date.now() - t0}ms`)
 
     // Cleanup active pieces manager
     this.activePieces?.destroy()
+    this.logger.info(`activePieces.destroy done at ${Date.now() - t0}ms`)
 
+    this.logger.info(`about to check trackerManager (exists=${!!this.trackerManager})`)
     if (this.trackerManager) {
       if (!options?.skipAnnounce) {
         try {
+          const t1 = Date.now()
+          this.logger.info('starting tracker announce...')
           await this.trackerManager.announce('stopped')
+          this.logger.info(`Tracker announce took ${Date.now() - t1}ms`)
         } catch (err) {
           // Announce may fail if IO is disconnected during shutdown - that's ok
           this.logger.warn(
             `Failed to announce stopped: ${err instanceof Error ? err.message : err}`,
           )
         }
+      } else {
+        this.logger.info('skipping tracker announce (skipAnnounce=true)')
       }
+      this.logger.info('calling trackerManager.destroy()...')
       this.trackerManager.destroy()
+      this.logger.info(`trackerManager.destroy done at ${Date.now() - t0}ms`)
+    } else {
+      this.logger.info('no trackerManager to destroy')
     }
     // Close all connected peers (swarm will be updated via markDisconnected)
+    const numPeers = this.connectedPeers.length
     this.connectedPeers.forEach((peer) => peer.close())
+    this.logger.info(`Closed ${numPeers} peers`)
 
     // Clear swarm state
     this._swarm.clear()
 
     if (this.contentStorage) {
+      const t2 = Date.now()
       await this.contentStorage.close()
+      this.logger.info(`contentStorage.close took ${Date.now() - t2}ms`)
     }
+    this.logger.info(`stop() complete, total ${Date.now() - t0}ms`)
     this.emit('stopped')
   }
 

@@ -15,7 +15,8 @@ source "$SCRIPT_DIR/lib/device-config.sh"
 
 DEVICE_NAME=""
 FILTER="JSTorrent:V Ktor:V OkHttp:V AndroidRuntime:E *:S"
-FILTER_DESC="JSTorrent logs (use --all for everything, --http for network, --crash for errors)"
+FILTER_DESC="JSTorrent logs (use --all for everything, --http for network, --crash for errors, --js for QuickJS)"
+USE_PID=false
 
 usage() {
     echo "Usage: $0 <device> [OPTIONS]"
@@ -29,6 +30,7 @@ usage() {
     echo "  --all          Show all logs (unfiltered)"
     echo "  --http         Show HTTP/network logs only"
     echo "  --crash        Show crashes/errors only"
+    echo "  --js           Show QuickJS JavaScript logs (PID-filtered, most reliable)"
     echo "  -h, --help     Show this help message"
     exit 0
 }
@@ -49,6 +51,11 @@ while [[ $# -gt 0 ]]; do
         --crash)
             FILTER="AndroidRuntime:E *:S"
             FILTER_DESC="crashes only"
+            shift
+            ;;
+        --js)
+            USE_PID=true
+            FILTER_DESC="QuickJS JavaScript logs (PID-filtered)"
             shift
             ;;
         -h|--help) usage ;;
@@ -90,8 +97,19 @@ case "$DEVICE_TYPE" in
     serial|wifi)
         # Clear existing logs and start fresh
         adb -s "$DEVICE_CONNECTION" logcat -c
-        # shellcheck disable=SC2086
-        adb -s "$DEVICE_CONNECTION" logcat $FILTER
+        if [[ "$USE_PID" == "true" ]]; then
+            # PID-based filtering is more reliable for QuickJS logs
+            APP_PID=$(adb -s "$DEVICE_CONNECTION" shell pidof com.jstorrent.app 2>/dev/null || true)
+            if [[ -z "$APP_PID" ]]; then
+                echo "Error: JSTorrent app is not running"
+                exit 1
+            fi
+            echo "Filtering by PID: $APP_PID"
+            adb -s "$DEVICE_CONNECTION" logcat --pid="$APP_PID" | grep -E "(JSTorrent-JS|QuickJsContext|EngineController)"
+        else
+            # shellcheck disable=SC2086
+            adb -s "$DEVICE_CONNECTION" logcat $FILTER
+        fi
         ;;
     ssh)
         SSH_HOST="${DEVICE_CONNECTION%%:*}"
@@ -101,6 +119,17 @@ case "$DEVICE_TYPE" in
 
         # Clear and stream logs
         ssh "$SSH_HOST" "$REMOTE_ADB logcat -c"
-        ssh "$SSH_HOST" "$REMOTE_ADB logcat $FILTER"
+        if [[ "$USE_PID" == "true" ]]; then
+            # PID-based filtering is more reliable for QuickJS logs
+            APP_PID=$(ssh "$SSH_HOST" "$REMOTE_ADB shell pidof com.jstorrent.app" 2>/dev/null || true)
+            if [[ -z "$APP_PID" ]]; then
+                echo "Error: JSTorrent app is not running"
+                exit 1
+            fi
+            echo "Filtering by PID: $APP_PID"
+            ssh "$SSH_HOST" "$REMOTE_ADB logcat --pid=$APP_PID" | grep -E "(JSTorrent-JS|QuickJsContext|EngineController)"
+        else
+            ssh "$SSH_HOST" "$REMOTE_ADB logcat $FILTER"
+        fi
         ;;
 esac

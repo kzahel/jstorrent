@@ -19,6 +19,7 @@ describe('Torrent Connection Limits', () => {
       onError: vi.fn(),
       send: vi.fn(),
       close: vi.fn(),
+      connect: vi.fn().mockResolvedValue(undefined),
     }) as unknown as ITcpSocket
 
   beforeEach(() => {
@@ -194,9 +195,18 @@ describe('Torrent Connection Limits', () => {
       const violations: InvariantViolation[] = []
       torrent.on('invariant_violation', (v) => violations.push(v))
 
-      // Mock socket factory to fail
+      // Mock socket factory to return a socket that fails on connect
       mockSocketFactory.createTcpSocket = vi.fn(async () => {
-        throw new Error('Connection refused')
+        return {
+          connect: async () => {
+            throw new Error('Connection refused')
+          },
+          close: () => {},
+          send: () => {},
+          onData: () => {},
+          onClose: () => {},
+          onError: () => {},
+        }
       })
 
       // Try to connect

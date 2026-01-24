@@ -1,6 +1,9 @@
 package com.jstorrent.io.socket
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.Channel
 import java.net.DatagramPacket
 import java.net.InetAddress
@@ -78,23 +81,23 @@ internal class UdpConnection(
 
     /**
      * Close the socket and stop I/O loops.
-     * Blocks until the receive loop exits and onClose callback fires.
+     *
+     * IMPORTANT: This must be non-blocking! This method is called from the JS thread
+     * via native bindings. Using `runBlocking { receiverJob?.join() }` here would
+     * block the JS thread for up to SO_TIMEOUT (60s) per socket, causing a deadlock
+     * when removing torrents with multiple UDP trackers.
      */
     fun close() {
         sendQueue.close()
         senderJob?.cancel()
-        // Close socket first - this causes receive() to throw and exit the loop
+        receiverJob?.cancel()
+        // Close socket - this causes receive() to throw and exit the loop
         try {
             socket.close()
         } catch (_: Exception) {}
-        // Cancel the receiver job
-        receiverJob?.cancel()
-        // Wait for receiver to finish
-        runBlocking {
-            receiverJob?.join()
-        }
-        // Always fire onClose callback - the finally block in the receiver may not
-        // run if the job was cancelled before it started executing
+        // Fire onClose callback immediately
+        // The receiver's finally block will also try to fire, but fireOnClose
+        // ensures it only fires once via compareAndSet
         fireOnClose(false, 0)
     }
 

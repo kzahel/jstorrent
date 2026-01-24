@@ -74,12 +74,12 @@ dependencies {
 tasks.register("buildEngineBundle") {
     description = "Builds the TypeScript engine bundle for QuickJS"
 
-    // Define inputs/outputs for incremental builds
-    inputs.dir(rootProject.file("../packages/engine/src"))
-    inputs.file(rootProject.file("../packages/engine/bundle/esbuild.native.config.mjs"))
-    outputs.file(file("src/main/assets/engine.bundle.js"))
+    // Always rebuild - bundling is fast and we don't want stale JS
+    outputs.upToDateWhen { false }
 
     doLast {
+        println(">>> Building TypeScript engine bundle...")
+
         // Run pnpm bundle:native in packages/engine
         exec {
             workingDir = rootProject.file("../packages/engine")
@@ -103,7 +103,7 @@ tasks.register("buildEngineBundle") {
             throw GradleException("Engine bundle not found at ${bundleFile.absolutePath}")
         }
 
-        println("Engine bundle copied: ${bundleFile.length() / 1024} KB")
+        println(">>> Engine bundle ready: ${bundleFile.length() / 1024} KB")
     }
 }
 

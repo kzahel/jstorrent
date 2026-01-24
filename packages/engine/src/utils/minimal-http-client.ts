@@ -1,4 +1,4 @@
-import { ISocketFactory } from '../interfaces/socket'
+import { ISocketFactory, ITcpSocket } from '../interfaces/socket'
 import { Logger } from '../logging/logger'
 import { concat, fromString, toString } from './buffer'
 
@@ -44,10 +44,22 @@ function parseUrl(url: string): {
 }
 
 export class MinimalHttpClient {
+  /** Track active socket for cleanup on abort */
+  private activeSocket: ITcpSocket | null = null
+
   constructor(
     private socketFactory: ISocketFactory,
     private logger?: Logger,
   ) {}
+
+  /**
+   * Abort any in-flight request by closing its socket.
+   * This will cause the pending Promise to reject with a socket error.
+   */
+  abort(): void {
+    this.activeSocket?.close()
+    this.activeSocket = null
+  }
 
   async get(url: string, headers: Record<string, string> = {}): Promise<Uint8Array> {
     const urlObj = parseUrl(url)
@@ -61,12 +73,14 @@ export class MinimalHttpClient {
     )
 
     const socket = await this.socketFactory.createTcpSocket(host, port)
+    this.activeSocket = socket
 
     // Upgrade to TLS for HTTPS
     if (isHttps) {
       if (socket.secure) {
         await socket.secure(host)
       } else {
+        this.activeSocket = null
         socket.close()
         throw new Error('HTTPS not supported: socket factory does not support TLS')
       }
@@ -97,6 +111,7 @@ export class MinimalHttpClient {
       let resolved = false
 
       const cleanup = () => {
+        this.activeSocket = null
         socket.close()
       }
 
@@ -264,12 +279,14 @@ export class MinimalHttpClient {
     )
 
     const socket = await this.socketFactory.createTcpSocket(host, port)
+    this.activeSocket = socket
 
     // Upgrade to TLS for HTTPS
     if (isHttps) {
       if (socket.secure) {
         await socket.secure(host)
       } else {
+        this.activeSocket = null
         socket.close()
         throw new Error('HTTPS not supported: socket factory does not support TLS')
       }
@@ -303,6 +320,7 @@ export class MinimalHttpClient {
       let resolved = false
 
       const cleanup = () => {
+        this.activeSocket = null
         socket.close()
       }
 

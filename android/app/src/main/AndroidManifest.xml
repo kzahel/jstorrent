@@ -87,7 +87,7 @@
             <intent-filter android:label="@string/file_handler_extension">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="file" />
+                <data android:scheme="file" android:host="*" />
                 <data android:pathPattern=".*\\.torrent" />
             </intent-filter>
 
@@ -209,7 +209,7 @@
             <intent-filter android:label="@string/file_handler_standalone">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="file" />
+                <data android:scheme="file" android:host="*" />
                 <data android:pathPattern=".*\\.torrent" />
             </intent-filter>
         </activity>

@@ -130,6 +130,13 @@ class QuickJsEngine : Closeable {
     /**
      * Call a global JavaScript function.
      * Blocks until the call completes and returns the result.
+     *
+     * Note: This does NOT wait for async Promise jobs to complete. Async work
+     * will continue processing via callback delivery (onTcpData, onTcpClose, etc.).
+     * Each callback runs executeAllPendingJobs() to process resulting microtasks.
+     *
+     * This avoids a deadlock where executeAllPendingJobs() blocks waiting for
+     * Promise jobs that are waiting for callbacks that are queued in the Handler.
      */
     fun callGlobalFunction(funcName: String, vararg args: String?): Any? {
         val result = AtomicReference<Any?>()
@@ -139,8 +146,9 @@ class QuickJsEngine : Closeable {
         jsThread.post {
             try {
                 result.set(context.callGlobalFunction(funcName, *args))
-                // Pump microtask queue to execute any async work started by the function
-                context.executeAllPendingJobs()
+                // DON'T call executeAllPendingJobs() here - it can deadlock!
+                // Jobs will process when their callbacks are delivered via Handler.
+                // See: https://github.com/anthropics/claude-code/issues/XXX
             } catch (e: Throwable) {
                 error.set(e)
             } finally {
@@ -155,6 +163,9 @@ class QuickJsEngine : Closeable {
 
     /**
      * Call a global JavaScript function with binary data.
+     *
+     * Note: This does NOT wait for async Promise jobs to complete.
+     * See callGlobalFunction() for details.
      */
     fun callGlobalFunctionWithBinary(
         funcName: String,
@@ -169,8 +180,7 @@ class QuickJsEngine : Closeable {
         jsThread.post {
             try {
                 result.set(context.callGlobalFunctionWithBinary(funcName, binaryArg, binaryArgIndex, *args))
-                // Pump microtask queue to execute any async work started by the function
-                context.executeAllPendingJobs()
+                // DON'T call executeAllPendingJobs() here - it can deadlock!
             } catch (e: Throwable) {
                 error.set(e)
             } finally {
@@ -337,14 +347,16 @@ class QuickJsEngine : Closeable {
 
     /**
      * Call a global JavaScript function (suspend version).
+     *
+     * Note: This does NOT wait for async Promise jobs to complete.
+     * See callGlobalFunction() for details.
      */
     suspend fun callGlobalFunctionAsync(funcName: String, vararg args: String?): Any? {
         return suspendCancellableCoroutine { cont ->
             jsThread.post {
                 try {
                     val result = context.callGlobalFunction(funcName, *args)
-                    // Pump microtask queue to execute any async work started by the function
-                    context.executeAllPendingJobs()
+                    // DON'T call executeAllPendingJobs() here - it can deadlock!
                     cont.resume(result)
                 } catch (e: Throwable) {
                     cont.resumeWithException(e)
@@ -355,6 +367,9 @@ class QuickJsEngine : Closeable {
 
     /**
      * Call a global JavaScript function with binary data (suspend version).
+     *
+     * Note: This does NOT wait for async Promise jobs to complete.
+     * See callGlobalFunction() for details.
      */
     suspend fun callGlobalFunctionWithBinaryAsync(
         funcName: String,
@@ -366,8 +381,7 @@ class QuickJsEngine : Closeable {
             jsThread.post {
                 try {
                     val result = context.callGlobalFunctionWithBinary(funcName, binaryArg, binaryArgIndex, *args)
-                    // Pump microtask queue to execute any async work started by the function
-                    context.executeAllPendingJobs()
+                    // DON'T call executeAllPendingJobs() here - it can deadlock!
                     cont.resume(result)
                 } catch (e: Throwable) {
                     cont.resumeWithException(e)

@@ -3,6 +3,7 @@ package com.jstorrent.app.viewmodel
 import com.jstorrent.quickjs.model.EngineState
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.PeerInfo
+import com.jstorrent.quickjs.model.PieceInfo
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TorrentSummary
 import com.jstorrent.quickjs.model.TrackerInfo
@@ -38,6 +39,7 @@ class FakeTorrentRepository : TorrentRepository {
     var filesData: Map<String, List<FileInfo>> = emptyMap()
     var trackersData: Map<String, List<TrackerInfo>> = emptyMap()
     var peersData: Map<String, List<PeerInfo>> = emptyMap()
+    var piecesData: Map<String, PieceInfo> = emptyMap()
 
     // ==========================================================================
     // Test control methods
@@ -69,6 +71,7 @@ class FakeTorrentRepository : TorrentRepository {
         filesData = emptyMap()
         trackersData = emptyMap()
         peersData = emptyMap()
+        piecesData = emptyMap()
     }
 
     // ==========================================================================
@@ -156,6 +159,10 @@ class FakeTorrentRepository : TorrentRepository {
 
     override suspend fun getPeers(infoHash: String): List<PeerInfo> {
         return peersData[infoHash] ?: emptyList()
+    }
+
+    override suspend fun getPieces(infoHash: String): PieceInfo? {
+        return piecesData[infoHash]
     }
 }
 

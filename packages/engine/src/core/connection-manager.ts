@@ -88,6 +88,9 @@ export class ConnectionManager extends EventEmitter {
   // Connection timeout timers
   private connectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map()
 
+  // Pending sockets (for cancellation of in-flight connections)
+  private pendingSockets: Map<string, ITcpSocket> = new Map()
+
   // Callbacks for peer setup (provided by Torrent)
   private onPeerConnected?: (key: string, connection: PeerConnection) => void
 
@@ -184,9 +187,18 @@ export class ConnectionManager extends EventEmitter {
     }, this.config.connectTimeout)
     this.connectTimers.set(key, timer)
 
+    // Create socket without connecting - allows cancellation
+    const rawSocket = await this.socketFactory.createTcpSocket()
+    this.pendingSockets.set(key, rawSocket)
+
     try {
       this.logger.debug(`[ConnectionManager] Connecting to ${key}`)
-      const rawSocket = await this.socketFactory.createTcpSocket(peer.ip, peer.port)
+
+      // Connect (can be cancelled by closing socket)
+      if (!rawSocket.connect) {
+        throw new Error('Socket does not support connect()')
+      }
+      await rawSocket.connect(peer.port, peer.ip)
 
       // Check if we were cancelled while awaiting (timer removed by cancelAllPendingConnections)
       if (!this.connectTimers.has(key)) {
@@ -269,6 +281,9 @@ export class ConnectionManager extends EventEmitter {
         this.swarm.markConnectFailed(key, reason)
         this.emit('peerConnectFailed', key, reason)
       }
+    } finally {
+      // Always clean up pending socket tracking
+      this.pendingSockets.delete(key)
     }
   }
 
@@ -277,6 +292,14 @@ export class ConnectionManager extends EventEmitter {
    */
   private handleConnectionTimeout(key: string): void {
     this.connectTimers.delete(key)
+
+    // Close the pending socket to abort the TCP connection
+    const pendingSocket = this.pendingSockets.get(key)
+    if (pendingSocket) {
+      pendingSocket.close()
+      this.pendingSockets.delete(key)
+    }
+
     this.swarm.markConnectFailed(key, 'timeout')
     this.logger.debug(`[ConnectionManager] Connection timeout: ${key}`)
     this.emit('connectionTimeout', key)
@@ -420,13 +443,30 @@ export class ConnectionManager extends EventEmitter {
 
   /**
    * Cancel all pending connection attempts.
+   * Closes any sockets that are mid-connect to abort the TCP connection.
    */
   cancelAllPendingConnections(): void {
+    const t0 = Date.now()
+    const numPending = this.pendingSockets.size
+    const numTimers = this.connectTimers.size
+
+    // Close all pending sockets to abort in-flight TCP connections
+    for (const [key, socket] of this.pendingSockets) {
+      this.logger.debug(`[ConnectionManager] Aborting pending connection to ${key}`)
+      socket.close()
+    }
+    this.pendingSockets.clear()
+
+    // Clear timers and mark peers as failed
     for (const [key, timer] of this.connectTimers) {
       clearTimeout(timer)
       this.swarm.markConnectFailed(key, 'cancelled')
     }
     this.connectTimers.clear()
+
+    this.logger.info(
+      `[ConnectionManager] cancelAllPendingConnections: closed ${numPending} sockets, cleared ${numTimers} timers in ${Date.now() - t0}ms`,
+    )
   }
 
   /**

@@ -218,6 +218,21 @@ class TorrentDetailViewModel(
     }
 
     /**
+     * Re-sync pieces state from the engine.
+     * Call this when the app resumes from background to ensure the bitfield
+     * reflects any progress made while incremental updates were missed.
+     */
+    fun resyncPieces() {
+        viewModelScope.launch {
+            val pieces = repository.getPieces(infoHash)
+            if (pieces != null && pieces.piecesTotal > 0) {
+                _cachedPieces.value = pieces
+                _pieceBitfield.value = decodeBitfield(pieces.bitfield, pieces.piecesTotal)
+            }
+        }
+    }
+
+    /**
      * Create the full detail UI model from torrent summary.
      */
     private fun createTorrentDetailUi(

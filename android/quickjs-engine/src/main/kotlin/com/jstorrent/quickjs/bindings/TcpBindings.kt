@@ -136,7 +136,9 @@ class TcpBindings(
                         success.toString(),
                         errorMessage
                     )
-                    ctx.executeAllPendingJobs()
+                    // Schedule batched job processing to avoid blocking the Handler.
+                    // This allows other callbacks to be interleaved with job processing.
+                    jsThread.scheduleJobPump(ctx)
                 }
             }
 
@@ -151,7 +153,7 @@ class TcpBindings(
                         socketId.toString(),
                         null
                     )
-                    ctx.executeAllPendingJobs()
+                    jsThread.scheduleJobPump(ctx)
                 }
             }
 
@@ -165,7 +167,7 @@ class TcpBindings(
                             socketId.toString(),
                             "Socket error (code: $errorCode)"
                         )
-                        ctx.executeAllPendingJobs()
+                        jsThread.scheduleJobPump(ctx)
                     }
                 }
 
@@ -176,7 +178,7 @@ class TcpBindings(
                             socketId.toString(),
                             hadError.toString()
                         )
-                        ctx.executeAllPendingJobs()
+                        jsThread.scheduleJobPump(ctx)
                     }
                 }
             }
@@ -191,7 +193,7 @@ class TcpBindings(
                         socketId.toString(),
                         success.toString()
                     )
-                    ctx.executeAllPendingJobs()
+                    jsThread.scheduleJobPump(ctx)
                 }
             }
         })

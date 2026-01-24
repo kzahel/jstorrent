@@ -23,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -33,6 +34,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,6 +66,12 @@ fun TorrentDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
+
+    // Re-sync pieces when app resumes from background to catch any updates
+    // that were missed while the app was suspended
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.resyncPieces()
+    }
 
     var showMenu by remember { mutableStateOf(false) }
     var showRemoveDialog by remember { mutableStateOf(false) }
@@ -261,10 +270,11 @@ private fun DetailContent(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // Tab bar
-        TabRow(
+        // Tab bar - use ScrollableTabRow to prevent text wrapping on narrow screens
+        ScrollableTabRow(
             selectedTabIndex = tabs.indexOf(selectedTab),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            edgePadding = 0.dp
         ) {
             tabs.forEach { tab ->
                 Tab(
