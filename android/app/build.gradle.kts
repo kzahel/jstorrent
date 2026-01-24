@@ -87,6 +87,16 @@ android {
             excludes += "/META-INF/io.netty.versions.properties"
         }
     }
+
+    sourceSets {
+        // Shared test code available to both unit tests and instrumented tests
+        getByName("test") {
+            java.srcDir("src/sharedTest/java")
+        }
+        getByName("androidTest") {
+            java.srcDir("src/sharedTest/java")
+        }
+    }
 }
 
 dependencies {
