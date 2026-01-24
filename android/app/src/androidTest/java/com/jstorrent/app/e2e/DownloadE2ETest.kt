@@ -68,7 +68,8 @@ class DownloadE2ETest : E2EBaseTest() {
      * TODO: Fix seed-for-test infrastructure - seeder connectivity issues
      * prevent reliable peer connections from emulator/device.
      */
-    @Ignore("seed-for-test infrastructure needs fixing - seeder not reachable from test devices")
+    // TODO: Re-enable @Ignore if seeder connectivity issues return
+    // @Ignore("seed-for-test infrastructure needs fixing - seeder not reachable from test devices")
     @Test
     fun downloadFromSeeder_makesProgress() {
         val engine = requireEngine()
@@ -141,11 +142,9 @@ class DownloadE2ETest : E2EBaseTest() {
 
     /**
      * Test that resuming continues download.
-     *
-     * TODO: Fix seed-for-test infrastructure - seeder connectivity issues
-     * prevent reliable peer connections from emulator/device.
      */
-    @Ignore("seed-for-test infrastructure needs fixing - seeder not reachable from test devices")
+    // TODO: Re-enable @Ignore if seeder connectivity issues return
+    // @Ignore("seed-for-test infrastructure needs fixing - seeder not reachable from test devices")
     @Test
     fun resumeTorrent_continuesDownload() {
         val engine = requireEngine()
@@ -177,11 +176,9 @@ class DownloadE2ETest : E2EBaseTest() {
      *
      * This is a long-running test (potentially several minutes).
      * Only run in CI or when specifically testing download completion.
-     *
-     * TODO: Fix seed-for-test infrastructure - seeder connectivity issues
-     * prevent reliable peer connections from emulator/device.
      */
-    @Ignore("seed-for-test infrastructure needs fixing - seeder not reachable from test devices")
+    // TODO: Re-enable @Ignore if seeder connectivity issues return
+    // @Ignore("seed-for-test infrastructure needs fixing - seeder not reachable from test devices")
     @Test
     fun fullDownload_completes() {
         val engine = requireEngine()

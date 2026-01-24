@@ -1,5 +1,6 @@
 package com.jstorrent.app.e2e
 
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
@@ -52,6 +53,9 @@ abstract class E2EBaseTest {
         Log.i(TAG, "Starting E2E test setup")
         Log.i(TAG, "Seeder host: ${E2ETestConfig.getSeederHost(arguments)}")
         Log.i(TAG, "Seeder port: ${E2ETestConfig.getSeederPort(arguments)}")
+
+        // Clear session storage to ensure test isolation
+        clearSessionStorage(context)
 
         // Initialize engine via Application (with null storage mode for in-memory)
         // This avoids SAF permission issues during tests
@@ -257,5 +261,19 @@ abstract class E2EBaseTest {
                 "status=${t.status}, peers=${t.peersConnected}, " +
                 "down=${t.downloadSpeed}B/s, up=${t.uploadSpeed}B/s")
         }
+    }
+
+    /**
+     * Clear session storage (SharedPreferences) to ensure test isolation.
+     *
+     * The engine persists torrent metadata in SharedPreferences. Without clearing,
+     * data from previous tests can leak into subsequent tests (e.g., a torrent
+     * appearing as "complete" when it should start fresh).
+     */
+    private fun clearSessionStorage(context: Context) {
+        val prefs = context.getSharedPreferences("jstorrent_session", Context.MODE_PRIVATE)
+        val keyCount = prefs.all.size
+        prefs.edit().clear().commit()
+        Log.i(TAG, "Cleared session storage ($keyCount keys)")
     }
 }
