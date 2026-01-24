@@ -139,6 +139,8 @@ class QuickJsEngine : Closeable {
         jsThread.post {
             try {
                 result.set(context.callGlobalFunction(funcName, *args))
+                // Pump microtask queue to execute any async work started by the function
+                context.executeAllPendingJobs()
             } catch (e: Throwable) {
                 error.set(e)
             } finally {
@@ -167,6 +169,8 @@ class QuickJsEngine : Closeable {
         jsThread.post {
             try {
                 result.set(context.callGlobalFunctionWithBinary(funcName, binaryArg, binaryArgIndex, *args))
+                // Pump microtask queue to execute any async work started by the function
+                context.executeAllPendingJobs()
             } catch (e: Throwable) {
                 error.set(e)
             } finally {
@@ -339,6 +343,8 @@ class QuickJsEngine : Closeable {
             jsThread.post {
                 try {
                     val result = context.callGlobalFunction(funcName, *args)
+                    // Pump microtask queue to execute any async work started by the function
+                    context.executeAllPendingJobs()
                     cont.resume(result)
                 } catch (e: Throwable) {
                     cont.resumeWithException(e)
@@ -360,6 +366,8 @@ class QuickJsEngine : Closeable {
             jsThread.post {
                 try {
                     val result = context.callGlobalFunctionWithBinary(funcName, binaryArg, binaryArgIndex, *args)
+                    // Pump microtask queue to execute any async work started by the function
+                    context.executeAllPendingJobs()
                     cont.resume(result)
                 } catch (e: Throwable) {
                     cont.resumeWithException(e)

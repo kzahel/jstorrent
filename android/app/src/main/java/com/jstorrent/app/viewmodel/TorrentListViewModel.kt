@@ -94,6 +94,21 @@ class TorrentListViewModel(
     )
 
     /**
+     * Filter counts for each filter type.
+     * Exposed as StateFlow so Compose can observe and recompose when counts change.
+     */
+    val filterCounts: StateFlow<Map<TorrentFilter, Int>> = repository.state.map { state ->
+        val torrents = state?.torrents ?: emptyList()
+        TorrentFilter.entries.associateWith { filter ->
+            torrents.filterByStatus(filter).size
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = TorrentFilter.entries.associateWith { 0 }
+    )
+
+    /**
      * Set the filter for the torrent list.
      */
     fun setFilter(filter: TorrentFilter) {

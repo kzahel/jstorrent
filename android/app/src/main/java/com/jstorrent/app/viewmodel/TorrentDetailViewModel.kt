@@ -213,7 +213,8 @@ class TorrentDetailViewModel(
                 downloadSpeed = peer.downloadSpeed,
                 uploadSpeed = peer.uploadSpeed,
                 progress = peer.progress,
-                flags = if (peer.isEncrypted) "E" else null
+                flags = if (peer.isEncrypted) "E" else null,
+                state = peer.state
             )
         }
 

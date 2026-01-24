@@ -82,6 +82,7 @@ fun TorrentListScreen(
     val aggregateUploadSpeed by viewModel.aggregateUploadSpeed.collectAsState()
     val selectedTorrents by viewModel.selectedTorrents.collectAsState()
     val isSelectionMode by viewModel.isSelectionMode.collectAsState()
+    val filterCounts by viewModel.filterCounts.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -220,6 +221,20 @@ fun TorrentListScreen(
                                     viewModel.addTorrent(TestTorrentHelper.buildKitchenSinkMagnet1GB())
                                 }
                             )
+                            DropdownMenuItem(
+                                text = { Text("Add Ubuntu Server Torrent") },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.addTorrent(TestTorrentHelper.buildUbuntuServerMagnet())
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Add Big Buck Bunny") },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.addTorrent(TestTorrentHelper.buildBigBuckBunnyMagnet())
+                                }
+                            )
                         }
                     }
                 }
@@ -254,7 +269,7 @@ fun TorrentListScreen(
                         torrents = state.torrents,
                         currentFilter = currentFilter,
                         onFilterChange = { viewModel.setFilter(it) },
-                        getFilterCount = { viewModel.getFilterCount(it) },
+                        filterCounts = filterCounts,
                         onTorrentClick = { infoHash ->
                             if (isSelectionMode) {
                                 viewModel.toggleSelection(infoHash)
@@ -372,7 +387,7 @@ private fun TorrentListContent(
     torrents: List<TorrentSummary>,
     currentFilter: TorrentFilter,
     onFilterChange: (TorrentFilter) -> Unit,
-    getFilterCount: (TorrentFilter) -> Int,
+    filterCounts: Map<TorrentFilter, Int>,
     onTorrentClick: (String) -> Unit,
     onTorrentLongClick: (String) -> Unit,
     onPauseTorrent: (String) -> Unit,
@@ -387,7 +402,7 @@ private fun TorrentListContent(
         FilterTabRow(
             currentFilter = currentFilter,
             onFilterChange = onFilterChange,
-            getFilterCount = getFilterCount
+            filterCounts = filterCounts
         )
 
         // Torrent list or empty state
@@ -428,7 +443,7 @@ private fun TorrentListContent(
 private fun FilterTabRow(
     currentFilter: TorrentFilter,
     onFilterChange: (TorrentFilter) -> Unit,
-    getFilterCount: (TorrentFilter) -> Int,
+    filterCounts: Map<TorrentFilter, Int>,
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf(TorrentFilter.ALL, TorrentFilter.QUEUED, TorrentFilter.FINISHED)
@@ -439,7 +454,7 @@ private fun FilterTabRow(
         modifier = modifier.fillMaxWidth()
     ) {
         tabs.forEach { filter ->
-            val count = getFilterCount(filter)
+            val count = filterCounts[filter] ?: 0
             Tab(
                 selected = filter == currentFilter,
                 onClick = { onFilterChange(filter) },

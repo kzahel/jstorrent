@@ -243,7 +243,12 @@ private fun DetailContent(
     LaunchedEffect(selectedTab) {
         val targetPage = tabs.indexOf(selectedTab)
         if (pagerState.currentPage != targetPage) {
-            pagerState.animateScrollToPage(targetPage)
+            // If animation is in progress (rapid taps), snap immediately to avoid conflicts
+            if (pagerState.isScrollInProgress) {
+                pagerState.scrollToPage(targetPage)
+            } else {
+                pagerState.animateScrollToPage(targetPage)
+            }
         }
     }
 

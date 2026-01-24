@@ -24,6 +24,40 @@ object TestTorrentHelper {
     private const val DISPLAY_NAME_1GB = "testdata_1gb.bin"
 
     /**
+     * Ubuntu 24.04.3 Server ISO - real-world torrent for testing with public swarm.
+     * Same torrent used by extension E2E tests.
+     * Info hash derived from: https://releases.ubuntu.com/24.04/ubuntu-24.04.3-live-server-amd64.iso.torrent
+     */
+    private const val INFO_HASH_UBUNTU_SERVER = "a1dfefec1a9dd7fa8a041ebeeea271db55126d2f"
+    private const val DISPLAY_NAME_UBUNTU_SERVER = "ubuntu-24.04.3-live-server-amd64.iso"
+
+    /**
+     * Official Ubuntu trackers.
+     */
+    private val UBUNTU_TRACKERS = listOf(
+        "https://torrent.ubuntu.com/announce",
+        "https://ipv6.torrent.ubuntu.com/announce"
+    )
+
+    /**
+     * Big Buck Bunny - public domain video, well-seeded with reliable UDP trackers.
+     * Good fallback when HTTPS trackers are having issues.
+     */
+    private const val BIG_BUCK_BUNNY_MAGNET =
+        "magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c" +
+        "&dn=Big+Buck+Bunny" +
+        "&tr=udp%3A%2F%2Fexplodie.org%3A6969" +
+        "&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969" +
+        "&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337" +
+        "&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969" +
+        "&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337" +
+        "&tr=wss%3A%2F%2Ftracker.btorrent.xyz" +
+        "&tr=wss%3A%2F%2Ftracker.fastcast.nz" +
+        "&tr=wss%3A%2F%2Ftracker.openwebtorrent.com" +
+        "&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F" +
+        "&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent"
+
+    /**
      * Default seeder port (matches seed_for_test.py default).
      */
     private const val DEFAULT_PORT = 6881
@@ -82,4 +116,30 @@ object TestTorrentHelper {
      */
     @Deprecated("Use buildKitchenSinkMagnet1GB instead", ReplaceWith("buildKitchenSinkMagnet1GB(port)"))
     fun buildKitchenSinkMagnet(port: Int = DEFAULT_PORT): String = buildKitchenSinkMagnet1GB(port)
+
+    /**
+     * Build a magnet link for the Ubuntu 24.04.3 Server ISO.
+     *
+     * This is a real-world torrent with a healthy public swarm, useful for testing
+     * tracker communication, peer discovery, and downloads from the wild.
+     *
+     * @return A magnet link with official Ubuntu trackers
+     */
+    fun buildUbuntuServerMagnet(): String {
+        val encodedName = URLEncoder.encode(DISPLAY_NAME_UBUNTU_SERVER, "UTF-8")
+        val trackers = UBUNTU_TRACKERS.joinToString("&") { tracker ->
+            "tr=${URLEncoder.encode(tracker, "UTF-8")}"
+        }
+        return "magnet:?xt=urn:btih:$INFO_HASH_UBUNTU_SERVER&dn=$encodedName&$trackers"
+    }
+
+    /**
+     * Big Buck Bunny magnet link.
+     *
+     * Public domain video with reliable UDP trackers. Good for testing when
+     * HTTPS trackers are having issues.
+     *
+     * @return Pre-built magnet link with multiple UDP and WebSocket trackers
+     */
+    fun buildBigBuckBunnyMagnet(): String = BIG_BUCK_BUNNY_MAGNET
 }

@@ -170,7 +170,7 @@ enum class TrackerStatus {
 }
 
 /**
- * UI model for a connected peer.
+ * UI model for a peer.
  */
 data class PeerUi(
     val address: String,
@@ -178,7 +178,8 @@ data class PeerUi(
     val downloadSpeed: Long,
     val uploadSpeed: Long,
     val progress: Double,
-    val flags: String?
+    val flags: String?,
+    val state: String  // "connecting" or "connected"
 )
 
 /**

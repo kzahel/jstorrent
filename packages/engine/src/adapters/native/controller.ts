@@ -520,6 +520,7 @@ export function startStatePushLoop(engine: BtEngine): () => void {
           downloadSpeed: t.downloadSpeed,
           uploadSpeed: t.uploadSpeed,
           status: t.activityState,
+          numPeers: t.numPeers,
         })),
       })
 
@@ -541,8 +542,8 @@ export function startStatePushLoop(engine: BtEngine): () => void {
   const handleTorrentAdded = (): void => pushState()
   const handleTorrentRemoved = (): void => pushState()
 
-  engine.on('torrentAdded', handleTorrentAdded)
-  engine.on('torrentRemoved', handleTorrentRemoved)
+  engine.on('torrent', handleTorrentAdded)
+  engine.on('torrent-removed', handleTorrentRemoved)
 
   // Initial push
   pushState()
@@ -550,7 +551,7 @@ export function startStatePushLoop(engine: BtEngine): () => void {
   // Return cleanup function
   return () => {
     clearInterval(intervalId)
-    engine.off('torrentAdded', handleTorrentAdded)
-    engine.off('torrentRemoved', handleTorrentRemoved)
+    engine.off('torrent', handleTorrentAdded)
+    engine.off('torrent-removed', handleTorrentRemoved)
   }
 }

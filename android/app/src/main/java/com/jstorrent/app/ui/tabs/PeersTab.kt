@@ -85,7 +85,8 @@ private fun PeersTabPreview() {
                     downloadSpeed = 1_500_000,
                     uploadSpeed = 256_000,
                     progress = 0.85,
-                    flags = "uH"
+                    flags = "uH",
+                    state = "connected"
                 ),
                 PeerUi(
                     address = "10.0.0.50:6881",
@@ -93,15 +94,17 @@ private fun PeersTabPreview() {
                     downloadSpeed = 500_000,
                     uploadSpeed = 100_000,
                     progress = 1.0,
-                    flags = "D"
+                    flags = "D",
+                    state = "connected"
                 ),
                 PeerUi(
                     address = "172.16.0.25:55000",
                     client = null,
                     downloadSpeed = 0,
-                    uploadSpeed = 50_000,
-                    progress = 0.15,
-                    flags = "U"
+                    uploadSpeed = 0,
+                    progress = 0.0,
+                    flags = null,
+                    state = "connecting"
                 )
             )
         )

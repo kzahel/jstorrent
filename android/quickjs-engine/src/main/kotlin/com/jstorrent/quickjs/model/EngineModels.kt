@@ -110,7 +110,8 @@ data class TorrentSummary(
     val progress: Double,
     val downloadSpeed: Long,
     val uploadSpeed: Long,
-    val status: String
+    val status: String,
+    val numPeers: Int = 0
 )
 
 /**

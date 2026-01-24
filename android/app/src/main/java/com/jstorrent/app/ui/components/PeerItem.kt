@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -28,10 +29,13 @@ fun PeerItem(
     peer: PeerUi,
     modifier: Modifier = Modifier
 ) {
+    val isConnecting = peer.state == "connecting"
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .alpha(if (isConnecting) 0.5f else 1f),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Peer info (address, client, progress)
@@ -46,62 +50,74 @@ fun PeerItem(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            // Client and flags
+            // Client and flags (or "Connecting..." for connecting peers)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (peer.client != null) {
+                if (isConnecting) {
                     Text(
-                        text = peer.client,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                }
-                if (peer.flags != null) {
-                    if (peer.client != null) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    Text(
-                        text = "[${peer.flags}]",
+                        text = "Connecting...",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                } else {
+                    if (peer.client != null) {
+                        Text(
+                            text = peer.client,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
+                    if (peer.flags != null) {
+                        if (peer.client != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text(
+                            text = "[${peer.flags}]",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            // Progress bar (only show for connected peers)
+            if (!isConnecting) {
+                Spacer(modifier = Modifier.height(4.dp))
 
-            // Progress bar
-            TorrentProgressBar(
-                progress = peer.progress.toFloat(),
-                modifier = Modifier.fillMaxWidth(),
-                height = 3.dp
-            )
+                TorrentProgressBar(
+                    progress = peer.progress.toFloat(),
+                    modifier = Modifier.fillMaxWidth(),
+                    height = 3.dp
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        // Speed indicators
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            // Download speed from peer
-            if (peer.downloadSpeed > 0) {
-                SpeedRow(speed = peer.downloadSpeed, isDownload = true)
-            }
-            // Upload speed to peer
-            if (peer.uploadSpeed > 0) {
-                SpeedRow(speed = peer.uploadSpeed, isDownload = false)
-            }
-            // Show progress if no speed
-            if (peer.downloadSpeed == 0L && peer.uploadSpeed == 0L) {
-                Text(
-                    text = Formatters.formatPercent(peer.progress),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        // Speed indicators (only for connected peers)
+        if (!isConnecting) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                // Download speed from peer
+                if (peer.downloadSpeed > 0) {
+                    SpeedRow(speed = peer.downloadSpeed, isDownload = true)
+                }
+                // Upload speed to peer
+                if (peer.uploadSpeed > 0) {
+                    SpeedRow(speed = peer.uploadSpeed, isDownload = false)
+                }
+                // Show progress if no speed
+                if (peer.downloadSpeed == 0L && peer.uploadSpeed == 0L) {
+                    Text(
+                        text = Formatters.formatPercent(peer.progress),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -153,7 +169,8 @@ private fun PeerItemPreview() {
                 downloadSpeed = 1_500_000,
                 uploadSpeed = 256_000,
                 progress = 0.85,
-                flags = "uH"
+                flags = "uH",
+                state = "connected"
             )
         )
     }
@@ -170,7 +187,26 @@ private fun PeerItemSeederPreview() {
                 downloadSpeed = 500_000,
                 uploadSpeed = 0,
                 progress = 1.0,
-                flags = "D"
+                flags = "D",
+                state = "connected"
+            )
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PeerItemConnectingPreview() {
+    JSTorrentTheme {
+        PeerItem(
+            peer = PeerUi(
+                address = "172.16.0.25:55000",
+                client = null,
+                downloadSpeed = 0,
+                uploadSpeed = 0,
+                progress = 0.0,
+                flags = null,
+                state = "connecting"
             )
         )
     }
@@ -187,7 +223,8 @@ private fun PeerItemNoSpeedPreview() {
                 downloadSpeed = 0,
                 uploadSpeed = 0,
                 progress = 0.15,
-                flags = null
+                flags = null,
+                state = "connected"
             )
         )
     }
