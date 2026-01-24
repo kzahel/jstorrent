@@ -40,7 +40,6 @@ export class HttpTracker extends EngineComponent implements ITracker {
     infoHash: Uint8Array,
     peerId: Uint8Array,
     socketFactory: ISocketFactory,
-    private port: number = 6881,
     private bandwidthTracker?: BandwidthTracker,
   ) {
     super(engine)
@@ -171,7 +170,7 @@ export class HttpTracker extends EngineComponent implements ITracker {
 
     let q = `info_hash=${this.escapeInfoHash(this._infoHash)}`
     q += `&peer_id=${this.escapeInfoHash(this._peerId)}` // PeerID is also binary usually
-    q += `&port=${this.port}`
+    q += `&port=${this.engine.listeningPort}`
     q += `&uploaded=${uploaded}`
     q += `&downloaded=${downloaded}`
     // left is required by most trackers (BEP 3); use 0 for magnets before metadata

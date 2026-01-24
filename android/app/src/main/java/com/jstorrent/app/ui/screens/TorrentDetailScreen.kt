@@ -302,7 +302,7 @@ private fun DetailContent(
                     piecesCompleted = torrent.piecesCompleted,
                     piecesTotal = torrent.piecesTotal,
                     pieceSize = torrent.pieceSize,
-                    progress = torrent.progress
+                    bitfield = torrent.pieceBitfield
                 )
             }
         }

@@ -93,11 +93,25 @@ data class PeerListResponse(
 )
 
 /**
+ * Piece information from __jstorrent_query_pieces.
+ */
+@Serializable
+data class PieceInfo(
+    val piecesTotal: Int,
+    val piecesCompleted: Int,
+    val pieceSize: Long,
+    val lastPieceSize: Long,
+    val bitfield: String // Hex-encoded bitfield
+)
+
+/**
  * Compact state pushed from engine every 500ms.
+ * Includes piece changes (diffs) for efficient updates.
  */
 @Serializable
 data class EngineState(
-    val torrents: List<TorrentSummary>
+    val torrents: List<TorrentSummary>,
+    val pieceChanges: Map<String, List<Int>>? = null // infoHash -> newly completed piece indices
 )
 
 /**

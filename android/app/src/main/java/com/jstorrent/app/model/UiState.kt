@@ -3,6 +3,7 @@ package com.jstorrent.app.model
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TorrentSummary
+import java.util.BitSet
 
 /**
  * UI state models for torrent screens.
@@ -127,6 +128,7 @@ data class TorrentDetailUi(
     val piecesCompleted: Int?,
     val piecesTotal: Int?,
     val pieceSize: Long?,
+    val pieceBitfield: BitSet?, // Which pieces are complete
     val files: List<TorrentFileUi>,
     val trackers: List<TrackerUi>,
     val peers: List<PeerUi>,

@@ -7,11 +7,17 @@ set -euo pipefail
 SDK_ROOT="${ANDROID_HOME:-$HOME/.android-sdk}"
 export PATH="$SDK_ROOT/platform-tools:$PATH"
 
-# Check emulator is running
-if ! adb devices 2>/dev/null | grep -q "emulator-"; then
+# Find running emulator (prefer emulator over physical devices)
+EMU_SERIAL=$(adb devices 2>/dev/null | grep -o 'emulator-[0-9]*' | head -1)
+if [[ -z "$EMU_SERIAL" ]]; then
     echo "Error: No emulator running. Start one with: ./emu-start.sh"
     exit 1
 fi
+
+# Use emulator-specific adb command
+adb_emu() {
+    adb -s "$EMU_SERIAL" "$@"
+}
 
 # Default: filter to JSTorrent + Ktor + common errors
 # Override with: ./emu-logs.sh --all
@@ -34,5 +40,5 @@ echo "Press Ctrl+C to stop"
 echo "---"
 
 # Clear existing logs and start fresh
-adb logcat -c
-adb logcat $FILTER
+adb_emu logcat -c
+adb_emu logcat $FILTER

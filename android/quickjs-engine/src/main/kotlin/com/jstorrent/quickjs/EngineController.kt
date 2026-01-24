@@ -18,6 +18,7 @@ import com.jstorrent.quickjs.model.TrackerInfo
 import com.jstorrent.quickjs.model.TrackerListResponse
 import com.jstorrent.quickjs.model.PeerInfo
 import com.jstorrent.quickjs.model.PeerListResponse
+import com.jstorrent.quickjs.model.PieceInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -332,6 +333,22 @@ class EngineController(
         }
     }
 
+    /**
+     * Get piece info for a specific torrent.
+     * Returns piece counts and hex-encoded bitfield.
+     */
+    fun getPieces(infoHash: String): PieceInfo? {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunction("__jstorrent_query_pieces", infoHash) as? String
+            ?: return null
+        return try {
+            json.decodeFromString<PieceInfo>(resultJson)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse piece info", e)
+            null
+        }
+    }
+
     // =========================================================================
     // Debug API
     // =========================================================================
@@ -513,6 +530,21 @@ class EngineController(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse peer list", e)
             emptyList()
+        }
+    }
+
+    /**
+     * Get piece info for a torrent (suspend version).
+     */
+    suspend fun getPiecesAsync(infoHash: String): PieceInfo? {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunctionAsync("__jstorrent_query_pieces", infoHash) as? String
+            ?: return null
+        return try {
+            json.decodeFromString<PieceInfo>(resultJson)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse piece info", e)
+            null
         }
     }
 

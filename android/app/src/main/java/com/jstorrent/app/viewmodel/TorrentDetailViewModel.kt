@@ -12,6 +12,7 @@ import com.jstorrent.app.model.TorrentFileUi
 import com.jstorrent.app.model.TrackerStatus
 import com.jstorrent.app.model.TrackerUi
 import com.jstorrent.app.model.toUi
+import com.jstorrent.quickjs.model.PieceInfo
 import com.jstorrent.quickjs.model.TorrentSummary
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.PeerInfo
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.BitSet
 
 /**
  * ViewModel for the torrent detail screen.
@@ -49,14 +51,45 @@ class TorrentDetailViewModel(
     // Cached peers (fetched asynchronously)
     private val _cachedPeers = MutableStateFlow<List<PeerInfo>>(emptyList())
 
+    // Cached piece info (fetched asynchronously)
+    private val _cachedPieces = MutableStateFlow<PieceInfo?>(null)
+
+    // Local bitfield maintained from initial fetch + diffs
+    private val _pieceBitfield = MutableStateFlow<BitSet?>(null)
+
     init {
-        // Fetch files, trackers, and peers when engine state changes
+        // Fetch files, trackers, peers, and pieces when engine state changes
         viewModelScope.launch {
             repository.state.collect { state ->
                 if (state?.torrents?.any { it.infoHash == infoHash } == true) {
                     _cachedFiles.value = repository.getFiles(infoHash)
                     _cachedTrackers.value = repository.getTrackers(infoHash)
                     _cachedPeers.value = repository.getPeers(infoHash)
+
+                    // Fetch piece info if we don't have it yet, or if piece count changed
+                    // (magnet links start with 0 pieces until metadata arrives)
+                    val currentPieces = _cachedPieces.value
+                    if (currentPieces == null || currentPieces.piecesTotal == 0) {
+                        val pieces = repository.getPieces(infoHash)
+                        if (pieces != null && pieces.piecesTotal > 0) {
+                            _cachedPieces.value = pieces
+                            _pieceBitfield.value = decodeBitfield(pieces.bitfield, pieces.piecesTotal)
+                        }
+                    }
+
+                    // Apply piece diffs from state update
+                    val diffs = state.pieceChanges?.get(infoHash)
+                    if (!diffs.isNullOrEmpty()) {
+                        val bitfield = _pieceBitfield.value ?: BitSet()
+                        diffs.forEach { pieceIndex -> bitfield.set(pieceIndex) }
+                        _pieceBitfield.value = bitfield
+                        // Update completed count
+                        _cachedPieces.value?.let { pieces ->
+                            _cachedPieces.value = pieces.copy(
+                                piecesCompleted = bitfield.cardinality()
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -71,7 +104,9 @@ class TorrentDetailViewModel(
         _fileSelections,
         _cachedFiles,
         _cachedTrackers,
-        _cachedPeers
+        _cachedPeers,
+        _cachedPieces,
+        _pieceBitfield
     ) { values ->
         val isLoaded = values[0] as Boolean
         val state = values[1] as? com.jstorrent.quickjs.model.EngineState
@@ -85,6 +120,8 @@ class TorrentDetailViewModel(
         val trackers = values[6] as List<TrackerInfo>
         @Suppress("UNCHECKED_CAST")
         val peers = values[7] as List<PeerInfo>
+        val pieces = values[8] as? PieceInfo
+        val bitfield = values[9] as? BitSet
         when {
             error != null && !isLoaded -> TorrentDetailUiState.Error(error)
             !isLoaded -> TorrentDetailUiState.Loading
@@ -94,7 +131,7 @@ class TorrentDetailViewModel(
                     TorrentDetailUiState.Error("Torrent not found")
                 } else {
                     TorrentDetailUiState.Loaded(
-                        torrent = createTorrentDetailUi(torrent, selections, files, trackers, peers),
+                        torrent = createTorrentDetailUi(torrent, selections, files, trackers, peers, pieces, bitfield),
                         selectedTab = tab
                     )
                 }
@@ -188,7 +225,9 @@ class TorrentDetailViewModel(
         fileSelections: Map<Int, Boolean>,
         files: List<FileInfo>,
         trackers: List<TrackerInfo>,
-        peers: List<PeerInfo>
+        peers: List<PeerInfo>,
+        pieces: PieceInfo?,
+        bitfield: BitSet?
     ): TorrentDetailUi {
         val fileUis = files.map { file ->
             val isSelected = fileSelections[file.index] ?: true
@@ -226,7 +265,6 @@ class TorrentDetailViewModel(
         // Calculate share ratio
         val shareRatio = if (downloaded > 0) uploaded.toDouble() / downloaded else 0.0
 
-        // Placeholder values for data not yet available from engine
         return TorrentDetailUi(
             infoHash = summary.infoHash,
             name = summary.name,
@@ -245,9 +283,10 @@ class TorrentDetailViewModel(
             leechersTotal = null,
             eta = calculateEta(summary.downloadSpeed, totalSize - downloaded),
             shareRatio = shareRatio,
-            piecesCompleted = null, // TODO: Get from engine
-            piecesTotal = null,
-            pieceSize = null,
+            piecesCompleted = pieces?.piecesCompleted,
+            piecesTotal = pieces?.piecesTotal,
+            pieceSize = pieces?.pieceSize,
+            pieceBitfield = bitfield,
             files = fileUis,
             trackers = trackerUis,
             peers = peerUis
@@ -277,6 +316,27 @@ class TorrentDetailViewModel(
         } else {
             null // Infinite/unknown
         }
+    }
+
+    /**
+     * Decode hex-encoded bitfield to BitSet.
+     * BitTorrent bitfield: MSB first, bit 0 of byte 0 = piece 0.
+     */
+    private fun decodeBitfield(hex: String, piecesTotal: Int): BitSet {
+        val bitset = BitSet(piecesTotal)
+        if (hex.isEmpty()) return bitset
+
+        val bytes = hex.chunked(2).map { it.toInt(16).toByte() }
+        for (pieceIndex in 0 until piecesTotal) {
+            val byteIndex = pieceIndex / 8
+            if (byteIndex >= bytes.size) break
+            val bitIndex = 7 - (pieceIndex % 8) // MSB first
+            val byte = bytes[byteIndex].toInt() and 0xFF
+            if ((byte shr bitIndex) and 1 == 1) {
+                bitset.set(pieceIndex)
+            }
+        }
+        return bitset
     }
 
     /**

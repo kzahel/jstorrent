@@ -46,6 +46,8 @@ export interface ILoggableComponent {
 export interface ILoggingEngine {
   clientId: string
   scopedLoggerFor(component: ILoggableComponent): Logger
+  /** Current listening port for incoming peer connections */
+  listeningPort: number
 }
 
 export class EngineComponent extends EventEmitter implements ILoggableComponent {

@@ -165,6 +165,14 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public port: number
   public peerId: Uint8Array
 
+  /**
+   * Get the current listening port.
+   * This may differ from the initially configured port if port 0 (auto-assign) was used.
+   */
+  get listeningPort(): number {
+    return this.port
+  }
+
   public readonly clientId: string
   private logger: Logger
   private filterFn: ShouldLogFn

@@ -116,17 +116,25 @@ fi
 
 # --- Step 1: Ensure emulator is running ---
 echo ">>> Checking emulator status..."
-if adb devices 2>/dev/null | grep -q "emulator-"; then
-    echo "    Emulator already running"
+EMU_SERIAL=$(adb devices 2>/dev/null | grep -o 'emulator-[0-9]*' | head -1)
+if [[ -n "$EMU_SERIAL" ]]; then
+    echo "    Emulator already running ($EMU_SERIAL)"
 else
     echo ">>> Starting emulator '$AVD_NAME'..."
     "$SCRIPT_DIR/emu-start.sh"
+    # Re-detect after starting
+    EMU_SERIAL=$(adb devices 2>/dev/null | grep -o 'emulator-[0-9]*' | head -1)
 fi
+
+# Use emulator-specific adb command
+adb_emu() {
+    adb -s "$EMU_SERIAL" "$@"
+}
 
 # --- Step 2: Clear app storage ---
 echo ""
 echo ">>> Clearing app storage..."
-if adb shell pm clear "$PACKAGE" 2>/dev/null; then
+if adb_emu shell pm clear "$PACKAGE" 2>/dev/null; then
     echo "    App storage cleared"
 else
     echo "    (App not installed yet, skipping clear)"
@@ -166,13 +174,13 @@ if [[ ! -f "$APK_PATH" ]]; then
 fi
 
 echo ""
-echo ">>> Installing APK..."
-adb install -r "$APK_PATH"
+echo ">>> Installing APK to $EMU_SERIAL..."
+adb_emu install -r "$APK_PATH"
 
 # --- Step 5: Set up port forwarding ---
 echo ""
 echo ">>> Setting up adb reverse for dev server..."
-adb reverse tcp:3000 tcp:3000
+adb_emu reverse tcp:3000 tcp:3000
 
 # --- Step 6: Launch NativeStandaloneActivity with magnet URL ---
 echo ""
@@ -195,7 +203,7 @@ echo "    Intent URI: $INTENT_URI"
 # Launch the activity with the intent
 # Note: & must be escaped for adb shell (double escape: \& -> & in remote shell)
 ESCAPED_URI="${INTENT_URI//&/\\&}"
-adb shell am start -n "$ACTIVITY" -a android.intent.action.VIEW -d "$ESCAPED_URI"
+adb_emu shell am start -n "$ACTIVITY" -a android.intent.action.VIEW -d "$ESCAPED_URI"
 
 echo ""
 echo "=== Test Started ==="

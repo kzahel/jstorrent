@@ -24,14 +24,30 @@ fi
 # Device config file for real devices
 _DEV_CONFIG_FILE="${DEVICE_CONFIG_FILE:-$HOME/.jstorrent-devices}"
 
+# Helper to get emulator serial (prefer emulator over physical devices)
+_get_emu_serial() {
+    adb devices 2>/dev/null | grep -o 'emulator-[0-9]*' | head -1
+}
+
+# Emulator-specific adb (fails if no emulator running)
+adb_emu() {
+    local serial
+    serial=$(_get_emu_serial)
+    if [[ -z "$serial" ]]; then
+        echo "Error: No emulator running. Start one with: emu start" >&2
+        return 1
+    fi
+    adb -s "$serial" "$@"
+}
+
 # Aliases
 alias emu-start="$_SCRIPTS_DIR/emu-start.sh"
 alias emu-stop="$_SCRIPTS_DIR/emu-stop.sh"
 alias emu-install="$_SCRIPTS_DIR/emu-install.sh"
 alias emu-logs="$_SCRIPTS_DIR/emu-logs.sh"
-alias emu-shell="adb shell"
+alias emu-shell="adb_emu shell"
 alias emu-test-native="$_SCRIPTS_DIR/emu-test-native.sh"
-alias emu-reset="adb shell pm clear com.jstorrent.app"
+alias emu-reset="adb_emu shell pm clear com.jstorrent.app"
 
 # Device-specific aliases
 alias emu-phone="AVD_NAME=jstorrent-dev $_SCRIPTS_DIR/emu-start.sh"
@@ -47,7 +63,7 @@ emu() {
         stop)        emu-stop ;;
         install)     shift; emu-install "$@" ;;
         logs)        shift; emu-logs "$@" ;;
-        shell)       adb shell ;;
+        shell)       adb_emu shell ;;
         status)      emu-status ;;
         restart)     emu-stop; sleep 1; emu-start ;;
         phone)       AVD_NAME=jstorrent-dev emu-start ;;

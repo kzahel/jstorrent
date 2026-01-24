@@ -45,7 +45,6 @@ export class UdpTracker extends EngineComponent implements ITracker {
     readonly infoHash: Uint8Array,
     readonly peerId: Uint8Array,
     private socketFactory: ISocketFactory,
-    private port: number = 6881,
     private bandwidthTracker?: BandwidthTracker,
   ) {
     super(engine)
@@ -147,7 +146,7 @@ export class UdpTracker extends EngineComponent implements ITracker {
     view.setUint32(84, 0, false) // IP
     view.setUint32(88, 0, false) // Key
     view.setInt32(92, -1, false) // Num want
-    view.setUint16(96, this.port, false)
+    view.setUint16(96, this.engine.listeningPort, false)
 
     this.socket.send(host, port, buf)
     this.bandwidthTracker?.record('tracker:udp', buf.length, 'up')

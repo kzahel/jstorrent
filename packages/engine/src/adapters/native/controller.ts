@@ -461,6 +461,31 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
   }
 
   /**
+   * Get piece info for a specific torrent.
+   * Returns bitfield as hex string for efficient transfer.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_pieces = (
+    infoHash: string,
+  ): string => {
+    const engine = requireEngine('query_pieces')
+    if (!engine) {
+      return JSON.stringify({ error: 'Engine not ready' })
+    }
+    const torrent = engine.getTorrent(infoHash)
+    if (!torrent) {
+      return JSON.stringify({ error: 'Torrent not found' })
+    }
+
+    return JSON.stringify({
+      piecesTotal: torrent.piecesCount,
+      piecesCompleted: torrent.completedPiecesCount,
+      pieceSize: torrent.pieceLength,
+      lastPieceSize: torrent.lastPieceLength,
+      bitfield: torrent.bitfield?.toHex() ?? '',
+    })
+  }
+
+  /**
    * Get detailed swarm stats for debugging peer connection issues.
    * Shows all peers in swarm with their connection state and history.
    */
@@ -506,12 +531,55 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
 /**
  * Start the state push loop.
  * Pushes compact state to native layer every 500ms (only if changed).
+ * Tracks piece completions and sends diffs.
  */
 export function startStatePushLoop(engine: BtEngine): () => void {
   let lastPushedState = ''
 
+  // Track pending piece changes per torrent (cleared after each push)
+  const pendingPieceChanges = new Map<string, Set<number>>()
+
+  // Track piece listeners per torrent for cleanup
+  const pieceListeners = new Map<string, (index: number) => void>()
+
+  const setupPieceTracking = (torrent: Torrent): void => {
+    const infoHash = toHex(torrent.infoHash)
+    if (pieceListeners.has(infoHash)) return
+
+    const listener = (pieceIndex: number): void => {
+      let changes = pendingPieceChanges.get(infoHash)
+      if (!changes) {
+        changes = new Set()
+        pendingPieceChanges.set(infoHash, changes)
+      }
+      changes.add(pieceIndex)
+    }
+
+    torrent.on('piece', listener)
+    pieceListeners.set(infoHash, listener)
+  }
+
+  const cleanupPieceTracking = (torrent: Torrent): void => {
+    const infoHash = toHex(torrent.infoHash)
+    const listener = pieceListeners.get(infoHash)
+    if (listener) {
+      torrent.off('piece', listener)
+      pieceListeners.delete(infoHash)
+    }
+    pendingPieceChanges.delete(infoHash)
+  }
+
   const pushState = (): void => {
     try {
+      // Collect piece changes and clear pending
+      const pieceChanges: Record<string, number[]> = {}
+      for (const [infoHash, changes] of pendingPieceChanges) {
+        if (changes.size > 0) {
+          pieceChanges[infoHash] = Array.from(changes).sort((a, b) => a - b)
+          changes.clear()
+        }
+      }
+
       const state = JSON.stringify({
         torrents: engine.torrents.map((t) => ({
           infoHash: toHex(t.infoHash),
@@ -522,6 +590,7 @@ export function startStatePushLoop(engine: BtEngine): () => void {
           status: t.activityState,
           numPeers: t.numPeers,
         })),
+        pieceChanges: Object.keys(pieceChanges).length > 0 ? pieceChanges : undefined,
       })
 
       // Only push if changed
@@ -538,9 +607,20 @@ export function startStatePushLoop(engine: BtEngine): () => void {
   // Push every 500ms
   const intervalId = setInterval(pushState, 500)
 
-  // Also push immediately on torrent events
-  const handleTorrentAdded = (): void => pushState()
-  const handleTorrentRemoved = (): void => pushState()
+  // Setup tracking for existing torrents
+  for (const torrent of engine.torrents) {
+    setupPieceTracking(torrent)
+  }
+
+  // Track new torrents
+  const handleTorrentAdded = (torrent: Torrent): void => {
+    setupPieceTracking(torrent)
+    pushState()
+  }
+  const handleTorrentRemoved = (torrent: Torrent): void => {
+    cleanupPieceTracking(torrent)
+    pushState()
+  }
 
   engine.on('torrent', handleTorrentAdded)
   engine.on('torrent-removed', handleTorrentRemoved)
@@ -553,5 +633,9 @@ export function startStatePushLoop(engine: BtEngine): () => void {
     clearInterval(intervalId)
     engine.off('torrent', handleTorrentAdded)
     engine.off('torrent-removed', handleTorrentRemoved)
+    // Cleanup all piece listeners
+    for (const torrent of engine.torrents) {
+      cleanupPieceTracking(torrent)
+    }
   }
 }

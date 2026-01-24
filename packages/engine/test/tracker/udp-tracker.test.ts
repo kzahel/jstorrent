@@ -55,6 +55,7 @@ describe('UdpTracker', () => {
   beforeEach(() => {
     factory = new MockSocketFactory()
     const mockEngine = {
+      listeningPort: 6881,
       scopedLoggerFor: vi.fn().mockReturnValue({
         info: vi.fn(),
         warn: vi.fn(),

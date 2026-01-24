@@ -23,6 +23,7 @@ describe('HttpTracker', () => {
   let mockHttpClient: any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockEngine: any = {
+    listeningPort: 6881,
     scopedLoggerFor: vi.fn().mockReturnValue({
       debug: vi.fn(),
       info: vi.fn(),

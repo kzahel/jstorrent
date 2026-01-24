@@ -35,6 +35,7 @@ describe('TrackerManager', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     const mockEngine = {
+      listeningPort: 6881,
       scopedLoggerFor: vi.fn().mockReturnValue({
         info: vi.fn(),
         warn: vi.fn(),

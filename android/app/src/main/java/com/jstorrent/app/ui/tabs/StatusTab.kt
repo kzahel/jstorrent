@@ -272,6 +272,7 @@ private fun StatusTabPreview() {
                 piecesCompleted = 500,
                 piecesTotal = 8152,
                 pieceSize = 262144,
+                pieceBitfield = null,
                 files = emptyList(),
                 trackers = emptyList(),
                 peers = emptyList()
@@ -306,6 +307,7 @@ private fun StatusTabPausedPreview() {
                 piecesCompleted = 6114,
                 piecesTotal = 8152,
                 pieceSize = 262144,
+                pieceBitfield = null,
                 files = emptyList(),
                 trackers = emptyList(),
                 peers = emptyList()

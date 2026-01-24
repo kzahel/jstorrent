@@ -1785,7 +1785,6 @@ export class Torrent extends EngineComponent {
       this.infoHash,
       this.peerId,
       this.socketFactory,
-      this.port,
       (this.engine as BtEngine).bandwidthTracker,
     )
 

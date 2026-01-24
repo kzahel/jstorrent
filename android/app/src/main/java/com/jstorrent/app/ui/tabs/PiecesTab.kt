@@ -16,10 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.jstorrent.app.ui.components.PieceBar
 import com.jstorrent.app.ui.components.PieceMap
 import com.jstorrent.app.ui.components.StatRowPair
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.util.Formatters
+import java.util.BitSet
 
 /**
  * Pieces tab showing piece completion status and visual map.
@@ -29,7 +31,7 @@ fun PiecesTab(
     piecesCompleted: Int?,
     piecesTotal: Int?,
     pieceSize: Long?,
-    progress: Double,
+    bitfield: BitSet?,
     modifier: Modifier = Modifier
 ) {
     if (piecesTotal == null || piecesTotal == 0) {
@@ -50,9 +52,23 @@ fun PiecesTab(
                 rightValue = pieceSize?.let { Formatters.formatBytes(it) } ?: "Unknown"
             )
 
+            // Progress bar (single line, aggregated view)
+            Text(
+                text = "PROGRESS",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            PieceBar(
+                piecesTotal = piecesTotal,
+                bitfield = bitfield,
+                piecesCompleted = piecesCompleted ?: 0,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Piece map
+            // Piece map (grid view)
             Text(
                 text = "PIECE MAP",
                 style = MaterialTheme.typography.labelSmall,
@@ -60,10 +76,10 @@ fun PiecesTab(
             )
 
             PieceMap(
-                progress = progress,
-                piecesCompleted = piecesCompleted ?: 0,
                 piecesTotal = piecesTotal,
-                modifier = Modifier.padding(top = 8.dp)
+                bitfield = bitfield,
+                piecesCompleted = piecesCompleted ?: 0,
+                modifier = Modifier.padding(top = 4.dp)
             )
         }
     }
@@ -103,12 +119,16 @@ private fun NoPiecesState(modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 private fun PiecesTabPreview() {
+    // Create a scattered bitfield for preview
+    val bitfield = BitSet(8152).apply {
+        for (i in 0 until 500) set(i * 16)
+    }
     JSTorrentTheme {
         PiecesTab(
             piecesCompleted = 500,
             piecesTotal = 8152,
             pieceSize = 262144,
-            progress = 0.0613
+            bitfield = bitfield
         )
     }
 }
@@ -116,12 +136,15 @@ private fun PiecesTabPreview() {
 @Preview(showBackground = true)
 @Composable
 private fun PiecesTabCompletePreview() {
+    val bitfield = BitSet(8152).apply {
+        set(0, 8152)
+    }
     JSTorrentTheme {
         PiecesTab(
             piecesCompleted = 8152,
             piecesTotal = 8152,
             pieceSize = 262144,
-            progress = 1.0
+            bitfield = bitfield
         )
     }
 }
@@ -134,7 +157,24 @@ private fun PiecesTabNoDataPreview() {
             piecesCompleted = null,
             piecesTotal = null,
             pieceSize = null,
-            progress = 0.0
+            bitfield = null
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PiecesTabSmallTorrentPreview() {
+    // Small torrent with 10 pieces
+    val bitfield = BitSet(10).apply {
+        set(0); set(2); set(5); set(7)
+    }
+    JSTorrentTheme {
+        PiecesTab(
+            piecesCompleted = 4,
+            piecesTotal = 10,
+            pieceSize = 16384,
+            bitfield = bitfield
         )
     }
 }

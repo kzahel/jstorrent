@@ -11,11 +11,17 @@ SDK_ROOT="${ANDROID_HOME:-$HOME/.android-sdk}"
 # Ensure adb is in PATH
 export PATH="$SDK_ROOT/platform-tools:$PATH"
 
-# Check emulator is running
-if ! adb devices 2>/dev/null | grep -q "emulator-"; then
+# Find running emulator (prefer emulator over physical devices)
+EMU_SERIAL=$(adb devices 2>/dev/null | grep -o 'emulator-[0-9]*' | head -1)
+if [[ -z "$EMU_SERIAL" ]]; then
     echo "Error: No emulator running. Start one with: ./emu-start.sh"
     exit 1
 fi
+
+# Use emulator-specific adb command
+adb_emu() {
+    adb -s "$EMU_SERIAL" "$@"
+}
 
 cd "$PROJECT_DIR"
 
@@ -86,29 +92,29 @@ if [[ ! -f "$APK_PATH" ]]; then
 fi
 
 # Install
-echo ">>> Installing APK..."
-adb install -r "$APK_PATH"
+echo ">>> Installing APK to $EMU_SERIAL..."
+adb_emu install -r "$APK_PATH"
 
 # Set up port forwarding for dev server (secure context requires 127.0.0.1)
 echo ">>> Setting up adb reverse for dev server..."
-adb reverse tcp:3000 tcp:3000
+adb_emu reverse tcp:3000 tcp:3000
 
 # Launch app
 if $LAUNCH; then
     echo ">>> Launching app (UI mode: $UI_MODE)..."
     case "$UI_MODE" in
         native)
-            adb shell am start -n "com.jstorrent.app/.NativeStandaloneActivity" \
+            adb_emu shell am start -n "com.jstorrent.app/.NativeStandaloneActivity" \
                 -a android.intent.action.VIEW \
                 -d "jstorrent://native"
             ;;
         standalone)
-            adb shell am start -n "com.jstorrent.app/.MainActivity" \
+            adb_emu shell am start -n "com.jstorrent.app/.MainActivity" \
                 -a android.intent.action.VIEW \
                 -d "http://localhost:3000/standalone.html"
             ;;
         standalone-full)
-            adb shell am start -n "com.jstorrent.app/.MainActivity" \
+            adb_emu shell am start -n "com.jstorrent.app/.MainActivity" \
                 -a android.intent.action.VIEW \
                 -d "http://localhost:3000/standalone-full.html"
             ;;

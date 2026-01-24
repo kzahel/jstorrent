@@ -30,7 +30,6 @@ export class TrackerManager extends EngineComponent {
     readonly infoHash: Uint8Array,
     readonly peerId: Uint8Array,
     private socketFactory: ISocketFactory,
-    private port: number = 6881,
     private bandwidthTracker?: BandwidthTracker,
   ) {
     super(engine)
@@ -54,7 +53,6 @@ export class TrackerManager extends EngineComponent {
               this.infoHash,
               this.peerId,
               this.socketFactory,
-              this.port,
               this.bandwidthTracker,
             )
           } else if (url.startsWith('udp')) {
@@ -65,7 +63,6 @@ export class TrackerManager extends EngineComponent {
               this.infoHash,
               this.peerId,
               this.socketFactory,
-              this.port,
               this.bandwidthTracker,
             )
           } else {
