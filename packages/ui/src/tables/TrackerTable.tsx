@@ -55,6 +55,20 @@ const trackerColumns: ColumnDef<TrackerStats>[] = [
     align: 'right',
   },
   {
+    id: 'lastPeers',
+    header: 'Last Peers',
+    getValue: (t) => String(t.lastPeersReceived),
+    width: 70,
+    align: 'right',
+  },
+  {
+    id: 'uniquePeers',
+    header: 'Unique Peers',
+    getValue: (t) => String(t.uniquePeersDiscovered),
+    width: 85,
+    align: 'right',
+  },
+  {
     id: 'interval',
     header: 'Interval',
     getValue: (t) => formatInterval(t.interval),

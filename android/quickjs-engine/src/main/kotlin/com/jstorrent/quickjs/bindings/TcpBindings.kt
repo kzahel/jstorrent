@@ -126,11 +126,9 @@ class TcpBindings(
     private fun setupNativeCallbacks(ctx: QuickJsContext) {
         tcpManager.setCallback(object : TcpSocketCallback {
             override fun onTcpConnected(socketId: Int, success: Boolean, errorCode: Int) {
-                Log.d(TAG, "onTcpConnected: socket=$socketId, success=$success, errorCode=$errorCode")
                 if (!hasConnectedCallback) return
 
                 jsThread.post {
-                    // Call the JS dispatcher: __jstorrent_tcp_dispatch_connected(socketId, success, errorMessage)
                     val errorMessage = if (!success) "Connection failed (code: $errorCode)" else ""
                     ctx.callGlobalFunction(
                         "__jstorrent_tcp_dispatch_connected",
@@ -143,19 +141,15 @@ class TcpBindings(
             }
 
             override fun onTcpData(socketId: Int, data: ByteArray) {
-                // Note: Logging disabled for performance - uncomment for debugging
-                // Log.d(TAG, "onTcpData: socket=$socketId, bytes=${data.size}")
                 if (!hasDataCallback) return
 
                 jsThread.post {
-                    // Call the JS dispatcher with binary data
-                    // Note: null placeholder at index 1 where binary data will be inserted
                     ctx.callGlobalFunctionWithBinary(
                         "__jstorrent_tcp_dispatch_data",
                         data,
                         1,
                         socketId.toString(),
-                        null  // placeholder for binary arg at index 1
+                        null
                     )
                     ctx.executeAllPendingJobs()
                 }

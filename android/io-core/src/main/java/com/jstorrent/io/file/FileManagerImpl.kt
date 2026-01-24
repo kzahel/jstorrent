@@ -56,25 +56,27 @@ class FileManagerImpl(
 
         try {
             context.contentResolver.openFileDescriptor(file.uri, "r")?.use { pfd ->
-                val channel = FileInputStream(pfd.fileDescriptor).channel
-                channel.position(offset)
+                FileInputStream(pfd.fileDescriptor).use { fis ->
+                    val channel = fis.channel
+                    channel.position(offset)
 
-                val buffer = ByteBuffer.allocate(length)
-                var totalRead = 0
-                while (buffer.hasRemaining()) {
-                    val read = channel.read(buffer)
-                    if (read == -1) break
-                    totalRead += read
+                    val buffer = ByteBuffer.allocate(length)
+                    var totalRead = 0
+                    while (buffer.hasRemaining()) {
+                        val read = channel.read(buffer)
+                        if (read == -1) break
+                        totalRead += read
+                    }
+
+                    if (totalRead < length) {
+                        throw FileManagerException.InsufficientData(relativePath, length, totalRead)
+                    }
+
+                    buffer.flip()
+                    val bytes = ByteArray(buffer.remaining())
+                    buffer.get(bytes)
+                    return bytes
                 }
-
-                if (totalRead < length) {
-                    throw FileManagerException.InsufficientData(relativePath, length, totalRead)
-                }
-
-                buffer.flip()
-                val bytes = ByteArray(buffer.remaining())
-                buffer.get(bytes)
-                return bytes
             } ?: throw FileManagerException.CannotOpenFile(relativePath)
         } catch (e: FileManagerException) {
             throw e
@@ -104,9 +106,11 @@ class FileManagerImpl(
 
             // Use ParcelFileDescriptor for true random access writes
             context.contentResolver.openFileDescriptor(file.uri, "rw")?.use { pfd ->
-                val channel = FileOutputStream(pfd.fileDescriptor).channel
-                channel.position(offset)
-                channel.write(ByteBuffer.wrap(data))
+                FileOutputStream(pfd.fileDescriptor).use { fos ->
+                    val channel = fos.channel
+                    channel.position(offset)
+                    channel.write(ByteBuffer.wrap(data))
+                }
             } ?: throw FileManagerException.CannotOpenFile(relativePath)
         } catch (e: FileManagerException) {
             throw e
