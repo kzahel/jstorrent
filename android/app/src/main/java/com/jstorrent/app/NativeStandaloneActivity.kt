@@ -78,6 +78,9 @@ class NativeStandaloneActivity : ComponentActivity() {
     // For navigating to a specific torrent from notification tap
     private var initialInfoHash = mutableStateOf<String?>(null)
 
+    // Trigger to navigate back to list after adding a torrent (increment to trigger)
+    private var navigateToListTrigger = mutableStateOf(0)
+
     // Track which roots we've already synced with the engine
     private var knownRootKeys = mutableSetOf<String>()
 
@@ -131,7 +134,9 @@ class NativeStandaloneActivity : ComponentActivity() {
                     TorrentNavHost(
                         listViewModel = viewModel,
                         onAddRootClick = { launchAddRoot() },
-                        initialInfoHash = initialInfoHash.value
+                        initialInfoHash = initialInfoHash.value,
+                        navigateToListTrigger = navigateToListTrigger.value,
+                        onNavigatedToList = { navigateToListTrigger.value = 0 }
                     )
                 }
 
@@ -279,12 +284,15 @@ class NativeStandaloneActivity : ComponentActivity() {
 
     /**
      * Add magnet immediately if engine is loaded, otherwise queue it.
+     * After adding, navigates to the torrent list.
      */
     private fun addOrQueueMagnet(magnet: String) {
         val controller = app.engineController
         if (controller != null && controller.isLoaded?.value == true) {
             Log.i(TAG, "Engine loaded, adding torrent immediately")
             viewModel.addTorrent(magnet)
+            // Navigate to list to show the newly added torrent
+            navigateToListTrigger.value++
         } else {
             Log.i(TAG, "Engine not loaded yet, queuing torrent")
             pendingMagnet = magnet
@@ -309,6 +317,8 @@ class NativeStandaloneActivity : ComponentActivity() {
                     Log.i(TAG, "Engine now loaded, adding queued torrent")
                     viewModel.addTorrent(pendingMagnet!!)
                     pendingMagnet = null
+                    // Navigate to list to show the newly added torrent
+                    navigateToListTrigger.value++
                 }
             }
         }

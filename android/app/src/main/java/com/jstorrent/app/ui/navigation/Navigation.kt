@@ -43,6 +43,8 @@ object Routes {
  * Handles navigation between torrent list, detail, and settings screens.
  *
  * @param initialInfoHash Optional infoHash to navigate to on launch (from notification tap)
+ * @param navigateToListTrigger When this value changes to a non-zero value, navigate back to the list
+ * @param onNavigatedToList Called after navigating to list, so caller can reset trigger
  */
 @Composable
 fun TorrentNavHost(
@@ -50,12 +52,22 @@ fun TorrentNavHost(
     onAddRootClick: () -> Unit,
     modifier: Modifier = Modifier,
     initialInfoHash: String? = null,
+    navigateToListTrigger: Int = 0,
+    onNavigatedToList: () -> Unit = {},
     navController: NavHostController = rememberNavController()
 ) {
     // Navigate to detail screen if launched with an infoHash
     LaunchedEffect(initialInfoHash) {
         if (!initialInfoHash.isNullOrEmpty()) {
             navController.navigate(Routes.torrentDetail(initialInfoHash))
+        }
+    }
+
+    // Navigate back to list when trigger changes (after adding a torrent)
+    LaunchedEffect(navigateToListTrigger) {
+        if (navigateToListTrigger > 0) {
+            navController.popBackStack(Routes.TORRENT_LIST, inclusive = false)
+            onNavigatedToList()
         }
     }
 

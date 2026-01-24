@@ -1,12 +1,12 @@
 /**
  * JSTorrent version - single source of truth for client identification.
  *
- * When built with Vite, this value is injected from package.json.
+ * When built with Vite or esbuild, JSTORRENT_VERSION is injected from package.json.
  * The fallback ensures the engine works standalone (tests, Node.js usage).
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const env = (import.meta as any).env as Record<string, string> | undefined
-export const VERSION: string = env?.JSTORRENT_VERSION ?? '0.0.1'
+declare const JSTORRENT_VERSION: string | undefined
+export const VERSION: string =
+  typeof JSTORRENT_VERSION !== 'undefined' ? JSTORRENT_VERSION : '0.0.1'
 
 /**
  * Convert semantic version "X.Y.Z" to Azureus-style 4-char code "XYZW".

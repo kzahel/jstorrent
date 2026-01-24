@@ -6,8 +6,10 @@
 
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { readFileSync } from 'fs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, '../package.json'), 'utf-8'))
 
 /** @type {import('esbuild').BuildOptions} */
 export default {
@@ -23,6 +25,7 @@ export default {
   sourcemap: true,
   define: {
     'process.env.NODE_ENV': '"production"',
+    JSTORRENT_VERSION: JSON.stringify(pkg.version),
   },
   // Ensure no external dependencies
   external: [],
