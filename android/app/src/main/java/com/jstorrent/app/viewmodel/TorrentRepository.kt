@@ -98,4 +98,11 @@ interface TorrentRepository {
      * Get detailed metadata for a specific torrent (suspend query).
      */
     suspend fun getDetails(infoHash: String): TorrentDetails?
+
+    /**
+     * Set file priorities for a torrent.
+     * @param infoHash The torrent's info hash
+     * @param priorities Map of file index to priority (0=Normal, 1=Skip, 2=High)
+     */
+    fun setFilePriorities(infoHash: String, priorities: Map<Int, Int>)
 }

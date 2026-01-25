@@ -1,6 +1,10 @@
 package com.jstorrent.app.ui.screens
 
+import android.util.Base64
+import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -47,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -94,6 +99,27 @@ fun TorrentListScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showBulkDeleteDialog by remember { mutableStateOf(false) }
+
+    // File picker for .torrent files
+    val context = LocalContext.current
+    val torrentFilePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes != null) {
+                    val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                    Log.i("TorrentListScreen", "Read torrent file: ${bytes.size} bytes")
+                    viewModel.addTorrent(base64)
+                } else {
+                    Log.e("TorrentListScreen", "Failed to read torrent file: empty content")
+                }
+            } catch (e: Exception) {
+                Log.e("TorrentListScreen", "Failed to read torrent file", e)
+            }
+        }
+    }
 
     // Handle back press in selection mode
     BackHandler(enabled = isSelectionMode) {
@@ -352,6 +378,9 @@ fun TorrentListScreen(
             onAddTorrent = { magnetLink ->
                 viewModel.addTorrent(magnetLink)
                 showAddDialog = false
+            },
+            onBrowseForFile = {
+                torrentFilePicker.launch(arrayOf("application/x-bittorrent"))
             }
         )
     }
@@ -478,7 +507,7 @@ private fun TorrentListContent(
 }
 
 /**
- * Filter tab row: ALL | QUEUED | FINISHED
+ * Filter tab row: ALL | ACTIVE | FINISHED
  */
 @Composable
 private fun FilterTabRow(
@@ -487,7 +516,7 @@ private fun FilterTabRow(
     filterCounts: Map<TorrentFilter, Int>,
     modifier: Modifier = Modifier
 ) {
-    val tabs = listOf(TorrentFilter.ALL, TorrentFilter.QUEUED, TorrentFilter.FINISHED)
+    val tabs = listOf(TorrentFilter.ALL, TorrentFilter.ACTIVE, TorrentFilter.FINISHED)
     val selectedIndex = tabs.indexOf(currentFilter)
 
     TabRow(
@@ -532,7 +561,7 @@ private fun EmptyState(
             Text(
                 text = when (currentFilter) {
                     TorrentFilter.ALL -> "No torrents yet"
-                    TorrentFilter.QUEUED -> "No active torrents"
+                    TorrentFilter.ACTIVE -> "No active torrents"
                     TorrentFilter.FINISHED -> "No completed torrents"
                 },
                 style = MaterialTheme.typography.titleMedium,
@@ -542,7 +571,7 @@ private fun EmptyState(
             Text(
                 text = when (currentFilter) {
                     TorrentFilter.ALL -> "Tap + to add a magnet link"
-                    TorrentFilter.QUEUED -> "Downloading torrents will appear here"
+                    TorrentFilter.ACTIVE -> "Downloading torrents will appear here"
                     TorrentFilter.FINISHED -> "Completed torrents will appear here"
                 },
                 style = MaterialTheme.typography.bodyMedium,

@@ -39,7 +39,10 @@ class StorageBindings(context: Context) {
             val value = args.getOrNull(1)
 
             if (key != null && value != null) {
-                prefs.edit().putString(key, value).apply()
+                // Use commit() for synchronous write to ensure data is persisted
+                // before the JS call returns. This prevents data loss if the app
+                // is closed shortly after adding a torrent.
+                prefs.edit().putString(key, value).commit()
             }
             null
         }
@@ -49,7 +52,7 @@ class StorageBindings(context: Context) {
             val key = args.getOrNull(0)
 
             if (key != null) {
-                prefs.edit().remove(key).apply()
+                prefs.edit().remove(key).commit()
             }
             null
         }

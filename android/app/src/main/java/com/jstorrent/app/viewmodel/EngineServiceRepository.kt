@@ -161,4 +161,8 @@ class EngineServiceRepository(
     override suspend fun getDetails(infoHash: String): TorrentDetails? {
         return controller?.getDetailsAsync(infoHash)
     }
+
+    override fun setFilePriorities(infoHash: String, priorities: Map<Int, Int>) {
+        scope.launch { controller?.setFilePrioritiesAsync(infoHash, priorities) }
+    }
 }

@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,16 +37,18 @@ import com.jstorrent.app.ui.theme.JSTorrentTheme
 import kotlinx.coroutines.launch
 
 /**
- * Bottom sheet dialog for adding a torrent via magnet link.
+ * Bottom sheet dialog for adding a torrent via magnet link or .torrent file.
  *
  * @param onDismiss Called when the dialog is dismissed
- * @param onAddTorrent Called with the magnet link when user taps Add
+ * @param onAddTorrent Called with the magnet link or base64-encoded torrent when user taps Add
+ * @param onBrowseForFile Called when user wants to browse for a .torrent file
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTorrentDialog(
     onDismiss: () -> Unit,
     onAddTorrent: (String) -> Unit,
+    onBrowseForFile: () -> Unit = {},
     sheetState: SheetState = rememberModalBottomSheetState()
 ) {
     var magnetLink by remember { mutableStateOf("") }
@@ -62,6 +66,13 @@ fun AddTorrentDialog(
                 clipboardManager.getText()?.text?.let { text ->
                     magnetLink = text
                 }
+            },
+            onBrowseForFile = {
+                scope.launch {
+                    sheetState.hide()
+                    onDismiss()
+                }
+                onBrowseForFile()
             },
             onAddTorrent = {
                 if (magnetLink.isNotBlank()) {
@@ -92,6 +103,7 @@ fun AddTorrentContent(
     magnetLink: String,
     onMagnetLinkChange: (String) -> Unit,
     onPasteFromClipboard: () -> Unit,
+    onBrowseForFile: () -> Unit,
     onAddTorrent: () -> Unit,
     onCancel: () -> Unit,
     isAddEnabled: Boolean,
@@ -129,9 +141,9 @@ fun AddTorrentContent(
             }
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Action buttons
+        // Action buttons (placed right after input so keyboard doesn't cover them)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -152,6 +164,38 @@ fun AddTorrentContent(
             ) {
                 Text("Add")
             }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // OR divider
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HorizontalDivider(modifier = Modifier.weight(1f))
+            Text(
+                text = "OR",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            HorizontalDivider(modifier = Modifier.weight(1f))
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Browse for torrent file button
+        OutlinedButton(
+            onClick = onBrowseForFile,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.FolderOpen,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+            Text("Browse for .torrent file")
         }
     }
 }
@@ -175,6 +219,7 @@ private fun AddTorrentContentEmptyPreview() {
             magnetLink = "",
             onMagnetLinkChange = {},
             onPasteFromClipboard = {},
+            onBrowseForFile = {},
             onAddTorrent = {},
             onCancel = {},
             isAddEnabled = false
@@ -190,6 +235,7 @@ private fun AddTorrentContentWithLinkPreview() {
             magnetLink = "magnet:?xt=urn:btih:abc123",
             onMagnetLinkChange = {},
             onPasteFromClipboard = {},
+            onBrowseForFile = {},
             onAddTorrent = {},
             onCancel = {},
             isAddEnabled = true

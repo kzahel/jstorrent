@@ -32,6 +32,7 @@ class ServiceLifecycleManager(
     private var serviceRunning = false
     private var pausedForBackground = false
     private var hasEverBeenForeground = false  // Track if activity has ever been visible
+    private var userRequestedQuit = false  // Prevents auto-restart after explicit quit
 
     /**
      * Called from Activity.onStart()
@@ -40,6 +41,7 @@ class ServiceLifecycleManager(
         Log.d(TAG, "Activity started (foreground)")
         _isActivityForeground.value = true
         hasEverBeenForeground = true
+        userRequestedQuit = false  // Reset quit flag when user returns to app
         updateServiceState()
     }
 
@@ -85,6 +87,12 @@ class ServiceLifecycleManager(
     }
 
     private fun updateServiceState() {
+        // Don't restart service if user explicitly quit
+        if (userRequestedQuit) {
+            Log.d(TAG, "Skipping service update - user requested quit")
+            return
+        }
+
         val backgroundEnabled = settingsStore.backgroundDownloadsEnabled
         val goingToBackground = !_isActivityForeground.value
 
@@ -128,5 +136,18 @@ class ServiceLifecycleManager(
      */
     fun onServiceStopped() {
         serviceRunning = false
+    }
+
+    /**
+     * Called when user explicitly quits the app.
+     * Prevents auto-restart of the service until the user returns to the app.
+     */
+    fun onUserQuit() {
+        Log.i(TAG, "User requested quit - preventing service restart")
+        userRequestedQuit = true
+        if (serviceRunning) {
+            ForegroundNotificationService.stop(context)
+            serviceRunning = false
+        }
     }
 }

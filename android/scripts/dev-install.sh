@@ -13,10 +13,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+MONOREPO_ROOT="$(cd "$PROJECT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/device-config.sh"
 
 # Defaults
 BUILD=true
+BUILD_BUNDLE=true
 LAUNCH=true
 RELEASE=false
 SETUP_FORWARD=false
@@ -33,7 +35,8 @@ usage() {
     echo "  <device>           Device name from ~/.jstorrent-devices"
     echo ""
     echo "Options:"
-    echo "  --no-build         Skip building the APK"
+    echo "  --no-build         Skip building the APK AND the engine bundle"
+    echo "  --no-bundle        Skip building the engine bundle only"
     echo "  --no-launch        Skip launching the app after install"
     echo "  --release          Build and install release APK (default: debug)"
     echo "  --forward, -f      Set up port forwarding for dev server"
@@ -53,7 +56,8 @@ usage() {
 # Parse args
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --no-build) BUILD=false; shift ;;
+        --no-build) BUILD=false; BUILD_BUNDLE=false; shift ;;
+        --no-bundle) BUILD_BUNDLE=false; shift ;;
         --no-launch) LAUNCH=false; shift ;;
         --release) RELEASE=true; shift ;;
         --forward|-f) SETUP_FORWARD=true; shift ;;
@@ -110,6 +114,17 @@ else
     BUILD_TYPE="debug"
     GRADLE_TASK="assembleDebug"
     APK_PATH="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+fi
+
+# Build engine bundle
+if $BUILD_BUNDLE; then
+    echo ">>> Building TypeScript engine bundle..."
+    cd "$MONOREPO_ROOT/packages/engine"
+    pnpm bundle:native
+    mkdir -p "$PROJECT_DIR/quickjs-engine/src/main/assets"
+    cp dist/engine.native.js "$PROJECT_DIR/quickjs-engine/src/main/assets/engine.bundle.js"
+    echo "    Bundle copied to Android assets"
+    cd "$PROJECT_DIR"
 fi
 
 # Build APK

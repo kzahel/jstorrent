@@ -372,10 +372,16 @@ class NativeStandaloneActivity : ComponentActivity() {
     }
 
     private fun shutdown() {
-        // Stop the foreground service (if running)
-        ForegroundNotificationService.stop(this)
-        // Finish the activity
-        finish()
+        val app = application as JSTorrentApplication
+
+        // Prevent service from auto-restarting
+        app.serviceLifecycleManager.onUserQuit()
+
+        // Shutdown the engine (preserves torrent states for next launch)
+        app.shutdownEngine()
+
+        // Remove from recents and finish
+        finishAndRemoveTask()
     }
 }
 

@@ -36,7 +36,8 @@ data class FileInfo(
     val path: String,
     val size: Long,
     val downloaded: Long,
-    val progress: Double
+    val progress: Double,
+    val priority: Int = 0 // 0=Normal, 1=Skip, 2=High
 )
 
 /**
@@ -116,7 +117,8 @@ data class TorrentDetails(
     val totalSize: Long,            // Total size in bytes
     val pieceSize: Long,            // Piece size in bytes
     val pieceCount: Int,            // Total number of pieces
-    val magnetUrl: String           // Full magnet URI with trackers
+    val magnetUrl: String,          // Full magnet URI with trackers
+    val rootKey: String? = null     // Storage root key for file access
 )
 
 /**

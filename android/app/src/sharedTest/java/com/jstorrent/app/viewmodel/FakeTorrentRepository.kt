@@ -180,6 +180,10 @@ class FakeTorrentRepository : TorrentRepository {
     override suspend fun getDetails(infoHash: String): TorrentDetails? {
         return detailsData[infoHash]
     }
+
+    override fun setFilePriorities(infoHash: String, priorities: Map<Int, Int>) {
+        // No-op for testing - just record if needed
+    }
 }
 
 // ==========================================================================

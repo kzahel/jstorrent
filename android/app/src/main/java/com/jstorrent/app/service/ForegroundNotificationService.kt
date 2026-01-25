@@ -286,9 +286,13 @@ class ForegroundNotificationService : Service() {
      * @param bytesPerSec Limit in bytes/sec (0 = unlimited)
      */
     fun setDownloadSpeedLimit(bytesPerSec: Int) {
-        settingsStore.downloadSpeedLimit = bytesPerSec
+        // Update both unlimited flag and limit value for consistent persistence
+        settingsStore.downloadSpeedUnlimited = (bytesPerSec == 0)
+        if (bytesPerSec > 0) {
+            settingsStore.downloadSpeedLimit = bytesPerSec
+        }
         controller?.getConfigBridge()?.setDownloadSpeedLimit(bytesPerSec)
-        Log.i(TAG, "Download limit set: $bytesPerSec B/s")
+        Log.i(TAG, "Download limit set: ${if (bytesPerSec == 0) "unlimited" else "$bytesPerSec B/s"}")
     }
 
     /**
@@ -296,22 +300,28 @@ class ForegroundNotificationService : Service() {
      * @param bytesPerSec Limit in bytes/sec (0 = unlimited)
      */
     fun setUploadSpeedLimit(bytesPerSec: Int) {
-        settingsStore.uploadSpeedLimit = bytesPerSec
+        // Update both unlimited flag and limit value for consistent persistence
+        settingsStore.uploadSpeedUnlimited = (bytesPerSec == 0)
+        if (bytesPerSec > 0) {
+            settingsStore.uploadSpeedLimit = bytesPerSec
+        }
         controller?.getConfigBridge()?.setUploadSpeedLimit(bytesPerSec)
-        Log.i(TAG, "Upload limit set: $bytesPerSec B/s")
+        Log.i(TAG, "Upload limit set: ${if (bytesPerSec == 0) "unlimited" else "$bytesPerSec B/s"}")
     }
 
     /**
      * Get the current download speed limit.
      * @return Limit in bytes/sec (0 = unlimited)
      */
-    fun getDownloadSpeedLimit(): Int = settingsStore.downloadSpeedLimit
+    fun getDownloadSpeedLimit(): Int =
+        if (settingsStore.downloadSpeedUnlimited) 0 else settingsStore.downloadSpeedLimit
 
     /**
      * Get the current upload speed limit.
      * @return Limit in bytes/sec (0 = unlimited)
      */
-    fun getUploadSpeedLimit(): Int = settingsStore.uploadSpeedLimit
+    fun getUploadSpeedLimit(): Int =
+        if (settingsStore.uploadSpeedUnlimited) 0 else settingsStore.uploadSpeedLimit
 
     // =========================================================================
     // Network Settings API

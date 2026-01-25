@@ -3,6 +3,7 @@ package com.jstorrent.app.ui.screens
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.documentfile.provider.DocumentFile
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import com.jstorrent.app.model.DetailTab
 import com.jstorrent.app.model.FilePriority
 import com.jstorrent.app.model.TorrentDetailUi
@@ -59,8 +59,8 @@ import com.jstorrent.app.ui.tabs.PiecesTab
 import com.jstorrent.app.ui.tabs.StatusTab
 import com.jstorrent.app.ui.tabs.TrackersTab
 import com.jstorrent.app.ui.theme.JSTorrentTheme
+import com.jstorrent.app.storage.RootStore
 import com.jstorrent.app.viewmodel.TorrentDetailViewModel
-import java.io.File
 
 /**
  * Torrent detail screen.
@@ -325,7 +325,7 @@ private fun DetailContent(
                     hasPendingChanges = hasPendingFileChanges,
                     onToggleFileSelection = onToggleFileSelection,
                     onOpenFile = { fileIndex ->
-                        openFile(context, torrent.files, fileIndex)
+                        openFile(context, torrent.files, fileIndex, torrent.rootKey)
                     },
                     onSetFilePriority = onSetFilePriority,
                     onSelectAll = onSelectAllFiles,
@@ -357,11 +357,13 @@ private fun DetailContent(
 
 /**
  * Open a file using the system's file handler (open with... dialog).
+ * Uses SAF (Storage Access Framework) to access files via DocumentFile.
  */
 private fun openFile(
     context: android.content.Context,
     files: List<TorrentFileUi>,
-    fileIndex: Int
+    fileIndex: Int,
+    rootKey: String?
 ) {
     val file = files.find { it.index == fileIndex } ?: return
 
@@ -375,12 +377,39 @@ private fun openFile(
         return
     }
 
-    // TODO: Get actual download directory from engine/settings
-    // For now, use a placeholder path
-    val downloadDir = context.getExternalFilesDir(null)
-    val filePath = File(downloadDir, file.path)
+    // Need root key to locate the file
+    if (rootKey == null) {
+        Toast.makeText(
+            context,
+            "Storage location unknown",
+            Toast.LENGTH_SHORT
+        ).show()
+        return
+    }
 
-    if (!filePath.exists()) {
+    // Resolve root key to SAF URI via RootStore
+    val rootStore = RootStore(context)
+    val rootUri = rootStore.resolveKey(rootKey)
+    if (rootUri == null) {
+        Toast.makeText(
+            context,
+            "Storage root not found",
+            Toast.LENGTH_SHORT
+        ).show()
+        return
+    }
+
+    // Navigate to the file using DocumentFile
+    // file.path may contain directories (e.g., "Ubuntu/ubuntu.iso")
+    val pathParts = file.path.split("/")
+    var docFile: DocumentFile? = DocumentFile.fromTreeUri(context, rootUri)
+
+    for (part in pathParts) {
+        docFile = docFile?.findFile(part)
+        if (docFile == null) break
+    }
+
+    if (docFile == null || !docFile.exists()) {
         Toast.makeText(
             context,
             "File not found",
@@ -390,15 +419,8 @@ private fun openFile(
     }
 
     try {
-        // Use FileProvider for secure file sharing
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            filePath
-        )
-
         val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, getMimeType(file.name))
+            setDataAndType(docFile.uri, getMimeType(file.name))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 

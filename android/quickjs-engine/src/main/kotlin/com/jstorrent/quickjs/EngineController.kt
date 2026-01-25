@@ -199,6 +199,23 @@ class EngineController(
     }
 
     /**
+     * Set file priorities for a torrent.
+     *
+     * @param infoHash The torrent's info hash
+     * @param priorities Map of file index to priority (0=Normal, 1=Skip, 2=High)
+     */
+    fun setFilePriorities(infoHash: String, priorities: Map<Int, Int>) {
+        checkLoaded()
+        val prioritiesJson = json.encodeToString(priorities.mapKeys { it.key.toString() })
+        engine!!.callGlobalFunction(
+            "__jstorrent_cmd_set_file_priorities",
+            infoHash,
+            prioritiesJson
+        )
+        Log.i(TAG, "setFilePriorities: $infoHash (${priorities.size} files)")
+    }
+
+    /**
      * Add a test torrent with hardcoded peer hint for debugging.
      * Uses a local qBittorrent seeder at 192.168.1.112:6082.
      */
@@ -439,6 +456,23 @@ class EngineController(
             deleteFiles.toString()
         )
         Log.i(TAG, "removeTorrentAsync: $infoHash (deleteFiles=$deleteFiles)")
+    }
+
+    /**
+     * Set file priorities for a torrent (suspend version).
+     *
+     * @param infoHash The torrent's info hash
+     * @param priorities Map of file index to priority (0=Normal, 1=Skip, 2=High)
+     */
+    suspend fun setFilePrioritiesAsync(infoHash: String, priorities: Map<Int, Int>) {
+        checkLoaded()
+        val prioritiesJson = json.encodeToString(priorities.mapKeys { it.key.toString() })
+        engine!!.callGlobalFunctionAsync(
+            "__jstorrent_cmd_set_file_priorities",
+            infoHash,
+            prioritiesJson
+        )
+        Log.i(TAG, "setFilePrioritiesAsync: $infoHash (${priorities.size} files)")
     }
 
     /**

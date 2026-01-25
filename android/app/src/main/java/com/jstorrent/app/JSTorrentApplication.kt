@@ -263,17 +263,19 @@ class JSTorrentApplication : Application() {
     private fun applyEngineSettings(controller: EngineController, settingsStore: SettingsStore) {
         val configBridge = controller.getConfigBridge() ?: return
 
-        val downloadLimit = settingsStore.downloadSpeedLimit
-        val uploadLimit = settingsStore.uploadSpeedLimit
+        // Use 0 for unlimited, otherwise use the configured limit
+        val effectiveDownloadLimit = if (settingsStore.downloadSpeedUnlimited) 0 else settingsStore.downloadSpeedLimit
+        val effectiveUploadLimit = if (settingsStore.uploadSpeedUnlimited) 0 else settingsStore.uploadSpeedLimit
 
-        if (downloadLimit > 0) configBridge.setDownloadSpeedLimit(downloadLimit)
-        if (uploadLimit > 0) configBridge.setUploadSpeedLimit(uploadLimit)
+        configBridge.setDownloadSpeedLimit(effectiveDownloadLimit)
+        configBridge.setUploadSpeedLimit(effectiveUploadLimit)
 
         configBridge.setDhtEnabled(settingsStore.dhtEnabled)
         configBridge.setPexEnabled(settingsStore.pexEnabled)
         configBridge.setEncryptionPolicy(settingsStore.encryptionPolicy)
 
-        Log.i(TAG, "Applied engine settings: download=${downloadLimit}B/s, upload=${uploadLimit}B/s, " +
+        Log.i(TAG, "Applied engine settings: download=${if (effectiveDownloadLimit == 0) "unlimited" else "${effectiveDownloadLimit}B/s"}, " +
+            "upload=${if (effectiveUploadLimit == 0) "unlimited" else "${effectiveUploadLimit}B/s"}, " +
             "dht=${settingsStore.dhtEnabled}, pex=${settingsStore.pexEnabled}, " +
             "encryption=${settingsStore.encryptionPolicy}")
     }

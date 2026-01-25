@@ -1126,6 +1126,62 @@ export class Swarm extends EventEmitter {
   }
 
   /**
+   * Prune swarm for seeding mode - remove all peers except those currently connected.
+   * Called when torrent completes downloading to free memory.
+   * Connected peers are kept so we can continue seeding to them.
+   * Returns the number of peers removed.
+   */
+  pruneForSeeding(): number {
+    const keysToRemove: string[] = []
+
+    for (const [key, peer] of this.peers) {
+      // Keep connected peers - they may be downloading from us
+      if (peer.state === 'connected') continue
+
+      // Remove everything else: idle, failed, banned, connecting
+      keysToRemove.push(key)
+    }
+
+    // Remove from all data structures
+    for (const key of keysToRemove) {
+      const peer = this.peers.get(key)
+      if (peer) {
+        // Close connection if somehow still active (shouldn't happen for non-connected peers)
+        if (peer.connection) {
+          peer.connection.close()
+        }
+
+        // Remove from peerId index
+        if (peer.peerId) {
+          const pidHex = toHex(peer.peerId)
+          const indexSet = this.peerIdIndex.get(pidHex)
+          if (indexSet) {
+            indexSet.delete(key)
+            if (indexSet.size === 0) {
+              this.peerIdIndex.delete(pidHex)
+            }
+          }
+        }
+
+        this.peers.delete(key)
+      }
+    }
+
+    // Clear connecting keys (all removed)
+    this.connectingKeys.clear()
+
+    if (keysToRemove.length > 0) {
+      this._allPeersVersion++
+      this._cachedPeersArray = null
+      this.logger.info(
+        `Pruned swarm for seeding: removed ${keysToRemove.length} peers, kept ${this.connectedKeys.size} connected`,
+      )
+    }
+
+    return keysToRemove.length
+  }
+
+  /**
    * Reset backoff state for all peers.
    * Called when torrent is started to allow immediate reconnection attempts.
    * Preserves peer addresses and stats, only resets connection attempt tracking.

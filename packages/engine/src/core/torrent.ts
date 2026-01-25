@@ -3433,6 +3433,10 @@ export class Torrent extends EngineComponent {
         this.emit('complete')
         // Tell all peers we're no longer interested and that we're now a seeder
         this.notifyPeersWeAreSeeding()
+
+        // Prune swarm to release memory - keep only connected peers for seeding
+        // This is especially important on mobile where memory is constrained
+        this._swarm.pruneForSeeding()
       }
     }
   }

@@ -260,7 +260,21 @@ class TorrentDetailViewModel(
         _appliedFileState.value = pending
         _pendingFileState.value = null
 
-        // TODO: Call engine to update file priorities when implemented
+        // Convert to engine values: 0=Normal, 1=Skip, 2=High
+        // isSelected=false means skip, regardless of priority setting
+        val priorities = pending.mapValues { (_, state) ->
+            if (!state.isSelected) {
+                1 // Skip
+            } else {
+                when (state.priority) {
+                    FilePriority.HIGH -> 2
+                    FilePriority.SKIP -> 1
+                    else -> 0 // NORMAL and LOW both map to Normal
+                }
+            }
+        }
+
+        repository.setFilePriorities(infoHash, priorities)
     }
 
     /**
@@ -336,8 +350,11 @@ class TorrentDetailViewModel(
         details: TorrentDetails?
     ): TorrentDetailUi {
         val fileUis = files.map { file ->
-            val state = fileState[file.index] ?: FileState()
-            file.toUi(state.isSelected, state.priority)
+            // Use pending state if exists, otherwise use engine's actual priority
+            val pendingState = fileState[file.index]
+            val priority = pendingState?.priority ?: enginePriorityToFilePriority(file.priority)
+            val isSelected = pendingState?.isSelected ?: (file.priority != 1) // Not selected if skipped
+            file.toUi(isSelected, priority)
         }
 
         // Map tracker info to UI models
@@ -398,7 +415,8 @@ class TorrentDetailViewModel(
             peers = peerUis,
             addedAt = details?.addedAt,
             completedAt = details?.completedAt,
-            magnetUrl = details?.magnetUrl
+            magnetUrl = details?.magnetUrl,
+            rootKey = details?.rootKey
         )
     }
 
@@ -446,6 +464,17 @@ class TorrentDetailViewModel(
             }
         }
         return bitset
+    }
+
+    /**
+     * Convert engine priority (0=Normal, 1=Skip, 2=High) to FilePriority enum.
+     */
+    private fun enginePriorityToFilePriority(enginePriority: Int): FilePriority {
+        return when (enginePriority) {
+            1 -> FilePriority.SKIP
+            2 -> FilePriority.HIGH
+            else -> FilePriority.NORMAL
+        }
     }
 
     /**

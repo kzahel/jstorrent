@@ -43,8 +43,8 @@ sealed class TorrentListUiState {
 enum class TorrentFilter(val displayName: String) {
     /** Show all torrents */
     ALL("All"),
-    /** Show active/queued torrents (downloading, downloading_metadata, checking) */
-    QUEUED("Queued"),
+    /** Show active torrents (downloading, downloading_metadata, checking) */
+    ACTIVE("Active"),
     /** Show completed torrents (seeding, stopped with progress = 1.0) */
     FINISHED("Finished")
 }
@@ -141,7 +141,8 @@ data class TorrentDetailUi(
     // Details tab fields
     val addedAt: Long? = null,        // Epoch milliseconds when torrent was added
     val completedAt: Long? = null,    // Epoch milliseconds when completed, null if in progress
-    val magnetUrl: String? = null     // Full magnet URI with trackers
+    val magnetUrl: String? = null,    // Full magnet URI with trackers
+    val rootKey: String? = null       // Storage root key for file access
 )
 
 /**
@@ -221,8 +222,8 @@ data class DhtStatus(
 fun List<TorrentSummary>.filterByStatus(filter: TorrentFilter): List<TorrentSummary> {
     return when (filter) {
         TorrentFilter.ALL -> this
-        TorrentFilter.QUEUED -> this.filter { torrent ->
-            torrent.status in listOf("downloading", "downloading_metadata", "checking", "queued")
+        TorrentFilter.ACTIVE -> this.filter { torrent ->
+            torrent.status in listOf("downloading", "downloading_metadata", "checking")
         }
         TorrentFilter.FINISHED -> this.filter { torrent ->
             torrent.status == "seeding" ||

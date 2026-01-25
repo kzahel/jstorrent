@@ -154,6 +154,40 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
     }
   }
 
+  /**
+   * Set file priorities for a torrent.
+   * @param infoHash - The torrent's info hash
+   * @param prioritiesJson - JSON object mapping file index (string) to priority (0=Normal, 1=Skip, 2=High)
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_set_file_priorities = (
+    infoHash: string,
+    prioritiesJson: string,
+  ): void => {
+    const engine = requireEngine('set_file_priorities')
+    if (!engine) return
+    const torrent = engine.getTorrent(infoHash)
+    if (!torrent) {
+      console.warn(`[controller] set_file_priorities: Torrent not found: ${infoHash}`)
+      return
+    }
+
+    try {
+      const priorities = JSON.parse(prioritiesJson) as Record<string, number>
+      let applied = 0
+      for (const [indexStr, priority] of Object.entries(priorities)) {
+        const fileIndex = parseInt(indexStr, 10)
+        if (!isNaN(fileIndex) && torrent.setFilePriority(fileIndex, priority)) {
+          applied++
+        }
+      }
+      console.log(
+        `[controller] set_file_priorities: Applied ${applied}/${Object.keys(priorities).length} priorities for ${infoHash}`,
+      )
+    } catch (e) {
+      console.error('[controller] set_file_priorities error:', e)
+    }
+  }
+
   // ============================================================
   // ROOT MANAGEMENT (Native → JS)
   // ============================================================
@@ -399,6 +433,7 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
         size: f.length,
         downloaded: f.downloaded,
         progress: f.length > 0 ? f.downloaded / f.length : 0,
+        priority: torrent.filePriorities[index] ?? 0,
       })),
     })
   }
@@ -513,6 +548,10 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
         announce: torrent.announce,
       })
 
+    // Get storage root key for this torrent
+    const storageRoot = engine.storageRootManager.getRootForTorrent(infoHash)
+    const rootKey = storageRoot?.key ?? null
+
     return JSON.stringify({
       infoHash: toHex(torrent.infoHash),
       addedAt: torrent.addedAt,
@@ -521,6 +560,7 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
       pieceSize: torrent.pieceLength,
       pieceCount: torrent.piecesCount,
       magnetUrl,
+      rootKey,
     })
   }
 

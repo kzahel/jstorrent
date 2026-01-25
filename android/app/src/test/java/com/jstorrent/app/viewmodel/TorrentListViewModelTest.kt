@@ -231,7 +231,7 @@ class TorrentListViewModelTest {
         ))
         advanceUntilIdle()
 
-        viewModel.setFilter(TorrentFilter.QUEUED)
+        viewModel.setFilter(TorrentFilter.ACTIVE)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as TorrentListUiState.Loaded
@@ -369,7 +369,7 @@ class TorrentListViewModelTest {
         advanceUntilIdle()
 
         assertEquals(4, viewModel.getFilterCount(TorrentFilter.ALL))
-        assertEquals(2, viewModel.getFilterCount(TorrentFilter.QUEUED))
+        assertEquals(2, viewModel.getFilterCount(TorrentFilter.ACTIVE))
         assertEquals(2, viewModel.getFilterCount(TorrentFilter.FINISHED))
     }
 

@@ -36,18 +36,30 @@ class ConfigBridge(
 
     /**
      * Set download speed limit in bytes per second.
+     * Also sets downloadSpeedUnlimited flag based on whether limit is 0.
      * @param bytesPerSec Speed limit, or 0 for unlimited
      */
     fun setDownloadSpeedLimit(bytesPerSec: Int) {
-        setConfig("downloadSpeedLimit", bytesPerSec)
+        // Set unlimited flag first, then the value
+        // When bytesPerSec == 0: unlimited = true (limit ignored)
+        // When bytesPerSec > 0: unlimited = false, limit applied
+        setConfig("downloadSpeedUnlimited", bytesPerSec == 0)
+        if (bytesPerSec > 0) {
+            setConfig("downloadSpeedLimit", bytesPerSec)
+        }
     }
 
     /**
      * Set upload speed limit in bytes per second.
+     * Also sets uploadSpeedUnlimited flag based on whether limit is 0.
      * @param bytesPerSec Speed limit, or 0 for unlimited
      */
     fun setUploadSpeedLimit(bytesPerSec: Int) {
-        setConfig("uploadSpeedLimit", bytesPerSec)
+        // Set unlimited flag first, then the value
+        setConfig("uploadSpeedUnlimited", bytesPerSec == 0)
+        if (bytesPerSec > 0) {
+            setConfig("uploadSpeedLimit", bytesPerSec)
+        }
     }
 
     // =========================================================================

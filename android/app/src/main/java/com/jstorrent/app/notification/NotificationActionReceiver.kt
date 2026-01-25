@@ -49,8 +49,17 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 resumeAllTorrents(context)
             }
             ACTION_QUIT -> {
-                Log.i(TAG, "Stopping service")
-                ForegroundNotificationService.stop(context)
+                Log.i(TAG, "Quitting app")
+                val app = context.applicationContext as? JSTorrentApplication
+                if (app != null) {
+                    // Prevent service from auto-restarting
+                    app.serviceLifecycleManager.onUserQuit()
+                    // Shutdown the engine (preserves torrent states for next launch)
+                    app.shutdownEngine()
+                } else {
+                    // Fallback if we can't get the app
+                    ForegroundNotificationService.stop(context)
+                }
             }
             ACTION_OPEN_FOLDER -> {
                 val uriString = intent.getStringExtra(EXTRA_FOLDER_URI)

@@ -1,5 +1,6 @@
 package com.jstorrent.app.ui.dialogs
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,7 +51,9 @@ fun BulkRemoveTorrentDialog(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { deleteFiles = !deleteFiles },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(

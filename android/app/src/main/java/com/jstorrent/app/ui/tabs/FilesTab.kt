@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.jstorrent.app.model.FilePriority
 import com.jstorrent.app.model.TorrentFileUi
@@ -131,6 +132,7 @@ private fun SelectionHeader(
 
 /**
  * Snackbar showing pending changes with Cancel/Apply actions.
+ * Uses consistent dark appearance in both light and dark modes.
  */
 @Composable
 private fun PendingChangesSnackbar(
@@ -138,6 +140,11 @@ private fun PendingChangesSnackbar(
     onApply: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Use consistent dark snackbar colors that work in both light and dark modes
+    val snackbarBackground = Color(0xFF323232)  // Dark gray
+    val snackbarContent = Color.White
+    val accentColor = MaterialTheme.colorScheme.primary
+
     Snackbar(
         modifier = modifier,
         action = {
@@ -145,7 +152,7 @@ private fun PendingChangesSnackbar(
                 TextButton(
                     onClick = onCancel,
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.inversePrimary
+                        contentColor = accentColor
                     )
                 ) {
                     Text("Cancel")
@@ -154,16 +161,16 @@ private fun PendingChangesSnackbar(
                 Button(
                     onClick = onApply,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.inversePrimary,
-                        contentColor = MaterialTheme.colorScheme.inverseOnSurface
+                        containerColor = accentColor,
+                        contentColor = Color.White
                     )
                 ) {
                     Text("Apply")
                 }
             }
         },
-        containerColor = MaterialTheme.colorScheme.inverseSurface,
-        contentColor = MaterialTheme.colorScheme.inverseOnSurface
+        containerColor = snackbarBackground,
+        contentColor = snackbarContent
     ) {
         Text("File selection changed")
     }
