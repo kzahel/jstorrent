@@ -105,6 +105,15 @@ class EngineServiceRepository(
         scope.launch { controller?.removeTorrentAsync(infoHash, deleteFiles) }
     }
 
+    override suspend fun replaceAndAddTorrent(magnetOrBase64: String, infoHash: String?) {
+        // Remove existing torrent first (if infoHash provided) and wait for completion
+        if (infoHash != null) {
+            controller?.removeTorrentAsync(infoHash, deleteFiles = true)
+        }
+        // Then add the new torrent
+        controller?.addTorrentAsync(magnetOrBase64)
+    }
+
     override fun pauseAll() {
         // Get current torrent list and pause each one (fire-and-forget)
         val torrents = state.value?.torrents ?: return

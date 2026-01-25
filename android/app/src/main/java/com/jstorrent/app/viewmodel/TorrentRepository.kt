@@ -52,6 +52,14 @@ interface TorrentRepository {
     fun removeTorrent(infoHash: String, deleteFiles: Boolean = false)
 
     /**
+     * Replace an existing torrent (if present) and add fresh.
+     * Awaits removal completion before adding to avoid race conditions.
+     * @param magnetOrBase64 Magnet link or base64-encoded .torrent
+     * @param infoHash The info hash to remove (if known), or null to extract from magnet
+     */
+    suspend fun replaceAndAddTorrent(magnetOrBase64: String, infoHash: String?)
+
+    /**
      * Pause all torrents.
      */
     fun pauseAll()

@@ -74,6 +74,7 @@ class NativeStandaloneActivity : ComponentActivity() {
 
     // For handling magnet intents while engine is loading
     private var pendingMagnet: String? = null
+    private var pendingReplace: Boolean = false
 
     // For navigating to a specific torrent from notification tap
     private var initialInfoHash = mutableStateOf<String?>(null)
@@ -265,18 +266,24 @@ class NativeStandaloneActivity : ComponentActivity() {
                     Log.i(TAG, "Test storage mode: $storageParam")
                 }
 
+                // Parse replace mode: ?replace=true (removes existing torrent before adding)
+                val replaceParam = uri.getQueryParameter("replace")?.lowercase() == "true"
+                if (replaceParam) {
+                    Log.i(TAG, "Replace mode enabled - will remove existing torrent if present")
+                }
+
                 // Check for base64-encoded magnet: jstorrent://native?magnet_b64=<base64>
                 val magnetB64 = uri.getQueryParameter("magnet_b64")
                 if (!magnetB64.isNullOrEmpty()) {
                     val magnet = String(Base64.decode(magnetB64, Base64.DEFAULT), Charsets.UTF_8)
                     Log.i(TAG, "Magnet from base64 param: $magnet")
-                    addOrQueueMagnet(magnet)
+                    addOrQueueMagnet(magnet, replace = replaceParam)
                 } else {
                     // Fallback: Check for plain magnet query parameter
                     val magnetParam = uri.getQueryParameter("magnet")
                     if (!magnetParam.isNullOrEmpty()) {
                         Log.i(TAG, "Magnet from query param: $magnetParam")
-                        addOrQueueMagnet(magnetParam)
+                        addOrQueueMagnet(magnetParam, replace = replaceParam)
                     }
                 }
             }
@@ -286,17 +293,25 @@ class NativeStandaloneActivity : ComponentActivity() {
     /**
      * Add magnet immediately if engine is loaded, otherwise queue it.
      * After adding, navigates to the torrent list.
+     *
+     * @param magnet The magnet link or base64-encoded torrent file
+     * @param replace If true, removes any existing torrent with the same infohash first
      */
-    private fun addOrQueueMagnet(magnet: String) {
+    private fun addOrQueueMagnet(magnet: String, replace: Boolean = false) {
         val controller = app.engineController
         if (controller != null && controller.isLoaded?.value == true) {
-            Log.i(TAG, "Engine loaded, adding torrent immediately")
-            viewModel.addTorrent(magnet)
+            Log.i(TAG, "Engine loaded, adding torrent immediately (replace=$replace)")
+            if (replace) {
+                viewModel.replaceAndStartTorrent(magnet)
+            } else {
+                viewModel.addTorrent(magnet)
+            }
             // Navigate to list to show the newly added torrent
             navigateToListTrigger.value++
         } else {
-            Log.i(TAG, "Engine not loaded yet, queuing torrent")
+            Log.i(TAG, "Engine not loaded yet, queuing torrent (replace=$replace)")
             pendingMagnet = magnet
+            pendingReplace = replace
         }
     }
 
@@ -315,9 +330,14 @@ class NativeStandaloneActivity : ComponentActivity() {
             // Collect isLoaded to handle pending magnet
             controller.isLoaded?.collect { loaded ->
                 if (loaded && pendingMagnet != null) {
-                    Log.i(TAG, "Engine now loaded, adding queued torrent")
-                    viewModel.addTorrent(pendingMagnet!!)
+                    Log.i(TAG, "Engine now loaded, adding queued torrent (replace=$pendingReplace)")
+                    if (pendingReplace) {
+                        viewModel.replaceAndStartTorrent(pendingMagnet!!)
+                    } else {
+                        viewModel.addTorrent(pendingMagnet!!)
+                    }
                     pendingMagnet = null
+                    pendingReplace = false
                     // Navigate to list to show the newly added torrent
                     navigateToListTrigger.value++
                 }

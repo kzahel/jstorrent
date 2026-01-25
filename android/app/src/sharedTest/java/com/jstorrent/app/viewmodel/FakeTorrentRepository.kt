@@ -124,6 +124,15 @@ class FakeTorrentRepository : TorrentRepository {
         }
     }
 
+    override suspend fun replaceAndAddTorrent(magnetOrBase64: String, infoHash: String?) {
+        // Remove first if infoHash provided
+        if (infoHash != null) {
+            removeTorrent(infoHash, deleteFiles = true)
+        }
+        // Then add
+        addTorrent(magnetOrBase64)
+    }
+
     override fun pauseAll() {
         pauseAllCalled = true
         _state.value?.let { currentState ->

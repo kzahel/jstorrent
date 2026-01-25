@@ -1781,6 +1781,38 @@ export class Torrent extends EngineComponent {
       `Maintenance: ${connected} connected, ${connecting} connecting, ` +
         `requested ${slotsToRequest} slots (${candidateCount} candidates available)`,
     )
+
+    // Log backpressure stats periodically (every 5s in steady state)
+    this.logBackpressureStats()
+  }
+
+  // Track last backpressure log time
+  private _lastBackpressureLogTime = 0
+
+  /**
+   * Log backpressure-related stats for debugging download performance.
+   * Logs: active pieces, buffered bytes, outstanding requests.
+   */
+  private logBackpressureStats(): void {
+    const now = Date.now()
+    if (now - this._lastBackpressureLogTime < 5000) return
+    this._lastBackpressureLogTime = now
+
+    if (!this.activePieces) return
+
+    const activeCount = this.activePieces.activeCount
+    const bufferedBytes = this.activePieces.totalBufferedBytes
+    const bufferedMB = (bufferedBytes / (1024 * 1024)).toFixed(2)
+
+    // Sum outstanding requests across all active pieces
+    let totalRequests = 0
+    for (const piece of this.activePieces.activePieces) {
+      totalRequests += piece.outstandingRequests
+    }
+
+    this.logger.info(
+      `Backpressure: ${activeCount} active pieces, ${bufferedMB}MB buffered, ${totalRequests} outstanding requests`,
+    )
   }
 
   /**

@@ -131,6 +131,43 @@ class TorrentListViewModel(
     }
 
     /**
+     * Replace an existing torrent (if present) and add/start fresh.
+     * This removes any existing torrent with the same infohash before adding,
+     * ensuring the torrent starts in active state.
+     */
+    fun replaceAndStartTorrent(magnetOrBase64: String) {
+        if (magnetOrBase64.isBlank()) return
+        val infoHash = extractInfoHash(magnetOrBase64)
+        // Use viewModelScope to properly sequence remove -> add
+        viewModelScope.launch {
+            repository.replaceAndAddTorrent(magnetOrBase64, infoHash)
+        }
+    }
+
+    companion object {
+        /**
+         * Extract infohash from a magnet link.
+         * Returns null if not a valid magnet link.
+         */
+        fun extractInfoHash(magnetOrBase64: String): String? {
+            val magnet = magnetOrBase64.trim()
+            if (!magnet.startsWith("magnet:?", ignoreCase = true)) {
+                return null
+            }
+            // Find xt=urn:btih: parameter
+            val btihPrefix = "xt=urn:btih:"
+            val startIdx = magnet.indexOf(btihPrefix, ignoreCase = true)
+            if (startIdx < 0) return null
+            val hashStart = startIdx + btihPrefix.length
+            // Find end of hash (& or end of string)
+            val hashEnd = magnet.indexOf('&', hashStart).let { if (it < 0) magnet.length else it }
+            val hash = magnet.substring(hashStart, hashEnd)
+            // Infohash should be 40 hex chars (SHA1) or 32 base32 chars
+            return if (hash.length == 40 || hash.length == 32) hash.lowercase() else null
+        }
+    }
+
+    /**
      * Pause a torrent by info hash.
      */
     fun pauseTorrent(infoHash: String) {

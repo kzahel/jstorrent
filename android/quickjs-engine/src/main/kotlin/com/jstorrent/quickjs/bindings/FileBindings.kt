@@ -35,6 +35,15 @@ class FileBindings(
     private val fileManager: FileManager,
     private val rootResolver: (String) -> Uri?,
 ) {
+    companion object {
+        // Throughput and latency tracking for backpressure detection
+        @Volatile private var bytesWritten = 0L
+        @Volatile private var writeCount = 0
+        @Volatile private var totalWriteTimeMs = 0L
+        @Volatile private var maxWriteLatencyMs = 0L
+        @Volatile private var lastLogTime = System.currentTimeMillis()
+    }
+
     // App-private downloads directory (fallback when rootKey is empty/"default")
     private val appPrivateDownloads: File by lazy {
         File(context.filesDir, "downloads").also { it.mkdirs() }
@@ -110,7 +119,34 @@ class FileBindings(
             }
 
             try {
+                val startTime = System.currentTimeMillis()
                 fileManager.write(rootUri, path, offset, binary)
+                val elapsed = System.currentTimeMillis() - startTime
+
+                // Track stats
+                bytesWritten += binary.size
+                writeCount++
+                totalWriteTimeMs += elapsed
+                if (elapsed > maxWriteLatencyMs) {
+                    maxWriteLatencyMs = elapsed
+                }
+
+                // Log every 5 seconds
+                val now = System.currentTimeMillis()
+                val sinceLastLog = now - lastLogTime
+                if (sinceLastLog >= 5000) {
+                    val mbWritten = bytesWritten / (1024.0 * 1024.0)
+                    val mbps = mbWritten / (sinceLastLog / 1000.0)
+                    val avgLatency = if (writeCount > 0) totalWriteTimeMs / writeCount else 0
+                    Log.i(TAG, "Disk write: %.2f MB/s, %d writes, avg %dms, max %dms".format(
+                        mbps, writeCount, avgLatency, maxWriteLatencyMs))
+                    bytesWritten = 0
+                    writeCount = 0
+                    totalWriteTimeMs = 0
+                    maxWriteLatencyMs = 0
+                    lastLogTime = now
+                }
+
                 binary.size.toString()
             } catch (e: FileManagerException) {
                 Log.e(TAG, "Write failed: $path", e)

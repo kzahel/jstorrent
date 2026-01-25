@@ -29,6 +29,14 @@ class TcpBindings(
 ) {
     companion object {
         private const val TAG = "TcpBindings"
+
+        // Backpressure tracking - shared across instances
+        private val pendingCallbacks = java.util.concurrent.atomic.AtomicInteger(0)
+
+        // Throughput tracking
+        @Volatile private var bytesReceived = 0L
+        @Volatile private var lastLogTime = System.currentTimeMillis()
+        @Volatile private var maxQueueDepth = 0
     }
 
     // JS callback names - stored when JS registers callbacks
@@ -145,7 +153,30 @@ class TcpBindings(
             override fun onTcpData(socketId: Int, data: ByteArray) {
                 if (!hasDataCallback) return
 
+                // Track throughput before posting to JS (this is raw network speed)
+                bytesReceived += data.size
+                val now = System.currentTimeMillis()
+                val elapsed = now - lastLogTime
+                if (elapsed >= 5000) {
+                    val mbps = (bytesReceived / (elapsed / 1000.0)) / (1024 * 1024)
+                    Log.i(TAG, "TCP recv: %.2f MB/s (raw), queue depth: %d (max: %d)".format(
+                        mbps, pendingCallbacks.get(), maxQueueDepth))
+                    bytesReceived = 0
+                    maxQueueDepth = 0
+                    lastLogTime = now
+                }
+
+                // Track queue depth for backpressure detection
+                val queueDepth = pendingCallbacks.incrementAndGet()
+                if (queueDepth > maxQueueDepth) {
+                    maxQueueDepth = queueDepth
+                }
+                if (queueDepth > 50) {
+                    Log.w(TAG, "JS callback queue depth: $queueDepth (BACKPRESSURE)")
+                }
+
                 jsThread.post {
+                    pendingCallbacks.decrementAndGet()
                     ctx.callGlobalFunctionWithBinary(
                         "__jstorrent_tcp_dispatch_data",
                         data,

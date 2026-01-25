@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -370,5 +371,78 @@ class TorrentListViewModelTest {
         assertEquals(4, viewModel.getFilterCount(TorrentFilter.ALL))
         assertEquals(2, viewModel.getFilterCount(TorrentFilter.QUEUED))
         assertEquals(2, viewModel.getFilterCount(TorrentFilter.FINISHED))
+    }
+
+    // =========================================================================
+    // extractInfoHash tests
+    // =========================================================================
+
+    @Test
+    fun `extractInfoHash returns hash for valid magnet`() {
+        val hash = TorrentListViewModel.extractInfoHash(
+            "magnet:?xt=urn:btih:18a7aacab6d2bc518e336921ccd4b6cc32a9624b&dn=test.bin"
+        )
+        assertEquals("18a7aacab6d2bc518e336921ccd4b6cc32a9624b", hash)
+    }
+
+    @Test
+    fun `extractInfoHash handles uppercase hash`() {
+        val hash = TorrentListViewModel.extractInfoHash(
+            "magnet:?xt=urn:btih:18A7AACAB6D2BC518E336921CCD4B6CC32A9624B&dn=test"
+        )
+        assertEquals("18a7aacab6d2bc518e336921ccd4b6cc32a9624b", hash)
+    }
+
+    @Test
+    fun `extractInfoHash handles hash without other params`() {
+        val hash = TorrentListViewModel.extractInfoHash(
+            "magnet:?xt=urn:btih:67d01ece1b99c49c257baada0f760b770a7530b9"
+        )
+        assertEquals("67d01ece1b99c49c257baada0f760b770a7530b9", hash)
+    }
+
+    @Test
+    fun `extractInfoHash returns null for non-magnet input`() {
+        assertNull(TorrentListViewModel.extractInfoHash("not a magnet link"))
+        assertNull(TorrentListViewModel.extractInfoHash(""))
+        assertNull(TorrentListViewModel.extractInfoHash("https://example.com"))
+    }
+
+    @Test
+    fun `extractInfoHash returns null for magnet without btih`() {
+        assertNull(TorrentListViewModel.extractInfoHash("magnet:?dn=test"))
+    }
+
+    // =========================================================================
+    // replaceAndStartTorrent tests
+    // =========================================================================
+
+    @Test
+    fun `replaceAndStartTorrent removes existing and adds new`() = runTest {
+        repository.setLoaded(true)
+        advanceUntilIdle()
+
+        val magnet = "magnet:?xt=urn:btih:18a7aacab6d2bc518e336921ccd4b6cc32a9624b&dn=test"
+        viewModel.replaceAndStartTorrent(magnet)
+
+        // Should have removed the torrent first (with deleteFiles=true)
+        assertEquals(
+            listOf(Pair("18a7aacab6d2bc518e336921ccd4b6cc32a9624b", true)),
+            repository.removedTorrents
+        )
+        // Should have added the torrent
+        assertEquals(listOf(magnet), repository.addedTorrents)
+    }
+
+    @Test
+    fun `replaceAndStartTorrent with blank input does nothing`() = runTest {
+        repository.setLoaded(true)
+        advanceUntilIdle()
+
+        viewModel.replaceAndStartTorrent("")
+        viewModel.replaceAndStartTorrent("   ")
+
+        assertTrue(repository.removedTorrents.isEmpty())
+        assertTrue(repository.addedTorrents.isEmpty())
     }
 }
