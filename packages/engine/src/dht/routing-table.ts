@@ -79,6 +79,7 @@ export class RoutingTable extends EventEmitter {
       existing.host = node.host
       existing.port = node.port
       existing.lastSeen = node.lastSeen ?? Date.now()
+      existing.consecutiveFailures = 0 // Reset on successful contact
       bucket.nodes.push(existing)
       bucket.lastChanged = Date.now()
       return true
@@ -208,6 +209,35 @@ export class RoutingTable extends EventEmitter {
   isQuestionable(node: DHTNodeInfo): boolean {
     if (!node.lastSeen) return true
     return Date.now() - node.lastSeen > NODE_QUESTIONABLE_MS
+  }
+
+  /**
+   * Find a node by ID.
+   */
+  getNode(nodeId: Uint8Array): DHTNodeInfo | undefined {
+    const bucket = this.findBucket(nodeId)
+    return bucket.nodes.find((n) => nodeIdsEqual(n.id, nodeId))
+  }
+
+  /**
+   * Increment consecutive failure count for a node.
+   * @returns New failure count, or undefined if node not found
+   */
+  incrementFailures(nodeId: Uint8Array): number | undefined {
+    const node = this.getNode(nodeId)
+    if (!node) return undefined
+    node.consecutiveFailures = (node.consecutiveFailures ?? 0) + 1
+    return node.consecutiveFailures
+  }
+
+  /**
+   * Reset consecutive failure count for a node (on successful response).
+   */
+  resetFailures(nodeId: Uint8Array): void {
+    const node = this.getNode(nodeId)
+    if (node) {
+      node.consecutiveFailures = 0
+    }
   }
 
   /**

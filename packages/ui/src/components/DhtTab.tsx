@@ -220,6 +220,10 @@ export function DhtTab({ stats, nodes }: DhtTabProps) {
               {stats.nodeCount} nodes in {stats.bucketCount} buckets
             </span>
           </div>
+          <div style={rowStyle}>
+            <span style={labelStyle}>Peers Discovered</span>
+            <span style={valueStyle}>{stats.peersDiscovered}</span>
+          </div>
         </div>
 
         {/* Traffic */}

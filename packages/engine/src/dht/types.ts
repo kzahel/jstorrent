@@ -20,6 +20,8 @@ export interface DHTNodeInfo {
   lastSeen?: number
   /** Timestamp when we last sent a query to this node */
   lastQueried?: number
+  /** Number of consecutive query failures (for pruning stale nodes) */
+  consecutiveFailures?: number
 }
 
 /**

@@ -12,11 +12,13 @@ const DHT_STATE_KEY = 'dht:state'
 
 /**
  * Persisted DHT state.
+ * Note: consecutiveFailures is intentionally not persisted - nodes start fresh
+ * after restore since we don't know if the network has changed.
  */
 export interface DHTPersistedState {
   /** Our node ID in hex */
   nodeId: string
-  /** Nodes from routing table */
+  /** Nodes from routing table (id, host, port only - no failure counts) */
   nodes: Array<{
     id: string
     host: string

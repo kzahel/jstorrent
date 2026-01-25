@@ -11,10 +11,10 @@ Usage:
     uv run python seed_for_test_swarm.py --size 1gb       # Seed 1GB file
     uv run python seed_for_test_swarm.py --port 7000      # Start at port 7000
     uv run python seed_for_test_swarm.py --kill           # Kill existing processes on ports first
+    uv run python seed_for_test_swarm.py --upload-limits 1,10,100,0  # Different upload rates (KB/s, 0=unlimited)
 """
 import argparse
 import signal
-import socket
 import subprocess
 import sys
 import time
@@ -114,8 +114,16 @@ def check_all_ports(start_port: int, count: int, kill: bool, quiet: bool) -> boo
 # =============================================================================
 # Seeding
 # =============================================================================
-def create_seeding_session(port: int, bind_addr: str = "0.0.0.0") -> lt.session:
-    """Create libtorrent session configured for seeding."""
+def create_seeding_session(
+    port: int, bind_addr: str = "0.0.0.0", upload_limit_kbps: int = 0
+) -> lt.session:
+    """Create libtorrent session configured for seeding.
+
+    Args:
+        port: Port to listen on
+        bind_addr: Interface to bind to
+        upload_limit_kbps: Upload rate limit in KB/s (0 = unlimited)
+    """
     settings = {
         "listen_interfaces": f"{bind_addr}:{port}",
         "enable_dht": False,
@@ -132,6 +140,10 @@ def create_seeding_session(port: int, bind_addr: str = "0.0.0.0") -> lt.session:
         "alert_mask": lt.alert.category_t.all_categories,
         "allow_multiple_connections_per_ip": True,
     }
+
+    # Apply upload rate limit (libtorrent uses bytes/second, 0 = unlimited)
+    if upload_limit_kbps > 0:
+        settings["upload_rate_limit"] = upload_limit_kbps * 1024
 
     params = lt.session_params()
     params.settings = settings
@@ -217,8 +229,32 @@ def main() -> int:
         default=DEFAULT_DATA_DIR,
         help=f"Data directory (default: {DEFAULT_DATA_DIR})",
     )
+    parser.add_argument(
+        "--upload-limits",
+        "-u",
+        type=str,
+        default=None,
+        help="Comma-separated upload rate limits in KB/s per seeder (0=unlimited). "
+        "Values cycle if fewer than --count. Example: --upload-limits 1,10,100,0",
+    )
 
     args = parser.parse_args()
+
+    # Parse upload limits
+    upload_limits: List[int] = []
+    if args.upload_limits:
+        try:
+            upload_limits = [int(x.strip()) for x in args.upload_limits.split(",")]
+            if not upload_limits:
+                print("ERROR: --upload-limits cannot be empty", file=sys.stderr)
+                return 1
+            for limit in upload_limits:
+                if limit < 0:
+                    print(f"ERROR: Upload limit cannot be negative: {limit}", file=sys.stderr)
+                    return 1
+        except ValueError as e:
+            print(f"ERROR: Invalid upload limit value: {e}", file=sys.stderr)
+            return 1
 
     # Setup signal handlers
     signal.signal(signal.SIGINT, handle_signal)
@@ -245,7 +281,13 @@ def main() -> int:
 
     for i in range(args.count):
         port = args.port + i
-        session = create_seeding_session(port, args.bind)
+
+        # Get upload limit for this seeder (cycle through limits if fewer than count)
+        upload_limit = 0
+        if upload_limits:
+            upload_limit = upload_limits[i % len(upload_limits)]
+
+        session = create_seeding_session(port, args.bind, upload_limit)
 
         actual_port = session.listen_port()
         if actual_port != port:
@@ -259,7 +301,8 @@ def main() -> int:
         ports.append(actual_port)
 
         if not args.quiet:
-            print(f"  Seeder {i+1}/{args.count} started on port {actual_port}")
+            limit_str = f"{upload_limit} KB/s" if upload_limit > 0 else "unlimited"
+            print(f"  Seeder {i+1}/{args.count} started on port {actual_port} (upload: {limit_str})")
 
     # Wait for all to reach seeding state
     if not args.quiet:
@@ -297,10 +340,19 @@ def main() -> int:
         all_peers_kitchen.extend(all_peers_lan)
     magnet_kitchen_sink = build_swarm_magnet(info_hash, config["filename"], all_peers_kitchen)
 
+    # Build effective limits list for display
+    effective_limits = []
+    for i in range(args.count):
+        if upload_limits:
+            effective_limits.append(upload_limits[i % len(upload_limits)])
+        else:
+            effective_limits.append(0)
+
     if args.quiet:
         print(f"INFOHASH={info_hash}")
         print(f"PORTS={','.join(map(str, ports))}")
         print(f"COUNT={args.count}")
+        print(f"UPLOAD_LIMITS={','.join(map(str, effective_limits))}")
         print(f"MAGNET_EMU={magnet_emu}")
         print(f"MAGNET_LOCALHOST={magnet_localhost}")
         print(f"MAGNET_CROSTINI={magnet_crostini}")
@@ -316,6 +368,11 @@ def main() -> int:
         print(f"Data: {data_path} ({config['size']} bytes)")
         print(f"Info hash: {info_hash}")
         print(f"Ports: {ports[0]}-{ports[-1]} ({args.count} seeders)")
+        if upload_limits:
+            limits_display = ", ".join(
+                f"{l} KB/s" if l > 0 else "unlimited" for l in effective_limits
+            )
+            print(f"Upload limits: [{limits_display}]")
         if lan_ip:
             print(f"LAN IP: {lan_ip}")
         print()

@@ -1671,6 +1671,7 @@ export class Torrent extends EngineComponent {
         }))
         const added = this._swarm.addPeers(peerAddresses, 'dht')
         if (added > 0) {
+          dhtNode.recordPeersDiscovered(added)
           this.logger.debug(`DHT: Added ${added} new peers to swarm`)
           this.fillPeerSlots()
         }

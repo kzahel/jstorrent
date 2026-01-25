@@ -170,6 +170,9 @@ export interface DHTStats {
   // Errors
   timeouts: number
   errors: number
+
+  // Peer discovery
+  peersDiscovered: number
 }
 
 /**
@@ -251,6 +254,9 @@ export class DHTNode extends EventEmitter {
   // Error counters
   private _timeouts = 0
   private _errors = 0
+
+  // Peer discovery counter
+  private _peersDiscovered = 0
 
   // Staleness detection - track recent query results
   private readonly _recentResults: boolean[] = [] // true = success, false = timeout
@@ -875,28 +881,57 @@ export class DHTNode extends EventEmitter {
 
   /**
    * Refresh after a long sleep (> 15 minutes).
-   * Re-bootstraps using both existing nodes AND public bootstrap nodes.
-   * This handles the case where we've changed networks and existing nodes are unreachable.
+   * More aggressive pruning since we may have changed networks.
+   * 1. Ping a sample of existing nodes
+   * 2. Remove any that fail (single failure - no second chances after long sleep)
+   * 3. Re-bootstrap with public nodes + remaining existing nodes
    */
   private async refreshAfterLongSleep(): Promise<void> {
     const existingNodes = this.routingTable.getAllNodes()
 
-    // Always include public bootstrap nodes - existing nodes may be unreachable
-    // if we've changed networks (e.g., home -> coffee shop)
+    // Ping a sample of existing nodes to quickly identify dead ones
+    const nodesToTest = existingNodes.slice(0, Math.min(16, existingNodes.length))
+
+    if (nodesToTest.length > 0) {
+      this.logger?.debug(`Testing ${nodesToTest.length} existing nodes after long sleep`)
+
+      const results = await Promise.all(
+        nodesToTest.map(async (node) => {
+          const alive = await this.ping(node).catch(() => false)
+          return { node, alive }
+        }),
+      )
+
+      // After long sleep, remove on first failure (likely changed networks)
+      let removed = 0
+      for (const { node, alive } of results) {
+        if (!alive) {
+          this.routingTable.removeNode(node.id)
+          removed++
+        }
+      }
+
+      if (removed > 0) {
+        this.logger?.info(`DHT: Removed ${removed} unreachable nodes after long sleep`)
+      }
+    }
+
+    // Re-bootstrap with public nodes + remaining existing nodes
+    const remainingNodes = this.routingTable.getAllNodes()
     const bootstrapSeeds = [
       ...BOOTSTRAP_NODES,
-      ...existingNodes.map((n) => ({ host: n.host, port: n.port })),
+      ...remainingNodes.map((n) => ({ host: n.host, port: n.port })),
     ]
 
     this.logger?.info(
-      `Re-bootstrapping with ${BOOTSTRAP_NODES.length} public + ${existingNodes.length} existing nodes`,
+      `Re-bootstrapping with ${BOOTSTRAP_NODES.length} public + ${remainingNodes.length} remaining nodes`,
     )
     await this.bootstrap({ nodes: bootstrapSeeds })
   }
 
   /**
    * Refresh after a short sleep (< 15 minutes).
-   * Pings a sample of nodes to verify liveness and update lastSeen.
+   * Pings a sample of nodes to verify liveness. Removes nodes with 2+ consecutive failures.
    */
   private async refreshAfterShortSleep(): Promise<void> {
     const allNodes = this.routingTable.getAllNodes()
@@ -908,18 +943,41 @@ export class DHTNode extends EventEmitter {
     }
 
     this.logger?.debug(`Pinging ${nodesToPing.length} nodes after wake`)
-    const pingPromises = nodesToPing.map((node) => this.ping(node).catch(() => false))
-    await Promise.all(pingPromises)
+
+    const results = await Promise.all(
+      nodesToPing.map(async (node) => {
+        const alive = await this.ping(node).catch(() => false)
+        return { node, alive }
+      }),
+    )
+
+    let removed = 0
+    for (const { node, alive } of results) {
+      if (!alive) {
+        const failures = this.routingTable.incrementFailures(node.id)
+        if (failures !== undefined && failures >= 2) {
+          this.routingTable.removeNode(node.id)
+          removed++
+        }
+      }
+      // Success case: ping() already calls addNode() which resets failures
+    }
+
+    if (removed > 0) {
+      this.logger?.info(`DHT: Removed ${removed} unresponsive nodes after wake`)
+    }
   }
 
   /**
    * Refresh stale buckets by sending find_node with random target.
    * Per BEP 5: "Buckets that have not been changed in 15 minutes should be refreshed"
+   * Removes nodes with 2+ consecutive failures.
    */
   private async refreshStaleBuckets(): Promise<void> {
     if (!this._ready) return
 
     const staleBucketIndices = this.routingTable.getStaleBuckets(BUCKET_REFRESH_MS)
+    let removed = 0
 
     for (const bucketIndex of staleBucketIndices) {
       const bucket = this.routingTable.getBucket(bucketIndex)
@@ -932,9 +990,19 @@ export class DHTNode extends EventEmitter {
       const nodeToQuery = bucket.nodes[0]
       try {
         await this.findNode(nodeToQuery, target)
+        // Success: findNode() calls addNode() which resets failures
       } catch {
-        // Ignore errors during refresh
+        // Failed - track consecutive failures
+        const failures = this.routingTable.incrementFailures(nodeToQuery.id)
+        if (failures !== undefined && failures >= 2) {
+          this.routingTable.removeNode(nodeToQuery.id)
+          removed++
+        }
       }
+    }
+
+    if (removed > 0) {
+      this.logger?.info(`DHT: Removed ${removed} unresponsive nodes during bucket refresh`)
     }
   }
 
@@ -1137,6 +1205,8 @@ export class DHTNode extends EventEmitter {
 
       timeouts: this._timeouts,
       errors: this._errors,
+
+      peersDiscovered: this._peersDiscovered,
     }
   }
 
@@ -1159,5 +1229,13 @@ export class DHTNode extends EventEmitter {
         this._announcesReceived++
         break
     }
+  }
+
+  /**
+   * Record peers discovered via DHT lookup.
+   * Called by torrent when peers are added to swarm from DHT.
+   */
+  recordPeersDiscovered(count: number): void {
+    this._peersDiscovered += count
   }
 }

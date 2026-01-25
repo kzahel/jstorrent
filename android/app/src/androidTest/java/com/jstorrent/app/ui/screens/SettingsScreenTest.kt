@@ -2,6 +2,7 @@ package com.jstorrent.app.ui.screens
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -9,6 +10,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import com.jstorrent.app.storage.DownloadRoot
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.viewmodel.SettingsUiState
@@ -43,7 +47,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -82,7 +88,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -121,7 +129,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -160,7 +170,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -201,7 +213,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -238,7 +252,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -263,7 +279,10 @@ class SettingsScreenTest {
         composeTestRule.setContent {
             JSTorrentTheme {
                 SettingsScreenContent(
-                    uiState = SettingsUiState(downloadSpeedLimit = 1048576),
+                    uiState = SettingsUiState(
+                        downloadSpeedUnlimited = false,
+                        downloadSpeedLimit = 1048576
+                    ),
                     onNavigateBack = {},
                     onAddRootClick = {},
                     onSetDefaultRoot = {},
@@ -271,7 +290,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -307,7 +328,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -341,7 +364,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = { selectedOption = it },
                     onWifiOnlyChange = {},
@@ -382,7 +407,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -397,8 +424,10 @@ class SettingsScreenTest {
             }
         }
 
-        // Network section header should be visible after scrolling
-        composeTestRule.onNodeWithText("Network").performScrollTo().assertIsDisplayed()
+        // Scroll the LazyColumn to find and display the Network section
+        composeTestRule.onNode(hasScrollAction())
+            .performScrollToNode(hasText("Network"))
+        composeTestRule.onNodeWithText("Network").assertIsDisplayed()
     }
 
     // =========================================================================
@@ -418,7 +447,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -452,7 +483,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -487,7 +520,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -525,7 +560,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -562,7 +599,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
@@ -602,7 +641,9 @@ class SettingsScreenTest {
                     onShowClearConfirmation = {},
                     onDismissClearConfirmation = {},
                     onClearAll = {},
+                    onDownloadSpeedUnlimitedChange = {},
                     onDownloadSpeedLimitChange = {},
+                    onUploadSpeedUnlimitedChange = {},
                     onUploadSpeedLimitChange = {},
                     onWhenDownloadsCompleteChange = {},
                     onWifiOnlyChange = {},
