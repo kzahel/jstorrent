@@ -375,7 +375,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this._suspended = true
 
     for (const torrent of this.torrents) {
-      torrent.suspendNetwork()
+      torrent.stopNetwork()
     }
   }
 
@@ -392,7 +392,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     for (const torrent of this.torrents) {
       if (torrent.userState === 'active') {
-        torrent.resumeNetwork()
+        // start() is idempotent and handles all checks internally
+        torrent.start()
       }
     }
 
@@ -664,8 +665,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       console.log(`[removeTorrent] saveTorrentList took ${Date.now() - t1}ms`)
 
       const t2 = Date.now()
-      await torrent.stop({ skipAnnounce: true })
-      console.log(`[removeTorrent] stop took ${Date.now() - t2}ms`)
+      await torrent.destroy({ skipAnnounce: true })
+      console.log(`[removeTorrent] destroy took ${Date.now() - t2}ms`)
 
       this.emit('torrent-removed', torrent)
       console.log(`[removeTorrent] complete, total ${Date.now() - t0}ms`)
@@ -692,7 +693,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     if (torrent.contentStorage) {
       await torrent.contentStorage.close()
     }
-    await torrent.stop({ skipAnnounce: true })
+    await torrent.destroy({ skipAnnounce: true })
 
     // 2. Get filesystem for this torrent (may throw if no storage root)
     let fs: IFileSystem | null = null
@@ -782,7 +783,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     const torrentFileBase64 = torrent.torrentFileBase64
 
     // Stop the torrent
-    await torrent.stop({ skipAnnounce: true })
+    await torrent.destroy({ skipAnnounce: true })
 
     // Remove from engine array (but keep in persisted list)
     this.torrents.splice(index, 1)
@@ -846,8 +847,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     // Flush any pending persistence saves
     await this.sessionPersistence.flushPendingSaves()
 
-    // Stop all torrents
-    await Promise.all(this.torrents.map((t) => t.stop()))
+    // Destroy all torrents
+    await Promise.all(this.torrents.map((t) => t.destroy()))
     this.torrents = []
 
     // Close server?
@@ -1151,13 +1152,26 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    */
   private drainOpQueue(): void {
     // Check global connection limit first
-    if (this.numConnections >= this.maxConnections) return
+    if (this.numConnections >= this.maxConnections) {
+      this.logger.debug(
+        `drainOpQueue: blocked by global limit (${this.numConnections}>=${this.maxConnections})`,
+      )
+      return
+    }
 
     // Check rate limit
-    if (!this.daemonRateLimiter.tryConsume(1)) return
+    if (!this.daemonRateLimiter.tryConsume(1)) {
+      // Don't log this - it fires constantly
+      return
+    }
 
     const hashes = Array.from(this.pendingOps.keys())
-    if (hashes.length === 0) return
+    if (hashes.length === 0) {
+      this.logger.debug(`drainOpQueue: no pending ops`)
+      return
+    }
+
+    this.logger.debug(`drainOpQueue: ${hashes.length} torrents with pending ops`)
 
     // Round-robin: try each torrent starting from last position
     for (let i = 0; i < hashes.length; i++) {
@@ -1175,13 +1189,19 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
       const torrent = this.getTorrent(hash)
       if (!torrent || !torrent.isActive) {
+        this.logger.debug(`drainOpQueue: torrent ${hash.slice(0, 8)} not found or not active`)
         this.pendingOps.delete(hash)
         continue
       }
 
+      this.logger.debug(
+        `drainOpQueue: granting slot to ${hash.slice(0, 8)}, pending ops: tcp=${ops.tcp_connect}`,
+      )
+
       // Grant slot - torrent decides which operation to execute
       const usedType = torrent.useDaemonSlot(ops)
       if (usedType) {
+        this.logger.debug(`drainOpQueue: torrent used slot for ${usedType}`)
         ops[usedType]--
         if (ops[usedType] < 0) ops[usedType] = 0
 
@@ -1195,6 +1215,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         return
       } else {
         // Torrent couldn't use any slot, clear its pending ops
+        this.logger.debug(`drainOpQueue: torrent couldn't use slot, clearing pending ops`)
         this.pendingOps.delete(hash)
       }
     }

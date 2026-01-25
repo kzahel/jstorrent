@@ -415,8 +415,16 @@ export class Torrent extends EngineComponent {
     }
   }
 
+  /**
+   * Start network activity for this torrent.
+   * Single source of truth for activating networking (trackers, DHT, maintenance).
+   * Idempotent - safe to call multiple times.
+   */
   async start() {
-    if ((this.engine as BtEngine).isSuspended) {
+    // Idempotent - already active
+    if (this._networkActive) return
+
+    if (this.btEngine.isSuspended) {
       this.logger.debug('Engine suspended, not starting')
       return
     }
@@ -426,7 +434,16 @@ export class Torrent extends EngineComponent {
       return
     }
 
+    if (this.isKillSwitchEnabled) {
+      this.logger.debug('Kill switch enabled, not starting')
+      return
+    }
+
+    this.logger.debug('Starting network')
     this._networkActive = true
+
+    // Reset backoff state so we immediately try reconnecting to known peers
+    this._swarm.resetBackoffState()
 
     // Start periodic maintenance (idempotent)
     this.startMaintenance()
@@ -437,9 +454,18 @@ export class Torrent extends EngineComponent {
       this.addPeerHints(this.magnetPeerHints)
     }
 
+    // Start tracker announces
     if (this.trackerManager) {
       this.logger.info('Starting tracker announce')
       await this.trackerManager.announce('started')
+    } else if (this.announce.length > 0) {
+      // Initialize tracker manager if we have announces but no manager yet
+      this.initTrackerManager()
+    }
+
+    // Start DHT peer discovery (if enabled and not private)
+    if (!this.isPrivate) {
+      this.startDHTLookup()
     }
   }
 
@@ -1344,20 +1370,41 @@ export class Torrent extends EngineComponent {
    */
   connectOnePeer(): boolean {
     // Don't initiate outgoing connections when seeding - accept incoming only
-    if (this.isDownloadComplete) return false
-    if (!this._networkActive) return false
-    if (this.isKillSwitchEnabled) return false
+    if (this.isDownloadComplete) {
+      this.logger.debug(`connectOnePeer: blocked by isDownloadComplete`)
+      return false
+    }
+    if (!this._networkActive) {
+      this.logger.debug(`connectOnePeer: blocked by !_networkActive`)
+      return false
+    }
+    if (this.isKillSwitchEnabled) {
+      this.logger.debug(`connectOnePeer: blocked by isKillSwitchEnabled`)
+      return false
+    }
 
     // Check we still have room
     const connected = this.numPeers
     const connecting = this._swarm.connectingCount
-    if (connected + connecting >= this.maxPeers) return false
+    if (connected + connecting >= this.maxPeers) {
+      this.logger.debug(
+        `connectOnePeer: blocked by maxPeers (${connected}+${connecting}>=${this.maxPeers})`,
+      )
+      return false
+    }
 
     // Get best candidate right now
+    const swarmSize = this._swarm.size
     const candidates = this._swarm.getConnectablePeers(1)
-    if (candidates.length === 0) return false
+    if (candidates.length === 0) {
+      this.logger.warn(
+        `connectOnePeer: no candidates! swarm=${swarmSize}, connected=${connected}, connecting=${connecting}`,
+      )
+      return false
+    }
 
     const peer = candidates[0]
+    this.logger.info(`connectOnePeer: connecting to ${peer.ip}:${peer.port}`)
     this.connectToPeer({ ip: peer.ip, port: peer.port })
     return true
   }
@@ -1443,9 +1490,8 @@ export class Torrent extends EngineComponent {
     this.userState = 'active'
     this.errorMessage = undefined
 
-    if (!(this.engine as BtEngine).isSuspended) {
-      this.resumeNetwork()
-    }
+    // start() checks isSuspended internally
+    await this.start()
 
     // Persist state change (userState + bitfield)
     ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
@@ -1458,21 +1504,19 @@ export class Torrent extends EngineComponent {
   userStop(): void {
     this.logger.info('User stopping torrent')
     this.userState = 'stopped'
-
-    // Cancel pending connection requests
-    this.btEngine.cancelConnectionRequests(this.infoHashStr)
-
-    this.suspendNetwork()
+    this.stopNetwork()
 
     // Persist state change (userState + bitfield)
     ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
   }
 
   /**
-   * Internal: Suspend network activity.
-   * Called by engine.suspend() or userStop().
+   * Stop network activity for this torrent.
+   * Single source of truth for deactivating networking (trackers, DHT, maintenance).
+   * Idempotent - safe to call multiple times.
+   * Note: This pauses networking; use the async stop() method to fully destroy the torrent.
    */
-  suspendNetwork(): void {
+  stopNetwork(): void {
     const wasActive = this._networkActive
 
     // Cancel pending connection requests from the global queue
@@ -1520,45 +1564,6 @@ export class Torrent extends EngineComponent {
 
     // Reset peer coordinator so next start gets fresh isFirstEvaluation
     this._peerCoordinator.reset()
-  }
-
-  /**
-   * Internal: Resume network activity.
-   * Called by engine.resume() (for active torrents) or userStart().
-   */
-  resumeNetwork(): void {
-    if (this._networkActive) return
-    if (this.isKillSwitchEnabled) return
-
-    this.logger.debug('Resuming network')
-    this._networkActive = true
-
-    // Reset backoff state so we immediately try reconnecting to known peers
-    this._swarm.resetBackoffState()
-
-    // Add magnet peer hints on every resume
-    if (this.magnetPeerHints.length > 0) {
-      this.logger.info(`Adding ${this.magnetPeerHints.length} peer hints from magnet link`)
-      this.addPeerHints(this.magnetPeerHints)
-    }
-
-    // Start tracker announces
-    if (this.trackerManager) {
-      this.trackerManager.announce('started').catch((err) => {
-        this.logger.warn(`Failed to send started announce: ${err}`)
-      })
-    } else if (this.announce.length > 0) {
-      // Initialize tracker manager if we have announces but no manager yet
-      this.initTrackerManager()
-    }
-
-    // Start DHT peer discovery (if enabled and not private)
-    if (!this.isPrivate) {
-      this.startDHTLookup()
-    }
-
-    // Start periodic maintenance for peer slots
-    this.startMaintenance()
   }
 
   /**
@@ -1675,10 +1680,14 @@ export class Torrent extends EngineComponent {
           port: p.port,
           family: detectAddressFamily(p.host),
         }))
+        const swarmSizeBefore = this._swarm.size
         const added = this._swarm.addPeers(peerAddresses, 'dht')
+        this.logger.info(
+          `DHT: swarm before=${swarmSizeBefore}, added=${added}, swarm after=${this._swarm.size}`,
+        )
         if (added > 0) {
           dhtNode.recordPeersDiscovered(added)
-          this.logger.debug(`DHT: Added ${added} new peers to swarm`)
+          this.logger.info(`DHT: Added ${added} new peers to swarm, calling fillPeerSlots`)
           this.fillPeerSlots()
         }
       } else {
@@ -1779,25 +1788,39 @@ export class Torrent extends EngineComponent {
     }
 
     // === Request connection slots from engine ===
-    if (this.isComplete) return // Don't seek peers when complete
+    if (this.isComplete) {
+      this.logger.debug(`Maintenance: skipping - torrent complete`)
+      return // Don't seek peers when complete
+    }
 
     const connected = this.numPeers
     const connecting = this._swarm.connectingCount
     const slotsAvailable = this.maxPeers - connected - connecting
+    const swarmSize = this._swarm.size
 
-    if (slotsAvailable <= 0) return
+    if (slotsAvailable <= 0) {
+      this.logger.debug(
+        `Maintenance: no slots (connected=${connected}, connecting=${connecting}, max=${this.maxPeers})`,
+      )
+      return
+    }
 
     // Check if we have candidates before requesting slots
     const candidateCount = this._swarm.getConnectablePeers(slotsAvailable).length
-    if (candidateCount === 0) return
+    if (candidateCount === 0) {
+      this.logger.warn(
+        `Maintenance: 0 candidates! swarm=${swarmSize}, connected=${connected}, connecting=${connecting}`,
+      )
+      return
+    }
 
     // Request slots from engine (will be granted fairly via round-robin)
     const slotsToRequest = Math.min(slotsAvailable, candidateCount)
     this.btEngine.requestConnections(this.infoHashStr, slotsToRequest)
 
-    this.logger.debug(
-      `Maintenance: ${connected} connected, ${connecting} connecting, ` +
-        `requested ${slotsToRequest} slots (${candidateCount} candidates available)`,
+    this.logger.info(
+      `Maintenance: swarm=${swarmSize}, connected=${connected}, connecting=${connecting}, ` +
+        `requested ${slotsToRequest} slots (${candidateCount} candidates)`,
     )
 
     // Log backpressure stats periodically (every 5s in steady state)
@@ -3010,7 +3033,7 @@ export class Torrent extends EngineComponent {
         const errorMsg = e instanceof Error ? e.message : String(e)
         this.logger.error(`Failed to write boundary piece to .parts:`, errorMsg)
         this.errorMessage = `Write failed: ${errorMsg}`
-        this.suspendNetwork()
+        this.stopNetwork()
         this.activePieces?.remove(index)
         ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
         return
@@ -3057,7 +3080,7 @@ export class Torrent extends EngineComponent {
           const errorMsg = e instanceof Error ? e.message : String(e)
           this.logger.error(`Fatal write error - stopping torrent:`, errorMsg)
           this.errorMessage = `Write failed: ${errorMsg}`
-          this.suspendNetwork()
+          this.stopNetwork()
           this.activePieces?.remove(index)
           ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
           return
@@ -3200,9 +3223,14 @@ export class Torrent extends EngineComponent {
     // Compare
     return compare(hash, expectedHash) === 0
   }
-  async stop(options?: { skipAnnounce?: boolean }) {
+  /**
+   * Destroy the torrent - full teardown before removal.
+   * Closes all connections, destroys managers, clears swarm.
+   * Use stopNetwork() for temporary pause that preserves state.
+   */
+  async destroy(options?: { skipAnnounce?: boolean }) {
     const t0 = Date.now()
-    this.logger.info(`Stopping (skipAnnounce=${options?.skipAnnounce ?? false})`)
+    this.logger.info(`Destroying (skipAnnounce=${options?.skipAnnounce ?? false})`)
 
     // CRITICAL: Disable network activity FIRST to prevent new connections.
     // When we close peers below, the 'close' event triggers removePeer() which
@@ -3258,8 +3286,8 @@ export class Torrent extends EngineComponent {
       await this.contentStorage.close()
       this.logger.info(`contentStorage.close took ${Date.now() - t2}ms`)
     }
-    this.logger.info(`stop() complete, total ${Date.now() - t0}ms`)
-    this.emit('stopped')
+    this.logger.info(`destroy() complete, total ${Date.now() - t0}ms`)
+    this.emit('destroyed')
   }
 
   /**
@@ -3316,7 +3344,7 @@ export class Torrent extends EngineComponent {
     // Suspend networking during check (non-destructive, unlike stop())
     const wasNetworkActive = this._networkActive
     if (wasNetworkActive) {
-      this.suspendNetwork()
+      this.stopNetwork()
     }
 
     // Set checking state
@@ -3392,7 +3420,7 @@ export class Torrent extends EngineComponent {
 
     // Resume networking if it was active before recheck
     if (wasNetworkActive) {
-      this.resumeNetwork()
+      this.start()
     }
   }
 

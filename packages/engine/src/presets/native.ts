@@ -11,8 +11,25 @@ import { NullFileSystem } from '../adapters/null/null-filesystem'
 import { NativeSessionStore } from '../adapters/native/native-session-store'
 import { NativeHasher } from '../adapters/native/native-hasher'
 import { StorageRootManager, StorageRoot } from '../storage/storage-root-manager'
+import type { NetworkInterface } from '../upnp/upnp-manager'
 import type { LogEntry } from '../logging/logger'
 import type { ConfigHub } from '../config/config-hub'
+
+/**
+ * Get network interfaces from the native layer.
+ * Returns parsed array of NetworkInterface objects.
+ */
+async function getNetworkInterfaces(): Promise<NetworkInterface[]> {
+  if (typeof __jstorrent_get_network_interfaces !== 'function') {
+    return []
+  }
+  try {
+    const json = __jstorrent_get_network_interfaces()
+    return JSON.parse(json) as NetworkInterface[]
+  } catch {
+    return []
+  }
+}
 
 export interface NativeEngineConfig {
   /**
@@ -92,5 +109,6 @@ export function createNativeEngine(config: NativeEngineConfig): BtEngine {
     onLog: config.onLog,
     startSuspended: config.startSuspended,
     config: config.config,
+    getNetworkInterfaces,
   })
 }

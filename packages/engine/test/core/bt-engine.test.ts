@@ -117,16 +117,16 @@ describe('BtEngine', () => {
     const { torrent } = await client.addTorrent(buffer)
     if (!torrent) throw new Error('Torrent is null')
 
-    // Mock stop method
-    const originalStop = torrent.stop
-    torrent.stop = vi.fn().mockImplementation(originalStop)
+    // Mock destroy method
+    const originalDestroy = torrent.destroy
+    torrent.destroy = vi.fn().mockImplementation(originalDestroy)
 
     await client.removeTorrent(torrent)
     expect(client.torrents).not.toContain(torrent)
-    expect(torrent.stop).toHaveBeenCalled()
+    expect(torrent.destroy).toHaveBeenCalled()
   })
 
-  it('should destroy client and stop all torrents', async () => {
+  it('should destroy client and destroy all torrents', async () => {
     const info1 = {
       name: 'test-torrent-4',
       'piece length': 16384,
@@ -148,13 +148,13 @@ describe('BtEngine', () => {
 
     if (!t1 || !t2) throw new Error('Failed to create torrents')
 
-    const stop1 = vi.spyOn(t1, 'stop')
-    const stop2 = vi.spyOn(t2, 'stop')
+    const destroy1 = vi.spyOn(t1, 'destroy')
+    const destroy2 = vi.spyOn(t2, 'destroy')
 
     await client.destroy()
     expect(client.torrents.length).toBe(0)
-    expect(stop1).toHaveBeenCalled()
-    expect(stop2).toHaveBeenCalled()
+    expect(destroy1).toHaveBeenCalled()
+    expect(destroy2).toHaveBeenCalled()
   })
 
   it('should preserve trackers when resetting torrent from torrent file', async () => {

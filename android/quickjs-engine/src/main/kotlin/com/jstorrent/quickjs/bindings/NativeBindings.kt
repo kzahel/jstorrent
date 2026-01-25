@@ -56,6 +56,7 @@ class NativeBindings(
     private val udpBindings = UdpBindings(jsThread, udpManager)
     private val fileBindings = FileBindings(context, fileManager, rootResolver)
     private val storageBindings = StorageBindings(context)
+    private val networkBindings = NetworkBindings()
     private val callbackBindings = CallbackBindings()
 
     /**
@@ -101,6 +102,9 @@ class NativeBindings(
 
         // Register storage bindings
         storageBindings.register(ctx)
+
+        // Register network bindings
+        networkBindings.register(ctx)
 
         // Register callback bindings
         callbackBindings.register(ctx)

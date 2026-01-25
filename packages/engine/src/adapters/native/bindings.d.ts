@@ -227,6 +227,16 @@ declare global {
   function __jstorrent_storage_keys(prefix: string): string
 
   // ============================================================
+  // Network Interface Functions
+  // ============================================================
+
+  /**
+   * Get network interfaces.
+   * Returns JSON string: Array<{ name: string, address: string, prefixLength: number }>
+   */
+  function __jstorrent_get_network_interfaces(): string
+
+  // ============================================================
   // Hashing Functions
   // ============================================================
 
