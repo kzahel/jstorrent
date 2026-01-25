@@ -454,8 +454,8 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
         downloadSpeed: p.connection?.downloadSpeed ?? 0,
         uploadSpeed: p.connection?.uploadSpeed ?? 0,
         progress:
-          p.connection?.bitfield && p.connection.bitfield.size > 0
-            ? p.connection.bitfield.count() / p.connection.bitfield.size
+          p.connection?.bitfield && torrent.piecesCount > 0
+            ? p.connection.bitfield.count() / torrent.piecesCount
             : 0,
         isEncrypted: p.connection?.isEncrypted ?? false,
         clientName: p.swarmPeer?.clientName ?? null,

@@ -71,6 +71,7 @@ export class PeerConnection extends EngineComponent {
   private static readonly MAX_PIPELINE_DEPTH = 500
   private static readonly MIN_PIPELINE_DEPTH = 5
   public peerMetadataId: number | null = null
+  public peerMetadataSize: number | null = null
   public myMetadataId = 1 // Our ID for ut_metadata
 
   public uploaded = 0
@@ -169,19 +170,17 @@ export class PeerConnection extends EngineComponent {
   // Our local extension IDs (peers use these when sending to us)
   readonly myPexId = 2
 
-  sendExtendedHandshake(options: { uploadOnly?: boolean } = {}) {
+  sendExtendedHandshake(options: { uploadOnly?: boolean; metadataSize?: number } = {}) {
     // Build extension handshake dictionary
-    // Base: { m: { ut_metadata: 1, ut_pex: 2 } }
-    // With upload_only: { m: { ut_metadata: 1, ut_pex: 2 }, upload_only: 1 }
-    // Note: bencode requires sorted keys, so ut_metadata comes before ut_pex
-    let payload: string
-    if (options.uploadOnly) {
-      // d1:md11:ut_metadatai1e6:ut_pexi2ee11:upload_onlyi1ee
-      payload = `d1:md11:ut_metadatai${this.myMetadataId}e6:ut_pexi${this.myPexId}ee11:upload_onlyi1ee`
-    } else {
-      // d1:md11:ut_metadatai1e6:ut_pexi2eee
-      payload = `d1:md11:ut_metadatai${this.myMetadataId}e6:ut_pexi${this.myPexId}eee`
-    }
+    // BEP 10: { m: { ut_metadata: 1, ut_pex: 2 } }
+    // BEP 9: Add metadata_size when we have metadata
+    // BEP 21: Add upload_only: 1 when seeding
+    // Note: bencode requires sorted keys alphabetically
+    // Keys in order: m, metadata_size, upload_only
+    const mDict = `1:md11:ut_metadatai${this.myMetadataId}e6:ut_pexi${this.myPexId}ee`
+    const metadataSizePart = options.metadataSize ? `13:metadata_sizei${options.metadataSize}e` : ''
+    const uploadOnlyPart = options.uploadOnly ? `11:upload_onlyi1e` : ''
+    const payload = `d${mDict}${metadataSizePart}${uploadOnlyPart}e`
     this.sendExtendedMessage(0, new TextEncoder().encode(payload))
   }
 
@@ -402,6 +401,11 @@ export class PeerConnection extends EngineComponent {
 
       if (this.peerMetadataId === null) {
         this.logger.warn('Peer does not support ut_metadata')
+      }
+
+      // Extract metadata_size
+      if (typeof dict.metadata_size === 'number') {
+        this.peerMetadataSize = dict.metadata_size
       }
 
       // Extract client version from 'v' field (BEP 10)

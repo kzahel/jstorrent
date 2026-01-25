@@ -36,7 +36,8 @@ fun TorrentProgressBar(
             .fillMaxWidth()
             .height(height),
         color = color,
-        trackColor = trackColor
+        trackColor = trackColor,
+        drawStopIndicator = {}
     )
 }
 

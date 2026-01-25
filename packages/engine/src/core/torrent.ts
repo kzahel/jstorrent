@@ -163,10 +163,11 @@ export class Torrent extends EngineComponent {
   private maxUploadSlots: number = 4
 
   // Metadata Phase
+  private static readonly METADATA_BLOCK_SIZE = 16 * 1024
   public metadataSize: number | null = null
-  public metadataBuffer: Uint8Array | null = null
   public metadataComplete = false
-  public metadataPiecesReceived = new Set<number>()
+  /** Per-peer metadata buffers. Each peer gets their own array of pieces. */
+  private peerMetadataBuffers = new Map<PeerConnection, (Uint8Array | null)[]>()
   private _metadataRaw: Uint8Array | null = null // The full info dictionary buffer
 
   // Upload queue for rate limiting
@@ -1845,7 +1846,7 @@ export class Torrent extends EngineComponent {
       uploaded: peer.uploaded,
       downloadSpeed: peer.downloadSpeed,
       uploadSpeed: peer.uploadSpeed,
-      percent: peer.bitfield ? peer.bitfield.count() / peer.bitfield.size : 0,
+      percent: peer.bitfield && this.piecesCount > 0 ? peer.bitfield.count() / this.piecesCount : 0,
       peerChoking: peer.peerChoking,
       peerInterested: peer.peerInterested,
       amChoking: peer.amChoking,
@@ -2055,7 +2056,11 @@ export class Torrent extends EngineComponent {
 
       if (extensions) {
         // BEP 21: Send upload_only: 1 when we're seeding (complete)
-        peer.sendExtendedHandshake({ uploadOnly: this.isComplete })
+        // BEP 9: Send metadata_size when we have metadata
+        peer.sendExtendedHandshake({
+          uploadOnly: this.isComplete,
+          metadataSize: this.metadataSize ?? undefined,
+        })
       }
 
       // Send piece availability (BitField, Have All, or Have None)
@@ -2111,12 +2116,30 @@ export class Torrent extends EngineComponent {
       )
 
       // Check if we need metadata and peer has it
-      if (!this.metadataComplete && peer.peerMetadataId !== null) {
-        peer.sendMetadataRequest(0)
+      if (!this.metadataComplete && peer.peerMetadataId !== null && peer.peerMetadataSize) {
+        // Set or validate metadata size
+        if (this.metadataSize === null) {
+          this.metadataSize = peer.peerMetadataSize
+        } else if (this.metadataSize !== peer.peerMetadataSize) {
+          this.logger.warn(
+            `Peer metadata size ${peer.peerMetadataSize} differs from expected ${this.metadataSize}`,
+          )
+          return
+        }
+
+        // Create per-peer buffer and request ALL pieces upfront (pipelined)
+        const totalPieces = Math.ceil(this.metadataSize / Torrent.METADATA_BLOCK_SIZE)
+        this.peerMetadataBuffers.set(peer, new Array(totalPieces).fill(null))
+        for (let i = 0; i < totalPieces; i++) {
+          peer.sendMetadataRequest(i)
+        }
+        this.logger.info(`Requesting ${totalPieces} metadata pieces from peer`)
       } else if (this.metadataComplete) {
         this.logger.debug('Already have metadata, not requesting')
       } else if (peer.peerMetadataId === null) {
         this.logger.warn('Peer does not support ut_metadata extension')
+      } else if (!peer.peerMetadataSize) {
+        this.logger.warn('Peer supports ut_metadata but did not send metadata_size')
       }
     })
 
@@ -2281,6 +2304,9 @@ export class Torrent extends EngineComponent {
     if (removedUploads > 0) {
       this.logger.debug(`Cleared ${removedUploads} queued uploads for disconnected peer`)
     }
+
+    // Clean up any pending metadata fetch from this peer
+    this.peerMetadataBuffers.delete(peer)
 
     // Update swarm state - swarm is single source of truth (Phase 3)
     if (peer.remoteAddress && peer.remotePort) {
@@ -3366,7 +3392,10 @@ export class Torrent extends EngineComponent {
     for (const peer of this.connectedPeers) {
       // Re-send extension handshake with upload_only: 1 (BEP 10 allows multiple handshakes)
       if (peer.peerExtensions) {
-        peer.sendExtendedHandshake({ uploadOnly: true })
+        peer.sendExtendedHandshake({
+          uploadOnly: true,
+          metadataSize: this.metadataSize ?? undefined,
+        })
       }
 
       // Send NOT_INTERESTED if we were interested
@@ -3385,14 +3414,13 @@ export class Torrent extends EngineComponent {
       return
     }
 
-    const METADATA_BLOCK_SIZE = 16 * 1024
-    const start = piece * METADATA_BLOCK_SIZE
+    const start = piece * Torrent.METADATA_BLOCK_SIZE
     if (start >= this.metadataRaw.length) {
       peer.sendMetadataReject(piece)
       return
     }
 
-    const end = Math.min(start + METADATA_BLOCK_SIZE, this.metadataRaw.length)
+    const end = Math.min(start + Torrent.METADATA_BLOCK_SIZE, this.metadataRaw.length)
     const data = this.metadataRaw.slice(start, end)
     peer.sendMetadataData(piece, this.metadataRaw.length, data)
   }
@@ -3408,74 +3436,65 @@ export class Torrent extends EngineComponent {
     )
     if (this.metadataComplete) return
 
-    if (this.metadataSize === null) {
-      this.metadataSize = totalSize
-      this.metadataBuffer = new Uint8Array(totalSize)
-      this.logger.info(`Initialized metadata buffer for ${totalSize} bytes`)
+    // Get this peer's buffer
+    const peerBuffer = this.peerMetadataBuffers.get(peer)
+    if (!peerBuffer) {
+      this.logger.warn('Received metadata from peer we are not tracking')
+      return
     }
 
+    // Validate size matches
     if (this.metadataSize !== totalSize) {
-      this.logger.error('Metadata size mismatch')
+      this.logger.error(`Metadata size mismatch: expected ${this.metadataSize}, got ${totalSize}`)
+      this.peerMetadataBuffers.delete(peer)
       return
     }
 
-    const METADATA_BLOCK_SIZE = 16 * 1024
-    const start = piece * METADATA_BLOCK_SIZE
-
-    if (start + data.length > this.metadataSize) {
-      this.logger.error('Metadata data overflow')
+    // Validate piece index
+    if (piece < 0 || piece >= peerBuffer.length) {
+      this.logger.error(`Invalid metadata piece index: ${piece}`)
       return
     }
 
-    if (this.metadataBuffer) {
-      this.metadataBuffer.set(data, start)
-      this.metadataPiecesReceived.add(piece)
+    // Store the piece
+    peerBuffer[piece] = data
 
-      // Check if complete
-      const totalPieces = Math.ceil(this.metadataSize / METADATA_BLOCK_SIZE)
-      if (this.metadataPiecesReceived.size === totalPieces) {
-        await this.verifyMetadata()
-      } else {
-        // Request next piece
-        const nextPiece = piece + 1
-        if (nextPiece < totalPieces && !this.metadataPiecesReceived.has(nextPiece)) {
-          peer.sendMetadataRequest(nextPiece)
-        }
-      }
+    // Check if all pieces received from this peer
+    if (peerBuffer.every((p) => p !== null)) {
+      await this.verifyPeerMetadata(peer, peerBuffer as Uint8Array[])
     }
   }
 
-  private async verifyMetadata() {
-    if (!this.metadataBuffer) return
+  private async verifyPeerMetadata(peer: PeerConnection, pieces: Uint8Array[]) {
+    if (this.metadataComplete) return
 
-    // SHA1 hash of metadataBuffer should match infoHash
-    const hash = await this.btEngine.hasher.sha1(this.metadataBuffer)
+    // Concatenate all pieces into full metadata buffer
+    const totalSize = this.metadataSize!
+    const fullBuffer = new Uint8Array(totalSize)
+    let offset = 0
+    for (const piece of pieces) {
+      fullBuffer.set(piece, offset)
+      offset += piece.length
+    }
+
+    // SHA1 hash should match infoHash
+    const hash = await this.btEngine.hasher.sha1(fullBuffer)
     if (compare(hash, this.infoHash) === 0) {
       this.logger.info('Metadata verified successfully!')
       this.metadataComplete = true
-      this._metadataRaw = this.metadataBuffer
-      this.emit('metadata', this.metadataBuffer)
-
-      // Initialize PieceManager and Storage if not already
-      // We need to parse the info dictionary.
-      // Since we don't have the parser imported here (circular dependency?),
-      // we emit the event and let the BtEngine handle the parsing and initialization?
-      // Or we import TorrentParser here.
-      // BtEngine.ts handles 'torrent' event.
-      // Maybe we should emit 'metadata' and let BtEngine do the rest?
-      // But Torrent needs PieceManager to function.
-      // Let's emit 'metadata' and expect the listener (BtEngine) to call a method to initialize?
-      // Or we can import TorrentParser.
+      this._metadataRaw = fullBuffer
+      // Clean up all peer metadata buffers
+      this.peerMetadataBuffers.clear()
+      this.emit('metadata', fullBuffer)
     } else {
       this.logger.warn(
-        `Metadata hash mismatch - peer sent info dict that doesn't match expected hash. ` +
+        `Metadata hash mismatch from peer - sent info dict that doesn't match expected hash. ` +
           `This could be: (1) peer sent invalid/corrupted data, or ` +
           `(2) you connected with a truncated v2 info hash to a hybrid torrent ` +
-          `(use the v1 SHA-1 hash instead). Will retry with other peers.`,
+          `(use the v1 SHA-1 hash instead). Discarding this peer's metadata.`,
       )
-      this.metadataPiecesReceived.clear()
-      this.metadataBuffer = new Uint8Array(this.metadataSize!)
-      // Retry?
+      // Just remove this peer's buffer, other peers may still succeed
+      this.peerMetadataBuffers.delete(peer)
     }
   }
 

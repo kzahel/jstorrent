@@ -130,25 +130,21 @@ fun TorrentCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Speed line
+                // Speed line - always show both to prevent layout jumps
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Download speed
-                    if (torrent.downloadSpeed > 0) {
-                        SpeedIndicator(
-                            bytesPerSecond = torrent.downloadSpeed,
-                            direction = SpeedDirection.DOWN
-                        )
-                    }
-                    // Upload speed
-                    if (torrent.uploadSpeed > 0) {
-                        SpeedIndicator(
-                            bytesPerSecond = torrent.uploadSpeed,
-                            direction = SpeedDirection.UP
-                        )
-                    }
+                    SpeedIndicator(
+                        bytesPerSecond = torrent.downloadSpeed,
+                        direction = SpeedDirection.DOWN,
+                        showZero = true
+                    )
+                    SpeedIndicator(
+                        bytesPerSecond = torrent.uploadSpeed,
+                        direction = SpeedDirection.UP,
+                        showZero = true
+                    )
                 }
             }
         }

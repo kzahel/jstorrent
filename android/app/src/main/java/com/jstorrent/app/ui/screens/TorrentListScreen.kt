@@ -105,12 +105,8 @@ fun TorrentListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        // Left side: Logo and title
+                    Column {
+                        // Logo and title
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Image(
                                 painter = painterResource(id = R.drawable.ic_launcher_foreground),
@@ -120,14 +116,15 @@ fun TorrentListScreen(
                             Text("JSTorrent")
                         }
 
-                        // Right side: Speed indicators (when loaded and has activity)
+                        // Global speed indicators below the brand (when loaded and has activity)
                         if (uiState is TorrentListUiState.Loaded &&
                             (aggregateDownloadSpeed > 0 || aggregateUploadSpeed > 0)) {
                             CombinedSpeedIndicator(
                                 downloadSpeed = aggregateDownloadSpeed,
                                 uploadSpeed = aggregateUploadSpeed,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 12.dp)
                             )
                         }
                     }
