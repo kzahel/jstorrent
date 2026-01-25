@@ -34,10 +34,15 @@ internal class TcpConnection(
     private var isActive = false
 
     companion object {
-        private const val READ_BUFFER_SIZE = 128 * 1024 // 128KB - optimal based on benchmarks
+        private const val READ_BUFFER_SIZE = 128 * 1024 // 128KB per read
         private const val WRITE_BUFFER_SIZE = 64 * 1024 // 64KB buffered output
         private const val FLUSH_THRESHOLD = 32 * 1024   // Flush when accumulated >= 32KB
         private const val SMALL_MESSAGE_SIZE = 1024     // Flush immediately for small control messages
+
+        // Batching parameters for high-throughput peers
+        private const val BATCH_MAX_SIZE = 1024 * 1024  // 1MB max batch
+        private const val BATCH_MAX_TIME_MS = 100       // 100ms max batch window
+        private const val BATCH_READ_TIMEOUT_MS = 5     // 5ms timeout between reads in batch
     }
 
     /**
@@ -107,13 +112,14 @@ internal class TcpConnection(
 
             try {
                 val input = socket.getInputStream()
+
                 while (isActive) {
+                    // First read - blocks until data arrives (with original SO_TIMEOUT)
                     val bytesRead = try {
                         input.read(buffer)
                     } catch (_: SocketTimeoutException) {
                         // Read timeout - connection may still be alive but idle
                         // For BitTorrent, idle connections are normal (peer has no data to send)
-                        // Check if scope is still active, then keep waiting
                         if (!scope.isActive) break
                         continue
                     }
@@ -121,9 +127,41 @@ internal class TcpConnection(
 
                     totalBytesRead += bytesRead
 
-                    // Deliver data via callback
-                    val data = buffer.copyOf(bytesRead)
-                    onData(data)
+                    // Check if this is a small read (control message) - deliver immediately
+                    if (bytesRead < SMALL_MESSAGE_SIZE) {
+                        val data = buffer.copyOf(bytesRead)
+                        onData(data)
+                        continue
+                    }
+
+                    // For larger reads, try to batch with subsequent data
+                    // Use available() to check for more data without blocking
+                    val batchBuffer = java.io.ByteArrayOutputStream(BATCH_MAX_SIZE)
+                    batchBuffer.write(buffer, 0, bytesRead)
+                    val batchStartTime = System.currentTimeMillis()
+
+                    // Accumulate more data while it's immediately available
+                    while (isActive &&
+                           batchBuffer.size() < BATCH_MAX_SIZE &&
+                           (System.currentTimeMillis() - batchStartTime) < BATCH_MAX_TIME_MS) {
+                        // Check if more data is available without blocking
+                        val available = input.available()
+                        if (available <= 0) {
+                            // No more data immediately available - deliver what we have
+                            break
+                        }
+
+                        val moreBytesRead = input.read(buffer)
+                        if (moreBytesRead < 0) {
+                            // EOF - deliver batch then exit
+                            break
+                        }
+                        totalBytesRead += moreBytesRead
+                        batchBuffer.write(buffer, 0, moreBytesRead)
+                    }
+
+                    // Deliver accumulated batch
+                    onData(batchBuffer.toByteArray())
                 }
             } catch (_: IOException) {
                 // Connection closed or error

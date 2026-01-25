@@ -634,10 +634,38 @@ class EngineController(
     }
 
     /**
+     * Gracefully shutdown the JS engine (saves DHT state, stops torrents).
+     * Call this before close() for clean shutdown, or let close() handle it.
+     */
+    suspend fun shutdownAsync() {
+        val eng = engine ?: return
+        Log.i(TAG, "Calling JS engine shutdown...")
+        try {
+            eng.callGlobalFunctionAsync("__jstorrent_cmd_shutdown")
+            Log.i(TAG, "JS engine shutdown complete")
+        } catch (e: Exception) {
+            Log.e(TAG, "JS engine shutdown failed", e)
+        }
+    }
+
+    /**
      * Shutdown the engine and release resources.
+     * Calls JS shutdown first to save DHT state.
      */
     override fun close() {
         Log.i(TAG, "Shutting down engine...")
+
+        // Gracefully shutdown JS engine (saves DHT state, stops torrents)
+        engine?.let { eng ->
+            try {
+                kotlinx.coroutines.runBlocking {
+                    eng.callGlobalFunctionAsync("__jstorrent_cmd_shutdown")
+                }
+                Log.i(TAG, "JS engine shutdown complete")
+            } catch (e: Exception) {
+                Log.e(TAG, "JS engine shutdown failed (continuing with close)", e)
+            }
+        }
 
         configBridge = null
 

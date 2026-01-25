@@ -1,5 +1,6 @@
 package com.jstorrent.io.socket
 
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -37,6 +38,7 @@ internal class UdpConnection(
     private val closeCalled = AtomicBoolean(false)
 
     companion object {
+        private const val TAG = "UdpConnection"
         private const val RECEIVE_BUFFER_SIZE = 65535 // Max UDP packet size
         private const val SO_TIMEOUT = 60_000 // 60 seconds
     }
@@ -144,15 +146,17 @@ internal class UdpConnection(
             try {
                 for ((destAddr, destPort, data) in sendQueue) {
                     try {
+                        Log.d(TAG, "UDP send: socket=$socketId, to=$destAddr:$destPort, bytes=${data.size}")
                         val packet = DatagramPacket(
                             data,
                             data.size,
                             InetSocketAddress(destAddr, destPort)
                         )
                         socket.send(packet)
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
                         // Log but continue - don't let one bad address kill the sender
                         // This happens with unresolvable tracker hostnames
+                        Log.w(TAG, "UDP send failed: socket=$socketId, to=$destAddr:$destPort, error=${e.message}")
                     }
                 }
             } catch (_: Exception) {

@@ -1612,7 +1612,7 @@ export class Torrent extends EngineComponent {
     if (this._dhtLookupTimer) return
     if (!this.btEngine.dhtEnabled || !this.btEngine.dhtNode) return
 
-    // Run immediately
+    // Run immediately - lookup handles sparse routing table gracefully
     this.requestDHTPeers()
 
     // Schedule periodic lookups (every 5 minutes)
@@ -1641,14 +1641,16 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Called by the engine when DHT becomes ready.
-   * Starts DHT lookups if the torrent is active and hasn't started them yet.
-   * This handles the race condition where torrent starts before DHT is ready.
+   * Called by the engine when DHT becomes ready (bootstrap complete).
+   * Triggers an immediate lookup now that the routing table is populated.
    */
   onDHTReady(): void {
     if (!this._networkActive) return
     if (this.isPrivate) return
+    // Start periodic lookups if not already started
     this.startDHTLookup()
+    // Lookup again now that routing table is populated
+    this.requestDHTPeers()
   }
 
   /**

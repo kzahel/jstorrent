@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -260,6 +261,12 @@ fun TorrentListScreen(
                         )
                         DropdownMenuItem(
                             text = { Text("DHT Info") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Hub,
+                                    contentDescription = null
+                                )
+                            },
                             onClick = {
                                 showMenu = false
                                 onDhtInfoClick()

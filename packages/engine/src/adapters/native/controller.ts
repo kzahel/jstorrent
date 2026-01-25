@@ -357,6 +357,22 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
   }
 
   /**
+   * Shutdown the engine gracefully.
+   * Saves DHT state and stops all torrents before returning.
+   * Must be called before closing the JS context.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_shutdown = async (): Promise<void> => {
+    const engine = getEngine()
+    if (!engine) {
+      console.log('[controller] shutdown: Engine already null')
+      return
+    }
+    console.log('[controller] Shutting down engine...')
+    await engine.destroy()
+    console.log('[controller] Engine shutdown complete')
+  }
+
+  /**
    * Add test torrent with local peer hints for debugging.
    * 100MB deterministic test data - run `pnpm seed-for-test` on host to seed.
    * Peer hints: 10.0.2.2 (emulator->host), 127.0.0.1 (desktop/extension).

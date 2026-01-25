@@ -218,6 +218,9 @@ export class DHTNode extends EventEmitter {
   /** Whether the node is ready (socket bound) */
   private _ready: boolean = false
 
+  /** Whether bootstrap has completed (routing table populated) */
+  private _bootstrapped: boolean = false
+
   /** Bucket refresh timer */
   private bucketRefreshTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -320,6 +323,14 @@ export class DHTNode extends EventEmitter {
   }
 
   /**
+   * Check if bootstrap has completed.
+   * Lookups are more efficient after bootstrap populates the routing table.
+   */
+  get isBootstrapped(): boolean {
+    return this._bootstrapped
+  }
+
+  /**
    * Get our node ID as hex string.
    */
   get nodeIdHex(): string {
@@ -353,6 +364,7 @@ export class DHTNode extends EventEmitter {
   stop(): void {
     this.logger?.info('Stopping DHT node')
     this._ready = false
+    this._bootstrapped = false
 
     // Stop maintenance timers
     this.stopMaintenance()
@@ -791,6 +803,7 @@ export class DHTNode extends EventEmitter {
       `DHT bootstrap complete: ${stats.routingTableSize} nodes, ` +
         `${stats.responsesReceived}/${stats.queriedCount} responses, ${stats.durationMs}ms`,
     )
+    this._bootstrapped = true
     this.emit('bootstrapped', stats)
     return stats
   }
