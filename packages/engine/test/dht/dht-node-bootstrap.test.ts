@@ -170,7 +170,7 @@ describe('DHTNode Bootstrap', () => {
     dhtNode = new DHTNode({
       nodeId: localNodeId,
       socketFactory: factory,
-      krpcOptions: { timeout: 100 }, // Short timeout for tests
+      krpcOptions: { timeout: 100, rateLimitEnabled: false }, // Short timeout, no rate limit timer for fake timers
       hashFn: mockHashFn,
       skipMaintenance: true, // Skip maintenance timers for tests using fake timers
     })

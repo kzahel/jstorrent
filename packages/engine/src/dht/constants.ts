@@ -107,3 +107,25 @@ export const BOOTSTRAP_MAX_ITERATIONS = 20
  * Remove expired peer store entries periodically.
  */
 export const PEER_CLEANUP_MS = 10 * 60 * 1000
+
+/**
+ * Rate limiting for incoming DHT queries.
+ * Protects against ping floods and amplification attacks.
+ */
+
+/**
+ * Maximum incoming queries per source IP within the rate limit window.
+ * 30 queries/minute is generous for legitimate use.
+ */
+export const RATE_LIMIT_MAX_QUERIES = 30
+
+/**
+ * Rate limit window in milliseconds (1 minute).
+ */
+export const RATE_LIMIT_WINDOW_MS = 60 * 1000
+
+/**
+ * Rate limit cleanup interval in milliseconds (1 minute).
+ * How often to purge stale entries from the rate limit map.
+ */
+export const RATE_LIMIT_CLEANUP_MS = 60 * 1000

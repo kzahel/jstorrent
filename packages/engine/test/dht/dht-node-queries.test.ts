@@ -125,7 +125,7 @@ function createTestNode(factory: MockSocketFactory): DHTNode {
   return new DHTNode({
     nodeId: localNodeId,
     socketFactory: factory,
-    krpcOptions: { timeout: 100 }, // Short timeout for tests
+    krpcOptions: { timeout: 100, rateLimitEnabled: false }, // Short timeout, no rate limit timer for fake timers
     hashFn: mockHashFn,
     skipMaintenance: true, // Skip maintenance timers for tests using fake timers
   })
@@ -553,6 +553,7 @@ describe('DHTNode Outgoing Queries', () => {
     it('can start and stop', async () => {
       const node = new DHTNode({
         socketFactory: new MockSocketFactory(),
+        krpcOptions: { rateLimitEnabled: false },
         hashFn: mockHashFn,
         skipMaintenance: true,
       })
@@ -654,6 +655,7 @@ describe('DHTNode Outgoing Queries', () => {
       const readyHandler = vi.fn()
       const node = new DHTNode({
         socketFactory: new MockSocketFactory(),
+        krpcOptions: { rateLimitEnabled: false },
         hashFn: mockHashFn,
         skipMaintenance: true,
       })

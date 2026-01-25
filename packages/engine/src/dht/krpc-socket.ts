@@ -16,7 +16,12 @@ import {
   isResponse,
   isError,
 } from './krpc-messages'
-import { QUERY_TIMEOUT_MS } from './constants'
+import {
+  QUERY_TIMEOUT_MS,
+  RATE_LIMIT_MAX_QUERIES,
+  RATE_LIMIT_WINDOW_MS,
+  RATE_LIMIT_CLEANUP_MS,
+} from './constants'
 import type { BandwidthTracker } from '../core/bandwidth-tracker'
 
 /**
@@ -31,6 +36,8 @@ export interface KRPCSocketOptions {
   bindPort?: number
   /** Bandwidth tracker for recording DHT traffic */
   bandwidthTracker?: BandwidthTracker
+  /** Enable rate limiting for incoming queries (default: true) */
+  rateLimitEnabled?: boolean
 }
 
 /**
@@ -50,18 +57,32 @@ export interface KRPCSocketEvents {
 }
 
 /**
+ * Rate limit entry for tracking queries from a source IP.
+ */
+interface RateLimitEntry {
+  count: number
+  windowStart: number
+}
+
+/**
  * KRPC Socket for DHT communication.
  */
 export class KRPCSocket extends EventEmitter {
   private socket: IUdpSocket | null = null
   private transactions: TransactionManager
   private socketFactory: ISocketFactory
-  private options: Omit<Required<KRPCSocketOptions>, 'bandwidthTracker'>
+  private options: Omit<Required<KRPCSocketOptions>, 'bandwidthTracker' | 'rateLimitEnabled'>
   private bandwidthTracker?: BandwidthTracker
 
   // Traffic counters
   private _bytesSent = 0
   private _bytesReceived = 0
+
+  // Rate limiting
+  private rateLimitEnabled: boolean
+  private rateLimitMap = new Map<string, RateLimitEntry>()
+  private rateLimitCleanupTimer: ReturnType<typeof setTimeout> | null = null
+  private _queriesDropped = 0
 
   constructor(socketFactory: ISocketFactory, options: KRPCSocketOptions = {}) {
     super()
@@ -72,6 +93,7 @@ export class KRPCSocket extends EventEmitter {
       bindPort: options.bindPort ?? 0,
     }
     this.bandwidthTracker = options.bandwidthTracker
+    this.rateLimitEnabled = options.rateLimitEnabled ?? true
     this.transactions = new TransactionManager(this.options.timeout)
   }
 
@@ -91,6 +113,57 @@ export class KRPCSocket extends EventEmitter {
     this.socket.onMessage((rinfo, data) => {
       this.handleMessage(data, rinfo)
     })
+
+    // Start rate limit cleanup timer
+    if (this.rateLimitEnabled) {
+      this.scheduleRateLimitCleanup()
+    }
+  }
+
+  /**
+   * Schedule periodic cleanup of stale rate limit entries.
+   */
+  private scheduleRateLimitCleanup(): void {
+    this.rateLimitCleanupTimer = setTimeout(() => {
+      this.cleanupRateLimits()
+      if (this.socket) {
+        this.scheduleRateLimitCleanup()
+      }
+    }, RATE_LIMIT_CLEANUP_MS)
+  }
+
+  /**
+   * Remove stale entries from the rate limit map.
+   */
+  private cleanupRateLimits(): void {
+    const now = Date.now()
+    for (const [ip, entry] of this.rateLimitMap) {
+      if (now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+        this.rateLimitMap.delete(ip)
+      }
+    }
+  }
+
+  /**
+   * Check if an IP is rate limited.
+   * Returns true if the query should be dropped.
+   */
+  private isRateLimited(ip: string): boolean {
+    if (!this.rateLimitEnabled) {
+      return false
+    }
+
+    const now = Date.now()
+    const entry = this.rateLimitMap.get(ip)
+
+    if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+      // New window
+      this.rateLimitMap.set(ip, { count: 1, windowStart: now })
+      return false
+    }
+
+    entry.count++
+    return entry.count > RATE_LIMIT_MAX_QUERIES
   }
 
   /**
@@ -168,6 +241,11 @@ export class KRPCSocket extends EventEmitter {
    */
   close(): void {
     this.transactions.destroy()
+    if (this.rateLimitCleanupTimer) {
+      clearTimeout(this.rateLimitCleanupTimer)
+      this.rateLimitCleanupTimer = null
+    }
+    this.rateLimitMap.clear()
     if (this.socket) {
       this.socket.close()
       this.socket = null
@@ -189,6 +267,20 @@ export class KRPCSocket extends EventEmitter {
   }
 
   /**
+   * Get number of queries dropped due to rate limiting.
+   */
+  get queriesDropped(): number {
+    return this._queriesDropped
+  }
+
+  /**
+   * Get number of IPs currently being tracked for rate limiting.
+   */
+  get rateLimitTrackedIPs(): number {
+    return this.rateLimitMap.size
+  }
+
+  /**
    * Handle incoming UDP message.
    */
   private handleMessage(data: Uint8Array, rinfo: { addr: string; port: number }): void {
@@ -207,6 +299,11 @@ export class KRPCSocket extends EventEmitter {
       // Route error to pending query
       this.transactions.reject(msg.t, msg.e[0], msg.e[1])
     } else if (isQuery(msg)) {
+      // Check rate limit before processing
+      if (this.isRateLimited(rinfo.addr)) {
+        this._queriesDropped++
+        return
+      }
       // Emit for handler to process
       this.emit('query', msg, { host: rinfo.addr, port: rinfo.port })
     }
