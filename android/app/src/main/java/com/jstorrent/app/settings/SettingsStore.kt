@@ -79,6 +79,13 @@ class SettingsStore(context: Context) {
         set(value) = prefs.edit { putBoolean(KEY_PEX_ENABLED, value) }
 
     /**
+     * Whether UPnP port mapping is enabled.
+     */
+    var upnpEnabled: Boolean
+        get() = prefs.getBoolean(KEY_UPNP_ENABLED, true)
+        set(value) = prefs.edit { putBoolean(KEY_UPNP_ENABLED, value) }
+
+    /**
      * Protocol encryption policy: "disabled", "allow", "prefer", "required".
      */
     var encryptionPolicy: String
@@ -111,6 +118,7 @@ class SettingsStore(context: Context) {
         private const val KEY_WIFI_ONLY_ENABLED = "wifi_only_enabled"
         private const val KEY_DHT_ENABLED = "dht_enabled"
         private const val KEY_PEX_ENABLED = "pex_enabled"
+        private const val KEY_UPNP_ENABLED = "upnp_enabled"
         private const val KEY_ENCRYPTION_POLICY = "encryption_policy"
         private const val KEY_HAS_SHOWN_NOTIFICATION_PROMPT = "has_shown_notification_prompt"
         private const val KEY_BACKGROUND_DOWNLOADS_ENABLED = "background_downloads_enabled"

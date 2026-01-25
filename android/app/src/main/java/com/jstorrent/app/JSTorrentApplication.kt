@@ -272,11 +272,12 @@ class JSTorrentApplication : Application() {
 
         configBridge.setDhtEnabled(settingsStore.dhtEnabled)
         configBridge.setPexEnabled(settingsStore.pexEnabled)
+        configBridge.setUpnpEnabled(settingsStore.upnpEnabled)
         configBridge.setEncryptionPolicy(settingsStore.encryptionPolicy)
 
         Log.i(TAG, "Applied engine settings: download=${if (effectiveDownloadLimit == 0) "unlimited" else "${effectiveDownloadLimit}B/s"}, " +
             "upload=${if (effectiveUploadLimit == 0) "unlimited" else "${effectiveUploadLimit}B/s"}, " +
             "dht=${settingsStore.dhtEnabled}, pex=${settingsStore.pexEnabled}, " +
-            "encryption=${settingsStore.encryptionPolicy}")
+            "upnp=${settingsStore.upnpEnabled}, encryption=${settingsStore.encryptionPolicy}")
     }
 }

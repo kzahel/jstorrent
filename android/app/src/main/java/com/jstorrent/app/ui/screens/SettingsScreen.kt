@@ -100,6 +100,7 @@ fun SettingsScreen(
         onWifiOnlyChange = { viewModel.setWifiOnly(it) },
         onDhtEnabledChange = { viewModel.setDhtEnabled(it) },
         onPexEnabledChange = { viewModel.setPexEnabled(it) },
+        onUpnpEnabledChange = { viewModel.setUpnpEnabled(it) },
         onEncryptionPolicyChange = { viewModel.setEncryptionPolicy(it) },
         onBackgroundDownloadsChange = { viewModel.setBackgroundDownloadsEnabled(it) },
         onDismissNotificationRequiredDialog = { viewModel.dismissNotificationRequiredDialog() },
@@ -128,6 +129,7 @@ fun SettingsScreenContent(
     onWifiOnlyChange: (Boolean) -> Unit,
     onDhtEnabledChange: (Boolean) -> Unit,
     onPexEnabledChange: (Boolean) -> Unit,
+    onUpnpEnabledChange: (Boolean) -> Unit,
     onEncryptionPolicyChange: (String) -> Unit,
     onBackgroundDownloadsChange: (Boolean) -> Unit,
     onDismissNotificationRequiredDialog: () -> Unit,
@@ -261,10 +263,15 @@ fun SettingsScreenContent(
                     encryptionPolicy = uiState.encryptionPolicy,
                     dhtEnabled = uiState.dhtEnabled,
                     pexEnabled = uiState.pexEnabled,
+                    upnpEnabled = uiState.upnpEnabled,
+                    upnpStatus = uiState.upnpStatus,
+                    upnpExternalIP = uiState.upnpExternalIP,
+                    upnpPort = uiState.upnpPort,
                     onWifiOnlyChange = onWifiOnlyChange,
                     onEncryptionPolicyChange = onEncryptionPolicyChange,
                     onDhtChange = onDhtEnabledChange,
-                    onPexChange = onPexEnabledChange
+                    onPexChange = onPexEnabledChange,
+                    onUpnpChange = onUpnpEnabledChange
                 )
             }
 
@@ -838,10 +845,15 @@ private fun NetworkSection(
     encryptionPolicy: String,
     dhtEnabled: Boolean,
     pexEnabled: Boolean,
+    upnpEnabled: Boolean,
+    upnpStatus: String,
+    upnpExternalIP: String?,
+    upnpPort: Int,
     onWifiOnlyChange: (Boolean) -> Unit,
     onEncryptionPolicyChange: (String) -> Unit,
     onDhtChange: (Boolean) -> Unit,
     onPexChange: (Boolean) -> Unit,
+    onUpnpChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -884,6 +896,17 @@ private fun NetworkSection(
             checked = pexEnabled,
             onCheckedChange = onPexChange
         )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // UPnP toggle with status
+        UpnpRow(
+            enabled = upnpEnabled,
+            status = upnpStatus,
+            externalIP = upnpExternalIP,
+            port = upnpPort,
+            onEnabledChange = onUpnpChange
+        )
     }
 }
 
@@ -917,6 +940,62 @@ private fun SettingToggleRow(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+@Composable
+private fun UpnpRow(
+    enabled: Boolean,
+    status: String,
+    externalIP: String?,
+    port: Int,
+    onEnabledChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // Determine status text and color
+    val (statusText, statusColor) = when {
+        !enabled -> "" to MaterialTheme.colorScheme.onSurfaceVariant
+        status == "discovering" -> "Discovering..." to MaterialTheme.colorScheme.onSurfaceVariant
+        status == "mapped" -> {
+            val portStr = if (port > 0) ":$port" else ""
+            val ipStr = externalIP ?: "Unknown"
+            "$ipStr$portStr" to MaterialTheme.colorScheme.primary
+        }
+        status == "unavailable" -> "No UPnP gateway found" to MaterialTheme.colorScheme.onSurfaceVariant
+        status == "failed" -> "Port mapping failed" to MaterialTheme.colorScheme.error
+        else -> "" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onEnabledChange(!enabled) }
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "UPnP Port Forwarding",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = "Automatically configure router port forwarding",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (enabled && statusText.isNotEmpty()) {
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = statusColor
+                )
+            }
+        }
+        Switch(
+            checked = enabled,
+            onCheckedChange = onEnabledChange
         )
     }
 }
@@ -1094,6 +1173,7 @@ private fun SettingsScreenEmptyPreview() {
             onWifiOnlyChange = {},
             onDhtEnabledChange = {},
             onPexEnabledChange = {},
+            onUpnpEnabledChange = {},
             onEncryptionPolicyChange = {},
             onBackgroundDownloadsChange = {},
             onDismissNotificationRequiredDialog = {},
@@ -1136,6 +1216,10 @@ private fun SettingsScreenWithRootsPreview() {
                 backgroundDownloadsEnabled = true,
                 dhtEnabled = true,
                 pexEnabled = true,
+                upnpEnabled = true,
+                upnpStatus = "mapped",
+                upnpExternalIP = "203.0.113.45",
+                upnpPort = 51413,
                 wifiOnlyEnabled = false,
                 encryptionPolicy = "allow"
             ),
@@ -1154,6 +1238,7 @@ private fun SettingsScreenWithRootsPreview() {
             onWifiOnlyChange = {},
             onDhtEnabledChange = {},
             onPexEnabledChange = {},
+            onUpnpEnabledChange = {},
             onEncryptionPolicyChange = {},
             onBackgroundDownloadsChange = {},
             onDismissNotificationRequiredDialog = {},

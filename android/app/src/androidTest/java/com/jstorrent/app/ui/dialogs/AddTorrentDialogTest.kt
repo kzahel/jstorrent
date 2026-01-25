@@ -25,6 +25,7 @@ class AddTorrentDialogTest {
                     magnetLink = "",
                     onMagnetLinkChange = {},
                     onPasteFromClipboard = {},
+                    onBrowseForFile = {},
                     onAddTorrent = {},
                     onCancel = {},
                     isAddEnabled = false
@@ -44,6 +45,7 @@ class AddTorrentDialogTest {
                     magnetLink = "magnet:?xt=urn:btih:abc123",
                     onMagnetLinkChange = {},
                     onPasteFromClipboard = {},
+                    onBrowseForFile = {},
                     onAddTorrent = {},
                     onCancel = {},
                     isAddEnabled = true
@@ -65,6 +67,7 @@ class AddTorrentDialogTest {
                     magnetLink = "magnet:?xt=urn:btih:abc123",
                     onMagnetLinkChange = {},
                     onPasteFromClipboard = {},
+                    onBrowseForFile = {},
                     onAddTorrent = { addCalled = true },
                     onCancel = {},
                     isAddEnabled = true
@@ -89,6 +92,7 @@ class AddTorrentDialogTest {
                     magnetLink = "",
                     onMagnetLinkChange = {},
                     onPasteFromClipboard = {},
+                    onBrowseForFile = {},
                     onAddTorrent = {},
                     onCancel = { cancelCalled = true },
                     isAddEnabled = false
@@ -113,6 +117,7 @@ class AddTorrentDialogTest {
                     magnetLink = "",
                     onMagnetLinkChange = {},
                     onPasteFromClipboard = { pasteCalled = true },
+                    onBrowseForFile = {},
                     onAddTorrent = {},
                     onCancel = {},
                     isAddEnabled = false
@@ -137,6 +142,7 @@ class AddTorrentDialogTest {
                     magnetLink = inputValue,
                     onMagnetLinkChange = { inputValue = it },
                     onPasteFromClipboard = {},
+                    onBrowseForFile = {},
                     onAddTorrent = {},
                     onCancel = {},
                     isAddEnabled = inputValue.isNotBlank()
@@ -161,6 +167,7 @@ class AddTorrentDialogTest {
                     magnetLink = "",
                     onMagnetLinkChange = {},
                     onPasteFromClipboard = {},
+                    onBrowseForFile = {},
                     onAddTorrent = {},
                     onCancel = {},
                     isAddEnabled = false
@@ -180,6 +187,7 @@ class AddTorrentDialogTest {
                     magnetLink = "",
                     onMagnetLinkChange = {},
                     onPasteFromClipboard = {},
+                    onBrowseForFile = {},
                     onAddTorrent = {},
                     onCancel = {},
                     isAddEnabled = false

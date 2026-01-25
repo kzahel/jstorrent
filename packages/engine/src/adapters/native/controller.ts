@@ -596,6 +596,22 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
   }
 
   /**
+   * Get UPnP status information.
+   * Returns status, external IP if mapped, and the listening port.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_upnp_status = (): string => {
+    const engine = requireEngine('query_upnp_status')
+    if (!engine) {
+      return JSON.stringify({ status: 'disabled', externalIP: null, port: 0 })
+    }
+    return JSON.stringify({
+      status: engine.upnpStatus,
+      externalIP: engine.upnpExternalIP,
+      port: engine.listeningPort,
+    })
+  }
+
+  /**
    * Get detailed swarm stats for debugging peer connection issues.
    * Shows all peers in swarm with their connection state and history.
    */

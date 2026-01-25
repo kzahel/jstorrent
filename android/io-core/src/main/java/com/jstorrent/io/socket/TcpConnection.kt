@@ -42,7 +42,7 @@ internal class TcpConnection(
         // Batching parameters for high-throughput peers
         private const val BATCH_MAX_SIZE = 1024 * 1024  // 1MB max batch
         private const val BATCH_MAX_TIME_MS = 100       // 100ms max batch window
-        private const val BATCH_READ_TIMEOUT_MS = 5     // 5ms timeout between reads in batch
+        private const val BATCH_READ_TIMEOUT_MS = 20    // 20ms timeout between reads in batch
     }
 
     /**
@@ -112,9 +112,11 @@ internal class TcpConnection(
 
             try {
                 val input = socket.getInputStream()
+                val originalTimeout = socket.soTimeout
 
                 while (isActive) {
                     // First read - blocks until data arrives (with original SO_TIMEOUT)
+                    socket.soTimeout = originalTimeout
                     val bytesRead = try {
                         input.read(buffer)
                     } catch (_: SocketTimeoutException) {
@@ -135,23 +137,24 @@ internal class TcpConnection(
                     }
 
                     // For larger reads, try to batch with subsequent data
-                    // Use available() to check for more data without blocking
+                    // Use short blocking timeout to let data accumulate from fast peers
                     val batchBuffer = java.io.ByteArrayOutputStream(BATCH_MAX_SIZE)
                     batchBuffer.write(buffer, 0, bytesRead)
                     val batchStartTime = System.currentTimeMillis()
 
-                    // Accumulate more data while it's immediately available
+                    // Switch to short timeout for batching
+                    socket.soTimeout = BATCH_READ_TIMEOUT_MS
+
+                    // Accumulate more data with short blocking reads
                     while (isActive &&
                            batchBuffer.size() < BATCH_MAX_SIZE &&
                            (System.currentTimeMillis() - batchStartTime) < BATCH_MAX_TIME_MS) {
-                        // Check if more data is available without blocking
-                        val available = input.available()
-                        if (available <= 0) {
-                            // No more data immediately available - deliver what we have
+                        val moreBytesRead = try {
+                            input.read(buffer)
+                        } catch (_: SocketTimeoutException) {
+                            // No more data within timeout - deliver what we have
                             break
                         }
-
-                        val moreBytesRead = input.read(buffer)
                         if (moreBytesRead < 0) {
                             // EOF - deliver batch then exit
                             break

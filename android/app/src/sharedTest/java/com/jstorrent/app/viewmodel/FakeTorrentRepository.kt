@@ -8,6 +8,7 @@ import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TorrentSummary
 import com.jstorrent.quickjs.model.TrackerInfo
+import com.jstorrent.quickjs.model.DhtStats
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,6 +43,7 @@ class FakeTorrentRepository : TorrentRepository {
     var peersData: Map<String, List<PeerInfo>> = emptyMap()
     var piecesData: Map<String, PieceInfo> = emptyMap()
     var detailsData: Map<String, TorrentDetails> = emptyMap()
+    var dhtStatsData: DhtStats? = null
 
     // ==========================================================================
     // Test control methods
@@ -75,6 +77,7 @@ class FakeTorrentRepository : TorrentRepository {
         peersData = emptyMap()
         piecesData = emptyMap()
         detailsData = emptyMap()
+        dhtStatsData = null
     }
 
     // ==========================================================================
@@ -183,6 +186,10 @@ class FakeTorrentRepository : TorrentRepository {
 
     override fun setFilePriorities(infoHash: String, priorities: Map<Int, Int>) {
         // No-op for testing - just record if needed
+    }
+
+    override suspend fun getDhtStats(): DhtStats? {
+        return dhtStatsData
     }
 }
 

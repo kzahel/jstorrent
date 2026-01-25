@@ -21,6 +21,7 @@ import com.jstorrent.quickjs.model.PeerListResponse
 import com.jstorrent.quickjs.model.PieceInfo
 import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.DhtStats
+import com.jstorrent.quickjs.model.UpnpStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -629,6 +630,38 @@ class EngineController(
             json.decodeFromString<DhtStats>(resultJson)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse DHT stats", e)
+            null
+        }
+    }
+
+    /**
+     * Get UPnP status (synchronous version).
+     * Returns status and external IP if mapped.
+     */
+    fun getUpnpStatus(): UpnpStatus? {
+        val eng = engine ?: return null
+        val resultJson = eng.callGlobalFunction("__jstorrent_query_upnp_status") as? String
+            ?: return null
+        return try {
+            json.decodeFromString<UpnpStatus>(resultJson)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse UPnP status", e)
+            null
+        }
+    }
+
+    /**
+     * Get UPnP status (suspend version).
+     * Returns status and external IP if mapped.
+     */
+    suspend fun getUpnpStatusAsync(): UpnpStatus? {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunctionAsync("__jstorrent_query_upnp_status") as? String
+            ?: return null
+        return try {
+            json.decodeFromString<UpnpStatus>(resultJson)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse UPnP status", e)
             null
         }
     }

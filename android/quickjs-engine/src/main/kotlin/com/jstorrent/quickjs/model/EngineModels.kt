@@ -171,6 +171,17 @@ data class ContentRoot(
 )
 
 /**
+ * UPnP status from __jstorrent_query_upnp_status.
+ * Shows port mapping status, external IP, and listening port.
+ */
+@Serializable
+data class UpnpStatus(
+    val status: String, // disabled, discovering, mapped, unavailable, failed
+    val externalIP: String? = null,
+    val port: Int = 0
+)
+
+/**
  * DHT statistics from __jstorrent_query_dht_stats.
  * Used for debugging DHT operation.
  */

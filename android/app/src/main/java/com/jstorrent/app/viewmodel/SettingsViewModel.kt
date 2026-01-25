@@ -31,6 +31,10 @@ data class SettingsUiState(
     val wifiOnlyEnabled: Boolean = false,
     val dhtEnabled: Boolean = true,
     val pexEnabled: Boolean = true,
+    val upnpEnabled: Boolean = true,
+    val upnpStatus: String = "disabled", // disabled, discovering, mapped, unavailable, failed
+    val upnpExternalIP: String? = null,
+    val upnpPort: Int = 0,
     val encryptionPolicy: String = "allow",
     // Power Management
     val backgroundDownloadsEnabled: Boolean = false,
@@ -73,9 +77,26 @@ class SettingsViewModel(
             wifiOnlyEnabled = settingsStore.wifiOnlyEnabled,
             dhtEnabled = settingsStore.dhtEnabled,
             pexEnabled = settingsStore.pexEnabled,
+            upnpEnabled = settingsStore.upnpEnabled,
             encryptionPolicy = settingsStore.encryptionPolicy,
             backgroundDownloadsEnabled = settingsStore.backgroundDownloadsEnabled
         )
+        // Also refresh UPnP status from engine
+        refreshUpnpStatus()
+    }
+
+    /**
+     * Refresh UPnP status from engine.
+     */
+    fun refreshUpnpStatus() {
+        val upnpInfo = app.engineController?.getUpnpStatus()
+        if (upnpInfo != null) {
+            _uiState.value = _uiState.value.copy(
+                upnpStatus = upnpInfo.status,
+                upnpExternalIP = upnpInfo.externalIP,
+                upnpPort = upnpInfo.port
+            )
+        }
     }
 
     /**
@@ -232,6 +253,16 @@ class SettingsViewModel(
         settingsStore.pexEnabled = enabled
         app.engineController?.getConfigBridge()?.setPexEnabled(enabled)
         _uiState.value = _uiState.value.copy(pexEnabled = enabled)
+    }
+
+    /**
+     * Set UPnP enabled state.
+     */
+    fun setUpnpEnabled(enabled: Boolean) {
+        settingsStore.upnpEnabled = enabled
+        app.engineController?.getConfigBridge()?.setUpnpEnabled(enabled)
+        _uiState.value = _uiState.value.copy(upnpEnabled = enabled)
+        // Status will be updated via refreshUpnpStatus when status changes
     }
 
     /**
