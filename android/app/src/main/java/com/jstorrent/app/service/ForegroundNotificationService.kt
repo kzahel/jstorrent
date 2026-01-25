@@ -108,21 +108,12 @@ class ForegroundNotificationService : Service() {
         super.onCreate()
         Log.i(TAG, "Service created")
 
-        rootStore = RootStore(this)
-        settingsStore = SettingsStore(this)
+        // Initialize dependencies needed for notification
         notificationManager = ForegroundNotificationManager(this)
-        torrentNotificationManager = TorrentNotificationManager(this)
-        networkMonitor = NetworkMonitor(this)
 
-        // Set singleton
-        instance = this
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.i(TAG, "Service starting")
-
-        // Must call startForeground immediately (Android requirement)
-        // Android 14+ requires specifying foreground service type
+        // CRITICAL: Call startForeground immediately in onCreate to avoid ANR on slow devices.
+        // Android requires startForeground within ~5 seconds of startForegroundService().
+        // On slow CI emulators, waiting until onStartCommand can exceed this timeout.
         val initialNotification = notificationManager.buildNotification(emptyList())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
@@ -133,6 +124,20 @@ class ForegroundNotificationService : Service() {
         } else {
             startForeground(ForegroundNotificationManager.NOTIFICATION_ID, initialNotification)
         }
+        Log.i(TAG, "startForeground called")
+
+        // Initialize remaining dependencies
+        rootStore = RootStore(this)
+        settingsStore = SettingsStore(this)
+        torrentNotificationManager = TorrentNotificationManager(this)
+        networkMonitor = NetworkMonitor(this)
+
+        // Set singleton
+        instance = this
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.i(TAG, "Service starting")
 
         // Start notification updates and WiFi monitoring
         // Engine is already initialized by Activity before service starts
