@@ -7,6 +7,7 @@ import com.jstorrent.quickjs.model.EngineState
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.PeerInfo
 import com.jstorrent.quickjs.model.PieceInfo
+import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TrackerInfo
 import kotlinx.coroutines.CoroutineScope
@@ -146,5 +147,9 @@ class EngineServiceRepository(
 
     override suspend fun getPieces(infoHash: String): PieceInfo? {
         return controller?.getPiecesAsync(infoHash)
+    }
+
+    override suspend fun getDetails(infoHash: String): TorrentDetails? {
+        return controller?.getDetailsAsync(infoHash)
     }
 }

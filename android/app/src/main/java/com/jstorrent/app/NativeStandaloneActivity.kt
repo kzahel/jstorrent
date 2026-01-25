@@ -134,6 +134,7 @@ class NativeStandaloneActivity : ComponentActivity() {
                     TorrentNavHost(
                         listViewModel = viewModel,
                         onAddRootClick = { launchAddRoot() },
+                        onShutdownClick = { shutdown() },
                         initialInfoHash = initialInfoHash.value,
                         navigateToListTrigger = navigateToListTrigger.value,
                         onNavigatedToList = { navigateToListTrigger.value = 0 }
@@ -348,6 +349,13 @@ class NativeStandaloneActivity : ComponentActivity() {
     private fun launchAddRoot() {
         isAddingRoot.value = true
         startActivity(Intent(this, AddRootActivity::class.java))
+    }
+
+    private fun shutdown() {
+        // Stop the foreground service (if running)
+        ForegroundNotificationService.stop(this)
+        // Finish the activity
+        finish()
     }
 }
 

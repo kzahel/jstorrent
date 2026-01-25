@@ -94,6 +94,7 @@ fun LargePlayPauseButton(
 
 /**
  * Compact play/pause button for torrent list cards.
+ * Play button uses primary color for emphasis, pause uses muted secondary color.
  */
 @Composable
 fun CompactPlayPauseButton(
@@ -102,11 +103,25 @@ fun CompactPlayPauseButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    // Play button (start) should be more prominent than pause
+    val backgroundColor = if (isPaused) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val iconColor = if (isPaused) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     PlayPauseButton(
         isPaused = isPaused,
         onToggle = onToggle,
         modifier = modifier,
-        size = 36.dp,
+        size = 44.dp,
+        backgroundColor = backgroundColor,
+        iconColor = iconColor,
         enabled = enabled
     )
 }

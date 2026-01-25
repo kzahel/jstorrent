@@ -73,7 +73,7 @@ fun TorrentCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(start = 0.dp, top = 12.dp, bottom = 12.dp, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Selection checkbox OR Play/Pause button on left
@@ -81,7 +81,7 @@ fun TorrentCard(
                 Checkbox(
                     checked = isSelected,
                     onCheckedChange = null, // Click handled by card
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(44.dp)
                 )
             } else {
                 CompactPlayPauseButton(

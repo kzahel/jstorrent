@@ -1,5 +1,8 @@
 package com.jstorrent.app.ui.screens
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.Alignment
@@ -41,10 +45,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.jstorrent.app.model.DetailTab
+import com.jstorrent.app.model.FilePriority
 import com.jstorrent.app.model.TorrentDetailUi
 import com.jstorrent.app.model.TorrentDetailUiState
+import com.jstorrent.app.model.TorrentFileUi
 import com.jstorrent.app.ui.dialogs.RemoveTorrentDialog
+import com.jstorrent.app.ui.tabs.DetailsTab
 import com.jstorrent.app.ui.tabs.FilesTab
 import com.jstorrent.app.ui.tabs.PeersTab
 import com.jstorrent.app.ui.tabs.PiecesTab
@@ -52,6 +60,7 @@ import com.jstorrent.app.ui.tabs.StatusTab
 import com.jstorrent.app.ui.tabs.TrackersTab
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.viewmodel.TorrentDetailViewModel
+import java.io.File
 
 /**
  * Torrent detail screen.
@@ -152,8 +161,14 @@ fun TorrentDetailScreen(
                 DetailContent(
                     torrent = torrent,
                     selectedTab = selectedTab,
+                    hasPendingFileChanges = state.hasPendingFileChanges,
                     onTabSelected = { viewModel.setSelectedTab(it) },
                     onToggleFileSelection = { viewModel.toggleFileSelection(it) },
+                    onSetFilePriority = { index, priority -> viewModel.setFilePriority(index, priority) },
+                    onSelectAllFiles = { viewModel.selectAllFiles() },
+                    onSelectNoFiles = { viewModel.deselectAllFiles() },
+                    onApplyFileChanges = { viewModel.applyFileChanges() },
+                    onCancelFileChanges = { viewModel.cancelFileChanges() },
                     modifier = Modifier.padding(innerPadding)
                 )
             }
@@ -238,10 +253,17 @@ private fun ErrorContent(
 private fun DetailContent(
     torrent: TorrentDetailUi,
     selectedTab: DetailTab,
+    hasPendingFileChanges: Boolean,
     onTabSelected: (DetailTab) -> Unit,
     onToggleFileSelection: (Int) -> Unit,
+    onSetFilePriority: (Int, FilePriority) -> Unit,
+    onSelectAllFiles: () -> Unit,
+    onSelectNoFiles: () -> Unit,
+    onApplyFileChanges: () -> Unit,
+    onCancelFileChanges: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val tabs = DetailTab.entries
     val pagerState = rememberPagerState(
         initialPage = tabs.indexOf(selectedTab),
@@ -296,10 +318,20 @@ private fun DetailContent(
             modifier = Modifier.fillMaxSize()
         ) { page ->
             when (tabs[page]) {
+                DetailTab.DETAILS -> DetailsTab(torrent = torrent)
                 DetailTab.STATUS -> StatusTab(torrent = torrent)
                 DetailTab.FILES -> FilesTab(
                     files = torrent.files,
-                    onToggleFileSelection = onToggleFileSelection
+                    hasPendingChanges = hasPendingFileChanges,
+                    onToggleFileSelection = onToggleFileSelection,
+                    onOpenFile = { fileIndex ->
+                        openFile(context, torrent.files, fileIndex)
+                    },
+                    onSetFilePriority = onSetFilePriority,
+                    onSelectAll = onSelectAllFiles,
+                    onSelectNone = onSelectNoFiles,
+                    onApplyChanges = onApplyFileChanges,
+                    onCancelChanges = onCancelFileChanges
                 )
                 DetailTab.TRACKERS -> TrackersTab(
                     trackers = torrent.trackers,
@@ -316,6 +348,116 @@ private fun DetailContent(
                 )
             }
         }
+    }
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Open a file using the system's file handler (open with... dialog).
+ */
+private fun openFile(
+    context: android.content.Context,
+    files: List<TorrentFileUi>,
+    fileIndex: Int
+) {
+    val file = files.find { it.index == fileIndex } ?: return
+
+    // Check if file is complete enough to open
+    if (file.progress < 0.999) {
+        Toast.makeText(
+            context,
+            "File is not fully downloaded yet",
+            Toast.LENGTH_SHORT
+        ).show()
+        return
+    }
+
+    // TODO: Get actual download directory from engine/settings
+    // For now, use a placeholder path
+    val downloadDir = context.getExternalFilesDir(null)
+    val filePath = File(downloadDir, file.path)
+
+    if (!filePath.exists()) {
+        Toast.makeText(
+            context,
+            "File not found",
+            Toast.LENGTH_SHORT
+        ).show()
+        return
+    }
+
+    try {
+        // Use FileProvider for secure file sharing
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            filePath
+        )
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, getMimeType(file.name))
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        // Create chooser for "Open with..." dialog
+        val chooser = Intent.createChooser(intent, "Open with")
+        context.startActivity(chooser)
+    } catch (e: Exception) {
+        Toast.makeText(
+            context,
+            "Could not open file: ${e.message}",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+/**
+ * Get MIME type based on file extension.
+ */
+private fun getMimeType(fileName: String): String {
+    val extension = fileName.substringAfterLast('.', "").lowercase()
+    return when (extension) {
+        // Video
+        "mp4" -> "video/mp4"
+        "mkv" -> "video/x-matroska"
+        "avi" -> "video/x-msvideo"
+        "mov" -> "video/quicktime"
+        "wmv" -> "video/x-ms-wmv"
+        "flv" -> "video/x-flv"
+        "webm" -> "video/webm"
+        "m4v" -> "video/x-m4v"
+        // Audio
+        "mp3" -> "audio/mpeg"
+        "flac" -> "audio/flac"
+        "wav" -> "audio/wav"
+        "aac" -> "audio/aac"
+        "ogg" -> "audio/ogg"
+        "m4a" -> "audio/mp4"
+        "wma" -> "audio/x-ms-wma"
+        // Images
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "gif" -> "image/gif"
+        "bmp" -> "image/bmp"
+        "webp" -> "image/webp"
+        "svg" -> "image/svg+xml"
+        // Documents
+        "pdf" -> "application/pdf"
+        "doc" -> "application/msword"
+        "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        "txt" -> "text/plain"
+        "rtf" -> "application/rtf"
+        // Archives
+        "zip" -> "application/zip"
+        "rar" -> "application/x-rar-compressed"
+        "7z" -> "application/x-7z-compressed"
+        "tar" -> "application/x-tar"
+        "gz" -> "application/gzip"
+        // Default
+        else -> "*/*"
     }
 }
 

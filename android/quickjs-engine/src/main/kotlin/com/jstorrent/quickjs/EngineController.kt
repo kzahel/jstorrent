@@ -19,6 +19,7 @@ import com.jstorrent.quickjs.model.TrackerListResponse
 import com.jstorrent.quickjs.model.PeerInfo
 import com.jstorrent.quickjs.model.PeerListResponse
 import com.jstorrent.quickjs.model.PieceInfo
+import com.jstorrent.quickjs.model.TorrentDetails
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -349,6 +350,22 @@ class EngineController(
         }
     }
 
+    /**
+     * Get detailed torrent metadata for the Details tab.
+     * Returns timestamps, size info, and magnet URL.
+     */
+    fun getDetails(infoHash: String): TorrentDetails? {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunction("__jstorrent_query_details", infoHash) as? String
+            ?: return null
+        return try {
+            json.decodeFromString<TorrentDetails>(resultJson)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse torrent details", e)
+            null
+        }
+    }
+
     // =========================================================================
     // Debug API
     // =========================================================================
@@ -544,6 +561,21 @@ class EngineController(
             json.decodeFromString<PieceInfo>(resultJson)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse piece info", e)
+            null
+        }
+    }
+
+    /**
+     * Get detailed torrent metadata (suspend version).
+     */
+    suspend fun getDetailsAsync(infoHash: String): TorrentDetails? {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunctionAsync("__jstorrent_query_details", infoHash) as? String
+            ?: return null
+        return try {
+            json.decodeFromString<TorrentDetails>(resultJson)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse torrent details", e)
             null
         }
     }

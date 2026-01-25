@@ -15,6 +15,8 @@ import type { Torrent } from '../../core/torrent'
 import type { StorageRoot } from '../../storage/types'
 import type { ConfigKey } from '../../config'
 import { toHex } from '../../utils/buffer'
+import { generateMagnet } from '../../utils/magnet'
+import type { InfoHashHex } from '../../utils/infohash'
 import type { NativeConfigHub } from './native-config-hub'
 import './bindings.d.ts'
 
@@ -483,6 +485,42 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
       pieceSize: torrent.pieceLength,
       lastPieceSize: torrent.lastPieceLength,
       bitfield: torrent.bitfield?.toHex() ?? '',
+    })
+  }
+
+  /**
+   * Get detailed torrent metadata for the Details tab.
+   * Returns timestamps, size info, and magnet URL.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_details = (
+    infoHash: string,
+  ): string => {
+    const engine = requireEngine('query_details')
+    if (!engine) {
+      return JSON.stringify({ error: 'Engine not ready' })
+    }
+    const torrent = engine.getTorrent(infoHash)
+    if (!torrent) {
+      return JSON.stringify({ error: 'Torrent not found' })
+    }
+
+    // Generate magnet URL (use stored one if available, otherwise generate)
+    const magnetUrl =
+      torrent.magnetLink ||
+      generateMagnet({
+        infoHash: toHex(torrent.infoHash) as InfoHashHex,
+        name: torrent.name,
+        announce: torrent.announce,
+      })
+
+    return JSON.stringify({
+      infoHash: toHex(torrent.infoHash),
+      addedAt: torrent.addedAt,
+      completedAt: torrent.completedAt ?? null,
+      totalSize: getTorrentSize(torrent),
+      pieceSize: torrent.pieceLength,
+      pieceCount: torrent.piecesCount,
+      magnetUrl,
     })
   }
 

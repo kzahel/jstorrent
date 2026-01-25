@@ -105,6 +105,21 @@ data class PieceInfo(
 )
 
 /**
+ * Torrent details from __jstorrent_query_details.
+ * Contains metadata for the Details tab.
+ */
+@Serializable
+data class TorrentDetails(
+    val infoHash: String,
+    val addedAt: Long,              // Epoch milliseconds
+    val completedAt: Long? = null,  // Epoch milliseconds, null if incomplete
+    val totalSize: Long,            // Total size in bytes
+    val pieceSize: Long,            // Piece size in bytes
+    val pieceCount: Int,            // Total number of pieces
+    val magnetUrl: String           // Full magnet URI with trackers
+)
+
+/**
  * Compact state pushed from engine every 500ms.
  * Includes piece changes (diffs) for efficient updates.
  */

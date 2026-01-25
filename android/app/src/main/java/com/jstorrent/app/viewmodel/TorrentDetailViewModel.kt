@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jstorrent.app.model.DetailTab
 import com.jstorrent.app.model.DhtStatus
+import com.jstorrent.app.model.FilePriority
 import com.jstorrent.app.model.PeerUi
 import com.jstorrent.app.model.TorrentDetailUi
 import com.jstorrent.app.model.TorrentDetailUiState
@@ -13,6 +14,7 @@ import com.jstorrent.app.model.TrackerStatus
 import com.jstorrent.app.model.TrackerUi
 import com.jstorrent.app.model.toUi
 import com.jstorrent.quickjs.model.PieceInfo
+import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.TorrentSummary
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.PeerInfo
@@ -21,9 +23,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.BitSet
+
+/**
+ * File state for tracking selection and priority.
+ */
+data class FileState(
+    val isSelected: Boolean = true,
+    val priority: FilePriority = FilePriority.NORMAL
+)
 
 /**
  * ViewModel for the torrent detail screen.
@@ -34,13 +45,21 @@ class TorrentDetailViewModel(
     private val infoHash: String
 ) : ViewModel() {
 
-    // Selected tab
+    // Selected tab - default to STATUS (most relevant when opening a torrent)
     private val _selectedTab = MutableStateFlow(DetailTab.STATUS)
     val selectedTab: StateFlow<DetailTab> = _selectedTab
 
-    // File selection state (file index -> isSelected)
-    private val _fileSelections = MutableStateFlow<Map<Int, Boolean>>(emptyMap())
-    val fileSelections: StateFlow<Map<Int, Boolean>> = _fileSelections
+    // Applied file state (committed to engine) - file index -> FileState
+    private val _appliedFileState = MutableStateFlow<Map<Int, FileState>>(emptyMap())
+
+    // Pending file state (uncommitted changes) - file index -> FileState
+    // When null, no pending changes exist
+    private val _pendingFileState = MutableStateFlow<Map<Int, FileState>?>(null)
+
+    // Computed: whether there are pending changes
+    val hasPendingFileChanges: StateFlow<Boolean> = _pendingFileState
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     // Cached files (fetched asynchronously)
     private val _cachedFiles = MutableStateFlow<List<FileInfo>>(emptyList())
@@ -54,6 +73,9 @@ class TorrentDetailViewModel(
     // Cached piece info (fetched asynchronously)
     private val _cachedPieces = MutableStateFlow<PieceInfo?>(null)
 
+    // Cached torrent details (fetched asynchronously)
+    private val _cachedDetails = MutableStateFlow<TorrentDetails?>(null)
+
     // Local bitfield maintained from initial fetch + diffs
     private val _pieceBitfield = MutableStateFlow<BitSet?>(null)
 
@@ -66,6 +88,11 @@ class TorrentDetailViewModel(
                     _cachedTrackers.value = repository.getTrackers(infoHash)
                     _cachedPeers.value = repository.getPeers(infoHash)
 
+                    // Fetch details once (timestamps don't change frequently)
+                    if (_cachedDetails.value == null) {
+                        _cachedDetails.value = repository.getDetails(infoHash)
+                    }
+
                     // Fetch piece info if we don't have it yet, or if piece count changed
                     // (magnet links start with 0 pieces until metadata arrives)
                     val currentPieces = _cachedPieces.value
@@ -73,7 +100,11 @@ class TorrentDetailViewModel(
                         val pieces = repository.getPieces(infoHash)
                         if (pieces != null && pieces.piecesTotal > 0) {
                             _cachedPieces.value = pieces
-                            _pieceBitfield.value = decodeBitfield(pieces.bitfield, pieces.piecesTotal)
+                            // OR with existing bitfield to preserve any diffs that arrived
+                            // while the snapshot was in flight (pieces only complete, never un-complete)
+                            val newBitfield = decodeBitfield(pieces.bitfield, pieces.piecesTotal)
+                            _pieceBitfield.value?.let { existing -> newBitfield.or(existing) }
+                            _pieceBitfield.value = newBitfield
                         }
                     }
 
@@ -101,27 +132,36 @@ class TorrentDetailViewModel(
         repository.state,
         repository.lastError,
         _selectedTab,
-        _fileSelections,
+        _appliedFileState,
+        _pendingFileState,
         _cachedFiles,
         _cachedTrackers,
         _cachedPeers,
         _cachedPieces,
-        _pieceBitfield
+        _pieceBitfield,
+        _cachedDetails
     ) { values ->
         val isLoaded = values[0] as Boolean
         val state = values[1] as? com.jstorrent.quickjs.model.EngineState
         val error = values[2] as? String
         val tab = values[3] as DetailTab
         @Suppress("UNCHECKED_CAST")
-        val selections = values[4] as Map<Int, Boolean>
+        val appliedState = values[4] as Map<Int, FileState>
         @Suppress("UNCHECKED_CAST")
-        val files = values[5] as List<FileInfo>
+        val pendingState = values[5] as? Map<Int, FileState>
         @Suppress("UNCHECKED_CAST")
-        val trackers = values[6] as List<TrackerInfo>
+        val files = values[6] as List<FileInfo>
         @Suppress("UNCHECKED_CAST")
-        val peers = values[7] as List<PeerInfo>
-        val pieces = values[8] as? PieceInfo
-        val bitfield = values[9] as? BitSet
+        val trackers = values[7] as List<TrackerInfo>
+        @Suppress("UNCHECKED_CAST")
+        val peers = values[8] as List<PeerInfo>
+        val pieces = values[9] as? PieceInfo
+        val bitfield = values[10] as? BitSet
+        val details = values[11] as? TorrentDetails
+
+        // Use pending state if available, otherwise use applied state
+        val effectiveFileState = pendingState ?: appliedState
+
         when {
             error != null && !isLoaded -> TorrentDetailUiState.Error(error)
             !isLoaded -> TorrentDetailUiState.Loading
@@ -131,8 +171,9 @@ class TorrentDetailViewModel(
                     TorrentDetailUiState.Error("Torrent not found")
                 } else {
                     TorrentDetailUiState.Loaded(
-                        torrent = createTorrentDetailUi(torrent, selections, files, trackers, peers, pieces, bitfield),
-                        selectedTab = tab
+                        torrent = createTorrentDetailUi(torrent, effectiveFileState, files, trackers, peers, pieces, bitfield, details),
+                        selectedTab = tab,
+                        hasPendingFileChanges = pendingState != null
                     )
                 }
             }
@@ -151,37 +192,82 @@ class TorrentDetailViewModel(
     }
 
     /**
-     * Toggle file selection for a specific file.
+     * Toggle file selection for a specific file (batched - requires apply).
      */
     fun toggleFileSelection(fileIndex: Int) {
-        val currentSelections = _fileSelections.value.toMutableMap()
-        val currentValue = currentSelections[fileIndex] ?: true
-        currentSelections[fileIndex] = !currentValue
-        _fileSelections.value = currentSelections
+        val baseState = _pendingFileState.value ?: _appliedFileState.value
+        val currentState = baseState[fileIndex] ?: FileState()
+        val newState = currentState.copy(isSelected = !currentState.isSelected)
 
-        // TODO: Call engine to update file priority when file skipping is implemented
+        val newPending = baseState.toMutableMap()
+        newPending[fileIndex] = newState
+        _pendingFileState.value = newPending
     }
 
     /**
-     * Select all files in the torrent.
+     * Set file priority (batched - requires apply).
+     */
+    fun setFilePriority(fileIndex: Int, priority: FilePriority) {
+        val baseState = _pendingFileState.value ?: _appliedFileState.value
+        val currentState = baseState[fileIndex] ?: FileState()
+
+        // SKIP priority also deselects the file
+        val isSelected = if (priority == FilePriority.SKIP) false else currentState.isSelected
+        val newState = currentState.copy(isSelected = isSelected, priority = priority)
+
+        val newPending = baseState.toMutableMap()
+        newPending[fileIndex] = newState
+        _pendingFileState.value = newPending
+    }
+
+    /**
+     * Select all files in the torrent (batched - requires apply).
      */
     fun selectAllFiles() {
         viewModelScope.launch {
             val files = repository.getFiles(infoHash)
-            val selections = files.associate { it.index to true }
-            _fileSelections.value = selections
+            val baseState = _pendingFileState.value ?: _appliedFileState.value
+            val newPending = baseState.toMutableMap()
+            files.forEach { file ->
+                val current = newPending[file.index] ?: FileState()
+                newPending[file.index] = current.copy(isSelected = true)
+            }
+            _pendingFileState.value = newPending
         }
     }
 
     /**
-     * Deselect all files in the torrent.
+     * Deselect all files in the torrent (batched - requires apply).
      */
     fun deselectAllFiles() {
         viewModelScope.launch {
             val files = repository.getFiles(infoHash)
-            val selections = files.associate { it.index to false }
-            _fileSelections.value = selections
+            val baseState = _pendingFileState.value ?: _appliedFileState.value
+            val newPending = baseState.toMutableMap()
+            files.forEach { file ->
+                val current = newPending[file.index] ?: FileState()
+                newPending[file.index] = current.copy(isSelected = false)
+            }
+            _pendingFileState.value = newPending
         }
+    }
+
+    /**
+     * Apply pending file changes to the engine.
+     */
+    fun applyFileChanges() {
+        val pending = _pendingFileState.value ?: return
+        _appliedFileState.value = pending
+        _pendingFileState.value = null
+
+        // TODO: Call engine to update file priorities when implemented
+    }
+
+    /**
+     * Cancel pending file changes.
+     */
+    fun cancelFileChanges() {
+        _pendingFileState.value = null
     }
 
     /**
@@ -227,7 +313,11 @@ class TorrentDetailViewModel(
             val pieces = repository.getPieces(infoHash)
             if (pieces != null && pieces.piecesTotal > 0) {
                 _cachedPieces.value = pieces
-                _pieceBitfield.value = decodeBitfield(pieces.bitfield, pieces.piecesTotal)
+                // OR with existing bitfield to preserve any diffs that arrived
+                // while the snapshot was in flight (pieces only complete, never un-complete)
+                val newBitfield = decodeBitfield(pieces.bitfield, pieces.piecesTotal)
+                _pieceBitfield.value?.let { existing -> newBitfield.or(existing) }
+                _pieceBitfield.value = newBitfield
             }
         }
     }
@@ -237,16 +327,17 @@ class TorrentDetailViewModel(
      */
     private fun createTorrentDetailUi(
         summary: TorrentSummary,
-        fileSelections: Map<Int, Boolean>,
+        fileState: Map<Int, FileState>,
         files: List<FileInfo>,
         trackers: List<TrackerInfo>,
         peers: List<PeerInfo>,
         pieces: PieceInfo?,
-        bitfield: BitSet?
+        bitfield: BitSet?,
+        details: TorrentDetails?
     ): TorrentDetailUi {
         val fileUis = files.map { file ->
-            val isSelected = fileSelections[file.index] ?: true
-            file.toUi(isSelected)
+            val state = fileState[file.index] ?: FileState()
+            file.toUi(state.isSelected, state.priority)
         }
 
         // Map tracker info to UI models
@@ -304,7 +395,10 @@ class TorrentDetailViewModel(
             pieceBitfield = bitfield,
             files = fileUis,
             trackers = trackerUis,
-            peers = peerUis
+            peers = peerUis,
+            addedAt = details?.addedAt,
+            completedAt = details?.completedAt,
+            magnetUrl = details?.magnetUrl
         )
     }
 

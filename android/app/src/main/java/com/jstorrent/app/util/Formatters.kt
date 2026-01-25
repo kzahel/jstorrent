@@ -93,6 +93,17 @@ object Formatters {
     }
 
     /**
+     * Formats epoch milliseconds to full date/time with year (e.g., "Jan 25, 2026 5:20 PM").
+     * Use this for timestamps that may be from a different year.
+     */
+    fun formatDateTime(epochMs: Long): String {
+        if (epochMs <= 0) return ""
+        val date = Date(epochMs)
+        val format = SimpleDateFormat("MMM d, yyyy h:mm a", Locale.US)
+        return format.format(date)
+    }
+
+    /**
      * Formats status string to display text (e.g., "downloading" -> "Downloading").
      */
     fun formatStatus(status: String): String = when (status) {

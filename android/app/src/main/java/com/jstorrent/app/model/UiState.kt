@@ -83,7 +83,8 @@ sealed class TorrentDetailUiState {
      */
     data class Loaded(
         val torrent: TorrentDetailUi,
-        val selectedTab: DetailTab
+        val selectedTab: DetailTab,
+        val hasPendingFileChanges: Boolean = false
     ) : TorrentDetailUiState()
 
     /**
@@ -96,6 +97,7 @@ sealed class TorrentDetailUiState {
  * Tabs in the torrent detail screen.
  */
 enum class DetailTab {
+    DETAILS,
     STATUS,
     FILES,
     TRACKERS,
@@ -135,8 +137,22 @@ data class TorrentDetailUi(
     // Peer discovery status (for TrackersTab)
     val dhtEnabled: Boolean = true,   // Engine always has DHT enabled
     val lsdEnabled: Boolean = false,  // LSD not implemented
-    val pexEnabled: Boolean = true    // PeX enabled per-connection
+    val pexEnabled: Boolean = true,   // PeX enabled per-connection
+    // Details tab fields
+    val addedAt: Long? = null,        // Epoch milliseconds when torrent was added
+    val completedAt: Long? = null,    // Epoch milliseconds when completed, null if in progress
+    val magnetUrl: String? = null     // Full magnet URI with trackers
 )
+
+/**
+ * File download priority levels.
+ */
+enum class FilePriority(val displayName: String) {
+    HIGH("High"),
+    NORMAL("Normal"),
+    LOW("Low"),
+    SKIP("Don't Download")
+}
 
 /**
  * UI model for a file within a torrent.
@@ -148,7 +164,8 @@ data class TorrentFileUi(
     val size: Long,
     val downloaded: Long,
     val progress: Double,
-    val isSelected: Boolean
+    val isSelected: Boolean,
+    val priority: FilePriority = FilePriority.NORMAL
 )
 
 /**
@@ -252,7 +269,7 @@ fun TorrentSummary.isCompleted(): Boolean {
 /**
  * Convert FileInfo to TorrentFileUi.
  */
-fun FileInfo.toUi(isSelected: Boolean = true): TorrentFileUi {
+fun FileInfo.toUi(isSelected: Boolean = true, priority: FilePriority = FilePriority.NORMAL): TorrentFileUi {
     val name = path.substringAfterLast('/')
     return TorrentFileUi(
         index = index,
@@ -261,6 +278,7 @@ fun FileInfo.toUi(isSelected: Boolean = true): TorrentFileUi {
         size = size,
         downloaded = downloaded,
         progress = progress,
-        isSelected = isSelected
+        isSelected = isSelected,
+        priority = priority
     )
 }

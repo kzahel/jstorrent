@@ -4,6 +4,7 @@ import com.jstorrent.quickjs.model.EngineState
 import com.jstorrent.quickjs.model.FileInfo
 import com.jstorrent.quickjs.model.PeerInfo
 import com.jstorrent.quickjs.model.PieceInfo
+import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TrackerInfo
 import kotlinx.coroutines.flow.StateFlow
@@ -84,4 +85,9 @@ interface TorrentRepository {
      * Get piece info for a specific torrent (suspend query).
      */
     suspend fun getPieces(infoHash: String): PieceInfo?
+
+    /**
+     * Get detailed metadata for a specific torrent (suspend query).
+     */
+    suspend fun getDetails(infoHash: String): TorrentDetails?
 }

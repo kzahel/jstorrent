@@ -17,8 +17,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -73,6 +78,7 @@ fun TorrentListScreen(
     onAddRootClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
+    onShutdownClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -177,6 +183,12 @@ fun TorrentListScreen(
                     ) {
                         DropdownMenuItem(
                             text = { Text("Pause All") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Pause,
+                                    contentDescription = null
+                                )
+                            },
                             onClick = {
                                 showMenu = false
                                 viewModel.pauseAll()
@@ -184,6 +196,12 @@ fun TorrentListScreen(
                         )
                         DropdownMenuItem(
                             text = { Text("Resume All") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null
+                                )
+                            },
                             onClick = {
                                 showMenu = false
                                 viewModel.resumeAll()
@@ -192,6 +210,12 @@ fun TorrentListScreen(
                         HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text("Add Download Folder") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.CreateNewFolder,
+                                    contentDescription = null
+                                )
+                            },
                             onClick = {
                                 showMenu = false
                                 onAddRootClick()
@@ -199,6 +223,12 @@ fun TorrentListScreen(
                         )
                         DropdownMenuItem(
                             text = { Text("Settings") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = null
+                                )
+                            },
                             onClick = {
                                 showMenu = false
                                 onSettingsClick()
@@ -236,6 +266,20 @@ fun TorrentListScreen(
                                 }
                             )
                         }
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Shutdown") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.PowerSettingsNew,
+                                    contentDescription = null
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onShutdownClick()
+                            }
+                        )
                     }
                 }
             )
@@ -412,7 +456,7 @@ private fun TorrentListContent(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    start = 16.dp,
+                    start = 12.dp,
                     end = 16.dp,
                     top = 8.dp,
                     // Extra padding at bottom when selection bar is visible
