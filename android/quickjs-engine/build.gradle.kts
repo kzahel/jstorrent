@@ -81,9 +81,14 @@ tasks.register("buildEngineBundle") {
         println(">>> Building TypeScript engine bundle...")
 
         // Run pnpm bundle:native in packages/engine
+        // Use shell invocation to properly inherit PATH (needed for CI where pnpm is set up via corepack)
         exec {
             workingDir = rootProject.file("../packages/engine")
-            commandLine("pnpm", "bundle:native")
+            if (System.getProperty("os.name").lowercase().contains("windows")) {
+                commandLine("cmd", "/c", "pnpm bundle:native")
+            } else {
+                commandLine("sh", "-c", "pnpm bundle:native")
+            }
         }
 
         // Ensure assets directory exists
