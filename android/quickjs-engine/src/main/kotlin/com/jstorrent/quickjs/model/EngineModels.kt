@@ -58,6 +58,8 @@ data class TrackerInfo(
     val status: String, // 'idle' | 'announcing' | 'ok' | 'error'
     val seeders: Int? = null,
     val leechers: Int? = null,
+    val lastPeersReceived: Int? = null,
+    val uniquePeersDiscovered: Int? = null,
     val lastError: String? = null
 )
 

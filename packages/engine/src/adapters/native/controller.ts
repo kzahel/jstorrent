@@ -461,6 +461,8 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
         status: t.status, // 'idle' | 'announcing' | 'ok' | 'error'
         seeders: t.seeders,
         leechers: t.leechers,
+        lastPeersReceived: t.lastPeersReceived,
+        uniquePeersDiscovered: t.uniquePeersDiscovered,
         lastError: t.lastError,
       })),
     })

@@ -360,16 +360,23 @@ dev-chromebook    # Shortcut for: dev install chromebook
 
 The QuickJS engine routes `console.log` to Android's logcat with tag `JSTorrent-JS`.
 
-**Important:** Tag-based filtering (`-s JSTorrent-JS:*`) is unreliable because the logcat buffer is shared across all apps. Use PID-based filtering instead:
+**Always start with this preamble** (adb requires ~/.profile for PATH, and you need to know which devices are connected):
 
 ```bash
-# Most reliable: filter by app PID
-adb logcat --pid=$(adb shell pidof com.jstorrent.app) -t 100
+source ~/.profile && adb devices
+```
 
-# Real-time streaming by PID
-adb logcat --pid=$(adb shell pidof com.jstorrent.app)
+**Important:** When multiple devices are connected (e.g., emulator + physical device), you MUST specify `-s SERIAL` in **both** the outer `adb logcat` AND the inner `adb shell pidof` commands, otherwise adb fails with "more than one device/emulator".
 
-# Using emu/dev helpers (recommended)
+```bash
+# With single device connected:
+adb logcat --pid=$(adb shell pidof com.jstorrent.app) -d -t 100
+
+# With multiple devices - specify serial in BOTH places:
+adb -s 48081FDAQ002HZ logcat --pid=$(adb -s 48081FDAQ002HZ shell pidof com.jstorrent.app) -d -t 100
+adb -s emulator-5554 logcat --pid=$(adb -s emulator-5554 shell pidof com.jstorrent.app) -d -t 100
+
+# Using emu/dev helpers (recommended - handles device selection automatically)
 source android/scripts/android-env.sh
 emu logs --js          # Emulator: QuickJS logs only (PID-filtered)
 dev logs pixel9 --js   # Real device: QuickJS logs only (PID-filtered)
