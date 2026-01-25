@@ -20,9 +20,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.jstorrent.app.ui.screens.DhtInfoScreen
 import com.jstorrent.app.ui.screens.SettingsScreen
 import com.jstorrent.app.ui.screens.TorrentDetailScreen
 import com.jstorrent.app.ui.screens.TorrentListScreen
+import com.jstorrent.app.viewmodel.DhtViewModel
 import com.jstorrent.app.viewmodel.SettingsViewModel
 import com.jstorrent.app.viewmodel.TorrentDetailViewModel
 import com.jstorrent.app.viewmodel.TorrentListViewModel
@@ -34,6 +36,7 @@ object Routes {
     const val TORRENT_LIST = "torrent_list"
     const val TORRENT_DETAIL = "torrent_detail/{infoHash}"
     const val SETTINGS = "settings"
+    const val DHT_INFO = "dht_info"
 
     fun torrentDetail(infoHash: String) = "torrent_detail/$infoHash"
 }
@@ -51,6 +54,7 @@ fun TorrentNavHost(
     listViewModel: TorrentListViewModel,
     onAddRootClick: () -> Unit,
     onShutdownClick: () -> Unit = {},
+    onDhtInfoClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     initialInfoHash: String? = null,
     navigateToListTrigger: Int = 0,
@@ -87,6 +91,9 @@ fun TorrentNavHost(
                 onAddRootClick = onAddRootClick,
                 onSettingsClick = {
                     navController.navigate(Routes.SETTINGS)
+                },
+                onDhtInfoClick = {
+                    navController.navigate(Routes.DHT_INFO)
                 },
                 onSearchClick = {
                     // TODO: Implement search in future phase
@@ -181,6 +188,18 @@ fun TorrentNavHost(
                     }
                     context.startActivity(intent)
                 }
+            )
+        }
+
+        // DHT Info screen
+        composable(Routes.DHT_INFO) {
+            val application = LocalContext.current.applicationContext as android.app.Application
+            val dhtViewModel: DhtViewModel = viewModel(
+                factory = DhtViewModel.Factory(application)
+            )
+            DhtInfoScreen(
+                viewModel = dhtViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

@@ -7,6 +7,7 @@ import com.jstorrent.quickjs.model.PieceInfo
 import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TrackerInfo
+import com.jstorrent.quickjs.model.DhtStats
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -105,4 +106,10 @@ interface TorrentRepository {
      * @param priorities Map of file index to priority (0=Normal, 1=Skip, 2=High)
      */
     fun setFilePriorities(infoHash: String, priorities: Map<Int, Int>)
+
+    /**
+     * Get DHT statistics (suspend query).
+     * Returns null if DHT is not initialized.
+     */
+    suspend fun getDhtStats(): DhtStats?
 }

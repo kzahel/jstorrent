@@ -10,6 +10,7 @@ import com.jstorrent.quickjs.model.PieceInfo
 import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TrackerInfo
+import com.jstorrent.quickjs.model.DhtStats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -164,5 +165,9 @@ class EngineServiceRepository(
 
     override fun setFilePriorities(infoHash: String, priorities: Map<Int, Int>) {
         scope.launch { controller?.setFilePrioritiesAsync(infoHash, priorities) }
+    }
+
+    override suspend fun getDhtStats(): DhtStats? {
+        return controller?.getDhtStatsAsync()
     }
 }

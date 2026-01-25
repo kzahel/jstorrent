@@ -275,10 +275,19 @@ private fun TrackerItem(
             }
         }
 
-        // Peer count
-        if (tracker.peers != null && tracker.peers > 0) {
+        // Peer count: show "received / total" if we have received count
+        val peerText = when {
+            tracker.peersReceived != null && tracker.peers != null && tracker.peers > 0 ->
+                "${tracker.peersReceived} / ${tracker.peers}"
+            tracker.peersReceived != null && tracker.peersReceived > 0 ->
+                "${tracker.peersReceived} received"
+            tracker.peers != null && tracker.peers > 0 ->
+                "${tracker.peers} peers"
+            else -> null
+        }
+        if (peerText != null) {
             Text(
-                text = "${tracker.peers} peers",
+                text = peerText,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -300,25 +309,29 @@ private fun TrackersTabPreview() {
                     url = "udp://tracker.opentrackr.org:1337/announce",
                     status = TrackerStatus.OK,
                     message = null,
-                    peers = 150
+                    peers = 1500,
+                    peersReceived = 50
                 ),
                 TrackerUi(
                     url = "udp://tracker.openbittorrent.com:6969/announce",
                     status = TrackerStatus.OK,
                     message = null,
-                    peers = 89
+                    peers = 890,
+                    peersReceived = 1  // Shows the issue: tracker says 890 but only gave 1
                 ),
                 TrackerUi(
                     url = "http://tracker.example.com/announce",
                     status = TrackerStatus.ERROR,
                     message = "Connection refused",
-                    peers = null
+                    peers = null,
+                    peersReceived = null
                 ),
                 TrackerUi(
                     url = "udp://tracker.updating.org:1337/announce",
                     status = TrackerStatus.UPDATING,
                     message = null,
-                    peers = null
+                    peers = null,
+                    peersReceived = null
                 )
             ),
             dhtEnabled = true,

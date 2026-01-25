@@ -567,6 +567,19 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
   }
 
   /**
+   * Get DHT statistics for debugging.
+   * Returns null if DHT is not initialized.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_dht_stats = (): string => {
+    const engine = requireEngine('query_dht_stats')
+    if (!engine) {
+      return JSON.stringify(null)
+    }
+    const stats = engine.dhtNode?.getStats() ?? null
+    return JSON.stringify(stats)
+  }
+
+  /**
    * Get detailed swarm stats for debugging peer connection issues.
    * Shows all peers in swarm with their connection state and history.
    */

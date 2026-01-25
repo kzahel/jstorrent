@@ -82,6 +82,7 @@ fun TorrentListScreen(
     onTorrentClick: (String) -> Unit = {},
     onAddRootClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onDhtInfoClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onShutdownClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -255,6 +256,13 @@ fun TorrentListScreen(
                             onClick = {
                                 showMenu = false
                                 onSettingsClick()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("DHT Info") },
+                            onClick = {
+                                showMenu = false
+                                onDhtInfoClick()
                             }
                         )
                         // Debug-only: Add test torrents with kitchen sink peer hints

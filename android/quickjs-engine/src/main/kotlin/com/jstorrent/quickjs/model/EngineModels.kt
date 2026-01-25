@@ -169,3 +169,33 @@ data class ContentRoot(
     val label: String,
     val path: String = ""
 )
+
+/**
+ * DHT statistics from __jstorrent_query_dht_stats.
+ * Used for debugging DHT operation.
+ */
+@Serializable
+data class DhtStats(
+    val enabled: Boolean,
+    val ready: Boolean,
+    val nodeId: String,
+    val nodeCount: Int,
+    val bucketCount: Int,
+    val bytesSent: Long,
+    val bytesReceived: Long,
+    val pingsSent: Int,
+    val findNodesSent: Int,
+    val getPeersSent: Int,
+    val announcesSent: Int,
+    val pingsSucceeded: Int,
+    val findNodesSucceeded: Int,
+    val getPeersSucceeded: Int,
+    val announcesSucceeded: Int,
+    val pingsReceived: Int,
+    val findNodesReceived: Int,
+    val getPeersReceived: Int,
+    val announcesReceived: Int,
+    val timeouts: Int,
+    val errors: Int,
+    val peersDiscovered: Int
+)

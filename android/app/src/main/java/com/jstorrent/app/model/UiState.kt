@@ -175,7 +175,8 @@ data class TrackerUi(
     val url: String,
     val status: TrackerStatus,
     val message: String?,
-    val peers: Int?
+    val peers: Int?,              // seeders + leechers (theoretical swarm size)
+    val peersReceived: Int? = null // actual peers returned in last announce
 )
 
 /**

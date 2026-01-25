@@ -20,6 +20,7 @@ import com.jstorrent.quickjs.model.PeerInfo
 import com.jstorrent.quickjs.model.PeerListResponse
 import com.jstorrent.quickjs.model.PieceInfo
 import com.jstorrent.quickjs.model.TorrentDetails
+import com.jstorrent.quickjs.model.DhtStats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -610,6 +611,24 @@ class EngineController(
             json.decodeFromString<TorrentDetails>(resultJson)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse torrent details", e)
+            null
+        }
+    }
+
+    /**
+     * Get DHT statistics (suspend version).
+     * Returns null if DHT is not initialized.
+     */
+    suspend fun getDhtStatsAsync(): DhtStats? {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunctionAsync("__jstorrent_query_dht_stats") as? String
+            ?: return null
+        // Handle "null" string response
+        if (resultJson == "null") return null
+        return try {
+            json.decodeFromString<DhtStats>(resultJson)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse DHT stats", e)
             null
         }
     }

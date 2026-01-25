@@ -371,7 +371,8 @@ class TorrentDetailViewModel(
                 url = tracker.url,
                 status = mapTrackerStatus(tracker.status),
                 message = tracker.lastError,
-                peers = (tracker.seeders ?: 0) + (tracker.leechers ?: 0)
+                peers = (tracker.seeders ?: 0) + (tracker.leechers ?: 0),
+                peersReceived = tracker.lastPeersReceived
             )
         }
 
