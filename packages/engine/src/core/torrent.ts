@@ -1637,6 +1637,17 @@ export class Torrent extends EngineComponent {
   }
 
   /**
+   * Called by the engine when DHT becomes ready.
+   * Starts DHT lookups if the torrent is active and hasn't started them yet.
+   * This handles the race condition where torrent starts before DHT is ready.
+   */
+  onDHTReady(): void {
+    if (!this._networkActive) return
+    if (this.isPrivate) return
+    this.startDHTLookup()
+  }
+
+  /**
    * Request peers from DHT via iterative lookup.
    * Adds discovered peers to the swarm.
    */

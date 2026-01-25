@@ -12,8 +12,11 @@ describe('MemoryConfigHub', () => {
     it('should load defaults when storage is empty', async () => {
       await config.init()
 
-      expect(config.downloadSpeedLimit.get()).toBe(0)
-      expect(config.uploadSpeedLimit.get()).toBe(0)
+      // Speed limits default to 1 MB/s (1048576 bytes) with unlimited flag true
+      expect(config.downloadSpeedUnlimited.get()).toBe(true)
+      expect(config.downloadSpeedLimit.get()).toBe(1048576)
+      expect(config.uploadSpeedUnlimited.get()).toBe(true)
+      expect(config.uploadSpeedLimit.get()).toBe(1048576)
       expect(config.maxPeersPerTorrent.get()).toBe(20)
       expect(config.theme.get()).toBe('system')
       expect(config.dhtEnabled.get()).toBe(true)

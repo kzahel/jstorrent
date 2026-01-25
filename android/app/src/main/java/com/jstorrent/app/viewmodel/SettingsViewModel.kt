@@ -21,8 +21,10 @@ data class SettingsUiState(
     val defaultRootKey: String? = null,
     val showClearConfirmation: Boolean = false,
     // Bandwidth
-    val downloadSpeedLimit: Int = 0,
-    val uploadSpeedLimit: Int = 0,
+    val downloadSpeedUnlimited: Boolean = true,
+    val downloadSpeedLimit: Int = 1048576, // 1 MB/s
+    val uploadSpeedUnlimited: Boolean = true,
+    val uploadSpeedLimit: Int = 1048576, // 1 MB/s
     // Behavior
     val whenDownloadsComplete: String = "stop_and_close",
     // Network
@@ -63,7 +65,9 @@ class SettingsViewModel(
         _uiState.value = _uiState.value.copy(
             downloadRoots = roots,
             defaultRootKey = settingsStore.defaultRootKey,
+            downloadSpeedUnlimited = settingsStore.downloadSpeedUnlimited,
             downloadSpeedLimit = settingsStore.downloadSpeedLimit,
+            uploadSpeedUnlimited = settingsStore.uploadSpeedUnlimited,
             uploadSpeedLimit = settingsStore.uploadSpeedLimit,
             whenDownloadsComplete = settingsStore.whenDownloadsComplete,
             wifiOnlyEnabled = settingsStore.wifiOnlyEnabled,
@@ -142,20 +146,46 @@ class SettingsViewModel(
     // =========================================================================
 
     /**
-     * Set download speed limit.
+     * Set download speed unlimited flag.
+     */
+    fun setDownloadSpeedUnlimited(unlimited: Boolean) {
+        settingsStore.downloadSpeedUnlimited = unlimited
+        val effectiveLimit = if (unlimited) 0 else settingsStore.downloadSpeedLimit
+        app.engineController?.getConfigBridge()?.setDownloadSpeedLimit(effectiveLimit)
+        _uiState.value = _uiState.value.copy(downloadSpeedUnlimited = unlimited)
+    }
+
+    /**
+     * Set download speed limit value.
      */
     fun setDownloadSpeedLimit(bytesPerSec: Int) {
         settingsStore.downloadSpeedLimit = bytesPerSec
-        app.engineController?.getConfigBridge()?.setDownloadSpeedLimit(bytesPerSec)
+        // Only update engine if not unlimited
+        if (!settingsStore.downloadSpeedUnlimited) {
+            app.engineController?.getConfigBridge()?.setDownloadSpeedLimit(bytesPerSec)
+        }
         _uiState.value = _uiState.value.copy(downloadSpeedLimit = bytesPerSec)
     }
 
     /**
-     * Set upload speed limit.
+     * Set upload speed unlimited flag.
+     */
+    fun setUploadSpeedUnlimited(unlimited: Boolean) {
+        settingsStore.uploadSpeedUnlimited = unlimited
+        val effectiveLimit = if (unlimited) 0 else settingsStore.uploadSpeedLimit
+        app.engineController?.getConfigBridge()?.setUploadSpeedLimit(effectiveLimit)
+        _uiState.value = _uiState.value.copy(uploadSpeedUnlimited = unlimited)
+    }
+
+    /**
+     * Set upload speed limit value.
      */
     fun setUploadSpeedLimit(bytesPerSec: Int) {
         settingsStore.uploadSpeedLimit = bytesPerSec
-        app.engineController?.getConfigBridge()?.setUploadSpeedLimit(bytesPerSec)
+        // Only update engine if not unlimited
+        if (!settingsStore.uploadSpeedUnlimited) {
+            app.engineController?.getConfigBridge()?.setUploadSpeedLimit(bytesPerSec)
+        }
         _uiState.value = _uiState.value.copy(uploadSpeedLimit = bytesPerSec)
     }
 

@@ -81,7 +81,8 @@ const jstorrentApi = {
         const nativeConfig: NativeEngineConfig = {
           contentRoots: storageRoots,
           defaultContentRoot: config.defaultContentRoot,
-          port: config.port ?? configHub.listeningPort.get(),
+          port:
+            config.port ?? (configHub.listeningPortAuto.get() ? 0 : configHub.listeningPort.get()),
           storageMode: config.storageMode,
           startSuspended: true, // Start suspended to restore session first
           config: configHub,

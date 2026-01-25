@@ -3,6 +3,12 @@ import { Logger } from '../logging/logger'
 import { SSDPClient } from './ssdp-client'
 import { GatewayDevice } from './gateway-device'
 
+/** UPnP lease duration in seconds. 0 = permanent, which causes orphaned mappings on restart. */
+const LEASE_DURATION_SECONDS = 3600 // 1 hour
+
+/** Renewal interval - renew at half the lease duration to ensure mappings don't expire */
+const RENEWAL_INTERVAL_MS = (LEASE_DURATION_SECONDS / 2) * 1000 // 30 minutes
+
 export interface NetworkInterface {
   name: string
   address: string
@@ -19,6 +25,7 @@ export class UPnPManager {
   private gateway: GatewayDevice | null = null
   private mappings: UPnPMapping[] = []
   private localAddress: string | null = null
+  private renewalInterval: ReturnType<typeof setInterval> | null = null
 
   constructor(
     private socketFactory: ISocketFactory,
@@ -102,14 +109,48 @@ export class UPnPManager {
       this.localAddress,
       protocol,
       'JSTorrent',
+      LEASE_DURATION_SECONDS,
     )
 
     if (success) {
       this.mappings.push({ externalPort: port, internalPort: port, protocol })
-      this.logger?.info(`UPnP: Mapped ${protocol} port ${port}`)
+      this.logger?.info(`UPnP: Mapped ${protocol} port ${port} (lease: ${LEASE_DURATION_SECONDS}s)`)
+      this.startRenewalTimer()
     }
 
     return success
+  }
+
+  private startRenewalTimer(): void {
+    // Only start if not already running
+    if (this.renewalInterval) return
+
+    this.renewalInterval = setInterval(() => {
+      this.renewMappings()
+    }, RENEWAL_INTERVAL_MS)
+
+    this.logger?.debug(`UPnP: Started renewal timer (every ${RENEWAL_INTERVAL_MS / 1000}s)`)
+  }
+
+  private async renewMappings(): Promise<void> {
+    if (!this.gateway || !this.localAddress) return
+
+    for (const mapping of this.mappings) {
+      const success = await this.gateway.addPortMapping(
+        mapping.externalPort,
+        mapping.internalPort,
+        this.localAddress,
+        mapping.protocol,
+        'JSTorrent',
+        LEASE_DURATION_SECONDS,
+      )
+
+      if (success) {
+        this.logger?.debug(`UPnP: Renewed ${mapping.protocol} port ${mapping.externalPort}`)
+      } else {
+        this.logger?.warn(`UPnP: Failed to renew ${mapping.protocol} port ${mapping.externalPort}`)
+      }
+    }
   }
 
   async removeMapping(port: number, protocol: 'TCP' | 'UDP' = 'TCP'): Promise<boolean> {
@@ -127,6 +168,13 @@ export class UPnPManager {
   }
 
   async cleanup(): Promise<void> {
+    // Stop renewal timer
+    if (this.renewalInterval) {
+      clearInterval(this.renewalInterval)
+      this.renewalInterval = null
+    }
+
+    // Remove all mappings
     for (const mapping of [...this.mappings]) {
       await this.removeMapping(mapping.externalPort, mapping.protocol)
     }

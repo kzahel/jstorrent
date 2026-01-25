@@ -69,7 +69,9 @@ export abstract class BaseConfigHub implements ConfigHub {
   // ===========================================================================
 
   // Settings: Rate Limiting
+  readonly downloadSpeedUnlimited = createConfigValue(this, 'downloadSpeedUnlimited')
   readonly downloadSpeedLimit = createConfigValue(this, 'downloadSpeedLimit')
+  readonly uploadSpeedUnlimited = createConfigValue(this, 'uploadSpeedUnlimited')
   readonly uploadSpeedLimit = createConfigValue(this, 'uploadSpeedLimit')
 
   // Settings: Connection Limits
@@ -79,6 +81,7 @@ export abstract class BaseConfigHub implements ConfigHub {
 
   // Settings: Protocol
   readonly encryptionPolicy = createConfigValue(this, 'encryptionPolicy')
+  readonly listeningPortAuto = createConfigValue(this, 'listeningPortAuto')
   readonly listeningPort = createConfigValue(this, 'listeningPort')
 
   // Settings: Features

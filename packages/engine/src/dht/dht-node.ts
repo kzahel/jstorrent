@@ -149,11 +149,17 @@ export interface DHTStats {
   bytesSent: number
   bytesReceived: number
 
-  // Queries sent
+  // Queries sent (attempts)
   pingsSent: number
   findNodesSent: number
   getPeersSent: number
   announcesSent: number
+
+  // Queries succeeded
+  pingsSucceeded: number
+  findNodesSucceeded: number
+  getPeersSucceeded: number
+  announcesSucceeded: number
 
   // Queries received
   pingsReceived: number
@@ -230,6 +236,12 @@ export class DHTNode extends EventEmitter {
   private _getPeersSent = 0
   private _announcesSent = 0
 
+  // Query success counters
+  private _pingsSucceeded = 0
+  private _findNodesSucceeded = 0
+  private _getPeersSucceeded = 0
+  private _announcesSucceeded = 0
+
   // Query counters (received) - incremented via callback from query handler
   private _pingsReceived = 0
   private _findNodesReceived = 0
@@ -239,6 +251,12 @@ export class DHTNode extends EventEmitter {
   // Error counters
   private _timeouts = 0
   private _errors = 0
+
+  // Staleness detection - track recent query results
+  private readonly _recentResults: boolean[] = [] // true = success, false = timeout
+  private readonly _recentResultsMaxSize = 20
+  private _isRebootstrapping = false
+  private static readonly STALENESS_THRESHOLD = 0.9 // 90% failure rate triggers re-bootstrap
 
   constructor(options: DHTNodeOptions) {
     super()
@@ -379,10 +397,13 @@ export class DHTNode extends EventEmitter {
         })
       }
 
+      this._pingsSucceeded++
+      this.recordQueryResult(true)
       return true
     } catch {
       // Timeout or error - node did not respond
       this._timeouts++
+      this.recordQueryResult(false)
       return false
     }
   }
@@ -434,10 +455,13 @@ export class DHTNode extends EventEmitter {
 
       // Decode and return the nodes from the response
       const nodes = getResponseNodes(response)
+      this._findNodesSucceeded++
+      this.recordQueryResult(true)
       return nodes
     } catch {
       // Timeout or error
       this._timeouts++
+      this.recordQueryResult(false)
       return []
     }
   }
@@ -511,10 +535,13 @@ export class DHTNode extends EventEmitter {
         result.nodes = nodes
       }
 
+      this._getPeersSucceeded++
+      this.recordQueryResult(true)
       return result
     } catch {
       // Timeout or error
       this._timeouts++
+      this.recordQueryResult(false)
       return null
     }
   }
@@ -577,10 +604,13 @@ export class DHTNode extends EventEmitter {
         })
       }
 
+      this._announcesSucceeded++
+      this.recordQueryResult(true)
       return true
     } catch {
       // Timeout or KRPC error response
       this._timeouts++
+      this.recordQueryResult(false)
       return false
     }
   }
@@ -845,21 +875,23 @@ export class DHTNode extends EventEmitter {
 
   /**
    * Refresh after a long sleep (> 15 minutes).
-   * Re-bootstraps using existing nodes to rebuild routing table.
+   * Re-bootstraps using both existing nodes AND public bootstrap nodes.
+   * This handles the case where we've changed networks and existing nodes are unreachable.
    */
   private async refreshAfterLongSleep(): Promise<void> {
-    const nodes = this.routingTable.getAllNodes()
-    if (nodes.length === 0) {
-      this.logger?.debug('No nodes in routing table, running full bootstrap')
-      await this.bootstrap()
-      return
-    }
+    const existingNodes = this.routingTable.getAllNodes()
 
-    // Use existing nodes as bootstrap seeds
-    this.logger?.info(`Re-bootstrapping with ${nodes.length} existing nodes`)
-    await this.bootstrap({
-      nodes: nodes.map((n) => ({ host: n.host, port: n.port })),
-    })
+    // Always include public bootstrap nodes - existing nodes may be unreachable
+    // if we've changed networks (e.g., home -> coffee shop)
+    const bootstrapSeeds = [
+      ...BOOTSTRAP_NODES,
+      ...existingNodes.map((n) => ({ host: n.host, port: n.port })),
+    ]
+
+    this.logger?.info(
+      `Re-bootstrapping with ${BOOTSTRAP_NODES.length} public + ${existingNodes.length} existing nodes`,
+    )
+    await this.bootstrap({ nodes: bootstrapSeeds })
   }
 
   /**
@@ -904,6 +936,64 @@ export class DHTNode extends EventEmitter {
         // Ignore errors during refresh
       }
     }
+  }
+
+  // ==========================================================================
+  // Staleness Detection
+  // ==========================================================================
+
+  /**
+   * Record a query result and check if routing table appears stale.
+   * If failure rate exceeds threshold, triggers a fresh bootstrap.
+   *
+   * @param success - Whether the query succeeded
+   */
+  private recordQueryResult(success: boolean): void {
+    // Add result to circular buffer
+    this._recentResults.push(success)
+    if (this._recentResults.length > this._recentResultsMaxSize) {
+      this._recentResults.shift()
+    }
+
+    // Need enough samples before checking staleness
+    if (this._recentResults.length < 10) {
+      return
+    }
+
+    // Check failure rate
+    const failures = this._recentResults.filter((r) => !r).length
+    const failureRate = failures / this._recentResults.length
+
+    if (failureRate >= DHTNode.STALENESS_THRESHOLD && !this._isRebootstrapping) {
+      this.handleStaleRoutingTable()
+    }
+  }
+
+  /**
+   * Handle detected stale routing table by re-bootstrapping with public nodes.
+   */
+  private handleStaleRoutingTable(): void {
+    if (this._isRebootstrapping) return
+
+    this._isRebootstrapping = true
+    this.logger?.warn(
+      `DHT: High failure rate detected (${this._recentResults.filter((r) => !r).length}/${this._recentResults.length}), re-bootstrapping with public nodes`,
+    )
+
+    // Clear recent results to reset the detector
+    this._recentResults.length = 0
+
+    // Bootstrap with public nodes (not existing nodes which may be stale)
+    this.bootstrap()
+      .then((stats) => {
+        this.logger?.info(`DHT: Re-bootstrap complete - ${stats.routingTableSize} nodes`)
+      })
+      .catch((err) => {
+        this.logger?.error(`DHT: Re-bootstrap failed: ${err}`)
+      })
+      .finally(() => {
+        this._isRebootstrapping = false
+      })
   }
 
   // ==========================================================================
@@ -1034,6 +1124,11 @@ export class DHTNode extends EventEmitter {
       findNodesSent: this._findNodesSent,
       getPeersSent: this._getPeersSent,
       announcesSent: this._announcesSent,
+
+      pingsSucceeded: this._pingsSucceeded,
+      findNodesSucceeded: this._findNodesSucceeded,
+      getPeersSucceeded: this._getPeersSucceeded,
+      announcesSucceeded: this._announcesSucceeded,
 
       pingsReceived: this._pingsReceived,
       findNodesReceived: this._findNodesReceived,

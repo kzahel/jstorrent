@@ -16,6 +16,23 @@ const ACTION_CONNECT = 0
 const ACTION_ANNOUNCE = 1
 const ACTION_ERROR = 3
 
+// Timeout constants
+const CONNECT_TIMEOUT_MS = 5000
+const ANNOUNCE_TIMEOUT_MS = 30000
+
+// Backoff constants (in seconds)
+const BACKOFF_BASE_S = 5 // 5 seconds initial retry
+const BACKOFF_MAX_S = 300 // 5 minutes max
+
+/**
+ * Calculate backoff delay for retry based on consecutive failures.
+ * Uses exponential backoff: 5s, 10s, 20s, 40s, 80s, 160s, 300s (capped)
+ */
+function calculateBackoffMs(consecutiveFailures: number): number {
+  const delayS = Math.min(BACKOFF_BASE_S * Math.pow(2, consecutiveFailures), BACKOFF_MAX_S)
+  return delayS * 1000
+}
+
 export class UdpTracker extends EngineComponent implements ITracker {
   static logName = 'udp-tracker'
   private socket: IUdpSocket | null = null
@@ -30,6 +47,8 @@ export class UdpTracker extends EngineComponent implements ITracker {
   private _knownPeers: Set<string> = new Set()
   private _lastError: string | null = null
   private _lastAnnounceTime: number | null = null
+  private _consecutiveFailures: number = 0
+  private _lastFailureTime: number | null = null
 
   get interval(): number {
     return this._interval
@@ -78,11 +97,16 @@ export class UdpTracker extends EngineComponent implements ITracker {
       const errMsg = err instanceof Error ? err.message : String(err)
       this._status = 'error'
       this._lastError = errMsg
+      this._consecutiveFailures++
+      this._lastFailureTime = Date.now()
       this.emit('error', err)
     }
   }
 
   private connectPromise: { resolve: () => void; reject: (err: Error) => void } | null = null
+  private connectTimeoutId: ReturnType<typeof setTimeout> | null = null
+  private announcePromise: { resolve: () => void; reject: (err: Error) => void } | null = null
+  private announceTimeoutId: ReturnType<typeof setTimeout> | null = null
 
   private async connect(host: string, port: number): Promise<void> {
     this.transactionId = Math.floor(Math.random() * 0xffffffff)
@@ -98,17 +122,18 @@ export class UdpTracker extends EngineComponent implements ITracker {
 
       return new Promise<void>((resolve, reject) => {
         this.connectPromise = { resolve, reject }
-        setTimeout(() => {
+        this.connectTimeoutId = setTimeout(() => {
           if (this.connectPromise) {
             this.connectPromise.reject(new Error('Connect timeout'))
             this.connectPromise = null
+            this.connectTimeoutId = null
           }
-        }, 5000) // 5 second timeout
+        }, CONNECT_TIMEOUT_MS)
       })
     }
   }
 
-  private async sendAnnounce(event: string, stats?: AnnounceStats) {
+  private async sendAnnounce(event: string, stats?: AnnounceStats): Promise<void> {
     if (!this.socket || this.connectionId === null) return
 
     const url = new URL(this.announceUrl)
@@ -150,6 +175,18 @@ export class UdpTracker extends EngineComponent implements ITracker {
 
     this.socket.send(host, port, buf)
     this.bandwidthTracker?.record('tracker:udp', buf.length, 'up')
+
+    // Wait for announce response with timeout
+    return new Promise<void>((resolve, reject) => {
+      this.announcePromise = { resolve, reject }
+      this.announceTimeoutId = setTimeout(() => {
+        if (this.announcePromise) {
+          this.announcePromise.reject(new Error('Announce timeout'))
+          this.announcePromise = null
+          this.announceTimeoutId = null
+        }
+      }, ANNOUNCE_TIMEOUT_MS)
+    })
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -166,15 +203,27 @@ export class UdpTracker extends EngineComponent implements ITracker {
     if (action === ACTION_CONNECT) {
       this.connectionId = view.getBigUint64(8, false)
       this.connectionIdTime = Date.now()
+      if (this.connectTimeoutId) {
+        clearTimeout(this.connectTimeoutId)
+        this.connectTimeoutId = null
+      }
       if (this.connectPromise) {
         this.connectPromise.resolve()
         this.connectPromise = null
       }
     } else if (action === ACTION_ANNOUNCE) {
-      // Success - update status
+      // Clear announce timeout
+      if (this.announceTimeoutId) {
+        clearTimeout(this.announceTimeoutId)
+        this.announceTimeoutId = null
+      }
+
+      // Success - update status and reset failure tracking
       this._status = 'ok'
       this._lastError = null
       this._lastAnnounceTime = Date.now()
+      this._consecutiveFailures = 0
+      this._lastFailureTime = null
 
       const interval = view.getUint32(8, false)
       this._interval = interval
@@ -202,20 +251,52 @@ export class UdpTracker extends EngineComponent implements ITracker {
       if (peers.length > 0) {
         this.emit('peersDiscovered', peers)
       }
+
+      // Resolve the announce promise
+      if (this.announcePromise) {
+        this.announcePromise.resolve()
+        this.announcePromise = null
+      }
     } else if (action === ACTION_ERROR) {
+      // Clear timeouts
+      if (this.connectTimeoutId) {
+        clearTimeout(this.connectTimeoutId)
+        this.connectTimeoutId = null
+      }
+      if (this.announceTimeoutId) {
+        clearTimeout(this.announceTimeoutId)
+        this.announceTimeoutId = null
+      }
+
       const errorMsg = new TextDecoder().decode(msg.slice(8))
       this.logger.error(`UdpTracker: Error response: ${errorMsg}`)
       this._status = 'error'
       this._lastError = errorMsg
+      this._consecutiveFailures++
+      this._lastFailureTime = Date.now()
       this.emit('error', new Error(errorMsg))
       if (this.connectPromise) {
         this.connectPromise.reject(new Error(errorMsg))
         this.connectPromise = null
       }
+      if (this.announcePromise) {
+        this.announcePromise.reject(new Error(errorMsg))
+        this.announcePromise = null
+      }
     }
   }
 
   getStats(): TrackerStats {
+    // Calculate next announce time based on success or failure
+    let nextAnnounce: number | null = null
+    if (this._lastAnnounceTime && this._status === 'ok') {
+      // Success: use normal interval
+      nextAnnounce = this._lastAnnounceTime + this._interval * 1000
+    } else if (this._lastFailureTime && this._consecutiveFailures > 0) {
+      // Failure: use backoff delay
+      nextAnnounce = this._lastFailureTime + calculateBackoffMs(this._consecutiveFailures - 1)
+    }
+
     return {
       url: this.announceUrl,
       type: 'udp',
@@ -226,16 +307,31 @@ export class UdpTracker extends EngineComponent implements ITracker {
       lastPeersReceived: this._lastPeersReceived,
       uniquePeersDiscovered: this._knownPeers.size,
       lastError: this._lastError,
-      nextAnnounce: this._lastAnnounceTime ? this._lastAnnounceTime + this._interval * 1000 : null,
+      nextAnnounce,
     }
   }
 
   destroy(): void {
-    // Reject any pending connect promise
+    // Clear timeouts
+    if (this.connectTimeoutId) {
+      clearTimeout(this.connectTimeoutId)
+      this.connectTimeoutId = null
+    }
+    if (this.announceTimeoutId) {
+      clearTimeout(this.announceTimeoutId)
+      this.announceTimeoutId = null
+    }
+
+    // Reject any pending promises
     if (this.connectPromise) {
       this.connectPromise.reject(new Error('Tracker destroyed'))
       this.connectPromise = null
     }
+    if (this.announcePromise) {
+      this.announcePromise.reject(new Error('Tracker destroyed'))
+      this.announcePromise = null
+    }
+
     if (this.socket) {
       this.socket.close()
       this.socket = null

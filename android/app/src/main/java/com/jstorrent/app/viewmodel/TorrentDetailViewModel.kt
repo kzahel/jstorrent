@@ -382,7 +382,7 @@ class TorrentDetailViewModel(
             uploaded = uploaded,
             size = totalSize,
             peersConnected = peers.count { it.state == "connected" },
-            peersTotal = null,
+            peersTotal = if (summary.swarmPeers > 0) summary.swarmPeers else null,
             seedersConnected = null,
             seedersTotal = null,
             leechersConnected = null,

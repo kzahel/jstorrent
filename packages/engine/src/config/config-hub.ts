@@ -40,10 +40,16 @@ export interface ConfigHub {
   // Settings: Rate Limiting
   // ===========================================================================
 
-  /** Download speed limit in bytes/sec. 0 = unlimited. */
+  /** Whether download speed is unlimited. */
+  readonly downloadSpeedUnlimited: ConfigValue<boolean>
+
+  /** Download speed limit in bytes/sec (used when downloadSpeedUnlimited is false). */
   readonly downloadSpeedLimit: ConfigValue<number>
 
-  /** Upload speed limit in bytes/sec. 0 = unlimited. */
+  /** Whether upload speed is unlimited. */
+  readonly uploadSpeedUnlimited: ConfigValue<boolean>
+
+  /** Upload speed limit in bytes/sec (used when uploadSpeedUnlimited is false). */
   readonly uploadSpeedLimit: ConfigValue<number>
 
   // ===========================================================================
@@ -66,7 +72,10 @@ export interface ConfigHub {
   /** MSE/PE encryption policy. */
   readonly encryptionPolicy: ConfigValue<EncryptionPolicy>
 
-  /** Listening port for incoming connections. Restart required to apply. */
+  /** Whether to automatically choose a listening port. Restart required to apply. */
+  readonly listeningPortAuto: ConfigValue<boolean>
+
+  /** Listening port for incoming connections (used when listeningPortAuto is false). Restart required to apply. */
   readonly listeningPort: ConfigValue<number>
 
   // ===========================================================================

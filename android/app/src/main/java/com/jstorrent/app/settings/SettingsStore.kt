@@ -16,17 +16,31 @@ class SettingsStore(context: Context) {
     )
 
     /**
-     * Download speed limit in bytes/sec. 0 = unlimited.
+     * Whether download speed is unlimited.
+     */
+    var downloadSpeedUnlimited: Boolean
+        get() = prefs.getBoolean(KEY_DOWNLOAD_SPEED_UNLIMITED, true)
+        set(value) = prefs.edit { putBoolean(KEY_DOWNLOAD_SPEED_UNLIMITED, value) }
+
+    /**
+     * Download speed limit in bytes/sec (used when downloadSpeedUnlimited is false).
      */
     var downloadSpeedLimit: Int
-        get() = prefs.getInt(KEY_DOWNLOAD_SPEED_LIMIT, 0)
+        get() = prefs.getInt(KEY_DOWNLOAD_SPEED_LIMIT, 1048576) // Default 1 MB/s
         set(value) = prefs.edit { putInt(KEY_DOWNLOAD_SPEED_LIMIT, value) }
 
     /**
-     * Upload speed limit in bytes/sec. 0 = unlimited.
+     * Whether upload speed is unlimited.
+     */
+    var uploadSpeedUnlimited: Boolean
+        get() = prefs.getBoolean(KEY_UPLOAD_SPEED_UNLIMITED, true)
+        set(value) = prefs.edit { putBoolean(KEY_UPLOAD_SPEED_UNLIMITED, value) }
+
+    /**
+     * Upload speed limit in bytes/sec (used when uploadSpeedUnlimited is false).
      */
     var uploadSpeedLimit: Int
-        get() = prefs.getInt(KEY_UPLOAD_SPEED_LIMIT, 0)
+        get() = prefs.getInt(KEY_UPLOAD_SPEED_LIMIT, 1048576) // Default 1 MB/s
         set(value) = prefs.edit { putInt(KEY_UPLOAD_SPEED_LIMIT, value) }
 
     /**
@@ -88,7 +102,9 @@ class SettingsStore(context: Context) {
 
     companion object {
         private const val PREFS_NAME = "jstorrent_settings"
+        private const val KEY_DOWNLOAD_SPEED_UNLIMITED = "download_speed_unlimited"
         private const val KEY_DOWNLOAD_SPEED_LIMIT = "download_speed_limit"
+        private const val KEY_UPLOAD_SPEED_UNLIMITED = "upload_speed_unlimited"
         private const val KEY_UPLOAD_SPEED_LIMIT = "upload_speed_limit"
         private const val KEY_DEFAULT_ROOT_KEY = "default_root_key"
         private const val KEY_WHEN_DOWNLOADS_COMPLETE = "when_downloads_complete"

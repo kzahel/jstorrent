@@ -12,6 +12,21 @@ import { EngineComponent, ILoggingEngine } from '../logging/logger'
 import type { BandwidthTracker } from '../core/bandwidth-tracker'
 import { parseCompactPeers } from '../core/swarm'
 
+const ANNOUNCE_TIMEOUT_MS = 30000
+
+// Backoff constants (in seconds)
+const BACKOFF_BASE_S = 5 // 5 seconds initial retry
+const BACKOFF_MAX_S = 300 // 5 minutes max
+
+/**
+ * Calculate backoff delay for retry based on consecutive failures.
+ * Uses exponential backoff: 5s, 10s, 20s, 40s, 80s, 160s, 300s (capped)
+ */
+function calculateBackoffMs(consecutiveFailures: number): number {
+  const delayS = Math.min(BACKOFF_BASE_S * Math.pow(2, consecutiveFailures), BACKOFF_MAX_S)
+  return delayS * 1000
+}
+
 export class HttpTracker extends EngineComponent implements ITracker {
   static logName = 'http-tracker'
   private _interval: number = 1800
@@ -25,6 +40,11 @@ export class HttpTracker extends EngineComponent implements ITracker {
   private _knownPeers: Set<string> = new Set()
   private _lastError: string | null = null
   private _lastAnnounceTime: number | null = null
+  private announceTimeoutId: ReturnType<typeof setTimeout> | null = null
+  private _consecutiveFailures: number = 0
+  private _lastFailureTime: number | null = null
+  /** BEP 31: Tracker-specified retry delay in seconds (overrides backoff) */
+  private _retryIn: number | null = null
 
   get interval(): number {
     return this._interval
@@ -63,8 +83,26 @@ export class HttpTracker extends EngineComponent implements ITracker {
     const requestSize = url.length + 200 // rough estimate for HTTP headers
     this.bandwidthTracker?.record('tracker:http', requestSize, 'up')
 
+    // Create a timeout promise that aborts the request
+    let timedOut = false
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      this.announceTimeoutId = setTimeout(() => {
+        timedOut = true
+        this.httpClient.abort()
+        this.announceTimeoutId = null
+        reject(new Error('Announce timeout'))
+      }, ANNOUNCE_TIMEOUT_MS)
+    })
+
     try {
-      const responseBody = await this.httpClient.get(url)
+      const responseBody = await Promise.race([this.httpClient.get(url), timeoutPromise])
+
+      // Clear timeout on success
+      if (this.announceTimeoutId) {
+        clearTimeout(this.announceTimeoutId)
+        this.announceTimeoutId = null
+      }
+
       this.logger.debug(`HttpTracker: Received ${responseBody.length} bytes response`)
 
       // Record tracker download bytes
@@ -72,10 +110,21 @@ export class HttpTracker extends EngineComponent implements ITracker {
 
       this.handleBody(responseBody)
     } catch (err) {
-      const errMsg = `Tracker announce failed: ${err instanceof Error ? err.message : String(err)}`
+      // Clear timeout on error
+      if (this.announceTimeoutId) {
+        clearTimeout(this.announceTimeoutId)
+        this.announceTimeoutId = null
+      }
+
+      const errMsg = timedOut
+        ? 'Announce timeout'
+        : `Tracker announce failed: ${err instanceof Error ? err.message : String(err)}`
       this.logger.error(`HttpTracker: ${errMsg}`)
       this._status = 'error'
       this._lastError = errMsg
+      this._consecutiveFailures++
+      this._lastFailureTime = Date.now()
+      this._retryIn = null // Clear any previous retry-in
       this.emit('error', new Error(errMsg))
     }
   }
@@ -93,6 +142,9 @@ export class HttpTracker extends EngineComponent implements ITracker {
       this.logger.error(`HttpTracker: ${errMsg}`)
       this._status = 'error'
       this._lastError = errMsg
+      this._consecutiveFailures++
+      this._lastFailureTime = Date.now()
+      this._retryIn = null
       this.emit('error', new Error(errMsg))
     }
   }
@@ -187,14 +239,28 @@ export class HttpTracker extends EngineComponent implements ITracker {
       const errMsg = new TextDecoder().decode(data['failure reason'])
       this._status = 'error'
       this._lastError = errMsg
+      this._consecutiveFailures++
+      this._lastFailureTime = Date.now()
+
+      // BEP 31: Check for 'retry in' field (seconds until retry allowed)
+      if (typeof data['retry in'] === 'number') {
+        this._retryIn = data['retry in']
+        this.logger.debug(`HttpTracker: Tracker specified retry in ${this._retryIn}s`)
+      } else {
+        this._retryIn = null
+      }
+
       this.emit('error', new Error(errMsg))
       return
     }
 
-    // Success - update status and clear error
+    // Success - update status, clear error, and reset failure tracking
     this._status = 'ok'
     this._lastError = null
     this._lastAnnounceTime = Date.now()
+    this._consecutiveFailures = 0
+    this._lastFailureTime = null
+    this._retryIn = null
 
     if (data['interval']) {
       this._interval = data['interval']
@@ -270,6 +336,20 @@ export class HttpTracker extends EngineComponent implements ITracker {
   }
 
   getStats(): TrackerStats {
+    // Calculate next announce time based on success or failure
+    let nextAnnounce: number | null = null
+    if (this._lastAnnounceTime && this._status === 'ok') {
+      // Success: use normal interval
+      nextAnnounce = this._lastAnnounceTime + this._interval * 1000
+    } else if (this._lastFailureTime && this._consecutiveFailures > 0) {
+      // Failure: use BEP 31 retry-in if provided, otherwise exponential backoff
+      if (this._retryIn !== null) {
+        nextAnnounce = this._lastFailureTime + this._retryIn * 1000
+      } else {
+        nextAnnounce = this._lastFailureTime + calculateBackoffMs(this._consecutiveFailures - 1)
+      }
+    }
+
     return {
       url: this.announceUrl,
       type: 'http',
@@ -280,11 +360,16 @@ export class HttpTracker extends EngineComponent implements ITracker {
       lastPeersReceived: this._lastPeersReceived,
       uniquePeersDiscovered: this._knownPeers.size,
       lastError: this._lastError,
-      nextAnnounce: this._lastAnnounceTime ? this._lastAnnounceTime + this._interval * 1000 : null,
+      nextAnnounce,
     }
   }
 
   destroy(): void {
+    // Clear timeout
+    if (this.announceTimeoutId) {
+      clearTimeout(this.announceTimeoutId)
+      this.announceTimeoutId = null
+    }
     if (this.timer) clearInterval(this.timer)
     // Abort any in-flight HTTP requests
     this.httpClient.abort()

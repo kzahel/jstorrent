@@ -51,28 +51,52 @@ describe('ConfigHub Engine Integration', () => {
     })
 
     it('should read download speed limit from config', () => {
-      expect(engine.bandwidthTracker.getDownloadLimit()).toBe(config.downloadSpeedLimit.get())
+      // Default is unlimited (true), so effective limit is 0
+      expect(config.downloadSpeedUnlimited.get()).toBe(true)
+      expect(engine.bandwidthTracker.getDownloadLimit()).toBe(0)
     })
 
     it('should read upload speed limit from config', () => {
-      expect(engine.bandwidthTracker.getUploadLimit()).toBe(config.uploadSpeedLimit.get())
+      // Default is unlimited (true), so effective limit is 0
+      expect(config.uploadSpeedUnlimited.get()).toBe(true)
+      expect(engine.bandwidthTracker.getUploadLimit()).toBe(0)
     })
   })
 
   describe('reactive updates - rate limits', () => {
-    it('should update download speed limit when config changes', () => {
+    it('should update download speed limit when unlimited flag changes', () => {
       const setLimitSpy = vi.spyOn(engine.bandwidthTracker, 'setDownloadLimit')
 
+      // Set a limit value first (won't apply yet since unlimited is true)
       config.set('downloadSpeedLimit', 1000000)
+      // Now disable unlimited - should apply the limit
+      config.set('downloadSpeedUnlimited', false)
 
       expect(setLimitSpy).toHaveBeenCalledWith(1000000)
       expect(engine.bandwidthTracker.getDownloadLimit()).toBe(1000000)
     })
 
-    it('should update upload speed limit when config changes', () => {
+    it('should update download speed limit when value changes while not unlimited', () => {
+      const setLimitSpy = vi.spyOn(engine.bandwidthTracker, 'setDownloadLimit')
+
+      // First disable unlimited
+      config.set('downloadSpeedUnlimited', false)
+      setLimitSpy.mockClear()
+
+      // Now change the limit value - should apply immediately
+      config.set('downloadSpeedLimit', 2000000)
+
+      expect(setLimitSpy).toHaveBeenCalledWith(2000000)
+      expect(engine.bandwidthTracker.getDownloadLimit()).toBe(2000000)
+    })
+
+    it('should update upload speed limit when unlimited flag changes', () => {
       const setLimitSpy = vi.spyOn(engine.bandwidthTracker, 'setUploadLimit')
 
+      // Set a limit value first
       config.set('uploadSpeedLimit', 500000)
+      // Now disable unlimited - should apply the limit
+      config.set('uploadSpeedUnlimited', false)
 
       expect(setLimitSpy).toHaveBeenCalledWith(500000)
       expect(engine.bandwidthTracker.getUploadLimit()).toBe(500000)

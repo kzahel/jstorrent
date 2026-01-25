@@ -170,7 +170,7 @@ private fun SpeedSection(
 }
 
 /**
- * Peers section with seeder/leecher counts.
+ * Peers section with seeder/leecher counts and swarm size.
  */
 @Composable
 private fun PeersSection(
@@ -189,6 +189,11 @@ private fun PeersSection(
                 torrent.leechersConnected,
                 torrent.leechersTotal
             )
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        StatRow(
+            label = "Peers",
+            value = formatPeerCount(torrent.peersConnected, torrent.peersTotal)
         )
     }
 }

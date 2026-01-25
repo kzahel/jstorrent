@@ -235,28 +235,32 @@ export function DhtTab({ stats, nodes }: DhtTabProps) {
           </div>
         </div>
 
-        {/* Activity - Sent */}
+        {/* Activity - Sent (success/attempts) */}
         <div style={groupStyle}>
-          <div style={groupTitleStyle}>── Queries Sent ──</div>
+          <div style={groupTitleStyle}>── Queries Sent (ok/total) ──</div>
           <div style={rowStyle}>
             <span style={labelStyle}>ping</span>
-            <span style={valueStyle}>{stats.pingsSent}</span>
+            <span style={valueStyle}>
+              {stats.pingsSucceeded}/{stats.pingsSent}
+            </span>
           </div>
           <div style={rowStyle}>
             <span style={labelStyle}>find_node</span>
-            <span style={valueStyle}>{stats.findNodesSent}</span>
+            <span style={valueStyle}>
+              {stats.findNodesSucceeded}/{stats.findNodesSent}
+            </span>
           </div>
           <div style={rowStyle}>
             <span style={labelStyle}>get_peers</span>
-            <span style={valueStyle}>{stats.getPeersSent}</span>
+            <span style={valueStyle}>
+              {stats.getPeersSucceeded}/{stats.getPeersSent}
+            </span>
           </div>
           <div style={rowStyle}>
             <span style={labelStyle}>announce_peer</span>
-            <span style={valueStyle}>{stats.announcesSent}</span>
-          </div>
-          <div style={rowStyle}>
-            <span style={labelStyle}>Timeouts</span>
-            <span style={valueStyle}>{stats.timeouts}</span>
+            <span style={valueStyle}>
+              {stats.announcesSucceeded}/{stats.announcesSent}
+            </span>
           </div>
         </div>
 

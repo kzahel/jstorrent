@@ -44,7 +44,7 @@ import { initializeTorrentMetadata } from './torrent-initializer'
 export const MAX_PIECE_SIZE = 32 * 1024 * 1024 // 32MB
 
 // UPnP status type
-export type UPnPStatus = 'disabled' | 'discovering' | 'mapped' | 'failed'
+export type UPnPStatus = 'disabled' | 'discovering' | 'mapped' | 'unavailable' | 'failed'
 
 // === Unified Daemon Operation Queue Types ===
 
@@ -298,9 +298,15 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.encryptionPolicy = this.config.encryptionPolicy.get()
     this._dhtEnabled = this.config.dhtEnabled.get()
 
-    // Set up bandwidth limits from config
-    this.bandwidthTracker.setDownloadLimit(this.config.downloadSpeedLimit.get())
-    this.bandwidthTracker.setUploadLimit(this.config.uploadSpeedLimit.get())
+    // Set up bandwidth limits from config (0 = unlimited)
+    const downloadLimit = this.config.downloadSpeedUnlimited.get()
+      ? 0
+      : this.config.downloadSpeedLimit.get()
+    const uploadLimit = this.config.uploadSpeedUnlimited.get()
+      ? 0
+      : this.config.uploadSpeedLimit.get()
+    this.bandwidthTracker.setDownloadLimit(downloadLimit)
+    this.bandwidthTracker.setUploadLimit(uploadLimit)
 
     // Initialize daemon rate limiter from config
     const opsPerSec = this.config.daemonOpsPerSecond.get()
@@ -403,8 +409,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     if (!this.config) return
 
     // Log initial rate limits for debugging
-    const downloadLimit = this.config.downloadSpeedLimit.get()
-    const uploadLimit = this.config.uploadSpeedLimit.get()
+    const downloadUnlimited = this.config.downloadSpeedUnlimited.get()
+    const uploadUnlimited = this.config.uploadSpeedUnlimited.get()
+    const downloadLimit = downloadUnlimited ? 0 : this.config.downloadSpeedLimit.get()
+    const uploadLimit = uploadUnlimited ? 0 : this.config.uploadSpeedLimit.get()
     this.logger.info(
       `Initial rate limits - download: ${downloadLimit === 0 ? 'unlimited' : downloadLimit + ' B/s'}, upload: ${uploadLimit === 0 ? 'unlimited' : uploadLimit + ' B/s'}`,
     )
@@ -873,9 +881,14 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   private wireConfigSubscriptions(): void {
     if (!this.config) return
 
-    // Rate Limits
+    // Capture config for use in callbacks (TypeScript can't track narrowing into closures)
+    const config = this.config
+
+    // Rate Limits - subscribe to both boolean flags and values
+    // Download speed
     this.configUnsubscribers.push(
-      this.config.downloadSpeedLimit.subscribe((limit) => {
+      config.downloadSpeedUnlimited.subscribe((unlimited) => {
+        const limit = unlimited ? 0 : config.downloadSpeedLimit.get()
         this.bandwidthTracker.setDownloadLimit(limit)
         this.logger.info(
           `Download speed limit updated: ${limit === 0 ? 'unlimited' : limit + ' B/s'}`,
@@ -884,11 +897,33 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     )
 
     this.configUnsubscribers.push(
-      this.config.uploadSpeedLimit.subscribe((limit) => {
+      config.downloadSpeedLimit.subscribe((value) => {
+        // Only apply if not unlimited
+        if (!config.downloadSpeedUnlimited.get()) {
+          this.bandwidthTracker.setDownloadLimit(value)
+          this.logger.info(`Download speed limit updated: ${value} B/s`)
+        }
+      }),
+    )
+
+    // Upload speed
+    this.configUnsubscribers.push(
+      config.uploadSpeedUnlimited.subscribe((unlimited) => {
+        const limit = unlimited ? 0 : config.uploadSpeedLimit.get()
         this.bandwidthTracker.setUploadLimit(limit)
         this.logger.info(
           `Upload speed limit updated: ${limit === 0 ? 'unlimited' : limit + ' B/s'}`,
         )
+      }),
+    )
+
+    this.configUnsubscribers.push(
+      config.uploadSpeedLimit.subscribe((value) => {
+        // Only apply if not unlimited
+        if (!config.uploadSpeedUnlimited.get()) {
+          this.bandwidthTracker.setUploadLimit(value)
+          this.logger.info(`Upload speed limit updated: ${value} B/s`)
+        }
       }),
     )
 
@@ -1252,7 +1287,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     const discovered = await this.upnpManager.discover()
     if (!discovered) {
-      this._upnpStatus = 'failed'
+      this._upnpStatus = 'unavailable'
       this.emit('upnpStatusChanged', this._upnpStatus)
       this.logger.info('UPnP: No gateway found')
       return
@@ -1391,6 +1426,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     this.logger.info(`DHT: Started with node ID ${dhtNode.nodeIdHex}`)
     this.emit('dhtStatusChanged', true)
+
+    // Notify all active torrents that DHT is ready
+    // This handles the race condition where torrents start before DHT
+    for (const torrent of this.torrents) {
+      torrent.onDHTReady()
+    }
   }
 
   /**

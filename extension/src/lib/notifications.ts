@@ -32,13 +32,15 @@ const DEFAULTS = {
 
 const PROGRESS_NOTIFICATION_ID = 'jstorrent-progress'
 const ALL_COMPLETE_NOTIFICATION_ID = 'jstorrent-all-complete'
+const DOWNLOADS_STOPPED_NOTIFICATION_ID = 'jstorrent-downloads-stopped'
 
 export class NotificationManager {
   private onTorrentCompleteEnabled: boolean = DEFAULTS.onTorrentComplete
   private onAllCompleteEnabled: boolean = DEFAULTS.onAllComplete
   private onErrorEnabled: boolean = DEFAULTS.onError
   private progressWhenBackgroundedEnabled: boolean = DEFAULTS.progressWhenBackgrounded
-  private uiVisible: boolean = true
+  private uiConnected: boolean = false // whether UI tab is open (port connected)
+  private uiVisible: boolean = true // whether UI tab is visible (not backgrounded)
   private progressNotificationActive: boolean = false
   private lastProgressStats: ProgressStats | null = null
 
@@ -135,6 +137,14 @@ export class NotificationManager {
   // ============================================================================
   // State Updates from UI
   // ============================================================================
+
+  /**
+   * Called when UI tab connects (port established).
+   */
+  onUiConnected(): void {
+    console.log('[NotificationManager] UI connected')
+    this.uiConnected = true
+  }
 
   setUiVisibility(visible: boolean): void {
     const wasVisible = this.uiVisible
@@ -299,12 +309,59 @@ export class NotificationManager {
     )
   }
 
+  /**
+   * Called when the UI tab is closed. Shows a notification if downloads were active.
+   */
+  onUiClosed(): void {
+    const activeCount = this.lastProgressStats?.activeCount ?? 0
+    console.log('[NotificationManager] onUiClosed called:', { activeCount })
+
+    // Clear any progress notification since we're no longer tracking
+    this.clearProgressNotification()
+
+    // If there were active downloads, notify the user
+    if (activeCount > 0) {
+      chrome.notifications.create(
+        DOWNLOADS_STOPPED_NOTIFICATION_ID,
+        {
+          type: 'basic',
+          iconUrl: chrome.runtime.getURL('icons/js-128.png'),
+          title: 'Downloads Paused',
+          message: 'Reopen JSTorrent to continue downloading',
+          requireInteraction: false,
+          silent: false,
+        },
+        (notificationId) => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              '[NotificationManager] Downloads stopped notification failed:',
+              chrome.runtime.lastError.message,
+            )
+          } else {
+            console.log(
+              '[NotificationManager] Downloads stopped notification created:',
+              notificationId,
+            )
+          }
+        },
+      )
+    }
+
+    // Reset state since UI is gone
+    this.uiConnected = false
+    this.lastProgressStats = null
+    this.uiVisible = true // Reset to default
+  }
+
   // ============================================================================
   // Internal Helpers
   // ============================================================================
 
   private shouldShowPersistentProgress(): boolean {
-    return !this.uiVisible && this.progressWhenBackgroundedEnabled
+    // Only show progress notification when:
+    // 1. UI tab is open (connected) but not visible (user switched tabs)
+    // 2. Setting is enabled
+    return this.uiConnected && !this.uiVisible && this.progressWhenBackgroundedEnabled
   }
 
   private showProgressNotification(stats: ProgressStats): void {

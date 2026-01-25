@@ -92,7 +92,9 @@ fun SettingsScreen(
         onShowClearConfirmation = { viewModel.showClearConfirmation() },
         onDismissClearConfirmation = { viewModel.dismissClearConfirmation() },
         onClearAll = { viewModel.clearAllRoots() },
+        onDownloadSpeedUnlimitedChange = { viewModel.setDownloadSpeedUnlimited(it) },
         onDownloadSpeedLimitChange = { viewModel.setDownloadSpeedLimit(it) },
+        onUploadSpeedUnlimitedChange = { viewModel.setUploadSpeedUnlimited(it) },
         onUploadSpeedLimitChange = { viewModel.setUploadSpeedLimit(it) },
         onWhenDownloadsCompleteChange = { viewModel.setWhenDownloadsComplete(it) },
         onWifiOnlyChange = { viewModel.setWifiOnly(it) },
@@ -118,7 +120,9 @@ fun SettingsScreenContent(
     onShowClearConfirmation: () -> Unit,
     onDismissClearConfirmation: () -> Unit,
     onClearAll: () -> Unit,
+    onDownloadSpeedUnlimitedChange: (Boolean) -> Unit,
     onDownloadSpeedLimitChange: (Int) -> Unit,
+    onUploadSpeedUnlimitedChange: (Boolean) -> Unit,
     onUploadSpeedLimitChange: (Int) -> Unit,
     onWhenDownloadsCompleteChange: (String) -> Unit,
     onWifiOnlyChange: (Boolean) -> Unit,
@@ -209,9 +213,13 @@ fun SettingsScreenContent(
 
             item {
                 BandwidthSection(
+                    downloadUnlimited = uiState.downloadSpeedUnlimited,
                     downloadLimit = uiState.downloadSpeedLimit,
+                    uploadUnlimited = uiState.uploadSpeedUnlimited,
                     uploadLimit = uiState.uploadSpeedLimit,
+                    onDownloadUnlimitedChange = onDownloadSpeedUnlimitedChange,
                     onDownloadLimitChange = onDownloadSpeedLimitChange,
+                    onUploadUnlimitedChange = onUploadSpeedUnlimitedChange,
                     onUploadLimitChange = onUploadSpeedLimitChange
                 )
             }
@@ -580,9 +588,13 @@ private val speedPresets = listOf(
 
 @Composable
 private fun BandwidthSection(
+    downloadUnlimited: Boolean,
     downloadLimit: Int,
+    uploadUnlimited: Boolean,
     uploadLimit: Int,
+    onDownloadUnlimitedChange: (Boolean) -> Unit,
     onDownloadLimitChange: (Int) -> Unit,
+    onUploadUnlimitedChange: (Boolean) -> Unit,
     onUploadLimitChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -593,13 +605,17 @@ private fun BandwidthSection(
     ) {
         SpeedLimitRow(
             label = "Max download speed",
+            unlimited = downloadUnlimited,
             currentValue = downloadLimit,
+            onUnlimitedChange = onDownloadUnlimitedChange,
             onValueChange = onDownloadLimitChange
         )
         Spacer(modifier = Modifier.height(8.dp))
         SpeedLimitRow(
             label = "Max upload speed",
+            unlimited = uploadUnlimited,
             currentValue = uploadLimit,
+            onUnlimitedChange = onUploadUnlimitedChange,
             onValueChange = onUploadLimitChange
         )
     }
@@ -608,50 +624,89 @@ private fun BandwidthSection(
 @Composable
 private fun SpeedLimitRow(
     label: String,
+    unlimited: Boolean,
     currentValue: Int,
+    onUnlimitedChange: (Boolean) -> Unit,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val currentPreset = speedPresets.find { it.bytesPerSec == currentValue }
+    // Filter out the "Unlimited" preset since we have a separate switch
+    val limitPresets = speedPresets.filter { it.bytesPerSec > 0 }
+    val currentPreset = limitPresets.find { it.bytesPerSec == currentValue }
         ?: SpeedPreset(currentValue, formatSpeed(currentValue))
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge
-        )
-        Box {
-            OutlinedCard(
-                modifier = Modifier.clickable { expanded = true }
+    Column(modifier = modifier.fillMaxWidth()) {
+        // Unlimited toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onUnlimitedChange(!unlimited) }
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = currentPreset.label,
+                    text = "Unlimited",
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Switch(
+                    checked = unlimited,
+                    onCheckedChange = onUnlimitedChange
                 )
             }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
+        }
+
+        // Speed preset dropdown (only shown when not unlimited)
+        if (!unlimited) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp, horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                speedPresets.forEach { preset ->
-                    DropdownMenuItem(
-                        text = { Text(preset.label) },
-                        onClick = {
-                            onValueChange(preset.bytesPerSec)
-                            expanded = false
-                        },
-                        trailingIcon = if (preset.bytesPerSec == currentValue) {
-                            { Icon(Icons.Default.Check, contentDescription = "Selected") }
-                        } else null
-                    )
+                Text(
+                    text = "Limit",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Box {
+                    OutlinedCard(
+                        modifier = Modifier.clickable { expanded = true }
+                    ) {
+                        Text(
+                            text = currentPreset.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        limitPresets.forEach { preset ->
+                            DropdownMenuItem(
+                                text = { Text(preset.label) },
+                                onClick = {
+                                    onValueChange(preset.bytesPerSec)
+                                    expanded = false
+                                },
+                                trailingIcon = if (preset.bytesPerSec == currentValue) {
+                                    { Icon(Icons.Default.Check, contentDescription = "Selected") }
+                                } else null
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -660,7 +715,6 @@ private fun SpeedLimitRow(
 
 private fun formatSpeed(bytesPerSec: Int): String {
     return when {
-        bytesPerSec == 0 -> "Unlimited"
         bytesPerSec >= 1048576 -> "${bytesPerSec / 1048576} MB/s"
         bytesPerSec >= 1024 -> "${bytesPerSec / 1024} KB/s"
         else -> "$bytesPerSec B/s"
@@ -1032,7 +1086,9 @@ private fun SettingsScreenEmptyPreview() {
             onShowClearConfirmation = {},
             onDismissClearConfirmation = {},
             onClearAll = {},
+            onDownloadSpeedUnlimitedChange = {},
             onDownloadSpeedLimitChange = {},
+            onUploadSpeedUnlimitedChange = {},
             onUploadSpeedLimitChange = {},
             onWhenDownloadsCompleteChange = {},
             onWifiOnlyChange = {},
@@ -1072,7 +1128,9 @@ private fun SettingsScreenWithRootsPreview() {
                     )
                 ),
                 defaultRootKey = "abc123",
+                downloadSpeedUnlimited = false,
                 downloadSpeedLimit = 1048576,
+                uploadSpeedUnlimited = false,
                 uploadSpeedLimit = 512000,
                 notificationPermissionGranted = true,
                 backgroundDownloadsEnabled = true,
@@ -1088,7 +1146,9 @@ private fun SettingsScreenWithRootsPreview() {
             onShowClearConfirmation = {},
             onDismissClearConfirmation = {},
             onClearAll = {},
+            onDownloadSpeedUnlimitedChange = {},
             onDownloadSpeedLimitChange = {},
+            onUploadSpeedUnlimitedChange = {},
             onUploadSpeedLimitChange = {},
             onWhenDownloadsCompleteChange = {},
             onWifiOnlyChange = {},

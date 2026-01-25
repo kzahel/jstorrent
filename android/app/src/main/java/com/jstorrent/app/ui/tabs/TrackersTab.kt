@@ -256,10 +256,13 @@ private fun TrackerItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (tracker.message != null) {
+            // Show message or status-based subtext
+            val subtext = tracker.message
+                ?: if (tracker.status == TrackerStatus.UPDATING) "Announcing..." else null
+            if (subtext != null) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = tracker.message,
+                    text = subtext,
                     style = MaterialTheme.typography.bodySmall,
                     color = if (tracker.status == TrackerStatus.ERROR) {
                         MaterialTheme.colorScheme.error
@@ -314,7 +317,7 @@ private fun TrackersTabPreview() {
                 TrackerUi(
                     url = "udp://tracker.updating.org:1337/announce",
                     status = TrackerStatus.UPDATING,
-                    message = "Announcing...",
+                    message = null,
                     peers = null
                 )
             ),

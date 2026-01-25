@@ -20,6 +20,7 @@
     "test:python": "pnpm --filter @jstorrent/engine test:python",
     "seed-for-test": "cd packages/engine/integration/python && uv run python seed_for_test.py",
     "seed-for-test-jstengine": "cd packages/engine/integration/python && uv run python seed_for_test.py --engine jstengine",
+    "seed-for-test-swarm": "cd packages/engine/integration/python && uv run python seed_for_test_swarm.py",
     "typecheck": "pnpm --recursive typecheck",
     "build": "pnpm --recursive build",
     "check:static": "npm-run-all --parallel lint format typecheck",

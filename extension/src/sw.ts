@@ -109,6 +109,7 @@ function handleUIPortConnect(port: chrome.runtime.Port): void {
   }
 
   primaryUIPort = port
+  notificationManager.onUiConnected()
 
   // Send current bridge state immediately
   const state = bridge.getState()
@@ -139,6 +140,8 @@ function handleUIPortConnect(port: chrome.runtime.Port): void {
     console.log('[SW] UI port disconnected')
     if (primaryUIPort === port) {
       primaryUIPort = null
+      // Notify user if downloads were active
+      notificationManager.onUiClosed()
       // Start idle timer to allow SW suspension
       startIdleTimer()
     }

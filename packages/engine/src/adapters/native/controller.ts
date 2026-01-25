@@ -628,6 +628,7 @@ export function startStatePushLoop(engine: BtEngine): () => void {
           uploadSpeed: t.uploadSpeed,
           status: t.activityState,
           numPeers: t.numPeers,
+          swarmPeers: t.swarm.total,
         })),
         pieceChanges: Object.keys(pieceChanges).length > 0 ? pieceChanges : undefined,
       })

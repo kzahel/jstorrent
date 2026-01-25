@@ -18,7 +18,7 @@ import type { ConfigCategory, ConfigStorageClass } from './types'
 // ============================================================================
 
 /** UPnP status (matches bt-engine.ts) */
-export type UPnPStatus = 'disabled' | 'discovering' | 'mapped' | 'failed'
+export type UPnPStatus = 'disabled' | 'discovering' | 'mapped' | 'unavailable' | 'failed'
 
 /** UI theme */
 export type Theme = 'system' | 'dark' | 'light'
@@ -104,22 +104,38 @@ export const configSchema = {
   // Settings: Rate Limiting
   // ===========================================================================
 
-  /** Download speed limit in bytes/sec. 0 = unlimited. */
+  /** Whether download speed is unlimited. */
+  downloadSpeedUnlimited: {
+    type: 'boolean',
+    category: 'setting',
+    storage: 'sync',
+    default: true,
+  },
+
+  /** Download speed limit in bytes/sec (used when downloadSpeedUnlimited is false). */
   downloadSpeedLimit: {
     type: 'number',
     category: 'setting',
     storage: 'sync',
-    default: 0, // 0 = unlimited
-    min: 0,
+    default: 1048576, // 1 MB/s
+    min: 1,
   },
 
-  /** Upload speed limit in bytes/sec. 0 = unlimited. */
+  /** Whether upload speed is unlimited. */
+  uploadSpeedUnlimited: {
+    type: 'boolean',
+    category: 'setting',
+    storage: 'sync',
+    default: true,
+  },
+
+  /** Upload speed limit in bytes/sec (used when uploadSpeedUnlimited is false). */
   uploadSpeedLimit: {
     type: 'number',
     category: 'setting',
     storage: 'sync',
-    default: 0, // 0 = unlimited
-    min: 0,
+    default: 1048576, // 1 MB/s
+    min: 1,
   },
 
   // ===========================================================================
@@ -169,13 +185,22 @@ export const configSchema = {
     default: 'allow' as EncryptionPolicy,
   },
 
-  /** Listening port for incoming connections. Requires restart to apply. */
+  /** Whether to automatically choose a listening port. */
+  listeningPortAuto: {
+    type: 'boolean',
+    category: 'setting',
+    storage: 'local', // Per-device
+    default: true,
+    restartRequired: true,
+  },
+
+  /** Listening port for incoming connections (used when listeningPortAuto is false). */
   listeningPort: {
     type: 'number',
     category: 'setting',
     storage: 'local', // Per-device
-    default: 0, // 0 = random on first run
-    min: 0,
+    default: 0, // 0 = not yet assigned, will be populated on first manual toggle
+    min: 0, // Allow 0 as "not yet assigned" state
     max: 65535,
     restartRequired: true,
   },
@@ -478,7 +503,7 @@ export const configSchema = {
   upnpStatus: {
     type: 'enum',
     category: 'runtime',
-    values: ['disabled', 'discovering', 'mapped', 'failed'] as const,
+    values: ['disabled', 'discovering', 'mapped', 'unavailable', 'failed'] as const,
     default: 'disabled' as UPnPStatus,
   },
 

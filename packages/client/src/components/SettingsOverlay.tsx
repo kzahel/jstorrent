@@ -29,10 +29,13 @@ function buildConfigSnapshot(config: ConfigHub) {
     uiScale: config.uiScale.get(),
     maxFps: config.maxFps.get(),
     // Network
+    listeningPortAuto: config.listeningPortAuto.get(),
     listeningPort: config.listeningPort.get(),
     upnpEnabled: config.upnpEnabled.get(),
     encryptionPolicy: config.encryptionPolicy.get(),
+    downloadSpeedUnlimited: config.downloadSpeedUnlimited.get(),
     downloadSpeedLimit: config.downloadSpeedLimit.get(),
+    uploadSpeedUnlimited: config.uploadSpeedUnlimited.get(),
     uploadSpeedLimit: config.uploadSpeedLimit.get(),
     maxPeersPerTorrent: config.maxPeersPerTorrent.get(),
     maxGlobalPeers: config.maxGlobalPeers.get(),
@@ -510,11 +513,11 @@ const GeneralTab: React.FC<GeneralTabProps> = ({
           disabled={isStandalone}
         />
         <ToggleRow
-          label="Show progress when backgrounded"
+          label="Show progress in background tab"
           sublabel={
             isStandalone
               ? 'Not available in standalone mode'
-              : 'Persistent notification with download progress when UI is hidden'
+              : 'Persistent notification when you switch to another tab'
           }
           checked={settings.notifyProgressWhenBackgrounded}
           onChange={(v) => config.set('notifyProgressWhenBackgrounded', v)}
@@ -662,27 +665,16 @@ interface NetworkTabProps extends TabProps {
   engineManager: IEngineManager
 }
 
-// Default display value for speed limit when unlimited (1 MB/s)
-const DEFAULT_SPEED_LIMIT_BYTES = 1024 * 1024
+/** Generate a random port in the ephemeral range (49152-65535) */
+function generateRandomPort(): number {
+  return Math.floor(Math.random() * (65535 - 49152 + 1)) + 49152
+}
 
 const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager }) => {
   // UPnP status state - initialize from engine if available
   const [upnpStatus, setUpnpStatus] = useState<UPnPStatus>(
     () => engineManager.engine?.upnpStatus ?? 'disabled',
   )
-
-  // Speed limit display values (ConfigHub stores 0 for unlimited, but UI needs a display value)
-  // When config value is 0 (unlimited), we use a default display value
-  const [downloadDisplayValue, setDownloadDisplayValue] = useState(() =>
-    settings.downloadSpeedLimit > 0 ? settings.downloadSpeedLimit : DEFAULT_SPEED_LIMIT_BYTES,
-  )
-  const [uploadDisplayValue, setUploadDisplayValue] = useState(() =>
-    settings.uploadSpeedLimit > 0 ? settings.uploadSpeedLimit : DEFAULT_SPEED_LIMIT_BYTES,
-  )
-
-  // Derive unlimited state from config (0 = unlimited)
-  const downloadUnlimited = settings.downloadSpeedLimit === 0
-  const uploadUnlimited = settings.uploadSpeedLimit === 0
 
   // Subscribe to UPnP status changes
   useEffect(() => {
@@ -697,27 +689,30 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager
     }
   }, [engineManager])
 
-  // Rate limit handlers - ConfigHub stores effective value (0 = unlimited)
-  const handleDownloadLimitChange = (v: number) => {
-    setDownloadDisplayValue(v)
-    if (!downloadUnlimited) {
-      config.set('downloadSpeedLimit', v)
+  // Port auto handlers
+  const handlePortAutoChange = (auto: boolean) => {
+    config.set('listeningPortAuto', auto)
+    // If switching to manual and no port is set yet, generate a random one
+    if (!auto && settings.listeningPort === 0) {
+      config.set('listeningPort', generateRandomPort())
     }
+  }
+
+  // Speed limit handlers - now use separate boolean flags
+  const handleDownloadLimitChange = (v: number) => {
+    config.set('downloadSpeedLimit', v)
   }
 
   const handleDownloadUnlimitedChange = (unlimited: boolean) => {
-    config.set('downloadSpeedLimit', unlimited ? 0 : downloadDisplayValue)
+    config.set('downloadSpeedUnlimited', unlimited)
   }
 
   const handleUploadLimitChange = (v: number) => {
-    setUploadDisplayValue(v)
-    if (!uploadUnlimited) {
-      config.set('uploadSpeedLimit', v)
-    }
+    config.set('uploadSpeedLimit', v)
   }
 
   const handleUploadUnlimitedChange = (unlimited: boolean) => {
-    config.set('uploadSpeedLimit', unlimited ? 0 : uploadDisplayValue)
+    config.set('uploadSpeedUnlimited', unlimited)
   }
 
   // UPnP status indicator
@@ -729,6 +724,8 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager
         const externalIP = engineManager.engine?.upnpExternalIP
         return { text: externalIP ? `✓ ${externalIP}` : '✓ Mapped', color: 'var(--accent-success)' }
       }
+      case 'unavailable':
+        return { text: 'Unavailable', color: 'var(--text-secondary)' }
       case 'failed':
         return { text: 'Failed', color: 'var(--accent-error)' }
       default:
@@ -741,22 +738,14 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager
   return (
     <div>
       <Section title="Listening Port">
-        <NumberRow
-          label="Port for incoming connections"
-          value={settings.listeningPort}
-          onChange={(v) => config.set('listeningPort', v)}
-          min={1024}
-          max={65535}
+        <PortRow
+          portAuto={settings.listeningPortAuto}
+          port={settings.listeningPort}
+          onAutoChange={handlePortAutoChange}
+          onPortChange={(v) => config.set('listeningPort', v)}
+          currentPort={engineManager.engine?.listeningPort}
+          engineRunning={!!engineManager.engine}
         />
-        <div
-          style={{
-            fontSize: 'var(--font-xs, 12px)',
-            color: 'var(--text-secondary)',
-            marginTop: 'var(--spacing-sm, 8px)',
-          }}
-        >
-          Changes require restart to take effect.
-        </div>
       </Section>
 
       <Section title="Port Forwarding">
@@ -815,15 +804,15 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager
       <Section title="Speed Limits">
         <SpeedLimitRow
           label="Download"
-          value={downloadDisplayValue}
-          unlimited={downloadUnlimited}
+          value={settings.downloadSpeedLimit}
+          unlimited={settings.downloadSpeedUnlimited}
           onValueChange={handleDownloadLimitChange}
           onUnlimitedChange={handleDownloadUnlimitedChange}
         />
         <SpeedLimitRow
           label="Upload"
-          value={uploadDisplayValue}
-          unlimited={uploadUnlimited}
+          value={settings.uploadSpeedLimit}
+          unlimited={settings.uploadSpeedUnlimited}
           onValueChange={handleUploadLimitChange}
           onUnlimitedChange={handleUploadUnlimitedChange}
         />
@@ -1057,6 +1046,128 @@ const ToggleRow: React.FC<ToggleRowProps> = ({ label, sublabel, checked, onChang
     />
   </label>
 )
+
+interface PortRowProps {
+  portAuto: boolean
+  port: number
+  onAutoChange: (auto: boolean) => void
+  onPortChange: (port: number) => void
+  currentPort?: number
+  engineRunning: boolean
+}
+
+const PortRow: React.FC<PortRowProps> = ({
+  portAuto,
+  port,
+  onAutoChange,
+  onPortChange,
+  currentPort,
+  engineRunning,
+}) => {
+  // Track if user is actively editing
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  // Display either the edit value (while editing) or derived value (from props)
+  const displayValue = isEditing ? editValue : port > 0 ? String(port) : ''
+
+  const validatePort = (v: number): string | null => {
+    if (v < 1024) {
+      return 'Privileged ports (< 1024) are not allowed'
+    }
+    if (v > 65535) {
+      return 'Port must be 65535 or less'
+    }
+    return null
+  }
+
+  const handleFocus = () => {
+    setIsEditing(true)
+    setEditValue(port > 0 ? String(port) : '')
+  }
+
+  const handleBlur = () => {
+    setIsEditing(false)
+    const v = Number(editValue)
+    if (!Number.isFinite(v) || v <= 0) {
+      setError(null)
+      return
+    }
+    const validationError = validatePort(v)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+    setError(null)
+    onPortChange(v)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleBlur()
+      ;(e.target as HTMLInputElement).blur()
+    }
+  }
+
+  return (
+    <>
+      <label style={styles.toggleRow}>
+        <div style={{ flex: 1 }}>
+          <div>Choose port automatically</div>
+          <div style={{ fontSize: 'var(--font-xs, 12px)', color: 'var(--text-secondary)' }}>
+            Let the system assign an available port
+          </div>
+        </div>
+        <input
+          type="checkbox"
+          checked={portAuto}
+          onChange={(e) => onAutoChange(e.target.checked)}
+        />
+      </label>
+      {!portAuto && (
+        <div style={styles.fieldRow}>
+          <span style={{ flex: 1 }}>Port</span>
+          <input
+            type="number"
+            value={displayValue}
+            onChange={(e) => {
+              setEditValue(e.target.value)
+              setError(null)
+            }}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            min={1024}
+            max={65535}
+            style={styles.numberInput}
+          />
+        </div>
+      )}
+      {error && (
+        <div
+          style={{
+            fontSize: 'var(--font-xs, 12px)',
+            color: 'var(--accent-error)',
+            marginTop: 'var(--spacing-xs, 4px)',
+          }}
+        >
+          {error}
+        </div>
+      )}
+      <div
+        style={{
+          fontSize: 'var(--font-xs, 12px)',
+          color: 'var(--text-secondary)',
+          marginTop: 'var(--spacing-sm, 8px)',
+        }}
+      >
+        {engineRunning && currentPort && <div>Currently listening on port {currentPort}</div>}
+        {!engineRunning && 'Changes require restart to take effect.'}
+      </div>
+    </>
+  )
+}
 
 interface SpeedLimitRowProps {
   label: string
