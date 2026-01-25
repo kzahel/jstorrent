@@ -196,7 +196,11 @@ class TorrentDetailViewModel(
      */
     fun toggleFileSelection(fileIndex: Int) {
         val baseState = _pendingFileState.value ?: _appliedFileState.value
-        val currentState = baseState[fileIndex] ?: FileState()
+        // If no pending/applied state, derive from engine's actual priority
+        val currentState = baseState[fileIndex] ?: run {
+            val enginePriority = _cachedFiles.value.find { it.index == fileIndex }?.priority ?: 0
+            FileState(isSelected = enginePriority != 1) // priority 1 = skipped
+        }
         val newState = currentState.copy(isSelected = !currentState.isSelected)
 
         val newPending = baseState.toMutableMap()
@@ -209,7 +213,11 @@ class TorrentDetailViewModel(
      */
     fun setFilePriority(fileIndex: Int, priority: FilePriority) {
         val baseState = _pendingFileState.value ?: _appliedFileState.value
-        val currentState = baseState[fileIndex] ?: FileState()
+        // If no pending/applied state, derive from engine's actual priority
+        val currentState = baseState[fileIndex] ?: run {
+            val enginePriority = _cachedFiles.value.find { it.index == fileIndex }?.priority ?: 0
+            FileState(isSelected = enginePriority != 1)
+        }
 
         // SKIP priority also deselects the file
         val isSelected = if (priority == FilePriority.SKIP) false else currentState.isSelected
@@ -269,7 +277,7 @@ class TorrentDetailViewModel(
                 when (state.priority) {
                     FilePriority.HIGH -> 2
                     FilePriority.SKIP -> 1
-                    else -> 0 // NORMAL and LOW both map to Normal
+                    FilePriority.NORMAL -> 0
                 }
             }
         }

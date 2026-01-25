@@ -104,7 +104,7 @@ fun TorrentCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Status line: "Downloading • 45%"
+                // Status line: "Downloading • 45%" or "Seeding • 100% (partial)"
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -115,7 +115,13 @@ fun TorrentCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = Formatters.formatPercent(torrent.progress),
+                        text = buildString {
+                            append(Formatters.formatPercent(torrent.progress))
+                            // Show "(partial)" when seeding with skipped files
+                            if (torrent.progress >= 0.999 && torrent.skippedFilesCount > 0) {
+                                append(" (partial)")
+                            }
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

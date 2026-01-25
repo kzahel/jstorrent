@@ -302,7 +302,7 @@ export class ChromeExtensionEngineManager implements IEngineManager {
       storageRootManager: srm,
       sessionStore: this.sessionStore,
       hasher,
-      port: configHub.listeningPort.get(),
+      port: configHub.listeningPortAuto.get() ? 0 : configHub.listeningPort.get(),
       startSuspended: true,
       getNetworkInterfaces: () => this.daemonConnection!.getNetworkInterfaces(),
       config: configHub,

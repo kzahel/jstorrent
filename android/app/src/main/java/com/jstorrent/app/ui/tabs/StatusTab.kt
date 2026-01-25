@@ -18,7 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.jstorrent.app.model.FilePriority
 import com.jstorrent.app.model.TorrentDetailUi
+import com.jstorrent.app.model.TorrentFileUi
 import com.jstorrent.app.ui.components.SpeedDirection
 import com.jstorrent.app.ui.components.SpeedIndicator
 import com.jstorrent.app.ui.components.StatRow
@@ -66,6 +68,12 @@ fun StatusTab(
             HorizontalDivider()
             PiecesSection(torrent = torrent)
         }
+
+        // Files section (only show if there are files)
+        if (torrent.files.isNotEmpty()) {
+            HorizontalDivider()
+            FilesSection(torrent = torrent)
+        }
     }
 }
 
@@ -77,6 +85,9 @@ private fun ProgressSection(
     torrent: TorrentDetailUi,
     modifier: Modifier = Modifier
 ) {
+    val skippedFiles = torrent.files.count { !it.isSelected || it.priority == FilePriority.SKIP }
+    val isPartial = torrent.progress >= 0.999 && skippedFiles > 0
+
     Column(modifier = modifier.fillMaxWidth()) {
         // Status row
         Row(
@@ -84,7 +95,7 @@ private fun ProgressSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            StatusBadge(status = torrent.status)
+            StatusBadge(status = torrent.status, suffix = if (isPartial) " (partial)" else null)
             Text(
                 text = Formatters.formatPercent(torrent.progress),
                 style = MaterialTheme.typography.titleLarge,
@@ -233,6 +244,35 @@ private fun PiecesSection(
                 torrent.pieceSize ?: 0
             )
         )
+    }
+}
+
+/**
+ * Files section showing file counts and skipped files.
+ */
+@Composable
+private fun FilesSection(
+    torrent: TorrentDetailUi,
+    modifier: Modifier = Modifier
+) {
+    val totalFiles = torrent.files.size
+    val skippedFiles = torrent.files.count { !it.isSelected || it.priority == FilePriority.SKIP }
+    val selectedFiles = totalFiles - skippedFiles
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        if (skippedFiles > 0) {
+            StatRowPair(
+                leftLabel = "Files",
+                leftValue = "$selectedFiles of $totalFiles",
+                rightLabel = "Skipped",
+                rightValue = "$skippedFiles"
+            )
+        } else {
+            StatRow(
+                label = "Files",
+                value = "$totalFiles"
+            )
+        }
     }
 }
 

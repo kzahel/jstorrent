@@ -143,7 +143,8 @@ data class TorrentSummary(
     val uploadSpeed: Long,
     val status: String,
     val numPeers: Int = 0,
-    val swarmPeers: Int = 0
+    val swarmPeers: Int = 0,
+    val skippedFilesCount: Int = 0
 )
 
 /**

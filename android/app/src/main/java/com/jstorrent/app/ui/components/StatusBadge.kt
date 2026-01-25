@@ -23,15 +23,17 @@ import com.jstorrent.app.util.Formatters
  * @param status Raw status string from engine (e.g., "downloading", "stopped")
  * @param modifier Optional modifier
  * @param showBackground Whether to show colored background (badge style)
+ * @param suffix Optional suffix to append (e.g., " (partial)")
  */
 @Composable
 fun StatusBadge(
     status: String,
     modifier: Modifier = Modifier,
     showBackground: Boolean = false,
-    style: TextStyle = MaterialTheme.typography.labelMedium
+    style: TextStyle = MaterialTheme.typography.labelMedium,
+    suffix: String? = null
 ) {
-    val displayText = Formatters.formatStatus(status)
+    val displayText = Formatters.formatStatus(status) + (suffix ?: "")
     val color = statusColor(status)
 
     if (showBackground) {

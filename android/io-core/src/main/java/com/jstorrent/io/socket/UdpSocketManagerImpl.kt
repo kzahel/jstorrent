@@ -47,7 +47,8 @@ class UdpSocketManagerImpl(
 
                 callback?.onUdpBound(socketId, true, boundPort, 0)
 
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                android.util.Log.e("UdpSocketManager", "Failed to bind socket $socketId to port $port", e)
                 callback?.onUdpBound(socketId, false, 0, 1)
             }
         }

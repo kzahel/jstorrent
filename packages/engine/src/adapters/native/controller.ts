@@ -669,6 +669,7 @@ export function startStatePushLoop(engine: BtEngine): () => void {
           status: t.activityState,
           numPeers: t.numPeers,
           swarmPeers: t.swarm.total,
+          skippedFilesCount: t.filePriorities.filter((p) => p === 1).length,
         })),
         pieceChanges: Object.keys(pieceChanges).length > 0 ? pieceChanges : undefined,
       })

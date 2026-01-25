@@ -208,7 +208,6 @@ private fun formatFileStatus(file: TorrentFileUi): String {
     // Show priority if not normal
     val priorityText = when (file.priority) {
         FilePriority.HIGH -> " (High)"
-        FilePriority.LOW -> " (Low)"
         else -> ""
     }
 

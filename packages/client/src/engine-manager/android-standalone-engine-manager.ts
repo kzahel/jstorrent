@@ -199,7 +199,7 @@ export class AndroidStandaloneEngineManager implements IEngineManager {
       socketFactory: new DaemonSocketFactory(this.daemonConnection),
       storageRootManager: srm,
       sessionStore: this.sessionStore,
-      port: this._configHub.listeningPort.get(),
+      port: this._configHub.listeningPortAuto.get() ? 0 : this._configHub.listeningPort.get(),
       startSuspended: true,
       config: this._configHub,
     })

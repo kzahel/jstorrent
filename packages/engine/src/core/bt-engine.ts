@@ -1376,7 +1376,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       this._dhtNode = new DHTNode({
         nodeId,
         socketFactory: this.socketFactory,
-        krpcOptions: { bindPort: this.port + 1 }, // DHT uses port+1 to avoid conflicts
+        krpcOptions: { bindPort: this.port === 0 ? 0 : this.port + 1 }, // DHT uses port+1 or auto-assign if engine port is 0
         logger: dhtLogger,
         bandwidthTracker: this.bandwidthTracker,
       })

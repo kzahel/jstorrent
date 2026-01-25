@@ -151,7 +151,6 @@ data class TorrentDetailUi(
 enum class FilePriority(val displayName: String) {
     HIGH("High"),
     NORMAL("Normal"),
-    LOW("Low"),
     SKIP("Don't Download")
 }
 
