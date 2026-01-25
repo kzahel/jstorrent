@@ -111,19 +111,31 @@ FileBindings: Disk write: 14.8 MB/s, 150 writes, avg 8ms, max 25ms
 
 ### Backpressure problem (verified 2025-01-25)
 ```
-TcpBindings: TCP recv: 12.44 MB/s (raw), queue depth: 844 (max: 854)  ← CRITICAL
-TcpBindings: JS callback queue depth: 410 (BACKPRESSURE)              ← WARNING
+TcpBindings: TCP recv: 12.48 MB/s (raw), queue depth: 2496 (max: 2496)   ← CRITICAL
+TcpBindings: JS callback queue depth: 1192 (BACKPRESSURE)                ← WARNING
+FileBindings: Disk write: 5.73 MB/s, 31 writes, avg 14ms, max 24ms       ← THROTTLED
 ```
 
 ### Known issue: Download stalls temporarily
 
 With 10 concurrent peers, the download can stall for minutes:
-- Queue depth spikes to 800+ items
-- Memory spikes to 80MB, triggers heavy GC
-- Upload rate drops to 0 while peers stay connected
-- Download stops at ~857 MB (84% of 1GB)
+- Queue depth spikes to 10,000+ items (observed peak: 12,995)
+- Disk write rate drops from ~15 MB/s to <1 MB/s during stall
+- TCP recv continues at ~13 MB/s, overwhelming the JS callback queue
 - **Eventually resumes** after queue drains (~2 min stall observed)
 - Completes successfully, but with significant delay
+
+Typical progression observed (2025-01-25):
+| Time | Queue Depth | Max Queue | TCP Recv | Disk Write |
+|------|-------------|-----------|----------|------------|
+| +0s | 0 | 187 | 14.82 MB/s | 14.74 MB/s |
+| +15s | 50 | 181 | 13.52 MB/s | 13.48 MB/s |
+| +30s | 211 | 560 | 12.58 MB/s | 12.48 MB/s |
+| +35s | 1289 | 1402 | 11.84 MB/s | 9.89 MB/s |
+| +40s | 2496 | 2496 | 12.48 MB/s | 5.73 MB/s |
+| +45s | 6418 | 6418 | 12.92 MB/s | 1.78 MB/s |
+| +50s | 12989 | 12995 | 13.61 MB/s | 0.46 MB/s |
+| +120s | 0 | 143 | 14.61 MB/s | 14.51 MB/s |
 
 This is the backpressure problem - JS can't process incoming data fast enough.
 
@@ -131,10 +143,10 @@ This is the backpressure problem - JS can't process incoming data fast enough.
 
 | Metric | Healthy | Problem | Critical |
 |--------|---------|---------|----------|
-| TCP queue depth | 0-30 | 50-100 | >200 |
-| Max queue depth | <50 | 100-300 | >500 |
+| TCP queue depth | 0-30 | 50-500 | >1000 |
+| Max queue depth | <200 | 500-2000 | >5000 |
+| Disk write rate | >10 MB/s | 5-10 MB/s | <1 MB/s |
 | Disk avg latency | <15ms | 15-30ms | >50ms |
-| Memory (GC logs) | <20MB | 20-50MB | >80MB |
 | Download stall | No | Slows | Complete stop |
 
 ## After Code Changes

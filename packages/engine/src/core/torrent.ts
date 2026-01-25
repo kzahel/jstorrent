@@ -141,6 +141,10 @@ export class Torrent extends EngineComponent {
   public contentStorage?: TorrentContentStorage
   private _diskQueue: TorrentDiskQueue = new TorrentDiskQueue()
   private _endgameManager: EndgameManager = new EndgameManager()
+
+  // Batched request scheduling to reduce overhead when many blocks arrive quickly
+  private _requestPiecesPending = new Set<PeerConnection>()
+  private _requestPiecesScheduled = false
   private _bitfield?: BitField
   public announce: string[] = []
   public trackerManager?: TrackerManager
@@ -2673,6 +2677,27 @@ export class Torrent extends EngineComponent {
     }
   }
 
+  /**
+   * Schedule requestPieces for a peer using microtask batching.
+   * Multiple blocks received in the same tick will be batched into a single pass.
+   * This reduces CPU overhead when many blocks arrive quickly from multiple peers.
+   */
+  private scheduleRequestPieces(peer: PeerConnection): void {
+    this._requestPiecesPending.add(peer)
+    if (!this._requestPiecesScheduled) {
+      this._requestPiecesScheduled = true
+      queueMicrotask(() => {
+        this._requestPiecesScheduled = false
+        for (const p of this._requestPiecesPending) {
+          if (!p.peerChoking) {
+            this.requestPieces(p)
+          }
+        }
+        this._requestPiecesPending.clear()
+      })
+    }
+  }
+
   private requestPieces(peer: PeerConnection) {
     if (!this._networkActive) return
     if (this.isKillSwitchEnabled) return
@@ -2916,9 +2941,9 @@ export class Torrent extends EngineComponent {
       }
     }
 
-    // Refill request pipeline immediately (before any async I/O)
-    // This prevents sawtooth download patterns on fast peers
-    this.requestPieces(peer)
+    // Refill request pipeline via microtask batching
+    // This reduces overhead when many blocks arrive quickly from multiple peers
+    this.scheduleRequestPieces(peer)
 
     // Then finalize if piece is complete
     if (piece.haveAllBlocks) {
