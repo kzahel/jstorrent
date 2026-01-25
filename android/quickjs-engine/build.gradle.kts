@@ -78,32 +78,38 @@ tasks.register("buildEngineBundle") {
     outputs.upToDateWhen { false }
 
     doLast {
-        println(">>> Building TypeScript engine bundle...")
+        val sourceBundle = rootProject.file("../packages/engine/dist/engine.native.js")
+        val assetsDir = file("src/main/assets")
+        val bundleFile = file("src/main/assets/engine.bundle.js")
 
-        // Run pnpm bundle:native in packages/engine
-        // Use shell invocation to properly inherit PATH (needed for CI where pnpm is set up via corepack)
-        exec {
-            workingDir = rootProject.file("../packages/engine")
-            if (System.getProperty("os.name").lowercase().contains("windows")) {
-                commandLine("cmd", "/c", "pnpm bundle:native")
-            } else {
-                commandLine("sh", "-c", "pnpm bundle:native")
+        // Check if source bundle already exists (pre-built by CI or local dev)
+        if (!sourceBundle.exists()) {
+            println(">>> Building TypeScript engine bundle...")
+            // Run pnpm bundle:native in packages/engine
+            // Use shell invocation to properly inherit PATH
+            exec {
+                workingDir = rootProject.file("../packages/engine")
+                if (System.getProperty("os.name").lowercase().contains("windows")) {
+                    commandLine("cmd", "/c", "pnpm bundle:native")
+                } else {
+                    commandLine("sh", "-c", "pnpm bundle:native")
+                }
             }
+        } else {
+            println(">>> Using pre-built engine bundle")
         }
 
         // Ensure assets directory exists
-        val assetsDir = file("src/main/assets")
         assetsDir.mkdirs()
 
         // Copy bundle to assets
         copy {
-            from(rootProject.file("../packages/engine/dist/engine.native.js"))
+            from(sourceBundle)
             into(assetsDir)
             rename { "engine.bundle.js" }
         }
 
         // Verify bundle exists
-        val bundleFile = file("src/main/assets/engine.bundle.js")
         if (!bundleFile.exists()) {
             throw GradleException("Engine bundle not found at ${bundleFile.absolutePath}")
         }
