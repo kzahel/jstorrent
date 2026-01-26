@@ -37,6 +37,17 @@ class TcpBindings(
         @Volatile private var bytesReceived = 0L
         @Volatile private var lastLogTime = System.currentTimeMillis()
         @Volatile private var maxQueueDepth = 0
+
+        /**
+         * Get current callback queue depth.
+         * This is the number of TCP data callbacks waiting to be processed by JS.
+         */
+        fun getQueueDepth(): Int = pendingCallbacks.get()
+
+        /**
+         * Get max queue depth since last reset (resets every 5 seconds during logging).
+         */
+        fun getMaxQueueDepth(): Int = maxQueueDepth
     }
 
     // JS callback names - stored when JS registers callbacks

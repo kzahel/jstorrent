@@ -147,7 +147,7 @@ export class Torrent extends EngineComponent {
   public lastPieceLength: number = 0
   public piecesCount: number = 0
   public contentStorage?: TorrentContentStorage
-  private _diskQueue: TorrentDiskQueue = new TorrentDiskQueue()
+  private _diskQueue: TorrentDiskQueue = new TorrentDiskQueue({ maxWorkers: 32 })
   private _endgameManager: EndgameManager = new EndgameManager()
 
   // Batched request scheduling to reduce overhead when many blocks arrive quickly

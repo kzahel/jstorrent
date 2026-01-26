@@ -21,8 +21,10 @@ import com.jstorrent.quickjs.model.PeerListResponse
 import com.jstorrent.quickjs.model.PieceInfo
 import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.DhtStats
+import com.jstorrent.quickjs.model.JsThreadStats
 import com.jstorrent.quickjs.model.SpeedSamplesResult
 import com.jstorrent.quickjs.model.UpnpStatus
+import com.jstorrent.quickjs.bindings.TcpBindings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -443,6 +445,20 @@ class EngineController(
      */
     fun getMaxJsThreadLatencyMs(): Long {
         return engine?.jsThread?.getMaxLatencyMs() ?: 0L
+    }
+
+    /**
+     * Get comprehensive JS thread health statistics.
+     * Includes current/max latency and TCP callback queue depth.
+     */
+    fun getJsThreadStats(): JsThreadStats {
+        val jsThread = engine?.jsThread
+        return JsThreadStats(
+            currentLatencyMs = jsThread?.getCurrentLatencyMs() ?: 0L,
+            maxLatencyMs = jsThread?.getMaxLatencyMs() ?: 0L,
+            queueDepth = TcpBindings.getQueueDepth(),
+            maxQueueDepth = TcpBindings.getMaxQueueDepth()
+        )
     }
 
     // =========================================================================

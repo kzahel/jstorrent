@@ -10,6 +10,7 @@ import com.jstorrent.quickjs.model.TorrentSummary
 import com.jstorrent.quickjs.model.TrackerInfo
 import com.jstorrent.quickjs.model.DhtStats
 import com.jstorrent.quickjs.model.SpeedSamplesResult
+import com.jstorrent.quickjs.model.JsThreadStats
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -206,6 +207,11 @@ class FakeTorrentRepository : TorrentRepository {
             bucketMs = 1000,
             latestBucketTime = System.currentTimeMillis()
         )
+    }
+
+    override fun getJsThreadStats(): JsThreadStats? {
+        // Return null for testing - no JS thread stats in fake
+        return null
     }
 }
 

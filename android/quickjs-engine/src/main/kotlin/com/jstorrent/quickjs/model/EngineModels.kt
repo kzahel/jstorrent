@@ -194,7 +194,7 @@ data class UpnpStatus(
 @Serializable
 data class SpeedSample(
     val time: Long,  // Timestamp in ms since epoch
-    val value: Float // Speed in bytes/sec
+    val value: Float // Bytes accumulated in this bucket (use bucketMs to convert to rate)
 )
 
 /**
@@ -206,6 +206,17 @@ data class SpeedSamplesResult(
     val samples: List<SpeedSample>,
     val bucketMs: Long,        // Resolution of each sample in milliseconds
     val latestBucketTime: Long // Timestamp of the most recent bucket
+)
+
+/**
+ * JS thread health statistics.
+ * Used for monitoring QuickJS performance in the UI.
+ */
+data class JsThreadStats(
+    val currentLatencyMs: Long,  // Most recent health check latency
+    val maxLatencyMs: Long,      // Max latency since engine start
+    val queueDepth: Int,         // Current TCP callback queue depth
+    val maxQueueDepth: Int       // Max queue depth since last log interval
 )
 
 /**

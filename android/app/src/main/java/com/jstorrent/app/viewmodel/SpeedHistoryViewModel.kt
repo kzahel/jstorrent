@@ -84,26 +84,49 @@ class SpeedHistoryViewModel(
                 maxPoints = 300
             )
 
+            // Get JS thread stats
+            val jsStats = repository.getJsThreadStats()
+
             if (downloadResult != null || uploadResult != null || diskResult != null) {
+                // Get bucket duration - samples contain bytes accumulated per bucket,
+                // so we need to convert to bytes/sec for display
+                val bucketMs = downloadResult?.bucketMs ?: uploadResult?.bucketMs ?: diskResult?.bucketMs ?: 1000L
+
+                // Convert samples from bytes-per-bucket to bytes-per-second
+                // Rate (bytes/sec) = value (bytes/bucket) * 1000 / bucketMs
+                fun convertToRate(samples: List<SpeedSample>?): List<SpeedSample> {
+                    if (samples == null) return emptyList()
+                    val multiplier = 1000f / bucketMs
+                    return samples.map { SpeedSample(it.time, it.value * multiplier) }
+                }
+
+                val downloadSamples = convertToRate(downloadResult?.samples)
+                val uploadSamples = convertToRate(uploadResult?.samples)
+                val diskWriteSamples = convertToRate(diskResult?.samples)
+
                 // Calculate current rates from recent samples only (within 5 seconds)
                 // If no recent sample, show 0 rather than stale data
                 val recentThreshold = now - 5000L
-                val currentDownloadRate = downloadResult?.samples?.lastOrNull()
+                val currentDownloadRate = downloadSamples.lastOrNull()
                     ?.takeIf { it.time >= recentThreshold }?.value?.toLong() ?: 0L
-                val currentUploadRate = uploadResult?.samples?.lastOrNull()
+                val currentUploadRate = uploadSamples.lastOrNull()
                     ?.takeIf { it.time >= recentThreshold }?.value?.toLong() ?: 0L
-                val currentDiskWriteRate = diskResult?.samples?.lastOrNull()
+                val currentDiskWriteRate = diskWriteSamples.lastOrNull()
                     ?.takeIf { it.time >= recentThreshold }?.value?.toLong() ?: 0L
 
                 _uiState.value = SpeedHistoryUiState.Loaded(
-                    downloadSamples = downloadResult?.samples ?: emptyList(),
-                    uploadSamples = uploadResult?.samples ?: emptyList(),
-                    diskWriteSamples = diskResult?.samples ?: emptyList(),
-                    bucketMs = downloadResult?.bucketMs ?: uploadResult?.bucketMs ?: diskResult?.bucketMs ?: 500L,
+                    downloadSamples = downloadSamples,
+                    uploadSamples = uploadSamples,
+                    diskWriteSamples = diskWriteSamples,
+                    bucketMs = bucketMs,
                     currentDownloadRate = currentDownloadRate,
                     currentUploadRate = currentUploadRate,
                     currentDiskWriteRate = currentDiskWriteRate,
-                    nowMs = now
+                    nowMs = now,
+                    jsCurrentLatencyMs = jsStats?.currentLatencyMs ?: 0L,
+                    jsMaxLatencyMs = jsStats?.maxLatencyMs ?: 0L,
+                    jsQueueDepth = jsStats?.queueDepth ?: 0,
+                    jsMaxQueueDepth = jsStats?.maxQueueDepth ?: 0
                 )
             } else {
                 // No data yet but engine might not be ready

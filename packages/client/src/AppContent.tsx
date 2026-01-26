@@ -21,7 +21,12 @@ import {
 import { useEngineState } from './hooks/useEngineState'
 import { copyTextToClipboard } from './utils/clipboard'
 import { standaloneAlert } from './utils/dialogs'
-import { UBUNTU_SERVER_MAGNET, BIG_BUCK_BUNNY_MAGNET } from './utils/test-magnets'
+import {
+  UBUNTU_SERVER_MAGNET,
+  BIG_BUCK_BUNNY_MAGNET,
+  TEST_100MB_MAGNET,
+  TEST_1GB_MAGNET,
+} from './utils/test-magnets'
 
 interface ContextMenuState {
   x: number
@@ -258,6 +263,8 @@ export function AppContent({
     ...(isDevMode
       ? [
           { id: 'separatorDev', label: '', separator: true } as ContextMenuItem,
+          { id: 'addTest100MB', label: 'Add Test 100MB', icon: '⊕' } as ContextMenuItem,
+          { id: 'addTest1GB', label: 'Add Test 1GB', icon: '⊕' } as ContextMenuItem,
           { id: 'addUbuntu', label: 'Add Ubuntu ISO', icon: '⊕' } as ContextMenuItem,
           { id: 'addBigBuckBunny', label: 'Add Big Buck Bunny', icon: '⊕' } as ContextMenuItem,
         ]
@@ -325,6 +332,12 @@ export function AppContent({
         break
       case 'removeWithData':
         handleRemoveWithDataRequest()
+        break
+      case 'addTest100MB':
+        handleAddTestTorrent(TEST_100MB_MAGNET)
+        break
+      case 'addTest1GB':
+        handleAddTestTorrent(TEST_1GB_MAGNET)
         break
       case 'addUbuntu':
         handleAddTestTorrent(UBUNTU_SERVER_MAGNET)

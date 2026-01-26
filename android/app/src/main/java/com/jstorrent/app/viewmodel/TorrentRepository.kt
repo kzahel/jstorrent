@@ -8,6 +8,7 @@ import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TrackerInfo
 import com.jstorrent.quickjs.model.DhtStats
+import com.jstorrent.quickjs.model.JsThreadStats
 import com.jstorrent.quickjs.model.SpeedSamplesResult
 import kotlinx.coroutines.flow.StateFlow
 
@@ -131,4 +132,10 @@ interface TorrentRepository {
         toTime: Long,
         maxPoints: Int = 300
     ): SpeedSamplesResult?
+
+    /**
+     * Get JS thread health statistics.
+     * Returns current/max latency and callback queue depth.
+     */
+    fun getJsThreadStats(): JsThreadStats?
 }

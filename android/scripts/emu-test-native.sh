@@ -28,10 +28,10 @@ export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$SDK_ROOT/platform-tools:$SDK_RO
 
 # Test magnets (deterministic test data from libtorrent seeder)
 # Run `pnpm seed-for-test` or `pnpm seed-for-test --size 1gb` to start the seeder
-# Peer hints: 10.0.2.2 (emulator->host), 127.0.0.1 (desktop/extension)
+# Kitchen sink peer hints: 10.0.2.2 (emulator->host), 127.0.0.1 (localhost), plus LAN IPs
 # Uses v1 infohash (SHA1 of full info dict), not truncated v2 hash
-MAGNET_100MB="magnet:?xt=urn:btih:67d01ece1b99c49c257baada0f760b770a7530b9&dn=testdata_100mb.bin&x.pe=10.0.2.2:6881&x.pe=127.0.0.1:6881"
-MAGNET_1GB="magnet:?xt=urn:btih:18a7aacab6d2bc518e336921ccd4b6cc32a9624b&dn=testdata_1gb.bin&x.pe=10.0.2.2:6881&x.pe=127.0.0.1:6881"
+MAGNET_100MB="magnet:?xt=urn:btih:67d01ece1b99c49c257baada0f760b770a7530b9&dn=testdata_100mb.bin&x.pe=10.0.2.2:6881&x.pe=127.0.0.1:6881&x.pe=100.115.92.206:6881&x.pe=192.168.1.107:6881&x.pe=192.168.1.131:6881&x.pe=192.168.1.139:6881"
+MAGNET_1GB="magnet:?xt=urn:btih:18a7aacab6d2bc518e336921ccd4b6cc32a9624b&dn=testdata_1gb.bin&x.pe=10.0.2.2:6881&x.pe=127.0.0.1:6881&x.pe=100.115.92.206:6881&x.pe=192.168.1.107:6881&x.pe=192.168.1.131:6881&x.pe=192.168.1.139:6881"
 DEFAULT_MAGNET="$MAGNET_100MB"
 
 # Parse arguments

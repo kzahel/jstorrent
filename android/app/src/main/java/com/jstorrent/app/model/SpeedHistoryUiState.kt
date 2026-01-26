@@ -22,7 +22,12 @@ sealed class SpeedHistoryUiState {
         val currentDownloadRate: Long,
         val currentUploadRate: Long,
         val currentDiskWriteRate: Long,
-        val nowMs: Long
+        val nowMs: Long,
+        // JS thread health stats
+        val jsCurrentLatencyMs: Long = 0L,
+        val jsMaxLatencyMs: Long = 0L,
+        val jsQueueDepth: Int = 0,
+        val jsMaxQueueDepth: Int = 0
     ) : SpeedHistoryUiState()
 
     /**

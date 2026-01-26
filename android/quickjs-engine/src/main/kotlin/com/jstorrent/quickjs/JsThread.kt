@@ -67,7 +67,8 @@ class JsThread : Thread("quickjs-engine") {
     // Health monitoring
     private var healthCheckRunnable: Runnable? = null
     private val lastHealthCheckTime = AtomicLong(0)
-    private var maxLatencyMs = 0L
+    @Volatile private var currentLatencyMs = 0L
+    @Volatile private var maxLatencyMs = 0L
     private var healthCheckEnabled = false
 
     override fun run() {
@@ -204,8 +205,11 @@ class JsThread : Thread("quickjs-engine") {
 
                 val scheduledTime = lastHealthCheckTime.get()
                 val now = System.currentTimeMillis()
-                val latency = now - scheduledTime - HEALTH_CHECK_INTERVAL_MS
+                // Clamp to 0 - negative values can occur due to clock granularity
+                val latency = maxOf(0L, now - scheduledTime - HEALTH_CHECK_INTERVAL_MS)
 
+                // Update current and max latency
+                currentLatencyMs = latency
                 if (latency > maxLatencyMs) {
                     maxLatencyMs = latency
                 }
@@ -237,6 +241,12 @@ class JsThread : Thread("quickjs-engine") {
             Log.i(TAG, "Health check stopped (max latency observed: ${maxLatencyMs}ms)")
         }
     }
+
+    /**
+     * Get the current (most recent) latency measurement in ms.
+     * Updated every 5 seconds during health checks.
+     */
+    fun getCurrentLatencyMs(): Long = currentLatencyMs
 
     /**
      * Get the maximum latency observed since health checks started.

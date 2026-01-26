@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -154,6 +155,16 @@ private fun SpeedHistoryContent(
             uploadRate = state.currentUploadRate,
             diskWriteRate = state.currentDiskWriteRate
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // JS Thread health stats
+        JsThreadHealthCard(
+            currentLatencyMs = state.jsCurrentLatencyMs,
+            maxLatencyMs = state.jsMaxLatencyMs,
+            queueDepth = state.jsQueueDepth,
+            maxQueueDepth = state.jsMaxQueueDepth
+        )
     }
 }
 
@@ -270,6 +281,109 @@ private fun RateDisplay(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+private fun JsThreadHealthCard(
+    currentLatencyMs: Long,
+    maxLatencyMs: Long,
+    queueDepth: Int,
+    maxQueueDepth: Int,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Memory,
+                    contentDescription = "JS Thread",
+                    tint = Color(0xFF8B5CF6) // Purple
+                )
+                Text(
+                    text = "JS Thread Health",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            // Stats row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                // Latency
+                StatDisplay(
+                    label = "Latency",
+                    value = formatLatency(currentLatencyMs),
+                    subValue = "max: ${formatLatency(maxLatencyMs)}",
+                    isWarning = currentLatencyMs > 1000
+                )
+
+                // Queue depth
+                StatDisplay(
+                    label = "Queue",
+                    value = queueDepth.toString(),
+                    subValue = "max: $maxQueueDepth",
+                    isWarning = queueDepth > 50
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatDisplay(
+    label: String,
+    value: String,
+    subValue: String,
+    isWarning: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge,
+            fontFamily = FontFamily.Monospace,
+            color = if (isWarning) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = subValue,
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        )
+    }
+}
+
+/**
+ * Formats latency in milliseconds to human-readable string.
+ */
+private fun formatLatency(ms: Long): String {
+    return when {
+        ms >= 1000 -> String.format("%.1fs", ms / 1000.0)
+        else -> "${ms}ms"
     }
 }
 

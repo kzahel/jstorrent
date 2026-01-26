@@ -11,6 +11,7 @@ import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TrackerInfo
 import com.jstorrent.quickjs.model.DhtStats
+import com.jstorrent.quickjs.model.JsThreadStats
 import com.jstorrent.quickjs.model.SpeedSamplesResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -180,5 +181,9 @@ class EngineServiceRepository(
         maxPoints: Int
     ): SpeedSamplesResult? {
         return controller?.getSpeedSamplesAsync(direction, categories, fromTime, toTime, maxPoints)
+    }
+
+    override fun getJsThreadStats(): JsThreadStats? {
+        return controller?.getJsThreadStats()
     }
 }
