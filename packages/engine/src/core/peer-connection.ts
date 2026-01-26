@@ -6,6 +6,7 @@ import { Bencode } from '../utils/bencode'
 import { toHex } from '../utils/buffer'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
 import { SpeedCalculator } from '../utils/speed-calculator'
+import { ChunkedBuffer } from './chunked-buffer'
 
 export interface PeerConnection {
   on(event: 'connect', listener: () => void): this
@@ -45,7 +46,7 @@ export class PeerConnection extends EngineComponent {
   static logName = 'peer'
 
   private socket: ITcpSocket
-  private buffer: Uint8Array = new Uint8Array(0)
+  private buffer = new ChunkedBuffer()
   public handshakeReceived = false
 
   private send(data: Uint8Array) {
@@ -224,11 +225,8 @@ export class PeerConnection extends EngineComponent {
 
   private handleData(data: Uint8Array) {
     // this.logger.debug(`Received ${data.length} bytes`)
-    // Append to buffer
-    const newBuffer = new Uint8Array(this.buffer.length + data.length)
-    newBuffer.set(this.buffer)
-    newBuffer.set(data, this.buffer.length)
-    this.buffer = newBuffer
+    // O(1) push to chunked buffer - no copy
+    this.buffer.push(data)
 
     this.downloaded += data.length
     this.downloadSpeedCalculator.addBytes(data.length)
@@ -239,7 +237,13 @@ export class PeerConnection extends EngineComponent {
 
   private processBuffer() {
     if (!this.handshakeReceived) {
-      const result = PeerWireProtocol.parseHandshake(this.buffer)
+      // Need 68 bytes for handshake
+      const handshakeBytes = this.buffer.peekBytes(0, 68)
+      if (!handshakeBytes) {
+        return // Wait for more data
+      }
+
+      const result = PeerWireProtocol.parseHandshake(handshakeBytes)
       if (result) {
         this.handshakeReceived = true
         this.infoHash = result.infoHash
@@ -247,7 +251,7 @@ export class PeerConnection extends EngineComponent {
         this.peerExtensions = result.extensions
         this.peerFastExtension = result.fastExtension
         // this.logger.debug('Handshake parsed, extensions:', this.peerExtensions, 'fast:', this.peerFastExtension)
-        this.buffer = this.buffer.slice(68)
+        this.buffer.discard(68)
         this.emit('handshake', this.infoHash, this.peerId, this.peerExtensions)
         // Continue processing in case there are more messages
       } else {
@@ -256,25 +260,22 @@ export class PeerConnection extends EngineComponent {
     }
 
     while (this.buffer.length > 4) {
-      const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength)
-      const length = view.getUint32(0, false)
-      const totalLength = 4 + length
+      const length = this.buffer.peekUint32(0)
+      if (length === null) break
 
-      if (this.buffer.length >= totalLength) {
-        const message = this.buffer.slice(0, totalLength)
-        this.buffer = this.buffer.slice(totalLength)
-        try {
-          const msg = PeerWireProtocol.parseMessage(message)
-          if (msg) {
-            this.handleMessage(msg)
-          }
-        } catch (err) {
-          this.logger.error('Error parsing message:', { err })
-          this.close()
-          return
+      const totalLength = 4 + length
+      if (this.buffer.length < totalLength) break
+
+      const message = this.buffer.consume(totalLength)
+      try {
+        const msg = PeerWireProtocol.parseMessage(message)
+        if (msg) {
+          this.handleMessage(msg)
         }
-      } else {
-        break // Wait for more data
+      } catch (err) {
+        this.logger.error('Error parsing message:', { err })
+        this.close()
+        return
       }
     }
   }
