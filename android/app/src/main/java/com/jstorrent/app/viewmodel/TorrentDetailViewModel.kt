@@ -384,7 +384,7 @@ class TorrentDetailViewModel(
                 downloadSpeed = peer.downloadSpeed,
                 uploadSpeed = peer.uploadSpeed,
                 progress = peer.progress,
-                flags = if (peer.isEncrypted) "E" else null,
+                flags = formatPeerFlags(peer),
                 state = peer.state
             )
         }
@@ -439,6 +439,31 @@ class TorrentDetailViewModel(
             "error" -> TrackerStatus.ERROR
             else -> TrackerStatus.DISABLED // 'idle' = not contacted yet
         }
+    }
+
+    /**
+     * Format peer flags (choking/interested states) matching extension display.
+     * E = encrypted (MSE/PE), I = incoming connection
+     * d/D = download (lowercase = peer choking us), u/U = upload (lowercase = we choking them)
+     * Returns null for connecting peers (no connection yet).
+     */
+    private fun formatPeerFlags(peer: PeerInfo): String? {
+        if (peer.state == "connecting") return null
+
+        val flags = buildList {
+            if (peer.isEncrypted) add("E")
+            if (peer.isIncoming) add("I")
+            // Download: are we interested and are they choking us?
+            if (peer.amInterested) {
+                add(if (peer.peerChoking) "d" else "D")
+            }
+            // Upload: are they interested and are we choking them?
+            if (peer.peerInterested) {
+                add(if (peer.amChoking) "u" else "U")
+            }
+        }
+
+        return if (flags.isEmpty()) null else flags.joinToString(" ")
     }
 
     /**

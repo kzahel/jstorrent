@@ -481,6 +481,7 @@ fun NetworkSettingsScreen(
                     upnpStatus = uiState.upnpStatus,
                     upnpExternalIP = uiState.upnpExternalIP,
                     upnpPort = uiState.upnpPort,
+                    hasReceivedIncomingConnection = uiState.hasReceivedIncomingConnection,
                     onWifiOnlyChange = { viewModel.setWifiOnly(it) },
                     onEncryptionPolicyChange = { viewModel.setEncryptionPolicy(it) },
                     onDhtChange = { viewModel.setDhtEnabled(it) },
@@ -1295,6 +1296,7 @@ private fun NetworkSection(
     upnpStatus: String,
     upnpExternalIP: String?,
     upnpPort: Int,
+    hasReceivedIncomingConnection: Boolean,
     onWifiOnlyChange: (Boolean) -> Unit,
     onEncryptionPolicyChange: (String) -> Unit,
     onDhtChange: (Boolean) -> Unit,
@@ -1362,6 +1364,7 @@ private fun NetworkSection(
             status = upnpStatus,
             externalIP = upnpExternalIP,
             port = upnpPort,
+            hasReceivedIncomingConnection = hasReceivedIncomingConnection,
             onEnabledChange = onUpnpChange
         )
     }
@@ -1407,6 +1410,7 @@ private fun UpnpRow(
     status: String,
     externalIP: String?,
     port: Int,
+    hasReceivedIncomingConnection: Boolean,
     onEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1422,6 +1426,16 @@ private fun UpnpRow(
         status == "unavailable" -> "No UPnP gateway found" to MaterialTheme.colorScheme.onSurfaceVariant
         status == "failed" -> "Port mapping failed" to MaterialTheme.colorScheme.error
         else -> "" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    // Incoming connection status (only show when enabled)
+    val incomingStatusText = if (enabled && status == "mapped") {
+        if (hasReceivedIncomingConnection) "Incoming: verified" else "Incoming: not yet verified"
+    } else ""
+    val incomingStatusColor = if (hasReceivedIncomingConnection) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     Row(
@@ -1447,6 +1461,13 @@ private fun UpnpRow(
                     text = statusText,
                     style = MaterialTheme.typography.bodySmall,
                     color = statusColor
+                )
+            }
+            if (incomingStatusText.isNotEmpty()) {
+                Text(
+                    text = incomingStatusText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = incomingStatusColor
                 )
             }
         }

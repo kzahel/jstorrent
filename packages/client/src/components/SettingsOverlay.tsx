@@ -736,6 +736,15 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager
 
   const statusInfo = getUpnpStatusInfo()
 
+  // Incoming connection verification status
+  const hasReceivedIncoming = engineManager.engine?.hasReceivedIncomingConnection ?? false
+  const incomingStatusInfo =
+    upnpStatus === 'mapped'
+      ? hasReceivedIncoming
+        ? { text: 'Incoming: verified', color: 'var(--accent-success)' }
+        : { text: 'Incoming: not yet verified', color: 'var(--text-secondary)' }
+      : null
+
   return (
     <div>
       <Section title="Listening Port">
@@ -757,21 +766,35 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager
               Automatically configure router for incoming connections
             </div>
           </div>
-          {statusInfo.text && (
-            <span
-              style={{
-                fontSize: 'var(--font-xs, 12px)',
-                color: statusInfo.color,
-                marginRight: 'var(--spacing-md, 12px)',
-              }}
-            >
-              {statusInfo.text}
-            </span>
-          )}
+          <div
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}
+          >
+            {statusInfo.text && (
+              <span
+                style={{
+                  fontSize: 'var(--font-xs, 12px)',
+                  color: statusInfo.color,
+                }}
+              >
+                {statusInfo.text}
+              </span>
+            )}
+            {incomingStatusInfo && (
+              <span
+                style={{
+                  fontSize: 'var(--font-xs, 12px)',
+                  color: incomingStatusInfo.color,
+                }}
+              >
+                {incomingStatusInfo.text}
+              </span>
+            )}
+          </div>
           <input
             type="checkbox"
             checked={settings.upnpEnabled}
             onChange={(e) => config.set('upnpEnabled', e.target.checked)}
+            style={{ marginLeft: 'var(--spacing-md, 12px)' }}
           />
         </label>
       </Section>

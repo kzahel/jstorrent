@@ -40,6 +40,7 @@ data class SettingsUiState(
     val upnpStatus: String = "disabled", // disabled, discovering, mapped, unavailable, failed
     val upnpExternalIP: String? = null,
     val upnpPort: Int = 0,
+    val hasReceivedIncomingConnection: Boolean = false,
     val encryptionPolicy: String = "allow",
     // Power Management
     val backgroundDownloadsEnabled: Boolean = false,
@@ -103,7 +104,8 @@ class SettingsViewModel(
             _uiState.value = _uiState.value.copy(
                 upnpStatus = upnpInfo.status,
                 upnpExternalIP = upnpInfo.externalIP,
-                upnpPort = upnpInfo.port
+                upnpPort = upnpInfo.port,
+                hasReceivedIncomingConnection = upnpInfo.hasReceivedIncomingConnection
             )
         }
     }

@@ -84,7 +84,13 @@ data class PeerInfo(
     val uploadSpeed: Long = 0,
     val progress: Double = 0.0,
     val isEncrypted: Boolean = false,
-    val clientName: String? = null
+    val isIncoming: Boolean = false,
+    val clientName: String? = null,
+    // Choking/interested states for flag display
+    val amInterested: Boolean = false,
+    val peerChoking: Boolean = true,
+    val peerInterested: Boolean = false,
+    val amChoking: Boolean = true
 )
 
 /**
@@ -178,7 +184,8 @@ data class ContentRoot(
 data class UpnpStatus(
     val status: String, // disabled, discovering, mapped, unavailable, failed
     val externalIP: String? = null,
-    val port: Int = 0
+    val port: Int = 0,
+    val hasReceivedIncomingConnection: Boolean = false
 )
 
 /**

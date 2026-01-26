@@ -135,6 +135,18 @@
             android:excludeFromRecents="true"
             android:noHistory="true" />
 
+        <!-- Debug receiver for inspecting engine state via adb.
+             Usage: adb shell am broadcast -a com.jstorrent.DEBUG  es cmd status
+             See DebugReceiver.kt for full command list. -->
+        <receiver
+            android:name=".debug.DebugReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="com.jstorrent.DEBUG" />
+            </intent-filter>
+        </receiver>
+
         <!-- Pairing approval activity -->
         <activity
             android:name=".PairingApprovalActivity"

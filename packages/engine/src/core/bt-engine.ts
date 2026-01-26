@@ -199,10 +199,22 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   private _upnpStatus: UPnPStatus = 'disabled'
   private getNetworkInterfaces?: () => Promise<NetworkInterface[]>
 
+  // === Incoming Connection Tracking ===
+  /** Whether we've ever received a successful incoming connection this session */
+  private _hasReceivedIncomingConnection: boolean = false
+
   // === DHT ===
   private _dhtEnabled: boolean = true
   private _dhtNode?: DHTNode
   private _skipDHTBootstrap: boolean = false
+
+  // === Incoming Connection Protection ===
+  /** Timeout for incoming connections to complete BT handshake (ms) */
+  private static readonly INCOMING_HANDSHAKE_TIMEOUT = 30_000
+  /** Max pending (pre-handshake) incoming connections */
+  private static readonly MAX_PENDING_INCOMING = 50
+  /** Track pending incoming connections with their cleanup timers */
+  private pendingIncoming = new Set<PeerConnection>()
 
   // === Unified Daemon Operation Queue ===
 
@@ -506,11 +518,47 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       }
     }
 
+    // Check pending connection limit to prevent resource exhaustion from zombie connections
+    if (this.pendingIncoming.size >= BtEngine.MAX_PENDING_INCOMING) {
+      this.logger.debug(
+        `Rejecting incoming connection: pending limit reached (${this.pendingIncoming.size}/${BtEngine.MAX_PENDING_INCOMING})`,
+      )
+      rawSocket.close()
+      return
+    }
+
     const peer = new PeerConnection(this, socket, {
       remoteAddress: socket.remoteAddress!,
       remotePort: socket.remotePort!,
     })
+
+    // Track this pending connection
+    this.pendingIncoming.add(peer)
+
+    // Set up handshake timeout - close connection if no valid handshake received
+    const handshakeTimeout = setTimeout(() => {
+      if (this.pendingIncoming.has(peer)) {
+        this.logger.debug(
+          `Incoming connection from ${peer.remoteAddress}:${peer.remotePort} timed out waiting for handshake`,
+        )
+        this.pendingIncoming.delete(peer)
+        peer.close()
+      }
+    }, BtEngine.INCOMING_HANDSHAKE_TIMEOUT)
+
+    // Clean up on connection close (before handshake)
+    peer.on('close', () => {
+      if (this.pendingIncoming.has(peer)) {
+        clearTimeout(handshakeTimeout)
+        this.pendingIncoming.delete(peer)
+      }
+    })
+
     peer.on('handshake', (infoHash, _peerId, _extensions) => {
+      // Handshake received - clear timeout and remove from pending
+      clearTimeout(handshakeTimeout)
+      this.pendingIncoming.delete(peer)
+
       const infoHashStr = toHex(infoHash)
       const torrent = this.getTorrent(infoHashStr)
       if (torrent) {
@@ -519,6 +567,13 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         peer.sendHandshake(torrent.infoHash, torrent.peerId)
         peer.isIncoming = true
         torrent.addPeer(peer)
+        // Track that we've received at least one incoming connection
+        if (!this._hasReceivedIncomingConnection) {
+          this._hasReceivedIncomingConnection = true
+          this.logger.info(
+            'First incoming connection received - port forwarding appears to be working',
+          )
+        }
       } else {
         const knownHashes = this.torrents.map((t) => toHex(t.infoHash))
         this.logger.warn(
@@ -826,6 +881,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       unsubscribe()
     }
     this.configUnsubscribers = []
+
+    // Close pending incoming connections (pre-handshake)
+    for (const peer of this.pendingIncoming) {
+      peer.close()
+    }
+    this.pendingIncoming.clear()
 
     // Notify ConfigHub that engine is stopping (clears pending restart-required changes)
     if (this.config && 'setEngineRunning' in this.config) {
@@ -1277,6 +1338,14 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    */
   get upnpStatus(): UPnPStatus {
     return this._upnpStatus
+  }
+
+  /**
+   * Whether we've ever received a successful incoming connection this session.
+   * Useful for verifying port forwarding is working.
+   */
+  get hasReceivedIncomingConnection(): boolean {
+    return this._hasReceivedIncomingConnection
   }
 
   /**

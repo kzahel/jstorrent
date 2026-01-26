@@ -392,6 +392,63 @@ dev logs pixel9 --js   # Real device: QuickJS logs only (PID-filtered)
 - `EngineController` - Kotlin engine wrapper
 - `QuickJsContext` - JS execution and job scheduling
 - `TcpBindings`, `UdpBindings`, `FileBindings` - Native I/O
+- `JsThread` - JS thread health monitoring (latency warnings)
+
+## Debug Manhole (adb broadcast receiver)
+
+The app includes a debug broadcast receiver for inspecting engine state when the UI is unresponsive or you need to diagnose issues without touching the app.
+
+**Commands:**
+
+```bash
+# Get engine status (includes JS thread latency)
+adb shell am broadcast -a com.jstorrent.DEBUG --es cmd status -p com.jstorrent.app
+
+# Evaluate arbitrary JavaScript in the engine
+adb shell am broadcast -a com.jstorrent.DEBUG --es cmd eval --es expr "Date.now()" -p com.jstorrent.app
+adb shell am broadcast -a com.jstorrent.DEBUG --es cmd eval --es expr "globalThis.jstorrent?.torrents?.length" -p com.jstorrent.app
+
+# Get swarm debug info (peer connection states, errors, etc)
+adb shell am broadcast -a com.jstorrent.DEBUG --es cmd swarm -p com.jstorrent.app
+# Or for a specific torrent:
+adb shell am broadcast -a com.jstorrent.DEBUG --es cmd swarm --es hash "abc123..." -p com.jstorrent.app
+
+# Get DHT statistics
+adb shell am broadcast -a com.jstorrent.DEBUG --es cmd dht -p com.jstorrent.app
+
+# List all torrents with details
+adb shell am broadcast -a com.jstorrent.DEBUG --es cmd torrents -p com.jstorrent.app
+
+# List connected peers
+adb shell am broadcast -a com.jstorrent.DEBUG --es cmd peers -p com.jstorrent.app
+
+# Set log level (debug/info/warn/error)
+adb shell am broadcast -a com.jstorrent.DEBUG --es cmd loglevel --es level debug -p com.jstorrent.app
+
+# Show help
+adb shell am broadcast -a com.jstorrent.DEBUG --es cmd help -p com.jstorrent.app
+```
+
+**Viewing output:**
+
+```bash
+# Filter to just debug output
+adb logcat -s JSTorrent-Debug
+
+# Or include in broader logs
+adb logcat | grep -i "JSTorrent-Debug"
+```
+
+**JS Thread Health Monitoring:**
+
+The JS thread automatically logs warnings when it detects latency > 1 second:
+```
+JsThread: JS thread latency: 5432ms (max: 14642ms) - thread may be overloaded
+```
+
+The `status` command shows both current latency and max observed latency since engine start.
+
+**Implementation:** `android/app/src/main/java/com/jstorrent/app/debug/DebugReceiver.kt`
 
 ## Android SDK Setup
 

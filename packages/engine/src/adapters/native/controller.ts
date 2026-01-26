@@ -511,7 +511,13 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
             ? p.connection.bitfield.count() / torrent.piecesCount
             : 0,
         isEncrypted: p.connection?.isEncrypted ?? false,
+        isIncoming: p.connection?.isIncoming ?? false,
         clientName: p.swarmPeer?.clientName ?? null,
+        // Choking/interested states for flag display
+        amInterested: p.connection?.amInterested ?? false,
+        peerChoking: p.connection?.peerChoking ?? true,
+        peerInterested: p.connection?.peerInterested ?? false,
+        amChoking: p.connection?.amChoking ?? true,
       })),
     })
   }
@@ -602,12 +608,18 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
   ;(globalThis as Record<string, unknown>).__jstorrent_query_upnp_status = (): string => {
     const engine = requireEngine('query_upnp_status')
     if (!engine) {
-      return JSON.stringify({ status: 'disabled', externalIP: null, port: 0 })
+      return JSON.stringify({
+        status: 'disabled',
+        externalIP: null,
+        port: 0,
+        hasReceivedIncomingConnection: false,
+      })
     }
     return JSON.stringify({
       status: engine.upnpStatus,
       externalIP: engine.upnpExternalIP,
       port: engine.listeningPort,
+      hasReceivedIncomingConnection: engine.hasReceivedIncomingConnection,
     })
   }
 

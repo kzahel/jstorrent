@@ -99,6 +99,9 @@ class EngineController(
         // Create QuickJS engine
         engine = QuickJsEngine()
 
+        // Start JS thread health monitoring
+        engine!!.jsThread.startHealthCheck()
+
         // Register native bindings
         bindings = NativeBindings(context, engine!!.jsThread, scope, fileManager, rootResolver).apply {
             stateListener = object : EngineStateListener {
@@ -413,6 +416,32 @@ class EngineController(
         checkLoaded()
         return engine!!.callGlobalFunction("__jstorrent_query_swarm_debug", infoHash) as? String
             ?: """{"error": "No result"}"""
+    }
+
+    /**
+     * Evaluate arbitrary JavaScript code (for debugging).
+     * Use with caution - this can execute any code in the engine context.
+     */
+    fun evaluate(script: String): Any? {
+        checkLoaded()
+        return engine!!.evaluate(script)
+    }
+
+    /**
+     * Evaluate arbitrary JavaScript code (suspend version for debugging).
+     * Use with caution - this can execute any code in the engine context.
+     */
+    suspend fun evaluateAsync(script: String): Any? {
+        checkLoaded()
+        return engine!!.evaluateAsync(script)
+    }
+
+    /**
+     * Get the maximum JS thread latency observed since engine start.
+     * Useful for diagnosing thread overload conditions.
+     */
+    fun getMaxJsThreadLatencyMs(): Long {
+        return engine?.jsThread?.getMaxLatencyMs() ?: 0L
     }
 
     // =========================================================================
