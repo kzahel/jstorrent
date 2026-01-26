@@ -18,6 +18,7 @@ import { toHex } from '../../utils/buffer'
 import { generateMagnet } from '../../utils/magnet'
 import type { InfoHashHex } from '../../utils/infohash'
 import type { NativeConfigHub } from './native-config-hub'
+import type { TrafficCategory } from '../../core/bandwidth-tracker'
 import './bindings.d.ts'
 
 /**

@@ -126,7 +126,8 @@ fun TorrentNavHost(
             )
             TorrentDetailScreen(
                 viewModel = detailViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onSettingsClick = { navController.navigate(Routes.SETTINGS) }
             )
         }
 

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -71,6 +72,7 @@ import com.jstorrent.app.viewmodel.TorrentDetailViewModel
 fun TorrentDetailScreen(
     viewModel: TorrentDetailViewModel,
     onNavigateBack: () -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -143,6 +145,16 @@ fun TorrentDetailScreen(
                                 expanded = showMenu,
                                 onDismissRequest = { showMenu = false }
                             ) {
+                                DropdownMenuItem(
+                                    text = { Text("Settings") },
+                                    onClick = {
+                                        showMenu = false
+                                        onSettingsClick()
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Settings, contentDescription = null)
+                                    }
+                                )
                                 DropdownMenuItem(
                                     text = { Text("Remove torrent") },
                                     onClick = {
