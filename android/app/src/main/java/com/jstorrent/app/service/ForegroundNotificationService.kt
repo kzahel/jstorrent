@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import android.widget.Toast
 import com.jstorrent.app.JSTorrentApplication
@@ -83,6 +84,9 @@ class ForegroundNotificationService : Service() {
     private var wifiMonitorJob: Job? = null
     private var wasPausedByWifi = false  // Track if we paused due to WiFi loss
 
+    // CPU wake lock to prevent deep sleep during downloads
+    private var wakeLock: PowerManager.WakeLock? = null
+
     // Service lifecycle state
     private val _serviceState = MutableStateFlow(ServiceState.RUNNING)
     val serviceState: StateFlow<ServiceState> = _serviceState.asStateFlow()
@@ -146,6 +150,11 @@ class ForegroundNotificationService : Service() {
             startWifiMonitoring()
         }
 
+        // Acquire CPU wake lock if enabled
+        if (settingsStore.cpuWakeLockEnabled) {
+            acquireWakeLock()
+        }
+
         return START_STICKY
     }
 
@@ -157,6 +166,9 @@ class ForegroundNotificationService : Service() {
         stopWifiMonitoring()
         networkMonitor?.stop()
         networkMonitor = null
+
+        // Release CPU wake lock
+        releaseWakeLock()
 
         notificationUpdateJob?.cancel()
         notificationUpdateJob = null
@@ -610,6 +622,55 @@ class ForegroundNotificationService : Service() {
         }
 
         Log.i(TAG, "WiFi-only mode ${if (enabled) "enabled" else "disabled"}")
+    }
+
+    // =========================================================================
+    // CPU Wake Lock for Preventing Deep Sleep
+    // =========================================================================
+
+    /**
+     * Acquire a partial wake lock to keep the CPU running during downloads.
+     */
+    private fun acquireWakeLock() {
+        if (wakeLock != null) return // Already held
+
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "JSTorrent::DownloadWakeLock"
+        ).apply {
+            acquire()
+        }
+        Log.i(TAG, "CPU wake lock acquired")
+    }
+
+    /**
+     * Release the wake lock if held.
+     */
+    private fun releaseWakeLock() {
+        wakeLock?.let {
+            if (it.isHeld) {
+                it.release()
+                Log.i(TAG, "CPU wake lock released")
+            }
+        }
+        wakeLock = null
+    }
+
+    /**
+     * Enable or disable CPU wake lock at runtime.
+     * Called from SettingsViewModel when user toggles the setting.
+     */
+    fun setCpuWakeLockEnabled(enabled: Boolean) {
+        settingsStore.cpuWakeLockEnabled = enabled
+
+        if (enabled) {
+            acquireWakeLock()
+        } else {
+            releaseWakeLock()
+        }
+
+        Log.i(TAG, "CPU wake lock ${if (enabled) "enabled" else "disabled"}")
     }
 
     companion object {

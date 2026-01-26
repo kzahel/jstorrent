@@ -114,6 +114,9 @@ fun TorrentNavHost(
                 onShutdownClick = onShutdownClick,
                 onSpeedClick = {
                     navController.navigate(Routes.SPEED_HISTORY)
+                },
+                onDhtInfoClick = {
+                    navController.navigate(Routes.DHT_INFO)
                 }
             )
         }
@@ -133,7 +136,9 @@ fun TorrentNavHost(
             TorrentDetailScreen(
                 viewModel = detailViewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onSettingsClick = { navController.navigate(Routes.SETTINGS) }
+                onSettingsClick = { navController.navigate(Routes.SETTINGS) },
+                onSpeedClick = { navController.navigate(Routes.SPEED_HISTORY) },
+                onDhtInfoClick = { navController.navigate(Routes.DHT_INFO) }
             )
         }
 

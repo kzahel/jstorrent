@@ -18,10 +18,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,6 +61,7 @@ import com.jstorrent.app.ui.tabs.StatusTab
 import com.jstorrent.app.ui.tabs.TrackersTab
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.storage.RootStore
+import com.jstorrent.app.ui.components.SharedMenuItems
 import com.jstorrent.app.viewmodel.TorrentDetailViewModel
 
 /**
@@ -73,6 +74,8 @@ fun TorrentDetailScreen(
     viewModel: TorrentDetailViewModel,
     onNavigateBack: () -> Unit,
     onSettingsClick: () -> Unit,
+    onSpeedClick: () -> Unit,
+    onDhtInfoClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -145,16 +148,20 @@ fun TorrentDetailScreen(
                                 expanded = showMenu,
                                 onDismissRequest = { showMenu = false }
                             ) {
-                                DropdownMenuItem(
-                                    text = { Text("Settings") },
-                                    onClick = {
-                                        showMenu = false
-                                        onSettingsClick()
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Settings, contentDescription = null)
-                                    }
+                                // Shared menu items (Speed, DHT Info, Settings)
+                                SharedMenuItems.SpeedMenuItem(
+                                    onClick = onSpeedClick,
+                                    onDismiss = { showMenu = false }
                                 )
+                                SharedMenuItems.DhtInfoMenuItem(
+                                    onClick = onDhtInfoClick,
+                                    onDismiss = { showMenu = false }
+                                )
+                                SharedMenuItems.SettingsMenuItem(
+                                    onClick = onSettingsClick,
+                                    onDismiss = { showMenu = false }
+                                )
+                                HorizontalDivider()
                                 DropdownMenuItem(
                                     text = { Text("Remove torrent") },
                                     onClick = {

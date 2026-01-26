@@ -538,6 +538,8 @@ fun PowerManagementSettingsScreen(
                     backgroundDownloadsEnabled = uiState.backgroundDownloadsEnabled,
                     notificationPermissionGranted = uiState.notificationPermissionGranted,
                     onBackgroundDownloadsChange = { viewModel.setBackgroundDownloadsEnabled(it) },
+                    cpuWakeLockEnabled = uiState.cpuWakeLockEnabled,
+                    onCpuWakeLockChange = { viewModel.setCpuWakeLockEnabled(it) },
                     whenDownloadsComplete = uiState.whenDownloadsComplete,
                     onWhenDownloadsCompleteChange = { viewModel.setWhenDownloadsComplete(it) }
                 )
@@ -1214,6 +1216,8 @@ private fun PowerManagementSection(
     backgroundDownloadsEnabled: Boolean,
     notificationPermissionGranted: Boolean,
     onBackgroundDownloadsChange: (Boolean) -> Unit,
+    cpuWakeLockEnabled: Boolean,
+    onCpuWakeLockChange: (Boolean) -> Unit,
     whenDownloadsComplete: String,
     onWhenDownloadsCompleteChange: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -1232,6 +1236,15 @@ private fun PowerManagementSection(
             },
             checked = backgroundDownloadsEnabled,
             onCheckedChange = onBackgroundDownloadsChange
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        SettingToggleRow(
+            label = "Prevent CPU sleep",
+            description = "Keep CPU awake during downloads. Increases battery usage.",
+            checked = cpuWakeLockEnabled,
+            onCheckedChange = onCpuWakeLockChange
         )
 
         Spacer(modifier = Modifier.height(16.dp))

@@ -44,6 +44,7 @@ data class SettingsUiState(
     val encryptionPolicy: String = "allow",
     // Power Management
     val backgroundDownloadsEnabled: Boolean = false,
+    val cpuWakeLockEnabled: Boolean = false,
     // Notifications
     val notificationPermissionGranted: Boolean = false,
     val canRequestNotificationPermission: Boolean = true,
@@ -89,7 +90,8 @@ class SettingsViewModel(
             pexEnabled = settingsStore.pexEnabled,
             upnpEnabled = settingsStore.upnpEnabled,
             encryptionPolicy = settingsStore.encryptionPolicy,
-            backgroundDownloadsEnabled = settingsStore.backgroundDownloadsEnabled
+            backgroundDownloadsEnabled = settingsStore.backgroundDownloadsEnabled,
+            cpuWakeLockEnabled = settingsStore.cpuWakeLockEnabled
         )
         // Also refresh UPnP status from engine
         refreshUpnpStatus()
@@ -342,6 +344,16 @@ class SettingsViewModel(
 
         settingsStore.backgroundDownloadsEnabled = enabled
         _uiState.value = _uiState.value.copy(backgroundDownloadsEnabled = enabled)
+    }
+
+    /**
+     * Set CPU wake lock enabled.
+     * Notifies running service to acquire/release wake lock.
+     */
+    fun setCpuWakeLockEnabled(enabled: Boolean) {
+        settingsStore.cpuWakeLockEnabled = enabled
+        ForegroundNotificationService.instance?.setCpuWakeLockEnabled(enabled)
+        _uiState.value = _uiState.value.copy(cpuWakeLockEnabled = enabled)
     }
 
     /**

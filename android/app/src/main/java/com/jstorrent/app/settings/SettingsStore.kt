@@ -107,6 +107,14 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_BACKGROUND_DOWNLOADS_ENABLED, false)
         set(value) = prefs.edit { putBoolean(KEY_BACKGROUND_DOWNLOADS_ENABLED, value) }
 
+    /**
+     * Whether to hold a CPU wake lock during downloads to prevent deep sleep.
+     * OFF by default - increases battery usage but ensures downloads complete.
+     */
+    var cpuWakeLockEnabled: Boolean
+        get() = prefs.getBoolean(KEY_CPU_WAKE_LOCK_ENABLED, false)
+        set(value) = prefs.edit { putBoolean(KEY_CPU_WAKE_LOCK_ENABLED, value) }
+
     // =========================================================================
     // Connection Limits
     // =========================================================================
@@ -155,6 +163,7 @@ class SettingsStore(context: Context) {
         private const val KEY_ENCRYPTION_POLICY = "encryption_policy"
         private const val KEY_HAS_SHOWN_NOTIFICATION_PROMPT = "has_shown_notification_prompt"
         private const val KEY_BACKGROUND_DOWNLOADS_ENABLED = "background_downloads_enabled"
+        private const val KEY_CPU_WAKE_LOCK_ENABLED = "cpu_wake_lock_enabled"
         // Connection limits
         private const val KEY_MAX_PEERS_PER_TORRENT = "max_peers_per_torrent"
         private const val KEY_MAX_GLOBAL_PEERS = "max_global_peers"
