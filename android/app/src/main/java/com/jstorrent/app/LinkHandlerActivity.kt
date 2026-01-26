@@ -12,6 +12,7 @@ import com.jstorrent.app.mode.ModeDetector
 import com.jstorrent.app.service.IoDaemonService
 
 private const val TAG = "LinkHandlerActivity"
+private const val EXTENSION_URL = "https://new.jstorrent.com/launch"
 
 /**
  * Transparent trampoline activity for handling magnet links and torrent files.
@@ -123,10 +124,10 @@ class LinkHandlerActivity : Activity() {
             Log.i(TAG, "Control connection active, sending magnet immediately")
             service.sendMagnetAdded(magnetLink)
         } else {
-            // No connection - queue link for when connection is established
-            Log.i(TAG, "No control connection, queuing magnet")
+            // No connection - queue link and launch extension
+            Log.i(TAG, "No control connection, queuing magnet and launching extension")
             PendingLinkManager.addMagnet(magnetLink)
-            // The extension will connect and drain pending links
+            launchExtension()
         }
     }
 
@@ -153,8 +154,28 @@ class LinkHandlerActivity : Activity() {
             Log.i(TAG, "Control connection active, sending torrent immediately")
             service.sendTorrentAdded(name, contentsBase64)
         } else {
-            Log.i(TAG, "No control connection, queuing torrent")
+            Log.i(TAG, "No control connection, queuing torrent and launching extension")
             PendingLinkManager.addTorrent(name, contentsBase64)
+            launchExtension()
+        }
+    }
+
+    /**
+     * Launch the extension page in Chrome browser.
+     */
+    private fun launchExtension() {
+        // Target Chrome explicitly - on ChromeOS this opens in the real Chrome browser
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(EXTENSION_URL)).apply {
+            setPackage("com.android.chrome")
+        }
+        try {
+            startActivity(intent)
+            Log.i(TAG, "Launched extension: $EXTENSION_URL")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch Chrome, trying default browser", e)
+            // Fallback to default browser if Chrome not available
+            val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(EXTENSION_URL))
+            startActivity(fallbackIntent)
         }
     }
 }
