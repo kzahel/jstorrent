@@ -159,10 +159,10 @@ fun SettingsScreenContent(
                 .padding(innerPadding)
         ) {
             // =====================================================================
-            // Download Locations
+            // Storage
             // =====================================================================
             item {
-                SectionHeader(title = "Download Locations")
+                SectionHeader(title = "Storage")
             }
 
             if (uiState.downloadRoots.isEmpty()) {
@@ -182,24 +182,6 @@ fun SettingsScreenContent(
 
             item {
                 AddFolderButton(onClick = onAddRootClick)
-            }
-
-            item {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            }
-
-            // =====================================================================
-            // When Downloads Complete
-            // =====================================================================
-            item {
-                SectionHeader(title = "When Downloads Complete")
-            }
-
-            item {
-                WhenDownloadsCompleteSection(
-                    selectedOption = uiState.whenDownloadsComplete,
-                    onOptionSelected = onWhenDownloadsCompleteChange
-                )
             }
 
             item {
@@ -290,7 +272,9 @@ fun SettingsScreenContent(
                 PowerManagementSection(
                     backgroundDownloadsEnabled = uiState.backgroundDownloadsEnabled,
                     notificationPermissionGranted = uiState.notificationPermissionGranted,
-                    onBackgroundDownloadsChange = onBackgroundDownloadsChange
+                    onBackgroundDownloadsChange = onBackgroundDownloadsChange,
+                    whenDownloadsComplete = uiState.whenDownloadsComplete,
+                    onWhenDownloadsCompleteChange = onWhenDownloadsCompleteChange
                 )
             }
 
@@ -299,10 +283,10 @@ fun SettingsScreenContent(
             }
 
             // =====================================================================
-            // Danger Zone
+            // Advanced
             // =====================================================================
             item {
-                SectionHeader(title = "Danger Zone")
+                SectionHeader(title = "Advanced")
             }
 
             item {
@@ -528,52 +512,6 @@ private fun AddFolderButton(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.primary
             )
-        }
-    }
-}
-
-// =============================================================================
-// When Downloads Complete Section
-// =============================================================================
-
-@Composable
-private fun WhenDownloadsCompleteSection(
-    selectedOption: String,
-    onOptionSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-    ) {
-        val options = listOf(
-            "stop_and_close" to "Stop and close app",
-            "keep_seeding" to "Keep seeding in background"
-        )
-
-        options.forEach { (value, label) ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .selectable(
-                        selected = selectedOption == value,
-                        onClick = { onOptionSelected(value) },
-                        role = Role.RadioButton
-                    )
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = selectedOption == value,
-                    onClick = null
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
         }
     }
 }
@@ -806,6 +744,8 @@ private fun PowerManagementSection(
     backgroundDownloadsEnabled: Boolean,
     notificationPermissionGranted: Boolean,
     onBackgroundDownloadsChange: (Boolean) -> Unit,
+    whenDownloadsComplete: String,
+    onWhenDownloadsCompleteChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -823,6 +763,43 @@ private fun PowerManagementSection(
             checked = backgroundDownloadsEnabled,
             onCheckedChange = onBackgroundDownloadsChange
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "When downloads complete",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+
+        val options = listOf(
+            "stop_and_close" to "Stop and close app",
+            "keep_seeding" to "Keep seeding in background"
+        )
+
+        options.forEach { (value, label) ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = whenDownloadsComplete == value,
+                        onClick = { onWhenDownloadsCompleteChange(value) },
+                        role = Role.RadioButton
+                    )
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = whenDownloadsComplete == value,
+                    onClick = null
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
     }
 }
 

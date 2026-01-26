@@ -1,7 +1,6 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly SHARE_URL?: string
   // Vite built-in (explicitly typed for TypeScript)
   readonly DEV: boolean
   readonly PROD: boolean

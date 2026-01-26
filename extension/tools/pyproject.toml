@@ -2,7 +2,7 @@
 name = "jstorrent-extension-tools"
 version = "0.1.0"
 description = "Extension debugging tools for JSTorrent"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.0.0",
     "websockets>=12.0",

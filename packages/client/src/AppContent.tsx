@@ -21,6 +21,7 @@ import {
 import { useEngineState } from './hooks/useEngineState'
 import { copyTextToClipboard } from './utils/clipboard'
 import { standaloneAlert } from './utils/dialogs'
+import { UBUNTU_SERVER_MAGNET, BIG_BUCK_BUNNY_MAGNET } from './utils/test-magnets'
 
 interface ContextMenuState {
   x: number
@@ -229,14 +230,35 @@ export function AppContent({
   // --- Menu items ---
 
   // Using Unicode symbols instead of emoji for consistent baseline alignment
+  // In dev mode, selection-based items are disabled when nothing selected,
+  // but the menu itself stays enabled for test torrent actions
   const moreMenuItems: ContextMenuItem[] = [
-    { id: 'recheck', label: 'Re-verify Data', icon: '⟳', disabled: anyChecking },
-    { id: 'reset', label: 'Reset State', icon: '↺', disabled: anyChecking },
+    {
+      id: 'recheck',
+      label: 'Re-verify Data',
+      icon: '⟳',
+      disabled: !hasSelection || anyChecking,
+    },
+    { id: 'reset', label: 'Reset State', icon: '↺', disabled: !hasSelection || anyChecking },
     { id: 'separator1', label: '', separator: true },
-    { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '⎘' },
-    { id: 'share', label: 'Share...', icon: '↗' },
+    { id: 'copyMagnet', label: 'Copy Magnet Link', icon: '⎘', disabled: !hasSelection },
+    { id: 'share', label: 'Share...', icon: '↗', disabled: !hasSelection },
     { id: 'separator2', label: '', separator: true },
-    { id: 'removeWithData', label: 'Remove All Data', icon: '⊗', danger: true },
+    {
+      id: 'removeWithData',
+      label: 'Remove All Data',
+      icon: '⊗',
+      danger: true,
+      disabled: !hasSelection,
+    },
+    // Dev-only test torrent actions (always enabled)
+    ...(import.meta.env.DEV
+      ? [
+          { id: 'separatorDev', label: '', separator: true } as ContextMenuItem,
+          { id: 'addUbuntu', label: 'Add Ubuntu ISO', icon: '⊕' } as ContextMenuItem,
+          { id: 'addBigBuckBunny', label: 'Add Big Buck Bunny', icon: '⊕' } as ContextMenuItem,
+        ]
+      : []),
   ]
 
   const contextMenuItems: ContextMenuItem[] = [
@@ -258,6 +280,17 @@ export function AppContent({
     if (!onOpenFolder) return
     for (const t of selectedTorrentObjects) {
       await onOpenFolder(t.infoHashStr)
+    }
+  }
+
+  const handleAddTestTorrent = async (magnet: string) => {
+    try {
+      const result = await adapter.addTorrent(magnet)
+      if (result.isDuplicate && result.torrent) {
+        onDuplicateTorrent?.(result.torrent.name || 'Torrent')
+      }
+    } catch (e) {
+      console.error('Failed to add test torrent:', e)
     }
   }
 
@@ -289,6 +322,12 @@ export function AppContent({
         break
       case 'removeWithData':
         handleRemoveWithDataRequest()
+        break
+      case 'addUbuntu':
+        handleAddTestTorrent(UBUNTU_SERVER_MAGNET)
+        break
+      case 'addBigBuckBunny':
+        handleAddTestTorrent(BIG_BUCK_BUNNY_MAGNET)
         break
     }
   }
@@ -430,7 +469,7 @@ export function AppContent({
               label="More"
               items={moreMenuItems}
               onSelect={handleMenuAction}
-              disabled={!hasSelection}
+              disabled={!hasSelection && !import.meta.env.DEV}
             />
           </div>
 

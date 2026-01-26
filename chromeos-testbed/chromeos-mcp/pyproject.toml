@@ -2,7 +2,7 @@
 name = "jstorrent-chromeos-mcp"
 version = "0.1.0"
 description = "ChromeOS MCP server for remote control"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.0.0",
     "pillow>=10.0.0",
