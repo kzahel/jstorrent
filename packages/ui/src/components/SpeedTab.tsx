@@ -83,6 +83,7 @@ const CATEGORY_LABELS: Record<TrafficCategory, string> = {
   'tracker:http': 'HTTP Tracker',
   'tracker:udp': 'UDP Tracker',
   dht: 'DHT',
+  disk: 'Disk Write',
 }
 
 /** Categories to show in the filter (exclude peer:payload as it's a subset) */
@@ -154,6 +155,13 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
           fill: 'rgba(59, 130, 246, 0.1)',
           value: (_, rawValue) => (rawValue == null ? '--' : formatSpeed(rawValue)),
         },
+        {
+          label: 'Disk',
+          stroke: '#f59e0b', // amber (matches Android)
+          width: 2,
+          fill: 'rgba(245, 158, 11, 0.1)',
+          value: (_, rawValue) => (rawValue == null ? '--' : formatSpeed(rawValue)),
+        },
       ],
       axes: [
         {
@@ -180,8 +188,8 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
       cursor: { show: true },
     }
 
-    // Initial empty data
-    const data: uPlot.AlignedData = [[], [], []]
+    // Initial empty data (time, download, upload, disk)
+    const data: uPlot.AlignedData = [[], [], [], []]
     plotRef.current = new uPlot(opts, data, containerRef.current)
 
     // Handle resize
@@ -216,6 +224,8 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
         now,
         300,
       )
+      // Disk write is always the 'disk' category (not filtered by selected categories)
+      const diskResult = bandwidthTracker.getSamplesWithMeta('down', ['disk'], fromTime, now, 300)
 
       // Use the actual bucket size from the RRD tier that was selected
       const bucketMs = downResult.bucketMs
@@ -244,12 +254,16 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
       const upMap = new Map<number, number>(
         upResult.samples.map((s: { time: number; value: number }) => [s.time, s.value]),
       )
+      const diskMap = new Map<number, number>(
+        diskResult.samples.map((s: { time: number; value: number }) => [s.time, s.value]),
+      )
 
       // Generate a complete time series at fixed intervals
       // This ensures the graph maintains consistent size even when no data is flowing
       const times: number[] = []
       const downRates: number[] = []
       const upRates: number[] = []
+      const diskRates: number[] = []
 
       // Align start time to bucket boundary, skip the first bucket (often incomplete/zero)
       const alignedStart = Math.floor(fromTime / bucketMs) * bucketMs + bucketMs
@@ -259,13 +273,15 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
         // Look up data, default to 0 if not found
         const downBytes = downMap.get(t) ?? 0
         const upBytes = upMap.get(t) ?? 0
+        const diskBytes = diskMap.get(t) ?? 0
         // Convert bucket bytes to bytes/sec
         downRates.push((downBytes / bucketMs) * 1000)
         upRates.push((upBytes / bucketMs) * 1000)
+        diskRates.push((diskBytes / bucketMs) * 1000)
       }
 
       if (plotRef.current && times.length > 0) {
-        plotRef.current.setData([times, downRates, upRates])
+        plotRef.current.setData([times, downRates, upRates, diskRates])
       }
     }
 
@@ -332,6 +348,10 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
           <span style={{ color: '#3b82f6' }}>▲</span> Upload:{' '}
           {formatSpeed(bandwidthTracker.getRate('up', selectedCategories))}
         </div>
+        <div>
+          <span style={{ color: '#f59e0b' }}>●</span> Disk:{' '}
+          {formatSpeed(bandwidthTracker.getCategoryRate('down', 'disk'))}
+        </div>
       </div>
 
       {/* Traffic breakdown - current instantaneous rates */}
@@ -379,6 +399,10 @@ export function SpeedTab({ bandwidthTracker }: SpeedTabProps) {
         <div>DHT</div>
         <div>{formatSpeed(bandwidthTracker.getCategoryRate('down', 'dht'))}</div>
         <div>{formatSpeed(bandwidthTracker.getCategoryRate('up', 'dht'))}</div>
+
+        <div>Disk Write</div>
+        <div>{formatSpeed(bandwidthTracker.getCategoryRate('down', 'disk'))}</div>
+        <div>—</div>
       </div>
     </div>
   )

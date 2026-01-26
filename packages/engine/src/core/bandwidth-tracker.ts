@@ -17,6 +17,7 @@ export type TrafficCategory =
   | 'tracker:http' // HTTP tracker requests/responses
   | 'tracker:udp' // UDP tracker packets
   | 'dht' // DHT UDP packets
+  | 'disk' // disk write throughput
 
 /**
  * All traffic categories for iteration.
@@ -27,6 +28,7 @@ export const ALL_TRAFFIC_CATEGORIES: TrafficCategory[] = [
   'tracker:http',
   'tracker:udp',
   'dht',
+  'disk',
 ]
 
 export interface BandwidthTrackerConfig {
@@ -110,7 +112,7 @@ export class BandwidthTracker {
     let cats: TrafficCategory[]
     if (categories === 'all') {
       // Exclude peer:payload since it's a subset of peer:protocol
-      cats = ALL_TRAFFIC_CATEGORIES.filter((c) => c !== 'peer:payload')
+      cats = ALL_TRAFFIC_CATEGORIES.filter((c) => c !== 'peer:payload' && c !== 'disk')
     } else {
       cats = categories
     }
@@ -155,7 +157,7 @@ export class BandwidthTracker {
     // Determine which categories to include
     let cats: TrafficCategory[]
     if (categories === 'all') {
-      cats = ALL_TRAFFIC_CATEGORIES.filter((c) => c !== 'peer:payload')
+      cats = ALL_TRAFFIC_CATEGORIES.filter((c) => c !== 'peer:payload' && c !== 'disk')
     } else {
       cats = categories
     }
@@ -209,7 +211,7 @@ export class BandwidthTracker {
 
     let cats: TrafficCategory[]
     if (categories === 'all') {
-      cats = ALL_TRAFFIC_CATEGORIES.filter((c) => c !== 'peer:payload')
+      cats = ALL_TRAFFIC_CATEGORIES.filter((c) => c !== 'peer:payload' && c !== 'disk')
     } else {
       cats = categories
     }

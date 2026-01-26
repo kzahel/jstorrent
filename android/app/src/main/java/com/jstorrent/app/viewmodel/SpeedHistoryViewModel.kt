@@ -54,15 +54,19 @@ class SpeedHistoryViewModel(
             val window = _timeWindow.value
             val fromTime = now - window.durationMs
 
-            // Fetch both download and upload samples in parallel
+            // Network categories (excluding disk for download)
+            val networkCategories = """["peer:protocol","tracker:http","tracker:udp","dht"]"""
+
+            // Fetch network download (excluding disk - disk is separate I/O metric)
             val downloadResult = repository.getSpeedSamples(
                 direction = "down",
-                categories = "all",
+                categories = networkCategories,
                 fromTime = fromTime,
                 toTime = now,
                 maxPoints = 300
             )
 
+            // Fetch upload (all categories - disk isn't tracked for upload)
             val uploadResult = repository.getSpeedSamples(
                 direction = "up",
                 categories = "all",
@@ -71,17 +75,35 @@ class SpeedHistoryViewModel(
                 maxPoints = 300
             )
 
-            if (downloadResult != null || uploadResult != null) {
-                // Calculate current rates from the most recent samples
-                val currentDownloadRate = downloadResult?.samples?.lastOrNull()?.value?.toLong() ?: 0L
-                val currentUploadRate = uploadResult?.samples?.lastOrNull()?.value?.toLong() ?: 0L
+            // Fetch disk write samples separately
+            val diskResult = repository.getSpeedSamples(
+                direction = "down",
+                categories = """["disk"]""",
+                fromTime = fromTime,
+                toTime = now,
+                maxPoints = 300
+            )
+
+            if (downloadResult != null || uploadResult != null || diskResult != null) {
+                // Calculate current rates from recent samples only (within 5 seconds)
+                // If no recent sample, show 0 rather than stale data
+                val recentThreshold = now - 5000L
+                val currentDownloadRate = downloadResult?.samples?.lastOrNull()
+                    ?.takeIf { it.time >= recentThreshold }?.value?.toLong() ?: 0L
+                val currentUploadRate = uploadResult?.samples?.lastOrNull()
+                    ?.takeIf { it.time >= recentThreshold }?.value?.toLong() ?: 0L
+                val currentDiskWriteRate = diskResult?.samples?.lastOrNull()
+                    ?.takeIf { it.time >= recentThreshold }?.value?.toLong() ?: 0L
 
                 _uiState.value = SpeedHistoryUiState.Loaded(
                     downloadSamples = downloadResult?.samples ?: emptyList(),
                     uploadSamples = uploadResult?.samples ?: emptyList(),
-                    bucketMs = downloadResult?.bucketMs ?: uploadResult?.bucketMs ?: 500L,
+                    diskWriteSamples = diskResult?.samples ?: emptyList(),
+                    bucketMs = downloadResult?.bucketMs ?: uploadResult?.bucketMs ?: diskResult?.bucketMs ?: 500L,
                     currentDownloadRate = currentDownloadRate,
-                    currentUploadRate = currentUploadRate
+                    currentUploadRate = currentUploadRate,
+                    currentDiskWriteRate = currentDiskWriteRate,
+                    nowMs = now
                 )
             } else {
                 // No data yet but engine might not be ready
@@ -92,9 +114,12 @@ class SpeedHistoryViewModel(
                     _uiState.value = SpeedHistoryUiState.Loaded(
                         downloadSamples = emptyList(),
                         uploadSamples = emptyList(),
+                        diskWriteSamples = emptyList(),
                         bucketMs = 500L,
                         currentDownloadRate = 0L,
-                        currentUploadRate = 0L
+                        currentUploadRate = 0L,
+                        currentDiskWriteRate = 0L,
+                        nowMs = now
                     )
                 }
             }

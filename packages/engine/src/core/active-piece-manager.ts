@@ -21,11 +21,11 @@ const isNativeRuntime =
 
 const DEFAULT_CONFIG: ActivePieceConfig = {
   requestTimeoutMs: 30000,
-  // QuickJS (Android): Limit pieces to reduce Phase 1 iteration overhead.
-  // Iterating 500+ pieces per peer causes severe JS thread latency (675ms+).
-  // V8 (desktop/extension): Allow more pieces for higher throughput (90MB/s+).
-  maxActivePieces: isNativeRuntime ? 150 : 10000,
-  maxBufferedBytes: isNativeRuntime ? 64 * 1024 * 1024 : 128 * 1024 * 1024,
+  // Allow unlimited active pieces - the haveAllBlocks check is now O(1)
+  // and hasUnrequestedBlocks uses allocation-free iteration.
+  // Memory is the real constraint, handled by maxBufferedBytes.
+  maxActivePieces: 10000,
+  maxBufferedBytes: isNativeRuntime ? 128 * 1024 * 1024 : 256 * 1024 * 1024,
   cleanupIntervalMs: 10000,
 }
 
@@ -227,8 +227,8 @@ export class ActivePieceManager extends EngineComponent {
    */
   hasUnrequestedBlocks(): boolean {
     for (const piece of this.pieces.values()) {
-      // If piece has blocks that aren't received AND aren't requested, return true
-      if (piece.getNeededBlocks(1).length > 0) {
+      // Use the piece's allocation-free check instead of getNeededBlocks()
+      if (piece.hasUnrequestedBlocks()) {
         return true
       }
     }
@@ -239,6 +239,7 @@ export class ActivePieceManager extends EngineComponent {
    * Remove stale pieces that are not making progress.
    * A piece is considered stale if:
    * - No activity for staleThreshold (2x request timeout = 60s by default)
+   * - AND not complete (pieces with all blocks are waiting for disk write)
    * - AND either: no data received, OR no outstanding requests (stuck)
    */
   private cleanupStale(): void {
@@ -247,6 +248,9 @@ export class ActivePieceManager extends EngineComponent {
 
     for (const [index, piece] of this.pieces) {
       const isStale = now - piece.lastActivity > staleThreshold
+
+      // Never remove pieces that have all blocks - they're waiting for disk write/verification
+      if (piece.haveAllBlocks) continue
 
       // Remove if stale AND either:
       // - No data received (original condition - piece never got started)

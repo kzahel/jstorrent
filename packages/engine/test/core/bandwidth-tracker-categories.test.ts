@@ -164,7 +164,8 @@ describe('BandwidthTracker with categories', () => {
     expect(ALL_TRAFFIC_CATEGORIES).toContain('tracker:http')
     expect(ALL_TRAFFIC_CATEGORIES).toContain('tracker:udp')
     expect(ALL_TRAFFIC_CATEGORIES).toContain('dht')
-    expect(ALL_TRAFFIC_CATEGORIES.length).toBe(5)
+    expect(ALL_TRAFFIC_CATEGORIES).toContain('disk')
+    expect(ALL_TRAFFIC_CATEGORIES.length).toBe(6)
   })
 
   it('getRate with all categories sums correctly', () => {

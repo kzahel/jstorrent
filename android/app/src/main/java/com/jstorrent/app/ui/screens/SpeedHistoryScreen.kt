@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -135,8 +136,10 @@ private fun SpeedHistoryContent(
             SpeedChart(
                 downloadSamples = state.downloadSamples,
                 uploadSamples = state.uploadSamples,
+                diskWriteSamples = state.diskWriteSamples,
                 bucketMs = state.bucketMs,
                 timeWindowMs = timeWindow.durationMs,
+                nowMs = state.nowMs,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp)
@@ -148,7 +151,8 @@ private fun SpeedHistoryContent(
         // Current rates display
         CurrentRatesCard(
             downloadRate = state.currentDownloadRate,
-            uploadRate = state.currentUploadRate
+            uploadRate = state.currentUploadRate,
+            diskWriteRate = state.currentDiskWriteRate
         )
     }
 }
@@ -181,6 +185,7 @@ private fun TimeWindowSelector(
 private fun CurrentRatesCard(
     downloadRate: Long,
     uploadRate: Long,
+    diskWriteRate: Long,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -189,27 +194,46 @@ private fun CurrentRatesCard(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Download rate
-            RateDisplay(
-                icon = Icons.Default.ArrowDownward,
-                iconColor = Color(0xFF22C55E), // Green - matches chart
-                label = "Download",
-                rate = downloadRate
-            )
+            // Network rates row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                // Download rate
+                RateDisplay(
+                    icon = Icons.Default.ArrowDownward,
+                    iconColor = Color(0xFF22C55E), // Green - matches chart
+                    label = "Download",
+                    rate = downloadRate
+                )
 
-            // Upload rate
-            RateDisplay(
-                icon = Icons.Default.ArrowUpward,
-                iconColor = Color(0xFF3B82F6), // Blue - matches chart
-                label = "Upload",
-                rate = uploadRate
-            )
+                // Upload rate
+                RateDisplay(
+                    icon = Icons.Default.ArrowUpward,
+                    iconColor = Color(0xFF3B82F6), // Blue - matches chart
+                    label = "Upload",
+                    rate = uploadRate
+                )
+            }
+
+            // Disk rate row (centered)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                RateDisplay(
+                    icon = Icons.Default.Storage,
+                    iconColor = Color(0xFFF59E0B), // Amber - matches chart
+                    label = "Disk Write",
+                    rate = diskWriteRate
+                )
+            }
         }
     }
 }

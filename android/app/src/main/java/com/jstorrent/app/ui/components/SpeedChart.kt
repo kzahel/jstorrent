@@ -32,14 +32,16 @@ import kotlin.math.sin
  */
 private val DownloadColor = Color(0xFF22C55E) // Green
 private val UploadColor = Color(0xFF3B82F6)   // Blue
+private val DiskWriteColor = Color(0xFFF59E0B) // Amber/orange
 private val GridColor = Color(0x33888888)     // Light gray with alpha
 
 /**
- * Canvas-based speed chart showing download and upload speeds over time.
- * Displays two filled area series with time and speed axes.
+ * Canvas-based speed chart showing download, upload, and disk write speeds over time.
+ * Displays three filled area series with time and speed axes.
  *
  * @param downloadSamples Download speed samples (time in ms, value in bytes/sec)
  * @param uploadSamples Upload speed samples (time in ms, value in bytes/sec)
+ * @param diskWriteSamples Disk write speed samples (time in ms, value in bytes/sec)
  * @param bucketMs Resolution of each sample in milliseconds
  * @param timeWindowMs Time window to display (e.g., 60000 for 1 minute)
  * @param modifier Optional modifier
@@ -48,8 +50,10 @@ private val GridColor = Color(0x33888888)     // Light gray with alpha
 fun SpeedChart(
     downloadSamples: List<SpeedSample>,
     uploadSamples: List<SpeedSample>,
+    diskWriteSamples: List<SpeedSample> = emptyList(),
     bucketMs: Long,
     timeWindowMs: Long,
+    nowMs: Long = System.currentTimeMillis(),
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -69,10 +73,11 @@ fun SpeedChart(
     val rightMarginPx = with(density) { rightMargin.toPx() }
 
     // Calculate max value for Y-axis scaling
-    val maxValue = remember(downloadSamples, uploadSamples) {
+    val maxValue = remember(downloadSamples, uploadSamples, diskWriteSamples) {
         val maxDownload = downloadSamples.maxOfOrNull { it.value } ?: 0f
         val maxUpload = uploadSamples.maxOfOrNull { it.value } ?: 0f
-        max(maxDownload, maxUpload).coerceAtLeast(1024f) // Minimum 1 KB/s scale
+        val maxDiskWrite = diskWriteSamples.maxOfOrNull { it.value } ?: 0f
+        maxOf(maxDownload, maxUpload, maxDiskWrite).coerceAtLeast(1024f) // Minimum 1 KB/s scale
     }
 
     // Calculate nice Y-axis scale
@@ -145,11 +150,27 @@ fun SpeedChart(
             textPaint = textPaint
         )
 
-        // Draw upload area (behind download)
+        // Draw upload area (behind others)
         if (uploadSamples.isNotEmpty()) {
             drawSpeedArea(
                 samples = uploadSamples,
                 color = UploadColor.copy(alpha = 0.5f),
+                nowMs = nowMs,
+                timeWindowMs = timeWindowMs,
+                yAxisMax = yAxisMax,
+                chartLeft = chartLeft,
+                chartWidth = chartWidth,
+                chartTop = chartTop,
+                chartHeight = chartHeight
+            )
+        }
+
+        // Draw disk write area (middle layer)
+        if (diskWriteSamples.isNotEmpty()) {
+            drawSpeedArea(
+                samples = diskWriteSamples,
+                color = DiskWriteColor.copy(alpha = 0.55f),
+                nowMs = nowMs,
                 timeWindowMs = timeWindowMs,
                 yAxisMax = yAxisMax,
                 chartLeft = chartLeft,
@@ -164,6 +185,7 @@ fun SpeedChart(
             drawSpeedArea(
                 samples = downloadSamples,
                 color = DownloadColor.copy(alpha = 0.6f),
+                nowMs = nowMs,
                 timeWindowMs = timeWindowMs,
                 yAxisMax = yAxisMax,
                 chartLeft = chartLeft,
@@ -185,10 +207,12 @@ fun SpeedChart(
 
 /**
  * Draws a filled area for speed samples.
+ * Uses nowMs as the right edge of the time window (actual wall-clock time).
  */
 private fun DrawScope.drawSpeedArea(
     samples: List<SpeedSample>,
     color: Color,
+    nowMs: Long,
     timeWindowMs: Long,
     yAxisMax: Float,
     chartLeft: Float,
@@ -198,8 +222,7 @@ private fun DrawScope.drawSpeedArea(
 ) {
     if (samples.isEmpty()) return
 
-    val now = samples.maxOf { it.time }
-    val windowStart = now - timeWindowMs
+    val windowStart = nowMs - timeWindowMs
     val chartBottom = chartTop + chartHeight
 
     // Filter samples in time window and sort by time
@@ -212,18 +235,18 @@ private fun DrawScope.drawSpeedArea(
     val path = Path()
 
     // Start at bottom-left
-    val firstX = timeToX(visibleSamples.first().time, windowStart, now, chartLeft, chartWidth)
+    val firstX = timeToX(visibleSamples.first().time, windowStart, nowMs, chartLeft, chartWidth)
     path.moveTo(firstX, chartBottom)
 
     // Draw line through all points
     for (sample in visibleSamples) {
-        val x = timeToX(sample.time, windowStart, now, chartLeft, chartWidth)
+        val x = timeToX(sample.time, windowStart, nowMs, chartLeft, chartWidth)
         val y = valueToY(sample.value, yAxisMax, chartTop, chartHeight)
         path.lineTo(x, y)
     }
 
-    // Close path at bottom-right
-    val lastX = timeToX(visibleSamples.last().time, windowStart, now, chartLeft, chartWidth)
+    // Close path at bottom-right (extend to last sample, not to nowMs - avoids misleading flat line to present)
+    val lastX = timeToX(visibleSamples.last().time, windowStart, nowMs, chartLeft, chartWidth)
     path.lineTo(lastX, chartBottom)
     path.close()
 

@@ -30,6 +30,9 @@ export class ActivePiece {
   // Track which blocks have been received (replaces Map<number, Uint8Array>)
   private blockReceived: boolean[]
 
+  // Incremental count of received blocks (avoids O(n) iteration in haveAllBlocks)
+  private _blocksReceivedCount = 0
+
   // Track which peer sent each block (for suspicious peer detection on hash failure)
   private blockSenders: Map<number, string> = new Map()
 
@@ -57,7 +60,7 @@ export class ActivePiece {
   // --- State Queries ---
 
   get haveAllBlocks(): boolean {
-    return this.blockReceived.every((received) => received)
+    return this._blocksReceivedCount === this.blocksNeeded
   }
 
   get lastActivity(): number {
@@ -77,7 +80,7 @@ export class ActivePiece {
   }
 
   get blocksReceived(): number {
-    return this.blockReceived.filter((received) => received).length
+    return this._blocksReceivedCount
   }
 
   get outstandingRequests(): number {
@@ -149,6 +152,7 @@ export class ActivePiece {
     const offset = blockIndex * BLOCK_SIZE
     this.buffer.set(data, offset)
     this.blockReceived[blockIndex] = true
+    this._blocksReceivedCount++
     this.blockSenders.set(blockIndex, peerId)
     this._lastActivity = Date.now()
 
@@ -178,6 +182,7 @@ export class ActivePiece {
     const destOffset = blockIndex * BLOCK_SIZE
     source.copyTo(this.buffer, destOffset, sourceOffset, length)
     this.blockReceived[blockIndex] = true
+    this._blocksReceivedCount++
     this.blockSenders.set(blockIndex, peerId)
     this._lastActivity = Date.now()
 
@@ -331,6 +336,7 @@ export class ActivePiece {
 
   clear(): void {
     this.blockReceived.fill(false)
+    this._blocksReceivedCount = 0
     this.blockRequests.clear()
     this.blockSenders.clear()
     // Note: buffer is NOT cleared - for pooling, the caller can reuse it

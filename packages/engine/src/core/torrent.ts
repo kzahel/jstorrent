@@ -1887,8 +1887,17 @@ export class Torrent extends EngineComponent {
       totalRequests += piece.outstandingRequests
     }
 
+    // Get disk queue stats
+    const diskSnapshot = this._diskQueue.getSnapshot()
+    const diskPending = diskSnapshot.pending.length
+    const diskRunning = diskSnapshot.running.length
+
+    // Get disk write rate
+    const diskRate = this.btEngine.bandwidthTracker.getCategoryRate('down', 'disk')
+    const diskRateMB = (diskRate / (1024 * 1024)).toFixed(1)
+
     this.logger.info(
-      `Backpressure: ${activeCount} active pieces, ${bufferedMB}MB buffered, ${totalRequests} outstanding requests`,
+      `Backpressure: ${activeCount} active pieces, ${bufferedMB}MB buffered, ${totalRequests} outstanding requests, disk queue: ${diskPending} pending/${diskRunning} running, disk write: ${diskRateMB}MB/s`,
     )
   }
 
@@ -2819,15 +2828,8 @@ export class Torrent extends EngineComponent {
     let pipelineLimit = peer.pipelineDepth
 
     // Apply configurable pipeline depth cap
-    // Default is 500, but standalone Android hard-caps at 50 for memory safety
     const maxPipelineDepth = this.btEngine.config?.maxPipelineDepth.get() ?? 500
-    const platformType = this.btEngine.config?.platformType.get()
-    if (platformType === 'android-standalone') {
-      // Hard cap for standalone Android to prevent OOM
-      pipelineLimit = Math.min(pipelineLimit, 50, maxPipelineDepth)
-    } else {
-      pipelineLimit = Math.min(pipelineLimit, maxPipelineDepth)
-    }
+    pipelineLimit = Math.min(pipelineLimit, maxPipelineDepth)
 
     // Cap pipeline depth when rate limited to prevent fast peers from monopolizing bandwidth
     const downloadBucket = this.btEngine.bandwidthTracker.downloadBucket
@@ -3118,6 +3120,9 @@ export class Torrent extends EngineComponent {
       this.markPieceVerified(index)
       this.activePieces?.remove(index)
 
+      // Track disk write throughput
+      ;(this.engine as BtEngine).bandwidthTracker.record('disk', pieceData.length, 'down')
+
       // Update cached downloaded bytes on file objects
       for (const file of this._files) {
         file.updateForPiece(index)
@@ -3174,6 +3179,9 @@ export class Torrent extends EngineComponent {
       // Mark as verified
       this.markPieceVerified(index)
       this.activePieces?.remove(index)
+
+      // Track disk write throughput
+      ;(this.engine as BtEngine).bandwidthTracker.record('disk', pieceData.length, 'down')
 
       // Update cached downloaded bytes on file objects
       for (const file of this._files) {

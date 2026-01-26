@@ -17,9 +17,12 @@ sealed class SpeedHistoryUiState {
     data class Loaded(
         val downloadSamples: List<SpeedSample>,
         val uploadSamples: List<SpeedSample>,
+        val diskWriteSamples: List<SpeedSample>,
         val bucketMs: Long,
         val currentDownloadRate: Long,
-        val currentUploadRate: Long
+        val currentUploadRate: Long,
+        val currentDiskWriteRate: Long,
+        val nowMs: Long
     ) : SpeedHistoryUiState()
 
     /**

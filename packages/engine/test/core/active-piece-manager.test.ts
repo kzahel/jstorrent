@@ -264,6 +264,32 @@ describe('ActivePieceManager', () => {
       const newPiece = manager.getOrCreate(100)
       expect(newPiece).not.toBeNull()
     })
+
+    it('should NOT remove complete pieces (waiting for disk write)', () => {
+      // Fill to capacity with complete pieces (have all blocks, waiting for disk write)
+      for (let i = 0; i < 10; i++) {
+        const piece = manager.getOrCreate(i)!
+        // Fill all blocks to make piece complete
+        for (let block = 0; block < piece.blocksNeeded; block++) {
+          const blockSize =
+            block === piece.blocksNeeded - 1
+              ? piece.length - block * 16384 // Last block may be smaller
+              : 16384
+          piece.addBlock(block, new Uint8Array(blockSize), 'peer1')
+        }
+        expect(piece.haveAllBlocks).toBe(true)
+      }
+      expect(manager.activeCount).toBe(10)
+
+      // Advance well past stale threshold - simulating slow disk writes
+      vi.advanceTimersByTime(120000) // 2 minutes
+
+      // Try to create new piece - should fail because complete pieces are NOT removed
+      // (they're waiting for finalization/disk write, not actually stale)
+      const newPiece = manager.getOrCreate(100)
+      expect(newPiece).toBeNull()
+      expect(manager.activeCount).toBe(10) // All pieces should still exist
+    })
   })
 
   // === Phase 5: Buffer Pooling Integration Tests ===
