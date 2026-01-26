@@ -1,3 +1,5 @@
+import { ChunkedBuffer } from './chunked-buffer'
+
 export const BLOCK_SIZE = 16384
 
 export interface RequestInfo {
@@ -13,7 +15,7 @@ export interface BlockInfo {
 /**
  * Represents a piece actively being downloaded.
  * Consolidates all download state for a single piece:
- * - Block data storage
+ * - Pre-allocated buffer for direct block writes (zero-copy optimization)
  * - Request tracking with peer association (the key fix for stalls)
  * - Contributing peer tracking for hash failure analysis
  */
@@ -22,8 +24,11 @@ export class ActivePiece {
   readonly length: number
   readonly blocksNeeded: number
 
-  // Block data storage - keyed by block index
-  private blockData: Map<number, Uint8Array> = new Map()
+  // Pre-allocated buffer for the entire piece - blocks are written directly here
+  private buffer: Uint8Array
+
+  // Track which blocks have been received (replaces Map<number, Uint8Array>)
+  private blockReceived: boolean[]
 
   // Track which peer sent each block (for suspicious peer detection on hash failure)
   private blockSenders: Map<number, string> = new Map()
@@ -35,16 +40,24 @@ export class ActivePiece {
   // Activity tracking for stale piece cleanup
   private _lastActivity: number = Date.now()
 
-  constructor(index: number, length: number) {
+  /**
+   * Create a new ActivePiece.
+   * @param index - Piece index in the torrent
+   * @param length - Length of this piece in bytes
+   * @param buffer - Optional pre-allocated buffer (for buffer pooling). If not provided, allocates a new buffer.
+   */
+  constructor(index: number, length: number, buffer?: Uint8Array) {
     this.index = index
     this.length = length
     this.blocksNeeded = Math.ceil(length / BLOCK_SIZE)
+    this.buffer = buffer ?? new Uint8Array(length)
+    this.blockReceived = new Array<boolean>(this.blocksNeeded).fill(false)
   }
 
   // --- State Queries ---
 
   get haveAllBlocks(): boolean {
-    return this.blockData.size === this.blocksNeeded
+    return this.blockReceived.every((received) => received)
   }
 
   get lastActivity(): number {
@@ -53,14 +66,18 @@ export class ActivePiece {
 
   get bufferedBytes(): number {
     let total = 0
-    for (const data of this.blockData.values()) {
-      total += data.length
+    for (let i = 0; i < this.blocksNeeded; i++) {
+      if (this.blockReceived[i]) {
+        // Last block may be smaller
+        const blockStart = i * BLOCK_SIZE
+        total += Math.min(BLOCK_SIZE, this.length - blockStart)
+      }
     }
     return total
   }
 
   get blocksReceived(): number {
-    return this.blockData.size
+    return this.blockReceived.filter((received) => received).length
   }
 
   get outstandingRequests(): number {
@@ -72,7 +89,7 @@ export class ActivePiece {
   }
 
   hasBlock(blockIndex: number): boolean {
-    return this.blockData.has(blockIndex)
+    return this.blockReceived[blockIndex] ?? false
   }
 
   /**
@@ -107,14 +124,47 @@ export class ActivePiece {
 
   /**
    * Add received block data.
+   * Writes directly to the pre-allocated piece buffer (zero-copy to final destination).
    * Returns true if this was a new block, false if duplicate.
    */
   addBlock(blockIndex: number, data: Uint8Array, peerId: string): boolean {
-    if (this.blockData.has(blockIndex)) {
+    if (this.blockReceived[blockIndex]) {
       return false // Duplicate
     }
 
-    this.blockData.set(blockIndex, data)
+    // Write directly to the pre-allocated buffer at the correct offset
+    const offset = blockIndex * BLOCK_SIZE
+    this.buffer.set(data, offset)
+    this.blockReceived[blockIndex] = true
+    this.blockSenders.set(blockIndex, peerId)
+    this._lastActivity = Date.now()
+
+    // Clear requests for this block - it's been fulfilled
+    this.blockRequests.delete(blockIndex)
+
+    return true
+  }
+
+  /**
+   * Add block data directly from a ChunkedBuffer (full zero-copy path).
+   * Copies from the ChunkedBuffer directly to this piece's buffer.
+   * Returns true if this was a new block, false if duplicate.
+   */
+  addBlockFromChunked(
+    blockIndex: number,
+    source: ChunkedBuffer,
+    sourceOffset: number,
+    length: number,
+    peerId: string,
+  ): boolean {
+    if (this.blockReceived[blockIndex]) {
+      return false // Duplicate
+    }
+
+    // Copy directly from ChunkedBuffer to piece buffer
+    const destOffset = blockIndex * BLOCK_SIZE
+    source.copyTo(this.buffer, destOffset, sourceOffset, length)
+    this.blockReceived[blockIndex] = true
     this.blockSenders.set(blockIndex, peerId)
     this._lastActivity = Date.now()
 
@@ -184,7 +234,7 @@ export class ActivePiece {
 
     for (let i = 0; i < this.blocksNeeded && needed.length < maxBlocks; i++) {
       // Skip if we have the data
-      if (this.blockData.has(i)) continue
+      if (this.blockReceived[i]) continue
 
       // Skip if already requested (with valid non-timed-out request)
       if (this.blockRequests.has(i) && this.blockRequests.get(i)!.length > 0) continue
@@ -208,7 +258,7 @@ export class ActivePiece {
 
     for (let i = 0; i < this.blocksNeeded && needed.length < maxBlocks; i++) {
       // Skip if we have the data
-      if (this.blockData.has(i)) continue
+      if (this.blockReceived[i]) continue
 
       // In endgame: skip only if THIS PEER already requested it
       const requests = this.blockRequests.get(i)
@@ -234,7 +284,9 @@ export class ActivePiece {
   // --- Assembly ---
 
   /**
-   * Assemble all blocks into a complete piece.
+   * Get the assembled piece buffer.
+   * With pre-allocated buffers, blocks are written directly to their final positions,
+   * so this just returns the buffer - no copy needed!
    * Only call when haveAllBlocks is true.
    */
   assemble(): Uint8Array {
@@ -242,13 +294,16 @@ export class ActivePiece {
       throw new Error(`Cannot assemble piece ${this.index}: missing blocks`)
     }
 
-    const result = new Uint8Array(this.length)
-    for (let i = 0; i < this.blocksNeeded; i++) {
-      const data = this.blockData.get(i)!
-      const offset = i * BLOCK_SIZE
-      result.set(data, offset)
-    }
-    return result
+    // With pre-allocated buffer, blocks are already in place - no assembly needed!
+    return this.buffer
+  }
+
+  /**
+   * Get direct access to the internal buffer.
+   * Use with caution - primarily for buffer pooling.
+   */
+  getBuffer(): Uint8Array {
+    return this.buffer
   }
 
   /**
@@ -262,8 +317,9 @@ export class ActivePiece {
   // --- Cleanup ---
 
   clear(): void {
-    this.blockData.clear()
+    this.blockReceived.fill(false)
     this.blockRequests.clear()
     this.blockSenders.clear()
+    // Note: buffer is NOT cleared - for pooling, the caller can reuse it
   }
 }

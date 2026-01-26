@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { ActivePiece, BLOCK_SIZE } from '../../src/core/active-piece'
+import { ChunkedBuffer } from '../../src/core/chunked-buffer'
 
 describe('ActivePiece', () => {
   let piece: ActivePiece
@@ -293,6 +294,211 @@ describe('ActivePiece', () => {
         const others = piece.getOtherRequesters(0, 'peer1')
         expect(others).toHaveLength(0)
       })
+    })
+  })
+
+  // === Phase 3: Pre-allocated Buffer Tests ===
+
+  describe('pre-allocated buffer', () => {
+    it('should accept a pre-allocated buffer in constructor', () => {
+      const buffer = new Uint8Array(PIECE_LENGTH)
+      const pieceWithBuffer = new ActivePiece(0, PIECE_LENGTH, buffer)
+
+      expect(pieceWithBuffer.getBuffer()).toBe(buffer) // Same reference
+    })
+
+    it('should allocate a new buffer if none provided', () => {
+      const piece = new ActivePiece(0, PIECE_LENGTH)
+      const buffer = piece.getBuffer()
+
+      expect(buffer).toBeInstanceOf(Uint8Array)
+      expect(buffer.length).toBe(PIECE_LENGTH)
+    })
+
+    it('should write blocks directly to the buffer at correct offsets', () => {
+      const piece = new ActivePiece(0, PIECE_LENGTH) // 4 blocks
+
+      // Add blocks with unique data
+      for (let i = 0; i < 4; i++) {
+        const data = new Uint8Array(BLOCK_SIZE)
+        data.fill(i * 10 + 5) // 5, 15, 25, 35
+        piece.addBlock(i, data, 'peer1')
+      }
+
+      const buffer = piece.getBuffer()
+
+      // Check each block's position
+      expect(buffer[0]).toBe(5)
+      expect(buffer[BLOCK_SIZE]).toBe(15)
+      expect(buffer[2 * BLOCK_SIZE]).toBe(25)
+      expect(buffer[3 * BLOCK_SIZE]).toBe(35)
+    })
+
+    it('should support out-of-order block receipt', () => {
+      const piece = new ActivePiece(0, PIECE_LENGTH)
+
+      // Add blocks in reverse order
+      for (let i = 3; i >= 0; i--) {
+        const data = new Uint8Array(BLOCK_SIZE)
+        data.fill(i)
+        piece.addBlock(i, data, 'peer1')
+      }
+
+      expect(piece.haveAllBlocks).toBe(true)
+
+      const buffer = piece.getBuffer()
+      expect(buffer[0]).toBe(0)
+      expect(buffer[BLOCK_SIZE]).toBe(1)
+      expect(buffer[2 * BLOCK_SIZE]).toBe(2)
+      expect(buffer[3 * BLOCK_SIZE]).toBe(3)
+    })
+
+    it('should return the same buffer reference from assemble()', () => {
+      const piece = new ActivePiece(0, PIECE_LENGTH)
+
+      for (let i = 0; i < 4; i++) {
+        piece.addBlock(i, new Uint8Array(BLOCK_SIZE), 'peer1')
+      }
+
+      const assembled = piece.assemble()
+      const buffer = piece.getBuffer()
+
+      expect(assembled).toBe(buffer) // Same reference - no copy!
+    })
+
+    it('should calculate bufferedBytes correctly', () => {
+      const piece = new ActivePiece(0, PIECE_LENGTH)
+
+      expect(piece.bufferedBytes).toBe(0)
+
+      piece.addBlock(0, new Uint8Array(BLOCK_SIZE), 'peer1')
+      expect(piece.bufferedBytes).toBe(BLOCK_SIZE)
+
+      piece.addBlock(2, new Uint8Array(BLOCK_SIZE), 'peer1')
+      expect(piece.bufferedBytes).toBe(2 * BLOCK_SIZE)
+    })
+
+    it('should handle last block being smaller', () => {
+      // 3.5 blocks = 57344 bytes
+      const oddLength = 3 * BLOCK_SIZE + BLOCK_SIZE / 2
+      const piece = new ActivePiece(0, oddLength)
+
+      expect(piece.blocksNeeded).toBe(4)
+
+      // Add all blocks
+      for (let i = 0; i < 4; i++) {
+        const blockLength = Math.min(BLOCK_SIZE, oddLength - i * BLOCK_SIZE)
+        const data = new Uint8Array(blockLength)
+        data.fill(i)
+        piece.addBlock(i, data, 'peer1')
+      }
+
+      expect(piece.bufferedBytes).toBe(oddLength)
+      expect(piece.haveAllBlocks).toBe(true)
+    })
+  })
+
+  describe('addBlockFromChunked', () => {
+    it('should copy block data directly from ChunkedBuffer', () => {
+      const piece = new ActivePiece(0, PIECE_LENGTH)
+      const chunked = new ChunkedBuffer()
+
+      // Simulate a PIECE message: 4-byte length + 1-byte type + 4-byte index + 4-byte begin + block data
+      const blockData = new Uint8Array(BLOCK_SIZE)
+      blockData.fill(42)
+      chunked.push(blockData)
+
+      const isNew = piece.addBlockFromChunked(0, chunked, 0, BLOCK_SIZE, 'peer1')
+
+      expect(isNew).toBe(true)
+      expect(piece.hasBlock(0)).toBe(true)
+
+      // Verify data was copied correctly
+      const buffer = piece.getBuffer()
+      expect(buffer[0]).toBe(42)
+      expect(buffer[BLOCK_SIZE - 1]).toBe(42)
+    })
+
+    it('should reject duplicate blocks from ChunkedBuffer', () => {
+      const piece = new ActivePiece(0, PIECE_LENGTH)
+      const chunked = new ChunkedBuffer()
+
+      const blockData = new Uint8Array(BLOCK_SIZE)
+      chunked.push(blockData)
+
+      piece.addBlockFromChunked(0, chunked, 0, BLOCK_SIZE, 'peer1')
+      const isNew = piece.addBlockFromChunked(0, chunked, 0, BLOCK_SIZE, 'peer2')
+
+      expect(isNew).toBe(false)
+      expect(piece.blocksReceived).toBe(1)
+    })
+
+    it('should copy from correct offset in ChunkedBuffer', () => {
+      const piece = new ActivePiece(0, 32768) // 2 blocks
+      const chunked = new ChunkedBuffer()
+
+      // Push header bytes then block data
+      const header = new Uint8Array([0, 0, 0, 9]) // 4-byte length prefix
+      const blockData = new Uint8Array(BLOCK_SIZE)
+      blockData.fill(99)
+
+      chunked.push(header)
+      chunked.push(blockData)
+
+      // Copy skipping the 4-byte header
+      piece.addBlockFromChunked(0, chunked, 4, BLOCK_SIZE, 'peer1')
+
+      const buffer = piece.getBuffer()
+      expect(buffer[0]).toBe(99)
+    })
+
+    it('should track peer sender for blocks from ChunkedBuffer', () => {
+      const piece = new ActivePiece(0, PIECE_LENGTH)
+      const chunked = new ChunkedBuffer()
+
+      chunked.push(new Uint8Array(BLOCK_SIZE))
+      piece.addBlockFromChunked(0, chunked, 0, BLOCK_SIZE, 'peer1')
+
+      const peers = piece.getContributingPeers()
+      expect(peers.has('peer1')).toBe(true)
+    })
+
+    it('should clear request for block when received from ChunkedBuffer', () => {
+      const piece = new ActivePiece(0, PIECE_LENGTH)
+      const chunked = new ChunkedBuffer()
+
+      piece.addRequest(0, 'peer1')
+      expect(piece.isBlockRequested(0)).toBe(true)
+
+      chunked.push(new Uint8Array(BLOCK_SIZE))
+      piece.addBlockFromChunked(0, chunked, 0, BLOCK_SIZE, 'peer1')
+
+      expect(piece.isBlockRequested(0)).toBe(false)
+    })
+  })
+
+  describe('clear', () => {
+    it('should reset blockReceived array without clearing buffer', () => {
+      const piece = new ActivePiece(0, PIECE_LENGTH)
+
+      // Add some blocks
+      const data = new Uint8Array(BLOCK_SIZE)
+      data.fill(42)
+      piece.addBlock(0, data, 'peer1')
+      piece.addBlock(1, data, 'peer1')
+
+      expect(piece.blocksReceived).toBe(2)
+
+      // Clear
+      piece.clear()
+
+      expect(piece.blocksReceived).toBe(0)
+      expect(piece.hasBlock(0)).toBe(false)
+      expect(piece.hasBlock(1)).toBe(false)
+
+      // Buffer still exists and has the old data (for pooling)
+      const buffer = piece.getBuffer()
+      expect(buffer[0]).toBe(42) // Data still there
     })
   })
 })
