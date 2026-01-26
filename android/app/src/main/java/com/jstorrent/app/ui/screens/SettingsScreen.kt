@@ -17,14 +17,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -52,6 +58,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -62,79 +69,24 @@ import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.viewmodel.SettingsUiState
 import com.jstorrent.app.viewmodel.SettingsViewModel
 
+// =============================================================================
+// Settings Hub Screen (main settings page with navigation links)
+// =============================================================================
+
 /**
- * Settings screen for managing app configuration.
- * Supports:
- * - Download folder management with default selection
- * - Bandwidth limits
- * - Network settings (DHT, PEX, encryption, WiFi-only)
- * - Notification permission status
- * - Behavior settings (when downloads complete)
+ * Settings hub screen - shows navigation links to settings sub-pages.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
-    onAddRootClick: () -> Unit,
-    onRequestNotificationPermission: () -> Unit,
-    onOpenNotificationSettings: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val uiState by viewModel.uiState.collectAsState()
-
-    SettingsScreenContent(
-        uiState = uiState,
-        onNavigateBack = onNavigateBack,
-        onAddRootClick = onAddRootClick,
-        onSetDefaultRoot = { viewModel.setDefaultRoot(it) },
-        onRemoveRoot = { viewModel.removeRoot(it) },
-        onShowClearConfirmation = { viewModel.showClearConfirmation() },
-        onDismissClearConfirmation = { viewModel.dismissClearConfirmation() },
-        onClearAll = { viewModel.clearAllRoots() },
-        onDownloadSpeedUnlimitedChange = { viewModel.setDownloadSpeedUnlimited(it) },
-        onDownloadSpeedLimitChange = { viewModel.setDownloadSpeedLimit(it) },
-        onUploadSpeedUnlimitedChange = { viewModel.setUploadSpeedUnlimited(it) },
-        onUploadSpeedLimitChange = { viewModel.setUploadSpeedLimit(it) },
-        onWhenDownloadsCompleteChange = { viewModel.setWhenDownloadsComplete(it) },
-        onWifiOnlyChange = { viewModel.setWifiOnly(it) },
-        onDhtEnabledChange = { viewModel.setDhtEnabled(it) },
-        onPexEnabledChange = { viewModel.setPexEnabled(it) },
-        onUpnpEnabledChange = { viewModel.setUpnpEnabled(it) },
-        onEncryptionPolicyChange = { viewModel.setEncryptionPolicy(it) },
-        onBackgroundDownloadsChange = { viewModel.setBackgroundDownloadsEnabled(it) },
-        onDismissNotificationRequiredDialog = { viewModel.dismissNotificationRequiredDialog() },
-        onRequestNotificationPermission = onRequestNotificationPermission,
-        onOpenNotificationSettings = onOpenNotificationSettings,
-        modifier = modifier
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SettingsScreenContent(
-    uiState: SettingsUiState,
-    onNavigateBack: () -> Unit,
-    onAddRootClick: () -> Unit,
-    onSetDefaultRoot: (String) -> Unit,
-    onRemoveRoot: (String) -> Unit,
-    onShowClearConfirmation: () -> Unit,
-    onDismissClearConfirmation: () -> Unit,
-    onClearAll: () -> Unit,
-    onDownloadSpeedUnlimitedChange: (Boolean) -> Unit,
-    onDownloadSpeedLimitChange: (Int) -> Unit,
-    onUploadSpeedUnlimitedChange: (Boolean) -> Unit,
-    onUploadSpeedLimitChange: (Int) -> Unit,
-    onWhenDownloadsCompleteChange: (String) -> Unit,
-    onWifiOnlyChange: (Boolean) -> Unit,
-    onDhtEnabledChange: (Boolean) -> Unit,
-    onPexEnabledChange: (Boolean) -> Unit,
-    onUpnpEnabledChange: (Boolean) -> Unit,
-    onEncryptionPolicyChange: (String) -> Unit,
-    onBackgroundDownloadsChange: (Boolean) -> Unit,
-    onDismissNotificationRequiredDialog: () -> Unit,
-    onRequestNotificationPermission: () -> Unit,
-    onOpenNotificationSettings: () -> Unit,
+    onNavigateToStorage: () -> Unit,
+    onNavigateToBandwidth: () -> Unit,
+    onNavigateToConnectionLimits: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
+    onNavigateToNetwork: () -> Unit,
+    onNavigateToPower: () -> Unit,
+    onNavigateToAdvanced: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -158,11 +110,144 @@ fun SettingsScreenContent(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // =====================================================================
-            // Storage
-            // =====================================================================
             item {
-                SectionHeader(title = "Storage")
+                SettingsNavItem(
+                    icon = Icons.Default.Folder,
+                    title = "Storage",
+                    subtitle = "Download folders",
+                    onClick = onNavigateToStorage
+                )
+            }
+            item {
+                SettingsNavItem(
+                    icon = Icons.Default.Speed,
+                    title = "Bandwidth",
+                    subtitle = "Speed limits",
+                    onClick = onNavigateToBandwidth
+                )
+            }
+            item {
+                SettingsNavItem(
+                    icon = Icons.Default.People,
+                    title = "Connection Limits",
+                    subtitle = "Peers, upload slots, pipeline",
+                    onClick = onNavigateToConnectionLimits
+                )
+            }
+            item {
+                SettingsNavItem(
+                    icon = Icons.Default.Notifications,
+                    title = "Notifications",
+                    subtitle = "Permission and alerts",
+                    onClick = onNavigateToNotifications
+                )
+            }
+            item {
+                SettingsNavItem(
+                    icon = Icons.Default.Wifi,
+                    title = "Network",
+                    subtitle = "DHT, UPnP, encryption",
+                    onClick = onNavigateToNetwork
+                )
+            }
+            item {
+                SettingsNavItem(
+                    icon = Icons.Default.BatteryChargingFull,
+                    title = "Power Management",
+                    subtitle = "Background downloads, seeding",
+                    onClick = onNavigateToPower
+                )
+            }
+            item {
+                SettingsNavItem(
+                    icon = Icons.Default.Settings,
+                    title = "Advanced",
+                    subtitle = "Reset settings",
+                    onClick = onNavigateToAdvanced
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsNavItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+// =============================================================================
+// Storage Settings Screen
+// =============================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StorageSettingsScreen(
+    viewModel: SettingsViewModel,
+    onNavigateBack: () -> Unit,
+    onAddRootClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Storage") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            item {
+                SectionHeader(title = "Download Folders")
             }
 
             if (uiState.downloadRoots.isEmpty()) {
@@ -174,8 +259,8 @@ fun SettingsScreenContent(
                     DownloadRootItem(
                         root = root,
                         isDefault = root.key == uiState.defaultRootKey,
-                        onSetDefault = { onSetDefaultRoot(root.key) },
-                        onRemove = { onRemoveRoot(root.key) }
+                        onSetDefault = { viewModel.setDefaultRoot(root.key) },
+                        onRemove = { viewModel.removeRoot(root.key) }
                     )
                 }
             }
@@ -183,16 +268,46 @@ fun SettingsScreenContent(
             item {
                 AddFolderButton(onClick = onAddRootClick)
             }
+        }
+    }
+}
 
-            item {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            }
+// =============================================================================
+// Bandwidth Settings Screen
+// =============================================================================
 
-            // =====================================================================
-            // Bandwidth
-            // =====================================================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BandwidthSettingsScreen(
+    viewModel: SettingsViewModel,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Bandwidth") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             item {
-                SectionHeader(title = "Bandwidth")
+                SectionHeader(title = "Speed Limits")
             }
 
             item {
@@ -201,22 +316,108 @@ fun SettingsScreenContent(
                     downloadLimit = uiState.downloadSpeedLimit,
                     uploadUnlimited = uiState.uploadSpeedUnlimited,
                     uploadLimit = uiState.uploadSpeedLimit,
-                    onDownloadUnlimitedChange = onDownloadSpeedUnlimitedChange,
-                    onDownloadLimitChange = onDownloadSpeedLimitChange,
-                    onUploadUnlimitedChange = onUploadSpeedUnlimitedChange,
-                    onUploadLimitChange = onUploadSpeedLimitChange
+                    onDownloadUnlimitedChange = { viewModel.setDownloadSpeedUnlimited(it) },
+                    onDownloadLimitChange = { viewModel.setDownloadSpeedLimit(it) },
+                    onUploadUnlimitedChange = { viewModel.setUploadSpeedUnlimited(it) },
+                    onUploadLimitChange = { viewModel.setUploadSpeedLimit(it) }
                 )
             }
+        }
+    }
+}
 
+// =============================================================================
+// Connection Limits Settings Screen
+// =============================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConnectionLimitsSettingsScreen(
+    viewModel: SettingsViewModel,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Connection Limits") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             item {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                SectionHeader(title = "Peer Limits")
             }
 
-            // =====================================================================
-            // Notifications
-            // =====================================================================
             item {
-                SectionHeader(title = "Notifications")
+                ConnectionLimitsSection(
+                    maxPeersPerTorrent = uiState.maxPeersPerTorrent,
+                    maxGlobalPeers = uiState.maxGlobalPeers,
+                    maxUploadSlots = uiState.maxUploadSlots,
+                    maxPipelineDepth = uiState.maxPipelineDepth,
+                    onMaxPeersPerTorrentChange = { viewModel.setMaxPeersPerTorrent(it) },
+                    onMaxGlobalPeersChange = { viewModel.setMaxGlobalPeers(it) },
+                    onMaxUploadSlotsChange = { viewModel.setMaxUploadSlots(it) },
+                    onMaxPipelineDepthChange = { viewModel.setMaxPipelineDepth(it) }
+                )
+            }
+        }
+    }
+}
+
+// =============================================================================
+// Notifications Settings Screen
+// =============================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NotificationsSettingsScreen(
+    viewModel: SettingsViewModel,
+    onNavigateBack: () -> Unit,
+    onRequestNotificationPermission: () -> Unit,
+    onOpenNotificationSettings: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Notifications") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            item {
+                SectionHeader(title = "Permission")
             }
 
             item {
@@ -227,16 +428,47 @@ fun SettingsScreenContent(
                     onOpenSettings = onOpenNotificationSettings
                 )
             }
+        }
+    }
+}
 
-            item {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            }
+// =============================================================================
+// Network Settings Screen
+// =============================================================================
 
-            // =====================================================================
-            // Network
-            // =====================================================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NetworkSettingsScreen(
+    viewModel: SettingsViewModel,
+    onNavigateBack: () -> Unit,
+    onDhtInfoClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Network") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             item {
-                SectionHeader(title = "Network")
+                SectionHeader(title = "Connection")
             }
 
             item {
@@ -249,55 +481,124 @@ fun SettingsScreenContent(
                     upnpStatus = uiState.upnpStatus,
                     upnpExternalIP = uiState.upnpExternalIP,
                     upnpPort = uiState.upnpPort,
-                    onWifiOnlyChange = onWifiOnlyChange,
-                    onEncryptionPolicyChange = onEncryptionPolicyChange,
-                    onDhtChange = onDhtEnabledChange,
-                    onPexChange = onPexEnabledChange,
-                    onUpnpChange = onUpnpEnabledChange
+                    onWifiOnlyChange = { viewModel.setWifiOnly(it) },
+                    onEncryptionPolicyChange = { viewModel.setEncryptionPolicy(it) },
+                    onDhtChange = { viewModel.setDhtEnabled(it) },
+                    onPexChange = { viewModel.setPexEnabled(it) },
+                    onUpnpChange = { viewModel.setUpnpEnabled(it) },
+                    onDhtInfoClick = onDhtInfoClick
                 )
             }
+        }
+    }
+}
 
-            item {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            }
+// =============================================================================
+// Power Management Settings Screen
+// =============================================================================
 
-            // =====================================================================
-            // Power Management
-            // =====================================================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PowerManagementSettingsScreen(
+    viewModel: SettingsViewModel,
+    onNavigateBack: () -> Unit,
+    onOpenNotificationSettings: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Power Management") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             item {
-                SectionHeader(title = "Power Management")
+                SectionHeader(title = "Background Activity")
             }
 
             item {
                 PowerManagementSection(
                     backgroundDownloadsEnabled = uiState.backgroundDownloadsEnabled,
                     notificationPermissionGranted = uiState.notificationPermissionGranted,
-                    onBackgroundDownloadsChange = onBackgroundDownloadsChange,
+                    onBackgroundDownloadsChange = { viewModel.setBackgroundDownloadsEnabled(it) },
                     whenDownloadsComplete = uiState.whenDownloadsComplete,
-                    onWhenDownloadsCompleteChange = onWhenDownloadsCompleteChange
+                    onWhenDownloadsCompleteChange = { viewModel.setWhenDownloadsComplete(it) }
                 )
             }
+        }
+    }
 
-            item {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            }
+    // Notification required dialog
+    if (uiState.showNotificationRequiredDialog) {
+        NotificationRequiredDialog(
+            onOpenSettings = {
+                viewModel.dismissNotificationRequiredDialog()
+                onOpenNotificationSettings()
+            },
+            onDismiss = { viewModel.dismissNotificationRequiredDialog() }
+        )
+    }
+}
 
-            // =====================================================================
-            // Advanced
-            // =====================================================================
+// =============================================================================
+// Advanced Settings Screen
+// =============================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AdvancedSettingsScreen(
+    viewModel: SettingsViewModel,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Advanced") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             item {
-                SectionHeader(title = "Advanced")
+                SectionHeader(title = "Reset")
             }
 
             item {
                 ClearSettingsButton(
-                    onClick = onShowClearConfirmation,
+                    onClick = { viewModel.showClearConfirmation() },
                     enabled = uiState.downloadRoots.isNotEmpty()
                 )
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
@@ -305,22 +606,15 @@ fun SettingsScreenContent(
     // Clear confirmation dialog
     if (uiState.showClearConfirmation) {
         ClearConfirmationDialog(
-            onDismiss = onDismissClearConfirmation,
-            onConfirm = onClearAll
-        )
-    }
-
-    // Notification required dialog (shown when trying to enable background downloads without permission)
-    if (uiState.showNotificationRequiredDialog) {
-        NotificationRequiredDialog(
-            onOpenSettings = {
-                onDismissNotificationRequiredDialog()
-                onOpenNotificationSettings()
-            },
-            onDismiss = onDismissNotificationRequiredDialog
+            onDismiss = { viewModel.dismissClearConfirmation() },
+            onConfirm = { viewModel.clearAllRoots() }
         )
     }
 }
+
+// =============================================================================
+// Shared Components
+// =============================================================================
 
 @Composable
 private fun SectionHeader(
@@ -667,6 +961,169 @@ private fun formatSpeed(bytesPerSec: Int): String {
 }
 
 // =============================================================================
+// Connection Limits Section
+// =============================================================================
+
+private data class ConnectionLimitPreset(val value: Int, val label: String)
+
+private val maxPeersPerTorrentPresets = listOf(
+    ConnectionLimitPreset(5, "5"),
+    ConnectionLimitPreset(10, "10"),
+    ConnectionLimitPreset(20, "20"),
+    ConnectionLimitPreset(50, "50"),
+    ConnectionLimitPreset(100, "100")
+)
+
+private val maxGlobalPeersPresets = listOf(
+    ConnectionLimitPreset(50, "50"),
+    ConnectionLimitPreset(100, "100"),
+    ConnectionLimitPreset(200, "200"),
+    ConnectionLimitPreset(500, "500"),
+    ConnectionLimitPreset(1000, "1000")
+)
+
+private val maxUploadSlotsPresets = listOf(
+    ConnectionLimitPreset(0, "0 (disabled)"),
+    ConnectionLimitPreset(2, "2"),
+    ConnectionLimitPreset(4, "4"),
+    ConnectionLimitPreset(8, "8"),
+    ConnectionLimitPreset(16, "16")
+)
+
+private val maxPipelineDepthPresets = listOf(
+    ConnectionLimitPreset(10, "10 (conservative)"),
+    ConnectionLimitPreset(25, "25"),
+    ConnectionLimitPreset(50, "50 (default)"),
+    ConnectionLimitPreset(100, "100"),
+    ConnectionLimitPreset(250, "250"),
+    ConnectionLimitPreset(500, "500 (aggressive)")
+)
+
+@Composable
+private fun ConnectionLimitsSection(
+    maxPeersPerTorrent: Int,
+    maxGlobalPeers: Int,
+    maxUploadSlots: Int,
+    maxPipelineDepth: Int,
+    onMaxPeersPerTorrentChange: (Int) -> Unit,
+    onMaxGlobalPeersChange: (Int) -> Unit,
+    onMaxUploadSlotsChange: (Int) -> Unit,
+    onMaxPipelineDepthChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        ConnectionLimitRow(
+            label = "Max peers per torrent",
+            description = "Maximum connections per torrent",
+            currentValue = maxPeersPerTorrent,
+            presets = maxPeersPerTorrentPresets,
+            onValueChange = onMaxPeersPerTorrentChange
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        ConnectionLimitRow(
+            label = "Max global peers",
+            description = "Maximum total connections",
+            currentValue = maxGlobalPeers,
+            presets = maxGlobalPeersPresets,
+            onValueChange = onMaxGlobalPeersChange
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        ConnectionLimitRow(
+            label = "Max upload slots",
+            description = "Simultaneous upload connections",
+            currentValue = maxUploadSlots,
+            presets = maxUploadSlotsPresets,
+            onValueChange = onMaxUploadSlotsChange
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Advanced",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        ConnectionLimitRow(
+            label = "Pipeline depth",
+            description = "Outstanding block requests per peer. Higher values improve speed on high-latency connections but use more memory.",
+            currentValue = maxPipelineDepth,
+            presets = maxPipelineDepthPresets,
+            onValueChange = onMaxPipelineDepthChange
+        )
+    }
+}
+
+@Composable
+private fun ConnectionLimitRow(
+    label: String,
+    description: String,
+    currentValue: Int,
+    presets: List<ConnectionLimitPreset>,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val currentPreset = presets.find { it.value == currentValue }
+        ?: ConnectionLimitPreset(currentValue, currentValue.toString())
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Box {
+                OutlinedCard(
+                    modifier = Modifier.clickable { expanded = true }
+                ) {
+                    Text(
+                        text = currentPreset.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    presets.forEach { preset ->
+                        DropdownMenuItem(
+                            text = { Text(preset.label) },
+                            onClick = {
+                                onValueChange(preset.value)
+                                expanded = false
+                            },
+                            trailingIcon = if (preset.value == currentValue) {
+                                { Icon(Icons.Default.Check, contentDescription = "Selected") }
+                            } else null
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
 // Notifications Section
 // =============================================================================
 
@@ -678,60 +1135,72 @@ private fun NotificationsSection(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (permissionGranted) {
-                MaterialTheme.colorScheme.surface
-            } else {
-                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-            }
-        )
-    ) {
-        Row(
+    Column(modifier = modifier.fillMaxWidth()) {
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (permissionGranted) {
-                    Icons.Default.Notifications
+                .padding(horizontal = 16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (permissionGranted) {
+                    MaterialTheme.colorScheme.surface
                 } else {
-                    Icons.Default.NotificationsOff
-                },
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = if (permissionGranted) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.error
+                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
                 }
             )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (permissionGranted) "Enabled" else "Disabled",
-                    style = MaterialTheme.typography.bodyLarge
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (permissionGranted) {
+                        Icons.Default.Notifications
+                    } else {
+                        Icons.Default.NotificationsOff
+                    },
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = if (permissionGranted) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    }
                 )
-                if (!permissionGranted) {
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Required for background downloads",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = if (permissionGranted) "Enabled" else "Disabled",
+                        style = MaterialTheme.typography.bodyLarge
                     )
+                    if (!permissionGranted) {
+                        Text(
+                            text = "Required for background downloads",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-            }
-            if (!permissionGranted) {
-                Button(
-                    onClick = if (canRequestInline) onRequestPermission else onOpenSettings
-                ) {
-                    Text(if (canRequestInline) "Enable" else "Settings")
+                if (!permissionGranted) {
+                    Button(
+                        onClick = if (canRequestInline) onRequestPermission else onOpenSettings
+                    ) {
+                        Text(if (canRequestInline) "Enable" else "Settings")
+                    }
                 }
             }
         }
+
+        // Always show link to system notification settings
+        Text(
+            text = "Manage notification preferences",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .clickable(onClick = onOpenSettings)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+        )
     }
 }
 
@@ -831,6 +1300,7 @@ private fun NetworkSection(
     onDhtChange: (Boolean) -> Unit,
     onPexChange: (Boolean) -> Unit,
     onUpnpChange: (Boolean) -> Unit,
+    onDhtInfoClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -862,6 +1332,16 @@ private fun NetworkSection(
             description = "Distributed Hash Table for finding peers",
             checked = dhtEnabled,
             onCheckedChange = onDhtChange
+        )
+
+        // DHT info link
+        Text(
+            text = "View DHT Info",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .clickable(onClick = onDhtInfoClick)
+                .padding(start = 4.dp, top = 4.dp, bottom = 8.dp)
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -1127,111 +1607,19 @@ private fun ClearConfirmationDialog(
 // Previews
 // =============================================================================
 
-@Preview(showBackground = true, heightDp = 800)
-@Composable
-private fun SettingsScreenEmptyPreview() {
-    JSTorrentTheme {
-        SettingsScreenContent(
-            uiState = SettingsUiState(
-                downloadRoots = emptyList()
-            ),
-            onNavigateBack = {},
-            onAddRootClick = {},
-            onSetDefaultRoot = {},
-            onRemoveRoot = {},
-            onShowClearConfirmation = {},
-            onDismissClearConfirmation = {},
-            onClearAll = {},
-            onDownloadSpeedUnlimitedChange = {},
-            onDownloadSpeedLimitChange = {},
-            onUploadSpeedUnlimitedChange = {},
-            onUploadSpeedLimitChange = {},
-            onWhenDownloadsCompleteChange = {},
-            onWifiOnlyChange = {},
-            onDhtEnabledChange = {},
-            onPexEnabledChange = {},
-            onUpnpEnabledChange = {},
-            onEncryptionPolicyChange = {},
-            onBackgroundDownloadsChange = {},
-            onDismissNotificationRequiredDialog = {},
-            onRequestNotificationPermission = {},
-            onOpenNotificationSettings = {}
-        )
-    }
-}
-
-@Preview(showBackground = true, heightDp = 1200)
-@Composable
-private fun SettingsScreenWithRootsPreview() {
-    JSTorrentTheme {
-        SettingsScreenContent(
-            uiState = SettingsUiState(
-                downloadRoots = listOf(
-                    DownloadRoot(
-                        key = "abc123",
-                        uri = "content://...",
-                        displayName = "Download/JSTorrent",
-                        removable = false,
-                        lastStatOk = true,
-                        lastChecked = System.currentTimeMillis()
-                    ),
-                    DownloadRoot(
-                        key = "def456",
-                        uri = "content://...",
-                        displayName = "SD Card/Torrents",
-                        removable = true,
-                        lastStatOk = false,
-                        lastChecked = System.currentTimeMillis()
-                    )
-                ),
-                defaultRootKey = "abc123",
-                downloadSpeedUnlimited = false,
-                downloadSpeedLimit = 1048576,
-                uploadSpeedUnlimited = false,
-                uploadSpeedLimit = 512000,
-                notificationPermissionGranted = true,
-                backgroundDownloadsEnabled = true,
-                dhtEnabled = true,
-                pexEnabled = true,
-                upnpEnabled = true,
-                upnpStatus = "mapped",
-                upnpExternalIP = "203.0.113.45",
-                upnpPort = 51413,
-                wifiOnlyEnabled = false,
-                encryptionPolicy = "allow"
-            ),
-            onNavigateBack = {},
-            onAddRootClick = {},
-            onSetDefaultRoot = {},
-            onRemoveRoot = {},
-            onShowClearConfirmation = {},
-            onDismissClearConfirmation = {},
-            onClearAll = {},
-            onDownloadSpeedUnlimitedChange = {},
-            onDownloadSpeedLimitChange = {},
-            onUploadSpeedUnlimitedChange = {},
-            onUploadSpeedLimitChange = {},
-            onWhenDownloadsCompleteChange = {},
-            onWifiOnlyChange = {},
-            onDhtEnabledChange = {},
-            onPexEnabledChange = {},
-            onUpnpEnabledChange = {},
-            onEncryptionPolicyChange = {},
-            onBackgroundDownloadsChange = {},
-            onDismissNotificationRequiredDialog = {},
-            onRequestNotificationPermission = {},
-            onOpenNotificationSettings = {}
-        )
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
-private fun ClearConfirmationDialogPreview() {
+private fun SettingsHubPreview() {
     JSTorrentTheme {
-        ClearConfirmationDialog(
-            onDismiss = {},
-            onConfirm = {}
+        SettingsScreen(
+            onNavigateBack = {},
+            onNavigateToStorage = {},
+            onNavigateToBandwidth = {},
+            onNavigateToConnectionLimits = {},
+            onNavigateToNotifications = {},
+            onNavigateToNetwork = {},
+            onNavigateToPower = {},
+            onNavigateToAdvanced = {}
         )
     }
 }

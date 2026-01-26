@@ -25,6 +25,11 @@ data class SettingsUiState(
     val downloadSpeedLimit: Int = 1048576, // 1 MB/s
     val uploadSpeedUnlimited: Boolean = true,
     val uploadSpeedLimit: Int = 1048576, // 1 MB/s
+    // Connection Limits
+    val maxPeersPerTorrent: Int = 20,
+    val maxGlobalPeers: Int = 200,
+    val maxUploadSlots: Int = 4,
+    val maxPipelineDepth: Int = 50, // Android default (desktop uses 500)
     // Behavior
     val whenDownloadsComplete: String = "stop_and_close",
     // Network
@@ -73,6 +78,10 @@ class SettingsViewModel(
             downloadSpeedLimit = settingsStore.downloadSpeedLimit,
             uploadSpeedUnlimited = settingsStore.uploadSpeedUnlimited,
             uploadSpeedLimit = settingsStore.uploadSpeedLimit,
+            maxPeersPerTorrent = settingsStore.maxPeersPerTorrent,
+            maxGlobalPeers = settingsStore.maxGlobalPeers,
+            maxUploadSlots = settingsStore.maxUploadSlots,
+            maxPipelineDepth = settingsStore.maxPipelineDepth,
             whenDownloadsComplete = settingsStore.whenDownloadsComplete,
             wifiOnlyEnabled = settingsStore.wifiOnlyEnabled,
             dhtEnabled = settingsStore.dhtEnabled,
@@ -208,6 +217,46 @@ class SettingsViewModel(
             app.engineController?.getConfigBridge()?.setUploadSpeedLimit(bytesPerSec)
         }
         _uiState.value = _uiState.value.copy(uploadSpeedLimit = bytesPerSec)
+    }
+
+    // =========================================================================
+    // Connection Limit Settings
+    // =========================================================================
+
+    /**
+     * Set maximum peers per torrent.
+     */
+    fun setMaxPeersPerTorrent(max: Int) {
+        settingsStore.maxPeersPerTorrent = max
+        app.engineController?.getConfigBridge()?.setMaxPeersPerTorrent(max)
+        _uiState.value = _uiState.value.copy(maxPeersPerTorrent = max)
+    }
+
+    /**
+     * Set maximum global peers across all torrents.
+     */
+    fun setMaxGlobalPeers(max: Int) {
+        settingsStore.maxGlobalPeers = max
+        app.engineController?.getConfigBridge()?.setMaxGlobalPeers(max)
+        _uiState.value = _uiState.value.copy(maxGlobalPeers = max)
+    }
+
+    /**
+     * Set maximum upload slots.
+     */
+    fun setMaxUploadSlots(max: Int) {
+        settingsStore.maxUploadSlots = max
+        app.engineController?.getConfigBridge()?.setMaxUploadSlots(max)
+        _uiState.value = _uiState.value.copy(maxUploadSlots = max)
+    }
+
+    /**
+     * Set maximum pipeline depth.
+     */
+    fun setMaxPipelineDepth(depth: Int) {
+        settingsStore.maxPipelineDepth = depth
+        app.engineController?.getConfigBridge()?.setMaxPipelineDepth(depth)
+        _uiState.value = _uiState.value.copy(maxPipelineDepth = depth)
     }
 
     // =========================================================================

@@ -107,6 +107,39 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_BACKGROUND_DOWNLOADS_ENABLED, false)
         set(value) = prefs.edit { putBoolean(KEY_BACKGROUND_DOWNLOADS_ENABLED, value) }
 
+    // =========================================================================
+    // Connection Limits
+    // =========================================================================
+
+    /**
+     * Maximum peers per torrent.
+     */
+    var maxPeersPerTorrent: Int
+        get() = prefs.getInt(KEY_MAX_PEERS_PER_TORRENT, 20)
+        set(value) = prefs.edit { putInt(KEY_MAX_PEERS_PER_TORRENT, value) }
+
+    /**
+     * Maximum global peers across all torrents.
+     */
+    var maxGlobalPeers: Int
+        get() = prefs.getInt(KEY_MAX_GLOBAL_PEERS, 200)
+        set(value) = prefs.edit { putInt(KEY_MAX_GLOBAL_PEERS, value) }
+
+    /**
+     * Maximum upload slots.
+     */
+    var maxUploadSlots: Int
+        get() = prefs.getInt(KEY_MAX_UPLOAD_SLOTS, 4)
+        set(value) = prefs.edit { putInt(KEY_MAX_UPLOAD_SLOTS, value) }
+
+    /**
+     * Maximum pipeline depth (outstanding block requests per peer).
+     * Default is 50 for Android standalone (lower than desktop's 500 for battery/resource efficiency).
+     */
+    var maxPipelineDepth: Int
+        get() = prefs.getInt(KEY_MAX_PIPELINE_DEPTH, 50)
+        set(value) = prefs.edit { putInt(KEY_MAX_PIPELINE_DEPTH, value) }
+
     companion object {
         private const val PREFS_NAME = "jstorrent_settings"
         private const val KEY_DOWNLOAD_SPEED_UNLIMITED = "download_speed_unlimited"
@@ -122,5 +155,10 @@ class SettingsStore(context: Context) {
         private const val KEY_ENCRYPTION_POLICY = "encryption_policy"
         private const val KEY_HAS_SHOWN_NOTIFICATION_PROMPT = "has_shown_notification_prompt"
         private const val KEY_BACKGROUND_DOWNLOADS_ENABLED = "background_downloads_enabled"
+        // Connection limits
+        private const val KEY_MAX_PEERS_PER_TORRENT = "max_peers_per_torrent"
+        private const val KEY_MAX_GLOBAL_PEERS = "max_global_peers"
+        private const val KEY_MAX_UPLOAD_SLOTS = "max_upload_slots"
+        private const val KEY_MAX_PIPELINE_DEPTH = "max_pipeline_depth"
     }
 }

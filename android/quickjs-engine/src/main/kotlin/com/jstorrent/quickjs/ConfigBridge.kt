@@ -87,6 +87,14 @@ class ConfigBridge(
         setConfig("maxUploadSlots", max)
     }
 
+    /**
+     * Set maximum pipeline depth (outstanding block requests per peer).
+     * Higher values improve throughput on high-latency connections.
+     */
+    fun setMaxPipelineDepth(depth: Int) {
+        setConfig("maxPipelineDepth", depth)
+    }
+
     // =========================================================================
     // Features
     // =========================================================================

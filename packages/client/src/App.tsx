@@ -24,11 +24,28 @@ export type { AppContentProps, FileInfo } from './AppContent'
  * ChromeAppContent - Wrapper around AppContent that provides Chrome-specific callbacks.
  * Uses engineManager for file operations and notificationBridge for duplicate notifications.
  */
+// Detect dev mode:
+// - Extension unpacked: no update_url in manifest
+// - Website/standalone: use Vite's DEV flag
+const isDevMode = (() => {
+  try {
+    // Chrome extension context
+    if (typeof chrome !== 'undefined' && chrome.runtime?.getManifest) {
+      return !chrome.runtime.getManifest().update_url
+    }
+  } catch {
+    // Not in extension context
+  }
+  // Fallback for website/standalone
+  return import.meta.env.DEV
+})()
+
 function ChromeAppContent({ onOpenLoggingSettings }: { onOpenLoggingSettings?: () => void }) {
   return (
     <AppContent
       onOpenLoggingSettings={onOpenLoggingSettings}
       onDuplicateTorrent={(name) => notificationBridge.onDuplicateTorrent(name)}
+      isDevMode={isDevMode}
       onOpenFolder={async (torrentHash) => {
         const result = await engineManager.openTorrentFolder(torrentHash)
         if (!result.ok) {

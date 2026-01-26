@@ -9,6 +9,31 @@ import java.net.Socket
 import java.net.SocketTimeoutException
 
 /**
+ * Configuration for read batching behavior.
+ *
+ * Batching reduces callback overhead by accumulating data before delivery.
+ * Different modes benefit from different settings:
+ * - Standalone (QuickJS): Aggressive batching reduces JNI/JS callback overhead
+ * - Companion (WebSocket): Minimal batching for lower latency, WebSocket handles framing
+ */
+data class BatchingConfig(
+    /** Maximum time to wait for more data before delivering a batch (ms) */
+    val maxTimeMs: Int = 100,
+    /** Timeout for each additional read attempt within a batch (ms) */
+    val readTimeoutMs: Int = 20,
+    /** Maximum batch size before forced delivery (bytes) */
+    val maxSize: Int = 1024 * 1024
+) {
+    companion object {
+        /** For QuickJS standalone - batch aggressively to reduce callbacks */
+        val STANDALONE = BatchingConfig(maxTimeMs = 100, readTimeoutMs = 20)
+
+        /** For companion mode - minimal batching for lower latency */
+        val COMPANION = BatchingConfig(maxTimeMs = 50, readTimeoutMs = 10)
+    }
+}
+
+/**
  * Internal handler for a single TCP connection.
  *
  * Manages read and write loops for a connected socket. Data received
@@ -17,6 +42,7 @@ import java.net.SocketTimeoutException
  * @param socketId Unique identifier for this socket
  * @param socket The underlying connected socket
  * @param scope CoroutineScope for I/O operations
+ * @param batchingConfig Configuration for read batching behavior
  * @param onData Callback when data is received
  * @param onClose Callback when socket closes (hadError, errorCode)
  */
@@ -24,6 +50,7 @@ internal class TcpConnection(
     val socketId: Int,
     private var socket: Socket,
     private val scope: CoroutineScope,
+    private val batchingConfig: BatchingConfig = BatchingConfig.STANDALONE,
     private val onData: (ByteArray) -> Unit,
     private val onClose: (Boolean, Int) -> Unit
 ) {
@@ -38,11 +65,6 @@ internal class TcpConnection(
         private const val WRITE_BUFFER_SIZE = 64 * 1024 // 64KB buffered output
         private const val FLUSH_THRESHOLD = 32 * 1024   // Flush when accumulated >= 32KB
         private const val SMALL_MESSAGE_SIZE = 1024     // Flush immediately for small control messages
-
-        // Batching parameters for high-throughput peers
-        private const val BATCH_MAX_SIZE = 1024 * 1024  // 1MB max batch
-        private const val BATCH_MAX_TIME_MS = 100       // 100ms max batch window
-        private const val BATCH_READ_TIMEOUT_MS = 20    // 20ms timeout between reads in batch
     }
 
     /**
@@ -138,17 +160,17 @@ internal class TcpConnection(
 
                     // For larger reads, try to batch with subsequent data
                     // Use short blocking timeout to let data accumulate from fast peers
-                    val batchBuffer = java.io.ByteArrayOutputStream(BATCH_MAX_SIZE)
+                    val batchBuffer = java.io.ByteArrayOutputStream(batchingConfig.maxSize)
                     batchBuffer.write(buffer, 0, bytesRead)
                     val batchStartTime = System.currentTimeMillis()
 
                     // Switch to short timeout for batching
-                    socket.soTimeout = BATCH_READ_TIMEOUT_MS
+                    socket.soTimeout = batchingConfig.readTimeoutMs
 
                     // Accumulate more data with short blocking reads
                     while (isActive &&
-                           batchBuffer.size() < BATCH_MAX_SIZE &&
-                           (System.currentTimeMillis() - batchStartTime) < BATCH_MAX_TIME_MS) {
+                           batchBuffer.size() < batchingConfig.maxSize &&
+                           (System.currentTimeMillis() - batchStartTime) < batchingConfig.maxTimeMs) {
                         val moreBytesRead = try {
                             input.read(buffer)
                         } catch (_: SocketTimeoutException) {

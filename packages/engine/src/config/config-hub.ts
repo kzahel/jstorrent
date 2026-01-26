@@ -65,6 +65,9 @@ export interface ConfigHub {
   /** Maximum simultaneous upload slots. */
   readonly maxUploadSlots: ConfigValue<number>
 
+  /** Maximum outstanding block requests per peer (pipeline depth). */
+  readonly maxPipelineDepth: ConfigValue<number>
+
   // ===========================================================================
   // Settings: Protocol
   // ===========================================================================

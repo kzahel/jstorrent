@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CreateNewFolder
-import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -83,7 +82,6 @@ fun TorrentListScreen(
     onTorrentClick: (String) -> Unit = {},
     onAddRootClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
-    onDhtInfoClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onShutdownClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -246,32 +244,6 @@ fun TorrentListScreen(
                                 onAddRootClick()
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text("Settings") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Settings,
-                                    contentDescription = null
-                                )
-                            },
-                            onClick = {
-                                showMenu = false
-                                onSettingsClick()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("DHT Info") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Hub,
-                                    contentDescription = null
-                                )
-                            },
-                            onClick = {
-                                showMenu = false
-                                onDhtInfoClick()
-                            }
-                        )
                         // Debug-only: Add test torrents with kitchen sink peer hints
                         if (BuildConfig.DEBUG) {
                             HorizontalDivider()
@@ -305,6 +277,19 @@ fun TorrentListScreen(
                             )
                         }
                         HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Settings") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = null
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onSettingsClick()
+                            }
+                        )
                         DropdownMenuItem(
                             text = { Text("Shutdown") },
                             leadingIcon = {

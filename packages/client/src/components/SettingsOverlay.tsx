@@ -40,6 +40,7 @@ function buildConfigSnapshot(config: ConfigHub) {
     maxPeersPerTorrent: config.maxPeersPerTorrent.get(),
     maxGlobalPeers: config.maxGlobalPeers.get(),
     maxUploadSlots: config.maxUploadSlots.get(),
+    maxPipelineDepth: config.maxPipelineDepth.get(),
     dhtEnabled: config.dhtEnabled.get(),
     // Advanced
     loggingLevel: config.loggingLevel.get(),
@@ -839,6 +840,13 @@ const NetworkTab: React.FC<NetworkTabProps> = ({ settings, config, engineManager
           onChange={(v) => config.set('maxUploadSlots', v)}
           min={0}
           max={50}
+        />
+        <NumberRow
+          label="Pipeline depth"
+          value={settings.maxPipelineDepth}
+          onChange={(v) => config.set('maxPipelineDepth', v)}
+          min={10}
+          max={500}
         />
       </Section>
 

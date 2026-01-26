@@ -165,8 +165,10 @@ export default defineConfig({
     'import.meta.env.SHARE_URL': JSON.stringify(
       process.env.SHARE_URL || `http://${DEV_HOST}:3001/src/ui/share.html`,
     ),
-    // JSTorrent version from engine package.json
+    // JSTorrent version from engine package.json (for UI display)
     'import.meta.env.JSTORRENT_VERSION': JSON.stringify(JSTORRENT_VERSION),
+    // JSTorrent version as global constant (for engine peer ID)
+    JSTORRENT_VERSION: JSON.stringify(JSTORRENT_VERSION),
   },
   server: {
     // Dev mode: serve on local.jstorrent.com:3001

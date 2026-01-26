@@ -1,5 +1,6 @@
 package com.jstorrent.companion.server
 
+import com.jstorrent.io.socket.BatchingConfig
 import com.jstorrent.io.socket.TcpSocketService
 import com.jstorrent.io.socket.UdpSocketManagerImpl
 import kotlinx.coroutines.CoroutineScope
@@ -26,11 +27,13 @@ object SocketManagerFactory {
     /**
      * Create a new TCP socket service for a session.
      *
+     * Uses COMPANION batching config for minimal latency - WebSocket handles framing.
+     *
      * @param scope CoroutineScope for socket operations (tied to session lifecycle)
      * @return TcpSocketService for managing TCP connections
      */
     fun createTcpService(scope: CoroutineScope): TcpSocketService {
-        return TcpSocketService(scope, connectSemaphore, MAX_PENDING_CONNECTS)
+        return TcpSocketService(scope, connectSemaphore, MAX_PENDING_CONNECTS, BatchingConfig.COMPANION)
     }
 
     /**

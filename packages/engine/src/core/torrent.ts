@@ -2756,11 +2756,15 @@ export class Torrent extends EngineComponent {
     // Use per-peer adaptive pipeline depth (starts at 10, ramps up for fast peers)
     let pipelineLimit = peer.pipelineDepth
 
-    // Cap pipeline depth on mobile platforms to reduce memory pressure and focus requests
-    // Mobile devices have less RAM and pieces complete faster with fewer outstanding requests
+    // Apply configurable pipeline depth cap
+    // Default is 500, but standalone Android hard-caps at 50 for memory safety
+    const maxPipelineDepth = this.btEngine.config?.maxPipelineDepth.get() ?? 500
     const platformType = this.btEngine.config?.platformType.get()
-    if (platformType === 'android-standalone' || platformType === 'chromeos') {
-      pipelineLimit = Math.min(pipelineLimit, 50)
+    if (platformType === 'android-standalone') {
+      // Hard cap for standalone Android to prevent OOM
+      pipelineLimit = Math.min(pipelineLimit, 50, maxPipelineDepth)
+    } else {
+      pipelineLimit = Math.min(pipelineLimit, maxPipelineDepth)
     }
 
     // Cap pipeline depth when rate limited to prevent fast peers from monopolizing bandwidth

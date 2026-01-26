@@ -172,6 +172,16 @@ export const configSchema = {
     max: 50,
   },
 
+  /** Maximum outstanding block requests per peer (pipeline depth). Higher values improve throughput on high-latency connections. */
+  maxPipelineDepth: {
+    type: 'number',
+    category: 'setting',
+    storage: 'sync',
+    default: 500,
+    min: 10,
+    max: 500,
+  },
+
   // ===========================================================================
   // Settings: Protocol
   // ===========================================================================

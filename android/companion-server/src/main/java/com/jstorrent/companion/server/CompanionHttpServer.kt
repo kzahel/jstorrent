@@ -190,6 +190,28 @@ class CompanionHttpServer(
                 call.respondText("ok", ContentType.Text.Plain)
             }
 
+            // Benchmark endpoint - no auth, returns N MB of zeros
+            // Usage: GET /benchmark?mb=10 (default 10MB)
+            get("/benchmark") {
+                val mb = call.request.queryParameters["mb"]?.toIntOrNull() ?: 10
+                val bytes = mb.coerceIn(1, 100) * 1024 * 1024
+                val chunk = ByteArray(64 * 1024) // 64KB chunks
+                val startTime = System.currentTimeMillis()
+
+                call.respondOutputStream(ContentType.Application.OctetStream) {
+                    var remaining = bytes
+                    while (remaining > 0) {
+                        val toWrite = minOf(remaining, chunk.size)
+                        write(chunk, 0, toWrite)
+                        remaining -= toWrite
+                    }
+                }
+
+                val elapsed = System.currentTimeMillis() - startTime
+                val speedMBps = bytes.toDouble() / 1024 / 1024 / (elapsed / 1000.0)
+                Log.i(TAG, "Benchmark: sent ${bytes / 1024 / 1024}MB in ${elapsed}ms = ${String.format("%.1f", speedMBps)} MB/s")
+            }
+
             // Stats endpoint - returns daemon statistics
             // Only requires auth token, not extension headers (consistent with desktop daemon)
             get("/stats") {

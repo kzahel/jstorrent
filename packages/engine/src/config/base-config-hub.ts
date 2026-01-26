@@ -78,6 +78,7 @@ export abstract class BaseConfigHub implements ConfigHub {
   readonly maxPeersPerTorrent = createConfigValue(this, 'maxPeersPerTorrent')
   readonly maxGlobalPeers = createConfigValue(this, 'maxGlobalPeers')
   readonly maxUploadSlots = createConfigValue(this, 'maxUploadSlots')
+  readonly maxPipelineDepth = createConfigValue(this, 'maxPipelineDepth')
 
   // Settings: Protocol
   readonly encryptionPolicy = createConfigValue(this, 'encryptionPolicy')

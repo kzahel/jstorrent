@@ -33,6 +33,7 @@ const SETTING_KEYS: ConfigKey[] = [
   'maxPeersPerTorrent',
   'maxGlobalPeers',
   'maxUploadSlots',
+  'maxPipelineDepth',
   'encryptionPolicy',
   'listeningPort',
   'dhtEnabled',

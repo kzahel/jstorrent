@@ -25,11 +25,13 @@ import javax.net.ssl.SSLSocketFactory
  * @param scope CoroutineScope for all socket operations
  * @param connectSemaphore Semaphore limiting concurrent connection attempts (default 30)
  * @param maxPendingConnects Maximum pending connections before fast-fail (default 60)
+ * @param batchingConfig Configuration for read batching behavior (default STANDALONE)
  */
 class TcpSocketService(
     private val scope: CoroutineScope,
     private val connectSemaphore: Semaphore = Semaphore(30),
-    private val maxPendingConnects: Int = 60
+    private val maxPendingConnects: Int = 60,
+    private val batchingConfig: BatchingConfig = BatchingConfig.STANDALONE
 ) : TcpSocketManager, TcpServerManager {
 
     // Callbacks
@@ -318,6 +320,7 @@ class TcpSocketService(
             socketId = socketId,
             socket = socket,
             scope = scope,
+            batchingConfig = batchingConfig,
             onData = { data ->
                 socketCallback?.onTcpData(socketId, data)
             },

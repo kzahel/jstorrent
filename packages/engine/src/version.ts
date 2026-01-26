@@ -6,11 +6,11 @@
  */
 declare const JSTORRENT_VERSION: string | undefined
 export const VERSION: string =
-  typeof JSTORRENT_VERSION !== 'undefined' ? JSTORRENT_VERSION : '0.0.1'
+  typeof JSTORRENT_VERSION !== 'undefined' ? JSTORRENT_VERSION : '0.1.0'
 
 /**
  * Convert semantic version "X.Y.Z" to Azureus-style 4-char code "XYZW".
- * For version "0.0.1", returns "0001".
+ * For version "0.1.0", returns "0100".
  *
  * Azureus-style peer IDs use format: -XX#### where:
  * - XX is the 2-letter client code (JS for JSTorrent)

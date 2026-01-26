@@ -20,8 +20,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.jstorrent.app.ui.screens.AdvancedSettingsScreen
+import com.jstorrent.app.ui.screens.BandwidthSettingsScreen
+import com.jstorrent.app.ui.screens.ConnectionLimitsSettingsScreen
 import com.jstorrent.app.ui.screens.DhtInfoScreen
+import com.jstorrent.app.ui.screens.NetworkSettingsScreen
+import com.jstorrent.app.ui.screens.NotificationsSettingsScreen
+import com.jstorrent.app.ui.screens.PowerManagementSettingsScreen
 import com.jstorrent.app.ui.screens.SettingsScreen
+import com.jstorrent.app.ui.screens.StorageSettingsScreen
 import com.jstorrent.app.ui.screens.TorrentDetailScreen
 import com.jstorrent.app.ui.screens.TorrentListScreen
 import com.jstorrent.app.viewmodel.DhtViewModel
@@ -36,6 +43,13 @@ object Routes {
     const val TORRENT_LIST = "torrent_list"
     const val TORRENT_DETAIL = "torrent_detail/{infoHash}"
     const val SETTINGS = "settings"
+    const val SETTINGS_STORAGE = "settings/storage"
+    const val SETTINGS_BANDWIDTH = "settings/bandwidth"
+    const val SETTINGS_CONNECTION_LIMITS = "settings/connection_limits"
+    const val SETTINGS_NOTIFICATIONS = "settings/notifications"
+    const val SETTINGS_NETWORK = "settings/network"
+    const val SETTINGS_POWER = "settings/power"
+    const val SETTINGS_ADVANCED = "settings/advanced"
     const val DHT_INFO = "dht_info"
 
     fun torrentDetail(infoHash: String) = "torrent_detail/$infoHash"
@@ -54,7 +68,6 @@ fun TorrentNavHost(
     listViewModel: TorrentListViewModel,
     onAddRootClick: () -> Unit,
     onShutdownClick: () -> Unit = {},
-    onDhtInfoClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     initialInfoHash: String? = null,
     navigateToListTrigger: Int = 0,
@@ -92,9 +105,6 @@ fun TorrentNavHost(
                 onSettingsClick = {
                     navController.navigate(Routes.SETTINGS)
                 },
-                onDhtInfoClick = {
-                    navController.navigate(Routes.DHT_INFO)
-                },
                 onSearchClick = {
                     // TODO: Implement search in future phase
                 },
@@ -120,8 +130,59 @@ fun TorrentNavHost(
             )
         }
 
-        // Settings screen
+        // Settings hub screen
         composable(Routes.SETTINGS) {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToStorage = { navController.navigate(Routes.SETTINGS_STORAGE) },
+                onNavigateToBandwidth = { navController.navigate(Routes.SETTINGS_BANDWIDTH) },
+                onNavigateToConnectionLimits = { navController.navigate(Routes.SETTINGS_CONNECTION_LIMITS) },
+                onNavigateToNotifications = { navController.navigate(Routes.SETTINGS_NOTIFICATIONS) },
+                onNavigateToNetwork = { navController.navigate(Routes.SETTINGS_NETWORK) },
+                onNavigateToPower = { navController.navigate(Routes.SETTINGS_POWER) },
+                onNavigateToAdvanced = { navController.navigate(Routes.SETTINGS_ADVANCED) }
+            )
+        }
+
+        // Storage settings
+        composable(Routes.SETTINGS_STORAGE) {
+            val context = LocalContext.current
+            val settingsViewModel: SettingsViewModel = viewModel(
+                factory = SettingsViewModel.Factory(context)
+            )
+            StorageSettingsScreen(
+                viewModel = settingsViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onAddRootClick = onAddRootClick
+            )
+        }
+
+        // Bandwidth settings
+        composable(Routes.SETTINGS_BANDWIDTH) {
+            val context = LocalContext.current
+            val settingsViewModel: SettingsViewModel = viewModel(
+                factory = SettingsViewModel.Factory(context)
+            )
+            BandwidthSettingsScreen(
+                viewModel = settingsViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Connection limits settings
+        composable(Routes.SETTINGS_CONNECTION_LIMITS) {
+            val context = LocalContext.current
+            val settingsViewModel: SettingsViewModel = viewModel(
+                factory = SettingsViewModel.Factory(context)
+            )
+            ConnectionLimitsSettingsScreen(
+                viewModel = settingsViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Notifications settings
+        composable(Routes.SETTINGS_NOTIFICATIONS) {
             val context = LocalContext.current
             val settingsViewModel: SettingsViewModel = viewModel(
                 factory = SettingsViewModel.Factory(context)
@@ -131,7 +192,6 @@ fun TorrentNavHost(
             val permissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestPermission()
             ) { isGranted ->
-                // Update the ViewModel with the result
                 val canRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val activity = context as? android.app.Activity
                     activity?.let {
@@ -154,7 +214,7 @@ fun TorrentNavHost(
                         Manifest.permission.POST_NOTIFICATIONS
                     ) == PermissionChecker.PERMISSION_GRANTED
                 } else {
-                    true // Permission not needed on older Android versions
+                    true
                 }
 
                 val canRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -172,10 +232,9 @@ fun TorrentNavHost(
                 settingsViewModel.updateNotificationPermissionState(granted, canRequest || !granted)
             }
 
-            SettingsScreen(
+            NotificationsSettingsScreen(
                 viewModel = settingsViewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onAddRootClick = onAddRootClick,
                 onRequestNotificationPermission = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -188,6 +247,77 @@ fun TorrentNavHost(
                     }
                     context.startActivity(intent)
                 }
+            )
+        }
+
+        // Network settings
+        composable(Routes.SETTINGS_NETWORK) {
+            val context = LocalContext.current
+            val settingsViewModel: SettingsViewModel = viewModel(
+                factory = SettingsViewModel.Factory(context)
+            )
+            NetworkSettingsScreen(
+                viewModel = settingsViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onDhtInfoClick = { navController.navigate(Routes.DHT_INFO) }
+            )
+        }
+
+        // Power management settings
+        composable(Routes.SETTINGS_POWER) {
+            val context = LocalContext.current
+            val settingsViewModel: SettingsViewModel = viewModel(
+                factory = SettingsViewModel.Factory(context)
+            )
+
+            // Check initial permission state for background downloads
+            LaunchedEffect(Unit) {
+                val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) == PermissionChecker.PERMISSION_GRANTED
+                } else {
+                    true
+                }
+
+                val canRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val activity = context as? android.app.Activity
+                    activity?.let {
+                        !granted && ActivityCompat.shouldShowRequestPermissionRationale(
+                            it,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        )
+                    } ?: (!granted)
+                } else {
+                    false
+                }
+
+                settingsViewModel.updateNotificationPermissionState(granted, canRequest || !granted)
+            }
+
+            PowerManagementSettingsScreen(
+                viewModel = settingsViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onOpenNotificationSettings = {
+                    val intent = Intent().apply {
+                        action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    }
+                    context.startActivity(intent)
+                }
+            )
+        }
+
+        // Advanced settings
+        composable(Routes.SETTINGS_ADVANCED) {
+            val context = LocalContext.current
+            val settingsViewModel: SettingsViewModel = viewModel(
+                factory = SettingsViewModel.Factory(context)
+            )
+            AdvancedSettingsScreen(
+                viewModel = settingsViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

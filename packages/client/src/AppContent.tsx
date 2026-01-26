@@ -47,6 +47,8 @@ export interface AppContentProps {
   onDuplicateTorrent?: (torrentName: string) => void
   /** URL for share page (defaults to https://jstorrent.com/share.html) */
   shareUrl?: string
+  /** Whether to show dev-only features like test torrents */
+  isDevMode?: boolean
 }
 
 export function AppContent({
@@ -57,6 +59,7 @@ export function AppContent({
   onOpenFolder,
   onDuplicateTorrent,
   shareUrl = 'https://jstorrent.com/share.html',
+  isDevMode = false,
 }: AppContentProps) {
   const [magnetInput, setMagnetInput] = useState('')
   const [selectedTorrents, setSelectedTorrents] = useState<Set<string>>(new Set())
@@ -252,7 +255,7 @@ export function AppContent({
       disabled: !hasSelection,
     },
     // Dev-only test torrent actions (always enabled)
-    ...(import.meta.env.DEV
+    ...(isDevMode
       ? [
           { id: 'separatorDev', label: '', separator: true } as ContextMenuItem,
           { id: 'addUbuntu', label: 'Add Ubuntu ISO', icon: '⊕' } as ContextMenuItem,
@@ -469,7 +472,7 @@ export function AppContent({
               label="More"
               items={moreMenuItems}
               onSelect={handleMenuAction}
-              disabled={!hasSelection && !import.meta.env.DEV}
+              disabled={!hasSelection && !isDevMode}
             />
           </div>
 
