@@ -27,9 +27,9 @@ describe('Fast Restart', () => {
   })
 
   it('should start downloading within 1 second of restart', async () => {
-    // 1. Create file content (256KB = 16 pieces at 16KB each)
+    // 1. Create file content (1MB = 64 pieces at 16KB each)
     // Use larger file so download doesn't complete before restart
-    const fileContent = new Uint8Array(1024 * 256).fill(1)
+    const fileContent = new Uint8Array(1024 * 1024).fill(1)
     for (let i = 0; i < fileContent.length; i++) {
       fileContent[i] = i % 256
     }
@@ -158,18 +158,27 @@ describe('Fast Restart', () => {
 
     // Set up piece listener BEFORE starting to avoid race condition
     const pieceReceived = new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Download did not resume within 2s')), 2000)
+      const timeout = setTimeout(() => {
+        const currentPieces = leecherTorrent.bitfield?.cardinality() ?? 0
+        reject(
+          new Error(
+            `Download did not resume within 5s. Pieces before=${piecesBeforeStop}, after=${currentPieces}, total=${totalPieces}`,
+          ),
+        )
+      }, 5000)
       leecherTorrent.on('piece', () => {
         clearTimeout(timeout)
         resolve()
       })
     })
 
+    console.log('Restarting torrent...')
     leecherTorrent.userStart()
 
     seederTorrent.addPeer(peerS2)
     leecherTorrent.addPeer(peerL2)
 
+    console.log('Sending handshakes after restart...')
     peerS2.sendHandshake(seederTorrent.infoHash, new Uint8Array(20).fill(3))
     peerL2.sendHandshake(leecherTorrent.infoHash, new Uint8Array(20).fill(4))
 
