@@ -11,6 +11,7 @@ import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TrackerInfo
 import com.jstorrent.quickjs.model.DhtStats
+import com.jstorrent.quickjs.model.SpeedSamplesResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -169,5 +170,15 @@ class EngineServiceRepository(
 
     override suspend fun getDhtStats(): DhtStats? {
         return controller?.getDhtStatsAsync()
+    }
+
+    override suspend fun getSpeedSamples(
+        direction: String,
+        categories: String,
+        fromTime: Long,
+        toTime: Long,
+        maxPoints: Int
+    ): SpeedSamplesResult? {
+        return controller?.getSpeedSamplesAsync(direction, categories, fromTime, toTime, maxPoints)
     }
 }

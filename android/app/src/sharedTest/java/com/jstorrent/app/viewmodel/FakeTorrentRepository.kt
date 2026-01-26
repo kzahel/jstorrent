@@ -9,6 +9,7 @@ import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TorrentSummary
 import com.jstorrent.quickjs.model.TrackerInfo
 import com.jstorrent.quickjs.model.DhtStats
+import com.jstorrent.quickjs.model.SpeedSamplesResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -190,6 +191,21 @@ class FakeTorrentRepository : TorrentRepository {
 
     override suspend fun getDhtStats(): DhtStats? {
         return dhtStatsData
+    }
+
+    override suspend fun getSpeedSamples(
+        direction: String,
+        categories: String,
+        fromTime: Long,
+        toTime: Long,
+        maxPoints: Int
+    ): SpeedSamplesResult? {
+        // Return empty samples for testing
+        return SpeedSamplesResult(
+            samples = emptyList(),
+            bucketMs = 1000,
+            latestBucketTime = System.currentTimeMillis()
+        )
     }
 }
 

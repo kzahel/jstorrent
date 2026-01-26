@@ -665,6 +665,63 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
       })),
     })
   }
+
+  /**
+   * Get speed samples from the bandwidth tracker for graphing.
+   * Returns samples with metadata about bucket size.
+   *
+   * @param direction - 'down' or 'up'
+   * @param categoriesJson - JSON array of categories (e.g., '["peer:protocol"]') or "all"
+   * @param fromTime - Start timestamp (ms since epoch)
+   * @param toTime - End timestamp (ms since epoch)
+   * @param maxPoints - Maximum number of data points to return (default 300)
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_speed_samples = (
+    direction: string,
+    categoriesJson: string,
+    fromTime: number,
+    toTime: number,
+    maxPoints: number = 300,
+  ): string => {
+    const engine = requireEngine('query_speed_samples')
+    if (!engine) {
+      return JSON.stringify({
+        samples: [],
+        bucketMs: 1000,
+        latestBucketTime: 0,
+      })
+    }
+
+    // Parse categories
+    let categories: TrafficCategory[] | 'all'
+    if (categoriesJson === 'all' || categoriesJson === '"all"') {
+      categories = 'all'
+    } else {
+      try {
+        categories = JSON.parse(categoriesJson) as TrafficCategory[]
+      } catch {
+        console.warn(`[controller] query_speed_samples: Invalid categories JSON: ${categoriesJson}`)
+        categories = 'all'
+      }
+    }
+
+    // Validate direction
+    const dir = direction === 'up' ? 'up' : 'down'
+
+    const result = engine.bandwidthTracker.getSamplesWithMeta(
+      dir,
+      categories,
+      fromTime,
+      toTime,
+      maxPoints,
+    )
+
+    return JSON.stringify({
+      samples: result.samples,
+      bucketMs: result.bucketMs,
+      latestBucketTime: result.latestBucketTime,
+    })
+  }
 }
 
 /**

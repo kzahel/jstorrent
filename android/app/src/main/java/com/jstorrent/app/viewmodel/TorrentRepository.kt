@@ -8,6 +8,7 @@ import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TrackerInfo
 import com.jstorrent.quickjs.model.DhtStats
+import com.jstorrent.quickjs.model.SpeedSamplesResult
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -112,4 +113,22 @@ interface TorrentRepository {
      * Returns null if DHT is not initialized.
      */
     suspend fun getDhtStats(): DhtStats?
+
+    /**
+     * Get speed samples from the bandwidth tracker for graphing.
+     *
+     * @param direction "down" or "up"
+     * @param categories "all" or JSON array of categories
+     * @param fromTime Start timestamp in ms since epoch
+     * @param toTime End timestamp in ms since epoch
+     * @param maxPoints Maximum number of data points to return
+     * @return SpeedSamplesResult with samples and bucket metadata, or null on error
+     */
+    suspend fun getSpeedSamples(
+        direction: String,
+        categories: String = "all",
+        fromTime: Long,
+        toTime: Long,
+        maxPoints: Int = 300
+    ): SpeedSamplesResult?
 }

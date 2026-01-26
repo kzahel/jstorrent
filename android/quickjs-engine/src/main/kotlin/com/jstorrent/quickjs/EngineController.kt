@@ -21,6 +21,7 @@ import com.jstorrent.quickjs.model.PeerListResponse
 import com.jstorrent.quickjs.model.PieceInfo
 import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.DhtStats
+import com.jstorrent.quickjs.model.SpeedSamplesResult
 import com.jstorrent.quickjs.model.UpnpStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -691,6 +692,40 @@ class EngineController(
             json.decodeFromString<UpnpStatus>(resultJson)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse UPnP status", e)
+            null
+        }
+    }
+
+    /**
+     * Get speed samples from the bandwidth tracker for graphing (suspend version).
+     *
+     * @param direction "down" or "up"
+     * @param categories "all" or JSON array of categories (e.g., '["peer:protocol"]')
+     * @param fromTime Start timestamp in ms since epoch
+     * @param toTime End timestamp in ms since epoch
+     * @param maxPoints Maximum number of data points to return (default 300)
+     * @return SpeedSamplesResult with samples and bucket metadata, or null on error
+     */
+    suspend fun getSpeedSamplesAsync(
+        direction: String,
+        categories: String = "all",
+        fromTime: Long,
+        toTime: Long,
+        maxPoints: Int = 300
+    ): SpeedSamplesResult? {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunctionAsync(
+            "__jstorrent_query_speed_samples",
+            direction,
+            categories,
+            fromTime.toString(),
+            toTime.toString(),
+            maxPoints.toString()
+        ) as? String ?: return null
+        return try {
+            json.decodeFromString<SpeedSamplesResult>(resultJson)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse speed samples", e)
             null
         }
     }

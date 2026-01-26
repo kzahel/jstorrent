@@ -38,6 +38,13 @@ import { PexHandler } from '../extensions/pex-handler'
 import { CorruptionTracker, BanDecision } from './corruption-tracker'
 
 /**
+ * Maximum ratio of peer slots that incoming connections can occupy.
+ * This prevents incoming connections from filling all slots, ensuring
+ * we always have capacity to initiate outgoing connections to better peers.
+ */
+export const MAX_INCOMING_RATIO = 0.6
+
+/**
  * Piece classification for file priority system.
  * - 'wanted': All files touched by this piece are non-skipped
  * - 'boundary': Piece touches both skipped and non-skipped files
@@ -2046,6 +2053,28 @@ export class Torrent extends EngineComponent {
       }
     }
 
+    // Check incoming connection limit - reserve slots for outgoing connections
+    // This prevents incoming connections from filling all slots during sleep/wake bursts
+    if (peer.isIncoming) {
+      const incomingCount = this.peers.filter((p) => p.isIncoming).length
+      const maxIncoming = Math.floor(this.maxPeers * MAX_INCOMING_RATIO)
+      if (incomingCount >= maxIncoming) {
+        this.logger.info(
+          `Rejecting incoming peer, incoming limit reached (${incomingCount}/${maxIncoming})`,
+        )
+        peer.close()
+        if (peer.remoteAddress && peer.remotePort) {
+          this._swarm.rejectIncoming(
+            peer.remoteAddress,
+            peer.remotePort,
+            detectAddressFamily(peer.remoteAddress),
+            'incoming_limit_reached',
+          )
+        }
+        return
+      }
+    }
+
     // Check total connections including connecting (accounts for incoming during outgoing attempts)
     // If peer is already in connecting state (outgoing connection), it's already counted
     // so we use > instead of >= to avoid double-counting
@@ -2571,6 +2600,8 @@ export class Torrent extends EngineComponent {
       downloadRate: peer.downloadSpeed,
       connectedAt: peer.connectedAt,
       lastDataReceived: peer.downloadSpeedCalculator.lastActivity || now,
+      isIncoming: peer.isIncoming,
+      totalBytesReceived: peer.downloadSpeedCalculator.totalBytes,
     }))
   }
 

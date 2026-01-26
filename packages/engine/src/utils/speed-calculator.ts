@@ -10,6 +10,9 @@ export class SpeedCalculator {
   // Track when we last received data (for slow peer detection)
   public lastActivity: number
 
+  // Track lifetime bytes received (to detect peers that never sent data)
+  public totalBytes: number = 0
+
   constructor(windowSeconds: number = 5) {
     this.windowSize = windowSeconds
     this.buckets = new Array(windowSeconds).fill(0)
@@ -21,6 +24,7 @@ export class SpeedCalculator {
   addBytes(bytes: number) {
     this.updateBuckets()
     this.buckets[this.currentBucketIndex] += bytes
+    this.totalBytes += bytes
     this.lastActivity = Date.now()
   }
 

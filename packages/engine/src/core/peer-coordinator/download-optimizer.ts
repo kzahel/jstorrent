@@ -15,6 +15,7 @@ export const DEFAULT_DOWNLOAD_CONFIG: DownloadOptimizerConfig = {
   minConnectionAgeMs: 15_000,
   dropBelowAverageRatio: 0.1,
   minPeersBeforeDropping: 4,
+  incomingIdleTimeoutMs: 20_000, // Drop incoming peers that never sent data after 20s
 }
 
 // ============================================================================
@@ -160,6 +161,16 @@ export class DownloadOptimizer {
     // === Check 1: Choked timeout ===
     if (peer.peerChoking && timeSinceData > this.config.chokedTimeoutMs) {
       return { peerId: peer.id, reason: 'choked_timeout' }
+    }
+
+    // === Check 1b: Incoming idle - faster timeout for incoming peers that never sent data ===
+    // These are likely connections from the wake-burst that never became useful
+    if (
+      peer.isIncoming &&
+      peer.totalBytesReceived === 0 &&
+      connectionAge > this.config.incomingIdleTimeoutMs
+    ) {
+      return { peerId: peer.id, reason: 'incoming_idle' }
     }
 
     // === Check 2: Speed checks (only for established connections) ===

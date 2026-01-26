@@ -28,11 +28,13 @@ import com.jstorrent.app.ui.screens.NetworkSettingsScreen
 import com.jstorrent.app.ui.screens.NotificationsSettingsScreen
 import com.jstorrent.app.ui.screens.PowerManagementSettingsScreen
 import com.jstorrent.app.ui.screens.SettingsScreen
+import com.jstorrent.app.ui.screens.SpeedHistoryScreen
 import com.jstorrent.app.ui.screens.StorageSettingsScreen
 import com.jstorrent.app.ui.screens.TorrentDetailScreen
 import com.jstorrent.app.ui.screens.TorrentListScreen
 import com.jstorrent.app.viewmodel.DhtViewModel
 import com.jstorrent.app.viewmodel.SettingsViewModel
+import com.jstorrent.app.viewmodel.SpeedHistoryViewModel
 import com.jstorrent.app.viewmodel.TorrentDetailViewModel
 import com.jstorrent.app.viewmodel.TorrentListViewModel
 
@@ -51,6 +53,7 @@ object Routes {
     const val SETTINGS_POWER = "settings/power"
     const val SETTINGS_ADVANCED = "settings/advanced"
     const val DHT_INFO = "dht_info"
+    const val SPEED_HISTORY = "speed_history"
 
     fun torrentDetail(infoHash: String) = "torrent_detail/$infoHash"
 }
@@ -108,7 +111,10 @@ fun TorrentNavHost(
                 onSearchClick = {
                     // TODO: Implement search in future phase
                 },
-                onShutdownClick = onShutdownClick
+                onShutdownClick = onShutdownClick,
+                onSpeedClick = {
+                    navController.navigate(Routes.SPEED_HISTORY)
+                }
             )
         }
 
@@ -330,6 +336,18 @@ fun TorrentNavHost(
             )
             DhtInfoScreen(
                 viewModel = dhtViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Speed History screen
+        composable(Routes.SPEED_HISTORY) {
+            val application = LocalContext.current.applicationContext as android.app.Application
+            val speedHistoryViewModel: SpeedHistoryViewModel = viewModel(
+                factory = SpeedHistoryViewModel.Factory(application)
+            )
+            SpeedHistoryScreen(
+                viewModel = speedHistoryViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

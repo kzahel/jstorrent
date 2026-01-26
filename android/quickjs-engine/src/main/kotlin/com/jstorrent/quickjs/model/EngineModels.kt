@@ -189,6 +189,26 @@ data class UpnpStatus(
 )
 
 /**
+ * A single speed sample from the bandwidth tracker.
+ */
+@Serializable
+data class SpeedSample(
+    val time: Long,  // Timestamp in ms since epoch
+    val value: Float // Speed in bytes/sec
+)
+
+/**
+ * Result from __jstorrent_query_speed_samples.
+ * Contains samples and metadata about the bucket resolution.
+ */
+@Serializable
+data class SpeedSamplesResult(
+    val samples: List<SpeedSample>,
+    val bucketMs: Long,        // Resolution of each sample in milliseconds
+    val latestBucketTime: Long // Timestamp of the most recent bucket
+)
+
+/**
  * DHT statistics from __jstorrent_query_dht_stats.
  * Used for debugging DHT operation.
  */

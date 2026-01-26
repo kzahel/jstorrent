@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -84,6 +85,7 @@ fun TorrentListScreen(
     onSettingsClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onShutdownClick: () -> Unit = {},
+    onSpeedClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -228,6 +230,19 @@ fun TorrentListScreen(
                             onClick = {
                                 showMenu = false
                                 viewModel.resumeAll()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Speed") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Speed,
+                                    contentDescription = null
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onSpeedClick()
                             }
                         )
                         HorizontalDivider()

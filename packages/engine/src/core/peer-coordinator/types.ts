@@ -23,6 +23,8 @@ export interface DownloadPeerSnapshot {
   downloadRate: number // Bytes/sec they're giving us
   connectedAt: number // When connected
   lastDataReceived: number // Timestamp of last data from them
+  isIncoming: boolean // Whether this was an incoming connection
+  totalBytesReceived: number // Lifetime bytes received (0 = never sent data)
 }
 
 /**
@@ -46,7 +48,7 @@ export interface ChokeDecision {
  */
 export interface DropDecision {
   peerId: string
-  reason: 'choked_timeout' | 'too_slow' | 'below_average'
+  reason: 'choked_timeout' | 'too_slow' | 'below_average' | 'incoming_idle'
 }
 
 /**
@@ -87,6 +89,8 @@ export interface DownloadOptimizerConfig {
   dropBelowAverageRatio: number
   /** Don't drop if we have fewer peers than this (default 4) */
   minPeersBeforeDropping: number
+  /** Drop incoming peers that never sent data after this time in ms (default 20000) */
+  incomingIdleTimeoutMs: number
 }
 
 /**
