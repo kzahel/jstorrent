@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.jstorrent.app.e2e.TestMagnets
-import com.jstorrent.app.service.ForegroundNotificationService
 import com.jstorrent.app.viewmodel.EngineServiceRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -45,13 +44,6 @@ class RepositoryAsyncTest {
             // Initialize engine via Application (with null storage mode for in-memory)
             app.initializeEngine(storageMode = "null")
 
-            // Mark activity as in foreground via lifecycle manager
-            app.serviceLifecycleManager.setActivityForeground(true)
-
-            // Start service (it will use the Application's engine)
-            Log.i(TAG, "Starting ForegroundNotificationService")
-            ForegroundNotificationService.start(context, "null")
-
             // Wait for engine to be fully loaded
             repeat(30) {
                 if (app.engineController?.isLoaded?.value == true) return@repeat
@@ -68,13 +60,8 @@ class RepositoryAsyncTest {
     fun teardown() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val app = context.applicationContext as JSTorrentApplication
-        // Reset foreground flag to prevent test pollution
-        app.serviceLifecycleManager.setActivityForeground(false)
-        ForegroundNotificationService.stop(context)
         app.shutdownEngine()
-        // Wait for service to fully stop to avoid race conditions with next test
-        Thread.sleep(1000)
-        Log.i(TAG, "ForegroundNotificationService stopped")
+        Log.i(TAG, "Engine shutdown")
     }
 
     @Test

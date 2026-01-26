@@ -200,6 +200,36 @@ declare global {
    */
   function __jstorrent_file_delete(rootKey: string, path: string): boolean
 
+  /**
+   * Async verified write: hash data, compare to expected, write if match.
+   * Runs on background thread to avoid blocking JS. Result delivered via callback.
+   *
+   * @param rootKey Storage root key
+   * @param path File path relative to root
+   * @param offset Write position
+   * @param data Data to write
+   * @param expectedSha1Hex Expected SHA1 hash as hex string (40 chars)
+   * @param callbackId Unique ID for result callback
+   */
+  function __jstorrent_file_write_verified(
+    rootKey: string,
+    path: string,
+    offset: number,
+    data: ArrayBuffer,
+    expectedSha1Hex: string,
+    callbackId: string,
+  ): void
+
+  /**
+   * Callback storage for verified write results.
+   * Managed by native layer, called via __jstorrent_file_dispatch_write_result.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, no-var
+  var __jstorrent_file_write_callbacks: Record<
+    string,
+    (bytesWritten: number, resultCode: number) => void
+  >
+
   // ============================================================
   // Storage Functions (SharedPreferences / UserDefaults)
   // ============================================================

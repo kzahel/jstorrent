@@ -40,7 +40,9 @@
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc --project tsconfig.test.json",
     "download-memory": "node --import tsx scripts/download_memory.ts",
-    "download-null": "node --import tsx scripts/download_null.ts"
+    "download-null": "node --import tsx scripts/download_null.ts",
+    "bench": "vitest bench",
+    "bench:jitless": "NODE_OPTIONS='--jitless' vitest bench"
   },
   "keywords": [
     "bittorrent",

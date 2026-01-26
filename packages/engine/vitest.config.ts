@@ -8,5 +8,8 @@ export default defineConfig({
       '**/dist/**',
       'integration/**', // Exclude all integration tests by default
     ],
+    benchmark: {
+      include: ['benchmark/**/*.bench.ts'],
+    },
   },
 })

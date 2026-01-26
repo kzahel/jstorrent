@@ -274,14 +274,20 @@ export class TorrentContentStorage extends EngineComponent {
         const singleFile = this.pieceSpansSingleFile(pieceIndex, data.length)
         if (singleFile) {
           const handle = await this.getFileHandle(singleFile.path)
-          if (supportsVerifiedWrite(handle)) {
-            // Use verified write - hash check happens in io-daemon
+          const canVerify = supportsVerifiedWrite(handle)
+          this.logger.debug(
+            `Piece ${pieceIndex}: singleFile=${singleFile.path}, supportsVerifiedWrite=${canVerify}`,
+          )
+          if (canVerify) {
+            // Use verified write - hash check happens in native layer
             const fileRelativeOffset = torrentOffset - singleFile.offset
 
             handle.setExpectedHashForNextWrite(expectedHash)
             await handle.write(data, 0, data.length, fileRelativeOffset)
             return true // Verified write was used
           }
+        } else {
+          this.logger.debug(`Piece ${pieceIndex}: spans multiple files, using sync write`)
         }
       }
 

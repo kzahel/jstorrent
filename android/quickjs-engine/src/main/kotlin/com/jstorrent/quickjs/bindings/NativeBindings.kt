@@ -54,7 +54,7 @@ class NativeBindings(
     private val tcpBindings = TcpBindings(jsThread, tcpService)
     private val tcpServerBindings = TcpServerBindings(jsThread, tcpService)
     private val udpBindings = UdpBindings(jsThread, udpManager)
-    private val fileBindings = FileBindings(context, fileManager, rootResolver)
+    private val fileBindings = FileBindings(context, fileManager, rootResolver, jsThread)
     private val storageBindings = StorageBindings(context)
     private val networkBindings = NetworkBindings()
     private val callbackBindings = CallbackBindings()

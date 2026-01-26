@@ -5,7 +5,13 @@ import android.net.Uri
 import android.util.Log
 import com.jstorrent.io.file.FileManager
 import com.jstorrent.io.file.FileManagerException
+import com.jstorrent.io.hash.Hasher
+import com.jstorrent.quickjs.JsThread
 import com.jstorrent.quickjs.QuickJsContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -13,18 +19,30 @@ import java.io.File
 private const val TAG = "FileBindings"
 
 /**
+ * Write result codes for async verified writes.
+ */
+object WriteResultCode {
+    const val SUCCESS = 0
+    const val HASH_MISMATCH = 1
+    const val IO_ERROR = 2
+    const val INVALID_ARGS = 3
+}
+
+/**
  * File I/O bindings for QuickJS.
  *
  * Implements stateless file operations using [FileManager]:
  * - __jstorrent_file_read(rootKey, path, offset, length) -> ArrayBuffer
- * - __jstorrent_file_write(rootKey, path, offset, data) -> number
+ * - __jstorrent_file_write(rootKey, path, offset, data) -> number (sync)
+ * - __jstorrent_file_write_verified(rootKey, path, offset, data, expectedSha1Hex, callbackId) -> void (async)
  * - __jstorrent_file_stat(rootKey, path) -> string | null
  * - __jstorrent_file_mkdir(rootKey, path) -> boolean
  * - __jstorrent_file_exists(rootKey, path) -> boolean
  * - __jstorrent_file_readdir(rootKey, path) -> string (JSON array)
  * - __jstorrent_file_delete(rootKey, path) -> boolean
  *
- * All operations are synchronous - they block the JS thread until complete.
+ * Sync operations block the JS thread. The async write_verified operation runs
+ * hashing and I/O on a background thread, posting results back to JS via callback.
  *
  * Root resolution:
  * - Empty or "default" rootKey resolves to app-private downloads directory
@@ -34,7 +52,10 @@ class FileBindings(
     private val context: Context,
     private val fileManager: FileManager,
     private val rootResolver: (String) -> Uri?,
+    private val jsThread: JsThread? = null,
 ) {
+    // Coroutine scope for async I/O operations (hash + write on background thread)
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     companion object {
         // Throughput and latency tracking for backpressure detection
         @Volatile private var bytesWritten = 0L
@@ -54,6 +75,7 @@ class FileBindings(
      */
     fun register(ctx: QuickJsContext) {
         registerReadWrite(ctx)
+        registerAsyncWrite(ctx)
         registerPathFunctions(ctx)
     }
 
@@ -242,6 +264,154 @@ class FileBindings(
                 Log.e(TAG, "Delete failed: $path", e)
                 "false"
             }
+        }
+    }
+
+    /**
+     * Register async verified write function.
+     *
+     * This moves hashing and I/O to a background thread, freeing the JS thread
+     * to continue processing data callbacks. Results are posted back via callback.
+     */
+    private fun registerAsyncWrite(ctx: QuickJsContext) {
+        // Register the JS dispatch function for write results
+        ctx.evaluate("""
+            globalThis.__jstorrent_file_write_callbacks = {};
+            globalThis.__jstorrent_file_dispatch_write_result = function(callbackId, bytesWritten, resultCode) {
+                const callback = globalThis.__jstorrent_file_write_callbacks[callbackId];
+                if (callback) {
+                    delete globalThis.__jstorrent_file_write_callbacks[callbackId];
+                    callback(bytesWritten, resultCode);
+                }
+            };
+        """.trimIndent(), "file-bindings-init.js")
+
+        // __jstorrent_file_write_verified(rootKey, path, offset, data, expectedSha1Hex, callbackId): void
+        // Async verified write - hashes data, compares to expected, writes if match.
+        // Posts result back to JS via __jstorrent_file_dispatch_write_result.
+        ctx.setGlobalFunctionWithBinary("__jstorrent_file_write_verified", 3) { args, binary ->
+            val rootKey = args.getOrNull(0) ?: ""
+            val path = args.getOrNull(1) ?: ""
+            val offset = args.getOrNull(2)?.toLongOrNull() ?: 0L
+            // arg[3] is binary (data)
+            val expectedSha1Hex = args.getOrNull(4) ?: ""
+            val callbackId = args.getOrNull(5) ?: ""
+
+            if (jsThread == null) {
+                Log.e(TAG, "write_verified: jsThread not available")
+                return@setGlobalFunctionWithBinary null
+            }
+
+            if (path.isEmpty() || binary == null || expectedSha1Hex.isEmpty() || callbackId.isEmpty()) {
+                Log.w(TAG, "write_verified: invalid args")
+                // Post error back immediately
+                jsThread.post {
+                    ctx.callGlobalFunction(
+                        "__jstorrent_file_dispatch_write_result",
+                        callbackId,
+                        "-1",
+                        WriteResultCode.INVALID_ARGS.toString()
+                    )
+                    jsThread.scheduleJobPump(ctx)
+                }
+                return@setGlobalFunctionWithBinary null
+            }
+
+            val rootUri = resolveRoot(rootKey)
+            if (rootUri == null) {
+                Log.w(TAG, "write_verified: unknown root key: $rootKey")
+                jsThread.post {
+                    ctx.callGlobalFunction(
+                        "__jstorrent_file_dispatch_write_result",
+                        callbackId,
+                        "-1",
+                        WriteResultCode.INVALID_ARGS.toString()
+                    )
+                    jsThread.scheduleJobPump(ctx)
+                }
+                return@setGlobalFunctionWithBinary null
+            }
+
+            // Launch async work on I/O dispatcher
+            ioScope.launch {
+                val startTime = System.currentTimeMillis()
+
+                try {
+                    // 1. Hash the data
+                    val actualHash = Hasher.sha1(binary)
+                    val actualHashHex = actualHash.joinToString("") { "%02x".format(it) }
+
+                    // 2. Compare hashes
+                    if (!actualHashHex.equals(expectedSha1Hex, ignoreCase = true)) {
+                        Log.w(TAG, "write_verified: hash mismatch for $path")
+                        jsThread.post {
+                            ctx.callGlobalFunction(
+                                "__jstorrent_file_dispatch_write_result",
+                                callbackId,
+                                "-1",
+                                WriteResultCode.HASH_MISMATCH.toString()
+                            )
+                            jsThread.scheduleJobPump(ctx)
+                        }
+                        return@launch
+                    }
+
+                    // 3. Write the data (hash matched)
+                    fileManager.write(rootUri, path, offset, binary)
+                    val elapsed = System.currentTimeMillis() - startTime
+
+                    // Track stats
+                    synchronized(Companion) {
+                        bytesWritten += binary.size
+                        writeCount++
+                        totalWriteTimeMs += elapsed
+                        if (elapsed > maxWriteLatencyMs) {
+                            maxWriteLatencyMs = elapsed
+                        }
+
+                        // Log every 5 seconds
+                        val now = System.currentTimeMillis()
+                        val sinceLastLog = now - lastLogTime
+                        if (sinceLastLog >= 5000) {
+                            val mbWritten = bytesWritten / (1024.0 * 1024.0)
+                            val mbps = mbWritten / (sinceLastLog / 1000.0)
+                            val avgLatency = if (writeCount > 0) totalWriteTimeMs / writeCount else 0
+                            Log.i(TAG, "Verified write: %.2f MB/s, %d writes, avg %dms, max %dms".format(
+                                mbps, writeCount, avgLatency, maxWriteLatencyMs))
+                            bytesWritten = 0
+                            writeCount = 0
+                            totalWriteTimeMs = 0
+                            maxWriteLatencyMs = 0
+                            lastLogTime = now
+                        }
+                    }
+
+                    // 4. Post success back to JS thread
+                    jsThread.post {
+                        ctx.callGlobalFunction(
+                            "__jstorrent_file_dispatch_write_result",
+                            callbackId,
+                            binary.size.toString(),
+                            WriteResultCode.SUCCESS.toString()
+                        )
+                        jsThread.scheduleJobPump(ctx)
+                    }
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "write_verified failed: $path", e)
+                    jsThread.post {
+                        ctx.callGlobalFunction(
+                            "__jstorrent_file_dispatch_write_result",
+                            callbackId,
+                            "-1",
+                            WriteResultCode.IO_ERROR.toString()
+                        )
+                        jsThread.scheduleJobPump(ctx)
+                    }
+                }
+            }
+
+            null // Return immediately, result comes via callback
         }
     }
 }

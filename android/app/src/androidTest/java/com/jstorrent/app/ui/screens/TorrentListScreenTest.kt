@@ -134,8 +134,8 @@ class TorrentListScreenTest {
         composeTestRule.onNodeWithText("Downloading Torrent").assertIsDisplayed()
         composeTestRule.onNodeWithText("Finished Torrent").assertIsDisplayed()
 
-        // Click Queued tab
-        composeTestRule.onNodeWithText("Queued (1)").performClick()
+        // Click Active tab (renamed from Queued)
+        composeTestRule.onNodeWithText("Active (1)").performClick()
 
         // Only downloading torrent should be visible
         composeTestRule.onNodeWithText("Downloading Torrent").assertIsDisplayed()

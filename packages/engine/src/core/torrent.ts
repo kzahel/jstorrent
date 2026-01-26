@@ -3,7 +3,8 @@ import { ActivePiece, BLOCK_SIZE } from './active-piece'
 import { PeerCoordinator, PeerSnapshot, ChokeDecision, DropDecision } from './peer-coordinator'
 import { ActivePieceManager } from './active-piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
-import { HashMismatchError } from '../adapters/daemon/daemon-file-handle'
+// HashMismatchError is checked by name (not instanceof) to support both
+// daemon-file-handle and native-file-handle error classes
 import { BitField } from '../utils/bitfield'
 import { MessageType, WireMessage } from '../protocol/wire-protocol'
 import { toHex, toString, compare } from '../utils/buffer'
@@ -153,6 +154,8 @@ export class Torrent extends EngineComponent {
   private _requestPiecesPending = new Set<PeerConnection>()
   private _requestPiecesScheduled = false
   private _bitfield?: BitField
+  /** Optimization: track the first piece index we still need (for sequential mode) */
+  private _firstNeededPiece: number = 0
   public announce: string[] = []
   public trackerManager?: TrackerManager
   private _files: TorrentFileInfo[] = []
@@ -530,6 +533,7 @@ export class Torrent extends EngineComponent {
    */
   initBitfield(pieceCount: number): void {
     this._bitfield = new BitField(pieceCount)
+    this._firstNeededPiece = 0
   }
 
   /**
@@ -578,6 +582,17 @@ export class Torrent extends EngineComponent {
 
   markPieceVerified(index: number): void {
     this._bitfield?.set(index, true)
+
+    // Advance firstNeededPiece if this was it (or earlier)
+    if (index <= this._firstNeededPiece && this._bitfield) {
+      // Scan forward to find next incomplete piece
+      while (
+        this._firstNeededPiece < this.piecesCount &&
+        this._bitfield.get(this._firstNeededPiece)
+      ) {
+        this._firstNeededPiece++
+      }
+    }
   }
 
   getMissingPieces(): number[] {
@@ -638,6 +653,20 @@ export class Torrent extends EngineComponent {
 
   restoreBitfieldFromHex(hex: string): void {
     this._bitfield?.restoreFromHex(hex)
+    this._recalculateFirstNeededPiece()
+  }
+
+  /** Recalculate _firstNeededPiece by scanning from 0. Call after bulk bitfield changes. */
+  private _recalculateFirstNeededPiece(): void {
+    this._firstNeededPiece = 0
+    if (this._bitfield) {
+      while (
+        this._firstNeededPiece < this.piecesCount &&
+        this._bitfield.get(this._firstNeededPiece)
+      ) {
+        this._firstNeededPiece++
+      }
+    }
   }
 
   get numPeers(): number {
@@ -2856,11 +2885,12 @@ export class Torrent extends EngineComponent {
 
     // PHASE 2: If still room, select new pieces sequentially (no sorting)
     // Only runs when we need NEW pieces, not on every block
+    // Optimization: Start from _firstNeededPiece to skip completed prefix
     if (peer.requestsPending >= pipelineLimit) return
     if (!peerBitfield || !this._bitfield || !this._piecePriority) return
 
     const pieceCount = this.piecesCount
-    for (let i = 0; i < pieceCount; i++) {
+    for (let i = this._firstNeededPiece; i < pieceCount; i++) {
       if (peer.requestsPending >= pipelineLimit) break
 
       // Skip if we have it
@@ -3109,8 +3139,10 @@ export class Torrent extends EngineComponent {
           }
           // If usedVerifiedWrite is true, hash was already verified by io-daemon
         } catch (e) {
-          if (e instanceof HashMismatchError) {
-            // Hash verification failed in io-daemon
+          // Check by name to handle HashMismatchError from different sources
+          // (daemon-file-handle and native-file-handle have separate error classes)
+          if (e instanceof Error && e.name === 'HashMismatchError') {
+            // Hash verification failed in storage layer
             this.handleHashMismatch(index, piece)
             return
           }
@@ -3340,6 +3372,7 @@ export class Torrent extends EngineComponent {
     // Reset bitfield (progress) to empty
     if (this.hasMetadata && this.piecesCount > 0) {
       this._bitfield = new BitField(this.piecesCount)
+      this._firstNeededPiece = 0
     }
 
     // Reset stats
@@ -3392,6 +3425,7 @@ export class Torrent extends EngineComponent {
 
     // Reset bitfield to 0% (create fresh bitfield)
     this._bitfield = new BitField(this.piecesCount)
+    this._firstNeededPiece = 0
 
     // Clear cached file info so it's recomputed with fresh downloaded values
     this._files = []

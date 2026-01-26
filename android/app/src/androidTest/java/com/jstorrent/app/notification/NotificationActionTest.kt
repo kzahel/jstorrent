@@ -163,10 +163,21 @@ class NotificationActionTest {
         quitIntent.setPackage(context.packageName)
         context.sendBroadcast(quitIntent)
 
-        // Wait for service to stop
-        Thread.sleep(1000)
+        // Wait for service to stop - stopService() is asynchronous, poll for completion
+        val stopped = waitForServiceStop()
+        assertTrue("Service instance should be null after quit", stopped)
+    }
 
-        assertNull("Service instance should be null after quit", ForegroundNotificationService.instance)
+    private fun waitForServiceStop(timeoutMs: Long = 5_000L): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (ForegroundNotificationService.instance == null) {
+                return true
+            }
+            Thread.sleep(POLL_INTERVAL_MS)
+        }
+        Log.e(TAG, "Timeout waiting for service to stop")
+        return false
     }
 
     @Test
