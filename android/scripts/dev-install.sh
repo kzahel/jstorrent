@@ -42,6 +42,7 @@ usage() {
     echo "  --forward, -f      Set up port forwarding for dev server"
     echo "  --ui MODE          UI mode to launch (default: native)"
     echo "                       native          - Native Android UI"
+    echo "                       companion       - Companion mode (ChromeOS)"
     echo "                       standalone      - Standalone web UI"
     echo "                       standalone-full - Standalone full web UI"
     echo "  -h, --help         Show this help message"
@@ -67,7 +68,7 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             case "$2" in
-                native|standalone|standalone-full) UI_MODE="$2" ;;
+                native|companion|standalone|standalone-full) UI_MODE="$2" ;;
                 *) echo "Error: Unknown UI mode: $2"; echo "Valid modes: native, standalone, standalone-full"; exit 1 ;;
             esac
             shift 2
@@ -208,6 +209,9 @@ if $LAUNCH; then
     case "$UI_MODE" in
         native)
             LAUNCH_CMD="am start -n com.jstorrent.app/.NativeStandaloneActivity -a android.intent.action.VIEW -d jstorrent://native"
+            ;;
+        companion)
+            LAUNCH_CMD="am start -n com.jstorrent.app/.MainActivity"
             ;;
         standalone)
             LAUNCH_CMD="am start -n com.jstorrent.app/.MainActivity -a android.intent.action.VIEW -d http://localhost:3000/standalone.html"
