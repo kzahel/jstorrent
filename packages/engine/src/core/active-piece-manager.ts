@@ -1,4 +1,5 @@
 import { ActivePiece } from './active-piece'
+import { PieceBufferPool } from './piece-buffer-pool'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
 
 export interface ActivePieceConfig {
@@ -6,6 +7,10 @@ export interface ActivePieceConfig {
   maxActivePieces: number
   maxBufferedBytes: number
   cleanupIntervalMs: number
+  /** Standard piece length for buffer pooling. If not set, buffer pooling is disabled. */
+  standardPieceLength?: number
+  /** Maximum number of buffers to keep in pool (default: 64) */
+  maxPoolSize?: number
 }
 
 const DEFAULT_CONFIG: ActivePieceConfig = {
@@ -33,6 +38,7 @@ export class ActivePieceManager extends EngineComponent {
   private config: ActivePieceConfig
   private cleanupInterval?: ReturnType<typeof setInterval>
   private pieceLengthFn: (index: number) => number
+  private bufferPool: PieceBufferPool | null = null
 
   constructor(
     engine: ILoggingEngine,
@@ -42,6 +48,17 @@ export class ActivePieceManager extends EngineComponent {
     super(engine)
     this.pieceLengthFn = pieceLengthFn
     this.config = { ...DEFAULT_CONFIG, ...config }
+
+    // Initialize buffer pool if standard piece length is configured
+    if (this.config.standardPieceLength) {
+      this.bufferPool = new PieceBufferPool(
+        this.config.standardPieceLength,
+        this.config.maxPoolSize ?? 64,
+      )
+      this.logger.debug(
+        `Buffer pool initialized for ${this.config.standardPieceLength} byte pieces`,
+      )
+    }
 
     // Start periodic cleanup of timed-out requests
     this.cleanupInterval = setInterval(() => this.checkTimeouts(), this.config.cleanupIntervalMs)
@@ -74,7 +91,14 @@ export class ActivePieceManager extends EngineComponent {
     }
 
     const length = this.pieceLengthFn(index)
-    piece = new ActivePiece(index, length)
+
+    // Try to acquire a buffer from the pool (only if size matches standard)
+    let buffer: Uint8Array | undefined
+    if (this.bufferPool && length === this.config.standardPieceLength) {
+      buffer = this.bufferPool.acquire()
+    }
+
+    piece = new ActivePiece(index, length, buffer)
     this.pieces.set(index, piece)
     this.logger.debug(`Created active piece ${index}`)
     return piece
@@ -97,9 +121,20 @@ export class ActivePieceManager extends EngineComponent {
   remove(index: number): void {
     const piece = this.pieces.get(index)
     if (piece) {
+      // Release buffer back to pool if applicable
+      this.releaseBuffer(piece)
       piece.clear()
       this.pieces.delete(index)
       this.logger.debug(`Removed active piece ${index}`)
+    }
+  }
+
+  /**
+   * Release a piece's buffer back to the pool if it matches the standard size.
+   */
+  private releaseBuffer(piece: ActivePiece): void {
+    if (this.bufferPool && piece.length === this.config.standardPieceLength) {
+      this.bufferPool.release(piece.getBuffer())
     }
   }
 
@@ -200,6 +235,8 @@ export class ActivePieceManager extends EngineComponent {
         this.logger.debug(
           `Removing stale piece ${index} (blocks: ${piece.blocksReceived}, requests: ${piece.outstandingRequests})`,
         )
+        // Release buffer back to pool before clearing
+        this.releaseBuffer(piece)
         piece.clear()
         this.pieces.delete(index)
       }
@@ -214,9 +251,29 @@ export class ActivePieceManager extends EngineComponent {
       clearInterval(this.cleanupInterval)
       this.cleanupInterval = undefined
     }
+    // Release all buffers back to pool before clearing
     for (const piece of this.pieces.values()) {
+      this.releaseBuffer(piece)
       piece.clear()
     }
     this.pieces.clear()
+
+    // Clear the buffer pool
+    if (this.bufferPool) {
+      this.bufferPool.clear()
+    }
+  }
+
+  /**
+   * Get buffer pool statistics for debugging/monitoring.
+   * Returns null if buffer pooling is not enabled.
+   */
+  get bufferPoolStats(): {
+    acquires: number
+    reuses: number
+    releases: number
+    pooled: number
+  } | null {
+    return this.bufferPool?.stats ?? null
   }
 }
