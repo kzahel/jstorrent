@@ -1883,7 +1883,7 @@ export class Torrent extends EngineComponent {
 
     // Sum outstanding requests across all active pieces
     let totalRequests = 0
-    for (const piece of this.activePieces.activePieces) {
+    for (const piece of this.activePieces.values()) {
       totalRequests += piece.outstandingRequests
     }
 
@@ -2852,7 +2852,9 @@ export class Torrent extends EngineComponent {
     // PHASE 1: Request from existing active pieces first
     // This is O(A) where A = active pieces count (typically small)
     // Avoids expensive piece selection on every block received
-    for (const piece of this.activePieces.activePieces) {
+    // Use values() for zero-allocation iteration (critical for QuickJS performance)
+    const isEndgame = this._endgameManager.isEndgame
+    for (const piece of this.activePieces.values()) {
       if (peer.requestsPending >= pipelineLimit) return
 
       // Skip if peer doesn't have this piece
@@ -2861,8 +2863,12 @@ export class Torrent extends EngineComponent {
       // Skip if piece is complete (waiting for hash/flush)
       if (piece.haveAllBlocks) continue
 
+      // Fast path: In normal mode, skip pieces with no unrequested blocks
+      // This avoids array allocation from getNeededBlocks() when all blocks are in-flight
+      if (!isEndgame && !piece.hasUnrequestedBlocks()) continue
+
       // Get blocks we can request from this piece
-      const neededBlocks = this._endgameManager.isEndgame
+      const neededBlocks = isEndgame
         ? piece.getNeededBlocksEndgame(peerId, pipelineLimit - peer.requestsPending)
         : piece.getNeededBlocks(pipelineLimit - peer.requestsPending)
 

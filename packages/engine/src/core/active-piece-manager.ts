@@ -13,10 +13,19 @@ export interface ActivePieceConfig {
   maxPoolSize?: number
 }
 
+// Detect if running in native/QuickJS environment (Android/iOS)
+// QuickJS is much slower at iteration than V8, so we need tighter limits
+const isNativeRuntime =
+  typeof globalThis !== 'undefined' &&
+  typeof (globalThis as Record<string, unknown>).__jstorrent_tcp_connect === 'function'
+
 const DEFAULT_CONFIG: ActivePieceConfig = {
   requestTimeoutMs: 30000,
-  maxActivePieces: 10000, // Effectively unlimited - maxBufferedBytes is the real limit
-  maxBufferedBytes: 128 * 1024 * 1024, // 128 MB - this is the real memory guard
+  // QuickJS (Android): Limit pieces to reduce Phase 1 iteration overhead.
+  // Iterating 500+ pieces per peer causes severe JS thread latency (675ms+).
+  // V8 (desktop/extension): Allow more pieces for higher throughput (90MB/s+).
+  maxActivePieces: isNativeRuntime ? 150 : 10000,
+  maxBufferedBytes: isNativeRuntime ? 64 * 1024 * 1024 : 128 * 1024 * 1024,
   cleanupIntervalMs: 10000,
 }
 
@@ -144,8 +153,19 @@ export class ActivePieceManager extends EngineComponent {
     return Array.from(this.pieces.keys())
   }
 
+  /**
+   * Returns an array of active pieces. Creates a new array each call.
+   * Use values() for zero-allocation iteration in hot paths.
+   */
   get activePieces(): ActivePiece[] {
     return Array.from(this.pieces.values())
+  }
+
+  /**
+   * Returns an iterator over active pieces. Zero allocation - use this in hot paths.
+   */
+  values(): IterableIterator<ActivePiece> {
+    return this.pieces.values()
   }
 
   get activeCount(): number {

@@ -93,6 +93,19 @@ export class ActivePiece {
   }
 
   /**
+   * Fast check if piece has any blocks that are neither received nor requested.
+   * Use this before getNeededBlocks() to avoid array allocation when no work available.
+   */
+  hasUnrequestedBlocks(): boolean {
+    for (let i = 0; i < this.blocksNeeded; i++) {
+      if (this.blockReceived[i]) continue
+      if (this.blockRequests.has(i) && this.blockRequests.get(i)!.length > 0) continue
+      return true // Found an unrequested block
+    }
+    return false
+  }
+
+  /**
    * Check if a block has an active (non-timed-out) request.
    */
   isBlockRequested(blockIndex: number, timeoutMs?: number): boolean {

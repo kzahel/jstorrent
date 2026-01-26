@@ -394,11 +394,87 @@ if (activeBlocksNeeded >= totalPipelineCapacity) {
 }
 ```
 
-## Next Steps
+## Benchmark Results
 
-1. [ ] Create benchmark harness with jitless mode support
-2. [ ] Generate test torrent matching Ubuntu Server specs
-3. [ ] Baseline current performance
-4. [ ] Implement "first needed piece" optimization
-5. [ ] Measure improvement
-6. [ ] Implement remaining optimizations based on results
+Benchmarks were implemented and run to validate the optimization impact.
+
+### Benchmark Files
+
+- `packages/engine/benchmark/piece-selection.bench.ts` - Vitest benchmark for CI
+- `packages/engine/benchmark/piece-selection-standalone.ts` - Standalone script for `--jitless` testing
+
+### Running Benchmarks
+
+```bash
+# With V8 JIT (fast, for CI)
+cd packages/engine && pnpm bench
+
+# With JIT disabled (approximates QuickJS performance)
+cd packages/engine && npx tsx benchmark/piece-selection-standalone.ts
+node --jitless --import tsx benchmark/piece-selection-standalone.ts
+```
+
+### Results: V8 with JIT Enabled
+
+| Completion | Current | Optimized | Speedup |
+|------------|---------|-----------|---------|
+| 50% | 0.105ms/batch | 0.006ms/batch | **17x** |
+| 71% | 0.143ms/batch | 0.006ms/batch | **23x** |
+| 90% | 0.197ms/batch | 0.006ms/batch | **33x** |
+| 99% | 0.201ms/batch | 0.006ms/batch | **33x** |
+
+Sustained (100 batches = 1 second of download activity):
+- 71% complete: 14.7ms → 0.6ms (**25x faster**)
+- 99% complete: 20.2ms → 0.6ms (**33x faster**)
+
+### Results: V8 with JIT Disabled (--jitless, approximating QuickJS)
+
+| Completion | Current | Optimized | Speedup |
+|------------|---------|-----------|---------|
+| 50% | 6.5ms/batch | 0.16ms/batch | **40x** |
+| 71% | 9.2ms/batch | 0.16ms/batch | **57x** |
+| 90% | 11.7ms/batch | 0.16ms/batch | **72x** |
+| 99% | 12.9ms/batch | 0.16ms/batch | **79x** |
+
+Sustained (100 batches = 1 second of download activity):
+- 71% complete: **933ms → 16ms** (**57x faster**)
+- 99% complete: **1304ms → 17ms** (**78x faster**)
+
+### Key Finding
+
+Without optimization, the JS thread was spending **93% of every second** on piece selection alone at 71% completion. This explains the sawtooth download pattern - the thread is almost entirely blocked by piece selection, leaving no time for other work.
+
+With the `_firstNeededPiece` optimization, piece selection drops to ~1.6% of CPU time.
+
+## Implementation Status
+
+### Completed
+
+1. [x] Create benchmark harness with jitless mode support
+2. [x] Implement "first needed piece" optimization (`torrent.ts`)
+3. [x] Measure improvement (57-78x faster in jitless mode)
+4. [x] Add unit tests (`test/core/first-needed-piece.test.ts`)
+5. [x] **Phase 1 zero-allocation iteration** - Use `values()` iterator instead of `Array.from()` in `activePieces` getter
+6. [x] **Fast unrequested block check** - Add `hasUnrequestedBlocks()` to skip pieces with all blocks in-flight
+7. [x] **Reduce active piece limit** - Lower from 10000 to 150 pieces max
+8. [x] **Test on actual device** - Validated on Pixel 9
+
+### Device Testing Results (2025-01-26)
+
+**Before optimizations (500+ active pieces, 128MB):**
+- JS thread latency: 675ms typical, up to 3066ms max
+- Download pattern: Severe sawtooth, peaks ~45 MB/s with drops to near-zero
+- Active pieces creating massive Phase 1 iteration overhead
+
+**After optimizations (150 active pieces, 64MB):**
+- JS thread latency: 105-211ms (3-6x improvement)
+- Download pattern: Much smoother, less severe drops
+- Sawtooth significantly reduced
+
+**Key insight:** The `activePieces.activePieces` getter was calling `Array.from()` on every Phase 1 iteration (per peer, per scheduling batch), creating 500+ element arrays thousands of times per second. Combined with the active piece count limit, this reduced JS thread blocking substantially.
+
+### Remaining Optimizations
+
+1. [ ] Batch `updateInterest` calls (Priority 2)
+2. [ ] Skip Phase 2 when saturated (Priority 3)
+3. [ ] Investigate if higher piece limits can work with further optimizations
