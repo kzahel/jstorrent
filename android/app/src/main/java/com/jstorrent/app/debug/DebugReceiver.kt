@@ -3,8 +3,11 @@ package com.jstorrent.app.debug
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.os.PowerManager
 import android.util.Log
 import com.jstorrent.app.JSTorrentApplication
+import com.jstorrent.app.service.ForegroundNotificationService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -73,6 +76,7 @@ class DebugReceiver : BroadcastReceiver() {
             "torrents" -> handleTorrents(controller)
             "loglevel" -> handleLogLevel(controller, intent.getStringExtra("level"))
             "peers" -> handlePeers(controller, intent.getStringExtra("hash"))
+            "power" -> handlePower(context)
             "help" -> logHelp()
             else -> {
                 Log.w(TAG, "Unknown command: $cmd")
@@ -277,6 +281,68 @@ class DebugReceiver : BroadcastReceiver() {
         }
     }
 
+    private fun handlePower(context: Context) {
+        Log.i(TAG, "=== POWER STATE ===")
+
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+
+        // Basic power state from PowerManager
+        Log.i(TAG, "Interactive (screen on): ${powerManager.isInteractive}")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Log.i(TAG, "Device idle mode (Doze): ${powerManager.isDeviceIdleMode}")
+            Log.i(TAG, "Power save mode: ${powerManager.isPowerSaveMode}")
+            Log.i(TAG, "Battery opt ignored: ${powerManager.isIgnoringBatteryOptimizations(context.packageName)}")
+        }
+
+        // Check charging state
+        val batteryIntent = context.registerReceiver(
+            null,
+            android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        )
+        batteryIntent?.let { intent ->
+            val status = intent.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1)
+            val isCharging = status == android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
+                status == android.os.BatteryManager.BATTERY_STATUS_FULL
+            val level = intent.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1)
+            val plugged = intent.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, -1)
+            val pluggedStr = when (plugged) {
+                android.os.BatteryManager.BATTERY_PLUGGED_AC -> "AC"
+                android.os.BatteryManager.BATTERY_PLUGGED_USB -> "USB"
+                android.os.BatteryManager.BATTERY_PLUGGED_WIRELESS -> "Wireless"
+                else -> "None"
+            }
+            Log.i(TAG, "Charging: $isCharging (plugged: $pluggedStr)")
+            Log.i(TAG, "Battery level: $level%")
+        }
+
+        // Check DozeMonitor if service is running
+        val service = ForegroundNotificationService.instance
+        if (service != null) {
+            Log.i(TAG, "Service running: yes")
+            // We can't access dozeMonitor directly since it's private,
+            // but the logging from DozeMonitor itself goes to DozeMonitor tag
+            Log.i(TAG, "Note: See DozeMonitor tag for detailed state transitions")
+            Log.i(TAG, "  adb logcat -s DozeMonitor")
+        } else {
+            Log.i(TAG, "Service running: no")
+        }
+
+        // Anomaly detection
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val isDozing = powerManager.isDeviceIdleMode
+            val batteryStatus = batteryIntent?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val isCharging = batteryStatus == android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
+                batteryStatus == android.os.BatteryManager.BATTERY_STATUS_FULL
+
+            if (isDozing && isCharging) {
+                Log.e(TAG, "!!! ANOMALY: Device is in Doze mode while charging!")
+                Log.e(TAG, "    This should NOT happen according to Android docs.")
+            }
+        }
+
+        Log.i(TAG, "=== END POWER STATE ===")
+    }
+
     private fun logHelp() {
         Log.i(TAG, "=== DEBUG COMMANDS ===")
         Log.i(TAG, "adb shell am broadcast -a com.jstorrent.DEBUG --es cmd <command> [args]")
@@ -288,6 +354,7 @@ class DebugReceiver : BroadcastReceiver() {
         Log.i(TAG, "  dht                 - DHT statistics")
         Log.i(TAG, "  torrents            - List all torrents with details")
         Log.i(TAG, "  peers [--es hash X] - List connected peers")
+        Log.i(TAG, "  power               - Power/Doze state info")
         Log.i(TAG, "  loglevel --es level X - Set log level (debug/info/warn/error)")
         Log.i(TAG, "  help                - Show this help")
         Log.i(TAG, "")

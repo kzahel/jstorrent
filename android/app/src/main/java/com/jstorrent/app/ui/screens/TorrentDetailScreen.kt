@@ -76,6 +76,7 @@ fun TorrentDetailScreen(
     onSettingsClick: () -> Unit,
     onSpeedClick: () -> Unit,
     onDhtInfoClick: () -> Unit,
+    onShutdownClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -148,7 +149,19 @@ fun TorrentDetailScreen(
                                 expanded = showMenu,
                                 onDismissRequest = { showMenu = false }
                             ) {
-                                // Shared menu items (Speed, DHT Info, Settings)
+                                // Screen-specific items at top
+                                DropdownMenuItem(
+                                    text = { Text("Remove torrent") },
+                                    onClick = {
+                                        showMenu = false
+                                        showRemoveDialog = true
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Delete, contentDescription = null)
+                                    }
+                                )
+                                // Shared menu items at bottom (Speed, DHT Info, Settings, Shutdown)
+                                HorizontalDivider()
                                 SharedMenuItems.SpeedMenuItem(
                                     onClick = onSpeedClick,
                                     onDismiss = { showMenu = false }
@@ -161,16 +174,9 @@ fun TorrentDetailScreen(
                                     onClick = onSettingsClick,
                                     onDismiss = { showMenu = false }
                                 )
-                                HorizontalDivider()
-                                DropdownMenuItem(
-                                    text = { Text("Remove torrent") },
-                                    onClick = {
-                                        showMenu = false
-                                        showRemoveDialog = true
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Delete, contentDescription = null)
-                                    }
+                                SharedMenuItems.ShutdownMenuItem(
+                                    onClick = onShutdownClick,
+                                    onDismiss = { showMenu = false }
                                 )
                             }
                         }

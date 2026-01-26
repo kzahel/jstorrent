@@ -1,0 +1,298 @@
+package com.jstorrent.app.power
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
+import android.os.Build
+import android.os.PowerManager
+import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * Monitors device power states for debugging Doze mode behavior.
+ *
+ * This is primarily a debugging tool to understand what's happening when the screen
+ * turns off and the device may enter various power-saving states.
+ *
+ * Key insights from Android docs:
+ * - ACTION_DEVICE_IDLE_MODE_CHANGED fires AFTER network is already suspended
+ * - Light Doze: ~5 minutes after screen off (network blocked, timers still work)
+ * - Deep Doze: ~30+ minutes after screen off AND device stationary (everything deferred)
+ * - Doze should NOT engage while charging (but we've seen suspicious behavior)
+ *
+ * Logs are tagged with "DozeMonitor" for easy filtering:
+ *   adb logcat -s DozeMonitor
+ */
+class DozeMonitor(private val context: Context) {
+
+    companion object {
+        private const val TAG = "DozeMonitor"
+    }
+
+    /**
+     * Represents the device's power state.
+     */
+    sealed class PowerState(val name: String) {
+        /** Screen on, device active - full network access */
+        object Active : PowerState("ACTIVE")
+
+        /** Screen off but not yet in Doze - network still works but may soon be suspended */
+        object ScreenOff : PowerState("SCREEN_OFF")
+
+        /** In Doze mode (light or deep) - network is suspended */
+        object Dozing : PowerState("DOZING")
+
+        /** Charging - Doze shouldn't engage according to Android docs */
+        object Charging : PowerState("CHARGING")
+
+        /** Charging but also in Doze (shouldn't happen, but we want to detect it) */
+        object ChargingButDozing : PowerState("CHARGING_BUT_DOZING")
+
+        override fun toString(): String = name
+    }
+
+    private val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+
+    private val _powerState = MutableStateFlow(getCurrentPowerState())
+    val powerState: StateFlow<PowerState> = _powerState.asStateFlow()
+
+    private val _isCharging = MutableStateFlow(checkIsCharging())
+    val isCharging: StateFlow<Boolean> = _isCharging.asStateFlow()
+
+    private val _isDozing = MutableStateFlow(checkIsDozing())
+    val isDozing: StateFlow<Boolean> = _isDozing.asStateFlow()
+
+    private val _isScreenOn = MutableStateFlow(powerManager.isInteractive)
+    val isScreenOn: StateFlow<Boolean> = _isScreenOn.asStateFlow()
+
+    private var receiver: BroadcastReceiver? = null
+
+    // Track timestamps for debugging
+    private var screenOffTime: Long = 0
+    private var dozeStartTime: Long = 0
+
+    /**
+     * Start monitoring power state changes.
+     */
+    fun start() {
+        if (receiver != null) {
+            Log.w(TAG, "DozeMonitor already started")
+            return
+        }
+
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_POWER_CONNECTED)
+            addAction(Intent.ACTION_POWER_DISCONNECTED)
+            addAction(Intent.ACTION_BATTERY_CHANGED)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+            }
+        }
+
+        receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val now = System.currentTimeMillis()
+
+                when (intent.action) {
+                    Intent.ACTION_SCREEN_ON -> {
+                        _isScreenOn.value = true
+                        val offDuration = if (screenOffTime > 0) now - screenOffTime else 0
+                        Log.i(TAG, ">>> SCREEN ON (was off for ${offDuration}ms)")
+                        if (dozeStartTime > 0) {
+                            Log.i(TAG, "    Doze duration: ${now - dozeStartTime}ms")
+                            dozeStartTime = 0
+                        }
+                        updateState()
+                    }
+
+                    Intent.ACTION_SCREEN_OFF -> {
+                        _isScreenOn.value = false
+                        screenOffTime = now
+                        Log.i(TAG, ">>> SCREEN OFF - Doze may engage in ~5 minutes")
+                        Log.i(TAG, "    charging=${_isCharging.value}, interactive=${powerManager.isInteractive}")
+                        updateState()
+                    }
+
+                    Intent.ACTION_POWER_CONNECTED -> {
+                        _isCharging.value = true
+                        Log.i(TAG, ">>> POWER CONNECTED - Doze should be disabled")
+                        updateState()
+                    }
+
+                    Intent.ACTION_POWER_DISCONNECTED -> {
+                        _isCharging.value = false
+                        Log.i(TAG, ">>> POWER DISCONNECTED - Doze may engage when screen off")
+                        updateState()
+                    }
+
+                    Intent.ACTION_BATTERY_CHANGED -> {
+                        val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                            status == BatteryManager.BATTERY_STATUS_FULL
+                        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                        val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
+                        val pluggedStr = when (plugged) {
+                            BatteryManager.BATTERY_PLUGGED_AC -> "AC"
+                            BatteryManager.BATTERY_PLUGGED_USB -> "USB"
+                            BatteryManager.BATTERY_PLUGGED_WIRELESS -> "Wireless"
+                            else -> "None"
+                        }
+
+                        if (_isCharging.value != isCharging) {
+                            _isCharging.value = isCharging
+                            Log.i(TAG, "    Battery: charging=$isCharging, level=$level%, plugged=$pluggedStr")
+                            updateState()
+                        }
+                    }
+
+                    PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED -> {
+                        val isIdle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            powerManager.isDeviceIdleMode
+                        } else false
+                        _isDozing.value = isIdle
+
+                        if (isIdle) {
+                            dozeStartTime = now
+                            val timeSinceScreenOff = if (screenOffTime > 0) now - screenOffTime else -1
+                            Log.w(TAG, ">>> DOZE MODE ENTERED!")
+                            Log.w(TAG, "    Time since screen off: ${timeSinceScreenOff}ms")
+                            Log.w(TAG, "    charging=${_isCharging.value} (SHOULD NOT DOZE IF CHARGING!)")
+                            Log.w(TAG, "    interactive=${powerManager.isInteractive}")
+                            if (_isCharging.value) {
+                                Log.e(TAG, "!!! ANOMALY: Device entered Doze while charging!")
+                            }
+                        } else {
+                            val dozeDuration = if (dozeStartTime > 0) now - dozeStartTime else 0
+                            Log.i(TAG, ">>> DOZE MODE EXITED (maintenance window or wakeup)")
+                            Log.i(TAG, "    Doze duration: ${dozeDuration}ms")
+                        }
+                        updateState()
+                    }
+
+                    PowerManager.ACTION_POWER_SAVE_MODE_CHANGED -> {
+                        val isPowerSaveMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            powerManager.isPowerSaveMode
+                        } else false
+                        Log.i(TAG, ">>> POWER SAVE MODE: $isPowerSaveMode")
+                        // Power save mode is different from Doze but can affect behavior
+                    }
+                }
+            }
+        }
+
+        context.registerReceiver(receiver, filter)
+        updateState()
+
+        // Log initial state
+        Log.i(TAG, "DozeMonitor started")
+        Log.i(TAG, "    Initial state: ${_powerState.value}")
+        Log.i(TAG, "    Screen on: ${_isScreenOn.value}")
+        Log.i(TAG, "    Charging: ${_isCharging.value}")
+        Log.i(TAG, "    Dozing: ${_isDozing.value}")
+        Log.i(TAG, "    Battery optimization ignored: ${isIgnoringBatteryOptimizations()}")
+    }
+
+    /**
+     * Stop monitoring power state changes.
+     */
+    fun stop() {
+        receiver?.let { rcv ->
+            try {
+                context.unregisterReceiver(rcv)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to unregister receiver", e)
+            }
+            receiver = null
+        }
+        Log.i(TAG, "DozeMonitor stopped")
+    }
+
+    private fun getCurrentPowerState(): PowerState {
+        val isCharging = checkIsCharging()
+        val isDozing = checkIsDozing()
+        val isInteractive = powerManager.isInteractive
+
+        return when {
+            isCharging && isDozing -> PowerState.ChargingButDozing // Anomaly!
+            isCharging -> PowerState.Charging
+            isDozing -> PowerState.Dozing
+            !isInteractive -> PowerState.ScreenOff
+            else -> PowerState.Active
+        }
+    }
+
+    private fun updateState() {
+        val newState = getCurrentPowerState()
+        val oldState = _powerState.value
+        if (oldState != newState) {
+            Log.i(TAG, "State transition: $oldState -> $newState")
+        }
+        _powerState.value = newState
+    }
+
+    private fun checkIsCharging(): Boolean {
+        val batteryStatus = context.registerReceiver(
+            null,
+            IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        )
+        return batteryStatus?.let { intent ->
+            val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+            status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                status == BatteryManager.BATTERY_STATUS_FULL
+        } ?: false
+    }
+
+    private fun checkIsDozing(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            powerManager.isDeviceIdleMode
+        } else {
+            false
+        }
+    }
+
+    /**
+     * Check if app is exempt from battery optimization (can use network during Doze).
+     */
+    fun isIgnoringBatteryOptimizations(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            powerManager.isIgnoringBatteryOptimizations(context.packageName)
+        } else {
+            true // Pre-M has no Doze
+        }
+    }
+
+    /**
+     * Get a debug summary of current power state.
+     */
+    fun getDebugSummary(): String {
+        return buildString {
+            appendLine("Power State: ${_powerState.value}")
+            appendLine("Screen on: ${_isScreenOn.value}")
+            appendLine("Charging: ${_isCharging.value}")
+            appendLine("Dozing: ${_isDozing.value}")
+            appendLine("Interactive: ${powerManager.isInteractive}")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                appendLine("Device idle mode: ${powerManager.isDeviceIdleMode}")
+                appendLine("Power save mode: ${powerManager.isPowerSaveMode}")
+                appendLine("Battery opt ignored: ${isIgnoringBatteryOptimizations()}")
+            }
+            if (screenOffTime > 0 && !_isScreenOn.value) {
+                val elapsed = System.currentTimeMillis() - screenOffTime
+                appendLine("Screen off for: ${elapsed}ms")
+            }
+            if (dozeStartTime > 0 && _isDozing.value) {
+                val elapsed = System.currentTimeMillis() - dozeStartTime
+                appendLine("In Doze for: ${elapsed}ms")
+            }
+        }
+    }
+}

@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.CircularProgressIndicator
@@ -206,6 +205,7 @@ fun TorrentListScreen(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
+                        // Screen-specific items at top
                         DropdownMenuItem(
                             text = { Text("Pause All") },
                             leadingIcon = {
@@ -232,16 +232,6 @@ fun TorrentListScreen(
                                 viewModel.resumeAll()
                             }
                         )
-                        // Shared menu items (Speed, DHT Info)
-                        SharedMenuItems.SpeedMenuItem(
-                            onClick = onSpeedClick,
-                            onDismiss = { showMenu = false }
-                        )
-                        SharedMenuItems.DhtInfoMenuItem(
-                            onClick = onDhtInfoClick,
-                            onDismiss = { showMenu = false }
-                        )
-                        HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text("Add Download Folder") },
                             leadingIcon = {
@@ -287,23 +277,23 @@ fun TorrentListScreen(
                                 }
                             )
                         }
+                        // Shared menu items at bottom (Speed, DHT Info, Settings, Shutdown)
                         HorizontalDivider()
+                        SharedMenuItems.SpeedMenuItem(
+                            onClick = onSpeedClick,
+                            onDismiss = { showMenu = false }
+                        )
+                        SharedMenuItems.DhtInfoMenuItem(
+                            onClick = onDhtInfoClick,
+                            onDismiss = { showMenu = false }
+                        )
                         SharedMenuItems.SettingsMenuItem(
                             onClick = onSettingsClick,
                             onDismiss = { showMenu = false }
                         )
-                        DropdownMenuItem(
-                            text = { Text("Shutdown") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.PowerSettingsNew,
-                                    contentDescription = null
-                                )
-                            },
-                            onClick = {
-                                showMenu = false
-                                onShutdownClick()
-                            }
+                        SharedMenuItems.ShutdownMenuItem(
+                            onClick = onShutdownClick,
+                            onDismiss = { showMenu = false }
                         )
                     }
                 }

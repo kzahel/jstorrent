@@ -9,11 +9,13 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Handler
 import android.os.Looper
+import android.net.wifi.WifiManager
 import android.os.PowerManager
 import android.util.Log
 import android.widget.Toast
 import com.jstorrent.app.JSTorrentApplication
 import com.jstorrent.app.network.NetworkMonitor
+import com.jstorrent.app.power.DozeMonitor
 import com.jstorrent.app.notification.ForegroundNotificationManager
 import com.jstorrent.app.notification.TorrentNotificationManager
 import com.jstorrent.app.settings.SettingsStore
@@ -84,8 +86,12 @@ class ForegroundNotificationService : Service() {
     private var wifiMonitorJob: Job? = null
     private var wasPausedByWifi = false  // Track if we paused due to WiFi loss
 
-    // CPU wake lock to prevent deep sleep during downloads
+    // Wake locks to prevent deep sleep and WiFi throttling during downloads
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
+
+    // Doze mode monitoring for debugging power state transitions
+    private var dozeMonitor: DozeMonitor? = null
 
     // Service lifecycle state
     private val _serviceState = MutableStateFlow(ServiceState.RUNNING)
@@ -135,6 +141,7 @@ class ForegroundNotificationService : Service() {
         settingsStore = SettingsStore(this)
         torrentNotificationManager = TorrentNotificationManager(this)
         networkMonitor = NetworkMonitor(this)
+        dozeMonitor = DozeMonitor(this)
 
         // Set singleton
         instance = this
@@ -150,10 +157,13 @@ class ForegroundNotificationService : Service() {
             startWifiMonitoring()
         }
 
-        // Acquire CPU wake lock if enabled
+        // Acquire wake locks if enabled
         if (settingsStore.cpuWakeLockEnabled) {
-            acquireWakeLock()
+            acquireWakeLocks()
         }
+
+        // Always start Doze monitoring for debugging
+        dozeMonitor?.start()
 
         return START_STICKY
     }
@@ -167,8 +177,12 @@ class ForegroundNotificationService : Service() {
         networkMonitor?.stop()
         networkMonitor = null
 
-        // Release CPU wake lock
-        releaseWakeLock()
+        // Stop Doze monitoring
+        dozeMonitor?.stop()
+        dozeMonitor = null
+
+        // Release wake locks
+        releaseWakeLocks()
 
         notificationUpdateJob?.cancel()
         notificationUpdateJob = null
@@ -625,29 +639,45 @@ class ForegroundNotificationService : Service() {
     }
 
     // =========================================================================
-    // CPU Wake Lock for Preventing Deep Sleep
+    // Wake Locks for Preventing Deep Sleep and WiFi Throttling
     // =========================================================================
 
     /**
-     * Acquire a partial wake lock to keep the CPU running during downloads.
+     * Acquire wake locks to keep CPU running and WiFi at high performance.
      */
-    private fun acquireWakeLock() {
-        if (wakeLock != null) return // Already held
-
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "JSTorrent::DownloadWakeLock"
-        ).apply {
-            acquire()
+    @Suppress("DEPRECATION")
+    private fun acquireWakeLocks() {
+        // CPU wake lock
+        if (wakeLock == null) {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "JSTorrent::DownloadWakeLock"
+            ).apply {
+                acquire()
+            }
+            Log.i(TAG, "CPU wake lock acquired")
         }
-        Log.i(TAG, "CPU wake lock acquired")
+
+        // WiFi wake lock - keeps WiFi at high performance when screen is off
+        if (wifiLock == null) {
+            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val wifiMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+            } else {
+                WifiManager.WIFI_MODE_FULL_HIGH_PERF
+            }
+            wifiLock = wifiManager.createWifiLock(wifiMode, "JSTorrent::DownloadWifiLock").apply {
+                acquire()
+            }
+            Log.i(TAG, "WiFi wake lock acquired (mode: ${if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "LOW_LATENCY" else "HIGH_PERF"})")
+        }
     }
 
     /**
-     * Release the wake lock if held.
+     * Release all wake locks if held.
      */
-    private fun releaseWakeLock() {
+    private fun releaseWakeLocks() {
         wakeLock?.let {
             if (it.isHeld) {
                 it.release()
@@ -655,22 +685,30 @@ class ForegroundNotificationService : Service() {
             }
         }
         wakeLock = null
+
+        wifiLock?.let {
+            if (it.isHeld) {
+                it.release()
+                Log.i(TAG, "WiFi wake lock released")
+            }
+        }
+        wifiLock = null
     }
 
     /**
-     * Enable or disable CPU wake lock at runtime.
+     * Enable or disable wake locks at runtime.
      * Called from SettingsViewModel when user toggles the setting.
      */
     fun setCpuWakeLockEnabled(enabled: Boolean) {
         settingsStore.cpuWakeLockEnabled = enabled
 
         if (enabled) {
-            acquireWakeLock()
+            acquireWakeLocks()
         } else {
-            releaseWakeLock()
+            releaseWakeLocks()
         }
 
-        Log.i(TAG, "CPU wake lock ${if (enabled) "enabled" else "disabled"}")
+        Log.i(TAG, "Wake locks ${if (enabled) "enabled" else "disabled"}")
     }
 
     companion object {

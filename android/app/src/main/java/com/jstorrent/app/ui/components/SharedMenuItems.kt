@@ -2,6 +2,7 @@ package com.jstorrent.app.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.DropdownMenuItem
@@ -75,6 +76,29 @@ object SharedMenuItems {
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Settings,
+                    contentDescription = null
+                )
+            },
+            onClick = {
+                onDismiss()
+                onClick()
+            }
+        )
+    }
+
+    /**
+     * Shutdown menu item - shuts down the app/engine.
+     */
+    @Composable
+    fun ShutdownMenuItem(
+        onClick: () -> Unit,
+        onDismiss: () -> Unit
+    ) {
+        DropdownMenuItem(
+            text = { Text("Shutdown") },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.PowerSettingsNew,
                     contentDescription = null
                 )
             },
