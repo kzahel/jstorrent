@@ -265,4 +265,233 @@ describe('ActivePieceManager', () => {
       expect(newPiece).not.toBeNull()
     })
   })
+
+  // === Phase 5: Buffer Pooling Integration Tests ===
+
+  describe('buffer pooling', () => {
+    let pooledManager: ActivePieceManager
+
+    beforeEach(() => {
+      pooledManager = new ActivePieceManager(mockEngine, () => PIECE_LENGTH, {
+        requestTimeoutMs: 30000,
+        maxActivePieces: 10,
+        maxBufferedBytes: 1024 * 1024,
+        cleanupIntervalMs: 10000,
+        standardPieceLength: PIECE_LENGTH, // Enable buffer pooling
+        maxPoolSize: 5,
+      })
+    })
+
+    afterEach(() => {
+      pooledManager.destroy()
+    })
+
+    it('should enable buffer pooling when standardPieceLength is set', () => {
+      expect(pooledManager.bufferPoolStats).not.toBeNull()
+    })
+
+    it('should not enable buffer pooling when standardPieceLength is not set', () => {
+      expect(manager.bufferPoolStats).toBeNull()
+    })
+
+    it('should use pooled buffer when creating piece of standard size', () => {
+      const piece1 = pooledManager.getOrCreate(0)!
+      expect(piece1).not.toBeNull()
+      expect(pooledManager.bufferPoolStats!.acquires).toBe(1)
+
+      // First acquire is a new buffer, not a reuse
+      expect(pooledManager.bufferPoolStats!.reuses).toBe(0)
+    })
+
+    it('should reuse buffers after piece removal', () => {
+      // Create and complete a piece
+      const piece1 = pooledManager.getOrCreate(0)!
+      const buffer1 = piece1.getBuffer()
+
+      // Remove the piece (returns buffer to pool)
+      pooledManager.remove(0)
+      expect(pooledManager.bufferPoolStats!.releases).toBe(1)
+      expect(pooledManager.bufferPoolStats!.pooled).toBe(1)
+
+      // Create new piece - should reuse the buffer
+      const piece2 = pooledManager.getOrCreate(1)!
+      expect(piece2.getBuffer()).toBe(buffer1) // Same buffer object
+      expect(pooledManager.bufferPoolStats!.reuses).toBe(1)
+    })
+
+    it('should track pool statistics through piece lifecycle', () => {
+      // Create 3 pieces
+      for (let i = 0; i < 3; i++) {
+        pooledManager.getOrCreate(i)
+      }
+
+      expect(pooledManager.bufferPoolStats!.acquires).toBe(3)
+      expect(pooledManager.bufferPoolStats!.reuses).toBe(0)
+      expect(pooledManager.bufferPoolStats!.pooled).toBe(0)
+
+      // Remove 2 pieces
+      pooledManager.remove(0)
+      pooledManager.remove(1)
+
+      expect(pooledManager.bufferPoolStats!.releases).toBe(2)
+      expect(pooledManager.bufferPoolStats!.pooled).toBe(2)
+
+      // Create 2 more - should reuse
+      pooledManager.getOrCreate(10)
+      pooledManager.getOrCreate(11)
+
+      expect(pooledManager.bufferPoolStats!.acquires).toBe(5)
+      expect(pooledManager.bufferPoolStats!.reuses).toBe(2)
+      expect(pooledManager.bufferPoolStats!.pooled).toBe(0)
+    })
+
+    it('should respect maxPoolSize', () => {
+      // Create more pieces than maxPoolSize
+      for (let i = 0; i < 8; i++) {
+        pooledManager.getOrCreate(i)
+      }
+
+      // Remove all of them
+      for (let i = 0; i < 8; i++) {
+        pooledManager.remove(i)
+      }
+
+      // Pool should only keep maxPoolSize (5) buffers
+      expect(pooledManager.bufferPoolStats!.pooled).toBe(5)
+    })
+
+    it('should release buffers when piece is removed via stale cleanup', () => {
+      // Create a piece
+      pooledManager.getOrCreate(0)
+      expect(pooledManager.bufferPoolStats!.acquires).toBe(1)
+
+      // Advance past stale threshold
+      vi.advanceTimersByTime(61000)
+
+      // Fill capacity to trigger cleanup
+      for (let i = 1; i <= 10; i++) {
+        pooledManager.getOrCreate(i)
+      }
+
+      // Original piece should have been cleaned up and buffer released
+      expect(pooledManager.bufferPoolStats!.releases).toBeGreaterThanOrEqual(1)
+    })
+
+    it('should clear buffer pool on destroy', () => {
+      // Create some pieces
+      for (let i = 0; i < 3; i++) {
+        pooledManager.getOrCreate(i)
+      }
+
+      // Remove them to return buffers to pool
+      for (let i = 0; i < 3; i++) {
+        pooledManager.remove(i)
+      }
+
+      expect(pooledManager.bufferPoolStats!.pooled).toBe(3)
+
+      // Destroy should clear the pool
+      pooledManager.destroy()
+
+      // Create a new manager to verify behavior
+      const newManager = new ActivePieceManager(mockEngine, () => PIECE_LENGTH, {
+        standardPieceLength: PIECE_LENGTH,
+      })
+      expect(newManager.bufferPoolStats!.pooled).toBe(0)
+      newManager.destroy()
+    })
+  })
+
+  describe('full zero-copy path integration', () => {
+    let pooledManager: ActivePieceManager
+    const BLOCK_SIZE = 16384
+
+    beforeEach(() => {
+      pooledManager = new ActivePieceManager(mockEngine, () => PIECE_LENGTH, {
+        requestTimeoutMs: 30000,
+        maxActivePieces: 10,
+        maxBufferedBytes: 1024 * 1024,
+        cleanupIntervalMs: 10000,
+        standardPieceLength: PIECE_LENGTH,
+      })
+    })
+
+    afterEach(() => {
+      pooledManager.destroy()
+    })
+
+    it('should write blocks directly to pooled buffer', () => {
+      const piece = pooledManager.getOrCreate(0)!
+      const buffer = piece.getBuffer()
+
+      // Add all 4 blocks (64KB / 16KB = 4 blocks)
+      for (let i = 0; i < 4; i++) {
+        const blockData = new Uint8Array(BLOCK_SIZE)
+        blockData.fill(i * 10 + 1) // 1, 11, 21, 31
+        piece.addBlock(i, blockData, 'peer1')
+      }
+
+      // Verify blocks were written to correct positions in the buffer
+      expect(buffer[0]).toBe(1)
+      expect(buffer[BLOCK_SIZE]).toBe(11)
+      expect(buffer[2 * BLOCK_SIZE]).toBe(21)
+      expect(buffer[3 * BLOCK_SIZE]).toBe(31)
+    })
+
+    it('should return buffer directly from assemble() (no copy)', () => {
+      const piece = pooledManager.getOrCreate(0)!
+      const buffer = piece.getBuffer()
+
+      // Complete the piece
+      for (let i = 0; i < 4; i++) {
+        piece.addBlock(i, new Uint8Array(BLOCK_SIZE), 'peer1')
+      }
+
+      // assemble() should return the same buffer reference
+      const assembled = piece.assemble()
+      expect(assembled).toBe(buffer)
+    })
+
+    it('should support complete piece download lifecycle with buffer reuse', () => {
+      // Download piece 0
+      const piece0 = pooledManager.getOrCreate(0)!
+      const buffer0 = piece0.getBuffer()
+
+      for (let i = 0; i < 4; i++) {
+        const data = new Uint8Array(BLOCK_SIZE)
+        data.fill(100 + i)
+        piece0.addBlock(i, data, 'peer1')
+      }
+
+      // Verify and "write to storage"
+      const assembled0 = piece0.assemble()
+      expect(assembled0[0]).toBe(100)
+      expect(assembled0[BLOCK_SIZE]).toBe(101)
+
+      // Remove piece (buffer returns to pool)
+      pooledManager.remove(0)
+
+      // Download piece 1 - should reuse buffer
+      const piece1 = pooledManager.getOrCreate(1)!
+      const buffer1 = piece1.getBuffer()
+
+      expect(buffer1).toBe(buffer0) // Same buffer reused
+
+      // But the blockReceived state is reset
+      expect(piece1.hasBlock(0)).toBe(false)
+      expect(piece1.blocksReceived).toBe(0)
+
+      // Download completes
+      for (let i = 0; i < 4; i++) {
+        const data = new Uint8Array(BLOCK_SIZE)
+        data.fill(200 + i)
+        piece1.addBlock(i, data, 'peer1')
+      }
+
+      // Verify new piece data overwrote old
+      const assembled1 = piece1.assemble()
+      expect(assembled1[0]).toBe(200)
+      expect(assembled1[BLOCK_SIZE]).toBe(201)
+    })
+  })
 })

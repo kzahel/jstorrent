@@ -2731,8 +2731,10 @@ export class Torrent extends EngineComponent {
 
     // Initialize activePieces if needed (lazy init after metadata is available)
     if (!this.activePieces) {
-      this.activePieces = new ActivePieceManager(this.engineInstance, (index) =>
-        this.getPieceLength(index),
+      this.activePieces = new ActivePieceManager(
+        this.engineInstance,
+        (index) => this.getPieceLength(index),
+        { standardPieceLength: this.pieceLength },
       )
       this.activePieces.on('requestsCleared', (clearedByPeer: Map<string, number>) => {
         // Decrement requestsPending for each affected peer
@@ -2901,8 +2903,10 @@ export class Torrent extends EngineComponent {
 
     // Initialize activePieces if needed (lazy init after metadata is available)
     if (!this.activePieces && this.hasMetadata) {
-      this.activePieces = new ActivePieceManager(this.engineInstance, (index) =>
-        this.getPieceLength(index),
+      this.activePieces = new ActivePieceManager(
+        this.engineInstance,
+        (index) => this.getPieceLength(index),
+        { standardPieceLength: this.pieceLength },
       )
       this.activePieces.on('requestsCleared', (clearedByPeer: Map<string, number>) => {
         // Decrement requestsPending for each affected peer
