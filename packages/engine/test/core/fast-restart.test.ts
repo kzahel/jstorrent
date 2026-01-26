@@ -155,6 +155,16 @@ describe('Fast Restart', () => {
 
     // START and measure time to first new piece
     const startTime = Date.now()
+
+    // Set up piece listener BEFORE starting to avoid race condition
+    const pieceReceived = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Download did not resume within 2s')), 2000)
+      leecherTorrent.on('piece', () => {
+        clearTimeout(timeout)
+        resolve()
+      })
+    })
+
     leecherTorrent.userStart()
 
     seederTorrent.addPeer(peerS2)
@@ -164,13 +174,7 @@ describe('Fast Restart', () => {
     peerL2.sendHandshake(leecherTorrent.infoHash, new Uint8Array(20).fill(4))
 
     // Wait for a new piece (or timeout)
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Download did not resume within 2s')), 2000)
-      leecherTorrent.on('piece', () => {
-        clearTimeout(timeout)
-        resolve()
-      })
-    })
+    await pieceReceived
 
     const elapsed = Date.now() - startTime
     console.log(`Time to first piece after restart: ${elapsed}ms`)

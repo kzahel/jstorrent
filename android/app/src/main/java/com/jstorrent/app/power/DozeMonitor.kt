@@ -1,11 +1,14 @@
 package com.jstorrent.app.power
 
+import android.app.Activity
+import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Bundle
 import android.os.PowerManager
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,11 +72,19 @@ class DozeMonitor(private val context: Context) {
     private val _isScreenOn = MutableStateFlow(powerManager.isInteractive)
     val isScreenOn: StateFlow<Boolean> = _isScreenOn.asStateFlow()
 
+    // "UI visible" = user is looking at our app (activity on screen)
+    // vs "background" = user switched away, but our foreground SERVICE still runs
+    private val _isUiVisible = MutableStateFlow(true)
+    val isUiVisible: StateFlow<Boolean> = _isUiVisible.asStateFlow()
+
     private var receiver: BroadcastReceiver? = null
+    private var lifecycleCallbacks: Application.ActivityLifecycleCallbacks? = null
+    private var visibleActivityCount = 0
 
     // Track timestamps for debugging
     private var screenOffTime: Long = 0
     private var dozeStartTime: Long = 0
+    private var backgroundedTime: Long = 0
 
     /**
      * Start monitoring power state changes.
@@ -190,6 +201,42 @@ class DozeMonitor(private val context: Context) {
         }
 
         context.registerReceiver(receiver, filter)
+
+        // Register activity lifecycle callbacks to track app foreground/background
+        val app = context.applicationContext as? Application
+        if (app != null) {
+            lifecycleCallbacks = object : Application.ActivityLifecycleCallbacks {
+                override fun onActivityStarted(activity: Activity) {
+                    val wasHidden = visibleActivityCount == 0
+                    visibleActivityCount++
+                    if (wasHidden && backgroundedTime > 0) {
+                        val now = System.currentTimeMillis()
+                        val hiddenDuration = now - backgroundedTime
+                        backgroundedTime = 0
+                        Log.i(TAG, ">>> UI VISIBLE (user returned after ${hiddenDuration}ms)")
+                    }
+                    _isUiVisible.value = true
+                }
+
+                override fun onActivityStopped(activity: Activity) {
+                    visibleActivityCount--
+                    if (visibleActivityCount == 0) {
+                        backgroundedTime = System.currentTimeMillis()
+                        Log.i(TAG, ">>> UI HIDDEN (user switched away, service still running)")
+                        Log.i(TAG, "    Screen on: ${_isScreenOn.value}, charging: ${_isCharging.value}")
+                        _isUiVisible.value = false
+                    }
+                }
+
+                override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+                override fun onActivityResumed(activity: Activity) {}
+                override fun onActivityPaused(activity: Activity) {}
+                override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+                override fun onActivityDestroyed(activity: Activity) {}
+            }
+            app.registerActivityLifecycleCallbacks(lifecycleCallbacks)
+        }
+
         updateState()
 
         // Log initial state
@@ -198,6 +245,7 @@ class DozeMonitor(private val context: Context) {
         Log.i(TAG, "    Screen on: ${_isScreenOn.value}")
         Log.i(TAG, "    Charging: ${_isCharging.value}")
         Log.i(TAG, "    Dozing: ${_isDozing.value}")
+        Log.i(TAG, "    UI visible: ${_isUiVisible.value}")
         Log.i(TAG, "    Battery optimization ignored: ${isIgnoringBatteryOptimizations()}")
     }
 
@@ -213,6 +261,13 @@ class DozeMonitor(private val context: Context) {
             }
             receiver = null
         }
+
+        lifecycleCallbacks?.let { callbacks ->
+            val app = context.applicationContext as? Application
+            app?.unregisterActivityLifecycleCallbacks(callbacks)
+            lifecycleCallbacks = null
+        }
+
         Log.i(TAG, "DozeMonitor stopped")
     }
 
@@ -279,6 +334,7 @@ class DozeMonitor(private val context: Context) {
             appendLine("Screen on: ${_isScreenOn.value}")
             appendLine("Charging: ${_isCharging.value}")
             appendLine("Dozing: ${_isDozing.value}")
+            appendLine("UI visible: ${_isUiVisible.value}")
             appendLine("Interactive: ${powerManager.isInteractive}")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 appendLine("Device idle mode: ${powerManager.isDeviceIdleMode}")
@@ -292,6 +348,10 @@ class DozeMonitor(private val context: Context) {
             if (dozeStartTime > 0 && _isDozing.value) {
                 val elapsed = System.currentTimeMillis() - dozeStartTime
                 appendLine("In Doze for: ${elapsed}ms")
+            }
+            if (backgroundedTime > 0 && !_isUiVisible.value) {
+                val elapsed = System.currentTimeMillis() - backgroundedTime
+                appendLine("UI hidden for: ${elapsed}ms")
             }
         }
     }

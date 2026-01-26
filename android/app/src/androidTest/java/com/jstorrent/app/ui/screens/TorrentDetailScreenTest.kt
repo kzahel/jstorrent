@@ -43,7 +43,11 @@ class TorrentDetailScreenTest {
             JSTorrentTheme {
                 TorrentDetailScreen(
                     viewModel = viewModel,
-                    onNavigateBack = {}
+                    onNavigateBack = {},
+                    onSettingsClick = {},
+                    onSpeedClick = {},
+                    onDhtInfoClick = {},
+                    onShutdownClick = {}
                 )
             }
         }
@@ -64,7 +68,11 @@ class TorrentDetailScreenTest {
             JSTorrentTheme {
                 TorrentDetailScreen(
                     viewModel = viewModel,
-                    onNavigateBack = {}
+                    onNavigateBack = {},
+                    onSettingsClick = {},
+                    onSpeedClick = {},
+                    onDhtInfoClick = {},
+                    onShutdownClick = {}
                 )
             }
         }
@@ -82,7 +90,11 @@ class TorrentDetailScreenTest {
             JSTorrentTheme {
                 TorrentDetailScreen(
                     viewModel = viewModel,
-                    onNavigateBack = {}
+                    onNavigateBack = {},
+                    onSettingsClick = {},
+                    onSpeedClick = {},
+                    onDhtInfoClick = {},
+                    onShutdownClick = {}
                 )
             }
         }
@@ -101,7 +113,11 @@ class TorrentDetailScreenTest {
             JSTorrentTheme {
                 TorrentDetailScreen(
                     viewModel = viewModel,
-                    onNavigateBack = { navigateBackCalled = true }
+                    onNavigateBack = { navigateBackCalled = true },
+                    onSettingsClick = {},
+                    onSpeedClick = {},
+                    onDhtInfoClick = {},
+                    onShutdownClick = {}
                 )
             }
         }
@@ -120,7 +136,11 @@ class TorrentDetailScreenTest {
             JSTorrentTheme {
                 TorrentDetailScreen(
                     viewModel = viewModel,
-                    onNavigateBack = {}
+                    onNavigateBack = {},
+                    onSettingsClick = {},
+                    onSpeedClick = {},
+                    onDhtInfoClick = {},
+                    onShutdownClick = {}
                 )
             }
         }
@@ -147,7 +167,11 @@ class TorrentDetailScreenTest {
             JSTorrentTheme {
                 TorrentDetailScreen(
                     viewModel = viewModel,
-                    onNavigateBack = {}
+                    onNavigateBack = {},
+                    onSettingsClick = {},
+                    onSpeedClick = {},
+                    onDhtInfoClick = {},
+                    onShutdownClick = {}
                 )
             }
         }
@@ -172,7 +196,11 @@ class TorrentDetailScreenTest {
             JSTorrentTheme {
                 TorrentDetailScreen(
                     viewModel = viewModel,
-                    onNavigateBack = {}
+                    onNavigateBack = {},
+                    onSettingsClick = {},
+                    onSpeedClick = {},
+                    onDhtInfoClick = {},
+                    onShutdownClick = {}
                 )
             }
         }
@@ -198,7 +226,11 @@ class TorrentDetailScreenTest {
             JSTorrentTheme {
                 TorrentDetailScreen(
                     viewModel = viewModel,
-                    onNavigateBack = {}
+                    onNavigateBack = {},
+                    onSettingsClick = {},
+                    onSpeedClick = {},
+                    onDhtInfoClick = {},
+                    onShutdownClick = {}
                 )
             }
         }
@@ -217,7 +249,11 @@ class TorrentDetailScreenTest {
             JSTorrentTheme {
                 TorrentDetailScreen(
                     viewModel = viewModel,
-                    onNavigateBack = {}
+                    onNavigateBack = {},
+                    onSettingsClick = {},
+                    onSpeedClick = {},
+                    onDhtInfoClick = {},
+                    onShutdownClick = {}
                 )
             }
         }
