@@ -6,7 +6,6 @@ export interface ActivePieceConfig {
   requestTimeoutMs: number
   maxActivePieces: number
   maxBufferedBytes: number
-  cleanupIntervalMs: number
   /** Standard piece length for buffer pooling. If not set, buffer pooling is disabled. */
   standardPieceLength?: number
   /** Maximum number of buffers to keep in pool (default: 64) */
@@ -26,7 +25,6 @@ const DEFAULT_CONFIG: ActivePieceConfig = {
   // Memory is the real constraint, handled by maxBufferedBytes.
   maxActivePieces: 10000,
   maxBufferedBytes: isNativeRuntime ? 128 * 1024 * 1024 : 256 * 1024 * 1024,
-  cleanupIntervalMs: 10000,
 }
 
 /**
@@ -58,7 +56,6 @@ export class ActivePieceManager extends EngineComponent {
   /** Pieces with all blocks received, awaiting verification (pending) */
   private _pendingPieces: Map<number, ActivePiece> = new Map()
   private config: ActivePieceConfig
-  private cleanupInterval?: ReturnType<typeof setInterval>
   private pieceLengthFn: (index: number) => number
   private bufferPool: PieceBufferPool | null = null
   /** Standard block size for calculating block cap (typically 16KB) */
@@ -90,8 +87,9 @@ export class ActivePieceManager extends EngineComponent {
       )
     }
 
-    // Start periodic cleanup of timed-out requests
-    this.cleanupInterval = setInterval(() => this.checkTimeouts(), this.config.cleanupIntervalMs)
+    // Note: Request timeout checking is handled by Torrent.cleanupStuckPieces()
+    // which runs every 500ms with a 10s timeout. This is more aggressive and
+    // properly sends CANCEL messages to peers, making a separate interval here redundant.
   }
 
   // --- Lazy Instantiation ---
@@ -444,11 +442,16 @@ export class ActivePieceManager extends EngineComponent {
    * @param seedCount - Number of connected seed peers (added to all availability counts)
    * @param piecePriority - Per-piece priority (Uint8Array, 0-7 where 0=skip, 7=highest)
    */
+  // Instrumentation for getPartialsRarestFirst
+  private _getPartialsCallCount = 0
+  private _getPartialsLastLogTime = 0
+
   getPartialsRarestFirst(
     pieceAvailability: Uint16Array,
     seedCount: number,
     piecePriority: Uint8Array,
   ): ActivePiece[] {
+    const startTime = Date.now()
     const partials = [...this._partialPieces.values()]
 
     partials.sort((a, b) => {
@@ -487,6 +490,20 @@ export class ActivePieceManager extends EngineComponent {
       // Final tiebreaker: lower index first (deterministic ordering)
       return a.index - b.index
     })
+
+    const elapsed = Date.now() - startTime
+
+    // Log every 5 seconds
+    this._getPartialsCallCount++
+    const now = Date.now()
+    if (now - this._getPartialsLastLogTime >= 5000) {
+      this.logger.info(
+        `getPartialsRarestFirst: ${partials.length} partials, ${elapsed}ms, ` +
+          `calls=${this._getPartialsCallCount}`,
+      )
+      this._getPartialsCallCount = 0
+      this._getPartialsLastLogTime = now
+    }
 
     return partials
   }
@@ -582,49 +599,6 @@ export class ActivePieceManager extends EngineComponent {
   }
 
   /**
-   * Check for and clear timed-out requests across all active pieces.
-   * Called periodically by the cleanup interval.
-   * Emits 'requestsCleared' with a Map<peerId, count> of cleared requests per peer.
-   *
-   * Also demotes full pieces back to partial if they now have unrequested blocks.
-   */
-  checkTimeouts(): number {
-    const clearedByPeer = new Map<string, number>()
-
-    // Check partial pieces
-    for (const piece of this._partialPieces.values()) {
-      const pieceClearedByPeer = piece.checkTimeouts(this.config.requestTimeoutMs)
-      for (const [peerId, count] of pieceClearedByPeer) {
-        clearedByPeer.set(peerId, (clearedByPeer.get(peerId) || 0) + count)
-      }
-    }
-
-    // Check full pieces and demote if needed
-    const toDemote: number[] = []
-    for (const piece of this._fullPieces.values()) {
-      const pieceClearedByPeer = piece.checkTimeouts(this.config.requestTimeoutMs)
-      let pieceCleared = 0
-      for (const [peerId, count] of pieceClearedByPeer) {
-        clearedByPeer.set(peerId, (clearedByPeer.get(peerId) || 0) + count)
-        pieceCleared += count
-      }
-      if (pieceCleared > 0 && piece.hasUnrequestedBlocks) {
-        toDemote.push(piece.index)
-      }
-    }
-    for (const index of toDemote) {
-      this.demoteToPartial(index)
-    }
-
-    const totalCleared = [...clearedByPeer.values()].reduce((a, b) => a + b, 0)
-    if (totalCleared > 0) {
-      this.logger.debug(`Cleared ${totalCleared} timed-out requests`)
-      this.emit('requestsCleared', clearedByPeer)
-    }
-    return totalCleared
-  }
-
-  /**
    * Check if any partial piece has unrequested blocks.
    * Used to determine endgame eligibility.
    * Only checks partial pieces (full pieces have all blocks requested,
@@ -679,10 +653,6 @@ export class ActivePieceManager extends EngineComponent {
    * Cleanup on destroy.
    */
   destroy(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval)
-      this.cleanupInterval = undefined
-    }
     // Release all buffers back to pool before clearing
     for (const piece of this._partialPieces.values()) {
       this.releaseBuffer(piece)

@@ -213,17 +213,19 @@ data class SpeedSamplesResult(
  * Used for monitoring QuickJS performance in the UI.
  */
 data class JsThreadStats(
-    val currentLatencyMs: Long,  // Most recent health check latency
-    val maxLatencyMs: Long,      // Max latency since engine start
-    val queueDepth: Int,         // Current TCP callback queue depth
-    val maxQueueDepth: Int,      // Max queue depth since last log interval
+    val currentLatencyMs: Long,     // Most recent health check latency
+    val maxLatencyMs: Long,         // Max latency since engine start
+    val tcpQueueDepth: Int,         // Current TCP callback queue depth
+    val tcpMaxQueueDepth: Int,      // Max TCP queue depth since last log interval
+    val diskQueueDepth: Int,        // Current disk callback queue depth
+    val diskMaxQueueDepth: Int,     // Max disk queue depth since last log interval
     // Tick stats from engine (game loop performance)
-    val tickAvgMs: Float = 0f,   // Average tick duration in current window
-    val tickMaxMs: Float = 0f,   // Max tick duration in current window
-    val tickCount: Int = 0,      // Number of ticks in current window
-    val activePieces: Int = 0,   // Total active pieces across torrents
-    val connectedPeers: Int = 0, // Total connected peers
-    val activeTorrents: Int = 0  // Number of torrents with connected peers
+    val tickAvgMs: Float = 0f,      // Average tick duration in current window
+    val tickMaxMs: Float = 0f,      // Max tick duration in current window
+    val tickCount: Int = 0,         // Number of ticks in current window
+    val activePieces: Int = 0,      // Total active pieces across torrents
+    val connectedPeers: Int = 0,    // Total connected peers
+    val activeTorrents: Int = 0     // Number of torrents with connected peers
 )
 
 /**

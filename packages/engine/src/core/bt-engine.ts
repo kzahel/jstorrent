@@ -50,29 +50,9 @@ export type UPnPStatus = 'disabled' | 'discovering' | 'mapped' | 'unavailable' |
 
 /**
  * Types of operations that consume daemon resources.
+ * Currently only tcp_connect is used; kept as string literal type for future extensibility.
  */
-export type DaemonOpType =
-  | 'tcp_connect' // TCP peer connection (long-lived)
-  | 'utp_connect' // UDP peer connection via uTP (long-lived, future)
-  | 'udp_announce' // UDP tracker announce (fire & forget)
-  | 'http_announce' // HTTP tracker announce (fire & forget)
-
-/**
- * Pending operation counts per type.
- */
-export type PendingOpCounts = Record<DaemonOpType, number>
-
-/**
- * Create empty pending op counts.
- */
-function emptyOpCounts(): PendingOpCounts {
-  return {
-    tcp_connect: 0,
-    utp_connect: 0,
-    udp_announce: 0,
-    http_announce: 0,
-  }
-}
+export type DaemonOpType = 'tcp_connect'
 
 /**
  * Filter out undefined values from an object.
@@ -222,7 +202,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    * Pending operation counts per torrent.
    * Key: infoHashHex, Value: counts by operation type
    */
-  private pendingOps = new Map<string, PendingOpCounts>()
+  /** Pending connection counts per torrent (infoHashHex → count) */
+  private pendingOps = new Map<string, number>()
 
   /**
    * Round-robin index for fair queue draining.
@@ -1163,18 +1144,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    * @param type - Type of operation
    * @param count - Number of slots requested
    */
-  requestDaemonOps(infoHashHex: string, type: DaemonOpType, count: number): void {
+  requestDaemonOps(infoHashHex: string, _type: DaemonOpType, count: number): void {
     if (count <= 0) return
-
-    let ops = this.pendingOps.get(infoHashHex)
-    if (!ops) {
-      ops = emptyOpCounts()
-      this.pendingOps.set(infoHashHex, ops)
-    }
-
-    ops[type] += count
+    const current = this.pendingOps.get(infoHashHex) ?? 0
+    this.pendingOps.set(infoHashHex, current + count)
     this.logger.debug(
-      `[OpQueue] ${infoHashHex.slice(0, 8)} +${count} ${type} (pending: ${JSON.stringify(ops)})`,
+      `[OpQueue] ${infoHashHex.slice(0, 8)} +${count} (pending: ${current + count})`,
     )
   }
 
@@ -1184,32 +1159,21 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    * @param infoHashHex - Torrent identifier
    */
   cancelDaemonOps(infoHashHex: string): void {
-    const ops = this.pendingOps.get(infoHashHex)
-    if (ops) {
-      const total = Object.values(ops).reduce((a, b) => a + b, 0)
-      if (total > 0) {
-        this.pendingOps.delete(infoHashHex)
-        this.logger.debug(`[OpQueue] ${infoHashHex.slice(0, 8)} cancelled ${total} pending ops`)
-      }
+    const pending = this.pendingOps.get(infoHashHex)
+    if (pending && pending > 0) {
+      this.pendingOps.delete(infoHashHex)
+      this.logger.debug(`[OpQueue] ${infoHashHex.slice(0, 8)} cancelled ${pending} pending ops`)
     }
   }
 
   /**
    * Cancel pending operations of a specific type for a torrent.
    * @param infoHashHex - Torrent identifier
-   * @param type - Type of operation to cancel
+   * @param _type - Type of operation to cancel (currently only tcp_connect)
    */
-  cancelDaemonOpsByType(infoHashHex: string, type: DaemonOpType): void {
-    const ops = this.pendingOps.get(infoHashHex)
-    if (ops && ops[type] > 0) {
-      this.logger.debug(`[OpQueue] ${infoHashHex.slice(0, 8)} cancelled ${ops[type]} ${type} ops`)
-      ops[type] = 0
-
-      // Clean up if all zeros
-      if (Object.values(ops).every((c) => c === 0)) {
-        this.pendingOps.delete(infoHashHex)
-      }
-    }
+  cancelDaemonOpsByType(infoHashHex: string, _type: DaemonOpType): void {
+    // With single type, this is equivalent to cancelDaemonOps
+    this.cancelDaemonOps(infoHashHex)
   }
 
   // === Legacy Connection Queue API (wrapper around unified queue) ===
@@ -1254,74 +1218,54 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   /**
    * Drain operation queue with round-robin fairness.
-   * Grants one operation slot per call, rate limited.
+   * Grants one connection slot per call, rate limited.
    */
   private drainOpQueue(): void {
-    // Check global connection limit first
-    if (this.numConnections >= this.maxConnections) {
-      this.logger.debug(
-        `drainOpQueue: blocked by global limit (${this.numConnections}>=${this.maxConnections})`,
-      )
-      return
-    }
+    // Early exit if no pending ops (avoid any allocations)
+    if (this.pendingOps.size === 0) return
+
+    // Check global connection limit
+    if (this.numConnections >= this.maxConnections) return
 
     // Check rate limit
-    if (!this.daemonRateLimiter.tryConsume(1)) {
-      // Don't log this - it fires constantly
-      return
-    }
+    if (!this.daemonRateLimiter.tryConsume(1)) return
 
+    // Get hashes for round-robin iteration
     const hashes = Array.from(this.pendingOps.keys())
-    if (hashes.length === 0) {
-      this.logger.debug(`drainOpQueue: no pending ops`)
-      return
-    }
-
-    this.logger.debug(`drainOpQueue: ${hashes.length} torrents with pending ops`)
+    const numTorrents = hashes.length
 
     // Round-robin: try each torrent starting from last position
-    for (let i = 0; i < hashes.length; i++) {
-      const idx = (this.opDrainIndex + i) % hashes.length
+    for (let i = 0; i < numTorrents; i++) {
+      const idx = (this.opDrainIndex + i) % numTorrents
       const hash = hashes[idx]
-      const ops = this.pendingOps.get(hash)
+      const pending = this.pendingOps.get(hash)
 
-      if (!ops) continue
-
-      const total = Object.values(ops).reduce((a, b) => a + b, 0)
-      if (total <= 0) {
+      if (!pending || pending <= 0) {
         this.pendingOps.delete(hash)
         continue
       }
 
       const torrent = this.getTorrent(hash)
       if (!torrent || !torrent.isActive) {
-        this.logger.debug(`drainOpQueue: torrent ${hash.slice(0, 8)} not found or not active`)
         this.pendingOps.delete(hash)
         continue
       }
 
-      this.logger.debug(
-        `drainOpQueue: granting slot to ${hash.slice(0, 8)}, pending ops: tcp=${ops.tcp_connect}`,
-      )
-
-      // Grant slot - torrent decides which operation to execute
-      const usedType = torrent.useDaemonSlot(ops)
-      if (usedType) {
-        this.logger.debug(`drainOpQueue: torrent used slot for ${usedType}`)
-        ops[usedType]--
-        if (ops[usedType] < 0) ops[usedType] = 0
-
-        // Clean up if all zeros
-        if (Object.values(ops).every((c) => c === 0)) {
+      // Grant slot - torrent tries to connect one peer
+      if (torrent.useConnectionSlot()) {
+        // Decrement pending count
+        const newPending = pending - 1
+        if (newPending <= 0) {
           this.pendingOps.delete(hash)
+        } else {
+          this.pendingOps.set(hash, newPending)
         }
 
-        // Advance round-robin
-        this.opDrainIndex = (idx + 1) % Math.max(1, hashes.length)
+        // Advance round-robin for next call
+        this.opDrainIndex = (idx + 1) % numTorrents
         return
       } else {
-        // Torrent couldn't use any slot, clear its pending ops
-        this.logger.debug(`drainOpQueue: torrent couldn't use slot, clearing pending ops`)
+        // Torrent couldn't use slot, clear its pending ops
         this.pendingOps.delete(hash)
       }
     }
@@ -1330,49 +1274,26 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   /**
    * Get operation queue stats for debugging.
    */
-  getOpQueueStats(): {
-    pendingByTorrent: Record<string, PendingOpCounts>
-    totalByType: PendingOpCounts
-    rateLimiterAvailable: number
-  } {
-    const pendingByTorrent: Record<string, PendingOpCounts> = {}
-    const totalByType = emptyOpCounts()
-
-    for (const [hash, ops] of this.pendingOps) {
-      pendingByTorrent[hash.slice(0, 8)] = { ...ops }
-      for (const type of Object.keys(ops) as DaemonOpType[]) {
-        totalByType[type] += ops[type]
-      }
-    }
-
-    return {
-      pendingByTorrent,
-      totalByType,
-      rateLimiterAvailable: this.daemonRateLimiter.available,
-    }
-  }
-
   /**
    * Get connection queue stats for debugging.
-   * @deprecated Use getOpQueueStats() instead.
    */
   getConnectionQueueStats(): {
     pendingByTorrent: Record<string, number>
     totalPending: number
     rateLimiterAvailable: number
   } {
-    const stats = this.getOpQueueStats()
     const pendingByTorrent: Record<string, number> = {}
     let totalPending = 0
-    for (const [hash, ops] of Object.entries(stats.pendingByTorrent)) {
-      const count = ops.tcp_connect
-      pendingByTorrent[hash] = count
+
+    for (const [hash, count] of this.pendingOps) {
+      pendingByTorrent[hash.slice(0, 8)] = count
       totalPending += count
     }
+
     return {
       pendingByTorrent,
       totalPending,
-      rateLimiterAvailable: stats.rateLimiterAvailable,
+      rateLimiterAvailable: this.daemonRateLimiter.available,
     }
   }
 

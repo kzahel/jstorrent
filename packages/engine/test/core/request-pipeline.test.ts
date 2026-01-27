@@ -1,10 +1,15 @@
 /**
  * Tests for the request pipeline bug fixes:
  * 1. Choke handler resets peer.requestsPending to 0
- * 2. Timeout handler decrements peer.requestsPending per-peer
+ * 2. Timeout handling via Torrent.cleanupStuckPieces() (not tested here - integration level)
  *
  * These tests verify the behavior documented in:
  * docs/tasks/2025-12-12-request-pipeline-bugs.md
+ *
+ * Note: Request timeout handling was moved from ActivePieceManager.checkTimeouts() (30s interval)
+ * to Torrent.cleanupStuckPieces() (500ms interval, 10s timeout). The torrent-level handler
+ * properly sends CANCEL messages and decrements peer.requestsPending directly.
+ * See active-piece.test.ts for tests of the underlying getStaleRequests() and checkTimeouts() methods.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { ActivePieceManager } from '../../src/core/active-piece-manager'
@@ -22,7 +27,6 @@ describe('Request Pipeline Recovery', () => {
       requestTimeoutMs: 30000,
       maxActivePieces: 100,
       maxBufferedBytes: 16 * 1024 * 1024,
-      cleanupIntervalMs: 10000,
     })
   })
 
@@ -78,40 +82,38 @@ describe('Request Pipeline Recovery', () => {
     })
   })
 
-  describe('Timeout Recovery (Secondary Bug Fix)', () => {
+  describe('Timeout Recovery (via ActivePiece.checkTimeouts)', () => {
     /**
-     * Scenario: When requests timeout, we must decrement peer.requestsPending.
+     * Note: The manager-level checkTimeouts() has been removed.
+     * Timeout handling is now done by Torrent.cleanupStuckPieces() which:
+     * - Runs every 500ms (5 request ticks)
+     * - Uses 10s timeout (vs old 30s)
+     * - Sends CANCEL messages to peers
+     * - Decrements peer.requestsPending directly
      *
-     * Without this fix:
-     * 1. Send 500 requests → requestsPending = 500
-     * 2. Peer stops responding
-     * 3. After 30s, checkTimeouts() clears requests from tracking
-     * 4. But requestsPending stays 500 (BUG!)
-     * 5. requestPieces() sees requestsPending >= MAX_PIPELINE → no requests
+     * These tests verify the underlying piece-level timeout detection
+     * that cleanupStuckPieces() uses via getStaleRequests().
      */
-    it('should emit per-peer counts so requestsPending can be decremented', () => {
-      const piece0 = manager.getOrCreate(0)!
-      const piece1 = manager.getOrCreate(1)!
+    it('should detect stale requests after timeout', () => {
+      const piece = manager.getOrCreate(0)!
 
-      // Simulate requests to two peers
-      piece0.addRequest(0, 'peer1')
-      piece0.addRequest(1, 'peer1')
-      piece0.addRequest(2, 'peer2')
-      piece1.addRequest(0, 'peer1')
+      // Simulate requests
+      piece.addRequest(0, 'peer1')
+      piece.addRequest(1, 'peer1')
+      piece.addRequest(2, 'peer2')
 
-      // Set up listener BEFORE advancing time (cleanup interval fires automatically)
-      const receivedMap = new Map<string, number>()
-      manager.on('requestsCleared', (clearedByPeer: Map<string, number>) => {
-        for (const [peerId, count] of clearedByPeer) {
-          receivedMap.set(peerId, (receivedMap.get(peerId) || 0) + count)
-        }
-      })
+      // Before timeout - no stale requests
+      const staleBefore = piece.getStaleRequests(30000)
+      expect(staleBefore.length).toBe(0)
 
-      // Advance time past timeout - automatic interval will fire
+      // Advance time past timeout
       vi.advanceTimersByTime(31000)
 
-      expect(receivedMap.get('peer1')).toBe(3) // 2 from piece0, 1 from piece1
-      expect(receivedMap.get('peer2')).toBe(1)
+      // After timeout - all requests are stale
+      const staleAfter = piece.getStaleRequests(30000)
+      expect(staleAfter.length).toBe(3)
+      expect(staleAfter.filter((r) => r.peerId === 'peer1').length).toBe(2)
+      expect(staleAfter.filter((r) => r.peerId === 'peer2').length).toBe(1)
     })
 
     it('should allow re-requesting blocks after timeout clears them', () => {
@@ -125,9 +127,9 @@ describe('Request Pipeline Recovery', () => {
       // All blocks requested
       expect(piece.getNeededBlocks().length).toBe(0)
 
-      // Timeout clears requests
+      // Timeout clears requests (using piece-level checkTimeouts)
       vi.advanceTimersByTime(31000)
-      manager.checkTimeouts()
+      piece.checkTimeouts(30000)
 
       // Blocks now available for re-requesting
       expect(piece.getNeededBlocks().length).toBe(4)
@@ -152,16 +154,8 @@ describe('Request Pipeline Recovery', () => {
       expect(piece.isBlockRequested(0)).toBe(false) // peer1's cleared
     })
 
-    it('should handle partial timeouts correctly', () => {
+    it('should handle partial timeouts correctly at piece level', () => {
       const piece = manager.getOrCreate(0)!
-
-      // Set up listener BEFORE any time advances
-      const receivedMap = new Map<string, number>()
-      manager.on('requestsCleared', (clearedByPeer: Map<string, number>) => {
-        for (const [peerId, count] of clearedByPeer) {
-          receivedMap.set(peerId, (receivedMap.get(peerId) || 0) + count)
-        }
-      })
 
       // peer1 requests first
       piece.addRequest(0, 'peer1')
@@ -173,56 +167,15 @@ describe('Request Pipeline Recovery', () => {
       // 15 more seconds - peer1 at 35s (timed out), peer2 at 15s (fresh)
       vi.advanceTimersByTime(15000)
 
-      // Only peer1's request should have timed out
-      expect(receivedMap.get('peer1')).toBe(1)
-      expect(receivedMap.has('peer2')).toBe(false)
+      // Get stale requests (30s timeout)
+      const stale = piece.getStaleRequests(30000)
+
+      // Only peer1's request should be stale
+      expect(stale.length).toBe(1)
+      expect(stale[0].peerId).toBe('peer1')
 
       // peer2's request should still be there
       expect(piece.isBlockRequested(1)).toBe(true)
-    })
-  })
-
-  describe('Integration: requestsPending Synchronization', () => {
-    /**
-     * This test demonstrates how the event handler in torrent.ts should work:
-     *
-     * manager.on('requestsCleared', (clearedByPeer: Map<string, number>) => {
-     *   for (const peer of this.connectedPeers) {
-     *     const peerId = getPeerId(peer)
-     *     const cleared = clearedByPeer.get(peerId)
-     *     if (cleared) {
-     *       peer.requestsPending = Math.max(0, peer.requestsPending - cleared)
-     *     }
-     *   }
-     * })
-     */
-    it('should provide correct counts for requestsPending decrements', () => {
-      // Simulate the state: peer has 100 pending requests
-      const mockPeer = { requestsPending: 100 }
-      const peerId = 'peer1'
-
-      // Set up listener BEFORE adding requests and advancing time
-      let clearedCount = 0
-      manager.on('requestsCleared', (clearedByPeer: Map<string, number>) => {
-        clearedCount += clearedByPeer.get(peerId) || 0
-      })
-
-      // Add 100 requests to tracking
-      for (let pieceIdx = 0; pieceIdx < 10; pieceIdx++) {
-        const piece = manager.getOrCreate(pieceIdx)!
-        for (let blockIdx = 0; blockIdx < 10; blockIdx++) {
-          piece.addRequest(blockIdx, peerId)
-        }
-      }
-
-      // Advance past timeout - automatic interval fires
-      vi.advanceTimersByTime(31000)
-
-      // Update the mock peer's requestsPending like torrent.ts would
-      mockPeer.requestsPending = Math.max(0, mockPeer.requestsPending - clearedCount)
-
-      expect(clearedCount).toBe(100)
-      expect(mockPeer.requestsPending).toBe(0)
     })
   })
 })

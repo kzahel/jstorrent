@@ -25,6 +25,7 @@ import com.jstorrent.quickjs.model.EngineStats
 import com.jstorrent.quickjs.model.JsThreadStats
 import com.jstorrent.quickjs.model.SpeedSamplesResult
 import com.jstorrent.quickjs.model.UpnpStatus
+import com.jstorrent.quickjs.bindings.FileBindings
 import com.jstorrent.quickjs.bindings.TcpBindings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -450,15 +451,17 @@ class EngineController(
 
     /**
      * Get comprehensive JS thread health statistics.
-     * Includes current/max latency and TCP callback queue depth.
+     * Includes current/max latency and callback queue depths for TCP and disk I/O.
      */
     fun getJsThreadStats(): JsThreadStats {
         val jsThread = engine?.jsThread
         return JsThreadStats(
             currentLatencyMs = jsThread?.getCurrentLatencyMs() ?: 0L,
             maxLatencyMs = jsThread?.getMaxLatencyMs() ?: 0L,
-            queueDepth = TcpBindings.getQueueDepth(),
-            maxQueueDepth = TcpBindings.getMaxQueueDepth()
+            tcpQueueDepth = TcpBindings.getQueueDepth(),
+            tcpMaxQueueDepth = TcpBindings.getMaxQueueDepth(),
+            diskQueueDepth = FileBindings.getQueueDepth(),
+            diskMaxQueueDepth = FileBindings.getMaxQueueDepth()
         )
     }
 

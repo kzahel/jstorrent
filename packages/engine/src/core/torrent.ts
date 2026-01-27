@@ -15,7 +15,7 @@ import { ISocketFactory } from '../interfaces/socket'
 import { AnnounceStats, PeerInfo, TrackerStats } from '../interfaces/tracker'
 import { TorrentFileInfo } from './torrent-file-info'
 import { EngineComponent } from '../logging/logger'
-import type { BtEngine, DaemonOpType, PendingOpCounts } from './bt-engine'
+import type { BtEngine } from './bt-engine'
 import { TorrentUserState, TorrentActivityState, computeActivityState } from './torrent-state'
 import {
   Swarm,
@@ -1499,43 +1499,13 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Use a granted daemon operation slot.
-   * Called by BtEngine when granting a slot.
-   * Executes the highest priority pending operation.
-   *
-   * Priority order:
-   * 1. tcp_connect - peer connections for download speed
-   * 2. udp_announce / http_announce - peer discovery
-   * 3. utp_connect - future
-   *
-   * @param pending - Current pending counts (for reference)
-   * @returns The operation type that was executed, or null if nothing pending
+   * Use a granted connection slot to connect one peer.
+   * Called by BtEngine when granting a slot from the rate-limited queue.
+   * @returns true if a connection was initiated, false if none available
    */
-  useDaemonSlot(pending: PendingOpCounts): DaemonOpType | null {
-    if (!this._networkActive) return null
-
-    // Priority 1: TCP peer connections
-    if (pending.tcp_connect > 0) {
-      if (this.connectOnePeer()) {
-        return 'tcp_connect'
-      }
-    }
-
-    // Priority 2: Tracker announces (UDP and HTTP)
-    if (pending.udp_announce > 0 || pending.http_announce > 0) {
-      const announcedType = this.trackerManager?.announceOne()
-      if (announcedType) {
-        return announcedType // 'udp_announce' or 'http_announce'
-      }
-    }
-
-    // Priority 3: uTP connections (future)
-    if (pending.utp_connect > 0) {
-      // TODO: implement when uTP is added
-      // if (this.connectOneUtpPeer()) return 'utp_connect'
-    }
-
-    return null
+  useConnectionSlot(): boolean {
+    if (!this._networkActive) return false
+    return this.connectOnePeer()
   }
 
   /**
@@ -3110,18 +3080,8 @@ export class Torrent extends EngineComponent {
         (index) => this.getPieceLength(index),
         { standardPieceLength: this.pieceLength },
       )
-      this.activePieces.on('requestsCleared', (clearedByPeer: Map<string, number>) => {
-        // Decrement requestsPending for each affected peer
-        for (const p of this.connectedPeers) {
-          const pId = p.peerId ? toHex(p.peerId) : `${p.remoteAddress}:${p.remotePort}`
-          const cleared = clearedByPeer.get(pId)
-          if (cleared) {
-            p.requestsPending = Math.max(0, p.requestsPending - cleared)
-            this.logger.debug(`Decremented ${cleared} pending requests for peer ${pId}`)
-          }
-        }
-        // Request pipeline refilled by requestTick() game loop
-      })
+      // Note: Request timeout cleanup is handled by cleanupStuckPieces() which runs
+      // every 500ms and directly decrements peer.requestsPending when sending CANCELs.
     }
 
     // Use per-peer adaptive pipeline depth (starts at 10, ramps up for fast peers)
@@ -3317,21 +3277,29 @@ export class Torrent extends EngineComponent {
    * @param maxCount - Maximum number of candidates to return
    * @returns Array of piece indices sorted by rarity (rarest first)
    */
+  // Instrumentation for findNewPieceCandidates
+  private _findCandidatesCallCount = 0
+  private _findCandidatesLastLogTime = 0
+
   private findNewPieceCandidates(peer: PeerConnection, maxCount: number): number[] {
     if (!this._bitfield || !this._piecePriority || !this._pieceAvailability || !this.activePieces) {
       return []
     }
 
+    const startTime = Date.now()
     const bitfield = peer.bitfield
     const candidates: Array<{ index: number; sortKey: number }> = []
 
     // Collect candidate pieces (up to 2x maxCount for better selection after sorting)
     const collectLimit = maxCount * 2
+    let iterations = 0
     for (
       let i = this._firstNeededPiece;
       i < this.piecesCount && candidates.length < collectLimit;
       i++
     ) {
+      iterations++
+
       // Skip if we have it
       if (this._bitfield.get(i)) continue
 
@@ -3354,6 +3322,21 @@ export class Torrent extends EngineComponent {
 
     // Sort by rarity (lower sortKey = rarer/higher priority = first)
     candidates.sort((a, b) => a.sortKey - b.sortKey)
+
+    const elapsed = Date.now() - startTime
+
+    // Log every 5 seconds
+    this._findCandidatesCallCount++
+    const now = Date.now()
+    if (now - this._findCandidatesLastLogTime >= 5000) {
+      this.logger.info(
+        `findNewPieceCandidates: ${iterations} iterations, ${candidates.length} found, ` +
+          `${elapsed}ms, firstNeeded=${this._firstNeededPiece}, total=${this.piecesCount}, ` +
+          `calls=${this._findCandidatesCallCount}, maxCount=${maxCount}`,
+      )
+      this._findCandidatesCallCount = 0
+      this._findCandidatesLastLogTime = now
+    }
 
     // Return just the indices
     return candidates.slice(0, maxCount).map((c) => c.index)
@@ -3386,18 +3369,8 @@ export class Torrent extends EngineComponent {
         (index) => this.getPieceLength(index),
         { standardPieceLength: this.pieceLength },
       )
-      this.activePieces.on('requestsCleared', (clearedByPeer: Map<string, number>) => {
-        // Decrement requestsPending for each affected peer
-        for (const p of this.connectedPeers) {
-          const pId = p.peerId ? toHex(p.peerId) : `${p.remoteAddress}:${p.remotePort}`
-          const cleared = clearedByPeer.get(pId)
-          if (cleared) {
-            p.requestsPending = Math.max(0, p.requestsPending - cleared)
-            this.logger.debug(`Decremented ${cleared} pending requests for peer ${pId}`)
-          }
-        }
-        // Request pipeline refilled by requestTick() game loop
-      })
+      // Note: Request timeout cleanup is handled by cleanupStuckPieces() which runs
+      // every 500ms and directly decrements peer.requestsPending when sending CANCELs.
     }
 
     if (!this.activePieces) {

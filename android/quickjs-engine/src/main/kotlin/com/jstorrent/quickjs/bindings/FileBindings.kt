@@ -16,8 +16,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-private const val TAG = "FileBindings"
-
 /**
  * Write result codes for async verified writes.
  */
@@ -57,12 +55,58 @@ class FileBindings(
     // Coroutine scope for async I/O operations (hash + write on background thread)
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     companion object {
+        private const val TAG = "FileBindings"
+
+        // Pending callback queue tracking (callbacks waiting to be processed by JS thread)
+        private val pendingCallbacks = java.util.concurrent.atomic.AtomicInteger(0)
+        @Volatile private var maxQueueDepth = 0
+        @Volatile private var queueLogTime = System.currentTimeMillis()
+
         // Throughput and latency tracking for backpressure detection
         @Volatile private var bytesWritten = 0L
         @Volatile private var writeCount = 0
         @Volatile private var totalWriteTimeMs = 0L
         @Volatile private var maxWriteLatencyMs = 0L
         @Volatile private var lastLogTime = System.currentTimeMillis()
+
+        /**
+         * Get current callback queue depth.
+         * This is the number of disk callbacks waiting to be processed by JS.
+         */
+        fun getQueueDepth(): Int = pendingCallbacks.get()
+
+        /**
+         * Get max queue depth since last reset (resets every 5 seconds during logging).
+         */
+        fun getMaxQueueDepth(): Int = maxQueueDepth
+
+        /**
+         * Track queue depth increment and log if needed.
+         */
+        private fun incrementQueue(): Int {
+            val depth = pendingCallbacks.incrementAndGet()
+            if (depth > maxQueueDepth) {
+                maxQueueDepth = depth
+            }
+            if (depth > 20) {
+                Log.w(TAG, "Disk callback queue depth: $depth (BACKPRESSURE)")
+            }
+            return depth
+        }
+
+        /**
+         * Track queue depth decrement and periodic logging.
+         */
+        private fun decrementQueue() {
+            pendingCallbacks.decrementAndGet()
+            val now = System.currentTimeMillis()
+            if (now - queueLogTime >= 5000 && maxQueueDepth > 0) {
+                Log.i(TAG, "Disk callback queue: current=%d, max=%d".format(
+                    pendingCallbacks.get(), maxQueueDepth))
+                maxQueueDepth = 0
+                queueLogTime = now
+            }
+        }
     }
 
     // App-private downloads directory (fallback when rootKey is empty/"default")
@@ -305,7 +349,9 @@ class FileBindings(
             if (path.isEmpty() || binary == null || expectedSha1Hex.isEmpty() || callbackId.isEmpty()) {
                 Log.w(TAG, "write_verified: invalid args")
                 // Post error back immediately
+                incrementQueue()
                 jsThread.post {
+                    decrementQueue()
                     ctx.callGlobalFunction(
                         "__jstorrent_file_dispatch_write_result",
                         callbackId,
@@ -320,7 +366,9 @@ class FileBindings(
             val rootUri = resolveRoot(rootKey)
             if (rootUri == null) {
                 Log.w(TAG, "write_verified: unknown root key: $rootKey")
+                incrementQueue()
                 jsThread.post {
+                    decrementQueue()
                     ctx.callGlobalFunction(
                         "__jstorrent_file_dispatch_write_result",
                         callbackId,
@@ -344,7 +392,9 @@ class FileBindings(
                     // 2. Compare hashes
                     if (!actualHashHex.equals(expectedSha1Hex, ignoreCase = true)) {
                         Log.w(TAG, "write_verified: hash mismatch for $path")
+                        incrementQueue()
                         jsThread.post {
+                            decrementQueue()
                             ctx.callGlobalFunction(
                                 "__jstorrent_file_dispatch_write_result",
                                 callbackId,
@@ -388,7 +438,9 @@ class FileBindings(
 
                     // 4. Post success back to JS thread
                     val postTime = System.currentTimeMillis()
+                    incrementQueue()
                     jsThread.post {
+                        decrementQueue()
                         val cbLatency = System.currentTimeMillis() - postTime
                         if (cbLatency > 100) {
                             Log.d(TAG, "Disk write callback latency: ${cbLatency}ms")
@@ -405,7 +457,9 @@ class FileBindings(
                 } catch (e: Exception) {
                     Log.e(TAG, "write_verified failed: $path", e)
                     val postTime = System.currentTimeMillis()
+                    incrementQueue()
                     jsThread.post {
+                        decrementQueue()
                         val cbLatency = System.currentTimeMillis() - postTime
                         if (cbLatency > 100) {
                             Log.d(TAG, "Disk error callback latency: ${cbLatency}ms")

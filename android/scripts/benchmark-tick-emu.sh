@@ -3,14 +3,16 @@
 # benchmark-tick-emu.sh - Benchmark tick performance on Android emulator (QuickJS)
 #
 # This script:
-#   1. Starts the seeder on the host
+#   1. Starts the seeder(s) on the host
 #   2. Launches the app on the emulator with a test magnet
 #   3. Captures RequestTick logs from logcat
 #   4. Parses and reports statistics when download completes
 #
 # Usage:
-#   ./benchmark-tick-emu.sh                    # 100MB test
+#   ./benchmark-tick-emu.sh                    # 100MB test, 1 peer
 #   ./benchmark-tick-emu.sh --size 1gb         # 1GB test
+#   ./benchmark-tick-emu.sh --peers 5          # 5-peer swarm test
+#   ./benchmark-tick-emu.sh --peers 10 --size 1gb  # 10-peer, 1GB
 #   ./benchmark-tick-emu.sh --no-build         # Skip build step
 #   ./benchmark-tick-emu.sh --quiet            # Machine-parseable output
 #
@@ -22,6 +24,8 @@ MONOREPO_ROOT="$(cd "$PROJECT_DIR/.." && pwd)"
 
 # Parse arguments
 SIZE="100mb"
+PEERS=1
+BASE_PORT=6881
 BUILD=true
 QUIET=false
 
@@ -29,6 +33,14 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --size)
             SIZE="$2"
+            shift 2
+            ;;
+        --peers|-n)
+            PEERS="$2"
+            shift 2
+            ;;
+        --base-port)
+            BASE_PORT="$2"
             shift 2
             ;;
         --no-build)
@@ -40,12 +52,14 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            echo "Usage: $0 [--size SIZE] [--no-build] [--quiet]"
+            echo "Usage: $0 [--size SIZE] [--peers N] [--no-build] [--quiet]"
             echo ""
             echo "Options:"
-            echo "  --size SIZE   Test file size: 100mb or 1gb (default: 100mb)"
-            echo "  --no-build    Skip building the app"
-            echo "  --quiet       Machine-parseable output only"
+            echo "  --size SIZE     Test file size: 100mb or 1gb (default: 100mb)"
+            echo "  --peers N       Number of seeders (default: 1)"
+            echo "  --base-port P   Starting port for seeders (default: 6881)"
+            echo "  --no-build      Skip building the app"
+            echo "  --quiet         Machine-parseable output only"
             exit 0
             ;;
         *)
@@ -54,6 +68,32 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Info hashes and filenames (must match seed_for_test.py)
+if [[ "$SIZE" == "1gb" ]]; then
+    INFOHASH="18a7aacab6d2bc518e336921ccd4b6cc32a9624b"
+    FILENAME="testdata_1gb.bin"
+    SIZE_BYTES=$((1024 * 1024 * 1024))
+    SIZE_MB=1024
+else
+    INFOHASH="67d01ece1b99c49c257baada0f760b770a7530b9"
+    FILENAME="testdata_100mb.bin"
+    SIZE_BYTES=$((100 * 1024 * 1024))
+    SIZE_MB=100
+fi
+
+# Build magnet link with all peer hints
+# Android emulator uses 10.0.2.2 to reach host
+build_magnet() {
+    local magnet="magnet:?xt=urn:btih:${INFOHASH}&dn=${FILENAME}"
+    for ((i=0; i<PEERS; i++)); do
+        local port=$((BASE_PORT + i))
+        magnet="${magnet}&x.pe=10.0.2.2:${port}"
+    done
+    echo "$magnet"
+}
+
+MAGNET=$(build_magnet)
 
 # Temp file for capturing logs
 LOG_FILE=$(mktemp)
@@ -66,33 +106,50 @@ log() {
     fi
 }
 
-# Start seeder in background
-log ">>> Starting seeder ($SIZE)..."
-cd "$MONOREPO_ROOT/packages/engine/integration/python"
-uv run python seed_for_test.py --size "$SIZE" --quiet > /dev/null 2>&1 &
-SEEDER_PID=$!
-sleep 3
+# Start seeder(s) in background
+if [[ $PEERS -eq 1 ]]; then
+    log ">>> Starting seeder ($SIZE)..."
+    cd "$MONOREPO_ROOT/packages/engine/integration/python"
+    uv run python seed_for_test.py --size "$SIZE" --quiet > /dev/null 2>&1 &
+    SEEDER_PID=$!
+    sleep 3
 
-# Verify seeder started by checking if port 6881 is listening
-if ! lsof -i :6881 >/dev/null 2>&1; then
-    echo "ERROR: Seeder failed to start (port 6881 not listening)" >&2
-    exit 1
+    # Verify seeder started by checking if port is listening
+    if ! lsof -i :${BASE_PORT} >/dev/null 2>&1; then
+        echo "ERROR: Seeder failed to start (port ${BASE_PORT} not listening)" >&2
+        exit 1
+    fi
+    log "    Seeder started (PID $SEEDER_PID)"
+else
+    log ">>> Starting swarm seeder ($SIZE, $PEERS peers)..."
+    cd "$MONOREPO_ROOT/packages/engine/integration/python"
+    uv run python seed_for_test_swarm.py --size "$SIZE" --count "$PEERS" --port "$BASE_PORT" --kill --quiet > /dev/null 2>&1 &
+    SEEDER_PID=$!
+    sleep 4
+
+    # Verify at least the first port is listening
+    if ! lsof -i :${BASE_PORT} >/dev/null 2>&1; then
+        echo "ERROR: Swarm seeder failed to start (port ${BASE_PORT} not listening)" >&2
+        exit 1
+    fi
+    log "    Swarm seeder started with $PEERS peers on ports ${BASE_PORT}-$((BASE_PORT + PEERS - 1))"
 fi
-log "    Seeder started (PID $SEEDER_PID)"
 
 cleanup() {
     log ">>> Cleaning up..."
     kill $SEEDER_PID 2>/dev/null || true
+    # Also kill any remaining seeders that might be children
+    pkill -f "seed_for_test" 2>/dev/null || true
     rm -f $LOG_FILE $TICK_DATA_FILE
 }
 trap cleanup EXIT
 
-# Launch app on emulator
+# Launch app on emulator with custom magnet
 log ">>> Launching app on emulator..."
 if $BUILD; then
-    "$SCRIPT_DIR/emu-test-native.sh" --size "$SIZE" --null
+    "$SCRIPT_DIR/emu-test-native.sh" --null "$MAGNET"
 else
-    "$SCRIPT_DIR/emu-test-native.sh" --size "$SIZE" --null --no-build
+    "$SCRIPT_DIR/emu-test-native.sh" --null --no-build "$MAGNET"
 fi
 
 # Get emulator serial
@@ -207,22 +264,26 @@ DOWNLOAD_TIME=$(($(date +%s) - START_TIME))
 if $QUIET; then
     echo "ENGINE=quickjs"
     echo "SIZE=$SIZE"
+    echo "NUM_PEERS=$PEERS"
     echo "$STATS"
     echo "DOWNLOAD_TIME_SEC=$DOWNLOAD_TIME"
     echo "COMPLETE=$COMPLETE"
 else
-    if [[ "$SIZE" == "1gb" ]]; then
-        SIZE_MB=1024
-    else
-        SIZE_MB=100
-    fi
     SPEED=$(echo "scale=1; $SIZE_MB / $DOWNLOAD_TIME" | bc 2>/dev/null || echo "N/A")
+
+    PEERS_STR=""
+    if [[ $PEERS -gt 1 ]]; then
+        PEERS_STR=", $PEERS peers"
+    fi
 
     echo ""
     echo "============================================================"
-    echo "TICK BENCHMARK RESULTS (QuickJS on Android Emulator)"
+    echo "TICK BENCHMARK RESULTS (QuickJS on Android Emulator${PEERS_STR})"
     echo "============================================================"
     echo "Download size:     $SIZE_MB MB"
+    if [[ $PEERS -gt 1 ]]; then
+        echo "Seeders:           $PEERS"
+    fi
     echo "Download time:     ${DOWNLOAD_TIME}s"
     echo "Download speed:    ${SPEED} MB/s"
     echo ""

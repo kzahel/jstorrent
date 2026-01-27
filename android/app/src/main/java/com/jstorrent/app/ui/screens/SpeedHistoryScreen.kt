@@ -162,8 +162,10 @@ private fun SpeedHistoryContent(
         JsThreadHealthCard(
             currentLatencyMs = state.jsCurrentLatencyMs,
             maxLatencyMs = state.jsMaxLatencyMs,
-            queueDepth = state.jsQueueDepth,
-            maxQueueDepth = state.jsMaxQueueDepth,
+            tcpQueueDepth = state.jsTcpQueueDepth,
+            tcpMaxQueueDepth = state.jsTcpMaxQueueDepth,
+            diskQueueDepth = state.jsDiskQueueDepth,
+            diskMaxQueueDepth = state.jsDiskMaxQueueDepth,
             tickAvgMs = state.tickAvgMs,
             tickMaxMs = state.tickMaxMs,
             activePieces = state.activePieces,
@@ -292,8 +294,10 @@ private fun RateDisplay(
 private fun JsThreadHealthCard(
     currentLatencyMs: Long,
     maxLatencyMs: Long,
-    queueDepth: Int,
-    maxQueueDepth: Int,
+    tcpQueueDepth: Int,
+    tcpMaxQueueDepth: Int,
+    diskQueueDepth: Int,
+    diskMaxQueueDepth: Int,
     tickAvgMs: Float,
     tickMaxMs: Float,
     activePieces: Int,
@@ -328,7 +332,7 @@ private fun JsThreadHealthCard(
                 )
             }
 
-            // First row: Latency and Queue
+            // First row: Latency and Tick
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -341,20 +345,6 @@ private fun JsThreadHealthCard(
                     isWarning = currentLatencyMs > 1000
                 )
 
-                // Queue depth
-                StatDisplay(
-                    label = "Queue",
-                    value = queueDepth.toString(),
-                    subValue = "max: $maxQueueDepth",
-                    isWarning = queueDepth > 50
-                )
-            }
-
-            // Second row: Tick duration and load
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
                 // Tick duration (target <50ms for 100ms interval)
                 StatDisplay(
                     label = "Tick",
@@ -362,7 +352,35 @@ private fun JsThreadHealthCard(
                     subValue = "max: ${formatTickMs(tickMaxMs)}",
                     isWarning = tickAvgMs > 50f
                 )
+            }
 
+            // Second row: TCP Queue and Disk Queue
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                // TCP queue depth (network callbacks)
+                StatDisplay(
+                    label = "TCP Q",
+                    value = tcpQueueDepth.toString(),
+                    subValue = "max: $tcpMaxQueueDepth",
+                    isWarning = tcpQueueDepth > 50
+                )
+
+                // Disk queue depth (file I/O callbacks)
+                StatDisplay(
+                    label = "Disk Q",
+                    value = diskQueueDepth.toString(),
+                    subValue = "max: $diskMaxQueueDepth",
+                    isWarning = diskQueueDepth > 20
+                )
+            }
+
+            // Third row: Pieces and Peers
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
                 // Active pieces
                 StatDisplay(
                     label = "Pieces",

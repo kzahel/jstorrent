@@ -14,7 +14,6 @@ describe('ActivePieceManager', () => {
       requestTimeoutMs: 30000,
       maxActivePieces: 10,
       maxBufferedBytes: 1024 * 1024, // 1MB
-      cleanupIntervalMs: 10000,
     })
   })
 
@@ -91,70 +90,10 @@ describe('ActivePieceManager', () => {
     })
   })
 
-  describe('checkTimeouts', () => {
-    it('should aggregate per-peer timeout counts across pieces', () => {
-      const piece0 = manager.getOrCreate(0)!
-      const piece1 = manager.getOrCreate(1)!
-
-      piece0.addRequest(0, 'peer1')
-      piece0.addRequest(1, 'peer2')
-      piece1.addRequest(0, 'peer1')
-
-      // Set up listener BEFORE advancing time (cleanup interval will fire)
-      const clearedByPeer = new Map<string, number>()
-      manager.on('requestsCleared', (map: Map<string, number>) => {
-        for (const [peerId, count] of map) {
-          clearedByPeer.set(peerId, (clearedByPeer.get(peerId) || 0) + count)
-        }
-      })
-
-      // Advance past timeout - cleanup interval will fire and call checkTimeouts()
-      vi.advanceTimersByTime(31000)
-
-      expect(clearedByPeer.get('peer1')).toBe(2)
-      expect(clearedByPeer.get('peer2')).toBe(1)
-    })
-
-    it('should emit requestsCleared event with Map', (done: () => void) => {
-      const piece = manager.getOrCreate(0)!
-      piece.addRequest(0, 'peer1')
-
-      vi.advanceTimersByTime(31000)
-
-      manager.on('requestsCleared', (clearedByPeer: Map<string, number>) => {
-        expect(clearedByPeer instanceof Map).toBe(true)
-        expect(clearedByPeer.get('peer1')).toBe(1)
-        done()
-      })
-
-      manager.checkTimeouts()
-    })
-
-    it('should not emit when no timeouts', () => {
-      const piece = manager.getOrCreate(0)!
-      piece.addRequest(0, 'peer1')
-
-      const listener = vi.fn()
-      manager.on('requestsCleared', listener)
-
-      manager.checkTimeouts()
-
-      expect(listener).not.toHaveBeenCalled()
-    })
-
-    it('should run automatically via cleanup interval', () => {
-      const piece = manager.getOrCreate(0)!
-      piece.addRequest(0, 'peer1')
-
-      const listener = vi.fn()
-      manager.on('requestsCleared', listener)
-
-      // Advance past timeout (30s) plus cleanup interval (10s)
-      vi.advanceTimersByTime(40000)
-
-      expect(listener).toHaveBeenCalled()
-    })
-  })
+  // Note: checkTimeouts() has been removed from ActivePieceManager.
+  // Request timeout handling is now done by Torrent.cleanupStuckPieces() which
+  // runs every 500ms with a 10s timeout and properly sends CANCEL messages.
+  // The underlying ActivePiece.checkTimeouts() method is still tested in active-piece.test.ts.
 
   describe('memory tracking', () => {
     it('should track buffered bytes', () => {
@@ -167,15 +106,13 @@ describe('ActivePieceManager', () => {
   })
 
   describe('destroy', () => {
-    it('should clear all pieces and stop interval', () => {
+    it('should clear all pieces', () => {
       manager.getOrCreate(0)
       manager.getOrCreate(1)
 
       manager.destroy()
 
       expect(manager.activeCount).toBe(0)
-      // Verify interval is stopped by advancing time and checking no errors
-      vi.advanceTimersByTime(100000)
     })
   })
 

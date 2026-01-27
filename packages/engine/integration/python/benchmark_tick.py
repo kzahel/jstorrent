@@ -15,26 +15,43 @@ Usage:
     # Run with 1GB test file
     uv run python benchmark_tick.py --size 1gb
 
+    # Multi-peer swarm test (starts its own seeders)
+    uv run python benchmark_tick.py --peers 5
+    uv run python benchmark_tick.py --peers 10 --size 1gb
+
     # Quiet mode (machine-parseable output)
     uv run python benchmark_tick.py --quiet
 
-Prerequisites:
+Prerequisites (single peer mode):
     Start the seeder first in another terminal:
     pnpm seed-for-test --size 1gb
+
+For --peers mode, seeders are started automatically.
 """
 import argparse
 import os
 import signal
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
+from urllib.parse import quote
 
 from jst import JSTEngine
 
-# Test magnets (must match seed_for_test.py)
-MAGNET_100MB = "magnet:?xt=urn:btih:67d01ece1b99c49c257baada0f760b770a7530b9&dn=testdata_100mb.bin&x.pe=127.0.0.1:6881"
-MAGNET_1GB = "magnet:?xt=urn:btih:18a7aacab6d2bc518e336921ccd4b6cc32a9624b&dn=testdata_1gb.bin&x.pe=127.0.0.1:6881"
+# Test info hashes and filenames (must match seed_for_test.py)
+INFOHASH_100MB = "67d01ece1b99c49c257baada0f760b770a7530b9"
+INFOHASH_1GB = "18a7aacab6d2bc518e336921ccd4b6cc32a9624b"
+FILENAME_100MB = "testdata_100mb.bin"
+FILENAME_1GB = "testdata_1gb.bin"
+
+
+def build_magnet(info_hash: str, name: str, peers: List[Tuple[str, int]]) -> str:
+    """Build magnet link with peer hints."""
+    encoded_name = quote(name)
+    peer_hints = "&".join(f"x.pe={host}:{port}" for host, port in peers)
+    return f"magnet:?xt=urn:btih:{info_hash}&dn={encoded_name}&{peer_hints}"
 
 
 @dataclass
@@ -63,6 +80,7 @@ class BenchmarkResult:
     download_speed_mbps: float
     jitless: bool
     size_bytes: int
+    num_peers: int = 1
 
 
 def collect_tick_samples(
@@ -155,6 +173,7 @@ def calculate_results(
     all_tick_times: List[float],
     jitless: bool,
     size_bytes: int,
+    num_peers: int = 1,
 ) -> BenchmarkResult:
     """Calculate final benchmark statistics."""
     if not samples:
@@ -201,6 +220,7 @@ def calculate_results(
         download_speed_mbps=download_speed_mbps,
         jitless=jitless,
         size_bytes=size_bytes,
+        num_peers=num_peers,
     )
 
 
@@ -210,6 +230,7 @@ def print_results(result: BenchmarkResult, quiet: bool = False):
         # Machine-parseable output
         print(f"JITLESS={result.jitless}")
         print(f"SIZE_BYTES={result.size_bytes}")
+        print(f"NUM_PEERS={result.num_peers}")
         print(f"TOTAL_TICKS={result.total_ticks}")
         print(f"TOTAL_TIME_SEC={result.total_time_sec:.2f}")
         print(f"AVG_TICK_MS={result.avg_tick_ms:.2f}")
@@ -220,11 +241,14 @@ def print_results(result: BenchmarkResult, quiet: bool = False):
     else:
         mode = "JIT-less" if result.jitless else "JIT (V8)"
         size_mb = result.size_bytes / (1024 * 1024)
+        peers_str = f", {result.num_peers} peers" if result.num_peers > 1 else ""
         print()
         print("=" * 60)
-        print(f"TICK BENCHMARK RESULTS ({mode})")
+        print(f"TICK BENCHMARK RESULTS ({mode}{peers_str})")
         print("=" * 60)
         print(f"Download size:     {size_mb:.0f} MB")
+        if result.num_peers > 1:
+            print(f"Seeders:           {result.num_peers}")
         print(f"Total time:        {result.total_time_sec:.1f} seconds")
         print(f"Download speed:    {result.download_speed_mbps:.1f} MB/s")
         print()
@@ -281,22 +305,77 @@ def main() -> int:
         default=1.0,
         help="How often to poll stats in seconds (default: 1.0)",
     )
+    parser.add_argument(
+        "--peers",
+        type=int,
+        default=1,
+        help="Number of seeders to use (default: 1). If >1, starts swarm automatically.",
+    )
+    parser.add_argument(
+        "--base-port",
+        type=int,
+        default=6881,
+        help="Base port for seeders (default: 6881)",
+    )
 
     args = parser.parse_args()
 
-    # Determine magnet and size
+    # Determine info hash, filename, and size
     if args.size == "1gb":
-        magnet = MAGNET_1GB
+        info_hash = INFOHASH_1GB
+        filename = FILENAME_1GB
         size_bytes = 1024 * 1024 * 1024
     else:
-        magnet = MAGNET_100MB
+        info_hash = INFOHASH_100MB
+        filename = FILENAME_100MB
         size_bytes = 100 * 1024 * 1024
 
-    if not args.quiet:
-        mode = "JIT-less" if args.jitless else "JIT (V8)"
-        print(f"Starting tick benchmark ({mode}, {args.size})")
-        print(f"Make sure seeder is running: pnpm seed-for-test --size {args.size}")
-        print()
+    # Build peer list
+    peer_list = [("127.0.0.1", args.base_port + i) for i in range(args.peers)]
+    magnet = build_magnet(info_hash, filename, peer_list)
+
+    # For swarm mode, we'll start the seeders ourselves
+    seeder_proc = None
+    if args.peers > 1:
+        if not args.quiet:
+            mode = "JIT-less" if args.jitless else "JIT (V8)"
+            print(f"Starting tick benchmark ({mode}, {args.size}, {args.peers} peers)")
+            print(f"Starting swarm seeder with {args.peers} peers...")
+
+        # Start the swarm seeder
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        seeder_cmd = [
+            "uv", "run", "python", "seed_for_test_swarm.py",
+            "--count", str(args.peers),
+            "--size", args.size,
+            "--port", str(args.base_port),
+            "--kill",  # Kill any existing processes on those ports
+            "--quiet",
+        ]
+        seeder_proc = subprocess.Popen(
+            seeder_cmd,
+            cwd=script_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        # Give seeders time to start
+        time.sleep(3)
+
+        if seeder_proc.poll() is not None:
+            print("ERROR: Swarm seeder failed to start", file=sys.stderr)
+            stdout, stderr = seeder_proc.communicate()
+            print(stderr.decode(), file=sys.stderr)
+            return 1
+
+        if not args.quiet:
+            print(f"Swarm seeder started (PID {seeder_proc.pid})")
+            print()
+    else:
+        if not args.quiet:
+            mode = "JIT-less" if args.jitless else "JIT (V8)"
+            print(f"Starting tick benchmark ({mode}, {args.size})")
+            print(f"Make sure seeder is running: pnpm seed-for-test --size {args.size}")
+            print()
 
     # Create temp directory for download
     import tempfile
@@ -337,7 +416,7 @@ def main() -> int:
         )
 
         # Calculate and print results
-        result = calculate_results(samples, all_tick_times, args.jitless, size_bytes)
+        result = calculate_results(samples, all_tick_times, args.jitless, size_bytes, args.peers)
         print_results(result, args.quiet)
 
         return 0
@@ -358,6 +437,13 @@ def main() -> int:
         except:
             pass
         shutil.rmtree(download_dir, ignore_errors=True)
+        # Stop swarm seeder if we started it
+        if seeder_proc is not None:
+            try:
+                seeder_proc.terminate()
+                seeder_proc.wait(timeout=5)
+            except:
+                seeder_proc.kill()
 
 
 if __name__ == "__main__":

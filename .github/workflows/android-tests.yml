@@ -189,10 +189,6 @@ jobs:
           script: |
             # Run all instrumented tests EXCEPT E2E tests (which need external seeder)
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
-            TEST_RESULT=$?
-            # Force kill emulator to prevent hang on termination
-            adb emu kill || true
-            exit $TEST_RESULT
 
       - name: Show Test Failures
         if: failure()
@@ -338,14 +334,13 @@ jobs:
             (cd ../packages/engine/integration/python && ~/.local/bin/uv run python seed_for_test.py --size 100mb --quiet) &
             SEEDER_PID=$!
             sleep 5
-            # Run tests and capture result
+            # Run tests
             ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
             TEST_RESULT=$?
             # Kill the seeder and wait for cleanup
             kill $SEEDER_PID 2>/dev/null || true
             wait $SEEDER_PID 2>/dev/null || true
-            # Force kill emulator to prevent hang on termination
-            adb emu kill || true
+            # Return test result - let the action handle emulator cleanup
             exit $TEST_RESULT
 
       - name: Show Test Failures

@@ -29,7 +29,7 @@ export interface IDiskQueue {
 }
 
 // originally we set to 4 but trying to use more to see if it helps quickjs
-const DEFAULT_DISK_WORKERS = 32
+const DEFAULT_DISK_WORKERS = 6
 
 export interface DiskQueueConfig {
   maxWorkers: number
