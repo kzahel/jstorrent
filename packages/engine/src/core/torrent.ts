@@ -45,6 +45,36 @@ import { CorruptionTracker, BanDecision } from './corruption-tracker'
  */
 export const MAX_INCOMING_RATIO = 0.6
 
+// === Phase 5: Piece Health Management Constants ===
+
+/**
+ * Timeout for individual block requests.
+ * Requests older than this are cancelled and the blocks become available
+ * for reassignment to other peers.
+ *
+ * libtorrent reference: peer_connection.cpp:4565-4588
+ */
+export const BLOCK_REQUEST_TIMEOUT_MS = 10_000 // 10 seconds
+
+/**
+ * Timeout for piece abandonment.
+ * Pieces older than this with less than PIECE_ABANDON_MIN_PROGRESS
+ * are abandoned and removed from the active set.
+ */
+export const PIECE_ABANDON_TIMEOUT_MS = 30_000 // 30 seconds
+
+/**
+ * Minimum progress ratio (0-1) to keep a stuck piece.
+ * Pieces with >= 50% completion are worth keeping even if stuck.
+ */
+export const PIECE_ABANDON_MIN_PROGRESS = 0.5 // 50%
+
+/**
+ * How often to run piece health cleanup (every N ticks).
+ * With 100ms tick interval, 5 = every 500ms.
+ */
+export const CLEANUP_TICK_INTERVAL = 5
+
 /**
  * Piece classification for file priority system.
  * - 'wanted': All files touched by this piece are non-skipped
@@ -1701,6 +1731,7 @@ export class Torrent extends EngineComponent {
   private _tickTotalMs = 0
   private _tickMaxMs = 0
   private _lastTickLogTime = 0
+  private _cleanupTickCounter = 0
 
   /**
    * Request tick - fill all peers' request pipelines.
@@ -1710,6 +1741,13 @@ export class Torrent extends EngineComponent {
     if (!this._networkActive) return
 
     const startTime = Date.now()
+
+    // Phase 5: Periodic cleanup of stuck pieces (every CLEANUP_TICK_INTERVAL ticks)
+    this._cleanupTickCounter++
+    if (this._cleanupTickCounter >= CLEANUP_TICK_INTERVAL) {
+      this._cleanupTickCounter = 0
+      this.cleanupStuckPieces()
+    }
 
     let peersProcessed = 0
     for (const peer of this.connectedPeers) {
@@ -1740,6 +1778,88 @@ export class Torrent extends EngineComponent {
       this._tickMaxMs = 0
       this._lastTickLogTime = now
     }
+  }
+
+  // ==========================================================================
+  // Phase 5: Piece Health Management
+  // ==========================================================================
+
+  /**
+   * Clean up stuck pieces: timeout stale requests and abandon hopeless pieces.
+   *
+   * This method:
+   * 1. Finds and cancels stale block requests (>10s old)
+   * 2. Sends CANCEL messages to peers for those requests
+   * 3. Clears exclusive ownership when the owner times out
+   * 4. Abandons pieces that are stuck (>30s old with <50% progress)
+   *
+   * libtorrent reference: peer_connection.cpp:4565-4588
+   */
+  private cleanupStuckPieces(): void {
+    if (!this.activePieces) return
+
+    const piecesToRemove: number[] = []
+    let staleRequestsCleared = 0
+    let piecesAbandoned = 0
+
+    for (const piece of this.activePieces.partialValues()) {
+      // Step 1: Check for stale requests
+      const staleRequests = piece.getStaleRequests(BLOCK_REQUEST_TIMEOUT_MS)
+      for (const { blockIndex, peerId } of staleRequests) {
+        // Find the peer to send CANCEL
+        const peer = this.findPeerById(peerId)
+        if (peer) {
+          const begin = blockIndex * BLOCK_SIZE
+          const length = Math.min(BLOCK_SIZE, piece.length - begin)
+          peer.sendCancel(piece.index, begin, length)
+
+          // Decrement peer's pending request count
+          peer.requestsPending = Math.max(0, peer.requestsPending - 1)
+        }
+
+        // Clean up the request from the piece
+        piece.cancelRequest(blockIndex, peerId)
+        staleRequestsCleared++
+      }
+
+      // Step 2: Check if piece should be abandoned
+      if (piece.shouldAbandon(PIECE_ABANDON_TIMEOUT_MS, PIECE_ABANDON_MIN_PROGRESS)) {
+        const progress = Math.round((piece.blocksReceived / piece.blocksNeeded) * 100)
+        this.logger.info(`Abandoning stuck piece ${piece.index} (${progress}% complete)`)
+        piecesToRemove.push(piece.index)
+        piecesAbandoned++
+      }
+    }
+
+    // Step 3: Remove abandoned pieces
+    for (const index of piecesToRemove) {
+      this.activePieces.remove(index)
+    }
+
+    // Log if we did any cleanup
+    if (staleRequestsCleared > 0 || piecesAbandoned > 0) {
+      this.logger.debug(
+        `Piece health cleanup: ${staleRequestsCleared} stale requests cancelled, ` +
+          `${piecesAbandoned} pieces abandoned`,
+      )
+    }
+  }
+
+  /**
+   * Find a connected peer by their ID string.
+   * Used by cleanupStuckPieces to send CANCEL messages.
+   *
+   * @param peerId - The peer ID string (hex peerId or "ip:port" format)
+   * @returns The peer connection if found, undefined otherwise
+   */
+  private findPeerById(peerId: string): PeerConnection | undefined {
+    for (const peer of this.connectedPeers) {
+      const pId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
+      if (pId === peerId) {
+        return peer
+      }
+    }
+    return undefined
   }
 
   // ==========================================================================

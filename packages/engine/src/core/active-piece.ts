@@ -276,6 +276,81 @@ export class ActivePiece {
     return true
   }
 
+  // --- Phase 5: Piece Health Management ---
+
+  /**
+   * Get stale requests that have exceeded the timeout threshold.
+   * Returns details needed to send CANCEL messages and clear ownership.
+   *
+   * Unlike checkTimeouts() which clears requests, this just returns them
+   * so the caller can send CANCEL messages first.
+   *
+   * @param timeoutMs - Timeout threshold in milliseconds
+   * @returns Array of stale requests with blockIndex and peerId
+   */
+  getStaleRequests(timeoutMs: number): Array<{ blockIndex: number; peerId: string }> {
+    const now = Date.now()
+    const stale: Array<{ blockIndex: number; peerId: string }> = []
+
+    for (const [blockIndex, requests] of this.blockRequests) {
+      for (const req of requests) {
+        if (now - req.timestamp > timeoutMs) {
+          stale.push({ blockIndex, peerId: req.peerId })
+        }
+      }
+    }
+
+    return stale
+  }
+
+  /**
+   * Check if this piece should be abandoned due to lack of progress.
+   *
+   * A piece is abandoned if:
+   * 1. It has been active longer than the timeout threshold
+   * 2. It has made less than minProgress (e.g., 50%) progress
+   *
+   * This prevents pieces from lingering indefinitely when peers are slow
+   * or have disconnected, allowing the piece to be restarted fresh.
+   *
+   * @param timeoutMs - Time since activation to consider abandonment
+   * @param minProgress - Minimum progress ratio (0-1) to keep the piece
+   */
+  shouldAbandon(timeoutMs: number, minProgress: number): boolean {
+    const age = Date.now() - this._activatedAt
+    if (age < timeoutMs) return false
+
+    const progress = this._blocksReceivedCount / this.blocksNeeded
+    return progress < minProgress
+  }
+
+  /**
+   * Cancel a specific request from a peer.
+   * Called after sending a CANCEL message to clean up internal state.
+   *
+   * Also clears exclusive ownership if the cancelled peer was the owner.
+   *
+   * @param blockIndex - The block index to cancel
+   * @param peerId - The peer ID to cancel from
+   */
+  cancelRequest(blockIndex: number, peerId: string): void {
+    const requests = this.blockRequests.get(blockIndex)
+    if (!requests) return
+
+    const idx = requests.findIndex((r) => r.peerId === peerId)
+    if (idx !== -1) {
+      requests.splice(idx, 1)
+      if (requests.length === 0) {
+        this.blockRequests.delete(blockIndex)
+      }
+    }
+
+    // Clear exclusive owner if they timed out
+    if (this._exclusivePeer === peerId) {
+      this._exclusivePeer = null
+    }
+  }
+
   // --- Request Management (THE KEY FIX) ---
 
   /**

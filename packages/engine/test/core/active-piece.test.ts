@@ -585,4 +585,170 @@ describe('ActivePiece', () => {
       expect(newPiece.activatedAt).toBeLessThanOrEqual(after)
     })
   })
+
+  // === Phase 5: Piece Health Management Tests ===
+
+  describe('Phase 5: Piece Health Management', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    describe('getStaleRequests', () => {
+      it('should return requests older than timeout', () => {
+        piece.addRequest(0, 'peer1')
+        piece.addRequest(1, 'peer2')
+
+        // Advance time past timeout
+        vi.advanceTimersByTime(15000)
+
+        const stale = piece.getStaleRequests(10000) // 10s timeout
+
+        expect(stale).toHaveLength(2)
+        expect(stale).toContainEqual({ blockIndex: 0, peerId: 'peer1' })
+        expect(stale).toContainEqual({ blockIndex: 1, peerId: 'peer2' })
+      })
+
+      it('should not return requests that have not timed out', () => {
+        piece.addRequest(0, 'peer1')
+
+        vi.advanceTimersByTime(5000) // Only 5 seconds
+
+        const stale = piece.getStaleRequests(10000)
+
+        expect(stale).toHaveLength(0)
+      })
+
+      it('should only return stale requests, keeping fresh ones', () => {
+        piece.addRequest(0, 'peer1')
+
+        vi.advanceTimersByTime(8000) // 8 seconds
+
+        piece.addRequest(1, 'peer2') // Fresh request at T=8s
+
+        vi.advanceTimersByTime(5000) // Now peer1 at 13s, peer2 at 5s
+
+        const stale = piece.getStaleRequests(10000)
+
+        expect(stale).toHaveLength(1)
+        expect(stale[0]).toEqual({ blockIndex: 0, peerId: 'peer1' })
+      })
+
+      it('should return multiple stale requests for same block in endgame', () => {
+        piece.addRequest(0, 'peer1')
+        piece.addRequest(0, 'peer2') // Duplicate in endgame
+
+        vi.advanceTimersByTime(15000)
+
+        const stale = piece.getStaleRequests(10000)
+
+        expect(stale).toHaveLength(2)
+        expect(stale).toContainEqual({ blockIndex: 0, peerId: 'peer1' })
+        expect(stale).toContainEqual({ blockIndex: 0, peerId: 'peer2' })
+      })
+    })
+
+    describe('shouldAbandon', () => {
+      it('should not abandon piece before timeout', () => {
+        const newPiece = new ActivePiece(1, PIECE_LENGTH)
+
+        vi.advanceTimersByTime(20000) // 20 seconds
+
+        expect(newPiece.shouldAbandon(30000, 0.5)).toBe(false)
+      })
+
+      it('should abandon stuck piece with low progress after timeout', () => {
+        const newPiece = new ActivePiece(1, PIECE_LENGTH)
+
+        // Add only 1 block (25% progress)
+        newPiece.addBlock(0, new Uint8Array(BLOCK_SIZE), 'peer1')
+
+        vi.advanceTimersByTime(35000) // 35 seconds
+
+        expect(newPiece.shouldAbandon(30000, 0.5)).toBe(true)
+      })
+
+      it('should not abandon piece with sufficient progress', () => {
+        const newPiece = new ActivePiece(1, PIECE_LENGTH) // 4 blocks
+
+        // Add 3 blocks (75% progress)
+        newPiece.addBlock(0, new Uint8Array(BLOCK_SIZE), 'peer1')
+        newPiece.addBlock(1, new Uint8Array(BLOCK_SIZE), 'peer1')
+        newPiece.addBlock(2, new Uint8Array(BLOCK_SIZE), 'peer1')
+
+        vi.advanceTimersByTime(35000)
+
+        expect(newPiece.shouldAbandon(30000, 0.5)).toBe(false)
+      })
+
+      it('should not abandon piece at exactly 50% progress', () => {
+        const newPiece = new ActivePiece(1, PIECE_LENGTH) // 4 blocks
+
+        // Add 2 blocks (50% progress)
+        newPiece.addBlock(0, new Uint8Array(BLOCK_SIZE), 'peer1')
+        newPiece.addBlock(1, new Uint8Array(BLOCK_SIZE), 'peer1')
+
+        vi.advanceTimersByTime(35000)
+
+        expect(newPiece.shouldAbandon(30000, 0.5)).toBe(false)
+      })
+
+      it('should abandon piece with no progress after timeout', () => {
+        const newPiece = new ActivePiece(1, PIECE_LENGTH)
+
+        vi.advanceTimersByTime(35000)
+
+        expect(newPiece.shouldAbandon(30000, 0.5)).toBe(true)
+      })
+    })
+
+    describe('cancelRequest', () => {
+      it('should remove specific request from block', () => {
+        piece.addRequest(0, 'peer1')
+        piece.addRequest(0, 'peer2') // Duplicate
+
+        piece.cancelRequest(0, 'peer1')
+
+        expect(piece.outstandingRequests).toBe(1)
+        expect(piece.isBlockRequested(0)).toBe(true) // peer2 still has request
+      })
+
+      it('should remove block from requests map when last request cancelled', () => {
+        piece.addRequest(0, 'peer1')
+
+        piece.cancelRequest(0, 'peer1')
+
+        expect(piece.outstandingRequests).toBe(0)
+        expect(piece.isBlockRequested(0)).toBe(false)
+      })
+
+      it('should clear exclusive owner if they timed out', () => {
+        piece.claimExclusive('slow-peer')
+        piece.addRequest(0, 'slow-peer')
+
+        piece.cancelRequest(0, 'slow-peer')
+
+        expect(piece.exclusivePeer).toBeNull()
+      })
+
+      it('should not clear exclusive owner if different peer cancelled', () => {
+        piece.claimExclusive('fast-peer')
+        piece.addRequest(0, 'slow-peer')
+        piece.addRequest(1, 'fast-peer')
+
+        piece.cancelRequest(0, 'slow-peer')
+
+        expect(piece.exclusivePeer).toBe('fast-peer')
+      })
+
+      it('should handle cancelling non-existent request gracefully', () => {
+        // Should not throw
+        piece.cancelRequest(0, 'nonexistent-peer')
+        expect(piece.outstandingRequests).toBe(0)
+      })
+    })
+  })
 })
