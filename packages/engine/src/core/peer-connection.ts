@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-declaration-merging */
 import { ITcpSocket } from '../interfaces/socket'
-import { PeerWireProtocol, MessageType, WireMessage } from '../protocol/wire-protocol'
+import {
+  PeerWireProtocol,
+  MessageType,
+  WireMessage,
+  requestMessagePool,
+} from '../protocol/wire-protocol'
 import { BitField } from '../utils/bitfield'
 import { Bencode } from '../utils/bencode'
 import { toHex } from '../utils/buffer'
@@ -150,8 +155,59 @@ export class PeerConnection extends EngineComponent {
   }
 
   sendRequest(index: number, begin: number, length: number) {
-    const message = PeerWireProtocol.createRequest(index, begin, length)
-    this.send(message)
+    // Use pooled buffer to avoid allocation in hot path
+    const [buffer, view] = requestMessagePool.acquire(index, begin, length)
+    this.send(buffer)
+    // Release immediately - native side copies data synchronously
+    requestMessagePool.release(buffer, view)
+  }
+
+  // Reusable batch buffer for sendRequests (grows as needed)
+  private _batchBuffer: Uint8Array | null = null
+  private _batchView: DataView | null = null
+
+  /**
+   * Send multiple REQUEST messages in a single batched write.
+   * Reduces FFI overhead by combining many small messages into one send call.
+   * Each request is 17 bytes: [4-byte length][1-byte type][12-byte payload]
+   */
+  sendRequests(requests: Array<{ index: number; begin: number; length: number }>) {
+    if (requests.length === 0) return
+
+    // Single request: use pooled buffer (no batch overhead)
+    if (requests.length === 1) {
+      const { index, begin, length } = requests[0]
+      this.sendRequest(index, begin, length)
+      return
+    }
+
+    const messageSize = 17 // 4 + 1 + 12
+    const totalSize = requests.length * messageSize
+
+    // Grow batch buffer if needed (reuse across calls)
+    if (!this._batchBuffer || this._batchBuffer.length < totalSize) {
+      // Round up to next power of 2 for efficient growth
+      const newSize = Math.max(256, 1 << Math.ceil(Math.log2(totalSize)))
+      this._batchBuffer = new Uint8Array(newSize)
+      this._batchView = new DataView(this._batchBuffer.buffer)
+    }
+
+    const buffer = this._batchBuffer
+    const view = this._batchView!
+
+    // Fill buffer with all requests
+    let offset = 0
+    for (const { index, begin, length } of requests) {
+      view.setUint32(offset, 13, false) // length = 13
+      buffer[offset + 4] = MessageType.REQUEST
+      view.setUint32(offset + 5, index, false)
+      view.setUint32(offset + 9, begin, false)
+      view.setUint32(offset + 13, length, false)
+      offset += messageSize
+    }
+
+    // Send the exact portion used (create subarray view, no copy)
+    this.send(buffer.subarray(0, totalSize))
   }
 
   sendCancel(index: number, begin: number, length: number) {

@@ -1736,12 +1736,13 @@ export class Torrent extends EngineComponent {
     let peersProcessed = 0
     for (const peer of this.connectedPeers) {
       if (!peer.peerChoking && peer.requestsPending < peer.pipelineDepth) {
-        this.requestPieces(peer)
+        this.requestPieces(peer, startTime)
         peersProcessed++
       }
     }
 
-    const elapsed = Date.now() - startTime
+    const endTime = Date.now()
+    const elapsed = endTime - startTime
     this._tickCount++
     this._tickTotalMs += elapsed
     if (elapsed > this._tickMaxMs) {
@@ -1749,8 +1750,7 @@ export class Torrent extends EngineComponent {
     }
 
     // Log tick stats every 5 seconds
-    const now = Date.now()
-    if (now - this._lastTickLogTime >= 5000 && this._tickCount > 0) {
+    if (endTime - this._lastTickLogTime >= 5000 && this._tickCount > 0) {
       const avgMs = (this._tickTotalMs / this._tickCount).toFixed(1)
       const activePieces = this.activePieces?.activeCount ?? 0
       this.logger.info(
@@ -1760,7 +1760,7 @@ export class Torrent extends EngineComponent {
       this._tickCount = 0
       this._tickTotalMs = 0
       this._tickMaxMs = 0
-      this._lastTickLogTime = now
+      this._lastTickLogTime = endTime
     }
   }
 
@@ -2840,10 +2840,11 @@ export class Torrent extends EngineComponent {
     setTimeout(
       () => {
         this.downloadRateLimitRetryScheduled = false
+        const now = Date.now()
         // Use round-robin for fair bandwidth distribution across peers
         for (const peer of this.iteratePeersRoundRobin()) {
           if (!peer.peerChoking) {
-            this.requestPieces(peer)
+            this.requestPieces(peer, now)
           }
         }
       },
@@ -3176,7 +3177,7 @@ export class Torrent extends EngineComponent {
     // Request pipeline filled by requestTick() game loop
   }
 
-  private requestPieces(peer: PeerConnection) {
+  private requestPieces(peer: PeerConnection, now: number) {
     if (!this._networkActive) return
     if (this.isKillSwitchEnabled) return
     if (peer.peerChoking) return
@@ -3222,6 +3223,17 @@ export class Torrent extends EngineComponent {
     const isEndgame = this._endgameManager.isEndgame
     const peerIsFast = peer.isFast
 
+    // Collect requests for batched sending (reduces FFI overhead)
+    const pendingRequests: Array<{ index: number; begin: number; length: number }> = []
+
+    // Helper to flush pending requests before early returns
+    const flushPending = () => {
+      if (pendingRequests.length > 0) {
+        peer.sendRequests(pendingRequests)
+        pendingRequests.length = 0 // Clear for potential reuse
+      }
+    }
+
     // PHASE 1: Request from existing partial pieces (rarest-first with speed affinity)
     // Phase 3: Use getPartialsRarestFirst() to prioritize rare pieces and nearly-complete pieces
     // Phase 4: Use speed affinity to prevent piece fragmentation
@@ -3233,7 +3245,10 @@ export class Torrent extends EngineComponent {
       )
 
       for (const piece of sortedPartials) {
-        if (peer.requestsPending >= pipelineLimit) return
+        if (peer.requestsPending >= pipelineLimit) {
+          flushPending()
+          return
+        }
 
         // Skip if peer doesn't have this piece (seeds have everything)
         if (!peer.isSeed && !peerBitfield?.get(piece.index)) continue
@@ -3255,19 +3270,23 @@ export class Torrent extends EngineComponent {
           : piece.getNeededBlocks(pipelineLimit - peer.requestsPending)
 
         for (const block of neededBlocks) {
-          if (peer.requestsPending >= pipelineLimit) return
+          if (peer.requestsPending >= pipelineLimit) {
+            flushPending()
+            return
+          }
 
           // Rate limit check
           if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
+            flushPending()
             this.scheduleDownloadRateLimitRetry(block.length)
             return
           }
 
-          peer.sendRequest(piece.index, block.begin, block.length)
+          pendingRequests.push({ index: piece.index, begin: block.begin, length: block.length })
           peer.requestsPending++
 
           const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
-          piece.addRequest(blockIndex, peerId)
+          piece.addRequest(blockIndex, peerId, now)
 
           // Promote to full if all blocks are now requested (Option A state model)
           if (!piece.hasUnrequestedBlocks) {
@@ -3278,7 +3297,10 @@ export class Torrent extends EngineComponent {
     } else {
       // Fallback: iterate in arbitrary order if availability tracking not ready
       for (const piece of this.activePieces.partialValues()) {
-        if (peer.requestsPending >= pipelineLimit) return
+        if (peer.requestsPending >= pipelineLimit) {
+          flushPending()
+          return
+        }
         if (!peerBitfield?.get(piece.index)) continue
         if (!isEndgame && !piece.hasUnrequestedBlocks) continue
 
@@ -3287,15 +3309,19 @@ export class Torrent extends EngineComponent {
           : piece.getNeededBlocks(pipelineLimit - peer.requestsPending)
 
         for (const block of neededBlocks) {
-          if (peer.requestsPending >= pipelineLimit) return
+          if (peer.requestsPending >= pipelineLimit) {
+            flushPending()
+            return
+          }
           if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
+            flushPending()
             this.scheduleDownloadRateLimitRetry(block.length)
             return
           }
-          peer.sendRequest(piece.index, block.begin, block.length)
+          pendingRequests.push({ index: piece.index, begin: block.begin, length: block.length })
           peer.requestsPending++
           const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
-          piece.addRequest(blockIndex, peerId)
+          piece.addRequest(blockIndex, peerId, now)
 
           // Promote to full if all blocks are now requested (Option A state model)
           if (!piece.hasUnrequestedBlocks) {
@@ -3307,8 +3333,14 @@ export class Torrent extends EngineComponent {
 
     // PHASE 2: Activate new pieces (rarest-first selection)
     // Only runs when we need NEW pieces, not on every block
-    if (peer.requestsPending >= pipelineLimit) return
-    if (!peerBitfield || !this._bitfield || !this._piecePriority || !this._pieceAvailability) return
+    if (peer.requestsPending >= pipelineLimit) {
+      flushPending()
+      return
+    }
+    if (!peerBitfield || !this._bitfield || !this._piecePriority || !this._pieceAvailability) {
+      flushPending()
+      return
+    }
 
     // Phase 2 Partial Cap: Don't start new pieces if we have too many partials
     // This prevents the "600 active pieces" death spiral
@@ -3318,6 +3350,7 @@ export class Torrent extends EngineComponent {
     // single-peer scenarios to fill the pipeline without needing the workaround.
     const connectedPeerCount = this.connectedPeers.length
     if (this.activePieces.shouldPrioritizePartials(connectedPeerCount)) {
+      flushPending()
       return // Partial pieces have unrequested blocks - prioritize completion
     }
 
@@ -3348,15 +3381,16 @@ export class Torrent extends EngineComponent {
 
         // Rate limit check
         if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
+          flushPending()
           this.scheduleDownloadRateLimitRetry(block.length)
           return
         }
 
-        peer.sendRequest(pieceIndex, block.begin, block.length)
+        pendingRequests.push({ index: pieceIndex, begin: block.begin, length: block.length })
         peer.requestsPending++
 
         const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
-        piece.addRequest(blockIndex, peerId)
+        piece.addRequest(blockIndex, peerId, now)
 
         // Promote to full if all blocks are now requested (Option A state model)
         if (!piece.hasUnrequestedBlocks) {
@@ -3364,6 +3398,9 @@ export class Torrent extends EngineComponent {
         }
       }
     }
+
+    // Flush any remaining pending requests
+    flushPending()
 
     // Check if we should enter/exit endgame mode
     const missingCount = this.piecesCount - this.completedPiecesCount

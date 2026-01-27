@@ -231,4 +231,95 @@ export class PeerWireProtocol {
     payload.set(data, dictBytes.length)
     return this.createExtendedMessage(metadataId, payload)
   }
+
+  /**
+   * Fill an existing 17-byte buffer with a REQUEST message.
+   * Used with RequestMessagePool to avoid allocations in hot paths.
+   */
+  static fillRequestMessage(
+    buffer: Uint8Array,
+    view: DataView,
+    index: number,
+    begin: number,
+    length: number,
+  ): void {
+    // Message format: [4-byte length][1-byte type][12-byte payload]
+    // Length is 13 (1 type + 12 payload)
+    view.setUint32(0, 13, false) // length = 13
+    buffer[4] = MessageType.REQUEST // type
+    view.setUint32(5, index, false) // piece index
+    view.setUint32(9, begin, false) // block offset
+    view.setUint32(13, length, false) // block length
+  }
 }
+
+/**
+ * Pool of reusable 17-byte buffers for REQUEST messages.
+ * Avoids allocation overhead in the hot request path.
+ *
+ * REQUEST messages are always exactly 17 bytes:
+ * - 4 bytes: message length (13)
+ * - 1 byte: message type (REQUEST = 6)
+ * - 4 bytes: piece index
+ * - 4 bytes: block offset
+ * - 4 bytes: block length
+ */
+export class RequestMessagePool {
+  private static readonly MESSAGE_SIZE = 17
+  private static readonly POOL_SIZE = 128
+
+  private pool: Uint8Array[] = []
+  private views: DataView[] = []
+
+  constructor() {
+    // Pre-allocate pool
+    for (let i = 0; i < RequestMessagePool.POOL_SIZE; i++) {
+      const buffer = new Uint8Array(RequestMessagePool.MESSAGE_SIZE)
+      this.pool.push(buffer)
+      this.views.push(new DataView(buffer.buffer))
+    }
+  }
+
+  /**
+   * Acquire a buffer filled with a REQUEST message.
+   * Returns [buffer, view] tuple for sending.
+   * Call release() after sending.
+   */
+  acquire(index: number, begin: number, length: number): [Uint8Array, DataView] {
+    let buffer: Uint8Array
+    let view: DataView
+
+    if (this.pool.length > 0) {
+      buffer = this.pool.pop()!
+      view = this.views.pop()!
+    } else {
+      // Pool exhausted, allocate new (will be added to pool on release)
+      buffer = new Uint8Array(RequestMessagePool.MESSAGE_SIZE)
+      view = new DataView(buffer.buffer)
+    }
+
+    PeerWireProtocol.fillRequestMessage(buffer, view, index, begin, length)
+    return [buffer, view]
+  }
+
+  /**
+   * Return a buffer to the pool after sending.
+   */
+  release(buffer: Uint8Array, view: DataView): void {
+    // Don't grow pool beyond initial size
+    if (this.pool.length < RequestMessagePool.POOL_SIZE) {
+      this.pool.push(buffer)
+      this.views.push(view)
+    }
+  }
+
+  /**
+   * Get current pool size (for debugging).
+   */
+  get available(): number {
+    return this.pool.length
+  }
+}
+
+// Global singleton pool
+export const requestMessagePool = new RequestMessagePool()

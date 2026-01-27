@@ -226,8 +226,11 @@ export class ActivePiece {
 
   /**
    * Record that a request was sent to a peer for this block.
+   * @param blockIndex - The block index
+   * @param peerId - The peer ID
+   * @param now - Optional cached timestamp (avoids repeated Date.now() calls in hot paths)
    */
-  addRequest(blockIndex: number, peerId: string): void {
+  addRequest(blockIndex: number, peerId: string, now?: number): void {
     // Phase 7: Check if this block was unrequested before adding request
     const wasUnrequested =
       !this.blockReceived[blockIndex] &&
@@ -238,8 +241,9 @@ export class ActivePiece {
       requests = []
       this.blockRequests.set(blockIndex, requests)
     }
-    requests.push({ peerId, timestamp: Date.now() })
-    this._lastActivity = Date.now()
+    const timestamp = now ?? Date.now()
+    requests.push({ peerId, timestamp })
+    this._lastActivity = timestamp
 
     // Phase 7: Decrement unrequested count if this was the first request
     if (wasUnrequested) {

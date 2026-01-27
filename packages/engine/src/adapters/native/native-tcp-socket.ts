@@ -96,11 +96,15 @@ export class NativeTcpSocket implements ITcpSocket {
    */
   send(data: Uint8Array): void {
     if (this.closed) return
-    // Convert Uint8Array to ArrayBuffer for native binding
-    const buffer = data.buffer.slice(
-      data.byteOffset,
-      data.byteOffset + data.byteLength,
-    ) as ArrayBuffer
+    // Optimization: avoid ArrayBuffer.slice() copy when possible
+    // If the Uint8Array covers the entire underlying buffer, pass it directly
+    let buffer: ArrayBuffer
+    if (data.byteOffset === 0 && data.byteLength === data.buffer.byteLength) {
+      buffer = data.buffer as ArrayBuffer
+    } else {
+      // Need to extract the relevant portion (Uint8Array is a view into larger buffer)
+      buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
+    }
     __jstorrent_tcp_send(this.id, buffer)
   }
 
