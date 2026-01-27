@@ -509,6 +509,7 @@ Log format:
 
 ## References
 
+- [peer-selection.md](./peer-selection.md) - Edge-trigger reduction for predictable maintenance
 - [hashing-performance.md](./hashing-performance.md) - FFI overhead analysis
 - [piece-picker-overhaul.md](./piece-picker-overhaul.md) - Piece selection performance
 - Game loop pattern: https://gameprogrammingpatterns.com/game-loop.html

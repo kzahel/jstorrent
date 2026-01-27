@@ -1954,9 +1954,7 @@ export class Torrent extends EngineComponent {
     }
 
     // Request pipeline refilled by requestTick() game loop
-
-    // Fill the vacated peer slot with a known peer
-    this.fillPeerSlots()
+    // Vacated peer slot will be filled by next maintenance interval (~5s)
   }
 
   /**

@@ -22,12 +22,12 @@ The problem is compounded by `fillPeerSlots()` being called more often than just
 
 | Location | Trigger | Frequency |
 |----------|---------|-----------|
-| `torrent.ts:1521` | Maintenance interval | Every ~5s |
-| `torrent.ts:2116` | Tracker response | Per announce (rare) |
-| `torrent.ts:1854` | DHT peer discovery | Per lookup with results |
-| `torrent.ts:2389` | Peer disconnect | Per disconnect (high churn) |
-| `torrent.ts:3447` | Magnet peer hints | Once per magnet |
-| `torrent-peer-handler.ts:241` | PEX message | Per PEX with new peers |
+| `torrent.ts` | Maintenance interval | Every ~5s |
+| `torrent.ts` | Tracker response | Per announce (rare) |
+| `torrent.ts` | DHT peer discovery | Per lookup with results |
+| `torrent.ts` | Magnet peer hints | Once per magnet |
+| ~~`torrent.ts`~~ | ~~Peer disconnect~~ | ~~Removed~~ |
+| ~~`torrent-peer-handler.ts`~~ | ~~PEX message~~ | ~~Removed~~ |
 
 ### Edge-Triggered Cases by Urgency
 
@@ -40,11 +40,11 @@ The problem is compounded by `fillPeerSlots()` being called more often than just
 - **PEX** - By definition, we already have connected peers exchanging with us; not a cold start
 - **Peer disconnect** - Other peers are active, filling one vacated slot isn't urgent
 
-### Recommendation: Remove Unnecessary Edge Triggers
+### ✅ Implemented: Remove Unnecessary Edge Triggers
 
-Remove `fillPeerSlots()` calls from:
-1. `torrent-peer-handler.ts:241` (PEX callback)
-2. `torrent.ts:2389` (peer disconnect handler)
+Removed `fillPeerSlots()` calls from:
+1. `torrent-peer-handler.ts` (PEX callback) - now just logs and waits for interval
+2. `torrent.ts` (peer disconnect handler) - comment notes slot filled by next maintenance
 
 This preserves responsiveness for user-visible moments (initial connection) while eliminating churn-driven extra scans during steady-state operation.
 
@@ -58,6 +58,16 @@ if (this.numPeers < 3) {
 ```
 
 However, the simpler removal is preferred—the 5s interval handles steady state adequately, and once candidate caching (Phase 1) is implemented, these extra calls would be cheap anyway.
+
+### Relationship to Tick-Aligned Processing
+
+This optimization supports the [tick-aligned processing](./tick-aligned-processing.md) architecture. The goal there is predictable tick budgets (~50ms). Edge-triggered `fillPeerSlots()` calls add unpredictable `runMaintenance()` work to arbitrary ticks, working against the "all work at known intervals" principle.
+
+By limiting edge triggers to cold-start scenarios (tracker/DHT/magnet), maintenance becomes predictable:
+- **Every ~5s**: Full maintenance including peer selection
+- **Cold start only**: Immediate slot filling for responsiveness
+
+This aligns with the tick model where periodic tasks (like maintenance) run at their own cadence, not driven by incoming events.
 
 ## Current Implementation (jstorrent)
 
@@ -456,6 +466,7 @@ Before and after optimization, measure:
 
 ## References
 
+- [tick-aligned-processing.md](./tick-aligned-processing.md) - Predictable tick budgets, complements edge-trigger removal
 - libtorrent source: `~/code/libtorrent/src/peer_list.cpp`
 - jstorrent swarm: `packages/engine/src/core/swarm.ts`
 - libtorrent peer scoring: `~/code/libtorrent/src/request_blocks.cpp` (source_rank)

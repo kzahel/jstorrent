@@ -237,8 +237,7 @@ export class TorrentPeerHandler extends EngineComponent {
         this.logger.debug(
           `Added ${added} PEX peers to swarm (total: ${this.callbacks.getSwarm().size})`,
         )
-        // Try to fill peer slots with newly discovered peers
-        this.callbacks.fillPeerSlots()
+        // New peers will be connected on next maintenance interval (~5s)
       }
     })
   }
