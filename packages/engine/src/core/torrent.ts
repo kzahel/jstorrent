@@ -3178,9 +3178,18 @@ export class Torrent extends EngineComponent {
 
     // Phase 2 Partial Cap: Don't start new pieces if we have too many partials
     // This prevents the "600 active pieces" death spiral
+    //
+    // HOWEVER: if existing partials have no unrequested blocks (all blocks are
+    // already requested), we MUST activate new pieces to fill the pipeline.
+    // This is critical for single-peer scenarios where the partial cap is low (1-2)
+    // but pipeline depth is high (500).
     const connectedPeerCount = this.connectedPeers.length
     if (this.activePieces.shouldPrioritizePartials(connectedPeerCount)) {
-      return
+      // Check if existing partials can still provide work
+      if (this.activePieces.hasUnrequestedBlocks()) {
+        return // Existing partials have unrequested blocks - prioritize completion
+      }
+      // Fall through: existing partials are fully requested, need new pieces
     }
 
     // Phase 3+4: Find candidate pieces sorted by rarity

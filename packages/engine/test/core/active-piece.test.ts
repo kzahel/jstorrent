@@ -547,32 +547,41 @@ describe('ActivePiece', () => {
         expect(piece.canRequestFrom('fast-peer', false)).toBe(true)
       })
 
-      it('should block fast peers from taking over owned pieces', () => {
+      it('should allow fast peers to join fast-owned pieces', () => {
+        // Fast peer owns the piece (only fast peers claim exclusive)
         piece.claimExclusive('fast-peer-1')
 
-        // Another fast peer should NOT be allowed
-        expect(piece.canRequestFrom('fast-peer-2', true)).toBe(false)
-      })
-
-      it('should allow slow peers to share with other slow peers', () => {
-        // When a slow peer owns a piece, other slow peers can share
-        piece.claimExclusive('slow-peer-1')
-
-        // Another slow peer CAN request (slow peers share)
-        expect(piece.canRequestFrom('slow-peer-2', false)).toBe(true)
+        // Another fast peer CAN join (fast+fast sharing is fine, no fragmentation)
+        expect(piece.canRequestFrom('fast-peer-2', true)).toBe(true)
       })
 
       it('should block slow peers from fast-owned pieces', () => {
         // Fast peer owns the piece
         piece.claimExclusive('fast-peer')
 
-        // Slow peer cannot request because owner is fast (fast peers don't share)
-        // Actually, let me re-read the logic...
-        // The canRequestFrom logic is:
-        // - if peerIsFast and not owner -> return false
-        // - if !peerIsFast -> return true (slow peers can share)
-        // So a slow peer CAN request from a piece owned by anyone
-        expect(piece.canRequestFrom('slow-peer', false)).toBe(true)
+        // Slow peer CANNOT join fast-owned piece (prevents fragmentation)
+        // The fragmentation problem: slow peer delays piece completion for fast owner
+        expect(piece.canRequestFrom('slow-peer', false)).toBe(false)
+      })
+
+      it('should explain the fragmentation prevention', () => {
+        // This test documents the design rationale:
+        //
+        // Fragmentation problem:
+        // - Fast peer A (1MB/s) requests blocks 0-7 of piece X
+        // - Slow peer B (10KB/s) requests blocks 8-15 of piece X
+        // - Fast peer finishes in 2 seconds, but waits 200+ seconds for slow peer
+        // - Piece X is stuck at 50% for 200 seconds due to fragmentation
+        //
+        // Solution: block slow peers from joining fast-owned pieces
+        // Fast peers can share with each other (both fast, no waiting)
+        piece.claimExclusive('fast-owner')
+
+        // Fast peer can join
+        expect(piece.canRequestFrom('another-fast', true)).toBe(true)
+
+        // Slow peer is blocked to prevent fragmentation
+        expect(piece.canRequestFrom('slow-peer', false)).toBe(false)
       })
     })
 

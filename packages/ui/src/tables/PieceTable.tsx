@@ -11,6 +11,19 @@ function formatElapsed(timestamp: number): string {
 }
 
 /**
+ * Format exclusive peer ID for display.
+ * Shows shortened peer ID or empty if no exclusive owner.
+ */
+function formatExclusivePeer(peer: string | null): string {
+  if (!peer) return ''
+  // Show first 8 chars of peer ID (or IP:port format)
+  if (peer.length > 12) {
+    return peer.slice(0, 8) + '...'
+  }
+  return peer
+}
+
+/**
  * Column definitions for active piece table.
  */
 const activePieceColumns: ColumnDef<ActivePiece>[] = [
@@ -54,6 +67,20 @@ const activePieceColumns: ColumnDef<ActivePiece>[] = [
     header: 'Buffered',
     getValue: (p) => formatBytes(p.bufferedBytes),
     width: 80,
+    align: 'right',
+  },
+  {
+    id: 'exclusivePeer',
+    header: 'Owner',
+    getValue: (p) => formatExclusivePeer(p.exclusivePeer),
+    getCellTitle: (p) => p.exclusivePeer ?? undefined,
+    width: 90,
+  },
+  {
+    id: 'age',
+    header: 'Age',
+    getValue: (p) => formatElapsed(p.activatedAt),
+    width: 60,
     align: 'right',
   },
   {

@@ -717,14 +717,16 @@ canRequestFrom(peerId: string, peerIsFast: boolean): boolean {
     return true
   }
 
-  // Fast peers don't share with others
-  if (peerIsFast) {
-    return false
-  }
-
-  // Slow peers can share with other slow peers
-  // (exclusivePeer is also slow if we got here)
-  return true
+  // Piece has a fast owner (only fast peers claim exclusive ownership)
+  // Fast peers CAN share with each other (no fragmentation concern)
+  // Slow peers CANNOT join fast-owned pieces (prevents fragmentation)
+  //
+  // The fragmentation problem:
+  // - Fast peer A (1MB/s) requests blocks 0-7 of piece X
+  // - Slow peer B (10KB/s) requests blocks 8-15 of piece X
+  // - Fast peer finishes in 2 seconds, but waits 200+ seconds for slow peer
+  // - Piece X is stuck at 50% for 200 seconds due to fragmentation
+  return peerIsFast
 }
 
 // Claim ownership
@@ -2341,6 +2343,15 @@ logger.info(`PiecePicker: ${activePieces} active (max ${maxPartials}), ` +
 | Piece restore | `piece_picker.cpp:1088-1163` |
 | Peer trust/ban | `torrent.cpp:4667-4738` |
 | Smart ban plugin | `smart_ban.cpp:131-256` |
+| Piece state enum | `piece_picker.hpp:171-233` |
+| Piece full transition | `piece_picker.cpp:2985-2990` |
+| prioritize_partials flag | `piece_picker.cpp:1997-2008` |
+
+### Related Documents
+
+| Document | Purpose |
+|----------|---------|
+| [piece-state-transitions.md](./piece-state-transitions.md) | Fix for single-peer stalls: align with libtorrent's piece state model |
 
 ### Our Codebase
 
@@ -2386,3 +2397,101 @@ private requestPieces(peer: PeerConnection): void {
 ```
 
 Can disable new implementation if issues discovered in production.
+
+---
+
+## Edge Cases and Fixes
+
+This section documents edge cases discovered during implementation and testing, particularly scenarios not well-covered by the libtorrent reference design.
+
+### Single-Peer Download Stalls (Fixed)
+
+**Scenario**: Downloading from a single LAN seeder on Android. Download would stall for seconds, then burst briefly, then stall again.
+
+**Root Cause**: The partial piece cap formula `peers × 1.5` yields a cap of **1** for a single peer. With pipeline depths of 250-500 requests, this creates a severe mismatch:
+
+1. Piece 0 activated, all 16 blocks requested
+2. Phase 2 blocked (1 partial >= cap of 1)
+3. Peer has 484 unused request slots but can't start new pieces
+4. Download stalls until a piece completes
+
+**The Fix** (`torrent.ts`): When over the partial cap, only block Phase 2 if existing partials have unrequested blocks:
+
+```typescript
+if (this.activePieces.shouldPrioritizePartials(connectedPeerCount)) {
+  // Check if existing partials can still provide work
+  if (this.activePieces.hasUnrequestedBlocks()) {
+    return // Existing partials have unrequested blocks - prioritize completion
+  }
+  // Fall through: existing partials are fully requested, need new pieces
+}
+```
+
+**Why libtorrent doesn't have this problem**: libtorrent tracks a `piece_full` state for pieces where all blocks are requested but not all received. These pieces **don't count against the partial cap**. When you request the last block of a piece, it moves from `piece_downloading` → `piece_full`, immediately freeing a slot for a new piece. libtorrent's default `max_out_request_queue` is also 500, similar to ours.
+
+### Speed Affinity Logic Inversion (Fixed)
+
+**Scenario**: The `canRequestFrom()` logic for speed affinity was preventing fast peers from sharing pieces instead of slow peers.
+
+**Original (wrong)**:
+```typescript
+// Fast peers don't share with others - prevents fragmentation
+if (peerIsFast) {
+  return false  // WRONG: blocks fast peers
+}
+return true  // Allows slow peers - causes fragmentation!
+```
+
+**Fixed**:
+```typescript
+// Piece has a fast owner (only fast peers claim exclusive ownership)
+// Fast peers CAN join: fast+fast sharing doesn't cause fragmentation
+// Slow peers CANNOT join: prevents fragmentation
+return peerIsFast
+```
+
+**The fragmentation problem this prevents**:
+- Fast peer A (1MB/s) requests blocks 0-7 of piece X
+- Slow peer B (10KB/s) requests blocks 8-15 of piece X
+- Fast peer finishes in 2 seconds, waits 200+ seconds for slow peer
+- Piece X stuck at 50% completion for 200 seconds
+
+### Cold Start Speed Classification
+
+**Observation**: New peers have 0 download speed, so `isFast` returns false. They are initially treated as "slow".
+
+**Impact**: Minimal. Slow peers can still request blocks from any unclaimed piece. They can't claim exclusive ownership, but they can start pieces. Speed is measured over time and peers are reclassified as data arrives.
+
+**Potential improvement**: Consider an initial speed assumption based on connection type (LAN IP ranges vs internet) or round-trip time.
+
+### Partial Cap vs Pipeline Depth Mismatch
+
+**Observation**: The partial cap formula from libtorrent (`peers × 1.5`) assumes conservative pipeline depths. With aggressive pipeline depths (500), a single peer with cap=1 can only utilize 16 blocks (one piece) without the fix above.
+
+**Current mitigation**: The `hasUnrequestedBlocks()` check allows starting new pieces when existing partials are fully requested.
+
+**Proper fix**: See [piece-state-transitions.md](./piece-state-transitions.md) for aligning with libtorrent's three-state model (`piece_downloading` → `piece_full` → `piece_finished`). libtorrent doesn't count `piece_full` pieces against the partial cap, which is the correct solution.
+
+### Endgame Mode with Single Peer
+
+**Observation**: Endgame mode requests duplicate blocks from multiple peers, but with a single peer this is meaningless.
+
+**Impact**: None. Endgame checks `isEndgame` flag which only activates when appropriate. Single-peer downloads complete normally without endgame.
+
+### Design Principle: Prefer Falling Through Over Hard Blocks
+
+A key lesson from these fixes: when blocking an operation based on a cap or threshold, always check if the reason for the cap still applies:
+
+1. **Partial cap**: Blocks Phase 2 to prioritize completion, but only if there ARE blocks to complete
+2. **Speed affinity**: Blocks slow peers to prevent fragmentation, but fast+fast sharing is fine
+3. **Memory limit**: Blocks new pieces, but should allow existing pieces to complete
+
+The pattern:
+```typescript
+if (shouldBlock(reason)) {
+  if (canStillMakeProgress()) {
+    return  // Block operation
+  }
+  // Fall through: blocking would cause a stall
+}
+```

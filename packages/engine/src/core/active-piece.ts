@@ -133,17 +133,24 @@ export class ActivePiece {
   /**
    * Check if a peer can request blocks from this piece.
    *
-   * Rules (matching libtorrent behavior):
-   * 1. No owner yet - anyone can claim
+   * Rules (matching libtorrent behavior for speed affinity):
+   * 1. No owner yet - anyone can request
    * 2. Owner can always request
-   * 3. Fast peers don't share with others (to prevent fragmentation)
-   * 4. Slow peers can share with other slow peers
+   * 3. Fast peers CAN share with other fast peers (no fragmentation concern)
+   * 4. Slow peers CANNOT join fast-owned pieces (prevents fragmentation)
+   *
+   * The fragmentation problem: if a fast peer (1MB/s) and slow peer (10KB/s)
+   * share a piece, the fast peer finishes its blocks quickly but waits for
+   * the slow peer's blocks. By preventing slow peers from joining fast-owned
+   * pieces, we ensure fast peers can complete pieces quickly.
+   *
+   * Fast+fast sharing is fine because both peers complete blocks quickly.
    *
    * @param peerId - The requesting peer's ID
    * @param peerIsFast - Whether the requesting peer is considered "fast"
    */
   canRequestFrom(peerId: string, peerIsFast: boolean): boolean {
-    // No owner yet - anyone can claim
+    // No owner yet - anyone can request
     if (this._exclusivePeer === null) {
       return true
     }
@@ -153,14 +160,10 @@ export class ActivePiece {
       return true
     }
 
-    // Fast peers don't share with others - prevents fragmentation
-    if (peerIsFast) {
-      return false
-    }
-
-    // Slow peers can share with other slow peers
-    // (if we got here, exclusivePeer is also slow because fast peers claim exclusively)
-    return true
+    // Piece has a fast owner (only fast peers claim exclusive ownership)
+    // Fast peers CAN join: fast+fast sharing doesn't cause fragmentation
+    // Slow peers CANNOT join: prevents fragmentation (slow peer would delay piece completion)
+    return peerIsFast
   }
 
   /**
