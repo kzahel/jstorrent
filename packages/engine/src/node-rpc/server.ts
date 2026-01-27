@@ -109,14 +109,6 @@ export class HttpRpcServer {
         const id = url.split('/')[2]
         const result = this.controller.getPeerInfo(id)
         this.sendJson(res, result)
-      } else if (
-        url?.startsWith('/torrent/') &&
-        url?.endsWith('/availability') &&
-        method === 'GET'
-      ) {
-        const id = url.split('/')[2]
-        const result = this.controller.getPieceAvailability(id)
-        this.sendJson(res, result)
       } else if (url?.startsWith('/torrent/') && url?.endsWith('/settings') && method === 'POST') {
         const id = url.split('/')[2]
         const body = await this.readBody(req)

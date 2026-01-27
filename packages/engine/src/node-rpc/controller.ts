@@ -169,13 +169,6 @@ export class EngineController {
     return { ok: true, peers: torrent.getPeerInfo() }
   }
 
-  getPieceAvailability(id: string) {
-    if (!this.engine) throw new Error('EngineNotRunning')
-    const torrent = this.engine.getTorrent(id)
-    if (!torrent) throw new Error('TorrentNotFound')
-    return { ok: true, availability: torrent.getPieceAvailability() }
-  }
-
   disconnectPeer(id: string, ip: string, port: number) {
     if (!this.engine) throw new Error('EngineNotRunning')
     const torrent = this.engine.getTorrent(id)
