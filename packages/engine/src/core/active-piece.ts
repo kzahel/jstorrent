@@ -43,6 +43,24 @@ export class ActivePiece {
   // Activity tracking for stale piece cleanup
   private _lastActivity: number = Date.now()
 
+  // === Phase 4: Speed Affinity / Exclusive Piece Ownership ===
+
+  /**
+   * The peer ID that "owns" this piece exclusively.
+   * When set, only this peer (or slow peers sharing with other slow peers)
+   * can request blocks from this piece.
+   *
+   * This prevents piece fragmentation where fast and slow peers
+   * share the same piece, causing the fast peer to wait for slow blocks.
+   */
+  private _exclusivePeer: string | null = null
+
+  /**
+   * Timestamp when this piece became active.
+   * Used for piece health management (Phase 5) to detect stuck pieces.
+   */
+  private _activatedAt: number = Date.now()
+
   /**
    * Create a new ActivePiece.
    * @param index - Piece index in the torrent
@@ -93,6 +111,72 @@ export class ActivePiece {
 
   hasBlock(blockIndex: number): boolean {
     return this.blockReceived[blockIndex] ?? false
+  }
+
+  // --- Phase 4: Speed Affinity / Exclusive Ownership ---
+
+  /**
+   * Get the peer ID that owns this piece exclusively.
+   * Returns null if no exclusive owner.
+   */
+  get exclusivePeer(): string | null {
+    return this._exclusivePeer
+  }
+
+  /**
+   * Get when this piece became active.
+   */
+  get activatedAt(): number {
+    return this._activatedAt
+  }
+
+  /**
+   * Check if a peer can request blocks from this piece.
+   *
+   * Rules (matching libtorrent behavior):
+   * 1. No owner yet - anyone can claim
+   * 2. Owner can always request
+   * 3. Fast peers don't share with others (to prevent fragmentation)
+   * 4. Slow peers can share with other slow peers
+   *
+   * @param peerId - The requesting peer's ID
+   * @param peerIsFast - Whether the requesting peer is considered "fast"
+   */
+  canRequestFrom(peerId: string, peerIsFast: boolean): boolean {
+    // No owner yet - anyone can claim
+    if (this._exclusivePeer === null) {
+      return true
+    }
+
+    // Owner can always request
+    if (this._exclusivePeer === peerId) {
+      return true
+    }
+
+    // Fast peers don't share with others - prevents fragmentation
+    if (peerIsFast) {
+      return false
+    }
+
+    // Slow peers can share with other slow peers
+    // (if we got here, exclusivePeer is also slow because fast peers claim exclusively)
+    return true
+  }
+
+  /**
+   * Claim exclusive ownership of this piece.
+   * Used by fast peers to prevent fragmentation.
+   */
+  claimExclusive(peerId: string): void {
+    this._exclusivePeer = peerId
+  }
+
+  /**
+   * Clear exclusive ownership. Called when the owner disconnects
+   * or times out, allowing other peers to take over.
+   */
+  clearExclusivePeer(): void {
+    this._exclusivePeer = null
   }
 
   /**
@@ -339,6 +423,9 @@ export class ActivePiece {
     this._blocksReceivedCount = 0
     this.blockRequests.clear()
     this.blockSenders.clear()
+    // Phase 4: Reset ownership tracking
+    this._exclusivePeer = null
+    this._activatedAt = Date.now()
     // Note: buffer is NOT cleared - for pooling, the caller can reuse it
   }
 }

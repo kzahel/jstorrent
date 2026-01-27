@@ -520,4 +520,214 @@ describe('ActivePieceManager', () => {
       expect(assembled1[BLOCK_SIZE]).toBe(201)
     })
   })
+
+  describe('Phase 3: getPartialsRarestFirst', () => {
+    const BLOCKS_PER_PIECE = 4 // 64KB / 16KB
+    let piecePriority: Uint8Array
+    let pieceAvailability: Uint16Array
+
+    beforeEach(() => {
+      // Create test arrays for 10 pieces
+      piecePriority = new Uint8Array(10).fill(4) // Default priority (4)
+      pieceAvailability = new Uint16Array(10).fill(0)
+    })
+
+    it('should sort by availability ascending (rarest first)', () => {
+      // Create pieces with different availability
+      manager.getOrCreate(0) // availability 3
+      manager.getOrCreate(1) // availability 1 (rarest)
+      manager.getOrCreate(2) // availability 2
+
+      pieceAvailability[0] = 3
+      pieceAvailability[1] = 1
+      pieceAvailability[2] = 2
+
+      const sorted = manager.getPartialsRarestFirst(pieceAvailability, 0, piecePriority)
+
+      expect(sorted.map((p) => p.index)).toEqual([1, 2, 0])
+    })
+
+    it('should include seed count in availability calculation', () => {
+      manager.getOrCreate(0) // availability 3 + 2 seeds = 5
+      manager.getOrCreate(1) // availability 0 + 2 seeds = 2 (rarest)
+      manager.getOrCreate(2) // availability 1 + 2 seeds = 3
+
+      pieceAvailability[0] = 3
+      pieceAvailability[1] = 0
+      pieceAvailability[2] = 1
+
+      const seedCount = 2
+      const sorted = manager.getPartialsRarestFirst(pieceAvailability, seedCount, piecePriority)
+
+      // With 2 seeds: [1]=2, [2]=3, [0]=5
+      expect(sorted.map((p) => p.index)).toEqual([1, 2, 0])
+    })
+
+    it('should prioritize higher priority pieces', () => {
+      manager.getOrCreate(0) // low priority, rare
+      manager.getOrCreate(1) // high priority, common
+      manager.getOrCreate(2) // default priority, medium
+
+      pieceAvailability[0] = 1 // rarest
+      pieceAvailability[1] = 5 // common
+      pieceAvailability[2] = 3 // medium
+
+      piecePriority[0] = 1 // low
+      piecePriority[1] = 7 // high
+      piecePriority[2] = 4 // default
+
+      // sortKey = availability × (8 - priority) × 3
+      // [0]: 1 × 7 × 3 = 21
+      // [1]: 5 × 1 × 3 = 15 (high priority wins)
+      // [2]: 3 × 4 × 3 = 36
+
+      const sorted = manager.getPartialsRarestFirst(pieceAvailability, 0, piecePriority)
+
+      expect(sorted.map((p) => p.index)).toEqual([1, 0, 2])
+    })
+
+    it('should put filtered pieces (priority 0) last', () => {
+      manager.getOrCreate(0) // filtered
+      manager.getOrCreate(1) // normal
+      manager.getOrCreate(2) // normal
+
+      pieceAvailability[0] = 1 // rarest but filtered
+      pieceAvailability[1] = 5 // common
+      pieceAvailability[2] = 3 // medium
+
+      piecePriority[0] = 0 // filtered - don't download
+      piecePriority[1] = 4 // default
+      piecePriority[2] = 4 // default
+
+      const sorted = manager.getPartialsRarestFirst(pieceAvailability, 0, piecePriority)
+
+      // Filtered piece goes last
+      expect(sorted.map((p) => p.index)).toEqual([2, 1, 0])
+    })
+
+    it('should use completion as tiebreaker (most complete first)', () => {
+      const piece0 = manager.getOrCreate(0)!
+      const piece1 = manager.getOrCreate(1)!
+      const piece2 = manager.getOrCreate(2)!
+
+      // Same availability and priority
+      pieceAvailability[0] = 2
+      pieceAvailability[1] = 2
+      pieceAvailability[2] = 2
+
+      // Different completion levels
+      // 4 blocks per piece (64KB / 16KB)
+      piece0.addBlock(0, new Uint8Array(16384), 'peer1') // 25%
+      piece1.addBlock(0, new Uint8Array(16384), 'peer1')
+      piece1.addBlock(1, new Uint8Array(16384), 'peer1')
+      piece1.addBlock(2, new Uint8Array(16384), 'peer1') // 75%
+      piece2.addBlock(0, new Uint8Array(16384), 'peer1')
+      piece2.addBlock(1, new Uint8Array(16384), 'peer1') // 50%
+
+      const sorted = manager.getPartialsRarestFirst(pieceAvailability, 0, piecePriority)
+
+      // Most complete first when tied
+      expect(sorted.map((p) => p.index)).toEqual([1, 2, 0])
+    })
+
+    it('should only include partial pieces, not pending', () => {
+      manager.getOrCreate(0)
+      const piece1 = manager.getOrCreate(1)!
+      manager.getOrCreate(2)
+
+      // Complete piece1 (all 4 blocks)
+      for (let i = 0; i < BLOCKS_PER_PIECE; i++) {
+        piece1.addBlock(i, new Uint8Array(16384), 'peer1')
+      }
+      // Promote to pending
+      manager.promoteToPending(1)
+
+      expect(manager.partialCount).toBe(2)
+      expect(manager.pendingCount).toBe(1)
+
+      pieceAvailability[0] = 2
+      pieceAvailability[1] = 1 // rarest but pending
+      pieceAvailability[2] = 3
+
+      const sorted = manager.getPartialsRarestFirst(pieceAvailability, 0, piecePriority)
+
+      // Pending piece (1) should not be in the list
+      expect(sorted.map((p) => p.index)).toEqual([0, 2])
+    })
+  })
+
+  describe('Phase 2: shouldPrioritizePartials', () => {
+    it('should return false when under threshold', () => {
+      // With 10 peers, threshold is floor(10 * 1.5) = 15
+      // 0 partials < 15
+      expect(manager.shouldPrioritizePartials(10)).toBe(false)
+    })
+
+    it('should return true when over threshold', () => {
+      // Need a manager with higher capacity
+      const largeMgr = new ActivePieceManager(mockEngine, () => PIECE_LENGTH, {
+        requestTimeoutMs: 30000,
+        maxActivePieces: 50,
+        maxBufferedBytes: 10 * 1024 * 1024, // 10MB
+        cleanupIntervalMs: 10000,
+      })
+
+      // Create 16 partial pieces
+      for (let i = 0; i < 16; i++) {
+        largeMgr.getOrCreate(i)
+      }
+
+      // With 10 peers, threshold is floor(10 * 1.5) = 15
+      // 16 partials > 15
+      expect(largeMgr.shouldPrioritizePartials(10)).toBe(true)
+
+      largeMgr.destroy()
+    })
+
+    it('should not count pending pieces toward threshold', () => {
+      // Create 16 pieces
+      for (let i = 0; i < 10; i++) {
+        manager.getOrCreate(i)
+      }
+
+      // Complete 8 pieces (make them pending)
+      for (let i = 0; i < 8; i++) {
+        const piece = manager.get(i)!
+        // Complete all blocks (4 blocks per 64KB piece)
+        for (let b = 0; b < 4; b++) {
+          piece.addBlock(b, new Uint8Array(16384), 'peer1')
+        }
+        manager.promoteToPending(i)
+      }
+
+      expect(manager.partialCount).toBe(2) // 10 - 8 promoted
+      expect(manager.pendingCount).toBe(8)
+
+      // With 10 peers, threshold is 15
+      // Only 2 partials < 15 (pending don't count)
+      expect(manager.shouldPrioritizePartials(10)).toBe(false)
+    })
+
+    it('should enforce 2048 block cap', () => {
+      // Create 130 pieces (130 × 16 blocks = 2080 > 2048)
+      const largePieceManager = new ActivePieceManager(mockEngine, () => 256 * 1024, {
+        requestTimeoutMs: 30000,
+        maxActivePieces: 200,
+        maxBufferedBytes: 100 * 1024 * 1024,
+        cleanupIntervalMs: 10000,
+        standardPieceLength: 256 * 1024, // 256KB = 16 blocks
+      })
+
+      // Create 129 pieces (129 × 16 = 2064 blocks > 2048)
+      for (let i = 0; i < 129; i++) {
+        largePieceManager.getOrCreate(i)
+      }
+
+      // Even with 1000 peers (threshold 1500), should still be over block cap
+      // Block cap: floor(2048 / 16) = 128
+      expect(largePieceManager.shouldPrioritizePartials(1000)).toBe(true)
+
+      largePieceManager.destroy()
+    })
+  })
 })

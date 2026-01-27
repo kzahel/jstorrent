@@ -295,6 +295,85 @@ export class ActivePieceManager extends EngineComponent {
     return this._partialPieces.values()
   }
 
+  // === Phase 3: Rarest-First Sorting with Priority ===
+
+  /**
+   * libtorrent priority levels (from piece_picker.hpp)
+   * Priority 0 means "don't download"
+   * Priority 7 is highest
+   */
+  static readonly PRIORITY_DONT_DOWNLOAD = 0
+  static readonly PRIORITY_LEVELS = 8
+  static readonly PRIO_FACTOR = 3
+
+  /**
+   * Get partial pieces sorted by priority using libtorrent's algorithm.
+   *
+   * Sort order (lower sort key = picked first):
+   * 1. Higher piece priority (priority 7 beats priority 4)
+   * 2. Lower availability (rarest first)
+   * 3. Higher completion ratio (tiebreaker: finish pieces faster)
+   *
+   * The formula matches libtorrent's piece_picker.hpp:727-755:
+   * sortKey = availability × (PRIORITY_LEVELS - piecePriority) × PRIO_FACTOR
+   *
+   * Note: Only iterates partial pieces, NOT pending (complete but unverified).
+   * This is critical because:
+   * 1. Pending pieces have all blocks - no requests needed
+   * 2. Phase 2 caps partials at peers × 1.5, keeping this list small (~30-50)
+   * 3. Sorting 50 items is O(50 log 50) ≈ 280 comparisons - negligible overhead
+   *
+   * @param pieceAvailability - Per-piece availability count (Uint16Array)
+   * @param seedCount - Number of connected seed peers (added to all availability counts)
+   * @param piecePriority - Per-piece priority (Uint8Array, 0-7 where 0=skip, 7=highest)
+   */
+  getPartialsRarestFirst(
+    pieceAvailability: Uint16Array,
+    seedCount: number,
+    piecePriority: Uint8Array,
+  ): ActivePiece[] {
+    const partials = [...this._partialPieces.values()]
+
+    partials.sort((a, b) => {
+      const prioA = piecePriority[a.index]
+      const prioB = piecePriority[b.index]
+
+      // Filtered pieces (priority 0) go last
+      if (prioA === ActivePieceManager.PRIORITY_DONT_DOWNLOAD) {
+        if (prioB !== ActivePieceManager.PRIORITY_DONT_DOWNLOAD) return 1
+        // Both filtered - compare by index for stability
+        return a.index - b.index
+      }
+      if (prioB === ActivePieceManager.PRIORITY_DONT_DOWNLOAD) return -1
+
+      // Calculate combined sort key using libtorrent formula
+      // Lower key = picked first
+      const availA = pieceAvailability[a.index] + seedCount
+      const availB = pieceAvailability[b.index] + seedCount
+
+      const sortKeyA =
+        availA * (ActivePieceManager.PRIORITY_LEVELS - prioA) * ActivePieceManager.PRIO_FACTOR
+      const sortKeyB =
+        availB * (ActivePieceManager.PRIORITY_LEVELS - prioB) * ActivePieceManager.PRIO_FACTOR
+
+      if (sortKeyA !== sortKeyB) {
+        return sortKeyA - sortKeyB
+      }
+
+      // Tiebreaker: most complete first (higher completion ratio wins)
+      const completionA = a.blocksReceived / a.blocksNeeded
+      const completionB = b.blocksReceived / b.blocksNeeded
+      if (completionA !== completionB) {
+        return completionB - completionA
+      }
+
+      // Final tiebreaker: lower index first (deterministic ordering)
+      return a.index - b.index
+    })
+
+    return partials
+  }
+
   /**
    * Returns an iterator over ONLY pending pieces (awaiting verification).
    * Useful for verification queue management.

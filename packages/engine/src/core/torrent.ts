@@ -2263,6 +2263,8 @@ export class Torrent extends EngineComponent {
     this.assertConnectionLimit('addPeer')
     if (this.hasMetadata) {
       peer.bitfield = new BitField(this.piecesCount)
+      // Phase 4: Set piece length for isFast calculation
+      peer.setPieceLength(this.pieceLength)
     }
     this.setupPeerListeners(peer)
   }
@@ -2623,6 +2625,16 @@ export class Torrent extends EngineComponent {
       this.logger.debug(`Peer ${peerId} disconnected, cleared ${cleared} pending requests`)
     }
 
+    // Phase 4: Clear exclusive ownership for pieces owned by this peer
+    // This allows other peers to take over downloading those pieces
+    if (this.activePieces) {
+      for (const piece of this.activePieces.partialValues()) {
+        if (piece.exclusivePeer === peerId) {
+          piece.clearExclusivePeer()
+        }
+      }
+    }
+
     // Request pipeline refilled by requestTick() game loop
 
     // Fill the vacated peer slot with a known peer
@@ -2963,80 +2975,108 @@ export class Torrent extends EngineComponent {
 
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
     const peerBitfield = peer.bitfield
-
-    // PHASE 1: Request from existing partial pieces first
-    // This is O(P) where P = partial pieces count (capped by Phase 2 limits)
-    // Avoids expensive piece selection on every block received
-    // Use partialValues() to skip pending pieces (they have all blocks already)
     const isEndgame = this._endgameManager.isEndgame
-    for (const piece of this.activePieces.partialValues()) {
-      if (peer.requestsPending >= pipelineLimit) return
+    const peerIsFast = peer.isFast
 
-      // Skip if peer doesn't have this piece
-      if (!peerBitfield?.get(piece.index)) continue
+    // PHASE 1: Request from existing partial pieces (rarest-first with speed affinity)
+    // Phase 3: Use getPartialsRarestFirst() to prioritize rare pieces and nearly-complete pieces
+    // Phase 4: Use speed affinity to prevent piece fragmentation
+    if (this._pieceAvailability && this._piecePriority) {
+      const sortedPartials = this.activePieces.getPartialsRarestFirst(
+        this._pieceAvailability,
+        this._seedCount,
+        this._piecePriority,
+      )
 
-      // No need to check haveAllBlocks - partialValues() only returns partial pieces
-
-      // Fast path: In normal mode, skip pieces with no unrequested blocks
-      // This avoids array allocation from getNeededBlocks() when all blocks are in-flight
-      if (!isEndgame && !piece.hasUnrequestedBlocks()) continue
-
-      // Get blocks we can request from this piece
-      const neededBlocks = isEndgame
-        ? piece.getNeededBlocksEndgame(peerId, pipelineLimit - peer.requestsPending)
-        : piece.getNeededBlocks(pipelineLimit - peer.requestsPending)
-
-      for (const block of neededBlocks) {
+      for (const piece of sortedPartials) {
         if (peer.requestsPending >= pipelineLimit) return
 
-        // Rate limit check
-        if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
-          this.scheduleDownloadRateLimitRetry(block.length)
-          return
+        // Skip if peer doesn't have this piece (seeds have everything)
+        if (!peer.isSeed && !peerBitfield?.get(piece.index)) continue
+
+        // Phase 4: Speed affinity - check if this peer can request from this piece
+        if (!piece.canRequestFrom(peerId, peerIsFast)) continue
+
+        // Fast path: In normal mode, skip pieces with no unrequested blocks
+        if (!isEndgame && !piece.hasUnrequestedBlocks()) continue
+
+        // Phase 4: Fast peer claims exclusive ownership
+        if (piece.exclusivePeer === null && peerIsFast) {
+          piece.claimExclusive(peerId)
         }
 
-        peer.sendRequest(piece.index, block.begin, block.length)
-        peer.requestsPending++
+        // Get blocks we can request from this piece
+        const neededBlocks = isEndgame
+          ? piece.getNeededBlocksEndgame(peerId, pipelineLimit - peer.requestsPending)
+          : piece.getNeededBlocks(pipelineLimit - peer.requestsPending)
 
-        const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
-        piece.addRequest(blockIndex, peerId)
+        for (const block of neededBlocks) {
+          if (peer.requestsPending >= pipelineLimit) return
+
+          // Rate limit check
+          if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
+            this.scheduleDownloadRateLimitRetry(block.length)
+            return
+          }
+
+          peer.sendRequest(piece.index, block.begin, block.length)
+          peer.requestsPending++
+
+          const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
+          piece.addRequest(blockIndex, peerId)
+        }
+      }
+    } else {
+      // Fallback: iterate in arbitrary order if availability tracking not ready
+      for (const piece of this.activePieces.partialValues()) {
+        if (peer.requestsPending >= pipelineLimit) return
+        if (!peerBitfield?.get(piece.index)) continue
+        if (!isEndgame && !piece.hasUnrequestedBlocks()) continue
+
+        const neededBlocks = isEndgame
+          ? piece.getNeededBlocksEndgame(peerId, pipelineLimit - peer.requestsPending)
+          : piece.getNeededBlocks(pipelineLimit - peer.requestsPending)
+
+        for (const block of neededBlocks) {
+          if (peer.requestsPending >= pipelineLimit) return
+          if (downloadBucket.isLimited && !downloadBucket.tryConsume(block.length)) {
+            this.scheduleDownloadRateLimitRetry(block.length)
+            return
+          }
+          peer.sendRequest(piece.index, block.begin, block.length)
+          peer.requestsPending++
+          const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
+          piece.addRequest(blockIndex, peerId)
+        }
       }
     }
 
-    // PHASE 2: If still room, select new pieces sequentially (no sorting)
+    // PHASE 2: Activate new pieces (rarest-first selection)
     // Only runs when we need NEW pieces, not on every block
-    // Optimization: Start from _firstNeededPiece to skip completed prefix
     if (peer.requestsPending >= pipelineLimit) return
-    if (!peerBitfield || !this._bitfield || !this._piecePriority) return
+    if (!peerBitfield || !this._bitfield || !this._piecePriority || !this._pieceAvailability) return
 
     // Phase 2 Partial Cap: Don't start new pieces if we have too many partials
     // This prevents the "600 active pieces" death spiral
-    // Threshold: min(peers × 1.5, 2048 / blocksPerPiece)
     const connectedPeerCount = this.connectedPeers.length
     if (this.activePieces.shouldPrioritizePartials(connectedPeerCount)) {
-      // Skip Phase 2 - focus on completing existing partial pieces first
       return
     }
 
-    const pieceCount = this.piecesCount
-    for (let i = this._firstNeededPiece; i < pieceCount; i++) {
+    // Phase 3+4: Find candidate pieces sorted by rarity
+    const candidates = this.findNewPieceCandidates(peer, pipelineLimit - peer.requestsPending)
+
+    for (const pieceIndex of candidates) {
       if (peer.requestsPending >= pipelineLimit) break
 
-      // Skip if we have it
-      if (this._bitfield.get(i)) continue
-
-      // Skip if peer doesn't have it
-      if (!peerBitfield.get(i)) continue
-
-      // Skip if priority is 0 (skipped file)
-      if (this._piecePriority[i] === 0) continue
-
-      // Skip if already active (handled in phase 1)
-      if (this.activePieces.has(i)) continue
-
       // Create new active piece
-      const piece = this.activePieces.getOrCreate(i)
+      const piece = this.activePieces.getOrCreate(pieceIndex)
       if (!piece) break // At capacity
+
+      // Phase 4: Fast peer claims exclusive ownership on new pieces
+      if (peerIsFast) {
+        piece.claimExclusive(peerId)
+      }
 
       const neededBlocks = this._endgameManager.isEndgame
         ? piece.getNeededBlocksEndgame(peerId, pipelineLimit - peer.requestsPending)
@@ -3051,7 +3091,7 @@ export class Torrent extends EngineComponent {
           return
         }
 
-        peer.sendRequest(i, block.begin, block.length)
+        peer.sendRequest(pieceIndex, block.begin, block.length)
         peer.requestsPending++
 
         const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
@@ -3069,6 +3109,60 @@ export class Torrent extends EngineComponent {
     if (decision) {
       this.logger.info(`Endgame: ${decision.type}`)
     }
+  }
+
+  /**
+   * Phase 3+4: Find new pieces to activate, sorted by rarity.
+   *
+   * Uses libtorrent's priority formula:
+   * sortKey = availability × (PRIORITY_LEVELS - piecePriority) × PRIO_FACTOR
+   *
+   * Lower sort key = picked first (rarer + higher priority wins)
+   *
+   * @param peer - The peer to find pieces for
+   * @param maxCount - Maximum number of candidates to return
+   * @returns Array of piece indices sorted by rarity (rarest first)
+   */
+  private findNewPieceCandidates(peer: PeerConnection, maxCount: number): number[] {
+    if (!this._bitfield || !this._piecePriority || !this._pieceAvailability || !this.activePieces) {
+      return []
+    }
+
+    const bitfield = peer.bitfield
+    const candidates: Array<{ index: number; sortKey: number }> = []
+
+    // Collect candidate pieces (up to 2x maxCount for better selection after sorting)
+    const collectLimit = maxCount * 2
+    for (
+      let i = this._firstNeededPiece;
+      i < this.piecesCount && candidates.length < collectLimit;
+      i++
+    ) {
+      // Skip if we have it
+      if (this._bitfield.get(i)) continue
+
+      // Skip if peer doesn't have it (seeds have everything)
+      if (!peer.isSeed && !bitfield?.get(i)) continue
+
+      // Skip if priority is 0 (skipped file)
+      const prio = this._piecePriority[i]
+      if (prio === 0) continue
+
+      // Skip if already active (handled in phase 1)
+      if (this.activePieces.has(i)) continue
+
+      // Calculate sort key using libtorrent formula
+      const availability = this._pieceAvailability[i] + this._seedCount
+      const sortKey = availability * (8 - prio) * 3 // 8 = PRIORITY_LEVELS, 3 = PRIO_FACTOR
+
+      candidates.push({ index: i, sortKey })
+    }
+
+    // Sort by rarity (lower sortKey = rarer/higher priority = first)
+    candidates.sort((a, b) => a.sortKey - b.sortKey)
+
+    // Return just the indices
+    return candidates.slice(0, maxCount).map((c) => c.index)
   }
 
   /**
@@ -3679,6 +3773,11 @@ export class Torrent extends EngineComponent {
   public recheckPeers() {
     this.logger.debug('Rechecking all peers')
     for (const peer of this.connectedPeers) {
+      // Phase 4: Set piece length for isFast calculation
+      if (this.pieceLength > 0) {
+        peer.setPieceLength(this.pieceLength)
+      }
+
       // Handle deferred have_all - peer sent HAVE_ALL before we had metadata
       if (peer.deferredHaveAll && this.piecesCount > 0) {
         this.logger.debug('Processing deferred have_all for peer')

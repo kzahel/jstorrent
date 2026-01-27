@@ -508,6 +508,40 @@ export class PeerConnection extends EngineComponent {
     return this.downloadSpeedCalculator.getSpeed()
   }
 
+  // === Phase 4: Speed Affinity ===
+
+  /**
+   * Default piece length for isFast calculation.
+   * This is set by the Torrent when the peer is added.
+   * Used to calculate if the peer can finish a piece in under 30 seconds.
+   */
+  private _pieceLength: number = 262144 // Default 256KB
+
+  /**
+   * Set the piece length for speed calculations.
+   * Called by Torrent when adding the peer.
+   */
+  setPieceLength(length: number): void {
+    this._pieceLength = length
+  }
+
+  /**
+   * Check if this peer is "fast" - can finish a piece in under 30 seconds.
+   *
+   * Fast peers are given exclusive ownership of pieces to prevent fragmentation
+   * (where fast and slow peers share a piece, causing the fast peer to wait).
+   *
+   * Matches libtorrent behavior from piece_picker.cpp:2596-2639
+   */
+  get isFast(): boolean {
+    const speed = this.downloadSpeed
+    if (speed <= 0) return false
+
+    // Time to finish a piece at current speed
+    const secondsToFinish = this._pieceLength / speed
+    return secondsToFinish < 30
+  }
+
   /**
    * Record a block received from this peer. Adjusts pipeline depth based on
    * response rate - fast peers get more requests, slow peers get fewer.
