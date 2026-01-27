@@ -571,6 +571,7 @@ export class Torrent extends EngineComponent {
       // State queries
       isPrivate: () => this.isPrivate,
       isComplete: () => this.isComplete,
+      hasMetadata: () => this.hasMetadata,
       getPeerId: () => this.peerId,
       getPiecesCount: () => this.piecesCount,
       getMetadataSize: () => this.metadataSize,
@@ -2796,11 +2797,26 @@ export class Torrent extends EngineComponent {
 
   /**
    * Notify all connected peers that we've become a seeder.
+   * - Disconnect any seeder peers (seeder-to-seeder connections have no utility)
    * - Re-send extension handshake with upload_only: 1 (BEP 21)
    * - Send NOT_INTERESTED to all peers
    */
   private notifyPeersWeAreSeeding() {
     this.logger.debug('Notifying peers we are now seeding')
+
+    // Disconnect seeder-to-seeder connections (no utility)
+    // Includes peers who sent upload_only (they won't request from us either)
+    // Copy array since we're modifying during iteration
+    const uploadOnlyPeers = this.connectedPeers.filter((p) => p.isSeed || p.peerUploadOnly)
+    for (const peer of uploadOnlyPeers) {
+      const reason = peer.isSeed ? 'seeder' : 'upload_only'
+      this.logger.info(
+        `Disconnecting ${reason} (we completed): ${peer.remoteAddress}:${peer.remotePort}`,
+      )
+      peer.close()
+    }
+
+    // Notify remaining peers (leechers who might want data from us)
     for (const peer of this.connectedPeers) {
       // Re-send extension handshake with upload_only: 1 (BEP 10 allows multiple handshakes)
       if (peer.peerExtensions) {

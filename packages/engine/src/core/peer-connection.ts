@@ -183,6 +183,12 @@ export class PeerConnection extends EngineComponent {
    */
   public haveCount = 0
 
+  /**
+   * BEP 21: Peer indicated upload_only in extended handshake.
+   * When true, peer won't request any pieces (they're seeding or in upload-only mode).
+   */
+  public peerUploadOnly = false
+
   /** Whether this connection is encrypted (MSE/PE) */
   get isEncrypted(): boolean {
     return this.socket.isEncrypted ?? false
@@ -593,6 +599,12 @@ export class PeerConnection extends EngineComponent {
         this.peerMetadataSize = dict.metadata_size
       }
 
+      // BEP 21: Extract upload_only flag
+      // Peer is seeding or in upload-only mode (won't request pieces)
+      if (typeof dict.upload_only === 'number' && dict.upload_only !== 0) {
+        this.peerUploadOnly = true
+      }
+
       // Extract client version from 'v' field (BEP 10)
       let clientName: string | null = null
       if (dict.v) {
@@ -610,6 +622,7 @@ export class PeerConnection extends EngineComponent {
         m: dict.m,
         v: clientName,
         metadata_size: dict.metadata_size,
+        upload_only: this.peerUploadOnly,
       })
     } catch (err) {
       this.logger.error('Error parsing extended handshake', { err })

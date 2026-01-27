@@ -20,6 +20,7 @@ export interface PeerHandlerCallbacks {
   // State queries
   isPrivate(): boolean
   isComplete(): boolean
+  hasMetadata(): boolean
   getPeerId(): Uint8Array
   getPiecesCount(): number
   getMetadataSize(): number | null
@@ -151,6 +152,16 @@ export class TorrentPeerHandler extends EngineComponent {
         this.callbacks.getSwarm().setIdentity(key, peer.peerId, clientName)
       }
 
+      // BEP 21: Handle upload_only flag
+      // If peer indicates upload_only (they're seeding), treat as seeder for disconnect purposes
+      if (payload.upload_only && !peer.isSeed) {
+        this.logger.debug(`Peer sent upload_only=1: ${peer.remoteAddress}:${peer.remotePort}`)
+        // Mark as seed if they claim upload_only (they won't request pieces)
+        // Note: We still need their bitfield/have_all to know they have all pieces,
+        // but upload_only is enough to trigger seeder-to-seeder disconnect
+        if (this.disconnectIfRedundant(peer)) return
+      }
+
       // Delegate metadata handling to the fetcher
       this.callbacks.getMetadataFetcher().onExtensionHandshake(peer)
     })
@@ -243,6 +254,35 @@ export class TorrentPeerHandler extends EngineComponent {
   }
 
   /**
+   * Disconnect peer if both sides are seeders (no utility in keeping connection).
+   * Following libtorrent's approach: disconnect seeder-to-seeder connections
+   * unless we need metadata from them.
+   *
+   * A peer is considered "upload-only" if:
+   * - peer.isSeed (they have all pieces via bitfield/HAVE_ALL)
+   * - peer.peerUploadOnly (they sent upload_only: 1 in extended handshake)
+   *
+   * @returns true if peer was disconnected
+   */
+  private disconnectIfRedundant(peer: PeerConnection): boolean {
+    // Only applies if peer is upload-only (seeder or explicitly upload_only)
+    if (!peer.isSeed && !peer.peerUploadOnly) return false
+
+    // Only applies if we're also complete (seeding)
+    if (!this.callbacks.isComplete()) return false
+
+    // Keep connection if we don't have metadata - peer might have it
+    if (!this.callbacks.hasMetadata()) return false
+
+    const reason = peer.isSeed ? 'both seeders' : 'peer upload_only'
+    this.logger.info(
+      `Disconnecting redundant connection (${reason}): ${peer.remoteAddress}:${peer.remotePort}`,
+    )
+    peer.close()
+    return true
+  }
+
+  /**
    * Handle bitfield message from peer.
    */
   private handleBitfield(peer: PeerConnection, bf: BitField): void {
@@ -258,6 +298,8 @@ export class TorrentPeerHandler extends EngineComponent {
 
     if (peer.isSeed) {
       this.logger.debug(`Peer is a seed (seedCount: ${availability.seedCount})`)
+      // Disconnect seeder-to-seeder connections (no utility)
+      if (this.disconnectIfRedundant(peer)) return
     }
 
     // Phase 8: Build peer piece index for non-seeds
@@ -292,6 +334,9 @@ export class TorrentPeerHandler extends EngineComponent {
     // Seeds are tracked separately - don't add to per-piece availability
     availability.onHaveAll()
     this.logger.debug(`Peer is a seed via HAVE_ALL (seedCount: ${availability.seedCount})`)
+
+    // Disconnect seeder-to-seeder connections (no utility)
+    if (this.disconnectIfRedundant(peer)) return
 
     // Update interest
     this.callbacks.updateInterest(peer)
@@ -338,6 +383,8 @@ export class TorrentPeerHandler extends EngineComponent {
       this.logger.debug(
         `Peer converted to seed via HAVE messages (seedCount: ${availability.seedCount})`,
       )
+      // Disconnect seeder-to-seeder connections (no utility)
+      if (this.disconnectIfRedundant(peer)) return
     } else if (this.callbacks.shouldAddToIndex(index)) {
       // Add piece to peer's index if we need it
       availability.addPieceToIndex(peerId, index)
