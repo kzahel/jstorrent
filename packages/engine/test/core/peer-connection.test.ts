@@ -51,6 +51,7 @@ describe('PeerConnection', () => {
 
   it('should send handshake', () => {
     connection.sendHandshake(infoHash, peerId)
+    connection.flush() // Flush queued sends
     expect(socket.sentData.length).toBe(1)
     const parsed = PeerWireProtocol.parseHandshake(socket.sentData[0])
     expect(parsed?.infoHash).toEqual(infoHash)

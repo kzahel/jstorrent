@@ -25,6 +25,13 @@ declare global {
   function __jstorrent_tcp_send(socketId: number, data: ArrayBuffer): void
 
   /**
+   * Send data to multiple TCP sockets in one FFI call.
+   * Packed format: [count: u32 LE] then for each: [socketId: u32 LE] [len: u32 LE] [data: len bytes]
+   * This reduces FFI overhead when flushing many sockets at end of tick.
+   */
+  function __jstorrent_tcp_send_batch(packed: ArrayBuffer): void
+
+  /**
    * Close a TCP socket.
    */
   function __jstorrent_tcp_close(socketId: number): void

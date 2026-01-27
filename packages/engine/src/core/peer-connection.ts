@@ -54,11 +54,77 @@ export class PeerConnection extends EngineComponent {
   private buffer = new ChunkedBuffer()
   public handshakeReceived = false
 
+  // Send queue for batching - flushed at end of tick
+  private sendQueue: Uint8Array[] = []
+  private sendQueueBytes = 0
+
   private send(data: Uint8Array) {
-    this.socket.send(data)
+    // Queue for batched send at end of tick
+    this.sendQueue.push(data)
+    this.sendQueueBytes += data.length
+
+    // Track bytes immediately (matches previous behavior)
     this.uploaded += data.length
     this.uploadSpeedCalculator.addBytes(data.length)
     this.emit('bytesUploaded', data.length)
+  }
+
+  /**
+   * Flush all queued sends to the socket.
+   * Called at end of tick to batch multiple small messages into one send.
+   */
+  flush(): void {
+    if (this.sendQueue.length === 0) return
+
+    if (this.sendQueue.length === 1) {
+      // Single message - send directly, no concat needed
+      this.socket.send(this.sendQueue[0])
+    } else {
+      // Multiple messages - concat into single buffer
+      const combined = new Uint8Array(this.sendQueueBytes)
+      let offset = 0
+      for (const buf of this.sendQueue) {
+        combined.set(buf, offset)
+        offset += buf.length
+      }
+      this.socket.send(combined)
+    }
+
+    this.sendQueue = []
+    this.sendQueueBytes = 0
+  }
+
+  /**
+   * Get the socket ID for batch send operations.
+   * Returns undefined if socket doesn't expose an ID.
+   */
+  getSocketId(): number | undefined {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (this.socket as any).id as number | undefined
+  }
+
+  /**
+   * Get queued data for batch send operations.
+   * Returns the combined buffer and clears the queue.
+   */
+  getQueuedData(): Uint8Array | null {
+    if (this.sendQueue.length === 0) return null
+
+    let result: Uint8Array
+    if (this.sendQueue.length === 1) {
+      result = this.sendQueue[0]
+    } else {
+      result = new Uint8Array(this.sendQueueBytes)
+      let offset = 0
+      for (const buf of this.sendQueue) {
+        result.set(buf, offset)
+        offset += buf.length
+      }
+    }
+
+    this.sendQueue = []
+    this.sendQueueBytes = 0
+    return result
   }
 
   public peerChoking = true

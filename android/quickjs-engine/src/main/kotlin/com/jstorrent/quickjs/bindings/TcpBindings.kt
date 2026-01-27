@@ -117,6 +117,29 @@ class TcpBindings(
             null
         }
 
+        // __jstorrent_tcp_send_batch(packed: ArrayBuffer): void
+        // Packed format: [count: u32 LE] then for each: [socketId: u32 LE] [len: u32 LE] [data: len bytes]
+        // This reduces FFI overhead by sending to multiple sockets in one call.
+        ctx.setGlobalFunctionWithBinary("__jstorrent_tcp_send_batch", 0) { _, binary ->
+            if (binary != null && binary.size >= 4) {
+                val buf = java.nio.ByteBuffer.wrap(binary).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                val count = buf.int
+
+                repeat(count) {
+                    if (buf.remaining() >= 8) {
+                        val socketId = buf.int
+                        val len = buf.int
+                        if (buf.remaining() >= len) {
+                            val data = ByteArray(len)
+                            buf.get(data)
+                            tcpManager.send(socketId, data)
+                        }
+                    }
+                }
+            }
+            null
+        }
+
         // __jstorrent_tcp_close(socketId: number): void
         ctx.setGlobalFunction("__jstorrent_tcp_close") { args ->
             val socketId = args.getOrNull(0)?.toIntOrNull()

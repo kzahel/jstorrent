@@ -227,11 +227,17 @@ export class TorrentTickLoop extends EngineComponent {
     }
 
     let peersProcessed = 0
-    for (const peer of this.callbacks.getConnectedPeers()) {
+    const connectedPeers = this.callbacks.getConnectedPeers()
+    for (const peer of connectedPeers) {
       if (!peer.peerChoking && peer.requestsPending < peer.pipelineDepth) {
         this.callbacks.requestPieces(peer, startTime)
         peersProcessed++
       }
+    }
+
+    // Flush all queued sends at end of tick (reduces FFI overhead on Android)
+    for (const peer of connectedPeers) {
+      peer.flush()
     }
 
     const endTime = Date.now()
@@ -492,6 +498,11 @@ export class TorrentTickLoop extends EngineComponent {
     }
     const applyMs = Date.now() - applyStart
     this._maintApplyMs += applyMs
+
+    // Flush all queued sends (CHOKE/UNCHOKE messages from above)
+    for (const peer of peers) {
+      peer.flush()
+    }
 
     // === Phase 4: Request connection slots from engine ===
     if (this.callbacks.isComplete()) {
