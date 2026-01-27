@@ -2357,12 +2357,12 @@ logger.info(`PiecePicker: ${activePieces} active (max ${maxPartials}), ` +
 
 ### Order of Operations
 
-1. **Phase 1-2 first**: These provide the foundation (availability tracking, limits)
-2. **Phase 3-4 together**: Sorting and algorithm rewrite are interdependent
-3. **Phase 5 after 4**: Health management needs the new ownership model
-4. **Phase 6-7**: Optimizations that build on the working system
-5. **Phase 9-11 after 7**: End-game, disconnect, and hash failure can be implemented in any order after the core is working
-6. **Phase 8 last (optional)**: Only if Phase 2 performance is still insufficient
+1. **Phases 1-2**: Foundation (availability tracking, partial limits)
+2. **Phases 3-4**: Sorting and algorithm rewrite (interdependent)
+3. **Phase 5**: Health management (needs ownership model from Phase 4)
+4. **Phases 6-7**: Optimizations (build on working system)
+5. **Phase 8** (optional): Phase 2 index—only if Phase 2 performance is still insufficient
+6. **Phases 9-11**: End-game, disconnect, hash failure (can be any order among themselves)
 
 ### Testing Strategy
 

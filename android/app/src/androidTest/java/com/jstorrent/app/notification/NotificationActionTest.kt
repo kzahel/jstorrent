@@ -160,7 +160,10 @@ class NotificationActionTest {
 
         // Directly call the quit actions instead of using broadcast
         // (broadcast delivery can be delayed on slow CI emulators)
+        // Note: We call stop() directly because the test started the service directly
+        // (bypassing ServiceLifecycleManager), so serviceRunning is false in the manager.
         app.serviceLifecycleManager.onUserQuit()
+        ForegroundNotificationService.stop(context)
         app.shutdownEngine()
 
         // Wait for service to stop - stopService() is asynchronous, poll for completion
