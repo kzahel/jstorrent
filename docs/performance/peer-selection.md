@@ -4,7 +4,7 @@ This document analyzes the performance characteristics of peer selection in jsto
 
 ## Problem Statement
 
-`getConnectablePeers()` is called every ~5 seconds to find peers eligible for connection attempts. The current implementation:
+`getConnectablePeers()` is called at least every ~5 seconds (and often more frequently—see "Call Frequency" below) to find peers eligible for connection attempts. The current implementation:
 
 1. Iterates the **entire swarm** (can be 1000+ peers)
 2. Performs backoff calculations for each peer
@@ -13,6 +13,51 @@ This document analyzes the performance characteristics of peer selection in jsto
 5. Returns top N
 
 For a swarm of 1000 peers, this is O(n) iteration + O(k log k) sort where k is the number of eligible candidates.
+
+## Call Frequency: Edge-Triggered vs Interval
+
+The problem is compounded by `fillPeerSlots()` being called more often than just the 5-second maintenance interval. `fillPeerSlots()` delegates directly to `runMaintenance()`, which triggers the full `getConnectablePeers()` scan.
+
+### Current Call Sites
+
+| Location | Trigger | Frequency |
+|----------|---------|-----------|
+| `torrent.ts:1521` | Maintenance interval | Every ~5s |
+| `torrent.ts:2116` | Tracker response | Per announce (rare) |
+| `torrent.ts:1854` | DHT peer discovery | Per lookup with results |
+| `torrent.ts:2389` | Peer disconnect | Per disconnect (high churn) |
+| `torrent.ts:3447` | Magnet peer hints | Once per magnet |
+| `torrent-peer-handler.ts:241` | PEX message | Per PEX with new peers |
+
+### Edge-Triggered Cases by Urgency
+
+**Keep edge-triggered (cold start, user waiting):**
+- **Tracker response** - User is watching "connecting...", shouldn't wait 5s after first announce
+- **DHT discovery** - Often the only peer source for magnet links, responsiveness matters
+- **Magnet hints** - User just clicked a link, immediate action expected
+
+**Can defer to interval (steady state):**
+- **PEX** - By definition, we already have connected peers exchanging with us; not a cold start
+- **Peer disconnect** - Other peers are active, filling one vacated slot isn't urgent
+
+### Recommendation: Remove Unnecessary Edge Triggers
+
+Remove `fillPeerSlots()` calls from:
+1. `torrent-peer-handler.ts:241` (PEX callback)
+2. `torrent.ts:2389` (peer disconnect handler)
+
+This preserves responsiveness for user-visible moments (initial connection) while eliminating churn-driven extra scans during steady-state operation.
+
+**Alternative:** Use a heuristic to only edge-trigger during cold start:
+
+```typescript
+// Only edge-trigger if we have few connected peers
+if (this.numPeers < 3) {
+  this.fillPeerSlots()
+}
+```
+
+However, the simpler removal is preferred—the 5s interval handles steady state adequately, and once candidate caching (Phase 1) is implemented, these extra calls would be cheap anyway.
 
 ## Current Implementation (jstorrent)
 

@@ -1,6 +1,6 @@
 import { PeerConnection } from './peer-connection'
 import { ActivePiece, BLOCK_SIZE } from './active-piece'
-import { PeerCoordinator, PeerSnapshot, ChokeDecision, DropDecision } from './peer-coordinator'
+import { PeerCoordinator } from './peer-coordinator'
 import { ActivePieceManager } from './active-piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
 // HashMismatchError is checked by name (not instanceof) to support both
@@ -35,8 +35,19 @@ import { TorrentDiskQueue, DiskQueueSnapshot } from './disk-queue'
 import { EndgameManager } from './endgame-manager'
 import { PartsFile } from './parts-file'
 import type { LookupResult } from '../dht'
-import { PexHandler } from '../extensions/pex-handler'
 import { CorruptionTracker, BanDecision } from './corruption-tracker'
+import { TorrentPeerHandler, PeerHandlerCallbacks } from './torrent-peer-handler'
+import {
+  TorrentTickLoop,
+  TickLoopCallbacks,
+  TickStats,
+  CLEANUP_TICK_INTERVAL,
+  REQUEST_TICK_BASE_INTERVAL_MS,
+  REQUEST_TICK_TARGET_UTILIZATION,
+  BLOCK_REQUEST_TIMEOUT_MS,
+  PIECE_ABANDON_TIMEOUT_MS,
+  PIECE_ABANDON_MIN_PROGRESS,
+} from './torrent-tick-loop'
 import { MetadataFetcher } from './metadata-fetcher'
 import { TorrentUploader } from './torrent-uploader'
 import { FilePriorityManager, PieceClassification } from './file-priority-manager'
@@ -50,35 +61,16 @@ import { TorrentPieceRequester, PieceRequesterDeps } from './piece-requester'
  */
 export const MAX_INCOMING_RATIO = 0.6
 
-// === Phase 5: Piece Health Management Constants ===
-
-/**
- * Timeout for individual block requests.
- * Requests older than this are cancelled and the blocks become available
- * for reassignment to other peers.
- *
- * libtorrent reference: peer_connection.cpp:4565-4588
- */
-export const BLOCK_REQUEST_TIMEOUT_MS = 10_000 // 10 seconds
-
-/**
- * Timeout for piece abandonment.
- * Pieces older than this with less than PIECE_ABANDON_MIN_PROGRESS
- * are abandoned and removed from the active set.
- */
-export const PIECE_ABANDON_TIMEOUT_MS = 30_000 // 30 seconds
-
-/**
- * Minimum progress ratio (0-1) to keep a stuck piece.
- * Pieces with >= 50% completion are worth keeping even if stuck.
- */
-export const PIECE_ABANDON_MIN_PROGRESS = 0.5 // 50%
-
-/**
- * How often to run piece health cleanup (every N ticks).
- * With 100ms tick interval, 5 = every 500ms.
- */
-export const CLEANUP_TICK_INTERVAL = 5
+// Re-export tick loop constants for consumers
+export {
+  CLEANUP_TICK_INTERVAL,
+  REQUEST_TICK_BASE_INTERVAL_MS,
+  REQUEST_TICK_TARGET_UTILIZATION,
+  BLOCK_REQUEST_TIMEOUT_MS,
+  PIECE_ABANDON_TIMEOUT_MS,
+  PIECE_ABANDON_MIN_PROGRESS,
+}
+export type { TickStats }
 
 // PieceClassification is imported from './file-priority-manager'
 // Re-export for consumers
@@ -211,6 +203,9 @@ export class Torrent extends EngineComponent {
 
   // Piece requester (handles piece selection and requesting)
   private _pieceRequester?: TorrentPieceRequester
+
+  // Peer event handler (handles wire protocol events)
+  private _peerHandler!: TorrentPeerHandler
 
   // Download rate limit retry scheduling
   private downloadRateLimitRetryScheduled = false
@@ -371,29 +366,11 @@ export class Torrent extends EngineComponent {
    */
   private _networkActive: boolean = false
 
-  /**
-   * Periodic maintenance interval for peer slot filling.
-   * Uses setTimeout for adaptive intervals (not setInterval).
-   */
-  private _maintenanceInterval: ReturnType<typeof setTimeout> | null = null
-
-  /** Tracks which interval step we're on for adaptive maintenance */
-  private _maintenanceStep: number = 0
-
-  /** Adaptive maintenance intervals: run frequently at first, then back off */
-  private static readonly MAINTENANCE_INTERVALS = [500, 1000, 1000, 2000, 2000, 5000]
-
   /** DHT lookup timer - periodically queries DHT for peers */
   private _dhtLookupTimer: ReturnType<typeof setTimeout> | null = null
 
-  /**
-   * Request tick interval for game-loop style piece requesting.
-   * Replaces edge-triggered scheduling for better QuickJS performance.
-   */
-  private _requestTickInterval: ReturnType<typeof setInterval> | null = null
-
-  /** Request tick interval in ms (runtime configurable, default 100ms) */
-  public requestTickIntervalMs: number = 100
+  /** Tick loop for request scheduling and maintenance */
+  private _tickLoop!: TorrentTickLoop
 
   public isPrivate: boolean = false
   public creationDate?: number
@@ -517,8 +494,97 @@ export class Torrent extends EngineComponent {
       },
     })
 
+    // Initialize peer event handler
+    this._peerHandler = new TorrentPeerHandler(
+      this.engineInstance,
+      this.createPeerHandlerCallbacks(),
+    )
+
+    // Initialize tick loop for maintenance and request scheduling
+    this._tickLoop = new TorrentTickLoop(this.engineInstance, this.createTickLoopCallbacks())
+
     if (this.announce.length > 0) {
       this.initTrackerManager()
+    }
+  }
+
+  /**
+   * Create callbacks for the tick loop.
+   * This bridges the TorrentTickLoop back to Torrent methods.
+   */
+  private createTickLoopCallbacks(): TickLoopCallbacks {
+    return {
+      // State queries
+      isNetworkActive: () => this._networkActive,
+      isKillSwitchEnabled: () => this.isKillSwitchEnabled,
+      isComplete: () => this.isComplete,
+      getMaxPeers: () => this.maxPeers,
+      getNumPeers: () => this.numPeers,
+      getInfoHashStr: () => this.infoHashStr,
+
+      // Peer access
+      getConnectedPeers: () => this.connectedPeers,
+      getPeers: () => this.peers,
+
+      // Managers
+      getSwarm: () => this._swarm,
+      getPeerCoordinator: () => this._peerCoordinator,
+      getUploader: () => this._uploader,
+      getActivePieces: () => this.activePieces,
+      getDiskQueue: () => this._diskQueue,
+
+      // Bandwidth
+      isDownloadRateLimited: () => this.btEngine.bandwidthTracker.isDownloadRateLimited(),
+      getCategoryRate: (direction, category) =>
+        this.btEngine.bandwidthTracker.getCategoryRate(direction, category),
+
+      // Actions
+      requestPieces: (peer, now) => this.requestPieces(peer, now),
+      requestConnections: (infoHashStr, count) =>
+        this.btEngine.requestConnections(infoHashStr, count),
+
+      // Event emission
+      emitInvariantViolation: (data) => this.emit('test:invariant_violation', data),
+    }
+  }
+
+  /**
+   * Create callbacks for the peer handler.
+   * This bridges the TorrentPeerHandler back to Torrent methods.
+   */
+  private createPeerHandlerCallbacks(): PeerHandlerCallbacks {
+    return {
+      // State queries
+      isPrivate: () => this.isPrivate,
+      isComplete: () => this.isComplete,
+      getPeerId: () => this.peerId,
+      getPiecesCount: () => this.piecesCount,
+      getMetadataSize: () => this.metadataSize,
+      getAdvertisedBitfield: () => this.getAdvertisedBitfield() ?? null,
+
+      // Managers
+      getSwarm: () => this._swarm,
+      getAvailability: () => this._availability,
+      getMetadataFetcher: () => this._metadataFetcher,
+      getActivePieces: () => this.activePieces,
+      getUploader: () => this._uploader,
+      getBandwidthTracker: () => this.btEngine.bandwidthTracker,
+
+      // Callbacks
+      onPeerRemoved: (peer) => this.removePeer(peer),
+      onBytesDownloaded: (bytes) => {
+        this.totalDownloaded += bytes
+        this.emit('download', bytes)
+      },
+      onBytesUploaded: (bytes) => {
+        this.totalUploaded += bytes
+      },
+      onBlock: (peer, msg) => this.handleBlock(peer, msg),
+      onInterested: (peer) => this.handleInterested(peer),
+      buildPeerPieceIndex: (peer) => this.buildPeerPieceIndex(peer),
+      updateInterest: (peer) => this.updateInterest(peer),
+      shouldAddToIndex: (pieceIndex) => this.shouldAddToIndex(pieceIndex),
+      fillPeerSlots: () => this.fillPeerSlots(),
     }
   }
 
@@ -553,10 +619,10 @@ export class Torrent extends EngineComponent {
     this._swarm.resetBackoffState()
 
     // Start periodic maintenance (idempotent)
-    this.startMaintenance()
+    this._tickLoop.startMaintenance()
 
     // Start request tick game loop
-    this.startRequestTick()
+    this._tickLoop.startRequestTick()
 
     // Add magnet peer hints on every start
     if (this.magnetPeerHints.length > 0) {
@@ -1424,10 +1490,10 @@ export class Torrent extends EngineComponent {
     this._networkActive = false
 
     // Stop periodic maintenance
-    this.stopMaintenance()
+    this._tickLoop.stopMaintenance()
 
     // Stop request tick game loop
-    this.stopRequestTick()
+    this._tickLoop.stopRequestTick()
 
     // Stop DHT lookup timer
     this.stopDHTLookup()
@@ -1451,272 +1517,11 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Start adaptive maintenance - runs frequently at first, then backs off.
-   * Intervals: 500ms, 1s, 1s, 2s, 2s, then 5s steady-state
-   */
-  private startMaintenance(): void {
-    if (this._maintenanceInterval) return
-
-    this._maintenanceStep = 0
-    this.scheduleNextMaintenance()
-  }
-
-  /**
-   * Schedule the next maintenance cycle with adaptive interval.
-   */
-  private scheduleNextMaintenance(): void {
-    const intervals = Torrent.MAINTENANCE_INTERVALS
-    const delay = intervals[Math.min(this._maintenanceStep, intervals.length - 1)]
-
-    this._maintenanceInterval = setTimeout(() => {
-      this.runMaintenance()
-      this._maintenanceStep++
-
-      if (this._networkActive) {
-        this.scheduleNextMaintenance()
-      }
-    }, delay)
-  }
-
-  /**
-   * Stop periodic maintenance.
-   */
-  private stopMaintenance(): void {
-    if (this._maintenanceInterval) {
-      clearTimeout(this._maintenanceInterval)
-      this._maintenanceInterval = null
-    }
-    this._maintenanceStep = 0
-  }
-
-  // ==========================================================================
-  // Request Tick (Game Loop)
-  // ==========================================================================
-
-  /**
-   * Start the request tick game loop.
-   * This replaces edge-triggered request scheduling for better QuickJS performance.
-   * All piece requesting is done in fixed intervals instead of per-block.
-   */
-  private startRequestTick(): void {
-    if (this._requestTickInterval) return
-
-    this._requestTickInterval = setInterval(() => {
-      this.requestTick()
-    }, this.requestTickIntervalMs)
-
-    this.logger.debug(`Request tick started (${this.requestTickIntervalMs}ms interval)`)
-  }
-
-  /**
-   * Stop the request tick game loop.
-   */
-  private stopRequestTick(): void {
-    if (this._requestTickInterval) {
-      clearInterval(this._requestTickInterval)
-      this._requestTickInterval = null
-    }
-  }
-
-  // Track request tick performance
-  private _tickCount = 0
-  private _tickTotalMs = 0
-  private _tickMaxMs = 0
-  private _lastTickLogTime = 0
-  private _cleanupTickCounter = 0
-
-  // Track maintenance loop performance
-  private _maintCount = 0
-  private _maintTotalMs = 0
-  private _maintMaxMs = 0
-  private _lastMaintLogTime = 0
-  // Per-phase timing accumulators
-  private _maintSnapshotMs = 0
-  private _maintCoordinatorMs = 0
-  private _maintApplyMs = 0
-
-  /**
-   * Request tick - fill all peers' request pipelines.
-   * Called at fixed intervals instead of on every block arrival.
-   */
-  private requestTick(): void {
-    if (!this._networkActive) return
-
-    const startTime = Date.now()
-
-    // Phase 5: Periodic cleanup of stuck pieces (every CLEANUP_TICK_INTERVAL ticks)
-    this._cleanupTickCounter++
-    if (this._cleanupTickCounter >= CLEANUP_TICK_INTERVAL) {
-      this._cleanupTickCounter = 0
-      this.cleanupStuckPieces()
-    }
-
-    let peersProcessed = 0
-    for (const peer of this.connectedPeers) {
-      if (!peer.peerChoking && peer.requestsPending < peer.pipelineDepth) {
-        this.requestPieces(peer, startTime)
-        peersProcessed++
-      }
-    }
-
-    const endTime = Date.now()
-    const elapsed = endTime - startTime
-    this._tickCount++
-    this._tickTotalMs += elapsed
-    if (elapsed > this._tickMaxMs) {
-      this._tickMaxMs = elapsed
-    }
-
-    // Log tick stats every 5 seconds
-    if (endTime - this._lastTickLogTime >= 5000 && this._tickCount > 0) {
-      const avgMs = (this._tickTotalMs / this._tickCount).toFixed(1)
-      const activePieces = this.activePieces?.activeCount ?? 0
-      this.logger.info(
-        `RequestTick: ${this._tickCount} ticks, avg ${avgMs}ms, max ${this._tickMaxMs}ms, ` +
-          `${activePieces} active pieces, ${peersProcessed} peers/tick`,
-      )
-      this._tickCount = 0
-      this._tickTotalMs = 0
-      this._tickMaxMs = 0
-      this._lastTickLogTime = endTime
-    }
-  }
-
-  /**
    * Get current tick statistics for health monitoring.
    * Returns stats from the current logging window (resets every 5 seconds).
    */
-  getTickStats(): {
-    tickCount: number
-    tickTotalMs: number
-    tickMaxMs: number
-    activePieces: number
-    connectedPeers: number
-  } {
-    return {
-      tickCount: this._tickCount,
-      tickTotalMs: this._tickTotalMs,
-      tickMaxMs: this._tickMaxMs,
-      activePieces: this.activePieces?.activeCount ?? 0,
-      connectedPeers: this.connectedPeers.length,
-    }
-  }
-
-  // ==========================================================================
-  // Phase 5: Piece Health Management
-  // ==========================================================================
-
-  /**
-   * Clean up stuck pieces: timeout stale requests and abandon hopeless pieces.
-   *
-   * This method:
-   * 1. Finds and cancels stale block requests (>10s old)
-   * 2. Sends CANCEL messages to peers for those requests
-   * 3. Clears exclusive ownership when the owner times out
-   * 4. Demotes full pieces back to partial if they now have unrequested blocks
-   * 5. Abandons pieces that are stuck (>30s old with <50% progress)
-   *
-   * libtorrent reference: peer_connection.cpp:4565-4588
-   */
-  private cleanupStuckPieces(): void {
-    if (!this.activePieces) return
-
-    const piecesToRemove: number[] = []
-    const piecesToDemote: number[] = []
-    let staleRequestsCleared = 0
-    let piecesAbandoned = 0
-
-    // Check partial pieces for stale requests and abandonment
-    for (const piece of this.activePieces.partialValues()) {
-      // Step 1: Check for stale requests
-      const staleRequests = piece.getStaleRequests(BLOCK_REQUEST_TIMEOUT_MS)
-      for (const { blockIndex, peerId } of staleRequests) {
-        // Find the peer to send CANCEL
-        const peer = this.findPeerById(peerId)
-        if (peer) {
-          const begin = blockIndex * BLOCK_SIZE
-          const length = Math.min(BLOCK_SIZE, piece.length - begin)
-          peer.sendCancel(piece.index, begin, length)
-
-          // Decrement peer's pending request count
-          peer.requestsPending = Math.max(0, peer.requestsPending - 1)
-        }
-
-        // Clean up the request from the piece
-        piece.cancelRequest(blockIndex, peerId)
-        staleRequestsCleared++
-      }
-
-      // Step 2: Check if piece should be abandoned
-      if (piece.shouldAbandon(PIECE_ABANDON_TIMEOUT_MS, PIECE_ABANDON_MIN_PROGRESS)) {
-        const progress = Math.round((piece.blocksReceived / piece.blocksNeeded) * 100)
-        this.logger.info(`Abandoning stuck piece ${piece.index} (${progress}% complete)`)
-        piecesToRemove.push(piece.index)
-        piecesAbandoned++
-      }
-    }
-
-    // Also check fullyRequested pieces for stale requests
-    // FullyRequested pieces have all blocks requested but not all received
-    for (const piece of this.activePieces.fullyRequestedValues()) {
-      const staleRequests = piece.getStaleRequests(BLOCK_REQUEST_TIMEOUT_MS)
-      for (const { blockIndex, peerId } of staleRequests) {
-        // Find the peer to send CANCEL
-        const peer = this.findPeerById(peerId)
-        if (peer) {
-          const begin = blockIndex * BLOCK_SIZE
-          const length = Math.min(BLOCK_SIZE, piece.length - begin)
-          peer.sendCancel(piece.index, begin, length)
-
-          // Decrement peer's pending request count
-          peer.requestsPending = Math.max(0, peer.requestsPending - 1)
-        }
-
-        // Clean up the request from the piece
-        piece.cancelRequest(blockIndex, peerId)
-        staleRequestsCleared++
-      }
-
-      // If full piece now has unrequested blocks, mark for demotion
-      if (piece.hasUnrequestedBlocks) {
-        piecesToDemote.push(piece.index)
-      }
-    }
-
-    // Demote full pieces back to partial if they have unrequested blocks
-    for (const index of piecesToDemote) {
-      this.activePieces.demoteToPartial(index)
-    }
-
-    // Remove abandoned pieces
-    for (const index of piecesToRemove) {
-      this.activePieces.remove(index)
-    }
-
-    // Log if we did any cleanup
-    if (staleRequestsCleared > 0 || piecesAbandoned > 0 || piecesToDemote.length > 0) {
-      this.logger.debug(
-        `Piece health cleanup: ${staleRequestsCleared} stale requests cancelled, ` +
-          `${piecesAbandoned} pieces abandoned, ${piecesToDemote.length} demoted to partial`,
-      )
-    }
-  }
-
-  /**
-   * Find a connected peer by their ID string.
-   * Used by cleanupStuckPieces to send CANCEL messages.
-   *
-   * @param peerId - The peer ID string (hex peerId or "ip:port" format)
-   * @returns The peer connection if found, undefined otherwise
-   */
-  private findPeerById(peerId: string): PeerConnection | undefined {
-    for (const peer of this.connectedPeers) {
-      const pId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
-      if (pId === peerId) {
-        return peer
-      }
-    }
-    return undefined
+  getTickStats(): TickStats {
+    return this._tickLoop.getTickStats()
   }
 
   // ==========================================================================
@@ -1821,215 +1626,11 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Validate connection state invariants.
-   * Swarm is single source of truth for connection state.
-   */
-  private checkSwarmInvariants(): void {
-    const swarmStats = this._swarm.getStats()
-
-    // Total active connections should not exceed maxPeers (with headroom for in-flight)
-    const total = this.numPeers + swarmStats.byState.connecting
-    const maxWithHeadroom = this.maxPeers + 10 // Allow headroom for in-flight connections
-    if (total > maxWithHeadroom) {
-      const msg = `total connections (${total}) > maxPeers+headroom (${maxWithHeadroom})`
-      this.logger.error(`INVARIANT VIOLATION: ${msg}`)
-      this.emit('test:invariant_violation', {
-        type: 'limit_exceeded',
-        total,
-        max: maxWithHeadroom,
-        peers: this.numPeers,
-        connecting: swarmStats.byState.connecting,
-        message: msg,
-      })
-    }
-  }
-
-  /**
    * Assert connection limit immediately after state changes.
-   * Allows headroom for in-flight connections.
+   * Delegates to the tick loop for implementation.
    */
   private assertConnectionLimit(context: string): void {
-    const connecting = this._swarm.connectingCount
-    const total = this.numPeers + connecting
-    const maxWithHeadroom = this.maxPeers + 10
-    if (total > maxWithHeadroom) {
-      const msg = `${this.numPeers} peers + ${connecting} connecting = ${total} > ${maxWithHeadroom} max`
-      this.logger.error(`LIMIT EXCEEDED [${context}]: ${msg}`)
-      this.emit('test:invariant_violation', {
-        type: 'limit_exceeded',
-        context,
-        total,
-        max: maxWithHeadroom,
-        peers: this.numPeers,
-        connecting,
-        message: msg,
-      })
-    }
-  }
-
-  /**
-   * Run maintenance: peer coordination and slot filling.
-   * Instrumented for performance monitoring - logs timing every 5s.
-   */
-  private runMaintenance(): void {
-    const maintStart = Date.now()
-
-    // Always check invariants regardless of state
-    this.checkSwarmInvariants()
-
-    if (!this._networkActive) return
-    if (this.isKillSwitchEnabled) return
-
-    // === Phase 1: Build peer snapshots ===
-    const snapshotStart = Date.now()
-    const snapshots = this.buildPeerSnapshots()
-    const snapshotMs = Date.now() - snapshotStart
-    this._maintSnapshotMs += snapshotMs
-
-    // === Phase 2: Run peer coordinator (BEP 3 choke algorithm + download optimizer) ===
-    const coordStart = Date.now()
-    // Skip speed-based peer drops when we're heavily rate-limited
-    const skipSpeedChecks = this.btEngine.bandwidthTracker.isDownloadRateLimited()
-
-    // Check candidates ONCE (fix: was calling getConnectablePeers twice)
-    const connected = this.numPeers
-    const connecting = this._swarm.connectingCount
-    const slotsAvailable = this.maxPeers - connected - connecting
-    const swarmSize = this._swarm.size
-
-    // Get candidates once, reuse for both hasSwarmCandidates and candidateCount
-    const candidates = slotsAvailable > 0 ? this._swarm.getConnectablePeers(slotsAvailable) : []
-    const hasSwarmCandidates = candidates.length > 0
-
-    const { unchoke, drop } = this._peerCoordinator.evaluate(snapshots, hasSwarmCandidates, {
-      skipSpeedChecks,
-    })
-    const coordMs = Date.now() - coordStart
-    this._maintCoordinatorMs += coordMs
-
-    // === Phase 3: Apply decisions ===
-    const applyStart = Date.now()
-    for (const decision of unchoke) {
-      this.applyUnchokeDecision(decision)
-    }
-
-    // Apply drop decisions (only when downloading - don't drop peers for slow download when seeding)
-    if (!this.isComplete) {
-      for (const decision of drop) {
-        this.applyDropDecision(decision)
-      }
-    }
-    const applyMs = Date.now() - applyStart
-    this._maintApplyMs += applyMs
-
-    // === Phase 4: Request connection slots from engine ===
-    if (this.isComplete) {
-      this.logMaintenanceStats(maintStart)
-      return // Don't seek peers when complete
-    }
-
-    if (slotsAvailable <= 0) {
-      this.logger.debug(
-        `Maintenance: no slots (connected=${connected}, connecting=${connecting}, max=${this.maxPeers})`,
-      )
-      this.logMaintenanceStats(maintStart)
-      return
-    }
-
-    const candidateCount = candidates.length
-    if (candidateCount === 0) {
-      this.logger.warn(
-        `Maintenance: 0 candidates! swarm=${swarmSize}, connected=${connected}, connecting=${connecting}`,
-      )
-      this.logMaintenanceStats(maintStart)
-      return
-    }
-
-    // Request slots from engine (will be granted fairly via round-robin)
-    const slotsToRequest = Math.min(slotsAvailable, candidateCount)
-    this.btEngine.requestConnections(this.infoHashStr, slotsToRequest)
-
-    this.logger.info(
-      `Maintenance: swarm=${swarmSize}, connected=${connected}, connecting=${connecting}, ` +
-        `requested ${slotsToRequest} slots (${candidateCount} candidates)`,
-    )
-
-    // Log backpressure stats periodically (every 5s in steady state)
-    this.logBackpressureStats()
-    this.logMaintenanceStats(maintStart)
-  }
-
-  /**
-   * Log maintenance performance stats every 5 seconds.
-   */
-  private logMaintenanceStats(maintStart: number): void {
-    const elapsed = Date.now() - maintStart
-    this._maintCount++
-    this._maintTotalMs += elapsed
-    if (elapsed > this._maintMaxMs) {
-      this._maintMaxMs = elapsed
-    }
-
-    const now = Date.now()
-    if (now - this._lastMaintLogTime >= 5000 && this._maintCount > 0) {
-      const avgMs = (this._maintTotalMs / this._maintCount).toFixed(1)
-      const avgSnapshotMs = (this._maintSnapshotMs / this._maintCount).toFixed(1)
-      const avgCoordMs = (this._maintCoordinatorMs / this._maintCount).toFixed(1)
-      const avgApplyMs = (this._maintApplyMs / this._maintCount).toFixed(1)
-
-      this.logger.info(
-        `Maintenance: ${this._maintCount} runs, avg ${avgMs}ms (snapshot=${avgSnapshotMs}ms, ` +
-          `coord=${avgCoordMs}ms, apply=${avgApplyMs}ms), max ${this._maintMaxMs}ms, ` +
-          `swarm=${this._swarm.size}, peers=${this.numPeers}`,
-      )
-
-      // Reset counters
-      this._maintCount = 0
-      this._maintTotalMs = 0
-      this._maintMaxMs = 0
-      this._maintSnapshotMs = 0
-      this._maintCoordinatorMs = 0
-      this._maintApplyMs = 0
-      this._lastMaintLogTime = now
-    }
-  }
-
-  // Track last backpressure log time
-  private _lastBackpressureLogTime = 0
-
-  /**
-   * Log backpressure-related stats for debugging download performance.
-   * Logs: active pieces, buffered bytes, outstanding requests.
-   */
-  private logBackpressureStats(): void {
-    const now = Date.now()
-    if (now - this._lastBackpressureLogTime < 5000) return
-    this._lastBackpressureLogTime = now
-
-    if (!this.activePieces) return
-
-    const activeCount = this.activePieces.activeCount
-    const bufferedBytes = this.activePieces.totalBufferedBytes
-    const bufferedMB = (bufferedBytes / (1024 * 1024)).toFixed(2)
-
-    // Sum outstanding requests across all active pieces
-    let totalRequests = 0
-    for (const piece of this.activePieces.values()) {
-      totalRequests += piece.outstandingRequests
-    }
-
-    // Get disk queue stats
-    const diskSnapshot = this._diskQueue.getSnapshot()
-    const diskPending = diskSnapshot.pending.length
-    const diskRunning = diskSnapshot.running.length
-
-    // Get disk write rate
-    const diskRate = this.btEngine.bandwidthTracker.getCategoryRate('down', 'disk')
-    const diskRateMB = (diskRate / (1024 * 1024)).toFixed(1)
-
-    this.logger.info(
-      `Backpressure: ${activeCount} active pieces, ${bufferedMB}MB buffered, ${totalRequests} outstanding requests, disk queue: ${diskPending} pending/${diskRunning} running, disk write: ${diskRateMB}MB/s`,
-    )
+    this._tickLoop.assertConnectionLimit(context)
   }
 
   /**
@@ -2281,263 +1882,7 @@ export class Torrent extends EngineComponent {
       // Phase 4: Set piece length for isFast calculation
       peer.setPieceLength(this.pieceLength)
     }
-    this.setupPeerListeners(peer)
-  }
-
-  private setupPeerListeners(peer: PeerConnection) {
-    // BEP 11: Enable PEX for non-private torrents
-    // PexHandler listens for extended messages and emits 'pex_peers' events
-    if (!this.isPrivate) {
-      new PexHandler(peer)
-    }
-
-    const onHandshake = (_infoHash: Uint8Array, peerId: Uint8Array, extensions: boolean) => {
-      this.logger.debug('Handshake received')
-
-      // Check for self-connection (our own peerId)
-      if (compare(peerId, this.peerId) === 0) {
-        this.logger.warn('Self-connection detected, closing peer')
-        peer.close()
-        return
-      }
-
-      // If we initiated connection, we sent handshake first.
-      // If they initiated, they sent handshake first.
-      // PeerConnection handles the handshake exchange logic mostly.
-
-      // Update swarm with peer identity
-      if (peer.remoteAddress && peer.remotePort) {
-        const key = peerKey(peer.remoteAddress, peer.remotePort)
-        // Note: clientName is null here - could be parsed from peerId later if needed
-        this._swarm.setIdentity(key, peerId, null)
-      }
-
-      if (extensions) {
-        // BEP 21: Send upload_only: 1 when we're seeding (complete)
-        // BEP 9: Send metadata_size when we have metadata
-        peer.sendExtendedHandshake({
-          uploadOnly: this.isComplete,
-          metadataSize: this.metadataSize ?? undefined,
-        })
-      }
-
-      // Send piece availability (BitField, Have All, or Have None)
-      // BEP 6: Use Have All/Have None if peer supports Fast Extension
-      const advertisedBitfield = this.getAdvertisedBitfield()
-      if (peer.peerFastExtension && advertisedBitfield?.hasAll()) {
-        this.logger.debug('Sending Have All to peer (Fast Extension)')
-        peer.sendHaveAll()
-      } else if (peer.peerFastExtension && advertisedBitfield?.hasNone()) {
-        this.logger.debug('Sending Have None to peer (Fast Extension)')
-        peer.sendHaveNone()
-      } else if (advertisedBitfield) {
-        this.logger.debug('Sending BitField to peer')
-        peer.sendMessage(MessageType.BITFIELD, advertisedBitfield.toBuffer())
-      } else {
-        this.logger.debug('No bitfield to send')
-      }
-    }
-
-    // CRITICAL: Register error and close handlers FIRST, before any code that might call peer.close()
-    // This ensures that when self-connection is detected and peer.close() is called in onHandshake,
-    // the close event handler exists and removePeer() will be called to clean up swarm state.
-    peer.on('error', (err) => {
-      this.logger.error(`Peer error: ${err.message}`)
-      this.removePeer(peer)
-    })
-
-    peer.on('close', () => {
-      this.logger.debug('Peer closed')
-      this.removePeer(peer)
-      // Peer left - choke algorithm will handle slot reallocation
-    })
-
-    peer.on('handshake', onHandshake)
-
-    // If handshake already received (e.g. incoming connection handled by BtEngine), trigger logic immediately
-    if (peer.handshakeReceived && peer.infoHash && peer.peerId) {
-      onHandshake(peer.infoHash, peer.peerId, peer.peerExtensions)
-    }
-
-    peer.on('extension_handshake', (payload) => {
-      // Extract clientName from BEP 10 "v" field
-      const clientName = typeof payload.v === 'string' ? payload.v : null
-
-      // Update swarm with clientName
-      if (peer.remoteAddress && peer.remotePort && peer.peerId) {
-        const key = peerKey(peer.remoteAddress, peer.remotePort)
-        this._swarm.setIdentity(key, peer.peerId, clientName)
-      }
-
-      // Delegate metadata handling to the fetcher
-      this._metadataFetcher.onExtensionHandshake(peer)
-    })
-
-    peer.on('metadata_request', (piece) => {
-      this._metadataFetcher.onMetadataRequest(peer, piece)
-    })
-
-    peer.on('metadata_data', (piece, totalSize, data) => {
-      this._metadataFetcher.onMetadataData(peer, piece, totalSize, data)
-    })
-
-    peer.on('metadata_reject', (piece) => {
-      this._metadataFetcher.onMetadataReject(peer, piece)
-    })
-
-    peer.on('bitfield', (bf) => {
-      this.logger.debug('Bitfield received')
-
-      // Update availability tracking
-      const result = this._availability.onBitfield(bf, this.piecesCount)
-      peer.haveCount = result.haveCount
-      peer.isSeed = result.isSeed
-
-      if (peer.isSeed) {
-        this.logger.debug(`Peer is a seed (seedCount: ${this._availability.seedCount})`)
-      }
-
-      // Phase 8: Build peer piece index for non-seeds
-      this.buildPeerPieceIndex(peer)
-
-      // Update interest
-      this.updateInterest(peer)
-    })
-
-    // BEP 6 Fast Extension: Handle Have All
-    peer.on('have_all', () => {
-      this.logger.debug('Have All received (peer is a seeder)')
-
-      // If we don't have metadata yet, defer creating the bitfield
-      // recheckPeers() will handle it when metadata arrives
-      if (this.piecesCount === 0) {
-        this.logger.debug('Deferring have_all - no metadata yet')
-        peer.deferredHaveAll = true
-        return
-      }
-
-      // Create a full bitfield for the peer
-      peer.bitfield = BitField.createFull(this.piecesCount)
-      peer.haveCount = this.piecesCount
-      peer.isSeed = true
-
-      // Seeds are tracked separately - don't add to per-piece availability
-      this._availability.onHaveAll()
-      this.logger.debug(`Peer is a seed via HAVE_ALL (seedCount: ${this._availability.seedCount})`)
-
-      // Update interest
-      this.updateInterest(peer)
-    })
-
-    // BEP 6 Fast Extension: Handle Have None
-    peer.on('have_none', () => {
-      this.logger.debug('Have None received (peer has no pieces)')
-
-      // Create an empty bitfield for the peer
-      peer.bitfield = BitField.createEmpty(this.piecesCount)
-
-      // No availability updates needed - peer has nothing
-      // Update interest (we won't be interested)
-      this.updateInterest(peer)
-    })
-
-    peer.on('have', (index) => {
-      this.logger.debug(`Have received ${index}`)
-
-      // If peer is already a seed, shouldn't receive HAVE messages
-      if (peer.isSeed) {
-        this.logger.warn(`Received HAVE from peer already marked as seed`)
-        return
-      }
-
-      const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
-      const result = this._availability.onHave(
-        peerId,
-        index,
-        this.piecesCount,
-        peer.haveCount,
-        peer.bitfield,
-      )
-
-      // Update peer state
-      peer.haveCount++
-      if (result.becameSeed) {
-        peer.isSeed = true
-        this.logger.debug(
-          `Peer converted to seed via HAVE messages (seedCount: ${this._availability.seedCount})`,
-        )
-      } else if (this.shouldAddToIndex(index)) {
-        // Add piece to peer's index if we need it
-        this._availability.addPieceToIndex(peerId, index)
-      }
-
-      this.updateInterest(peer)
-    })
-
-    peer.on('unchoke', () => {
-      this.logger.debug('Unchoke received')
-      // Request pipeline filled by requestTick() game loop
-    })
-
-    peer.on('choke', () => {
-      this.logger.debug('Choke received')
-      // Peer has discarded all our pending requests per BitTorrent spec
-      const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
-      const cleared = this.activePieces?.clearRequestsForPeer(peerId) || 0
-      peer.requestsPending = 0 // Critical: reset so we can request again after unchoke
-      // Reduce pipeline depth - choke is a congestion signal
-      peer.reduceDepth()
-      if (cleared > 0) {
-        this.logger.debug(`Cleared ${cleared} tracked requests after choke`)
-      }
-    })
-
-    peer.on('interested', () => {
-      this.logger.debug('Interested received')
-      this.handleInterested(peer)
-    })
-
-    peer.on('not_interested', () => {
-      this.logger.debug('Not interested received')
-      // Peer no longer wants data - choke algorithm will handle slot reallocation
-    })
-
-    peer.on('message', (msg) => {
-      if (msg.type === MessageType.PIECE) {
-        this.handleBlock(peer, msg)
-      }
-    })
-
-    peer.on('request', (index, begin, length) => {
-      this.handleRequest(peer, index, begin, length)
-    })
-
-    peer.on('bytesDownloaded', (bytes) => {
-      this.totalDownloaded += bytes
-      this.emit('download', bytes)
-      ;(this.engine as BtEngine).bandwidthTracker.record('peer:protocol', bytes, 'down')
-    })
-
-    peer.on('bytesUploaded', (bytes) => {
-      this.totalUploaded += bytes
-      ;(this.engine as BtEngine).bandwidthTracker.record('peer:protocol', bytes, 'up')
-    })
-
-    // PEX: Listen for peers discovered via peer exchange
-    // Note: pex_peers is emitted by PexHandler using (peer as any).emit()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(peer as any).on('pex_peers', (peers: import('./swarm').PeerAddress[]) => {
-      // BEP 27: Private torrents must not use PEX
-      if (this.isPrivate) {
-        return
-      }
-      const added = this._swarm.addPeers(peers, 'pex')
-      if (added > 0) {
-        this.logger.debug(`Added ${added} PEX peers to swarm (total: ${this._swarm.size})`)
-        // Try to fill peer slots with newly discovered peers
-        this.fillPeerSlots()
-      }
-    })
+    this._peerHandler.setupListeners(peer)
   }
 
   private removePeer(peer: PeerConnection) {
@@ -2640,79 +1985,7 @@ export class Torrent extends EngineComponent {
    * Delegates to runMaintenance() for single codepath.
    */
   private fillPeerSlots(): void {
-    this.runMaintenance()
-  }
-
-  private handleRequest(peer: PeerConnection, index: number, begin: number, length: number): void {
-    this._uploader.queueRequest(peer, index, begin, length)
-  }
-
-  /**
-   * Build peer snapshots for the coordinator algorithms.
-   */
-  private buildPeerSnapshots(): PeerSnapshot[] {
-    const now = Date.now()
-    return this.peers.map((peer) => ({
-      id: peerKey(peer.remoteAddress!, peer.remotePort!),
-      peerInterested: peer.peerInterested,
-      peerChoking: peer.peerChoking,
-      amChoking: peer.amChoking,
-      downloadRate: peer.downloadSpeed,
-      connectedAt: peer.connectedAt,
-      lastDataReceived: peer.downloadSpeedCalculator.lastActivity || now,
-      isIncoming: peer.isIncoming,
-      totalBytesReceived: peer.downloadSpeedCalculator.totalBytes,
-    }))
-  }
-
-  /**
-   * Apply an unchoke decision to a peer.
-   */
-  private applyUnchokeDecision(decision: ChokeDecision): void {
-    const peer = this.peers.find(
-      (p) => peerKey(p.remoteAddress!, p.remotePort!) === decision.peerId,
-    )
-    if (!peer) return
-
-    if (decision.action === 'unchoke') {
-      if (peer.amChoking) {
-        peer.amChoking = false
-        peer.sendMessage(MessageType.UNCHOKE)
-        this.logger.debug(`Unchoked ${decision.peerId} (${decision.reason})`)
-      }
-    } else {
-      this.chokePeer(peer)
-      this.logger.debug(`Choked ${decision.peerId} (${decision.reason})`)
-    }
-  }
-
-  /**
-   * Apply a drop decision to a peer.
-   */
-  private applyDropDecision(decision: DropDecision): void {
-    const peer = this.peers.find(
-      (p) => peerKey(p.remoteAddress!, p.remotePort!) === decision.peerId,
-    )
-    if (!peer) return
-
-    this.logger.info(`Dropping slow peer ${decision.peerId}: ${decision.reason}`)
-    peer.close()
-  }
-
-  /**
-   * Choke a peer and clear their upload queue.
-   */
-  private chokePeer(peer: PeerConnection): void {
-    if (peer.amChoking) return
-
-    peer.amChoking = true
-    peer.sendMessage(MessageType.CHOKE)
-
-    // Clear queued uploads for this peer
-    const removed = this._uploader.removeQueuedUploads(peer)
-    if (removed > 0) {
-      this.logger.debug(`Cleared ${removed} queued uploads for choked peer`)
-    }
+    this._tickLoop.runMaintenance()
   }
 
   private handleInterested(peer: PeerConnection) {
@@ -3261,8 +2534,8 @@ export class Torrent extends EngineComponent {
     this._networkActive = false
 
     // Stop periodic maintenance
-    this.stopMaintenance()
-    this.stopRequestTick()
+    this._tickLoop.stopMaintenance()
+    this._tickLoop.stopRequestTick()
     this.logger.info(`stopMaintenance done at ${Date.now() - t0}ms`)
 
     // Cancel any pending connection attempts

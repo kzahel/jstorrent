@@ -266,11 +266,10 @@ describe('Torrent Connection Limits', () => {
         swarm.markConnected(key, peer)
       }
 
-      // Manually trigger invariant check
-      const checkInvariants = (
-        torrent as unknown as { checkSwarmInvariants: () => void }
-      ).checkSwarmInvariants.bind(torrent)
-      checkInvariants()
+      // Manually trigger invariant check via the tick loop
+      const tickLoop = (torrent as unknown as { _tickLoop: { runMaintenance: () => void } })
+        ._tickLoop
+      tickLoop.runMaintenance()
 
       // Should have emitted violation
       expect(violations.length).toBeGreaterThan(0)
