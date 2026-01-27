@@ -45,10 +45,50 @@ class PolyfillBindings(
         }
     }
 
+    // Hash instrumentation
+    private var hashCallCount = 0L
+    private var hashTotalBytes = 0L
+    private var hashTotalTimeNs = 0L
+    private var hashMaxTimeNs = 0L
+    private var hashLastLogTime = 0L
+
     private fun registerHashFunctions(ctx: QuickJsContext) {
         // __jstorrent_sha1(data: ArrayBuffer): ArrayBuffer
         ctx.setGlobalFunctionReturnsBinary("__jstorrent_sha1", 0) { _, binary ->
-            binary?.let { Hasher.sha1(it) }
+            binary?.let { data ->
+                val startNs = System.nanoTime()
+                val result = Hasher.sha1(data)
+                val elapsedNs = System.nanoTime() - startNs
+
+                // Track timing
+                hashCallCount++
+                hashTotalBytes += data.size
+                hashTotalTimeNs += elapsedNs
+                if (elapsedNs > hashMaxTimeNs) {
+                    hashMaxTimeNs = elapsedNs
+                }
+
+                // Log every 5 seconds
+                val now = System.currentTimeMillis()
+                if (now - hashLastLogTime >= 5000 && hashCallCount > 0) {
+                    val avgUs = (hashTotalTimeNs / hashCallCount) / 1000.0
+                    val maxUs = hashMaxTimeNs / 1000.0
+                    val totalMB = hashTotalBytes / 1024.0 / 1024.0
+                    val totalSec = hashTotalTimeNs / 1_000_000_000.0
+                    val throughputMBps = if (totalSec > 0) totalMB / totalSec else 0.0
+                    Log.i("JSTorrent-Hash",
+                        "Kotlin: $hashCallCount hashes, ${"%.1f".format(totalMB)}MB, " +
+                        "avg ${"%.0f".format(avgUs)}µs, max ${"%.0f".format(maxUs)}µs, " +
+                        "throughput ${"%.0f".format(throughputMBps)}MB/s")
+                    hashCallCount = 0
+                    hashTotalBytes = 0
+                    hashTotalTimeNs = 0
+                    hashMaxTimeNs = 0
+                    hashLastLogTime = now
+                }
+
+                result
+            }
         }
     }
 

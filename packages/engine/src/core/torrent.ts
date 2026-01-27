@@ -39,6 +39,7 @@ import { PexHandler } from '../extensions/pex-handler'
 import { CorruptionTracker, BanDecision } from './corruption-tracker'
 import { MetadataFetcher } from './metadata-fetcher'
 import { TorrentUploader } from './torrent-uploader'
+import { FilePriorityManager, PieceClassification } from './file-priority-manager'
 
 /**
  * Maximum ratio of peer slots that incoming connections can occupy.
@@ -77,13 +78,9 @@ export const PIECE_ABANDON_MIN_PROGRESS = 0.5 // 50%
  */
 export const CLEANUP_TICK_INTERVAL = 5
 
-/**
- * Piece classification for file priority system.
- * - 'wanted': All files touched by this piece are non-skipped
- * - 'boundary': Piece touches both skipped and non-skipped files
- * - 'blacklisted': All files touched by this piece are skipped
- */
-export type PieceClassification = 'wanted' | 'boundary' | 'blacklisted'
+// PieceClassification is imported from './file-priority-manager'
+// Re-export for consumers
+export type { PieceClassification } from './file-priority-manager'
 
 /**
  * All persisted fields for a torrent.
@@ -192,10 +189,7 @@ export class Torrent extends EngineComponent {
   public maxPeers: number = 20
 
   // === File Priority System ===
-  /** Per-file priorities: 0 = normal, 1 = skip */
-  private _filePriorities: number[] = []
-  /** Cached piece classification (recomputed on file priority changes) */
-  private _pieceClassification: PieceClassification[] = []
+  // File priorities and piece classification are managed by FilePriorityManager
   /** Per-piece availability count (how many connected peers have each piece) */
   private _pieceAvailability: Uint16Array | null = null
   /**
@@ -204,8 +198,6 @@ export class Torrent extends EngineComponent {
    * For availability calculations, use: pieceAvailability[i] + seedCount
    */
   private _seedCount: number = 0
-  /** Per-piece priority derived from file priorities (0=skip, 1=normal, 2=high) */
-  private _piecePriority: Uint8Array | null = null
   /**
    * Phase 8: Per-peer piece index for O(1) lookup of pieces to request.
    * Maps peerId -> Set of piece indices that peer has that we need and aren't active.
@@ -228,6 +220,9 @@ export class Torrent extends EngineComponent {
 
   // Uploader for rate-limited piece uploads
   private _uploader!: TorrentUploader
+
+  // File priority manager
+  private _filePriorityManager!: FilePriorityManager
 
   // Download rate limit retry scheduling
   private downloadRateLimitRetryScheduled = false
@@ -503,6 +498,37 @@ export class Torrent extends EngineComponent {
     })
     this._uploader.setContentStorage(this.contentStorage ?? null)
 
+    // Initialize file priority manager
+    this._filePriorityManager = new FilePriorityManager({
+      engine: this.engineInstance,
+      infoHash: this.infoHash,
+      getPiecesCount: () => this.piecesCount,
+      getPieceLength: (index) => this.getPieceLength(index),
+      getFiles: () => this.contentStorage?.filesList ?? [],
+      hasMetadata: () => this.hasMetadata,
+      isFileComplete: (fileIndex) => this.isFileComplete(fileIndex),
+      getBitfield: () => this._bitfield,
+      onPrioritiesChanged: (filePriorities, _classification) => {
+        // Propagate file priorities to contentStorage for filtered writes
+        this.contentStorage?.setFilePriorities(filePriorities)
+      },
+      onBlacklistPieces: (indices) => {
+        // Clear blacklisted pieces from active pieces
+        if (this.activePieces) {
+          let cleared = 0
+          for (const index of indices) {
+            if (this.activePieces.has(index)) {
+              this.activePieces.remove(index)
+              cleared++
+            }
+          }
+          if (cleared > 0) {
+            this.logger.debug(`Cleared ${cleared} blacklisted active pieces`)
+          }
+        }
+      },
+    })
+
     if (this.announce.length > 0) {
       this.initTrackerManager()
     }
@@ -713,8 +739,7 @@ export class Torrent extends EngineComponent {
    * Number of pieces we actually want (not blacklisted).
    */
   get wantedPiecesCount(): number {
-    if (this._pieceClassification.length === 0) return this.piecesCount
-    return this._pieceClassification.filter((c) => c !== 'blacklisted').length
+    return this._filePriorityManager.getWantedPiecesCount()
   }
 
   /**
@@ -722,23 +747,14 @@ export class Torrent extends EngineComponent {
    * Counts pieces that are wanted or boundary and have bitfield=1.
    */
   get completedWantedPiecesCount(): number {
-    if (!this._bitfield) return 0
-    if (this._pieceClassification.length === 0) return this.completedPiecesCount
-
-    let count = 0
-    for (let i = 0; i < this.piecesCount; i++) {
-      if (this._pieceClassification[i] !== 'blacklisted' && this._bitfield.get(i)) {
-        count++
-      }
-    }
-    return count
+    return this._filePriorityManager.getCompletedWantedCount()
   }
 
   get isDownloadComplete(): boolean {
     if (this.piecesCount === 0) return false
 
     // If we have file priorities, check only wanted pieces
-    if (this._pieceClassification.length > 0) {
+    if (this.pieceClassification.length > 0) {
       return this.completedWantedPiecesCount === this.wantedPiecesCount
     }
 
@@ -862,27 +878,27 @@ export class Torrent extends EngineComponent {
     return []
   }
 
-  // === File Priority System ===
+  // === File Priority System (delegated to FilePriorityManager) ===
 
   /**
    * Get file priorities array. Returns empty array if no files.
    */
   get filePriorities(): number[] {
-    return this._filePriorities
+    return this._filePriorityManager.filePriorities
   }
 
   /**
    * Get the piece classification array.
    */
   get pieceClassification(): PieceClassification[] {
-    return this._pieceClassification
+    return this._filePriorityManager.pieceClassification
   }
 
   /**
    * Get per-piece priority (0=skip, 1=normal, 2=high).
    */
   get piecePriority(): Uint8Array | null {
-    return this._piecePriority
+    return this._filePriorityManager.piecePriority
   }
 
   /**
@@ -924,7 +940,7 @@ export class Torrent extends EngineComponent {
    * Check if a file is skipped.
    */
   isFileSkipped(fileIndex: number): boolean {
-    return this._filePriorities[fileIndex] === 1
+    return this._filePriorityManager.isFileSkipped(fileIndex)
   }
 
   /**
@@ -951,41 +967,23 @@ export class Torrent extends EngineComponent {
    * @returns true if priority was changed, false if ignored (e.g., file already complete)
    */
   setFilePriority(fileIndex: number, priority: number): boolean {
-    if (!this.hasMetadata) return false
-    const fileCount = this.contentStorage?.filesList.length ?? 0
-    if (fileIndex < 0 || fileIndex >= fileCount) return false
+    const wasSkipped = this._filePriorityManager.isFileSkipped(fileIndex)
+    const changed = this._filePriorityManager.setFilePriority(fileIndex, priority)
 
-    // Prevent skipping completed files
-    if (priority === 1 && this.isFileComplete(fileIndex)) {
-      this.logger.debug(`Ignoring skip request for completed file ${fileIndex}`)
-      return false
+    if (changed) {
+      // Persist state change
+      ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
+
+      // If un-skipping, try to materialize any boundary pieces
+      if (wasSkipped && priority === 0) {
+        // Fire and forget - don't block the caller
+        this.materializeEligiblePieces().catch((e) => {
+          this.logger.error('Error materializing pieces:', e)
+        })
+      }
     }
 
-    // Ensure array is initialized
-    if (this._filePriorities.length !== fileCount) {
-      this._filePriorities = new Array(fileCount).fill(0)
-    }
-
-    if (this._filePriorities[fileIndex] === priority) return false
-
-    const wasSkipped = this._filePriorities[fileIndex] === 1
-    this._filePriorities[fileIndex] = priority
-    this.recomputePieceClassification()
-
-    // Persist state change
-    ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
-
-    this.logger.info(`File ${fileIndex} priority set to ${priority === 1 ? 'skip' : 'normal'}`)
-
-    // If un-skipping, try to materialize any boundary pieces
-    if (wasSkipped && priority === 0) {
-      // Fire and forget - don't block the caller
-      this.materializeEligiblePieces().catch((e) => {
-        this.logger.error('Error materializing pieces:', e)
-      })
-    }
-
-    return true
+    return changed
   }
 
   /**
@@ -994,40 +992,18 @@ export class Torrent extends EngineComponent {
    * @returns Number of files whose priority was changed
    */
   setFilePriorities(priorities: Map<number, number>): number {
-    if (!this.hasMetadata) return 0
-    const fileCount = this.contentStorage?.filesList.length ?? 0
-
-    // Ensure array is initialized
-    if (this._filePriorities.length !== fileCount) {
-      this._filePriorities = new Array(fileCount).fill(0)
-    }
-
-    let changed = 0
-    let anyUnskipped = false
-    for (const [fileIndex, priority] of priorities) {
-      if (fileIndex < 0 || fileIndex >= fileCount) continue
-
-      // Prevent skipping completed files
-      if (priority === 1 && this.isFileComplete(fileIndex)) {
-        this.logger.debug(`Ignoring skip request for completed file ${fileIndex}`)
-        continue
-      }
-
-      if (this._filePriorities[fileIndex] !== priority) {
-        if (this._filePriorities[fileIndex] === 1 && priority === 0) {
-          anyUnskipped = true
-        }
-        this._filePriorities[fileIndex] = priority
-        changed++
-      }
-    }
+    // Check for any files that will be un-skipped
+    const oldPriorities = [...this.filePriorities]
+    const changed = this._filePriorityManager.setFilePriorities(priorities)
 
     if (changed > 0) {
-      this.recomputePieceClassification()
       ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
-      this.logger.info(`Updated ${changed} file priorities`)
 
-      // If any files were un-skipped, try to materialize boundary pieces
+      // Check if any files were un-skipped
+      const anyUnskipped = this._filePriorityManager.checkForUnskipped(
+        oldPriorities,
+        this.filePriorities,
+      )
       if (anyUnskipped) {
         this.materializeEligiblePieces().catch((e) => {
           this.logger.error('Error materializing pieces:', e)
@@ -1042,15 +1018,8 @@ export class Torrent extends EngineComponent {
    * Initialize file priorities array (called when metadata becomes available).
    */
   initFilePriorities(): void {
-    const fileCount = this.contentStorage?.filesList.length ?? 0
-    if (fileCount === 0) return
-
-    // Initialize all to normal (0) if not already set
-    if (this._filePriorities.length !== fileCount) {
-      this._filePriorities = new Array(fileCount).fill(0)
-    }
-
-    this.recomputePieceClassification()
+    this._filePriorityManager.setStandardPieceLength(this.pieceLength)
+    this._filePriorityManager.initFilePriorities()
   }
 
   /**
@@ -1059,19 +1028,8 @@ export class Torrent extends EngineComponent {
    * Called during session restore after metadata is available.
    */
   restoreFilePriorities(priorities: number[]): void {
-    if (!this.hasMetadata) return
-
-    const fileCount = this.contentStorage?.filesList.length ?? 0
-    if (priorities.length !== fileCount) {
-      this.logger.warn(
-        `File priorities length mismatch: ${priorities.length} vs ${fileCount} files, ignoring`,
-      )
-      return
-    }
-
-    this._filePriorities = [...priorities]
-    this.recomputePieceClassification()
-    this.logger.debug(`Restored file priorities for ${fileCount} files`)
+    this._filePriorityManager.setStandardPieceLength(this.pieceLength)
+    this._filePriorityManager.restoreFilePriorities(priorities)
   }
 
   /**
@@ -1136,7 +1094,7 @@ export class Torrent extends EngineComponent {
     if (!this._bitfield?.get(pieceIndex)) return false
 
     // The new classification should be 'wanted' (all files non-skipped)
-    return this._pieceClassification[pieceIndex] === 'wanted'
+    return this.pieceClassification[pieceIndex] === 'wanted'
   }
 
   /**
@@ -1173,178 +1131,10 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Recompute piece classification based on current file priorities.
-   * Called whenever file priorities change.
-   */
-  private recomputePieceClassification(): void {
-    if (!this.hasMetadata || !this.contentStorage) {
-      this._pieceClassification = []
-      return
-    }
-
-    const files = this.contentStorage.filesList
-    const classification: PieceClassification[] = new Array(this.piecesCount)
-
-    for (let pieceIndex = 0; pieceIndex < this.piecesCount; pieceIndex++) {
-      const pieceStart = pieceIndex * this.pieceLength
-      const pieceEnd = pieceStart + this.getPieceLength(pieceIndex)
-
-      let touchesSkipped = false
-      let touchesNonSkipped = false
-
-      for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
-        const file = files[fileIndex]
-        const fileEnd = file.offset + file.length
-
-        // Check if piece overlaps with this file
-        if (pieceStart < fileEnd && pieceEnd > file.offset) {
-          if (this._filePriorities[fileIndex] === 1) {
-            touchesSkipped = true
-          } else {
-            touchesNonSkipped = true
-          }
-        }
-
-        // Early exit if we've found both
-        if (touchesSkipped && touchesNonSkipped) break
-      }
-
-      if (touchesSkipped && touchesNonSkipped) {
-        classification[pieceIndex] = 'boundary'
-      } else if (touchesSkipped) {
-        classification[pieceIndex] = 'blacklisted'
-      } else {
-        classification[pieceIndex] = 'wanted'
-      }
-    }
-
-    this._pieceClassification = classification
-
-    // Propagate file priorities to contentStorage for filtered writes
-    this.contentStorage.setFilePriorities(this._filePriorities)
-
-    // Log summary
-    const wanted = classification.filter((c) => c === 'wanted').length
-    const boundary = classification.filter((c) => c === 'boundary').length
-    const blacklisted = classification.filter((c) => c === 'blacklisted').length
-    this.logger.debug(
-      `Piece classification: ${wanted} wanted, ${boundary} boundary, ${blacklisted} blacklisted`,
-    )
-
-    // Clear any active pieces that are now blacklisted
-    this.clearBlacklistedActivePieces()
-
-    // Recompute piece priorities (for rarest-first selection)
-    this.recomputePiecePriority()
-  }
-
-  /**
-   * Recompute piece priorities from file priorities.
-   * Piece priority = max(priority of files it touches), mapped as:
-   *   - File priority 0 (normal) → contributes piece priority 1
-   *   - File priority 1 (skip) → contributes piece priority 0
-   *   - File priority 2 (high) → contributes piece priority 2
-   *
-   * This means:
-   *   - Piece priority 0 = skip (all touching files are skipped)
-   *   - Piece priority 1 = normal (at least one touching file is normal)
-   *   - Piece priority 2 = high (at least one touching file is high priority)
-   */
-  private recomputePiecePriority(): void {
-    if (!this.hasMetadata || !this.contentStorage || this.piecesCount === 0) {
-      this._piecePriority = null
-      return
-    }
-
-    if (!this._piecePriority || this._piecePriority.length !== this.piecesCount) {
-      this._piecePriority = new Uint8Array(this.piecesCount)
-    }
-
-    const files = this.contentStorage.filesList
-
-    for (let pieceIndex = 0; pieceIndex < this.piecesCount; pieceIndex++) {
-      const pieceStart = pieceIndex * this.pieceLength
-      const pieceEnd = pieceStart + this.getPieceLength(pieceIndex)
-
-      let maxPriority = 0 // Start as skip
-
-      for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
-        const file = files[fileIndex]
-        const fileEnd = file.offset + file.length
-
-        // Check if piece overlaps with this file
-        if (pieceStart < fileEnd && pieceEnd > file.offset) {
-          const filePriority = this._filePriorities[fileIndex] ?? 0
-
-          // Map file priority to piece priority contribution
-          let contribution = 0
-          if (filePriority === 2) {
-            contribution = 2 // High priority
-          } else if (filePriority === 0) {
-            contribution = 1 // Normal priority
-          }
-          // filePriority === 1 (skip) contributes 0
-
-          maxPriority = Math.max(maxPriority, contribution)
-
-          // Early exit if we hit high priority (can't go higher)
-          if (maxPriority === 2) break
-        }
-      }
-
-      this._piecePriority[pieceIndex] = maxPriority
-    }
-
-    // Log summary
-    let skip = 0,
-      normal = 0,
-      high = 0
-    for (let i = 0; i < this.piecesCount; i++) {
-      const p = this._piecePriority[i]
-      if (p === 0) skip++
-      else if (p === 1) normal++
-      else high++
-    }
-    if (high > 0) {
-      this.logger.debug(`Piece priority: ${high} high, ${normal} normal, ${skip} skip`)
-    }
-  }
-
-  /**
-   * Remove any active pieces that are blacklisted.
-   * Called when file priorities change or on completion.
-   */
-  private clearBlacklistedActivePieces(): void {
-    if (!this.activePieces || this._pieceClassification.length === 0) return
-
-    let cleared = 0
-    for (const index of this.activePieces.activeIndices) {
-      if (this._pieceClassification[index] === 'blacklisted') {
-        this.activePieces.remove(index)
-        cleared++
-      }
-    }
-    if (cleared > 0) {
-      this.logger.debug(`Cleared ${cleared} blacklisted active pieces`)
-    }
-  }
-
-  /**
    * Check if a piece should be requested based on priority.
    */
   shouldRequestPiece(index: number): boolean {
-    // Already have it
-    if (this._bitfield?.get(index)) return false
-
-    // Check piece priority (0 = skip)
-    if (this._piecePriority && this._piecePriority[index] === 0) return false
-
-    // Fallback to classification for backwards compatibility
-    if (this._pieceClassification.length > 0) {
-      if (this._pieceClassification[index] === 'blacklisted') return false
-    }
-
-    return true // Wanted or boundary - both get requested
+    return this._filePriorityManager.shouldRequestPiece(index, this._bitfield)
   }
 
   /**
@@ -1380,7 +1170,7 @@ export class Torrent extends EngineComponent {
     if (this.piecesCount === 0) return 0
 
     // If we have file priorities, calculate progress based on wanted pieces
-    if (this._pieceClassification.length > 0) {
+    if (this.pieceClassification.length > 0) {
       const wanted = this.wantedPiecesCount
       if (wanted === 0) return 1 // All files skipped = 100% (nothing to do)
       return this.completedWantedPiecesCount / wanted
@@ -3010,7 +2800,7 @@ export class Torrent extends EngineComponent {
     if (this._bitfield?.get(pieceIndex)) return false
 
     // Skip if priority is 0 (skipped file)
-    if (this._piecePriority && this._piecePriority[pieceIndex] === 0) return false
+    if (this.piecePriority && this.piecePriority[pieceIndex] === 0) return false
 
     // Skip if already active
     if (this.activePieces?.has(pieceIndex)) return false
@@ -3144,11 +2934,11 @@ export class Torrent extends EngineComponent {
     // PHASE 1: Request from existing partial pieces (rarest-first with speed affinity)
     // Phase 3: Use getPartialsRarestFirst() to prioritize rare pieces and nearly-complete pieces
     // Phase 4: Use speed affinity to prevent piece fragmentation
-    if (this._pieceAvailability && this._piecePriority) {
+    if (this._pieceAvailability && this.piecePriority) {
       const sortedPartials = this.activePieces.getPartialsRarestFirst(
         this._pieceAvailability,
         this._seedCount,
-        this._piecePriority,
+        this.piecePriority,
       )
 
       for (const piece of sortedPartials) {
@@ -3244,7 +3034,7 @@ export class Torrent extends EngineComponent {
       flushPending()
       return
     }
-    if (!peerBitfield || !this._bitfield || !this._piecePriority || !this._pieceAvailability) {
+    if (!peerBitfield || !this._bitfield || !this.piecePriority || !this._pieceAvailability) {
       flushPending()
       return
     }
@@ -3338,7 +3128,7 @@ export class Torrent extends EngineComponent {
   private _findCandidatesLastLogTime = 0
 
   private findNewPieceCandidates(peer: PeerConnection, maxCount: number): number[] {
-    if (!this._bitfield || !this._piecePriority || !this._pieceAvailability || !this.activePieces) {
+    if (!this._bitfield || !this.piecePriority || !this._pieceAvailability || !this.activePieces) {
       return []
     }
 
@@ -3364,7 +3154,7 @@ export class Torrent extends EngineComponent {
         // - Priority > 0 (shouldAddToIndex checks this)
         // - Not already active (shouldAddToIndex checks this)
         // Just compute sort key
-        const prio = this._piecePriority[i]
+        const prio = this.piecePriority[i]
         const availability = this._pieceAvailability[i] + this._seedCount
         const sortKey = availability * (8 - prio) * 3 // 8 = PRIORITY_LEVELS, 3 = PRIO_FACTOR
 
@@ -3387,7 +3177,7 @@ export class Torrent extends EngineComponent {
         if (!peer.isSeed && !bitfield?.get(i)) continue
 
         // Skip if priority is 0 (skipped file)
-        const prio = this._piecePriority[i]
+        const prio = this.piecePriority[i]
         if (prio === 0) continue
 
         // Skip if already active (handled in phase 1)
@@ -3531,7 +3321,7 @@ export class Torrent extends EngineComponent {
     const expectedHash = this.getPieceHash(index)
 
     // Check piece classification to determine storage destination
-    const classification = this._pieceClassification[index]
+    const classification = this.pieceClassification[index]
     const isBoundaryPiece = classification === 'boundary'
 
     if (isBoundaryPiece && this._partsFile) {
@@ -3650,10 +3440,17 @@ export class Torrent extends EngineComponent {
       }
 
       // Send HAVE message to all peers (only for non-boundary pieces)
+      const haveStart = Date.now()
+      let haveSent = 0
       for (const p of this.connectedPeers) {
         if (p.handshakeReceived) {
           p.sendHave(index)
+          haveSent++
         }
+      }
+      const haveMs = Date.now() - haveStart
+      if (haveMs > 1 || haveSent > 20) {
+        console.log(`[PERF] HAVE broadcast: ${haveSent} peers, ${haveMs}ms`)
       }
     }
 
@@ -3664,7 +3461,9 @@ export class Torrent extends EngineComponent {
       `Piece ${index} verified [${this.completedPiecesCount}/${this.piecesCount}] ${progressPct}%`,
     )
 
+    const t0 = Date.now()
     this.emit('piece', index)
+    const t1 = Date.now()
 
     // Emit progress event with detailed info
     this.emit('progress', {
@@ -3674,12 +3473,11 @@ export class Torrent extends EngineComponent {
       progress: this.progress,
       downloaded: this.totalDownloaded,
     })
-
-    // Emit verified event for persistence
-    if (this.bitfield) {
-      this.emit('verified', {
-        bitfield: this.bitfield.toHex(),
-      })
+    const total = Date.now() - t0
+    if (total > 1) {
+      console.log(
+        `[PERF] Events: piece=${t1 - t0}ms progress=${total - (t1 - t0)}ms total=${total}ms`,
+      )
     }
 
     // Check completion first so completedAt is set before persisting
@@ -3856,18 +3654,8 @@ export class Torrent extends EngineComponent {
     this._persisted.totalUploaded = 0
 
     // Reset file priorities to all normal (0)
-    const fileCount = this.contentStorage?.filesList.length ?? 0
-    if (fileCount > 0) {
-      this._filePriorities = new Array(fileCount).fill(0)
-      this._pieceClassification = []
-      this.recomputePieceClassification()
-
-      // Also reset on content storage
-      this.contentStorage?.setFilePriorities(this._filePriorities)
-    } else {
-      this._filePriorities = []
-      this._pieceClassification = []
-    }
+    this._filePriorityManager.setStandardPieceLength(this.pieceLength)
+    this._filePriorityManager.initFilePriorities()
 
     // Clear cached file info so it's recomputed with fresh values
     this._files = []
@@ -3925,7 +3713,7 @@ export class Torrent extends EngineComponent {
       for (let i = 0; i < this.piecesCount; i++) {
         try {
           // Check if this is a boundary piece that might be in .parts
-          const isBoundary = this._pieceClassification[i] === 'boundary'
+          const isBoundary = this.pieceClassification[i] === 'boundary'
           let isValid = false
 
           if (isBoundary && this._partsFile?.hasPiece(i)) {
@@ -3956,10 +3744,6 @@ export class Torrent extends EngineComponent {
       this._checkingProgress = 0
     }
 
-    // Trigger save of resume data
-    if (this.bitfield) {
-      this.emit('verified', { bitfield: this.bitfield.toHex() })
-    }
     this.emit('checked')
     this.logger.info(
       `Recheck complete for ${this.infoHashStr} (${this._partsFilePieces.size} pieces in .parts)`,
@@ -4089,7 +3873,7 @@ export class Torrent extends EngineComponent {
       // Always sync metadataRaw → infoBuffer
       infoBuffer: this.metadataRaw ?? undefined,
       // Always sync filePriorities
-      filePriorities: this._filePriorities.length > 0 ? [...this._filePriorities] : undefined,
+      filePriorities: this.filePriorities.length > 0 ? [...this.filePriorities] : undefined,
     }
   }
 
@@ -4113,11 +3897,9 @@ export class Torrent extends EngineComponent {
       this._cachedInfoDict = undefined // Clear cache so infoDict getter re-parses
     }
 
-    // Restore file priorities
-    if (state.filePriorities && state.filePriorities.length > 0) {
-      this._filePriorities = [...state.filePriorities]
-      // Note: pieceClassification will be recomputed after metadata is initialized
-    }
+    // Restore file priorities (will be applied when initFilePriorities is called)
+    // Note: pieceClassification will be recomputed after metadata is initialized
+    // This is handled by calling restoreFilePriorities after metadata initialization
   }
 
   // === Initialization helpers ===

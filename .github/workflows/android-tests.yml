@@ -193,8 +193,16 @@ jobs:
           script: |
             # Run all instrumented tests EXCEPT E2E tests (which need external seeder)
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
+            TEST_RESULT=$?
+            # Kill emulator and adb server before action cleanup to avoid "stop: Not implemented" error
+            adb emu kill 2>/dev/null || true
+            sleep 2
+            adb kill-server 2>/dev/null || true
+            sleep 1
+            exit $TEST_RESULT
 
       - name: Check Test Results
+        if: always()
         run: |
           # Check if the test XML results indicate failure
           FAILED=0
@@ -208,12 +216,10 @@ jobs:
             echo "Tests failed - check artifacts for details"
             exit 1
           fi
-          # If no test results found and emulator step failed, something went wrong
+          # If no test results found and emulator step had issues, something went wrong
           if [ -z "$(find . -path "*/androidTest-results/connected/*.xml" -type f 2>/dev/null)" ]; then
-            if [ "${{ steps.instrumented-tests.outcome }}" = "failure" ]; then
-              echo "No test results found and emulator step failed"
-              exit 1
-            fi
+            echo "No test results found - emulator may have crashed before tests ran"
+            exit 1
           fi
           echo "Tests passed!"
 
@@ -371,10 +377,15 @@ jobs:
             # Kill the seeder and wait for cleanup
             kill $SEEDER_PID 2>/dev/null || true
             wait $SEEDER_PID 2>/dev/null || true
-            # Return test result - let the action handle emulator cleanup
+            # Kill emulator and adb server before action cleanup to avoid "stop: Not implemented" error
+            adb emu kill 2>/dev/null || true
+            sleep 2
+            adb kill-server 2>/dev/null || true
+            sleep 1
             exit $TEST_RESULT
 
       - name: Check Test Results
+        if: always()
         run: |
           # Check if the test XML results indicate failure
           FAILED=0
@@ -388,12 +399,10 @@ jobs:
             echo "Tests failed - check artifacts for details"
             exit 1
           fi
-          # If no test results found and emulator step failed, something went wrong
+          # If no test results found, something went wrong
           if [ -z "$(find . -path "*/androidTest-results/connected/*.xml" -type f 2>/dev/null)" ]; then
-            if [ "${{ steps.e2e-tests.outcome }}" = "failure" ]; then
-              echo "No test results found and emulator step failed"
-              exit 1
-            fi
+            echo "No test results found - emulator may have crashed before tests ran"
+            exit 1
           fi
           echo "Tests passed!"
 
