@@ -38,6 +38,12 @@ class TcpBindings(
         @Volatile private var lastLogTime = System.currentTimeMillis()
         @Volatile private var maxQueueDepth = 0
 
+        // Callback latency tracking
+        @Volatile private var callbackLatencyCount = 0
+        @Volatile private var callbackLatencyTotalMs = 0L
+        @Volatile private var callbackLatencyMaxMs = 0L
+        @Volatile private var callbackLatencyLogTime = System.currentTimeMillis()
+
         /**
          * Get current callback queue depth.
          * This is the number of TCP data callbacks waiting to be processed by JS.
@@ -48,6 +54,28 @@ class TcpBindings(
          * Get max queue depth since last reset (resets every 5 seconds during logging).
          */
         fun getMaxQueueDepth(): Int = maxQueueDepth
+
+        /**
+         * Record callback latency and log stats periodically.
+         */
+        fun recordCallbackLatency(latencyMs: Long) {
+            callbackLatencyCount++
+            callbackLatencyTotalMs += latencyMs
+            if (latencyMs > callbackLatencyMaxMs) {
+                callbackLatencyMaxMs = latencyMs
+            }
+
+            val now = System.currentTimeMillis()
+            if (now - callbackLatencyLogTime >= 5000 && callbackLatencyCount > 0) {
+                val avgMs = callbackLatencyTotalMs.toFloat() / callbackLatencyCount
+                Log.i(TAG, "Callback latency: %d calls, avg %.1fms, max %dms".format(
+                    callbackLatencyCount, avgMs, callbackLatencyMaxMs))
+                callbackLatencyCount = 0
+                callbackLatencyTotalMs = 0
+                callbackLatencyMaxMs = 0
+                callbackLatencyLogTime = now
+            }
+        }
     }
 
     // JS callback names - stored when JS registers callbacks
@@ -186,7 +214,14 @@ class TcpBindings(
                     Log.w(TAG, "JS callback queue depth: $queueDepth (BACKPRESSURE)")
                 }
 
+                // Capture post time for latency tracking
+                val postTime = System.currentTimeMillis()
+
                 jsThread.post {
+                    // Measure callback latency (time from post to execution)
+                    val latency = System.currentTimeMillis() - postTime
+                    recordCallbackLatency(latency)
+
                     pendingCallbacks.decrementAndGet()
                     ctx.callGlobalFunctionWithBinary(
                         "__jstorrent_tcp_dispatch_data",

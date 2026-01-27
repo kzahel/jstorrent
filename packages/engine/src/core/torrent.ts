@@ -150,9 +150,6 @@ export class Torrent extends EngineComponent {
   private _diskQueue: TorrentDiskQueue = new TorrentDiskQueue({ maxWorkers: 32 })
   private _endgameManager: EndgameManager = new EndgameManager()
 
-  // Batched request scheduling to reduce overhead when many blocks arrive quickly
-  private _requestPiecesPending = new Set<PeerConnection>()
-  private _requestPiecesScheduled = false
   private _bitfield?: BitField
   /** Optimization: track the first piece index we still need (for sequential mode) */
   private _firstNeededPiece: number = 0
@@ -351,6 +348,15 @@ export class Torrent extends EngineComponent {
   /** DHT lookup timer - periodically queries DHT for peers */
   private _dhtLookupTimer: ReturnType<typeof setTimeout> | null = null
 
+  /**
+   * Request tick interval for game-loop style piece requesting.
+   * Replaces edge-triggered scheduling for better QuickJS performance.
+   */
+  private _requestTickInterval: ReturnType<typeof setInterval> | null = null
+
+  /** Request tick interval in ms (runtime configurable, default 100ms) */
+  public requestTickIntervalMs: number = 100
+
   public isPrivate: boolean = false
   public creationDate?: number
 
@@ -457,6 +463,9 @@ export class Torrent extends EngineComponent {
 
     // Start periodic maintenance (idempotent)
     this.startMaintenance()
+
+    // Start request tick game loop
+    this.startRequestTick()
 
     // Add magnet peer hints on every start
     if (this.magnetPeerHints.length > 0) {
@@ -1581,6 +1590,9 @@ export class Torrent extends EngineComponent {
     // Stop periodic maintenance
     this.stopMaintenance()
 
+    // Stop request tick game loop
+    this.stopRequestTick()
+
     // Stop DHT lookup timer
     this.stopDHTLookup()
 
@@ -1639,6 +1651,81 @@ export class Torrent extends EngineComponent {
       this._maintenanceInterval = null
     }
     this._maintenanceStep = 0
+  }
+
+  // ==========================================================================
+  // Request Tick (Game Loop)
+  // ==========================================================================
+
+  /**
+   * Start the request tick game loop.
+   * This replaces edge-triggered request scheduling for better QuickJS performance.
+   * All piece requesting is done in fixed intervals instead of per-block.
+   */
+  private startRequestTick(): void {
+    if (this._requestTickInterval) return
+
+    this._requestTickInterval = setInterval(() => {
+      this.requestTick()
+    }, this.requestTickIntervalMs)
+
+    this.logger.debug(`Request tick started (${this.requestTickIntervalMs}ms interval)`)
+  }
+
+  /**
+   * Stop the request tick game loop.
+   */
+  private stopRequestTick(): void {
+    if (this._requestTickInterval) {
+      clearInterval(this._requestTickInterval)
+      this._requestTickInterval = null
+    }
+  }
+
+  // Track request tick performance
+  private _tickCount = 0
+  private _tickTotalMs = 0
+  private _tickMaxMs = 0
+  private _lastTickLogTime = 0
+
+  /**
+   * Request tick - fill all peers' request pipelines.
+   * Called at fixed intervals instead of on every block arrival.
+   */
+  private requestTick(): void {
+    if (!this._networkActive) return
+
+    const startTime = Date.now()
+
+    let peersProcessed = 0
+    for (const peer of this.connectedPeers) {
+      if (!peer.peerChoking && peer.requestsPending < peer.pipelineDepth) {
+        this.requestPieces(peer)
+        peersProcessed++
+      }
+    }
+
+    const elapsed = Date.now() - startTime
+    this._tickCount++
+    this._tickTotalMs += elapsed
+    if (elapsed > this._tickMaxMs) {
+      this._tickMaxMs = elapsed
+    }
+
+    // Log tick stats every 5 seconds
+    const now = Date.now()
+    if (now - this._lastTickLogTime >= 5000 && this._tickCount > 0) {
+      const avgMs = (this._tickTotalMs / this._tickCount).toFixed(1)
+      const activePieces = this.activePieces?.activeCount ?? 0
+      this.logger.info(
+        `RequestTick: ${this._tickCount} ticks, avg ${avgMs}ms, max ${this._tickMaxMs}ms, ` +
+          `${activePieces} active pieces, ${peersProcessed} peers/tick`,
+      )
+      this._tickCount = 0
+      this._tickTotalMs = 0
+      this._tickMaxMs = 0
+      this._lastTickLogTime = now
+    }
   }
 
   // ==========================================================================
@@ -2362,7 +2449,7 @@ export class Torrent extends EngineComponent {
 
     peer.on('unchoke', () => {
       this.logger.debug('Unchoke received')
-      this.requestPieces(peer)
+      // Request pipeline filled by requestTick() game loop
     })
 
     peer.on('choke', () => {
@@ -2471,14 +2558,7 @@ export class Torrent extends EngineComponent {
       this.logger.debug(`Peer ${peerId} disconnected, cleared ${cleared} pending requests`)
     }
 
-    // If we still have peers, try to request more pieces (round-robin for fairness)
-    if (this.numPeers > 0) {
-      for (const remainingPeer of this.iteratePeersRoundRobin()) {
-        if (!remainingPeer.peerChoking) {
-          this.requestPieces(remainingPeer)
-        }
-      }
-    }
+    // Request pipeline refilled by requestTick() game loop
 
     // Fill the vacated peer slot with a known peer
     this.fillPeerSlots()
@@ -2728,10 +2808,7 @@ export class Torrent extends EngineComponent {
       )
     }
 
-    // Also check if we can start downloading (peer already unchoked us)
-    if (peer.amInterested && !peer.peerChoking) {
-      this.requestPieces(peer)
-    }
+    // Request pipeline filled by requestTick() game loop
   }
 
   private updateInterest(peer: PeerConnection) {
@@ -2765,31 +2842,7 @@ export class Torrent extends EngineComponent {
       peer.amInterested = false
     }
 
-    // If interested and unchoked, try to request
-    if (interested && !peer.peerChoking) {
-      this.requestPieces(peer)
-    }
-  }
-
-  /**
-   * Schedule requestPieces for a peer using microtask batching.
-   * Multiple blocks received in the same tick will be batched into a single pass.
-   * This reduces CPU overhead when many blocks arrive quickly from multiple peers.
-   */
-  private scheduleRequestPieces(peer: PeerConnection): void {
-    this._requestPiecesPending.add(peer)
-    if (!this._requestPiecesScheduled) {
-      this._requestPiecesScheduled = true
-      queueMicrotask(() => {
-        this._requestPiecesScheduled = false
-        for (const p of this._requestPiecesPending) {
-          if (!p.peerChoking) {
-            this.requestPieces(p)
-          }
-        }
-        this._requestPiecesPending.clear()
-      })
-    }
+    // Request pipeline filled by requestTick() game loop
   }
 
   private requestPieces(peer: PeerConnection) {
@@ -2815,12 +2868,7 @@ export class Torrent extends EngineComponent {
             this.logger.debug(`Decremented ${cleared} pending requests for peer ${pId}`)
           }
         }
-        // Then re-request from all unchoked peers (round-robin for fairness)
-        for (const p of this.iteratePeersRoundRobin()) {
-          if (!p.peerChoking) {
-            this.requestPieces(p)
-          }
-        }
+        // Request pipeline refilled by requestTick() game loop
       })
     }
 
@@ -2987,12 +3035,7 @@ export class Torrent extends EngineComponent {
             this.logger.debug(`Decremented ${cleared} pending requests for peer ${pId}`)
           }
         }
-        // Then re-request from all unchoked peers (round-robin for fairness)
-        for (const p of this.iteratePeersRoundRobin()) {
-          if (!p.peerChoking) {
-            this.requestPieces(p)
-          }
-        }
+        // Request pipeline refilled by requestTick() game loop
       })
     }
 
@@ -3050,9 +3093,7 @@ export class Torrent extends EngineComponent {
       }
     }
 
-    // Refill request pipeline via microtask batching
-    // This reduces overhead when many blocks arrive quickly from multiple peers
-    this.scheduleRequestPieces(peer)
+    // Request pipeline is refilled by requestTick() game loop (not edge-triggered)
 
     // Then finalize if piece is complete
     if (piece.haveAllBlocks) {
@@ -3325,6 +3366,7 @@ export class Torrent extends EngineComponent {
 
     // Stop periodic maintenance
     this.stopMaintenance()
+    this.stopRequestTick()
     this.logger.info(`stopMaintenance done at ${Date.now() - t0}ms`)
 
     // Cancel any pending connection attempts

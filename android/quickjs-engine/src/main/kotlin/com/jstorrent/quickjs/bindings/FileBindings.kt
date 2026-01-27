@@ -387,7 +387,12 @@ class FileBindings(
                     }
 
                     // 4. Post success back to JS thread
+                    val postTime = System.currentTimeMillis()
                     jsThread.post {
+                        val cbLatency = System.currentTimeMillis() - postTime
+                        if (cbLatency > 100) {
+                            Log.d(TAG, "Disk write callback latency: ${cbLatency}ms")
+                        }
                         ctx.callGlobalFunction(
                             "__jstorrent_file_dispatch_write_result",
                             callbackId,
@@ -399,7 +404,12 @@ class FileBindings(
 
                 } catch (e: Exception) {
                     Log.e(TAG, "write_verified failed: $path", e)
+                    val postTime = System.currentTimeMillis()
                     jsThread.post {
+                        val cbLatency = System.currentTimeMillis() - postTime
+                        if (cbLatency > 100) {
+                            Log.d(TAG, "Disk error callback latency: ${cbLatency}ms")
+                        }
                         ctx.callGlobalFunction(
                             "__jstorrent_file_dispatch_write_result",
                             callbackId,

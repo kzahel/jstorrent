@@ -65,7 +65,7 @@ export class PeerConnection extends EngineComponent {
   public requestsPending = 0 // Number of outstanding requests
 
   // Adaptive pipeline depth - starts conservative, ramps up for fast peers
-  public pipelineDepth = 10 // Current allowed depth (10-500)
+  public pipelineDepth = 50 // Current allowed depth (5-500), starts higher for faster initial fill
   private blockCount = 0 // Blocks received since last rate check
   private lastRateCheckTime = 0 // Timestamp of last rate calculation
   private static readonly RATE_CHECK_INTERVAL = 1000 // Check rate every 1 second
@@ -510,13 +510,13 @@ export class PeerConnection extends EngineComponent {
     if (elapsed >= PeerConnection.RATE_CHECK_INTERVAL) {
       const rate = (this.blockCount * 1000) / elapsed // blocks per second
 
-      // Adjust depth based on rate
+      // Adjust depth based on rate (aggressive ramp-up for game loop tick model)
       if (rate > 10) {
-        // Fast peer - increase depth
-        this.pipelineDepth = Math.min(PeerConnection.MAX_PIPELINE_DEPTH, this.pipelineDepth + 5)
-      } else if (rate < 2 && this.pipelineDepth > 10) {
+        // Fast peer - increase depth aggressively (+50/sec to reach 500 in ~9s)
+        this.pipelineDepth = Math.min(PeerConnection.MAX_PIPELINE_DEPTH, this.pipelineDepth + 50)
+      } else if (rate < 2 && this.pipelineDepth > 50) {
         // Slow peer - decrease depth gradually
-        this.pipelineDepth = Math.max(10, this.pipelineDepth - 5)
+        this.pipelineDepth = Math.max(50, this.pipelineDepth - 10)
       }
 
       // Reset counters

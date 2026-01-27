@@ -259,6 +259,12 @@ class JsThread : Thread("quickjs-engine") {
     @Volatile
     private var jobPumpScheduled = false
 
+    // Job pump performance tracking
+    private var pumpBatchCount = 0
+    private var pumpTotalMs = 0L
+    private var pumpMaxMs = 0L
+    private var pumpLastLogTime = System.currentTimeMillis()
+
     /**
      * Schedule a batched job pump for the given context.
      * This processes jobs in batches, yielding between batches to allow
@@ -279,8 +285,29 @@ class JsThread : Thread("quickjs-engine") {
     }
 
     private fun pumpJobsInternal(ctx: QuickJsContext, batchSize: Int) {
+        val startTime = System.currentTimeMillis()
+
         // Process a batch of jobs
         val hasMore = ctx.pumpJobsBatched(batchSize)
+
+        val elapsed = System.currentTimeMillis() - startTime
+        pumpBatchCount++
+        pumpTotalMs += elapsed
+        if (elapsed > pumpMaxMs) {
+            pumpMaxMs = elapsed
+        }
+
+        // Log pump stats every 5 seconds
+        val now = System.currentTimeMillis()
+        if (now - pumpLastLogTime >= 5000 && pumpBatchCount > 0) {
+            val avgMs = pumpTotalMs.toFloat() / pumpBatchCount
+            Log.i(TAG, "JobPump: %d batches, avg %.1fms, max %dms".format(
+                pumpBatchCount, avgMs, pumpMaxMs))
+            pumpBatchCount = 0
+            pumpTotalMs = 0
+            pumpMaxMs = 0
+            pumpLastLogTime = now
+        }
 
         if (hasMore) {
             // More jobs pending - schedule another pump, but let other
