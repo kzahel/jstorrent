@@ -72,4 +72,109 @@ describe('BitField', () => {
     expect(bf.count()).toBe(0)
     for (let i = 0; i < 10; i++) expect(bf.get(i)).toBe(false)
   })
+
+  describe('count() optimization', () => {
+    it('partial last byte handled correctly', () => {
+      const bf = BitField.createFull(13) // 1 byte + 5 bits
+      expect(bf.count()).toBe(13)
+    })
+
+    it('incremental set updates count', () => {
+      const bf = BitField.createEmpty(100)
+      bf.set(5)
+      bf.set(10)
+      bf.set(99)
+      expect(bf.count()).toBe(3)
+    })
+
+    it('incremental clear updates count', () => {
+      const bf = BitField.createFull(100)
+      bf.set(5, false)
+      bf.set(10, false)
+      expect(bf.count()).toBe(98)
+    })
+
+    it('set same bit twice does not double count', () => {
+      const bf = BitField.createEmpty(100)
+      bf.set(5)
+      bf.set(5)
+      expect(bf.count()).toBe(1)
+    })
+
+    it('clear same bit twice does not double decrement', () => {
+      const bf = BitField.createFull(100)
+      bf.set(5, false)
+      bf.set(5, false)
+      expect(bf.count()).toBe(99)
+    })
+
+    it('restoreFromHex invalidates cache', () => {
+      const bf = BitField.createEmpty(16)
+      bf.count() // Prime cache
+      bf.restoreFromHex('ff00') // 8 bits set
+      expect(bf.count()).toBe(8)
+    })
+
+    it('from buffer constructor computes count correctly', () => {
+      const buffer = new Uint8Array([0xff, 0x0f]) // 8 + 4 = 12 bits
+      const bf = new BitField(buffer)
+      expect(bf.count()).toBe(12)
+    })
+
+    it('clone preserves count cache', () => {
+      const bf = BitField.createFull(100)
+      bf.set(50, false)
+      expect(bf.count()).toBe(99) // Prime cache
+      const cloned = bf.clone()
+      expect(cloned.count()).toBe(99)
+    })
+
+    it('fromHex computes count correctly', () => {
+      const bf = BitField.fromHex('f0f0', 16) // 4 + 4 = 8 bits set
+      expect(bf.count()).toBe(8)
+    })
+
+    it('count matches naive recompute after random mutations', () => {
+      const bf = BitField.createEmpty(200)
+      // Randomly set some bits
+      for (let i = 0; i < 50; i++) {
+        bf.set(Math.floor(Math.random() * 200))
+      }
+      // Randomly clear some bits
+      for (let i = 0; i < 20; i++) {
+        bf.set(Math.floor(Math.random() * 200), false)
+      }
+      // Verify count matches naive count
+      let naiveCount = 0
+      for (let i = 0; i < 200; i++) {
+        if (bf.get(i)) naiveCount++
+      }
+      expect(bf.count()).toBe(naiveCount)
+    })
+
+    it('invalidateCount() forces recompute after external buffer mutation', () => {
+      const bf = BitField.createFull(8)
+      expect(bf.count()).toBe(8) // Prime cache
+
+      // External mutation via toBuffer()
+      bf.toBuffer()[0] = 0x00
+
+      // Cache is stale - would return wrong value without invalidate
+      bf.invalidateCount()
+      expect(bf.count()).toBe(0) // Correctly recomputed
+    })
+
+    it('invalidateCount() after constructor buffer mutation', () => {
+      const buffer = new Uint8Array([0xff])
+      const bf = new BitField(buffer)
+      expect(bf.count()).toBe(8) // Prime cache
+
+      // Mutate the original buffer
+      buffer[0] = 0x0f // 4 bits set
+
+      // Cache is stale
+      bf.invalidateCount()
+      expect(bf.count()).toBe(4) // Correctly recomputed
+    })
+  })
 })

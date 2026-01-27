@@ -137,6 +137,9 @@ export class HttpRpcServer {
         const limit = parseInt(urlObj.searchParams.get('limit') || '100', 10)
         const result = this.controller.getLogs(level, limit)
         this.sendJson(res, result)
+      } else if (url === '/engine/tick-stats' && method === 'GET') {
+        const result = this.controller.getTickStats()
+        this.sendJson(res, result)
       } else {
         res.writeHead(404)
         this.sendJson(res, { ok: false, error: 'Not Found' })

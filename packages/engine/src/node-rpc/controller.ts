@@ -207,4 +207,10 @@ export class EngineController {
     const logs = filtered.slice(-limit)
     return { ok: true, logs }
   }
+
+  getTickStats() {
+    if (!this.engine) throw new Error('EngineNotRunning')
+    const stats = this.engine.getEngineStats()
+    return { ok: true, ...stats }
+  }
 }

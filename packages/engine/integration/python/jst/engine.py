@@ -12,14 +12,15 @@ from .errors import (
 )
 
 class JSTEngine:
-    def __init__(self, port=0, config=None, verbose=False, **kwargs):
+    def __init__(self, port=0, config=None, verbose=False, jitless=False, **kwargs):
         self.port = port
         self.verbose = verbose
+        self.jitless = jitless
         self.rpc_port = None  # Will be set after server starts
         self.base = None  # Will be set after we know the port
         self.session = requests.Session()
         self.proc = None
-        
+
         # Normalize config - translate Python-style keys to JS-style keys
         final_config = config.copy() if config else {}
         final_config.update(kwargs)
@@ -55,7 +56,11 @@ class JSTEngine:
         # This ensures source maps work correctly with the Node.js inspector
         # (unlike tsx CLI or pnpm exec tsx which add indirection)
         cmd = ["node"]
-        
+
+        # Support --jitless mode for benchmarking (simulates QuickJS-like performance)
+        if self.jitless:
+            cmd.append("--jitless")
+
         # Support Node.js inspector for Chrome DevTools debugging
         # NODE_INSPECT=true     - Enable inspector (auto-picks available port)
         # NODE_INSPECT=9229     - Enable inspector on specific port (1024-65535)
@@ -335,3 +340,7 @@ class JSTEngine:
                     f"Torrent {tid} did not reach state '{state}' in time."
                 )
             time.sleep(poll)
+
+    def get_tick_stats(self):
+        """Get engine tick statistics for benchmarking."""
+        return self._req("GET", "/engine/tick-stats")
