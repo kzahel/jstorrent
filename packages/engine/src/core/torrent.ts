@@ -203,6 +203,17 @@ export class Torrent extends EngineComponent {
   private _seedCount: number = 0
   /** Per-piece priority derived from file priorities (0=skip, 1=normal, 2=high) */
   private _piecePriority: Uint8Array | null = null
+  /**
+   * Phase 8: Per-peer piece index for O(1) lookup of pieces to request.
+   * Maps peerId -> Set of piece indices that peer has that we need and aren't active.
+   * Maintained on:
+   * - Bitfield received: populate from peer's bitfield
+   * - HAVE message: add piece to set if we need it
+   * - Piece completed: remove from all peers
+   * - Piece activated: remove from all peers
+   * - Peer disconnect: delete from map
+   */
+  private _peerPieceIndex: Map<string, Set<number>> = new Map()
   /** Pieces currently stored in .parts file (not in regular files) */
   private _partsFilePieces: Set<number> = new Set()
   /** .parts file manager for boundary pieces */
@@ -635,6 +646,9 @@ export class Torrent extends EngineComponent {
 
   markPieceVerified(index: number): void {
     this._bitfield?.set(index, true)
+
+    // Phase 8: Remove piece from all peer indices (we have it now)
+    this.removePieceFromAllIndices(index)
 
     // Advance firstNeededPiece if this was it (or earlier)
     if (index <= this._firstNeededPiece && this._bitfield) {
@@ -2563,6 +2577,9 @@ export class Torrent extends EngineComponent {
         }
       }
 
+      // Phase 8: Build peer piece index for non-seeds
+      this.buildPeerPieceIndex(peer)
+
       // Update interest
       this.updateInterest(peer)
     })
@@ -2620,9 +2637,15 @@ export class Torrent extends EngineComponent {
       // Check if peer just became a seed
       if (peer.haveCount === this.piecesCount && this.piecesCount > 0) {
         this.convertToSeed(peer)
+        // Phase 8: Remove from index when becoming a seed
+        const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
+        this.removePeerFromIndex(peerId)
       } else if (this._pieceAvailability && index < this._pieceAvailability.length) {
         // Non-seed: update per-piece availability
         this._pieceAvailability[index]++
+        // Phase 8: Add piece to peer's index if we need it
+        const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
+        this.addPieceToIndex(peerId, index)
       }
 
       this.updateInterest(peer)
@@ -2720,6 +2743,10 @@ export class Torrent extends EngineComponent {
   }
 
   private removePeer(peer: PeerConnection) {
+    // Phase 8: Clean up peer piece index
+    const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
+    this.removePeerFromIndex(peerId)
+
     // Handle availability cleanup based on seed status
     if (peer.isSeed) {
       // Seeds are tracked separately - just decrement the count
@@ -2764,7 +2791,7 @@ export class Torrent extends EngineComponent {
     // THE KEY FIX: Clear requests for this peer so blocks can be re-requested
     // Unlike the old approach (clearing all requests for affected pieces),
     // this surgically removes only the requests from the disconnected peer
-    const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
+    // Note: peerId already computed at top of function for Phase 8 index cleanup
     const cleared = this.activePieces?.clearRequestsForPeer(peerId) || 0
     if (cleared > 0) {
       this.logger.debug(`Peer ${peerId} disconnected, cleared ${cleared} pending requests`)
@@ -3033,6 +3060,88 @@ export class Torrent extends EngineComponent {
     // Request pipeline filled by requestTick() game loop
   }
 
+  // === Phase 8: Peer Piece Index Management ===
+
+  /**
+   * Build the peer piece index for a newly connected peer.
+   * Called when bitfield is received or when a HAVE_ALL peer gets metadata.
+   *
+   * The index contains pieces that:
+   * 1. Peer has (from their bitfield)
+   * 2. We don't have (not in our bitfield)
+   * 3. We need (priority > 0)
+   * 4. Aren't currently active
+   *
+   * libtorrent reference: This is implicit in their piece-centric design.
+   */
+  private buildPeerPieceIndex(peer: PeerConnection): void {
+    if (!this._bitfield || !peer.bitfield || peer.isSeed) {
+      return // Seeds don't use per-peer index (they have everything)
+    }
+
+    const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
+    const pieceSet = new Set<number>()
+
+    for (let i = 0; i < this.piecesCount; i++) {
+      // Only add if peer has it and we need it
+      if (peer.bitfield.get(i) && this.shouldAddToIndex(i)) {
+        pieceSet.add(i)
+      }
+    }
+
+    this._peerPieceIndex.set(peerId, pieceSet)
+    this.logger.debug(`Built peer piece index for ${peerId}: ${pieceSet.size} pieces`)
+  }
+
+  /**
+   * Check if a piece should be added to peer indices.
+   * Returns true if we need this piece and it's not active.
+   */
+  private shouldAddToIndex(pieceIndex: number): boolean {
+    // Skip if we have it
+    if (this._bitfield?.get(pieceIndex)) return false
+
+    // Skip if priority is 0 (skipped file)
+    if (this._piecePriority && this._piecePriority[pieceIndex] === 0) return false
+
+    // Skip if already active
+    if (this.activePieces?.has(pieceIndex)) return false
+
+    return true
+  }
+
+  /**
+   * Add a single piece to a peer's index (called on HAVE message).
+   */
+  private addPieceToIndex(peerId: string, pieceIndex: number): void {
+    if (!this.shouldAddToIndex(pieceIndex)) return
+
+    const pieceSet = this._peerPieceIndex.get(peerId)
+    if (pieceSet) {
+      pieceSet.add(pieceIndex)
+    }
+    // If no index for this peer (they're a seed), ignore
+  }
+
+  /**
+   * Remove a piece from all peer indices.
+   * Called when:
+   * - We complete a piece (we have it now)
+   * - We activate a piece (it's being downloaded)
+   */
+  private removePieceFromAllIndices(pieceIndex: number): void {
+    for (const pieceSet of this._peerPieceIndex.values()) {
+      pieceSet.delete(pieceIndex)
+    }
+  }
+
+  /**
+   * Remove a peer's index when they disconnect.
+   */
+  private removePeerFromIndex(peerId: string): void {
+    this._peerPieceIndex.delete(peerId)
+  }
+
   private updateInterest(peer: PeerConnection) {
     if (!peer.bitfield) return
 
@@ -3222,6 +3331,9 @@ export class Torrent extends EngineComponent {
       const piece = this.activePieces.getOrCreate(pieceIndex)
       if (!piece) break // At capacity
 
+      // Phase 8: Remove from peer indices since it's now active
+      this.removePieceFromAllIndices(pieceIndex)
+
       // Phase 4: Fast peer claims exclusive ownership on new pieces
       if (peerIsFast) {
         piece.claimExclusive(peerId)
@@ -3287,37 +3399,62 @@ export class Torrent extends EngineComponent {
     }
 
     const startTime = Date.now()
-    const bitfield = peer.bitfield
     const candidates: Array<{ index: number; sortKey: number }> = []
-
-    // Collect candidate pieces (up to 2x maxCount for better selection after sorting)
     const collectLimit = maxCount * 2
     let iterations = 0
-    for (
-      let i = this._firstNeededPiece;
-      i < this.piecesCount && candidates.length < collectLimit;
-      i++
-    ) {
-      iterations++
+    let usedIndex = false
 
-      // Skip if we have it
-      if (this._bitfield.get(i)) continue
+    // Phase 8: Use per-peer index for non-seeds (O(pieces peer has) instead of O(all pieces))
+    const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
+    const peerPieceSet = this._peerPieceIndex.get(peerId)
 
-      // Skip if peer doesn't have it (seeds have everything)
-      if (!peer.isSeed && !bitfield?.get(i)) continue
+    if (!peer.isSeed && peerPieceSet && peerPieceSet.size > 0) {
+      // Use the pre-computed index - only iterate pieces peer has that we need
+      usedIndex = true
+      for (const i of peerPieceSet) {
+        iterations++
+        if (candidates.length >= collectLimit) break
 
-      // Skip if priority is 0 (skipped file)
-      const prio = this._piecePriority[i]
-      if (prio === 0) continue
+        // The index should already filter these, but double-check for safety:
+        // - We don't have it (shouldAddToIndex checks this)
+        // - Priority > 0 (shouldAddToIndex checks this)
+        // - Not already active (shouldAddToIndex checks this)
+        // Just compute sort key
+        const prio = this._piecePriority[i]
+        const availability = this._pieceAvailability[i] + this._seedCount
+        const sortKey = availability * (8 - prio) * 3 // 8 = PRIORITY_LEVELS, 3 = PRIO_FACTOR
 
-      // Skip if already active (handled in phase 1)
-      if (this.activePieces.has(i)) continue
+        candidates.push({ index: i, sortKey })
+      }
+    } else {
+      // Seeds or no index: use original linear scan algorithm
+      const bitfield = peer.bitfield
+      for (
+        let i = this._firstNeededPiece;
+        i < this.piecesCount && candidates.length < collectLimit;
+        i++
+      ) {
+        iterations++
 
-      // Calculate sort key using libtorrent formula
-      const availability = this._pieceAvailability[i] + this._seedCount
-      const sortKey = availability * (8 - prio) * 3 // 8 = PRIORITY_LEVELS, 3 = PRIO_FACTOR
+        // Skip if we have it
+        if (this._bitfield.get(i)) continue
 
-      candidates.push({ index: i, sortKey })
+        // Skip if peer doesn't have it (seeds have everything)
+        if (!peer.isSeed && !bitfield?.get(i)) continue
+
+        // Skip if priority is 0 (skipped file)
+        const prio = this._piecePriority[i]
+        if (prio === 0) continue
+
+        // Skip if already active (handled in phase 1)
+        if (this.activePieces.has(i)) continue
+
+        // Calculate sort key using libtorrent formula
+        const availability = this._pieceAvailability[i] + this._seedCount
+        const sortKey = availability * (8 - prio) * 3 // 8 = PRIORITY_LEVELS, 3 = PRIO_FACTOR
+
+        candidates.push({ index: i, sortKey })
+      }
     }
 
     // Sort by rarity (lower sortKey = rarer/higher priority = first)
@@ -3332,7 +3469,7 @@ export class Torrent extends EngineComponent {
       this.logger.info(
         `findNewPieceCandidates: ${iterations} iterations, ${candidates.length} found, ` +
           `${elapsed}ms, firstNeeded=${this._firstNeededPiece}, total=${this.piecesCount}, ` +
-          `calls=${this._findCandidatesCallCount}, maxCount=${maxCount}`,
+          `calls=${this._findCandidatesCallCount}, maxCount=${maxCount}, usedIndex=${usedIndex}`,
       )
       this._findCandidatesCallCount = 0
       this._findCandidatesLastLogTime = now
@@ -3396,6 +3533,8 @@ export class Torrent extends EngineComponent {
         return
       }
       piece = newPiece
+      // Phase 8: Remove from peer indices since it's now active
+      this.removePieceFromAllIndices(msg.index)
     }
 
     // Get peer ID for tracking
