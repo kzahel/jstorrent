@@ -231,7 +231,7 @@ export class ActivePieceManager extends EngineComponent {
    */
   promoteToFull(pieceIndex: number): void {
     const piece = this._partialPieces.get(pieceIndex)
-    if (piece && !piece.hasUnrequestedBlocks()) {
+    if (piece && !piece.hasUnrequestedBlocks) {
       this._partialPieces.delete(pieceIndex)
       this._fullPieces.set(pieceIndex, piece)
       this.logger.debug(
@@ -248,7 +248,7 @@ export class ActivePieceManager extends EngineComponent {
    */
   demoteToPartial(pieceIndex: number): void {
     const piece = this._fullPieces.get(pieceIndex)
-    if (piece && piece.hasUnrequestedBlocks()) {
+    if (piece && piece.hasUnrequestedBlocks) {
       this._fullPieces.delete(pieceIndex)
       this._partialPieces.set(pieceIndex, piece)
       this.logger.debug(
@@ -567,7 +567,7 @@ export class ActivePieceManager extends EngineComponent {
     for (const piece of this._fullPieces.values()) {
       const cleared = piece.clearRequestsForPeer(peerId)
       totalCleared += cleared
-      if (cleared > 0 && piece.hasUnrequestedBlocks()) {
+      if (cleared > 0 && piece.hasUnrequestedBlocks) {
         toDemote.push(piece.index)
       }
     }
@@ -608,7 +608,7 @@ export class ActivePieceManager extends EngineComponent {
         clearedByPeer.set(peerId, (clearedByPeer.get(peerId) || 0) + count)
         pieceCleared += count
       }
-      if (pieceCleared > 0 && piece.hasUnrequestedBlocks()) {
+      if (pieceCleared > 0 && piece.hasUnrequestedBlocks) {
         toDemote.push(piece.index)
       }
     }
@@ -633,7 +633,7 @@ export class ActivePieceManager extends EngineComponent {
   hasUnrequestedBlocks(): boolean {
     for (const piece of this._partialPieces.values()) {
       // Use the piece's allocation-free check instead of getNeededBlocks()
-      if (piece.hasUnrequestedBlocks()) {
+      if (piece.hasUnrequestedBlocks) {
         return true
       }
     }

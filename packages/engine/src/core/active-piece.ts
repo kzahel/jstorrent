@@ -33,6 +33,11 @@ export class ActivePiece {
   // Incremental count of received blocks (avoids O(n) iteration in haveAllBlocks)
   private _blocksReceivedCount = 0
 
+  // === Phase 7: hasUnrequestedBlocks Caching ===
+  // Count of blocks that are neither received nor requested.
+  // Allows O(1) hasUnrequestedBlocks check instead of O(blocks) scan.
+  private _unrequestedCount: number
+
   // Track which peer sent each block (for suspicious peer detection on hash failure)
   private blockSenders: Map<number, string> = new Map()
 
@@ -73,6 +78,8 @@ export class ActivePiece {
     this.blocksNeeded = Math.ceil(length / BLOCK_SIZE)
     this.buffer = buffer ?? new Uint8Array(length)
     this.blockReceived = new Array<boolean>(this.blocksNeeded).fill(false)
+    // Phase 7: Initialize unrequested count - all blocks start unrequested
+    this._unrequestedCount = this.blocksNeeded
   }
 
   // --- State Queries ---
@@ -183,16 +190,21 @@ export class ActivePiece {
   }
 
   /**
-   * Fast check if piece has any blocks that are neither received nor requested.
+   * Fast O(1) check if piece has any blocks that are neither received nor requested.
    * Use this before getNeededBlocks() to avoid array allocation when no work available.
+   *
+   * Phase 7 optimization: Uses cached count instead of O(blocks) scan.
    */
-  hasUnrequestedBlocks(): boolean {
-    for (let i = 0; i < this.blocksNeeded; i++) {
-      if (this.blockReceived[i]) continue
-      if (this.blockRequests.has(i) && this.blockRequests.get(i)!.length > 0) continue
-      return true // Found an unrequested block
-    }
-    return false
+  get hasUnrequestedBlocks(): boolean {
+    return this._unrequestedCount > 0
+  }
+
+  /**
+   * Get the count of unrequested blocks.
+   * Useful for debugging and testing.
+   */
+  get unrequestedCount(): number {
+    return this._unrequestedCount
   }
 
   /**
@@ -216,6 +228,11 @@ export class ActivePiece {
    * Record that a request was sent to a peer for this block.
    */
   addRequest(blockIndex: number, peerId: string): void {
+    // Phase 7: Check if this block was unrequested before adding request
+    const wasUnrequested =
+      !this.blockReceived[blockIndex] &&
+      (!this.blockRequests.has(blockIndex) || this.blockRequests.get(blockIndex)!.length === 0)
+
     let requests = this.blockRequests.get(blockIndex)
     if (!requests) {
       requests = []
@@ -223,6 +240,11 @@ export class ActivePiece {
     }
     requests.push({ peerId, timestamp: Date.now() })
     this._lastActivity = Date.now()
+
+    // Phase 7: Decrement unrequested count if this was the first request
+    if (wasUnrequested) {
+      this._unrequestedCount--
+    }
   }
 
   /**
@@ -235,6 +257,11 @@ export class ActivePiece {
       return false // Duplicate
     }
 
+    // Phase 7: Check if block was unrequested before receiving
+    // If no pending requests, the block was counted as unrequested
+    const hadNoRequests =
+      !this.blockRequests.has(blockIndex) || this.blockRequests.get(blockIndex)!.length === 0
+
     // Write directly to the pre-allocated buffer at the correct offset
     const offset = blockIndex * BLOCK_SIZE
     this.buffer.set(data, offset)
@@ -245,6 +272,12 @@ export class ActivePiece {
 
     // Clear requests for this block - it's been fulfilled
     this.blockRequests.delete(blockIndex)
+
+    // Phase 7: Decrement unrequested count if block was unrequested
+    // (if it had requests, the count was already decremented when requests were added)
+    if (hadNoRequests) {
+      this._unrequestedCount--
+    }
 
     return true
   }
@@ -265,6 +298,10 @@ export class ActivePiece {
       return false // Duplicate
     }
 
+    // Phase 7: Check if block was unrequested before receiving
+    const hadNoRequests =
+      !this.blockRequests.has(blockIndex) || this.blockRequests.get(blockIndex)!.length === 0
+
     // Copy directly from ChunkedBuffer to piece buffer
     const destOffset = blockIndex * BLOCK_SIZE
     source.copyTo(this.buffer, destOffset, sourceOffset, length)
@@ -275,6 +312,11 @@ export class ActivePiece {
 
     // Clear requests for this block - it's been fulfilled
     this.blockRequests.delete(blockIndex)
+
+    // Phase 7: Decrement unrequested count if block was unrequested
+    if (hadNoRequests) {
+      this._unrequestedCount--
+    }
 
     return true
   }
@@ -345,6 +387,10 @@ export class ActivePiece {
       requests.splice(idx, 1)
       if (requests.length === 0) {
         this.blockRequests.delete(blockIndex)
+        // Phase 7: Block becomes unrequested again (if not received)
+        if (!this.blockReceived[blockIndex]) {
+          this._unrequestedCount++
+        }
       }
     }
 
@@ -369,6 +415,10 @@ export class ActivePiece {
         cleared += requests.length - filtered.length
         if (filtered.length === 0) {
           this.blockRequests.delete(blockIndex)
+          // Phase 7: Block becomes unrequested again (if not received)
+          if (!this.blockReceived[blockIndex]) {
+            this._unrequestedCount++
+          }
         } else {
           this.blockRequests.set(blockIndex, filtered)
         }
@@ -397,6 +447,10 @@ export class ActivePiece {
       }
       if (remaining.length === 0) {
         this.blockRequests.delete(blockIndex)
+        // Phase 7: Block becomes unrequested again (if not received)
+        if (!this.blockReceived[blockIndex]) {
+          this._unrequestedCount++
+        }
       } else if (remaining.length !== requests.length) {
         this.blockRequests.set(blockIndex, remaining)
       }
@@ -504,6 +558,8 @@ export class ActivePiece {
     // Phase 4: Reset ownership tracking
     this._exclusivePeer = null
     this._activatedAt = Date.now()
+    // Phase 7: Reset unrequested count - all blocks become unrequested again
+    this._unrequestedCount = this.blocksNeeded
     // Note: buffer is NOT cleared - for pooling, the caller can reuse it
   }
 }

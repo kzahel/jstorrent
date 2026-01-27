@@ -760,4 +760,187 @@ describe('ActivePiece', () => {
       })
     })
   })
+
+  // === Phase 7: hasUnrequestedBlocks Caching Tests ===
+
+  describe('Phase 7: hasUnrequestedBlocks Caching (O(1))', () => {
+    it('should start with all blocks unrequested', () => {
+      const newPiece = new ActivePiece(0, PIECE_LENGTH) // 4 blocks
+
+      expect(newPiece.hasUnrequestedBlocks).toBe(true)
+      expect(newPiece.unrequestedCount).toBe(4)
+    })
+
+    it('should decrement count when first request is added to a block', () => {
+      expect(piece.unrequestedCount).toBe(4)
+
+      piece.addRequest(0, 'peer1')
+
+      expect(piece.unrequestedCount).toBe(3)
+      expect(piece.hasUnrequestedBlocks).toBe(true)
+    })
+
+    it('should not change count for duplicate requests on same block', () => {
+      piece.addRequest(0, 'peer1')
+      expect(piece.unrequestedCount).toBe(3)
+
+      // Duplicate request (endgame mode)
+      piece.addRequest(0, 'peer2')
+
+      expect(piece.unrequestedCount).toBe(3) // Still 3, not 2
+    })
+
+    it('should become false when all blocks requested', () => {
+      for (let i = 0; i < 4; i++) {
+        piece.addRequest(i, 'peer1')
+      }
+
+      expect(piece.hasUnrequestedBlocks).toBe(false)
+      expect(piece.unrequestedCount).toBe(0)
+    })
+
+    it('should increment count when last request is cancelled', () => {
+      piece.addRequest(0, 'peer1')
+      expect(piece.unrequestedCount).toBe(3)
+
+      piece.cancelRequest(0, 'peer1')
+
+      expect(piece.unrequestedCount).toBe(4)
+      expect(piece.hasUnrequestedBlocks).toBe(true)
+    })
+
+    it('should not change count when one of multiple requests is cancelled', () => {
+      piece.addRequest(0, 'peer1')
+      piece.addRequest(0, 'peer2') // Duplicate
+      expect(piece.unrequestedCount).toBe(3)
+
+      piece.cancelRequest(0, 'peer1')
+
+      expect(piece.unrequestedCount).toBe(3) // Still 3, block still has peer2 request
+      expect(piece.hasUnrequestedBlocks).toBe(true)
+    })
+
+    it('should decrement count when unrequested block is received', () => {
+      expect(piece.unrequestedCount).toBe(4)
+
+      // Receive block without prior request
+      piece.addBlock(0, new Uint8Array(BLOCK_SIZE), 'peer1')
+
+      expect(piece.unrequestedCount).toBe(3)
+    })
+
+    it('should not change count when requested block is received', () => {
+      piece.addRequest(0, 'peer1')
+      expect(piece.unrequestedCount).toBe(3)
+
+      // Receive the requested block
+      piece.addBlock(0, new Uint8Array(BLOCK_SIZE), 'peer1')
+
+      expect(piece.unrequestedCount).toBe(3) // Still 3, was already decremented by request
+    })
+
+    it('should reach 0 when all blocks received', () => {
+      for (let i = 0; i < 4; i++) {
+        piece.addBlock(i, new Uint8Array(BLOCK_SIZE), 'peer1')
+      }
+
+      expect(piece.unrequestedCount).toBe(0)
+      expect(piece.hasUnrequestedBlocks).toBe(false)
+    })
+
+    it('should handle clearRequestsForPeer correctly', () => {
+      piece.addRequest(0, 'peer1')
+      piece.addRequest(1, 'peer1')
+      piece.addRequest(2, 'peer2')
+      expect(piece.unrequestedCount).toBe(1) // Only block 3 unrequested
+
+      piece.clearRequestsForPeer('peer1')
+
+      expect(piece.unrequestedCount).toBe(3) // Blocks 0, 1, 3 unrequested (2 still has peer2)
+    })
+
+    it('should handle checkTimeouts correctly', () => {
+      vi.useFakeTimers()
+      try {
+        piece.addRequest(0, 'peer1')
+        piece.addRequest(1, 'peer1')
+        expect(piece.unrequestedCount).toBe(2)
+
+        vi.advanceTimersByTime(35000) // Past timeout
+
+        piece.checkTimeouts(30000)
+
+        expect(piece.unrequestedCount).toBe(4) // All blocks unrequested again
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('should reset count on clear()', () => {
+      piece.addRequest(0, 'peer1')
+      piece.addRequest(1, 'peer1')
+      piece.addBlock(2, new Uint8Array(BLOCK_SIZE), 'peer1')
+      expect(piece.unrequestedCount).toBe(1)
+
+      piece.clear()
+
+      expect(piece.unrequestedCount).toBe(4)
+      expect(piece.hasUnrequestedBlocks).toBe(true)
+    })
+
+    it('should not increment count for cancelled request on received block', () => {
+      // Request a block
+      piece.addRequest(0, 'peer1')
+      expect(piece.unrequestedCount).toBe(3)
+
+      // Receive the block (clears request)
+      piece.addBlock(0, new Uint8Array(BLOCK_SIZE), 'peer1')
+      expect(piece.unrequestedCount).toBe(3)
+
+      // Cancel should do nothing (no request to cancel)
+      piece.cancelRequest(0, 'peer1')
+      expect(piece.unrequestedCount).toBe(3)
+    })
+
+    it('should be O(1) performance', () => {
+      // Create a large piece (1000 blocks)
+      const largePiece = new ActivePiece(0, 1000 * BLOCK_SIZE)
+
+      const start = performance.now()
+      // Call hasUnrequestedBlocks many times
+      for (let i = 0; i < 100000; i++) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        largePiece.hasUnrequestedBlocks
+      }
+      const elapsed = performance.now() - start
+
+      // Should be very fast (under 50ms for 100k iterations)
+      expect(elapsed).toBeLessThan(50)
+    })
+
+    it('should handle addBlockFromChunked correctly', () => {
+      const chunked = new ChunkedBuffer()
+      chunked.push(new Uint8Array(BLOCK_SIZE))
+
+      expect(piece.unrequestedCount).toBe(4)
+
+      // Receive unrequested block via ChunkedBuffer
+      piece.addBlockFromChunked(0, chunked, 0, BLOCK_SIZE, 'peer1')
+
+      expect(piece.unrequestedCount).toBe(3)
+    })
+
+    it('should handle addBlockFromChunked for requested block', () => {
+      const chunked = new ChunkedBuffer()
+      chunked.push(new Uint8Array(BLOCK_SIZE))
+
+      piece.addRequest(0, 'peer1')
+      expect(piece.unrequestedCount).toBe(3)
+
+      // Receive requested block via ChunkedBuffer
+      piece.addBlockFromChunked(0, chunked, 0, BLOCK_SIZE, 'peer1')
+
+      expect(piece.unrequestedCount).toBe(3) // No change, was already decremented
+    })
+  })
 })

@@ -1876,7 +1876,7 @@ export class Torrent extends EngineComponent {
       }
 
       // If full piece now has unrequested blocks, mark for demotion
-      if (piece.hasUnrequestedBlocks()) {
+      if (piece.hasUnrequestedBlocks) {
         piecesToDemote.push(piece.index)
       }
     }
@@ -3173,7 +3173,7 @@ export class Torrent extends EngineComponent {
         if (!piece.canRequestFrom(peerId, peerIsFast)) continue
 
         // Fast path: In normal mode, skip pieces with no unrequested blocks
-        if (!isEndgame && !piece.hasUnrequestedBlocks()) continue
+        if (!isEndgame && !piece.hasUnrequestedBlocks) continue
 
         // Phase 4: Fast peer claims exclusive ownership
         if (piece.exclusivePeer === null && peerIsFast) {
@@ -3201,7 +3201,7 @@ export class Torrent extends EngineComponent {
           piece.addRequest(blockIndex, peerId)
 
           // Promote to full if all blocks are now requested (Option A state model)
-          if (!piece.hasUnrequestedBlocks()) {
+          if (!piece.hasUnrequestedBlocks) {
             this.activePieces.promoteToFull(piece.index)
           }
         }
@@ -3211,7 +3211,7 @@ export class Torrent extends EngineComponent {
       for (const piece of this.activePieces.partialValues()) {
         if (peer.requestsPending >= pipelineLimit) return
         if (!peerBitfield?.get(piece.index)) continue
-        if (!isEndgame && !piece.hasUnrequestedBlocks()) continue
+        if (!isEndgame && !piece.hasUnrequestedBlocks) continue
 
         const neededBlocks = isEndgame
           ? piece.getNeededBlocksEndgame(peerId, pipelineLimit - peer.requestsPending)
@@ -3229,7 +3229,7 @@ export class Torrent extends EngineComponent {
           piece.addRequest(blockIndex, peerId)
 
           // Promote to full if all blocks are now requested (Option A state model)
-          if (!piece.hasUnrequestedBlocks()) {
+          if (!piece.hasUnrequestedBlocks) {
             this.activePieces.promoteToFull(piece.index)
           }
         }
@@ -3287,7 +3287,7 @@ export class Torrent extends EngineComponent {
         piece.addRequest(blockIndex, peerId)
 
         // Promote to full if all blocks are now requested (Option A state model)
-        if (!piece.hasUnrequestedBlocks()) {
+        if (!piece.hasUnrequestedBlocks) {
           this.activePieces.promoteToFull(piece.index)
         }
       }
