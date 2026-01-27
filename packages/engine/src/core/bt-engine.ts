@@ -133,6 +133,13 @@ export interface BtEngineOptions {
    * encryptionPolicy, etc. are ignored when config is provided.
    */
   config?: ConfigHub
+
+  /**
+   * When true, PeerConnection processes incoming data immediately instead of
+   * waiting for the tick loop to call drainBuffer(). Useful for tests.
+   * Default: false (production uses tick-aligned processing)
+   */
+  autoDrainBuffers?: boolean
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -188,6 +195,13 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   private _dhtNode?: DHTNode
   private _skipDHTBootstrap: boolean = false
 
+  // === Tick-aligned processing ===
+  /**
+   * When true, PeerConnection processes incoming data immediately instead of
+   * waiting for the tick loop to call drainBuffer(). Useful for tests.
+   */
+  public autoDrainBuffers: boolean = false
+
   // === Incoming Connection Protection ===
   /** Timeout for incoming connections to complete BT handshake (ms) */
   private static readonly INCOMING_HANDSHAKE_TIMEOUT = 30_000
@@ -217,9 +231,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   private daemonRateLimiter: TokenBucket
 
   /**
-   * Interval handle for operation queue drain loop.
+   * Interval handle for unified engine tick loop.
+   * Combines connection slot allocation and per-torrent processing.
    */
-  private opDrainInterval: ReturnType<typeof setInterval> | null = null
+  private engineTickInterval: ReturnType<typeof setInterval> | null = null
 
   // ILoggableComponent implementation
   static logName = 'client'
@@ -310,6 +325,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.wireConfigSubscriptions()
 
     this._skipDHTBootstrap = options._skipDHTBootstrap ?? false
+    this.autoDrainBuffers = options.autoDrainBuffers ?? false
 
     // Initialize logger for BtEngine itself
     this.logger = this.scopedLoggerFor(this)
@@ -325,7 +341,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     this.startServer()
-    this.startOpDrainLoop()
+    this.startEngineTick()
   }
 
   scopedLoggerFor(component: ILoggableComponent): Logger {
@@ -874,8 +890,8 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       ;(this.config as { setEngineRunning: (running: boolean) => void }).setEngineRunning(false)
     }
 
-    // Stop operation drain loop
-    this.stopOpDrainLoop()
+    // Stop engine tick loop
+    this.stopEngineTick()
 
     // Clear pending operations
     this.pendingOps.clear()
@@ -1195,24 +1211,41 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   }
 
   /**
-   * Start the operation queue drain loop.
+   * Start the unified engine tick loop.
+   * Runs at 100ms intervals: connection slot allocation + per-torrent processing.
    */
-  private startOpDrainLoop(): void {
-    if (this.opDrainInterval) return
+  private startEngineTick(): void {
+    if (this.engineTickInterval) return
 
-    // Drain at 50ms intervals (up to 20 ops/sec with rate limiter)
-    this.opDrainInterval = setInterval(() => {
-      this.drainOpQueue()
-    }, 50)
+    // Engine tick at 100ms intervals (10Hz)
+    this.engineTickInterval = setInterval(() => {
+      this.engineTick()
+    }, 100)
   }
 
   /**
-   * Stop the operation queue drain loop.
+   * Stop the unified engine tick loop.
    */
-  private stopOpDrainLoop(): void {
-    if (this.opDrainInterval) {
-      clearInterval(this.opDrainInterval)
-      this.opDrainInterval = null
+  private stopEngineTick(): void {
+    if (this.engineTickInterval) {
+      clearInterval(this.engineTickInterval)
+      this.engineTickInterval = null
+    }
+  }
+
+  /**
+   * Unified engine tick: combines connection slot allocation with per-torrent processing.
+   * Called at 100ms intervals for predictable timing across all torrents.
+   */
+  private engineTick(): void {
+    // 1. Connection slot allocation (existing drainOpQueue logic)
+    this.drainOpQueue()
+
+    // 2. Torrent data processing - tick all network-active torrents
+    for (const torrent of this.torrents) {
+      if (torrent.isActive) {
+        torrent.tick()
+      }
     }
   }
 

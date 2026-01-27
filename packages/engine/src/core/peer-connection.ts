@@ -151,6 +151,12 @@ export class PeerConnection extends EngineComponent {
   public uploadSpeedCalculator = new SpeedCalculator()
   public downloadSpeedCalculator = new SpeedCalculator()
 
+  /**
+   * Bytes received since last drainBuffer() call.
+   * Used by tick-aligned processing to defer stats/event emission until drain time.
+   */
+  private pendingBytes = 0
+
   /** Timestamp when this connection was established */
   public connectedAt: number = Date.now()
 
@@ -358,16 +364,59 @@ export class PeerConnection extends EngineComponent {
     this.socket.close()
   }
 
+  /**
+   * Handle incoming data from socket.
+   * Phase 1 tick-aligned processing: buffer only, defer processing to drainBuffer().
+   * Stats and events are also deferred to avoid work during callbacks.
+   *
+   * Exception: If handshake hasn't been received, process immediately.
+   * This is necessary because:
+   * 1. Incoming connections need the handshake to be parsed before being assigned to a torrent
+   * 2. Handshakes are small (68 bytes) and infrequent (once per connection)
+   * 3. The tick-aligned optimization targets high-frequency PIECE messages, not handshakes
+   *
+   * Also processes immediately if engine.autoDrainBuffers is set (for tests).
+   */
   private handleData(data: Uint8Array) {
-    // this.logger.debug(`Received ${data.length} bytes`)
     // O(1) push to chunked buffer - no copy
     this.buffer.push(data)
+    this.pendingBytes += data.length
 
-    this.downloaded += data.length
-    this.downloadSpeedCalculator.addBytes(data.length)
-    this.emit('bytesDownloaded', data.length)
+    // Process immediately if:
+    // 1. Handshake not yet received (required for connection establishment)
+    // 2. autoDrainBuffers is enabled (for tests)
+    // Otherwise: wait for tick to call drainBuffer()
+    if (!this.handshakeReceived || this.engine.autoDrainBuffers) {
+      this.drainBuffer()
+    }
+  }
 
+  /**
+   * Drain the receive buffer and process accumulated data.
+   * Called by tick loop to perform all processing at once.
+   *
+   * Phase 1 tick-aligned processing: all stats, events, and protocol
+   * processing happen here instead of in handleData().
+   */
+  drainBuffer(): void {
+    // Update stats for accumulated bytes
+    if (this.pendingBytes > 0) {
+      this.downloaded += this.pendingBytes
+      this.downloadSpeedCalculator.addBytes(this.pendingBytes)
+      this.emit('bytesDownloaded', this.pendingBytes)
+      this.pendingBytes = 0
+    }
+
+    // Process protocol messages
     this.processBuffer()
+  }
+
+  /**
+   * Get the number of bytes pending in the receive buffer.
+   * Used for backpressure monitoring.
+   */
+  get bufferedBytes(): number {
+    return this.buffer.length
   }
 
   private processBuffer() {

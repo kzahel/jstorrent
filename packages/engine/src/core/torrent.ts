@@ -42,8 +42,6 @@ import {
   TickLoopCallbacks,
   TickStats,
   CLEANUP_TICK_INTERVAL,
-  REQUEST_TICK_BASE_INTERVAL_MS,
-  REQUEST_TICK_TARGET_UTILIZATION,
   BLOCK_REQUEST_TIMEOUT_MS,
   PIECE_ABANDON_TIMEOUT_MS,
   PIECE_ABANDON_MIN_PROGRESS,
@@ -64,8 +62,6 @@ export const MAX_INCOMING_RATIO = 0.6
 // Re-export tick loop constants for consumers
 export {
   CLEANUP_TICK_INTERVAL,
-  REQUEST_TICK_BASE_INTERVAL_MS,
-  REQUEST_TICK_TARGET_UTILIZATION,
   BLOCK_REQUEST_TIMEOUT_MS,
   PIECE_ABANDON_TIMEOUT_MS,
   PIECE_ABANDON_MIN_PROGRESS,
@@ -637,10 +633,8 @@ export class Torrent extends EngineComponent {
     this._swarm.resetBackoffState()
 
     // Start periodic maintenance (idempotent)
+    // Note: Request processing is now handled by BtEngine.engineTick()
     this._tickLoop.startMaintenance()
-
-    // Start request tick game loop
-    this._tickLoop.startRequestTick()
 
     // Add magnet peer hints on every start
     if (this.magnetPeerHints.length > 0) {
@@ -1508,10 +1502,8 @@ export class Torrent extends EngineComponent {
     this._networkActive = false
 
     // Stop periodic maintenance
+    // Note: Request processing is now handled by BtEngine.engineTick()
     this._tickLoop.stopMaintenance()
-
-    // Stop request tick game loop
-    this._tickLoop.stopRequestTick()
 
     // Stop DHT lookup timer
     this.stopDHTLookup()
@@ -1540,6 +1532,15 @@ export class Torrent extends EngineComponent {
    */
   getTickStats(): TickStats {
     return this._tickLoop.getTickStats()
+  }
+
+  /**
+   * Process one tick for this torrent.
+   * Called by BtEngine.engineTick() at 100ms intervals.
+   * Processes all accumulated data, runs cleanup, and fills request pipelines.
+   */
+  tick(): void {
+    this._tickLoop.tick()
   }
 
   // ==========================================================================
@@ -2549,9 +2550,8 @@ export class Torrent extends EngineComponent {
     // Without this flag, we'd create 45+ new connection promises while stopping.
     this._networkActive = false
 
-    // Stop periodic maintenance
+    // Stop periodic maintenance (request processing is handled by BtEngine.engineTick())
     this._tickLoop.stopMaintenance()
-    this._tickLoop.stopRequestTick()
     this.logger.info(`stopMaintenance done at ${Date.now() - t0}ms`)
 
     // Cancel any pending connection attempts

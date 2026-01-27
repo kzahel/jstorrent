@@ -22,31 +22,42 @@ The problem is not individual operation cost - it's the chaotic interleaving of 
 
 Adopt a game engine tick model: gather inputs, process, render outputs, repeat.
 
+**Key insight**: The tick runs at the **engine level**, not per-torrent. One boundary crossing per tick, then loop over all torrents in JS.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                       TICK (100ms)                          │
+│                   ENGINE TICK (100ms)                       │
 ├─────────────────────────────────────────────────────────────┤
-│  1. GATHER INPUTS                                           │
-│     - Drain TCP buffers (all peers)                         │
-│     - Drain UDP buffers (DHT, trackers)                     │
-│     - Drain disk completion callbacks                       │
-│     - Drain hash verification results                       │
+│  For each active torrent:                                   │
+│    1. GATHER INPUTS                                         │
+│       - Drain TCP buffers (all peers for this torrent)      │
+│       - Drain UDP buffers (DHT, trackers)                   │
+│       - Drain disk completion callbacks                     │
+│       - Drain hash verification results                     │
 │                                                             │
-│  2. PROCESS                                                 │
-│     - Parse protocol messages                               │
-│     - Update piece state                                    │
-│     - Handle completed pieces                               │
-│     - Run piece selection                                   │
+│    2. PROCESS                                               │
+│       - Parse protocol messages                             │
+│       - Update piece state                                  │
+│       - Handle completed pieces                             │
+│       - Run piece selection                                 │
 │                                                             │
-│  3. OUTPUT                                                  │
-│     - Send REQUEST messages                                 │
-│     - Send HAVE broadcasts                                  │
-│     - Queue disk writes                                     │
+│    3. OUTPUT                                                │
+│       - Send REQUEST messages                               │
+│       - Send HAVE broadcasts                                │
+│       - Queue disk writes                                   │
+│                                                             │
+│  End for each                                               │
+│                                                             │
+│  4. ENGINE-LEVEL                                            │
 │     - Emit UI state updates                                 │
-│                                                             │
-│  4. PUMP JOBS (single batch)                                │
+│     - PUMP JOBS (single batch)                              │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**Why engine-level tick matters**:
+- 5 active torrents = 5 tick timers = 5 boundary crossings (bad)
+- 1 engine tick + JS loop over torrents = 1 boundary crossing (good)
+- All torrents processed in same tick = consistent state for UI updates
 
 Benefits:
 - **Predictable timing** - all work at known intervals
@@ -54,6 +65,7 @@ Benefits:
 - **No promise storms** - one controlled job pump per tick
 - **Natural backpressure** - buffer size directly measurable
 - **Platform-agnostic** - same behavior for Android and extension
+- **Single boundary crossing** - regardless of torrent count
 
 ## Performance Targets
 
@@ -75,7 +87,7 @@ At 80 MB/s with 100ms ticks:
 
 ### Phase 1: JS-Side Tick Alignment (No Kotlin Changes)
 
-**Goal**: Eliminate processing during callbacks. Buffer only, process at tick.
+**Goal**: Eliminate processing during callbacks. Buffer only, process at tick. Move tick ownership to engine level.
 
 **Changes**:
 
@@ -111,9 +123,33 @@ drainBuffer(): void {
 }
 ```
 
-3. `TorrentTickLoop.requestTick()` - drain before processing
+3. `BtEngine` - owns the single tick timer
 ```typescript
-private requestTick(): void {
+// BtEngine becomes the tick owner
+private tickInterval: ReturnType<typeof setInterval> | null = null
+
+startEngineTick(): void {
+  if (this.tickInterval) return
+  this.tickInterval = setInterval(() => this.engineTick(), 100)
+}
+
+private engineTick(): void {
+  // Single entry point for all processing
+  for (const torrent of this.torrents) {
+    if (torrent.isNetworkActive()) {
+      torrent.tick()  // Renamed from requestTick, no longer has its own timer
+    }
+  }
+}
+```
+
+4. `TorrentTickLoop` - becomes a synchronous tick method (no timer)
+```typescript
+// Remove: startRequestTick(), stopRequestTick(), scheduleNextTick()
+// The timer is now at engine level
+
+// Renamed to tick(), called by engine
+tick(): void {
   const peers = this.callbacks.getConnectedPeers()
 
   // Phase 1: GATHER - drain all input buffers
@@ -121,60 +157,89 @@ private requestTick(): void {
     peer.drainBuffer()
   }
 
-  // Phase 2: PROCESS - existing piece request logic
-  // ... (unchanged)
+  // Phase 2: PROCESS - cleanup, piece selection
+  // ... (unchanged logic)
 
   // Phase 3: OUTPUT - flush sends
   this.flushPeers(peers)
 }
 ```
 
+5. `Torrent` - exposes tick method, removes timer management
+```typescript
+// Remove: calls to tickLoop.startRequestTick() / stopRequestTick()
+// Engine controls timing now
+
+tick(): void {
+  this.tickLoop.tick()
+}
+```
+
 **Testing**:
 - Unit test: `PeerConnection.handleData()` doesn't call `processBuffer()`
 - Unit test: `drainBuffer()` processes accumulated data correctly
+- Unit test: `BtEngine.engineTick()` calls `tick()` on all active torrents
+- Unit test: Multiple torrents ticked in single engine tick
 - Integration test: Download completes successfully with tick-aligned processing
+- Integration test: Multiple simultaneous downloads work correctly
 - Benchmark: Measure callback latency before/after
 
 **Metrics to validate**:
 - Callback latency should drop to near-zero (just buffer append)
 - Tick duration should increase slightly (doing all work)
 - Overall throughput should improve or stay same
+- With N torrents: still only 1 tick timer, not N
 
 ### Phase 2: Backpressure Signaling
 
 **Goal**: Prevent unbounded buffer growth when JS can't keep up.
 
+**Note**: Backpressure is tracked at **engine level** (across all torrents), not per-torrent. One global signal to pause/resume all reads.
+
 **Changes**:
 
-1. Track total buffered bytes across all peers
+1. Track total buffered bytes across all torrents (in BtEngine)
 ```typescript
-// In Torrent or TorrentTickLoop
+// In BtEngine
 private getTotalBufferedBytes(): number {
   let total = 0
-  for (const peer of this.callbacks.getConnectedPeers()) {
-    total += peer.buffer.length
+  for (const torrent of this.torrents) {
+    for (const peer of torrent.getConnectedPeers()) {
+      total += peer.buffer.length
+    }
   }
   return total
 }
 ```
 
-2. Signal backpressure to native layer
+2. Signal backpressure at start of engine tick
 ```typescript
 // Constants
 const BACKPRESSURE_HIGH_WATER = 16 * 1024 * 1024   // 16MB - activate
 const BACKPRESSURE_LOW_WATER = 4 * 1024 * 1024    // 4MB - release (hysteresis)
 
-// In tick loop
+// In BtEngine.engineTick()
+private engineTick(): void {
+  // Check backpressure before processing
+  this.checkBackpressure()
+
+  for (const torrent of this.torrents) {
+    if (torrent.isNetworkActive()) {
+      torrent.tick()
+    }
+  }
+}
+
 private checkBackpressure(): void {
   const buffered = this.getTotalBufferedBytes()
 
   if (!this.backpressureActive && buffered > BACKPRESSURE_HIGH_WATER) {
     this.backpressureActive = true
-    this.callbacks.setBackpressure(true)
+    this.socketFactory.setBackpressure(true)
     this.logger.warn(`Backpressure ON: ${(buffered / 1024 / 1024).toFixed(1)}MB buffered`)
   } else if (this.backpressureActive && buffered < BACKPRESSURE_LOW_WATER) {
     this.backpressureActive = false
-    this.callbacks.setBackpressure(false)
+    this.socketFactory.setBackpressure(false)
     this.logger.info(`Backpressure OFF: ${(buffered / 1024 / 1024).toFixed(1)}MB buffered`)
   }
 }
@@ -185,12 +250,14 @@ private checkBackpressure(): void {
 // bindings.d.ts
 declare function __jstorrent_tcp_set_backpressure(active: boolean): void
 
-// socket-factory or similar
+// In NativeSocketFactory
 setBackpressure(active: boolean): void {
-  if (typeof __jstorrent_tcp_set_backpressure === 'function') {
-    __jstorrent_tcp_set_backpressure(active)
-  }
-  // Extension: no-op, WebSocket has its own flow control
+  __jstorrent_tcp_set_backpressure(active)
+}
+
+// In WebSocketFactory (extension) - no-op, WebSocket has its own flow control
+setBackpressure(active: boolean): void {
+  // No-op
 }
 ```
 
@@ -438,23 +505,35 @@ Phase 1 alone should provide significant improvement. Phase 3 is the biggest win
 Add metrics for monitoring:
 
 ```typescript
-interface TickMetrics {
-  // Existing
+// Engine-level metrics (aggregated across all torrents)
+interface EngineTickMetrics {
   tickCount: number
   tickDurationMs: number
+  tickMaxMs: number
+  activeTorrents: number
 
-  // New
+  // Aggregated across all torrents
+  totalBytesProcessed: number
+  totalMessagesProcessed: number
+  totalBufferedBytes: number
+  backpressureActive: boolean
+  ffiCrossingsPerTick: number  // Android only, should be 1-2
+}
+
+// Per-torrent metrics (for debugging individual torrents)
+interface TorrentTickMetrics {
   bytesProcessedPerTick: number
   messagesProcessedPerTick: number
   bufferedBytesAtTickStart: number
-  backpressureActivations: number
-  ffiCrossingsPerTick: number  // Android only
+  connectedPeers: number
+  activePieces: number
 }
 ```
 
 Log format:
 ```
-[Tick] duration=45ms, processed=850KB/124msgs, buffered=2.1MB, backpressure=off
+[EngineTick] duration=45ms, torrents=3, processed=2.4MB/312msgs, buffered=5.1MB, backpressure=off
+[Torrent:abc123] processed=850KB/124msgs, buffered=2.1MB, peers=15
 ```
 
 ## Appendix: Data Flow Diagrams
@@ -481,7 +560,7 @@ Log format:
 └─────────────┘
 ```
 
-### Proposed (Tick-Aligned)
+### Proposed (Tick-Aligned, Engine-Level)
 
 ```
 ┌─────────────┐    ┌──────────────┐
@@ -490,7 +569,7 @@ Log format:
 └─────────────┘    └──────┬───────┘
                           │
         ┌─────────────────┘
-        │ (100ms timer)
+        │ (engine tick timer)
         ▼
 ┌───────────────┐    ┌──────────────┐
 │ Pack & Post   │───▶│  Single FFI  │
@@ -499,13 +578,32 @@ Log format:
                             │
                             ▼
 ┌─────────────────────────────────────────────────────┐
-│                      TICK                           │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌───────┐  │
-│  │ Drain   │─▶│ Process │─▶│ Output  │─▶│ Pump  │  │
-│  │ Buffers │  │  All    │  │  All    │  │ Once  │  │
-│  └─────────┘  └─────────┘  └─────────┘  └───────┘  │
+│                   ENGINE TICK                       │
+│  ┌─────────────────────────────────────────────┐   │
+│  │  for each torrent:                          │   │
+│  │    ┌─────────┐  ┌─────────┐  ┌─────────┐   │   │
+│  │    │ Drain   │─▶│ Process │─▶│ Output  │   │   │
+│  │    │ Buffers │  │  All    │  │  All    │   │   │
+│  │    └─────────┘  └─────────┘  └─────────┘   │   │
+│  └─────────────────────────────────────────────┘   │
+│  ┌───────┐                                         │
+│  │ Pump  │  (once, after all torrents)             │
+│  │ Jobs  │                                         │
+│  └───────┘                                         │
 └─────────────────────────────────────────────────────┘
 ```
+
+### Tick Rate Configuration
+
+The tick interval is configurable per platform:
+
+| Platform | Default | Rationale |
+|----------|---------|-----------|
+| Android (QuickJS) | 100ms (10Hz) | FFI overhead, battery |
+| Extension (WebSocket) | 20-50ms (20-50Hz) | No FFI, faster processing |
+| Desktop (future) | 16ms (60Hz) | Native performance |
+
+For now, 100ms is the target. Faster ticks can be enabled later for platforms that benefit.
 
 ## References
 

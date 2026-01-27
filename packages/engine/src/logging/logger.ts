@@ -48,6 +48,12 @@ export interface ILoggingEngine {
   scopedLoggerFor(component: ILoggableComponent): Logger
   /** Current listening port for incoming peer connections */
   listeningPort: number
+  /**
+   * When true, PeerConnection processes incoming data immediately instead of
+   * waiting for the tick loop to call drainBuffer(). Useful for tests.
+   * Default: false (production uses tick-aligned processing)
+   */
+  autoDrainBuffers?: boolean
 }
 
 export class EngineComponent extends EventEmitter implements ILoggableComponent {

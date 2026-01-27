@@ -42,19 +42,6 @@ export const PIECE_ABANDON_MIN_PROGRESS = 0.5 // 50%
 export const CLEANUP_TICK_INTERVAL = 5
 
 /**
- * Base interval for the request tick game loop.
- * Actual interval may be longer if ticks exceed the utilization budget.
- */
-export const REQUEST_TICK_BASE_INTERVAL_MS = 100
-
-/**
- * Target CPU utilization for the request tick.
- * If a tick takes longer than (base_interval * target_utilization),
- * the next tick is delayed to maintain this utilization ratio.
- */
-export const REQUEST_TICK_TARGET_UTILIZATION = 0.5 // 50%
-
-/**
  * Adaptive maintenance intervals.
  * Starts frequent (500ms) for quick connection establishment,
  * then backs off to 5s steady-state.
@@ -144,7 +131,6 @@ export class TorrentTickLoop extends EngineComponent {
   static logName = 'tick-loop'
 
   // === Request Tick State ===
-  private _requestTickTimeout: ReturnType<typeof setTimeout> | null = null
   private _tickCount = 0
   private _tickTotalMs = 0
   private _tickMaxMs = 0
@@ -189,66 +175,37 @@ export class TorrentTickLoop extends EngineComponent {
   // ==========================================================================
 
   /**
-   * Start the request tick game loop.
-   * This replaces edge-triggered request scheduling for better QuickJS performance.
-   * All piece requesting is done in adaptive intervals based on tick duration.
+   * Process one tick for this torrent.
+   * Called by BtEngine.engineTick() at 100ms intervals.
+   *
+   * Game loop pattern:
+   * 1. GATHER - drain all input buffers (TCP data accumulated since last tick)
+   * 2. PROCESS - protocol parsing, piece state updates, cleanup
+   * 3. REQUEST - request pieces from eligible peers
+   * 4. OUTPUT - flush all pending sends
    */
-  startRequestTick(): void {
-    if (this._requestTickTimeout) return
-
-    this.logger.debug(`Request tick started (${REQUEST_TICK_BASE_INTERVAL_MS}ms base interval)`)
-    this.scheduleNextTick(0) // First tick runs immediately
-  }
-
-  /**
-   * Stop the request tick game loop.
-   */
-  stopRequestTick(): void {
-    if (this._requestTickTimeout) {
-      clearTimeout(this._requestTickTimeout)
-      this._requestTickTimeout = null
-    }
-  }
-
-  /**
-   * Schedule the next request tick based on how long the last tick took.
-   * If the tick exceeded the utilization budget, backs off to maintain target utilization.
-   */
-  private scheduleNextTick(lastTickMs: number): void {
-    const budget = REQUEST_TICK_BASE_INTERVAL_MS * REQUEST_TICK_TARGET_UTILIZATION
-
-    let delay: number
-    if (lastTickMs > budget) {
-      // Over budget: back off to 2x the tick time (guarantees target utilization)
-      delay = lastTickMs * 2
-    } else {
-      // Under budget: schedule at base interval
-      delay = REQUEST_TICK_BASE_INTERVAL_MS
-    }
-
-    this._requestTickTimeout = setTimeout(() => {
-      this.requestTick()
-    }, delay)
-  }
-
-  /**
-   * Request tick - fill all peers' request pipelines.
-   * Called at adaptive intervals based on tick duration to maintain target utilization.
-   */
-  private requestTick(): void {
+  tick(): void {
     if (!this.callbacks.isNetworkActive()) return
 
     const startTime = Date.now()
+    const connectedPeers = this.callbacks.getConnectedPeers()
 
-    // Phase 5: Periodic cleanup of stuck pieces (every CLEANUP_TICK_INTERVAL ticks)
+    // === Phase 1: GATHER - drain all input buffers ===
+    // Process all accumulated TCP data before any other work.
+    // This moves processing from unpredictable callbacks to this controlled tick.
+    for (const peer of connectedPeers) {
+      peer.drainBuffer()
+    }
+
+    // === Phase 2: PROCESS - periodic cleanup of stuck pieces ===
     this._cleanupTickCounter++
     if (this._cleanupTickCounter >= CLEANUP_TICK_INTERVAL) {
       this._cleanupTickCounter = 0
       this.cleanupStuckPieces()
     }
 
+    // === Phase 3: REQUEST - fill peer request pipelines ===
     let peersProcessed = 0
-    const connectedPeers = this.callbacks.getConnectedPeers()
     for (const peer of connectedPeers) {
       if (!peer.peerChoking && peer.requestsPending < peer.pipelineDepth) {
         this.callbacks.requestPieces(peer, startTime)
@@ -256,7 +213,8 @@ export class TorrentTickLoop extends EngineComponent {
       }
     }
 
-    // Flush all queued sends at end of tick (reduces FFI overhead on Android)
+    // === Phase 4: OUTPUT - flush all queued sends ===
+    // Batch all protocol messages into single FFI call (reduces overhead on Android)
     this.flushPeers(connectedPeers)
 
     const endTime = Date.now()
@@ -272,7 +230,7 @@ export class TorrentTickLoop extends EngineComponent {
       const avgMs = (this._tickTotalMs / this._tickCount).toFixed(1)
       const activePieces = this.callbacks.getActivePieces()?.activeCount ?? 0
       this.logger.info(
-        `RequestTick: ${this._tickCount} ticks, avg ${avgMs}ms, max ${this._tickMaxMs}ms, ` +
+        `Tick: ${this._tickCount} ticks, avg ${avgMs}ms, max ${this._tickMaxMs}ms, ` +
           `${activePieces} active pieces, ${peersProcessed} peers/tick`,
       )
       this._tickCount = 0
@@ -280,9 +238,6 @@ export class TorrentTickLoop extends EngineComponent {
       this._tickMaxMs = 0
       this._lastTickLogTime = endTime
     }
-
-    // Schedule next tick with adaptive delay based on how long this tick took
-    this.scheduleNextTick(elapsed)
   }
 
   /**
