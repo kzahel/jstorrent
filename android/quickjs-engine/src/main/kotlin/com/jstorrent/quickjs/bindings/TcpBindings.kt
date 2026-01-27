@@ -5,6 +5,9 @@ import com.jstorrent.io.socket.TcpSocketCallback
 import com.jstorrent.io.socket.TcpSocketManager
 import com.jstorrent.quickjs.JsThread
 import com.jstorrent.quickjs.QuickJsContext
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * TCP socket bindings for QuickJS.
@@ -32,6 +35,46 @@ class TcpBindings(
 
         // Backpressure tracking - shared across instances
         private val pendingCallbacks = java.util.concurrent.atomic.AtomicInteger(0)
+
+        // ============================================================
+        // Phase 3: Batch TCP data crossing
+        // ============================================================
+
+        /**
+         * Event holding accumulated TCP data from I/O threads.
+         * Stored in queue until flushed to JS at tick boundary.
+         */
+        data class TcpDataEvent(
+            val socketId: Int,
+            val data: ByteArray,
+            val timestamp: Long = System.currentTimeMillis()
+        ) {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (other !is TcpDataEvent) return false
+                return socketId == other.socketId && data.contentEquals(other.data) && timestamp == other.timestamp
+            }
+            override fun hashCode(): Int = 31 * (31 * socketId + data.contentHashCode()) + timestamp.hashCode()
+        }
+
+        /**
+         * Pending TCP data from I/O threads, waiting to be flushed to JS.
+         * Thread-safe: I/O threads add, JS thread drains via flushTcpData().
+         */
+        private val pendingTcpData = ConcurrentLinkedQueue<TcpDataEvent>()
+
+        /**
+         * Total bytes pending in the queue (for metrics/logging).
+         */
+        @Volatile private var pendingTcpBytes = 0L
+
+        /**
+         * Metrics for batch processing.
+         */
+        @Volatile private var batchFlushCount = 0
+        @Volatile private var batchEventsTotal = 0L
+        @Volatile private var batchBytesTotal = 0L
+        @Volatile private var batchLogTime = System.currentTimeMillis()
 
         // Throughput tracking
         @Volatile private var bytesReceived = 0L
@@ -75,6 +118,72 @@ class TcpBindings(
                 callbackLatencyMaxMs = 0
                 callbackLatencyLogTime = now
             }
+        }
+
+        /**
+         * Get number of events pending in the TCP batch queue.
+         */
+        fun getPendingTcpEventCount(): Int = pendingTcpData.size
+
+        /**
+         * Get bytes pending in the TCP batch queue.
+         */
+        fun getPendingTcpBytes(): Long = pendingTcpBytes
+
+        /**
+         * Queue a TCP data event for batch processing.
+         * Called from I/O threads, drained by flushTcpData on JS thread.
+         */
+        fun queueTcpData(socketId: Int, data: ByteArray) {
+            pendingTcpData.add(TcpDataEvent(socketId, data))
+            pendingTcpBytes += data.size
+        }
+
+        /**
+         * Drain pending events and pack into binary format.
+         * Format: [count: u32 LE] then for each: [socketId: u32 LE] [len: u32 LE] [data: len bytes]
+         * Returns null if queue is empty.
+         */
+        fun drainAndPackTcpBatch(): ByteArray? {
+            val batch = mutableListOf<TcpDataEvent>()
+            var totalBytes = 0
+            while (true) {
+                val event = pendingTcpData.poll() ?: break
+                batch.add(event)
+                totalBytes += event.data.size
+            }
+
+            if (batch.isEmpty()) return null
+
+            // Update metrics
+            pendingTcpBytes = 0
+            batchFlushCount++
+            batchEventsTotal += batch.size
+            batchBytesTotal += totalBytes
+
+            // Log batch stats periodically
+            val now = System.currentTimeMillis()
+            if (now - batchLogTime >= 5000 && batchFlushCount > 0) {
+                val avgEvents = batchEventsTotal.toFloat() / batchFlushCount
+                val avgBytes = batchBytesTotal.toFloat() / batchFlushCount / 1024
+                Log.i(TAG, "TCP batch: %d flushes, avg %.1f events/flush, avg %.1f KB/flush".format(
+                    batchFlushCount, avgEvents, avgBytes))
+                batchFlushCount = 0
+                batchEventsTotal = 0
+                batchBytesTotal = 0
+                batchLogTime = now
+            }
+
+            // Pack format: [count: u32 LE] [socketId: u32 LE, len: u32 LE, data: bytes]...
+            val packedSize = 4 + batch.sumOf { 8 + it.data.size }
+            val buf = ByteBuffer.allocate(packedSize).order(ByteOrder.LITTLE_ENDIAN)
+            buf.putInt(batch.size)
+            for (event in batch) {
+                buf.putInt(event.socketId)
+                buf.putInt(event.data.size)
+                buf.put(event.data)
+            }
+            return buf.array()
         }
     }
 
@@ -173,6 +282,26 @@ class TcpBindings(
             }
             null
         }
+
+        // __jstorrent_tcp_flush(): void
+        // Phase 3: Flush accumulated TCP data from I/O threads to JS.
+        // Called by JS at start of engine tick to batch all pending data
+        // into a single FFI crossing.
+        ctx.setGlobalFunction("__jstorrent_tcp_flush") { _ ->
+            val packed = drainAndPackTcpBatch()
+            if (packed != null) {
+                // Dispatch batch to JS - single FFI call for all accumulated data
+                ctx.callGlobalFunctionWithBinary(
+                    "__jstorrent_tcp_dispatch_batch",
+                    packed,
+                    0,  // binary is first argument
+                    null
+                )
+                // Note: We don't call scheduleJobPump here because flush is called
+                // at the start of tick. The tick will pump jobs at the end.
+            }
+            null
+        }
     }
 
     private fun registerCallbackFunctions(ctx: QuickJsContext) {
@@ -230,46 +359,23 @@ class TcpBindings(
             override fun onTcpData(socketId: Int, data: ByteArray) {
                 if (!hasDataCallback) return
 
-                // Track throughput before posting to JS (this is raw network speed)
+                // Track raw throughput (before queuing)
                 bytesReceived += data.size
                 val now = System.currentTimeMillis()
                 val elapsed = now - lastLogTime
                 if (elapsed >= 5000) {
                     val mbps = (bytesReceived / (elapsed / 1000.0)) / (1024 * 1024)
-                    Log.i(TAG, "TCP recv: %.2f MB/s (raw), queue depth: %d (max: %d)".format(
-                        mbps, pendingCallbacks.get(), maxQueueDepth))
+                    val pendingEvents = getPendingTcpEventCount()
+                    val pendingKb = getPendingTcpBytes() / 1024.0
+                    Log.i(TAG, "TCP recv: %.2f MB/s (raw), pending: %d events (%.1f KB)".format(
+                        mbps, pendingEvents, pendingKb))
                     bytesReceived = 0
-                    maxQueueDepth = 0
                     lastLogTime = now
                 }
 
-                // Track queue depth for backpressure detection
-                val queueDepth = pendingCallbacks.incrementAndGet()
-                if (queueDepth > maxQueueDepth) {
-                    maxQueueDepth = queueDepth
-                }
-                if (queueDepth > 50) {
-                    Log.w(TAG, "JS callback queue depth: $queueDepth (BACKPRESSURE)")
-                }
-
-                // Capture post time for latency tracking
-                val postTime = System.currentTimeMillis()
-
-                jsThread.post {
-                    // Measure callback latency (time from post to execution)
-                    val latency = System.currentTimeMillis() - postTime
-                    recordCallbackLatency(latency)
-
-                    pendingCallbacks.decrementAndGet()
-                    ctx.callGlobalFunctionWithBinary(
-                        "__jstorrent_tcp_dispatch_data",
-                        data,
-                        1,
-                        socketId.toString(),
-                        null
-                    )
-                    jsThread.scheduleJobPump(ctx)
-                }
+                // Phase 3: Queue for batch processing at tick boundary
+                // Just append to queue - no FFI crossing, no jsThread.post
+                queueTcpData(socketId, data)
             }
 
             override fun onTcpClose(socketId: Int, hadError: Boolean, errorCode: Int) {

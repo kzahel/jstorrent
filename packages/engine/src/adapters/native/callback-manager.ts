@@ -52,7 +52,32 @@ class CallbackManager {
     if (this.initialized) return
     this.initialized = true
 
-    // TCP data callback
+    // Phase 3: Batch TCP data receiver
+    // Called by Kotlin when __jstorrent_tcp_flush() drains the pending queue.
+    // Format: [count: u32 LE] then for each: [socketId: u32 LE] [len: u32 LE] [data: len bytes]
+    ;(globalThis as Record<string, unknown>).__jstorrent_tcp_dispatch_batch = (
+      packed: ArrayBuffer,
+    ) => {
+      const view = new DataView(packed)
+      let offset = 0
+      const count = view.getUint32(offset, true)
+      offset += 4
+
+      for (let i = 0; i < count; i++) {
+        const socketId = view.getUint32(offset, true)
+        offset += 4
+        const len = view.getUint32(offset, true)
+        offset += 4
+        const data = new Uint8Array(packed, offset, len)
+        offset += len
+
+        // Dispatch to socket handler (just buffers, no processing per Phase 1)
+        const handlers = this.tcpHandlers.get(socketId)
+        handlers?.onData?.(data)
+      }
+    }
+
+    // TCP data callback (legacy per-event dispatch, still used when not batching)
     __jstorrent_tcp_on_data((socketId, data) => {
       const handlers = this.tcpHandlers.get(socketId)
       handlers?.onData?.(new Uint8Array(data))

@@ -78,6 +78,13 @@ declare global {
    */
   function __jstorrent_tcp_set_backpressure(active: boolean): void
 
+  /**
+   * Flush accumulated TCP data from I/O threads to JS.
+   * Called at start of engine tick to batch all pending TCP data
+   * into a single FFI crossing. Dispatches to __jstorrent_tcp_dispatch_batch.
+   */
+  function __jstorrent_tcp_flush(): void
+
   // ============================================================
   // TCP Server Functions
   // ============================================================
