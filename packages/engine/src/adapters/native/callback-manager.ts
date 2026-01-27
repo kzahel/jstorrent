@@ -77,6 +77,120 @@ class CallbackManager {
       }
     }
 
+    // Phase 4: Batch UDP message receiver
+    // Called by Kotlin when __jstorrent_udp_flush() drains the pending queue.
+    // Format: [count: u32 LE] then for each:
+    //   [socketId: u32 LE] [srcPort: u16 LE] [addrLen: u8] [addr: bytes] [dataLen: u32 LE] [data: bytes]
+    ;(globalThis as Record<string, unknown>).__jstorrent_udp_dispatch_batch = (
+      packed: ArrayBuffer,
+    ) => {
+      const view = new DataView(packed)
+      const bytes = new Uint8Array(packed)
+      let offset = 0
+      const count = view.getUint32(offset, true)
+      offset += 4
+
+      const textDecoder = new TextDecoder()
+
+      for (let i = 0; i < count; i++) {
+        const socketId = view.getUint32(offset, true)
+        offset += 4
+        const srcPort = view.getUint16(offset, true)
+        offset += 2
+        const addrLen = bytes[offset]
+        offset += 1
+        const addr = textDecoder.decode(bytes.subarray(offset, offset + addrLen))
+        offset += addrLen
+        const dataLen = view.getUint32(offset, true)
+        offset += 4
+        const data = new Uint8Array(packed, offset, dataLen)
+        offset += dataLen
+
+        // Dispatch to socket handler
+        const handlers = this.udpHandlers.get(socketId)
+        handlers?.onMessage?.({ addr, port: srcPort }, data)
+      }
+    }
+
+    // Phase 4: Batch disk write result receiver
+    // Called by Kotlin when __jstorrent_file_flush() drains the pending queue.
+    // Format: [count: u32 LE] then for each:
+    //   [callbackIdLen: u8] [callbackId: bytes] [bytesWritten: i32 LE] [resultCode: u8]
+    ;(globalThis as Record<string, unknown>).__jstorrent_file_dispatch_batch = (
+      packed: ArrayBuffer,
+    ) => {
+      const view = new DataView(packed)
+      const bytes = new Uint8Array(packed)
+      let offset = 0
+      const count = view.getUint32(offset, true)
+      offset += 4
+
+      const textDecoder = new TextDecoder()
+      const callbacks = (
+        globalThis as unknown as {
+          __jstorrent_file_write_callbacks?: Record<string, (bw: number, rc: number) => void>
+        }
+      ).__jstorrent_file_write_callbacks
+
+      for (let i = 0; i < count; i++) {
+        const callbackIdLen = bytes[offset]
+        offset += 1
+        const callbackId = textDecoder.decode(bytes.subarray(offset, offset + callbackIdLen))
+        offset += callbackIdLen
+        const bytesWritten = view.getInt32(offset, true)
+        offset += 4
+        const resultCode = bytes[offset]
+        offset += 1
+
+        // Dispatch to registered callback (same as __jstorrent_file_dispatch_write_result)
+        const callback = callbacks?.[callbackId]
+        if (callback) {
+          delete callbacks[callbackId]
+          callback(bytesWritten, resultCode)
+        }
+      }
+    }
+
+    // Phase 4: Batch hash result receiver
+    // Called by Kotlin when __jstorrent_hash_flush() drains the pending queue.
+    // Format: [count: u32 LE] then for each:
+    //   [callbackIdLen: u8] [callbackId: bytes] [hashLen: u8] [hash: bytes]
+    ;(globalThis as Record<string, unknown>).__jstorrent_hash_dispatch_batch = (
+      packed: ArrayBuffer,
+    ) => {
+      const bytes = new Uint8Array(packed)
+      const view = new DataView(packed)
+      let offset = 0
+      const count = view.getUint32(offset, true)
+      offset += 4
+
+      const textDecoder = new TextDecoder()
+      const callbacks = (
+        globalThis as unknown as {
+          __jstorrent_hash_callbacks?: Record<string, (hash: ArrayBuffer) => void>
+        }
+      ).__jstorrent_hash_callbacks
+
+      for (let i = 0; i < count; i++) {
+        const callbackIdLen = bytes[offset]
+        offset += 1
+        const callbackId = textDecoder.decode(bytes.subarray(offset, offset + callbackIdLen))
+        offset += callbackIdLen
+        const hashLen = bytes[offset]
+        offset += 1
+        // Create a copy of the hash data to avoid issues with the packed buffer
+        const hash = packed.slice(offset, offset + hashLen)
+        offset += hashLen
+
+        // Dispatch to registered callback (same as __jstorrent_hash_dispatch_result)
+        const callback = callbacks?.[callbackId]
+        if (callback) {
+          delete callbacks[callbackId]
+          callback(hash)
+        }
+      }
+    }
+
     // TCP data callback (legacy per-event dispatch, still used when not batching)
     __jstorrent_tcp_on_data((socketId, data) => {
       const handlers = this.tcpHandlers.get(socketId)

@@ -1246,13 +1246,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    * Called at 100ms intervals for predictable timing across all torrents.
    */
   private engineTick(): void {
-    // Phase 3: Flush accumulated TCP data from native I/O threads.
-    // This drains all pending data in a single FFI call, reducing boundary crossings
+    // Phase 3+4: Flush accumulated callbacks from native I/O threads.
+    // This drains all pending data in a single FFI call per type, reducing boundary crossings
     // from 60+ per tick to 1-2. Only available on native (Android) - no-op on extension.
-    const flushFn = (globalThis as Record<string, unknown>).__jstorrent_tcp_flush
-    if (typeof flushFn === 'function') {
-      flushFn()
-    }
+    this.socketFactory.flushCallbacks?.()
 
     // 0. Check backpressure before processing (Phase 2)
     this.checkBackpressure()

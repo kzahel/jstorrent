@@ -8,7 +8,26 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.security.SecureRandom
+import java.util.concurrent.ConcurrentLinkedQueue
+
+/**
+ * Phase 4: Event holding hash result for batch delivery.
+ */
+data class HashResultEvent(
+    val callbackId: String,
+    val hash: ByteArray,
+    val timestamp: Long = System.currentTimeMillis()
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is HashResultEvent) return false
+        return callbackId == other.callbackId && hash.contentEquals(other.hash) && timestamp == other.timestamp
+    }
+    override fun hashCode(): Int = 31 * (31 * callbackId.hashCode() + hash.contentHashCode()) + timestamp.hashCode()
+}
 
 /**
  * Polyfill bindings for QuickJS.
@@ -19,6 +38,7 @@ import java.security.SecureRandom
  * - SHA-1 hashing (sync and async)
  * - console.log
  * - setTimeout/setInterval
+ * - __jstorrent_hash_flush() - Phase 4 batch flush
  */
 class PolyfillBindings(
     private val jsThread: JsThread
@@ -27,6 +47,105 @@ class PolyfillBindings(
 
     // Coroutine scope for async hashing (runs on background thread)
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    companion object {
+        private const val TAG = "PolyfillBindings"
+
+        // ============================================================
+        // Phase 4: Batch hash result crossing
+        // ============================================================
+
+        /**
+         * Pending hash results from I/O threads, waiting to be flushed to JS.
+         * Thread-safe: I/O threads add, JS thread drains via flushHashResults().
+         */
+        private val pendingHashResults = ConcurrentLinkedQueue<HashResultEvent>()
+
+        /**
+         * Total bytes pending in the queue (for metrics/logging).
+         */
+        @Volatile private var pendingHashBytes = 0L
+
+        /**
+         * Metrics for batch processing.
+         */
+        @Volatile private var hashBatchFlushCount = 0
+        @Volatile private var hashBatchEventsTotal = 0L
+        @Volatile private var hashBatchBytesTotal = 0L
+        @Volatile private var hashBatchLogTime = System.currentTimeMillis()
+
+        /**
+         * Get number of events pending in the hash result queue.
+         */
+        fun getPendingHashEventCount(): Int = pendingHashResults.size
+
+        /**
+         * Get bytes pending in the hash result queue.
+         */
+        fun getPendingHashBytes(): Long = pendingHashBytes
+
+        /**
+         * Queue a hash result for batch processing.
+         * Called from I/O threads, drained by flushHashResults on JS thread.
+         */
+        fun queueHashResult(callbackId: String, hash: ByteArray) {
+            pendingHashResults.add(HashResultEvent(callbackId, hash))
+            pendingHashBytes += hash.size
+        }
+
+        /**
+         * Drain pending events and pack into binary format.
+         * Format: [count: u32 LE] then for each:
+         *   [callbackIdLen: u8] [callbackId: bytes] [hashLen: u8] [hash: bytes]
+         * Returns null if queue is empty.
+         */
+        fun drainAndPackHashBatch(): ByteArray? {
+            val batch = mutableListOf<HashResultEvent>()
+            var totalBytes = 0
+            while (true) {
+                val event = pendingHashResults.poll() ?: break
+                batch.add(event)
+                totalBytes += event.hash.size
+            }
+
+            if (batch.isEmpty()) return null
+
+            // Update metrics
+            pendingHashBytes = 0
+            hashBatchFlushCount++
+            hashBatchEventsTotal += batch.size
+            hashBatchBytesTotal += totalBytes
+
+            // Log batch stats periodically
+            val now = System.currentTimeMillis()
+            if (now - hashBatchLogTime >= 5000 && hashBatchFlushCount > 0) {
+                val avgEvents = hashBatchEventsTotal.toFloat() / hashBatchFlushCount
+                val avgBytes = hashBatchBytesTotal.toFloat() / hashBatchFlushCount
+                Log.i(TAG, "Hash batch: %d flushes, avg %.1f events/flush, avg %.0f bytes/flush".format(
+                    hashBatchFlushCount, avgEvents, avgBytes))
+                hashBatchFlushCount = 0
+                hashBatchEventsTotal = 0
+                hashBatchBytesTotal = 0
+                hashBatchLogTime = now
+            }
+
+            // Pack format: [count: u32 LE] then for each:
+            // [callbackIdLen: u8] [callbackId: bytes] [hashLen: u8] [hash: bytes]
+            val packedSize = 4 + batch.sumOf { event ->
+                1 + event.callbackId.toByteArray(Charsets.UTF_8).size + 1 + event.hash.size
+            }
+            val buf = ByteBuffer.allocate(packedSize).order(ByteOrder.LITTLE_ENDIAN)
+            buf.putInt(batch.size)
+            for (event in batch) {
+                val idBytes = event.callbackId.toByteArray(Charsets.UTF_8)
+                buf.put(idBytes.size.toByte())
+                buf.put(idBytes)
+                buf.put(event.hash.size.toByte())
+                buf.put(event.hash)
+            }
+            return buf.array()
+        }
+    }
 
     /**
      * Register all polyfill bindings on the given context.
@@ -37,6 +156,32 @@ class PolyfillBindings(
         registerRandomFunctions(ctx)
         registerConsoleFunctions(ctx)
         registerTimerFunctions(ctx)
+        registerFlushFunctions(ctx)
+    }
+
+    /**
+     * Register Phase 4 flush functions for batch crossing.
+     */
+    private fun registerFlushFunctions(ctx: QuickJsContext) {
+        // __jstorrent_hash_flush(): void
+        // Phase 4: Flush accumulated hash results from I/O threads to JS.
+        // Called by JS at start of engine tick to batch all pending results
+        // into a single FFI crossing.
+        ctx.setGlobalFunction("__jstorrent_hash_flush") { _ ->
+            val packed = drainAndPackHashBatch()
+            if (packed != null) {
+                // Dispatch batch to JS - single FFI call for all accumulated results
+                ctx.callGlobalFunctionWithBinary(
+                    "__jstorrent_hash_dispatch_batch",
+                    packed,
+                    0,  // binary is first argument
+                    null
+                )
+                // Note: We don't call scheduleJobPump here because flush is called
+                // at the start of tick. The tick will pump jobs at the end.
+            }
+            null
+        }
     }
 
     private fun registerTextFunctions(ctx: QuickJsContext) {
@@ -118,20 +263,8 @@ class PolyfillBindings(
             Log.d("JSTorrent-Hash", "sha1_async: callbackId=$callbackId, bytes=${binary?.size ?: 0}")
 
             if (binary == null || binary.isEmpty()) {
-                // Post empty result immediately
-                jsThread.post {
-                    // callGlobalFunctionWithBinary(funcName, binaryArg, binaryArgIndex, ...stringArgs)
-                    // Here: dispatch(callbackId, hash) where hash is at index 1
-                    // Note: null placeholder at index 1 where binary data will be inserted
-                    ctx.callGlobalFunctionWithBinary(
-                        "__jstorrent_hash_dispatch_result",
-                        ByteArray(0),
-                        1,  // binary goes at arg index 1
-                        callbackId,
-                        null  // placeholder for binary at index 1
-                    )
-                    jsThread.scheduleJobPump(ctx)
-                }
+                // Phase 4: Queue empty result for batch processing at tick boundary
+                queueHashResult(callbackId, ByteArray(0))
                 return@setGlobalFunctionWithBinary null
             }
 
@@ -170,18 +303,8 @@ class PolyfillBindings(
                     }
                 }
 
-                // Post result back to JS thread
-                jsThread.post {
-                    // Note: null placeholder at index 1 where binary data will be inserted
-                    ctx.callGlobalFunctionWithBinary(
-                        "__jstorrent_hash_dispatch_result",
-                        result,
-                        1,  // binary goes at arg index 1
-                        callbackId,
-                        null  // placeholder for binary at index 1
-                    )
-                    jsThread.scheduleJobPump(ctx)
-                }
+                // Phase 4: Queue result for batch processing at tick boundary
+                queueHashResult(callbackId, result)
             }
 
             null // Return immediately, result comes via callback

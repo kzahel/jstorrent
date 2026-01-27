@@ -16,6 +16,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.concurrent.ConcurrentLinkedQueue
+
 /**
  * Write result codes for async verified writes.
  */
@@ -25,6 +29,16 @@ object WriteResultCode {
     const val IO_ERROR = 2
     const val INVALID_ARGS = 3
 }
+
+/**
+ * Phase 4: Event holding disk write result for batch delivery.
+ */
+data class DiskWriteResultEvent(
+    val callbackId: String,
+    val bytesWritten: Int,
+    val resultCode: Int,
+    val timestamp: Long = System.currentTimeMillis()
+)
 
 /**
  * File I/O bindings for QuickJS.
@@ -68,6 +82,83 @@ class FileBindings(
         @Volatile private var totalWriteTimeMs = 0L
         @Volatile private var maxWriteLatencyMs = 0L
         @Volatile private var lastLogTime = System.currentTimeMillis()
+
+        // ============================================================
+        // Phase 4: Batch disk write result crossing
+        // ============================================================
+
+        /**
+         * Pending disk write results from I/O threads, waiting to be flushed to JS.
+         * Thread-safe: I/O threads add, JS thread drains via flushDiskWriteResults().
+         */
+        private val pendingDiskResults = ConcurrentLinkedQueue<DiskWriteResultEvent>()
+
+        /**
+         * Metrics for batch processing.
+         */
+        @Volatile private var diskBatchFlushCount = 0
+        @Volatile private var diskBatchEventsTotal = 0L
+        @Volatile private var diskBatchLogTime = System.currentTimeMillis()
+
+        /**
+         * Get number of events pending in the disk write result queue.
+         */
+        fun getPendingDiskEventCount(): Int = pendingDiskResults.size
+
+        /**
+         * Queue a disk write result for batch processing.
+         * Called from I/O threads, drained by flushDiskWriteResults on JS thread.
+         */
+        fun queueDiskWriteResult(callbackId: String, bytesWritten: Int, resultCode: Int) {
+            pendingDiskResults.add(DiskWriteResultEvent(callbackId, bytesWritten, resultCode))
+        }
+
+        /**
+         * Drain pending events and pack into binary format.
+         * Format: [count: u32 LE] then for each:
+         *   [callbackIdLen: u8] [callbackId: bytes] [bytesWritten: i32 LE] [resultCode: u8]
+         * Returns null if queue is empty.
+         */
+        fun drainAndPackDiskBatch(): ByteArray? {
+            val batch = mutableListOf<DiskWriteResultEvent>()
+            while (true) {
+                val event = pendingDiskResults.poll() ?: break
+                batch.add(event)
+            }
+
+            if (batch.isEmpty()) return null
+
+            // Update metrics
+            diskBatchFlushCount++
+            diskBatchEventsTotal += batch.size
+
+            // Log batch stats periodically
+            val now = System.currentTimeMillis()
+            if (now - diskBatchLogTime >= 5000 && diskBatchFlushCount > 0) {
+                val avgEvents = diskBatchEventsTotal.toFloat() / diskBatchFlushCount
+                Log.i(TAG, "Disk batch: %d flushes, avg %.1f events/flush".format(
+                    diskBatchFlushCount, avgEvents))
+                diskBatchFlushCount = 0
+                diskBatchEventsTotal = 0
+                diskBatchLogTime = now
+            }
+
+            // Pack format: [count: u32 LE] then for each:
+            // [callbackIdLen: u8] [callbackId: bytes] [bytesWritten: i32 LE] [resultCode: u8]
+            val packedSize = 4 + batch.sumOf { event ->
+                1 + event.callbackId.toByteArray(Charsets.UTF_8).size + 4 + 1
+            }
+            val buf = ByteBuffer.allocate(packedSize).order(ByteOrder.LITTLE_ENDIAN)
+            buf.putInt(batch.size)
+            for (event in batch) {
+                val idBytes = event.callbackId.toByteArray(Charsets.UTF_8)
+                buf.put(idBytes.size.toByte())
+                buf.put(idBytes)
+                buf.putInt(event.bytesWritten)
+                buf.put(event.resultCode.toByte())
+            }
+            return buf.array()
+        }
 
         /**
          * Get current callback queue depth.
@@ -330,6 +421,26 @@ class FileBindings(
             };
         """.trimIndent(), "file-bindings-init.js")
 
+        // __jstorrent_file_flush(): void
+        // Phase 4: Flush accumulated disk write results from I/O threads to JS.
+        // Called by JS at start of engine tick to batch all pending results
+        // into a single FFI crossing.
+        ctx.setGlobalFunction("__jstorrent_file_flush") { _ ->
+            val packed = drainAndPackDiskBatch()
+            if (packed != null) {
+                // Dispatch batch to JS - single FFI call for all accumulated results
+                ctx.callGlobalFunctionWithBinary(
+                    "__jstorrent_file_dispatch_batch",
+                    packed,
+                    0,  // binary is first argument
+                    null
+                )
+                // Note: We don't call scheduleJobPump here because flush is called
+                // at the start of tick. The tick will pump jobs at the end.
+            }
+            null
+        }
+
         // __jstorrent_file_write_verified(rootKey, path, offset, data, expectedSha1Hex, callbackId): void
         // Async verified write - hashes data, compares to expected, writes if match.
         // Posts result back to JS via __jstorrent_file_dispatch_write_result.
@@ -348,35 +459,16 @@ class FileBindings(
 
             if (path.isEmpty() || binary == null || expectedSha1Hex.isEmpty() || callbackId.isEmpty()) {
                 Log.w(TAG, "write_verified: invalid args")
-                // Post error back immediately
-                incrementQueue()
-                jsThread.post {
-                    decrementQueue()
-                    ctx.callGlobalFunction(
-                        "__jstorrent_file_dispatch_write_result",
-                        callbackId,
-                        "-1",
-                        WriteResultCode.INVALID_ARGS.toString()
-                    )
-                    jsThread.scheduleJobPump(ctx)
-                }
+                // Phase 4: Queue error for batch processing at tick boundary
+                queueDiskWriteResult(callbackId, -1, WriteResultCode.INVALID_ARGS)
                 return@setGlobalFunctionWithBinary null
             }
 
             val rootUri = resolveRoot(rootKey)
             if (rootUri == null) {
                 Log.w(TAG, "write_verified: unknown root key: $rootKey")
-                incrementQueue()
-                jsThread.post {
-                    decrementQueue()
-                    ctx.callGlobalFunction(
-                        "__jstorrent_file_dispatch_write_result",
-                        callbackId,
-                        "-1",
-                        WriteResultCode.INVALID_ARGS.toString()
-                    )
-                    jsThread.scheduleJobPump(ctx)
-                }
+                // Phase 4: Queue error for batch processing at tick boundary
+                queueDiskWriteResult(callbackId, -1, WriteResultCode.INVALID_ARGS)
                 return@setGlobalFunctionWithBinary null
             }
 
@@ -392,17 +484,8 @@ class FileBindings(
                     // 2. Compare hashes
                     if (!actualHashHex.equals(expectedSha1Hex, ignoreCase = true)) {
                         Log.w(TAG, "write_verified: hash mismatch for $path")
-                        incrementQueue()
-                        jsThread.post {
-                            decrementQueue()
-                            ctx.callGlobalFunction(
-                                "__jstorrent_file_dispatch_write_result",
-                                callbackId,
-                                "-1",
-                                WriteResultCode.HASH_MISMATCH.toString()
-                            )
-                            jsThread.scheduleJobPump(ctx)
-                        }
+                        // Phase 4: Queue error for batch processing at tick boundary
+                        queueDiskWriteResult(callbackId, -1, WriteResultCode.HASH_MISMATCH)
                         return@launch
                     }
 
@@ -436,42 +519,13 @@ class FileBindings(
                         }
                     }
 
-                    // 4. Post success back to JS thread
-                    val postTime = System.currentTimeMillis()
-                    incrementQueue()
-                    jsThread.post {
-                        decrementQueue()
-                        val cbLatency = System.currentTimeMillis() - postTime
-                        if (cbLatency > 100) {
-                            Log.d(TAG, "Disk write callback latency: ${cbLatency}ms")
-                        }
-                        ctx.callGlobalFunction(
-                            "__jstorrent_file_dispatch_write_result",
-                            callbackId,
-                            binary.size.toString(),
-                            WriteResultCode.SUCCESS.toString()
-                        )
-                        jsThread.scheduleJobPump(ctx)
-                    }
+                    // 4. Phase 4: Queue success for batch processing at tick boundary
+                    queueDiskWriteResult(callbackId, binary.size, WriteResultCode.SUCCESS)
 
                 } catch (e: Exception) {
                     Log.e(TAG, "write_verified failed: $path", e)
-                    val postTime = System.currentTimeMillis()
-                    incrementQueue()
-                    jsThread.post {
-                        decrementQueue()
-                        val cbLatency = System.currentTimeMillis() - postTime
-                        if (cbLatency > 100) {
-                            Log.d(TAG, "Disk error callback latency: ${cbLatency}ms")
-                        }
-                        ctx.callGlobalFunction(
-                            "__jstorrent_file_dispatch_write_result",
-                            callbackId,
-                            "-1",
-                            WriteResultCode.IO_ERROR.toString()
-                        )
-                        jsThread.scheduleJobPump(ctx)
-                    }
+                    // Phase 4: Queue error for batch processing at tick boundary
+                    queueDiskWriteResult(callbackId, -1, WriteResultCode.IO_ERROR)
                 }
             }
 

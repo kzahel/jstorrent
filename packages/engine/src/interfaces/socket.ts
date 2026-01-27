@@ -163,4 +163,15 @@ export interface ISocketFactory {
    * Optional - callers should check if method exists before calling.
    */
   setBackpressure?(active: boolean): void
+
+  /**
+   * Flush accumulated native callbacks at start of engine tick.
+   * On native platforms (Android), I/O callbacks are queued and delivered
+   * in batches to reduce FFI crossings. This method drains all pending
+   * callbacks (TCP, UDP, disk, hash) in a single tick.
+   * Web implementations (extension) treat this as a no-op since callbacks
+   * are delivered immediately via WebSocket.
+   * Optional - callers should check if method exists before calling.
+   */
+  flushCallbacks?(): void
 }

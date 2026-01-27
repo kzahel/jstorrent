@@ -120,4 +120,34 @@ export class NativeSocketFactory implements ISocketFactory {
   setBackpressure(active: boolean): void {
     __jstorrent_tcp_set_backpressure(active)
   }
+
+  /**
+   * Flush accumulated native callbacks at start of engine tick.
+   * Drains all pending I/O callbacks (TCP, UDP, disk, hash) that have been
+   * queued by native I/O threads, delivering them in batched FFI calls.
+   * This reduces FFI crossings from 60+ per tick to just 4.
+   */
+  flushCallbacks(): void {
+    const g = globalThis as Record<string, unknown>
+
+    // Phase 3: TCP data
+    if (typeof g.__jstorrent_tcp_flush === 'function') {
+      ;(g.__jstorrent_tcp_flush as () => void)()
+    }
+
+    // Phase 4: UDP messages
+    if (typeof g.__jstorrent_udp_flush === 'function') {
+      ;(g.__jstorrent_udp_flush as () => void)()
+    }
+
+    // Phase 4: Disk write results
+    if (typeof g.__jstorrent_file_flush === 'function') {
+      ;(g.__jstorrent_file_flush as () => void)()
+    }
+
+    // Phase 4: Hash results
+    if (typeof g.__jstorrent_hash_flush === 'function') {
+      ;(g.__jstorrent_hash_flush as () => void)()
+    }
+  }
 }
