@@ -37,6 +37,7 @@ import { PartsFile } from './parts-file'
 import type { LookupResult } from '../dht'
 import { PexHandler } from '../extensions/pex-handler'
 import { CorruptionTracker, BanDecision } from './corruption-tracker'
+import { MetadataFetcher } from './metadata-fetcher'
 
 /**
  * Maximum ratio of peer slots that incoming connections can occupy.
@@ -220,13 +221,8 @@ export class Torrent extends EngineComponent {
   private _partsFile?: PartsFile
   private maxUploadSlots: number = 4
 
-  // Metadata Phase
-  private static readonly METADATA_BLOCK_SIZE = 16 * 1024
-  public metadataSize: number | null = null
-  public metadataComplete = false
-  /** Per-peer metadata buffers. Each peer gets their own array of pieces. */
-  private peerMetadataBuffers = new Map<PeerConnection, (Uint8Array | null)[]>()
-  private _metadataRaw: Uint8Array | null = null // The full info dictionary buffer
+  // Metadata fetcher (BEP 9)
+  private _metadataFetcher!: MetadataFetcher
 
   // Upload queue for rate limiting
   private uploadQueue: QueuedUploadRequest[] = []
@@ -244,7 +240,17 @@ export class Torrent extends EngineComponent {
    * Available for session persistence.
    */
   get metadataRaw(): Uint8Array | null {
-    return this._metadataRaw
+    return this._metadataFetcher?.buffer ?? null
+  }
+
+  /** Expected total metadata size (from peers or .torrent file) */
+  get metadataSize(): number | null {
+    return this._metadataFetcher?.metadataSize ?? null
+  }
+
+  /** Whether we have verified complete metadata */
+  get metadataComplete(): boolean {
+    return this._metadataFetcher?.isComplete ?? false
   }
 
   // Cached parsed info dictionary (to avoid repeated bencode parsing)
@@ -258,9 +264,10 @@ export class Torrent extends EngineComponent {
   get infoDict(): Record<string, unknown> | undefined {
     if (this._cachedInfoDict) return this._cachedInfoDict
 
-    if (this._metadataRaw) {
+    const metadataRaw = this.metadataRaw
+    if (metadataRaw) {
       try {
-        this._cachedInfoDict = Bencode.decode(this._metadataRaw) as Record<string, unknown>
+        this._cachedInfoDict = Bencode.decode(metadataRaw) as Record<string, unknown>
         return this._cachedInfoDict
       } catch {
         // Ignore decode errors
@@ -472,6 +479,17 @@ export class Torrent extends EngineComponent {
       { maxUploadSlots: this.maxUploadSlots },
       {}, // Use default download optimizer config
     )
+
+    // Initialize metadata fetcher (BEP 9)
+    this._metadataFetcher = new MetadataFetcher({
+      engine: this.engineInstance,
+      infoHash: this.infoHash,
+      sha1: (data: Uint8Array) => this.btEngine.hasher.sha1(data),
+    })
+    this._metadataFetcher.on('metadata', (buffer) => {
+      this._cachedInfoDict = undefined // Clear cache so infoDict getter re-parses
+      this.emit('metadata', buffer)
+    })
 
     if (this.announce.length > 0) {
       this.initTrackerManager()
@@ -2513,48 +2531,20 @@ export class Torrent extends EngineComponent {
         this._swarm.setIdentity(key, peer.peerId, clientName)
       }
 
-      this.logger.debug(
-        `Extension handshake received. metadataComplete=${this.metadataComplete}, peerMetadataId=${peer.peerMetadataId}`,
-      )
-
-      // Check if we need metadata and peer has it
-      if (!this.metadataComplete && peer.peerMetadataId !== null && peer.peerMetadataSize) {
-        // Set or validate metadata size
-        if (this.metadataSize === null) {
-          this.metadataSize = peer.peerMetadataSize
-        } else if (this.metadataSize !== peer.peerMetadataSize) {
-          this.logger.warn(
-            `Peer metadata size ${peer.peerMetadataSize} differs from expected ${this.metadataSize}`,
-          )
-          return
-        }
-
-        // Create per-peer buffer and request ALL pieces upfront (pipelined)
-        const totalPieces = Math.ceil(this.metadataSize / Torrent.METADATA_BLOCK_SIZE)
-        this.peerMetadataBuffers.set(peer, new Array(totalPieces).fill(null))
-        for (let i = 0; i < totalPieces; i++) {
-          peer.sendMetadataRequest(i)
-        }
-        this.logger.info(`Requesting ${totalPieces} metadata pieces from peer`)
-      } else if (this.metadataComplete) {
-        this.logger.debug('Already have metadata, not requesting')
-      } else if (peer.peerMetadataId === null) {
-        this.logger.warn('Peer does not support ut_metadata extension')
-      } else if (!peer.peerMetadataSize) {
-        this.logger.warn('Peer supports ut_metadata but did not send metadata_size')
-      }
+      // Delegate metadata handling to the fetcher
+      this._metadataFetcher.onExtensionHandshake(peer)
     })
 
     peer.on('metadata_request', (piece) => {
-      this.handleMetadataRequest(peer, piece)
+      this._metadataFetcher.onMetadataRequest(peer, piece)
     })
 
     peer.on('metadata_data', (piece, totalSize, data) => {
-      this.handleMetadataData(peer, piece, totalSize, data)
+      this._metadataFetcher.onMetadataData(peer, piece, totalSize, data)
     })
 
     peer.on('metadata_reject', (piece) => {
-      this.logger.warn(`Metadata piece ${piece} rejected by peer`)
+      this._metadataFetcher.onMetadataReject(peer, piece)
     })
 
     peer.on('bitfield', (bf) => {
@@ -2772,7 +2762,7 @@ export class Torrent extends EngineComponent {
     }
 
     // Clean up any pending metadata fetch from this peer
-    this.peerMetadataBuffers.delete(peer)
+    this._metadataFetcher.onPeerDisconnected(peer)
 
     // Update swarm state - swarm is single source of truth (Phase 3)
     if (peer.remoteAddress && peer.remotePort) {
@@ -4162,104 +4152,10 @@ export class Torrent extends EngineComponent {
     }
   }
 
-  // Metadata Logic
-
-  private handleMetadataRequest(peer: PeerConnection, piece: number) {
-    if (!this.metadataRaw) {
-      peer.sendMetadataReject(piece)
-      return
-    }
-
-    const start = piece * Torrent.METADATA_BLOCK_SIZE
-    if (start >= this.metadataRaw.length) {
-      peer.sendMetadataReject(piece)
-      return
-    }
-
-    const end = Math.min(start + Torrent.METADATA_BLOCK_SIZE, this.metadataRaw.length)
-    const data = this.metadataRaw.slice(start, end)
-    peer.sendMetadataData(piece, this.metadataRaw.length, data)
-  }
-
-  private async handleMetadataData(
-    peer: PeerConnection,
-    piece: number,
-    totalSize: number,
-    data: Uint8Array,
-  ) {
-    this.logger.info(
-      `Received metadata piece ${piece}, totalSize=${totalSize}, dataLen=${data.length}`,
-    )
-    if (this.metadataComplete) return
-
-    // Get this peer's buffer
-    const peerBuffer = this.peerMetadataBuffers.get(peer)
-    if (!peerBuffer) {
-      this.logger.warn('Received metadata from peer we are not tracking')
-      return
-    }
-
-    // Validate size matches
-    if (this.metadataSize !== totalSize) {
-      this.logger.error(`Metadata size mismatch: expected ${this.metadataSize}, got ${totalSize}`)
-      this.peerMetadataBuffers.delete(peer)
-      return
-    }
-
-    // Validate piece index
-    if (piece < 0 || piece >= peerBuffer.length) {
-      this.logger.error(`Invalid metadata piece index: ${piece}`)
-      return
-    }
-
-    // Store the piece
-    peerBuffer[piece] = data
-
-    // Check if all pieces received from this peer
-    if (peerBuffer.every((p) => p !== null)) {
-      await this.verifyPeerMetadata(peer, peerBuffer as Uint8Array[])
-    }
-  }
-
-  private async verifyPeerMetadata(peer: PeerConnection, pieces: Uint8Array[]) {
-    if (this.metadataComplete) return
-
-    // Concatenate all pieces into full metadata buffer
-    const totalSize = this.metadataSize!
-    const fullBuffer = new Uint8Array(totalSize)
-    let offset = 0
-    for (const piece of pieces) {
-      fullBuffer.set(piece, offset)
-      offset += piece.length
-    }
-
-    // SHA1 hash should match infoHash
-    const hash = await this.btEngine.hasher.sha1(fullBuffer)
-    if (compare(hash, this.infoHash) === 0) {
-      this.logger.info('Metadata verified successfully!')
-      this.metadataComplete = true
-      this._metadataRaw = fullBuffer
-      // Clean up all peer metadata buffers
-      this.peerMetadataBuffers.clear()
-      this.emit('metadata', fullBuffer)
-    } else {
-      this.logger.warn(
-        `Metadata hash mismatch from peer - sent info dict that doesn't match expected hash. ` +
-          `This could be: (1) peer sent invalid/corrupted data, or ` +
-          `(2) you connected with a truncated v2 info hash to a hybrid torrent ` +
-          `(use the v1 SHA-1 hash instead). Discarding this peer's metadata.`,
-      )
-      // Just remove this peer's buffer, other peers may still succeed
-      this.peerMetadataBuffers.delete(peer)
-    }
-  }
-
   // Called by BtEngine when metadata is provided initially (e.g. .torrent file or restored from session)
   public setMetadata(infoBuffer: Uint8Array) {
-    this._metadataRaw = infoBuffer
+    this._metadataFetcher.setMetadata(infoBuffer)
     this._cachedInfoDict = undefined // Clear cache so infoDict getter re-parses
-    this.metadataComplete = true
-    this.metadataSize = infoBuffer.length
   }
 
   // === Persistence API ===
@@ -4274,7 +4170,7 @@ export class Torrent extends EngineComponent {
       // Always sync bitfield → completedPieces
       completedPieces: this._bitfield?.getSetIndices() ?? [],
       // Always sync metadataRaw → infoBuffer
-      infoBuffer: this._metadataRaw ?? undefined,
+      infoBuffer: this.metadataRaw ?? undefined,
       // Always sync filePriorities
       filePriorities: this._filePriorities.length > 0 ? [...this._filePriorities] : undefined,
     }
@@ -4296,10 +4192,8 @@ export class Torrent extends EngineComponent {
 
     // Restore metadata
     if (state.infoBuffer) {
-      this._metadataRaw = state.infoBuffer
+      this._metadataFetcher.setMetadata(state.infoBuffer)
       this._cachedInfoDict = undefined // Clear cache so infoDict getter re-parses
-      this.metadataComplete = true
-      this.metadataSize = state.infoBuffer.length
     }
 
     // Restore file priorities
