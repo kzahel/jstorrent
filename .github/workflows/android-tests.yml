@@ -178,7 +178,11 @@ jobs:
           script: echo "Generated AVD snapshot for caching."
 
       - name: Run Instrumented Tests (excluding E2E)
+        id: instrumented-tests
         uses: reactivecircus/android-emulator-runner@v2
+        # The emulator action has a bug where cleanup can fail with "operation was canceled"
+        # even when tests pass. We capture the test result and check it in the next step.
+        continue-on-error: true
         with:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
@@ -189,6 +193,29 @@ jobs:
           script: |
             # Run all instrumented tests EXCEPT E2E tests (which need external seeder)
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.jstorrent.app.e2e.DownloadE2ETest
+
+      - name: Check Test Results
+        run: |
+          # Check if the test XML results indicate failure
+          FAILED=0
+          for xml_file in $(find . -path "*/androidTest-results/connected/*.xml" -type f 2>/dev/null); do
+            if grep -q 'failures="[1-9]' "$xml_file" 2>/dev/null || grep -q 'errors="[1-9]' "$xml_file" 2>/dev/null; then
+              FAILED=1
+              break
+            fi
+          done
+          if [ $FAILED -eq 1 ]; then
+            echo "Tests failed - check artifacts for details"
+            exit 1
+          fi
+          # If no test results found and emulator step failed, something went wrong
+          if [ -z "$(find . -path "*/androidTest-results/connected/*.xml" -type f 2>/dev/null)" ]; then
+            if [ "${{ steps.instrumented-tests.outcome }}" = "failure" ]; then
+              echo "No test results found and emulator step failed"
+              exit 1
+            fi
+          fi
+          echo "Tests passed!"
 
       - name: Show Test Failures
         if: failure()
@@ -321,7 +348,11 @@ jobs:
           script: echo "Generated AVD snapshot for caching."
 
       - name: Run E2E Tests with Seeder
+        id: e2e-tests
         uses: reactivecircus/android-emulator-runner@v2
+        # The emulator action has a bug where cleanup can fail with "operation was canceled"
+        # even when tests pass. We capture the test result and check it in the next step.
+        continue-on-error: true
         with:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
@@ -342,6 +373,29 @@ jobs:
             wait $SEEDER_PID 2>/dev/null || true
             # Return test result - let the action handle emulator cleanup
             exit $TEST_RESULT
+
+      - name: Check Test Results
+        run: |
+          # Check if the test XML results indicate failure
+          FAILED=0
+          for xml_file in $(find . -path "*/androidTest-results/connected/*.xml" -type f 2>/dev/null); do
+            if grep -q 'failures="[1-9]' "$xml_file" 2>/dev/null || grep -q 'errors="[1-9]' "$xml_file" 2>/dev/null; then
+              FAILED=1
+              break
+            fi
+          done
+          if [ $FAILED -eq 1 ]; then
+            echo "Tests failed - check artifacts for details"
+            exit 1
+          fi
+          # If no test results found and emulator step failed, something went wrong
+          if [ -z "$(find . -path "*/androidTest-results/connected/*.xml" -type f 2>/dev/null)" ]; then
+            if [ "${{ steps.e2e-tests.outcome }}" = "failure" ]; then
+              echo "No test results found and emulator step failed"
+              exit 1
+            fi
+          fi
+          echo "Tests passed!"
 
       - name: Show Test Failures
         if: failure()
