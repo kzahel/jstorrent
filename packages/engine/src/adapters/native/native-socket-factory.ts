@@ -111,4 +111,13 @@ export class NativeSocketFactory implements ISocketFactory {
 
     __jstorrent_tcp_send_batch(packed)
   }
+
+  /**
+   * Signal backpressure to pause/resume TCP reads on the native side.
+   * When active=true, Kotlin pauses reads on all TCP connections to prevent
+   * unbounded buffer growth when JS processing can't keep up.
+   */
+  setBackpressure(active: boolean): void {
+    __jstorrent_tcp_set_backpressure(active)
+  }
 }

@@ -70,6 +70,14 @@ declare global {
    */
   function __jstorrent_tcp_on_secured(callback: (socketId: number, success: boolean) => void): void
 
+  /**
+   * Signal backpressure to pause/resume TCP reads.
+   * When active=true, Kotlin pauses reads on all connections to prevent
+   * unbounded buffer growth when JS processing can't keep up.
+   * When active=false, reads resume.
+   */
+  function __jstorrent_tcp_set_backpressure(active: boolean): void
+
   // ============================================================
   // TCP Server Functions
   // ============================================================

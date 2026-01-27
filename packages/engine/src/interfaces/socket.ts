@@ -152,4 +152,15 @@ export interface ISocketFactory {
    * Optional - if not implemented, callers fall back to individual sends.
    */
   batchSend?(sends: Array<{ socketId: number; data: Uint8Array }>): void
+
+  /**
+   * Signal backpressure to pause/resume TCP reads.
+   * When active=true, native implementations (Android) pause all reads
+   * to prevent unbounded buffer growth when JS can't keep up with incoming data.
+   * When active=false, reads resume.
+   * Web implementations (extension) treat this as a no-op since WebSocket has
+   * its own flow control.
+   * Optional - callers should check if method exists before calling.
+   */
+  setBackpressure?(active: boolean): void
 }

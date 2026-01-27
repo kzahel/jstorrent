@@ -202,6 +202,14 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    */
   public autoDrainBuffers: boolean = false
 
+  // === Backpressure (Phase 2) ===
+  /** High water mark for total buffered bytes across all peers - activate backpressure (16MB) */
+  private static readonly BACKPRESSURE_HIGH_WATER = 16 * 1024 * 1024
+  /** Low water mark for total buffered bytes - release backpressure (4MB, hysteresis) */
+  private static readonly BACKPRESSURE_LOW_WATER = 4 * 1024 * 1024
+  /** Whether backpressure is currently active (reads paused on native side) */
+  private backpressureActive: boolean = false
+
   // === Incoming Connection Protection ===
   /** Timeout for incoming connections to complete BT handshake (ms) */
   private static readonly INCOMING_HANDSHAKE_TIMEOUT = 30_000
@@ -1238,6 +1246,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    * Called at 100ms intervals for predictable timing across all torrents.
    */
   private engineTick(): void {
+    // 0. Check backpressure before processing (Phase 2)
+    this.checkBackpressure()
+
     // 1. Connection slot allocation (existing drainOpQueue logic)
     this.drainOpQueue()
 
@@ -1246,6 +1257,45 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       if (torrent.isActive) {
         torrent.tick()
       }
+    }
+  }
+
+  /**
+   * Get total buffered bytes across all peer connections.
+   * Used for backpressure detection - when too much data is buffered,
+   * native reads are paused to prevent unbounded memory growth.
+   */
+  private getTotalBufferedBytes(): number {
+    let total = 0
+    for (const torrent of this.torrents) {
+      for (const peer of torrent.peers) {
+        total += peer.bufferedBytes
+      }
+    }
+    return total
+  }
+
+  /**
+   * Check if backpressure should be activated or released.
+   * Uses hysteresis to prevent thrashing:
+   * - Activate when buffered > HIGH_WATER (16MB)
+   * - Release when buffered < LOW_WATER (4MB)
+   */
+  private checkBackpressure(): void {
+    const buffered = this.getTotalBufferedBytes()
+
+    if (!this.backpressureActive && buffered > BtEngine.BACKPRESSURE_HIGH_WATER) {
+      this.backpressureActive = true
+      this.socketFactory.setBackpressure?.(true)
+      this.logger.warn(
+        `Backpressure ON: ${(buffered / 1024 / 1024).toFixed(1)}MB buffered across all peers`,
+      )
+    } else if (this.backpressureActive && buffered < BtEngine.BACKPRESSURE_LOW_WATER) {
+      this.backpressureActive = false
+      this.socketFactory.setBackpressure?.(false)
+      this.logger.info(
+        `Backpressure OFF: ${(buffered / 1024 / 1024).toFixed(1)}MB buffered across all peers`,
+      )
     }
   }
 

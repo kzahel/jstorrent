@@ -60,6 +60,10 @@ internal class TcpConnection(
     private var readerJob: Job? = null
     private var isActive = false
 
+    // Backpressure: pause reads when JS can't keep up
+    @Volatile
+    private var readsPaused = false
+
     companion object {
         private const val READ_BUFFER_SIZE = 128 * 1024 // 128KB per read
         private const val WRITE_BUFFER_SIZE = 64 * 1024 // 64KB buffered output
@@ -127,6 +131,22 @@ internal class TcpConnection(
         } catch (_: Exception) {}
     }
 
+    /**
+     * Pause reads for backpressure.
+     * The read loop will stop delivering data until resumeReads() is called.
+     * Data arriving on the socket will be buffered in the OS kernel.
+     */
+    fun pauseReads() {
+        readsPaused = true
+    }
+
+    /**
+     * Resume reads after backpressure is released.
+     */
+    fun resumeReads() {
+        readsPaused = false
+    }
+
     private fun startReading() {
         readerJob = scope.launch {
             val buffer = ByteArray(READ_BUFFER_SIZE)
@@ -137,6 +157,12 @@ internal class TcpConnection(
                 val originalTimeout = socket.soTimeout
 
                 while (isActive) {
+                    // Backpressure: wait while reads are paused
+                    while (readsPaused && isActive) {
+                        delay(50) // Check every 50ms
+                    }
+                    if (!isActive) break
+
                     // First read - blocks until data arrives (with original SO_TIMEOUT)
                     socket.soTimeout = originalTimeout
                     val bytesRead = try {

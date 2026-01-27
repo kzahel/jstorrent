@@ -75,4 +75,18 @@ interface TcpSocketManager {
      * @param callback The callback implementation
      */
     fun setCallback(callback: TcpSocketCallback)
+
+    /**
+     * Pause reads on all active TCP connections.
+     * Called when backpressure is detected (JS buffer full).
+     * New data arriving on sockets will be buffered in the OS kernel
+     * until reads are resumed.
+     */
+    fun pauseAllReads()
+
+    /**
+     * Resume reads on all active TCP connections.
+     * Called when backpressure is released (JS buffer has drained).
+     */
+    fun resumeAllReads()
 }

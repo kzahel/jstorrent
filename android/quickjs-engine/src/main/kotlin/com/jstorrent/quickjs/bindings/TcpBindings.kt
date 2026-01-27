@@ -147,6 +147,21 @@ class TcpBindings(
             null
         }
 
+        // __jstorrent_tcp_set_backpressure(active: boolean): void
+        // Pause/resume reads on all TCP connections for backpressure control.
+        // When active=true, Kotlin pauses reads to prevent unbounded buffer growth.
+        ctx.setGlobalFunction("__jstorrent_tcp_set_backpressure") { args ->
+            val active = args.getOrNull(0)?.toBooleanStrictOrNull() ?: false
+            if (active) {
+                Log.i(TAG, "Backpressure: pausing all TCP reads")
+                tcpManager.pauseAllReads()
+            } else {
+                Log.i(TAG, "Backpressure: resuming all TCP reads")
+                tcpManager.resumeAllReads()
+            }
+            null
+        }
+
         // __jstorrent_tcp_secure(socketId: number, hostname: string): void
         ctx.setGlobalFunction("__jstorrent_tcp_secure") { args ->
             val socketId = args.getOrNull(0)?.toIntOrNull()

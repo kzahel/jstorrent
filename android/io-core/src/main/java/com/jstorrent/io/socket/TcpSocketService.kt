@@ -246,6 +246,18 @@ class TcpSocketService(
         socketCallback = callback
     }
 
+    override fun pauseAllReads() {
+        for (connection in activeConnections.values) {
+            connection.pauseReads()
+        }
+    }
+
+    override fun resumeAllReads() {
+        for (connection in activeConnections.values) {
+            connection.resumeReads()
+        }
+    }
+
     // ============================================================
     // TcpServerManager implementation
     // ============================================================
