@@ -6,14 +6,42 @@
 
 ## Table of Contents
 
-1. [Problem Statement](#problem-statement)
-2. [Root Cause Analysis](#root-cause-analysis)
-3. [libtorrent Reference Implementation](#libtorrent-reference-implementation)
-4. [Design Principles](#design-principles)
-5. [Implementation Phases](#implementation-phases)
-6. [Test Strategy](#test-strategy)
-7. [Success Criteria](#success-criteria)
-8. [References](#references)
+1. [Glossary](#glossary)
+2. [Problem Statement](#problem-statement)
+3. [Root Cause Analysis](#root-cause-analysis)
+4. [libtorrent Reference Implementation](#libtorrent-reference-implementation)
+5. [Design Principles](#design-principles)
+6. [Implementation Phases](#implementation-phases)
+   - Phase 1: Availability Tracking
+   - Phase 2: Partial Piece Limiting
+   - Phase 3: Rarest-First Sorting with Priority
+   - Phase 4: Request Algorithm with Speed Affinity
+   - Phase 5: Piece Health Management
+   - Phase 6: Seed Fast Path
+   - Phase 7: hasUnrequestedBlocks Caching
+   - Phase 8: Phase 2 Index (Optional)
+   - Phase 9: End-Game Mode
+   - Phase 10: Peer Disconnect Cleanup
+   - Phase 11: Hash Check Failure Recovery
+7. [Test Strategy](#test-strategy)
+8. [Success Criteria](#success-criteria)
+9. [References](#references)
+
+---
+
+## Glossary
+
+| Term | Definition |
+|------|------------|
+| **Piece** | A chunk of the torrent file, typically 256KB. The unit of hash verification. |
+| **Block** | A subdivision of a piece, typically 16KB. The unit of network transfer (REQUEST/PIECE messages). A 256KB piece has 16 blocks. |
+| **Partial piece** | A piece still being downloaded—some blocks received, some still needed from peers. These are network-bound. |
+| **Pending piece** | A piece with all blocks received but not yet SHA1-verified and flushed to disk. These are I/O-bound. |
+| **Active piece** | Either a partial or pending piece. Currently tracked together in `ActivePieceManager`, but the partial cap (Phase 2) should only count partials. |
+| **Seed** | A peer that has all pieces of the torrent. |
+| **Availability** | The number of connected peers that have a given piece. Higher = more common, lower = rarer. |
+
+**Important distinction**: The `peers × 1.5` cap applies to **partial pieces only**, not pending pieces. If disk I/O backs up, pending pieces queue separately and don't block new downloads from starting.
 
 ---
 
@@ -261,6 +289,14 @@ Pick rarest pieces, but completion trumps rarity. A 90% complete common piece be
 
 Timeout stuck requests quickly. Reassign to faster peers. Abandon hopeless pieces.
 
+### 7. Separate Partials from Pending
+
+Partial pieces (downloading) and pending pieces (awaiting verification) have different constraints:
+- **Partials** are network-bound → cap at `peers × 1.5` to prevent fragmentation
+- **Pending** are I/O-bound → queue separately, don't count against partial cap
+
+This ensures disk I/O backups don't starve new downloads. The piece picker should only iterate partials when making requests.
+
 ---
 
 ## Implementation Phases
@@ -329,29 +365,163 @@ private convertToSeed(peer: PeerConnection): void {
 
 ### Phase 2: Partial Piece Limiting
 
-**Goal**: Auto-cap active pieces at `peers × 1.5`
+**Goal**: Auto-cap **partial** pieces at `peers × 1.5`
+
+**Important**: The cap applies only to partial pieces (still downloading), NOT pending pieces (complete but unverified). This ensures disk I/O backups don't starve the network—we can keep downloading while pieces queue for verification.
 
 **Files to modify**:
 - `packages/engine/src/core/active-piece-manager.ts`
 - `packages/engine/src/core/torrent.ts`
 
+**Code structure consideration**: Currently `ActivePieceManager` uses a single `Map<number, ActivePiece>` for all pieces. The code filters at runtime (`if (piece.haveAllBlocks) continue`) but counts both partial and pending toward limits.
+
+**Recommended approach: Separate maps in ActivePieceManager**
+
+Keep `ActivePieceManager` as the single class but split internal storage:
+
+| Current | Proposed |
+|---------|----------|
+| `pieces: Map<number, ActivePiece>` | `_partialPieces: Map<number, ActivePiece>` |
+| | `_pendingPieces: Map<number, ActivePiece>` |
+| `activeCount` (counts all) | `partialCount` (O(1) - just map size) |
+| | `pendingCount` (O(1) - just map size) |
+| | `activeCount` (sum of both) |
+
+**Why this approach:**
+1. **O(1) partial count** - no filtering needed for cap check
+2. **Matches libtorrent** - `m_downloads[piece_downloading]` vs `m_downloads[piece_full]`
+3. **Single class** - keeps buffer pooling, timeout cleanup, and memory tracking together
+4. **Clear lifecycle**: `getOrCreate()` → partial map → `promoteToPending()` → pending map → `removePending()`
+5. **Minimal ActivePiece changes** - `haveAllBlocks` already distinguishes state; optionally add `state` field for logging
+
+**Alternative considered: Separate PendingPieceManager class**
+- More separation but over-engineering for this use case
+- Would duplicate buffer pooling and cleanup logic
+- Not recommended
+
 **Changes to ActivePieceManager**:
 
 ```typescript
-// Add threshold check
+// ============================================
+// ActivePieceManager - Recommended Changes
+// ============================================
+
+// Replace single map with two maps
+private _partialPieces: Map<number, ActivePiece> = new Map()  // still downloading
+private _pendingPieces: Map<number, ActivePiece> = new Map()  // awaiting verification
+
+// --- Counts (all O(1)) ---
+
+get partialCount(): number {
+  return this._partialPieces.size
+}
+
+get pendingCount(): number {
+  return this._pendingPieces.size
+}
+
+get activeCount(): number {
+  return this._partialPieces.size + this._pendingPieces.size
+}
+
+// --- Cap Logic ---
+
+// Add threshold check - counts PARTIALS only, not pending
 shouldPrioritizePartials(connectedPeerCount: number): boolean {
   const threshold = Math.floor(connectedPeerCount * 1.5)
   const blockCap = Math.floor(2048 / this.blocksPerPiece)
   const maxAllowed = Math.min(threshold, blockCap)
 
-  return this.activeCount > maxAllowed
+  return this.partialCount > maxAllowed  // NOT activeCount
 }
 
-// Add getter for the limit
 getMaxPartials(connectedPeerCount: number): number {
   const threshold = Math.floor(connectedPeerCount * 1.5)
   const blockCap = Math.floor(2048 / this.blocksPerPiece)
   return Math.min(threshold, blockCap)
+}
+
+// --- Lifecycle Methods ---
+
+// Create goes to partial map (unchanged signature)
+getOrCreate(index: number): ActivePiece | null {
+  // Check partial map first
+  let piece = this._partialPieces.get(index)
+  if (piece) return piece
+
+  // Also check pending (shouldn't happen but defensive)
+  piece = this._pendingPieces.get(index)
+  if (piece) return piece
+
+  // Check limits...
+  // Create and add to PARTIAL map
+  piece = new ActivePiece(index, length, buffer)
+  this._partialPieces.set(index, piece)
+  return piece
+}
+
+// Get checks both maps
+get(index: number): ActivePiece | undefined {
+  return this._partialPieces.get(index) ?? this._pendingPieces.get(index)
+}
+
+has(index: number): boolean {
+  return this._partialPieces.has(index) || this._pendingPieces.has(index)
+}
+
+// Move piece from partial to pending when all blocks received
+promoteToPending(pieceIndex: number): void {
+  const piece = this._partialPieces.get(pieceIndex)
+  if (piece) {
+    this._partialPieces.delete(pieceIndex)
+    this._pendingPieces.set(pieceIndex, piece)
+    this.logger.debug(`Piece ${pieceIndex} promoted to pending (awaiting verification)`)
+  }
+}
+
+// Remove from pending after verification completes (success or failure)
+removePending(pieceIndex: number): ActivePiece | undefined {
+  const piece = this._pendingPieces.get(pieceIndex)
+  if (piece) {
+    this.releaseBuffer(piece)
+    piece.clear()
+    this._pendingPieces.delete(pieceIndex)
+  }
+  return piece
+}
+
+// Remove from either map (for abandonment, hash failure reset)
+remove(index: number): void {
+  const piece = this._partialPieces.get(index) ?? this._pendingPieces.get(index)
+  if (piece) {
+    this.releaseBuffer(piece)
+    piece.clear()
+    this._partialPieces.delete(index)
+    this._pendingPieces.delete(index)
+  }
+}
+
+// --- Iteration (critical for request loop) ---
+
+// Iterate ONLY partial pieces (for request loop)
+partialValues(): IterableIterator<ActivePiece> {
+  return this._partialPieces.values()
+}
+
+// Iterate ONLY pending pieces (for verification queue)
+pendingValues(): IterableIterator<ActivePiece> {
+  return this._pendingPieces.values()
+}
+
+// Iterate all (for cleanup, memory tracking)
+values(): IterableIterator<ActivePiece> {
+  // Use generator to combine both without allocation
+  return this.allPiecesIterator()
+}
+
+private *allPiecesIterator(): IterableIterator<ActivePiece> {
+  yield* this._partialPieces.values()
+  yield* this._pendingPieces.values()
 }
 ```
 
@@ -363,7 +533,13 @@ private requestPieces(peer: PeerConnection): void {
   const prioritizePartials = this.activePieces.shouldPrioritizePartials(peerCount)
 
   // PHASE 1: Always try to complete existing partials first
-  // (implementation in Phase 4)
+  // Use partialValues() - ONLY iterates partial pieces, not pending
+  for (const piece of this.activePieces.partialValues()) {
+    // No need to check piece.haveAllBlocks - partialValues() only has partials
+    if (!peerBitfield?.get(piece.index)) continue
+    if (!piece.hasUnrequestedBlocks()) continue
+    // ... request blocks
+  }
 
   // PHASE 2: Only activate new pieces if under threshold
   if (prioritizePartials) {
@@ -371,6 +547,31 @@ private requestPieces(peer: PeerConnection): void {
   }
 
   // ... existing phase 2 logic
+}
+
+// When a piece receives its final block:
+private handleBlock(peer: PeerConnection, msg: WireMessage): void {
+  const piece = this.activePieces.get(msg.index)
+  // ... add block to piece ...
+
+  if (piece.haveAllBlocks) {
+    // Move to pending queue - no longer counts toward partial cap
+    this.activePieces.promoteToPending(msg.index)
+    // Queue for verification (async)
+    this.verificationQueue.enqueue(msg.index)
+  }
+}
+
+// After verification completes:
+private async onVerificationComplete(index: number, success: boolean): Promise<void> {
+  if (success) {
+    this.activePieces.removePending(index)
+    this._bitfield.set(index)
+    // ... announce HAVE, etc.
+  } else {
+    // Hash failed - move back to partial for re-download
+    // (handled in Phase 11)
+  }
 }
 ```
 
@@ -380,29 +581,80 @@ private requestPieces(peer: PeerConnection): void {
 
 ---
 
-### Phase 3: Rarest-First Partial Sorting
+### Phase 3: Rarest-First Partial Sorting with Priority
 
-**Goal**: Sort active pieces by availability, then completion
+**Goal**: Sort active pieces by priority, availability, then completion
 
 **Files to modify**:
 - `packages/engine/src/core/active-piece-manager.ts`
+- `packages/engine/src/core/torrent.ts`
 
-**Changes**:
+**libtorrent Priority Formula** (from `piece_picker.hpp:727-755`):
+
+libtorrent uses: `availability × (8 - piece_priority) × 3 + adjustment`
+
+- Priority levels: 0 (don't download) to 7 (highest)
+- Default priority: 4
+- Adjustment: -3 for downloading pieces, -2 for open pieces
+
+This inverts priority: higher numeric priority (7) → lower sort key → picked first.
+
+**Simplified Implementation for JSTorrent**:
 
 ```typescript
-// Add sorting method
-getPartialsRarestFirst(availability: Uint16Array, seedCount: number): ActivePiece[] {
-  const partials = [...this.pieces.values()]
+// Priority levels (matching libtorrent)
+const PRIORITY_DONT_DOWNLOAD = 0
+const PRIORITY_LOW = 1
+const PRIORITY_DEFAULT = 4
+const PRIORITY_HIGH = 7
+const PRIORITY_LEVELS = 8
+const PRIO_FACTOR = 3
+
+// Calculate sort priority (lower = picked first)
+function calculatePiecePriority(
+  availability: number,
+  piecePriority: number,
+  isDownloading: boolean
+): number {
+  if (piecePriority === PRIORITY_DONT_DOWNLOAD) return Infinity
+
+  const adjustment = isDownloading ? -3 : -2
+  return availability * (PRIORITY_LEVELS - piecePriority) * PRIO_FACTOR + adjustment
+}
+```
+
+**Changes to ActivePieceManager**:
+
+```typescript
+// Add sorting method with priority support
+// Note: Only iterates partial pieces, NOT pending (complete but unverified)
+getPartialsRarestFirst(
+  availability: Uint16Array,
+  seedCount: number,
+  piecePriority: Uint8Array
+): ActivePiece[] {
+  const partials = [...this._partialPieces.values()]  // NOT _pendingPieces
 
   partials.sort((a, b) => {
-    // Primary: rarest first (lower availability)
+    const prioA = piecePriority[a.index]
+    const prioB = piecePriority[b.index]
+
+    // Filtered pieces go last
+    if (prioA === 0 && prioB !== 0) return 1
+    if (prioB === 0 && prioA !== 0) return -1
+
+    // Calculate combined priority (lower = better)
     const availA = availability[a.index] + seedCount
     const availB = availability[b.index] + seedCount
-    if (availA !== availB) {
-      return availA - availB
+
+    const sortKeyA = availA * (PRIORITY_LEVELS - prioA) * PRIO_FACTOR
+    const sortKeyB = availB * (PRIORITY_LEVELS - prioB) * PRIO_FACTOR
+
+    if (sortKeyA !== sortKeyB) {
+      return sortKeyA - sortKeyB
     }
 
-    // Secondary: most complete first (higher completion ratio)
+    // Tiebreaker: most complete first (higher completion ratio)
     const completionA = a.blocksReceived / a.blocksNeeded
     const completionB = b.blocksReceived / b.blocksNeeded
     return completionB - completionA
@@ -412,7 +664,25 @@ getPartialsRarestFirst(availability: Uint16Array, seedCount: number): ActivePiec
 }
 ```
 
-**libtorrent reference**: `piece_picker.cpp:1934-1947`
+**Priority Behavior Examples**:
+
+| Scenario | Priority | Availability | Sort Key | Order |
+|----------|----------|--------------|----------|-------|
+| High priority, rare | 7 | 2 | 2×1×3 = 6 | First |
+| High priority, common | 7 | 10 | 10×1×3 = 30 | Second |
+| Default priority, rare | 4 | 2 | 2×4×3 = 24 | Third |
+| Low priority, rare | 1 | 2 | 2×7×3 = 42 | Last |
+
+**libtorrent reference**: `piece_picker.hpp:727-755`, `piece_picker.cpp:1934-1947`
+
+**Sorting Performance Note**:
+
+`getPartialsRarestFirst()` sorts the partial piece list on every tick. This is acceptable because:
+1. Phase 2 caps partials at `peers × 1.5` (typically 30-50 pieces)
+2. Pending pieces (awaiting verification) are in a separate list and not sorted here
+3. Sorting 50 items is O(50 log 50) ≈ 280 comparisons per tick—negligible overhead
+
+A heap structure would add complexity for minimal gain at this scale.
 
 **Tests**: See [Phase 3 Tests](#phase-3-tests-rarest-first-sorting)
 
@@ -935,6 +1205,297 @@ peer.neededHavePieces: Set<number>  // pieces peer has that we need and aren't a
 
 ---
 
+### Phase 9: End-Game Mode
+
+**Goal**: Speed up final piece completion by requesting duplicate blocks
+
+End-game mode activates when all remaining pieces are already being downloaded and a peer still has request capacity. Blocks are requested from multiple peers simultaneously, with immediate cancellation when received.
+
+**libtorrent reference**: `request_blocks.cpp:264-281`, `piece_picker.cpp:2356-2468`
+
+**Trigger condition**:
+
+```typescript
+// End-game triggers when:
+// 1. We tried to pick blocks but got none (all needed pieces are active)
+// 2. Peer still has room in their pipeline
+// 3. Peer is not choked
+
+private requestPieces(peer: PeerConnection): void {
+  // ... normal Phase 1 & 2 logic ...
+
+  // If we couldn't fill the pipeline and there are active pieces
+  if (peer.requestsPending < pipelineLimit && this.activePieces.activeCount > 0) {
+    this.requestEndgameBlocks(peer)
+  }
+}
+```
+
+**End-game block selection**:
+
+```typescript
+private requestEndgameBlocks(peer: PeerConnection): void {
+  const pipelineLimit = peer.pipelineDepth
+  const peerId = peer.id
+
+  // Find blocks already requested from OTHER peers
+  const busyBlocks: Array<{piece: ActivePiece, blockIndex: number}> = []
+
+  for (const piece of this.activePieces.values()) {
+    // Skip if peer doesn't have this piece
+    if (!peer.isSeed && !peer.bitfield?.get(piece.index)) continue
+
+    for (let blockIndex = 0; blockIndex < piece.blocksNeeded; blockIndex++) {
+      // Skip received blocks
+      if (piece.blockReceived[blockIndex]) continue
+
+      // Get peers that have requested this block
+      const requesters = piece.blockRequests.get(blockIndex)
+      if (!requesters || requesters.length === 0) continue
+
+      // Skip if WE already requested it
+      if (requesters.includes(peerId)) continue
+
+      // This is a "busy" block - requested by others but not us
+      busyBlocks.push({ piece, blockIndex })
+    }
+  }
+
+  if (busyBlocks.length === 0) return
+
+  // Request ONE random busy block per call (libtorrent pattern)
+  const idx = Math.floor(Math.random() * busyBlocks.length)
+  const { piece, blockIndex } = busyBlocks[idx]
+
+  this.sendBlockRequest(peer, piece, { index: blockIndex })
+  piece.addRequest(blockIndex, peerId)
+  piece.markBusyBlock(blockIndex)  // Track for cancel logic
+}
+```
+
+**Cancel duplicates on block receive**:
+
+```typescript
+// In block receive handler
+private onBlockReceived(peer: PeerConnection, pieceIndex: number, blockOffset: number, data: Uint8Array): void {
+  const blockIndex = blockOffset / BLOCK_SIZE
+  const piece = this.activePieces.get(pieceIndex)
+  if (!piece) return
+
+  // Check if multiple peers have this block
+  const requesters = piece.blockRequests.get(blockIndex)
+  if (requesters && requesters.length > 1) {
+    // Cancel from all OTHER peers
+    for (const otherPeerId of requesters) {
+      if (otherPeerId === peer.id) continue
+
+      const otherPeer = this.getPeerById(otherPeerId)
+      if (otherPeer) {
+        otherPeer.sendCancel(pieceIndex, blockOffset, BLOCK_SIZE)
+      }
+    }
+  }
+
+  // ... rest of block handling ...
+}
+```
+
+**Configuration constants**:
+
+```typescript
+const ENDGAME_MAX_PARTIALS_TO_CHECK = 200  // Limit CPU in end-game
+```
+
+**Tests**: See [Phase 9 Tests](#phase-9-tests-end-game-mode)
+
+---
+
+### Phase 10: Peer Disconnect Cleanup
+
+**Goal**: Properly clean up state when peers disconnect
+
+When a peer disconnects, their pending requests must be cleared so blocks can be reassigned to other peers.
+
+**libtorrent reference**: `peer_connection.cpp:4501-4512`, `piece_picker.cpp:3807-3876`
+
+**Changes to PeerConnection**:
+
+```typescript
+// Track all pending requests for this peer
+private pendingRequests: Set<string> = new Set()  // "pieceIndex:blockIndex"
+
+addPendingRequest(pieceIndex: number, blockIndex: number): void {
+  this.pendingRequests.add(`${pieceIndex}:${blockIndex}`)
+}
+
+removePendingRequest(pieceIndex: number, blockIndex: number): void {
+  this.pendingRequests.delete(`${pieceIndex}:${blockIndex}`)
+}
+
+// Called on disconnect
+clearAllRequests(): Array<{pieceIndex: number, blockIndex: number}> {
+  const requests: Array<{pieceIndex: number, blockIndex: number}> = []
+  for (const key of this.pendingRequests) {
+    const [pieceIndex, blockIndex] = key.split(':').map(Number)
+    requests.push({ pieceIndex, blockIndex })
+  }
+  this.pendingRequests.clear()
+  return requests
+}
+```
+
+**Changes to Torrent**:
+
+```typescript
+private onPeerDisconnect(peer: PeerConnection): void {
+  const peerId = peer.id
+
+  // 1. Clear all pending requests from active pieces
+  const clearedRequests = peer.clearAllRequests()
+  for (const { pieceIndex, blockIndex } of clearedRequests) {
+    const piece = this.activePieces.get(pieceIndex)
+    if (piece) {
+      piece.cancelRequest(blockIndex, peerId)
+      // Clear ownership if this peer owned the piece
+      if (piece.exclusivePeer === peerId) {
+        piece.exclusivePeer = null
+      }
+    }
+  }
+
+  // 2. Update availability (already in Phase 1)
+  this.updateAvailability(peer, -1)
+
+  // 3. Remove from connected peers list
+  this.connectedPeers = this.connectedPeers.filter(p => p.id !== peerId)
+
+  this.logger.debug(`Peer ${peerId} disconnected, cleared ${clearedRequests.length} pending requests`)
+}
+```
+
+**Tests**: See [Phase 10 Tests](#phase-10-tests-peer-disconnect-cleanup)
+
+---
+
+### Phase 11: Hash Check Failure Recovery
+
+**Goal**: Handle failed piece verification and ban bad peers
+
+When a piece fails hash verification, it must be reset for re-downloading and the responsible peer(s) tracked.
+
+**libtorrent reference**: `torrent.cpp:4540-4665`, `piece_picker.cpp:1088-1163`
+
+**Configuration constants**:
+
+```typescript
+const PEER_TRUST_MIN = -7           // Minimum trust points (ban threshold)
+const PEER_TRUST_MAX = 8            // Maximum trust points
+const PEER_TRUST_PENALTY = 2        // Points lost per hash failure
+const PEER_MAX_HASHFAILS = 255      // Cap on tracked failures
+```
+
+**Changes to PeerConnection**:
+
+```typescript
+// Trust and ban tracking
+trustPoints: number = 0           // Range: [-7, 8]
+hashFailures: number = 0          // Count of pieces that failed hash
+banned: boolean = false
+onParole: boolean = false         // Restricted to full pieces only
+
+recordHashFailure(): void {
+  this.trustPoints = Math.max(PEER_TRUST_MIN, this.trustPoints - PEER_TRUST_PENALTY)
+  this.hashFailures = Math.min(PEER_MAX_HASHFAILS, this.hashFailures + 1)
+
+  // Put on parole after first failure
+  this.onParole = true
+}
+
+shouldBan(): boolean {
+  return this.trustPoints <= PEER_TRUST_MIN
+}
+```
+
+**Changes to ActivePiece**:
+
+```typescript
+// Track which peers contributed blocks
+private blockPeers: Map<number, string> = new Map()  // blockIndex -> peerId
+
+recordBlockPeer(blockIndex: number, peerId: string): void {
+  this.blockPeers.set(blockIndex, peerId)
+}
+
+// Get all peers who contributed to this piece
+getContributingPeers(): Set<string> {
+  return new Set(this.blockPeers.values())
+}
+
+// Reset piece for re-download
+reset(): void {
+  this.blockReceived.fill(false)
+  this.blockRequests.clear()
+  this.blockRequestTimes.clear()
+  this.blockPeers.clear()
+  this._unrequestedCount = this.blocksNeeded
+  this.exclusivePeer = null
+  this.activatedAt = Date.now()
+}
+```
+
+**Changes to Torrent**:
+
+```typescript
+private async onPieceComplete(pieceIndex: number): Promise<void> {
+  const piece = this.activePieces.get(pieceIndex)
+  if (!piece) return
+
+  // Verify hash
+  const data = piece.assembleData()
+  const hash = await this.hashPiece(data)
+  const expected = this.pieceHashes[pieceIndex]
+
+  if (hash === expected) {
+    // Success - mark as complete
+    this._bitfield.set(pieceIndex)
+    this.activePieces.remove(pieceIndex)
+    // ... announce HAVE, check completion, etc.
+  } else {
+    // Hash failed - penalize peers and reset piece
+    this.onPieceHashFailed(pieceIndex, piece)
+  }
+}
+
+private onPieceHashFailed(pieceIndex: number, piece: ActivePiece): void {
+  this.logger.warn(`Piece ${pieceIndex} failed hash verification`)
+
+  // Penalize all contributing peers
+  const contributors = piece.getContributingPeers()
+  for (const peerId of contributors) {
+    const peer = this.getPeerById(peerId)
+    if (!peer) continue
+
+    peer.recordHashFailure()
+
+    if (peer.shouldBan()) {
+      this.logger.info(`Banning peer ${peerId} for too many hash failures`)
+      peer.banned = true
+      peer.disconnect('too_many_hash_failures')
+    }
+  }
+
+  // Reset piece for re-download
+  piece.reset()
+
+  // Emit event for UI/logging
+  this.emit('hashFailed', { pieceIndex, contributors: [...contributors] })
+}
+```
+
+**Tests**: See [Phase 11 Tests](#phase-11-tests-hash-check-failure-recovery)
+
+---
+
 ## Test Strategy
 
 ### Test Notation (from libtorrent)
@@ -1405,6 +1966,282 @@ describe('hasUnrequestedBlocks Caching', () => {
 })
 ```
 
+### Phase 9 Tests: End-Game Mode
+
+```typescript
+describe('End-Game Mode', () => {
+  test('activates when all pieces are active and peer has capacity', () => {
+    const { torrent, activePieces } = setupPicker({
+      pieceCount: 5,
+      peers: [{ id: 'peer1', bitfield: allTrue(5) }]
+    })
+
+    // Activate all needed pieces
+    for (let i = 0; i < 5; i++) {
+      activePieces.getOrCreate(i)
+    }
+
+    // Request all blocks from first peer
+    torrent.requestPieces(peer1)
+
+    // Add second peer with capacity
+    torrent.addPeer(peer2, allTrue(5))
+
+    const requestsBefore = peer2.requestsPending
+    torrent.requestPieces(peer2)
+
+    // Should have made end-game requests (duplicates)
+    expect(peer2.requestsPending).toBeGreaterThan(requestsBefore)
+  })
+
+  test('requests blocks already requested by other peers', () => {
+    const { torrent, activePieces } = setupPicker({
+      pieceCount: 1,
+      blocksPerPiece: 4,
+      peers: [
+        { id: 'peer1', bitfield: [true] },
+        { id: 'peer2', bitfield: [true] }
+      ]
+    })
+
+    const piece = activePieces.getOrCreate(0)!
+
+    // Peer1 requests all blocks
+    piece.addRequest(0, 'peer1')
+    piece.addRequest(1, 'peer1')
+    piece.addRequest(2, 'peer1')
+    piece.addRequest(3, 'peer1')
+
+    // Peer2 should be able to request duplicates in end-game
+    torrent.requestEndgameBlocks(peer2)
+
+    // At least one block should be requested from both peers
+    const requests = piece.blockRequests
+    const hasSharedBlock = [...requests.values()].some(
+      peers => peers.includes('peer1') && peers.includes('peer2')
+    )
+    expect(hasSharedBlock).toBe(true)
+  })
+
+  test('cancels duplicate requests when block received', () => {
+    const { torrent, activePieces } = setupPicker({
+      pieceCount: 1,
+      blocksPerPiece: 4,
+      peers: [
+        { id: 'peer1', bitfield: [true] },
+        { id: 'peer2', bitfield: [true] }
+      ]
+    })
+
+    const piece = activePieces.getOrCreate(0)!
+    piece.addRequest(0, 'peer1')
+    piece.addRequest(0, 'peer2')  // duplicate
+
+    const cancelSpy = jest.spyOn(peer2, 'sendCancel')
+
+    // Peer1 delivers the block
+    torrent.onBlockReceived(peer1, 0, 0, new Uint8Array(BLOCK_SIZE))
+
+    expect(cancelSpy).toHaveBeenCalledWith(0, 0, BLOCK_SIZE)
+  })
+
+  test('limits partial pieces checked to 200', () => {
+    const { torrent, activePieces } = setupPicker({
+      pieceCount: 300,
+      peers: [{ id: 'peer1', bitfield: allTrue(300) }]
+    })
+
+    // Create 250 partial pieces
+    for (let i = 0; i < 250; i++) {
+      const piece = activePieces.getOrCreate(i)!
+      piece.addRequest(0, 'other')  // Mark as busy
+    }
+
+    const start = performance.now()
+    torrent.requestEndgameBlocks(peer1)
+    const elapsed = performance.now() - start
+
+    // Should complete quickly due to 200 limit
+    expect(elapsed).toBeLessThan(10)
+  })
+})
+```
+
+### Phase 10 Tests: Peer Disconnect Cleanup
+
+```typescript
+describe('Peer Disconnect Cleanup', () => {
+  test('clears pending requests from active pieces', () => {
+    const { torrent, activePieces } = setupPicker({
+      pieceCount: 5,
+      peers: [{ id: 'peer1', bitfield: allTrue(5) }]
+    })
+
+    const piece = activePieces.getOrCreate(0)!
+    piece.addRequest(0, 'peer1')
+    piece.addRequest(1, 'peer1')
+
+    expect(piece.blockRequests.size).toBe(2)
+
+    torrent.onPeerDisconnect(peer1)
+
+    expect(piece.blockRequests.size).toBe(0)
+  })
+
+  test('clears exclusive ownership on disconnect', () => {
+    const { torrent, activePieces } = setupPicker({
+      pieceCount: 5,
+      peers: [{ id: 'peer1', bitfield: allTrue(5), isFast: true }]
+    })
+
+    const piece = activePieces.getOrCreate(0)!
+    piece.claimExclusive('peer1')
+
+    expect(piece.exclusivePeer).toBe('peer1')
+
+    torrent.onPeerDisconnect(peer1)
+
+    expect(piece.exclusivePeer).toBeNull()
+  })
+
+  test('updates availability on disconnect', () => {
+    const { torrent } = setupPicker({ pieceCount: 4 })
+
+    torrent.addPeer(peer1, bitfield([true, true, false, false]))
+
+    expect(torrent.pieceAvailability).toEqual([1, 1, 0, 0])
+
+    torrent.onPeerDisconnect(peer1)
+
+    expect(torrent.pieceAvailability).toEqual([0, 0, 0, 0])
+  })
+
+  test('blocks become available for other peers after disconnect', () => {
+    const { torrent, activePieces } = setupPicker({
+      pieceCount: 1,
+      blocksPerPiece: 4,
+      peers: [
+        { id: 'peer1', bitfield: [true] },
+        { id: 'peer2', bitfield: [true] }
+      ]
+    })
+
+    const piece = activePieces.getOrCreate(0)!
+    piece.addRequest(0, 'peer1')
+    piece.addRequest(1, 'peer1')
+
+    expect(piece.hasUnrequestedBlocks).toBe(true)  // blocks 2,3
+
+    // Disconnect peer1
+    torrent.onPeerDisconnect(peer1)
+
+    // Now blocks 0,1 are also unrequested
+    expect(piece.blockRequests.size).toBe(0)
+
+    // Peer2 can request them
+    const requests = collectRequests(peer2, torrent)
+    expect(requests.length).toBe(4)  // All 4 blocks available
+  })
+})
+```
+
+### Phase 11 Tests: Hash Check Failure Recovery
+
+```typescript
+describe('Hash Check Failure Recovery', () => {
+  test('resets piece state on hash failure', () => {
+    const { torrent, activePieces } = setupPicker({
+      pieceCount: 5,
+      blocksPerPiece: 4
+    })
+
+    const piece = activePieces.getOrCreate(0)!
+    piece.blockReceived[0] = true
+    piece.blockReceived[1] = true
+    piece.blockReceived[2] = true
+    piece.blockReceived[3] = true
+
+    torrent.onPieceHashFailed(0, piece)
+
+    expect(piece.blockReceived.every(b => b === false)).toBe(true)
+    expect(piece.hasUnrequestedBlocks).toBe(true)
+  })
+
+  test('penalizes contributing peers', () => {
+    const { torrent, activePieces } = setupPicker({
+      pieceCount: 5,
+      peers: [
+        { id: 'peer1', bitfield: allTrue(5) },
+        { id: 'peer2', bitfield: allTrue(5) }
+      ]
+    })
+
+    const piece = activePieces.getOrCreate(0)!
+    piece.recordBlockPeer(0, 'peer1')
+    piece.recordBlockPeer(1, 'peer1')
+    piece.recordBlockPeer(2, 'peer2')
+    piece.recordBlockPeer(3, 'peer2')
+
+    torrent.onPieceHashFailed(0, piece)
+
+    expect(peer1.trustPoints).toBe(-2)
+    expect(peer2.trustPoints).toBe(-2)
+    expect(peer1.hashFailures).toBe(1)
+    expect(peer2.hashFailures).toBe(1)
+  })
+
+  test('bans peer at trust threshold', () => {
+    const { torrent, activePieces } = setupPicker({
+      pieceCount: 10,
+      peers: [{ id: 'badpeer', bitfield: allTrue(10) }]
+    })
+
+    // Simulate 4 hash failures (trust goes -2, -4, -6, -8 -> capped at -7)
+    for (let i = 0; i < 4; i++) {
+      const piece = activePieces.getOrCreate(i)!
+      piece.recordBlockPeer(0, 'badpeer')
+      piece.blockReceived[0] = true
+      torrent.onPieceHashFailed(i, piece)
+    }
+
+    expect(badpeer.banned).toBe(true)
+    expect(badpeer.trustPoints).toBe(-7)
+  })
+
+  test('puts peer on parole after first failure', () => {
+    const { torrent, activePieces } = setupPicker({
+      pieceCount: 5,
+      peers: [{ id: 'peer1', bitfield: allTrue(5) }]
+    })
+
+    const piece = activePieces.getOrCreate(0)!
+    piece.recordBlockPeer(0, 'peer1')
+
+    expect(peer1.onParole).toBe(false)
+
+    torrent.onPieceHashFailed(0, piece)
+
+    expect(peer1.onParole).toBe(true)
+  })
+
+  test('tracks contributing peers per block', () => {
+    const piece = new ActivePiece(0, 4)
+
+    piece.recordBlockPeer(0, 'peer1')
+    piece.recordBlockPeer(1, 'peer2')
+    piece.recordBlockPeer(2, 'peer1')
+    piece.recordBlockPeer(3, 'peer3')
+
+    const contributors = piece.getContributingPeers()
+
+    expect(contributors.size).toBe(3)
+    expect(contributors.has('peer1')).toBe(true)
+    expect(contributors.has('peer2')).toBe(true)
+    expect(contributors.has('peer3')).toBe(true)
+  })
+})
+```
+
 ---
 
 ## Success Criteria
@@ -1422,12 +2259,32 @@ describe('hasUnrequestedBlocks Caching', () => {
 
 ### Functional Requirements
 
+**Core Phases (1-7)**:
 - [ ] Partial pieces capped at `peers × 1.5` (max 2048 blocks)
-- [ ] Rarest-first selection with completion tiebreaker
+- [ ] Rarest-first selection with priority integration and completion tiebreaker
 - [ ] Seeds tracked separately, skip bitfield checks
 - [ ] Fast peers own pieces exclusively
 - [ ] Stuck requests timeout after 10s
 - [ ] Abandoned pieces removed after 30s with <50% progress
+
+**End-Game Mode (Phase 9)**:
+- [ ] Activates when all needed pieces are active
+- [ ] Requests blocks from multiple peers simultaneously
+- [ ] Cancels duplicate requests immediately on block receive
+- [ ] Limits partial pieces checked to 200 for performance
+
+**Peer Disconnect (Phase 10)**:
+- [ ] Clears pending requests from active pieces
+- [ ] Clears exclusive ownership
+- [ ] Updates availability counters
+- [ ] Blocks become available for other peers
+
+**Hash Failure Recovery (Phase 11)**:
+- [ ] Resets piece state for re-download
+- [ ] Penalizes contributing peers (trust points)
+- [ ] Bans peers at trust threshold (-7)
+- [ ] Puts peers on parole after first failure
+
 - [ ] All tests passing
 
 ### Monitoring
@@ -1449,9 +2306,12 @@ logger.info(`PiecePicker: ${activePieces} active (max ${maxPartials}), ` +
 
 | File | Key Content |
 |------|-------------|
-| `src/piece_picker.cpp` | Main picker logic, partial limiting, sorting |
-| `include/libtorrent/piece_picker.hpp` | Data structures, piece_pos, downloading_piece |
-| `src/peer_connection.cpp` | Request timeout, per-peer handling |
+| `src/piece_picker.cpp` | Main picker logic, partial limiting, sorting, abort_download |
+| `include/libtorrent/piece_picker.hpp` | Data structures, piece_pos, downloading_piece, priority formula |
+| `src/peer_connection.cpp` | Request timeout, per-peer handling, disconnect cleanup |
+| `src/request_blocks.cpp` | End-game mode trigger and busy block selection |
+| `src/torrent.cpp` | Hash failure handling, peer banning, availability updates |
+| `src/smart_ban.cpp` | Smart ban plugin for identifying bad peers via CRC |
 | `test/test_piece_picker.cpp` | Comprehensive test suite |
 
 ### libtorrent Documentation
@@ -1471,6 +2331,16 @@ logger.info(`PiecePicker: ${activePieces} active (max ${maxPartials}), ` +
 | Exclusive piece detection | `piece_picker.cpp:2596-2639` |
 | Request timeout | `peer_connection.cpp:4565-4588` |
 | Test notation/setup | `test_piece_picker.cpp:115-218` |
+| End-game trigger | `request_blocks.cpp:264-281` |
+| End-game block picking | `piece_picker.cpp:2356-2468` |
+| End-game cancel duplicates | `peer_connection.cpp:3035-3057` |
+| Peer disconnect cleanup | `peer_connection.cpp:4501-4512` |
+| Abort download | `piece_picker.cpp:3807-3876` |
+| Availability decrement | `torrent.cpp:6201-6213` |
+| Hash failure handling | `torrent.cpp:4540-4665` |
+| Piece restore | `piece_picker.cpp:1088-1163` |
+| Peer trust/ban | `torrent.cpp:4667-4738` |
+| Smart ban plugin | `smart_ban.cpp:131-256` |
 
 ### Our Codebase
 
@@ -1490,7 +2360,9 @@ logger.info(`PiecePicker: ${activePieces} active (max ${maxPartials}), ` +
 1. **Phase 1-2 first**: These provide the foundation (availability tracking, limits)
 2. **Phase 3-4 together**: Sorting and algorithm rewrite are interdependent
 3. **Phase 5 after 4**: Health management needs the new ownership model
-4. **Phase 6-7 last**: Optimizations that build on the working system
+4. **Phase 6-7**: Optimizations that build on the working system
+5. **Phase 9-11 after 7**: End-game, disconnect, and hash failure can be implemented in any order after the core is working
+6. **Phase 8 last (optional)**: Only if Phase 2 performance is still insufficient
 
 ### Testing Strategy
 
