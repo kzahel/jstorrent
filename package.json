@@ -25,6 +25,8 @@
     "benchmark:tick:jitless": "cd packages/engine/integration/python && uv run python benchmark_tick.py --jitless",
     "benchmark:tick:1gb": "cd packages/engine/integration/python && uv run python benchmark_tick.py --size 1gb",
     "benchmark:tick:1gb:jitless": "cd packages/engine/integration/python && uv run python benchmark_tick.py --size 1gb --jitless",
+    "benchmark:tick:emu": "android/scripts/benchmark-tick-emu.sh",
+    "benchmark:tick:emu:1gb": "android/scripts/benchmark-tick-emu.sh --size 1gb",
     "typecheck": "pnpm --recursive typecheck",
     "build": "pnpm --recursive build",
     "check:static": "npm-run-all --parallel lint format typecheck",
