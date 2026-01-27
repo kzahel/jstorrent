@@ -163,7 +163,11 @@ private fun SpeedHistoryContent(
             currentLatencyMs = state.jsCurrentLatencyMs,
             maxLatencyMs = state.jsMaxLatencyMs,
             queueDepth = state.jsQueueDepth,
-            maxQueueDepth = state.jsMaxQueueDepth
+            maxQueueDepth = state.jsMaxQueueDepth,
+            tickAvgMs = state.tickAvgMs,
+            tickMaxMs = state.tickMaxMs,
+            activePieces = state.activePieces,
+            connectedPeers = state.connectedPeers
         )
     }
 }
@@ -290,6 +294,10 @@ private fun JsThreadHealthCard(
     maxLatencyMs: Long,
     queueDepth: Int,
     maxQueueDepth: Int,
+    tickAvgMs: Float,
+    tickMaxMs: Float,
+    activePieces: Int,
+    connectedPeers: Int,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -320,7 +328,7 @@ private fun JsThreadHealthCard(
                 )
             }
 
-            // Stats row
+            // First row: Latency and Queue
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -341,7 +349,40 @@ private fun JsThreadHealthCard(
                     isWarning = queueDepth > 50
                 )
             }
+
+            // Second row: Tick duration and load
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                // Tick duration (target <50ms for 100ms interval)
+                StatDisplay(
+                    label = "Tick",
+                    value = formatTickMs(tickAvgMs),
+                    subValue = "max: ${formatTickMs(tickMaxMs)}",
+                    isWarning = tickAvgMs > 50f
+                )
+
+                // Active pieces
+                StatDisplay(
+                    label = "Pieces",
+                    value = activePieces.toString(),
+                    subValue = "$connectedPeers peers",
+                    isWarning = false
+                )
+            }
         }
+    }
+}
+
+/**
+ * Format tick duration in milliseconds for display.
+ */
+private fun formatTickMs(ms: Float): String {
+    return if (ms < 1f) {
+        "<1ms"
+    } else {
+        "${ms.toInt()}ms"
     }
 }
 

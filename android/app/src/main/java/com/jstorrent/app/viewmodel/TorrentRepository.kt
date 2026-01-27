@@ -8,6 +8,7 @@ import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.TorrentInfo
 import com.jstorrent.quickjs.model.TrackerInfo
 import com.jstorrent.quickjs.model.DhtStats
+import com.jstorrent.quickjs.model.EngineStats
 import com.jstorrent.quickjs.model.JsThreadStats
 import com.jstorrent.quickjs.model.SpeedSamplesResult
 import kotlinx.coroutines.flow.StateFlow
@@ -138,4 +139,10 @@ interface TorrentRepository {
      * Returns current/max latency and callback queue depth.
      */
     fun getJsThreadStats(): JsThreadStats?
+
+    /**
+     * Get engine statistics for health monitoring.
+     * Returns tick duration, active pieces, and connected peers from JS engine.
+     */
+    suspend fun getEngineStats(): EngineStats?
 }

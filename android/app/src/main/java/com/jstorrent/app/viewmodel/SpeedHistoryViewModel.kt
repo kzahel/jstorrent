@@ -84,8 +84,11 @@ class SpeedHistoryViewModel(
                 maxPoints = 300
             )
 
-            // Get JS thread stats
+            // Get JS thread stats (Kotlin-side metrics)
             val jsStats = repository.getJsThreadStats()
+
+            // Get engine stats (JS-side tick metrics)
+            val engineStats = repository.getEngineStats()
 
             if (downloadResult != null || uploadResult != null || diskResult != null) {
                 // Get bucket duration - samples contain bytes accumulated per bucket,
@@ -126,7 +129,11 @@ class SpeedHistoryViewModel(
                     jsCurrentLatencyMs = jsStats?.currentLatencyMs ?: 0L,
                     jsMaxLatencyMs = jsStats?.maxLatencyMs ?: 0L,
                     jsQueueDepth = jsStats?.queueDepth ?: 0,
-                    jsMaxQueueDepth = jsStats?.maxQueueDepth ?: 0
+                    jsMaxQueueDepth = jsStats?.maxQueueDepth ?: 0,
+                    tickAvgMs = engineStats?.tickAvgMs ?: 0f,
+                    tickMaxMs = engineStats?.tickMaxMs?.toFloat() ?: 0f,
+                    activePieces = engineStats?.activePieces ?: 0,
+                    connectedPeers = engineStats?.connectedPeers ?: 0
                 )
             } else {
                 // No data yet but engine might not be ready

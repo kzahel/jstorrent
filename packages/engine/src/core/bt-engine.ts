@@ -934,6 +934,51 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     return this.torrents.reduce((acc, t) => acc + t.numPeers, 0)
   }
 
+  /**
+   * Get aggregated engine statistics for health monitoring.
+   * Combines tick stats from all active torrents.
+   */
+  getEngineStats(): {
+    tickCount: number
+    tickTotalMs: number
+    tickMaxMs: number
+    tickAvgMs: number
+    activePieces: number
+    connectedPeers: number
+    activeTorrents: number
+  } {
+    let tickCount = 0
+    let tickTotalMs = 0
+    let tickMaxMs = 0
+    let activePieces = 0
+    let connectedPeers = 0
+    let activeTorrents = 0
+
+    for (const torrent of this.torrents) {
+      const stats = torrent.getTickStats()
+      tickCount += stats.tickCount
+      tickTotalMs += stats.tickTotalMs
+      if (stats.tickMaxMs > tickMaxMs) {
+        tickMaxMs = stats.tickMaxMs
+      }
+      activePieces += stats.activePieces
+      connectedPeers += stats.connectedPeers
+      if (stats.connectedPeers > 0) {
+        activeTorrents++
+      }
+    }
+
+    return {
+      tickCount,
+      tickTotalMs,
+      tickMaxMs,
+      tickAvgMs: tickCount > 0 ? tickTotalMs / tickCount : 0,
+      activePieces,
+      connectedPeers,
+      activeTorrents,
+    }
+  }
+
   // === ConfigHub Subscription Wiring ===
 
   /**

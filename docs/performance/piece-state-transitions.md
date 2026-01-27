@@ -1,7 +1,7 @@
 # Piece State Transitions: Aligning with libtorrent
 
 **Created**: 2025-01-27
-**Status**: Implementation needed
+**Status**: Option A implemented (three-state model)
 **Related**: [piece-picker-overhaul.md](./piece-picker-overhaul.md)
 
 ## Problem
@@ -23,29 +23,67 @@ The key insight: **`piece_full` pieces don't count against the partial cap**.
 
 When a peer requests the last unrequested block of a piece, it transitions from `piece_downloading` → `piece_full`. This immediately allows new pieces to start.
 
-## Our Current States
+## Our Current States (Option A Implemented)
 
 | State | Map | Counts toward cap? |
 |-------|-----|-------------------|
 | Not started | (not tracked) | No |
-| Partial (any) | `_partialPieces` | **Yes** |
-| Complete, awaiting hash | `_pendingPieces` | No |
+| Partial (has unrequested blocks) | `_partialPieces` | **Yes** |
+| Full (all blocks requested) | `_fullPieces` | **No** |
+| Pending (awaiting hash) | `_pendingPieces` | No |
 
-We're missing the `piece_full` state. A piece with all 16 blocks requested still lives in `_partialPieces` and counts against the cap.
+This matches libtorrent's model exactly. When a piece has all blocks requested, it transitions to `_fullPieces` and no longer counts against the partial cap.
 
-## The Fix
+## Current Implementation (Option A - Three-State Model)
 
-### Option A: Add `_fullPieces` map (libtorrent way)
+As of 2025-01-27, Option A is implemented with a three-state model matching libtorrent.
 
-Add a third map for pieces where all blocks are requested but not all received:
+### Key Components
+
+**ActivePieceManager** (`active-piece-manager.ts`):
+- `_partialPieces`: Pieces with unrequested blocks (counts against cap)
+- `_fullPieces`: Pieces with all blocks requested (does NOT count against cap)
+- `_pendingPieces`: Pieces awaiting hash verification
+
+**State Transitions**:
+- `promoteToFull(pieceIndex)`: Partial → Full (when all blocks requested)
+- `demoteToPartial(pieceIndex)`: Full → Partial (when request cancelled/timed out)
+- `promoteToPending(pieceIndex)`: Full/Partial → Pending (when all blocks received)
+
+**Torrent.ts Integration**:
+After each `addRequest()` call, check if piece should be promoted:
+```typescript
+piece.addRequest(blockIndex, peerId)
+if (!piece.hasUnrequestedBlocks()) {
+  this.activePieces.promoteToFull(piece.index)
+}
+```
+
+The Phase 2 cap check is now simple (no workaround needed):
+```typescript
+if (this.activePieces.shouldPrioritizePartials(connectedPeerCount)) {
+  return // Partial pieces have unrequested blocks - prioritize completion
+}
+```
+
+**Automatic Demotion**:
+- `clearRequestsForPeer()` automatically demotes full pieces when requests are cleared
+- `checkTimeouts()` automatically demotes full pieces when requests timeout
+- `cleanupStuckPieces()` checks full pieces for stale requests and demotes as needed
+
+## Implementation Options
+
+### Option A: Three-State Model (IMPLEMENTED)
+
+The three-state model with `_fullPieces` map, matching libtorrent:
 
 ```typescript
 class ActivePieceManager {
   private _partialPieces: Map<number, ActivePiece>  // has unrequested blocks
-  private _fullPieces: Map<number, ActivePiece>     // all blocks requested (NEW)
+  private _fullPieces: Map<number, ActivePiece>     // all blocks requested
   private _pendingPieces: Map<number, ActivePiece>  // all blocks received
 
-  // Cap only counts partials
+  // Cap only counts partials - O(1) check
   shouldPrioritizePartials(peerCount: number): boolean {
     return this._partialPieces.size > this.getMaxPartials(peerCount)
   }
@@ -59,21 +97,37 @@ class ActivePieceManager {
     }
   }
 
+  // Transition when request cancelled
+  demoteToPartial(pieceIndex: number): void {
+    const piece = this._fullPieces.get(pieceIndex)
+    if (piece && piece.hasUnrequestedBlocks()) {
+      this._fullPieces.delete(pieceIndex)
+      this._partialPieces.set(pieceIndex, piece)
+    }
+  }
+
   // Transition when last block received
   promoteToPending(pieceIndex: number): void {
     const piece = this._fullPieces.get(pieceIndex) ?? this._partialPieces.get(pieceIndex)
-    if (piece?.haveAllBlocks) {
-      this._partialPieces.delete(pieceIndex)
+    if (piece) {
       this._fullPieces.delete(pieceIndex)
+      this._partialPieces.delete(pieceIndex)
       this._pendingPieces.set(pieceIndex, piece)
     }
   }
 }
 ```
 
-### Option B: Keep current fix (pragmatic)
+**Benefits**:
+1. Matches libtorrent's proven model exactly
+2. `shouldPrioritizePartials()` is O(1) - just check map size
+3. No `hasUnrequestedBlocks()` scan in hot path
+4. Clearer semantics and easier to reason about
+5. Phase 1 iteration is faster - only iterates pieces with work to do
 
-Our current fix achieves the same result without adding a new map:
+### Option B: Workaround (SUPERSEDED)
+
+The previous workaround checked `hasUnrequestedBlocks()` in the Phase 2 cap:
 
 ```typescript
 if (this.activePieces.shouldPrioritizePartials(connectedPeerCount)) {
@@ -84,295 +138,70 @@ if (this.activePieces.shouldPrioritizePartials(connectedPeerCount)) {
 }
 ```
 
-This effectively treats "no unrequested blocks" as the `piece_full` state.
+This was simpler but required an O(partials × blocks) scan on each `requestPieces()` call.
 
-### Recommendation: Option A
+## Implementation Summary (Option A)
 
-Option A is cleaner because:
-1. Matches libtorrent's proven model
-2. `shouldPrioritizePartials()` becomes O(1) - just check map size
-3. No need for `hasUnrequestedBlocks()` scan in hot path
-4. Clearer semantics and easier to reason about
-5. Makes iteration faster - Phase 1 only iterates pieces with work to do
+The three-state model is implemented in:
 
-## Implementation Plan
+### ActivePieceManager (`active-piece-manager.ts`)
 
-### 1. Add `_fullPieces` map to ActivePieceManager
+- `_fullPieces` map added alongside `_partialPieces` and `_pendingPieces`
+- `promoteToFull()` / `demoteToPartial()` / `promoteToPending()` handle transitions
+- `fullCount` / `isFull()` / `fullValues()` for state introspection
+- `downloadingValues()` iterates both partial and full pieces
+- `clearRequestsForPeer()` and `checkTimeouts()` auto-demote full pieces
 
-```typescript
-private _fullPieces: Map<number, ActivePiece> = new Map()
+### Torrent (`torrent.ts`)
 
-get fullCount(): number {
-  return this._fullPieces.size
-}
-
-// Update iteration methods
-partialValues(): IterableIterator<ActivePiece> {
-  return this._partialPieces.values()  // Only pieces with unrequested blocks
-}
-
-fullValues(): IterableIterator<ActivePiece> {
-  return this._fullPieces.values()
-}
-
-// Combined for Phase 1 (need to check both for incoming blocks)
-*downloadingValues(): IterableIterator<ActivePiece> {
-  yield* this._partialPieces.values()
-  yield* this._fullPieces.values()
-}
-```
-
-### 2. Add `promoteToFull()` method
-
-Called when a request is added and piece becomes fully-requested:
-
-```typescript
-promoteToFull(pieceIndex: number): void {
-  const piece = this._partialPieces.get(pieceIndex)
-  if (!piece) return
-
-  if (!piece.hasUnrequestedBlocks()) {
-    this._partialPieces.delete(pieceIndex)
-    this._fullPieces.set(pieceIndex, piece)
-    this.logger.debug(`Piece ${pieceIndex} promoted to full (all blocks requested)`)
-  }
-}
-```
-
-### 3. Update `addRequest()` call site in torrent.ts
-
-After adding a request, check if piece should be promoted:
-
-```typescript
-piece.addRequest(blockIndex, peerId)
-
-// Check if piece is now fully requested
-if (!piece.hasUnrequestedBlocks()) {
-  this.activePieces.promoteToFull(piece.index)
-}
-```
-
-### 4. Update `promoteToPending()` to check both maps
-
-```typescript
-promoteToPending(pieceIndex: number): void {
-  // Check full pieces first (most likely)
-  let piece = this._fullPieces.get(pieceIndex)
-  if (piece) {
-    this._fullPieces.delete(pieceIndex)
-    this._pendingPieces.set(pieceIndex, piece)
-    return
-  }
-
-  // Also check partials (edge case: received blocks without requesting)
-  piece = this._partialPieces.get(pieceIndex)
-  if (piece) {
-    this._partialPieces.delete(pieceIndex)
-    this._pendingPieces.set(pieceIndex, piece)
-  }
-}
-```
-
-### 5. Update `get()` and `has()` to check all three maps
-
-```typescript
-get(index: number): ActivePiece | undefined {
-  return this._partialPieces.get(index)
-    ?? this._fullPieces.get(index)
-    ?? this._pendingPieces.get(index)
-}
-
-has(index: number): boolean {
-  return this._partialPieces.has(index)
-    || this._fullPieces.has(index)
-    || this._pendingPieces.has(index)
-}
-```
-
-### 6. Handle request cancellation (piece goes back to partial)
-
-When a request is cancelled (timeout, peer disconnect), piece may need to move back:
-
-```typescript
-demoteToPartial(pieceIndex: number): void {
-  const piece = this._fullPieces.get(pieceIndex)
-  if (piece && piece.hasUnrequestedBlocks()) {
-    this._fullPieces.delete(pieceIndex)
-    this._partialPieces.set(pieceIndex, piece)
-    this.logger.debug(`Piece ${pieceIndex} demoted to partial (has unrequested blocks)`)
-  }
-}
-```
-
-### 7. Remove the `hasUnrequestedBlocks()` workaround
-
-The Phase 2 cap check becomes simple again:
-
-```typescript
-if (this.activePieces.shouldPrioritizePartials(connectedPeerCount)) {
-  return  // Only partials count, and they have work to do
-}
-```
+- After `addRequest()`, calls `promoteToFull()` if piece is fully requested
+- `cleanupStuckPieces()` checks full pieces for stale requests
+- Phase 2 cap check simplified (no `hasUnrequestedBlocks()` workaround)
 
 ## Tests
 
-### Test 1: Piece state transitions
+Tests for the three-state model are in `packages/engine/test/core/partial-piece-limiting.test.ts`:
 
-```typescript
-describe('Piece State Transitions', () => {
-  it('should start pieces in partial state', () => {
-    const piece = manager.getOrCreate(0)
-    expect(manager.isPartial(0)).toBe(true)
-    expect(manager.isFull(0)).toBe(false)
-    expect(manager.partialCount).toBe(1)
-  })
+- `promoteToFull` - Tests partial → full transitions
+- `demoteToPartial` - Tests full → partial transitions
+- `three-state transitions` - Tests complete lifecycle
+- `full pieces and partial cap` - Validates cap only counts partials
+- `fullValues and downloadingValues iterators` - Tests iteration helpers
+- `clearRequestsForPeer with full pieces` - Tests auto-demotion
 
-  it('should promote to full when all blocks requested', () => {
-    const piece = manager.getOrCreate(0)!
+## Migration Notes
 
-    // Request all blocks
-    for (let i = 0; i < piece.blocksNeeded; i++) {
-      piece.addRequest(i, 'peer1')
-    }
-    manager.promoteToFull(0)
+Option A was implemented in a single commit with:
 
-    expect(manager.isPartial(0)).toBe(false)
-    expect(manager.isFull(0)).toBe(true)
-    expect(manager.partialCount).toBe(0)
-    expect(manager.fullCount).toBe(1)
-  })
-
-  it('should demote to partial when request cancelled', () => {
-    const piece = manager.getOrCreate(0)!
-    for (let i = 0; i < piece.blocksNeeded; i++) {
-      piece.addRequest(i, 'peer1')
-    }
-    manager.promoteToFull(0)
-
-    // Cancel a request
-    piece.cancelRequest(0, 'peer1')
-    manager.demoteToPartial(0)
-
-    expect(manager.isPartial(0)).toBe(true)
-    expect(manager.isFull(0)).toBe(false)
-  })
-
-  it('should promote to pending when all blocks received', () => {
-    const piece = manager.getOrCreate(0)!
-    for (let i = 0; i < piece.blocksNeeded; i++) {
-      piece.addBlock(i, new Uint8Array(BLOCK_SIZE), 'peer1')
-    }
-    manager.promoteToPending(0)
-
-    expect(manager.isFull(0)).toBe(false)
-    expect(manager.isPending(0)).toBe(true)
-  })
-})
-```
-
-### Test 2: Partial cap only counts partials
-
-```typescript
-describe('Partial Cap with State Transitions', () => {
-  it('should not count full pieces against cap', () => {
-    // 1 peer = cap of 1
-    expect(manager.shouldPrioritizePartials(1)).toBe(false)
-
-    // Create piece 0 and fully request it
-    const piece0 = manager.getOrCreate(0)!
-    for (let i = 0; i < piece0.blocksNeeded; i++) {
-      piece0.addRequest(i, 'peer1')
-    }
-    manager.promoteToFull(0)
-
-    // Still under cap because full pieces don't count
-    expect(manager.shouldPrioritizePartials(1)).toBe(false)
-    expect(manager.partialCount).toBe(0)
-    expect(manager.fullCount).toBe(1)
-
-    // Can create another piece
-    const piece1 = manager.getOrCreate(1)!
-    expect(piece1).not.toBeNull()
-    expect(manager.partialCount).toBe(1)
-  })
-
-  it('should allow filling pipeline with single peer', () => {
-    const pipelineDepth = 500
-    const blocksPerPiece = 16
-    const piecesNeeded = Math.ceil(pipelineDepth / blocksPerPiece)  // 32 pieces
-
-    for (let p = 0; p < piecesNeeded; p++) {
-      const piece = manager.getOrCreate(p)
-      expect(piece).not.toBeNull()
-
-      // Request all blocks
-      for (let b = 0; b < piece!.blocksNeeded; b++) {
-        piece!.addRequest(b, 'peer1')
-      }
-      manager.promoteToFull(p)
-
-      // Should never be blocked by cap (all promoted to full)
-      expect(manager.shouldPrioritizePartials(1)).toBe(false)
-    }
-
-    expect(manager.fullCount).toBe(piecesNeeded)
-    expect(manager.partialCount).toBe(0)
-  })
-})
-```
-
-### Test 3: Single-peer download flow
-
-```typescript
-describe('Single-Peer Download Flow', () => {
-  it('should not stall with single fast peer', () => {
-    const peerCount = 1
-    const pipelineDepth = 500
-    let totalRequests = 0
-
-    while (totalRequests < pipelineDepth) {
-      // Should never be blocked
-      expect(manager.shouldPrioritizePartials(peerCount)).toBe(false)
-
-      // Start a new piece
-      const pieceIndex = manager.activeCount
-      const piece = manager.getOrCreate(pieceIndex)!
-
-      // Request all blocks
-      for (let b = 0; b < piece.blocksNeeded && totalRequests < pipelineDepth; b++) {
-        piece.addRequest(b, 'peer1')
-        totalRequests++
-      }
-
-      // Promote if fully requested
-      if (!piece.hasUnrequestedBlocks()) {
-        manager.promoteToFull(pieceIndex)
-      }
-    }
-
-    expect(totalRequests).toBe(pipelineDepth)
-    expect(manager.partialCount).toBeLessThanOrEqual(1)  // At most 1 partial
-  })
-})
-```
-
-## Migration
-
-1. Implement changes in `active-piece-manager.ts`
-2. Update call sites in `torrent.ts` to call `promoteToFull()` and `demoteToPartial()`
-3. Add tests
-4. Remove the `hasUnrequestedBlocks()` workaround from Phase 2 cap check
-5. Update design doc to reflect new state model
+1. Added `_fullPieces` map to `ActivePieceManager`
+2. Added `promoteToFull()`, `demoteToPartial()` methods
+3. Updated `get()`, `has()`, `promoteToPending()` to check all three maps
+4. Added `isFull()`, `fullCount`, `fullValues()`, `downloadingValues()`
+5. Updated `clearRequestsForPeer()` and `checkTimeouts()` to auto-demote
+6. Updated `torrent.ts` to call `promoteToFull()` after `addRequest()`
+7. Updated `cleanupStuckPieces()` to check full pieces for stale requests
+8. Removed the `hasUnrequestedBlocks()` workaround from Phase 2 cap check
+9. Added comprehensive tests for three-state transitions
 
 ## Verification
 
-After implementation, test with:
+### Unit Tests
+
+Run the unit tests:
 ```bash
-./scripts/dev-test-native.sh pixel7a --size 1gb
+pnpm test packages/engine/test/core/partial-piece-limiting.test.ts
 ```
 
-Should see:
+### E2E Verification
+
+Validate with the e2e download test:
+```bash
+./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.jstorrent.app.e2e.DownloadE2ETest
+```
+
+Expected observations:
 - Consistent download speed (no stalls)
 - `partialCount` staying low (0-2)
 - `fullCount` growing as pieces fill up
 - Pipeline staying full (~500 requests)
+- No `hasUnrequestedBlocks()` calls in request hot path

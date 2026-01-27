@@ -28,8 +28,11 @@ export interface IDiskQueue {
   getSnapshot(): DiskQueueSnapshot
 }
 
+// originally we set to 4 but trying to use more to see if it helps quickjs
+const DEFAULT_DISK_WORKERS = 32
+
 export interface DiskQueueConfig {
-  maxWorkers: number // Default 4
+  maxWorkers: number
 }
 
 export class TorrentDiskQueue implements IDiskQueue {
@@ -42,7 +45,7 @@ export class TorrentDiskQueue implements IDiskQueue {
 
   constructor(config: Partial<DiskQueueConfig> = {}) {
     this.config = {
-      maxWorkers: config.maxWorkers ?? 4,
+      maxWorkers: config.maxWorkers ?? DEFAULT_DISK_WORKERS,
     }
   }
 

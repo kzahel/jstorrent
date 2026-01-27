@@ -21,6 +21,7 @@ import com.jstorrent.quickjs.model.PeerListResponse
 import com.jstorrent.quickjs.model.PieceInfo
 import com.jstorrent.quickjs.model.TorrentDetails
 import com.jstorrent.quickjs.model.DhtStats
+import com.jstorrent.quickjs.model.EngineStats
 import com.jstorrent.quickjs.model.JsThreadStats
 import com.jstorrent.quickjs.model.SpeedSamplesResult
 import com.jstorrent.quickjs.model.UpnpStatus
@@ -742,6 +743,23 @@ class EngineController(
             json.decodeFromString<SpeedSamplesResult>(resultJson)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse speed samples", e)
+            null
+        }
+    }
+
+    /**
+     * Get engine statistics for health monitoring (suspend version).
+     * Fetches tick stats, active pieces, and connected peers from JS engine.
+     */
+    suspend fun getEngineStatsAsync(): EngineStats? {
+        checkLoaded()
+        val resultJson = engine!!.callGlobalFunctionAsync(
+            "__jstorrent_query_engine_stats"
+        ) as? String ?: return null
+        return try {
+            json.decodeFromString<EngineStats>(resultJson)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse engine stats", e)
             null
         }
     }

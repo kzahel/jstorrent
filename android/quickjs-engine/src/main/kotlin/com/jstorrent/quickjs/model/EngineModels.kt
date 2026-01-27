@@ -216,7 +216,29 @@ data class JsThreadStats(
     val currentLatencyMs: Long,  // Most recent health check latency
     val maxLatencyMs: Long,      // Max latency since engine start
     val queueDepth: Int,         // Current TCP callback queue depth
-    val maxQueueDepth: Int       // Max queue depth since last log interval
+    val maxQueueDepth: Int,      // Max queue depth since last log interval
+    // Tick stats from engine (game loop performance)
+    val tickAvgMs: Float = 0f,   // Average tick duration in current window
+    val tickMaxMs: Float = 0f,   // Max tick duration in current window
+    val tickCount: Int = 0,      // Number of ticks in current window
+    val activePieces: Int = 0,   // Total active pieces across torrents
+    val connectedPeers: Int = 0, // Total connected peers
+    val activeTorrents: Int = 0  // Number of torrents with connected peers
+)
+
+/**
+ * Engine statistics from __jstorrent_query_engine_stats.
+ * Used internally to fetch tick stats from JS engine.
+ */
+@Serializable
+data class EngineStats(
+    val tickCount: Int,
+    val tickTotalMs: Int,
+    val tickMaxMs: Int,
+    val tickAvgMs: Float,
+    val activePieces: Int,
+    val connectedPeers: Int,
+    val activeTorrents: Int
 )
 
 /**

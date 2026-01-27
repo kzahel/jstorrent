@@ -27,7 +27,12 @@ sealed class SpeedHistoryUiState {
         val jsCurrentLatencyMs: Long = 0L,
         val jsMaxLatencyMs: Long = 0L,
         val jsQueueDepth: Int = 0,
-        val jsMaxQueueDepth: Int = 0
+        val jsMaxQueueDepth: Int = 0,
+        // Tick stats from engine (game loop performance)
+        val tickAvgMs: Float = 0f,
+        val tickMaxMs: Float = 0f,
+        val activePieces: Int = 0,
+        val connectedPeers: Int = 0
     ) : SpeedHistoryUiState()
 
     /**

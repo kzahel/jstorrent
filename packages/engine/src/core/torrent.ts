@@ -177,7 +177,7 @@ export class Torrent extends EngineComponent {
   public lastPieceLength: number = 0
   public piecesCount: number = 0
   public contentStorage?: TorrentContentStorage
-  private _diskQueue: TorrentDiskQueue = new TorrentDiskQueue({ maxWorkers: 32 })
+  private _diskQueue: TorrentDiskQueue = new TorrentDiskQueue()
   private _endgameManager: EndgameManager = new EndgameManager()
 
   private _bitfield?: BitField
@@ -1780,6 +1780,26 @@ export class Torrent extends EngineComponent {
     }
   }
 
+  /**
+   * Get current tick statistics for health monitoring.
+   * Returns stats from the current logging window (resets every 5 seconds).
+   */
+  getTickStats(): {
+    tickCount: number
+    tickTotalMs: number
+    tickMaxMs: number
+    activePieces: number
+    connectedPeers: number
+  } {
+    return {
+      tickCount: this._tickCount,
+      tickTotalMs: this._tickTotalMs,
+      tickMaxMs: this._tickMaxMs,
+      activePieces: this.activePieces?.activeCount ?? 0,
+      connectedPeers: this.connectedPeers.length,
+    }
+  }
+
   // ==========================================================================
   // Phase 5: Piece Health Management
   // ==========================================================================
@@ -1791,7 +1811,8 @@ export class Torrent extends EngineComponent {
    * 1. Finds and cancels stale block requests (>10s old)
    * 2. Sends CANCEL messages to peers for those requests
    * 3. Clears exclusive ownership when the owner times out
-   * 4. Abandons pieces that are stuck (>30s old with <50% progress)
+   * 4. Demotes full pieces back to partial if they now have unrequested blocks
+   * 5. Abandons pieces that are stuck (>30s old with <50% progress)
    *
    * libtorrent reference: peer_connection.cpp:4565-4588
    */
@@ -1799,9 +1820,11 @@ export class Torrent extends EngineComponent {
     if (!this.activePieces) return
 
     const piecesToRemove: number[] = []
+    const piecesToDemote: number[] = []
     let staleRequestsCleared = 0
     let piecesAbandoned = 0
 
+    // Check partial pieces for stale requests and abandonment
     for (const piece of this.activePieces.partialValues()) {
       // Step 1: Check for stale requests
       const staleRequests = piece.getStaleRequests(BLOCK_REQUEST_TIMEOUT_MS)
@@ -1831,16 +1854,48 @@ export class Torrent extends EngineComponent {
       }
     }
 
-    // Step 3: Remove abandoned pieces
+    // Also check full pieces for stale requests (Option A state model)
+    // Full pieces have all blocks requested but not all received
+    for (const piece of this.activePieces.fullValues()) {
+      const staleRequests = piece.getStaleRequests(BLOCK_REQUEST_TIMEOUT_MS)
+      for (const { blockIndex, peerId } of staleRequests) {
+        // Find the peer to send CANCEL
+        const peer = this.findPeerById(peerId)
+        if (peer) {
+          const begin = blockIndex * BLOCK_SIZE
+          const length = Math.min(BLOCK_SIZE, piece.length - begin)
+          peer.sendCancel(piece.index, begin, length)
+
+          // Decrement peer's pending request count
+          peer.requestsPending = Math.max(0, peer.requestsPending - 1)
+        }
+
+        // Clean up the request from the piece
+        piece.cancelRequest(blockIndex, peerId)
+        staleRequestsCleared++
+      }
+
+      // If full piece now has unrequested blocks, mark for demotion
+      if (piece.hasUnrequestedBlocks()) {
+        piecesToDemote.push(piece.index)
+      }
+    }
+
+    // Demote full pieces back to partial if they have unrequested blocks
+    for (const index of piecesToDemote) {
+      this.activePieces.demoteToPartial(index)
+    }
+
+    // Remove abandoned pieces
     for (const index of piecesToRemove) {
       this.activePieces.remove(index)
     }
 
     // Log if we did any cleanup
-    if (staleRequestsCleared > 0 || piecesAbandoned > 0) {
+    if (staleRequestsCleared > 0 || piecesAbandoned > 0 || piecesToDemote.length > 0) {
       this.logger.debug(
         `Piece health cleanup: ${staleRequestsCleared} stale requests cancelled, ` +
-          `${piecesAbandoned} pieces abandoned`,
+          `${piecesAbandoned} pieces abandoned, ${piecesToDemote.length} demoted to partial`,
       )
     }
   }
@@ -3144,6 +3199,11 @@ export class Torrent extends EngineComponent {
 
           const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
           piece.addRequest(blockIndex, peerId)
+
+          // Promote to full if all blocks are now requested (Option A state model)
+          if (!piece.hasUnrequestedBlocks()) {
+            this.activePieces.promoteToFull(piece.index)
+          }
         }
       }
     } else {
@@ -3167,6 +3227,11 @@ export class Torrent extends EngineComponent {
           peer.requestsPending++
           const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
           piece.addRequest(blockIndex, peerId)
+
+          // Promote to full if all blocks are now requested (Option A state model)
+          if (!piece.hasUnrequestedBlocks()) {
+            this.activePieces.promoteToFull(piece.index)
+          }
         }
       }
     }
@@ -3179,17 +3244,12 @@ export class Torrent extends EngineComponent {
     // Phase 2 Partial Cap: Don't start new pieces if we have too many partials
     // This prevents the "600 active pieces" death spiral
     //
-    // HOWEVER: if existing partials have no unrequested blocks (all blocks are
-    // already requested), we MUST activate new pieces to fill the pipeline.
-    // This is critical for single-peer scenarios where the partial cap is low (1-2)
-    // but pipeline depth is high (500).
+    // With Option A state model: pieces with all blocks requested are promoted
+    // to "full" state which doesn't count against the partial cap. This allows
+    // single-peer scenarios to fill the pipeline without needing the workaround.
     const connectedPeerCount = this.connectedPeers.length
     if (this.activePieces.shouldPrioritizePartials(connectedPeerCount)) {
-      // Check if existing partials can still provide work
-      if (this.activePieces.hasUnrequestedBlocks()) {
-        return // Existing partials have unrequested blocks - prioritize completion
-      }
-      // Fall through: existing partials are fully requested, need new pieces
+      return // Partial pieces have unrequested blocks - prioritize completion
     }
 
     // Phase 3+4: Find candidate pieces sorted by rarity
@@ -3225,6 +3285,11 @@ export class Torrent extends EngineComponent {
 
         const blockIndex = Math.floor(block.begin / BLOCK_SIZE)
         piece.addRequest(blockIndex, peerId)
+
+        // Promote to full if all blocks are now requested (Option A state model)
+        if (!piece.hasUnrequestedBlocks()) {
+          this.activePieces.promoteToFull(piece.index)
+        }
       }
     }
 

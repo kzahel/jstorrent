@@ -3,18 +3,20 @@ import { ActivePieceManager, ActivePieceConfig } from '../../src/core/active-pie
 import { MockEngine } from '../utils/mock-engine'
 
 /**
- * Phase 2 Tests: Partial Piece Limiting
+ * Phase 2 Tests: Partial Piece Limiting (Option A - Three-State Model)
  *
- * Tests the separation of partial (downloading) and pending (awaiting verification)
- * pieces, and the automatic cap on partial pieces.
+ * Tests the three-state piece model matching libtorrent:
+ * - Partial: has unrequested blocks (counts against cap)
+ * - Full: all blocks requested but not all received (does NOT count against cap)
+ * - Pending: all blocks received, awaiting verification
  *
  * Key behaviors:
  * - Partial cap is min(peers × 1.5, 2048 / blocksPerPiece)
- * - shouldPrioritizePartials() returns true when over threshold
- * - promoteToPending() moves piece from partial to pending
- * - removePending() removes piece after verification
- * - partialValues() iterates only partial pieces
- * - pendingValues() iterates only pending pieces
+ * - shouldPrioritizePartials() returns true when partials exceed threshold
+ * - promoteToFull() moves piece when all blocks requested
+ * - demoteToPartial() moves piece when request cancelled
+ * - promoteToPending() moves piece when all blocks received
+ * - Full pieces don't count against the partial cap
  */
 
 describe('Partial Piece Limiting', () => {
@@ -482,6 +484,366 @@ describe('Partial Piece Limiting', () => {
 
       // Total should still include both
       expect(manager.totalBufferedBytes).toBe(16384 * 3)
+
+      manager.destroy()
+    })
+  })
+
+  // ==========================================================================
+  // Option A: Three-State Model (partial -> full -> pending)
+  // ==========================================================================
+
+  describe('promoteToFull', () => {
+    it('should move piece from partial to full when all blocks requested', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      const piece = manager.getOrCreate(0)!
+      expect(manager.isPartial(0)).toBe(true)
+      expect(manager.isFull(0)).toBe(false)
+      expect(manager.partialCount).toBe(1)
+      expect(manager.fullCount).toBe(0)
+
+      // Request all blocks
+      for (let i = 0; i < piece.blocksNeeded; i++) {
+        piece.addRequest(i, 'peer1')
+      }
+
+      manager.promoteToFull(0)
+
+      expect(manager.isPartial(0)).toBe(false)
+      expect(manager.isFull(0)).toBe(true)
+      expect(manager.partialCount).toBe(0)
+      expect(manager.fullCount).toBe(1)
+
+      // Should still be accessible
+      expect(manager.has(0)).toBe(true)
+      expect(manager.get(0)).toBe(piece)
+
+      manager.destroy()
+    })
+
+    it('should not promote if piece still has unrequested blocks', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      const piece = manager.getOrCreate(0)!
+
+      // Request only some blocks
+      piece.addRequest(0, 'peer1')
+      piece.addRequest(1, 'peer1')
+
+      manager.promoteToFull(0)
+
+      // Should remain partial because it has unrequested blocks
+      expect(manager.isPartial(0)).toBe(true)
+      expect(manager.isFull(0)).toBe(false)
+
+      manager.destroy()
+    })
+
+    it('should be idempotent for non-existent pieces', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      // Should not throw
+      manager.promoteToFull(999)
+
+      expect(manager.partialCount).toBe(0)
+      expect(manager.fullCount).toBe(0)
+
+      manager.destroy()
+    })
+  })
+
+  describe('demoteToPartial', () => {
+    it('should move piece from full back to partial when request cancelled', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      const piece = manager.getOrCreate(0)!
+
+      // Request all blocks and promote to full
+      for (let i = 0; i < piece.blocksNeeded; i++) {
+        piece.addRequest(i, 'peer1')
+      }
+      manager.promoteToFull(0)
+      expect(manager.isFull(0)).toBe(true)
+
+      // Cancel a request
+      piece.cancelRequest(0, 'peer1')
+
+      // Now demote
+      manager.demoteToPartial(0)
+
+      expect(manager.isPartial(0)).toBe(true)
+      expect(manager.isFull(0)).toBe(false)
+      expect(manager.partialCount).toBe(1)
+      expect(manager.fullCount).toBe(0)
+
+      manager.destroy()
+    })
+
+    it('should not demote if piece has no unrequested blocks', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      const piece = manager.getOrCreate(0)!
+
+      // Request all blocks and promote to full
+      for (let i = 0; i < piece.blocksNeeded; i++) {
+        piece.addRequest(i, 'peer1')
+      }
+      manager.promoteToFull(0)
+
+      // Try to demote without cancelling any requests
+      manager.demoteToPartial(0)
+
+      // Should still be full
+      expect(manager.isFull(0)).toBe(true)
+      expect(manager.isPartial(0)).toBe(false)
+
+      manager.destroy()
+    })
+  })
+
+  describe('three-state transitions', () => {
+    it('should transition partial -> full -> pending correctly', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      const piece = manager.getOrCreate(0)!
+
+      // State 1: Partial
+      expect(manager.isPartial(0)).toBe(true)
+      expect(manager.isFull(0)).toBe(false)
+      expect(manager.isPending(0)).toBe(false)
+
+      // Request all blocks -> Full
+      for (let i = 0; i < piece.blocksNeeded; i++) {
+        piece.addRequest(i, 'peer1')
+      }
+      manager.promoteToFull(0)
+
+      // State 2: Full
+      expect(manager.isPartial(0)).toBe(false)
+      expect(manager.isFull(0)).toBe(true)
+      expect(manager.isPending(0)).toBe(false)
+
+      // Receive all blocks -> Pending
+      for (let i = 0; i < piece.blocksNeeded; i++) {
+        piece.addBlock(i, new Uint8Array(16384), 'peer1')
+      }
+      manager.promoteToPending(0)
+
+      // State 3: Pending
+      expect(manager.isPartial(0)).toBe(false)
+      expect(manager.isFull(0)).toBe(false)
+      expect(manager.isPending(0)).toBe(true)
+
+      manager.destroy()
+    })
+
+    it('should transition partial -> full -> partial (on timeout)', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      const piece = manager.getOrCreate(0)!
+
+      // Request all blocks and promote to full
+      for (let i = 0; i < piece.blocksNeeded; i++) {
+        piece.addRequest(i, 'peer1')
+      }
+      manager.promoteToFull(0)
+      expect(manager.isFull(0)).toBe(true)
+
+      // Simulate peer disconnect clearing requests
+      manager.clearRequestsForPeer('peer1')
+
+      // Should be back to partial
+      expect(manager.isPartial(0)).toBe(true)
+      expect(manager.isFull(0)).toBe(false)
+
+      manager.destroy()
+    })
+
+    it('should allow direct partial -> pending transition (rapid completion)', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      const piece = manager.getOrCreate(0)!
+
+      // Receive all blocks directly (simulates very fast peer)
+      for (let i = 0; i < piece.blocksNeeded; i++) {
+        piece.addBlock(i, new Uint8Array(16384), 'peer1')
+      }
+
+      // Promote directly to pending (skipping full state)
+      manager.promoteToPending(0)
+
+      expect(manager.isPartial(0)).toBe(false)
+      expect(manager.isFull(0)).toBe(false)
+      expect(manager.isPending(0)).toBe(true)
+
+      manager.destroy()
+    })
+  })
+
+  describe('full pieces and partial cap', () => {
+    it('should not count full pieces against partial cap', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      // 1 peer = cap of 1 partial piece
+      expect(manager.getMaxPartials(1)).toBe(1)
+      expect(manager.shouldPrioritizePartials(1)).toBe(false)
+
+      // Create piece 0 and fully request it
+      const piece0 = manager.getOrCreate(0)!
+      for (let i = 0; i < piece0.blocksNeeded; i++) {
+        piece0.addRequest(i, 'peer1')
+      }
+      manager.promoteToFull(0)
+
+      // Still under cap because full pieces don't count
+      expect(manager.shouldPrioritizePartials(1)).toBe(false)
+      expect(manager.partialCount).toBe(0)
+      expect(manager.fullCount).toBe(1)
+
+      // Can create another piece
+      const piece1 = manager.getOrCreate(1)!
+      expect(piece1).not.toBeNull()
+      expect(manager.partialCount).toBe(1)
+
+      // Now at cap (1 partial)
+      // Still not over because cap is 1 and we have exactly 1
+      expect(manager.shouldPrioritizePartials(1)).toBe(false)
+
+      // Create a second partial piece
+      manager.getOrCreate(2)
+      expect(manager.partialCount).toBe(2)
+
+      // Now over cap (2 partials > 1)
+      expect(manager.shouldPrioritizePartials(1)).toBe(true)
+
+      manager.destroy()
+    })
+
+    it('should allow filling pipeline with single peer', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      const pipelineDepth = 500
+      const blocksPerPiece = 16 // 256KB / 16KB
+      const piecesNeeded = Math.ceil(pipelineDepth / blocksPerPiece) // 32 pieces
+
+      for (let p = 0; p < piecesNeeded; p++) {
+        const piece = manager.getOrCreate(p)
+        expect(piece).not.toBeNull()
+
+        // Request all blocks
+        for (let b = 0; b < piece!.blocksNeeded; b++) {
+          piece!.addRequest(b, 'peer1')
+        }
+        manager.promoteToFull(p)
+
+        // Should never be blocked by cap (all promoted to full)
+        expect(manager.shouldPrioritizePartials(1)).toBe(false)
+      }
+
+      expect(manager.fullCount).toBe(piecesNeeded)
+      expect(manager.partialCount).toBe(0)
+
+      manager.destroy()
+    })
+  })
+
+  describe('fullValues and downloadingValues iterators', () => {
+    it('should iterate only full pieces with fullValues()', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      // Create 5 pieces
+      for (let i = 0; i < 5; i++) {
+        const piece = manager.getOrCreate(i)!
+        // Fully request pieces 1 and 3
+        if (i === 1 || i === 3) {
+          for (let b = 0; b < piece.blocksNeeded; b++) {
+            piece.addRequest(b, 'peer1')
+          }
+          manager.promoteToFull(i)
+        }
+      }
+
+      const fullIndices: number[] = []
+      for (const piece of manager.fullValues()) {
+        fullIndices.push(piece.index)
+      }
+
+      expect(fullIndices.sort()).toEqual([1, 3])
+
+      manager.destroy()
+    })
+
+    it('should iterate partial and full pieces with downloadingValues()', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      // Create 5 pieces
+      for (let i = 0; i < 5; i++) {
+        const piece = manager.getOrCreate(i)!
+        // Fully request pieces 1 and 3
+        if (i === 1 || i === 3) {
+          for (let b = 0; b < piece.blocksNeeded; b++) {
+            piece.addRequest(b, 'peer1')
+          }
+          manager.promoteToFull(i)
+        }
+        // Promote piece 4 to pending
+        if (i === 4) {
+          for (let b = 0; b < piece.blocksNeeded; b++) {
+            piece.addBlock(b, new Uint8Array(16384), 'peer1')
+          }
+          manager.promoteToPending(i)
+        }
+      }
+
+      const downloadingIndices: number[] = []
+      for (const piece of manager.downloadingValues()) {
+        downloadingIndices.push(piece.index)
+      }
+
+      // Should include partial (0, 2) and full (1, 3), but not pending (4)
+      expect(downloadingIndices.sort()).toEqual([0, 1, 2, 3])
+
+      manager.destroy()
+    })
+  })
+
+  describe('clearRequestsForPeer with full pieces', () => {
+    it('should demote full pieces to partial when requests cleared', () => {
+      const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
+      const manager = new ActivePieceManager(engine, pieceLengthFn, config)
+
+      const piece = manager.getOrCreate(0)!
+
+      // Request all blocks and promote to full
+      for (let i = 0; i < piece.blocksNeeded; i++) {
+        piece.addRequest(i, 'peer1')
+      }
+      manager.promoteToFull(0)
+
+      expect(manager.fullCount).toBe(1)
+      expect(manager.partialCount).toBe(0)
+
+      // Clear requests for peer1
+      const cleared = manager.clearRequestsForPeer('peer1')
+      expect(cleared).toBe(piece.blocksNeeded)
+
+      // Piece should now be partial again
+      expect(manager.fullCount).toBe(0)
+      expect(manager.partialCount).toBe(1)
+      expect(manager.isPartial(0)).toBe(true)
 
       manager.destroy()
     })

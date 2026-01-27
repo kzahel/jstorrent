@@ -603,6 +603,26 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
   }
 
   /**
+   * Get aggregated engine statistics for health monitoring.
+   * Includes tick duration, active pieces, and connected peers.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_query_engine_stats = (): string => {
+    const engine = requireEngine('query_engine_stats')
+    if (!engine) {
+      return JSON.stringify({
+        tickCount: 0,
+        tickTotalMs: 0,
+        tickMaxMs: 0,
+        tickAvgMs: 0,
+        activePieces: 0,
+        connectedPeers: 0,
+        activeTorrents: 0,
+      })
+    }
+    return JSON.stringify(engine.getEngineStats())
+  }
+
+  /**
    * Get UPnP status information.
    * Returns status, external IP if mapped, and the listening port.
    */
