@@ -92,7 +92,19 @@ export class ActivePiece {
     return this._lastActivity
   }
 
+  /**
+   * Returns the allocated buffer size (actual memory usage).
+   * This is the full piece length, regardless of how many blocks have been received.
+   * Used for memory limit enforcement.
+   */
   get bufferedBytes(): number {
+    return this.length
+  }
+
+  /**
+   * Returns the number of bytes actually received (for progress tracking).
+   */
+  get receivedBytes(): number {
     let total = 0
     for (let i = 0; i < this.blocksNeeded; i++) {
       if (this.blockReceived[i]) {

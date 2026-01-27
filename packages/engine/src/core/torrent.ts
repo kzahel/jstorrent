@@ -40,6 +40,7 @@ import { CorruptionTracker, BanDecision } from './corruption-tracker'
 import { MetadataFetcher } from './metadata-fetcher'
 import { TorrentUploader } from './torrent-uploader'
 import { FilePriorityManager, PieceClassification } from './file-priority-manager'
+import { PieceAvailability } from './piece-availability'
 
 /**
  * Maximum ratio of peer slots that incoming connections can occupy.
@@ -190,25 +191,8 @@ export class Torrent extends EngineComponent {
 
   // === File Priority System ===
   // File priorities and piece classification are managed by FilePriorityManager
-  /** Per-piece availability count (how many connected peers have each piece) */
-  private _pieceAvailability: Uint16Array | null = null
-  /**
-   * Number of connected seed peers.
-   * Seeds are tracked separately to avoid O(pieces) updates on connect/disconnect.
-   * For availability calculations, use: pieceAvailability[i] + seedCount
-   */
-  private _seedCount: number = 0
-  /**
-   * Phase 8: Per-peer piece index for O(1) lookup of pieces to request.
-   * Maps peerId -> Set of piece indices that peer has that we need and aren't active.
-   * Maintained on:
-   * - Bitfield received: populate from peer's bitfield
-   * - HAVE message: add piece to set if we need it
-   * - Piece completed: remove from all peers
-   * - Piece activated: remove from all peers
-   * - Peer disconnect: delete from map
-   */
-  private _peerPieceIndex: Map<string, Set<number>> = new Map()
+  /** Piece availability tracking for rarest-first selection */
+  private _availability: PieceAvailability = new PieceAvailability()
   /** Pieces currently stored in .parts file (not in regular files) */
   private _partsFilePieces: Set<number> = new Set()
   /** .parts file manager for boundary pieces */
@@ -653,11 +637,11 @@ export class Torrent extends EngineComponent {
    * Call after metadata is available (same time as initBitfield).
    */
   initPieceAvailability(pieceCount: number): void {
-    this._pieceAvailability = new Uint16Array(pieceCount) // All zeros
+    this._availability.initialize(pieceCount)
   }
 
   get pieceAvailability(): Uint16Array | null {
-    return this._pieceAvailability
+    return this._availability.rawAvailability
   }
 
   /**
@@ -665,7 +649,7 @@ export class Torrent extends EngineComponent {
    * Use this + pieceAvailability[i] for true availability of a piece.
    */
   get seedCount(): number {
-    return this._seedCount
+    return this._availability.seedCount
   }
 
   // --- Piece Info Initialization ---
@@ -1668,9 +1652,9 @@ export class Torrent extends EngineComponent {
       }
     }
 
-    // Also check full pieces for stale requests (Option A state model)
-    // Full pieces have all blocks requested but not all received
-    for (const piece of this.activePieces.fullValues()) {
+    // Also check fullyRequested pieces for stale requests
+    // FullyRequested pieces have all blocks requested but not all received
+    for (const piece of this.activePieces.fullyRequestedValues()) {
       const staleRequests = piece.getStaleRequests(BLOCK_REQUEST_TIMEOUT_MS)
       for (const { blockIndex, peerId } of staleRequests) {
         // Find the peer to send CANCEL
@@ -2415,21 +2399,13 @@ export class Torrent extends EngineComponent {
     peer.on('bitfield', (bf) => {
       this.logger.debug('Bitfield received')
 
-      // Calculate how many pieces this peer has
-      peer.haveCount = bf.count()
-      peer.isSeed = peer.haveCount === this.piecesCount && this.piecesCount > 0
+      // Update availability tracking
+      const result = this._availability.onBitfield(bf, this.piecesCount)
+      peer.haveCount = result.haveCount
+      peer.isSeed = result.isSeed
 
       if (peer.isSeed) {
-        // Seeds are tracked separately - don't add to per-piece availability
-        this._seedCount++
-        this.logger.debug(`Peer is a seed (seedCount: ${this._seedCount})`)
-      } else if (this._pieceAvailability) {
-        // Non-seeds: update per-piece availability
-        for (let i = 0; i < this.piecesCount; i++) {
-          if (bf.get(i)) {
-            this._pieceAvailability[i]++
-          }
-        }
+        this.logger.debug(`Peer is a seed (seedCount: ${this._availability.seedCount})`)
       }
 
       // Phase 8: Build peer piece index for non-seeds
@@ -2457,9 +2433,8 @@ export class Torrent extends EngineComponent {
       peer.isSeed = true
 
       // Seeds are tracked separately - don't add to per-piece availability
-      // This avoids O(pieces) updates on seed connect/disconnect
-      this._seedCount++
-      this.logger.debug(`Peer is a seed via HAVE_ALL (seedCount: ${this._seedCount})`)
+      this._availability.onHaveAll()
+      this.logger.debug(`Peer is a seed via HAVE_ALL (seedCount: ${this._availability.seedCount})`)
 
       // Update interest
       this.updateInterest(peer)
@@ -2480,27 +2455,31 @@ export class Torrent extends EngineComponent {
     peer.on('have', (index) => {
       this.logger.debug(`Have received ${index}`)
 
-      // Track how many pieces peer has (for seed detection)
-      peer.haveCount++
-
       // If peer is already a seed, shouldn't receive HAVE messages
       if (peer.isSeed) {
         this.logger.warn(`Received HAVE from peer already marked as seed`)
         return
       }
 
-      // Check if peer just became a seed
-      if (peer.haveCount === this.piecesCount && this.piecesCount > 0) {
-        this.convertToSeed(peer)
-        // Phase 8: Remove from index when becoming a seed
-        const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
-        this.removePeerFromIndex(peerId)
-      } else if (this._pieceAvailability && index < this._pieceAvailability.length) {
-        // Non-seed: update per-piece availability
-        this._pieceAvailability[index]++
-        // Phase 8: Add piece to peer's index if we need it
-        const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
-        this.addPieceToIndex(peerId, index)
+      const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
+      const result = this._availability.onHave(
+        peerId,
+        index,
+        this.piecesCount,
+        peer.haveCount,
+        peer.bitfield,
+      )
+
+      // Update peer state
+      peer.haveCount++
+      if (result.becameSeed) {
+        peer.isSeed = true
+        this.logger.debug(
+          `Peer converted to seed via HAVE messages (seedCount: ${this._availability.seedCount})`,
+        )
+      } else if (this.shouldAddToIndex(index)) {
+        // Add piece to peer's index if we need it
+        this._availability.addPieceToIndex(peerId, index)
       }
 
       this.updateInterest(peer)
@@ -2572,49 +2551,12 @@ export class Torrent extends EngineComponent {
     })
   }
 
-  /**
-   * Convert a peer to seed status when they acquire all pieces.
-   * This happens when a peer sends HAVE for their final missing piece.
-   * We remove their contribution from per-piece availability and track them
-   * in _seedCount instead, to avoid O(pieces) updates on future disconnect.
-   */
-  private convertToSeed(peer: PeerConnection): void {
-    if (peer.isSeed) return // Already a seed
-
-    // Remove from per-piece availability
-    if (this._pieceAvailability && peer.bitfield) {
-      for (let i = 0; i < this.piecesCount; i++) {
-        if (peer.bitfield.get(i) && this._pieceAvailability[i] > 0) {
-          this._pieceAvailability[i]--
-        }
-      }
-    }
-
-    // Mark as seed and add to seed count
-    peer.isSeed = true
-    this._seedCount++
-    this.logger.debug(`Peer converted to seed via HAVE messages (seedCount: ${this._seedCount})`)
-  }
-
   private removePeer(peer: PeerConnection) {
-    // Phase 8: Clean up peer piece index
+    // Handle availability cleanup
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
-    this.removePeerFromIndex(peerId)
-
-    // Handle availability cleanup based on seed status
+    this._availability.onPeerDisconnected(peerId, peer.bitfield, peer.isSeed)
     if (peer.isSeed) {
-      // Seeds are tracked separately - just decrement the count
-      if (this._seedCount > 0) {
-        this._seedCount--
-        this.logger.debug(`Seed disconnected (seedCount: ${this._seedCount})`)
-      }
-    } else if (this._pieceAvailability && peer.bitfield) {
-      // Non-seeds: decrement per-piece availability
-      for (let i = 0; i < this.piecesCount; i++) {
-        if (peer.bitfield.get(i) && this._pieceAvailability[i] > 0) {
-          this._pieceAvailability[i]--
-        }
-      }
+      this.logger.debug(`Seed disconnected (seedCount: ${this._availability.seedCount})`)
     }
 
     // Clear any queued uploads for this peer
@@ -2840,17 +2782,10 @@ export class Torrent extends EngineComponent {
     }
 
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
-    const pieceSet = new Set<number>()
-
-    for (let i = 0; i < this.piecesCount; i++) {
-      // Only add if peer has it and we need it
-      if (peer.bitfield.get(i) && this.shouldAddToIndex(i)) {
-        pieceSet.add(i)
-      }
-    }
-
-    this._peerPieceIndex.set(peerId, pieceSet)
-    this.logger.debug(`Built peer piece index for ${peerId}: ${pieceSet.size} pieces`)
+    const count = this._availability.buildPeerIndex(peerId, peer.bitfield, this.piecesCount, (i) =>
+      this.shouldAddToIndex(i),
+    )
+    this.logger.debug(`Built peer piece index for ${peerId}: ${count} pieces`)
   }
 
   /**
@@ -2871,35 +2806,11 @@ export class Torrent extends EngineComponent {
   }
 
   /**
-   * Add a single piece to a peer's index (called on HAVE message).
-   */
-  private addPieceToIndex(peerId: string, pieceIndex: number): void {
-    if (!this.shouldAddToIndex(pieceIndex)) return
-
-    const pieceSet = this._peerPieceIndex.get(peerId)
-    if (pieceSet) {
-      pieceSet.add(pieceIndex)
-    }
-    // If no index for this peer (they're a seed), ignore
-  }
-
-  /**
    * Remove a piece from all peer indices.
-   * Called when:
-   * - We complete a piece (we have it now)
-   * - We activate a piece (it's being downloaded)
+   * Called when we complete a piece or activate it for download.
    */
   private removePieceFromAllIndices(pieceIndex: number): void {
-    for (const pieceSet of this._peerPieceIndex.values()) {
-      pieceSet.delete(pieceIndex)
-    }
-  }
-
-  /**
-   * Remove a peer's index when they disconnect.
-   */
-  private removePeerFromIndex(peerId: string): void {
-    this._peerPieceIndex.delete(peerId)
+    this._availability.removePieceFromAllIndices(pieceIndex)
   }
 
   private updateInterest(peer: PeerConnection) {
@@ -2996,10 +2907,11 @@ export class Torrent extends EngineComponent {
     // PHASE 1: Request from existing partial pieces (rarest-first with speed affinity)
     // Phase 3: Use getPartialsRarestFirst() to prioritize rare pieces and nearly-complete pieces
     // Phase 4: Use speed affinity to prevent piece fragmentation
-    if (this._pieceAvailability && this.piecePriority) {
+    const rawAvailability = this._availability.rawAvailability
+    if (rawAvailability && this.piecePriority) {
       const sortedPartials = this.activePieces.getPartialsRarestFirst(
-        this._pieceAvailability,
-        this._seedCount,
+        rawAvailability,
+        this._availability.seedCount,
         this.piecePriority,
       )
 
@@ -3049,7 +2961,7 @@ export class Torrent extends EngineComponent {
 
           // Promote to full if all blocks are now requested (Option A state model)
           if (!piece.hasUnrequestedBlocks) {
-            this.activePieces.promoteToFull(piece.index)
+            this.activePieces.promoteToFullyRequested(piece.index)
           }
         }
       }
@@ -3084,7 +2996,7 @@ export class Torrent extends EngineComponent {
 
           // Promote to full if all blocks are now requested (Option A state model)
           if (!piece.hasUnrequestedBlocks) {
-            this.activePieces.promoteToFull(piece.index)
+            this.activePieces.promoteToFullyRequested(piece.index)
           }
         }
       }
@@ -3096,7 +3008,7 @@ export class Torrent extends EngineComponent {
       flushPending()
       return
     }
-    if (!peerBitfield || !this._bitfield || !this.piecePriority || !this._pieceAvailability) {
+    if (!peerBitfield || !this._bitfield || !this.piecePriority || !rawAvailability) {
       flushPending()
       return
     }
@@ -3153,7 +3065,7 @@ export class Torrent extends EngineComponent {
 
         // Promote to full if all blocks are now requested (Option A state model)
         if (!piece.hasUnrequestedBlocks) {
-          this.activePieces.promoteToFull(piece.index)
+          this.activePieces.promoteToFullyRequested(piece.index)
         }
       }
     }
@@ -3190,7 +3102,8 @@ export class Torrent extends EngineComponent {
   private _findCandidatesLastLogTime = 0
 
   private findNewPieceCandidates(peer: PeerConnection, maxCount: number): number[] {
-    if (!this._bitfield || !this.piecePriority || !this._pieceAvailability || !this.activePieces) {
+    const availabilityArray = this._availability.rawAvailability
+    if (!this._bitfield || !this.piecePriority || !availabilityArray || !this.activePieces) {
       return []
     }
 
@@ -3199,10 +3112,11 @@ export class Torrent extends EngineComponent {
     const collectLimit = maxCount * 2
     let iterations = 0
     let usedIndex = false
+    const seedCount = this._availability.seedCount
 
     // Phase 8: Use per-peer index for non-seeds (O(pieces peer has) instead of O(all pieces))
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
-    const peerPieceSet = this._peerPieceIndex.get(peerId)
+    const peerPieceSet = this._availability.getPeerPieceSet(peerId)
 
     if (!peer.isSeed && peerPieceSet && peerPieceSet.size > 0) {
       // Use the pre-computed index - only iterate pieces peer has that we need
@@ -3217,7 +3131,7 @@ export class Torrent extends EngineComponent {
         // - Not already active (shouldAddToIndex checks this)
         // Just compute sort key
         const prio = this.piecePriority[i]
-        const availability = this._pieceAvailability[i] + this._seedCount
+        const availability = availabilityArray[i] + seedCount
         const sortKey = availability * (8 - prio) * 3 // 8 = PRIORITY_LEVELS, 3 = PRIO_FACTOR
 
         candidates.push({ index: i, sortKey })
@@ -3246,7 +3160,7 @@ export class Torrent extends EngineComponent {
         if (this.activePieces.has(i)) continue
 
         // Calculate sort key using libtorrent formula
-        const availability = this._pieceAvailability[i] + this._seedCount
+        const availability = availabilityArray[i] + seedCount
         const sortKey = availability * (8 - prio) * 3 // 8 = PRIORITY_LEVELS, 3 = PRIO_FACTOR
 
         candidates.push({ index: i, sortKey })
@@ -3368,7 +3282,7 @@ export class Torrent extends EngineComponent {
     if (piece.haveAllBlocks) {
       // Promote to pending state - no longer counts against partial cap
       // This allows new pieces to start downloading while this one awaits verification
-      this.activePieces.promoteToPending(msg.index)
+      this.activePieces.promoteToFullyResponded(msg.index)
       await this.finalizePiece(msg.index, piece)
     }
   }
@@ -3424,14 +3338,14 @@ export class Torrent extends EngineComponent {
         this.logger.error(`Failed to write boundary piece to .parts:`, errorMsg)
         this.errorMessage = `Write failed: ${errorMsg}`
         this.stopNetwork()
-        this.activePieces?.removePending(index)
+        this.activePieces?.removeFullyResponded(index)
         ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
         return
       }
 
       // Mark as verified in internal bitfield
       this.markPieceVerified(index)
-      this.activePieces?.removePending(index)
+      this.activePieces?.removeFullyResponded(index)
 
       // Track disk write throughput
       ;(this.engine as BtEngine).bandwidthTracker.record('disk', pieceData.length, 'down')
@@ -3476,7 +3390,7 @@ export class Torrent extends EngineComponent {
           this.logger.error(`Fatal write error - stopping torrent:`, errorMsg)
           this.errorMessage = `Write failed: ${errorMsg}`
           this.stopNetwork()
-          this.activePieces?.removePending(index)
+          this.activePieces?.removeFullyResponded(index)
           ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
           return
         }
@@ -3491,7 +3405,7 @@ export class Torrent extends EngineComponent {
 
       // Mark as verified
       this.markPieceVerified(index)
-      this.activePieces?.removePending(index)
+      this.activePieces?.removeFullyResponded(index)
 
       // Track disk write throughput
       ;(this.engine as BtEngine).bandwidthTracker.record('disk', pieceData.length, 'down')
@@ -3567,7 +3481,7 @@ export class Torrent extends EngineComponent {
     }
 
     // Discard the failed piece data (piece is in pending state after all blocks received)
-    this.activePieces?.removePending(index)
+    this.activePieces?.removeFullyResponded(index)
   }
 
   /**
@@ -3864,8 +3778,8 @@ export class Torrent extends EngineComponent {
         peer.isSeed = true
 
         // Seeds are tracked separately - don't add to per-piece availability
-        this._seedCount++
-        this.logger.debug(`Deferred seed processed (seedCount: ${this._seedCount})`)
+        this._availability.onDeferredHaveAll()
+        this.logger.debug(`Deferred seed processed (seedCount: ${this._availability.seedCount})`)
       }
 
       this.updateInterest(peer)

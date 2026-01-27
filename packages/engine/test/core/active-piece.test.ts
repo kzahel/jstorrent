@@ -366,16 +366,29 @@ describe('ActivePiece', () => {
       expect(assembled).toBe(buffer) // Same reference - no copy!
     })
 
-    it('should calculate bufferedBytes correctly', () => {
+    it('should return allocated size for bufferedBytes', () => {
       const piece = new ActivePiece(0, PIECE_LENGTH)
 
-      expect(piece.bufferedBytes).toBe(0)
+      // bufferedBytes returns the allocated buffer size, not received bytes
+      expect(piece.bufferedBytes).toBe(PIECE_LENGTH)
 
       piece.addBlock(0, new Uint8Array(BLOCK_SIZE), 'peer1')
-      expect(piece.bufferedBytes).toBe(BLOCK_SIZE)
+      expect(piece.bufferedBytes).toBe(PIECE_LENGTH) // Still the full allocation
 
       piece.addBlock(2, new Uint8Array(BLOCK_SIZE), 'peer1')
-      expect(piece.bufferedBytes).toBe(2 * BLOCK_SIZE)
+      expect(piece.bufferedBytes).toBe(PIECE_LENGTH) // Still the full allocation
+    })
+
+    it('should calculate receivedBytes correctly', () => {
+      const piece = new ActivePiece(0, PIECE_LENGTH)
+
+      expect(piece.receivedBytes).toBe(0)
+
+      piece.addBlock(0, new Uint8Array(BLOCK_SIZE), 'peer1')
+      expect(piece.receivedBytes).toBe(BLOCK_SIZE)
+
+      piece.addBlock(2, new Uint8Array(BLOCK_SIZE), 'peer1')
+      expect(piece.receivedBytes).toBe(2 * BLOCK_SIZE)
     })
 
     it('should handle last block being smaller', () => {
@@ -393,7 +406,9 @@ describe('ActivePiece', () => {
         piece.addBlock(i, data, 'peer1')
       }
 
+      // bufferedBytes = allocated size, receivedBytes = actual data received
       expect(piece.bufferedBytes).toBe(oddLength)
+      expect(piece.receivedBytes).toBe(oddLength)
       expect(piece.haveAllBlocks).toBe(true)
     })
   })

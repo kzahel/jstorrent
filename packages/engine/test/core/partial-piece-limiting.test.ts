@@ -7,16 +7,16 @@ import { MockEngine } from '../utils/mock-engine'
  *
  * Tests the three-state piece model matching libtorrent:
  * - Partial: has unrequested blocks (counts against cap)
- * - Full: all blocks requested but not all received (does NOT count against cap)
- * - Pending: all blocks received, awaiting verification
+ * - FullyRequested: all blocks requested but not all received (does NOT count against cap)
+ * - FullyResponded: all blocks received, awaiting verification
  *
  * Key behaviors:
  * - Partial cap is min(peers × 1.5, 2048 / blocksPerPiece)
  * - shouldPrioritizePartials() returns true when partials exceed threshold
- * - promoteToFull() moves piece when all blocks requested
+ * - promoteToFullyRequested() moves piece when all blocks requested
  * - demoteToPartial() moves piece when request cancelled
- * - promoteToPending() moves piece when all blocks received
- * - Full pieces don't count against the partial cap
+ * - promoteToFullyResponded() moves piece when all blocks received
+ * - FullyRequested pieces don't count against the partial cap
  */
 
 describe('Partial Piece Limiting', () => {
@@ -135,33 +135,33 @@ describe('Partial Piece Limiting', () => {
 
       // Move half to pending - should now be under threshold
       for (let i = 0; i < 8; i++) {
-        manager.promoteToPending(i)
+        manager.promoteToFullyResponded(i)
       }
       expect(manager.partialCount).toBe(8)
-      expect(manager.pendingCount).toBe(8)
+      expect(manager.fullyRespondedCount).toBe(8)
       expect(manager.shouldPrioritizePartials(10)).toBe(false) // 8 < 15
 
       manager.destroy()
     })
   })
 
-  describe('promoteToPending', () => {
+  describe('promoteToFullyResponded', () => {
     it('should move piece from partial to pending', () => {
       const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
 
       manager.getOrCreate(0)
       expect(manager.isPartial(0)).toBe(true)
-      expect(manager.isPending(0)).toBe(false)
+      expect(manager.isFullyResponded(0)).toBe(false)
       expect(manager.partialCount).toBe(1)
-      expect(manager.pendingCount).toBe(0)
+      expect(manager.fullyRespondedCount).toBe(0)
 
-      manager.promoteToPending(0)
+      manager.promoteToFullyResponded(0)
 
       expect(manager.isPartial(0)).toBe(false)
-      expect(manager.isPending(0)).toBe(true)
+      expect(manager.isFullyResponded(0)).toBe(true)
       expect(manager.partialCount).toBe(0)
-      expect(manager.pendingCount).toBe(1)
+      expect(manager.fullyRespondedCount).toBe(1)
 
       // Should still be accessible via get() and has()
       expect(manager.has(0)).toBe(true)
@@ -180,7 +180,7 @@ describe('Partial Piece Limiting', () => {
 
       const originalBlocksReceived = piece.blocksReceived
 
-      manager.promoteToPending(0)
+      manager.promoteToFullyResponded(0)
 
       const promotedPiece = manager.get(0)!
       expect(promotedPiece).toBe(piece) // Same object
@@ -194,14 +194,14 @@ describe('Partial Piece Limiting', () => {
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
 
       manager.getOrCreate(0)
-      manager.promoteToPending(0)
+      manager.promoteToFullyResponded(0)
 
-      expect(manager.pendingCount).toBe(1)
+      expect(manager.fullyRespondedCount).toBe(1)
 
       // Promote again - should be no-op
-      manager.promoteToPending(0)
+      manager.promoteToFullyResponded(0)
 
-      expect(manager.pendingCount).toBe(1)
+      expect(manager.fullyRespondedCount).toBe(1)
       expect(manager.partialCount).toBe(0)
 
       manager.destroy()
@@ -212,27 +212,27 @@ describe('Partial Piece Limiting', () => {
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
 
       // Should not throw
-      manager.promoteToPending(999)
+      manager.promoteToFullyResponded(999)
 
       expect(manager.partialCount).toBe(0)
-      expect(manager.pendingCount).toBe(0)
+      expect(manager.fullyRespondedCount).toBe(0)
 
       manager.destroy()
     })
   })
 
-  describe('removePending', () => {
+  describe('removeFullyResponded', () => {
     it('should remove piece from pending', () => {
       const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
 
       manager.getOrCreate(0)
-      manager.promoteToPending(0)
-      expect(manager.pendingCount).toBe(1)
+      manager.promoteToFullyResponded(0)
+      expect(manager.fullyRespondedCount).toBe(1)
 
-      manager.removePending(0)
+      manager.removeFullyResponded(0)
 
-      expect(manager.pendingCount).toBe(0)
+      expect(manager.fullyRespondedCount).toBe(0)
       expect(manager.has(0)).toBe(false)
 
       manager.destroy()
@@ -243,9 +243,9 @@ describe('Partial Piece Limiting', () => {
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
 
       const originalPiece = manager.getOrCreate(0)!
-      manager.promoteToPending(0)
+      manager.promoteToFullyResponded(0)
 
-      const removed = manager.removePending(0)
+      const removed = manager.removeFullyResponded(0)
       expect(removed).toBe(originalPiece)
 
       manager.destroy()
@@ -257,10 +257,10 @@ describe('Partial Piece Limiting', () => {
 
       // Partial piece (not promoted)
       manager.getOrCreate(0)
-      expect(manager.removePending(0)).toBeUndefined()
+      expect(manager.removeFullyResponded(0)).toBeUndefined()
 
       // Non-existent piece
-      expect(manager.removePending(999)).toBeUndefined()
+      expect(manager.removeFullyResponded(999)).toBeUndefined()
 
       manager.destroy()
     })
@@ -287,12 +287,12 @@ describe('Partial Piece Limiting', () => {
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
 
       manager.getOrCreate(0)
-      manager.promoteToPending(0)
-      expect(manager.pendingCount).toBe(1)
+      manager.promoteToFullyResponded(0)
+      expect(manager.fullyRespondedCount).toBe(1)
 
       manager.remove(0)
 
-      expect(manager.pendingCount).toBe(0)
+      expect(manager.fullyRespondedCount).toBe(0)
       expect(manager.has(0)).toBe(false)
 
       manager.destroy()
@@ -310,8 +310,8 @@ describe('Partial Piece Limiting', () => {
       }
 
       // Promote 2 to pending
-      manager.promoteToPending(1)
-      manager.promoteToPending(3)
+      manager.promoteToFullyResponded(1)
+      manager.promoteToFullyResponded(3)
 
       const partialIndices: number[] = []
       for (const piece of manager.partialValues()) {
@@ -324,7 +324,7 @@ describe('Partial Piece Limiting', () => {
     })
   })
 
-  describe('pendingValues', () => {
+  describe('fullyRespondedValues', () => {
     it('should iterate only pending pieces', () => {
       const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
@@ -335,11 +335,11 @@ describe('Partial Piece Limiting', () => {
       }
 
       // Promote 2 to pending
-      manager.promoteToPending(1)
-      manager.promoteToPending(3)
+      manager.promoteToFullyResponded(1)
+      manager.promoteToFullyResponded(3)
 
       const pendingIndices: number[] = []
-      for (const piece of manager.pendingValues()) {
+      for (const piece of manager.fullyRespondedValues()) {
         pendingIndices.push(piece.index)
       }
 
@@ -360,8 +360,8 @@ describe('Partial Piece Limiting', () => {
       }
 
       // Promote 2 to pending
-      manager.promoteToPending(1)
-      manager.promoteToPending(3)
+      manager.promoteToFullyResponded(1)
+      manager.promoteToFullyResponded(3)
 
       const allIndices: number[] = []
       for (const piece of manager.values()) {
@@ -375,12 +375,12 @@ describe('Partial Piece Limiting', () => {
   })
 
   describe('counts', () => {
-    it('should track partialCount and pendingCount separately', () => {
+    it('should track partialCount and fullyRespondedCount separately', () => {
       const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
 
       expect(manager.partialCount).toBe(0)
-      expect(manager.pendingCount).toBe(0)
+      expect(manager.fullyRespondedCount).toBe(0)
       expect(manager.activeCount).toBe(0)
 
       // Add 3 partial pieces
@@ -388,19 +388,19 @@ describe('Partial Piece Limiting', () => {
         manager.getOrCreate(i)
       }
       expect(manager.partialCount).toBe(3)
-      expect(manager.pendingCount).toBe(0)
+      expect(manager.fullyRespondedCount).toBe(0)
       expect(manager.activeCount).toBe(3)
 
       // Promote 1 to pending
-      manager.promoteToPending(1)
+      manager.promoteToFullyResponded(1)
       expect(manager.partialCount).toBe(2)
-      expect(manager.pendingCount).toBe(1)
+      expect(manager.fullyRespondedCount).toBe(1)
       expect(manager.activeCount).toBe(3)
 
       // Remove pending
-      manager.removePending(1)
+      manager.removeFullyResponded(1)
       expect(manager.partialCount).toBe(2)
-      expect(manager.pendingCount).toBe(0)
+      expect(manager.fullyRespondedCount).toBe(0)
       expect(manager.activeCount).toBe(2)
 
       manager.destroy()
@@ -421,7 +421,7 @@ describe('Partial Piece Limiting', () => {
       piece1.addRequest(0, 'peer1')
 
       // Promote piece1 to pending
-      manager.promoteToPending(1)
+      manager.promoteToFullyResponded(1)
 
       // Clear requests for peer1 - should only affect partial piece (piece0)
       const cleared = manager.clearRequestsForPeer('peer1')
@@ -447,7 +447,7 @@ describe('Partial Piece Limiting', () => {
       expect(manager.hasUnrequestedBlocks()).toBe(true)
 
       // Promote piece1 to pending
-      manager.promoteToPending(1)
+      manager.promoteToFullyResponded(1)
 
       // piece0 still has unrequested blocks
       expect(manager.hasUnrequestedBlocks()).toBe(true)
@@ -465,25 +465,30 @@ describe('Partial Piece Limiting', () => {
   })
 
   describe('totalBufferedBytes', () => {
-    it('should include bytes from both partial and pending pieces', () => {
+    it('should track allocated bytes from both partial and pending pieces', () => {
       const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
 
       const piece0 = manager.getOrCreate(0)!
       const piece1 = manager.getOrCreate(1)!
 
+      // totalBufferedBytes returns allocated buffer size, not received bytes
+      // This is critical for memory limit enforcement
+      expect(manager.totalBufferedBytes).toBe(PIECE_LENGTH * 2) // 2 pieces allocated
+
       // Add blocks to both pieces
       piece0.addBlock(0, new Uint8Array(16384), 'peer1')
       piece1.addBlock(0, new Uint8Array(16384), 'peer1')
       piece1.addBlock(1, new Uint8Array(16384), 'peer1')
 
-      expect(manager.totalBufferedBytes).toBe(16384 * 3)
+      // Still returns allocated size, not received bytes
+      expect(manager.totalBufferedBytes).toBe(PIECE_LENGTH * 2)
 
       // Promote piece1 to pending
-      manager.promoteToPending(1)
+      manager.promoteToFullyResponded(1)
 
-      // Total should still include both
-      expect(manager.totalBufferedBytes).toBe(16384 * 3)
+      // Total should still include both (allocated, not received)
+      expect(manager.totalBufferedBytes).toBe(PIECE_LENGTH * 2)
 
       manager.destroy()
     })
@@ -493,28 +498,28 @@ describe('Partial Piece Limiting', () => {
   // Option A: Three-State Model (partial -> full -> pending)
   // ==========================================================================
 
-  describe('promoteToFull', () => {
+  describe('promoteToFullyRequested', () => {
     it('should move piece from partial to full when all blocks requested', () => {
       const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
 
       const piece = manager.getOrCreate(0)!
       expect(manager.isPartial(0)).toBe(true)
-      expect(manager.isFull(0)).toBe(false)
+      expect(manager.isFullyRequested(0)).toBe(false)
       expect(manager.partialCount).toBe(1)
-      expect(manager.fullCount).toBe(0)
+      expect(manager.fullyRequestedCount).toBe(0)
 
       // Request all blocks
       for (let i = 0; i < piece.blocksNeeded; i++) {
         piece.addRequest(i, 'peer1')
       }
 
-      manager.promoteToFull(0)
+      manager.promoteToFullyRequested(0)
 
       expect(manager.isPartial(0)).toBe(false)
-      expect(manager.isFull(0)).toBe(true)
+      expect(manager.isFullyRequested(0)).toBe(true)
       expect(manager.partialCount).toBe(0)
-      expect(manager.fullCount).toBe(1)
+      expect(manager.fullyRequestedCount).toBe(1)
 
       // Should still be accessible
       expect(manager.has(0)).toBe(true)
@@ -533,11 +538,11 @@ describe('Partial Piece Limiting', () => {
       piece.addRequest(0, 'peer1')
       piece.addRequest(1, 'peer1')
 
-      manager.promoteToFull(0)
+      manager.promoteToFullyRequested(0)
 
       // Should remain partial because it has unrequested blocks
       expect(manager.isPartial(0)).toBe(true)
-      expect(manager.isFull(0)).toBe(false)
+      expect(manager.isFullyRequested(0)).toBe(false)
 
       manager.destroy()
     })
@@ -547,10 +552,10 @@ describe('Partial Piece Limiting', () => {
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
 
       // Should not throw
-      manager.promoteToFull(999)
+      manager.promoteToFullyRequested(999)
 
       expect(manager.partialCount).toBe(0)
-      expect(manager.fullCount).toBe(0)
+      expect(manager.fullyRequestedCount).toBe(0)
 
       manager.destroy()
     })
@@ -567,8 +572,8 @@ describe('Partial Piece Limiting', () => {
       for (let i = 0; i < piece.blocksNeeded; i++) {
         piece.addRequest(i, 'peer1')
       }
-      manager.promoteToFull(0)
-      expect(manager.isFull(0)).toBe(true)
+      manager.promoteToFullyRequested(0)
+      expect(manager.isFullyRequested(0)).toBe(true)
 
       // Cancel a request
       piece.cancelRequest(0, 'peer1')
@@ -577,9 +582,9 @@ describe('Partial Piece Limiting', () => {
       manager.demoteToPartial(0)
 
       expect(manager.isPartial(0)).toBe(true)
-      expect(manager.isFull(0)).toBe(false)
+      expect(manager.isFullyRequested(0)).toBe(false)
       expect(manager.partialCount).toBe(1)
-      expect(manager.fullCount).toBe(0)
+      expect(manager.fullyRequestedCount).toBe(0)
 
       manager.destroy()
     })
@@ -594,13 +599,13 @@ describe('Partial Piece Limiting', () => {
       for (let i = 0; i < piece.blocksNeeded; i++) {
         piece.addRequest(i, 'peer1')
       }
-      manager.promoteToFull(0)
+      manager.promoteToFullyRequested(0)
 
       // Try to demote without cancelling any requests
       manager.demoteToPartial(0)
 
       // Should still be full
-      expect(manager.isFull(0)).toBe(true)
+      expect(manager.isFullyRequested(0)).toBe(true)
       expect(manager.isPartial(0)).toBe(false)
 
       manager.destroy()
@@ -616,30 +621,30 @@ describe('Partial Piece Limiting', () => {
 
       // State 1: Partial
       expect(manager.isPartial(0)).toBe(true)
-      expect(manager.isFull(0)).toBe(false)
-      expect(manager.isPending(0)).toBe(false)
+      expect(manager.isFullyRequested(0)).toBe(false)
+      expect(manager.isFullyResponded(0)).toBe(false)
 
       // Request all blocks -> Full
       for (let i = 0; i < piece.blocksNeeded; i++) {
         piece.addRequest(i, 'peer1')
       }
-      manager.promoteToFull(0)
+      manager.promoteToFullyRequested(0)
 
       // State 2: Full
       expect(manager.isPartial(0)).toBe(false)
-      expect(manager.isFull(0)).toBe(true)
-      expect(manager.isPending(0)).toBe(false)
+      expect(manager.isFullyRequested(0)).toBe(true)
+      expect(manager.isFullyResponded(0)).toBe(false)
 
       // Receive all blocks -> Pending
       for (let i = 0; i < piece.blocksNeeded; i++) {
         piece.addBlock(i, new Uint8Array(16384), 'peer1')
       }
-      manager.promoteToPending(0)
+      manager.promoteToFullyResponded(0)
 
       // State 3: Pending
       expect(manager.isPartial(0)).toBe(false)
-      expect(manager.isFull(0)).toBe(false)
-      expect(manager.isPending(0)).toBe(true)
+      expect(manager.isFullyRequested(0)).toBe(false)
+      expect(manager.isFullyResponded(0)).toBe(true)
 
       manager.destroy()
     })
@@ -654,15 +659,15 @@ describe('Partial Piece Limiting', () => {
       for (let i = 0; i < piece.blocksNeeded; i++) {
         piece.addRequest(i, 'peer1')
       }
-      manager.promoteToFull(0)
-      expect(manager.isFull(0)).toBe(true)
+      manager.promoteToFullyRequested(0)
+      expect(manager.isFullyRequested(0)).toBe(true)
 
       // Simulate peer disconnect clearing requests
       manager.clearRequestsForPeer('peer1')
 
       // Should be back to partial
       expect(manager.isPartial(0)).toBe(true)
-      expect(manager.isFull(0)).toBe(false)
+      expect(manager.isFullyRequested(0)).toBe(false)
 
       manager.destroy()
     })
@@ -679,17 +684,17 @@ describe('Partial Piece Limiting', () => {
       }
 
       // Promote directly to pending (skipping full state)
-      manager.promoteToPending(0)
+      manager.promoteToFullyResponded(0)
 
       expect(manager.isPartial(0)).toBe(false)
-      expect(manager.isFull(0)).toBe(false)
-      expect(manager.isPending(0)).toBe(true)
+      expect(manager.isFullyRequested(0)).toBe(false)
+      expect(manager.isFullyResponded(0)).toBe(true)
 
       manager.destroy()
     })
   })
 
-  describe('full pieces and partial cap', () => {
+  describe('fullyRequested pieces and partial cap', () => {
     it('should not count full pieces against partial cap', () => {
       const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
@@ -703,12 +708,12 @@ describe('Partial Piece Limiting', () => {
       for (let i = 0; i < piece0.blocksNeeded; i++) {
         piece0.addRequest(i, 'peer1')
       }
-      manager.promoteToFull(0)
+      manager.promoteToFullyRequested(0)
 
       // Still under cap because full pieces don't count
       expect(manager.shouldPrioritizePartials(1)).toBe(false)
       expect(manager.partialCount).toBe(0)
-      expect(manager.fullCount).toBe(1)
+      expect(manager.fullyRequestedCount).toBe(1)
 
       // Can create another piece
       const piece1 = manager.getOrCreate(1)!
@@ -745,21 +750,21 @@ describe('Partial Piece Limiting', () => {
         for (let b = 0; b < piece!.blocksNeeded; b++) {
           piece!.addRequest(b, 'peer1')
         }
-        manager.promoteToFull(p)
+        manager.promoteToFullyRequested(p)
 
         // Should never be blocked by cap (all promoted to full)
         expect(manager.shouldPrioritizePartials(1)).toBe(false)
       }
 
-      expect(manager.fullCount).toBe(piecesNeeded)
+      expect(manager.fullyRequestedCount).toBe(piecesNeeded)
       expect(manager.partialCount).toBe(0)
 
       manager.destroy()
     })
   })
 
-  describe('fullValues and downloadingValues iterators', () => {
-    it('should iterate only full pieces with fullValues()', () => {
+  describe('fullyRequestedValues and downloadingValues iterators', () => {
+    it('should iterate only full pieces with fullyRequestedValues()', () => {
       const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
 
@@ -771,12 +776,12 @@ describe('Partial Piece Limiting', () => {
           for (let b = 0; b < piece.blocksNeeded; b++) {
             piece.addRequest(b, 'peer1')
           }
-          manager.promoteToFull(i)
+          manager.promoteToFullyRequested(i)
         }
       }
 
       const fullIndices: number[] = []
-      for (const piece of manager.fullValues()) {
+      for (const piece of manager.fullyRequestedValues()) {
         fullIndices.push(piece.index)
       }
 
@@ -797,14 +802,14 @@ describe('Partial Piece Limiting', () => {
           for (let b = 0; b < piece.blocksNeeded; b++) {
             piece.addRequest(b, 'peer1')
           }
-          manager.promoteToFull(i)
+          manager.promoteToFullyRequested(i)
         }
         // Promote piece 4 to pending
         if (i === 4) {
           for (let b = 0; b < piece.blocksNeeded; b++) {
             piece.addBlock(b, new Uint8Array(16384), 'peer1')
           }
-          manager.promoteToPending(i)
+          manager.promoteToFullyResponded(i)
         }
       }
 
@@ -820,7 +825,7 @@ describe('Partial Piece Limiting', () => {
     })
   })
 
-  describe('clearRequestsForPeer with full pieces', () => {
+  describe('clearRequestsForPeer with fullyRequested pieces', () => {
     it('should demote full pieces to partial when requests cleared', () => {
       const config: Partial<ActivePieceConfig> = { standardPieceLength: PIECE_LENGTH }
       const manager = new ActivePieceManager(engine, pieceLengthFn, config)
@@ -831,9 +836,9 @@ describe('Partial Piece Limiting', () => {
       for (let i = 0; i < piece.blocksNeeded; i++) {
         piece.addRequest(i, 'peer1')
       }
-      manager.promoteToFull(0)
+      manager.promoteToFullyRequested(0)
 
-      expect(manager.fullCount).toBe(1)
+      expect(manager.fullyRequestedCount).toBe(1)
       expect(manager.partialCount).toBe(0)
 
       // Clear requests for peer1
@@ -841,7 +846,7 @@ describe('Partial Piece Limiting', () => {
       expect(cleared).toBe(piece.blocksNeeded)
 
       // Piece should now be partial again
-      expect(manager.fullCount).toBe(0)
+      expect(manager.fullyRequestedCount).toBe(0)
       expect(manager.partialCount).toBe(1)
       expect(manager.isPartial(0)).toBe(true)
 
@@ -861,17 +866,17 @@ describe('Partial Piece Limiting', () => {
 
       // Promote all to pending
       for (let i = 0; i < 100; i++) {
-        manager.promoteToPending(i)
+        manager.promoteToFullyResponded(i)
       }
       expect(manager.partialCount).toBe(0)
-      expect(manager.pendingCount).toBe(100)
+      expect(manager.fullyRespondedCount).toBe(100)
 
       // Remove all pending
       for (let i = 0; i < 100; i++) {
-        manager.removePending(i)
+        manager.removeFullyResponded(i)
       }
       expect(manager.partialCount).toBe(0)
-      expect(manager.pendingCount).toBe(0)
+      expect(manager.fullyRespondedCount).toBe(0)
 
       manager.destroy()
     })
@@ -891,32 +896,32 @@ describe('Partial Piece Limiting', () => {
         manager.getOrCreate(i)
       }
       expect(manager.partialCount).toBe(5)
-      expect(manager.pendingCount).toBe(0)
+      expect(manager.fullyRespondedCount).toBe(0)
 
       for (let i = 0; i < 3; i++) {
-        manager.promoteToPending(i)
+        manager.promoteToFullyResponded(i)
       }
       expect(manager.partialCount).toBe(2)
-      expect(manager.pendingCount).toBe(3)
+      expect(manager.fullyRespondedCount).toBe(3)
 
       for (let i = 5; i < 8; i++) {
         manager.getOrCreate(i)
       }
       expect(manager.partialCount).toBe(5)
-      expect(manager.pendingCount).toBe(3)
+      expect(manager.fullyRespondedCount).toBe(3)
       expect(manager.activeCount).toBe(8)
 
       for (let i = 3; i < 5; i++) {
-        manager.promoteToPending(i)
+        manager.promoteToFullyResponded(i)
       }
       expect(manager.partialCount).toBe(3)
-      expect(manager.pendingCount).toBe(5)
+      expect(manager.fullyRespondedCount).toBe(5)
 
       for (let i = 0; i < 3; i++) {
-        manager.removePending(i)
+        manager.removeFullyResponded(i)
       }
       expect(manager.partialCount).toBe(3)
-      expect(manager.pendingCount).toBe(2)
+      expect(manager.fullyRespondedCount).toBe(2)
       expect(manager.activeCount).toBe(5)
 
       manager.destroy()
@@ -942,14 +947,14 @@ describe('Partial Piece Limiting', () => {
 
       // Simulate disk backup: promote 10 pieces to pending (still verifying)
       for (let i = 0; i < 10; i++) {
-        manager.promoteToPending(i)
+        manager.promoteToFullyResponded(i)
       }
 
       // Now only 10 partials - under threshold again!
       // This means new pieces can start downloading even though
       // the pending queue is backed up
       expect(manager.partialCount).toBe(10)
-      expect(manager.pendingCount).toBe(10)
+      expect(manager.fullyRespondedCount).toBe(10)
       expect(manager.shouldPrioritizePartials(connectedPeerCount)).toBe(false) // 10 < 15
 
       manager.destroy()

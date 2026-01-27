@@ -40,10 +40,10 @@ const DEFAULT_CONFIG: ActivePieceConfig = {
  *
  * Piece State Model (matching libtorrent):
  * - Partial pieces: has unrequested blocks (counts against cap)
- * - Full pieces: all blocks requested but not all received (does NOT count against cap)
- * - Pending pieces: all blocks received, awaiting verification
+ * - FullyRequested pieces: all blocks requested but not all received (does NOT count against cap)
+ * - FullyResponded pieces: all blocks received, awaiting verification
  *
- * The partial cap (peers × 1.5) only applies to partial pieces, not full or pending.
+ * The partial cap (peers × 1.5) only applies to partial pieces, not fullyRequested or fullyResponded.
  * This allows single-peer scenarios to fill the pipeline without stalling.
  */
 export class ActivePieceManager extends EngineComponent {
@@ -51,10 +51,10 @@ export class ActivePieceManager extends EngineComponent {
 
   /** Pieces with unrequested blocks (partial) - counts against cap */
   private _partialPieces: Map<number, ActivePiece> = new Map()
-  /** Pieces with all blocks requested but not all received (full) - does NOT count against cap */
-  private _fullPieces: Map<number, ActivePiece> = new Map()
-  /** Pieces with all blocks received, awaiting verification (pending) */
-  private _pendingPieces: Map<number, ActivePiece> = new Map()
+  /** Pieces with all blocks requested but not all received - does NOT count against cap */
+  private _fullyRequestedPieces: Map<number, ActivePiece> = new Map()
+  /** Pieces with all blocks received, awaiting verification */
+  private _fullyRespondedPieces: Map<number, ActivePiece> = new Map()
   private config: ActivePieceConfig
   private pieceLengthFn: (index: number) => number
   private bufferPool: PieceBufferPool | null = null
@@ -104,20 +104,22 @@ export class ActivePieceManager extends EngineComponent {
     let piece = this._partialPieces.get(index)
     if (piece) return piece
 
-    // Check full map (all blocks requested)
-    piece = this._fullPieces.get(index)
+    // Check fullyRequested map (all blocks requested)
+    piece = this._fullyRequestedPieces.get(index)
     if (piece) return piece
 
     // Also check pending (shouldn't happen but defensive)
-    piece = this._pendingPieces.get(index)
+    piece = this._fullyRespondedPieces.get(index)
     if (piece) return piece
 
     // Check piece count limit before creating
-    const totalActive = this._partialPieces.size + this._fullPieces.size + this._pendingPieces.size
+    const totalActive =
+      this._partialPieces.size + this._fullyRequestedPieces.size + this._fullyRespondedPieces.size
     if (totalActive >= this.config.maxActivePieces) {
       // Try to clean up stale pieces first
       this.cleanupStale()
-      const newTotal = this._partialPieces.size + this._fullPieces.size + this._pendingPieces.size
+      const newTotal =
+        this._partialPieces.size + this._fullyRequestedPieces.size + this._fullyRespondedPieces.size
       if (newTotal >= this.config.maxActivePieces) {
         this.logger.debug(`Cannot create piece ${index}: at capacity (${newTotal})`)
         return null
@@ -146,24 +148,24 @@ export class ActivePieceManager extends EngineComponent {
 
   /**
    * Get existing ActivePiece without creating.
-   * Checks all three maps: partial, full, and pending.
+   * Checks all three maps: partial, fullyRequested, and fullyResponded.
    */
   get(index: number): ActivePiece | undefined {
     return (
       this._partialPieces.get(index) ??
-      this._fullPieces.get(index) ??
-      this._pendingPieces.get(index)
+      this._fullyRequestedPieces.get(index) ??
+      this._fullyRespondedPieces.get(index)
     )
   }
 
   /**
-   * Check if a piece is active (in partial, full, or pending state).
+   * Check if a piece is active (in partial, fullyRequested, or fullyResponded state).
    */
   has(index: number): boolean {
     return (
       this._partialPieces.has(index) ||
-      this._fullPieces.has(index) ||
-      this._pendingPieces.has(index)
+      this._fullyRequestedPieces.has(index) ||
+      this._fullyRespondedPieces.has(index)
     )
   }
 
@@ -175,22 +177,22 @@ export class ActivePieceManager extends EngineComponent {
   }
 
   /**
-   * Check if a piece is in full state (all blocks requested but not all received).
+   * Check if a piece is in fullyRequested state (all blocks requested but not all received).
    */
-  isFull(index: number): boolean {
-    return this._fullPieces.has(index)
+  isFullyRequested(index: number): boolean {
+    return this._fullyRequestedPieces.has(index)
   }
 
   /**
-   * Check if a piece is in pending state (awaiting verification).
+   * Check if a piece is in fullyResponded state (awaiting verification).
    */
-  isPending(index: number): boolean {
-    return this._pendingPieces.has(index)
+  isFullyResponded(index: number): boolean {
+    return this._fullyRespondedPieces.has(index)
   }
 
   /**
    * Remove an ActivePiece (after verification or abandonment).
-   * Removes from partial, full, or pending map.
+   * Removes from partial, fullyRequested, or fullyResponded map.
    */
   remove(index: number): void {
     let piece = this._partialPieces.get(index)
@@ -202,20 +204,20 @@ export class ActivePieceManager extends EngineComponent {
       return
     }
 
-    piece = this._fullPieces.get(index)
+    piece = this._fullyRequestedPieces.get(index)
     if (piece) {
       this.releaseBuffer(piece)
       piece.clear()
-      this._fullPieces.delete(index)
-      this.logger.debug(`Removed full piece ${index}`)
+      this._fullyRequestedPieces.delete(index)
+      this.logger.debug(`Removed fullyRequested piece ${index}`)
       return
     }
 
-    piece = this._pendingPieces.get(index)
+    piece = this._fullyRespondedPieces.get(index)
     if (piece) {
       this.releaseBuffer(piece)
       piece.clear()
-      this._pendingPieces.delete(index)
+      this._fullyRespondedPieces.delete(index)
       this.logger.debug(`Removed pending piece ${index}`)
     }
   }
@@ -223,52 +225,52 @@ export class ActivePieceManager extends EngineComponent {
   // --- Piece State Lifecycle ---
 
   /**
-   * Move a piece from partial to full state.
+   * Move a piece from partial to fullyRequested state.
    * Called when all blocks have been requested but not all received yet.
-   * Full pieces don't count against the partial cap, allowing the pipeline to stay full.
+   * FullyRequested pieces don't count against the partial cap, allowing the pipeline to stay full.
    */
-  promoteToFull(pieceIndex: number): void {
+  promoteToFullyRequested(pieceIndex: number): void {
     const piece = this._partialPieces.get(pieceIndex)
     if (piece && !piece.hasUnrequestedBlocks) {
       this._partialPieces.delete(pieceIndex)
-      this._fullPieces.set(pieceIndex, piece)
+      this._fullyRequestedPieces.set(pieceIndex, piece)
       this.logger.debug(
-        `Piece ${pieceIndex} promoted to full (all blocks requested), ` +
-          `partials: ${this._partialPieces.size}, full: ${this._fullPieces.size}`,
+        `Piece ${pieceIndex} promoted to fullyRequested (all blocks requested), ` +
+          `partials: ${this._partialPieces.size}, fullyRequested: ${this._fullyRequestedPieces.size}`,
       )
     }
   }
 
   /**
-   * Move a piece from full back to partial state.
+   * Move a piece from fullyRequested back to partial state.
    * Called when a request is cancelled (timeout, peer disconnect) and the piece
    * now has unrequested blocks again.
    */
   demoteToPartial(pieceIndex: number): void {
-    const piece = this._fullPieces.get(pieceIndex)
+    const piece = this._fullyRequestedPieces.get(pieceIndex)
     if (piece && piece.hasUnrequestedBlocks) {
-      this._fullPieces.delete(pieceIndex)
+      this._fullyRequestedPieces.delete(pieceIndex)
       this._partialPieces.set(pieceIndex, piece)
       this.logger.debug(
         `Piece ${pieceIndex} demoted to partial (has unrequested blocks), ` +
-          `partials: ${this._partialPieces.size}, full: ${this._fullPieces.size}`,
+          `partials: ${this._partialPieces.size}, fullyRequested: ${this._fullyRequestedPieces.size}`,
       )
     }
   }
 
   /**
-   * Move a piece from partial or full to pending state.
+   * Move a piece from partial or fullyRequested to fullyResponded state.
    * Called when all blocks have been received and piece is awaiting verification.
    */
-  promoteToPending(pieceIndex: number): void {
-    // Check full pieces first (most likely path when piece completes)
-    let piece = this._fullPieces.get(pieceIndex)
+  promoteToFullyResponded(pieceIndex: number): void {
+    // Check fullyRequested pieces first (most likely path when piece completes)
+    let piece = this._fullyRequestedPieces.get(pieceIndex)
     if (piece) {
-      this._fullPieces.delete(pieceIndex)
-      this._pendingPieces.set(pieceIndex, piece)
+      this._fullyRequestedPieces.delete(pieceIndex)
+      this._fullyRespondedPieces.set(pieceIndex, piece)
       this.logger.debug(
-        `Piece ${pieceIndex} promoted to pending (awaiting verification), ` +
-          `full: ${this._fullPieces.size}, pending: ${this._pendingPieces.size}`,
+        `Piece ${pieceIndex} promoted to fullyResponded (awaiting verification), ` +
+          `fullyRequested: ${this._fullyRequestedPieces.size}, fullyResponded: ${this._fullyRespondedPieces.size}`,
       )
       return
     }
@@ -277,36 +279,36 @@ export class ActivePieceManager extends EngineComponent {
     piece = this._partialPieces.get(pieceIndex)
     if (piece) {
       this._partialPieces.delete(pieceIndex)
-      this._pendingPieces.set(pieceIndex, piece)
+      this._fullyRespondedPieces.set(pieceIndex, piece)
       this.logger.debug(
-        `Piece ${pieceIndex} promoted to pending (awaiting verification), ` +
-          `partials: ${this._partialPieces.size}, pending: ${this._pendingPieces.size}`,
+        `Piece ${pieceIndex} promoted to fullyResponded (awaiting verification), ` +
+          `partials: ${this._partialPieces.size}, fullyResponded: ${this._fullyRespondedPieces.size}`,
       )
     }
   }
 
   /**
-   * Remove a piece from pending state after verification completes.
-   * Also checks full map defensively in case state got out of sync.
+   * Remove a piece from fullyResponded state after verification completes.
+   * Also checks fullyRequested map defensively in case state got out of sync.
    * Returns the piece for buffer reuse if needed.
    */
-  removePending(pieceIndex: number): ActivePiece | undefined {
-    let piece = this._pendingPieces.get(pieceIndex)
+  removeFullyResponded(pieceIndex: number): ActivePiece | undefined {
+    let piece = this._fullyRespondedPieces.get(pieceIndex)
     if (piece) {
       this.releaseBuffer(piece)
       piece.clear()
-      this._pendingPieces.delete(pieceIndex)
-      this.logger.debug(`Removed pending piece ${pieceIndex} after verification`)
+      this._fullyRespondedPieces.delete(pieceIndex)
+      this.logger.debug(`Removed fullyResponded piece ${pieceIndex} after verification`)
       return piece
     }
 
-    // Defensive: also check full map in case promotion was skipped
-    piece = this._fullPieces.get(pieceIndex)
+    // Defensive: also check fullyRequested map in case promotion was skipped
+    piece = this._fullyRequestedPieces.get(pieceIndex)
     if (piece) {
       this.releaseBuffer(piece)
       piece.clear()
-      this._fullPieces.delete(pieceIndex)
-      this.logger.debug(`Removed full piece ${pieceIndex} (defensive cleanup)`)
+      this._fullyRequestedPieces.delete(pieceIndex)
+      this.logger.debug(`Removed fullyRequested piece ${pieceIndex} (defensive cleanup)`)
       return piece
     }
 
@@ -320,7 +322,7 @@ export class ActivePieceManager extends EngineComponent {
    * over starting new ones. Returns true when partials exceed threshold.
    *
    * The threshold is min(peers × 1.5, 2048 / blocksPerPiece).
-   * This counts ONLY partial pieces, not pending pieces awaiting verification.
+   * This counts ONLY partial pieces, not fullyResponded pieces awaiting verification.
    */
   shouldPrioritizePartials(connectedPeerCount: number): boolean {
     const maxAllowed = this.getMaxPartials(connectedPeerCount)
@@ -351,8 +353,8 @@ export class ActivePieceManager extends EngineComponent {
   get activeIndices(): number[] {
     return [
       ...this._partialPieces.keys(),
-      ...this._fullPieces.keys(),
-      ...this._pendingPieces.keys(),
+      ...this._fullyRequestedPieces.keys(),
+      ...this._fullyRespondedPieces.keys(),
     ]
   }
 
@@ -363,13 +365,13 @@ export class ActivePieceManager extends EngineComponent {
   get activePieces(): ActivePiece[] {
     return [
       ...this._partialPieces.values(),
-      ...this._fullPieces.values(),
-      ...this._pendingPieces.values(),
+      ...this._fullyRequestedPieces.values(),
+      ...this._fullyRespondedPieces.values(),
     ]
   }
 
   /**
-   * Returns an iterator over ALL active pieces (partial, full, and pending).
+   * Returns an iterator over ALL active pieces (partial, fullyRequested, and fullyResponded).
    * Use partialValues() or downloadingValues() in request loops.
    */
   values(): IterableIterator<ActivePiece> {
@@ -381,8 +383,8 @@ export class ActivePieceManager extends EngineComponent {
    */
   private *allPiecesIterator(): IterableIterator<ActivePiece> {
     yield* this._partialPieces.values()
-    yield* this._fullPieces.values()
-    yield* this._pendingPieces.values()
+    yield* this._fullyRequestedPieces.values()
+    yield* this._fullyRespondedPieces.values()
   }
 
   /**
@@ -394,10 +396,10 @@ export class ActivePieceManager extends EngineComponent {
   }
 
   /**
-   * Returns an iterator over ONLY full pieces (all blocks requested, not all received).
+   * Returns an iterator over ONLY fullyRequested pieces (all blocks requested, not all received).
    */
-  fullValues(): IterableIterator<ActivePiece> {
-    return this._fullPieces.values()
+  fullyRequestedValues(): IterableIterator<ActivePiece> {
+    return this._fullyRequestedPieces.values()
   }
 
   /**
@@ -407,7 +409,7 @@ export class ActivePieceManager extends EngineComponent {
    */
   *downloadingValues(): IterableIterator<ActivePiece> {
     yield* this._partialPieces.values()
-    yield* this._fullPieces.values()
+    yield* this._fullyRequestedPieces.values()
   }
 
   // === Phase 3: Rarest-First Sorting with Priority ===
@@ -509,18 +511,20 @@ export class ActivePieceManager extends EngineComponent {
   }
 
   /**
-   * Returns an iterator over ONLY pending pieces (awaiting verification).
+   * Returns an iterator over ONLY fullyResponded pieces (awaiting verification).
    * Useful for verification queue management.
    */
-  pendingValues(): IterableIterator<ActivePiece> {
-    return this._pendingPieces.values()
+  fullyRespondedValues(): IterableIterator<ActivePiece> {
+    return this._fullyRespondedPieces.values()
   }
 
   /**
-   * Total count of active pieces (partial + full + pending).
+   * Total count of active pieces (partial + fullyRequested + fullyResponded).
    */
   get activeCount(): number {
-    return this._partialPieces.size + this._fullPieces.size + this._pendingPieces.size
+    return (
+      this._partialPieces.size + this._fullyRequestedPieces.size + this._fullyRespondedPieces.size
+    )
   }
 
   /**
@@ -532,18 +536,18 @@ export class ActivePieceManager extends EngineComponent {
   }
 
   /**
-   * Count of full pieces (all blocks requested, not all received).
+   * Count of fullyRequested pieces (all blocks requested, not all received).
    * These don't count against the partial cap.
    */
-  get fullCount(): number {
-    return this._fullPieces.size
+  get fullyRequestedCount(): number {
+    return this._fullyRequestedPieces.size
   }
 
   /**
-   * Count of pending pieces (awaiting verification).
+   * Count of fullyResponded pieces (awaiting verification).
    */
-  get pendingCount(): number {
-    return this._pendingPieces.size
+  get fullyRespondedCount(): number {
+    return this._fullyRespondedPieces.size
   }
 
   // --- Memory Tracking ---
@@ -553,10 +557,10 @@ export class ActivePieceManager extends EngineComponent {
     for (const piece of this._partialPieces.values()) {
       total += piece.bufferedBytes
     }
-    for (const piece of this._fullPieces.values()) {
+    for (const piece of this._fullyRequestedPieces.values()) {
       total += piece.bufferedBytes
     }
-    for (const piece of this._pendingPieces.values()) {
+    for (const piece of this._fullyRespondedPieces.values()) {
       total += piece.bufferedBytes
     }
     return total
@@ -569,7 +573,7 @@ export class ActivePieceManager extends EngineComponent {
    * Called when a peer disconnects to allow re-requesting blocks.
    * Returns the total number of requests cleared.
    *
-   * Also demotes full pieces back to partial if they now have unrequested blocks.
+   * Also demotes fullyRequested pieces back to partial if they now have unrequested blocks.
    */
   clearRequestsForPeer(peerId: string): number {
     let totalCleared = 0
@@ -579,9 +583,9 @@ export class ActivePieceManager extends EngineComponent {
       totalCleared += piece.clearRequestsForPeer(peerId)
     }
 
-    // Clear from full pieces and demote if needed
+    // Clear from fullyRequested pieces and demote if needed
     const toDemote: number[] = []
-    for (const piece of this._fullPieces.values()) {
+    for (const piece of this._fullyRequestedPieces.values()) {
       const cleared = piece.clearRequestsForPeer(peerId)
       totalCleared += cleared
       if (cleared > 0 && piece.hasUnrequestedBlocks) {
@@ -601,8 +605,8 @@ export class ActivePieceManager extends EngineComponent {
   /**
    * Check if any partial piece has unrequested blocks.
    * Used to determine endgame eligibility.
-   * Only checks partial pieces (full pieces have all blocks requested,
-   * pending pieces have all blocks received).
+   * Only checks partial pieces (fullyRequested pieces have all blocks requested,
+   * fullyResponded pieces have all blocks received).
    */
   hasUnrequestedBlocks(): boolean {
     for (const piece of this._partialPieces.values()) {
@@ -621,7 +625,7 @@ export class ActivePieceManager extends EngineComponent {
    * - AND not complete (pieces with all blocks are waiting for disk write)
    * - AND either: no data received, OR no outstanding requests (stuck)
    *
-   * Only checks partial pieces - pending pieces are actively being verified.
+   * Only checks partial pieces - fullyResponded pieces are actively being verified.
    */
   private cleanupStale(): void {
     const now = Date.now()
@@ -630,7 +634,7 @@ export class ActivePieceManager extends EngineComponent {
     for (const [index, piece] of this._partialPieces) {
       const isStale = now - piece.lastActivity > staleThreshold
 
-      // Never remove pieces that have all blocks - they should be in pending, not here
+      // Never remove pieces that have all blocks - they should be in fullyResponded, not here
       // (but check defensively in case promotion was delayed)
       if (piece.haveAllBlocks) continue
 
@@ -658,17 +662,17 @@ export class ActivePieceManager extends EngineComponent {
       this.releaseBuffer(piece)
       piece.clear()
     }
-    for (const piece of this._fullPieces.values()) {
+    for (const piece of this._fullyRequestedPieces.values()) {
       this.releaseBuffer(piece)
       piece.clear()
     }
-    for (const piece of this._pendingPieces.values()) {
+    for (const piece of this._fullyRespondedPieces.values()) {
       this.releaseBuffer(piece)
       piece.clear()
     }
     this._partialPieces.clear()
-    this._fullPieces.clear()
-    this._pendingPieces.clear()
+    this._fullyRequestedPieces.clear()
+    this._fullyRespondedPieces.clear()
 
     // Clear the buffer pool
     if (this.bufferPool) {

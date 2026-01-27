@@ -96,12 +96,19 @@ describe('ActivePieceManager', () => {
   // The underlying ActivePiece.checkTimeouts() method is still tested in active-piece.test.ts.
 
   describe('memory tracking', () => {
-    it('should track buffered bytes', () => {
+    it('should track allocated bytes (not just received)', () => {
+      // bufferedBytes now returns the allocated buffer size, not received bytes
+      // This is critical for memory limit enforcement - we need to know actual memory usage
       const piece = manager.getOrCreate(0)!
+
+      // Full 64KB piece buffer is allocated, even before any blocks received
+      expect(manager.totalBufferedBytes).toBe(PIECE_LENGTH)
+
       piece.addBlock(0, new Uint8Array(16384), 'peer1')
       piece.addBlock(1, new Uint8Array(16384), 'peer1')
 
-      expect(manager.totalBufferedBytes).toBe(32768)
+      // Still 64KB allocated (not 32KB received)
+      expect(manager.totalBufferedBytes).toBe(PIECE_LENGTH)
     })
   })
 
@@ -577,10 +584,10 @@ describe('ActivePieceManager', () => {
         piece1.addBlock(i, new Uint8Array(16384), 'peer1')
       }
       // Promote to pending
-      manager.promoteToPending(1)
+      manager.promoteToFullyResponded(1)
 
       expect(manager.partialCount).toBe(2)
-      expect(manager.pendingCount).toBe(1)
+      expect(manager.fullyRespondedCount).toBe(1)
 
       pieceAvailability[0] = 2
       pieceAvailability[1] = 1 // rarest but pending
@@ -634,11 +641,11 @@ describe('ActivePieceManager', () => {
         for (let b = 0; b < 4; b++) {
           piece.addBlock(b, new Uint8Array(16384), 'peer1')
         }
-        manager.promoteToPending(i)
+        manager.promoteToFullyResponded(i)
       }
 
       expect(manager.partialCount).toBe(2) // 10 - 8 promoted
-      expect(manager.pendingCount).toBe(8)
+      expect(manager.fullyRespondedCount).toBe(8)
 
       // With 10 peers, threshold is 15
       // Only 2 partials < 15 (pending don't count)
