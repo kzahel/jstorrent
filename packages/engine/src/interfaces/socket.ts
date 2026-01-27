@@ -145,4 +145,11 @@ export interface ISocketFactory {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   wrapTcpSocket(socket: any): ITcpSocket
+
+  /**
+   * Batch send data to multiple sockets in a single call.
+   * Used on native platforms (Android/iOS) to reduce FFI overhead.
+   * Optional - if not implemented, callers fall back to individual sends.
+   */
+  batchSend?(sends: Array<{ socketId: number; data: Uint8Array }>): void
 }

@@ -104,6 +104,13 @@ export interface TickLoopCallbacks {
     connecting: number
     message: string
   }): void
+
+  /**
+   * Optional batch flush function for all peers in a single FFI call.
+   * When provided, used instead of per-peer flush() calls.
+   * On native (Android/iOS), this reduces FFI overhead significantly.
+   */
+  batchFlushPeers?(peers: PeerConnection[]): void
 }
 
 /**
@@ -161,6 +168,20 @@ export class TorrentTickLoop extends EngineComponent {
     private callbacks: TickLoopCallbacks,
   ) {
     super(engineInstance)
+  }
+
+  /**
+   * Flush all pending sends for the given peers.
+   * Uses batch flush if available (single FFI call on native), otherwise per-peer flush.
+   */
+  private flushPeers(peers: PeerConnection[]): void {
+    if (this.callbacks.batchFlushPeers) {
+      this.callbacks.batchFlushPeers(peers)
+    } else {
+      for (const peer of peers) {
+        peer.flush()
+      }
+    }
   }
 
   // ==========================================================================
@@ -236,9 +257,7 @@ export class TorrentTickLoop extends EngineComponent {
     }
 
     // Flush all queued sends at end of tick (reduces FFI overhead on Android)
-    for (const peer of connectedPeers) {
-      peer.flush()
-    }
+    this.flushPeers(connectedPeers)
 
     const endTime = Date.now()
     const elapsed = endTime - startTime
@@ -500,9 +519,7 @@ export class TorrentTickLoop extends EngineComponent {
     this._maintApplyMs += applyMs
 
     // Flush all queued sends (CHOKE/UNCHOKE messages from above)
-    for (const peer of peers) {
-      peer.flush()
-    }
+    this.flushPeers(peers)
 
     // === Phase 4: Request connection slots from engine ===
     if (this.callbacks.isComplete()) {

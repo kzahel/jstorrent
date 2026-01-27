@@ -546,6 +546,23 @@ export class Torrent extends EngineComponent {
 
       // Event emission
       emitInvariantViolation: (data) => this.emit('test:invariant_violation', data),
+
+      // Batch flush - uses socket factory's batchSend if available (native platforms)
+      batchFlushPeers: this.socketFactory.batchSend
+        ? (peers) => {
+            const sends: Array<{ socketId: number; data: Uint8Array }> = []
+            for (const peer of peers) {
+              const socketId = peer.getSocketId()
+              if (socketId === undefined) continue
+              const data = peer.getQueuedData()
+              if (data === null) continue
+              sends.push({ socketId, data })
+            }
+            if (sends.length > 0) {
+              this.socketFactory.batchSend!(sends)
+            }
+          }
+        : undefined,
     }
   }
 
