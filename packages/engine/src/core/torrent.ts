@@ -165,6 +165,12 @@ export class Torrent extends EngineComponent {
   private _pieceClassification: PieceClassification[] = []
   /** Per-piece availability count (how many connected peers have each piece) */
   private _pieceAvailability: Uint16Array | null = null
+  /**
+   * Number of connected seed peers.
+   * Seeds are tracked separately to avoid O(pieces) updates on connect/disconnect.
+   * For availability calculations, use: pieceAvailability[i] + seedCount
+   */
+  private _seedCount: number = 0
   /** Per-piece priority derived from file priorities (0=skip, 1=normal, 2=high) */
   private _piecePriority: Uint8Array | null = null
   /** Pieces currently stored in .parts file (not in regular files) */
@@ -555,6 +561,14 @@ export class Torrent extends EngineComponent {
 
   get pieceAvailability(): Uint16Array | null {
     return this._pieceAvailability
+  }
+
+  /**
+   * Number of connected seed peers.
+   * Use this + pieceAvailability[i] for true availability of a piece.
+   */
+  get seedCount(): number {
+    return this._seedCount
   }
 
   // --- Piece Info Initialization ---
@@ -2385,8 +2399,16 @@ export class Torrent extends EngineComponent {
     peer.on('bitfield', (bf) => {
       this.logger.debug('Bitfield received')
 
-      // Update piece availability
-      if (this._pieceAvailability) {
+      // Calculate how many pieces this peer has
+      peer.haveCount = bf.count()
+      peer.isSeed = peer.haveCount === this.piecesCount && this.piecesCount > 0
+
+      if (peer.isSeed) {
+        // Seeds are tracked separately - don't add to per-piece availability
+        this._seedCount++
+        this.logger.debug(`Peer is a seed (seedCount: ${this._seedCount})`)
+      } else if (this._pieceAvailability) {
+        // Non-seeds: update per-piece availability
         for (let i = 0; i < this.piecesCount; i++) {
           if (bf.get(i)) {
             this._pieceAvailability[i]++
@@ -2412,13 +2434,13 @@ export class Torrent extends EngineComponent {
 
       // Create a full bitfield for the peer
       peer.bitfield = BitField.createFull(this.piecesCount)
+      peer.haveCount = this.piecesCount
+      peer.isSeed = true
 
-      // Update piece availability - all pieces are available from this peer
-      if (this._pieceAvailability) {
-        for (let i = 0; i < this.piecesCount; i++) {
-          this._pieceAvailability[i]++
-        }
-      }
+      // Seeds are tracked separately - don't add to per-piece availability
+      // This avoids O(pieces) updates on seed connect/disconnect
+      this._seedCount++
+      this.logger.debug(`Peer is a seed via HAVE_ALL (seedCount: ${this._seedCount})`)
 
       // Update interest
       this.updateInterest(peer)
@@ -2439,8 +2461,20 @@ export class Torrent extends EngineComponent {
     peer.on('have', (index) => {
       this.logger.debug(`Have received ${index}`)
 
-      // Update piece availability (peer.bitfield already updated before event)
-      if (this._pieceAvailability && index < this._pieceAvailability.length) {
+      // Track how many pieces peer has (for seed detection)
+      peer.haveCount++
+
+      // If peer is already a seed, shouldn't receive HAVE messages
+      if (peer.isSeed) {
+        this.logger.warn(`Received HAVE from peer already marked as seed`)
+        return
+      }
+
+      // Check if peer just became a seed
+      if (peer.haveCount === this.piecesCount && this.piecesCount > 0) {
+        this.convertToSeed(peer)
+      } else if (this._pieceAvailability && index < this._pieceAvailability.length) {
+        // Non-seed: update per-piece availability
         this._pieceAvailability[index]++
       }
 
@@ -2514,9 +2548,40 @@ export class Torrent extends EngineComponent {
     })
   }
 
-  private removePeer(peer: PeerConnection) {
-    // Decrement piece availability for all pieces this peer had
+  /**
+   * Convert a peer to seed status when they acquire all pieces.
+   * This happens when a peer sends HAVE for their final missing piece.
+   * We remove their contribution from per-piece availability and track them
+   * in _seedCount instead, to avoid O(pieces) updates on future disconnect.
+   */
+  private convertToSeed(peer: PeerConnection): void {
+    if (peer.isSeed) return // Already a seed
+
+    // Remove from per-piece availability
     if (this._pieceAvailability && peer.bitfield) {
+      for (let i = 0; i < this.piecesCount; i++) {
+        if (peer.bitfield.get(i) && this._pieceAvailability[i] > 0) {
+          this._pieceAvailability[i]--
+        }
+      }
+    }
+
+    // Mark as seed and add to seed count
+    peer.isSeed = true
+    this._seedCount++
+    this.logger.debug(`Peer converted to seed via HAVE messages (seedCount: ${this._seedCount})`)
+  }
+
+  private removePeer(peer: PeerConnection) {
+    // Handle availability cleanup based on seed status
+    if (peer.isSeed) {
+      // Seeds are tracked separately - just decrement the count
+      if (this._seedCount > 0) {
+        this._seedCount--
+        this.logger.debug(`Seed disconnected (seedCount: ${this._seedCount})`)
+      }
+    } else if (this._pieceAvailability && peer.bitfield) {
+      // Non-seeds: decrement per-piece availability
       for (let i = 0; i < this.piecesCount; i++) {
         if (peer.bitfield.get(i) && this._pieceAvailability[i] > 0) {
           this._pieceAvailability[i]--
@@ -3608,13 +3673,12 @@ export class Torrent extends EngineComponent {
         this.logger.debug('Processing deferred have_all for peer')
         peer.deferredHaveAll = false
         peer.bitfield = BitField.createFull(this.piecesCount)
+        peer.haveCount = this.piecesCount
+        peer.isSeed = true
 
-        // Update piece availability - all pieces are available from this peer
-        if (this._pieceAvailability) {
-          for (let i = 0; i < this.piecesCount; i++) {
-            this._pieceAvailability[i]++
-          }
-        }
+        // Seeds are tracked separately - don't add to per-piece availability
+        this._seedCount++
+        this.logger.debug(`Deferred seed processed (seedCount: ${this._seedCount})`)
       }
 
       this.updateInterest(peer)

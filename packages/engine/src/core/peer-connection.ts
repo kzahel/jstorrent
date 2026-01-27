@@ -93,6 +93,19 @@ export class PeerConnection extends EngineComponent {
   /** BEP 6: Peer sent HAVE_ALL before we had metadata to create bitfield */
   public deferredHaveAll = false
 
+  /**
+   * Whether this peer is a seed (has all pieces).
+   * Seeds are tracked separately in Torrent._seedCount to avoid O(pieces)
+   * availability updates on connect/disconnect.
+   */
+  public isSeed = false
+
+  /**
+   * Number of pieces this peer has (popcount of bitfield).
+   * Used to detect when a peer becomes a seed via HAVE messages.
+   */
+  public haveCount = 0
+
   /** Whether this connection is encrypted (MSE/PE) */
   get isEncrypted(): boolean {
     return this.socket.isEncrypted ?? false
