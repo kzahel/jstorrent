@@ -137,6 +137,12 @@ export class TorrentTickLoop extends EngineComponent {
   private _lastTickLogTime = 0
   private _cleanupTickCounter = 0
 
+  // === HAVE Batching (Phase 5) ===
+  // Instead of broadcasting HAVE to all peers immediately when a piece completes,
+  // we queue them here and flush at the end of the tick. This batches multiple
+  // piece completions into a single pass over peers.
+  private _pendingHaves: number[] = []
+
   // === Maintenance State ===
   private _maintenanceInterval: ReturnType<typeof setTimeout> | null = null
   private _maintenanceStep = 0
@@ -168,6 +174,52 @@ export class TorrentTickLoop extends EngineComponent {
         peer.flush()
       }
     }
+  }
+
+  // ==========================================================================
+  // HAVE Batching (Phase 5)
+  // ==========================================================================
+
+  /**
+   * Queue a HAVE message to be broadcast to all peers at the end of the tick.
+   *
+   * Instead of iterating through all connected peers immediately when a piece
+   * completes (which happens during GATHER phase), we batch the piece indices
+   * and send them all at once during the OUTPUT phase.
+   *
+   * Benefits:
+   * - Multiple pieces completing in one tick = single pass over peers
+   * - All protocol sends batched together for efficient FFI
+   * - Predictable timing (all HAVEs sent at end of tick)
+   */
+  queueHave(pieceIndex: number): void {
+    this._pendingHaves.push(pieceIndex)
+  }
+
+  /**
+   * Flush all pending HAVE messages to all connected peers.
+   * Called at the end of the tick, before flushPeers().
+   */
+  private flushHaves(peers: PeerConnection[]): void {
+    if (this._pendingHaves.length === 0) return
+
+    let havesQueued = 0
+    for (const peer of peers) {
+      if (peer.handshakeReceived) {
+        for (const pieceIndex of this._pendingHaves) {
+          peer.sendHave(pieceIndex)
+          havesQueued++
+        }
+      }
+    }
+
+    if (this._pendingHaves.length > 1 || havesQueued > 20) {
+      this.logger.debug(
+        `HAVE batch: ${this._pendingHaves.length} pieces to ${peers.length} peers (${havesQueued} messages)`,
+      )
+    }
+
+    this._pendingHaves = []
   }
 
   // ==========================================================================
@@ -214,7 +266,9 @@ export class TorrentTickLoop extends EngineComponent {
     }
 
     // === Phase 4: OUTPUT - flush all queued sends ===
-    // Batch all protocol messages into single FFI call (reduces overhead on Android)
+    // First, broadcast any pending HAVE messages (batched from piece completions during GATHER)
+    this.flushHaves(connectedPeers)
+    // Then batch all protocol messages into single FFI call (reduces overhead on Android)
     this.flushPeers(connectedPeers)
 
     const endTime = Date.now()

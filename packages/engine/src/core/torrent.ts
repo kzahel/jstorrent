@@ -2425,19 +2425,10 @@ export class Torrent extends EngineComponent {
         file.updateForPiece(index)
       }
 
-      // Send HAVE message to all peers (only for non-boundary pieces)
-      const haveStart = Date.now()
-      let haveSent = 0
-      for (const p of this.connectedPeers) {
-        if (p.handshakeReceived) {
-          p.sendHave(index)
-          haveSent++
-        }
-      }
-      const haveMs = Date.now() - haveStart
-      if (haveMs > 1 || haveSent > 20) {
-        console.log(`[PERF] HAVE broadcast: ${haveSent} peers, ${haveMs}ms`)
-      }
+      // Queue HAVE for batch broadcast at end of tick (Phase 5 optimization)
+      // Instead of iterating all peers here, we batch HAVEs and send them
+      // together in the OUTPUT phase of the tick loop.
+      this._tickLoop.queueHave(index)
     }
 
     const progressPct =
