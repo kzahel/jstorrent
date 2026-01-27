@@ -1537,6 +1537,16 @@ export class Torrent extends EngineComponent {
   private _lastTickLogTime = 0
   private _cleanupTickCounter = 0
 
+  // Track maintenance loop performance
+  private _maintCount = 0
+  private _maintTotalMs = 0
+  private _maintMaxMs = 0
+  private _lastMaintLogTime = 0
+  // Per-phase timing accumulators
+  private _maintSnapshotMs = 0
+  private _maintCoordinatorMs = 0
+  private _maintApplyMs = 0
+
   /**
    * Request tick - fill all peers' request pipelines.
    * Called at fixed intervals instead of on every block arrival.
@@ -1871,27 +1881,46 @@ export class Torrent extends EngineComponent {
 
   /**
    * Run maintenance: peer coordination and slot filling.
+   * Instrumented for performance monitoring - logs timing every 5s.
    */
   private runMaintenance(): void {
+    const maintStart = Date.now()
+
     // Always check invariants regardless of state
     this.checkSwarmInvariants()
 
     if (!this._networkActive) return
     if (this.isKillSwitchEnabled) return
 
-    // === Run peer coordinator (BEP 3 choke algorithm + download optimizer) ===
+    // === Phase 1: Build peer snapshots ===
+    const snapshotStart = Date.now()
     const snapshots = this.buildPeerSnapshots()
-    const hasSwarmCandidates = this._swarm.getConnectablePeers(1).length > 0
+    const snapshotMs = Date.now() - snapshotStart
+    this._maintSnapshotMs += snapshotMs
 
+    // === Phase 2: Run peer coordinator (BEP 3 choke algorithm + download optimizer) ===
+    const coordStart = Date.now()
     // Skip speed-based peer drops when we're heavily rate-limited
-    // (peers appear slow due to our throttling, not their actual speed)
     const skipSpeedChecks = this.btEngine.bandwidthTracker.isDownloadRateLimited()
+
+    // Check candidates ONCE (fix: was calling getConnectablePeers twice)
+    const connected = this.numPeers
+    const connecting = this._swarm.connectingCount
+    const slotsAvailable = this.maxPeers - connected - connecting
+    const swarmSize = this._swarm.size
+
+    // Get candidates once, reuse for both hasSwarmCandidates and candidateCount
+    const candidates = slotsAvailable > 0 ? this._swarm.getConnectablePeers(slotsAvailable) : []
+    const hasSwarmCandidates = candidates.length > 0
 
     const { unchoke, drop } = this._peerCoordinator.evaluate(snapshots, hasSwarmCandidates, {
       skipSpeedChecks,
     })
+    const coordMs = Date.now() - coordStart
+    this._maintCoordinatorMs += coordMs
 
-    // Apply unchoke decisions
+    // === Phase 3: Apply decisions ===
+    const applyStart = Date.now()
     for (const decision of unchoke) {
       this.applyUnchokeDecision(decision)
     }
@@ -1902,31 +1931,29 @@ export class Torrent extends EngineComponent {
         this.applyDropDecision(decision)
       }
     }
+    const applyMs = Date.now() - applyStart
+    this._maintApplyMs += applyMs
 
-    // === Request connection slots from engine ===
+    // === Phase 4: Request connection slots from engine ===
     if (this.isComplete) {
-      this.logger.debug(`Maintenance: skipping - torrent complete`)
+      this.logMaintenanceStats(maintStart)
       return // Don't seek peers when complete
     }
-
-    const connected = this.numPeers
-    const connecting = this._swarm.connectingCount
-    const slotsAvailable = this.maxPeers - connected - connecting
-    const swarmSize = this._swarm.size
 
     if (slotsAvailable <= 0) {
       this.logger.debug(
         `Maintenance: no slots (connected=${connected}, connecting=${connecting}, max=${this.maxPeers})`,
       )
+      this.logMaintenanceStats(maintStart)
       return
     }
 
-    // Check if we have candidates before requesting slots
-    const candidateCount = this._swarm.getConnectablePeers(slotsAvailable).length
+    const candidateCount = candidates.length
     if (candidateCount === 0) {
       this.logger.warn(
         `Maintenance: 0 candidates! swarm=${swarmSize}, connected=${connected}, connecting=${connecting}`,
       )
+      this.logMaintenanceStats(maintStart)
       return
     }
 
@@ -1941,6 +1968,42 @@ export class Torrent extends EngineComponent {
 
     // Log backpressure stats periodically (every 5s in steady state)
     this.logBackpressureStats()
+    this.logMaintenanceStats(maintStart)
+  }
+
+  /**
+   * Log maintenance performance stats every 5 seconds.
+   */
+  private logMaintenanceStats(maintStart: number): void {
+    const elapsed = Date.now() - maintStart
+    this._maintCount++
+    this._maintTotalMs += elapsed
+    if (elapsed > this._maintMaxMs) {
+      this._maintMaxMs = elapsed
+    }
+
+    const now = Date.now()
+    if (now - this._lastMaintLogTime >= 5000 && this._maintCount > 0) {
+      const avgMs = (this._maintTotalMs / this._maintCount).toFixed(1)
+      const avgSnapshotMs = (this._maintSnapshotMs / this._maintCount).toFixed(1)
+      const avgCoordMs = (this._maintCoordinatorMs / this._maintCount).toFixed(1)
+      const avgApplyMs = (this._maintApplyMs / this._maintCount).toFixed(1)
+
+      this.logger.info(
+        `Maintenance: ${this._maintCount} runs, avg ${avgMs}ms (snapshot=${avgSnapshotMs}ms, ` +
+          `coord=${avgCoordMs}ms, apply=${avgApplyMs}ms), max ${this._maintMaxMs}ms, ` +
+          `swarm=${this._swarm.size}, peers=${this.numPeers}`,
+      )
+
+      // Reset counters
+      this._maintCount = 0
+      this._maintTotalMs = 0
+      this._maintMaxMs = 0
+      this._maintSnapshotMs = 0
+      this._maintCoordinatorMs = 0
+      this._maintApplyMs = 0
+      this._lastMaintLogTime = now
+    }
   }
 
   // Track last backpressure log time

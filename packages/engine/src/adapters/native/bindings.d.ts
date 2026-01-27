@@ -271,10 +271,25 @@ declare global {
   // ============================================================
 
   /**
-   * Compute SHA1 hash.
+   * Compute SHA1 hash (synchronous - blocks JS thread).
    * Returns 20-byte ArrayBuffer.
    */
   function __jstorrent_sha1(data: ArrayBuffer): ArrayBuffer
+
+  /**
+   * Compute SHA1 hash (asynchronous - runs on background thread).
+   * Result delivered via __jstorrent_hash_dispatch_result callback.
+   *
+   * @param data Data to hash
+   * @param callbackId Unique ID for result callback
+   */
+  function __jstorrent_sha1_async(data: ArrayBuffer, callbackId: string): void
+
+  /**
+   * Callback storage for async hash results.
+   * Managed by native-hasher.ts, called via __jstorrent_hash_dispatch_result.
+   */
+  var __jstorrent_hash_callbacks: Record<string, (hash: ArrayBuffer) => void>
 
   // ============================================================
   // Polyfill Functions (for QuickJS/JSC missing APIs)

@@ -4,6 +4,10 @@ import android.util.Log
 import com.jstorrent.io.hash.Hasher
 import com.jstorrent.quickjs.JsThread
 import com.jstorrent.quickjs.QuickJsContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.security.SecureRandom
 
 /**
@@ -12,7 +16,7 @@ import java.security.SecureRandom
  * Implements missing Web APIs that QuickJS doesn't provide:
  * - TextEncoder/TextDecoder (via text_encode/text_decode)
  * - crypto.getRandomValues (via random_bytes)
- * - SHA-1 hashing
+ * - SHA-1 hashing (sync and async)
  * - console.log
  * - setTimeout/setInterval
  */
@@ -20,6 +24,9 @@ class PolyfillBindings(
     private val jsThread: JsThread
 ) {
     private val secureRandom = SecureRandom()
+
+    // Coroutine scope for async hashing (runs on background thread)
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Register all polyfill bindings on the given context.
@@ -90,7 +97,103 @@ class PolyfillBindings(
                 result
             }
         }
+
+        // __jstorrent_sha1_async(data: ArrayBuffer, callbackId: string): void
+        // Async version - hashes on background thread, posts result via callback
+        //
+        // IMPORTANT: setGlobalFunctionWithBinary args indexing
+        // =====================================================
+        // When JS calls: __jstorrent_sha1_async(data, callbackId)
+        // With binaryArgIndex=0, the callback receives:
+        //   - binary = the actual ArrayBuffer data
+        //   - args = [null, "callbackId"]  <-- null placeholder at binary position!
+        //
+        // So string args are offset: args[1] is callbackId, NOT args[0].
+        // This caught us off guard - args[0] returns null (the placeholder).
+        ctx.setGlobalFunctionWithBinary("__jstorrent_sha1_async", 0) { args, binary ->
+            val callbackId = args.getOrNull(1) ?: run {
+                Log.e("JSTorrent-Hash", "sha1_async: missing callbackId, args=${args.toList()}")
+                return@setGlobalFunctionWithBinary null
+            }
+            Log.d("JSTorrent-Hash", "sha1_async: callbackId=$callbackId, bytes=${binary?.size ?: 0}")
+
+            if (binary == null || binary.isEmpty()) {
+                // Post empty result immediately
+                jsThread.post {
+                    // callGlobalFunctionWithBinary(funcName, binaryArg, binaryArgIndex, ...stringArgs)
+                    // Here: dispatch(callbackId, hash) where hash is at index 1
+                    // Note: null placeholder at index 1 where binary data will be inserted
+                    ctx.callGlobalFunctionWithBinary(
+                        "__jstorrent_hash_dispatch_result",
+                        ByteArray(0),
+                        1,  // binary goes at arg index 1
+                        callbackId,
+                        null  // placeholder for binary at index 1
+                    )
+                    jsThread.scheduleJobPump(ctx)
+                }
+                return@setGlobalFunctionWithBinary null
+            }
+
+            // Launch async work on I/O dispatcher
+            ioScope.launch {
+                val startNs = System.nanoTime()
+                val result = Hasher.sha1(binary)
+                val elapsedNs = System.nanoTime() - startNs
+
+                // Track timing (async stats separate from sync)
+                synchronized(this@PolyfillBindings) {
+                    asyncHashCallCount++
+                    asyncHashTotalBytes += binary.size
+                    asyncHashTotalTimeNs += elapsedNs
+                    if (elapsedNs > asyncHashMaxTimeNs) {
+                        asyncHashMaxTimeNs = elapsedNs
+                    }
+
+                    // Log every 5 seconds
+                    val now = System.currentTimeMillis()
+                    if (now - asyncHashLastLogTime >= 5000 && asyncHashCallCount > 0) {
+                        val avgUs = (asyncHashTotalTimeNs / asyncHashCallCount) / 1000.0
+                        val maxUs = asyncHashMaxTimeNs / 1000.0
+                        val totalMB = asyncHashTotalBytes / 1024.0 / 1024.0
+                        val totalSec = asyncHashTotalTimeNs / 1_000_000_000.0
+                        val throughputMBps = if (totalSec > 0) totalMB / totalSec else 0.0
+                        Log.i("JSTorrent-Hash",
+                            "Kotlin async: $asyncHashCallCount hashes, ${"%.1f".format(totalMB)}MB, " +
+                            "avg ${"%.0f".format(avgUs)}µs, max ${"%.0f".format(maxUs)}µs, " +
+                            "throughput ${"%.0f".format(throughputMBps)}MB/s")
+                        asyncHashCallCount = 0
+                        asyncHashTotalBytes = 0
+                        asyncHashTotalTimeNs = 0
+                        asyncHashMaxTimeNs = 0
+                        asyncHashLastLogTime = now
+                    }
+                }
+
+                // Post result back to JS thread
+                jsThread.post {
+                    // Note: null placeholder at index 1 where binary data will be inserted
+                    ctx.callGlobalFunctionWithBinary(
+                        "__jstorrent_hash_dispatch_result",
+                        result,
+                        1,  // binary goes at arg index 1
+                        callbackId,
+                        null  // placeholder for binary at index 1
+                    )
+                    jsThread.scheduleJobPump(ctx)
+                }
+            }
+
+            null // Return immediately, result comes via callback
+        }
     }
+
+    // Async hash instrumentation (separate from sync)
+    private var asyncHashCallCount = 0L
+    private var asyncHashTotalBytes = 0L
+    private var asyncHashTotalTimeNs = 0L
+    private var asyncHashMaxTimeNs = 0L
+    private var asyncHashLastLogTime = 0L
 
     private fun registerRandomFunctions(ctx: QuickJsContext) {
         // __jstorrent_random_bytes(length: number): ArrayBuffer

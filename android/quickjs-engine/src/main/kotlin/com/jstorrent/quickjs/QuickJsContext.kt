@@ -96,9 +96,18 @@ class QuickJsContext private constructor(
     /**
      * Register a global function that receives binary data (ArrayBuffer) at a specific argument position.
      *
+     * IMPORTANT: The [args] array includes a null placeholder at [binaryArgIndex].
+     *
+     * Example: JS calls `myFunc(data, "hello", 42)` with binaryArgIndex=0
+     *   - binary = the ArrayBuffer data
+     *   - args = [null, "hello", "42"]  <-- null at position 0!
+     *
+     * So to get "hello", use args[1], not args[0]. The args array length matches
+     * the JS argument count, with null at the binary position.
+     *
      * @param name The function name in JavaScript
      * @param binaryArgIndex Which argument is an ArrayBuffer (0-indexed)
-     * @param callback Receives string args array and the binary data; returns String
+     * @param callback Receives string args array (with null at binaryArgIndex) and the binary data
      */
     fun setGlobalFunctionWithBinary(
         name: String,
