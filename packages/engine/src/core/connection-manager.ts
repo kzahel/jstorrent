@@ -1,4 +1,5 @@
 import { Swarm, SwarmPeer, peerKey } from './swarm'
+import { PeerSelector } from './peer-selector'
 import { PeerConnection } from './peer-connection'
 import { ISocketFactory, ITcpSocket } from '../interfaces/socket'
 import type { Logger, ILoggingEngine } from '../logging/logger'
@@ -44,16 +45,6 @@ export const DEFAULT_CONNECTION_CONFIG: Omit<ConnectionConfig, 'maxPeersPerTorre
 }
 
 // ============================================================================
-// Peer Scoring
-// ============================================================================
-
-interface ScoredPeer {
-  key: string
-  score: number
-  peer: SwarmPeer
-}
-
-// ============================================================================
 // ConnectionManager
 // ============================================================================
 
@@ -69,6 +60,7 @@ interface ScoredPeer {
 export class ConnectionManager {
   private config: ConnectionConfig
   private swarm: Swarm
+  private peerSelector: PeerSelector
   private socketFactory: ISocketFactory
   private engine: ILoggingEngine
   private logger: Logger
@@ -98,6 +90,7 @@ export class ConnectionManager {
       Partial<Omit<ConnectionConfig, 'maxPeersPerTorrent'>>,
   ) {
     this.swarm = swarm
+    this.peerSelector = new PeerSelector(swarm)
     this.socketFactory = socketFactory
     this.engine = engine
     this.logger = logger
@@ -118,6 +111,13 @@ export class ConnectionManager {
    */
   getConfig(): ConnectionConfig {
     return { ...this.config }
+  }
+
+  /**
+   * Get the peer selector for external use (e.g., by tick loop).
+   */
+  getPeerSelector(): PeerSelector {
+    return this.peerSelector
   }
 
   /**
@@ -299,8 +299,7 @@ export class ConnectionManager {
     const slots = Math.min(this.availableSlots, this.config.burstConnections)
     if (slots <= 0) return 0
 
-    // Use scored selection instead of random
-    const candidates = this.selectCandidates(slots)
+    const candidates = this.peerSelector.getConnectablePeers(slots)
     if (candidates.length === 0) return 0
 
     this.logger.debug(
@@ -326,88 +325,6 @@ export class ConnectionManager {
     }
 
     return connectionsInitiated
-  }
-
-  // --- Peer Scoring & Selection ---
-
-  /**
-   * Select best candidates for connection based on scoring.
-   * Fetches more candidates than needed and sorts by score.
-   */
-  private selectCandidates(limit: number): SwarmPeer[] {
-    // Get 3x candidates to have good selection pool
-    const candidates = this.swarm.getConnectablePeers(limit * 3)
-    if (candidates.length === 0) return []
-
-    // Score each candidate
-    const scored: ScoredPeer[] = candidates.map((peer) => ({
-      key: peerKey(peer.ip, peer.port),
-      peer,
-      score: this.calculateScore(peer),
-    }))
-
-    // Sort by score descending
-    scored.sort((a, b) => b.score - a.score)
-
-    // Return top candidates
-    return scored.slice(0, limit).map((s) => s.peer)
-  }
-
-  /**
-   * Calculate a score for a peer based on various heuristics.
-   * Higher score = better candidate for connection.
-   */
-  private calculateScore(peer: SwarmPeer): number {
-    let score = 100
-
-    // Prefer peers with previous successful connections
-    if (peer.lastConnectSuccess) {
-      score += 50
-    }
-
-    // Penalize repeated connection failures
-    score -= peer.connectFailures * 20
-
-    // Prefer peers with good download history
-    if (peer.totalDownloaded > 0) {
-      // Log10-based bonus, capped at 50 points
-      // 1KB = +10, 1MB = +30, 1GB = +50 (capped)
-      score += Math.min(50, Math.log10(peer.totalDownloaded) * 10)
-    }
-
-    // Penalize recently tried peers (backoff-like scoring)
-    if (peer.lastConnectAttempt) {
-      const timeSince = Date.now() - peer.lastConnectAttempt
-      if (timeSince < 30000) {
-        score -= 30 // Recently tried
-      } else if (timeSince < 60000) {
-        score -= 15 // Tried within a minute
-      }
-    }
-
-    // Prefer different sources (manual > tracker > pex > dht)
-    switch (peer.source) {
-      case 'manual':
-        score += 20
-        break
-      case 'tracker':
-        score += 10
-        break
-      case 'incoming':
-        score += 5
-        break
-      case 'lpd':
-        score += 5
-        break
-      case 'pex':
-        score -= 5
-        break
-      case 'dht':
-        score -= 10
-        break
-    }
-
-    return score
   }
 
   // --- Registration ---
@@ -483,7 +400,7 @@ export class ConnectionManager {
         // Check if speed is below minimum threshold
         if (speed < this.config.slowPeerMinSpeed) {
           // Only drop if we have alternatives
-          if (this.swarm.getConnectablePeers(1).length > 0) {
+          if (this.peerSelector.hasConnectablePeers()) {
             // Calculate average download speed of all connected peers
             const avgSpeed = this.getAverageDownloadSpeed()
             // Drop if below 10% of average and below minimum

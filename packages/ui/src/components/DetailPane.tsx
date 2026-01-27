@@ -9,7 +9,7 @@ import type {
   DHTNodeInfo,
 } from '@jstorrent/engine'
 import { PeerTable } from '../tables/PeerTable'
-import { PieceTable } from '../tables/PieceTable'
+import { PieceTable, type PieceViewMode } from '../tables/PieceTable'
 import { FileTable } from '../tables/FileTable'
 import type { TorrentFileInfo } from '@jstorrent/engine'
 import { SwarmTable } from '../tables/SwarmTable'
@@ -66,6 +66,10 @@ export interface DetailPaneProps {
   onSetFilePriority?: (torrentHash: string, fileIndex: number, priority: number) => void
   /** Callback to open logging settings */
   onOpenLoggingSettings?: () => void
+  /** Current piece visualization mode */
+  pieceViewMode?: PieceViewMode
+  /** Callback when piece visualization mode changes */
+  onPieceViewModeChange?: (mode: PieceViewMode) => void
 }
 
 const tabStyle: React.CSSProperties = {
@@ -208,6 +212,8 @@ export function DetailPane(props: DetailPaneProps) {
               torrentHash={selectedHash}
               getSelectedKeys={getSelectedKeys}
               onSelectionChange={onSelectionChange}
+              pieceViewMode={props.pieceViewMode}
+              onPieceViewModeChange={props.onPieceViewModeChange}
             />
           ) : (
             <TorrentPlaceholder selectedCount={props.selectedHashes.size} tabName="pieces" />

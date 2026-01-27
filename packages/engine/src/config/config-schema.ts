@@ -26,6 +26,9 @@ export type Theme = 'system' | 'dark' | 'light'
 /** Progress bar display style */
 export type ProgressBarStyle = 'text' | 'bar'
 
+/** Piece visualization display mode */
+export type PieceViewMode = 'summary' | 'bar' | 'grid'
+
 /** UI scale for font and spacing sizes */
 export type UiScale = 'small' | 'default' | 'large' | 'larger'
 
@@ -298,6 +301,15 @@ export const configSchema = {
     storage: 'sync',
     values: ['small', 'default', 'large', 'larger'] as const,
     default: 'large' as UiScale, // Default to 'large' for better readability
+  },
+
+  /** Piece visualization display mode. */
+  pieceViewMode: {
+    type: 'enum',
+    category: 'setting',
+    storage: 'sync',
+    values: ['summary', 'bar', 'grid'] as const,
+    default: 'summary' as PieceViewMode,
   },
 
   // ===========================================================================

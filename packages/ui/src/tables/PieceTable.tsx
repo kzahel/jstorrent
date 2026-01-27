@@ -10,6 +10,9 @@ import {
   PieceViewMode,
 } from '../components/PieceVisualization'
 
+// Re-export for consumers
+export type { PieceViewMode }
+
 function formatElapsed(timestamp: number): string {
   const elapsed = Date.now() - timestamp
   if (elapsed < 1000) return `${elapsed}ms`
@@ -129,6 +132,10 @@ export interface PieceTableProps {
   getSelectedKeys?: () => Set<string>
   /** Called when selection changes */
   onSelectionChange?: (keys: Set<string>) => void
+  /** Current piece visualization mode */
+  pieceViewMode?: PieceViewMode
+  /** Called when piece visualization mode changes */
+  onPieceViewModeChange?: (mode: PieceViewMode) => void
 }
 
 /**
@@ -137,7 +144,10 @@ export interface PieceTableProps {
  * Pieces disappear when persisted (hash verified, written to disk).
  */
 export function PieceTable(props: PieceTableProps) {
-  const [viewMode, setViewMode] = useState<PieceViewMode>('summary')
+  // Use controlled mode if props provided, otherwise local state
+  const [localViewMode, setLocalViewMode] = useState<PieceViewMode>('summary')
+  const viewMode = props.pieceViewMode ?? localViewMode
+  const setViewMode = props.onPieceViewModeChange ?? setLocalViewMode
   const [showVisualization, setShowVisualization] = useState(true)
 
   // Use refs to always get current values in getters

@@ -15,6 +15,7 @@ import type {
   Theme,
   ProgressBarStyle,
   UiScale,
+  PieceViewMode,
   PlatformType,
   UPnPStatus,
   ComponentLogLevel,
@@ -116,6 +117,9 @@ export interface ConfigHub {
 
   /** UI scale for fonts and spacing. */
   readonly uiScale: ConfigValue<UiScale>
+
+  /** Piece visualization display mode. */
+  readonly pieceViewMode: ConfigValue<PieceViewMode>
 
   // ===========================================================================
   // Settings: Notifications (extension-only)

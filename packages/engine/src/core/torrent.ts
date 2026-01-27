@@ -528,6 +528,7 @@ export class Torrent extends EngineComponent {
 
       // Managers
       getSwarm: () => this._swarm,
+      getPeerSelector: () => this._connectionManager.getPeerSelector(),
       getPeerCoordinator: () => this._peerCoordinator,
       getUploader: () => this._uploader,
       getActivePieces: () => this.activePieces,
@@ -1372,7 +1373,7 @@ export class Torrent extends EngineComponent {
 
     // Get best candidate right now
     const swarmSize = this._swarm.size
-    const candidates = this._swarm.getConnectablePeers(1)
+    const candidates = this._connectionManager.getPeerSelector().getConnectablePeers(1)
     if (candidates.length === 0) {
       this.logger.warn(
         `connectOnePeer: no candidates! swarm=${swarmSize}, connected=${connected}, connecting=${connecting}`,

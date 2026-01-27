@@ -10,6 +10,7 @@ import {
   parseCompactPeers,
   PeerAddress,
 } from '../../src/core/swarm'
+import { PeerSelector } from '../../src/core/peer-selector'
 import { Logger } from '../../src/logging/logger'
 
 // Create a mock logger
@@ -168,11 +169,13 @@ describe('Address Utilities', () => {
 
 describe('Swarm', () => {
   let swarm: Swarm
+  let peerSelector: PeerSelector
   let logger: Logger
 
   beforeEach(() => {
     logger = createMockLogger()
     swarm = new Swarm(logger)
+    peerSelector = new PeerSelector(swarm)
   })
 
   describe('addPeer', () => {
@@ -286,7 +289,7 @@ describe('Swarm', () => {
     })
   })
 
-  describe('getConnectablePeers', () => {
+  describe('PeerSelector.getConnectablePeers', () => {
     beforeEach(() => {
       // Add several peers
       for (let i = 0; i < 10; i++) {
@@ -295,7 +298,7 @@ describe('Swarm', () => {
     })
 
     it('should return idle peers', () => {
-      const candidates = swarm.getConnectablePeers(5)
+      const candidates = peerSelector.getConnectablePeers(5)
       expect(candidates.length).toBe(5)
       candidates.forEach((p) => expect(p.state).toBe('idle'))
     })
@@ -305,7 +308,7 @@ describe('Swarm', () => {
       swarm.markConnecting(key)
       swarm.markConnected(key, {} as any)
 
-      const candidates = swarm.getConnectablePeers(10)
+      const candidates = peerSelector.getConnectablePeers(10)
       expect(candidates.every((p) => addressKey(p) !== key)).toBe(true)
     })
 
@@ -313,7 +316,7 @@ describe('Swarm', () => {
       const key = '192.168.1.0:6881'
       swarm.markConnecting(key)
 
-      const candidates = swarm.getConnectablePeers(10)
+      const candidates = peerSelector.getConnectablePeers(10)
       expect(candidates.every((p) => addressKey(p) !== key)).toBe(true)
     })
 
@@ -321,7 +324,7 @@ describe('Swarm', () => {
       const key = '192.168.1.0:6881'
       swarm.ban(key, 'corrupt data')
 
-      const candidates = swarm.getConnectablePeers(10)
+      const candidates = peerSelector.getConnectablePeers(10)
       expect(candidates.every((p) => addressKey(p) !== key)).toBe(true)
     })
 
@@ -331,7 +334,7 @@ describe('Swarm', () => {
       swarm.markConnectFailed(key, 'timeout')
 
       // Peer just failed, should be in backoff
-      const candidates = swarm.getConnectablePeers(10)
+      const candidates = peerSelector.getConnectablePeers(10)
       expect(candidates.every((p) => addressKey(p) !== key)).toBe(true)
     })
   })
@@ -481,12 +484,12 @@ describe('Swarm', () => {
 
       // Peer should NOT be returned immediately (in backoff)
       // quickDisconnects=1, backoff = 2^1 = 2000ms
-      const candidates = swarm.getConnectablePeers(10)
+      const candidates = peerSelector.getConnectablePeers(10)
       expect(candidates.find((p) => addressKey(p) === key)).toBeUndefined()
 
       // After backoff expires (2s + margin), should be returned
       vi.advanceTimersByTime(2500)
-      const laterCandidates = swarm.getConnectablePeers(10)
+      const laterCandidates = peerSelector.getConnectablePeers(10)
       expect(laterCandidates.find((p) => addressKey(p) === key)).toBeDefined()
     })
 
@@ -513,12 +516,12 @@ describe('Swarm', () => {
       // Backoff should now be 2^2 = 4s
       // After 3s, should still be in backoff
       vi.advanceTimersByTime(3000)
-      let candidates = swarm.getConnectablePeers(10)
+      let candidates = peerSelector.getConnectablePeers(10)
       expect(candidates.find((p) => addressKey(p) === key)).toBeUndefined()
 
       // After another 2s (total 5s > 4s backoff), should be available
       vi.advanceTimersByTime(2000)
-      candidates = swarm.getConnectablePeers(10)
+      candidates = peerSelector.getConnectablePeers(10)
       expect(candidates.find((p) => addressKey(p) === key)).toBeDefined()
     })
 
@@ -546,7 +549,7 @@ describe('Swarm', () => {
       expect(peer.quickDisconnects).toBe(0)
 
       // Peer should be immediately available (no backoff)
-      const candidates = swarm.getConnectablePeers(10)
+      const candidates = peerSelector.getConnectablePeers(10)
       expect(candidates.find((p) => addressKey(p) === key)).toBeDefined()
     })
 

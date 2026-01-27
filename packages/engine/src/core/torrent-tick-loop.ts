@@ -7,6 +7,7 @@ import { peerKey } from './swarm'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
 import type { ActivePieceManager } from './active-piece-manager'
 import type { PeerCoordinator } from './peer-coordinator'
+import type { PeerSelector } from './peer-selector'
 import type { Swarm } from './swarm'
 import type { TorrentUploader } from './torrent-uploader'
 import type { TorrentDiskQueue } from './disk-queue'
@@ -79,6 +80,7 @@ export interface TickLoopCallbacks {
 
   // Managers
   getSwarm(): Swarm
+  getPeerSelector(): PeerSelector
   getPeerCoordinator(): PeerCoordinator
   getUploader(): TorrentUploader
   getActivePieces(): ActivePieceManager | undefined
@@ -444,6 +446,7 @@ export class TorrentTickLoop extends EngineComponent {
     if (this.callbacks.isKillSwitchEnabled()) return
 
     const swarm = this.callbacks.getSwarm()
+    const peerSelector = this.callbacks.getPeerSelector()
     const coordinator = this.callbacks.getPeerCoordinator()
     const peers = this.callbacks.getPeers()
 
@@ -466,7 +469,7 @@ export class TorrentTickLoop extends EngineComponent {
     const swarmSize = swarm.size
 
     // Get candidates once, reuse for both hasSwarmCandidates and candidateCount
-    const candidates = slotsAvailable > 0 ? swarm.getConnectablePeers(slotsAvailable) : []
+    const candidates = slotsAvailable > 0 ? peerSelector.getConnectablePeers(slotsAvailable) : []
     const hasSwarmCandidates = candidates.length > 0
 
     const { unchoke, drop } = coordinator.evaluate(snapshots, hasSwarmCandidates, {

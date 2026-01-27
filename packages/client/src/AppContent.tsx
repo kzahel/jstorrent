@@ -19,6 +19,7 @@ import {
   ContextMenuItem,
 } from '@jstorrent/ui'
 import { useEngineState } from './hooks/useEngineState'
+import { useConfigValue } from './context/ConfigContext'
 import { copyTextToClipboard } from './utils/clipboard'
 import { standaloneAlert } from './utils/dialogs'
 import {
@@ -91,6 +92,9 @@ export function AppContent({
     maxHeightRatio: 0.85,
     defaultHeight: 250,
   })
+
+  // Piece visualization mode from config
+  const [pieceViewMode, setPieceViewMode] = useConfigValue('pieceViewMode')
 
   // Get selected torrent objects
   const selectedTorrentObjects = useMemo(() => {
@@ -553,6 +557,8 @@ export function AppContent({
                   }
                 }}
                 onOpenLoggingSettings={onOpenLoggingSettings}
+                pieceViewMode={pieceViewMode}
+                onPieceViewModeChange={setPieceViewMode}
               />
             </div>
           </div>

@@ -43,6 +43,8 @@ const SETTING_KEYS: ConfigKey[] = [
   'theme',
   'maxFps',
   'progressBarStyle',
+  'uiScale',
+  'pieceViewMode',
   'notifyOnTorrentComplete',
   'notifyOnAllComplete',
   'notifyOnError',
