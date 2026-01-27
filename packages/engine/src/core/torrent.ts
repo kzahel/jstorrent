@@ -2964,19 +2964,18 @@ export class Torrent extends EngineComponent {
     const peerId = peer.peerId ? toHex(peer.peerId) : `${peer.remoteAddress}:${peer.remotePort}`
     const peerBitfield = peer.bitfield
 
-    // PHASE 1: Request from existing active pieces first
-    // This is O(A) where A = active pieces count (typically small)
+    // PHASE 1: Request from existing partial pieces first
+    // This is O(P) where P = partial pieces count (capped by Phase 2 limits)
     // Avoids expensive piece selection on every block received
-    // Use values() for zero-allocation iteration (critical for QuickJS performance)
+    // Use partialValues() to skip pending pieces (they have all blocks already)
     const isEndgame = this._endgameManager.isEndgame
-    for (const piece of this.activePieces.values()) {
+    for (const piece of this.activePieces.partialValues()) {
       if (peer.requestsPending >= pipelineLimit) return
 
       // Skip if peer doesn't have this piece
       if (!peerBitfield?.get(piece.index)) continue
 
-      // Skip if piece is complete (waiting for hash/flush)
-      if (piece.haveAllBlocks) continue
+      // No need to check haveAllBlocks - partialValues() only returns partial pieces
 
       // Fast path: In normal mode, skip pieces with no unrequested blocks
       // This avoids array allocation from getNeededBlocks() when all blocks are in-flight
@@ -3009,6 +3008,15 @@ export class Torrent extends EngineComponent {
     // Optimization: Start from _firstNeededPiece to skip completed prefix
     if (peer.requestsPending >= pipelineLimit) return
     if (!peerBitfield || !this._bitfield || !this._piecePriority) return
+
+    // Phase 2 Partial Cap: Don't start new pieces if we have too many partials
+    // This prevents the "600 active pieces" death spiral
+    // Threshold: min(peers × 1.5, 2048 / blocksPerPiece)
+    const connectedPeerCount = this.connectedPeers.length
+    if (this.activePieces.shouldPrioritizePartials(connectedPeerCount)) {
+      // Skip Phase 2 - focus on completing existing partial pieces first
+      return
+    }
 
     const pieceCount = this.piecesCount
     for (let i = this._firstNeededPiece; i < pieceCount; i++) {
@@ -3162,6 +3170,9 @@ export class Torrent extends EngineComponent {
 
     // Then finalize if piece is complete
     if (piece.haveAllBlocks) {
+      // Promote to pending state - no longer counts against partial cap
+      // This allows new pieces to start downloading while this one awaits verification
+      this.activePieces.promoteToPending(msg.index)
       await this.finalizePiece(msg.index, piece)
     }
   }
@@ -3217,14 +3228,14 @@ export class Torrent extends EngineComponent {
         this.logger.error(`Failed to write boundary piece to .parts:`, errorMsg)
         this.errorMessage = `Write failed: ${errorMsg}`
         this.stopNetwork()
-        this.activePieces?.remove(index)
+        this.activePieces?.removePending(index)
         ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
         return
       }
 
       // Mark as verified in internal bitfield
       this.markPieceVerified(index)
-      this.activePieces?.remove(index)
+      this.activePieces?.removePending(index)
 
       // Track disk write throughput
       ;(this.engine as BtEngine).bandwidthTracker.record('disk', pieceData.length, 'down')
@@ -3269,7 +3280,7 @@ export class Torrent extends EngineComponent {
           this.logger.error(`Fatal write error - stopping torrent:`, errorMsg)
           this.errorMessage = `Write failed: ${errorMsg}`
           this.stopNetwork()
-          this.activePieces?.remove(index)
+          this.activePieces?.removePending(index)
           ;(this.engine as BtEngine).sessionPersistence?.saveTorrentState(this)
           return
         }
@@ -3284,7 +3295,7 @@ export class Torrent extends EngineComponent {
 
       // Mark as verified
       this.markPieceVerified(index)
-      this.activePieces?.remove(index)
+      this.activePieces?.removePending(index)
 
       // Track disk write throughput
       ;(this.engine as BtEngine).bandwidthTracker.record('disk', pieceData.length, 'down')
@@ -3368,8 +3379,8 @@ export class Torrent extends EngineComponent {
       this.banPeerByPeerId(decision)
     }
 
-    // Discard the failed piece data
-    this.activePieces?.remove(index)
+    // Discard the failed piece data (piece is in pending state after all blocks received)
+    this.activePieces?.removePending(index)
   }
 
   /**

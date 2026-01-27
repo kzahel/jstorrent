@@ -39,15 +39,27 @@ const DEFAULT_CONFIG: ActivePieceConfig = {
  * Key responsibility: clearRequestsForPeer() - when a peer disconnects,
  * remove all pending requests from that peer so blocks can be re-requested
  * from other peers. This fixes the "stall on peer disconnect" bug.
+ *
+ * Phase 2 Enhancement: Separate tracking of partial vs pending pieces
+ * - Partial pieces: still downloading blocks (network-bound)
+ * - Pending pieces: all blocks received, awaiting verification (I/O-bound)
+ *
+ * The partial cap (peers × 1.5) only applies to partial pieces, not pending.
+ * This ensures disk I/O backups don't starve new downloads.
  */
 export class ActivePieceManager extends EngineComponent {
   static logName = 'active-pieces'
 
-  private pieces: Map<number, ActivePiece> = new Map()
+  /** Pieces still downloading blocks (partial) */
+  private _partialPieces: Map<number, ActivePiece> = new Map()
+  /** Pieces with all blocks received, awaiting verification (pending) */
+  private _pendingPieces: Map<number, ActivePiece> = new Map()
   private config: ActivePieceConfig
   private cleanupInterval?: ReturnType<typeof setInterval>
   private pieceLengthFn: (index: number) => number
   private bufferPool: PieceBufferPool | null = null
+  /** Standard block size for calculating block cap (typically 16KB) */
+  private readonly blocksPerPiece: number
 
   constructor(
     engine: ILoggingEngine,
@@ -57,6 +69,12 @@ export class ActivePieceManager extends EngineComponent {
     super(engine)
     this.pieceLengthFn = pieceLengthFn
     this.config = { ...DEFAULT_CONFIG, ...config }
+
+    // Calculate blocks per piece for cap calculation (16KB blocks)
+    const BLOCK_SIZE = 16384
+    this.blocksPerPiece = this.config.standardPieceLength
+      ? Math.ceil(this.config.standardPieceLength / BLOCK_SIZE)
+      : 16 // Default assumption: 256KB pieces = 16 blocks
 
     // Initialize buffer pool if standard piece length is configured
     if (this.config.standardPieceLength) {
@@ -78,17 +96,25 @@ export class ActivePieceManager extends EngineComponent {
   /**
    * Get or create an ActivePiece for the given index.
    * Returns null if at capacity limits.
+   * New pieces are added to the partial map (still downloading).
    */
   getOrCreate(index: number): ActivePiece | null {
-    let piece = this.pieces.get(index)
+    // Check partial map first
+    let piece = this._partialPieces.get(index)
+    if (piece) return piece
+
+    // Also check pending (shouldn't happen but defensive)
+    piece = this._pendingPieces.get(index)
     if (piece) return piece
 
     // Check piece count limit before creating
-    if (this.pieces.size >= this.config.maxActivePieces) {
+    const totalActive = this._partialPieces.size + this._pendingPieces.size
+    if (totalActive >= this.config.maxActivePieces) {
       // Try to clean up stale pieces first
       this.cleanupStale()
-      if (this.pieces.size >= this.config.maxActivePieces) {
-        this.logger.debug(`Cannot create piece ${index}: at capacity (${this.pieces.size})`)
+      const newTotal = this._partialPieces.size + this._pendingPieces.size
+      if (newTotal >= this.config.maxActivePieces) {
+        this.logger.debug(`Cannot create piece ${index}: at capacity (${newTotal})`)
         return null
       }
     }
@@ -108,34 +134,118 @@ export class ActivePieceManager extends EngineComponent {
     }
 
     piece = new ActivePiece(index, length, buffer)
-    this.pieces.set(index, piece)
+    this._partialPieces.set(index, piece)
     this.logger.debug(`Created active piece ${index}`)
     return piece
   }
 
   /**
    * Get existing ActivePiece without creating.
+   * Checks both partial and pending maps.
    */
   get(index: number): ActivePiece | undefined {
-    return this.pieces.get(index)
+    return this._partialPieces.get(index) ?? this._pendingPieces.get(index)
   }
 
+  /**
+   * Check if a piece is active (in either partial or pending state).
+   */
   has(index: number): boolean {
-    return this.pieces.has(index)
+    return this._partialPieces.has(index) || this._pendingPieces.has(index)
+  }
+
+  /**
+   * Check if a piece is in partial state (still downloading).
+   */
+  isPartial(index: number): boolean {
+    return this._partialPieces.has(index)
+  }
+
+  /**
+   * Check if a piece is in pending state (awaiting verification).
+   */
+  isPending(index: number): boolean {
+    return this._pendingPieces.has(index)
   }
 
   /**
    * Remove an ActivePiece (after verification or abandonment).
+   * Removes from either partial or pending map.
    */
   remove(index: number): void {
-    const piece = this.pieces.get(index)
+    let piece = this._partialPieces.get(index)
     if (piece) {
-      // Release buffer back to pool if applicable
       this.releaseBuffer(piece)
       piece.clear()
-      this.pieces.delete(index)
-      this.logger.debug(`Removed active piece ${index}`)
+      this._partialPieces.delete(index)
+      this.logger.debug(`Removed partial piece ${index}`)
+      return
     }
+
+    piece = this._pendingPieces.get(index)
+    if (piece) {
+      this.releaseBuffer(piece)
+      piece.clear()
+      this._pendingPieces.delete(index)
+      this.logger.debug(`Removed pending piece ${index}`)
+    }
+  }
+
+  // --- Partial/Pending Lifecycle ---
+
+  /**
+   * Move a piece from partial to pending state.
+   * Called when all blocks have been received and piece is awaiting verification.
+   */
+  promoteToPending(pieceIndex: number): void {
+    const piece = this._partialPieces.get(pieceIndex)
+    if (piece) {
+      this._partialPieces.delete(pieceIndex)
+      this._pendingPieces.set(pieceIndex, piece)
+      this.logger.debug(
+        `Piece ${pieceIndex} promoted to pending (awaiting verification), ` +
+          `partials: ${this._partialPieces.size}, pending: ${this._pendingPieces.size}`,
+      )
+    }
+  }
+
+  /**
+   * Remove a piece from pending state after verification completes.
+   * Returns the piece for buffer reuse if needed.
+   */
+  removePending(pieceIndex: number): ActivePiece | undefined {
+    const piece = this._pendingPieces.get(pieceIndex)
+    if (piece) {
+      this.releaseBuffer(piece)
+      piece.clear()
+      this._pendingPieces.delete(pieceIndex)
+      this.logger.debug(`Removed pending piece ${pieceIndex} after verification`)
+    }
+    return piece
+  }
+
+  // --- Partial Cap Logic (Phase 2) ---
+
+  /**
+   * Check if we should prioritize completing existing partial pieces
+   * over starting new ones. Returns true when partials exceed threshold.
+   *
+   * The threshold is min(peers × 1.5, 2048 / blocksPerPiece).
+   * This counts ONLY partial pieces, not pending pieces awaiting verification.
+   */
+  shouldPrioritizePartials(connectedPeerCount: number): boolean {
+    const maxAllowed = this.getMaxPartials(connectedPeerCount)
+    return this._partialPieces.size > maxAllowed
+  }
+
+  /**
+   * Get the maximum number of partial pieces allowed.
+   * Based on libtorrent: min(peers × 1.5, 2048 / blocksPerPiece)
+   */
+  getMaxPartials(connectedPeerCount: number): number {
+    const peerThreshold = Math.floor(connectedPeerCount * 1.5)
+    const blockCap = Math.floor(2048 / this.blocksPerPiece)
+    return Math.max(1, Math.min(peerThreshold, blockCap)) // At least 1
   }
 
   /**
@@ -150,7 +260,7 @@ export class ActivePieceManager extends EngineComponent {
   // --- Iteration ---
 
   get activeIndices(): number[] {
-    return Array.from(this.pieces.keys())
+    return [...this._partialPieces.keys(), ...this._pendingPieces.keys()]
   }
 
   /**
@@ -158,25 +268,71 @@ export class ActivePieceManager extends EngineComponent {
    * Use values() for zero-allocation iteration in hot paths.
    */
   get activePieces(): ActivePiece[] {
-    return Array.from(this.pieces.values())
+    return [...this._partialPieces.values(), ...this._pendingPieces.values()]
   }
 
   /**
-   * Returns an iterator over active pieces. Zero allocation - use this in hot paths.
+   * Returns an iterator over ALL active pieces (both partial and pending).
+   * Use partialValues() in request loops to skip pending pieces.
    */
   values(): IterableIterator<ActivePiece> {
-    return this.pieces.values()
+    return this.allPiecesIterator()
   }
 
+  /**
+   * Generator that yields all pieces from both maps.
+   */
+  private *allPiecesIterator(): IterableIterator<ActivePiece> {
+    yield* this._partialPieces.values()
+    yield* this._pendingPieces.values()
+  }
+
+  /**
+   * Returns an iterator over ONLY partial pieces (still downloading).
+   * Use this in request loops - pending pieces have all blocks and don't need requests.
+   */
+  partialValues(): IterableIterator<ActivePiece> {
+    return this._partialPieces.values()
+  }
+
+  /**
+   * Returns an iterator over ONLY pending pieces (awaiting verification).
+   * Useful for verification queue management.
+   */
+  pendingValues(): IterableIterator<ActivePiece> {
+    return this._pendingPieces.values()
+  }
+
+  /**
+   * Total count of active pieces (partial + pending).
+   */
   get activeCount(): number {
-    return this.pieces.size
+    return this._partialPieces.size + this._pendingPieces.size
+  }
+
+  /**
+   * Count of partial pieces only (still downloading).
+   * This is what the partial cap is based on.
+   */
+  get partialCount(): number {
+    return this._partialPieces.size
+  }
+
+  /**
+   * Count of pending pieces (awaiting verification).
+   */
+  get pendingCount(): number {
+    return this._pendingPieces.size
   }
 
   // --- Memory Tracking ---
 
   get totalBufferedBytes(): number {
     let total = 0
-    for (const piece of this.pieces.values()) {
+    for (const piece of this._partialPieces.values()) {
+      total += piece.bufferedBytes
+    }
+    for (const piece of this._pendingPieces.values()) {
       total += piece.bufferedBytes
     }
     return total
@@ -191,7 +347,8 @@ export class ActivePieceManager extends EngineComponent {
    */
   clearRequestsForPeer(peerId: string): number {
     let totalCleared = 0
-    for (const piece of this.pieces.values()) {
+    // Only partial pieces have outstanding requests (pending pieces have all blocks)
+    for (const piece of this._partialPieces.values()) {
       totalCleared += piece.clearRequestsForPeer(peerId)
     }
     if (totalCleared > 0) {
@@ -207,7 +364,8 @@ export class ActivePieceManager extends EngineComponent {
    */
   checkTimeouts(): number {
     const clearedByPeer = new Map<string, number>()
-    for (const piece of this.pieces.values()) {
+    // Only partial pieces have outstanding requests (pending pieces have all blocks)
+    for (const piece of this._partialPieces.values()) {
       const pieceClearedByPeer = piece.checkTimeouts(this.config.requestTimeoutMs)
       for (const [peerId, count] of pieceClearedByPeer) {
         clearedByPeer.set(peerId, (clearedByPeer.get(peerId) || 0) + count)
@@ -222,11 +380,12 @@ export class ActivePieceManager extends EngineComponent {
   }
 
   /**
-   * Check if any active piece has unrequested blocks.
+   * Check if any partial piece has unrequested blocks.
    * Used to determine endgame eligibility.
+   * Only checks partial pieces (pending pieces have all blocks by definition).
    */
   hasUnrequestedBlocks(): boolean {
-    for (const piece of this.pieces.values()) {
+    for (const piece of this._partialPieces.values()) {
       // Use the piece's allocation-free check instead of getNeededBlocks()
       if (piece.hasUnrequestedBlocks()) {
         return true
@@ -241,15 +400,18 @@ export class ActivePieceManager extends EngineComponent {
    * - No activity for staleThreshold (2x request timeout = 60s by default)
    * - AND not complete (pieces with all blocks are waiting for disk write)
    * - AND either: no data received, OR no outstanding requests (stuck)
+   *
+   * Only checks partial pieces - pending pieces are actively being verified.
    */
   private cleanupStale(): void {
     const now = Date.now()
     const staleThreshold = this.config.requestTimeoutMs * 2
 
-    for (const [index, piece] of this.pieces) {
+    for (const [index, piece] of this._partialPieces) {
       const isStale = now - piece.lastActivity > staleThreshold
 
-      // Never remove pieces that have all blocks - they're waiting for disk write/verification
+      // Never remove pieces that have all blocks - they should be in pending, not here
+      // (but check defensively in case promotion was delayed)
       if (piece.haveAllBlocks) continue
 
       // Remove if stale AND either:
@@ -262,7 +424,7 @@ export class ActivePieceManager extends EngineComponent {
         // Release buffer back to pool before clearing
         this.releaseBuffer(piece)
         piece.clear()
-        this.pieces.delete(index)
+        this._partialPieces.delete(index)
       }
     }
   }
@@ -276,11 +438,16 @@ export class ActivePieceManager extends EngineComponent {
       this.cleanupInterval = undefined
     }
     // Release all buffers back to pool before clearing
-    for (const piece of this.pieces.values()) {
+    for (const piece of this._partialPieces.values()) {
       this.releaseBuffer(piece)
       piece.clear()
     }
-    this.pieces.clear()
+    for (const piece of this._pendingPieces.values()) {
+      this.releaseBuffer(piece)
+      piece.clear()
+    }
+    this._partialPieces.clear()
+    this._pendingPieces.clear()
 
     // Clear the buffer pool
     if (this.bufferPool) {
