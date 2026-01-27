@@ -440,7 +440,7 @@ describe('DHTNode Bootstrap', () => {
   describe('events', () => {
     it('emits bootstrapped event when complete', async () => {
       const bootstrappedHandler = vi.fn()
-      dhtNode.on('bootstrapped', bootstrappedHandler)
+      dhtNode.on('test:bootstrapped', bootstrappedHandler)
 
       const bootstrapNode = { host: 'bootstrap.example.com', port: 6881 }
       const bootstrapNodeId = generateRandomNodeId()
@@ -466,7 +466,7 @@ describe('DHTNode Bootstrap', () => {
 
     it('emits nodeAdded events during bootstrap', async () => {
       const nodeAddedHandler = vi.fn()
-      dhtNode.on('nodeAdded', nodeAddedHandler)
+      dhtNode.on('test:nodeAdded', nodeAddedHandler)
 
       const bootstrapNode = { host: 'bootstrap.example.com', port: 6881 }
       const bootstrapNodeId = generateRandomNodeId()

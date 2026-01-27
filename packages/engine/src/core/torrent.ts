@@ -1835,7 +1835,7 @@ export class Torrent extends EngineComponent {
     if (total > maxWithHeadroom) {
       const msg = `total connections (${total}) > maxPeers+headroom (${maxWithHeadroom})`
       this.logger.error(`INVARIANT VIOLATION: ${msg}`)
-      this.emit('invariant_violation', {
+      this.emit('test:invariant_violation', {
         type: 'limit_exceeded',
         total,
         max: maxWithHeadroom,
@@ -1857,7 +1857,7 @@ export class Torrent extends EngineComponent {
     if (total > maxWithHeadroom) {
       const msg = `${this.numPeers} peers + ${connecting} connecting = ${total} > ${maxWithHeadroom} max`
       this.logger.error(`LIMIT EXCEEDED [${context}]: ${msg}`)
-      this.emit('invariant_violation', {
+      this.emit('test:invariant_violation', {
         type: 'limit_exceeded',
         context,
         total,
@@ -2489,7 +2489,6 @@ export class Torrent extends EngineComponent {
 
     peer.on('bytesUploaded', (bytes) => {
       this.totalUploaded += bytes
-      this.emit('upload', bytes)
       ;(this.engine as BtEngine).bandwidthTracker.record('peer:protocol', bytes, 'up')
     })
 
@@ -3461,24 +3460,7 @@ export class Torrent extends EngineComponent {
       `Piece ${index} verified [${this.completedPiecesCount}/${this.piecesCount}] ${progressPct}%`,
     )
 
-    const t0 = Date.now()
     this.emit('piece', index)
-    const t1 = Date.now()
-
-    // Emit progress event with detailed info
-    this.emit('progress', {
-      pieceIndex: index,
-      completedPieces: this.completedPiecesCount,
-      totalPieces: this.piecesCount,
-      progress: this.progress,
-      downloaded: this.totalDownloaded,
-    })
-    const total = Date.now() - t0
-    if (total > 1) {
-      console.log(
-        `[PERF] Events: piece=${t1 - t0}ms progress=${total - (t1 - t0)}ms total=${total}ms`,
-      )
-    }
 
     // Check completion first so completedAt is set before persisting
     const hadCompletedAt = !!this.completedAt
@@ -3632,7 +3614,6 @@ export class Torrent extends EngineComponent {
       this.logger.info(`contentStorage.close took ${Date.now() - t2}ms`)
     }
     this.logger.info(`destroy() complete, total ${Date.now() - t0}ms`)
-    this.emit('destroyed')
   }
 
   /**
@@ -3744,7 +3725,6 @@ export class Torrent extends EngineComponent {
       this._checkingProgress = 0
     }
 
-    this.emit('checked')
     this.logger.info(
       `Recheck complete for ${this.infoHashStr} (${this._partsFilePieces.size} pieces in .parts)`,
     )

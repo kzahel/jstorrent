@@ -632,7 +632,7 @@ describe('DHTNode Outgoing Queries', () => {
   describe('events', () => {
     it('emits nodeAdded when routing table adds node', async () => {
       const nodeAddedHandler = vi.fn()
-      dhtNode.on('nodeAdded', nodeAddedHandler)
+      dhtNode.on('test:nodeAdded', nodeAddedHandler)
 
       const remoteNode = { host: '192.168.1.1', port: 6881 }
       const pingPromise = dhtNode.ping(remoteNode)
@@ -659,7 +659,7 @@ describe('DHTNode Outgoing Queries', () => {
         hashFn: mockHashFn,
         skipMaintenance: true,
       })
-      node.on('ready', readyHandler)
+      node.on('test:ready', readyHandler)
 
       await node.start()
 

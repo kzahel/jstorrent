@@ -108,7 +108,7 @@ describe('Rate Limiting Integration', () => {
       // Wait for metadata
       await new Promise<void>((resolve) => {
         if (leecherTorrent.hasMetadata) resolve()
-        else leecherTorrent.on('ready', () => resolve())
+        else leecherTorrent.on('test:ready', () => resolve())
       })
 
       // Let some requests queue up

@@ -647,7 +647,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         await this.sessionPersistence.saveInfoDict(input.infoHashStr, infoBuffer)
 
         torrent.recheckPeers()
-        torrent.emit('ready')
+        torrent.emit('test:ready')
       } catch (err) {
         this.emit('error', err)
       }
@@ -1331,12 +1331,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     if (!this.getNetworkInterfaces) {
       this.logger.warn('UPnP: Cannot enable - no getNetworkInterfaces function provided')
       this._upnpStatus = 'failed'
-      this.emit('upnpStatusChanged', this._upnpStatus)
       return
     }
 
     this._upnpStatus = 'discovering'
-    this.emit('upnpStatusChanged', this._upnpStatus)
     this.logger.info('UPnP: Discovering gateway...')
 
     this.upnpManager = new UPnPManager(this.socketFactory, this.getNetworkInterfaces, this.logger)
@@ -1344,7 +1342,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     const discovered = await this.upnpManager.discover()
     if (!discovered) {
       this._upnpStatus = 'unavailable'
-      this.emit('upnpStatusChanged', this._upnpStatus)
       this.logger.info('UPnP: No gateway found')
       return
     }
@@ -1354,13 +1351,11 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     if (tcpMapped) {
       this._upnpStatus = 'mapped'
-      this.emit('upnpStatusChanged', this._upnpStatus)
       this.logger.info(
         `UPnP: Mapped TCP port ${this.port}${udpMapped ? ` and UDP port ${this.port + 1}` : ''}, external IP: ${this.upnpManager.externalIP}`,
       )
     } else {
       this._upnpStatus = 'failed'
-      this.emit('upnpStatusChanged', this._upnpStatus)
       this.logger.warn(`UPnP: Failed to map port ${this.port}`)
     }
   }
@@ -1376,7 +1371,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     this._upnpStatus = 'disabled'
-    this.emit('upnpStatusChanged', this._upnpStatus)
     this.logger.info('UPnP: Disabled')
   }
 
@@ -1481,7 +1475,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     }
 
     this.logger.info(`DHT: Started with node ID ${dhtNode.nodeIdHex}`)
-    this.emit('dhtStatusChanged', true)
 
     // Notify all active torrents that DHT is ready
     // This handles the race condition where torrents start before DHT
@@ -1510,8 +1503,6 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this._dhtNode.stop()
     this._dhtNode = undefined
     this._dhtEnabled = false
-
-    this.emit('dhtStatusChanged', false)
     this.logger.info('DHT: Stopped')
   }
 

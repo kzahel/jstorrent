@@ -139,7 +139,7 @@ describe('Memory Swarm Integration', () => {
     // Wait for metadata and initialization
     await new Promise<void>((resolve) => {
       if (torrentB.hasMetadata) resolve()
-      torrentB.on('ready', () => resolve())
+      torrentB.on('test:ready', () => resolve())
     })
     console.log('Metadata received and torrent ready!')
 

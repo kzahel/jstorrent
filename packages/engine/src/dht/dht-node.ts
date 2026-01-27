@@ -290,9 +290,11 @@ export class DHTNode extends EventEmitter {
     this.skipMaintenance = options.skipMaintenance ?? false
     this.logger = options.logger
 
-    // Forward routing table events
-    this.routingTable.on('nodeAdded', (node: DHTNodeInfo) => this.emit('nodeAdded', node))
-    this.routingTable.on('nodeRemoved', (node: DHTNodeInfo) => this.emit('nodeRemoved', node))
+    // Forward routing table events (test-only)
+    this.routingTable.on('test:nodeAdded', (node: DHTNodeInfo) => this.emit('test:nodeAdded', node))
+    this.routingTable.on('test:nodeRemoved', (node: DHTNodeInfo) =>
+      this.emit('test:nodeRemoved', node),
+    )
 
     // Handle ping requests for full buckets
     this.routingTable.on('ping', (node: DHTNodeInfo) => {
@@ -355,7 +357,7 @@ export class DHTNode extends EventEmitter {
     }
 
     this.logger?.info(`DHT node started with ID ${this.nodeIdHex.slice(0, 8)}...`)
-    this.emit('ready')
+    this.emit('test:ready')
   }
 
   /**
@@ -804,7 +806,7 @@ export class DHTNode extends EventEmitter {
         `${stats.responsesReceived}/${stats.queriedCount} responses, ${stats.durationMs}ms`,
     )
     this._bootstrapped = true
-    this.emit('bootstrapped', stats)
+    this.emit('test:bootstrapped', stats)
     return stats
   }
 

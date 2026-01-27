@@ -48,7 +48,7 @@ describe('Torrent Connection Limits', () => {
       )
 
       const violations: InvariantViolation[] = []
-      torrent.on('invariant_violation', (v) => violations.push(v))
+      torrent.on('test:invariant_violation', (v) => violations.push(v))
 
       // Add 10 peers rapidly
       for (let i = 0; i < 10; i++) {
@@ -78,7 +78,7 @@ describe('Torrent Connection Limits', () => {
       )
 
       const violations: InvariantViolation[] = []
-      torrent.on('invariant_violation', (v) => violations.push(v))
+      torrent.on('test:invariant_violation', (v) => violations.push(v))
 
       // Mock socket factory to hang (never resolve) - simulates pending connections
       mockSocketFactory.createTcpSocket = vi.fn(
@@ -129,7 +129,7 @@ describe('Torrent Connection Limits', () => {
       )
 
       const violations: InvariantViolation[] = []
-      torrent.on('invariant_violation', (v) => violations.push(v))
+      torrent.on('test:invariant_violation', (v) => violations.push(v))
 
       // Mock socket factory to return simple mock sockets (no side effects)
       mockSocketFactory.createTcpSocket = vi.fn(async () => createMockSocket())
@@ -162,7 +162,7 @@ describe('Torrent Connection Limits', () => {
       )
 
       const violations: InvariantViolation[] = []
-      torrent.on('invariant_violation', (v) => violations.push(v))
+      torrent.on('test:invariant_violation', (v) => violations.push(v))
 
       // Mock socket factory to return simple mock sockets
       mockSocketFactory.createTcpSocket = vi.fn(async () => createMockSocket())
@@ -193,7 +193,7 @@ describe('Torrent Connection Limits', () => {
       )
 
       const violations: InvariantViolation[] = []
-      torrent.on('invariant_violation', (v) => violations.push(v))
+      torrent.on('test:invariant_violation', (v) => violations.push(v))
 
       // Mock socket factory to return a socket that fails on connect
       mockSocketFactory.createTcpSocket = vi.fn(async () => {
@@ -238,7 +238,7 @@ describe('Torrent Connection Limits', () => {
       )
 
       const violations: InvariantViolation[] = []
-      torrent.on('invariant_violation', (v) => violations.push(v))
+      torrent.on('test:invariant_violation', (v) => violations.push(v))
 
       // Add peers through swarm directly to bypass addPeer limits (simulating a bug)
       // With Phase 3, swarm is the single source of truth, so we access it directly

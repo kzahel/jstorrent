@@ -201,7 +201,7 @@ describe('Swarm', () => {
   describe('addPeers', () => {
     it('should add multiple peers and emit event', () => {
       const spy = vi.fn()
-      swarm.on('peersAdded', spy)
+      swarm.on('test:peersAdded', spy)
 
       const addrs: PeerAddress[] = [
         { ip: '192.168.1.1', port: 6881, family: 'ipv4' },

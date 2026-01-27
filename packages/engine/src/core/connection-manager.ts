@@ -1,4 +1,3 @@
-import { EventEmitter } from '../utils/event-emitter'
 import { Swarm, SwarmPeer, peerKey } from './swarm'
 import { PeerConnection } from './peer-connection'
 import { ISocketFactory, ITcpSocket } from '../interfaces/socket'
@@ -55,17 +54,6 @@ interface ScoredPeer {
 }
 
 // ============================================================================
-// Events
-// ============================================================================
-
-export interface ConnectionManagerEvents {
-  peerConnected: (key: string, connection: PeerConnection) => void
-  peerConnectFailed: (key: string, reason: string) => void
-  connectionTimeout: (key: string) => void
-  slowPeerDetected: (key: string, reason: string) => void
-}
-
-// ============================================================================
 // ConnectionManager
 // ============================================================================
 
@@ -78,7 +66,7 @@ export interface ConnectionManagerEvents {
  * - Filling available peer slots from swarm
  * - Coordinating with Swarm for state tracking
  */
-export class ConnectionManager extends EventEmitter {
+export class ConnectionManager {
   private config: ConnectionConfig
   private swarm: Swarm
   private socketFactory: ISocketFactory
@@ -109,7 +97,6 @@ export class ConnectionManager extends EventEmitter {
     config: Pick<ConnectionConfig, 'maxPeersPerTorrent'> &
       Partial<Omit<ConnectionConfig, 'maxPeersPerTorrent'>>,
   ) {
-    super()
     this.swarm = swarm
     this.socketFactory = socketFactory
     this.engine = engine
@@ -265,10 +252,6 @@ export class ConnectionManager extends EventEmitter {
 
       // Don't mark connected here - let the callback (addPeer) handle it
       // This avoids duplicate detection rejecting the peer
-
-      // Notify listeners - the callback is responsible for calling addPeer
-      // which will mark the peer connected in swarm
-      this.emit('peerConnected', key, connection)
       this.onPeerConnected?.(key, connection)
     } catch (err) {
       // Clear timeout on failure (may already be cleared by cancel)
@@ -279,7 +262,6 @@ export class ConnectionManager extends EventEmitter {
       if (this.swarm.getPeerByKey(key)?.state === 'connecting') {
         const reason = err instanceof Error ? err.message : String(err)
         this.swarm.markConnectFailed(key, reason)
-        this.emit('peerConnectFailed', key, reason)
       }
     } finally {
       // Always clean up pending socket tracking
@@ -302,7 +284,6 @@ export class ConnectionManager extends EventEmitter {
 
     this.swarm.markConnectFailed(key, 'timeout')
     this.logger.debug(`[ConnectionManager] Connection timeout: ${key}`)
-    this.emit('connectionTimeout', key)
   }
 
   // --- Slot Filling ---
@@ -474,7 +455,6 @@ export class ConnectionManager extends EventEmitter {
    */
   destroy(): void {
     this.cancelAllPendingConnections()
-    this.removeAllListeners()
   }
 
   // --- Slow Peer Detection ---
@@ -544,7 +524,6 @@ export class ConnectionManager extends EventEmitter {
       if (reason && peer.remoteAddress && peer.remotePort) {
         const key = peerKey(peer.remoteAddress, peer.remotePort)
         slowPeers.push(key)
-        this.emit('slowPeerDetected', key, reason)
         this.logger.debug(`[ConnectionManager] Slow peer detected: ${key} - ${reason}`)
       }
     }

@@ -518,7 +518,7 @@ export class Swarm extends EventEmitter {
         `Added ${added} peers from ${source}: ${addedIpv4} IPv4, ${addedIpv6} IPv6 ` +
           `(skipped: ${skippedDuplicate} dup, ${skippedInvalidPort} port, ${skippedInvalidIp} ip)`,
       )
-      this.emit('peersAdded', added)
+      this.emit('test:peersAdded', added)
     }
     return added
   }
@@ -690,7 +690,7 @@ export class Swarm extends EventEmitter {
         `[${key}] ${prevState} → connected (total: ${this.connectedKeys.size} connected, ${this.connectingKeys.size} connecting)`,
       )
 
-      this.emit('peerConnected', key, peer)
+      this.emit('test:peerConnected', key, peer)
     } else {
       this.logger.warn(`markConnected: peer not found in swarm: ${key}`)
     }
@@ -830,7 +830,7 @@ export class Swarm extends EventEmitter {
         `[${key}] ${prevState} → idle (disconnected, duration=${connectionDuration}ms, quickDisconnects=${peer.quickDisconnects}) (total: ${this.connectedKeys.size} connected)`,
       )
 
-      this.emit('peerDisconnected', key, peer)
+      this.emit('test:peerDisconnected', key, peer)
     } else {
       this.logger.warn(`markDisconnected: peer not found in swarm: ${key}`)
     }
@@ -888,7 +888,7 @@ export class Swarm extends EventEmitter {
     peer.lastConnectSuccess = Date.now()
     this.connectedKeys.add(key)
 
-    this.emit('peerConnected', key, peer)
+    this.emit('test:peerConnected', key, peer)
 
     return peer
   }

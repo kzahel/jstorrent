@@ -104,7 +104,7 @@ describe('Fast Restart', () => {
     // Wait for metadata
     await new Promise<void>((resolve) => {
       if (leecherTorrent.hasMetadata) resolve()
-      leecherTorrent.on('ready', resolve)
+      leecherTorrent.on('test:ready', resolve)
     })
     console.log('Metadata received')
 

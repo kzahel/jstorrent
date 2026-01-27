@@ -94,7 +94,7 @@ export class RoutingTable extends EventEmitter {
       }
       bucket.nodes.push(newNode)
       bucket.lastChanged = Date.now()
-      this.emit('nodeAdded', newNode)
+      this.emit('test:nodeAdded', newNode)
       return true
     }
 
@@ -122,7 +122,7 @@ export class RoutingTable extends EventEmitter {
     if (index !== -1) {
       const removed = bucket.nodes.splice(index, 1)[0]
       bucket.lastChanged = Date.now()
-      this.emit('nodeRemoved', removed)
+      this.emit('test:nodeRemoved', removed)
       return true
     }
 

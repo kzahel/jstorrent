@@ -105,7 +105,7 @@ describe('RoutingTable', () => {
 
     it('emits "nodeAdded" event when node is added', () => {
       const handler = vi.fn()
-      table.on('nodeAdded', handler)
+      table.on('test:nodeAdded', handler)
 
       const node = makeRandomNode()
       table.addNode(node)
@@ -244,7 +244,7 @@ describe('RoutingTable', () => {
 
     it('emits "nodeRemoved" event', () => {
       const handler = vi.fn()
-      table.on('nodeRemoved', handler)
+      table.on('test:nodeRemoved', handler)
 
       const node = makeRandomNode()
       table.addNode(node)
