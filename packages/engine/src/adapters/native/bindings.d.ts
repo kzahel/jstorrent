@@ -224,7 +224,7 @@ declare global {
    * Callback storage for verified write results.
    * Managed by native layer, called via __jstorrent_file_dispatch_write_result.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, no-var
+
   var __jstorrent_file_write_callbacks: Record<
     string,
     (bytesWritten: number, resultCode: number) => void

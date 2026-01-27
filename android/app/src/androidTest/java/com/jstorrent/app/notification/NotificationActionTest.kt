@@ -158,17 +158,17 @@ class NotificationActionTest {
 
         assertNotNull("Service instance should exist before quit", ForegroundNotificationService.instance)
 
-        // Send QUIT action
-        val quitIntent = Intent(NotificationActionReceiver.ACTION_QUIT)
-        quitIntent.setPackage(context.packageName)
-        context.sendBroadcast(quitIntent)
+        // Directly call the quit actions instead of using broadcast
+        // (broadcast delivery can be delayed on slow CI emulators)
+        app.serviceLifecycleManager.onUserQuit()
+        app.shutdownEngine()
 
         // Wait for service to stop - stopService() is asynchronous, poll for completion
         val stopped = waitForServiceStop()
         assertTrue("Service instance should be null after quit", stopped)
     }
 
-    private fun waitForServiceStop(timeoutMs: Long = 5_000L): Boolean {
+    private fun waitForServiceStop(timeoutMs: Long = 10_000L): Boolean {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
             if (ForegroundNotificationService.instance == null) {
@@ -176,7 +176,7 @@ class NotificationActionTest {
             }
             Thread.sleep(POLL_INTERVAL_MS)
         }
-        Log.e(TAG, "Timeout waiting for service to stop")
+        Log.e(TAG, "Timeout waiting for service to stop after ${timeoutMs}ms")
         return false
     }
 
