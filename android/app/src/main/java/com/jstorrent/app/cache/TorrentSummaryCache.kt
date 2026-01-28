@@ -103,8 +103,10 @@ class TorrentSummaryCache(context: Context) {
         // Try to load metadata from torrent file or info dict
         val metadata = loadMetadata(infoHash, entry.source)
 
-        // If we have no metadata (magnet without infodict yet), use placeholder
-        val name = metadata?.name ?: "Fetching metadata..."
+        // If we have no metadata (magnet without infodict yet), use dn= param or placeholder
+        val name = metadata?.name
+            ?: entry.magnetUri?.let { parseDisplayName(it) }
+            ?: "Fetching metadata..."
         val totalSize = metadata?.totalSize ?: 0L
         val fileCount = metadata?.fileCount ?: 0
 
@@ -159,6 +161,34 @@ class TorrentSummaryCache(context: Context) {
         }
     }
 
+    companion object {
+        private const val TAG = "TorrentSummaryCache"
+
+        /**
+         * Parse display name (dn=) from magnet URI.
+         * Example: magnet:?xt=urn:btih:...&dn=Ubuntu+20.04
+         *
+         * Uses simple string parsing instead of android.net.Uri for testability.
+         */
+        internal fun parseDisplayName(magnetUri: String): String? {
+            return try {
+                // Find dn= parameter
+                val dnStart = magnetUri.indexOf("dn=")
+                if (dnStart == -1) return null
+
+                val valueStart = dnStart + 3
+                val valueEnd = magnetUri.indexOf('&', valueStart).takeIf { it != -1 }
+                    ?: magnetUri.length
+
+                val encoded = magnetUri.substring(valueStart, valueEnd)
+                java.net.URLDecoder.decode(encoded, "UTF-8")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to parse dn from magnet: ${e.message}")
+                null
+            }
+        }
+    }
+
     /**
      * Calculate approximate progress from hex-encoded bitfield.
      */
@@ -202,10 +232,6 @@ class TorrentSummaryCache(context: Context) {
             swarmPeers = 0,
             skippedFilesCount = 0
         )
-    }
-
-    companion object {
-        private const val TAG = "TorrentSummaryCache"
     }
 }
 

@@ -79,4 +79,43 @@ class TorrentSummaryCacheTest {
         val actualCompleted = minOf(completedPieces, pieceCount)
         return actualCompleted.toDouble() / pieceCount
     }
+
+    // =========================================================================
+    // Magnet URI display name parsing tests
+    // =========================================================================
+
+    @Test
+    fun `parse display name from magnet URI`() {
+        val magnet = "magnet:?xt=urn:btih:abc123&dn=Ubuntu+20.04&tr=http://tracker.example.com"
+        val name = TorrentSummaryCache.parseDisplayName(magnet)
+        assertEquals("Ubuntu 20.04", name)
+    }
+
+    @Test
+    fun `parse URL-encoded display name`() {
+        val magnet = "magnet:?xt=urn:btih:abc123&dn=My%20Cool%20Torrent%21"
+        val name = TorrentSummaryCache.parseDisplayName(magnet)
+        assertEquals("My Cool Torrent!", name)
+    }
+
+    @Test
+    fun `parse display name at end of URI`() {
+        val magnet = "magnet:?xt=urn:btih:abc123&dn=TestFile"
+        val name = TorrentSummaryCache.parseDisplayName(magnet)
+        assertEquals("TestFile", name)
+    }
+
+    @Test
+    fun `return null when no display name`() {
+        val magnet = "magnet:?xt=urn:btih:abc123&tr=http://tracker.example.com"
+        val name = TorrentSummaryCache.parseDisplayName(magnet)
+        assertNull(name)
+    }
+
+    @Test
+    fun `handle empty display name`() {
+        val magnet = "magnet:?xt=urn:btih:abc123&dn=&tr=http://tracker.example.com"
+        val name = TorrentSummaryCache.parseDisplayName(magnet)
+        assertEquals("", name)
+    }
 }
