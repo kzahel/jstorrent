@@ -56,16 +56,45 @@ export class ChunkedBuffer {
   /**
    * Read a big-endian uint32 at the given offset without consuming.
    * Returns null if insufficient data.
+   * Allocation-free: reads bytes directly from chunks.
    */
   peekUint32(offset: number): number | null {
     if (this._length < offset + 4) return null
 
-    const bytes = this.peekBytes(offset, 4)
-    if (!bytes) return null
+    // Find starting chunk and position
+    let chunkIndex = 0
+    let posInChunk = this.consumedInFirstChunk + offset
+    while (chunkIndex < this.chunks.length && posInChunk >= this.chunks[chunkIndex].length) {
+      posInChunk -= this.chunks[chunkIndex].length
+      chunkIndex++
+    }
 
-    // Use DataView for safe big-endian uint32 reading
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-    return view.getUint32(0, false) // false = big-endian
+    if (chunkIndex >= this.chunks.length) return null
+
+    const chunk = this.chunks[chunkIndex]
+    const remaining = chunk.length - posInChunk
+
+    if (remaining >= 4) {
+      // Fast path: all 4 bytes in same chunk (zero allocation)
+      return (
+        ((chunk[posInChunk] << 24) |
+          (chunk[posInChunk + 1] << 16) |
+          (chunk[posInChunk + 2] << 8) |
+          chunk[posInChunk + 3]) >>>
+        0
+      )
+    }
+
+    // Slow path: spans chunks (rare for small offsets)
+    let result = 0
+    for (let i = 0; i < 4; i++) {
+      if (posInChunk >= this.chunks[chunkIndex].length) {
+        chunkIndex++
+        posInChunk = 0
+      }
+      result = (result << 8) | this.chunks[chunkIndex][posInChunk++]
+    }
+    return result >>> 0
   }
 
   /**

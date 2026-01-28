@@ -471,12 +471,13 @@ class EngineController(
 
     /**
      * Add a torrent (suspend version).
+     * Awaits until the torrent is fully added to the engine.
      */
-    suspend fun addTorrentAsync(magnetOrBase64: String) {
+    suspend fun addTorrentAsync(magnetOrBase64: String): String? {
         checkLoaded()
-        val escaped = magnetOrBase64.replace("\\", "\\\\").replace("'", "\\'")
-        engine!!.callGlobalFunctionAsync("__jstorrent_cmd_add_torrent", escaped)
-        Log.i(TAG, "addTorrentAsync called")
+        val result = engine!!.callGlobalFunctionAwaitPromise("__jstorrent_cmd_add_torrent", magnetOrBase64)
+        Log.i(TAG, "addTorrentAsync completed: $result")
+        return result
     }
 
     /**
@@ -499,15 +500,17 @@ class EngineController(
 
     /**
      * Remove a torrent (suspend version).
+     * Awaits until the torrent is fully removed from the engine.
      */
-    suspend fun removeTorrentAsync(infoHash: String, deleteFiles: Boolean = false) {
+    suspend fun removeTorrentAsync(infoHash: String, deleteFiles: Boolean = false): String? {
         checkLoaded()
-        engine!!.callGlobalFunctionAsync(
+        val result = engine!!.callGlobalFunctionAwaitPromise(
             "__jstorrent_cmd_remove",
             infoHash,
             deleteFiles.toString()
         )
-        Log.i(TAG, "removeTorrentAsync: $infoHash (deleteFiles=$deleteFiles)")
+        Log.i(TAG, "removeTorrentAsync completed: $infoHash (deleteFiles=$deleteFiles)")
+        return result
     }
 
     /**

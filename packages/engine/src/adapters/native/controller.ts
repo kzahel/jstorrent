@@ -60,54 +60,64 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
 
   /**
    * Add a torrent from magnet link or base64-encoded .torrent data.
-   * Returns a JSON result asynchronously via callback.
+   * Returns a Promise that resolves when the torrent is added.
+   *
+   * Can be awaited from Kotlin using callGlobalFunctionAwaitPromise().
    */
-  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_add_torrent = (
+  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_add_torrent = async (
     magnetOrBase64: string,
-  ): string => {
+  ): Promise<{
+    ok: boolean
+    infoHash?: string
+    name?: string
+    isDuplicate?: boolean
+    error?: string
+  }> => {
     const engine = requireEngine('addTorrent')
     if (!engine) {
-      return JSON.stringify({ ok: false, error: 'Engine not ready' })
+      return { ok: false, error: 'Engine not ready' }
     }
 
     console.log(
       `[controller] addTorrent called: ${magnetOrBase64.startsWith('magnet:') ? 'magnet link' : 'base64 data'}`,
     )
 
-    // Start async operation
-    ;(async () => {
-      try {
-        let result: { torrent: Torrent | null; isDuplicate: boolean }
+    try {
+      let result: { torrent: Torrent | null; isDuplicate: boolean }
 
-        if (magnetOrBase64.startsWith('magnet:')) {
-          console.log('[controller] Adding magnet link...')
-          result = await engine.addTorrent(magnetOrBase64)
-        } else {
-          // Assume base64-encoded .torrent file
-          console.log('[controller] Adding base64 torrent file...')
-          const binary = atob(magnetOrBase64)
-          const bytes = new Uint8Array(binary.length)
-          for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i)
-          }
-          result = await engine.addTorrent(bytes)
+      if (magnetOrBase64.startsWith('magnet:')) {
+        console.log('[controller] Adding magnet link...')
+        result = await engine.addTorrent(magnetOrBase64)
+      } else {
+        // Assume base64-encoded .torrent file
+        console.log('[controller] Adding base64 torrent file...')
+        const binary = atob(magnetOrBase64)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i)
         }
-
-        if (result.torrent) {
-          console.log(
-            `[controller] Torrent added: ${result.torrent.name || 'unnamed'}, isDuplicate=${result.isDuplicate}`,
-          )
-        } else {
-          console.log('[controller] Torrent was null (duplicate or error)')
-        }
-      } catch (e) {
-        console.error('[controller] addTorrent error:', e)
-        __jstorrent_on_error(JSON.stringify({ error: String(e) }))
+        result = await engine.addTorrent(bytes)
       }
-    })()
 
-    // Return immediately - actual result comes via state push
-    return JSON.stringify({ ok: true, pending: true })
+      if (result.torrent) {
+        console.log(
+          `[controller] Torrent added: ${result.torrent.name || 'unnamed'}, isDuplicate=${result.isDuplicate}`,
+        )
+        return {
+          ok: true,
+          infoHash: toHex(result.torrent.infoHash),
+          name: result.torrent.name,
+          isDuplicate: result.isDuplicate,
+        }
+      } else {
+        console.log('[controller] Torrent was null (duplicate or error)')
+        return { ok: true, isDuplicate: true }
+      }
+    } catch (e) {
+      console.error('[controller] addTorrent error:', e)
+      __jstorrent_on_error(JSON.stringify({ error: String(e) }))
+      return { ok: false, error: String(e) }
+    }
   }
 
   /**
@@ -134,24 +144,38 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
 
   /**
    * Remove a torrent.
+   * Returns a Promise that resolves when the torrent is fully removed.
+   *
+   * Can be awaited from Kotlin using callGlobalFunctionAwaitPromise().
    */
-  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_remove = (
+  ;(globalThis as Record<string, unknown>).__jstorrent_cmd_remove = async (
     infoHash: string,
     deleteFiles: boolean,
-  ): void => {
+  ): Promise<{ ok: boolean; error?: string }> => {
     const engine = requireEngine('remove')
-    if (!engine) return
+    if (!engine) {
+      return { ok: false, error: 'Engine not ready' }
+    }
+
     const torrent = engine.getTorrent(infoHash)
-    if (torrent) {
+    if (!torrent) {
+      // Torrent not found - consider this success (idempotent)
+      console.log(`[controller] remove: Torrent not found: ${infoHash}`)
+      return { ok: true }
+    }
+
+    try {
       if (deleteFiles) {
-        engine.removeTorrentWithData(torrent).catch((e) => {
-          __jstorrent_on_error(JSON.stringify({ error: String(e) }))
-        })
+        await engine.removeTorrentWithData(torrent)
       } else {
-        engine.removeTorrent(torrent).catch((e) => {
-          __jstorrent_on_error(JSON.stringify({ error: String(e) }))
-        })
+        await engine.removeTorrent(torrent)
       }
+      console.log(`[controller] Torrent removed: ${infoHash}`)
+      return { ok: true }
+    } catch (e) {
+      console.error('[controller] remove error:', e)
+      __jstorrent_on_error(JSON.stringify({ error: String(e) }))
+      return { ok: false, error: String(e) }
     }
   }
 

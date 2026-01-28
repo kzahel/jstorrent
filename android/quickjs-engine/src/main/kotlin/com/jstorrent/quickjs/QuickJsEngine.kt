@@ -1,12 +1,19 @@
 package com.jstorrent.quickjs
 
+import android.util.Log
 import java.io.Closeable
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.suspendCancellableCoroutine
+
+private const val TAG = "QuickJsEngine"
 
 /**
  * High-level QuickJS engine wrapper.
@@ -28,6 +35,12 @@ class QuickJsEngine : Closeable {
         private set
 
     private val contextReady = CountDownLatch(1)
+
+    // Promise await support
+    private val nextPromiseCallbackId = AtomicInteger(1)
+    private val pendingPromiseCallbacks = ConcurrentHashMap<Int, CancellableContinuation<String?>>()
+    @Volatile
+    private var closed = false
 
     init {
         jsThread.start()
@@ -258,6 +271,22 @@ class QuickJsEngine : Closeable {
      * Close the engine and release resources.
      */
     override fun close() {
+        closed = true
+
+        // Cancel all pending promise callbacks
+        val pendingCount = pendingPromiseCallbacks.size
+        if (pendingCount > 0) {
+            Log.i(TAG, "Cancelling $pendingCount pending promise callbacks")
+        }
+        pendingPromiseCallbacks.forEach { (id, cont) ->
+            try {
+                cont.resumeWithException(QuickJsException("Engine closed while awaiting promise"))
+            } catch (e: IllegalStateException) {
+                // Already resumed, ignore
+            }
+        }
+        pendingPromiseCallbacks.clear()
+
         // Clear all timers first to prevent callbacks from firing after context is closed
         jsThread.clearAllTimers()
         jsThread.post {
@@ -363,6 +392,150 @@ class QuickJsEngine : Closeable {
                 }
             }
         }
+    }
+
+    /**
+     * Call a global JavaScript function and await its Promise result.
+     *
+     * Unlike [callGlobalFunctionAsync], this waits for the JS function's async work
+     * to complete. The JS function should return a Promise (or be async).
+     *
+     * @param funcName The name of the global function to call
+     * @param args String arguments to pass (will be JSON-escaped)
+     * @return The resolved value as a JSON string, or null
+     * @throws QuickJsException if the Promise rejects or engine is closed
+     */
+    suspend fun callGlobalFunctionAwaitPromise(funcName: String, vararg args: String?): String? {
+        if (closed) {
+            throw QuickJsException("Engine is closed")
+        }
+
+        return suspendCancellableCoroutine { cont ->
+            val callbackId = nextPromiseCallbackId.getAndIncrement()
+            val resolveName = "__promise_resolve_$callbackId"
+            val rejectName = "__promise_reject_$callbackId"
+
+            // Track for cleanup on engine close
+            pendingPromiseCallbacks[callbackId] = cont
+
+            // Cleanup helper
+            fun cleanup() {
+                pendingPromiseCallbacks.remove(callbackId)
+                // Remove global functions (fire and forget, on JS thread)
+                jsThread.post {
+                    try {
+                        context.evaluate("delete globalThis.$resolveName; delete globalThis.$rejectName")
+                    } catch (e: Exception) {
+                        // Context may be closed, ignore
+                    }
+                }
+            }
+
+            cont.invokeOnCancellation {
+                cleanup()
+            }
+
+            jsThread.post {
+                try {
+                    // Register resolve callback
+                    context.setGlobalFunction(resolveName) { resolveArgs ->
+                        cleanup()
+                        try {
+                            cont.resume(resolveArgs.firstOrNull())
+                        } catch (e: IllegalStateException) {
+                            // Already resumed (e.g., cancelled), ignore
+                        }
+                        null
+                    }
+
+                    // Register reject callback
+                    context.setGlobalFunction(rejectName) { rejectArgs ->
+                        cleanup()
+                        try {
+                            cont.resumeWithException(
+                                QuickJsException(rejectArgs.firstOrNull() ?: "Promise rejected")
+                            )
+                        } catch (e: IllegalStateException) {
+                            // Already resumed, ignore
+                        }
+                        null
+                    }
+
+                    // Build JS code to call function and handle promise
+                    // Args are JSON-escaped to handle special characters (e.g., magnet URIs)
+                    val escapedArgs = args.joinToString(", ") { arg ->
+                        if (arg == null) "null" else "JSON.parse(${escapeForJs(toJson(arg))})"
+                    }
+
+                    val js = """
+                        (async () => {
+                            try {
+                                const result = await $funcName($escapedArgs);
+                                $resolveName(result === undefined ? null : JSON.stringify(result));
+                            } catch (e) {
+                                $rejectName(String(e));
+                            }
+                        })()
+                    """.trimIndent()
+
+                    context.evaluate(js, "promise-await-$callbackId.js")
+
+                    // Pump jobs to allow promise to make progress
+                    jsThread.scheduleJobPump(context)
+                } catch (e: Throwable) {
+                    cleanup()
+                    try {
+                        cont.resumeWithException(e)
+                    } catch (ex: IllegalStateException) {
+                        // Already resumed, ignore
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Escape a string for use in JavaScript code.
+     */
+    private fun escapeForJs(s: String): String {
+        val sb = StringBuilder("\"")
+        for (c in s) {
+            when (c) {
+                '"' -> sb.append("\\\"")
+                '\\' -> sb.append("\\\\")
+                '\n' -> sb.append("\\n")
+                '\r' -> sb.append("\\r")
+                '\t' -> sb.append("\\t")
+                else -> sb.append(c)
+            }
+        }
+        sb.append("\"")
+        return sb.toString()
+    }
+
+    /**
+     * Convert a string to JSON (just wraps in quotes with escaping).
+     */
+    private fun toJson(s: String): String {
+        val sb = StringBuilder("\"")
+        for (c in s) {
+            when (c) {
+                '"' -> sb.append("\\\"")
+                '\\' -> sb.append("\\\\")
+                '\n' -> sb.append("\\n")
+                '\r' -> sb.append("\\r")
+                '\t' -> sb.append("\\t")
+                '\b' -> sb.append("\\b")
+                '\u000C' -> sb.append("\\f")
+                else -> if (c.code < 32) {
+                    sb.append("\\u${c.code.toString(16).padStart(4, '0')}")
+                } else {
+                    sb.append(c)
+                }
+            }
+        }
+        sb.append("\"")
+        return sb.toString()
     }
 
     /**

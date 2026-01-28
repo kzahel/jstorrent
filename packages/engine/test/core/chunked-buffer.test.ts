@@ -85,6 +85,27 @@ describe('ChunkedBuffer', () => {
       buffer.push(new Uint8Array([0xff, 0xff, 0xff, 0xff]))
       expect(buffer.peekUint32(0)).toBe(0xffffffff)
     })
+
+    it('should handle sign bit (0x80000000) in single chunk', () => {
+      // 0x80000000 = 2147483648, tests the JS signed/unsigned edge case
+      buffer.push(new Uint8Array([0x80, 0x00, 0x00, 0x00]))
+      expect(buffer.peekUint32(0)).toBe(0x80000000)
+    })
+
+    it('should handle sign bit (0x80000000) across chunks', () => {
+      // Same value but spans chunks to test slow path
+      buffer.push(new Uint8Array([0x80]))
+      buffer.push(new Uint8Array([0x00]))
+      buffer.push(new Uint8Array([0x00]))
+      buffer.push(new Uint8Array([0x00]))
+      expect(buffer.peekUint32(0)).toBe(0x80000000)
+    })
+
+    it('should handle 0x80000001 across chunks', () => {
+      buffer.push(new Uint8Array([0x80, 0x00]))
+      buffer.push(new Uint8Array([0x00, 0x01]))
+      expect(buffer.peekUint32(0)).toBe(0x80000001)
+    })
   })
 
   describe('copyTo', () => {
