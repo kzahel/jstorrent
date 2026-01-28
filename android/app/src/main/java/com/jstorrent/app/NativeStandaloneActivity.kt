@@ -88,9 +88,12 @@ class NativeStandaloneActivity : ComponentActivity() {
     // Notification permission launcher
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { _ ->
-        // Permission result handled - dialog was dismissed
+    ) { isGranted ->
         showNotificationDialog.value = false
+        if (isGranted) {
+            // Auto-enable background downloads when user grants permission
+            settingsStore.backgroundDownloadsEnabled = true
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
