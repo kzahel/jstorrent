@@ -131,8 +131,61 @@ export function packVerifiedWriteBatch(writes: PendingVerifiedWrite[]): ArrayBuf
  * Instead of individual FFI calls per write, this queues writes locally
  * and flushes them all in a single FFI call at the end of each tick.
  */
+/**
+ * Global singleton instance of the batching disk queue.
+ * All NativeFileHandle instances use this to queue verified writes.
+ */
+let globalBatchingQueue: NativeBatchingDiskQueue | null = null
+
+/**
+ * Get or create the global batching disk queue singleton.
+ */
+export function getGlobalBatchingQueue(): NativeBatchingDiskQueue {
+  if (!globalBatchingQueue) {
+    globalBatchingQueue = new NativeBatchingDiskQueue()
+  }
+  return globalBatchingQueue
+}
+
+/**
+ * Flush all pending batched writes.
+ * Called by BtEngine at end of engine tick to send accumulated writes
+ * in a single FFI call. No-op if no writes are pending.
+ */
+export function flushBatchedWrites(): void {
+  if (globalBatchingQueue) {
+    globalBatchingQueue.flushPending()
+  }
+}
+
+/** Metrics for batch write performance tracking */
+interface BatchWriteMetrics {
+  /** Total number of writes processed */
+  totalWrites: number
+  /** Total bytes written */
+  totalBytes: number
+  /** Total time spent in FFI calls (ms) */
+  totalFfiTimeMs: number
+  /** Total time spent packing batches (ms) */
+  totalPackTimeMs: number
+  /** Number of batches flushed */
+  batchCount: number
+  /** Timestamp of last metrics log */
+  lastLogTime: number
+}
+
 export class NativeBatchingDiskQueue implements IDiskQueue {
   private pending: PendingVerifiedWrite[] = []
+
+  /** Performance metrics for monitoring batch efficiency */
+  private metrics: BatchWriteMetrics = {
+    totalWrites: 0,
+    totalBytes: 0,
+    totalFfiTimeMs: 0,
+    totalPackTimeMs: 0,
+    batchCount: 0,
+    lastLogTime: Date.now(),
+  }
 
   /**
    * Queue a verified write for batched dispatch.
@@ -191,9 +244,72 @@ export class NativeBatchingDiskQueue implements IDiskQueue {
   flushPending(): void {
     if (this.pending.length === 0) return
 
+    const writeCount = this.pending.length
+    const totalDataBytes = this.pending.reduce((sum, w) => sum + w.data.byteLength, 0)
+
+    // Time the packing phase
+    const packStart = Date.now()
     const packed = packVerifiedWriteBatch(this.pending)
+    const packEnd = Date.now()
+    const packTimeMs = packEnd - packStart
+
+    // Time the FFI call
+    const ffiStart = Date.now()
     __jstorrent_file_write_verified_batch(packed)
+    const ffiEnd = Date.now()
+    const ffiTimeMs = ffiEnd - ffiStart
+
+    // Update metrics
+    this.metrics.totalWrites += writeCount
+    this.metrics.totalBytes += totalDataBytes
+    this.metrics.totalPackTimeMs += packTimeMs
+    this.metrics.totalFfiTimeMs += ffiTimeMs
+    this.metrics.batchCount++
+
+    // Log individual batch if it's significant (>1 write or notable time)
+    if (writeCount > 1 || ffiTimeMs > 5) {
+      const dataMB = (totalDataBytes / (1024 * 1024)).toFixed(2)
+      const packedKB = (packed.byteLength / 1024).toFixed(1)
+      console.log(
+        `[BatchWrite] ${writeCount} writes, ${dataMB}MB data, packed ${packedKB}KB, ` +
+          `pack ${packTimeMs}ms, FFI ${ffiTimeMs}ms`,
+      )
+    }
+
+    // Log aggregate metrics every 5 seconds
+    this.maybeLogMetrics()
+
     this.pending = []
+  }
+
+  /**
+   * Log aggregate metrics periodically (every 5 seconds).
+   */
+  private maybeLogMetrics(): void {
+    const now = Date.now()
+    if (now - this.metrics.lastLogTime < 5000) return
+    if (this.metrics.batchCount === 0) return
+
+    const avgWritesPerBatch = (this.metrics.totalWrites / this.metrics.batchCount).toFixed(1)
+    const totalMB = (this.metrics.totalBytes / (1024 * 1024)).toFixed(2)
+    const avgFfiMs = (this.metrics.totalFfiTimeMs / this.metrics.batchCount).toFixed(1)
+    const avgPackMs = (this.metrics.totalPackTimeMs / this.metrics.batchCount).toFixed(1)
+
+    console.log(
+      `[BatchWrite] Stats: ${this.metrics.batchCount} batches, ${this.metrics.totalWrites} writes, ` +
+        `${totalMB}MB total, avg ${avgWritesPerBatch} writes/batch, ` +
+        `avg pack ${avgPackMs}ms, avg FFI ${avgFfiMs}ms`,
+    )
+
+    // Reset metrics for next window
+    this.metrics = {
+      totalWrites: 0,
+      totalBytes: 0,
+      totalFfiTimeMs: 0,
+      totalPackTimeMs: 0,
+      batchCount: 0,
+      lastLogTime: now,
+    }
   }
 
   /**
@@ -201,6 +317,13 @@ export class NativeBatchingDiskQueue implements IDiskQueue {
    */
   get pendingCount(): number {
     return this.pending.length
+  }
+
+  /**
+   * Get current metrics snapshot (for debugging/monitoring).
+   */
+  getMetrics(): Readonly<BatchWriteMetrics> {
+    return { ...this.metrics }
   }
 
   // ============================================================

@@ -140,6 +140,13 @@ export interface BtEngineOptions {
    * Default: false (production uses tick-aligned processing)
    */
   autoDrainBuffers?: boolean
+
+  /**
+   * Callback invoked at end of each engine tick.
+   * Used by native adapters to flush batched writes in a single FFI call.
+   * No-op on browser/extension.
+   */
+  onEndOfTick?: () => void
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -164,6 +171,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   private logger: Logger
   private filterFn: ShouldLogFn
   private onLogCallback?: (entry: LogEntry) => void
+  private onEndOfTickCallback?: () => void
   public maxConnections: number
   public maxPeers: number
   public maxUploadSlots: number
@@ -281,6 +289,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
     this.clientId = randomClientId()
     this.onLogCallback = options.onLog
+    this.onEndOfTickCallback = options.onEndOfTick
     this.filterFn = createFilter(options.logging ?? { level: 'info' })
     this._suspended = options.startSuspended ?? false
 
@@ -1263,6 +1272,9 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
         torrent.tick()
       }
     }
+
+    // 3. End of tick - flush batched operations (e.g., verified writes on native)
+    this.onEndOfTickCallback?.()
   }
 
   /**

@@ -20,6 +20,7 @@ export { NativeHasher } from './native-hasher'
 export { callbackManager } from './callback-manager'
 export { setupController, startStatePushLoop } from './controller'
 export { NativeConfigHub } from './native-config-hub'
+export { flushBatchedWrites } from './native-batching-disk-queue'
 
 /**
  * Batch flush all peers using a single FFI call.

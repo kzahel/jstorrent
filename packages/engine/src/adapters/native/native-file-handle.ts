@@ -9,7 +9,7 @@
  */
 
 import type { IFileHandle } from '../../interfaces/filesystem'
-import { toHex } from '../../utils/buffer'
+import { getGlobalBatchingQueue } from './native-batching-disk-queue'
 import './bindings.d.ts'
 
 /**
@@ -21,17 +21,6 @@ export class HashMismatchError extends Error {
     this.name = 'HashMismatchError'
   }
 }
-
-/** Result codes from native verified write */
-const WriteResultCode = {
-  SUCCESS: 0,
-  HASH_MISMATCH: 1,
-  IO_ERROR: 2,
-  INVALID_ARGS: 3,
-} as const
-
-/** Counter for unique callback IDs */
-let nextCallbackId = 1
 
 export class NativeFileHandle implements IFileHandle {
   private closed = false
@@ -129,47 +118,23 @@ export class NativeFileHandle implements IFileHandle {
   }
 
   /**
-   * Async verified write - runs hash + write on background thread.
+   * Async verified write - queues to batching disk queue for efficient FFI.
+   * The actual write happens when flushBatchedWrites() is called at end of tick.
    */
   private writeVerified(
     data: ArrayBuffer,
     position: number,
     expectedHash: Uint8Array,
   ): Promise<{ bytesWritten: number }> {
-    return new Promise((resolve, reject) => {
-      const callbackId = `vw_${nextCallbackId++}`
-      const expectedHashHex = toHex(expectedHash)
-
-      // Register callback for result
-      // Note: QuickJS passes values as strings, so we convert to numbers
-      globalThis.__jstorrent_file_write_callbacks[callbackId] = (
-        bytesWrittenStr: string | number,
-        resultCodeStr: string | number,
-      ) => {
-        const bytesWritten = Number(bytesWrittenStr)
-        const resultCode = Number(resultCodeStr)
-
-        if (resultCode === WriteResultCode.SUCCESS) {
-          resolve({ bytesWritten })
-        } else if (resultCode === WriteResultCode.HASH_MISMATCH) {
-          reject(new HashMismatchError(`Hash mismatch for ${this.path}`))
-        } else if (resultCode === WriteResultCode.IO_ERROR) {
-          reject(new Error(`I/O error writing to ${this.path}`))
-        } else {
-          reject(new Error(`Write failed with code ${resultCode}`))
-        }
-      }
-
-      // Initiate async verified write
-      __jstorrent_file_write_verified(
-        this.rootKey,
-        this.path,
-        position,
-        data,
-        expectedHashHex,
-        callbackId,
-      )
-    })
+    // Queue to the global batching queue instead of direct FFI call.
+    // All queued writes are sent in a single FFI call at end of tick.
+    return getGlobalBatchingQueue().queueVerifiedWrite(
+      this.rootKey,
+      this.path,
+      position,
+      data,
+      expectedHash,
+    )
   }
 
   /**

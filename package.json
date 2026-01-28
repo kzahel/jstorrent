@@ -14,7 +14,7 @@
     "dev": "pnpm --recursive --parallel dev",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format:fix": "prettier --write .",
+    "format:fix": "prettier --write . --log-level warn",
     "format": "prettier --check .",
     "test": "pnpm --recursive test",
     "test:python": "pnpm --filter @jstorrent/engine test:python",

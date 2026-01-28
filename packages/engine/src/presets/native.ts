@@ -10,6 +10,7 @@ import { NativeFileSystem } from '../adapters/native/native-filesystem'
 import { NullFileSystem } from '../adapters/null/null-filesystem'
 import { NativeSessionStore } from '../adapters/native/native-session-store'
 import { NativeHasher } from '../adapters/native/native-hasher'
+import { flushBatchedWrites } from '../adapters/native/native-batching-disk-queue'
 import { StorageRootManager, StorageRoot } from '../storage/storage-root-manager'
 import type { NetworkInterface } from '../upnp/upnp-manager'
 import type { LogEntry } from '../logging/logger'
@@ -110,5 +111,6 @@ export function createNativeEngine(config: NativeEngineConfig): BtEngine {
     startSuspended: config.startSuspended,
     config: config.config,
     getNetworkInterfaces,
+    onEndOfTick: flushBatchedWrites,
   })
 }
