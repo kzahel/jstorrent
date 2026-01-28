@@ -381,6 +381,40 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
     )
   }
 
+  // ============================================================
+  // TICK CONTROL (for host-driven tick mode)
+  // ============================================================
+
+  /**
+   * Execute one engine tick.
+   * Called by Kotlin in host-driven tick mode.
+   * Returns timing info for instrumentation.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_engine_tick = (): void => {
+    const engine = getEngine()
+    if (!engine) return
+    engine.tick()
+  }
+
+  /**
+   * Set tick loop mode.
+   * - 'host': Kotlin drives the tick loop (recommended for Android)
+   * - 'js': JS owns the tick loop via setInterval (default)
+   *
+   * In host mode, Kotlin calls __jstorrent_engine_tick() at regular intervals
+   * and can measure total time including job pump.
+   */
+  ;(globalThis as Record<string, unknown>).__jstorrent_set_tick_mode = (
+    mode: 'js' | 'host',
+  ): void => {
+    const engine = getEngine()
+    if (!engine) {
+      console.warn('[controller] set_tick_mode: Engine not ready')
+      return
+    }
+    engine.setTickMode(mode)
+  }
+
   /**
    * Shutdown the engine gracefully.
    * Saves DHT state and stops all torrents before returning.

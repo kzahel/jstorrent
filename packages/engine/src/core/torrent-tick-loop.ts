@@ -747,6 +747,8 @@ export class TorrentTickLoop extends EngineComponent {
     if (!activePieces) return
 
     const activeCount = activePieces.activeCount
+    const partialCount = activePieces.partialCount
+    const fullyRespondedCount = activePieces.fullyRespondedCount
     const bufferedBytes = activePieces.totalBufferedBytes
     const bufferedMB = (bufferedBytes / (1024 * 1024)).toFixed(2)
 
@@ -766,7 +768,9 @@ export class TorrentTickLoop extends EngineComponent {
     const diskRateMB = (diskRate / (1024 * 1024)).toFixed(1)
 
     this.logger.info(
-      `Backpressure: ${activeCount} active pieces, ${bufferedMB}MB buffered, ${totalRequests} outstanding requests, disk queue: ${diskPending} pending/${diskRunning} running, disk write: ${diskRateMB}MB/s`,
+      `Backpressure: ${activeCount} active (${partialCount} partial, ${fullyRespondedCount} awaiting write), ` +
+        `${bufferedMB}MB buffered, ${totalRequests} outstanding requests, ` +
+        `disk queue: ${diskPending} pending/${diskRunning} running, disk write: ${diskRateMB}MB/s`,
     )
   }
 

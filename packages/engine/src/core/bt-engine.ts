@@ -155,6 +155,16 @@ export interface BtEngineOptions {
    * Default: 6 (standard), 30 recommended for batch mode.
    */
   diskQueueMaxWorkers?: number
+
+  /**
+   * Tick loop ownership mode.
+   * - 'js': JS owns the tick loop via setInterval (default, extension/browser)
+   * - 'host': Host (Kotlin/Swift) drives the tick loop, calling tick() directly
+   *
+   * In 'host' mode, the host calls __jstorrent_engine_tick at regular intervals
+   * and can measure timing precisely, including job pump time.
+   */
+  tickMode?: 'js' | 'host'
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -261,6 +271,12 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
    */
   private engineTickInterval: ReturnType<typeof setInterval> | null = null
 
+  /**
+   * Tick loop ownership mode.
+   * 'js' = JS owns via setInterval, 'host' = external caller drives tick()
+   */
+  private _tickMode: 'js' | 'host' = 'js'
+
   // ILoggableComponent implementation
   static logName = 'client'
   getLogName(): string {
@@ -332,6 +348,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.encryptionPolicy = this.config.encryptionPolicy.get()
     this._dhtEnabled = this.config.dhtEnabled.get()
     this.diskQueueMaxWorkers = options.diskQueueMaxWorkers
+    this._tickMode = options.tickMode ?? 'js'
 
     // Set up bandwidth limits from config (0 = unlimited)
     const downloadLimit = this.config.downloadSpeedUnlimited.get()
@@ -1241,14 +1258,20 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   /**
    * Start the unified engine tick loop.
    * Runs at 100ms intervals: connection slot allocation + per-torrent processing.
+   * Only starts if tickMode is 'js'. In 'host' mode, host calls tick() directly.
    */
   private startEngineTick(): void {
     if (this.engineTickInterval) return
+    if (this._tickMode === 'host') {
+      this.logger.info('Tick mode: host-driven (JS interval disabled)')
+      return
+    }
 
     // Engine tick at 100ms intervals (10Hz)
     this.engineTickInterval = setInterval(() => {
-      this.engineTick()
+      this.doTick()
     }, 100)
+    this.logger.info('Tick mode: js-driven (100ms interval)')
   }
 
   /**
@@ -1262,10 +1285,47 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   }
 
   /**
+   * Set tick loop mode at runtime.
+   * - 'js': Engine manages its own tick via setInterval
+   * - 'host': External caller (Kotlin/Swift) drives tick() directly
+   *
+   * When switching to 'host' mode, stops the JS interval.
+   * When switching to 'js' mode, starts the JS interval.
+   */
+  setTickMode(mode: 'js' | 'host'): void {
+    if (mode === this._tickMode) return
+
+    this._tickMode = mode
+    if (mode === 'host') {
+      this.stopEngineTick()
+      this.logger.info('Tick mode changed to: host-driven')
+    } else {
+      this.startEngineTick()
+      this.logger.info('Tick mode changed to: js-driven')
+    }
+  }
+
+  /**
+   * Get current tick mode.
+   */
+  get tickMode(): 'js' | 'host' {
+    return this._tickMode
+  }
+
+  /**
+   * Execute one tick. Called by host in 'host' mode, or by setInterval in 'js' mode.
+   * Public so host can call it directly.
+   */
+  tick(): void {
+    this.doTick()
+  }
+
+  /**
+   * Internal tick implementation.
    * Unified engine tick: combines connection slot allocation with per-torrent processing.
    * Called at 100ms intervals for predictable timing across all torrents.
    */
-  private engineTick(): void {
+  private doTick(): void {
     // Phase 3+4: Flush accumulated callbacks from native I/O threads.
     // This drains all pending data in a single FFI call per type, reducing boundary crossings
     // from 60+ per tick to 1-2. Only available on native (Android) - no-op on extension.

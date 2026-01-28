@@ -83,6 +83,18 @@ class EngineController(
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
+    // Host-driven tick loop state
+    private var tickRunnable: Runnable? = null
+    private var tickEnabled = false
+    private var tickCount = 0L
+    private var tickTotalJsMs = 0L
+    private var tickTotalPumpMs = 0L
+    private var tickTotalMs = 0L
+    private var tickMaxMs = 0L
+    private var tickLastLogTime = 0L
+    private val TICK_INTERVAL_MS = 100L
+    private val TICK_LOG_INTERVAL_MS = 5000L
+
     /**
      * Check if the engine is healthy and responsive.
      * Returns false if engine is not loaded or has been closed.
@@ -770,6 +782,134 @@ class EngineController(
         }
     }
 
+    // ============================================================
+    // HOST-DRIVEN TICK LOOP
+    // ============================================================
+
+    /**
+     * Start host-driven tick loop.
+     *
+     * This switches from JS-owned setInterval to Kotlin-owned tick scheduling.
+     * Benefits:
+     * - Full visibility into tick timing (JS execution + job pump)
+     * - No Handler queue latency between tick and job pump
+     * - Accurate timing measurements for bottleneck analysis
+     *
+     * The tick runs directly on the JS thread:
+     * 1. Call __jstorrent_engine_tick (JS work)
+     * 2. Pump all pending jobs (microtasks)
+     * 3. Log timing breakdown every 5 seconds
+     * 4. Schedule next tick
+     */
+    fun startHostDrivenTick() {
+        if (tickEnabled) {
+            Log.w(TAG, "Host-driven tick already running")
+            return
+        }
+
+        val eng = engine ?: run {
+            Log.e(TAG, "Cannot start tick: engine not loaded")
+            return
+        }
+
+        // Switch JS to host-driven mode (stops JS setInterval)
+        eng.jsThread.post {
+            eng.context.callGlobalFunction("__jstorrent_set_tick_mode", "host")
+        }
+
+        tickEnabled = true
+        tickCount = 0
+        tickTotalJsMs = 0
+        tickTotalPumpMs = 0
+        tickTotalMs = 0
+        tickMaxMs = 0
+        tickLastLogTime = System.currentTimeMillis()
+
+        Log.i(TAG, "Starting host-driven tick loop (${TICK_INTERVAL_MS}ms interval)")
+
+        tickRunnable = object : Runnable {
+            override fun run() {
+                if (!tickEnabled) return
+
+                val tickStart = System.currentTimeMillis()
+
+                // 1. Call JS tick
+                val jsStart = System.currentTimeMillis()
+                try {
+                    eng.context.callGlobalFunction("__jstorrent_engine_tick")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Tick JS error", e)
+                }
+                val jsEnd = System.currentTimeMillis()
+                val jsMs = jsEnd - jsStart
+
+                // 2. Pump all pending jobs synchronously (no queue delay!)
+                val pumpStart = System.currentTimeMillis()
+                eng.context.executeAllPendingJobs()
+                val pumpEnd = System.currentTimeMillis()
+                val pumpMs = pumpEnd - pumpStart
+
+                val totalMs = pumpEnd - tickStart
+
+                // Update stats
+                tickCount++
+                tickTotalJsMs += jsMs
+                tickTotalPumpMs += pumpMs
+                tickTotalMs += totalMs
+                if (totalMs > tickMaxMs) {
+                    tickMaxMs = totalMs
+                }
+
+                // Log every 5 seconds
+                val now = System.currentTimeMillis()
+                if (now - tickLastLogTime >= TICK_LOG_INTERVAL_MS && tickCount > 0) {
+                    val avgJs = tickTotalJsMs.toFloat() / tickCount
+                    val avgPump = tickTotalPumpMs.toFloat() / tickCount
+                    val avgTotal = tickTotalMs.toFloat() / tickCount
+                    Log.i(TAG, "Tick: ${tickCount} ticks, avg %.1fms (js=%.1fms pump=%.1fms), max ${tickMaxMs}ms".format(
+                        avgTotal, avgJs, avgPump))
+
+                    // Reset stats
+                    tickCount = 0
+                    tickTotalJsMs = 0
+                    tickTotalPumpMs = 0
+                    tickTotalMs = 0
+                    tickMaxMs = 0
+                    tickLastLogTime = now
+                }
+
+                // 3. Schedule next tick
+                if (tickEnabled) {
+                    eng.jsThread.handler.postDelayed(this, TICK_INTERVAL_MS)
+                }
+            }
+        }
+
+        // Start the tick loop on JS thread
+        eng.jsThread.handler.post(tickRunnable!!)
+    }
+
+    /**
+     * Stop host-driven tick loop.
+     * Switches back to JS-owned setInterval.
+     */
+    fun stopHostDrivenTick() {
+        if (!tickEnabled) return
+
+        tickEnabled = false
+        tickRunnable?.let { runnable ->
+            engine?.jsThread?.handler?.removeCallbacks(runnable)
+        }
+        tickRunnable = null
+
+        // Switch JS back to JS-driven mode
+        engine?.jsThread?.post {
+            engine?.context?.callGlobalFunction("__jstorrent_set_tick_mode", "js")
+        }
+
+        Log.i(TAG, "Host-driven tick stopped")
+    }
+
     /**
      * Gracefully shutdown the JS engine (saves DHT state, stops torrents).
      * Call this before close() for clean shutdown, or let close() handle it.
@@ -791,6 +931,9 @@ class EngineController(
      */
     override fun close() {
         Log.i(TAG, "Shutting down engine...")
+
+        // Stop host-driven tick if running
+        stopHostDrivenTick()
 
         // Gracefully shutdown JS engine (saves DHT state, stops torrents)
         engine?.let { eng ->

@@ -237,6 +237,9 @@ class JSTorrentApplication : Application() {
             _engineController = controller
             Log.i(TAG, "Engine loaded successfully")
 
+            // Start host-driven tick loop for better timing visibility
+            controller.startHostDrivenTick()
+
             // Start observing torrent state for service lifecycle decisions
             startTorrentStateObservation(controller)
 
