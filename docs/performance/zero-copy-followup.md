@@ -2,7 +2,7 @@
 
 **Date:** 2026-01-28
 **Current State:** 70 MB/s (up from 35 MB/s after eliminating 3 intermediate copies)
-**Seeder Capacity:** 90+ MB/s
+**Seeder Capacity:** 150+ MB/s
 
 ## Implemented Optimization
 
