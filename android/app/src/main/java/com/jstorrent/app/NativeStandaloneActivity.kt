@@ -165,6 +165,9 @@ class NativeStandaloneActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        // Ensure engine is running - it may have been shut down when we went to background
+        // (when background downloads are disabled, we shut down the engine to save battery)
+        app.ensureEngine(storageMode = testStorageMode.value)
         app.serviceLifecycleManager.onActivityStart()
         observeEngineForPendingMagnet()
     }

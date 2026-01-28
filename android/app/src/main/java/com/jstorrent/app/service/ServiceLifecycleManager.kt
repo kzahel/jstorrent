@@ -15,14 +15,17 @@ private const val TAG = "ServiceLifecycleMgr"
  * Service runs when: background downloads enabled AND active downloads/seeding AND user not in app
  * Service stops when: background downloads disabled OR idle OR user in app
  *
- * When background downloads are disabled and user leaves the app, all torrents are paused.
- * This prevents silent battery drain - users must opt-in to background downloads.
+ * Engine shutdown for battery saving:
+ * - When background downloads are disabled and user leaves the app
+ * - When service stops due to idle (no active downloads/seeding) while in background
+ *
+ * The engine is reinitialized when the user returns to the app.
  */
 class ServiceLifecycleManager(
     private val context: Context,
     private val settingsStore: SettingsStore,
-    private val onPauseAll: () -> Unit = {},
-    private val onResumeAll: () -> Unit = {}
+    private val onShutdownForBackground: () -> Unit = {},
+    private val onRestoreFromBackground: () -> Unit = {}
 ) {
 
     private val _isActivityForeground = MutableStateFlow(false)
@@ -30,7 +33,7 @@ class ServiceLifecycleManager(
 
     private var hasActiveWork = false
     private var serviceRunning = false
-    private var pausedForBackground = false
+    private var engineShutdownForBackground = false
     private var hasEverBeenForeground = false  // Track if activity has ever been visible
     private var userRequestedQuit = false  // Prevents auto-restart after explicit quit
 
@@ -96,16 +99,25 @@ class ServiceLifecycleManager(
         val backgroundEnabled = settingsStore.backgroundDownloadsEnabled
         val goingToBackground = !_isActivityForeground.value
 
-        // Handle pause/resume when background downloads are disabled
-        // Only pause when transitioning FROM foreground TO background (not on initial startup)
-        if (!backgroundEnabled && goingToBackground && hasActiveWork && !pausedForBackground && hasEverBeenForeground) {
-            Log.i(TAG, "Background downloads disabled - pausing all torrents")
-            onPauseAll()
-            pausedForBackground = true
-        } else if (_isActivityForeground.value && pausedForBackground) {
-            Log.i(TAG, "Resuming torrents after background pause")
-            onResumeAll()
-            pausedForBackground = false
+        // Handle engine shutdown/restore for battery saving
+        // Shut down engine when going to background if there's no reason to keep it running:
+        // - Background downloads disabled, OR
+        // - No active work (nothing downloading or seeding)
+        // This completely stops the engine tick loop to prevent battery drain
+        val shouldShutdownEngine = goingToBackground &&
+            (!backgroundEnabled || !hasActiveWork) &&
+            !engineShutdownForBackground &&
+            hasEverBeenForeground
+
+        if (shouldShutdownEngine) {
+            val reason = if (!backgroundEnabled) "background downloads disabled" else "no active work"
+            Log.i(TAG, "Shutting down engine ($reason) to save battery")
+            onShutdownForBackground()
+            engineShutdownForBackground = true
+        } else if (_isActivityForeground.value && engineShutdownForBackground) {
+            Log.i(TAG, "Restoring engine after background shutdown")
+            onRestoreFromBackground()
+            engineShutdownForBackground = false
         }
 
         // Only start service if background downloads are enabled
@@ -127,6 +139,7 @@ class ServiceLifecycleManager(
             Log.i(TAG, "Stopping service: $reason")
             ForegroundNotificationService.stop(context)
             serviceRunning = false
+            // Note: Engine shutdown is handled above by shouldShutdownEngine
         }
     }
 

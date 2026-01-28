@@ -51,45 +51,40 @@ class JSTorrentApplication : Application() {
         createNotificationChannels()
         deleteLegacyChannels()
 
-        // Initialize service lifecycle manager with pause/resume callbacks
+        // Initialize service lifecycle manager with shutdown/restore callbacks
+        // When background downloads are disabled, we completely shut down the engine
+        // to prevent the 100ms tick loop from draining battery
         serviceLifecycleManager = ServiceLifecycleManager(
             context = this,
             settingsStore = SettingsStore(this),
-            onPauseAll = { pauseAllTorrents() },
-            onResumeAll = { resumeAllTorrents() }
+            onShutdownForBackground = { shutdownEngineForBackground() },
+            onRestoreFromBackground = { restoreEngineFromBackground() }
         )
     }
 
     /**
-     * Pause all active torrents. Used when background downloads are disabled
-     * and the app goes to the background.
+     * Completely shut down the engine when going to background.
+     * This stops the 100ms tick loop and all intervals to prevent battery drain.
+     * Called when background downloads are disabled and user leaves the app.
      */
-    private fun pauseAllTorrents() {
-        val controller = _engineController ?: return
-        val torrents = controller.state.value?.torrents ?: return
-
-        for (torrent in torrents) {
-            if (torrent.status in listOf("downloading", "downloading_metadata", "checking", "seeding")) {
-                controller.pauseTorrent(torrent.infoHash)
-            }
+    private fun shutdownEngineForBackground() {
+        if (_engineController == null) {
+            Log.d(TAG, "Engine not initialized, nothing to shut down")
+            return
         }
-        Log.i(TAG, "Paused all torrents for background")
+        Log.i(TAG, "Shutting down engine for background (battery saving)")
+        shutdownEngine()
     }
 
     /**
-     * Resume torrents that were paused when going to background.
-     * Called when the app comes back to the foreground.
+     * Restore the engine after coming back from background.
+     * The engine will be lazily reinitialized when the Activity calls ensureEngine().
+     * We don't reinitialize here because the Activity hasn't started yet.
      */
-    private fun resumeAllTorrents() {
-        val controller = _engineController ?: return
-        val torrents = controller.state.value?.torrents ?: return
-
-        for (torrent in torrents) {
-            if (torrent.status == "stopped") {
-                controller.resumeTorrent(torrent.infoHash)
-            }
-        }
-        Log.i(TAG, "Resumed all torrents from background pause")
+    private fun restoreEngineFromBackground() {
+        // The engine will be reinitialized by the Activity when it calls ensureEngine()
+        // in onStart(). We just log here for debugging.
+        Log.i(TAG, "Engine restore requested - will reinitialize on Activity start")
     }
 
     private fun createNotificationChannels() {
