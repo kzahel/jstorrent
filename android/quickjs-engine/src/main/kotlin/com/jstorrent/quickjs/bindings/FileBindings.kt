@@ -165,6 +165,12 @@ class FileBindings(
         @Volatile private var maxWriteLatencyMs = 0L
         @Volatile private var lastLogTime = System.currentTimeMillis()
 
+        // Separate tracking for hash vs disk time (batch writes only)
+        @Volatile private var totalHashTimeMs = 0L
+        @Volatile private var totalDiskTimeMs = 0L
+        @Volatile private var maxHashTimeMs = 0L
+        @Volatile private var maxDiskTimeMs = 0L
+
         // ============================================================
         // Phase 4: Batch disk write result crossing
         // ============================================================
@@ -654,9 +660,11 @@ class FileBindings(
                     val startTime = System.currentTimeMillis()
 
                     try {
-                        // 1. Hash the data
+                        // 1. Hash the data (timed separately)
+                        val hashStart = System.currentTimeMillis()
                         val actualHash = Hasher.sha1(write.data)
                         val actualHashHex = actualHash.joinToString("") { "%02x".format(it) }
+                        val hashTime = System.currentTimeMillis() - hashStart
 
                         // 2. Compare hashes
                         if (!actualHashHex.equals(write.expectedHashHex, ignoreCase = true)) {
@@ -665,8 +673,10 @@ class FileBindings(
                             return@launch
                         }
 
-                        // 3. Write the data (hash matched)
+                        // 3. Write the data (hash matched, timed separately)
+                        val diskStart = System.currentTimeMillis()
                         fileManager.write(rootUri, write.path, write.position, write.data)
+                        val diskTime = System.currentTimeMillis() - diskStart
                         val elapsed = System.currentTimeMillis() - startTime
 
                         // Track stats
@@ -674,8 +684,16 @@ class FileBindings(
                             bytesWritten += write.data.size
                             writeCount++
                             totalWriteTimeMs += elapsed
+                            totalHashTimeMs += hashTime
+                            totalDiskTimeMs += diskTime
                             if (elapsed > maxWriteLatencyMs) {
                                 maxWriteLatencyMs = elapsed
+                            }
+                            if (hashTime > maxHashTimeMs) {
+                                maxHashTimeMs = hashTime
+                            }
+                            if (diskTime > maxDiskTimeMs) {
+                                maxDiskTimeMs = diskTime
                             }
 
                             // Log every 5 seconds
@@ -685,12 +703,18 @@ class FileBindings(
                                 val mbWritten = bytesWritten / (1024.0 * 1024.0)
                                 val mbps = mbWritten / (sinceLastLog / 1000.0)
                                 val avgLatency = if (writeCount > 0) totalWriteTimeMs / writeCount else 0
-                                Log.i(TAG, "Batch write: %.2f MB/s, %d writes, avg %dms, max %dms".format(
-                                    mbps, writeCount, avgLatency, maxWriteLatencyMs))
+                                val avgHash = if (writeCount > 0) totalHashTimeMs / writeCount else 0
+                                val avgDisk = if (writeCount > 0) totalDiskTimeMs / writeCount else 0
+                                Log.i(TAG, "Batch write: %.2f MB/s, %d writes, avg %dms (hash=%dms/%dms, disk=%dms/%dms)".format(
+                                    mbps, writeCount, avgLatency, avgHash, maxHashTimeMs, avgDisk, maxDiskTimeMs))
                                 bytesWritten = 0
                                 writeCount = 0
                                 totalWriteTimeMs = 0
+                                totalHashTimeMs = 0
+                                totalDiskTimeMs = 0
                                 maxWriteLatencyMs = 0
+                                maxHashTimeMs = 0
+                                maxDiskTimeMs = 0
                                 lastLogTime = now
                             }
                         }

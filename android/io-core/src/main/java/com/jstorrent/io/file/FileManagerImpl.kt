@@ -9,8 +9,67 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 private const val TAG = "FileManagerImpl"
+
+/**
+ * Pooled file handle using FileChannel for lock-free positioned I/O.
+ * FileChannel.write(buffer, position) and read(buffer, position) are atomic
+ * positioned operations that don't use seek, enabling true concurrent access
+ * to different positions without locking.
+ */
+private class PooledFileHandle(
+    val path: String,
+    val raf: RandomAccessFile,
+    @Volatile var lastAccessTime: Long = System.currentTimeMillis()
+) {
+    val channel = raf.channel
+
+    /**
+     * Write data at the given position without seeking.
+     * Uses FileChannel.write(buffer, position) which is atomic and thread-safe
+     * for writes to different positions.
+     */
+    fun writeAt(offset: Long, data: ByteArray) {
+        lastAccessTime = System.currentTimeMillis()
+        val buffer = ByteBuffer.wrap(data)
+        var written = 0
+        while (buffer.hasRemaining()) {
+            written += channel.write(buffer, offset + written)
+        }
+    }
+
+    /**
+     * Read data from the given position without seeking.
+     * Uses FileChannel.read(buffer, position) which is atomic and thread-safe.
+     */
+    fun readAt(offset: Long, length: Int): ByteArray {
+        lastAccessTime = System.currentTimeMillis()
+        val buffer = ByteBuffer.allocate(length)
+        var totalRead = 0
+        while (buffer.hasRemaining()) {
+            val read = channel.read(buffer, offset + totalRead)
+            if (read == -1) break
+            totalRead += read
+        }
+        if (totalRead < length) {
+            throw IllegalStateException("Could not read $length bytes, only got $totalRead")
+        }
+        buffer.flip()
+        return buffer.array()
+    }
+
+    fun close() {
+        try {
+            channel.close()
+            raf.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error closing file handle: $path", e)
+        }
+    }
+}
 
 /**
  * SAF-based FileManager implementation with LRU caching.
@@ -21,7 +80,9 @@ private const val TAG = "FileManagerImpl"
  */
 class FileManagerImpl(
     private val context: Context,
-    maxCacheSize: Int = 200
+    maxCacheSize: Int = 200,
+    private val maxFileHandles: Int = 32,
+    private val handleIdleTimeoutMs: Long = 30_000L
 ) : FileManager {
 
     /**
@@ -34,6 +95,14 @@ class FileManagerImpl(
         }
     }
     private val cacheLock = Any()
+
+    /**
+     * Pool of open file handles for native file:// writes.
+     * Key: absolute file path
+     */
+    private val fileHandlePool = LinkedHashMap<String, PooledFileHandle>(maxFileHandles, 0.75f, true)
+    private val fileHandleLock = ReentrantLock()
+    @Volatile private var lastEvictionCheck = System.currentTimeMillis()
 
     /**
      * Check if URI is a file:// scheme that should use native File I/O.
@@ -347,28 +416,119 @@ class FileManagerImpl(
         }
     }
 
+    /**
+     * Get or create a pooled file handle for the given file.
+     * Creates parent directories and file if needed.
+     */
+    private fun getPooledHandle(file: File, createIfMissing: Boolean): PooledFileHandle {
+        val path = file.absolutePath
+
+        fileHandleLock.withLock {
+            // Check if already in pool
+            fileHandlePool[path]?.let { return it }
+
+            // Evict idle handles if pool is full
+            maybeEvictHandles()
+
+            // Create parent directories if needed
+            if (createIfMissing) {
+                file.parentFile?.mkdirs()
+            }
+
+            // Open new handle
+            val raf = RandomAccessFile(file, "rw")
+            val handle = PooledFileHandle(path, raf)
+            fileHandlePool[path] = handle
+            return handle
+        }
+    }
+
+    /**
+     * Pre-allocate file to avoid per-write block allocation overhead.
+     * This is a no-op if the file is already at least the requested size.
+     */
+    fun preallocate(rootUri: Uri, relativePath: String, size: Long) {
+        if (!isFileUri(rootUri)) {
+            // SAF doesn't support pre-allocation
+            return
+        }
+        val file = resolveNativeFile(rootUri, relativePath)
+        try {
+            file.parentFile?.mkdirs()
+            val handle = getPooledHandle(file, createIfMissing = true)
+            if (file.length() < size) {
+                handle.raf.setLength(size)
+                Log.d(TAG, "Pre-allocated ${size / (1024 * 1024)}MB for ${file.name}")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Pre-allocation failed for $relativePath: ${e.message}")
+        }
+    }
+
+    /**
+     * Evict handles that haven't been used recently or if pool is too large.
+     */
+    private fun maybeEvictHandles() {
+        val now = System.currentTimeMillis()
+
+        // Only check every second
+        if (now - lastEvictionCheck < 1000) return
+        lastEvictionCheck = now
+
+        val toEvict = mutableListOf<String>()
+
+        for ((path, handle) in fileHandlePool) {
+            // Evict if idle too long
+            if (now - handle.lastAccessTime > handleIdleTimeoutMs) {
+                toEvict.add(path)
+            }
+        }
+
+        // Also evict oldest if over capacity
+        while (fileHandlePool.size - toEvict.size >= maxFileHandles) {
+            val oldest = fileHandlePool.entries.firstOrNull { it.key !in toEvict }
+            if (oldest != null) {
+                toEvict.add(oldest.key)
+            } else {
+                break
+            }
+        }
+
+        for (path in toEvict) {
+            fileHandlePool.remove(path)?.close()
+        }
+
+        if (toEvict.isNotEmpty()) {
+            Log.d(TAG, "Evicted ${toEvict.size} file handles, pool size: ${fileHandlePool.size}")
+        }
+    }
+
+    /**
+     * Close all pooled file handles.
+     */
+    fun closeAllHandles() {
+        fileHandleLock.withLock {
+            for ((_, handle) in fileHandlePool) {
+                handle.close()
+            }
+            fileHandlePool.clear()
+            Log.d(TAG, "Closed all file handles")
+        }
+    }
+
     private fun readNative(rootUri: Uri, relativePath: String, offset: Long, length: Int): ByteArray {
         val file = resolveNativeFile(rootUri, relativePath)
         if (!file.exists()) {
             throw FileManagerException.FileNotFound(relativePath)
         }
         try {
-            RandomAccessFile(file, "r").use { raf ->
-                raf.seek(offset)
-                val buffer = ByteArray(length)
-                var totalRead = 0
-                while (totalRead < length) {
-                    val read = raf.read(buffer, totalRead, length - totalRead)
-                    if (read == -1) break
-                    totalRead += read
-                }
-                if (totalRead < length) {
-                    throw FileManagerException.InsufficientData(relativePath, length, totalRead)
-                }
-                return buffer
-            }
+            // Use pooled handle for reads too
+            val handle = getPooledHandle(file, createIfMissing = false)
+            return handle.readAt(offset, length)
         } catch (e: FileManagerException) {
             throw e
+        } catch (e: IllegalStateException) {
+            throw FileManagerException.InsufficientData(relativePath, length, 0)
         } catch (e: Exception) {
             Log.e(TAG, "Native read failed: ${e.message}", e)
             throw FileManagerException.ReadError(relativePath, e)
@@ -378,13 +538,8 @@ class FileManagerImpl(
     private fun writeNative(rootUri: Uri, relativePath: String, offset: Long, data: ByteArray) {
         val file = resolveNativeFile(rootUri, relativePath)
         try {
-            // Create parent directories if needed
-            file.parentFile?.mkdirs()
-
-            RandomAccessFile(file, "rw").use { raf ->
-                raf.seek(offset)
-                raf.write(data)
-            }
+            val handle = getPooledHandle(file, createIfMissing = true)
+            handle.writeAt(offset, data)
         } catch (e: Exception) {
             Log.e(TAG, "Native write failed: ${e.message}", e)
             when {

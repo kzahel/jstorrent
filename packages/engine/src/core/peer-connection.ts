@@ -500,7 +500,8 @@ export class PeerConnection extends EngineComponent {
             }
 
             this.buffer.discard(totalLength)
-            this.pendingBytes += totalLength
+            // Note: pendingBytes was already incremented in handleData() when the socket received this data.
+            // Do NOT add to pendingBytes here - that would cause double-counting.
 
             // Decrement requestsPending (matching handleMessage PIECE behavior)
             if (this.requestsPending > 0) {
