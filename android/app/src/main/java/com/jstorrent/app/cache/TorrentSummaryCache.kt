@@ -24,31 +24,32 @@ import kotlinx.serialization.json.Json
  * The cache reads the same SharedPreferences that the JS engine uses (jstorrent_kv),
  * parsing the bencoded torrent files to extract metadata.
  */
-class TorrentSummaryCache(context: Context) {
+open class TorrentSummaryCache(context: Context?) {
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences("jstorrent_kv", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences? =
+        context?.getSharedPreferences("jstorrent_kv", Context.MODE_PRIVATE)
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    private val _cachedSummaries = MutableStateFlow<List<CachedTorrentSummary>>(emptyList())
+    protected val _cachedSummaries = MutableStateFlow<List<CachedTorrentSummary>>(emptyList())
 
     /**
      * Flow of cached torrent summaries.
      * Emits immediately with cached data, no engine required.
      */
-    val summaries: Flow<List<CachedTorrentSummary>> = _cachedSummaries.asStateFlow()
+    open val summaries: Flow<List<CachedTorrentSummary>> = _cachedSummaries.asStateFlow()
 
     /**
      * Load cached summaries from SharedPreferences.
      * Call this on app startup before engine initialization.
      */
-    suspend fun load(): List<CachedTorrentSummary> = withContext(Dispatchers.IO) {
+    open suspend fun load(): List<CachedTorrentSummary> = withContext(Dispatchers.IO) {
         val summaries = mutableListOf<CachedTorrentSummary>()
+        val localPrefs = prefs ?: return@withContext emptyList()
 
         try {
             // Load the torrent list index
-            val torrentListJson = prefs.getString("torrents", null) ?: return@withContext emptyList()
+            val torrentListJson = localPrefs.getString("torrents", null) ?: return@withContext emptyList()
             val torrentList = json.decodeFromString<TorrentListData>(torrentListJson)
 
             for (entry in torrentList.torrents) {
@@ -73,8 +74,9 @@ class TorrentSummaryCache(context: Context) {
      * Check if there are any cached torrents.
      * Fast check without full parsing.
      */
-    fun hasCachedTorrents(): Boolean {
-        val torrentListJson = prefs.getString("torrents", null) ?: return false
+    open fun hasCachedTorrents(): Boolean {
+        val localPrefs = prefs ?: return false
+        val torrentListJson = localPrefs.getString("torrents", null) ?: return false
         return try {
             val torrentList = json.decodeFromString<TorrentListData>(torrentListJson)
             torrentList.torrents.isNotEmpty()
@@ -90,7 +92,7 @@ class TorrentSummaryCache(context: Context) {
         val infoHash = entry.infoHash
 
         // Load torrent state (userState, bitfield, uploaded, downloaded)
-        val stateJson = prefs.getString("torrent:$infoHash:state", null)
+        val stateJson = prefs?.getString("torrent:$infoHash:state", null)
         val state = stateJson?.let {
             try {
                 json.decodeFromString<TorrentStateData>(it)
@@ -143,15 +145,16 @@ class TorrentSummaryCache(context: Context) {
      * Load torrent metadata from either .torrent file or info dict.
      */
     private fun loadMetadata(infoHash: String, source: String): TorrentMetadata? {
+        val localPrefs = prefs ?: return null
         return try {
             if (source == "file") {
                 // File-source: load from torrent file
-                val torrentFileBase64 = prefs.getString("torrent:$infoHash:torrentfile", null)
+                val torrentFileBase64 = localPrefs.getString("torrent:$infoHash:torrentfile", null)
                     ?: return null
                 TorrentMetadata.fromTorrentFileBase64(torrentFileBase64)
             } else {
                 // Magnet-source: load from info dict (may not exist yet)
-                val infoDictBase64 = prefs.getString("torrent:$infoHash:infodict", null)
+                val infoDictBase64 = localPrefs.getString("torrent:$infoHash:infodict", null)
                     ?: return null
                 TorrentMetadata.fromInfoDictBase64(infoDictBase64)
             }

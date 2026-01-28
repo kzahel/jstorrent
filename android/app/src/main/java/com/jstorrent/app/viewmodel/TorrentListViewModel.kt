@@ -3,6 +3,7 @@ package com.jstorrent.app.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.jstorrent.app.cache.TorrentSummaryCache
 import com.jstorrent.app.model.TorrentFilter
 import com.jstorrent.app.model.TorrentListUiState
 import com.jstorrent.app.model.TorrentSortOrder
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -21,10 +23,24 @@ import kotlinx.coroutines.launch
 /**
  * ViewModel for the torrent list screen.
  * Manages torrent list state, filtering, and sorting.
+ *
+ * Stage 1 of lazy engine startup: Uses TorrentSummaryCache as initial data source.
+ * The engine still starts immediately, but UI may render faster if cache loads
+ * before engine pushes first state. Engine state always wins when available.
  */
 class TorrentListViewModel(
-    private val repository: TorrentRepository
+    private val repository: TorrentRepository,
+    private val cache: TorrentSummaryCache? = null
 ) : ViewModel() {
+
+    init {
+        // Load cache asynchronously on initialization
+        cache?.let { summaryCache ->
+            viewModelScope.launch {
+                summaryCache.load()
+            }
+        }
+    }
 
     // Filter and sort state
     private val _filter = MutableStateFlow(TorrentFilter.ALL)
@@ -40,19 +56,33 @@ class TorrentListViewModel(
     val isSelectionMode: StateFlow<Boolean> = _selectedTorrents.map { it.isNotEmpty() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    // Combined UI state
-    val uiState: StateFlow<TorrentListUiState> = combine(
+    // Flow of cached summaries (empty list if no cache provided)
+    private val cachedSummariesFlow = cache?.summaries ?: flowOf(emptyList())
+
+    // Combined data source flow - combines engine state with cache fallback
+    private val dataSourceFlow = combine(
         repository.isLoaded,
         repository.state,
         repository.lastError,
+        cachedSummariesFlow
+    ) { isLoaded, state, error, cachedSummaries ->
+        DataSourceState(isLoaded, state, error, cachedSummaries)
+    }
+
+    // Combined UI state - engine state wins when available, falls back to cache
+    val uiState: StateFlow<TorrentListUiState> = combine(
+        dataSourceFlow,
         _filter,
         _sortOrder
-    ) { isLoaded, state, error, filter, sortOrder ->
+    ) { dataSource, filter, sortOrder ->
         when {
-            error != null && !isLoaded -> TorrentListUiState.Error(error)
-            !isLoaded -> TorrentListUiState.Loading
-            else -> {
-                val torrents = state?.torrents ?: emptyList()
+            // Error state (only show if engine hasn't loaded yet)
+            dataSource.error != null && !dataSource.isLoaded ->
+                TorrentListUiState.Error(dataSource.error)
+
+            // Engine is loaded - use live state (engine wins)
+            dataSource.isLoaded -> {
+                val torrents = dataSource.state?.torrents ?: emptyList()
                 val filteredTorrents = torrents
                     .filterByStatus(filter)
                     .sortByOrder(sortOrder)
@@ -62,11 +92,37 @@ class TorrentListViewModel(
                     sortOrder = sortOrder
                 )
             }
+
+            // Engine not loaded but cache has data - show cached
+            dataSource.cachedSummaries.isNotEmpty() -> {
+                val torrents = dataSource.cachedSummaries.map { cached ->
+                    with(cache!!) { cached.toTorrentSummary() }
+                }
+                val filteredTorrents = torrents
+                    .filterByStatus(filter)
+                    .sortByOrder(sortOrder)
+                TorrentListUiState.Loaded(
+                    torrents = filteredTorrents,
+                    filter = filter,
+                    sortOrder = sortOrder
+                )
+            }
+
+            // No data yet - loading
+            else -> TorrentListUiState.Loading
         }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = TorrentListUiState.Loading
+    )
+
+    // Helper data class for combining engine + cache state
+    private data class DataSourceState(
+        val isLoaded: Boolean,
+        val state: com.jstorrent.quickjs.model.EngineState?,
+        val error: String?,
+        val cachedSummaries: List<com.jstorrent.app.cache.CachedTorrentSummary>
     )
 
     /**
@@ -290,7 +346,11 @@ class TorrentListViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(TorrentListViewModel::class.java)) {
-                return TorrentListViewModel(EngineServiceRepository(application)) as T
+                val app = application as com.jstorrent.app.JSTorrentApplication
+                return TorrentListViewModel(
+                    repository = EngineServiceRepository(application),
+                    cache = app.torrentSummaryCache
+                ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

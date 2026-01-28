@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.net.Uri
 import android.util.Log
+import com.jstorrent.app.cache.TorrentSummaryCache
 import com.jstorrent.app.service.ServiceLifecycleManager
 import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.app.storage.RootStore
@@ -40,6 +41,12 @@ class JSTorrentApplication : Application() {
 
         /** Error notifications - high priority */
         const val ERRORS = "jstorrent_errors"
+    }
+
+    // Torrent summary cache for lazy engine startup (Stage 1)
+    // Provides cached torrent list without starting the engine
+    val torrentSummaryCache: TorrentSummaryCache by lazy {
+        TorrentSummaryCache(this)
     }
 
     // Service lifecycle management
