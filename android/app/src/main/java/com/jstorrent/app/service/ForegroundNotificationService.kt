@@ -93,6 +93,10 @@ class ForegroundNotificationService : Service() {
     // Doze mode monitoring for debugging power state transitions
     private var dozeMonitor: DozeMonitor? = null
 
+    // Battery monitoring for low battery shutdown
+    private var batteryMonitorJob: Job? = null
+    private var hasTriggeredLowBatteryShutdown = false  // Prevent repeated triggers
+
     // Service lifecycle state
     private val _serviceState = MutableStateFlow(ServiceState.RUNNING)
     val serviceState: StateFlow<ServiceState> = _serviceState.asStateFlow()
@@ -165,6 +169,11 @@ class ForegroundNotificationService : Service() {
         // Always start Doze monitoring for debugging
         dozeMonitor?.start()
 
+        // Start battery monitoring if enabled
+        if (settingsStore.shutdownOnLowBatteryEnabled) {
+            startBatteryMonitoring()
+        }
+
         return START_STICKY
     }
 
@@ -180,6 +189,9 @@ class ForegroundNotificationService : Service() {
         // Stop Doze monitoring
         dozeMonitor?.stop()
         dozeMonitor = null
+
+        // Stop battery monitoring
+        stopBatteryMonitoring()
 
         // Release wake locks
         releaseWakeLocks()
@@ -709,6 +721,114 @@ class ForegroundNotificationService : Service() {
         }
 
         Log.i(TAG, "Wake locks ${if (enabled) "enabled" else "disabled"}")
+    }
+
+    // =========================================================================
+    // Battery Monitoring for Low Battery Shutdown
+    // =========================================================================
+
+    /**
+     * Start monitoring battery level for low battery shutdown.
+     */
+    private fun startBatteryMonitoring() {
+        batteryMonitorJob?.cancel()
+        hasTriggeredLowBatteryShutdown = false
+
+        batteryMonitorJob = ioScope.launch {
+            dozeMonitor?.batteryLevel?.collectLatest { level ->
+                handleBatteryLevelChange(level)
+            }
+        }
+        Log.i(TAG, "Battery monitoring started (threshold: ${settingsStore.shutdownOnLowBatteryThreshold}%)")
+    }
+
+    /**
+     * Stop battery level monitoring.
+     */
+    private fun stopBatteryMonitoring() {
+        batteryMonitorJob?.cancel()
+        batteryMonitorJob = null
+        Log.i(TAG, "Battery monitoring stopped")
+    }
+
+    /**
+     * Handle battery level changes when low battery shutdown is enabled.
+     */
+    private fun handleBatteryLevelChange(batteryLevel: Int) {
+        if (!settingsStore.shutdownOnLowBatteryEnabled) return
+        if (hasTriggeredLowBatteryShutdown) return  // Already triggered
+        if (batteryLevel < 0) return  // Invalid reading
+
+        val threshold = settingsStore.shutdownOnLowBatteryThreshold
+        val isCharging = dozeMonitor?.isCharging?.value ?: false
+
+        // Don't trigger if charging
+        if (isCharging) {
+            // Reset the flag if we're charging again
+            hasTriggeredLowBatteryShutdown = false
+            return
+        }
+
+        if (batteryLevel <= threshold) {
+            Log.w(TAG, "Battery level ($batteryLevel%) at or below threshold ($threshold%) - shutting down")
+            hasTriggeredLowBatteryShutdown = true
+            triggerLowBatteryShutdown()
+        }
+    }
+
+    /**
+     * Trigger shutdown due to low battery.
+     */
+    private fun triggerLowBatteryShutdown() {
+        // Show toast on main thread
+        mainHandler.post {
+            Toast.makeText(
+                this@ForegroundNotificationService,
+                "Stopping - battery low",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+
+        // Pause all torrents
+        pauseAllTorrents()
+
+        // Stop the service after a short delay to let the toast show
+        mainHandler.postDelayed({
+            stop(this@ForegroundNotificationService)
+        }, 500)
+    }
+
+    /**
+     * Enable or disable low battery shutdown at runtime.
+     * Called from SettingsViewModel when user toggles the setting.
+     */
+    fun setShutdownOnLowBatteryEnabled(enabled: Boolean) {
+        settingsStore.shutdownOnLowBatteryEnabled = enabled
+
+        if (enabled) {
+            startBatteryMonitoring()
+            // Check current battery level immediately
+            val currentLevel = dozeMonitor?.batteryLevel?.value ?: 100
+            handleBatteryLevelChange(currentLevel)
+        } else {
+            stopBatteryMonitoring()
+        }
+
+        Log.i(TAG, "Low battery shutdown ${if (enabled) "enabled" else "disabled"}")
+    }
+
+    /**
+     * Update the low battery shutdown threshold.
+     * Called from SettingsViewModel when user changes the threshold.
+     */
+    fun setShutdownOnLowBatteryThreshold(threshold: Int) {
+        settingsStore.shutdownOnLowBatteryThreshold = threshold
+        // If monitoring is active, check if current level is now below new threshold
+        if (settingsStore.shutdownOnLowBatteryEnabled) {
+            val currentLevel = dozeMonitor?.batteryLevel?.value ?: 100
+            handleBatteryLevelChange(currentLevel)
+        }
+        Log.i(TAG, "Low battery shutdown threshold set to $threshold%")
     }
 
     companion object {

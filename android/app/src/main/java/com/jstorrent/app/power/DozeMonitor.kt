@@ -72,6 +72,9 @@ class DozeMonitor(private val context: Context) {
     private val _isScreenOn = MutableStateFlow(powerManager.isInteractive)
     val isScreenOn: StateFlow<Boolean> = _isScreenOn.asStateFlow()
 
+    private val _batteryLevel = MutableStateFlow(checkBatteryLevel())
+    val batteryLevel: StateFlow<Int> = _batteryLevel.asStateFlow()
+
     // "UI visible" = user is looking at our app (activity on screen)
     // vs "background" = user switched away, but our foreground SERVICE still runs
     private val _isUiVisible = MutableStateFlow(true)
@@ -150,6 +153,8 @@ class DozeMonitor(private val context: Context) {
                         val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                             status == BatteryManager.BATTERY_STATUS_FULL
                         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+                        val batteryPct = if (scale > 0) (level * 100) / scale else level
                         val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
                         val pluggedStr = when (plugged) {
                             BatteryManager.BATTERY_PLUGGED_AC -> "AC"
@@ -158,9 +163,14 @@ class DozeMonitor(private val context: Context) {
                             else -> "None"
                         }
 
+                        // Update battery level
+                        if (_batteryLevel.value != batteryPct) {
+                            _batteryLevel.value = batteryPct
+                        }
+
                         if (_isCharging.value != isCharging) {
                             _isCharging.value = isCharging
-                            Log.i(TAG, "    Battery: charging=$isCharging, level=$level%, plugged=$pluggedStr")
+                            Log.i(TAG, "    Battery: charging=$isCharging, level=$batteryPct%, plugged=$pluggedStr")
                             updateState()
                         }
                     }
@@ -306,6 +316,18 @@ class DozeMonitor(private val context: Context) {
         } ?: false
     }
 
+    private fun checkBatteryLevel(): Int {
+        val batteryStatus = context.registerReceiver(
+            null,
+            IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        )
+        return batteryStatus?.let { intent ->
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+            if (scale > 0) (level * 100) / scale else level
+        } ?: -1
+    }
+
     private fun checkIsDozing(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             powerManager.isDeviceIdleMode
@@ -333,6 +355,7 @@ class DozeMonitor(private val context: Context) {
             appendLine("Power State: ${_powerState.value}")
             appendLine("Screen on: ${_isScreenOn.value}")
             appendLine("Charging: ${_isCharging.value}")
+            appendLine("Battery level: ${_batteryLevel.value}%")
             appendLine("Dozing: ${_isDozing.value}")
             appendLine("UI visible: ${_isUiVisible.value}")
             appendLine("Interactive: ${powerManager.isInteractive}")

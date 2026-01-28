@@ -45,6 +45,8 @@ data class SettingsUiState(
     // Power Management
     val backgroundDownloadsEnabled: Boolean = false,
     val cpuWakeLockEnabled: Boolean = false,
+    val shutdownOnLowBatteryEnabled: Boolean = false,
+    val shutdownOnLowBatteryThreshold: Int = 15,
     // Notifications
     val notificationPermissionGranted: Boolean = false,
     val canRequestNotificationPermission: Boolean = true,
@@ -91,7 +93,9 @@ class SettingsViewModel(
             upnpEnabled = settingsStore.upnpEnabled,
             encryptionPolicy = settingsStore.encryptionPolicy,
             backgroundDownloadsEnabled = settingsStore.backgroundDownloadsEnabled,
-            cpuWakeLockEnabled = settingsStore.cpuWakeLockEnabled
+            cpuWakeLockEnabled = settingsStore.cpuWakeLockEnabled,
+            shutdownOnLowBatteryEnabled = settingsStore.shutdownOnLowBatteryEnabled,
+            shutdownOnLowBatteryThreshold = settingsStore.shutdownOnLowBatteryThreshold
         )
         // Also refresh UPnP status from engine
         refreshUpnpStatus()
@@ -354,6 +358,26 @@ class SettingsViewModel(
         settingsStore.cpuWakeLockEnabled = enabled
         ForegroundNotificationService.instance?.setCpuWakeLockEnabled(enabled)
         _uiState.value = _uiState.value.copy(cpuWakeLockEnabled = enabled)
+    }
+
+    /**
+     * Set shutdown on low battery enabled.
+     * Notifies running service to start/stop battery monitoring.
+     */
+    fun setShutdownOnLowBatteryEnabled(enabled: Boolean) {
+        settingsStore.shutdownOnLowBatteryEnabled = enabled
+        ForegroundNotificationService.instance?.setShutdownOnLowBatteryEnabled(enabled)
+        _uiState.value = _uiState.value.copy(shutdownOnLowBatteryEnabled = enabled)
+    }
+
+    /**
+     * Set shutdown on low battery threshold (5-50%).
+     */
+    fun setShutdownOnLowBatteryThreshold(threshold: Int) {
+        val clampedThreshold = threshold.coerceIn(5, 50)
+        settingsStore.shutdownOnLowBatteryThreshold = clampedThreshold
+        ForegroundNotificationService.instance?.setShutdownOnLowBatteryThreshold(clampedThreshold)
+        _uiState.value = _uiState.value.copy(shutdownOnLowBatteryThreshold = clampedThreshold)
     }
 
     /**

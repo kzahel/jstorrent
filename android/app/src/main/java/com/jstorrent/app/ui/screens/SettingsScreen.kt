@@ -541,7 +541,11 @@ fun PowerManagementSettingsScreen(
                     cpuWakeLockEnabled = uiState.cpuWakeLockEnabled,
                     onCpuWakeLockChange = { viewModel.setCpuWakeLockEnabled(it) },
                     whenDownloadsComplete = uiState.whenDownloadsComplete,
-                    onWhenDownloadsCompleteChange = { viewModel.setWhenDownloadsComplete(it) }
+                    onWhenDownloadsCompleteChange = { viewModel.setWhenDownloadsComplete(it) },
+                    shutdownOnLowBatteryEnabled = uiState.shutdownOnLowBatteryEnabled,
+                    onShutdownOnLowBatteryChange = { viewModel.setShutdownOnLowBatteryEnabled(it) },
+                    shutdownOnLowBatteryThreshold = uiState.shutdownOnLowBatteryThreshold,
+                    onShutdownOnLowBatteryThresholdChange = { viewModel.setShutdownOnLowBatteryThreshold(it) }
                 )
             }
         }
@@ -1211,6 +1215,17 @@ private fun NotificationsSection(
 // Power Management Section
 // =============================================================================
 
+private data class BatteryThresholdPreset(val value: Int, val label: String)
+
+private val batteryThresholdPresets = listOf(
+    BatteryThresholdPreset(5, "5%"),
+    BatteryThresholdPreset(10, "10%"),
+    BatteryThresholdPreset(15, "15%"),
+    BatteryThresholdPreset(20, "20%"),
+    BatteryThresholdPreset(25, "25%"),
+    BatteryThresholdPreset(30, "30%")
+)
+
 @Composable
 private fun PowerManagementSection(
     backgroundDownloadsEnabled: Boolean,
@@ -1220,6 +1235,10 @@ private fun PowerManagementSection(
     onCpuWakeLockChange: (Boolean) -> Unit,
     whenDownloadsComplete: String,
     onWhenDownloadsCompleteChange: (String) -> Unit,
+    shutdownOnLowBatteryEnabled: Boolean,
+    onShutdownOnLowBatteryChange: (Boolean) -> Unit,
+    shutdownOnLowBatteryThreshold: Int,
+    onShutdownOnLowBatteryThresholdChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -1247,6 +1266,36 @@ private fun PowerManagementSection(
             onCheckedChange = onCpuWakeLockChange
         )
 
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Battery",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Shutdown on low battery toggle
+        SettingToggleRow(
+            label = "Shutdown on low battery",
+            description = "Automatically stop downloads when battery is low",
+            checked = shutdownOnLowBatteryEnabled,
+            onCheckedChange = onShutdownOnLowBatteryChange
+        )
+
+        // Threshold selector (only shown when enabled)
+        if (shutdownOnLowBatteryEnabled) {
+            BatteryThresholdRow(
+                currentThreshold = shutdownOnLowBatteryThreshold,
+                onThresholdChange = onShutdownOnLowBatteryThresholdChange
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider()
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
@@ -1281,6 +1330,59 @@ private fun PowerManagementSection(
                     text = label,
                     style = MaterialTheme.typography.bodyLarge
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BatteryThresholdRow(
+    currentThreshold: Int,
+    onThresholdChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val currentPreset = batteryThresholdPresets.find { it.value == currentThreshold }
+        ?: BatteryThresholdPreset(currentThreshold, "$currentThreshold%")
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp, horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Shutdown threshold",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Box {
+            OutlinedCard(
+                modifier = Modifier.clickable { expanded = true }
+            ) {
+                Text(
+                    text = currentPreset.label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                batteryThresholdPresets.forEach { preset ->
+                    DropdownMenuItem(
+                        text = { Text(preset.label) },
+                        onClick = {
+                            onThresholdChange(preset.value)
+                            expanded = false
+                        },
+                        trailingIcon = if (preset.value == currentThreshold) {
+                            { Icon(Icons.Default.Check, contentDescription = "Selected") }
+                        } else null
+                    )
+                }
             }
         }
     }

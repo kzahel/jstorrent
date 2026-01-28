@@ -115,6 +115,22 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(KEY_CPU_WAKE_LOCK_ENABLED, false)
         set(value) = prefs.edit { putBoolean(KEY_CPU_WAKE_LOCK_ENABLED, value) }
 
+    /**
+     * Whether to automatically shutdown when battery drops below threshold.
+     * OFF by default.
+     */
+    var shutdownOnLowBatteryEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SHUTDOWN_LOW_BATTERY_ENABLED, false)
+        set(value) = prefs.edit { putBoolean(KEY_SHUTDOWN_LOW_BATTERY_ENABLED, value) }
+
+    /**
+     * Battery percentage threshold for shutdown (5-50%).
+     * Default is 15%.
+     */
+    var shutdownOnLowBatteryThreshold: Int
+        get() = prefs.getInt(KEY_SHUTDOWN_LOW_BATTERY_THRESHOLD, 15)
+        set(value) = prefs.edit { putInt(KEY_SHUTDOWN_LOW_BATTERY_THRESHOLD, value.coerceIn(5, 50)) }
+
     // =========================================================================
     // Connection Limits
     // =========================================================================
@@ -164,6 +180,8 @@ class SettingsStore(context: Context) {
         private const val KEY_HAS_SHOWN_NOTIFICATION_PROMPT = "has_shown_notification_prompt"
         private const val KEY_BACKGROUND_DOWNLOADS_ENABLED = "background_downloads_enabled"
         private const val KEY_CPU_WAKE_LOCK_ENABLED = "cpu_wake_lock_enabled"
+        private const val KEY_SHUTDOWN_LOW_BATTERY_ENABLED = "shutdown_low_battery_enabled"
+        private const val KEY_SHUTDOWN_LOW_BATTERY_THRESHOLD = "shutdown_low_battery_threshold"
         // Connection limits
         private const val KEY_MAX_PEERS_PER_TORRENT = "max_peers_per_torrent"
         private const val KEY_MAX_GLOBAL_PEERS = "max_global_peers"
