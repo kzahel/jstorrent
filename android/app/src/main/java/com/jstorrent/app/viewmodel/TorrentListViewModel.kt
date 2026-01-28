@@ -169,9 +169,20 @@ class TorrentListViewModel(
     /**
      * Filter counts for each filter type.
      * Exposed as StateFlow so Compose can observe and recompose when counts change.
+     * Uses engine state when available, falls back to cached data when engine is off.
      */
-    val filterCounts: StateFlow<Map<TorrentFilter, Int>> = repository.state.map { state ->
-        val torrents = state?.torrents ?: emptyList()
+    val filterCounts: StateFlow<Map<TorrentFilter, Int>> = combine(
+        repository.state,
+        repository.isLoaded,
+        cachedSummariesFlow
+    ) { state, isLoaded, cachedSummaries ->
+        val torrents = when {
+            isLoaded -> state?.torrents ?: emptyList()
+            cachedSummaries.isNotEmpty() -> cachedSummaries.map { cached ->
+                with(cache!!) { cached.toTorrentSummary() }
+            }
+            else -> emptyList()
+        }
         TorrentFilter.entries.associateWith { filter ->
             torrents.filterByStatus(filter).size
         }
