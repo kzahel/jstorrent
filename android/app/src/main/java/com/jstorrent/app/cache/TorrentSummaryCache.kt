@@ -44,10 +44,29 @@ open class TorrentSummaryCache(context: Context?) {
     }
 
     /**
-     * Get a raw session value (for base64 data that doesn't have json: prefix).
+     * Get a raw binary value stored by the JS engine.
+     *
+     * The JS engine stores binary data with double-encoding:
+     * 1. Binary data → base64 string
+     * 2. String → UTF-8 bytes (TextEncoder)
+     * 3. UTF-8 bytes → base64 for storage
+     *
+     * So stored value is: base64(utf8Encode(base64(raw)))
+     *
+     * This method decodes the outer base64 and UTF-8 to return the inner base64 string,
+     * which can then be decoded by the caller to get the raw bytes.
      */
-    private fun getSessionRaw(key: String): String? {
-        return prefs?.getString("session:$key", null)
+    private fun getSessionBinary(key: String): String? {
+        val storedValue = prefs?.getString("session:$key", null) ?: return null
+        return try {
+            // Decode outer base64 to get UTF-8 bytes
+            val utf8Bytes = Base64.decode(storedValue, Base64.DEFAULT)
+            // Decode UTF-8 to get inner base64 string
+            String(utf8Bytes, Charsets.UTF_8)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to decode binary value for $key: ${e.message}")
+            null
+        }
     }
 
     protected val _cachedSummaries = MutableStateFlow<List<CachedTorrentSummary>>(emptyList())
@@ -235,12 +254,12 @@ open class TorrentSummaryCache(context: Context?) {
         return try {
             if (source == "file") {
                 // File-source: load from torrent file
-                val torrentFileBase64 = getSessionRaw("torrent:$infoHash:torrentfile")
+                val torrentFileBase64 = getSessionBinary("torrent:$infoHash:torrentfile")
                     ?: return null
                 TorrentMetadata.fromTorrentFileBase64(torrentFileBase64)
             } else {
                 // Magnet-source: load from info dict (may not exist yet)
-                val infoDictBase64 = getSessionRaw("torrent:$infoHash:infodict")
+                val infoDictBase64 = getSessionBinary("torrent:$infoHash:infodict")
                     ?: return null
                 TorrentMetadata.fromInfoDictBase64(infoDictBase64)
             }

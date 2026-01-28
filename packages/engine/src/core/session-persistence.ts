@@ -1,7 +1,7 @@
 import { ISessionStore } from '../interfaces/session-store'
 import { BtEngine } from './bt-engine'
 import { Torrent } from './torrent'
-import { toHex, toBase64, fromBase64 } from '../utils/buffer'
+import { toHex } from '../utils/buffer'
 import { TorrentUserState } from './torrent-state'
 import { Logger } from '../logging/logger'
 import { initializeTorrentMetadata } from './torrent-initializer'
@@ -177,16 +177,14 @@ export class SessionPersistence {
    * Save the .torrent file bytes. Called once when adding a file-source torrent.
    */
   async saveTorrentFile(infoHash: string, torrentFile: Uint8Array): Promise<void> {
-    const base64 = toBase64(torrentFile)
-    await this._store.set(torrentFileKey(infoHash), new TextEncoder().encode(base64))
+    await this._store.set(torrentFileKey(infoHash), torrentFile)
   }
 
   /**
    * Save the info dictionary bytes. Called once when a magnet torrent receives metadata.
    */
   async saveInfoDict(infoHash: string, infoDict: Uint8Array): Promise<void> {
-    const base64 = toBase64(infoDict)
-    await this._store.set(infoDictKey(infoHash), new TextEncoder().encode(base64))
+    await this._store.set(infoDictKey(infoHash), infoDict)
   }
 
   /**
@@ -227,32 +225,14 @@ export class SessionPersistence {
    * Load the .torrent file bytes for a file-source torrent.
    */
   async loadTorrentFile(infoHash: string): Promise<Uint8Array | null> {
-    const data = await this._store.get(torrentFileKey(infoHash))
-    if (!data) return null
-
-    try {
-      const base64 = new TextDecoder().decode(data)
-      return fromBase64(base64)
-    } catch (e) {
-      this.logger.error(`Failed to load torrent file for ${infoHash}:`, e)
-      return null
-    }
+    return this._store.get(torrentFileKey(infoHash))
   }
 
   /**
    * Load the info dictionary bytes for a magnet-source torrent.
    */
   async loadInfoDict(infoHash: string): Promise<Uint8Array | null> {
-    const data = await this._store.get(infoDictKey(infoHash))
-    if (!data) return null
-
-    try {
-      const base64 = new TextDecoder().decode(data)
-      return fromBase64(base64)
-    } catch (e) {
-      this.logger.error(`Failed to load info dict for ${infoHash}:`, e)
-      return null
-    }
+    return this._store.get(infoDictKey(infoHash))
   }
 
   /**
