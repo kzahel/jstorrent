@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -61,6 +62,7 @@ import com.jstorrent.app.model.TorrentFilter
 import com.jstorrent.app.model.TorrentListUiState
 import com.jstorrent.app.model.TorrentSortOrder
 import com.jstorrent.app.ui.components.CombinedSpeedIndicator
+import com.jstorrent.app.ui.components.EngineStatusIndicator
 import com.jstorrent.app.ui.components.SelectionActionBar
 import com.jstorrent.app.ui.components.SharedMenuItems
 import com.jstorrent.app.ui.components.TorrentCard
@@ -132,8 +134,9 @@ fun TorrentListScreen(
         topBar = {
             TopAppBar(
                 title = {
+                    val isLive = (uiState as? TorrentListUiState.Loaded)?.isLive ?: false
                     Column {
-                        // Logo and title
+                        // Logo, title, and engine status indicator
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Image(
                                 painter = painterResource(id = R.drawable.ic_launcher_foreground),
@@ -141,6 +144,11 @@ fun TorrentListScreen(
                                 modifier = Modifier.size(48.dp)
                             )
                             Text("JSTorrent")
+                            Spacer(modifier = Modifier.width(8.dp))
+                            // Engine status indicator: green dot = live, hollow = cached
+                            if (uiState is TorrentListUiState.Loaded) {
+                                EngineStatusIndicator(isLive = isLive)
+                            }
                         }
 
                         // Global speed indicators below the brand (when loaded and has activity)
@@ -344,6 +352,7 @@ fun TorrentListScreen(
                         isPaused = { viewModel.isPaused(it) },
                         isSelectionMode = isSelectionMode,
                         selectedTorrents = selectedTorrents,
+                        isLive = state.isLive,
                         modifier = Modifier.fillMaxSize()
                     )
 
@@ -457,6 +466,7 @@ private fun TorrentListContent(
     isPaused: (TorrentSummary) -> Boolean,
     isSelectionMode: Boolean,
     selectedTorrents: Set<String>,
+    isLive: Boolean,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -490,7 +500,8 @@ private fun TorrentListContent(
                         onClick = { onTorrentClick(torrent.infoHash) },
                         onLongClick = { onTorrentLongClick(torrent.infoHash) },
                         isSelectionMode = isSelectionMode,
-                        isSelected = torrent.infoHash in selectedTorrents
+                        isSelected = torrent.infoHash in selectedTorrents,
+                        isLive = isLive
                     )
                 }
             }

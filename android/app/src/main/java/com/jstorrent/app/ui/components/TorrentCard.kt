@@ -39,6 +39,8 @@ import com.jstorrent.quickjs.model.TorrentSummary
  * @param onLongClick Callback when card is long-pressed (enter selection mode)
  * @param isSelectionMode Whether multi-select mode is active
  * @param isSelected Whether this card is currently selected
+ * @param isLive True when engine is running (live data), false when showing cached data.
+ *               When false, speeds show as "—" since they're stale.
  * @param modifier Optional modifier
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -51,6 +53,7 @@ fun TorrentCard(
     onLongClick: () -> Unit = {},
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
+    isLive: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val isPaused = torrent.status == "stopped"
@@ -136,21 +139,35 @@ fun TorrentCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Speed line - always show both to prevent layout jumps
+                // Speed line - show "—" when cached (not live), otherwise show actual speeds
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    SpeedIndicator(
-                        bytesPerSecond = torrent.downloadSpeed,
-                        direction = SpeedDirection.DOWN,
-                        showZero = true
-                    )
-                    SpeedIndicator(
-                        bytesPerSecond = torrent.uploadSpeed,
-                        direction = SpeedDirection.UP,
-                        showZero = true
-                    )
+                    if (isLive) {
+                        SpeedIndicator(
+                            bytesPerSecond = torrent.downloadSpeed,
+                            direction = SpeedDirection.DOWN,
+                            showZero = true
+                        )
+                        SpeedIndicator(
+                            bytesPerSecond = torrent.uploadSpeed,
+                            direction = SpeedDirection.UP,
+                            showZero = true
+                        )
+                    } else {
+                        // Cached mode: speeds are stale, show placeholder
+                        Text(
+                            text = "— ↓",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "— ↑",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }

@@ -93,11 +93,12 @@ class TorrentListViewModel(
                 TorrentListUiState.Loaded(
                     torrents = filteredTorrents,
                     filter = filter,
-                    sortOrder = sortOrder
+                    sortOrder = sortOrder,
+                    isLive = true
                 )
             }
 
-            // Engine not loaded but cache has data - show cached
+            // Engine not loaded but cache has data - show cached (not live)
             dataSource.cachedSummaries.isNotEmpty() -> {
                 val torrents = dataSource.cachedSummaries.map { cached ->
                     with(cache!!) { cached.toTorrentSummary() }
@@ -108,16 +109,18 @@ class TorrentListViewModel(
                 TorrentListUiState.Loaded(
                     torrents = filteredTorrents,
                     filter = filter,
-                    sortOrder = sortOrder
+                    sortOrder = sortOrder,
+                    isLive = false
                 )
             }
 
-            // Cache has loaded but is empty - show empty list (not loading spinner)
+            // Cache has loaded but is empty - show empty list (not live)
             dataSource.cacheIsLoaded -> {
                 TorrentListUiState.Loaded(
                     torrents = emptyList(),
                     filter = filter,
-                    sortOrder = sortOrder
+                    sortOrder = sortOrder,
+                    isLive = false
                 )
             }
 

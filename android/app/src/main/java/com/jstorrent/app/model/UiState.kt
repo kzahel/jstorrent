@@ -24,11 +24,18 @@ sealed class TorrentListUiState {
 
     /**
      * Engine is loaded, displaying torrents.
+     *
+     * @param torrents List of torrents to display
+     * @param filter Current filter applied
+     * @param sortOrder Current sort order
+     * @param isLive True when engine is running and data is live, false when showing cached data.
+     *               When false, speeds are stale (should show "—") and progress may be outdated.
      */
     data class Loaded(
         val torrents: List<TorrentSummary>,
         val filter: TorrentFilter,
-        val sortOrder: TorrentSortOrder
+        val sortOrder: TorrentSortOrder,
+        val isLive: Boolean = true
     ) : TorrentListUiState()
 
     /**

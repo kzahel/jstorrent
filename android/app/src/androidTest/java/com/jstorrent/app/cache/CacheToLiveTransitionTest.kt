@@ -153,8 +153,8 @@ class CacheToLiveTransitionTest {
     }
 
     @Test
-    fun cachedTorrents_showZeroSpeed() {
-        // Given: cache has a torrent that was downloading
+    fun cachedTorrents_showPlaceholderSpeeds() {
+        // Given: cache has a torrent (Stage 3: isLive = false shows placeholder speeds)
         fakeCache.setCachedSummaries(listOf(
             createCachedSummary("hash1", "Cached Download", progress = 0.5, status = "stopped")
         ))
@@ -168,16 +168,35 @@ class CacheToLiveTransitionTest {
             }
         }
 
-        // Then: torrent shows but no speed indicators (cached data has 0 speeds)
+        // Then: torrent shows with placeholder speed indicators (— ↓ and — ↑)
         composeTestRule.onNodeWithText("Cached Download").assertIsDisplayed()
-        // Speed indicators should NOT be visible for cached data
-        // (They only show when speed > 0)
+        // Stage 3: Cached mode shows "— ↓" and "— ↑" placeholders
+        composeTestRule.onNodeWithText("— ↓").assertIsDisplayed()
+        composeTestRule.onNodeWithText("— ↑").assertIsDisplayed()
     }
 
     @Test
-    fun emptyCache_showsLoadingUntilEngineReady() {
-        // Given: empty cache, engine not loaded
-        // Cache is empty by default
+    fun emptyCache_showsEmptyListImmediately() {
+        // Given: empty cache (but loaded), engine not loaded
+        // Stage 2: Cache loaded but empty shows empty list, not loading spinner
+        // FakeTorrentSummaryCache defaults to isLoaded=true, summaries=empty
+
+        viewModel = TorrentListViewModel(fakeRepository, fakeCache)
+
+        composeTestRule.setContent {
+            JSTorrentTheme {
+                TorrentListScreen(viewModel = viewModel)
+            }
+        }
+
+        // Then: empty state shown immediately (Stage 2 behavior)
+        composeTestRule.onNodeWithText("No torrents yet").assertIsDisplayed()
+    }
+
+    @Test
+    fun cacheNotLoaded_showsLoadingSpinner() {
+        // Given: cache is NOT loaded yet
+        fakeCache.setIsLoaded(false)
 
         viewModel = TorrentListViewModel(fakeRepository, fakeCache)
 
@@ -189,15 +208,46 @@ class CacheToLiveTransitionTest {
 
         // Then: loading state shown
         composeTestRule.onNodeWithText("Loading...").assertIsDisplayed()
+    }
 
-        // When: engine loads with empty list
+    @Test
+    fun transitionFromCachedToLive_updatesSpeedDisplay() {
+        // Given: cache has torrent (shows placeholder speeds)
+        fakeCache.setCachedSummaries(listOf(
+            createCachedSummary("hash1", "My Torrent", progress = 0.5)
+        ))
+        fakeRepository.setLoaded(false)
+
+        viewModel = TorrentListViewModel(fakeRepository, fakeCache)
+
+        composeTestRule.setContent {
+            JSTorrentTheme {
+                TorrentListScreen(viewModel = viewModel)
+            }
+        }
+
+        // Verify cached mode shows placeholder speeds
+        composeTestRule.onNodeWithText("— ↓").assertIsDisplayed()
+        composeTestRule.onNodeWithText("— ↑").assertIsDisplayed()
+
+        // When: engine loads with live speeds
         fakeRepository.setLoaded(true)
-        fakeRepository.setTorrents(emptyList())
+        fakeRepository.setTorrents(listOf(
+            TorrentSummary(
+                infoHash = "hash1",
+                name = "My Torrent",
+                progress = 0.75,
+                downloadSpeed = 2_000_000L,
+                uploadSpeed = 100_000L,
+                status = "downloading"
+            )
+        ))
 
         composeTestRule.waitForIdle()
 
-        // Then: empty state shown
-        composeTestRule.onNodeWithText("No torrents yet").assertIsDisplayed()
+        // Then: placeholders replaced with actual speeds (isLive = true)
+        composeTestRule.onNodeWithText("— ↓").assertDoesNotExist()
+        composeTestRule.onNodeWithText("— ↑").assertDoesNotExist()
     }
 
     @Test

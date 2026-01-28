@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -244,5 +245,105 @@ class TorrentListViewModelCacheTest {
 
         // Then: Loading state (no cache fallback, must wait for engine)
         assertEquals(TorrentListUiState.Loading, viewModelWithoutCache.uiState.value)
+    }
+
+    // =========================================================================
+    // Stage 3: isLive indicator tests
+    // =========================================================================
+
+    @Test
+    fun `isLive is false when showing cached data`() = runTest {
+        // Given: cache has torrents, engine not started
+        cache.setCachedSummaries(listOf(
+            createTestCachedSummary(infoHash = "hash1", name = "Cached Torrent")
+        ))
+
+        // When: ViewModel initializes (engine not loaded)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // Then: isLive is false (showing cached data)
+        val state = viewModel.uiState.value as TorrentListUiState.Loaded
+        assertFalse("isLive should be false for cached data", state.isLive)
+    }
+
+    @Test
+    fun `isLive is true when engine is running`() = runTest {
+        // Given: cache has torrents
+        cache.setCachedSummaries(listOf(
+            createTestCachedSummary(infoHash = "hash1", name = "Cached")
+        ))
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // Initially isLive should be false (cached)
+        var state = viewModel.uiState.value as TorrentListUiState.Loaded
+        assertFalse("isLive should be false before engine loads", state.isLive)
+
+        // When: engine loads
+        repository.setLoaded(true)
+        repository.setTorrents(listOf(
+            createTestTorrent(infoHash = "hash1", name = "Live Torrent")
+        ))
+        advanceUntilIdle()
+
+        // Then: isLive is true (engine running)
+        state = viewModel.uiState.value as TorrentListUiState.Loaded
+        assertTrue("isLive should be true when engine is loaded", state.isLive)
+    }
+
+    @Test
+    fun `isLive is false when cache is empty and engine not loaded`() = runTest {
+        // Given: cache is empty, engine not loaded
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // Then: isLive is false (no engine)
+        val state = viewModel.uiState.value as TorrentListUiState.Loaded
+        assertFalse("isLive should be false when engine not loaded", state.isLive)
+    }
+
+    @Test
+    fun `isLive is true when engine loads with empty list`() = runTest {
+        // Given: engine loads with no torrents
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        repository.setLoaded(true)
+        repository.setTorrents(emptyList())
+        advanceUntilIdle()
+
+        // Then: isLive is true (engine is running, just has no torrents)
+        val state = viewModel.uiState.value as TorrentListUiState.Loaded
+        assertTrue("isLive should be true when engine is loaded even with empty list", state.isLive)
+    }
+
+    @Test
+    fun `isLive transitions from false to true when engine starts`() = runTest {
+        // Given: cache has data
+        cache.setCachedSummaries(listOf(
+            createTestCachedSummary(infoHash = "hash1", name = "Cached", progress = 0.5)
+        ))
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // Initially: isLive is false
+        var state = viewModel.uiState.value as TorrentListUiState.Loaded
+        assertFalse(state.isLive)
+        assertEquals(0.5, state.torrents[0].progress, 0.001)
+
+        // When: engine starts
+        repository.setLoaded(true)
+        repository.setTorrents(listOf(
+            createTestTorrent(infoHash = "hash1", name = "Live", progress = 0.75)
+        ))
+        advanceUntilIdle()
+
+        // Then: isLive transitions to true along with live data
+        state = viewModel.uiState.value as TorrentListUiState.Loaded
+        assertTrue(state.isLive)
+        assertEquals(0.75, state.torrents[0].progress, 0.001)
     }
 }
