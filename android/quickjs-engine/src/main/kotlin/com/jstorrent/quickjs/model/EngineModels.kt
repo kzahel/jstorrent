@@ -141,6 +141,9 @@ data class EngineState(
 
 /**
  * Summary torrent info for state updates (compact).
+ *
+ * Stage 5: Added hasMetadata field to distinguish magnets waiting for metadata.
+ * When hasMetadata=false, progress and size should display as "—" in the UI.
  */
 @Serializable
 data class TorrentSummary(
@@ -152,7 +155,8 @@ data class TorrentSummary(
     val status: String,
     val numPeers: Int = 0,
     val swarmPeers: Int = 0,
-    val skippedFilesCount: Int = 0
+    val skippedFilesCount: Int = 0,
+    val hasMetadata: Boolean = true // false for magnets before metadata is fetched
 )
 
 /**

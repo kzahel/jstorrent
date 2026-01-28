@@ -156,4 +156,105 @@ class TorrentSummaryCacheTest {
         if (bitfield.isNullOrEmpty()) return false
         return bitfield.all { it == 'f' || it == 'F' }
     }
+
+    // =========================================================================
+    // Stage 5: Edge case tests for magnet without metadata
+    // =========================================================================
+
+    @Test
+    fun `CachedTorrentSummary toTorrentSummary preserves hasMetadata`() {
+        val cache = TorrentSummaryCache(null)
+
+        // Test with hasMetadata = true
+        val withMetadata = CachedTorrentSummary(
+            infoHash = "abc123",
+            name = "Test Torrent",
+            progress = 0.5,
+            status = "downloading",
+            totalSize = 1000L,
+            downloaded = 500L,
+            uploaded = 100L,
+            fileCount = 1,
+            addedAt = System.currentTimeMillis(),
+            hasMetadata = true,
+            userState = "active"
+        )
+        val summaryWithMetadata = with(cache) { withMetadata.toTorrentSummary() }
+        assertTrue(summaryWithMetadata.hasMetadata)
+
+        // Test with hasMetadata = false
+        val withoutMetadata = CachedTorrentSummary(
+            infoHash = "def456",
+            name = "Magnet Torrent",
+            progress = 0.0,
+            status = "stopped",
+            totalSize = 0L,
+            downloaded = 0L,
+            uploaded = 0L,
+            fileCount = 0,
+            addedAt = System.currentTimeMillis(),
+            hasMetadata = false,
+            userState = "active"
+        )
+        val summaryWithoutMetadata = with(cache) { withoutMetadata.toTorrentSummary() }
+        assertFalse(summaryWithoutMetadata.hasMetadata)
+    }
+
+    @Test
+    fun `TorrentSummary default hasMetadata is true`() {
+        // When coming from engine, hasMetadata should default to true
+        val summary = com.jstorrent.quickjs.model.TorrentSummary(
+            infoHash = "abc123",
+            name = "Test",
+            progress = 0.5,
+            downloadSpeed = 1000L,
+            uploadSpeed = 100L,
+            status = "downloading"
+        )
+        assertTrue(summary.hasMetadata)
+    }
+
+    @Test
+    fun `magnet with display name but no metadata shows correct values`() {
+        // This tests the expected behavior when a magnet has dn= but no info dict
+        val cache = TorrentSummaryCache(null)
+
+        // Simulate a magnet-sourced torrent without metadata
+        val summary = CachedTorrentSummary(
+            infoHash = "abc123",
+            name = "Ubuntu 22.04", // Extracted from dn= parameter
+            progress = 0.0,        // Unknown - no metadata
+            status = "stopped",
+            totalSize = 0L,        // Unknown - no metadata
+            downloaded = 0L,
+            uploaded = 0L,
+            fileCount = 0,         // Unknown - no metadata
+            addedAt = System.currentTimeMillis(),
+            hasMetadata = false,   // Key flag!
+            userState = "active"
+        )
+
+        val torrentSummary = with(cache) { summary.toTorrentSummary() }
+
+        // Verify the summary correctly indicates no metadata
+        assertFalse(torrentSummary.hasMetadata)
+        assertEquals("Ubuntu 22.04", torrentSummary.name)
+        assertEquals(0.0, torrentSummary.progress, 0.001)
+    }
+
+    @Test
+    fun `special characters in magnet display name are decoded`() {
+        // Test URL-encoded special characters in dn= parameter
+        val magnetWithSpecialChars = "magnet:?xt=urn:btih:abc&dn=Test%20%26%20Demo%21"
+        val name = TorrentSummaryCache.parseDisplayName(magnetWithSpecialChars)
+        assertEquals("Test & Demo!", name)
+    }
+
+    @Test
+    fun `unicode in magnet display name is handled`() {
+        // Test UTF-8 encoded characters
+        val magnetWithUnicode = "magnet:?xt=urn:btih:abc&dn=%E4%B8%AD%E6%96%87%E6%B5%8B%E8%AF%95"
+        val name = TorrentSummaryCache.parseDisplayName(magnetWithUnicode)
+        assertEquals("中文测试", name)
+    }
 }

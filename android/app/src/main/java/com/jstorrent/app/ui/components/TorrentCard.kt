@@ -108,6 +108,7 @@ fun TorrentCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 // Status line: "Downloading • 45%" or "Seeding • 100% (partial)"
+                // Stage 5: Show "—" for progress when hasMetadata=false (magnet without metadata yet)
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -118,11 +119,15 @@ fun TorrentCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = buildString {
-                            append(Formatters.formatPercent(torrent.progress))
-                            // Show "(partial)" when seeding with skipped files
-                            if (torrent.progress >= 0.999 && torrent.skippedFilesCount > 0) {
-                                append(" (partial)")
+                        text = if (!torrent.hasMetadata) {
+                            "—" // Unknown progress for magnets without metadata
+                        } else {
+                            buildString {
+                                append(Formatters.formatPercent(torrent.progress))
+                                // Show "(partial)" when seeding with skipped files
+                                if (torrent.progress >= 0.999 && torrent.skippedFilesCount > 0) {
+                                    append(" (partial)")
+                                }
                             }
                         },
                         style = MaterialTheme.typography.bodySmall,
@@ -132,10 +137,19 @@ fun TorrentCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Progress bar
-                TorrentProgressBar(
-                    progress = torrent.progress.toFloat()
-                )
+                // Progress bar - Stage 5: Hide for magnets without metadata
+                if (torrent.hasMetadata) {
+                    TorrentProgressBar(
+                        progress = torrent.progress.toFloat()
+                    )
+                } else {
+                    // Show a subtle placeholder for magnets without metadata
+                    Text(
+                        text = "Acquiring metadata…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
@@ -304,6 +318,28 @@ private fun TorrentCardMetadataPreview() {
                 downloadSpeed = 0,
                 uploadSpeed = 0,
                 status = "downloading_metadata"
+            ),
+            onPause = {},
+            onResume = {},
+            modifier = Modifier.padding(8.dp)
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TorrentCardNoMetadataPreview() {
+    // Stage 5: Preview for magnet without metadata yet
+    JSTorrentTheme {
+        TorrentCard(
+            torrent = TorrentSummary(
+                infoHash = "mag012",
+                name = "Ubuntu 22.04 via Magnet",
+                progress = 0.0,
+                downloadSpeed = 0,
+                uploadSpeed = 0,
+                status = "stopped",
+                hasMetadata = false
             ),
             onPause = {},
             onResume = {},

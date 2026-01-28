@@ -173,7 +173,12 @@ class JSTorrentApplication : Application() {
     // Engine Controller - lives for process lifetime
     // =========================================================================
 
+    // Stage 5: @Volatile ensures visibility across threads for race condition safety
+    @Volatile
     private var _engineController: EngineController? = null
+
+    // Stage 5: Lock object for thread-safe engine initialization
+    private val engineLock = Any()
 
     val engineController: EngineController?
         get() = _engineController
@@ -183,53 +188,63 @@ class JSTorrentApplication : Application() {
 
     /**
      * Initialize the engine. Called from Activity on first launch.
-     * Idempotent - safe to call multiple times.
+     * Idempotent and thread-safe - safe to call multiple times from multiple threads.
+     *
+     * Stage 5: Uses synchronized block to prevent race conditions where multiple
+     * threads could both see _engineController as null and try to initialize.
      */
     fun initializeEngine(storageMode: String? = null): EngineController {
+        // Quick check without lock (volatile read)
         _engineController?.let { return it }
 
-        Log.i(TAG, "Initializing engine...")
+        // Double-checked locking pattern for thread-safe initialization
+        synchronized(engineLock) {
+            // Check again inside lock (another thread may have initialized)
+            _engineController?.let { return it }
 
-        val rootStore = RootStore(this)
-        val settingsStore = SettingsStore(this)
+            Log.i(TAG, "Initializing engine...")
 
-        // Create rootResolver that queries RootStore dynamically
-        val rootResolver: (String) -> Uri? = { key ->
-            rootStore.reload()
-            rootStore.resolveKey(key)
+            val rootStore = RootStore(this)
+            val settingsStore = SettingsStore(this)
+
+            // Create rootResolver that queries RootStore dynamically
+            val rootResolver: (String) -> Uri? = { key ->
+                rootStore.reload()
+                rootStore.resolveKey(key)
+            }
+
+            val controller = EngineController(
+                context = this,
+                scope = engineScope,
+                rootResolver = rootResolver
+            )
+
+            // Build config from RootStore
+            val roots = rootStore.listRoots()
+            val defaultKey = settingsStore.defaultRootKey?.takeIf { key ->
+                roots.any { it.key == key }
+            } ?: roots.firstOrNull()?.key
+
+            val config = EngineConfig(
+                contentRoots = roots.map { root ->
+                    ContentRoot(key = root.key, label = root.displayName, path = root.uri)
+                },
+                defaultContentRoot = defaultKey,
+                storageMode = if (storageMode == "null") "null" else null
+            )
+
+            controller.loadEngine(config)
+            _engineController = controller
+            Log.i(TAG, "Engine loaded successfully")
+
+            // Start observing torrent state for service lifecycle decisions
+            startTorrentStateObservation(controller)
+
+            // Apply saved settings
+            applyEngineSettings(controller, settingsStore)
+
+            return controller
         }
-
-        val controller = EngineController(
-            context = this,
-            scope = engineScope,
-            rootResolver = rootResolver
-        )
-
-        // Build config from RootStore
-        val roots = rootStore.listRoots()
-        val defaultKey = settingsStore.defaultRootKey?.takeIf { key ->
-            roots.any { it.key == key }
-        } ?: roots.firstOrNull()?.key
-
-        val config = EngineConfig(
-            contentRoots = roots.map { root ->
-                ContentRoot(key = root.key, label = root.displayName, path = root.uri)
-            },
-            defaultContentRoot = defaultKey,
-            storageMode = if (storageMode == "null") "null" else null
-        )
-
-        controller.loadEngine(config)
-        _engineController = controller
-        Log.i(TAG, "Engine loaded successfully")
-
-        // Start observing torrent state for service lifecycle decisions
-        startTorrentStateObservation(controller)
-
-        // Apply saved settings
-        applyEngineSettings(controller, settingsStore)
-
-        return controller
     }
 
     val isEngineInitialized: Boolean
@@ -255,31 +270,46 @@ class JSTorrentApplication : Application() {
 
     /**
      * Shutdown engine. Called on explicit quit or for testing.
+     * Stage 5: Thread-safe shutdown using synchronized block.
      */
     fun shutdownEngine() {
-        _engineController?.close()
-        _engineController = null
+        synchronized(engineLock) {
+            _engineController?.close()
+            _engineController = null
+        }
     }
 
     /**
      * Ensure the engine is healthy. If engine crashed or was closed,
      * reinitialize it.
      *
+     * Stage 5: Thread-safe health check and reinitialization.
+     *
      * @param storageMode Optional storage mode for testing
      * @return The healthy engine controller
      */
     fun ensureEngine(storageMode: String? = null): EngineController {
+        // Quick check without lock - if healthy, return immediately
         _engineController?.let { controller ->
             if (controller.isHealthy) {
                 return controller
             }
-            Log.w(TAG, "Engine unhealthy, reinitializing...")
-            try {
-                controller.close()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error closing unhealthy engine", e)
+        }
+
+        // Need to check/reinitialize under lock
+        synchronized(engineLock) {
+            _engineController?.let { controller ->
+                if (controller.isHealthy) {
+                    return controller
+                }
+                Log.w(TAG, "Engine unhealthy, reinitializing...")
+                try {
+                    controller.close()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error closing unhealthy engine", e)
+                }
+                _engineController = null
             }
-            _engineController = null
         }
         return initializeEngine(storageMode)
     }

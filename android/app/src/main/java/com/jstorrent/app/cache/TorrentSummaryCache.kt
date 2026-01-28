@@ -225,6 +225,11 @@ open class TorrentSummaryCache(context: Context?) {
 
     /**
      * Load torrent metadata from either .torrent file or info dict.
+     *
+     * Stage 5: Catches all exceptions (not just BencodeException) to handle:
+     * - Corrupted base64 data (IllegalArgumentException)
+     * - Corrupted bencode data (BencodeException)
+     * - Missing/deleted files (returns null gracefully)
      */
     private fun loadMetadata(infoHash: String, source: String): TorrentMetadata? {
         return try {
@@ -239,7 +244,8 @@ open class TorrentSummaryCache(context: Context?) {
                     ?: return null
                 TorrentMetadata.fromInfoDictBase64(infoDictBase64)
             }
-        } catch (e: BencodeException) {
+        } catch (e: Exception) {
+            // Stage 5: Catch all exceptions to handle corrupted data gracefully
             Log.w(TAG, "Failed to parse metadata for $infoHash: ${e.message}")
             null
         }
@@ -303,6 +309,8 @@ open class TorrentSummaryCache(context: Context?) {
     /**
      * Convert cached summary to TorrentSummary for UI compatibility.
      * Speeds will be 0 since we're not running the engine.
+     *
+     * Stage 5: Passes hasMetadata flag so UI can show "—" for unknown values.
      */
     fun CachedTorrentSummary.toTorrentSummary(): TorrentSummary {
         return TorrentSummary(
@@ -314,7 +322,8 @@ open class TorrentSummaryCache(context: Context?) {
             status = status,
             numPeers = 0,
             swarmPeers = 0,
-            skippedFilesCount = 0
+            skippedFilesCount = 0,
+            hasMetadata = hasMetadata
         )
     }
 }
