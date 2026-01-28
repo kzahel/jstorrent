@@ -11,6 +11,7 @@
  */
 
 import type { BtEngine } from '../../core/bt-engine'
+import { getPendingHashCount } from './native-hasher'
 import type { Torrent } from '../../core/torrent'
 import type { StorageRoot } from '../../storage/types'
 import type { ConfigKey } from '../../config'
@@ -386,14 +387,62 @@ export function setupController(getEngine: () => BtEngine | null, isReady: () =>
   // ============================================================
 
   /**
-   * Execute one engine tick.
+   * Execute one engine tick and return result as packed binary.
    * Called by Kotlin in host-driven tick mode.
-   * Returns timing info for instrumentation.
+   *
+   * Returns ArrayBuffer with packed TickResult (all i32 little-endian):
+   *   [0] delayMs - delay hint for next tick (0=immediate, >0=delay)
+   *   [1] blocksRecv - blocks received this tick
+   *   [2] blocksSent - requests sent this tick
+   *   [3] elapsedMs - JS tick time in ms
+   *   [4] activePieces - pieces currently being downloaded
+   *   [5] connectedPeers - connected peer count
+   *   [6] bufferedBytes - TCP data waiting to be processed
+   *   [7] pipelineFilled - outstanding requests
+   *   [8] pipelineMax - max pipeline capacity
+   *   [9] pendingHashes - hasher queue depth
+   *
+   * Kotlin adds pendingDiskWrites from its side.
    */
-  ;(globalThis as Record<string, unknown>).__jstorrent_engine_tick = (): void => {
+  ;(globalThis as Record<string, unknown>).__jstorrent_engine_tick = (): ArrayBuffer => {
     const engine = getEngine()
-    if (!engine) return
-    engine.tick()
+
+    // Pack result as 10 x i32 = 40 bytes
+    const buffer = new ArrayBuffer(40)
+    const view = new DataView(buffer)
+
+    if (!engine) {
+      view.setInt32(0, 100, true) // delayMs = 100 (idle)
+      return buffer
+    }
+
+    const result = engine.tick()
+    const pendingHashes = getPendingHashCount()
+
+    // Compute delay hint from backpressure signals
+    let delayMs = 0
+    if (pendingHashes > 30) {
+      // Hasher backed up: delay proportional to queue depth
+      delayMs = Math.min(100, Math.floor(pendingHashes * 0.4))
+    } else if (result.activePieces === 0 && result.bufferedBytes === 0) {
+      // No work pending
+      delayMs = 20
+    }
+    // else: delayMs = 0 (immediate)
+
+    // Pack all fields
+    view.setInt32(0, delayMs, true)
+    view.setInt32(4, result.blocksRecv, true)
+    view.setInt32(8, result.blocksSent, true)
+    view.setInt32(12, result.elapsedMs, true)
+    view.setInt32(16, result.activePieces, true)
+    view.setInt32(20, result.connectedPeers, true)
+    view.setInt32(24, result.bufferedBytes, true)
+    view.setInt32(28, result.pipelineFilled, true)
+    view.setInt32(32, result.pipelineMax, true)
+    view.setInt32(36, pendingHashes, true)
+
+    return buffer
   }
 
   /**

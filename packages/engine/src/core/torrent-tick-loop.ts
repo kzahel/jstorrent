@@ -10,7 +10,7 @@ import type { PeerCoordinator } from './peer-coordinator'
 import type { PeerSelector } from './peer-selector'
 import type { Swarm } from './swarm'
 import type { TorrentUploader } from './torrent-uploader'
-import type { TorrentDiskQueue } from './disk-queue'
+import type { IDiskQueue } from './disk-queue'
 import type { TrafficCategory } from './bandwidth-tracker'
 
 // === Constants ===
@@ -71,7 +71,7 @@ export interface TickLoopCallbacks {
   getPeerCoordinator(): PeerCoordinator
   getUploader(): TorrentUploader
   getActivePieces(): ActivePieceManager | undefined
-  getDiskQueue(): TorrentDiskQueue
+  getDiskQueue(): IDiskQueue
 
   // Bandwidth
   isDownloadRateLimited(): boolean
@@ -101,7 +101,7 @@ export interface TickLoopCallbacks {
 }
 
 /**
- * Tick statistics for health monitoring.
+ * Tick statistics for health monitoring (legacy, aggregated over window).
  */
 export interface TickStats {
   tickCount: number
@@ -109,6 +109,26 @@ export interface TickStats {
   tickMaxMs: number
   activePieces: number
   connectedPeers: number
+}
+
+/**
+ * Per-tick result snapshot returned from tick().
+ * Contains current state - Kotlin aggregates as needed.
+ */
+export interface TickResult {
+  // This tick's work
+  blocksRecv: number
+  blocksSent: number
+  elapsedMs: number
+
+  // Current state snapshot
+  activePieces: number
+  connectedPeers: number
+  bufferedBytes: number // TCP buffers waiting to be processed
+
+  // Pipeline state
+  pipelineFilled: number // requests currently outstanding
+  pipelineMax: number // max pipeline depth across peers
 }
 
 /**
@@ -245,9 +265,11 @@ export class TorrentTickLoop extends EngineComponent {
    * 2. PROCESS - protocol parsing, piece state updates, cleanup
    * 3. REQUEST - request pieces from eligible peers
    * 4. OUTPUT - flush all pending sends
+   *
+   * Returns snapshot of this tick's work and current state.
    */
-  tick(): void {
-    if (!this.callbacks.isNetworkActive()) return
+  tick(): TickResult | null {
+    if (!this.callbacks.isNetworkActive()) return null
 
     const startTime = Date.now()
     const connectedPeers = this.callbacks.getConnectedPeers()
@@ -359,6 +381,27 @@ export class TorrentTickLoop extends EngineComponent {
       this._phase1TotalMs = 0
       this._phase3TotalMs = 0
       this._phase4TotalMs = 0
+    }
+
+    // Measure post-tick state for result
+    let bufferedBytesAfter = 0
+    let pipelineFilledAfter = 0
+    let pipelineMaxAfter = 0
+    for (const peer of connectedPeers) {
+      bufferedBytesAfter += peer.bufferedBytes
+      pipelineFilledAfter += peer.requestsPending
+      pipelineMaxAfter += peer.pipelineDepth
+    }
+
+    return {
+      blocksRecv: Math.max(0, blocksReceived),
+      blocksSent: requestsSentThisTick,
+      elapsedMs: elapsed,
+      activePieces: this.callbacks.getActivePieces()?.activeCount ?? 0,
+      connectedPeers: connectedPeers.length,
+      bufferedBytes: bufferedBytesAfter,
+      pipelineFilled: pipelineFilledAfter,
+      pipelineMax: pipelineMaxAfter,
     }
   }
 

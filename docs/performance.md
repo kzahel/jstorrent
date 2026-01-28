@@ -135,3 +135,152 @@ The bottleneck shifts to:
 - `packages/engine/src/adapters/native/native-batching-disk-queue.ts` - Batch write stats
 - `android/quickjs-engine/src/main/kotlin/com/jstorrent/quickjs/bindings/PolyfillBindings.kt` - Timer implementation
 - `android/quickjs-engine/src/main/kotlin/com/jstorrent/quickjs/JsThread.kt` - Job pump scheduling
+
+---
+
+## Single-Peer Throughput Analysis (2025-01-28)
+
+### Test Setup
+
+- Device: Pixel 7a (physical device)
+- Torrent: 1GB test file with 1MB pieces
+- Seeder: LAN machine capable of 100+ MB/s
+- Result: **45 MB/s achieved** (expected 100+ MB/s)
+
+### Key Metrics from Logs
+
+```
+EngineController: Tick: 880 ticks, avg 3.3ms (js=2.9ms pump=0.4ms), max 37ms, work=100%
+  | 1 peers, 11 active | BLOCKS:recv=15.5/sent=15.5, PIPE:100% of 500, hash=3, buf=14KB
+
+Tick-loop: Tick: 882 ticks, avg 1.7ms (P1:0.8/P3:0.3/P4:0.2), max 21ms,
+  10 active, 1 peers | BUF:254KB, BLOCKS:recv=15.4/sent=15.4, PIPE:100% of 500
+
+Backpressure: 10 active (1 partial, 1 awaiting write), 10.00MB buffered,
+  500 outstanding requests, disk queue: 0 pending/0 running, disk write: 43.3MB/s
+
+BatchWrite: Stats: 220 batches, 220 writes, 220.00MB total,
+  avg 1.0 writes/batch, avg pack 0.3ms, avg FFI 2.2ms
+```
+
+### Effective RTT Analysis
+
+**The download speed is network-limited, not disk-limited.**
+
+Calculating effective round-trip time from pipeline metrics:
+
+```
+Pipeline: 500 requests × 16KB/block = 8 MB in flight
+Block rate: 15.5 blocks/tick × 180 ticks/sec = 2,790 blocks/sec = 44.6 MB/s
+Effective RTT = Pipeline Size / Throughput = 8 MB / 45 MB/s = 178ms
+```
+
+**178ms RTT on LAN is extremely high** - actual network RTT should be <5ms.
+
+The ~170ms of latency comes from the tick-based request/response architecture:
+
+1. **Request batching delay**: Requests queue until end of tick (~5-20ms)
+2. **Response batching delay**: TCP data queued by I/O thread, delivered at next tick (~5-20ms)
+3. **Seeder processing**: Time to read from disk and send (~unknown)
+4. **Multiple round-trips**: With 180 ticks/sec, each tick adds latency to in-flight requests
+
+### Why Batching Shows "1 Write Per Batch"
+
+This is **expected behavior**, not a bug:
+
+```
+Download rate: 45 MB/s with 1 MB pieces = 45 pieces/sec
+Tick rate: ~180 ticks/sec
+Pieces per tick: 45/180 = 0.25 pieces/tick on average
+```
+
+Most ticks complete 0-1 pieces. The batching infrastructure works correctly - there simply aren't multiple pieces completing in the same tick at this throughput level.
+
+### Partial Cap Limitation
+
+With only 1 peer connected, the partial piece cap is very restrictive:
+
+```typescript
+// From active-piece-manager.ts
+maxPartials = Math.min(
+  Math.floor(connectedPeerCount * 1.5),  // 1 peer → 1
+  Math.floor(2048 / blocksPerPiece)       // 64 blocks/piece → 32
+) = 1
+```
+
+Logs confirmed: `1 partial, 1 awaiting write` - only 1 piece can actively receive blocks at a time.
+
+The other 8-9 "active" pieces are in `fullyRequested` state (all 64 blocks requested, waiting for responses). This is correct behavior per libtorrent's algorithm.
+
+### Buffered Data Analysis
+
+```
+Active pieces: 10 (well under 10,000 limit)
+Buffered bytes: 10 MB (well under 128 MB limit)
+```
+
+**Backpressure is NOT limiting throughput.** The 128 MB buffer limit is nowhere near being hit.
+
+### Bandwidth-Delay Product Analysis
+
+To achieve 100 MB/s with current effective RTT:
+
+```
+Required BDP = 100 MB/s × 178ms = 17.8 MB in flight
+Current pipeline = 500 × 16KB = 8 MB
+Shortfall = 17.8 - 8 = 9.8 MB
+```
+
+To fill the pipe, we'd need either:
+- **Increase pipeline depth** to ~1100+ requests, OR
+- **Reduce effective RTT** by processing data more frequently
+
+### Bottleneck Hierarchy
+
+1. **Effective RTT (~178ms)** - Primary bottleneck
+   - Tick-based batching adds latency to every request/response cycle
+   - Single TCP connection can't parallelize
+
+2. **Pipeline depth (500 requests = 8 MB)** - Secondary bottleneck
+   - Insufficient for high-bandwidth, high-latency scenarios
+
+3. **Partial cap (1 with single peer)** - Not a bottleneck
+   - Pieces cycle through partial→fullyRequested→fullyResponded quickly
+
+4. **Disk I/O (~43 MB/s)** - NOT a bottleneck
+   - Disk write rate matches download rate
+   - Buffer utilization is low (10 MB / 128 MB)
+
+### Recommendations
+
+#### Quick Wins
+
+1. **Increase MAX_PIPELINE_DEPTH** from 500 to 1000-1500
+   - File: `packages/engine/src/core/peer-connection.ts:143`
+   - Doubles in-flight data to ~16-24 MB
+
+2. **Reduce MIN_TICK_INTERVAL_MS** from 5ms to 1-2ms
+   - File: `android/quickjs-engine/src/main/kotlin/com/jstorrent/quickjs/EngineController.kt:112`
+   - Reduces tick batching latency
+
+#### Architectural Improvements
+
+3. **Decouple data pump from tick loop**
+   - Process TCP data immediately when it arrives
+   - Only use ticks for request scheduling and maintenance
+
+4. **Allow multiple connections to same peer** (if seeder supports)
+   - Parallelizes TCP flows to better utilize bandwidth
+
+5. **Investigate seeder-side delays**
+   - The seeder software may have upload throttling enabled
+   - Disk read latency on seeder could contribute to RTT
+
+### Test Validation
+
+To validate this analysis, try:
+
+1. **Increase pipeline depth** to 1000 and measure throughput
+2. **Use multiple seeders** to see if throughput scales linearly
+3. **Profile seeder** to measure its request processing latency
+4. **Test with faster tick rate** (1-2ms minimum interval)

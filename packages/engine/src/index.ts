@@ -75,6 +75,7 @@ export { initializeTorrentMetadata, initializeTorrentStorage } from './core/torr
 // Disk Queue
 export {
   TorrentDiskQueue,
+  PassthroughDiskQueue,
   type IDiskQueue,
   type DiskJob,
   type DiskJobType,

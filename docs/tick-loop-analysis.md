@@ -159,19 +159,106 @@ Theoretical max throughput increase: **3.5x** (if CPU-bound)
 
 Actual improvement depends on whether we're CPU-bound or I/O-bound. The emulator test showed 100% pipeline utilization at 5 MB/s, suggesting we might be network-bound on emulator.
 
+## Implementation (2025-01-28)
+
+### Continuous Tick Mode - Implemented
+
+Implemented the proposed continuous tick mode with adaptive backpressure based on hasher queue depth.
+
+#### Changes Made
+
+1. **`bt-engine.ts`** - Added `hasPendingWork()` method:
+   ```typescript
+   hasPendingWork(): boolean {
+     if (this.pendingOps.size > 0) return true
+     for (const torrent of this.torrents) {
+       if (!torrent.isActive) continue
+       if (torrent.getTickStats().activePieces > 0) return true
+       for (const peer of torrent.peers) {
+         if (peer.bufferedBytes > 0) return true
+       }
+     }
+     return false
+   }
+   ```
+
+2. **`native-hasher.ts`** - Exposed pending hash count:
+   ```typescript
+   export function getPendingHashCount(): number {
+     return _pendingHashCount
+   }
+   ```
+
+3. **`controller.ts`** - Combined tick + work detection in single FFI call:
+   ```typescript
+   __jstorrent_engine_tick = (): number => {
+     engine.tick()
+
+     // Adaptive backpressure based on hasher queue
+     const pendingHashes = getPendingHashCount()
+     if (pendingHashes > 30) {
+       return Math.min(100, Math.floor(pendingHashes * 0.4))  // delay ms
+     }
+
+     if (engine.hasPendingWork()) return 0  // immediate
+     return 20  // idle delay
+   }
+   ```
+
+4. **`EngineController.kt`** - Uses delay hint from JS:
+   ```kotlin
+   val delayHint = ctx.callGlobalFunction("__jstorrent_engine_tick") as? Number
+   val effectiveDelay = maxOf(MIN_TICK_INTERVAL_MS, delayHint.toLong()) - elapsed
+   if (effectiveDelay <= 0) {
+     handler.post(this)
+   } else {
+     handler.postDelayed(this, effectiveDelay)
+   }
+   ```
+
+#### Key Design Decisions
+
+1. **Single FFI call**: `__jstorrent_engine_tick` returns delay hint (ms) combining tick execution and work detection in one call. Avoids extra FFI overhead.
+
+2. **Hasher backpressure**: Without backpressure, continuous ticking caused hasher queue to grow unbounded (530+ pending). The async hasher completes on a separate thread and posts callbacks to the Handler queue, which couldn't keep up.
+
+3. **Adaptive delay**: Delay scales with queue depth (0.4ms per pending hash, capped at 100ms). This allows the system to find equilibrium automatically.
+
+4. **Minimum tick interval**: 5ms floor prevents CPU spinning during bursts.
+
+### Test Results (Emulator, 1GB download, null storage)
+
+| Metric | Old (100ms interval) | Continuous (no backpressure) | Continuous (with backpressure) |
+|--------|---------------------|------------------------------|-------------------------------|
+| Ticks/sec | ~10 | ~140 | ~50-140 (adaptive) |
+| Hasher queue | ~10-20 | 530+ (unbounded!) | 40-60 (bounded) |
+| TCP recv | ~5 MB/s | 2.5-3 MB/s | 3.0-3.3 MB/s |
+| work% | N/A | 100% | 0-100% (adaptive) |
+
+### Key Findings
+
+1. **Emulator is network-bound**: The original 100ms interval was not the bottleneck. Increasing tick rate from 10/sec to 140/sec did not improve throughput—the system was already saturating the emulator's virtual network at ~5 MB/s.
+
+2. **Hasher callback bottleneck**: Without backpressure, continuous ticking overwhelmed the hasher callback queue. The Kotlin hasher is fast (350-400 MB/s), but the callback dispatch through the Handler queue couldn't keep up, causing unbounded growth.
+
+3. **Adaptive backpressure works**: With backpressure based on hasher queue depth, the queue stays bounded (40-60) and the system finds equilibrium. The tick loop automatically backs off when hasher is backed up.
+
+4. **More ticks ≠ more throughput**: When network-bound, additional ticks just spin without improving download speed. The continuous mode is beneficial for faster networks/devices where tick rate was previously the bottleneck.
+
 ## Next Steps
 
-1. **Implement continuous tick mode** with configurable min interval
-2. **Add work detection** (`hasWorkPending()` or similar)
-3. **Test on real device** (not emulator) to see true CPU-bound performance
-4. **Profile specific phases** - which part of the tick is slowest?
-5. **Consider batching improvements** - process more data per tick
+1. **Test on real device** (not emulator) to see true performance on faster network
+2. **Test on ChromeOS** with WiFi to real seeder
+3. **Profile hasher callback path** - why is dispatch slow?
+4. **Consider batching hash callbacks** - reduce FFI overhead
 
 ## Files Modified
 
-- `packages/engine/src/core/bt-engine.ts` - Added `tick()`, `setTickMode()`, `tickMode`
-- `packages/engine/src/adapters/native/controller.ts` - Added `__jstorrent_engine_tick`, `__jstorrent_set_tick_mode`
-- `android/quickjs-engine/.../EngineController.kt` - Added `startHostDrivenTick()`, `stopHostDrivenTick()` with instrumentation
+- `packages/engine/src/core/bt-engine.ts` - Added `tick()`, `setTickMode()`, `tickMode`, `hasPendingWork()`
+- `packages/engine/src/adapters/native/native-hasher.ts` - Added `getPendingHashCount()`
+- `packages/engine/src/adapters/native/index.ts` - Export `getPendingHashCount`
+- `packages/engine/src/adapters/native/controller.ts` - `__jstorrent_engine_tick` returns delay hint, `__jstorrent_has_pending_work`
+- `android/quickjs-engine/.../EngineController.kt` - Continuous tick mode with delay hint support
 - `android/app/.../JSTorrentApplication.kt` - Call `startHostDrivenTick()` after engine load
 
 ## Raw Data

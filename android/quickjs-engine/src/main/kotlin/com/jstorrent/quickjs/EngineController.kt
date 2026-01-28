@@ -86,14 +86,31 @@ class EngineController(
     // Host-driven tick loop state
     private var tickRunnable: Runnable? = null
     private var tickEnabled = false
+
+    // Tick timing stats (aggregated over 5-second window)
     private var tickCount = 0L
     private var tickTotalJsMs = 0L
     private var tickTotalPumpMs = 0L
     private var tickTotalMs = 0L
     private var tickMaxMs = 0L
     private var tickLastLogTime = 0L
-    private val TICK_INTERVAL_MS = 100L
+    private var ticksWithWork = 0L
+
+    // Throughput stats (aggregated over window)
+    private var totalBlocksRecv = 0L
+    private var totalBlocksSent = 0L
+
+    // Snapshot stats (latest values, not aggregated)
+    private var lastActivePieces = 0
+    private var lastConnectedPeers = 0
+    private var lastPipelineFilled = 0
+    private var lastPipelineMax = 0
+    private var lastPendingHashes = 0
+    private var lastBufferedBytes = 0
     private val TICK_LOG_INTERVAL_MS = 5000L
+    // Continuous tick mode parameters
+    private val MIN_TICK_INTERVAL_MS = 5L   // Minimum time between ticks (prevent CPU spinning)
+    private val IDLE_DELAY_MS = 20L         // Delay when no work pending
 
     /**
      * Check if the engine is healthy and responsive.
@@ -787,19 +804,20 @@ class EngineController(
     // ============================================================
 
     /**
-     * Start host-driven tick loop.
+     * Start host-driven tick loop with continuous mode.
      *
      * This switches from JS-owned setInterval to Kotlin-owned tick scheduling.
      * Benefits:
      * - Full visibility into tick timing (JS execution + job pump)
      * - No Handler queue latency between tick and job pump
-     * - Accurate timing measurements for bottleneck analysis
+     * - Continuous processing when work is pending (minimal dead time)
+     * - Automatic backoff when idle
      *
      * The tick runs directly on the JS thread:
      * 1. Call __jstorrent_engine_tick (JS work)
      * 2. Pump all pending jobs (microtasks)
-     * 3. Log timing breakdown every 5 seconds
-     * 4. Schedule next tick
+     * 3. Check for pending work
+     * 4. Schedule next tick: immediate if work pending, delayed if idle
      */
     fun startHostDrivenTick() {
         if (tickEnabled) {
@@ -823,9 +841,12 @@ class EngineController(
         tickTotalPumpMs = 0
         tickTotalMs = 0
         tickMaxMs = 0
+        ticksWithWork = 0
         tickLastLogTime = System.currentTimeMillis()
+        totalBlocksRecv = 0
+        totalBlocksSent = 0
 
-        Log.i(TAG, "Starting host-driven tick loop (${TICK_INTERVAL_MS}ms interval)")
+        Log.i(TAG, "Starting continuous tick loop (min=${MIN_TICK_INTERVAL_MS}ms, idle=${IDLE_DELAY_MS}ms)")
 
         tickRunnable = object : Runnable {
             override fun run() {
@@ -833,10 +854,41 @@ class EngineController(
 
                 val tickStart = System.currentTimeMillis()
 
-                // 1. Call JS tick
+                // 1. Call JS tick - returns packed binary with stats
+                // Format: 10 x i32 LE = 40 bytes
                 val jsStart = System.currentTimeMillis()
+                var delayHint = IDLE_DELAY_MS.toInt()
+                var blocksRecv = 0
+                var blocksSent = 0
+                var jsElapsedMs = 0
+                var activePieces = 0
+                var connectedPeers = 0
+                var bufferedBytes = 0
+                var pipelineFilled = 0
+                var pipelineMax = 0
+                var pendingHashes = 0
+
                 try {
-                    eng.context.callGlobalFunction("__jstorrent_engine_tick")
+                    val result = eng.context.callGlobalFunction("__jstorrent_engine_tick")
+                    when (result) {
+                        is ByteArray -> {
+                            if (result.size >= 40) {
+                                val buf = java.nio.ByteBuffer.wrap(result).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                                delayHint = buf.int
+                                blocksRecv = buf.int
+                                blocksSent = buf.int
+                                jsElapsedMs = buf.int
+                                activePieces = buf.int
+                                connectedPeers = buf.int
+                                bufferedBytes = buf.int
+                                pipelineFilled = buf.int
+                                pipelineMax = buf.int
+                                pendingHashes = buf.int
+                            }
+                        }
+                        is Number -> delayHint = result.toInt()  // Fallback for old format
+                        else -> {}
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Tick JS error", e)
                 }
@@ -851,7 +903,7 @@ class EngineController(
 
                 val totalMs = pumpEnd - tickStart
 
-                // Update stats
+                // Update timing stats
                 tickCount++
                 tickTotalJsMs += jsMs
                 tickTotalPumpMs += pumpMs
@@ -859,6 +911,21 @@ class EngineController(
                 if (totalMs > tickMaxMs) {
                     tickMaxMs = totalMs
                 }
+                if (delayHint == 0) {
+                    ticksWithWork++
+                }
+
+                // Update throughput stats
+                totalBlocksRecv += blocksRecv
+                totalBlocksSent += blocksSent
+
+                // Update snapshot stats (latest values)
+                lastActivePieces = activePieces
+                lastConnectedPeers = connectedPeers
+                lastPipelineFilled = pipelineFilled
+                lastPipelineMax = pipelineMax
+                lastPendingHashes = pendingHashes
+                lastBufferedBytes = bufferedBytes
 
                 // Log every 5 seconds
                 val now = System.currentTimeMillis()
@@ -866,21 +933,36 @@ class EngineController(
                     val avgJs = tickTotalJsMs.toFloat() / tickCount
                     val avgPump = tickTotalPumpMs.toFloat() / tickCount
                     val avgTotal = tickTotalMs.toFloat() / tickCount
-                    Log.i(TAG, "Tick: ${tickCount} ticks, avg %.1fms (js=%.1fms pump=%.1fms), max ${tickMaxMs}ms".format(
-                        avgTotal, avgJs, avgPump))
+                    val workPercent = (ticksWithWork.toFloat() / tickCount * 100).toInt()
+                    val avgBlocksRecv = totalBlocksRecv.toFloat() / tickCount
+                    val avgBlocksSent = totalBlocksSent.toFloat() / tickCount
+                    val pipelineUtil = if (lastPipelineMax > 0) (lastPipelineFilled.toFloat() / lastPipelineMax * 100).toInt() else 0
 
-                    // Reset stats
+                    Log.i(TAG, "Tick: ${tickCount} ticks, avg %.1fms (js=%.1fms pump=%.1fms), max ${tickMaxMs}ms, work=${workPercent}%% | " .format(avgTotal, avgJs, avgPump) +
+                        "${lastConnectedPeers} peers, ${lastActivePieces} active | " +
+                        "BLOCKS:recv=%.1f/sent=%.1f, PIPE:${pipelineUtil}%% of ${lastPipelineMax}, hash=${lastPendingHashes}, buf=${lastBufferedBytes / 1024}KB".format(avgBlocksRecv, avgBlocksSent))
+
+                    // Reset aggregated stats
                     tickCount = 0
                     tickTotalJsMs = 0
                     tickTotalPumpMs = 0
                     tickTotalMs = 0
                     tickMaxMs = 0
+                    ticksWithWork = 0
+                    totalBlocksRecv = 0
+                    totalBlocksSent = 0
                     tickLastLogTime = now
                 }
 
-                // 3. Schedule next tick
+                // 3. Schedule next tick using delay hint from JS
                 if (tickEnabled) {
-                    eng.jsThread.handler.postDelayed(this, TICK_INTERVAL_MS)
+                    val elapsed = System.currentTimeMillis() - tickStart
+                    val effectiveDelay = maxOf(MIN_TICK_INTERVAL_MS, delayHint.toLong()) - elapsed
+                    if (effectiveDelay <= 0) {
+                        eng.jsThread.handler.post(this)
+                    } else {
+                        eng.jsThread.handler.postDelayed(this, effectiveDelay)
+                    }
                 }
             }
         }

@@ -46,6 +46,30 @@ export const MAX_PIECE_SIZE = 32 * 1024 * 1024 // 32MB
 // UPnP status type
 export type UPnPStatus = 'disabled' | 'discovering' | 'mapped' | 'unavailable' | 'failed'
 
+/**
+ * Engine-wide tick result aggregated across all torrents.
+ * Returned from tick() for Kotlin to log/monitor.
+ */
+export interface EngineTickResult {
+  // This tick's work (aggregated across torrents)
+  blocksRecv: number
+  blocksSent: number
+  elapsedMs: number
+
+  // Current state snapshot
+  activePieces: number
+  connectedPeers: number
+  bufferedBytes: number
+
+  // Pipeline state
+  pipelineFilled: number
+  pipelineMax: number
+
+  // Backpressure queue depths (native only)
+  pendingHashes: number
+  pendingDiskWrites: number
+}
+
 // === Unified Daemon Operation Queue Types ===
 
 /**
@@ -149,12 +173,16 @@ export interface BtEngineOptions {
   onEndOfTick?: () => void
 
   /**
-   * Maximum concurrent disk write workers per torrent.
-   * Higher values improve throughput in batch mode (native) where writes
-   * are collected and flushed once per tick.
-   * Default: 6 (standard), 30 recommended for batch mode.
+   * Use passthrough disk queue (for Android/QuickJS).
+   *
+   * When true, disk writes execute immediately without JS-side queuing.
+   * The actual batching happens in NativeBatchingDiskQueue which collects
+   * writes during a tick and flushes them in a single FFI call.
+   *
+   * When false (default), uses TorrentDiskQueue with worker pool pattern
+   * suitable for extension/daemon where each write is an HTTP request.
    */
-  diskQueueMaxWorkers?: number
+  usePassthroughDiskQueue?: boolean
 
   /**
    * Tick loop ownership mode.
@@ -194,7 +222,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public maxPeers: number
   public maxUploadSlots: number
   public encryptionPolicy: EncryptionPolicy
-  public diskQueueMaxWorkers?: number
+  public usePassthroughDiskQueue: boolean
 
   /** Optional ConfigHub for reactive configuration (created internally if not provided) */
   public config?: ConfigHub
@@ -347,7 +375,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.maxUploadSlots = this.config.maxUploadSlots.get()
     this.encryptionPolicy = this.config.encryptionPolicy.get()
     this._dhtEnabled = this.config.dhtEnabled.get()
-    this.diskQueueMaxWorkers = options.diskQueueMaxWorkers
+    this.usePassthroughDiskQueue = options.usePassthroughDiskQueue ?? false
     this._tickMode = options.tickMode ?? 'js'
 
     // Set up bandwidth limits from config (0 = unlimited)
@@ -661,7 +689,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       this.maxPeers,
       this.maxUploadSlots,
       this.encryptionPolicy,
-      this.diskQueueMaxWorkers,
+      this.usePassthroughDiskQueue,
     )
 
     // Store magnet display name for fallback naming
@@ -1314,18 +1342,21 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
 
   /**
    * Execute one tick. Called by host in 'host' mode, or by setInterval in 'js' mode.
-   * Public so host can call it directly.
+   * Returns aggregated tick result for instrumentation.
    */
-  tick(): void {
-    this.doTick()
+  tick(): EngineTickResult {
+    return this.doTick()
   }
 
   /**
    * Internal tick implementation.
    * Unified engine tick: combines connection slot allocation with per-torrent processing.
    * Called at 100ms intervals for predictable timing across all torrents.
+   * Returns aggregated result across all torrents.
    */
-  private doTick(): void {
+  private doTick(): EngineTickResult {
+    const startTime = Date.now()
+
     // Phase 3+4: Flush accumulated callbacks from native I/O threads.
     // This drains all pending data in a single FFI call per type, reducing boundary crossings
     // from 60+ per tick to 1-2. Only available on native (Android) - no-op on extension.
@@ -1338,14 +1369,48 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.drainOpQueue()
 
     // 2. Torrent data processing - tick all network-active torrents
+    // Aggregate results across all torrents
+    let blocksRecv = 0
+    let blocksSent = 0
+    let activePieces = 0
+    let connectedPeers = 0
+    let bufferedBytes = 0
+    let pipelineFilled = 0
+    let pipelineMax = 0
+
     for (const torrent of this.torrents) {
       if (torrent.isActive) {
-        torrent.tick()
+        const result = torrent.tick()
+        if (result) {
+          blocksRecv += result.blocksRecv
+          blocksSent += result.blocksSent
+          activePieces += result.activePieces
+          connectedPeers += result.connectedPeers
+          bufferedBytes += result.bufferedBytes
+          pipelineFilled += result.pipelineFilled
+          pipelineMax += result.pipelineMax
+        }
       }
     }
 
     // 3. End of tick - flush batched operations (e.g., verified writes on native)
     this.onEndOfTickCallback?.()
+
+    const elapsedMs = Date.now() - startTime
+
+    // Return aggregated result - pendingHashes/pendingDiskWrites filled by controller
+    return {
+      blocksRecv,
+      blocksSent,
+      elapsedMs,
+      activePieces,
+      connectedPeers,
+      bufferedBytes,
+      pipelineFilled,
+      pipelineMax,
+      pendingHashes: 0, // Filled by native controller
+      pendingDiskWrites: 0, // Filled by native controller
+    }
   }
 
   /**

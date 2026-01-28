@@ -21,8 +21,16 @@ let _hashLastLogTime = 0
 // Initialize callback infrastructure
 globalThis.__jstorrent_hash_callbacks = {}
 
-// Track pending callbacks for debugging
+// Track pending callbacks for debugging and backpressure
 let _pendingHashCount = 0
+
+/**
+ * Get the number of pending hash callbacks.
+ * Used by tick loop to back off when hasher is backed up.
+ */
+export function getPendingHashCount(): number {
+  return _pendingHashCount
+}
 
 // Dispatch function called by native layer when async hash completes
 // This is called from Kotlin: __jstorrent_hash_dispatch_result(callbackId, hash)

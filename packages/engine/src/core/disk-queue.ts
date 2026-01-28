@@ -34,17 +34,8 @@ export interface IDiskQueue {
   flushPending?(): void
 }
 
-// originally we set to 4 but trying to use more to see if it helps quickjs
+// Default concurrent disk workers for TorrentDiskQueue (extension/daemon mode)
 const DEFAULT_DISK_WORKERS = 6
-
-/**
- * Higher concurrency limit for batch mode (native Android).
- * In batch mode, writes are collected and flushed once per tick via FFI.
- * Since the FFI round-trip takes ~100ms (one tick), we need more concurrent
- * slots to keep the pipeline full. With 30 slots at 1MB/piece:
- * - 30 pieces per tick = 30MB per 100ms = 300 MB/s theoretical max
- */
-export const DEFAULT_DISK_WORKERS_BATCH_MODE = 30
 
 export interface DiskQueueConfig {
   maxWorkers: number
@@ -141,5 +132,39 @@ export class TorrentDiskQueue implements IDiskQueue {
       running: [...this.running.values()].map((j) => ({ ...j })),
       draining: this.draining,
     }
+  }
+}
+
+/**
+ * Passthrough disk queue for Android/QuickJS.
+ *
+ * Immediately executes writes without JS-side queuing. The actual batching
+ * happens in NativeBatchingDiskQueue which collects writes during a tick
+ * and flushes them in a single FFI call at end of tick.
+ *
+ * Use this instead of TorrentDiskQueue for Android where:
+ * - Writes go through NativeFileHandle → NativeBatchingDiskQueue
+ * - Batching happens at the FFI layer, not in JS
+ * - Concurrency is controlled by active pieces limit, not worker pool
+ */
+export class PassthroughDiskQueue implements IDiskQueue {
+  async enqueue(
+    _job: Omit<DiskJob, 'id' | 'status' | 'enqueuedAt'>,
+    execute: () => Promise<void>,
+  ): Promise<void> {
+    // Execute immediately - batching happens in NativeBatchingDiskQueue
+    await execute()
+  }
+
+  async drain(): Promise<void> {
+    // No-op - nothing queued on JS side
+  }
+
+  resume(): void {
+    // No-op
+  }
+
+  getSnapshot(): DiskQueueSnapshot {
+    return { pending: [], running: [], draining: false }
   }
 }

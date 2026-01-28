@@ -32,7 +32,7 @@ import type { EncryptionPolicy } from '../crypto'
 import { randomBytes } from '../utils/hash'
 import { ConnectionTimingTracker } from './connection-timing'
 import { initializeTorrentStorage } from './torrent-initializer'
-import { TorrentDiskQueue, DiskQueueSnapshot } from './disk-queue'
+import { TorrentDiskQueue, PassthroughDiskQueue, DiskQueueSnapshot, IDiskQueue } from './disk-queue'
 import { EndgameManager } from './endgame-manager'
 import { PartsFile } from './parts-file'
 import type { LookupResult } from '../dht'
@@ -42,6 +42,7 @@ import {
   TorrentTickLoop,
   TickLoopCallbacks,
   TickStats,
+  TickResult,
   CLEANUP_TICK_INTERVAL,
   BLOCK_REQUEST_TIMEOUT_MS,
   PIECE_ABANDON_TIMEOUT_MS,
@@ -158,7 +159,7 @@ export class Torrent extends EngineComponent {
   public lastPieceLength: number = 0
   public piecesCount: number = 0
   private _contentStorage?: TorrentContentStorage
-  private _diskQueue: TorrentDiskQueue
+  private _diskQueue: IDiskQueue
 
   /** Content storage for reading/writing piece data */
   get contentStorage(): TorrentContentStorage | undefined {
@@ -340,7 +341,7 @@ export class Torrent extends EngineComponent {
    * Get the disk queue for this torrent.
    * Used by TorrentContentStorage to queue disk operations.
    */
-  get diskQueue(): TorrentDiskQueue {
+  get diskQueue(): IDiskQueue {
     return this._diskQueue
   }
 
@@ -387,7 +388,7 @@ export class Torrent extends EngineComponent {
     maxPeers: number = 20,
     maxUploadSlots: number = 4,
     encryptionPolicy: EncryptionPolicy = 'disabled',
-    diskQueueMaxWorkers?: number,
+    usePassthroughDiskQueue: boolean = false,
   ) {
     super(engine)
     this.btEngine = engine
@@ -400,10 +401,10 @@ export class Torrent extends EngineComponent {
     this.maxPeers = maxPeers
     this.maxUploadSlots = maxUploadSlots
 
-    // Initialize disk queue with optional custom max workers (higher for batch mode)
-    this._diskQueue = new TorrentDiskQueue(
-      diskQueueMaxWorkers ? { maxWorkers: diskQueueMaxWorkers } : undefined,
-    )
+    // Initialize disk queue:
+    // - PassthroughDiskQueue for Android/QuickJS (batching happens in NativeBatchingDiskQueue)
+    // - TorrentDiskQueue for extension/daemon (worker pool limits concurrent HTTP requests)
+    this._diskQueue = usePassthroughDiskQueue ? new PassthroughDiskQueue() : new TorrentDiskQueue()
 
     this.instanceLogName = `t:${toHex(infoHash).slice(0, 6)}`
 
@@ -1548,9 +1549,10 @@ export class Torrent extends EngineComponent {
    * Process one tick for this torrent.
    * Called by BtEngine.engineTick() at 100ms intervals.
    * Processes all accumulated data, runs cleanup, and fills request pipelines.
+   * Returns snapshot of this tick's work and current state.
    */
-  tick(): void {
-    this._tickLoop.tick()
+  tick(): TickResult | null {
+    return this._tickLoop.tick()
   }
 
   // ==========================================================================
