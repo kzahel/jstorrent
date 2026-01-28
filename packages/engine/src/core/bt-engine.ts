@@ -220,10 +220,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public autoDrainBuffers: boolean = false
 
   // === Backpressure (Phase 2) ===
-  /** High water mark for total buffered bytes across all peers - activate backpressure (64MB) */
-  private static readonly BACKPRESSURE_HIGH_WATER = 64 * 1024 * 1024
-  /** Low water mark for total buffered bytes - release backpressure (32MB, hysteresis) */
-  private static readonly BACKPRESSURE_LOW_WATER = 32 * 1024 * 1024
+  /** High water mark for total buffered bytes across all peers - activate backpressure (16MB) */
+  private static readonly BACKPRESSURE_HIGH_WATER = 16 * 1024 * 1024
+  /** Low water mark for total buffered bytes - release backpressure (4MB, hysteresis) */
+  private static readonly BACKPRESSURE_LOW_WATER = 4 * 1024 * 1024
   /** Whether backpressure is currently active (reads paused on native side) */
   private backpressureActive: boolean = false
 

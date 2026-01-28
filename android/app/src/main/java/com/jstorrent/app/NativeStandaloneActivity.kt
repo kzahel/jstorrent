@@ -42,7 +42,6 @@ import com.jstorrent.app.ui.navigation.TorrentNavHost
 import com.jstorrent.app.ui.theme.JSTorrentTheme
 import com.jstorrent.app.viewmodel.TorrentListViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -71,10 +70,6 @@ class NativeStandaloneActivity : ComponentActivity() {
     private var testStorageMode = mutableStateOf<String?>(null)
     private var isAddingRoot = mutableStateOf(false)
     private var showNotificationDialog = mutableStateOf(false)
-
-    // For handling magnet intents while engine is loading
-    private var pendingMagnet: String? = null
-    private var pendingReplace: Boolean = false
 
     // For navigating to a specific torrent from notification tap
     private var initialInfoHash = mutableStateOf<String?>(null)
@@ -172,7 +167,6 @@ class NativeStandaloneActivity : ComponentActivity() {
         // opens detail view, taps resume, etc.)
         // Note: We still notify service lifecycle so it can make proper decisions.
         app.serviceLifecycleManager.onActivityStart()
-        observeEngineForPendingMagnet()
     }
 
     override fun onStop() {
@@ -297,62 +291,34 @@ class NativeStandaloneActivity : ComponentActivity() {
     }
 
     /**
-     * Add magnet immediately if engine is loaded, otherwise start engine and queue it.
+     * Add magnet immediately, starting engine if needed.
      * After adding, navigates to the torrent list.
      *
      * Stage 2 (lazy engine startup): Adding a torrent is a trigger point for engine start.
+     * Note: ensureEngineStarted() is synchronous - it returns only after engine is fully loaded.
+     * This avoids race conditions with the observer that could miss pending magnets when
+     * the engine is restarted (new controller instance = new StateFlow).
      *
      * @param magnet The magnet link or base64-encoded torrent file
      * @param replace If true, removes any existing torrent with the same infohash first
      */
     private fun addOrQueueMagnet(magnet: String, replace: Boolean = false) {
+        // Ensure engine is loaded (synchronous - returns after fully loaded)
         val controller = app.engineController
-        if (controller != null && controller.isLoaded?.value == true) {
-            Log.i(TAG, "Engine loaded, adding torrent immediately (replace=$replace)")
-            if (replace) {
-                viewModel.replaceAndStartTorrent(magnet)
-            } else {
-                viewModel.addTorrent(magnet)
-            }
-            // Navigate to list to show the newly added torrent
-            navigateToListTrigger.value++
-        } else {
-            Log.i(TAG, "Engine not loaded, starting engine and queuing torrent (replace=$replace)")
-            pendingMagnet = magnet
-            pendingReplace = replace
-            // Stage 2: Start engine on demand - adding a torrent is a trigger point
+        if (controller == null || controller.isLoaded?.value != true) {
+            Log.i(TAG, "Engine not loaded, starting engine...")
             app.ensureEngineStarted(storageMode = testStorageMode.value)
         }
-    }
 
-    /**
-     * Observe engine load state to add pending magnets.
-     */
-    private fun observeEngineForPendingMagnet() {
-        lifecycleScope.launch {
-            // Wait for engine controller to be available
-            while (app.engineController == null) {
-                delay(100)
-            }
-
-            val controller = app.engineController!!
-
-            // Collect isLoaded to handle pending magnet
-            controller.isLoaded?.collect { loaded ->
-                if (loaded && pendingMagnet != null) {
-                    Log.i(TAG, "Engine now loaded, adding queued torrent (replace=$pendingReplace)")
-                    if (pendingReplace) {
-                        viewModel.replaceAndStartTorrent(pendingMagnet!!)
-                    } else {
-                        viewModel.addTorrent(pendingMagnet!!)
-                    }
-                    pendingMagnet = null
-                    pendingReplace = false
-                    // Navigate to list to show the newly added torrent
-                    navigateToListTrigger.value++
-                }
-            }
+        // Engine is now ready, add immediately
+        Log.i(TAG, "Adding torrent (replace=$replace)")
+        if (replace) {
+            viewModel.replaceAndStartTorrent(magnet)
+        } else {
+            viewModel.addTorrent(magnet)
         }
+        // Navigate to list to show the newly added torrent
+        navigateToListTrigger.value++
     }
 
     private fun handleTorrentFile(uri: Uri) {

@@ -33,6 +33,27 @@ export class ChunkedBuffer {
   }
 
   /**
+   * Read a single byte at the given offset without consuming.
+   * Returns null if insufficient data.
+   * O(chunks) to find the right chunk, but typically O(1) for small offsets.
+   */
+  peekByte(offset: number): number | null {
+    if (this._length <= offset) return null
+
+    // Find the chunk containing this offset
+    let chunkIndex = 0
+    let posInChunk = this.consumedInFirstChunk + offset
+
+    while (chunkIndex < this.chunks.length && posInChunk >= this.chunks[chunkIndex].length) {
+      posInChunk -= this.chunks[chunkIndex].length
+      chunkIndex++
+    }
+
+    if (chunkIndex >= this.chunks.length) return null
+    return this.chunks[chunkIndex][posInChunk]
+  }
+
+  /**
    * Read a big-endian uint32 at the given offset without consuming.
    * Returns null if insufficient data.
    */

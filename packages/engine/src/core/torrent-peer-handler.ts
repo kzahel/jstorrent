@@ -5,6 +5,7 @@ import { toHex, compare } from '../utils/buffer'
 import { peerKey, PeerAddress } from './swarm'
 import { PexHandler } from '../extensions/pex-handler'
 import { EngineComponent, ILoggingEngine } from '../logging/logger'
+import type { ChunkedBuffer } from './chunked-buffer'
 import type { PieceAvailability } from './piece-availability'
 import type { MetadataFetcher } from './metadata-fetcher'
 import type { ActivePieceManager } from './active-piece-manager'
@@ -44,6 +45,20 @@ export interface PeerHandlerCallbacks {
   updateInterest(peer: PeerConnection): void
   shouldAddToIndex(pieceIndex: number): boolean
   fillPeerSlots(): void
+
+  /**
+   * Zero-copy PIECE block handler.
+   * Called from processBuffer() fast path to copy block data directly from
+   * ChunkedBuffer to piece buffer, eliminating intermediate allocations.
+   */
+  onBlockZeroCopy(
+    peer: PeerConnection,
+    pieceIndex: number,
+    blockOffset: number,
+    buffer: ChunkedBuffer,
+    dataOffset: number,
+    dataLength: number,
+  ): void
 }
 
 /**
@@ -220,6 +235,12 @@ export class TorrentPeerHandler extends EngineComponent {
         this.callbacks.onBlock(peer, msg)
       }
     })
+
+    // Zero-copy fast path for PIECE messages
+    // This bypasses parseMessage() and copies block data directly to piece buffer
+    peer.onPieceBlock = (pieceIndex, blockOffset, buffer, dataOffset, dataLength) => {
+      this.callbacks.onBlockZeroCopy(peer, pieceIndex, blockOffset, buffer, dataOffset, dataLength)
+    }
 
     peer.on('request', (index, begin, length) => {
       this.callbacks.getUploader().queueRequest(peer, index, begin, length)

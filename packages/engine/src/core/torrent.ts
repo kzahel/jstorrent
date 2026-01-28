@@ -1,5 +1,6 @@
 import { PeerConnection } from './peer-connection'
 import { ActivePiece, BLOCK_SIZE } from './active-piece'
+import type { ChunkedBuffer } from './chunked-buffer'
 import { PeerCoordinator } from './peer-coordinator'
 import { ActivePieceManager } from './active-piece-manager'
 import { TorrentContentStorage } from './torrent-content-storage'
@@ -601,6 +602,8 @@ export class Torrent extends EngineComponent {
         this.totalUploaded += bytes
       },
       onBlock: (peer, msg) => this.handleBlock(peer, msg),
+      onBlockZeroCopy: (peer, pieceIndex, blockOffset, buffer, dataOffset, dataLength) =>
+        this.handleBlockZeroCopy(peer, pieceIndex, blockOffset, buffer, dataOffset, dataLength),
       onInterested: (peer) => this.handleInterested(peer),
       buildPeerPieceIndex: (peer) => this.buildPeerPieceIndex(peer),
       updateInterest: (peer) => this.updateInterest(peer),
@@ -2215,13 +2218,49 @@ export class Torrent extends EngineComponent {
    * This method buffers blocks in memory until the piece is complete,
    * then verifies the hash and writes the complete piece to storage.
    */
-  private async handleBlock(peer: PeerConnection, msg: WireMessage) {
+  private handleBlock(peer: PeerConnection, msg: WireMessage): void {
     if (msg.index === undefined || msg.begin === undefined || !msg.block) {
       return
     }
 
     if (peer.requestsPending > 0) peer.requestsPending--
 
+    const block = msg.block
+    this.handleBlockCommon(peer, msg.index, msg.begin, block.length, (piece, blockIndex, peerId) =>
+      piece.addBlock(blockIndex, block, peerId),
+    )
+  }
+
+  /**
+   * Zero-copy block handler for PIECE messages.
+   * Called from processBuffer() fast path to copy block data directly from
+   * ChunkedBuffer to piece buffer, eliminating 3 intermediate allocations.
+   */
+  private handleBlockZeroCopy(
+    peer: PeerConnection,
+    pieceIndex: number,
+    blockOffset: number,
+    buffer: ChunkedBuffer,
+    dataOffset: number,
+    dataLength: number,
+  ): void {
+    // Note: requestsPending is already decremented in processBuffer fast path
+    this.handleBlockCommon(peer, pieceIndex, blockOffset, dataLength, (piece, blockIndex, peerId) =>
+      piece.addBlockFromChunked(blockIndex, buffer, dataOffset, dataLength, peerId),
+    )
+  }
+
+  /**
+   * Common block handling logic shared by handleBlock and handleBlockZeroCopy.
+   * The addBlockFn parameter allows different block storage strategies.
+   */
+  private handleBlockCommon(
+    peer: PeerConnection,
+    pieceIndex: number,
+    blockOffset: number,
+    dataLength: number,
+    addBlockFn: (piece: ActivePiece, blockIndex: number, peerId: string) => boolean,
+  ): void {
     // Track block receipt for adaptive pipeline depth adjustment
     peer.recordBlockReceived()
 
@@ -2232,48 +2271,46 @@ export class Torrent extends EngineComponent {
         (index) => this.getPieceLength(index),
         { standardPieceLength: this.pieceLength },
       )
-      // Note: Request timeout cleanup is handled by cleanupStuckPieces() which runs
-      // every 500ms and directly decrements peer.requestsPending when sending CANCELs.
     }
 
     if (!this.activePieces) {
       this.logger.warn(
-        `Received block ${msg.index}:${msg.begin} but activePieces not initialized (metadata not yet received?)`,
+        `Received block ${pieceIndex}:${blockOffset} but activePieces not initialized (metadata not yet received?)`,
       )
       return
     }
 
     // Early exit if we already have this piece (prevents creating active pieces for complete pieces)
-    if (this._bitfield?.get(msg.index)) {
-      this.logger.debug(`Ignoring block ${msg.index}:${msg.begin} - piece already complete`)
+    if (this._bitfield?.get(pieceIndex)) {
+      this.logger.debug(`Ignoring block ${pieceIndex}:${blockOffset} - piece already complete`)
       return
     }
 
     // Get or create active piece (may receive unsolicited blocks or from different peer)
-    let piece = this.activePieces.get(msg.index)
+    let piece = this.activePieces.get(pieceIndex)
     if (!piece) {
       // Try to create it - could be an unsolicited block or from a peer we just connected
-      const newPiece = this.activePieces.getOrCreate(msg.index)
+      const newPiece = this.activePieces.getOrCreate(pieceIndex)
       if (!newPiece) {
-        this.logger.debug(`Cannot buffer piece ${msg.index} - at capacity`)
+        this.logger.debug(`Cannot buffer piece ${pieceIndex} - at capacity`)
         return
       }
       piece = newPiece
       // Phase 8: Remove from peer indices since it's now active
-      this.removePieceFromAllIndices(msg.index)
+      this.removePieceFromAllIndices(pieceIndex)
     }
 
     // Get peer ID for tracking
     const peerId = peer.peerId ? toHex(peer.peerId) : 'unknown'
-    const blockIndex = Math.floor(msg.begin / BLOCK_SIZE)
+    const blockIndex = Math.floor(blockOffset / BLOCK_SIZE)
 
-    // Add block to piece
-    const isNew = piece.addBlock(blockIndex, msg.block, peerId)
+    // Add block to piece using the provided function
+    const isNew = addBlockFn(piece, blockIndex, peerId)
     if (!isNew) {
-      this.logger.debug(`Duplicate block ${msg.index}:${msg.begin}`)
+      this.logger.debug(`Duplicate block ${pieceIndex}:${blockOffset}`)
     } else {
       // Record payload bytes (piece data only, not protocol overhead)
-      ;(this.engine as BtEngine).bandwidthTracker.record('peer:payload', msg.block.length, 'down')
+      ;(this.engine as BtEngine).bandwidthTracker.record('peer:payload', dataLength, 'down')
     }
 
     // In endgame mode, send CANCEL to other peers that requested this block
@@ -2292,14 +2329,15 @@ export class Torrent extends EngineComponent {
       }
     }
 
-    // Request pipeline is refilled by requestTick() game loop (not edge-triggered)
-
-    // Then finalize if piece is complete
+    // Finalize if piece is complete
     if (piece.haveAllBlocks) {
       // Promote to pending state - no longer counts against partial cap
       // This allows new pieces to start downloading while this one awaits verification
-      this.activePieces.promoteToFullyResponded(msg.index)
-      await this.finalizePiece(msg.index, piece)
+      this.activePieces.promoteToFullyResponded(pieceIndex)
+      // Fire-and-forget the async finalization
+      this.finalizePiece(pieceIndex, piece).catch((err) => {
+        this.logger.error(`Error finalizing piece ${pieceIndex}:`, err)
+      })
     }
   }
 

@@ -194,6 +194,28 @@ export class PeerConnection extends EngineComponent {
     return this.socket.isEncrypted ?? false
   }
 
+  /**
+   * Zero-copy PIECE message handler.
+   * When set, PIECE messages bypass normal parsing and this callback is invoked
+   * with direct access to the ChunkedBuffer. The callback should copy the block
+   * data directly to its final destination (e.g., ActivePiece buffer).
+   *
+   * This eliminates 3 intermediate copies in the hot download path.
+   *
+   * @param pieceIndex - The piece index from the PIECE message
+   * @param blockOffset - The byte offset within the piece (begin field)
+   * @param buffer - The ChunkedBuffer containing the data
+   * @param dataOffset - Offset within the buffer where block data starts
+   * @param dataLength - Length of the block data
+   */
+  public onPieceBlock?: (
+    pieceIndex: number,
+    blockOffset: number,
+    buffer: ChunkedBuffer,
+    dataOffset: number,
+    dataLength: number,
+  ) => void
+
   constructor(
     engine: ILoggingEngine,
     socket: ITcpSocket,
@@ -456,6 +478,41 @@ export class PeerConnection extends EngineComponent {
       const totalLength = 4 + length
       if (this.buffer.length < totalLength) break
 
+      // Fast path: PIECE messages (type=7) with zero-copy handler
+      // PIECE message format: [4: length][1: type=7][4: pieceIndex][4: blockOffset][data]
+      // Minimum length is 9 (1 type + 4 index + 4 begin + 0 data)
+      if (length >= 9 && this.onPieceBlock) {
+        const msgType = this.buffer.peekByte(4)
+        if (msgType === MessageType.PIECE) {
+          const pieceIndex = this.buffer.peekUint32(5)
+          const blockOffset = this.buffer.peekUint32(9)
+          if (pieceIndex !== null && blockOffset !== null) {
+            const dataOffset = 13 // 4 (len) + 1 (type) + 4 (index) + 4 (begin)
+            const dataLength = length - 9 // total - type - index - begin
+
+            // Zero-copy: callback copies directly from buffer to piece buffer
+            try {
+              this.onPieceBlock(pieceIndex, blockOffset, this.buffer, dataOffset, dataLength)
+            } catch (err) {
+              this.logger.error('Error in onPieceBlock handler:', { err })
+              this.close()
+              return
+            }
+
+            this.buffer.discard(totalLength)
+            this.pendingBytes += totalLength
+
+            // Decrement requestsPending (matching handleMessage PIECE behavior)
+            if (this.requestsPending > 0) {
+              this.requestsPending--
+            }
+
+            continue
+          }
+        }
+      }
+
+      // Slow path: other message types (or PIECE without handler)
       const message = this.buffer.consume(totalLength)
       try {
         const msg = PeerWireProtocol.parseMessage(message)
