@@ -26,6 +26,12 @@ export interface IDiskQueue {
   drain(): Promise<void>
   resume(): void
   getSnapshot(): DiskQueueSnapshot
+  /**
+   * Flush any pending batched writes.
+   * Called at end of tick to send accumulated writes in a single FFI call.
+   * Default implementation is no-op (for non-batching queues).
+   */
+  flushPending?(): void
 }
 
 // originally we set to 4 but trying to use more to see if it helps quickjs

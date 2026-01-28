@@ -243,6 +243,24 @@ declare global {
   ): void
 
   /**
+   * Batch verified write: send multiple verified writes in a single FFI call.
+   * Reduces FFI overhead when multiple pieces complete in the same tick.
+   * Runs all writes on background threads. Results delivered via __jstorrent_file_dispatch_batch.
+   *
+   * Packed binary format (all multi-byte integers are little-endian):
+   *   [count: u32 LE] then for each write:
+   *     [rootKeyLen: u8] [rootKey: UTF-8 bytes]
+   *     [pathLen: u16 LE] [path: UTF-8 bytes]
+   *     [position: u64 LE]
+   *     [dataLen: u32 LE] [data: bytes]
+   *     [hashHex: 40 bytes] (fixed size - SHA1 hex is always 40 chars)
+   *     [callbackIdLen: u8] [callbackId: UTF-8 bytes]
+   *
+   * @param packed Binary-packed write requests
+   */
+  function __jstorrent_file_write_verified_batch(packed: ArrayBuffer): void
+
+  /**
    * Callback storage for verified write results.
    * Managed by native layer, called via __jstorrent_file_dispatch_write_result.
    */
