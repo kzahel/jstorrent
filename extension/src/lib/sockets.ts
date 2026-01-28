@@ -169,7 +169,7 @@ class TcpSocket implements ITcpSocket {
       if (msgType === OP_TCP_RECV) {
         // Payload: socketId(4) + data
         if (this.onDataCb) {
-          this.onDataCb(payload.slice(4))
+          this.onDataCb(payload.subarray(4))
         }
       }
     })
