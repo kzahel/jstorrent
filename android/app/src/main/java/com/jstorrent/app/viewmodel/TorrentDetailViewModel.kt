@@ -39,11 +39,19 @@ data class FileState(
 /**
  * ViewModel for the torrent detail screen.
  * Manages torrent details, files, peers, and trackers.
+ *
+ * Stage 2 of lazy engine startup: Opening detail view starts the engine on demand.
  */
 class TorrentDetailViewModel(
     private val repository: TorrentRepository,
-    private val infoHash: String
+    private val infoHash: String,
+    onEnsureEngineStarted: () -> Unit = {}
 ) : ViewModel() {
+
+    init {
+        // Stage 2: Opening detail view is a trigger point for engine start
+        onEnsureEngineStarted()
+    }
 
     // Selected tab - default to STATUS (most relevant when opening a torrent)
     private val _selectedTab = MutableStateFlow(DetailTab.STATUS)
@@ -521,7 +529,12 @@ class TorrentDetailViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(TorrentDetailViewModel::class.java)) {
-                return TorrentDetailViewModel(EngineServiceRepository(application), infoHash) as T
+                val app = application as com.jstorrent.app.JSTorrentApplication
+                return TorrentDetailViewModel(
+                    repository = EngineServiceRepository(application),
+                    infoHash = infoHash,
+                    onEnsureEngineStarted = { app.ensureEngineStarted() }
+                ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

@@ -136,8 +136,22 @@ class TorrentListViewModelCacheTest {
     }
 
     @Test
-    fun `shows loading when no cache and engine not loaded`() = runTest {
-        // Given: empty cache, engine not loaded
+    fun `shows empty list when cache loaded but empty and engine not loaded`() = runTest {
+        // Given: cache loaded but empty, engine not loaded
+        // Stage 2 lazy startup: we show empty list (not loading spinner) when cache is empty
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // Then: state is Loaded with empty list (not Loading forever)
+        val state = viewModel.uiState.value
+        assertTrue("Expected Loaded state but got $state", state is TorrentListUiState.Loaded)
+        assertTrue((state as TorrentListUiState.Loaded).torrents.isEmpty())
+    }
+
+    @Test
+    fun `shows loading when cache is still loading`() = runTest {
+        // Given: cache hasn't finished loading yet
+        cache.setIsLoaded(false)
         viewModel = createViewModel()
         advanceUntilIdle()
 
@@ -223,11 +237,12 @@ class TorrentListViewModelCacheTest {
 
     @Test
     fun `loading state without cache when engine not ready`() = runTest {
-        // Given: no cache provided
+        // Given: no cache provided (cache = null)
+        // Without cache, we must wait for the engine - show Loading
         val viewModelWithoutCache = TorrentListViewModel(repository)
         advanceUntilIdle()
 
-        // Then: Loading state (no cache fallback)
+        // Then: Loading state (no cache fallback, must wait for engine)
         assertEquals(TorrentListUiState.Loading, viewModelWithoutCache.uiState.value)
     }
 }

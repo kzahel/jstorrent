@@ -445,4 +445,128 @@ class TorrentListViewModelTest {
         assertTrue(repository.removedTorrents.isEmpty())
         assertTrue(repository.addedTorrents.isEmpty())
     }
+
+    // =========================================================================
+    // Stage 2: Lazy engine startup callback tests
+    // =========================================================================
+
+    @Test
+    fun `addTorrent calls onEnsureEngineStarted`() = runTest {
+        var callCount = 0
+        val viewModelWithCallback = TorrentListViewModel(
+            repository = repository,
+            onEnsureEngineStarted = { callCount++ }
+        )
+
+        viewModelWithCallback.addTorrent("magnet:?xt=urn:btih:abc123")
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `pauseTorrent calls onEnsureEngineStarted`() = runTest {
+        var callCount = 0
+        val viewModelWithCallback = TorrentListViewModel(
+            repository = repository,
+            onEnsureEngineStarted = { callCount++ }
+        )
+
+        viewModelWithCallback.pauseTorrent("hash1")
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `resumeTorrent calls onEnsureEngineStarted`() = runTest {
+        var callCount = 0
+        val viewModelWithCallback = TorrentListViewModel(
+            repository = repository,
+            onEnsureEngineStarted = { callCount++ }
+        )
+
+        viewModelWithCallback.resumeTorrent("hash1")
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `removeTorrent calls onEnsureEngineStarted`() = runTest {
+        var callCount = 0
+        val viewModelWithCallback = TorrentListViewModel(
+            repository = repository,
+            onEnsureEngineStarted = { callCount++ }
+        )
+
+        viewModelWithCallback.removeTorrent("hash1")
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `pauseAll calls onEnsureEngineStarted`() = runTest {
+        var callCount = 0
+        val viewModelWithCallback = TorrentListViewModel(
+            repository = repository,
+            onEnsureEngineStarted = { callCount++ }
+        )
+
+        viewModelWithCallback.pauseAll()
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `resumeAll calls onEnsureEngineStarted`() = runTest {
+        var callCount = 0
+        val viewModelWithCallback = TorrentListViewModel(
+            repository = repository,
+            onEnsureEngineStarted = { callCount++ }
+        )
+
+        viewModelWithCallback.resumeAll()
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `replaceAndStartTorrent calls onEnsureEngineStarted`() = runTest {
+        var callCount = 0
+        val viewModelWithCallback = TorrentListViewModel(
+            repository = repository,
+            onEnsureEngineStarted = { callCount++ }
+        )
+
+        viewModelWithCallback.replaceAndStartTorrent("magnet:?xt=urn:btih:abc12345678901234567890123456789012345678&dn=test")
+        advanceUntilIdle()
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `blank addTorrent does not call onEnsureEngineStarted`() = runTest {
+        var callCount = 0
+        val viewModelWithCallback = TorrentListViewModel(
+            repository = repository,
+            onEnsureEngineStarted = { callCount++ }
+        )
+
+        viewModelWithCallback.addTorrent("")
+        viewModelWithCallback.addTorrent("   ")
+
+        assertEquals(0, callCount)
+    }
+
+    @Test
+    fun `blank replaceAndStartTorrent does not call onEnsureEngineStarted`() = runTest {
+        var callCount = 0
+        val viewModelWithCallback = TorrentListViewModel(
+            repository = repository,
+            onEnsureEngineStarted = { callCount++ }
+        )
+
+        viewModelWithCallback.replaceAndStartTorrent("")
+        viewModelWithCallback.replaceAndStartTorrent("   ")
+
+        assertEquals(0, callCount)
+    }
 }

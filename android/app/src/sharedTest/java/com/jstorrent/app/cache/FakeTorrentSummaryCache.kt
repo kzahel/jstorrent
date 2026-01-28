@@ -11,11 +11,16 @@ import kotlinx.coroutines.flow.asStateFlow
 class FakeTorrentSummaryCache : TorrentSummaryCache(context = null) {
 
     private val _fakeSummaries = MutableStateFlow<List<CachedTorrentSummary>>(emptyList())
+    private val _fakeIsLoaded = MutableStateFlow(true) // Default to loaded for tests
 
     override val summaries: Flow<List<CachedTorrentSummary>>
         get() = _fakeSummaries.asStateFlow()
 
+    override val isLoaded: Flow<Boolean>
+        get() = _fakeIsLoaded.asStateFlow()
+
     private var loadWasCalled = false
+    private var simulateSlowLoad = false
 
     /**
      * Set the cached summaries for testing.
@@ -24,8 +29,20 @@ class FakeTorrentSummaryCache : TorrentSummaryCache(context = null) {
         _fakeSummaries.value = summaries
     }
 
+    /**
+     * Set the isLoaded state for testing.
+     * If simulateSlowLoad is true, load() won't automatically set isLoaded to true.
+     */
+    fun setIsLoaded(loaded: Boolean, simulateSlowLoad: Boolean = !loaded) {
+        _fakeIsLoaded.value = loaded
+        this.simulateSlowLoad = simulateSlowLoad
+    }
+
     override suspend fun load(): List<CachedTorrentSummary> {
         loadWasCalled = true
+        if (!simulateSlowLoad) {
+            _fakeIsLoaded.value = true
+        }
         return _fakeSummaries.value
     }
 
@@ -37,6 +54,7 @@ class FakeTorrentSummaryCache : TorrentSummaryCache(context = null) {
 
     fun reset() {
         _fakeSummaries.value = emptyList()
+        _fakeIsLoaded.value = true
         loadWasCalled = false
     }
 }

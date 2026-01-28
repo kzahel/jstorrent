@@ -25,12 +25,13 @@ import kotlinx.coroutines.launch
  * Manages torrent list state, filtering, and sorting.
  *
  * Stage 1 of lazy engine startup: Uses TorrentSummaryCache as initial data source.
- * The engine still starts immediately, but UI may render faster if cache loads
- * before engine pushes first state. Engine state always wins when available.
+ * Stage 2 of lazy engine startup: Engine starts on demand when user takes action.
+ * Engine state always wins when available.
  */
 class TorrentListViewModel(
     private val repository: TorrentRepository,
-    private val cache: TorrentSummaryCache? = null
+    private val cache: TorrentSummaryCache? = null,
+    private val onEnsureEngineStarted: () -> Unit = {}
 ) : ViewModel() {
 
     init {
@@ -58,15 +59,18 @@ class TorrentListViewModel(
 
     // Flow of cached summaries (empty list if no cache provided)
     private val cachedSummariesFlow = cache?.summaries ?: flowOf(emptyList())
+    // If no cache provided, treat as "not loaded" - must wait for engine
+    private val cacheIsLoadedFlow = cache?.isLoaded ?: flowOf(false)
 
     // Combined data source flow - combines engine state with cache fallback
     private val dataSourceFlow = combine(
         repository.isLoaded,
         repository.state,
         repository.lastError,
-        cachedSummariesFlow
-    ) { isLoaded, state, error, cachedSummaries ->
-        DataSourceState(isLoaded, state, error, cachedSummaries)
+        cachedSummariesFlow,
+        cacheIsLoadedFlow
+    ) { isLoaded, state, error, cachedSummaries, cacheIsLoaded ->
+        DataSourceState(isLoaded, state, error, cachedSummaries, cacheIsLoaded)
     }
 
     // Combined UI state - engine state wins when available, falls back to cache
@@ -108,7 +112,16 @@ class TorrentListViewModel(
                 )
             }
 
-            // No data yet - loading
+            // Cache has loaded but is empty - show empty list (not loading spinner)
+            dataSource.cacheIsLoaded -> {
+                TorrentListUiState.Loaded(
+                    torrents = emptyList(),
+                    filter = filter,
+                    sortOrder = sortOrder
+                )
+            }
+
+            // Cache still loading - show loading spinner
             else -> TorrentListUiState.Loading
         }
     }.stateIn(
@@ -122,7 +135,8 @@ class TorrentListViewModel(
         val isLoaded: Boolean,
         val state: com.jstorrent.quickjs.model.EngineState?,
         val error: String?,
-        val cachedSummaries: List<com.jstorrent.app.cache.CachedTorrentSummary>
+        val cachedSummaries: List<com.jstorrent.app.cache.CachedTorrentSummary>,
+        val cacheIsLoaded: Boolean
     )
 
     /**
@@ -180,9 +194,11 @@ class TorrentListViewModel(
 
     /**
      * Add a torrent from magnet link or base64 data.
+     * Stage 2: Starts engine on demand if not running.
      */
     fun addTorrent(magnetOrBase64: String) {
         if (magnetOrBase64.isBlank()) return
+        onEnsureEngineStarted()
         repository.addTorrent(magnetOrBase64)
     }
 
@@ -190,9 +206,11 @@ class TorrentListViewModel(
      * Replace an existing torrent (if present) and add/start fresh.
      * This removes any existing torrent with the same infohash before adding,
      * ensuring the torrent starts in active state.
+     * Stage 2: Starts engine on demand if not running.
      */
     fun replaceAndStartTorrent(magnetOrBase64: String) {
         if (magnetOrBase64.isBlank()) return
+        onEnsureEngineStarted()
         val infoHash = extractInfoHash(magnetOrBase64)
         // Use viewModelScope to properly sequence remove -> add
         viewModelScope.launch {
@@ -225,36 +243,46 @@ class TorrentListViewModel(
 
     /**
      * Pause a torrent by info hash.
+     * Stage 2: Starts engine on demand if not running.
      */
     fun pauseTorrent(infoHash: String) {
+        onEnsureEngineStarted()
         repository.pauseTorrent(infoHash)
     }
 
     /**
      * Resume a torrent by info hash.
+     * Stage 2: Starts engine on demand if not running.
      */
     fun resumeTorrent(infoHash: String) {
+        onEnsureEngineStarted()
         repository.resumeTorrent(infoHash)
     }
 
     /**
      * Remove a torrent by info hash.
+     * Stage 2: Starts engine on demand if not running.
      */
     fun removeTorrent(infoHash: String, deleteFiles: Boolean = false) {
+        onEnsureEngineStarted()
         repository.removeTorrent(infoHash, deleteFiles)
     }
 
     /**
      * Pause all torrents.
+     * Stage 2: Starts engine on demand if not running.
      */
     fun pauseAll() {
+        onEnsureEngineStarted()
         repository.pauseAll()
     }
 
     /**
      * Resume all torrents.
+     * Stage 2: Starts engine on demand if not running.
      */
     fun resumeAll() {
+        onEnsureEngineStarted()
         repository.resumeAll()
     }
 
@@ -349,7 +377,8 @@ class TorrentListViewModel(
                 val app = application as com.jstorrent.app.JSTorrentApplication
                 return TorrentListViewModel(
                     repository = EngineServiceRepository(application),
-                    cache = app.torrentSummaryCache
+                    cache = app.torrentSummaryCache,
+                    onEnsureEngineStarted = { app.ensureEngineStarted() }
                 ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

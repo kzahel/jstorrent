@@ -219,6 +219,24 @@ class JSTorrentApplication : Application() {
         get() = _engineController != null
 
     /**
+     * Lazily start the engine on demand (Stage 2: Deferred Engine Initialization).
+     *
+     * This is the primary entry point for starting the engine. It should be called when:
+     * - User taps play/resume on a torrent
+     * - User opens torrent detail view
+     * - User adds a new torrent (magnet link, .torrent file)
+     * - Background download setting is enabled and there's pending work
+     *
+     * Idempotent - safe to call multiple times.
+     *
+     * @param storageMode Optional storage mode for testing
+     * @return The engine controller (newly created or existing)
+     */
+    fun ensureEngineStarted(storageMode: String? = null): EngineController {
+        return ensureEngine(storageMode)
+    }
+
+    /**
      * Shutdown engine. Called on explicit quit or for testing.
      */
     fun shutdownEngine() {

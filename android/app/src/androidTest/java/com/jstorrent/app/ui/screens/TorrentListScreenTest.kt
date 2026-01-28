@@ -180,7 +180,7 @@ class TorrentListScreenTest {
         }
 
         // Verify loading state is shown
-        composeTestRule.onNodeWithText("Starting engine...").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Loading...").assertIsDisplayed()
     }
 
     @Test

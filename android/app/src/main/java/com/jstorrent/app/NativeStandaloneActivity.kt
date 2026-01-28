@@ -102,10 +102,9 @@ class NativeStandaloneActivity : ComponentActivity() {
         hasRoots.value = rootStore.listRoots().isNotEmpty()
 
         // Handle incoming intent (magnet link or torrent file)
+        // Note: Stage 2 (lazy engine startup) - engine is NOT started here anymore.
+        // It will start when user takes action (adds torrent, opens detail, resumes, etc.)
         handleIncomingIntent(intent)
-
-        // Initialize engine (idempotent)
-        app.initializeEngine(storageMode = testStorageMode.value)
 
         // Check if we should show notification permission dialog (first launch only)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -165,9 +164,10 @@ class NativeStandaloneActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // Ensure engine is running - it may have been shut down when we went to background
-        // (when background downloads are disabled, we shut down the engine to save battery)
-        app.ensureEngine(storageMode = testStorageMode.value)
+        // Stage 2 (lazy engine startup): Engine is NOT started automatically here.
+        // UI shows cached data. Engine starts when user takes action (adds torrent,
+        // opens detail view, taps resume, etc.)
+        // Note: We still notify service lifecycle so it can make proper decisions.
         app.serviceLifecycleManager.onActivityStart()
         observeEngineForPendingMagnet()
     }
@@ -294,8 +294,10 @@ class NativeStandaloneActivity : ComponentActivity() {
     }
 
     /**
-     * Add magnet immediately if engine is loaded, otherwise queue it.
+     * Add magnet immediately if engine is loaded, otherwise start engine and queue it.
      * After adding, navigates to the torrent list.
+     *
+     * Stage 2 (lazy engine startup): Adding a torrent is a trigger point for engine start.
      *
      * @param magnet The magnet link or base64-encoded torrent file
      * @param replace If true, removes any existing torrent with the same infohash first
@@ -312,9 +314,11 @@ class NativeStandaloneActivity : ComponentActivity() {
             // Navigate to list to show the newly added torrent
             navigateToListTrigger.value++
         } else {
-            Log.i(TAG, "Engine not loaded yet, queuing torrent (replace=$replace)")
+            Log.i(TAG, "Engine not loaded, starting engine and queuing torrent (replace=$replace)")
             pendingMagnet = magnet
             pendingReplace = replace
+            // Stage 2: Start engine on demand - adding a torrent is a trigger point
+            app.ensureEngineStarted(storageMode = testStorageMode.value)
         }
     }
 

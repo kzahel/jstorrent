@@ -339,11 +339,13 @@ NativeStandaloneActivity.onCreate()
         → Start tick loop
 ```
 
-### SharedPreferences Keys (jstorrent_kv)
+### SharedPreferences Keys (jstorrent_session)
+
+Keys are prefixed with `session:` and JSON values are prefixed with `json:`.
 
 | Key Pattern | Content |
 |-------------|---------|
-| `torrents` | JSON: `{version, torrents: [{infoHash, source, magnetUri?, addedAt}]}` |
-| `torrent:{hash}:state` | JSON: `{userState, bitfield?, uploaded, downloaded, ...}` |
-| `torrent:{hash}:torrentfile` | Base64: Complete .torrent file (bencoded) |
-| `torrent:{hash}:infodict` | Base64: Info dictionary only (bencoded, for magnets) |
+| `session:torrents` | `json:{version, torrents: [{infoHash, source, magnetUri?, addedAt}]}` |
+| `session:torrent:{hash}:state` | `json:{userState, bitfield?, uploaded, downloaded, ...}` |
+| `session:torrent:{hash}:torrentfile` | Base64: Complete .torrent file (bencoded) |
+| `session:torrent:{hash}:infodict` | Base64: Info dictionary only (bencoded, for magnets) |

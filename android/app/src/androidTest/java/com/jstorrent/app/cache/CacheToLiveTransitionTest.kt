@@ -55,7 +55,7 @@ class CacheToLiveTransitionTest {
             }
         }
 
-        // Then: cached torrents should be displayed (not "Starting engine...")
+        // Then: cached torrents should be displayed (not "Loading...")
         composeTestRule.onNodeWithText("Cached Torrent 1").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cached Torrent 2").assertIsDisplayed()
     }
@@ -188,7 +188,7 @@ class CacheToLiveTransitionTest {
         }
 
         // Then: loading state shown
-        composeTestRule.onNodeWithText("Starting engine...").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Loading...").assertIsDisplayed()
 
         // When: engine loads with empty list
         fakeRepository.setLoaded(true)

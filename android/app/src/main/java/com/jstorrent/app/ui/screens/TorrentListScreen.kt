@@ -403,7 +403,7 @@ private fun LoadingContent(modifier: Modifier = Modifier) {
             CircularProgressIndicator()
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Starting engine...",
+                text = "Loading...",
                 style = MaterialTheme.typography.bodyLarge
             )
         }

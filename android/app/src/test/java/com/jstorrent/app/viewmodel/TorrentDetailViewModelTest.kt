@@ -37,8 +37,11 @@ class TorrentDetailViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun createViewModel(infoHash: String = testInfoHash): TorrentDetailViewModel {
-        return TorrentDetailViewModel(repository, infoHash)
+    private fun createViewModel(
+        infoHash: String = testInfoHash,
+        onEnsureEngineStarted: () -> Unit = {}
+    ): TorrentDetailViewModel {
+        return TorrentDetailViewModel(repository, infoHash, onEnsureEngineStarted)
     }
 
     // =========================================================================
@@ -279,5 +282,46 @@ class TorrentDetailViewModelTest {
 
         val state = viewModel.uiState.value as TorrentDetailUiState.Loaded
         assertEquals(null, state.torrent.eta)
+    }
+
+    // =========================================================================
+    // Stage 2: Lazy engine startup callback tests
+    // =========================================================================
+
+    @Test
+    fun `opening detail view calls onEnsureEngineStarted`() = runTest {
+        var callCount = 0
+
+        // Creating the ViewModel should trigger the callback (detail view opened)
+        viewModel = createViewModel(
+            onEnsureEngineStarted = { callCount++ }
+        )
+        advanceUntilIdle()
+
+        assertEquals(1, callCount)
+    }
+
+    @Test
+    fun `onEnsureEngineStarted called only once per ViewModel creation`() = runTest {
+        var callCount = 0
+
+        // Create ViewModel
+        viewModel = createViewModel(
+            onEnsureEngineStarted = { callCount++ }
+        )
+        advanceUntilIdle()
+
+        // Perform various operations - callback should NOT be called again
+        repository.setLoaded(true)
+        repository.setTorrents(listOf(createTestTorrent(testInfoHash)))
+        advanceUntilIdle()
+
+        viewModel.setSelectedTab(DetailTab.FILES)
+        viewModel.pause()
+        viewModel.resume()
+        advanceUntilIdle()
+
+        // Still only 1 call from init
+        assertEquals(1, callCount)
     }
 }

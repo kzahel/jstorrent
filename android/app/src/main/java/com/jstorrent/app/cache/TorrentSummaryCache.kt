@@ -21,17 +21,37 @@ import kotlinx.serialization.json.Json
  * This allows the UI to display the torrent list immediately on app launch,
  * deferring QuickJS engine startup until the user actually interacts with a torrent.
  *
- * The cache reads the same SharedPreferences that the JS engine uses (jstorrent_kv),
+ * The cache reads the same SharedPreferences that the JS engine uses (jstorrent_session),
  * parsing the bencoded torrent files to extract metadata.
+ *
+ * Storage format:
+ * - Keys are prefixed with "session:" (e.g., "session:torrents")
+ * - JSON values are prefixed with "json:" (e.g., "json:{...}")
  */
 open class TorrentSummaryCache(context: Context?) {
 
     private val prefs: SharedPreferences? =
-        context?.getSharedPreferences("jstorrent_kv", Context.MODE_PRIVATE)
+        context?.getSharedPreferences("jstorrent_session", Context.MODE_PRIVATE)
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    /**
+     * Get a session value, stripping the "json:" prefix if present.
+     */
+    private fun getSessionJson(key: String): String? {
+        val value = prefs?.getString("session:$key", null) ?: return null
+        return if (value.startsWith("json:")) value.substring(5) else value
+    }
+
+    /**
+     * Get a raw session value (for base64 data that doesn't have json: prefix).
+     */
+    private fun getSessionRaw(key: String): String? {
+        return prefs?.getString("session:$key", null)
+    }
+
     protected val _cachedSummaries = MutableStateFlow<List<CachedTorrentSummary>>(emptyList())
+    protected val _isLoaded = MutableStateFlow(false)
 
     /**
      * Flow of cached torrent summaries.
@@ -40,33 +60,44 @@ open class TorrentSummaryCache(context: Context?) {
     open val summaries: Flow<List<CachedTorrentSummary>> = _cachedSummaries.asStateFlow()
 
     /**
+     * Whether the cache has finished loading.
+     * Use this to distinguish "still loading" from "loaded but empty".
+     */
+    open val isLoaded: Flow<Boolean> = _isLoaded.asStateFlow()
+
+    /**
      * Load cached summaries from SharedPreferences.
      * Call this on app startup before engine initialization.
      */
     open suspend fun load(): List<CachedTorrentSummary> = withContext(Dispatchers.IO) {
         val summaries = mutableListOf<CachedTorrentSummary>()
-        val localPrefs = prefs ?: return@withContext emptyList()
+        val localPrefs = prefs
 
-        try {
-            // Load the torrent list index
-            val torrentListJson = localPrefs.getString("torrents", null) ?: return@withContext emptyList()
-            val torrentList = json.decodeFromString<TorrentListData>(torrentListJson)
+        if (localPrefs != null) {
+            try {
+                // Load the torrent list index
+                val torrentListJson = getSessionJson("torrents")
+                if (torrentListJson != null) {
+                    val torrentList = json.decodeFromString<TorrentListData>(torrentListJson)
 
-            for (entry in torrentList.torrents) {
-                try {
-                    val summary = loadTorrentSummary(entry)
-                    if (summary != null) {
-                        summaries.add(summary)
+                    for (entry in torrentList.torrents) {
+                        try {
+                            val summary = loadTorrentSummary(entry)
+                            if (summary != null) {
+                                summaries.add(summary)
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to load cached summary for ${entry.infoHash}: ${e.message}")
+                        }
                     }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to load cached summary for ${entry.infoHash}: ${e.message}")
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load torrent list", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to load torrent list", e)
         }
 
         _cachedSummaries.value = summaries
+        _isLoaded.value = true
         summaries
     }
 
@@ -75,8 +106,7 @@ open class TorrentSummaryCache(context: Context?) {
      * Fast check without full parsing.
      */
     open fun hasCachedTorrents(): Boolean {
-        val localPrefs = prefs ?: return false
-        val torrentListJson = localPrefs.getString("torrents", null) ?: return false
+        val torrentListJson = getSessionJson("torrents") ?: return false
         return try {
             val torrentList = json.decodeFromString<TorrentListData>(torrentListJson)
             torrentList.torrents.isNotEmpty()
@@ -92,7 +122,7 @@ open class TorrentSummaryCache(context: Context?) {
         val infoHash = entry.infoHash
 
         // Load torrent state (userState, bitfield, uploaded, downloaded)
-        val stateJson = prefs?.getString("torrent:$infoHash:state", null)
+        val stateJson = getSessionJson("torrent:$infoHash:state")
         val state = stateJson?.let {
             try {
                 json.decodeFromString<TorrentStateData>(it)
@@ -145,16 +175,15 @@ open class TorrentSummaryCache(context: Context?) {
      * Load torrent metadata from either .torrent file or info dict.
      */
     private fun loadMetadata(infoHash: String, source: String): TorrentMetadata? {
-        val localPrefs = prefs ?: return null
         return try {
             if (source == "file") {
                 // File-source: load from torrent file
-                val torrentFileBase64 = localPrefs.getString("torrent:$infoHash:torrentfile", null)
+                val torrentFileBase64 = getSessionRaw("torrent:$infoHash:torrentfile")
                     ?: return null
                 TorrentMetadata.fromTorrentFileBase64(torrentFileBase64)
             } else {
                 // Magnet-source: load from info dict (may not exist yet)
-                val infoDictBase64 = localPrefs.getString("torrent:$infoHash:infodict", null)
+                val infoDictBase64 = getSessionRaw("torrent:$infoHash:infodict")
                     ?: return null
                 TorrentMetadata.fromInfoDictBase64(infoDictBase64)
             }
