@@ -69,6 +69,16 @@ internal class TcpConnection(
         private const val WRITE_BUFFER_SIZE = 64 * 1024 // 64KB buffered output
         private const val FLUSH_THRESHOLD = 32 * 1024   // Flush when accumulated >= 32KB
         private const val SMALL_MESSAGE_SIZE = 1024     // Flush immediately for small control messages
+
+        /**
+         * Skip per-socket ByteArrayOutputStream batching.
+         * When true: each read immediately creates a right-sized copy and delivers.
+         * When false: large reads are batched via BAOS (2 copies instead of 1).
+         *
+         * Since TcpBindings already batches across all sockets at tick boundary,
+         * per-socket batching is redundant and adds an extra copy.
+         */
+        const val SKIP_INTERNAL_BATCHING = true
     }
 
     /**
@@ -177,15 +187,15 @@ internal class TcpConnection(
 
                     totalBytesRead += bytesRead
 
-                    // Check if this is a small read (control message) - deliver immediately
-                    if (bytesRead < SMALL_MESSAGE_SIZE) {
-                        val data = buffer.copyOf(bytesRead)
-                        onData(data)
+                    // Fast path: skip internal batching, deliver immediately (1 copy)
+                    // TcpBindings batches across all sockets at tick boundary anyway
+                    if (SKIP_INTERNAL_BATCHING || bytesRead < SMALL_MESSAGE_SIZE) {
+                        onData(buffer.copyOf(bytesRead))
                         continue
                     }
 
-                    // For larger reads, try to batch with subsequent data
-                    // Use short blocking timeout to let data accumulate from fast peers
+                    // Legacy path: batch via ByteArrayOutputStream (2 copies)
+                    // Kept for A/B testing - set SKIP_INTERNAL_BATCHING = false to use
                     val batchBuffer = java.io.ByteArrayOutputStream(batchingConfig.maxSize)
                     batchBuffer.write(buffer, 0, bytesRead)
                     val batchStartTime = System.currentTimeMillis()
