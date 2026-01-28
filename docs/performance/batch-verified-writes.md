@@ -88,13 +88,16 @@ class NativeBatchingDiskQueue implements IDiskQueue {
   }
 
   private packBatch(writes: PendingVerifiedWrite[]): ArrayBuffer {
-    // Format: [count: u32] then for each write:
-    // [rootKeyLen: u8] [rootKey: bytes]
-    // [pathLen: u16] [path: bytes]
-    // [position: u64]
-    // [dataLen: u32] [data: bytes]
-    // [hashHexLen: u8] [hashHex: bytes]  (always 40 bytes for SHA1 hex)
-    // [callbackIdLen: u8] [callbackId: bytes]
+    // Format matches existing JNI batch patterns (tcp_send_batch, etc.)
+    // All multi-byte integers are little-endian.
+    //
+    // [count: u32 LE] then for each write:
+    //   [rootKeyLen: u8] [rootKey: UTF-8 bytes]
+    //   [pathLen: u16 LE] [path: UTF-8 bytes]
+    //   [position: u64 LE]
+    //   [dataLen: u32 LE] [data: bytes]
+    //   [hashHex: 40 bytes]  (fixed size - SHA1 hex is always 40 chars)
+    //   [callbackIdLen: u8] [callbackId: UTF-8 bytes]
     ...
   }
 
@@ -211,7 +214,6 @@ Results already queue to `pendingDiskWriteResults` and flush via `__jstorrent_fi
 ### Phase 4: Metrics & Tuning
 1. Add logging: batch size, pack time, FFI time
 2. Compare before/after download speeds
-3. Consider memory limits (don't queue unbounded writes)
 
 ## Testing Strategy
 
@@ -250,8 +252,9 @@ Compare before/after:
 - Tick duration when pieces completing
 - Total FFI calls per download
 
-## Open Questions
+## Design Notes
 
-1. **Memory pressure**: Should we limit batch size? (e.g., flush if pending > 10 or > 100MB)
-2. **Non-verified writes**: Do we need to batch those too, or are they rare enough to ignore?
-3. **Browser fallback**: `TorrentDiskQueue` stays as-is for extension, just ensure interface compatible
+- **No memory limit needed**: JNI has no practical limit. Typical batch sizes (5-20 pieces × 256KB-4MB) are well under 100MB.
+- **Non-verified writes**: Not used in practice - all piece writes go through verified write path.
+- **Browser fallback**: `TorrentDiskQueue` stays as-is for extension. `flushPending()` is no-op or not called.
+- **Format consistency**: Binary format matches existing JNI batches (`tcp_send_batch`, etc.) - simple count + packed records.

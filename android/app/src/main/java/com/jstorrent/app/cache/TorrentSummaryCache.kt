@@ -44,29 +44,16 @@ open class TorrentSummaryCache(context: Context?) {
     }
 
     /**
-     * Get a raw binary value stored by the JS engine.
+     * Get a base64-encoded binary value stored by the JS engine.
      *
-     * The JS engine stores binary data with double-encoding:
-     * 1. Binary data → base64 string
-     * 2. String → UTF-8 bytes (TextEncoder)
-     * 3. UTF-8 bytes → base64 for storage
+     * The JS engine stores binary data as base64 via native-session-store.ts:
+     * - Binary data → base64 string for storage
      *
-     * So stored value is: base64(utf8Encode(base64(raw)))
-     *
-     * This method decodes the outer base64 and UTF-8 to return the inner base64 string,
-     * which can then be decoded by the caller to get the raw bytes.
+     * This method returns the stored base64 string, which can be decoded
+     * by the caller to get the raw bytes.
      */
     private fun getSessionBinary(key: String): String? {
-        val storedValue = prefs?.getString("session:$key", null) ?: return null
-        return try {
-            // Decode outer base64 to get UTF-8 bytes
-            val utf8Bytes = Base64.decode(storedValue, Base64.DEFAULT)
-            // Decode UTF-8 to get inner base64 string
-            String(utf8Bytes, Charsets.UTF_8)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to decode binary value for $key: ${e.message}")
-            null
-        }
+        return prefs?.getString("session:$key", null)
     }
 
     protected val _cachedSummaries = MutableStateFlow<List<CachedTorrentSummary>>(emptyList())
