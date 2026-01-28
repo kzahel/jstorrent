@@ -61,11 +61,14 @@ class JSTorrentApplication : Application() {
         // Initialize service lifecycle manager with shutdown/restore callbacks
         // When background downloads are disabled, we completely shut down the engine
         // to prevent the 100ms tick loop from draining battery
+        // Stage 4: Also pass cache for checking active torrents when engine not running
         serviceLifecycleManager = ServiceLifecycleManager(
             context = this,
             settingsStore = SettingsStore(this),
+            torrentSummaryCache = torrentSummaryCache,
             onShutdownForBackground = { shutdownEngineForBackground() },
-            onRestoreFromBackground = { restoreEngineFromBackground() }
+            onRestoreFromBackground = { restoreEngineFromBackground() },
+            onStartEngineForBackground = { startEngineForBackground() }
         )
     }
 
@@ -92,6 +95,20 @@ class JSTorrentApplication : Application() {
         // The engine will be reinitialized by the Activity when it calls ensureEngine()
         // in onStart(). We just log here for debugging.
         Log.i(TAG, "Engine restore requested - will reinitialize on Activity start")
+    }
+
+    /**
+     * Start the engine in background when there are active incomplete torrents.
+     * Stage 4: Called by ServiceLifecycleManager when user backgrounds the app
+     * but cache shows active downloads that should continue.
+     */
+    private fun startEngineForBackground() {
+        if (_engineController != null) {
+            Log.d(TAG, "Engine already running, no need to start for background")
+            return
+        }
+        Log.i(TAG, "Starting engine for background downloads")
+        initializeEngine()
     }
 
     private fun createNotificationChannels() {

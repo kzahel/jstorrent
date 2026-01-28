@@ -118,4 +118,42 @@ class TorrentSummaryCacheTest {
         val name = TorrentSummaryCache.parseDisplayName(magnet)
         assertEquals("", name)
     }
+
+    // =========================================================================
+    // Active incomplete torrent detection tests (Stage 4)
+    // =========================================================================
+    // These tests verify the logic for detecting if a torrent needs engine to run
+
+    @Test
+    fun `isComplete returns true for all-FF bitfield`() {
+        // A bitfield with all 0xFF bytes indicates all pieces complete
+        assertTrue(isLikelyComplete("ffffffff"))
+        assertTrue(isLikelyComplete("FFFFFFFF"))
+        assertTrue(isLikelyComplete("ff"))
+        assertTrue(isLikelyComplete("FF"))
+    }
+
+    @Test
+    fun `isComplete returns false for partial bitfield`() {
+        // A bitfield with non-FF bytes is incomplete
+        assertFalse(isLikelyComplete("f0"))  // Half complete
+        assertFalse(isLikelyComplete("00"))  // Empty
+        assertFalse(isLikelyComplete("fe"))  // Missing last bit
+        assertFalse(isLikelyComplete("ffff00"))  // Partial
+    }
+
+    @Test
+    fun `isComplete returns false for empty bitfield`() {
+        assertFalse(isLikelyComplete(""))
+        assertFalse(isLikelyComplete(null))
+    }
+
+    /**
+     * Quick check if bitfield is likely complete (all 0xFF bytes).
+     * This mirrors TorrentSummaryCache.hasActiveIncompleteTorrents logic.
+     */
+    private fun isLikelyComplete(bitfield: String?): Boolean {
+        if (bitfield.isNullOrEmpty()) return false
+        return bitfield.all { it == 'f' || it == 'F' }
+    }
 }

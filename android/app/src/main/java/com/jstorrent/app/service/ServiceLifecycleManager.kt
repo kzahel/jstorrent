@@ -2,6 +2,7 @@ package com.jstorrent.app.service
 
 import android.content.Context
 import android.util.Log
+import com.jstorrent.app.cache.TorrentSummaryCache
 import com.jstorrent.app.settings.SettingsStore
 import com.jstorrent.quickjs.model.TorrentSummary
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,13 +20,20 @@ private const val TAG = "ServiceLifecycleMgr"
  * - When background downloads are disabled and user leaves the app
  * - When service stops due to idle (no active downloads/seeding) while in background
  *
+ * Stage 4 (Lazy Engine Startup): Background service coordination:
+ * - If engine not started but cache has active incomplete torrents AND background downloads
+ *   are enabled, request engine start so downloads can continue in background.
+ * - Otherwise, don't start engine just because activity is foregrounded.
+ *
  * The engine is reinitialized when the user returns to the app.
  */
 class ServiceLifecycleManager(
     private val context: Context,
     private val settingsStore: SettingsStore,
+    private val torrentSummaryCache: TorrentSummaryCache? = null,
     private val onShutdownForBackground: () -> Unit = {},
-    private val onRestoreFromBackground: () -> Unit = {}
+    private val onRestoreFromBackground: () -> Unit = {},
+    private val onStartEngineForBackground: () -> Unit = {}
 ) {
 
     private val _isActivityForeground = MutableStateFlow(false)
@@ -99,13 +107,17 @@ class ServiceLifecycleManager(
         val backgroundEnabled = settingsStore.backgroundDownloadsEnabled
         val goingToBackground = !_isActivityForeground.value
 
+        // Stage 4: Check cache for active incomplete torrents when engine isn't running
+        // This allows us to start the engine in background if there's pending work
+        val cacheHasActiveWork = torrentSummaryCache?.hasActiveIncompleteTorrents() ?: false
+
         // Handle engine shutdown/restore for battery saving
         // Shut down engine when going to background if there's no reason to keep it running:
         // - Background downloads disabled, OR
-        // - No active work (nothing downloading or seeding)
+        // - No active work (nothing downloading or seeding from either engine or cache)
         // This completely stops the engine tick loop to prevent battery drain
         val shouldShutdownEngine = goingToBackground &&
-            (!backgroundEnabled || !hasActiveWork) &&
+            (!backgroundEnabled || (!hasActiveWork && !cacheHasActiveWork)) &&
             !engineShutdownForBackground &&
             hasEverBeenForeground
 
@@ -120,10 +132,28 @@ class ServiceLifecycleManager(
             engineShutdownForBackground = false
         }
 
-        // Only start service if background downloads are enabled
-        // Also require activity to have been foreground at least once - prevents starting
-        // during app initialization before onActivityStart() is called
-        val shouldRun = backgroundEnabled && hasActiveWork && goingToBackground && hasEverBeenForeground
+        // Stage 4: Start engine in background if cache shows active incomplete torrents
+        // This handles the lazy engine startup case where user backgrounds the app
+        // but has active downloads that need to continue.
+        if (goingToBackground &&
+            backgroundEnabled &&
+            !hasActiveWork &&
+            cacheHasActiveWork &&
+            hasEverBeenForeground &&
+            !engineShutdownForBackground
+        ) {
+            Log.i(TAG, "Starting engine for background work (cache has active incomplete torrents)")
+            onStartEngineForBackground()
+            // hasActiveWork will be updated when engine reports state via onTorrentStateChanged
+        }
+
+        // Determine if service should run:
+        // - Background downloads enabled
+        // - Either engine reports active work OR cache shows active incomplete torrents
+        // - User is not in the app
+        // - Activity has been foreground at least once
+        val hasAnyActiveWork = hasActiveWork || cacheHasActiveWork
+        val shouldRun = backgroundEnabled && hasAnyActiveWork && goingToBackground && hasEverBeenForeground
 
         if (shouldRun && !serviceRunning) {
             Log.i(TAG, "Starting service: active work in background")
@@ -132,7 +162,7 @@ class ServiceLifecycleManager(
         } else if (!shouldRun && serviceRunning) {
             val reason = when {
                 !backgroundEnabled -> "background downloads disabled"
-                !hasActiveWork -> "idle"
+                !hasAnyActiveWork -> "idle"
                 _isActivityForeground.value -> "user in app"
                 else -> "unknown"
             }

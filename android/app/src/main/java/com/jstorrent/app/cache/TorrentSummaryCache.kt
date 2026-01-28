@@ -116,6 +116,58 @@ open class TorrentSummaryCache(context: Context?) {
     }
 
     /**
+     * Check if there are any active incomplete torrents that need the engine to run.
+     * Used by ServiceLifecycleManager to decide if engine should start in background.
+     *
+     * An "active incomplete" torrent is one with:
+     * - userState == "active" (user wants it running)
+     * - progress < 1.0 (not yet complete)
+     *
+     * This is a lightweight check - it only parses torrent state, not full metadata.
+     *
+     * @return true if there are active incomplete torrents that need the engine
+     */
+    open fun hasActiveIncompleteTorrents(): Boolean {
+        val torrentListJson = getSessionJson("torrents") ?: return false
+        return try {
+            val torrentList = json.decodeFromString<TorrentListData>(torrentListJson)
+
+            for (entry in torrentList.torrents) {
+                val stateJson = getSessionJson("torrent:${entry.infoHash}:state") ?: continue
+                try {
+                    val state = json.decodeFromString<TorrentStateData>(stateJson)
+
+                    // Check if torrent is active (user wants it running)
+                    if (state.userState != "active") continue
+
+                    // Check if it's incomplete (needs downloading)
+                    // If we have a bitfield, we can check progress; otherwise assume incomplete
+                    val isComplete = if (state.bitfield != null) {
+                        // Quick check: if bitfield is all 0xFF bytes, it's likely complete
+                        // This is a heuristic - full progress calculation needs metadata
+                        state.bitfield.all { it == 'f' || it == 'F' }
+                    } else {
+                        // No bitfield = metadata-only magnet or no progress yet
+                        false
+                    }
+
+                    if (!isComplete) {
+                        return true  // Found an active incomplete torrent
+                    }
+                } catch (e: Exception) {
+                    // If we can't parse state, assume it might need work
+                    Log.w(TAG, "Failed to parse state for ${entry.infoHash}, assuming incomplete")
+                    return true
+                }
+            }
+            false
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to check for active incomplete torrents: ${e.message}")
+            false
+        }
+    }
+
+    /**
      * Load a single torrent summary from persisted data.
      */
     private fun loadTorrentSummary(entry: TorrentListEntry): CachedTorrentSummary? {
