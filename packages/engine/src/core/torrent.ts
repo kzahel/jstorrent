@@ -157,7 +157,7 @@ export class Torrent extends EngineComponent {
   public lastPieceLength: number = 0
   public piecesCount: number = 0
   private _contentStorage?: TorrentContentStorage
-  private _diskQueue: TorrentDiskQueue = new TorrentDiskQueue()
+  private _diskQueue: TorrentDiskQueue
 
   /** Content storage for reading/writing piece data */
   get contentStorage(): TorrentContentStorage | undefined {
@@ -386,6 +386,7 @@ export class Torrent extends EngineComponent {
     maxPeers: number = 20,
     maxUploadSlots: number = 4,
     encryptionPolicy: EncryptionPolicy = 'disabled',
+    diskQueueMaxWorkers?: number,
   ) {
     super(engine)
     this.btEngine = engine
@@ -397,6 +398,11 @@ export class Torrent extends EngineComponent {
     this.announce = announce
     this.maxPeers = maxPeers
     this.maxUploadSlots = maxUploadSlots
+
+    // Initialize disk queue with optional custom max workers (higher for batch mode)
+    this._diskQueue = new TorrentDiskQueue(
+      diskQueueMaxWorkers ? { maxWorkers: diskQueueMaxWorkers } : undefined,
+    )
 
     this.instanceLogName = `t:${toHex(infoHash).slice(0, 6)}`
 

@@ -95,17 +95,40 @@ class SpeedHistoryViewModel(
                 // so we need to convert to bytes/sec for display
                 val bucketMs = downloadResult?.bucketMs ?: uploadResult?.bucketMs ?: diskResult?.bucketMs ?: 1000L
 
+                // Get the latest bucket time to hide incomplete current bucket
+                // The most recent bucket is still accumulating data, so showing it causes
+                // flickering/drops at the "now" edge of the graph
+                val latestBucketTime = downloadResult?.latestBucketTime
+                    ?: uploadResult?.latestBucketTime
+                    ?: diskResult?.latestBucketTime
+                    ?: now
+
+                // Calculate if data is flowing (wall clock is 0-1 buckets ahead of RRD)
+                val currentBucketStart = (now / bucketMs) * bucketMs
+                val gapBuckets = (currentBucketStart - latestBucketTime) / bucketMs
+
+                // When data is flowing, hide the current (incomplete) bucket to prevent flicker
+                val hideLatestBucket = gapBuckets <= 1
+
                 // Convert samples from bytes-per-bucket to bytes-per-second
                 // Rate (bytes/sec) = value (bytes/bucket) * 1000 / bucketMs
-                fun convertToRate(samples: List<SpeedSample>?): List<SpeedSample> {
+                // Also filter out the incomplete latest bucket when data is flowing
+                fun convertToRate(samples: List<SpeedSample>?, resultLatestBucket: Long?): List<SpeedSample> {
                     if (samples == null) return emptyList()
                     val multiplier = 1000f / bucketMs
-                    return samples.map { SpeedSample(it.time, it.value * multiplier) }
+                    val cutoffTime = if (hideLatestBucket && resultLatestBucket != null) {
+                        resultLatestBucket
+                    } else {
+                        Long.MAX_VALUE
+                    }
+                    return samples
+                        .filter { it.time < cutoffTime }
+                        .map { SpeedSample(it.time, it.value * multiplier) }
                 }
 
-                val downloadSamples = convertToRate(downloadResult?.samples)
-                val uploadSamples = convertToRate(uploadResult?.samples)
-                val diskWriteSamples = convertToRate(diskResult?.samples)
+                val downloadSamples = convertToRate(downloadResult?.samples, downloadResult?.latestBucketTime)
+                val uploadSamples = convertToRate(uploadResult?.samples, uploadResult?.latestBucketTime)
+                val diskWriteSamples = convertToRate(diskResult?.samples, diskResult?.latestBucketTime)
 
                 // Calculate current rates from recent samples only (within 5 seconds)
                 // If no recent sample, show 0 rather than stale data

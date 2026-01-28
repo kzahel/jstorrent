@@ -147,6 +147,14 @@ export interface BtEngineOptions {
    * No-op on browser/extension.
    */
   onEndOfTick?: () => void
+
+  /**
+   * Maximum concurrent disk write workers per torrent.
+   * Higher values improve throughput in batch mode (native) where writes
+   * are collected and flushed once per tick.
+   * Default: 6 (standard), 30 recommended for batch mode.
+   */
+  diskQueueMaxWorkers?: number
 }
 
 export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableComponent {
@@ -176,6 +184,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public maxPeers: number
   public maxUploadSlots: number
   public encryptionPolicy: EncryptionPolicy
+  public diskQueueMaxWorkers?: number
 
   /** Optional ConfigHub for reactive configuration (created internally if not provided) */
   public config?: ConfigHub
@@ -211,10 +220,10 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
   public autoDrainBuffers: boolean = false
 
   // === Backpressure (Phase 2) ===
-  /** High water mark for total buffered bytes across all peers - activate backpressure (16MB) */
-  private static readonly BACKPRESSURE_HIGH_WATER = 16 * 1024 * 1024
-  /** Low water mark for total buffered bytes - release backpressure (4MB, hysteresis) */
-  private static readonly BACKPRESSURE_LOW_WATER = 4 * 1024 * 1024
+  /** High water mark for total buffered bytes across all peers - activate backpressure (64MB) */
+  private static readonly BACKPRESSURE_HIGH_WATER = 64 * 1024 * 1024
+  /** Low water mark for total buffered bytes - release backpressure (32MB, hysteresis) */
+  private static readonly BACKPRESSURE_LOW_WATER = 32 * 1024 * 1024
   /** Whether backpressure is currently active (reads paused on native side) */
   private backpressureActive: boolean = false
 
@@ -322,6 +331,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
     this.maxUploadSlots = this.config.maxUploadSlots.get()
     this.encryptionPolicy = this.config.encryptionPolicy.get()
     this._dhtEnabled = this.config.dhtEnabled.get()
+    this.diskQueueMaxWorkers = options.diskQueueMaxWorkers
 
     // Set up bandwidth limits from config (0 = unlimited)
     const downloadLimit = this.config.downloadSpeedUnlimited.get()
@@ -634,6 +644,7 @@ export class BtEngine extends EventEmitter implements ILoggingEngine, ILoggableC
       this.maxPeers,
       this.maxUploadSlots,
       this.encryptionPolicy,
+      this.diskQueueMaxWorkers,
     )
 
     // Store magnet display name for fallback naming

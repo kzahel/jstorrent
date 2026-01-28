@@ -226,6 +226,16 @@ export class TorrentTickLoop extends EngineComponent {
   // Request Tick (Game Loop)
   // ==========================================================================
 
+  // Bottleneck instrumentation accumulators
+  private _totalBufferedBytes = 0
+  private _totalBlocksReceived = 0
+  private _totalRequestsSent = 0
+  private _totalPipelineSlots = 0
+  private _totalPipelineFilled = 0
+  private _phase1TotalMs = 0
+  private _phase3TotalMs = 0
+  private _phase4TotalMs = 0
+
   /**
    * Process one tick for this torrent.
    * Called by BtEngine.engineTick() at 100ms intervals.
@@ -242,12 +252,36 @@ export class TorrentTickLoop extends EngineComponent {
     const startTime = Date.now()
     const connectedPeers = this.callbacks.getConnectedPeers()
 
+    // Measure buffer state before drain (for bottleneck analysis)
+    let bufferedBytesBefore = 0
+    let requestsPendingBefore = 0
+    let totalPipelineDepth = 0
+    for (const peer of connectedPeers) {
+      bufferedBytesBefore += peer.bufferedBytes
+      requestsPendingBefore += peer.requestsPending
+      totalPipelineDepth += peer.pipelineDepth
+    }
+
     // === Phase 1: GATHER - drain all input buffers ===
     // Process all accumulated TCP data before any other work.
     // This moves processing from unpredictable callbacks to this controlled tick.
+    const phase1Start = Date.now()
     for (const peer of connectedPeers) {
       peer.drainBuffer()
     }
+    const phase1End = Date.now()
+    this._phase1TotalMs += phase1End - phase1Start
+
+    // Count blocks received this tick (measure post-drain state)
+    let requestsPendingAfter = 0
+    for (const peer of connectedPeers) {
+      requestsPendingAfter += peer.requestsPending
+    }
+    const blocksReceived = requestsPendingBefore - requestsPendingAfter
+    this._totalBlocksReceived += Math.max(0, blocksReceived)
+    this._totalBufferedBytes += bufferedBytesBefore
+    this._totalPipelineSlots += totalPipelineDepth
+    this._totalPipelineFilled += requestsPendingBefore
 
     // === Phase 2: PROCESS - periodic cleanup of stuck pieces ===
     this._cleanupTickCounter++
@@ -257,19 +291,29 @@ export class TorrentTickLoop extends EngineComponent {
     }
 
     // === Phase 3: REQUEST - fill peer request pipelines ===
+    const phase3Start = Date.now()
     let peersProcessed = 0
+    let requestsSentThisTick = 0
     for (const peer of connectedPeers) {
       if (!peer.peerChoking && peer.requestsPending < peer.pipelineDepth) {
+        const pendingBefore = peer.requestsPending
         this.callbacks.requestPieces(peer, startTime)
+        requestsSentThisTick += peer.requestsPending - pendingBefore
         peersProcessed++
       }
     }
+    const phase3End = Date.now()
+    this._phase3TotalMs += phase3End - phase3Start
+    this._totalRequestsSent += requestsSentThisTick
 
     // === Phase 4: OUTPUT - flush all queued sends ===
     // First, broadcast any pending HAVE messages (batched from piece completions during GATHER)
+    const phase4Start = Date.now()
     this.flushHaves(connectedPeers)
     // Then batch all protocol messages into single FFI call (reduces overhead on Android)
     this.flushPeers(connectedPeers)
+    const phase4End = Date.now()
+    this._phase4TotalMs += phase4End - phase4Start
 
     const endTime = Date.now()
     const elapsed = endTime - startTime
@@ -279,18 +323,42 @@ export class TorrentTickLoop extends EngineComponent {
       this._tickMaxMs = elapsed
     }
 
-    // Log tick stats every 5 seconds
+    // Log tick stats every 5 seconds with bottleneck metrics
     if (endTime - this._lastTickLogTime >= 5000 && this._tickCount > 0) {
       const avgMs = (this._tickTotalMs / this._tickCount).toFixed(1)
       const activePieces = this.callbacks.getActivePieces()?.activeCount ?? 0
+      const avgBufferedKB = (this._totalBufferedBytes / this._tickCount / 1024).toFixed(0)
+      const avgBlocksRecv = (this._totalBlocksReceived / this._tickCount).toFixed(1)
+      const avgReqSent = (this._totalRequestsSent / this._tickCount).toFixed(1)
+      const pipelineUtil =
+        this._totalPipelineSlots > 0
+          ? ((this._totalPipelineFilled / this._totalPipelineSlots) * 100).toFixed(0)
+          : '0'
+      const avgPipelineDepth = (this._totalPipelineSlots / this._tickCount).toFixed(0)
+      const avgPhase1 = (this._phase1TotalMs / this._tickCount).toFixed(1)
+      const avgPhase3 = (this._phase3TotalMs / this._tickCount).toFixed(1)
+      const avgPhase4 = (this._phase4TotalMs / this._tickCount).toFixed(1)
+
       this.logger.info(
-        `Tick: ${this._tickCount} ticks, avg ${avgMs}ms, max ${this._tickMaxMs}ms, ` +
-          `${activePieces} active pieces, ${peersProcessed} peers/tick`,
+        `Tick: ${this._tickCount} ticks, avg ${avgMs}ms (P1:${avgPhase1}/P3:${avgPhase3}/P4:${avgPhase4}), ` +
+          `max ${this._tickMaxMs}ms, ${activePieces} active, ${peersProcessed} peers | ` +
+          `BUF:${avgBufferedKB}KB, BLOCKS:recv=${avgBlocksRecv}/sent=${avgReqSent}, ` +
+          `PIPE:${pipelineUtil}% of ${avgPipelineDepth}`,
       )
+
+      // Reset all counters
       this._tickCount = 0
       this._tickTotalMs = 0
       this._tickMaxMs = 0
       this._lastTickLogTime = endTime
+      this._totalBufferedBytes = 0
+      this._totalBlocksReceived = 0
+      this._totalRequestsSent = 0
+      this._totalPipelineSlots = 0
+      this._totalPipelineFilled = 0
+      this._phase1TotalMs = 0
+      this._phase3TotalMs = 0
+      this._phase4TotalMs = 0
     }
   }
 
