@@ -1,5 +1,12 @@
 # Client Surfaces
 
+Completed remote MP4/M4V playback is implemented by the lazy browser
+playsvideo consumer in [313](../tactical/313-completed-remote-video-playback.md).
+Its Files/Library dialog reuses authenticated reliable ranges, owns cancellation
+and circuit teardown, and changes no native Android/iOS boundary. Initial
+qualification is local Playwright Chromium; Chrome/Edge are the intended scope,
+with broader codecs, browsers, high-bitrate movies and WAN evidence deferred.
+
 Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
 shortens the React/Android first-use statistics choice and leaves recipient
 details in the feedback preview. Android Library setup offers a folder first,

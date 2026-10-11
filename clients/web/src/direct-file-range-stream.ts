@@ -100,6 +100,7 @@ export async function negotiateRangeStream(
 
 export class DirectFileRangeStream {
   private readonly ranges = new Map<number, Range>();
+  private idleWaiters: Array<() => void> = [];
   private nextId = 1;
   private reserved = 0;
   private frames = 0;
@@ -141,6 +142,15 @@ export class DirectFileRangeStream {
       read[26] = consumer.priority ?? 0;
       this.send(read);
     });
+  }
+  /** Includes cancelled ranges until their native producer release barrier. */
+  waitForIdle(): Promise<void> {
+    if (this.ranges.size === 0) return Promise.resolve();
+    return new Promise(resolve => this.idleWaiters.push(resolve));
+  }
+  private notifyIdle(): void {
+    if (this.ranges.size !== 0) return;
+    for (const resolve of this.idleWaiters.splice(0)) resolve();
   }
   close(): void { this.fail(new Error("Range connection closed")); this.bulk.close(); }
   private peerChanged = () => {
@@ -212,7 +222,7 @@ export class DirectFileRangeStream {
         this.credit(range);
       }
       if (!this.failure && range.terminal && range.released && range.queued === 0) {
-        this.ranges.delete(range.id); this.reserved -= range.window;
+        this.ranges.delete(range.id); this.notifyIdle(); this.reserved -= range.window;
         clearTimeout(range.timer); range.consumer.signal?.removeEventListener("abort", range.abort);
         if (range.cancelled) range.reject(range.cancelled); else range.resolve();
       }
@@ -245,7 +255,7 @@ export class DirectFileRangeStream {
       clearTimeout(range.timer); range.consumer.signal?.removeEventListener("abort", range.abort);
       range.chunks = []; range.queued = 0; range.reject(error);
     }
-    this.ranges.clear(); this.reserved = 0; this.frames = 0;
+    this.ranges.clear(); this.notifyIdle(); this.reserved = 0; this.frames = 0;
   }
 }
 function frame(tag: number, id: number, length: number): Uint8Array<ArrayBuffer> {

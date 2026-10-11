@@ -5184,5 +5184,49 @@
     "defaultMessage": "Could not open the link. Please try again.",
     "description": "Shown when the desktop cannot open an external link in the browser"
   },
-  "inspection.components.file.table.saving.directly": {"defaultMessage": "Saving directly…", "description": "Status and accessible progress label for a remote file save"}
+  "inspection.components.file.table.saving.directly": {"defaultMessage": "Saving directly…", "description": "Status and accessible progress label for a remote file save"},
+  "remote.video.play": {
+    "defaultMessage": "Play",
+    "description": "Remote completed-file video player: play."
+  },
+  "remote.video.title": {
+    "defaultMessage": "Play {name}",
+    "description": "Remote completed-file video player: title."
+  },
+  "remote.video.close": {
+    "defaultMessage": "Close",
+    "description": "Remote completed-file video player: close."
+  },
+  "remote.video.close.label": {
+    "defaultMessage": "Close video player",
+    "description": "Remote completed-file video player: close.label."
+  },
+  "remote.video.connecting": {
+    "defaultMessage": "Connecting to the remote device…",
+    "description": "Remote completed-file video player: connecting."
+  },
+  "remote.video.ready": {
+    "defaultMessage": "Ready to play.",
+    "description": "Remote completed-file video player: ready."
+  },
+  "remote.video.playing": {
+    "defaultMessage": "Playing.",
+    "description": "Remote completed-file video player: playing."
+  },
+  "remote.video.buffering": {
+    "defaultMessage": "Buffering…",
+    "description": "Remote completed-file video player: buffering."
+  },
+  "remote.video.unsupported": {
+    "defaultMessage": "This remote host does not support video playback.",
+    "description": "Remote completed-file video player: unsupported."
+  },
+  "remote.video.decode.error": {
+    "defaultMessage": "The browser could not play this video. Its codecs may not be supported.",
+    "description": "Remote completed-file video player: decode.error."
+  },
+  "remote.video.completed.mp4": {
+    "defaultMessage": "Remote playback supports completed MP4 files.",
+    "description": "Remote completed-file video player: completed.mp4."
+  }
 }

@@ -1,5 +1,14 @@
 # Capability Readiness
 
+Tactical [313](../tactical/313-completed-remote-video-playback.md) completes
+remote Play for completed MP4/M4V through the lazy playsvideo range consumer.
+Local Chromium BBB decoded frames, repeated/rapid seeks, EOF, close/reopen and
+circuit teardown pass with zero terminal native owners. Source and player
+buffers have separate bounds; new Rust/web/localization/source-notice gates
+pass. Chrome/Edge are the intended scope; other browsers, WAN, high-bitrate
+movies, generic Open and progressive remote playback remain unqualified.
+Android hosting and native storage semantics are unchanged/inapplicable.
+
 Completed local Tactical [312](../tactical/312-reliable-credit-range-streams.md)
 adds reliable ordered v2 byte ranges, cumulative consumption credit, shared
 memory reservations, cancellation/release barriers and v1 compatibility.

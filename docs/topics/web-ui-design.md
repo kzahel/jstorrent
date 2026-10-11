@@ -1,5 +1,13 @@
 # Web UI Design
 
+Tactical [313](../tactical/313-completed-remote-video-playback.md) adds a
+closeable, keyboard-accessible remote video dialog with native media controls
+and localized connection/buffering/error status. Files exposes **Play** for
+completed MP4/M4V files; Library uses the same dialog. Existing local Open is
+unchanged. Real Chromium decoded-frame/seek and visual capture evidence are
+recorded in the tactical; this does not claim other containers or general
+remote file opening.
+
 Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
 reduces the shared first-use statistics dialog to a short explanation, plain
 checkbox and privacy link. The full recipient warning stays in feedback

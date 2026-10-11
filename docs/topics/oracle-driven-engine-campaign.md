@@ -1,5 +1,15 @@
 # Oracle-Driven Engine Campaign
 
+Tactical [313](../tactical/313-completed-remote-video-playback.md) completes
+local completed remote MP4/M4V playback through authenticated v2 ranges and
+playsvideo. Source/segment/HLS buffers and parent-circuit teardown are bounded.
+BBB decoded playback, seeking, EOF, close/reopen and circuit closure pass in
+real Chromium; no Android engine/storage semantics or hosting boundary changes.
+Restart checkpoint: complete with Rust/web gates, pinned dependency/license
+inputs and recorded local latency/resource evidence. Next: separately scoped
+WAN, high-bitrate, larger track-end mismatches or additional browser/format
+qualification. General Open and automatic resume remain outside this slice.
+
 Tactical [312](../tactical/312-reliable-credit-range-streams.md) lands
 reliable credit-based direct ranges without changing engine storage or mobile
 semantics. Pure bounds, real concurrent/cancelled browser ranges, v1 fallback,

@@ -1,0 +1,47 @@
+.backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(9 20 33 / 65%);
+}
+.modal {
+  width: min(64rem, 100%);
+  max-height: 95dvh;
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.65rem;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+}
+.dialog {
+  padding: 1rem;
+  outline: none;
+}
+.dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.dialog h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--ui-font-heading);
+}
+.dialog button {
+  padding: 0.45rem 0.75rem;
+}
+.dialog video {
+  display: block;
+  width: 100%;
+  max-height: 70dvh;
+  background: #000;
+}
+.dialog p {
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}

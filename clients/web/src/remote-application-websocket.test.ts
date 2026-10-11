@@ -130,6 +130,27 @@ const subtle = {
 } as unknown as SubtleCrypto;
 
 describe("product remote application WebSocket", () => {
+  it("terminates circuit-owned peers once and removes unsubscribed listeners", async () => {
+    const { socket, relay } = passwordSocket("shared");
+    await passwordHandshake(relay, false);
+    let closed = 0;
+    const remove = socket.onCircuitClosed(() => { closed += 100; });
+    socket.onCircuitClosed(() => { closed += 1; });
+    remove();
+    relay.close();
+    socket.close();
+    expect(closed).toBe(1);
+    socket.onCircuitClosed(() => { closed += 1; });
+    expect(closed).toBe(2);
+  });
+  it("notifies peers on explicit local circuit closure before the relay closes", async () => {
+    const { socket, relay } = passwordSocket("shared");
+    await passwordHandshake(relay, false);
+    let closed = 0;
+    socket.onCircuitClosed(() => { closed++; });
+    socket.close();
+    expect(closed).toBe(1);
+  });
   it("completes greeting, password, shared choice, and application records", async () => {
     const { socket, relay } = passwordSocket("shared");
     let opened = 0;

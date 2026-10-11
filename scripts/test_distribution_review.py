@@ -19,6 +19,32 @@ package = load('inspect-distribution')
 notices = load('prepare-release-notices')
 
 
+class PlaybackDependencySourceTests(unittest.TestCase):
+    def test_rust_notices_keep_their_registry_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'LICENSE').write_text('Published MIT license attribution')
+            data = {'crates': [{'package': {'name': 'example', 'version': '1.0.0',
+                     'license': 'MIT', 'source': 'registry+https://example.com',
+                     'manifest_path': str(root / 'Cargo.toml')}}], 'licenses': []}
+            sections, inventory = notices.rust_notices(data, {})
+            self.assertEqual(inventory[0]['source'],
+                             'https://crates.io/api/v1/crates/example/1.0.0/download')
+            self.assertIn('Published MIT license attribution', sections[0])
+
+    def test_only_the_reviewed_immutable_git_source_is_accepted(self):
+        package = {'name': 'mediabunny', 'version': '1.38.1', 'license': 'MPL-2.0'}
+        locked = {'resolved': 'git+https://github.com/kzahel/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0'}
+        self.assertIn('cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0.tar.gz', notices.npm_source(locked, package))
+        for bad in ['git+https://github.com/kzahel/mediabunny.git#integration',
+                    'git+ssh://git@github.com/kzahel/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0',
+                    'git+https://example.com/mediabunny.git#cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0']:
+            with self.assertRaisesRegex(ValueError, 'reviewed source integrity'):
+                notices.npm_source({'resolved': bad}, package)
+        with self.assertRaises(ValueError):
+            notices.npm_source(locked, {**package, 'license': 'unknown'})
+
+
 class AdvisoryReviewTests(unittest.TestCase):
     def setUp(self):
         self.cargo = {'vulnerabilities': {'count': 0},

@@ -1,5 +1,21 @@
 # Direct Remote File Streaming
 
+Tactical [313](../tactical/313-completed-remote-video-playback.md) adds remote
+completed MP4/M4V **Play** in Files and Library through playsvideo 0.4.7,
+authenticated v2 range reads and HLS/MSE. Local Open and remote Save retain
+their existing paths. Source reads, read-ahead/cache, parser work, segment output
+and player buffers have separate bounds; seeking aborts and drains native
+release barriers before the next source read. The player and authenticated
+circuit own teardown, with a 12-hour native peer maximum and unchanged request
+inactivity/authority limits. The existing media capability still expires after
+30 minutes idle or 24 hours absolute. No general Open, partial-file playback,
+other-container/transcode qualification, service worker, HTTP gateway or media
+relay is added. Chromium local BBB decoded playback, seeking, EOF and cleanup
+pass; branded Edge/other browsers, high-bitrate movies and independent-network
+qualification remain separate. Exact sources, patches, provenance, limits and
+measured evidence are recorded in 313. This supersedes earlier blanket Play
+deferrals only within this completed-MP4 scope.
+
 Tactical [312](../tactical/312-reliable-credit-range-streams.md) implements
 reliable ordered v2 range streams with cumulative consumption credit, a shared
 8-MiB receive budget, independent bounded transport admission, batched writes,
@@ -7,7 +23,7 @@ cancellation/release barriers and v1 compatibility. Matched 100-ms-RTT,
 16-MiB/s shaped local saves improve from 0.58 to 7.94 MiB/s. Packet-loss saves
 retain exact hashes; high-rate bursts and lossy throughput remain limits to
 qualify. Rust/web gates and the full authenticated product verifier pass.
-Open/Play, automatic resume, real WAN/picker and mobile hosting remain separate.
+General Open, automatic resume, real WAN/picker and mobile hosting remain separate.
 
 Completed local Tactical [309](../tactical/309-direct-file-transport-ceiling.md)
 measures 51.77 MiB/s for normal 256-MiB disk saves, 51.11 with generated
@@ -604,8 +620,9 @@ cost and success-rate evidence.
   torrent bytes.
 - Publishing the existing loopback HTTP listener through UPnP or exposing an
   unauthenticated LAN/public file server.
-- Bundling camera, microphone, capture, render, codec, transcoding, SFU, RTP
-  media-track, or screen-control functionality.
+- Bundling camera, microphone, capture, codec, transcoding, SFU, RTP
+  media-track or screen-control functionality in the native host. Browser MP4
+  demux/remux and rendering are separately accepted in Tactical 313.
 - Sharing a wildcard TLS private key among RSTorrent hosts.
 - Claiming that WebRTC always establishes a direct path without TURN.
 - Enabling, deploying, or supporting a new feature merely because this design

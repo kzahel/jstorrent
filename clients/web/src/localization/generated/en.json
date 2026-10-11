@@ -8056,6 +8056,76 @@
       "value": "Your torrents, from this browser"
     }
   ],
+  "remote.video.buffering": [
+    {
+      "type": 0,
+      "value": "Buffering…"
+    }
+  ],
+  "remote.video.close": [
+    {
+      "type": 0,
+      "value": "Close"
+    }
+  ],
+  "remote.video.close.label": [
+    {
+      "type": 0,
+      "value": "Close video player"
+    }
+  ],
+  "remote.video.completed.mp4": [
+    {
+      "type": 0,
+      "value": "Remote playback supports completed MP4 files."
+    }
+  ],
+  "remote.video.connecting": [
+    {
+      "type": 0,
+      "value": "Connecting to the remote device…"
+    }
+  ],
+  "remote.video.decode.error": [
+    {
+      "type": 0,
+      "value": "The browser could not play this video. Its codecs may not be supported."
+    }
+  ],
+  "remote.video.play": [
+    {
+      "type": 0,
+      "value": "Play"
+    }
+  ],
+  "remote.video.playing": [
+    {
+      "type": 0,
+      "value": "Playing."
+    }
+  ],
+  "remote.video.ready": [
+    {
+      "type": 0,
+      "value": "Ready to play."
+    }
+  ],
+  "remote.video.title": [
+    {
+      "type": 0,
+      "value": "Play "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    }
+  ],
+  "remote.video.unsupported": [
+    {
+      "type": 0,
+      "value": "This remote host does not support video playback."
+    }
+  ],
   "shell.app.load-failed": [
     {
       "type": 0,

@@ -14,20 +14,12 @@ import {
   type ApplicationViewClient,
 } from "./api/client";
 
-const REMOTE_HIDDEN_CAPABILITIES = new Set(["torrent_media"]);
-
-/** Product application client restricted to Tactical 192's remote capability profile. */
+/** Remote catalog inspection, with platform/file-URL methods excluded. */
 export class RemoteOnlyApplicationClient implements ApplicationViewClient {
   public constructor(private readonly client: ApplicationViewClient) {}
 
   public async hello(signal?: AbortSignal): Promise<ApiHello> {
-    const hello = await this.client.hello(signal);
-    return {
-      ...hello,
-      capabilities: hello.capabilities.filter(
-        (capability) => !REMOTE_HIDDEN_CAPABILITIES.has(capability),
-      ),
-    };
+    return this.client.hello(signal);
   }
 
   public dispatch(

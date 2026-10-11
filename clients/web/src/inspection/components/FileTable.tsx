@@ -1,3 +1,4 @@
+import { useRemotePlayback, canPlayRemoteFile } from "./RemoteVideoPlayer";
 import { formatNumber, message as localizedMessage } from "../../localization/runtime";
 import { useEffect, useMemo, useState } from "react";
 
@@ -164,6 +165,7 @@ export function FileTable({
   readonly torrentId: string;
   readonly remoteAccess?: DesktopRemoteAccess | undefined;
 }) {
+  const playback = useRemotePlayback();
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
   const displayColumns = useMemo(() => columns(dataUnits), [dataUnits]);
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
@@ -278,13 +280,13 @@ export function FileTable({
     selectedFileIds.size === 1
       ? rows.find((row) => selectedFileIds.has(row.id))?.mediaAvailability
       : undefined;
-  const toolbarActions = resolveFileActions(
+  const toolbarActions = playbackActions(resolveFileActions(
     selectedFileIds.size,
     selectedSkippedCount,
     fileActionPending,
     unavailableReason,
     selectedOpenAvailability,
-  );
+  ), rows.filter(row => selectedFileIds.has(row.id)));
   const selectedRows = rows.filter((row) => selectedFileIds.has(row.id));
   const toolbarDirectSave = resolveDirectSave(
     remoteAccess,
@@ -293,6 +295,29 @@ export function FileTable({
     directFileEnabled,
     unavailableReason,
   );
+
+  function playbackActions(
+    actions: ReturnType<typeof resolveFileActions>,
+    targets: readonly FileRow[],
+  ) {
+    if (!playback.remote) return actions;
+    const availability = resolveDirectSave(
+      remoteAccess, targets, fileActionPending, directFileEnabled, unavailableReason,
+    );
+    return actions
+      .filter(action => action.id !== "open" ||
+        (targets.length === 1 && canPlayRemoteFile(targets[0]!.name, targets[0]!.mediaAvailability)))
+      .map(action => {
+        if (action.id !== "open") return action;
+        const reason = action.disabledReason ?? availability?.disabledReason;
+        return {
+          ...action,
+          label: localizedMessage("remote.video.play"),
+          disabled: action.disabled || availability?.disabled !== false || remoteAccess?.playCompletedFile === undefined,
+          ...(reason === undefined ? {} : { disabledReason: reason }),
+        };
+      });
+  }
 
   const runFileAction = async (
     actionId: FileActionId,
@@ -306,17 +331,22 @@ export function FileTable({
       setFileActionStatus(localizedMessage("inspection.components.file.table.a.selected.file.is.no.longer.available"));
       return;
     }
-    const action = resolveFileActions(
+    const action = playbackActions(resolveFileActions(
       targetRows.length,
       targetRows.filter((row) => row.selection === "skipped").length,
       fileActionPending,
       unavailableReason,
       targetRows.length === 1 ? targetRows[0]?.mediaAvailability : undefined,
-    ).find((candidate) => candidate.id === actionId);
+    ), targetRows).find((candidate) => candidate.id === actionId);
     if (action === undefined || action.disabled) {
       if (action?.disabledReason !== undefined) {
         setFileActionStatus(action.disabledReason);
       }
+      return;
+    }
+    if (action.id === "open" && playback.remote) {
+      const row = targetRows[0]!;
+      playback.play({ torrentId, fileIndex: row.index, fileName: row.name, lengthBytes: row.lengthBytes });
       return;
     }
     setFileActionPending(true);
@@ -483,7 +513,7 @@ export function FileTable({
           label: localizedMessage("inspection.components.file.table.file.actions"),
           render: (_row, targetIds) => {
             const targetIdSet = new Set(targetIds);
-            const actions = resolveFileActions(
+            const actions = playbackActions(resolveFileActions(
               targetIds.length,
               rows.filter(
                 (row) =>
@@ -494,7 +524,7 @@ export function FileTable({
               targetIds.length === 1
                 ? rows.find((row) => row.id === targetIds[0])?.mediaAvailability
                 : undefined,
-            );
+            ), rows.filter(row => targetIdSet.has(row.id)));
             const directSave = resolveDirectSave(
               remoteAccess,
               rows.filter((row) => targetIdSet.has(row.id)),

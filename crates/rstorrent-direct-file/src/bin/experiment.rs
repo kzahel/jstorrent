@@ -101,11 +101,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         profile_root,
         payload_root,
         profile_id,
+        fixture_file,
         ..
     } = mode
     {
-        let (torrent_id, fixture) =
-            persist_fixture(&profile_root, &payload_root, &profile_id, fixture_length)?;
+        let (torrent_id, fixture) = persist_fixture(
+            &profile_root,
+            &payload_root,
+            &profile_id,
+            fixture_length,
+            fixture_file.as_deref(),
+        )?;
         println!(
             "RSTORRENT_DIRECT_FILE_PROFILE_READY {}",
             serde_json::to_string(&serde_json::json!({
@@ -204,6 +210,7 @@ enum ExperimentMode {
         profile_root: PathBuf,
         payload_root: PathBuf,
         profile_id: String,
+        fixture_file: Option<PathBuf>,
     },
 }
 
@@ -230,8 +237,14 @@ fn parse_mode() -> Result<Options, Box<dyn std::error::Error>> {
     let mut profile_root = None;
     let mut payload_root = None;
     let mut profile_id = None;
+    let mut fixture_file = None;
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
+            "--fixture-file" => {
+                fixture_file = Some(PathBuf::from(
+                    arguments.next().ok_or("fixture file required")?,
+                ));
+            }
             "--diagnostics" => diagnostics = true,
             "--rate-mib" => {
                 rate_mib = arguments.next().ok_or("rate required")?.parse()?;
@@ -316,6 +329,7 @@ fn parse_mode() -> Result<Options, Box<dyn std::error::Error>> {
                     profile_root,
                     payload_root,
                     profile_id,
+                    fixture_file: fixture_file.clone(),
                 }
             }
             _ => return Err(
@@ -323,6 +337,9 @@ fn parse_mode() -> Result<Options, Box<dyn std::error::Error>> {
                     .into(),
             ),
         };
+    if fixture_file.is_some() && matches!(mode, ExperimentMode::Serve { .. }) {
+        return Err("--fixture-file requires profile preparation".into());
+    }
     Ok(Options {
         mode,
         send_window_bytes,
@@ -354,7 +371,8 @@ async fn create_fixture(
     let profile_root = temporary.path().join("profile");
     let payload_root = temporary.path().join("payload");
     let profile_id = "webrtc-direct-file-experiment";
-    let (torrent_id, fixture) = persist_fixture(&profile_root, &payload_root, profile_id, length)?;
+    let (torrent_id, fixture) =
+        persist_fixture(&profile_root, &payload_root, profile_id, length, None)?;
     let roots = vec![ConfiguredStorageRoot::path("downloads", payload_root)];
     let config = ApplicationConfig::new(
         profile_root,
@@ -375,16 +393,33 @@ fn persist_fixture(
     payload_root: &Path,
     profile_id: &str,
     length: usize,
+    fixture_file: Option<&Path>,
 ) -> Result<(String, FixtureView), Box<dyn std::error::Error>> {
-    let payload = (0..length)
-        .map(|index| {
-            let mixed = index
-                .wrapping_mul(31)
-                .wrapping_add((index >> 8).wrapping_mul(17));
-            mixed as u8
-        })
-        .collect::<Vec<_>>();
-    let file_name = "webrtc-direct-file-fixture.bin";
+    let (file_name, payload) = if let Some(path) = fixture_file {
+        let size = std::fs::metadata(path)?.len();
+        if size == 0 || size > MAX_FIXTURE_BYTES as u64 {
+            return Err("fixture file must be 1..256 MiB".into());
+        }
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or("invalid fixture file name")?;
+        let payload = std::fs::read(path)?;
+        if payload.len() as u64 != size {
+            return Err("fixture changed while reading".into());
+        }
+        (name, payload)
+    } else {
+        let payload = (0..length)
+            .map(|index| {
+                index
+                    .wrapping_mul(31)
+                    .wrapping_add((index >> 8).wrapping_mul(17)) as u8
+            })
+            .collect();
+        ("webrtc-direct-file-fixture.bin", payload)
+    };
+    let length = payload.len();
     let raw_info = single_file_info(file_name, &payload, PIECE_LENGTH);
     let info_hash = hex(&Sha1::digest(&raw_info));
     std::fs::create_dir_all(payload_root)?;
@@ -396,7 +431,7 @@ fn persist_fixture(
     let mut store = SessionStore::open(profile_root, profile_id, &roots)?;
     let response = store.handle_durable(&RequestEnvelope {
         version: CONTROL_VERSION,
-        request_id: "add-webrtc-direct-file-fixture".to_owned(),
+        request_id: format!("add-direct-fixture-{info_hash}"),
         expected_revision: None,
         command: Command::AddMagnet {
             magnet: format!("magnet:?xt=urn:btih:{info_hash}"),

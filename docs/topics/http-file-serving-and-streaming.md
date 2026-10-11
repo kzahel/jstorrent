@@ -1,5 +1,11 @@
 # HTTP File Serving And Future Streaming
 
+Remote completed-file MP4 playback now uses the separate authenticated
+DataChannel consumer in [313](../tactical/313-completed-remote-video-playback.md),
+not this loopback HTTP listener. Its browser Source performs byte-range reads,
+and playsvideo remuxes to HLS/MSE. Local Open, Android playback and progressive
+HTTP authority remain unchanged; general remote Open is still unavailable.
+
 Topic: `http-file-serving-and-streaming`
 
 Status: Implemented on 2026-08-11 through completed Tacticals

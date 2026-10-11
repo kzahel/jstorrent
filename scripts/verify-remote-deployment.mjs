@@ -24,6 +24,7 @@ for (const directive of [
   "object-src 'none'",
   "script-src 'self' 'wasm-unsafe-eval'",
   "worker-src 'none'",
+  "media-src blob:",
 ]) {
   if (!csp.includes(directive)) {
     throw new Error(`remote CSP omitted ${directive}`);

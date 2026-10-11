@@ -76,6 +76,8 @@ try {
   let headlessCommand = installed.headless;
   await createHeadlessConfiguration(headlessPort, relayPort);
   const directFixture = prepareDirectFixture();
+  const playbackIndex = process.argv.indexOf("--playback-file");
+  const playbackFixture = playbackIndex < 0 ? undefined : prepareDirectFixture(process.argv[playbackIndex + 1]);
 
   clientServer = await serveRemoteClient(clientPort, relayUrl);
   relayProcess = await startRelay(relayPort, clientOrigin);
@@ -108,6 +110,7 @@ try {
   await signIn(privatePage, true, "Owner laptop");
   await expectProduct(privatePage);
   const directSave = await saveDirectFixture(privatePage, directFixture);
+  const playback = playbackFixture ? await verifyPlayback(privatePage, playbackFixture, headlessCommand) : undefined;
   const firstAudit = remoteStatus(headlessCommand);
   assertDirectFileTerminal(firstAudit, directFixture);
   const originalClient = onlyCurrentClient(firstAudit);
@@ -266,6 +269,7 @@ try {
       packageRollbackResume: true,
       completeRemoteAuditRendered: true,
       directCompletedFileSave: directSave,
+      completedVideoPlayback: playback,
       exactRevocationRejectedResume: true,
       revocationTombstoneRetained: true,
       changedHostBlocked: true,
@@ -287,14 +291,14 @@ try {
 }
 }
 
-function prepareDirectFixture() {
+function prepareDirectFixture(file) {
   const result = run("cargo", [
     "run", "--quiet",
     "-p", "rstorrent-direct-file",
     "--features", "experiment",
     "--bin", "rstorrent-direct-file-experiment",
     "--",
-    "--fixture-mib", "1",
+    ...(file ? ["--fixture-file", resolve(file)] : ["--fixture-mib", "1"]),
     "--prepare-profile", profileRoot,
     "--payload-root", payloadRoot,
     "--profile-id", "default",
@@ -478,6 +482,7 @@ async function serveRemoteClient(port, relayUrl) {
     "style-src 'self'",
     "img-src 'self' data:",
     "font-src 'self'",
+    "media-src blob:",
     "object-src 'none'",
     "base-uri 'none'",
     "frame-ancestors 'none'",
@@ -628,6 +633,135 @@ async function saveDirectFixture(page, prepared) {
   }
   await expectText(page, "Remote file saved.");
   return { bytes, sha256, sink: "bounded_blob_fallback" };
+}
+
+async function verifyPlayback(page, prepared, headlessCommand) {
+  const file = prepared.fixture;
+  const open = async () => {
+    await page.getByRole("button", { name: "Torrents", exact: true }).click();
+    await page.getByRole("grid", { name: "Torrents", exact: true }).getByText(file.file_name, { exact: true }).click();
+    await page.getByRole("tab", { name: "Files" }).click();
+    await page.getByRole("grid", { name: "Torrent files" }).getByText(file.file_name, { exact: true }).click();
+    await page.getByRole("button", { name: "More file actions" }).click();
+    await page.getByRole("menuitem", { name: "Play", exact: true }).click();
+    return page.getByRole("dialog", { name: `Play ${file.file_name}` });
+  };
+  console.error("Playback: opening verified MP4");
+  const start = performance.now();
+  await open();
+  const measurements = await measureVideoResources(page);
+  try {
+  await page.waitForFunction(() => {
+    const video = document.querySelector("video");
+    return video?.readyState >= 2 && video.videoWidth > 0;
+  }, undefined, { timeout: 60000 }).catch(async error => { throw new Error(`${error}; player=${await page.getByRole("dialog").innerText()}`); });
+  const startupMs = performance.now() - start;
+  const initial = await page.locator("video").evaluate(video => ({ duration: video.duration, width: video.videoWidth, height: video.videoHeight }));
+  await page.locator("video").evaluate(video => { video.muted = true; return video.play(); });
+  await page.waitForFunction(() => document.querySelector("video")?.getVideoPlaybackQuality().totalVideoFrames > 5);
+  const seeks = [];
+  for (const fraction of [0.75, 0.1, 0.5, 0.9, 0.02]) {
+    console.error(`Playback: seeking to ${fraction}`);
+    const began = performance.now();
+    await page.locator("video").evaluate((video, fraction) => { video.currentTime = video.duration * fraction; }, fraction);
+    await page.waitForFunction(fraction => {
+      const v = document.querySelector("video");
+      return v && !v.seeking && v.readyState >= 2 && Math.abs(v.currentTime - v.duration * fraction) < 3;
+    }, fraction, { timeout: 60000 });
+    // A decoded frame at the new position, not merely an updated currentTime.
+    const decodedMediaTime = await page.locator("video").evaluate(video => new Promise(resolve => video.requestVideoFrameCallback((_now, frame) => resolve(frame.mediaTime))));
+    if (Math.abs(decodedMediaTime - initial.duration * fraction) > 3) throw new Error("Seek decoded a frame at the wrong position");
+    seeks.push({ fraction, decodedMediaTime, latencyMs: performance.now() - began });
+    if (fraction === 0.5 && process.argv.includes("--capture")) {
+      await page.screenshot({ path: resolve(process.argv[process.argv.indexOf("--capture") + 1]) });
+    }
+  }
+  for (const fraction of [0.85, 0.2, 0.65]) {
+    await page.locator("video").evaluate((video, target) => { video.currentTime = video.duration * target; }, fraction);
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  await page.waitForFunction(() => {
+    const video = document.querySelector("video");
+    return video && !video.seeking && video.readyState >= 2 && Math.abs(video.currentTime - video.duration * 0.65) < 3;
+  });
+  await page.locator("video").evaluate(video => { video.currentTime = video.duration - 1; });
+  await page.waitForFunction(() => document.querySelector("video")?.ended, undefined, { timeout: 30000 }).catch(async error => {
+    const state = await page.locator("video").evaluate(v => ({ currentTime: v.currentTime, duration: v.duration, paused: v.paused, ended: v.ended, readyState: v.readyState, error: v.error?.message, buffered: Array.from({ length: v.buffered.length }, (_, i) => [v.buffered.start(i), v.buffered.end(i)]) }));
+    throw new Error(`EOF: ${error}; state=${JSON.stringify(state)}; UI=${await page.getByRole("dialog").innerText()}`);
+  });
+  const memory = await measurements.stop();
+  const bytes = remoteStatus(headlessCommand).direct_file.bytes_sent;
+  await page.getByRole("button", { name: "Close video player" }).click();
+  await waitForDirectIdle(headlessCommand);
+  // The Library entry point uses the same player, without an Open command.
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await page.getByRole("button", { name: `Open details for ${file.file_name}`, exact: true }).click();
+  await page.getByRole("button", { name: `Play ${file.file_name}`, exact: true }).click().catch(async error => { throw new Error(`Library Play: ${error}; UI=${await page.locator("body").innerText()}`); });
+  await page.waitForFunction(() => document.querySelector("video")?.readyState >= 2);
+  await page.getByRole("button", { name: "Close video player" }).click();
+  await waitForDirectIdle(headlessCommand);
+  const setTransfers = async (enabled) => {
+    await page.getByRole("button", { name: "Settings" }).click();
+    await page.getByRole("tab", { name: "Remote access" }).click();
+    await page.getByRole("button", { name: enabled ? "Enable direct file transfers" : "Disable direct file transfers", exact: true }).click();
+    await page.getByRole("button", { name: enabled ? "Disable direct file transfers" : "Enable direct file transfers", exact: true }).waitFor();
+    if (remoteStatus(headlessCommand).direct_file.enabled !== enabled) throw new Error("Transfer toggle did not reach the host");
+    await page.getByRole("button", { name: "Close settings" }).click();
+  };
+  await setTransfers(false);
+  await page.getByRole("button", { name: `Play ${file.file_name}`, exact: true }).click();
+  await page.getByText("direct file transfers are disabled on the host", { exact: true }).waitFor({ timeout: 20000 });
+  await page.getByRole("button", { name: "Close video player" }).click();
+  await waitForDirectIdle(headlessCommand);
+  await setTransfers(true);
+  await open();
+  await page.getByRole("button", { name: "Close video player" }).click();
+  await waitForDirectIdle(headlessCommand);
+  await open();
+  await page.waitForFunction(() => document.querySelector("video")?.readyState >= 2);
+  // Administrative circuit closure cancels every peer owned by that circuit.
+  const activeCircuit = remoteStatus(headlessCommand).live_circuits[0]?.circuit_id;
+  if (!activeCircuit) throw new Error("Playback has no authenticated circuit owner");
+  remoteCommand(headlessCommand, ["close-circuit", activeCircuit]);
+  await page.waitForFunction(() => !document.querySelector("video") || document.querySelector('[role="dialog"]')?.textContent?.includes("connection was closed"), undefined, { timeout: 15000 });
+  const closePlayer = page.getByRole("button", { name: "Close video player" });
+  if (await closePlayer.count()) await closePlayer.click();
+  await page.reload();
+  await expectProduct(page);
+  await waitForDirectIdle(headlessCommand);
+  return { file: file.file_name, sha256: file.sha256, length: file.length, ...initial, startupMs, seeks, memory, bytesSentAtEof: bytes, terminalOwners: 0 };
+  } finally { await measurements.stop(); }
+}
+async function measureVideoResources(page) {
+  const session = await page.context().newCDPSession(page);
+  const peak = {};
+  let pending;
+  let bufferSecondsPeak = 0;
+  const sample = () => {
+    if (pending) return;
+    pending = (async () => {
+      const heap = await session.send("Runtime.getHeapUsage");
+      for (const [key, value] of Object.entries(heap)) peak[key] = Math.max(peak[key] ?? 0, value);
+      const buffered = await page.locator("video").evaluate(video => Array.from({ length: video.buffered.length }, (_, i) => video.buffered.end(i) - video.buffered.start(i)).reduce((a, b) => a + b, 0));
+      bufferSecondsPeak = Math.max(bufferSecondsPeak, buffered);
+    })().catch(() => {}).finally(() => { pending = undefined; });
+  };
+  const timer = setInterval(sample, 100);
+  let stopped;
+  sample();
+  return { stop: () => stopped ??= Promise.resolve().then(async () => {
+    clearInterval(timer); await pending; await session.detach().catch(() => {});
+    return { sampledPeakBytes: peak, bufferSecondsPeak, samplingMillis: 100 };
+  }) };
+}
+
+async function waitForDirectIdle(command) {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const view = remoteStatus(command).direct_file;
+    if (view.active_tasks === 0 && view.open_sockets === 0 && view.active_requests === 0 && view.queued_bytes === 0) return;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  throw new Error("Video teardown retained direct-file owners");
 }
 
 function assertDirectFileTerminal(status, prepared) {

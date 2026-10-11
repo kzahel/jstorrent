@@ -127,6 +127,7 @@ export interface DesktopRemoteAccess {
   stopDirectFileTransfers(): Promise<RemoteSecurityView>;
   directFileSupported?(): boolean;
   saveCompletedFile?(request: RemoteCompletedFileSaveRequest): Promise<void>;
+  playCompletedFile?(request: RemoteCompletedFilePlaybackRequest): Promise<{ close(): Promise<void> }>;
   signOutThisBrowser?(): Promise<void>;
 }
 
@@ -143,4 +144,15 @@ export interface RemoteCompletedFileSaveProgress {
   readonly state: "choosing_destination" | "connecting" | "transferring" | "complete";
   readonly bytesWritten: bigint;
   readonly fileLength: bigint;
+}
+
+export interface RemoteCompletedFilePlaybackRequest {
+  readonly torrentId: string;
+  readonly fileIndex: number;
+  readonly fileName: string;
+  readonly lengthBytes: string;
+  readonly video: HTMLVideoElement;
+  readonly signal?: AbortSignal;
+  readonly onReady?: () => void;
+  readonly onError?: (message: string) => void;
 }

@@ -140,3 +140,35 @@ plugin fetched by older TypeScript clients from the canonical repository path.
 It is reused from the MIT-licensed previous implementation; its complete Kyle
 Graehl copyright and license are retained in the file. No TypeScript engine is
 imported. Source and exact revision are recorded in the file header.
+
+## Remote Video Playback
+
+The lazy browser playback integration uses **playsvideo 0.4.7** (MIT,
+Copyright (c) 2026 Kyle Graehl), **hls.js 1.7.3** (Apache-2.0), and the
+**mediabunny** integration fork at
+`cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0` (MPL-2.0). Exact archive integrity
+and dependency revisions are retained in `clients/web/package-lock.json`.
+The checksum-checked playsvideo adaptation is independently authored in
+`clients/web/scripts/patch-playsvideo.mjs`; it bounds playback, restricts this
+consumer to MP4 and disables worker/transcoding paths. No FFmpeg code or
+WebAssembly is included in this integration's distribution.
+
+Preferred sources and licenses:
+
+- https://github.com/kzahel/playsvideo (npm 0.4.7 sources/source maps and MIT
+  license retained by its published package)
+- https://github.com/video-dev/hls.js/tree/v1.7.3 and its `LICENSE`
+- https://github.com/kzahel/mediabunny/tree/cd3cd2beb9c122dfa6fa89edbd7a73f2fa9df7a0
+  and its `LICENSE`; unmodified MPL-covered source is publicly available at
+  this exact revision. Local playsvideo changes do not modify mediabunny.
+
+The playsvideo MIT license permits use, copying, modification, distribution,
+sublicensing and sale, provided its copyright and permission notice are
+retained. Its full license is shipped alongside this source record at
+`distribution/licenses/playsvideo-MIT.txt`.
+
+**Big Buck Bunny**, © 2008 Blender Foundation, https://peach.blender.org,
+is used only by opt-in disposable browser qualification under Creative Commons
+Attribution 3.0 (https://creativecommons.org/licenses/by/3.0/). Media bytes are
+not distributed in this repository or product. Tactical 313 records the exact
+fixture provenance, checksum and validation.

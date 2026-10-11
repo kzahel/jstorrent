@@ -57,7 +57,7 @@ pub const STUN_BINDING_TIMEOUT: Duration = Duration::from_secs(4);
 pub const MDNS_RESOLUTION_TIMEOUT: Duration = Duration::from_secs(4);
 pub const NEGOTIATION_TIMEOUT: Duration = Duration::from_secs(20);
 pub const REQUEST_INACTIVE_TIMEOUT: Duration = Duration::from_secs(60);
-pub const EXPERIMENT_LIFETIME: Duration = Duration::from_secs(10 * 60);
+pub const PEER_MAX_LIFETIME: Duration = Duration::from_secs(12 * 60 * 60);
 pub const MAX_APPLICATION_QUEUE_BYTES: usize = 512 * 1024;
 pub const MAX_TRANSPORT_QUEUE_BYTES: usize = 512 * 1024;
 const TRANSPORT_QUEUE_LOW_BYTES: u32 = 256 * 1024;
@@ -699,7 +699,7 @@ async fn run_driver(
     let mut receive_buffer = vec![0; MAX_DATAGRAM_BYTES];
     let mut mdns_receive_buffer = vec![0; MAX_DATAGRAM_BYTES];
     let negotiation_deadline = tokio::time::Instant::now() + NEGOTIATION_TIMEOUT;
-    let lifetime_deadline = tokio::time::Instant::now() + EXPERIMENT_LIFETIME;
+    let lifetime_deadline = tokio::time::Instant::now() + PEER_MAX_LIFETIME;
     let mut stats_tick = tokio::time::interval(STATS_INTERVAL);
     stats_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     #[cfg(feature = "experiment")]
@@ -1165,7 +1165,7 @@ async fn run_driver(
                 break 'driver "shutdown";
             }
             _ = tokio::time::sleep_until(lifetime_deadline) => {
-                break 'driver "experiment_lifetime";
+                break 'driver "peer_lifetime";
             }
             _ = tokio::time::sleep_until(negotiation_deadline), if channel_id.is_none() => {
                 break 'driver "negotiation_timeout";

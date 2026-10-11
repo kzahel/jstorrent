@@ -337,6 +337,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
   private pendingDirectFile: PendingDirectFile | undefined;
   private directFileCircuitGeneration: number | undefined;
   private directFileCapability = false;
+  private readonly circuitCloseListeners = new Set<() => void>();
 
   public constructor(private readonly options: RemoteConnectionOptions) {
     validateOptions(options);
@@ -398,9 +399,21 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
     this.socket.send(exactBuffer(this.session.seal(new TextEncoder().encode(data))));
   }
 
+  /** Direct peers must terminate with their authenticated parent circuit. */
+  public onCircuitClosed(listener: () => void): () => void {
+    if (this.state >= SOCKET_CLOSING) { listener(); return () => {}; }
+    this.circuitCloseListeners.add(listener);
+    return () => { this.circuitCloseListeners.delete(listener); };
+  }
+  private notifyCircuitClosed(): void {
+    const listeners = [...this.circuitCloseListeners];
+    this.circuitCloseListeners.clear();
+    for (const listener of listeners) listener();
+  }
   public close(code = 1_000, reason = ""): void {
     if (this.state === SOCKET_CLOSED || this.state === SOCKET_CLOSING) return;
     this.state = SOCKET_CLOSING;
+    this.notifyCircuitClosed();
     clearTimeout(this.timer);
     this.eraseHandshakeSecrets();
     this.rejectPendingControls(new Error("remote application connection closed"));
@@ -799,6 +812,7 @@ export class RemoteApplicationWebSocket implements ApplicationWebSocket {
     clearTimeout(this.timer);
     this.eraseHandshakeSecrets();
     this.state = SOCKET_CLOSED;
+    this.notifyCircuitClosed();
     this.onclose?.(event);
   }
 

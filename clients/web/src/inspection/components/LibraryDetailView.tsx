@@ -1,3 +1,4 @@
+import { useRemotePlayback, canPlayRemoteFile } from "./RemoteVideoPlayer";
 import { message as localizedMessage } from "../../localization/runtime";
 import {
   useEffect,
@@ -24,6 +25,7 @@ export function LibraryDetailView({
   readonly torrent: TorrentRow;
   readonly onBack: () => void;
 }) {
+  const playback = useRemotePlayback();
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
   const layout = useInspectionStore((state) => state.presentation.layout);
   const mode = useInspectionStore(
@@ -89,6 +91,11 @@ export function LibraryDetailView({
       playbackPendingFile !== null ||
       !isPlaybackEligible(row.mediaAvailability)
     ) {
+      return;
+    }
+    if (playback.remote) {
+      if (!canPlayRemoteFile(row.name, row.mediaAvailability)) return;
+      playback.play({ torrentId: torrent.id, fileIndex: row.fileIndex, fileName: row.name, lengthBytes: row.lengthBytes });
       return;
     }
     const request = playbackRequest.current + 1;
@@ -407,12 +414,14 @@ function CatalogRowView({
       : row.doneBytes === "0"
         ? "Not downloaded"
         : "Partially downloaded";
+  const playback = useRemotePlayback();
   const playbackReason =
     entry.kind === "media"
       ? playbackDisabledReason(
           entry.row,
           playbackPendingFile,
-          playbackUnavailableReason,
+          playback.remote && !canPlayRemoteFile(row.name, row.mediaAvailability)
+            ? localizedMessage("remote.video.completed.mp4") : playbackUnavailableReason,
         )
       : undefined;
   return (

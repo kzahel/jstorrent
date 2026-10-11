@@ -28,7 +28,7 @@ export function FileActionMenuItems({
           {action.label}
         </ActionMenuItem>
       ))}
-      {open.length === 0 || directSave === undefined || onDirectSave === undefined ? null : (
+      {directSave === undefined || onDirectSave === undefined ? null : (
         <ActionMenuItem
           isDisabled={directSave.disabled}
           aria-description={directSave.disabledReason}

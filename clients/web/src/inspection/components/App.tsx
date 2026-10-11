@@ -1,3 +1,4 @@
+import { RemotePlaybackProvider } from "./RemoteVideoPlayer";
 import jstorrentIcon from "../../assets/jstorrent.png";
 import { message as localizedMessage } from "../../localization/runtime";
 import {
@@ -124,19 +125,21 @@ export function App({
 }: AppProps) {
   return (
     <DesktopExternalIntakeProvider intake={externalIntake}>
-      <TorrentActionProvider>
-        <AppContent
-          webAuth={webAuth}
-          updater={updater}
-          notifications={notifications}
-          power={power}
-          remoteAccess={remoteAccess}
-          accessMode={accessMode}
-          hostedProduct={hostedProduct}
-          productPrivacy={productPrivacy}
-          oneCurrentRoot={oneCurrentRoot}
-        />
-      </TorrentActionProvider>
+      <RemotePlaybackProvider remoteAccess={remoteAccess}>
+        <TorrentActionProvider>
+          <AppContent
+            webAuth={webAuth}
+            updater={updater}
+            notifications={notifications}
+            power={power}
+            remoteAccess={remoteAccess}
+            accessMode={accessMode}
+            hostedProduct={hostedProduct}
+            productPrivacy={productPrivacy}
+            oneCurrentRoot={oneCurrentRoot}
+          />
+        </TorrentActionProvider>
+      </RemotePlaybackProvider>
     </DesktopExternalIntakeProvider>
   );
 }
