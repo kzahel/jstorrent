@@ -17,6 +17,10 @@ GitHub PR and exact triggering head SHA; superseded results are skipped. The
 publisher independently rechecks eligibility and pins its COMMENT review to
 the reviewed commit. It cannot approve or merge.
 
+Explicit manual dispatch can qualify a PR while `AGENT_REVIEW_ENABLED=false`.
+That switch controls automatic reviews and trusted main cache warming; manual
+dispatch still enforces every PR eligibility and publication check.
+
 The review job has contents/actions/PR read permission and an OIDC permission
 for ephemeral network enrollment. The publishing job has PR write permission,
 and receives only bounded JSON output. No credentials, PR checkout or build
@@ -62,7 +66,7 @@ Required GitHub configuration:
 
 | Name | Kind | Purpose |
 | --- | --- | --- |
-| `AGENT_REVIEW_ENABLED` | variable | Explicit activation switch, default false |
+| `AGENT_REVIEW_ENABLED` | variable | Automatic review/cache activation, default false |
 | `AGENT_REVIEW_AAR_URL` | variable | HTTPS gateway ending in `/codex` |
 | `AGENT_REVIEW_MODEL` | variable | Account-supported model; initial `gpt-6.1-sol` |
 | `AGENT_REVIEW_AAR_TOKEN` | secret | Revocable inference-only gateway token |
@@ -94,7 +98,7 @@ actionlint .github/workflows/agent-review.yml
 docker build -t rstorrent-pr-review:ci .github/agent-review
 # Linux Docker host: fake upstream only, no provider login/inference.
 node .github/agent-review/docker-smoke.mjs
-# After qualification, explicit activation and deployment to main:
+# Explicit manual qualification or review, even with automatic reviews off:
 gh workflow run agent-review.yml --ref main -f pr=NUMBER
 ```
 
