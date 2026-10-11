@@ -1310,7 +1310,7 @@ Tactical `043` implements `torrent_trackers` as complete keyed rows derived
 from the deterministic engine schedule. The projection carries configured
 identity, source and transport, active/inactive lifecycle, current and next
 action, attempt and failure counts, accepted response statistics and interval,
-monotonic outcome ages and deadline, and bounded failure context. It does not
+monotonic outcome instants and deadline, and bounded failure context. It does not
 derive state from diagnostics or retain a second tracker state machine.
 
 Tactical `081` makes this a paged projection and adds metainfo versus magnet
@@ -1336,9 +1336,17 @@ coarse redacted TLS categories rather than native exception text.
 Same-catalog durable updates preserve live tracker state. Restart reconstructs
 configured inactive rows from the magnet without pretending volatile response
 history survived. The selected Trackers tab alone requests the view at a
-250 ms minimum delivery interval; leaving the tab evicts it. The adapter maps
-the delivered deadline to a local wall-clock target once, and the React table
-updates countdown text without backend timer patches.
+250 ms minimum delivery interval; leaving the tab evicts it. Completed Tactical
+[`300`](../tactical/300-monotonic-tracker-view-deadlines.md) replaces relative
+row durations with `next_action_at_millis`, `last_success_at_millis`, and
+`last_failure_at_millis` on ViewHub's application monotonic clock. Every
+`UpdateBatch` carries current `server_now_millis`, refreshed on retained replay
+without changing its cursor or payload. These decimal instants are not Unix
+timestamps and cannot be persisted across application restart. The adapter
+anchors this clock to `performance.now()` once per view-set epoch; retained
+rows, partial patches, tab reopen and unrelated updates preserve deadlines.
+The React table ticks locally without backend timer patches. Transport delay
+can produce a small display offset; the engine remains scheduling authority.
 
 The torrent summary also carries an additive optional configured-tracker
 count derived from the same bounded tracker model. Navigation can therefore

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -107,9 +108,13 @@ pub struct TrackerView {
     pub leechers: Option<u32>,
     pub interval_seconds: Option<u32>,
     pub next_action: Option<TrackerNextActionView>,
-    pub next_action_in_millis: Option<String>,
-    pub last_success_age_millis: Option<String>,
-    pub last_failure_age_millis: Option<String>,
+    /// Application-clock deadline; compare with UpdateBatch::server_now_millis.
+    /// This is not a Unix timestamp and is not persisted across runtime restart.
+    pub next_action_at_millis: Option<String>,
+    /// Last accepted success on the same application monotonic clock.
+    pub last_success_at_millis: Option<String>,
+    /// Last accepted failure on the same application monotonic clock.
+    pub last_failure_at_millis: Option<String>,
     pub last_error: Option<String>,
 }
 
@@ -146,9 +151,9 @@ impl TrackerView {
             leechers: None,
             interval_seconds: None,
             next_action: None,
-            next_action_in_millis: None,
-            last_success_age_millis: None,
-            last_failure_age_millis: None,
+            next_action_at_millis: None,
+            last_success_at_millis: None,
+            last_failure_at_millis: None,
             last_error: None,
         }
     }
@@ -193,11 +198,11 @@ fn tracker_is_operational(tracker: &StoredTracker) -> bool {
     }
 }
 
-impl From<&TrackerRuntimeRecordSnapshot> for TrackerView {
-    fn from(record: &TrackerRuntimeRecordSnapshot) -> Self {
+impl TrackerView {
+    fn from_runtime(record: &TrackerRuntimeRecordSnapshot, captured_at: Duration) -> Self {
         Self {
             tracker_id: record.tracker_id.clone(),
-            url: record.url.clone(),
+            url: redact_tracker_url(&record.url),
             transport: match record.transport {
                 TrackerTransport::Udp => TrackerTransportView::Udp,
                 TrackerTransport::Http => TrackerTransportView::Http,
@@ -250,15 +255,15 @@ impl From<&TrackerRuntimeRecordSnapshot> for TrackerView {
                 TrackerNextAction::Retry => TrackerNextActionView::Retry,
                 TrackerNextAction::Reannounce => TrackerNextActionView::Reannounce,
             }),
-            next_action_in_millis: record
+            next_action_at_millis: record
                 .next_action_in
-                .map(|duration| duration.as_millis().to_string()),
-            last_success_age_millis: record
+                .map(|duration| captured_at.saturating_add(duration).as_millis().to_string()),
+            last_success_at_millis: record
                 .last_success_age
-                .map(|duration| duration.as_millis().to_string()),
-            last_failure_age_millis: record
+                .map(|duration| captured_at.saturating_sub(duration).as_millis().to_string()),
+            last_failure_at_millis: record
                 .last_failure_age
-                .map(|duration| duration.as_millis().to_string()),
+                .map(|duration| captured_at.saturating_sub(duration).as_millis().to_string()),
             last_error: record.last_error.clone(),
         }
     }
@@ -267,7 +272,7 @@ impl From<&TrackerRuntimeRecordSnapshot> for TrackerView {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct TrackerViewModel {
     catalog: Arc<[StoredTracker]>,
-    runtime: BTreeMap<String, TrackerRuntimeRecordSnapshot>,
+    runtime: BTreeMap<String, TrackerView>,
     https_authentication: HttpsServerAuthenticationPolicy,
 }
 
@@ -297,7 +302,11 @@ impl TrackerViewModel {
         self.catalog == other.catalog
     }
 
-    pub(crate) fn replace_snapshot(&mut self, snapshot: &TrackerRuntimeSnapshot) -> Self {
+    pub(crate) fn replace_snapshot(
+        &mut self,
+        snapshot: &TrackerRuntimeSnapshot,
+        captured_at: Duration,
+    ) -> Self {
         let previous = Self {
             catalog: Arc::clone(&self.catalog),
             runtime: std::mem::take(&mut self.runtime),
@@ -306,8 +315,12 @@ impl TrackerViewModel {
         self.runtime = snapshot
             .records
             .iter()
-            .cloned()
-            .map(|record| (record.tracker_id.clone(), record))
+            .map(|record| {
+                (
+                    record.tracker_id.clone(),
+                    TrackerView::from_runtime(record, captured_at),
+                )
+            })
             .collect();
         previous
     }
@@ -324,7 +337,7 @@ impl TrackerViewModel {
                 .values()
                 .skip(range.start)
                 .take(range.len())
-                .map(runtime_view)
+                .cloned()
                 .collect();
         }
         self.catalog
@@ -335,7 +348,7 @@ impl TrackerViewModel {
                 let id = tracker_id(tracker.tier, tracker.position);
                 self.runtime.get(&id).map_or_else(
                     || TrackerView::inactive(tracker, self.https_authentication),
-                    runtime_view,
+                    Clone::clone,
                 )
             })
             .collect()
@@ -362,12 +375,6 @@ impl TrackerViewModel {
             .map(|view| (view.tracker_id.clone(), view))
             .collect()
     }
-}
-
-fn runtime_view(record: &TrackerRuntimeRecordSnapshot) -> TrackerView {
-    let mut view = TrackerView::from(record);
-    view.url = redact_tracker_url(&view.url);
-    view
 }
 
 fn tracker_id(tier: u32, position: u32) -> String {
@@ -446,38 +453,41 @@ mod tests {
     #[test]
     fn runtime_snapshot_replaces_catalog_and_maps_monotonic_values() {
         let mut model = TrackerViewModel::default();
-        model.replace_snapshot(&TrackerRuntimeSnapshot {
-            captured_at: Duration::from_secs(9),
-            active: true,
-            records: vec![TrackerRuntimeRecordSnapshot {
-                tracker_id: "000000:000000".to_owned(),
-                url: "udp://tracker.example:6969/private-key".to_owned(),
-                tier: 0,
-                source: TrackerSource::Magnet,
-                transport: TrackerTransport::Udp,
-                https_authentication: None,
-                status: TrackerRuntimeStatus::RetryWait,
-                announce_event: None,
-                total_attempts: 2,
-                consecutive_failures: 1,
-                last_connection_family: Some(TrackerConnectionFamily::Ipv6),
-                last_peer_count: Some(20),
-                seeders: Some(12),
-                leechers: Some(8),
-                interval: Some(Duration::from_secs(600)),
-                next_action: Some(TrackerNextAction::Retry),
-                next_action_in: Some(Duration::from_millis(1250)),
-                last_success_age: Some(Duration::from_secs(8)),
-                last_failure_age: Some(Duration::from_millis(250)),
-                last_error: Some("timeout".to_owned()),
-            }],
-        });
+        model.replace_snapshot(
+            &TrackerRuntimeSnapshot {
+                captured_at: Duration::from_secs(9),
+                active: true,
+                records: vec![TrackerRuntimeRecordSnapshot {
+                    tracker_id: "000000:000000".to_owned(),
+                    url: "udp://tracker.example:6969/private-key".to_owned(),
+                    tier: 0,
+                    source: TrackerSource::Magnet,
+                    transport: TrackerTransport::Udp,
+                    https_authentication: None,
+                    status: TrackerRuntimeStatus::RetryWait,
+                    announce_event: None,
+                    total_attempts: 2,
+                    consecutive_failures: 1,
+                    last_connection_family: Some(TrackerConnectionFamily::Ipv6),
+                    last_peer_count: Some(20),
+                    seeders: Some(12),
+                    leechers: Some(8),
+                    interval: Some(Duration::from_secs(600)),
+                    next_action: Some(TrackerNextAction::Retry),
+                    next_action_in: Some(Duration::from_millis(1250)),
+                    last_success_age: Some(Duration::from_secs(8)),
+                    last_failure_age: Some(Duration::from_millis(250)),
+                    last_error: Some("timeout".to_owned()),
+                }],
+            },
+            Duration::from_secs(9),
+        );
         let row = &model.rows()[0];
         assert_eq!(row.status, TrackerStatusView::RetryWait);
         assert_eq!(row.next_action, Some(TrackerNextActionView::Retry));
-        assert_eq!(row.next_action_in_millis.as_deref(), Some("1250"));
-        assert_eq!(row.last_success_age_millis.as_deref(), Some("8000"));
-        assert_eq!(row.last_failure_age_millis.as_deref(), Some("250"));
+        assert_eq!(row.next_action_at_millis.as_deref(), Some("10250"));
+        assert_eq!(row.last_success_at_millis.as_deref(), Some("1000"));
+        assert_eq!(row.last_failure_at_millis.as_deref(), Some("8750"));
         assert_eq!(row.interval_seconds, Some(600));
         assert_eq!(
             row.last_connection_family,

@@ -13,6 +13,7 @@
       }
     ],
     "initial": {
+      "server_now_millis": "0",
       "api_version": 1,
       "view_set_id": "vs_000102030405060708090a0b0c0d0e0f",
       "epoch": "10",
@@ -240,6 +241,7 @@
   },
   "updates": [
     {
+      "server_now_millis": "0",
       "api_version": 1,
       "view_set_id": "vs_000102030405060708090a0b0c0d0e0f",
       "epoch": "10",
@@ -323,6 +325,7 @@
       ]
     },
     {
+      "server_now_millis": "0",
       "api_version": 1,
       "view_set_id": "vs_000102030405060708090a0b0c0d0e0f",
       "epoch": "11",

@@ -323,7 +323,20 @@ export type TrackerAnnounceEventView = "started" | "update" | "completed" | "sto
 
 export type TrackerNextActionView = "announce" | "retry" | "reannounce";
 
-export type TrackerView = { tracker_id: string, url: string, transport: TrackerTransportView, security: TrackerSecurityView, source: TrackerSourceView, tier: number, status: TrackerStatusView, announce_event: TrackerAnnounceEventView | null, total_attempts: number, consecutive_failures: number, last_connection_family: TrackerConnectionFamilyView | null, last_peer_count: number | null, seeders: number | null, leechers: number | null, interval_seconds: number | null, next_action: TrackerNextActionView | null, next_action_in_millis: string | null, last_success_age_millis: string | null, last_failure_age_millis: string | null, last_error: string | null, };
+export type TrackerView = { tracker_id: string, url: string, transport: TrackerTransportView, security: TrackerSecurityView, source: TrackerSourceView, tier: number, status: TrackerStatusView, announce_event: TrackerAnnounceEventView | null, total_attempts: number, consecutive_failures: number, last_connection_family: TrackerConnectionFamilyView | null, last_peer_count: number | null, seeders: number | null, leechers: number | null, interval_seconds: number | null, next_action: TrackerNextActionView | null,
+/**
+ * Application-clock deadline; compare with UpdateBatch::server_now_millis.
+ * This is not a Unix timestamp and is not persisted across runtime restart.
+ */
+next_action_at_millis: string | null,
+/**
+ * Last accepted success on the same application monotonic clock.
+ */
+last_success_at_millis: string | null,
+/**
+ * Last accepted failure on the same application monotonic clock.
+ */
+last_failure_at_millis: string | null, last_error: string | null, };
 
 export type ViewSnapshot = { "type": "torrent_list", torrents: Array<TorrentView>, storage: StorageSettingsSnapshot, client_settings: ClientSettingsRuntimeView, } | { "type": "torrent", torrent: TorrentView | null, } | { "type": "torrent_preparation", torrent_id: string, preparation: TorrentPreparationView | null, } | { "type": "piece_activity", torrent_id: string, piece_count: number, verified: Array<IndexRange>, active: Array<ActivePiece>, } | { "type": "session_disk", pipeline: DiskPipelineView, pieces: Array<DiskPieceView>, } | { "type": "session_dht", inspection: DhtInspectionView, } | { "type": "session_current_rates", rates: SessionCurrentRatesView, } | { "type": "session_speed_history", history: SpeedHistoryView, } | { "type": "peers", torrent_id: string, peers: Array<PeerView>, } | { "type": "swarm", torrent_id: string, state: SwarmCatalogState, captured_millis: string, maximum_records: number, counts: SwarmCountsView, peers: Array<SwarmPeerView>, } | { "type": "files", torrent_id: string, state: FileCatalogState, filesystem_content_base: string | null, page: CatalogPageView, files: Array<FileView>, } | { "type": "media", torrent_id: string, state: MediaCatalogState, total_non_padding_files: number, items: Array<MediaItemView>, } | { "type": "trackers", torrent_id: string, state: TrackerCatalogState, page: CatalogPageView, trackers: Array<TrackerView>, } | { "type": "diagnostics", events: Array<DiagnosticEvent>, retention: DiagnosticRetention, };
 
@@ -377,7 +390,12 @@ export type UpdateViewSetRequest = { views: Array<ViewSpec>, };
 
 export type ViewSetUpdate = { "type": "snapshot", view_id: string, snapshot: ViewSnapshot, } | { "type": "patch", view_id: string, patch: ViewPatch, } | { "type": "view_removed", view_id: string, } | { "type": "reset_required", view_id?: string | null, reason: ResetReason, };
 
-export type UpdateBatch = { api_version: number, view_set_id: string, epoch: string, base_cursor: string, cursor: string, durable_revision: string, updates: Array<ViewSetUpdate>, };
+export type UpdateBatch = {
+/**
+ * Milliseconds on the current application instance's monotonic clock.
+ * Refreshed at delivery; tracker *_at_millis fields use this same origin.
+ */
+server_now_millis: string, api_version: number, view_set_id: string, epoch: string, base_cursor: string, cursor: string, durable_revision: string, updates: Array<ViewSetUpdate>, };
 
 export type OpenViewSetResponse = { view_set_id: string, lease_millis: string, effective_queue_bytes: number, effective_views: Array<ViewSpec>, initial: UpdateBatch, };
 

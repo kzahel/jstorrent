@@ -5,6 +5,14 @@
 
 Bounded implementation plans and execution records live here.
 
+- [300 — Monotonic tracker view deadlines](300-monotonic-tracker-view-deadlines.md):
+  stable application deadlines, per-batch clock reference and permanent
+  deterministic/real-browser countdown regressions; installed delivery separate.
+
+- [301 — Stable remote file save progress](301-remote-save-progress-presentation.md):
+  separate Files feedback row, bounded display cadence and stable percentage
+  geometry; no remote playback or transfer-protocol change.
+
 Use zero-padded numeric filenames:
 
 ```text

@@ -16,6 +16,7 @@ static NEXT_VIEW_SET_EPOCH: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug)]
 pub(crate) struct ViewSetInner {
+    clock_origin: Instant,
     pub(super) id: String,
     owner: ViewSetOwner,
     state: Mutex<ViewSetState>,
@@ -58,6 +59,7 @@ struct StoredBatch {
 }
 
 pub(super) struct ViewSetInitialState {
+    pub(super) clock_origin: Instant,
     pub(super) revision: u64,
     pub(super) views: BTreeMap<String, ViewSpec>,
     pub(super) queue_bytes_limit: u32,
@@ -80,6 +82,7 @@ impl ViewSetInner {
         initial: ViewSetInitialState,
     ) -> Result<Arc<Self>, ViewSetError> {
         let ViewSetInitialState {
+            clock_origin,
             revision,
             views,
             queue_bytes_limit,
@@ -88,6 +91,7 @@ impl ViewSetInner {
             lease,
         } = initial;
         let inner = Arc::new(Self {
+            clock_origin,
             id,
             owner,
             state: Mutex::new(ViewSetState {
@@ -362,7 +366,13 @@ impl ViewSetInner {
                 state.last_delivered.insert(view_id.to_owned(), now);
             }
         }
-        let batch = make_batch(&self.id, &mut state, 0, snapshots)?;
+        let batch = make_batch(
+            &self.id,
+            &mut state,
+            0,
+            snapshots,
+            now.saturating_duration_since(self.clock_origin),
+        )?;
         let encoded_bytes = encoded_batch_len(&batch)?;
         if encoded_bytes > MAX_VIEW_SET_SNAPSHOT_BYTES as usize {
             return Err(ViewSetError::SnapshotExceedsQueue {
@@ -387,7 +397,12 @@ impl ViewSetInner {
             let base = parse_decimal(&in_flight.batch.base_cursor)?;
             let cursor = parse_decimal(&in_flight.batch.cursor)?;
             if after == base {
-                return Ok(PollState::Ready(in_flight.batch.clone()));
+                let mut batch = in_flight.batch.clone();
+                batch.server_now_millis = now
+                    .saturating_duration_since(self.clock_origin)
+                    .as_millis()
+                    .to_string();
+                return Ok(PollState::Ready(batch));
             }
             if after == cursor {
                 state.acknowledged_cursor = cursor;
@@ -427,7 +442,13 @@ impl ViewSetInner {
             }
         }
         let base = state.acknowledged_cursor;
-        let batch = make_batch(&self.id, &mut state, base, updates)?;
+        let batch = make_batch(
+            &self.id,
+            &mut state,
+            base,
+            updates,
+            now.saturating_duration_since(self.clock_origin),
+        )?;
         let encoded_bytes = encoded_batch_len(&batch)?;
         let batch_limit = if batch_has_snapshot(&batch) {
             MAX_VIEW_SET_SNAPSHOT_BYTES
@@ -449,13 +470,17 @@ impl ViewSetInner {
     pub(super) fn empty_batch(
         &self,
         after: u64,
-        _now: Instant,
+        now: Instant,
     ) -> Result<UpdateBatch, ViewSetError> {
         let state = self.state()?;
         if state.closed {
             return Err(ViewSetError::Closed);
         }
         Ok(UpdateBatch {
+            server_now_millis: now
+                .saturating_duration_since(self.clock_origin)
+                .as_millis()
+                .to_string(),
             api_version: API_VERSION,
             view_set_id: self.id.clone(),
             epoch: state.epoch.to_string(),
@@ -500,7 +525,13 @@ impl ViewSetInner {
                 state.last_delivered.insert(view_id.to_owned(), now);
             }
         }
-        let batch = make_batch(&self.id, &mut state, base_cursor, updates)?;
+        let batch = make_batch(
+            &self.id,
+            &mut state,
+            base_cursor,
+            updates,
+            now.saturating_duration_since(self.clock_origin),
+        )?;
         let encoded_bytes = encoded_batch_len(&batch)?;
         if encoded_bytes > MAX_VIEW_SET_SNAPSHOT_BYTES as usize {
             return Err(ViewSetError::SnapshotExceedsQueue {
@@ -788,6 +819,7 @@ fn make_batch(
     state: &mut ViewSetState,
     base_cursor: u64,
     updates: Vec<ViewSetUpdate>,
+    server_now: Duration,
 ) -> Result<UpdateBatch, ViewSetError> {
     let cursor = state.next_cursor;
     state.next_cursor = state
@@ -795,6 +827,7 @@ fn make_batch(
         .checked_add(1)
         .ok_or_else(|| ViewSetError::Internal("view-set cursor overflow".to_owned()))?;
     Ok(UpdateBatch {
+        server_now_millis: server_now.as_millis().to_string(),
         api_version: API_VERSION,
         view_set_id: id.to_owned(),
         epoch: state.epoch.to_string(),
@@ -812,8 +845,10 @@ fn encoded_update_len(update: &ViewSetUpdate) -> Result<usize, ViewSetError> {
 }
 
 fn encoded_batch_len(batch: &UpdateBatch) -> Result<usize, ViewSetError> {
+    // Replays refresh the clock without changing the retained payload. Reserve
+    // its full decimal width so a later replay stays within the queue budget.
     serde_json::to_vec(batch)
-        .map(|bytes| bytes.len())
+        .map(|bytes| bytes.len() + 20_usize.saturating_sub(batch.server_now_millis.len()))
         .map_err(|error| ViewSetError::Internal(error.to_string()))
 }
 

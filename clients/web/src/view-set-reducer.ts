@@ -28,6 +28,7 @@ export interface ViewSetState {
   epoch: string;
   cursor: string;
   durableRevision: string;
+  serverNowMillis: string;
   views: Record<string, ViewSnapshot>;
   deliveryResetCount: number;
   lastDeliveryResetReason: string | null;
@@ -86,6 +87,7 @@ export function reduceUpdateBatch(
     epoch: batch.epoch,
     cursor: batch.cursor,
     durableRevision: batch.durable_revision,
+    serverNowMillis: batch.server_now_millis,
     views: state?.epoch === batch.epoch ? { ...state.views } : {},
     deliveryResetCount:
       (state?.deliveryResetCount ?? 0) +

@@ -356,6 +356,7 @@ function validateUpdateBatch(batch: UpdateBatch): void {
   decimal(batch.base_cursor, "view-set base cursor");
   decimal(batch.cursor, "view-set cursor");
   decimal(batch.durable_revision, "durable revision");
+  decimal(batch.server_now_millis, "server monotonic time");
   const base = BigInt(batch.base_cursor);
   const cursor = BigInt(batch.cursor);
   if (
@@ -2605,9 +2606,9 @@ function validateTrackerView(value: unknown): void {
     ]);
   }
   [
-    "next_action_in_millis",
-    "last_success_age_millis",
-    "last_failure_age_millis",
+    "next_action_at_millis",
+    "last_success_at_millis",
+    "last_failure_at_millis",
   ].forEach((field) => optionalDecimal(tracker[field], `tracker ${field}`));
   optionalString(tracker.last_error, "tracker last error", 256);
 }

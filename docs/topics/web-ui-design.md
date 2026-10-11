@@ -8,6 +8,15 @@ and release destinations, and opening failures show generic localized retry
 feedback. Engine/API/media authority and native Android/iOS presentation are
 unchanged. Exact validation and native handoff evidence are in the tactical.
 
+Tactical [301](../tactical/301-remote-save-progress-presentation.md) corrects
+remote Save progress presentation in the shared Files surface. Save status,
+bar, fixed-width tabular percentage and cancellation occupy a separate row;
+narrow layouts put the phase label above the controls. Intermediate progress
+updates at most five times per second, while terminal outcomes appear
+immediately. Transport writes/acknowledgements, eligibility and remote Open/Play
+scope remain unchanged. Web checks and isolated browser geometry evidence are
+recorded in the tactical; deployment remains separate.
+
 Tactical [291](../tactical/291-companion-shutdown-recovery-copy.md) locally
 clarifies normal Android launch before attach-only Retry after Shutdown and
 fixes dim companion troubleshooting links with the existing foreground token.
@@ -366,7 +375,13 @@ all 470 unit tests (two skipped) and typecheck pass locally. Final source
 f5860c99 passes all ten executed CI jobs and Website; application behavior
 is unchanged.
 Tactical `043` adds the responsive live Trackers table, local deadline
-countdowns, and a permanent tracker-recovery scenario. Tacticals `044`--`045`
+countdowns, and a permanent tracker-recovery scenario. Completed Tactical
+[`300`](../tactical/300-monotonic-tracker-view-deadlines.md) fixes countdown
+oscillation by translating stable application-monotonic deadlines once per
+view-set epoch. Component tests cover expiry, outcome ages and calendar-clock
+jumps; a permanent real-gateway/browser runner checks unrelated updates, tab
+reopen and reload with sampled countdown values and a reviewable screenshot.
+Tacticals `044`--`045`
 add the global Disk pipeline and selected-torrent bounded Canvas Pieces
 overview, including responsive and large-torrent fixtures. Completed Tactical
 [`187`](../tactical/187-compact-metadata-acquisition-progress.md) adds a

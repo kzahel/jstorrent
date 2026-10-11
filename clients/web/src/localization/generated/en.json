@@ -394,6 +394,12 @@
       "value": "Desktop is unavailable."
     }
   ],
+  "external-link.open-failed": [
+    {
+      "type": 0,
+      "value": "Could not open the link. Please try again."
+    }
+  ],
   "inspection.components.about.updates.settings.section.application": [
     {
       "type": 0,
@@ -3520,6 +3526,12 @@
     {
       "type": 0,
       "value": "Remote file saved."
+    }
+  ],
+  "inspection.components.file.table.saving.directly": [
+    {
+      "type": 0,
+      "value": "Saving directly…"
     }
   ],
   "inspection.components.file.table.select.one.completed.file.to.save": [
@@ -8210,12 +8222,6 @@
     {
       "type": 0,
       "value": "Copy update command"
-    }
-  ],
-  "external-link.open-failed": [
-    {
-      "type": 0,
-      "value": "Could not open the link. Please try again."
     }
   ]
 }

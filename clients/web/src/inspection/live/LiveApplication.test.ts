@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type {
   AddTorrentBytesRequest,
@@ -22,6 +22,7 @@ import type { ApplicationViewClient, MediaOpenTarget } from "../../api/client";
 import { HttpApiError } from "../../api/client";
 import type { InspectionSnapshot } from "../model";
 import { LiveApplication } from "./LiveApplication";
+import type { ViewSetState } from "../../view-set-reducer";
 import { torrentMatchesCategory } from "../state";
 import {
   clientSettingsFixture,
@@ -210,6 +211,7 @@ class FakeLiveClient implements ApplicationViewClient {
     const viewSetId = `vs_${String(this.openCount).padStart(32, "0")}`;
     const initial: UpdateBatch = {
       api_version: 1,
+      server_now_millis: "10000",
       view_set_id: viewSetId,
       epoch: String(this.openCount),
       base_cursor: "0",
@@ -261,6 +263,57 @@ class FakeLiveClient implements ApplicationViewClient {
 }
 
 describe("LiveApplication", () => {
+  it("preserves tracker deadlines through unrelated and partial updates and wall-clock jumps", async () => {
+    const monotonic = vi.spyOn(performance, "now").mockReturnValue(100_000);
+    const wallClock = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    const application = await LiveApplication.open(new FakeLiveClient(), {
+      initialViews: { library: false, torrentId: TORRENT_ID, detail: "trackers", logCapture: null },
+    });
+    let latest: InspectionSnapshot | undefined;
+    application.subscribe((update) => {
+      if (update.type === "snapshot") latest = update.snapshot;
+    });
+    try {
+      const adapter = application as unknown as {
+        controller: { current(): ViewSetState };
+        acceptState(state: ViewSetState): void;
+      };
+      const initial = adapter.controller.current();
+      const row = () => latest!.trackersByTorrent[TORRENT_ID]!.rows["000000:000000"]!;
+      expect(row().nextActionAtMs).toBe(117_000);
+      expect(row().lastSuccessAtMs).toBe(96_000);
+      monotonic.mockReturnValue(105_000);
+      wallClock.mockReturnValue(-1_000_000);
+      adapter.acceptState({ ...initial, cursor: "2", serverNowMillis: "15000" });
+      expect(row().nextActionAtMs! - performance.now()).toBe(12_000);
+
+      // A tracker collection patch can retain the original row alongside a new row.
+      const trackerEntry = Object.entries(initial.views).find(([, view]) => view.type === "trackers")!;
+      const source = trackerEntry[1];
+      if (source.type !== "trackers") throw new Error("tracker source missing");
+      const changed = { ...source.trackers[0]!, tracker_id: "000000:000001", next_action_at_millis: "40000" };
+      adapter.acceptState({ ...initial, cursor: "3", serverNowMillis: "15000", views: {
+        ...initial.views, [trackerEntry[0]]: { ...source, trackers: [...source.trackers, changed] },
+      } });
+      expect(row().nextActionAtMs).toBe(117_000);
+      expect(latest!.trackersByTorrent[TORRENT_ID]!.rows[changed.tracker_id]!.nextActionAtMs).toBe(130_000);
+
+      // A real reschedule changes the deadline; it is never clamped to an old wait.
+      adapter.acceptState({ ...initial, cursor: "4", serverNowMillis: "15000", views: {
+        ...initial.views, [trackerEntry[0]]: { ...source, trackers: [{ ...source.trackers[0]!, next_action_at_millis: "55000" }] },
+      } });
+      expect(row().nextActionAtMs).toBe(145_000);
+
+      // A fresh epoch reanchors using fresh server time, even when its rows are old.
+      monotonic.mockReturnValue(110_000);
+      adapter.acceptState({ ...initial, epoch: "2", serverNowMillis: "20000" });
+      expect(row().nextActionAtMs! - performance.now()).toBe(7_000);
+    } finally {
+      await application.close();
+      monotonic.mockRestore();
+      wallClock.mockRestore();
+    }
+  });
   it.each(["paused", "error"] as const)(
     "classifies blocked storage as needing attention with %s operational state",
     async (operationalState) => {
@@ -1030,7 +1083,7 @@ describe("LiveApplication", () => {
       seeders: 7,
       leechers: 5,
       nextAction: "retry",
-      nextActionInMs: 17_000,
+      nextActionAtMs: expect.any(Number),
       error: "temporary timeout",
     });
     expect(
@@ -1317,9 +1370,9 @@ function snapshotFor(
               leechers: 5,
               interval_seconds: 600,
               next_action: "retry",
-              next_action_in_millis: "17000",
-              last_success_age_millis: "4000",
-              last_failure_age_millis: "500",
+              next_action_at_millis: "27000",
+              last_success_at_millis: "6000",
+              last_failure_at_millis: "9500",
               last_error: "temporary timeout",
             },
           ],

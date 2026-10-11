@@ -61,6 +61,7 @@ pub struct ViewHub {
 
 #[derive(Debug)]
 pub(crate) struct HubState {
+    pub(crate) clock_origin: Instant,
     pub(crate) epoch: u64,
     pub(crate) revision: u64,
     pub(super) torrents: BTreeMap<String, TorrentModel>,
@@ -133,6 +134,7 @@ impl ViewHub {
         let revision = parse_revision(&snapshot.revision)?;
         Ok(Self {
             inner: Arc::new(Mutex::new(HubState {
+                clock_origin: Instant::now(),
                 epoch: NEXT_EPOCH.fetch_add(1, Ordering::Relaxed),
                 revision,
                 torrents: snapshot
@@ -1343,20 +1345,31 @@ impl ViewHub {
         hub.publish_swarm_changes(torrent_id, &previous, &current)
     }
 
+    #[cfg(test)]
     pub(crate) fn record_tracker_state(
         &self,
         torrent_id: &str,
         snapshot: &TrackerRuntimeSnapshot,
     ) -> Result<(), SubscriptionError> {
+        self.record_tracker_state_at(torrent_id, snapshot, Instant::now())
+    }
+
+    pub(crate) fn record_tracker_state_at(
+        &self,
+        torrent_id: &str,
+        snapshot: &TrackerRuntimeSnapshot,
+        now: Instant,
+    ) -> Result<(), SubscriptionError> {
         let mut hub = self
             .inner
             .lock()
             .map_err(|_| SubscriptionError::Internal("view hub lock is poisoned".to_owned()))?;
+        let captured_at = now.saturating_duration_since(hub.clock_origin);
         let Some(model) = hub.torrents.get_mut(torrent_id) else {
             return Ok(());
         };
         let previous_view = model.view.clone();
-        let previous = model.trackers.replace_snapshot(snapshot);
+        let previous = model.trackers.replace_snapshot(snapshot, captured_at);
         model.view.configured_tracker_count = Some(model.trackers.count());
         let next_view = model.view.clone();
         let current = model.trackers.clone();
@@ -2331,7 +2344,7 @@ impl ViewHub {
         self.open_view_set_at(owner, request, Instant::now())
     }
 
-    fn open_view_set_at(
+    pub(crate) fn open_view_set_at(
         &self,
         owner: ViewSetOwner,
         request: OpenViewSetRequest,
@@ -2364,6 +2377,7 @@ impl ViewHub {
             id.clone(),
             owner,
             ViewSetInitialState {
+                clock_origin: hub.clock_origin,
                 revision: hub.revision,
                 views,
                 queue_bytes_limit: queue_bytes,

@@ -512,6 +512,9 @@ impl ViewSetUpdate {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 pub struct UpdateBatch {
+    /// Milliseconds on the current application instance's monotonic clock.
+    /// Refreshed at delivery; tracker *_at_millis fields use this same origin.
+    pub server_now_millis: String,
     pub api_version: u16,
     pub view_set_id: String,
     pub epoch: String,

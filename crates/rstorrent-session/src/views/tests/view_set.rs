@@ -135,6 +135,7 @@ fn inner(now: Instant) -> Arc<ViewSetInner> {
         "vs_test".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views,
             queue_bytes_limit: DEFAULT_VIEW_SET_QUEUE_BYTES,
@@ -170,6 +171,7 @@ fn multi_view_inner(now: Instant) -> Arc<ViewSetInner> {
         "vs_multi".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views: BTreeMap::from([
                 ("library".to_owned(), library),
@@ -320,6 +322,7 @@ fn maximum_file_page_is_separate_from_steady_queue_pressure() {
         "vs_files".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views: BTreeMap::from([("files".to_owned(), spec)]),
             queue_bytes_limit: DEFAULT_VIEW_SET_QUEUE_BYTES,
@@ -405,6 +408,7 @@ fn maximum_media_catalog_is_separate_from_steady_queue_pressure() {
         "vs_media".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views: BTreeMap::from([("media".to_owned(), spec)]),
             queue_bytes_limit: DEFAULT_VIEW_SET_QUEUE_BYTES,
@@ -486,6 +490,7 @@ fn nonzero_delivery_interval_defers_accumulated_patch_without_a_task() {
         "vs_delayed".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views: BTreeMap::from([("library".to_owned(), delayed)]),
             queue_bytes_limit: DEFAULT_VIEW_SET_QUEUE_BYTES,
@@ -612,6 +617,7 @@ fn speed_history_appends_coalesce_without_losing_completed_buckets() {
         "vs_speed".to_owned(),
         ViewSetOwner::trusted("owner"),
         ViewSetInitialState {
+            clock_origin: now,
             revision: 7,
             views: BTreeMap::from([("speed".to_owned(), speed_spec)]),
             queue_bytes_limit: DEFAULT_VIEW_SET_QUEUE_BYTES,
@@ -1506,4 +1512,25 @@ fn sixty_active_peer_snapshot_stays_inside_default_queue_bound() {
         stats.queue_high_water,
         stats.reset_count,
     );
+}
+
+#[test]
+fn replay_refreshes_server_clock_without_changing_cursor_or_updates() {
+    let now = Instant::now();
+    let inner = inner(now);
+    let initial = inner.open_response().expect("open").initial;
+    assert_eq!(initial.server_now_millis, "0");
+    let PollState::Ready(replay) = inner
+        .poll_state(0, now + Duration::from_secs(5))
+        .expect("replay")
+    else {
+        panic!("initial retained batch must replay");
+    };
+    assert_eq!(replay.server_now_millis, "5000");
+    assert_eq!(replay.cursor, initial.cursor);
+    assert_eq!(replay.updates, initial.updates);
+    let empty = inner
+        .empty_batch(1, now + Duration::from_secs(6))
+        .expect("empty");
+    assert_eq!(empty.server_now_millis, "6000");
 }

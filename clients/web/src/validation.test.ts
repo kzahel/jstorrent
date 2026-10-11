@@ -627,6 +627,14 @@ describe("checker progress validation", () => {
 });
 
 describe("tracker view validation", () => {
+  it("requires a canonical server clock and tracker instants", () => {
+    for (const clock of [undefined, "-1", "1.5", "01", "184467440737095516160"]) {
+      expect(() => decodeUpdateBatch(JSON.stringify({ ...trackerBatch(), server_now_millis: clock }))).toThrow(ContractError);
+    }
+    const batch = trackerBatch();
+    batch.updates[0]!.snapshot.trackers[0]!.next_action_at_millis = "-1";
+    expect(() => decodeUpdateBatch(JSON.stringify(batch))).toThrow(ContractError);
+  });
   it("accepts bounded state and rejects an oversized retained error", () => {
     const batch = trackerBatch();
     expect(decodeUpdateBatch(JSON.stringify(batch)).updates).toHaveLength(1);
@@ -748,6 +756,7 @@ describe("diagnostic validation", () => {
 function preparationBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -781,6 +790,7 @@ function preparationBatch() {
 function diagnosticBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -825,6 +835,7 @@ function diagnosticBatch() {
 function speedBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -885,6 +896,7 @@ function dhtBatch() {
   };
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -965,6 +977,7 @@ function dhtBatch() {
 function pieceBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -1046,6 +1059,7 @@ function diskBatch() {
   };
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -1088,6 +1102,7 @@ function diskBatch() {
 function trackerBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -1120,9 +1135,9 @@ function trackerBatch() {
               leechers: null,
               interval_seconds: null,
               next_action: "retry",
-              next_action_in_millis: "17000",
-              last_success_age_millis: null,
-              last_failure_age_millis: "100",
+              next_action_at_millis: "17000",
+              last_success_at_millis: null,
+              last_failure_at_millis: "100",
               last_error: "timeout",
             },
           ],
@@ -1135,6 +1150,7 @@ function trackerBatch() {
 function torrentBatch(displayName: string) {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -1209,6 +1225,7 @@ function torrentBatch(displayName: string) {
 function peerBatch(torrentId: string) {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",
@@ -1284,6 +1301,7 @@ function peerBatch(torrentId: string) {
 function swarmBatch() {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch: "1",
     base_cursor: "0",

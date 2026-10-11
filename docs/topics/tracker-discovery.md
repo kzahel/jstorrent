@@ -291,6 +291,16 @@ every schedule transition and only publishes terminal inactive state after
 its UDP operations have been aborted and joined. Diagnostics remain an
 independent ordered observation stream.
 
+Completed Tactical
+[`300`](../tactical/300-monotonic-tracker-view-deadlines.md) repairs the
+application inspection clock without changing that schedule or tracker wire
+policy. The synchronous activity sink converts relative snapshot timings once
+into application-monotonic deadlines/outcome instants. Leased batches expose
+current application time, including replay; React anchors it to its own
+monotonic clock per epoch. Unrelated traffic and reopened snapshots therefore
+cannot restart an old wait. Deterministic projection/replay and real loopback
+gateway/browser tests cover this boundary; Android shared bindings/build pass.
+
 The leased application view retains at most the schedule's existing 32
 tracker records. A durable magnet can reconstruct inactive configured rows
 after restart, but volatile response and deadline history is deliberately not

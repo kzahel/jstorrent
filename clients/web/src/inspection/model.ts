@@ -433,10 +433,9 @@ export interface TrackerRow {
   readonly leechers: number | null;
   readonly intervalSeconds: number | null;
   readonly nextAction: "announce" | "retry" | "reannounce" | null;
-  readonly nextActionInMs: number | null;
-  readonly observedAtMs: number;
-  readonly lastSuccessAgeMs: number | null;
-  readonly lastFailureAgeMs: number | null;
+  readonly nextActionAtMs: number | null;
+  readonly lastSuccessAtMs: number | null;
+  readonly lastFailureAtMs: number | null;
   readonly error: string | null;
 }
 

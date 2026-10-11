@@ -143,6 +143,7 @@ function batch(
 ): UpdateBatch {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: "vs_000102030405060708090a0b0c0d0e0f",
     epoch,
     base_cursor: baseCursor,
@@ -1166,6 +1167,7 @@ describe("view-set reducer", () => {
       epoch: "7",
       cursor: "1",
       durableRevision: "1",
+      serverNowMillis: "0",
       views: {},
       deliveryResetCount: 0,
       lastDeliveryResetReason: null,

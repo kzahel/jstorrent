@@ -517,6 +517,15 @@ reason to stop.
 
 ## Current Checkpoint
 
+Completed application Tactical
+[`300`](../tactical/300-monotonic-tracker-view-deadlines.md) repairs tracker
+inspection timing only. Pinned announce-entry source/tests and BEP 15 review
+support stable deadlines; engine scheduling and protocol claims are unchanged.
+Deterministic reopen/replay and frontend clock regressions, controlled real
+gateway/browser sampling, shared generated boundaries, Android dual-ABI/JVM,
+Rust fmt/clippy/workspace and web suites pass. No tracker-policy follow-up is
+implied; installed release delivery remains separate.
+
 September 12 hosted qualification is complete on `release-readiness-ci`,
 avoiding `main`'s automatic website deployment. Run `34684328524` passes all
 12 jobs at `8f31f98a48313c57c3e3ba16e5b8907b02d63135`: four application

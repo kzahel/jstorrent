@@ -1618,3 +1618,65 @@ fn stale_settings_attempts_cannot_publish_runtime_or_mapping_facts() {
         .expect("ignore stale runtime patch")
     );
 }
+
+#[test]
+fn reopened_tracker_snapshot_uses_stable_deadlines_and_current_application_clock() {
+    use crate::{OpenViewSetRequest, ViewDeliveryPolicy, ViewSetOwner, ViewSetUpdate, ViewSpec};
+    let hub = ViewHub::new(&snapshot(0, 4)).expect("hub");
+    let origin = hub.inner.lock().expect("hub state").clock_origin;
+    let snapshot = tracker_snapshot(TrackerRuntimeStatus::ReannounceWait, 1);
+    hub.record_tracker_state_at(TORRENT_ID, &snapshot, origin + Duration::from_secs(2))
+        .expect("state");
+    let spec = ViewSpec::TorrentTrackers {
+        view_id: "trackers".to_owned(),
+        torrent_id: TORRENT_ID.to_owned(),
+        page: Some(crate::CatalogPageRequest::default()),
+        delivery: ViewDeliveryPolicy::default(),
+    };
+    let open = |seconds| {
+        hub.open_view_set_at(
+            ViewSetOwner::trusted("timing"),
+            OpenViewSetRequest {
+                views: vec![spec.clone()],
+                options: Default::default(),
+            },
+            origin + Duration::from_secs(seconds),
+        )
+        .expect("open")
+    };
+    let first = open(3).initial;
+    let reopened = open(8).initial;
+    assert_eq!(first.server_now_millis, "3000");
+    assert_eq!(reopened.server_now_millis, "8000");
+    let ViewSetUpdate::Snapshot {
+        snapshot:
+            ViewSnapshot::Trackers {
+                trackers: first_rows,
+                ..
+            },
+        ..
+    } = &first.updates[0]
+    else {
+        panic!("tracker snapshot")
+    };
+    let ViewSetUpdate::Snapshot {
+        snapshot:
+            ViewSnapshot::Trackers {
+                trackers: reopened_rows,
+                ..
+            },
+        ..
+    } = &reopened.updates[0]
+    else {
+        panic!("tracker snapshot")
+    };
+    assert_eq!(first_rows, reopened_rows);
+    assert_eq!(
+        reopened_rows[0].next_action_at_millis.as_deref(),
+        Some("17000")
+    );
+    assert_eq!(
+        reopened_rows[0].last_success_at_millis.as_deref(),
+        Some("1000")
+    );
+}

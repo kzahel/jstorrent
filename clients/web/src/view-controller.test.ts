@@ -395,6 +395,7 @@ function batch(
 ): UpdateBatch {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: viewSetId,
     epoch: "7",
     base_cursor: baseCursor,

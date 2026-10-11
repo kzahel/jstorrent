@@ -6200,6 +6200,7 @@ impl DownloadActivitySink for ViewActivitySink {
             return;
         }
         if let DownloadActivityEvent::TrackerState(snapshot) = &event {
+            let captured_at = Instant::now();
             let complete = snapshot
                 .records
                 .iter()
@@ -6216,7 +6217,9 @@ impl DownloadActivitySink for ViewActivitySink {
                 complete,
                 incomplete,
             );
-            let _ = self.views.record_tracker_state(&self.torrent_id, snapshot);
+            let _ = self
+                .views
+                .record_tracker_state_at(&self.torrent_id, snapshot, captured_at);
             return;
         }
         if let DownloadActivityEvent::StorageState(snapshot) = &event {

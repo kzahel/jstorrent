@@ -5179,5 +5179,6 @@
   "external-link.open-failed": {
     "defaultMessage": "Could not open the link. Please try again.",
     "description": "Shown when the desktop cannot open an external link in the browser"
-  }
+  },
+  "inspection.components.file.table.saving.directly": {"defaultMessage": "Saving directly…", "description": "Status and accessible progress label for a remote file save"}
 }

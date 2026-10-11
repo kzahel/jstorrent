@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatNumber, message as localizedMessage } from "../../localization/runtime";
 import { useEffect, useMemo, useState } from "react";
 
 import { useInspectionCommand, useInspectionStore } from "../context";
@@ -172,6 +172,7 @@ export function FileTable({
   );
   const [fileActionPending, setFileActionPending] = useState(false);
   const [fileActionStatus, setFileActionStatus] = useState("");
+  const [directSaveProgress, setDirectSaveProgress] = useState<number | null>(null);
   const [directFileEnabled, setDirectFileEnabled] = useState<boolean | null>(null);
   const [directSaveAbort, setDirectSaveAbort] = useState<AbortController | null>(null);
   const execute = useInspectionCommand();
@@ -206,6 +207,7 @@ export function FileTable({
     setSelectedFileIds(new Set());
     setFileActionPending(false);
     setFileActionStatus("");
+    setDirectSaveProgress(null);
     setDirectSaveAbort((current) => {
       current?.abort();
       return null;
@@ -319,6 +321,7 @@ export function FileTable({
     }
     setFileActionPending(true);
     setFileActionStatus("");
+    setDirectSaveProgress(null);
     try {
       const fileIndices = targetRows.map((row) => row.index);
       const result = await execute(
@@ -373,7 +376,9 @@ export function FileTable({
     const cancellation = new AbortController();
     setDirectSaveAbort(cancellation);
     setFileActionPending(true);
+    setDirectSaveProgress(0);
     setFileActionStatus(localizedMessage("inspection.components.file.table.choose.where.to.save.this.remote.file"));
+    let lastProgressUpdate = -Infinity;
     try {
       await save({
         torrentId,
@@ -385,15 +390,19 @@ export function FileTable({
           if (progress.state === "connecting") {
             setFileActionStatus(localizedMessage("inspection.components.file.table.connecting.directly.to.the.remote.device"));
           } else if (progress.state === "transferring") {
-            setFileActionStatus(
-              `Saving directly… ${directProgress(progress.bytesWritten, progress.fileLength)}`,
-            );
+            const now = performance.now();
+            if (now - lastProgressUpdate < 200) return;
+            lastProgressUpdate = now;
+            setFileActionStatus(localizedMessage("inspection.components.file.table.saving.directly"));
+            setDirectSaveProgress(directProgress(progress.bytesWritten, progress.fileLength));
           } else if (progress.state === "complete") {
+            setDirectSaveProgress(100);
             setFileActionStatus(localizedMessage("inspection.components.file.table.remote.file.saved"));
           }
         },
       });
     } catch (error) {
+      setDirectSaveProgress(null);
       setFileActionStatus(
         error instanceof DOMException && error.name === "AbortError"
           ? "Remote file save cancelled."
@@ -409,34 +418,53 @@ export function FileTable({
 
   return (
     <div className={styles.filePanel}>
-      <div className={styles.summary}>
-        <span>{rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.file.table.files")}</span>
-        {paddingCount > 0 ? (
-          <span>{paddingCount.toLocaleString()}{" "}{localizedMessage("inspection.components.file.table.padding.hidden")}</span>
-        ) : null}
-        <span
-          className={styles.storagePath}
-          title={fileSet?.filesystemContentBase ?? undefined}
-        >
-          {fileSet?.filesystemContentBase ?? localizedMessage("inspection.components.file.table.platform.managed.storage")}
-        </span>
-        <output className={styles.commandStatus} aria-live="polite">
-          {fileActionStatus}
-        </output>
-        {directSaveAbort === null ? null : (
-          <button
-            type="button"
-            className={styles.cancelSave}
-            onClick={() => directSaveAbort.abort()}
-          >{localizedMessage("inspection.components.file.table.cancel.save")}</button>
+      <div>
+        <div className={styles.summary}>
+          <span>{rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.file.table.files")}</span>
+          {paddingCount > 0 ? (
+            <span>{paddingCount.toLocaleString()}{" "}{localizedMessage("inspection.components.file.table.padding.hidden")}</span>
+          ) : null}
+          <span
+            className={styles.storagePath}
+            title={fileSet?.filesystemContentBase ?? undefined}
+          >
+            {fileSet?.filesystemContentBase ?? localizedMessage("inspection.components.file.table.platform.managed.storage")}
+          </span>
+          <FileActionsMenu
+            pending={fileActionPending}
+            actions={toolbarActions}
+            onAction={(actionId) => void runFileAction(actionId)}
+            directSave={toolbarDirectSave}
+            onDirectSave={() => void runDirectSave()}
+          />
+        </div>
+        {fileActionStatus === "" ? null : (
+          <div className={styles.commandFeedback}>
+            <output className={styles.commandStatus} aria-live="polite" title={fileActionStatus}>
+              {fileActionStatus}
+            </output>
+            {directSaveProgress === null ? null : (
+              <>
+                <progress
+                  className={styles.saveProgress}
+                  aria-label={localizedMessage("inspection.components.file.table.saving.directly")}
+                  max={100}
+                  value={directSaveProgress}
+                />
+                <span className={styles.savePercent}>
+                  {formatNumber(directSaveProgress / 100, { style: "percent", maximumFractionDigits: 1 })}
+                </span>
+              </>
+            )}
+            {directSaveAbort === null ? null : (
+              <button
+                type="button"
+                className={styles.cancelSave}
+                onClick={() => directSaveAbort.abort()}
+              >{localizedMessage("inspection.components.file.table.cancel.save")}</button>
+            )}
+          </div>
         )}
-        <FileActionsMenu
-          pending={fileActionPending}
-          actions={toolbarActions}
-          onAction={(actionId) => void runFileAction(actionId)}
-          directSave={toolbarDirectSave}
-          onDirectSave={() => void runDirectSave()}
-        />
       </div>
       <VirtualTable
         tableId="files"
@@ -523,10 +551,9 @@ function resolveDirectSave(
   return { disabled: false };
 }
 
-function directProgress(written: bigint, length: bigint): string {
-  if (length === 0n) return "100%";
-  const basisPoints = (written * 10_000n) / length;
-  return `${Number(basisPoints) / 100}%`;
+function directProgress(written: bigint, length: bigint): number {
+  if (length === 0n) return 100;
+  return Number((written * 1_000n) / length) / 10;
 }
 
 function setsEqual(left: ReadonlySet<string>, right: ReadonlySet<string>) {

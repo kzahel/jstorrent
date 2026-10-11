@@ -1326,7 +1326,7 @@ function trackerRecovery(elapsedMs: number): ScenarioContent {
     };
   }
   const rate = progress === null || progress === 1 ? 0 : 8_800_000 + wave(seconds, 1_200_000);
-  const observedAtMs = Date.now();
+  const nowMs = performance.now();
   const primaryStatus: TrackerRow["status"] =
     seconds < 3
       ? "announcing"
@@ -1352,15 +1352,14 @@ function trackerRecovery(elapsedMs: number): ScenarioContent {
     intervalSeconds: seconds < 22 ? null : 600,
     nextAction:
       seconds < 3 ? null : seconds < 22 ? "retry" : "reannounce",
-    nextActionInMs:
+    nextActionAtMs:
       seconds < 3
         ? null
         : seconds < 22
-          ? Math.max(0, (22 - seconds) * 1_000)
-          : Math.max(0, (622 - seconds) * 1_000),
-    observedAtMs,
-    lastSuccessAgeMs: seconds < 22 ? null : (seconds - 22) * 1_000,
-    lastFailureAgeMs: seconds < 3 ? null : (seconds - 3) * 1_000,
+          ? nowMs + Math.max(0, (22 - seconds) * 1_000)
+          : nowMs + Math.max(0, (622 - seconds) * 1_000),
+    lastSuccessAtMs: seconds < 22 ? null : nowMs - (seconds - 22) * 1_000,
+    lastFailureAtMs: seconds < 3 ? null : nowMs - (seconds - 3) * 1_000,
     error: seconds >= 3 && seconds < 22 ? "UDP announce timed out" : null,
   };
   const fallback: TrackerRow = {
@@ -1381,11 +1380,10 @@ function trackerRecovery(elapsedMs: number): ScenarioContent {
     leechers: seconds < 22 ? null : 4,
     intervalSeconds: seconds < 22 ? null : 900,
     nextAction: seconds < 22 ? "announce" : "reannounce",
-    nextActionInMs:
-      seconds < 22 ? 0 : Math.max(0, (922 - seconds) * 1_000),
-    observedAtMs,
-    lastSuccessAgeMs: seconds < 22 ? null : (seconds - 22) * 1_000,
-    lastFailureAgeMs: null,
+    nextActionAtMs:
+      nowMs + (seconds < 22 ? 0 : Math.max(0, (922 - seconds) * 1_000)),
+    lastSuccessAtMs: seconds < 22 ? null : nowMs - (seconds - 22) * 1_000,
+    lastFailureAtMs: null,
     error: null,
   };
   return {

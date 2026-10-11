@@ -20,11 +20,11 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
   const interfaceSize = useInspectionStore(
     (state) => state.presentation.interfaceSize,
   );
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [nowMs, setNowMs] = useState(() => performance.now());
 
   useEffect(() => {
-    setNowMs(Date.now());
-    const timer = globalThis.setInterval(() => setNowMs(Date.now()), 1_000);
+    setNowMs(performance.now());
+    const timer = globalThis.setInterval(() => setNowMs(performance.now()), 1_000);
     return () => globalThis.clearInterval(timer);
   }, []);
 
@@ -35,7 +35,10 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
         .filter((row): row is TrackerRow => row !== undefined),
     [trackerSet],
   );
-  const columns = useMemo(() => trackerColumns(nowMs), [nowMs]);
+  const columns = useMemo(
+    () => trackerColumns(Math.max(nowMs, performance.now())),
+    [nowMs, trackerSet],
+  );
   const announcing = rows.filter((row) => row.status === "announcing").length;
   const waiting = rows.filter(
     (row) => row.status === "retry_wait" || row.status === "reannounce_wait",
@@ -137,7 +140,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
       label: localizedMessage("inspection.components.tracker.table.next.announce"),
       width: 132,
       sortKind: "number",
-      sortValue: (row) => nextDeadline(row),
+      sortValue: (row) => row.nextActionAtMs,
       render: (row) => formatNextAction(row, nowMs),
     },
     {
@@ -237,8 +240,8 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
       align: "right",
       defaultVisible: false,
       sortKind: "number",
-      sortValue: (row) => row.lastSuccessAgeMs,
-      render: (row) => ageLabel(row.lastSuccessAgeMs, row, nowMs),
+      sortValue: (row) => row.lastSuccessAtMs === null ? null : -row.lastSuccessAtMs,
+      render: (row) => ageLabel(row.lastSuccessAtMs, nowMs),
     },
     {
       id: "lastFailure",
@@ -247,34 +250,27 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
       align: "right",
       defaultVisible: false,
       sortKind: "number",
-      sortValue: (row) => row.lastFailureAgeMs,
-      render: (row) => ageLabel(row.lastFailureAgeMs, row, nowMs),
+      sortValue: (row) => row.lastFailureAtMs === null ? null : -row.lastFailureAtMs,
+      render: (row) => ageLabel(row.lastFailureAtMs, nowMs),
     },
   ];
 }
 
-function nextDeadline(row: TrackerRow): number | null {
-  return row.nextActionInMs === null
-    ? null
-    : row.observedAtMs + row.nextActionInMs;
-}
-
 function formatNextAction(row: TrackerRow, nowMs: number): string {
   if (row.status === "announcing") return localizedMessage("inspection.components.tracker.table.now");
-  const deadline = nextDeadline(row);
+  const deadline = row.nextActionAtMs;
   if (deadline === null || row.nextAction === null) return "—";
   const action = row.nextAction === "retry" ? "Retry" : "Announce";
   return `${action} in ${formatDuration(Math.max(0, deadline - nowMs))}`;
 }
 
 function ageLabel(
-  ageMs: number | null,
-  row: TrackerRow,
+  atMs: number | null,
   nowMs: number,
 ): string {
-  return ageMs === null
+  return atMs === null
     ? "—"
-    : `${formatDuration(ageMs + Math.max(0, nowMs - row.observedAtMs))} ago`;
+    : `${formatDuration(Math.max(0, nowMs - atMs))} ago`;
 }
 
 function formatDuration(milliseconds: number | null): string {

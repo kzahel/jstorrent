@@ -299,7 +299,12 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
 }
 
 fn append<T: TS>(output: &mut String) -> Result<(), std::fmt::Error> {
-    writeln!(output, "export {}\n", T::decl(&Config::default()))
+    let declaration = T::decl(&Config::default())
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n");
+    writeln!(output, "export {declaration}\n")
 }
 
 fn append_value<T: Serialize>(
@@ -466,6 +471,7 @@ fn write_view_set_fixture(output: PathBuf) -> Result<(), Box<dyn Error>> {
         delivery: ViewDeliveryPolicy::default(),
     };
     let initial = UpdateBatch {
+        server_now_millis: "0".to_owned(),
         api_version: rstorrent_session::API_VERSION,
         view_set_id: view_set_id.clone(),
         epoch: "10".to_owned(),
@@ -482,6 +488,7 @@ fn write_view_set_fixture(output: PathBuf) -> Result<(), Box<dyn Error>> {
         }],
     };
     let patch = UpdateBatch {
+        server_now_millis: "0".to_owned(),
         api_version: rstorrent_session::API_VERSION,
         view_set_id: view_set_id.clone(),
         epoch: "10".to_owned(),
@@ -500,6 +507,7 @@ fn write_view_set_fixture(output: PathBuf) -> Result<(), Box<dyn Error>> {
         }],
     };
     let reset = UpdateBatch {
+        server_now_millis: "0".to_owned(),
         api_version: rstorrent_session::API_VERSION,
         view_set_id: view_set_id.clone(),
         epoch: "11".to_owned(),

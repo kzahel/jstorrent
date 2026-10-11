@@ -3893,7 +3893,22 @@ mod tests {
         .await;
         assert_eq!(status, 200);
         let replay: UpdateBatch = serde_json::from_slice(&body).expect("replay response");
-        assert_eq!(replay, opened.initial);
+        assert!(
+            replay
+                .server_now_millis
+                .parse::<u64>()
+                .expect("replay clock")
+                >= opened
+                    .initial
+                    .server_now_millis
+                    .parse::<u64>()
+                    .expect("initial clock")
+        );
+        let expected_replay = UpdateBatch {
+            server_now_millis: replay.server_now_millis.clone(),
+            ..opened.initial.clone()
+        };
+        assert_eq!(replay, expected_replay);
 
         let invalid_wait = format!(
             "/api/v1/view-sets/{}/updates?after={}&wait_ms=20001",

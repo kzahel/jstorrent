@@ -643,6 +643,7 @@ function opened(id = viewSetId): OpenViewSetResponse {
     effective_views: [listView],
     initial: {
       api_version: 1,
+      server_now_millis: "0",
       view_set_id: id,
       epoch: "1",
       base_cursor: "0",
@@ -671,6 +672,7 @@ function batch(
 ): UpdateBatch {
   return {
     api_version: 1,
+    server_now_millis: "0",
     view_set_id: id,
     epoch: "1",
     base_cursor: baseCursor,

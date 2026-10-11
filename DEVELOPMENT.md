@@ -1083,6 +1083,20 @@ Its MSI/DEB/RPM/unknown fixtures use real initial controller state and label
 captures as renderer evidence. They do not substitute for installed native
 package and updater qualification.
 
+The opt-in tracker countdown runner uses an independently authored bounded
+loopback UDP tracker, a temporary Rust gateway profile and production React
+build in bundled Playwright Chromium. It samples decreasing countdowns through
+unrelated rate updates, tab reopen and reload, and checks the stable backend
+deadline. It joins every process/thread and removes profile/payload data. The
+optional PNG is renderer evidence, not installed desktop acceptance:
+
+```bash
+source ~/.profile
+uv run --project tests/interop --locked \
+  python tests/interop/tracker_countdown_surface.py \
+  --screenshot-dir .local/evidence/300-tracker-clock
+```
+
 The opt-in production UI bandwidth baseline starts a clean gateway and
 production preview, preloads a 12-row Library, keeps one deterministic
 libtorrent-seeded transfer rate-limited and active, and measures exact

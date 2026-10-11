@@ -1624,6 +1624,15 @@ and parole selection remain evidence-gated rather than preplanned slices.
 
 ### Application And Product Surfaces
 
+Completed Tactical
+[`300`](../tactical/300-monotonic-tracker-view-deadlines.md) closes tracker
+countdown oscillation and stale reopened rows through stable monotonic
+application deadlines and a per-batch clock reference. Deterministic backend,
+adapter and component regressions, real gateway/production React/bundled
+Chromium sampling, Rust/web suites and Android generated dual-ABI/JVM build
+pass. Installed-release replacement and native tracker presentation are outside
+this slice.
+
 | Capability | State | Evidence | Highest-risk limit | Owner |
 | --- | --- | --- | --- | --- |
 | Durable semantic application control | Implemented | deterministic, persistence, runtime, interop, web, Tauri, Android build, physical | Archive, fenced keep/delete removal, metadata-only add, atomic v1 torrent-byte add, serialized live High/Normal/Skip file priority, retained checker pause/resume, atomic `Download now`, queue movement, automatic concurrent admission, and exact-or-synthesized magnet export are implemented. Tactical `203` adds schema-24 pending add-time selection with metadata-only acquisition, compact catalog-fenced confirm, validated cancel, restart/FIFO, and controlled browser/API-35/physical ChromeOS evidence. Stable public compatibility remains absent. | [`application-control`](application-control.md), [`203`](../tactical/203-jstorrent-shaped-add-time-file-selection.md) |

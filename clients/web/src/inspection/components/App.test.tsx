@@ -3,6 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -65,7 +66,7 @@ import type {
   DesktopPower,
   DesktopPowerSettings,
 } from "../desktop-power/types";
-import type { DesktopRemoteAccess } from "../remote-access/types";
+import type { DesktopRemoteAccess, RemoteCompletedFileSaveRequest } from "../remote-access/types";
 import { App } from "./App";
 import { RemoveTorrentDialog } from "./RemoveTorrentDialog";
 
@@ -1200,7 +1201,7 @@ describe("inspection application", () => {
     );
   });
 
-  it("offers a direct save for one verified file on a capable remote host", async () => {
+  it("keeps remote save progress bounded and reports completion and cancellation immediately", async () => {
     const user = userEvent.setup();
     const base = buildScenarioSnapshot("file-progress", 24_000, false, 1);
     const fileSet = base.filesByTorrent[DEMO_PRIMARY_TORRENT_ID]!;
@@ -1224,7 +1225,17 @@ describe("inspection application", () => {
         },
       },
     });
-    const saveCompletedFile = vi.fn(async () => undefined);
+    let saveRequest: RemoteCompletedFileSaveRequest;
+    let finishSave: () => void;
+    const saveCompletedFile = vi.fn((request: RemoteCompletedFileSaveRequest) => {
+      saveRequest = request;
+      return new Promise<void>((resolve, reject) => {
+        finishSave = resolve;
+        request.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Cancelled", "AbortError"));
+        }, { once: true });
+      });
+    });
     const remoteAccess = directFileRemoteAccess(saveCompletedFile);
     renderApplication(
       application,
@@ -1261,6 +1272,41 @@ describe("inspection application", () => {
         }),
       ),
     );
+    const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+    try {
+      const report = (state: "transferring" | "complete", bytesWritten: bigint) => {
+        saveRequest.onProgress?.({ state, bytesWritten, fileLength: 1000n });
+      };
+      act(() => report("transferring", 10n));
+      const progress = screen.getByRole("progressbar", { name: "Saving directly…" });
+      expect(progress).toHaveAttribute("value", "1");
+      // Simulate a burst of per-chunk callbacks without advancing the display clock.
+      act(() => {
+        for (let bytes = 11n; bytes < 700n; bytes++) report("transferring", bytes);
+      });
+      expect(progress).toHaveAttribute("value", "1");
+      clock.mockReturnValue(200);
+      act(() => report("transferring", 732n));
+      expect(progress).toHaveAttribute("value", "73.2");
+      expect(screen.getByText("73.2%")).toBeInTheDocument();
+      expect(screen.getByText("Saving directly…")).not.toHaveTextContent("73.2%");
+      clock.mockReturnValue(201);
+      await act(async () => {
+        report("complete", 1000n);
+        finishSave();
+      });
+      expect(progress).toHaveAttribute("value", "100");
+      expect(screen.getByText("Remote file saved.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Cancel save" })).not.toBeInTheDocument();
+    } finally {
+      clock.mockRestore();
+    }
+    await user.click(screen.getByRole("button", { name: "More file actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Save file…" }));
+    await user.click(screen.getByRole("button", { name: "Cancel save" }));
+    await waitFor(() => expect(screen.getByText("Remote file save cancelled.")).toBeInTheDocument());
+    expect(saveRequest!.signal?.aborted).toBe(true);
+    expect(screen.queryByRole("progressbar", { name: "Saving directly…" })).not.toBeInTheDocument();
   });
 
   it("sends one Download now command for a skipped file", async () => {

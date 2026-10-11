@@ -2,6 +2,16 @@
 
 Topic: `direct-remote-file-streaming`
 
+Tactical [301](../tactical/301-remote-save-progress-presentation.md) repairs the
+Files Save presentation after an owner reports a successful remote save with
+rapid percentage/layout movement. A separate bounded progress row gates
+display updates to five per second without throttling DataChannel reads,
+writes or acknowledgements. The owner's successful save is useful anecdotal
+evidence, not recorded independent-network qualification. Open/Play remains
+outside the completed-file Save slice: the range protocol already exists, but
+a seeking browser media-consumption adapter still needs implementation and
+cross-browser evidence.
+
 Status: Active Tactical
 [`196`](../tactical/196-remote-direct-file-product-integration.md) has landed
 the first product slice and remains active for qualification. Desktop and

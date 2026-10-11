@@ -89,6 +89,11 @@ export class LiveApplication implements InspectionApplication {
   private controller: ViewController | null = null;
   private desired: DesiredInspectionViews;
   private snapshot: InspectionSnapshot;
+  private trackerClock: {
+    readonly viewSetId: string;
+    readonly epoch: string;
+    readonly offsetMs: number;
+  } | null = null;
   private mappedFiles: {
     readonly source: Extract<ViewSnapshot, { type: "files" }>;
     readonly value: FileSet;
@@ -559,6 +564,17 @@ export class LiveApplication implements InspectionApplication {
 
   private acceptState(state: ViewSetState): void {
     if (this.closed) return;
+    if (
+      this.trackerClock?.viewSetId !== state.viewSetId ||
+      this.trackerClock.epoch !== state.epoch
+    ) {
+      // One clock translation per epoch: retained/partial updates cannot move deadlines.
+      this.trackerClock = {
+        viewSetId: state.viewSetId,
+        epoch: state.epoch,
+        offsetMs: performance.now() - safeNumber(state.serverNowMillis),
+      };
+    }
     const files = projection(state, FILES_VIEW_ID, "files");
     const fileSet = this.mapFiles(files);
     const media = projection(state, MEDIA_VIEW_ID, "media");
@@ -575,6 +591,7 @@ export class LiveApplication implements InspectionApplication {
       pieceSet,
       this.snapshot.storage,
       this.snapshot.clientSettings,
+      this.trackerClock.offsetMs,
     );
     this.emit({ type: "snapshot", snapshot: this.snapshot });
   }
@@ -924,6 +941,7 @@ function mapViewState(
   pieceSet: PieceMapSet | null,
   previousStorage: DownloadStorageSettings,
   previousClientSettings: ClientSettingsRuntimeView,
+  trackerClockOffsetMs: number,
 ): InspectionSnapshot {
   const library = projection(state, LIBRARY_VIEW_ID, "torrent_list");
   const summary = projection(state, SUMMARY_VIEW_ID, "torrent");
@@ -985,7 +1003,9 @@ function mapViewState(
     media?.torrent_id !== desired.torrentId
       ? {}
       : { [desired.torrentId]: mediaSet };
-  const trackerSet = trackers === null ? null : mapTrackers(trackers);
+  const trackerSet = trackers === null
+    ? null
+    : mapTrackers(trackers, trackerClockOffsetMs);
   const trackersByTorrent =
     trackerSet === null ||
     desired.torrentId === null ||
@@ -1788,10 +1808,10 @@ function mediaUnavailableMessage(reason: import("../../api").MediaFileAvailabili
 
 function mapTrackers(
   snapshot: Extract<ViewSnapshot, { type: "trackers" }>,
+  clockOffsetMs: number,
 ): TrackerSet {
-  const observedAtMs = Date.now();
   const rows = snapshot.trackers.map((tracker) =>
-    mapTracker(tracker, snapshot.torrent_id, observedAtMs),
+    mapTracker(tracker, snapshot.torrent_id, clockOffsetMs),
   );
   return {
     state: "available",
@@ -1809,7 +1829,7 @@ function mapTrackers(
 function mapTracker(
   tracker: TrackerView,
   torrentId: string,
-  observedAtMs: number,
+  clockOffsetMs: number,
 ): TrackerRow {
   return {
     id: tracker.tracker_id,
@@ -1829,12 +1849,16 @@ function mapTracker(
     leechers: tracker.leechers,
     intervalSeconds: tracker.interval_seconds,
     nextAction: tracker.next_action,
-    nextActionInMs: safeNullableNumber(tracker.next_action_in_millis),
-    observedAtMs,
-    lastSuccessAgeMs: safeNullableNumber(tracker.last_success_age_millis),
-    lastFailureAgeMs: safeNullableNumber(tracker.last_failure_age_millis),
+    nextActionAtMs: trackerInstant(tracker.next_action_at_millis, clockOffsetMs),
+    lastSuccessAtMs: trackerInstant(tracker.last_success_at_millis, clockOffsetMs),
+    lastFailureAtMs: trackerInstant(tracker.last_failure_at_millis, clockOffsetMs),
     error: tracker.last_error,
   };
+}
+
+function trackerInstant(value: string | null, clockOffsetMs: number): number | null {
+  const instant = safeNullableNumber(value);
+  return instant === null ? null : clockOffsetMs + instant;
 }
 
 function mapPeer(peer: PeerView): PeerRow {

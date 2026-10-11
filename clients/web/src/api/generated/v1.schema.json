@@ -8524,7 +8524,8 @@
             "null"
           ]
         },
-        "last_failure_age_millis": {
+        "last_failure_at_millis": {
+          "description": "Last accepted failure on the same application monotonic clock.",
           "type": [
             "string",
             "null"
@@ -8538,7 +8539,8 @@
             "null"
           ]
         },
-        "last_success_age_millis": {
+        "last_success_at_millis": {
+          "description": "Last accepted success on the same application monotonic clock.",
           "type": [
             "string",
             "null"
@@ -8562,7 +8564,8 @@
             }
           ]
         },
-        "next_action_in_millis": {
+        "next_action_at_millis": {
+          "description": "Application-clock deadline; compare with UpdateBatch::server_now_millis.\nThis is not a Unix timestamp and is not persisted across runtime restart.",
           "type": [
             "string",
             "null"
@@ -8715,6 +8718,10 @@
         "epoch": {
           "type": "string"
         },
+        "server_now_millis": {
+          "description": "Milliseconds on the current application instance's monotonic clock.\nRefreshed at delivery; tracker *_at_millis fields use this same origin.",
+          "type": "string"
+        },
         "updates": {
           "items": {
             "$ref": "#/$defs/ViewSetUpdate"
@@ -8726,6 +8733,7 @@
         }
       },
       "required": [
+        "server_now_millis",
         "api_version",
         "view_set_id",
         "epoch",
