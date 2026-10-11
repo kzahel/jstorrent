@@ -17,6 +17,11 @@ const RANGE_ACCEPTED = 0x81;
 const RANGE_CHUNK = 0x82;
 const RANGE_COMPLETE = 0x83;
 const RANGE_ERROR = 0xff;
+// Independent defense against a faulty host, including queued control frames.
+// The host's four-chunk send window normally holds at most 64 KiB of payload.
+const MAX_PENDING_FILE_BYTES = 128 * 1024;
+const MAX_PENDING_FILE_FRAMES = 16;
+const MAX_FILE_FRAME_BYTES = 16 * 1024 + 14;
 
 export type DirectFileSaveState =
   | "choosing_destination"
@@ -118,10 +123,14 @@ export async function saveDirectFile(
 ): Promise<void> {
   progress(request, "choosing_destination", 0n);
   const sink = await preparedSink;
-  abortIfRequested(request.signal);
-  if (!transport.directFileSupported()) {
+  try {
+    abortIfRequested(request.signal);
+    if (!transport.directFileSupported()) {
+      throw new Error("This remote host does not support direct file saves.");
+    }
+  } catch (error) {
     await sink.abort();
-    throw new Error("This remote host does not support direct file saves.");
+    throw error;
   }
 
   const circuitGeneration = transport.directFileConnectionGeneration();
@@ -237,12 +246,17 @@ function receiveRange(
     let nextOffset = rangeOffset;
     const rangeEnd = rangeOffset + BigInt(rangeLength);
     let processing = Promise.resolve();
+    let settled = false;
+    let pendingBytes = 0;
+    let pendingFrames = 0;
     const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      trySend(channel, encodeCancel(rangeId));
       cleanup();
-      reject(error instanceof SinkWriteFailed ? error : new Error(errorMessage(error)));
+      reject(error instanceof Error || error instanceof DOMException ? error : new Error(errorMessage(error)));
     };
     const abort = () => {
-      trySend(channel, encodeCancel(rangeId));
       fail(new DOMException("The remote file save was cancelled.", "AbortError"));
     };
     const cleanup = () => {
@@ -254,8 +268,21 @@ function receiveRange(
     channel.onerror = () => fail(new Error("direct file data channel failed"));
     channel.onclose = () => fail(new Error("direct file data channel closed"));
     channel.onmessage = (event) => {
+      if (settled) return;
+      const frameBytes = event.data instanceof ArrayBuffer ? event.data.byteLength
+        : event.data instanceof Blob ? event.data.size : -1;
+      if (frameBytes < 6 || frameBytes > MAX_FILE_FRAME_BYTES ||
+        pendingBytes + frameBytes > MAX_PENDING_FILE_BYTES ||
+        pendingFrames >= MAX_PENDING_FILE_FRAMES) {
+        fail(new Error("host exceeded the direct file receive queue limit"));
+        return;
+      }
+      pendingBytes += frameBytes;
+      pendingFrames += 1;
       processing = processing.then(async () => {
+        if (settled) return;
         const bytes = await binaryData(event.data);
+        if (settled) return;
         const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
         if (bytes.byteLength < 6 || view.getUint8(0) !== PROTOCOL_VERSION) {
           throw new Error("host sent a malformed direct file frame");
@@ -290,6 +317,7 @@ function receiveRange(
             } catch (error) {
               throw new SinkWriteFailed(errorMessage(error));
             }
+            if (settled) return;
             nextOffset += BigInt(payload.byteLength);
             progress(request, "transferring", nextOffset);
             trySend(channel, encodeAck(rangeId, nextOffset));
@@ -299,6 +327,7 @@ function receiveRange(
             if (bytes.byteLength !== 6 || !accepted || nextOffset !== rangeEnd) {
               throw new Error("host completed an incomplete file range");
             }
+            settled = true;
             cleanup();
             resolve();
             return;
@@ -308,7 +337,10 @@ function receiveRange(
           default:
             throw new Error("host sent an unknown direct file frame");
         }
-      }).catch(fail);
+      }).catch(fail).finally(() => {
+        pendingBytes -= frameBytes;
+        pendingFrames -= 1;
+      });
     };
     request.signal?.addEventListener("abort", abort, { once: true });
     if (request.signal?.aborted === true) {

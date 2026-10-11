@@ -588,8 +588,8 @@ async function expectRemoteAudit(page, label) {
 
 async function saveDirectFixture(page, prepared) {
   const fixture = prepared.fixture;
-  await page.getByRole("button", { name: "Workbench" }).click();
-  const torrentGrid = page.getByRole("grid", { name: "Torrent library" });
+  await page.getByRole("button", { name: "Torrents", exact: true }).click();
+  const torrentGrid = page.getByRole("grid", { name: "Torrents", exact: true });
   await torrentGrid.getByText(fixture.file_name, { exact: true }).click();
   await page.getByRole("tab", { name: "Files" }).click();
   const fileGrid = page.getByRole("grid", { name: "Torrent files" });

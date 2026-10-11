@@ -63,6 +63,11 @@ const DRIVER_FALLBACK_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60);
 const STATS_INTERVAL: Duration = Duration::from_millis(250);
 const DATA_CHANNEL_LABEL: &str = "rstorrent-direct-file-v1";
 
+use crate::send_window::{MAX_SEND_WINDOW_BYTES, SendWindow, valid_window_bytes};
+
+// Four chunks overlap disk/network/write-credit latency without changing v1.
+const SEND_WINDOW_BYTES: usize = MAX_SEND_WINDOW_BYTES;
+
 type SharedApplication = Arc<Mutex<ApplicationService>>;
 
 #[derive(Debug)]
@@ -237,6 +242,7 @@ trait LazyEndpointStarter: Send + Sync {
 
 struct RtcEndpointStarter {
     application: SharedApplication,
+    send_window_bytes: usize,
 }
 
 impl LazyEndpointStarter for RtcEndpointStarter {
@@ -252,6 +258,7 @@ impl LazyEndpointStarter for RtcEndpointStarter {
             bind_ip,
             Vec::new(),
             offer,
+            self.send_window_bytes,
         ))
     }
 
@@ -261,6 +268,7 @@ impl LazyEndpointStarter for RtcEndpointStarter {
         offer: RTCSessionDescription,
     ) -> ProductEndpointStartFuture {
         let application = self.application.clone();
+        let send_window_bytes = self.send_window_bytes;
         Box::pin(async move {
             validate_offer(&offer)?;
             let (bind_ip, stun_addresses) = match resolve_stun_route().await {
@@ -270,7 +278,15 @@ impl LazyEndpointStarter for RtcEndpointStarter {
                     None => return Err(stun_error),
                 },
             };
-            answer_offer(application, capability, bind_ip, stun_addresses, offer).await
+            answer_offer(
+                application,
+                capability,
+                bind_ip,
+                stun_addresses,
+                offer,
+                send_window_bytes,
+            )
+            .await
         })
     }
 }
@@ -281,8 +297,22 @@ impl DirectFileEndpointFactory {
             // The dynamic lazy boundary makes the actual start path part of a
             // feature-on product binary while leaving all WebRTC resources
             // unopened until signaling supplies an offer.
-            starter: Arc::new(RtcEndpointStarter { application }),
+            starter: Arc::new(RtcEndpointStarter {
+                application,
+                send_window_bytes: SEND_WINDOW_BYTES,
+            }),
         }
+    }
+
+    /// Bounded experiment control; product hosts use the measured constant.
+    #[cfg(feature = "experiment")]
+    pub fn with_send_window(application: SharedApplication, bytes: usize) -> Option<Self> {
+        valid_window_bytes(bytes).then(|| Self {
+            starter: Arc::new(RtcEndpointStarter {
+                application,
+                send_window_bytes: bytes,
+            }),
+        })
     }
 
     pub fn idle_snapshot(&self) -> DirectFileEndpointSnapshot {
@@ -316,7 +346,9 @@ async fn answer_offer(
     bind_ip: IpAddr,
     stun_addresses: Vec<SocketAddr>,
     offer: RTCSessionDescription,
+    send_window_bytes: usize,
 ) -> Result<(OfferAnswer, DirectFileEndpoint), DirectFileEndpointError> {
+    debug_assert!(valid_window_bytes(send_window_bytes));
     let remote_fingerprint = validate_offer(&offer)?;
     {
         let mut application = application.lock().await;
@@ -418,6 +450,7 @@ async fn answer_offer(
             command_rx,
             driver_cancellation,
             driver_metrics.clone(),
+            send_window_bytes,
         )
         .await;
         driver_metrics.active_tasks.store(0, Ordering::Release);
@@ -555,6 +588,7 @@ async fn run_driver(
     mut commands: mpsc::Receiver<EndpointCommand>,
     cancellation: CancellationToken,
     metrics: Arc<EndpointMetrics>,
+    send_window_bytes: usize,
 ) -> Result<(), DirectFileEndpointError> {
     let (outbound_tx, mut outbound_rx) = mpsc::channel::<OutboundFrame>(8);
     let mut pending = VecDeque::<OutboundFrame>::new();
@@ -662,7 +696,8 @@ async fn run_driver(
                         );
                     } else {
                         let request_cancellation = cancellation.child_token();
-                        let (ack_tx, ack_rx) = mpsc::channel(1);
+                        let (ack_tx, ack_rx) =
+                            mpsc::channel(MAX_SEND_WINDOW_BYTES / MAX_CHUNK_BYTES + 1);
                         requests.insert(
                             request_id,
                             ActiveRequest {
@@ -689,6 +724,7 @@ async fn run_driver(
                                 outbound,
                                 request_cancellation,
                                 request_metrics,
+                                send_window_bytes,
                             )
                             .await;
                             (request_id, terminal)
@@ -705,7 +741,22 @@ async fn run_driver(
                     next_offset,
                 }) => {
                     if let Some(request) = requests.get(&request_id) {
-                        let _ = request.ack.try_send(next_offset);
+                        if request.cancellation.is_cancelled() {
+                            continue;
+                        }
+                        if matches!(
+                            request.ack.try_send(next_offset),
+                            Err(mpsc::error::TrySendError::Full(_))
+                        ) {
+                            // An honest peer has at most four unacknowledged chunks.
+                            // Never silently drop the last credit or grow a flood queue.
+                            request.cancellation.cancel();
+                            try_queue_frame(
+                                &outbound_tx,
+                                &metrics,
+                                encode_range_error(request_id, RangeErrorCode::Malformed),
+                            );
+                        }
                     }
                 }
                 Err(_) => try_queue_frame(
@@ -736,6 +787,13 @@ async fn run_driver(
                 channel
                     .send(BytesMut::from(frame.bytes.as_slice()))
                     .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
+                let buffered = channel.outstanding_bytes();
+                metrics
+                    .transport_buffered_bytes
+                    .store(buffered, Ordering::Release);
+                metrics
+                    .transport_high_water
+                    .fetch_max(buffered, Ordering::AcqRel);
                 metrics
                     .queued_bytes
                     .fetch_sub(frame.bytes.len(), Ordering::AcqRel);
@@ -868,6 +926,7 @@ async fn run_range_request(
     outbound: mpsc::Sender<OutboundFrame>,
     cancellation: CancellationToken,
     metrics: Arc<EndpointMetrics>,
+    send_window_bytes: usize,
 ) -> &'static str {
     let lease = {
         let mut application = application.lock().await;
@@ -913,10 +972,39 @@ async fn run_range_request(
         return "queue_closed";
     }
 
-    let mut current = offset;
-    while current < end {
-        let chunk_length = usize::try_from((end - current).min(MAX_CHUNK_BYTES as u64))
-            .expect("bounded chunk fits usize");
+    let mut window = SendWindow::new(offset, end, send_window_bytes);
+    while !window.complete() {
+        let Some((current, chunk_length)) = window.next_chunk() else {
+            let acknowledged = tokio::select! {
+                _ = cancellation.cancelled() => return "cancelled",
+                result = tokio::time::timeout(REQUEST_INACTIVE_TIMEOUT, acknowledgements.recv()) => result,
+            };
+            match acknowledged {
+                Ok(Some(next)) => match window.acknowledge(next) {
+                    Ok(released) => lease.touch_served(released),
+                    Err(()) => {
+                        queue_frame(
+                            &outbound,
+                            &metrics,
+                            encode_range_error(request_id, RangeErrorCode::Malformed),
+                        )
+                        .await;
+                        return "invalid_ack";
+                    }
+                },
+                Ok(None) => return "driver_closed",
+                Err(_) => {
+                    queue_frame(
+                        &outbound,
+                        &metrics,
+                        encode_range_error(request_id, RangeErrorCode::Inactive),
+                    )
+                    .await;
+                    return "inactive";
+                }
+            }
+            continue;
+        };
         let ready = lease.wait_for_range(current, chunk_length);
         let ready = tokio::select! {
             _ = cancellation.cancelled() => return "cancelled",
@@ -954,36 +1042,7 @@ async fn run_range_request(
         if !queue_frame(&outbound, &metrics, frame).await {
             return "queue_closed";
         }
-        let expected_next = current + chunk_length as u64;
-        let acknowledged = tokio::select! {
-            _ = cancellation.cancelled() => return "cancelled",
-            result = tokio::time::timeout(REQUEST_INACTIVE_TIMEOUT, acknowledgements.recv()) => result,
-        };
-        match acknowledged {
-            Ok(Some(next)) if next == expected_next => {
-                lease.touch_served(chunk_length);
-                current = expected_next;
-            }
-            Ok(Some(_)) => {
-                queue_frame(
-                    &outbound,
-                    &metrics,
-                    encode_range_error(request_id, RangeErrorCode::Malformed),
-                )
-                .await;
-                return "invalid_ack";
-            }
-            Ok(None) => return "driver_closed",
-            Err(_) => {
-                queue_frame(
-                    &outbound,
-                    &metrics,
-                    encode_range_error(request_id, RangeErrorCode::Inactive),
-                )
-                .await;
-                return "inactive";
-            }
-        }
+        window.record_sent(chunk_length);
     }
     queue_frame(&outbound, &metrics, encode_range_complete(request_id)).await;
     "complete"

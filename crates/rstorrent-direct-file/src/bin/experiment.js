@@ -231,6 +231,7 @@ function onMessage(event) {
     const offset = Number(view.getBigUint64(6));
     const payload = bytes.slice(14);
     request.chain = request.chain.then(async () => {
+      if (requests.get(requestId) !== request) return;
       if (offset !== request.nextOffset) throw new Error("non-contiguous range chunk");
       request.hash.update(payload);
       request.bytes += payload.length;
@@ -246,6 +247,17 @@ function onMessage(event) {
       if (request.delayMillis) {
         await new Promise((resolve) => setTimeout(resolve, request.delayMillis));
       }
+      if (requests.get(requestId) !== request) return;
+      if (request.invalidAck) {
+        if (!request.invalidAckSent) {
+          request.invalidAckSent = true;
+          const next = request.invalidAck === "future" ? request.nextOffset + 65536 : request.nextOffset;
+          const count = request.invalidAck === "flood" ? 10 : request.invalidAck === "duplicate" ? 2 : 1;
+          for (let index = 0; index < count; index++) channel.send(ackFrame(requestId, next));
+        }
+        return;
+      }
+      if (request.withholdAck) return;
       channel.send(ackFrame(requestId, request.nextOffset));
     }).catch(request.reject);
     return;
@@ -287,6 +299,8 @@ function range(offset, length, options = {}) {
       close: options.close,
       delayMillis: options.delayMillis || 0,
       cancelAfterFirstChunk: options.cancelAfterFirstChunk || false,
+      invalidAck: options.invalidAck,
+      withholdAck: options.withholdAck || false,
       resolve,
       reject,
     });
@@ -353,6 +367,39 @@ async function run() {
   }
   if (!cancellationObserved) throw new Error("range cancellation was not observed");
 
+  const invalidAcksRejected = [];
+  for (const invalidAck of ["future", "duplicate", "flood"]) {
+    let rejected = false;
+    try { await range(0, fixture.length, { invalidAck }); }
+    catch (error) { rejected = error.message === "range error 1"; }
+    if (!rejected) throw new Error(`${invalidAck} ACK was not rejected`);
+    invalidAcksRejected.push(invalidAck);
+  }
+
+  // A consumer that never releases write credit must stop at the bounded
+  // window, with no continuing reads or accumulating payload.
+  const beforeStall = await fetch("/status").then((response) => response.json());
+  const stalled = range(0, fixture.length, { withholdAck: true });
+  const stalledRequestId = nextRequestId - 1;
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  const stalledStatus = await fetch("/status").then((response) => response.json());
+  const stalledBytes = stalledStatus.bytes_sent - beforeStall.bytes_sent;
+  if (stalledBytes <= 0 || stalledBytes > 65536) throw new Error(`unbounded stalled bytes: ${stalledBytes}`);
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  const stillStalled = await fetch("/status").then((response) => response.json());
+  if (stillStalled.bytes_sent !== stalledStatus.bytes_sent) throw new Error("stalled producer kept sending");
+  const stalledRejected = stalled.catch((error) => error.message);
+  let inactivityObserved = false;
+  if (window.__checkInactivity) {
+    inactivityObserved = await stalledRejected === "range error 7";
+    if (!inactivityObserved) throw new Error("stalled range did not time out");
+  } else {
+    channel.send(idFrame(CANCEL_REQUEST, stalledRequestId));
+    requests.get(stalledRequestId).reject(new Error("stalled range cancelled"));
+    requests.delete(stalledRequestId);
+    await stalledRejected;
+  }
+
   setPhase("Streaming to OPFS");
   const streamStartedAt = performance.now();
   const streamed = await streamToOpfs(fixture);
@@ -374,6 +421,9 @@ async function run() {
     hostileControlSurvived: true,
     outOfRangeRejected,
     cancellationObserved,
+    invalidAcksRejected,
+    stalledBytes,
+    inactivityObserved,
     streamed,
     timing: {
       connectElapsedMillis,

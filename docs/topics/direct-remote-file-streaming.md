@@ -2,9 +2,13 @@
 
 Topic: `direct-remote-file-streaming`
 
-Tactical [307](../tactical/307-direct-file-save-throughput.md) measures and
-improves completed-file Save with bounded producer credit and the production
-browser consumer. Large remote saves target Chrome/Edge's streaming file
+Completed local Tactical [307](../tactical/307-direct-file-save-throughput.md)
+improves completed-file Save with a four-chunk/64-KiB producer window and
+independently bounded browser receive work. Repeated local 256-MiB disk saves
+improve from 36.82 to 51.70 MiB/s; exact bytes, concurrent/adversarial requests,
+actual inactivity, previous-consumer compatibility, authenticated product
+verification and Rust/web checks pass. This does not qualify a WAN or external
+save picker. Large remote saves target Chrome/Edge's streaming file
 writer; Firefox/Safari large-file support is deferred by maintainer direction.
 The existing 32-MiB Blob fallback remains. OPFS is a disk-backed benchmark
 destination only, not a production save policy. Open/Play stays deferred.
@@ -347,10 +351,22 @@ application/profile owner
                       -> DataChannel backpressure
 ```
 
-The first slice uses one reliable ordered channel, one sequential request, and
-16-KiB maximum chunks because the retained SCTP stack does not expose RFC 8260
-message interleaving. Browser writes complete before acknowledgements advance
-the host, and both sides bound messages and queued bytes.
+The Save consumer uses one reliable ordered channel and one sequential range
+request. Tactical 307 permits four 16-KiB chunks (64 KiB) of unacknowledged
+payload per range, overlapping reads/delivery with browser writes while
+preserving v1 frames and older consumers' per-chunk ACKs. The retained SCTP
+stack does not expose RFC 8260 message interleaving, so chunk size is unchanged.
+Only completed browser writes release producer credit, and RangeComplete waits
+for final credit. The host accepts only forward ACKs at produced boundaries,
+bounds the ACK mailbox to five entries, and rejects floods rather than dropping
+credit. The existing 512-KiB application and transport ceilings still apply.
+
+The browser separately caps pending receive frames at 16 and encoded bytes at
+128 KiB, rejects oversized frames before conversion, and discards queued work
+after failure or cancellation. One current payload copy and any Blob conversion
+are additional bounded chunk allocations; these limits are not a ceiling on
+the browser's internal SCTP buffers or process RSS. Saved content is committed
+only by writer close. The 32-MiB Blob fallback remains intentionally separate.
 
 Cancellation flows from file-request cancel, capability or authorization
 revocation, direct-peer replacement, timeout, profile replacement,

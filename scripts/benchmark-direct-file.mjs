@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Local transport/writer benchmark. Never uses an installed browser or profile.
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
+import { readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { cpus } from "node:os";
+import { cpus, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { once } from "node:events";
@@ -21,7 +21,7 @@ function option(name, fallback) {
 const sizes = option("--sizes", "64,256").split(",").map(Number);
 const repeats = Number(option("--repeats", "3"));
 const ackDelayMs = Number(option("--ack-delay-ms", "0"));
-const windowKiB = option("--window-kib", undefined);
+const windowKiB = option("--window-kib", "64");
 const sinks = option("--sinks", "opfs,drain").split(",");
 assert(sizes.every((size) => Number.isInteger(size) && size >= 1 && size <= 256));
 assert(Number.isInteger(repeats) && repeats >= 1 && repeats <= 10);
@@ -29,25 +29,41 @@ assert(Number.isInteger(ackDelayMs) && ackDelayMs >= 0 && ackDelayMs <= 100);
 assert(sinks.every((sink) => ["opfs", "drain"].includes(sink)));
 if (windowKiB !== undefined) assert(["16", "32", "64"].includes(windowKiB));
 
-const source = await readFile(join(root, "clients/web/src/direct-file-save.ts"), "utf8");
+const consumerRef = option("--consumer-ref", undefined);
+if (consumerRef !== undefined) assert(/^[a-f0-9]{7,40}$/.test(consumerRef));
+let source;
+if (consumerRef) {
+  const result = spawnSync("git", ["show", `${consumerRef}:clients/web/src/direct-file-save.ts`], { cwd: root, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  source = result.stdout;
+} else source = await readFile(join(root, "clients/web/src/direct-file-save.ts"), "utf8");
 const { code } = await transformWithOxc(source, "direct-file-save.ts");
 const driver = await readFile(join(root, "scripts/lib/direct-file-benchmark-browser.js"), "utf8");
 const html = await readFile(join(root, "crates/rstorrent-direct-file/src/bin/experiment.html"), "utf8");
-const browser = await chromium.launch({ headless: true });
+const temporary = await mkdtemp(join(tmpdir(), "jstorrent-direct-benchmark-"));
+const browser = await chromium.launch({ headless: true }).catch(async (error) => {
+  await rm(temporary, { recursive: true, force: true });
+  throw error;
+});
 const samples = [];
 let child;
+const interrupted = async () => { await stopChild(); await browser.close(); };
+process.once("SIGINT", interrupted);
+process.once("SIGTERM", interrupted);
 try {
   for (const size of sizes) {
     const fixtureArgs = ["--fixture-mib", String(size)];
     if (windowKiB !== undefined) fixtureArgs.push("--window-kib", windowKiB);
-    child = spawn(join(root, "target/release/rstorrent-direct-file-experiment"), fixtureArgs, {
+    child = spawn(join(root, `target/release/rstorrent-direct-file-experiment${process.platform === "win32" ? ".exe" : ""}`), fixtureArgs, {
       cwd: root, stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, TMPDIR: temporary, TEMP: temporary, TMP: temporary },
     });
     let stderr = "";
     child.stderr.on("data", (data) => { stderr = (stderr + data).slice(-8192); });
     const ready = await new Promise((resolveReady, reject) => {
       let output = "";
       const timeout = setTimeout(() => reject(new Error(`fixture startup timeout: ${stderr}`)), 60_000);
+      child.once("error", (error) => { clearTimeout(timeout); reject(error); });
       child.once("exit", (exit) => { clearTimeout(timeout); reject(new Error(`fixture exited ${exit}: ${stderr}`)); });
       child.stdout.on("data", (data) => {
         output += data;
@@ -55,6 +71,28 @@ try {
         if (line) { clearTimeout(timeout); resolveReady(JSON.parse(line.slice(line.indexOf(" ") + 1))); }
       });
     });
+    if (args.includes("--protocol-checks")) {
+      const context = await browser.newContext();
+      try {
+        const page = await context.newPage();
+        await page.goto(ready.url);
+        if (args.includes("--inactivity-checks")) await page.evaluate(() => { window.__checkInactivity = true; });
+        await page.locator("#start").click();
+        await page.waitForFunction(() => window.__result !== undefined, undefined, { timeout: 90_000 });
+        const result = await page.evaluate(() => window.__result);
+        assert.equal(result.ok, true, JSON.stringify(result));
+        assert.equal(result.verifiedRanges, 4);
+        assert.deepEqual(result.invalidAcksRejected, ["future", "duplicate", "flood"]);
+        if (args.includes("--inactivity-checks")) assert.equal(result.inactivityObserved, true);
+        assert(result.server.queue_high_water <= 512 * 1024);
+        assert(result.server.transport_high_water <= 512 * 1024);
+        await page.locator("#close").click();
+        await page.waitForFunction(() => window.__terminal !== undefined);
+        const terminal = await page.evaluate(() => window.__terminal);
+        assert.equal(terminal.active_tasks + terminal.open_sockets + terminal.active_requests + terminal.queued_bytes + terminal.transport_buffered_bytes, 0);
+        process.stderr.write(`${JSON.stringify({ protocolChecks: result, terminal })}\n`);
+      } finally { await context.close(); }
+    }
     for (const sink of sinks) {
       for (let repetition = 1; repetition <= repeats; repetition++) {
         const context = await browser.newContext();
@@ -80,7 +118,7 @@ try {
           assert.equal(result.snapshot.fingerprint_verified, true);
           assert(result.snapshot.queue_high_water <= 512 * 1024);
           assert(result.snapshot.transport_high_water <= 512 * 1024);
-          const sample = { sizeMiB: size, sink, repetition, windowKiB: windowKiB ?? 16, ackDelayMs, ...result };
+          const sample = { sizeMiB: size, sink, repetition, windowKiB: Number(windowKiB ?? 16), ackDelayMs, ...result };
           samples.push(sample);
           process.stderr.write(`${JSON.stringify(sample)}\n`);
         } finally { await context.close(); }
@@ -90,7 +128,7 @@ try {
   }
   const report = {
     environment: { platform: process.platform, architecture: process.arch, cpu: cpus()[0]?.model,
-      browser: browser.version(), build: "release", consumer: "clients/web/src/direct-file-save.ts" },
+      browser: browser.version(), build: "release", consumer: "clients/web/src/direct-file-save.ts", consumerRef },
     limitations: "Same-machine direct host candidates; local experiment signaling adapter, no relay/auth qualification. OPFS substitutes for external picker only in harness. Delayed ACK is application delay, not WAN emulation. Verification allocations occur after transfer timing. Drain checks deterministic bytes without retaining payload.",
     samples,
   };
@@ -99,12 +137,19 @@ try {
   if (output) await writeFile(resolve(output), json);
   process.stdout.write(json);
 } finally {
-  await stopChild();
-  await browser.close();
+  try { await stopChild(); }
+  finally {
+    try { await browser.close(); }
+    finally {
+      await rm(temporary, { recursive: true, force: true });
+      process.removeListener("SIGINT", interrupted);
+      process.removeListener("SIGTERM", interrupted);
+    }
+  }
 }
 
 async function stopChild() {
-  if (!child || child.exitCode !== null) { child = undefined; return; }
+  if (!child || !child.pid || child.exitCode !== null || child.signalCode !== null) { child = undefined; return; }
   const stopping = child;
   child = undefined;
   const exited = once(stopping, "exit");

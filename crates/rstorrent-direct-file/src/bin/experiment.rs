@@ -73,7 +73,7 @@ struct ReadyView {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mode = parse_mode()?;
+    let (mode, send_window_bytes) = parse_mode()?;
     let fixture_mib = match &mode {
         ExperimentMode::Serve { fixture_mib }
         | ExperimentMode::PrepareProfile { fixture_mib, .. } => *fixture_mib,
@@ -114,7 +114,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         expected_host: Arc::from(address.to_string()),
         udp_ip,
         capability: Arc::from(token),
-        factory: DirectFileEndpointFactory::new(application.clone()),
+        factory: DirectFileEndpointFactory::with_send_window(
+            application.clone(),
+            send_window_bytes,
+        )
+        .ok_or("window must be 16, 32 or 64 KiB")?,
         endpoint: Arc::new(Mutex::new(None)),
         last_snapshot: Arc::new(Mutex::new(None)),
         fixture: fixture_view,
@@ -171,14 +175,25 @@ enum ExperimentMode {
     },
 }
 
-fn parse_mode() -> Result<ExperimentMode, Box<dyn std::error::Error>> {
+fn parse_mode() -> Result<(ExperimentMode, usize), Box<dyn std::error::Error>> {
     let mut arguments = std::env::args().skip(1);
     let mut fixture_mib = DEFAULT_FIXTURE_MIB;
+    let mut send_window_bytes = 64 * 1024;
     let mut profile_root = None;
     let mut payload_root = None;
     let mut profile_id = None;
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
+            "--window-kib" => {
+                let kib: usize = arguments
+                    .next()
+                    .ok_or("--window-kib requires a value")?
+                    .parse()?;
+                if !matches!(kib, 16 | 32 | 64) {
+                    return Err("window must be 16, 32 or 64 KiB".into());
+                }
+                send_window_bytes = kib * 1024;
+            }
             "--fixture-mib" => {
                 fixture_mib = arguments
                     .next()
@@ -204,15 +219,16 @@ fn parse_mode() -> Result<ExperimentMode, Box<dyn std::error::Error>> {
         }
     }
     match (profile_root, payload_root, profile_id) {
-        (None, None, None) => Ok(ExperimentMode::Serve { fixture_mib }),
-        (Some(profile_root), Some(payload_root), Some(profile_id)) => {
-            Ok(ExperimentMode::PrepareProfile {
+        (None, None, None) => Ok((ExperimentMode::Serve { fixture_mib }, send_window_bytes)),
+        (Some(profile_root), Some(payload_root), Some(profile_id)) => Ok((
+            ExperimentMode::PrepareProfile {
                 fixture_mib,
                 profile_root,
                 payload_root,
                 profile_id,
-            })
-        }
+            },
+            send_window_bytes,
+        )),
         _ => Err(
             "profile preparation requires --prepare-profile, --payload-root, and --profile-id"
                 .into(),

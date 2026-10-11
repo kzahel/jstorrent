@@ -122,6 +122,13 @@ only inside the harness, and saved SHA-256 is checked after timing. The local
 experiment signaling adapter does not replace the authenticated product
 verifier or qualify external save-picker behavior. Tactical
 [307](../tactical/307-direct-file-save-throughput.md) owns results and limits.
+`--window-kib 16`, `32` and `64` reproduce the stop-and-wait baseline and
+bounded window alternatives; the default is 64. `--protocol-checks --sizes 8
+--repeats 1` also exercises four concurrent ranges, invalid/flooded ACKs,
+stalled credit and cancellation against the native endpoint.
+Add `--inactivity-checks` to wait for the actual 60-second stalled-credit
+deadline. `--consumer-ref <commit-sha>` uses that revision's production save
+consumer against the current native endpoint for compatibility checks.
 
 [`scripts/android-runtime-smoke.py`](../../scripts/android-runtime-smoke.py)
 owns a fresh API 35 AVD for the product SAF selection/restart/recheck/removal

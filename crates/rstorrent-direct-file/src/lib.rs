@@ -6,6 +6,8 @@
 //! the ICE, DTLS, SCTP, and certificate dependency graph.
 
 pub mod codec;
+#[cfg(feature = "webrtc")]
+mod send_window;
 
 #[cfg(feature = "webrtc")]
 mod endpoint;

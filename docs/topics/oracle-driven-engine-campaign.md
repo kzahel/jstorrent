@@ -2,12 +2,15 @@
 
 Topic: `oracle-driven-engine-campaign`
 
-Tactical [307](../tactical/307-direct-file-save-throughput.md) owns a bounded
-direct-file throughput investigation. Its source/specification review,
-host-only platform applicability and owner/cancellation map are recorded.
-Restart checkpoint: benchmark the one-chunk production save path, then compare
-bounded windows with integrity and queue high-water evidence. Other active
-engine and qualification tacticals remain independent.
+Completed local Tactical [307](../tactical/307-direct-file-save-throughput.md)
+selects a four-chunk/64-KiB direct-file write-credit window: repeated 256-MiB
+disk saves improve from 36.82 to 51.70 MiB/s on the controlled local host.
+Its source review, host-only applicability, owner map, bounded queues, exact
+bytes, real inactivity timeout, previous-consumer compatibility, authenticated
+product verifier and passing Rust/web checks are recorded. Restart checkpoint:
+this slice is complete; external picker/independent-network qualification
+remain with 196 and any further throughput work starts from 307's measured
+baseline. Other active engine and qualification tacticals remain independent.
 
 Completed [258](../tactical/258-cross-surface-branding-and-design-audit.md)
 changes only engine-facing presentation labels: RS peer-ID display and UPnP
