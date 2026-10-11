@@ -1,6 +1,9 @@
 # Tactical 304: Fast PR Feedback And CI Benchmarks
 
-Status: **Active (2026-10-11).** Maintainer-authorized CI improvement slice.
+Status: **Complete (2026-10-11).** Merged lane, focused hosted measurements,
+automatic exact-head reviews and trusted-main cache warming/restoration qualify.
+The 3--5 minute target is met on the controlled focused repeat; queueing under
+concurrent qualification and reviewer-tooling gaps remain explicit follow-ups.
 
 Topics: `beta-release-readiness`, `agent-pr-review`
 
@@ -64,7 +67,7 @@ Choose the profile from build plus runtime evidence, not compilation alone.
 ## Execution Checkpoint
 
 The separate Fast CI workflow and green-only automatic reviewer selection are
-implemented locally. Full CI job names, platform/release coverage and repository
+merged. Full CI job names, platform/release coverage and repository
 protection remain unchanged. Fast lint follows portable transitive dependents;
 unit execution is limited to directly changed libraries. Shared/unknown inputs
 select all portable libraries. Contract regeneration is selected when gateway
@@ -88,9 +91,9 @@ with warnings denied; web typecheck/unit/build pass. The temporary candidate
 Cargo configuration also compiles protocol tests successfully. The default
 profile's protocol/engine/session/gateway cohort passes 1,298 tests with 17
 existing feature-dependent ignores; the contract command has no generated drift.
-The qualification branch is rebased onto canonical-name qualification
-`726664e6`; Tactical 305 owns provider identity acceptance. Automatic review
-remains disabled independently of this draft PR.
+The initial qualification branch was rebased onto canonical-name qualification
+`726664e6`; Tactical 305 owns provider identity acceptance. Qualification began
+with automatic review disabled independently of the draft PR.
 
 Draft [PR 26](https://github.com/kzahel/jstorrent/pull/26), initial head
 `4ac53d407dba9d8d6d0457fb82b978efd64cd429`, passes all Fast CI jobs in 14m02s
@@ -108,3 +111,35 @@ The contract job restores an exact cache match and completes in 2m17s alongside
 Rust. Full CI continues independently. Next: after this lane lands on main,
 measure a representative focused PR with a completed dependency cache before
 claiming the 3--5 minute target or enabling automatic reviews.
+
+PR 26 is merged at `6ad208d4` after exact-head Fast CI (12m39s) and full
+qualification (56m05s) pass. Automatic review is enabled. The focused probe
+PR 27 passes 603 engine tests and every selected fast check; its Rust job takes
+4m01s with the ordinary 1.5 GB main cache restored. Total Fast CI takes 9m34s,
+including 4m55s waiting for the Rust runner. The disposable probe's full matrix
+is cancelled to isolate build latency, while main qualification continues.
+This does not establish ordinary 3--5 minute end-to-end feedback.
+
+The exact successful Fast CI event automatically starts review 38149228310;
+real inference, offline Rust identity tests and commit-bound publication pass.
+The cold reviewer workflow takes 6m03s. Trusted-main reviewer cache warming
+passes: locked workspace tests compile in 23m05s and a 2.25 GB main-only cache
+is saved. The second focused measurement passes in 4m00s, including 603 engine
+tests. Rust takes 3m24s with a two-second runner wait. The probe's redundant
+full/performance runs are cancelled early; this does not guarantee low queue
+latency under ordinary concurrent PR/main qualification. A missing rustfmt component
+is reported rather than treated as successful formatting; Fast CI supplies that
+check. Keep runner scheduling and reviewer format/lint components as explicit
+bounded follow-ups. Detailed timings and cache distinctions are in the evidence
+record; the ordinary optimized profiles and full qualification coverage remain
+unchanged.
+
+Automatic repeat review 38150705796 restores the 2.25 GB trusted-main cache in
+37s and publishes a COMMENT bound to `abc14750`. It reports all ten focused
+identity tests passing offline. The workflow takes 7m21s versus 6m03s for the
+cold review, so cache reuse is verified without claiming a speedup. The reviewer
+also reports an absent shell profile/Rust login-shell PATH and recovers through
+`/usr/local/cargo/env`. Next bounded work: schedule heavy qualification after
+fast feedback to protect runner capacity, and supply reviewer formatting/lint
+tools and a predictable shell environment. Neither follow-up changes engine
+behavior, production architecture or the full qualification test inventory.

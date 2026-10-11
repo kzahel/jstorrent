@@ -106,10 +106,32 @@ reported the focused Node check's expected two passes and one failure. The
 publisher posted a COMMENT review and an inline finding on line 3, both bound
 to head `cfc582203ac0baecedf4cfc9d082dd2281864e65`.
 
-This qualifies real inference, hosted OIDC enrollment, container execution and
-commit-bound publication. Automatic CI-triggered reviews and trusted main cache
-warming remain disabled and have not been exercised. The sample's normal CI was
-cancelled to keep qualification bounded; this is not full platform/build evidence.
+This initial sample qualifies real inference, hosted OIDC enrollment, container
+execution and commit-bound publication. Its normal CI was cancelled to keep
+qualification bounded; this is not full platform/build evidence.
+
+After [PR 26](https://github.com/kzahel/jstorrent/pull/26) passed full
+qualification and merged, automatic review/cache activation was enabled.
+The first successful focused Fast CI event for
+[probe PR 27](https://github.com/kzahel/jstorrent/pull/27) automatically starts
+[review 38149228310](https://github.com/kzahel/jstorrent/actions/runs/38149228310).
+The review and publisher pass in 6m03s, bound to head
+`3a7d2b4bdb6f48754b747cf596144ad1e9bddbec`. The reviewer builds and runs all
+ten focused engine identity tests offline and reports no introduced bugs.
+Its separate container build cache misses. Trusted-main warming subsequently
+compiles locked workspace tests in 23m05s and saves a 2.25 GB cache. Repeat
+[review 38150705796](https://github.com/kzahel/jstorrent/actions/runs/38150705796)
+restores that exact cache in 37s and publishes against `abc14750`, reporting
+all ten focused identity tests passing offline. It completes in 7m21s; this
+pair establishes cache reuse, not a review-latency improvement. The image lacks
+rustfmt, which the review reports explicitly; Fast CI provides formatting
+evidence. Installing reviewer
+format/lint components is a bounded tooling follow-up, not a claim that they ran.
+The repeat also reports an absent shell profile and Rust login-shell PATH;
+sourcing `/usr/local/cargo/env` recovers. Supply a predictable reviewer shell
+environment in the same tooling follow-up.
+Tactical 304's [evidence](../evidence/304-fast-ci-benchmarks-2026-10-11.md)
+distinguishes queue delay, fast-job runtime and reviewer-cache state.
 
 OpenAI documents API keys as the automation default and explicitly excludes
 public/open-source repositories from its advanced subscription-auth CI recipe.
@@ -143,8 +165,10 @@ the private gateway's unauthenticated 401 boundary and ephemeral-node removal.
 Initial live attempts exposed the action's duplicate subnet-route flag and
 absolute finding paths; both were corrected before the successful run. The
 sample review reported an absent container shell profile, but its installed Node
-executable ran the focused checks. Rust workspace build/cache qualification is
-still outstanding. A review failure is advisory and does not replace required CI.
+executable ran the focused checks. The focused Rust identity build/test is now
+hosted-qualified; trusted-main workspace test compilation and cache saving are
+also qualified, and the repeat review verifies exact-key cache restoration.
+A review failure is advisory and does not replace required CI.
 
 Disable new runs with `AGENT_REVIEW_ENABLED=false`; revoke the gateway token and
 OIDC identity separately when retiring access. No automatic retry or fallback
@@ -154,6 +178,7 @@ changes provider authentication ownership.
 
 Tactical [305](../tactical/305-canonical-jstorrent-repository.md) retargets the
 controller and workflow to `kzahel/jstorrent`. The Rust repository ID is
-unchanged; owner/main/head-SHA and fork rejection stay exact. Automatic review
-remains disabled while the existing OIDC identity is retargeted and qualified
-under the same private network/tag/scope restrictions.
+unchanged; owner/main/head-SHA and fork rejection stay exact. The retargeted
+OIDC identity passes the authentication-only canary and the automatic probe
+review under the same private network/tag/scope restrictions. Automatic review
+is enabled; provider authentication remains owned by the persistent home router.
