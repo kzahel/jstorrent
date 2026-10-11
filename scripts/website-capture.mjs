@@ -43,7 +43,8 @@ const server = createServer(async (request, response) => {
   } catch { response.writeHead(400); response.end('Bad request'); }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const base = `http://127.0.0.1:${server.address().port}`;
+// An explicit hosted origin runs the same acceptance checks after deployment.
+const base = process.env.WEBSITE_CAPTURE_BASE ?? `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ headless: true });
 const receipts = [];
 async function capture(name, url, width, theme, interaction) {

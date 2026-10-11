@@ -1,6 +1,6 @@
 # Tactical 299: Production Website Consolidation
 
-Status: Active, 2026-10-11. Owners: product-surfaces-and-migration and
+Status: Complete, 2026-10-11. Owners: product-surfaces-and-migration and
 beta-release-readiness. A private cross-project plan owns hosting, DNS and
 repository administration; this tactical owns portable source changes.
 
@@ -79,3 +79,17 @@ actual package-level `npm test` command now covers the CI invocation. Public
 hosting remains unchanged by the failed run. The actual retained 17-asset
 0.3.0 capsule independently passes fresh public digests, six original-root
 signatures and all updater URL/signature bindings through the promoter.
+
+Website CI run 38130647899 passes after the invocation fix and deploys the
+source artifact. Its remote manifest verifies all six expected files. The same
+32 browser acceptance views pass against the deployed HTTPS origin, including
+platform selection, theme, direct Download fragments, safe query rendering,
+image decoding, overflow, branding and actual Cloudflare CSP. All five platform
+downloads remain present without JavaScript. The capture runner accepts an
+explicit `WEBSITE_CAPTURE_BASE` so hosted acceptance is repeatable. Screenshots
+and operational receipts stay in the private ignored report directory.
+
+The portable stopping condition is met. DNS delegation, canonical hostname
+binding, domain redirects and repository administration continue under the
+private consolidation checklist; deployed preview acceptance does not claim
+that jstorrent.com has already switched hosting.
