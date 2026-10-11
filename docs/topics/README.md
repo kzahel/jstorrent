@@ -175,3 +175,6 @@ Topics own the current truth for a continuing concern. Tactical docs under
 - [`tracker-discovery.md`](tracker-discovery.md): tracker URL and announce
   lifecycle, bounded results, scheduling direction, and the
   tracker-to-peer-observation boundary.
+
+- [`agent-pr-review.md`](agent-pr-review.md) owns the isolated maintainer PR
+  review lane, credential boundaries, trusted cache and activation evidence.

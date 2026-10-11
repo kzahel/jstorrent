@@ -151,6 +151,9 @@ jobs:
       - name: Lint workflow definitions
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.9
 
+      - name: Verify PR review gates and proxy boundaries
+        run: node --test .github/agent-review/review.test.mjs
+
       - name: Verify backport integrity and failure cases
         run: |
           python3 scripts/glib_backport.py

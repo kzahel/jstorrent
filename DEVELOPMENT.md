@@ -392,6 +392,12 @@ workflow/release-tool checks in independent jobs. A failed extension package
 does not suppress web contract drift, type, unit, production-build, or browser
 coverage. Native desktop, Android, and iOS jobs retain their separate gates.
 
+The optional custom agent PR review lane follows
+[`docs/topics/agent-pr-review.md`](docs/topics/agent-pr-review.md). It uses a
+separate isolated checkout, restores trusted main build caches, and publishes
+commit-bound findings after CI completes. Its explicit GitHub activation switch
+stays disabled until provider renewal and network enrollment are qualified.
+
 To distinguish Rust compilation from test execution using the CI commands:
 
 ```bash
