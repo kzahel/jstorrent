@@ -54,3 +54,21 @@ Marketing source, historical posts and compatibility assets are adapted from
 the MIT-licensed JSTorrent TypeScript repository at
 `e0cb8a3c2ff578f8ca65b1ee820321891789e5b7`. Preserve
 `public/LICENSE.jstorrent-website.txt` and existing brand asset notices.
+
+## Automatic release promotion
+
+`Promote Production Website` handles published production desktop releases,
+successful Desktop Release runs that actually published that capsule, and an
+explicit production-tag dispatch. Incubation/candidate-only runs do not promote.
+For a new version it hashes all 17 public assets, checks the exact checksum
+inventory and source commit, verifies all six original-root payload signatures,
+and binds updater URLs/signatures. It refuses downgrades and mutated versions.
+The currently qualified identical inventory is an idempotent no-op.
+
+Promotion creates one atomic main commit for downloads and published release
+announcements through GitHub's Git API. Stale inventory or a concurrent branch
+advance refuses the write. After persistence it explicitly dispatches Website,
+because a GITHUB_TOKEN commit alone does not trigger the normal push workflow.
+Subsequent website builds therefore retain the promoted version. Signed packages
+and corresponding sources must already be publicly available; the workflow
+cannot manufacture or qualify a missing source archive.

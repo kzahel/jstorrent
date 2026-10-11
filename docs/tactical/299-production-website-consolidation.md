@@ -59,3 +59,15 @@ capture. Per-route exact hashes permit existing marketing scripts without
 broadening remote policy. The old waitlist prototypes redirect to Download;
 prototype retirement is clearly styled. Initial local captures do not qualify
 public deployment; release automation and deployed preview remain next.
+
+Release automation verifies a new public capsule once and atomically persists
+website inventory plus its announcement before explicitly dispatching Website.
+It handles release events and publisher workflow completion (candidate-only
+completion is excluded). Fifty-three metadata/context/security/promotion cases pass;
+live 0.3.0 source/tag/public inventory comparison is an idempotent no-op. No
+release, package or public website inventory is changed by that check.
+
+The Git API transaction tests prove stale-inventory and concurrent-main
+refusals prevent deployment dispatch. Inventory and announcements use one
+atomic tree/commit, preserve intervening announcement content and never force
+main. Existing qualified inventory is a no-op even if an output file remains.

@@ -1,0 +1,78 @@
+name: Promote Production Website
+
+on:
+  release:
+    types: [published]
+  workflow_run:
+    workflows: [Desktop Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published production desktop tag to verify and promote
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-website-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Check out trusted current main
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: main
+      - name: Install Node 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+      - name: Select the actual published production release
+        id: select
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.release_tag }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          node --input-type=module <<'JS'
+          import { execFileSync } from 'node:child_process';
+          import { appendFileSync } from 'node:fs';
+          let tag = process.env.EVENT_NAME === 'workflow_dispatch' ? process.env.INPUT_TAG : process.env.EVENT_TAG;
+          if (process.env.EVENT_NAME === 'workflow_run') {
+            const release = JSON.parse(execFileSync('gh', ['api', `repos/${process.env.REPOSITORY}/releases/latest`], {encoding:'utf8'}));
+            const workflow = `https://github.com/${process.env.REPOSITORY}/actions/runs/${process.env.RUN_ID}`;
+            if (!release.body?.includes(workflow)) { console.log('Completed build did not publish this production release'); process.exit(0); }
+            tag = release.tag_name;
+          }
+          if (!/^desktop-v\d+\.\d+\.\d+$/.test(tag ?? '')) { console.log('Not a production desktop publication'); process.exit(0); }
+          appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\n`);
+          JS
+      - name: Install original-root signature verifier
+        if: steps.select.outputs.tag != ''
+        run: sudo apt-get update && sudo apt-get install -y minisign
+      - name: Verify source, all public bytes and original updater signatures
+        if: steps.select.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.select.outputs.tag }}
+        run: node scripts/promote-website-release.mjs "$REPOSITORY" "$RELEASE_TAG" "$RUNNER_TEMP/website-release.json"
+      - name: Persist verified inventory and dispatch website deployment
+        if: steps.select.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: node scripts/commit-website-promotion.mjs "$REPOSITORY" "$RUNNER_TEMP/website-release.json"
