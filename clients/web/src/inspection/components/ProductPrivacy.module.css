@@ -72,9 +72,9 @@
 }
 
 .actions .primary {
-  border-color: var(--accent);
+  border-color: var(--accent-action);
   color: #fff;
-  background: var(--accent);
+  background: var(--accent-action);
 }
 
 .actions .danger {

@@ -1,5 +1,11 @@
 # Localization
 
+Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
+adds plain first-use statistics labels and Android background setup copy.
+Technical statistics controls and detailed feedback-recipient explanations
+remain in their focused settings/feedback surfaces. English-only shipping and
+all platform locale policies are unchanged.
+
 Tactical [302](../tactical/302-desktop-external-links.md) adds one shared
 English message for external-link opening failure and retry. Raw plugin errors
 are not shown; shipping locale policy and native catalogs remain unchanged.

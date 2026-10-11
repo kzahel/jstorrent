@@ -35,9 +35,6 @@ export function ProductDisclosure({
           {localizedMessage("product.privacy.disclosure.title")}
         </h2>
         <p>{localizedMessage("product.privacy.disclosure.summary")}</p>
-        <p className={styles.detail}>
-          {localizedMessage("product.privacy.recipients.warning")}
-        </p>
         <label className={styles.checkbox}>
           <input
             type="checkbox"
@@ -45,7 +42,7 @@ export function ProductDisclosure({
             disabled={snapshot.busy}
             onChange={(event) => setEnabled(event.currentTarget.checked)}
           />
-          <span>{localizedMessage("product.privacy.include.statistics")}</span>
+          <span>{localizedMessage("product.privacy.disclosure.include")}</span>
         </label>
         {snapshot.error === undefined ? null : (
           <p role="alert" className={styles.error}>{snapshot.error}</p>

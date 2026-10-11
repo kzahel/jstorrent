@@ -202,7 +202,7 @@ def main() -> int:
                 adb.shell("mv", ui.GRANT_PATH, grant_path)
                 snapshot("initial")
                 wait_text("Save and continue")
-                tap("Include pseudonymous usage statistics")
+                tap("Include usage statistics")
                 snapshot("usage-statistics-off")
                 tap("Save and continue")
                 wait_text("Choose a download folder")

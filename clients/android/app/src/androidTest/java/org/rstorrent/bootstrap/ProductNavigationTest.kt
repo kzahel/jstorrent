@@ -888,6 +888,105 @@ class ProductNavigationTest {
     }
 
     @Test
+    fun libraryOffersFolderThenBackgroundEvenWithNotificationsGranted() {
+        var state by mutableStateOf(ProductState(ready = true, storageRootChecking = false))
+        val backgroundChanges = mutableListOf<Boolean>()
+        var permissionOnlyCalls = 0
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = { state = state.copy(storageRootReady = true) },
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = { permissionOnlyCalls += 1 },
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride = state,
+                onBackgroundDownloads = { enabled ->
+                    backgroundChanges += enabled
+                    state = state.copy(
+                        lifecycle = state.lifecycle.copy(
+                            backgroundDownloadsEnabled = enabled,
+                            effectiveBackgroundDownloads = enabled,
+                        ),
+                    )
+                },
+            )
+        }
+        compose.onNodeWithText("Select folder").assertIsDisplayed()
+        compose.onAllNodesWithText("Keep downloading when you leave JSTorrent?").assertCountEquals(0)
+        compose.onNodeWithText("Select folder").performClick()
+        compose.onNodeWithText("Keep downloading when you leave JSTorrent?").assertIsDisplayed()
+        compose.onNodeWithText("Enable").performClick()
+        compose.onAllNodesWithText("Keep downloading when you leave JSTorrent?").assertCountEquals(0)
+        assertEquals(listOf(true), backgroundChanges)
+        assertEquals(0, permissionOnlyCalls)
+        assertEquals(false, state.lifecycle.keepSeedingEnabled)
+    }
+
+    @Test
+    fun libraryBackgroundOfferRemainsAfterDenialAndCanBeDeferred() {
+        val backgroundChanges = mutableListOf<Boolean>()
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = false,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride = ProductState(ready = true, storageRootReady = true, storageRootChecking = false),
+                onBackgroundDownloads = { backgroundChanges += it },
+            )
+        }
+        compose.onNodeWithText("Enable").performClick()
+        compose.onNodeWithText(
+            "Allow notifications to keep downloads running after you leave JSTorrent. Stops when downloads finish.",
+        ).assertIsDisplayed()
+        compose.onNodeWithText("Not now").performClick()
+        compose.onAllNodesWithText("Keep downloading when you leave JSTorrent?").assertCountEquals(0)
+        compose.onNodeWithContentDescription("Add torrent").assertIsDisplayed()
+        assertEquals(listOf(true), backgroundChanges)
+    }
+
+    @Test
+    fun libraryOffersRecoveryForConfiguredButBlockedBackground() {
+        val backgroundChanges = mutableListOf<Boolean>()
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride = ProductState(
+                    ready = true,
+                    storageRootReady = true,
+                    storageRootChecking = false,
+                    lifecycle = ProductLifecycleState(backgroundDownloadsEnabled = true),
+                    notifications = ProductNotificationState(backgroundChannelEnabled = false),
+                ),
+                onBackgroundDownloads = { backgroundChanges += it },
+            )
+        }
+        compose.onNodeWithText("Keep downloading when you leave JSTorrent?").assertIsDisplayed()
+        compose.onNodeWithText("Enable").performClick()
+        assertEquals(listOf(true), backgroundChanges)
+    }
+
+    @Test
     fun notificationSettingsExposePermissionChannelsAndDurableChoices() {
         val changes = mutableListOf<Pair<ProductNotificationPreference, Boolean>>()
         compose.setContent {

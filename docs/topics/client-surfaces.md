@@ -1,5 +1,12 @@
 # Client Surfaces
 
+Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
+shortens the React/Android first-use statistics choice and leaves recipient
+details in the feedback preview. Android Library setup offers a folder first,
+then explicit background downloads with Enable/Not now. Enable uses the existing
+permission-and-preference action; permission alone cannot hide a disabled
+background setting. Background seeding stays separately off by default.
+
 Tactical [308](../tactical/308-android-optional-add-selection.md) makes Android
 magnet selection optional per add. Manual and external magnets offer Download
 all immediately or Choose files; external sources use one concise Add torrent

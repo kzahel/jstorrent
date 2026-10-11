@@ -1189,3 +1189,7 @@ and [`../topics/oracle-driven-engine-campaign.md`](../topics/oracle-driven-engin
 
 - [308 — Optional Android add-time selection](308-android-optional-add-selection.md):
   immediate Download all, optional checklist, concise intake and durable intent.
+
+- [310 — Concise first use and background setup](310-concise-first-use-and-background-setup.md):
+  short statistics choice, folder-first Android setup and notification-gated
+  explicit background continuation; independent seeding and transmission policy.

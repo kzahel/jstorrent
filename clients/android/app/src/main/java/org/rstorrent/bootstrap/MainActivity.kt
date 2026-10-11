@@ -146,7 +146,10 @@ class MainActivity : ComponentActivity() {
                 binder: IBinder,
             ) {
                 val service = (binder as ProductEngineService.LocalBinder).service
-                if (pendingBackgroundEnable && notificationPermissionGranted()) {
+                if (
+                    pendingBackgroundEnable && !pendingNotificationSettingsReturn &&
+                        notificationPermissionGranted()
+                ) {
                     pendingBackgroundEnable = false
                     service.setBackgroundDownloadsEnabled(true)
                 }
@@ -374,6 +377,15 @@ class MainActivity : ComponentActivity() {
                 ProductEngineService.INTERACTION_NOTIFICATION_SETTINGS,
                 false,
             )
+            if (pendingBackgroundEnable && !notificationPermissionGranted()) {
+                pendingBackgroundEnable = false
+                productService.value?.setBackgroundDownloadsEnabled(true)
+            } else if (pendingBackgroundEnable) {
+                productService.value?.let { service ->
+                    pendingBackgroundEnable = false
+                    service.setBackgroundDownloadsEnabled(true)
+                }
+            }
         }
         productService.value?.refreshNotificationEligibility()
     }
@@ -1035,7 +1047,7 @@ class MainActivity : ComponentActivity() {
         }
         val notifications = service.state.value.notifications
         if (!notifications.appNotificationsEnabled || !notifications.backgroundChannelEnabled) {
-            pendingBackgroundEnable = false
+            pendingBackgroundEnable = true
             openNotificationSettings()
             return
         }
@@ -1062,6 +1074,7 @@ class MainActivity : ComponentActivity() {
             )
         }.onFailure {
             pendingNotificationSettingsReturn = false
+            pendingBackgroundEnable = false
             ProductInteractionRegistry.setLease(
                 ProductEngineService.INTERACTION_NOTIFICATION_SETTINGS,
                 false,

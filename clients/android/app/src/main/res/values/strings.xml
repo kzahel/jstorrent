@@ -108,7 +108,10 @@
     <string name="library_waiting_unmetered">Waiting for an unmetered network</string>
     <string name="library_waiting_unmetered_degraded">Network owners could not stop cleanly. JSTorrent will retry when connectivity changes.</string>
     <string name="library_waiting_unmetered_detail">Transfers will resume automatically when an unmetered network is usable.</string>
-    <string name="library_notifications_title">%1$s notifications</string>
+    <string name="library_background_title">Keep downloading when you leave JSTorrent?</string>
+    <string name="library_background_offer">Continue downloads with an ongoing notification. Stops when downloads finish.</string>
+    <string name="library_background_permission">Allow notifications to keep downloads running after you leave JSTorrent. Stops when downloads finish.</string>
+    <string name="action_not_now">Not now</string>
     <string name="library_background_unavailable">JSTorrent works while Android is visible. Leaving Android stops background work.</string>
     <string name="storage_checking_folders">Checking download folders…</string>
     <string name="storage_choose_folder">Choose a download folder</string>
@@ -365,7 +368,7 @@
     <string name="notifications_blocked">Notifications blocked</string>
     <string name="notifications_background_blocked">Background activity blocked</string>
     <string name="notifications_enabled">Notifications enabled</string>
-    <string name="notifications_foreground_status">Android can show foreground status. Background lifetime is still provisional.</string>
+    <string name="notifications_foreground_status">Notifications are allowed. Enable background downloads in Power Management.</string>
     <string name="notifications_download_completed">Download completed</string>
     <string name="notifications_download_completed_detail">Notify when a download genuinely finishes.</string>
     <string name="notifications_needs_attention">Needs attention</string>
@@ -422,8 +425,9 @@
     <string name="settings_report_bug_detail">Help us improve JSTorrent</string>
     <!-- Translator context: Brief nonfatal message when Android cannot open the external feedback website in a browser. -->
     <string name="feedback_open_failed">Feedback could not be opened in a browser.</string>
-    <string name="product_statistics_disclosure_title">Usage statistics and feedback</string>
-    <string name="product_statistics_disclosure_detail">JSTorrent keeps one random resettable installation identifier and coarse counts of added torrents, completed downloads, and foreground sessions. When enabled, the identifier may be used for update counting and these values may be offered with feedback. Torrent names, hashes, paths, peers, trackers, logs, and error text are never included.</string>
+    <string name="product_statistics_disclosure_title">Usage statistics</string>
+    <string name="product_statistics_disclosure_detail">Optional statistics use a random, resettable app identifier and basic usage counts for update counting and feedback. Torrent names and file contents are never included.</string>
+    <string name="product_statistics_first_use_include">Include usage statistics</string>
     <string name="product_statistics_include">Include pseudonymous usage statistics</string>
     <string name="product_statistics_preference_detail">Turning this off removes the stable identifier and counters from every later allowed request. Local counters may continue.</string>
     <string name="product_statistics_summary">Local usage summary</string>

@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -80,8 +81,8 @@ import org.rstorrent.session.uniffi.TorrentView
 internal fun LibraryScreen(
     state: ProductState,
     notificationsGranted: Boolean,
-    onRequestNotifications: () -> Unit,
-    notificationActionLabel: String,
+    onEnableBackgroundDownloads: () -> Unit,
+    backgroundControlsEnabled: Boolean,
     onSelectStorage: () -> Unit,
     onRepairStorage: (String) -> Unit,
     onOpenTorrent: (String) -> Unit,
@@ -105,6 +106,7 @@ internal fun LibraryScreen(
     var sortOpen by remember { mutableStateOf(false) }
     var overflowOpen by remember { mutableStateOf(false) }
     var selection by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    var backgroundOfferDismissed by rememberSaveable { mutableStateOf(false) }
     var migrationGuidanceDismissed by rememberSaveable { mutableStateOf(false) }
     val filter = LibraryFilter.valueOf(filterName)
     val sort = LibrarySort.valueOf(sortName)
@@ -286,20 +288,6 @@ internal fun LibraryScreen(
                         }
                     }
                 }
-                if (!notificationsGranted) {
-                    item("notifications") {
-                        SetupCard(
-                            title =
-                                stringResource(
-                                    R.string.library_notifications_title,
-                                    notificationActionLabel,
-                                ),
-                            detail = stringResource(R.string.library_background_unavailable),
-                            action = notificationActionLabel,
-                            onAction = onRequestNotifications,
-                        )
-                    }
-                }
                 if (state.checkingStorage) {
                     item("checking-storage") {
                         Card(modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp)) {
@@ -336,6 +324,27 @@ internal fun LibraryScreen(
                                 if (rootId == null) onSelectStorage() else onRepairStorage(rootId)
                             },
                         )
+                    }
+                }
+                if (
+                    state.ready && state.storageRootReady && !state.checkingStorage &&
+                        !state.lifecycle.effectiveBackgroundDownloads && !backgroundOfferDismissed
+                ) {
+                    item("background-setup") {
+                        SetupCard(
+                            title = stringResource(R.string.library_background_title),
+                            detail = stringResource(
+                                if (notificationsGranted) R.string.library_background_offer
+                                else R.string.library_background_permission,
+                            ),
+                            action = stringResource(R.string.action_enable),
+                            onAction = onEnableBackgroundDownloads,
+                            actionEnabled = backgroundControlsEnabled,
+                            onDismiss = { backgroundOfferDismissed = true },
+                        )
+                        state.lifecycle.preferenceError?.let {
+                            Text(productErrorText(it), color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 }
                 stateError?.takeIf { state.storageRootReady }?.let { error ->
@@ -428,6 +437,8 @@ private fun SetupCard(
     detail: String,
     action: String,
     onAction: () -> Unit,
+    actionEnabled: Boolean = true,
+    onDismiss: (() -> Unit)? = null,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp),
@@ -438,7 +449,17 @@ private fun SetupCard(
             Spacer(Modifier.height(4.dp))
             Text(detail, color = MaterialTheme.colorScheme.onSecondaryContainer)
             Spacer(Modifier.height(12.dp))
-            Button(onClick = onAction) { Text(action) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onAction, enabled = actionEnabled) { Text(action) }
+                onDismiss?.let {
+                    TextButton(
+                        onClick = it,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) { Text(stringResource(R.string.action_not_now)) }
+                }
+            }
         }
     }
 }

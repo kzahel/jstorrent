@@ -1,5 +1,12 @@
 # Capability Readiness
 
+Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
+adds concise React/Android first-use disclosure and folder-first Android
+background setup. Its Library action couples explicit continuation intent to
+notification permission and the durable background preference. Separate
+completion permission, finite Android lifetime and default-off seeding remain.
+Client evidence is recorded in the tactical; store delivery is separate.
+
 Completed local Tactical [309](../tactical/309-direct-file-transport-ceiling.md)
 adds an experiment-only transport-ceiling harness: normal/generated disk
 saves remain about 51 MiB/s and bounded raw RTC reaches a stable 68.50 MiB/s.

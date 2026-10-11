@@ -1,5 +1,11 @@
 # Web UI Design
 
+Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
+reduces the shared first-use statistics dialog to a short explanation, plain
+checkbox and privacy link. The full recipient warning stays in feedback
+confirmation. Android separately presents folder-first setup and an explicit
+background-download action, using the existing permission/preference owner.
+
 Tactical [302](../tactical/302-desktop-external-links.md) repairs shared About
 support and release navigation. Browser clients retain native isolated-tab
 anchors; desktop bootstrap injects the official Tauri opener through a small

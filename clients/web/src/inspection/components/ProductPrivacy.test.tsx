@@ -23,9 +23,12 @@ describe("product privacy presentation", () => {
     render(<ProductDisclosure productPrivacy={controller} />);
 
     const checkbox = screen.getByRole("checkbox", {
-      name: "Include pseudonymous usage statistics",
+      name: "Include usage statistics",
     });
     expect(checkbox).toBeChecked();
+    expect(screen.getByRole("dialog", { name: "Usage statistics" })).toBeVisible();
+    expect(screen.getByText(/random, resettable app identifier/)).toBeVisible();
+    expect(screen.queryByText(/browser history.*Google Form.*Cloudflare/i)).toBeNull();
     await user.click(checkbox);
     await user.click(screen.getByRole("button", { name: "Save and continue" }));
 

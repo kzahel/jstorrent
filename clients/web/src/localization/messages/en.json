@@ -4917,12 +4917,16 @@
     "defaultMessage": "Days since first use",
     "description": "Product summary age label"
   },
+  "product.privacy.disclosure.include": {
+    "defaultMessage": "Include usage statistics",
+    "description": "First-use optional statistics choice"
+  },
   "product.privacy.disclosure.summary": {
-    "defaultMessage": "JSTorrent keeps a random resettable installation identifier and coarse counts of additions, completed downloads, and foreground sessions. When enabled, the identifier may be used for update counting and these values may be offered with feedback. No torrent names, hashes, paths, peers, trackers, logs, or error text are included.",
+    "defaultMessage": "Optional statistics use a random, resettable app identifier and basic usage counts for update counting and feedback. Torrent names and file contents are never included.",
     "description": "Initial product statistics disclosure"
   },
   "product.privacy.disclosure.title": {
-    "defaultMessage": "Usage statistics and feedback",
+    "defaultMessage": "Usage statistics",
     "description": "Initial product statistics disclosure title"
   },
   "product.privacy.include.statistics": {

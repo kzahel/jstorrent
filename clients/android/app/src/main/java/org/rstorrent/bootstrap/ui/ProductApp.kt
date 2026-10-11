@@ -270,10 +270,6 @@ fun ProductApp(
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(stringResource(R.string.product_statistics_disclosure_detail))
-                            Text(
-                                stringResource(R.string.feedback_recipient_warning),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier =
@@ -285,7 +281,7 @@ fun ProductApp(
                                     checked = statisticsEnabled,
                                     onCheckedChange = { statisticsEnabled = it },
                                 )
-                                Text(stringResource(R.string.product_statistics_include))
+                                Text(stringResource(R.string.product_statistics_first_use_include))
                             }
                         }
                     },
@@ -762,16 +758,8 @@ private fun ProductNavHost(
                     notificationsGranted &&
                         state.notifications.appNotificationsEnabled &&
                         state.notifications.backgroundChannelEnabled,
-                onRequestNotifications =
-                    if (notificationsGranted) {
-                        onOpenNotificationSettings
-                    } else {
-                        onRequestNotifications
-                    },
-                notificationActionLabel =
-                    stringResource(
-                        if (notificationsGranted) R.string.action_manage else R.string.action_enable,
-                    ),
+                onEnableBackgroundDownloads = { onBackgroundDownloads(true) },
+                backgroundControlsEnabled = lifecycleControlsEnabled,
                 onSelectStorage = onSelectStorage,
                 onRepairStorage = onRepairStorage,
                 onOpenTorrent = { navController.navigate(ProductRoutes.detail(it)) },

@@ -1,5 +1,13 @@
 # Installation Product State And Feedback
 
+Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
+replaces the long React/Android first-use disclosure with one concise paragraph,
+a plain usage-statistics checkbox and the existing privacy link. It retains
+random/resettable identifier and basic-count purpose, update/feedback use and
+content exclusions. The detailed URL-recipient warning remains in the exact
+feedback preview. Defaults, acknowledgement version and transmission gates
+are unchanged; existing acknowledged installations are not prompted again.
+
 ## Current store checkpoint, 2026-10-10
 
 Shipment295 saves the production Play privacy URL as

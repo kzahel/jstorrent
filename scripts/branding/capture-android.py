@@ -33,7 +33,7 @@ try:
  while time.monotonic()<deadline and not any(n.attrib.get('text')=='JSTorrent' for n in nodes()): time.sleep(.5)
  if any(n.attrib.get('text')=='Save and continue' for n in nodes()):
   capture('android-privacy')
-  click('Include pseudonymous usage statistics');click('Save and continue')
+  click('Include usage statistics');click('Save and continue')
  capture('android-library')
  click('Add torrent');capture('android-add');click('Cancel')
  click('More options');click('Settings');capture('android-settings')

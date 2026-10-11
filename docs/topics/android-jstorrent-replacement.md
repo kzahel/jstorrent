@@ -1,5 +1,12 @@
 # Android JSTorrent Replacement Readiness
 
+Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
+simplifies first launch: concise statistics choice, folder setup, then an
+optional background-download offer. Library Enable now requests notifications
+and enables continuation through the existing Power Management action; granting
+notifications alone does not enable background or dismiss the offer. Not now
+keeps foreground use available; background seeding remains a separate opt-in.
+
 Tactical [308](../tactical/308-android-optional-add-selection.md) simplifies
 Android add-time UX: Download all can proceed before magnet metadata, Choose
 files is optional, and external intake uses one Add torrent confirmation rather
