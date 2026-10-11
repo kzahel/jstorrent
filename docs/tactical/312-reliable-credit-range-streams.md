@@ -327,6 +327,10 @@ For the legacy comparison add `--consumer-ref 9c558343`. `--credit-kib`,
 transport ceiling and sink batch. `--ack-delay-ms` remains application delay
 and must not be reported as RTT. The runner owns/reaps its native child,
 bundled browser and temporary profile/files on success, failure and signals.
+A final SIGINT during an active 64-MiB delayed/lossy transfer explicitly
+verifies child reap and fixture-directory removal. Early stopped prototypes
+with a join-handler lock error require manual cleanup; those orphaned children
+and their fixture directories are removed before completion.
 Temporary reports, captures, logs and investigation scripts are removed after
 these evidence numbers are recorded. No deployment, public swarm, real WAN,
 external picker or physical mobile session is performed.
