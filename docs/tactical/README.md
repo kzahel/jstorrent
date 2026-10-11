@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [306 — Development documentation map](306-development-documentation-map.md):
+  focused runtime/testing guides and a separate legacy migration stream.
+
 - [302 — Desktop external links](302-desktop-external-links.md):
   shared browser/native link handling using scoped Tauri opener permissions.
 

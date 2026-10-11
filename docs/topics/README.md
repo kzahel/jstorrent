@@ -1,5 +1,9 @@
 # Topics
 
+For running and debugging the current product, start with the
+[development map](../../DEVELOPMENT.md). Legacy replacement and cutover
+concerns are indexed separately in the [migration stream](../migration/README.md).
+
 Focused, living records of continuing concerns live here.
 
 Prefer the smallest coherent topic whose status, decisions, evidence, gaps, and
@@ -33,24 +37,9 @@ Topics own the current truth for a continuing concern. Tactical docs under
 
 ## Current Topics
 
-- [`beta-release-readiness.md`](beta-release-readiness.md): authoritative beta
-  gap ledger, platform release lanes, CI/updater/distribution gates, deliberate
-  MVP deferrals, and ordered release tacticals.
 - [`product-direction.md`](product-direction.md): initial product motivation,
   first-party Rust engine decision, platform posture, non-goals, open choices,
   and recommended bring-up sequence.
-- [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md):
-  backend/presentation separation, desktop extension use, ChromeOS Android and
-  Crostini choices, launch handoff, backend isolation, and later best-effort
-  JSTorrent graduation.
-- [`android-jstorrent-replacement.md`](android-jstorrent-replacement.md):
-  authoritative Android production-replacement gates, current JSTorrent
-  feature dispositions, Play/state/SAF handoff, and coordinated ChromeOS
-  extension rollout.
-- [`desktop-jstorrent-replacement.md`](desktop-jstorrent-replacement.md):
-  desktop migration planning and atomic import, legacy source survey, support
-  continuity, extension ownership transition, and installed replacement
-  rehearsals through Machine Control.
 - [`runtime-configurations-and-headless-deployment.md`](runtime-configurations-and-headless-deployment.md):
   visible, background, windowless, and headless runtime compositions; explicit
   Linux service, listener, origin, authentication, and reverse-proxy policy;
@@ -178,3 +167,21 @@ Topics own the current truth for a continuing concern. Tactical docs under
 
 - [`agent-pr-review.md`](agent-pr-review.md) owns the isolated maintainer PR
   review lane, credential boundaries, trusted cache and activation evidence.
+
+## Legacy migration and release qualification
+
+Read these for import, update continuity or rollout work; current runtime and
+testing instructions live in the development map above.
+
+- [`product-surfaces-and-migration.md`](product-surfaces-and-migration.md):
+  accepted release identity, frozen incubation routes, legacy handoff and
+  backend/presentation compatibility.
+- [`desktop-jstorrent-replacement.md`](desktop-jstorrent-replacement.md):
+  desktop state import, host ownership and installed replacement evidence.
+- [`android-jstorrent-replacement.md`](android-jstorrent-replacement.md):
+  legacy Android state/SAF/Play continuity and mixed extension/app versions.
+- [`beta-release-readiness.md`](beta-release-readiness.md):
+  qualification ledger, release boundary and remaining platform/store gates.
+
+[Migration testing](../migration/testing.md) maps the retained upgrade
+regressions; dated results remain in their owning tacticals.
