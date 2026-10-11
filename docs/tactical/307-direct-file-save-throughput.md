@@ -95,5 +95,49 @@ commit plan, baseline and measured implementation separately.
 
 ## Restart Checkpoint
 
-Plan recorded. Next: benchmark the unmodified one-chunk endpoint and actual
-production consumer, then compare bounded windows against that baseline.
+Baseline recorded. Next: implement experiment-selectable two/four-chunk
+windows and deterministic ACK validation, then retain only a measured default.
+
+## Baseline Evidence
+
+2026-10-11, Apple M4 Pro/macOS ARM64, bundled Chromium 151.0.7922.34,
+release Rust, three fresh browser contexts per cell. The endpoint was unchanged
+at the one-chunk baseline. The harness transforms the actual production save
+module with the existing Vite toolchain, substitutes only local signaling and
+destination selection, and disables STUN on both ends. The OPFS writer really
+executes `FileSystemWritableFileStream.write`/`close`; drain checks every byte
+against the independent deterministic fixture without retaining payload.
+
+| Fixture | Sink | Transfer seconds, three runs | Median MiB/s |
+| --- | --- | --- | --- |
+| 64 MiB | OPFS writable | 1.766, 1.745, 1.744 | 36.68 |
+| 64 MiB | Checking drain | 1.384, 1.378, 1.392 | 46.25 |
+| 256 MiB | OPFS writable | 6.911, 6.890, 6.848 | 37.16 |
+| 256 MiB | Checking drain | 5.416, 5.412, 5.371 | 47.30 |
+
+OPFS writer calls consume approximately 37% of transfer time; the drain calls
+consume 3–4%. Connection setup is measured separately (roughly 0.33 seconds).
+Every saved file has the expected SHA-256, every drain byte matches, payload
+high-water is 16,384 bytes, host application queue high-water is 16,398 bytes,
+and terminal tasks/sockets/requests/application and transport queues are zero.
+The existing native transport high-water is sampled before sends and is not
+an exact allocation peak. Native selected-pair reporting returns null here;
+the browser stats assertion added to the delayed cohort verifies host/host UDP
+with no relay. These are same-machine measurements, not WAN or picker evidence.
+
+Commands:
+
+```bash
+source ~/.profile
+cargo build --release -p rstorrent-direct-file --features experiment \
+  --bin rstorrent-direct-file-experiment
+node scripts/benchmark-direct-file.mjs --output /tmp/direct-baseline.json
+node scripts/benchmark-direct-file.mjs --sizes 8 --repeats 3 \
+  --ack-delay-ms 20 --sinks opfs --output /tmp/direct-baseline-delay.json
+```
+
+The verifier now selects bundled Chromium directly, removing its previous
+installed-Chrome-first fallback in accordance with repository test policy.
+`node --check scripts/benchmark-direct-file.mjs` and `git diff --check` pass.
+The baseline run exercises the production consumer and existing verified media
+reader; no production algorithm changed in this slice.

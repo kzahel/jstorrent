@@ -104,6 +104,25 @@ curl, `wasm32-unknown-unknown`, matching `wasm-bindgen-cli` and Playwright
 Chromium. It cleans up its fixtures and does not publish or prove signed
 cross-version compatibility.
 
+For the completed-file DataChannel save path, use the repeatable local release
+benchmark (bundled Chromium and disposable verified storage):
+
+```bash
+cargo build --release -p rstorrent-direct-file --features experiment \
+  --bin rstorrent-direct-file-experiment
+node scripts/benchmark-direct-file.mjs --sizes 64,256 --repeats 3 \
+  --output /tmp/direct-file-benchmark.json
+```
+
+`--sinks opfs,drain` compares the actual production consumer with a real
+disk-backed writable and a bounded deterministic-byte checking drain.
+`--sizes 8 --ack-delay-ms 20` isolates the cost of application write-credit
+latency; it does not emulate a WAN. OPFS substitutes for the destination picker
+only inside the harness, and saved SHA-256 is checked after timing. The local
+experiment signaling adapter does not replace the authenticated product
+verifier or qualify external save-picker behavior. Tactical
+[307](../tactical/307-direct-file-save-throughput.md) owns results and limits.
+
 [`scripts/android-runtime-smoke.py`](../../scripts/android-runtime-smoke.py)
 owns a fresh API 35 AVD for the product SAF selection/restart/recheck/removal
 cohort. Build the debug APK first; install the host-native API 35 Google APIs

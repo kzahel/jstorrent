@@ -529,14 +529,7 @@ async function launchPersistentBrowser(profile, viewport) {
     colorScheme: "dark",
     reducedMotion: "reduce",
   };
-  try {
-    return await chromium.launchPersistentContext(profile, {
-      ...options,
-      channel: "chrome",
-    });
-  } catch {
-    return chromium.launchPersistentContext(profile, options);
-  }
+  return chromium.launchPersistentContext(profile, options);
 }
 
 async function signIn(page, privateBrowser, label = "") {
