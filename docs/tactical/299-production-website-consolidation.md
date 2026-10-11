@@ -109,3 +109,10 @@ header-only directives, and the remote HTML/header bytes are untouched. Bounded
 waitlist fallbacks cannot redirect to arbitrary external destinations. The new
 Pages job records source SHA and desktop version for exact hosted acceptance;
 it does not need a cross-repository token or build the old TypeScript workspace.
+
+The first GitHub Pages preview publishes successfully. Hosted acceptance finds
+that the official artifact action excludes dot-directories by default, removing
+both Digital Asset Links and source provenance. Enable its documented hidden
+file input on the already-built public directory; `.git` and `.github` stay
+excluded. This finding reinforces checking actual deployed routes before
+moving the production hostname. Preview certificate issuance is still pending.

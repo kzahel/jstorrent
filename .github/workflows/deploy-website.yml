@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/deploy-website.yml"
+      - ".github/workflows/deploy-production-website.yml"
       - "Cargo.lock"
       - "Cargo.toml"
       - "clients/web/**"
@@ -24,6 +25,7 @@ on:
       - main
     paths:
       - ".github/workflows/deploy-website.yml"
+      - ".github/workflows/deploy-production-website.yml"
       - "Cargo.lock"
       - "Cargo.toml"
       - "clients/web/**"
