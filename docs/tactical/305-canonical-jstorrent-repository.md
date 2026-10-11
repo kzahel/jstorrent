@@ -1,6 +1,6 @@
 # 305 — Canonical JSTorrent repository
 
-Status: Active, 2026-10-11.
+Status: Complete, 2026-10-11. Windows hosted session-test limitation recorded below.
 
 ## Outcome and scope
 
@@ -71,10 +71,12 @@ process remains running.
 
 ## Evidence
 
-Implementation and live cutover are complete. Hosted platform matrix is under
-observation; final evidence follows in the completion checkpoint.
+Implementation and live cutover are complete. Hosted builds and tests qualify
+the renamed source with the Windows session-test limitation recorded below;
+this completion does not assert an entirely green hosted matrix.
 
-- Rust commits d2caeb16 and 726664e6 are pushed to the canonical repository.
+- Rust commits d2caeb16, 726664e6 and c0bb7e3e are pushed to the canonical
+  repository.
   Previous TypeScript README 211fd65b and original Chrome App README 27e353b
   are pushed. No legacy application rebuild or historical asset copy occurred.
 - Repository IDs, asset IDs/names/sizes across all 16 Rust/81 TypeScript
@@ -105,3 +107,25 @@ observation; final evidence follows in the completion checkpoint.
 - Browser trust before/after and 32 website captures are retained only in the
   ignored private report directory. Owned browser tabs and capture processes
   are closed; no VM was started.
+- Final Website 38142801280 deploys c0bb7e3e; exact source receipt and six-file
+  remote verification pass. The existing Mac preview push hook builds,
+  deploys and verifies that exact source in 296 seconds. No new application
+  release or store submission is inferred from the preview deployment.
+- CI 38142801602 at exact c0bb7e3e finishes its first attempt with nine
+  successful jobs: Rust workspace/lifecycle/interop, web/E2E, extension,
+  release tools, Android dual-ABI/lint/owned SAF runtime, macOS ARM64, both
+  Linux architectures and the existing iOS job. The two dispatch-only jobs
+  are skipped as expected.
+- Windows compiles and passes desktop native tests, then fails four existing
+  session networking cases (377 pass, two ignored). The log records socket
+  permission-denied/address-in-use errors; these session paths are unchanged
+  by the rename commits. A Windows-only fresh-runner retry passes desktop
+  tests again but is canceled during session verification by a separate
+  documentation-only main push. Neither that retry nor Windows packaging is
+  claimed as qualified. CI 38147300793 owns the subsequent main result.
+  Follow-up: investigate Windows test-port allocation/coordination if the
+  fresh main run repeats this failure; retain the failed log as evidence.
+- Separate main commits 49b3aea6, 7217d036 and 7e3df6ec update instructions,
+  README and the JSTorrent-only release policy without changing product or
+  workflow source. Completion bookkeeping changes only this tactical and
+  deliberately does not start another identical platform matrix.
