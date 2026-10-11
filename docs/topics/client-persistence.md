@@ -1,5 +1,14 @@
 # Client Persistence And Session Boundary
 
+Tactical [308](../tactical/308-android-optional-add-selection.md) reuses the
+current schema for explicit Download all on pending adds. Normal default,
+cleared source/selection exceptions, running intent and queue admission commit
+atomically before runtime reconciliation. Exact receipt replay, failed-write
+rollback, pre-metadata reopen and late metadata are regression tested. No new
+profile table or client-owned durable torrent state is introduced. The existing
+receipt transaction now rolls back rejected command writes through a savepoint
+while retaining the typed error receipt.
+
 Topic: `client-persistence`
 
 [Tactical292](../tactical/292-android-repair-paused-intent.md) completes a bounded

@@ -147,6 +147,7 @@ internal data class ExternalIntakeWork(
     val source: ExternalIntakeSource,
     val knownLength: Long?,
     val startContent: Boolean,
+    val awaitFileSelection: Boolean? = null,
 ) {
     override fun toString(): String =
         "ExternalIntakeWork(intakeId=$intakeId, source=$source, " +
@@ -179,6 +180,7 @@ internal class ExternalIntakeController(
         var displayLabel: String? = null,
         var knownLength: Long? = null,
         var startContent: Boolean = true,
+        var awaitFileSelection: Boolean? = null,
         var retryUsed: Boolean = false,
     ) {
         override fun toString(): String =
@@ -275,6 +277,7 @@ internal class ExternalIntakeController(
     fun confirm(
         intakeId: Long,
         rootReady: Boolean,
+        awaitFileSelection: Boolean? = null,
     ): ExternalIntakeWork? {
         val record = records.firstOrNull { it.intakeId == intakeId } ?: return null
         if (
@@ -283,6 +286,7 @@ internal class ExternalIntakeController(
         ) {
             return null
         }
+        if (awaitFileSelection != null) record.awaitFileSelection = awaitFileSelection
         if (!rootReady) {
             record.phase = ExternalIntakePhase.AWAITING_ROOT
             return null
@@ -403,7 +407,7 @@ internal class ExternalIntakeController(
     }
 
     private fun Record.toWork(): ExternalIntakeWork =
-        ExternalIntakeWork(intakeId, source, knownLength, startContent)
+        ExternalIntakeWork(intakeId, source, knownLength, startContent, awaitFileSelection)
 }
 
 internal fun boundedExternalDisplayLabel(value: String?): String? {

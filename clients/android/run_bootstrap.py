@@ -3129,6 +3129,27 @@ def wait_product_tracker_row(
     )
 
 
+def dismiss_owned_product_disclosure(target: Any, probe: ModuleType) -> None:
+    """Complete first use with statistics disabled in the owned test profile."""
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        nodes = probe.ui_nodes(target)
+        labels = {node.attrib.get("text", "") for node in nodes}
+        if "Save and continue" in labels:
+            checked = next((node for node in nodes
+                            if node.attrib.get("checkable") == "true"
+                            and node.attrib.get("checked") == "true"), None)
+            if checked is not None:
+                x, y = probe.parse_bounds(checked.attrib["bounds"])
+                target.shell(["input", "tap", str(x), str(y)])
+            else:
+                probe.click_from_nodes(target, nodes, ["Save and continue"])
+        elif "Live" in labels:
+            return
+        time.sleep(0.2)
+    raise BootstrapFailure("owned product disclosure did not reach the Live library")
+
+
 def prepare_product_saf(target: Any, probe: ModuleType, grant_storage: str) -> None:
     deadline = time.monotonic() + 15
     while True:
@@ -3192,6 +3213,7 @@ def prepare_product_saf(target: Any, probe: ModuleType, grant_storage: str) -> N
             else:
                 raise BootstrapFailure("SAF picker did not return to the resumed product activity")
             launch_product_lifecycle_evidence(target, "observe")
+            dismiss_owned_product_disclosure(target, probe)
             return
         time.sleep(0.2)
     raise BootstrapFailure("product service did not activate the persisted SAF tree")
@@ -7247,6 +7269,19 @@ def run_product_file_selection_profile(
     try:
         clear_application(target)
         prepare_product_saf(target, probe, grant_storage)
+        # The picker receipt can precede the storage projection consumed by
+        # Add. Fence the same visible readiness that a real user depends on.
+        wait_and_click_product_text(target, probe, "Add torrent")
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            if any(node.attrib.get("text") == "Browse .torrent file"
+                   and node.attrib.get("enabled") == "true"
+                   for node in probe.ui_nodes(target)):
+                break
+            time.sleep(0.1)
+        else:
+            raise BootstrapFailure("Add did not observe the selected download folder")
+        wait_and_click_product_text(target, probe, "Cancel")
         baseline_fds = product_fd_count(target)
         fd_high_water = baseline_fds
         memory_baseline = product_memory_kib(target)
@@ -7284,7 +7319,7 @@ def run_product_file_selection_profile(
         torrent_ids.append(torrent_id)
         wait_pending_file_selection(target, torrent_id, metadata=False)
         wait_pending_file_selection(target, torrent_id, metadata=True)
-        wait_product_text(target, probe, "Checked files use Normal priority")
+        wait_product_text(target, probe, "Choose the files you want to download.")
         sample_resources()
         if fixture.handle.status().total_payload_upload != 0:
             raise BootstrapFailure("pending selection uploaded content before confirmation")
@@ -7301,7 +7336,7 @@ def run_product_file_selection_profile(
         if "Error:" in relaunched.stdout or "Error:" in relaunched.stderr:
             raise BootstrapFailure("could not relaunch pending file selection")
         wait_pending_file_selection(target, torrent_id, metadata=True)
-        wait_product_text(target, probe, "Checked files use Normal priority")
+        wait_product_text(target, probe, "Choose the files you want to download.")
         recovery_pid = target.shell(["pidof", PACKAGE], check=False).stdout.strip()
         if not recovery_pid or recovery_pid == pre_restart_pid:
             raise BootstrapFailure(
@@ -7386,9 +7421,35 @@ def run_product_file_selection_profile(
         assert_no_payload_artifacts(local_id)
         sample_resources()
 
+        # Prove actual Compose -> UniFFI -> durable all consent while the seed
+        # is unavailable for metadata, then release it and verify every file.
+        fixture.handle.pause()
+        target.run(["logcat", "-c"], check=False)
+        all_count = product_add_count(target, fixture.info_hash)
+        target.shell([
+            "am", "start", "-n", ACTIVITY,
+            "--es", "product_magnet", shlex.quote(magnet + "&so=0"),
+            "--ez", "product_await_file_selection", "true",
+        ], timeout=30)
+        all_id = wait_product_torrent_id(target, fixture.info_hash, all_count)
+        torrent_ids.append(all_id)
+        wait_pending_file_selection(target, all_id, metadata=False)
+        assert_no_payload_artifacts(all_id)
+        wait_and_click_product_text(target, probe, "Download all")
+        wait_pending_file_selection(target, all_id, metadata=False, awaiting=False)
+        fixture.handle.resume()
+        all_metrics, all_fd_high_water = wait_product_completion(
+            target, all_id, baseline_fds, sample=sample_resources,
+        )
+        fd_high_water = max(fd_high_water, all_fd_high_water)
+        verify_external_fixture_files(target, fixture, output_root)
+        request_product_torrent_action(target, all_id, "remove")
+        wait_product_log(target, f"saf_removal_confirmed torrent={all_id}", "all selection cleanup")
+        assert_no_payload_artifacts(all_id)
+
         if fixture.handle.status().total_payload_upload <= 0:
             raise BootstrapFailure("file-selection oracle uploaded no selected payload")
-        if metrics["owned_high_water"] > metrics["limit"]:
+        if any(item["owned_high_water"] > item["limit"] for item in (metrics, all_metrics)):
             raise BootstrapFailure("file selection exceeded the SAF handle bound")
         if not all(memory_high_water.values()):
             raise BootstrapFailure(
@@ -7415,6 +7476,10 @@ def run_product_file_selection_profile(
                 "selectable_count": 6,
                 "skipped_files_absent": True,
             },
+            "download_all_before_metadata": "confirmed",
+            "download_all_source_selection": "explicit_all_overrides_so",
+            "download_all_files": "hash_verified",
+            "download_all_storage_metrics": all_metrics,
             "local_torrent_cancel": "joined_keep_payload",
             "catalog_page_high_water": 1,
             "draft_override_high_water": len(selected_paths),
@@ -7532,6 +7597,7 @@ def run_product_external_intake_profile(
         )
 
         presented_count = external_log_count(target, "phase=presented")
+        duplicate_count = external_log_count(target, "phase=duplicate")
         launch_external_fixture(
             target,
             test_package,
@@ -7540,7 +7606,6 @@ def run_product_external_intake_profile(
             repeat=2,
         )
         wait_external_log(target, presented_count, "phase=presented")
-        duplicate_count = external_log_count(target, "phase=duplicate")
         wait_external_log(
             target,
             duplicate_count,
@@ -7548,7 +7613,7 @@ def run_product_external_intake_profile(
             "disposition=coalesced",
         )
         success_count = external_log_count(target, "phase=success")
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Choose files…")
         wait_external_log(
             target,
             success_count,
@@ -7572,7 +7637,7 @@ def run_product_external_intake_profile(
             "disposition=already_present",
         )
         launch_external_fixture(target, test_package, "valid", payload=source)
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Download all")
         wait_external_log(
             target,
             already_count,
@@ -7588,14 +7653,13 @@ def run_product_external_intake_profile(
 
         success_count = external_log_count(target, "phase=success")
         launch_external_fixture(target, test_package, "valid", payload=source)
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Download all")
         wait_external_log(
             target,
             success_count,
             "phase=success",
             "disposition=added",
         )
-        wait_and_click_product_text(target, probe, "Download")
         started_id = wait_product_view_torrent_id(
             target,
             fixture.info_hash,
@@ -7626,7 +7690,7 @@ def run_product_external_intake_profile(
                 terminal_reason,
             )
             launch_external_fixture(target, test_package, fixture_case)
-            wait_and_click_product_text(target, probe, "Add")
+            wait_and_click_product_text(target, probe, "Download all")
             wait_external_log(
                 target,
                 terminal_count,
@@ -7652,7 +7716,7 @@ def run_product_external_intake_profile(
             "reason=invalid_or_engine_failure",
         )
         launch_external_fixture(target, test_package, "near-limit")
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Download all")
         wait_external_log(
             target,
             terminal_count,
@@ -7676,7 +7740,7 @@ def run_product_external_intake_profile(
         for fixture_case in ("denied", "failing"):
             retry_count = external_log_count(target, "phase=retry")
             launch_external_fixture(target, test_package, fixture_case)
-            wait_and_click_product_text(target, probe, "Add")
+            wait_and_click_product_text(target, probe, "Download all")
             wait_external_log(target, retry_count, "phase=retry")
             terminal_count = external_log_count(target, "phase=terminal")
             wait_and_click_product_text(target, probe, "Retry")
@@ -7689,7 +7753,7 @@ def run_product_external_intake_profile(
             "delayed-once",
             payload=source,
         )
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Download all")
         time.sleep(0.5)
         wait_and_click_product_text(target, probe, "Cancel")
         wait_external_log(target, cancelled_count, "phase=cancelled")
@@ -7701,7 +7765,7 @@ def run_product_external_intake_profile(
             "delayed-once",
             payload=source,
         )
-        wait_and_click_product_text(target, probe, "Add")
+        wait_and_click_product_text(target, probe, "Download all")
         wait_external_log(
             target,
             retry_count,
@@ -7712,7 +7776,6 @@ def run_product_external_intake_profile(
         success_count = external_log_count(target, "phase=success")
         wait_and_click_product_text(target, probe, "Retry")
         wait_external_log(target, success_count, "phase=success")
-        wait_and_click_product_text(target, probe, "Download")
         retried_id = wait_product_view_torrent_id(
             target,
             fixture.info_hash,

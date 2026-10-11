@@ -684,6 +684,7 @@ class ProductNavigationTest {
     @Test
     fun externalMagnetUsesGenericConfirmationBeforeFileSelection() {
         val confirmations = mutableListOf<Long>()
+        val choices = mutableListOf<Long>()
         compose.setContent {
             ProductApp(
                 service = null,
@@ -710,14 +711,15 @@ class ProductNavigationTest {
                             ),
                     ),
                 onConfirmExternalIntake = { confirmations += it },
+                onChooseExternalFiles = { choices += it },
             )
         }
 
-        compose.onNodeWithText("Magnet link from another app").assertIsDisplayed()
-        compose
-            .onNodeWithText("ask which files to download", substring = true)
-            .assertIsDisplayed()
-        compose.onNodeWithText("Add").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Add torrent").assertIsDisplayed()
+        compose.onNodeWithText("Download folder:", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Choose files…").performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(listOf(41L), choices)
+        compose.onNodeWithText("Download all").performSemanticsAction(SemanticsActions.OnClick)
         compose.onAllNodesWithText("secret.invalid", substring = true).assertCountEquals(0)
         assertEquals(listOf(41L), confirmations)
     }
@@ -753,6 +755,7 @@ class ProductNavigationTest {
                         disableFuture = disable
                     },
                     onCancel = {},
+                    onDownloadAll = {},
                 )
             }
         }
@@ -773,6 +776,34 @@ class ProductNavigationTest {
         assertEquals(PendingFileSelectionBase.NONE, confirmed?.base)
         assertEquals(true, confirmed?.compactOverrides()?.single()?.selected)
         assertEquals(true, disableFuture)
+    }
+
+    @Test
+    fun pendingMagnetCanDownloadAllBeforeFileListArrives() {
+        var downloads = 0
+        var confirmations = 0
+        compose.setContent {
+            RstorrentTheme(ProductThemeMode.LIGHT, false) {
+                PendingFileSelectionDialog(
+                    torrent = torrent().copy(awaitingFileSelection = true, fileCatalogId = null),
+                    files = null,
+                    rootLabel = "Downloads",
+                    rootReady = true,
+                    queuedCount = 0,
+                    error = null,
+                    onPage = {},
+                    onRepairRoot = {},
+                    onConfirm = { _, _ -> confirmations++ },
+                    onCancel = {},
+                    onDownloadAll = { downloads++ },
+                )
+            }
+        }
+        compose.onNodeWithText("Loading file list…").assertIsDisplayed()
+        compose.onNodeWithText("Download all").assertIsEnabled()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(1, downloads)
+        assertEquals(0, confirmations)
     }
 
     @Test
@@ -807,9 +838,9 @@ class ProductNavigationTest {
             )
         }
 
-        compose.onNodeWithText("Torrent file from another app").assertIsDisplayed()
+        compose.onNodeWithText("Add torrent").assertIsDisplayed()
         compose.onNodeWithText("safe.torrent").assertIsDisplayed()
-        compose.onNodeWithText("Add").assertIsNotEnabled()
+        compose.onNodeWithText("Download all").assertIsNotEnabled()
         compose.onNode(
             hasText("Select folder") and hasAnyAncestor(isDialog()),
         ).performSemanticsAction(SemanticsActions.OnClick)

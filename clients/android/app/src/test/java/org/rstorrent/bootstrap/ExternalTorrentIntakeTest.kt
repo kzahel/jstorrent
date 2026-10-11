@@ -202,6 +202,20 @@ class ExternalTorrentIntakeTest {
         assertTrue(bounded.toByteArray(Charsets.UTF_8).size <= MAX_EXTERNAL_DISPLAY_LABEL_BYTES)
     }
 
+    @Test
+    fun perAddSelectionChoiceSurvivesRootRepairAndRetry() {
+        listOf(false, true).forEach { chooseFiles ->
+            val controller = ExternalIntakeController()
+            val id = requireNotNull(controller.receive(source(1), false, rootReady = false).intakeId)
+            assertNull(controller.confirm(id, rootReady = false, awaitFileSelection = chooseFiles))
+            controller.rootAvailabilityChanged(true)
+            val work = requireNotNull(controller.confirm(id, rootReady = true))
+            assertEquals(chooseFiles, work.awaitFileSelection)
+            controller.failSubmission(id, retryable = true, rootReady = true)
+            assertEquals(chooseFiles, controller.retry(id, rootReady = true)?.awaitFileSelection)
+        }
+    }
+
     private fun source(index: Int): ExternalIntakeSource =
         ExternalIntakeSource.create(
             ExternalIntakeKind.MAGNET,

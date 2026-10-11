@@ -1,5 +1,14 @@
 # Client Surfaces
 
+Tactical [308](../tactical/308-android-optional-add-selection.md) makes Android
+magnet selection optional per add. Manual and external magnets offer Download
+all immediately or Choose files; external sources use one concise Add torrent
+confirmation with the available name and folder. Local file intake and restored
+pending adds can also proceed without waiting for a catalog. Explicit file
+selection keeps the bounded checklist, source defaults and future preference.
+Quick adds suppress intermediate pending presentation until the authoritative
+summary reflects confirmation. Web and iOS presentation stay unchanged.
+
 Tactical [302](../tactical/302-desktop-external-links.md) repairs shared About
 support and release navigation. Browser clients retain native isolated-tab
 anchors; desktop bootstrap injects the official Tauri opener through a small

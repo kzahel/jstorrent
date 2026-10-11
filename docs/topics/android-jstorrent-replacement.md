@@ -1,5 +1,13 @@
 # Android JSTorrent Replacement Readiness
 
+Tactical [308](../tactical/308-android-optional-add-selection.md) simplifies
+Android add-time UX: Download all can proceed before magnet metadata, Choose
+files is optional, and external intake uses one Add torrent confirmation rather
+than source-mechanism and future-flow explanations. Explicit all consent is
+durable; selection, cancellation, storage repair and duplicate authority remain
+owned by the existing application. Source/local validation and generated build
+evidence are recorded in the tactical; store delivery is separate.
+
 Finish-line059 prepares1.0.28/code28 containing Tactical292's paused-intent
 Repair correction. Exact debug/API35 normal paused/running repair, source-offline
 hashes and cold reopens pass; build/122 JVM/lint/script/notice checks and owned

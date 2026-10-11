@@ -1324,13 +1324,21 @@ impl SessionStore {
                 ),
             )
         } else {
-            apply_mutation(
+            // A typed command rejection must not commit earlier writes made
+            // by that command. Keep its error receipt outside the savepoint.
+            transaction.execute_batch("SAVEPOINT command_mutation")?;
+            let response = apply_mutation(
                 &transaction,
                 request,
                 current_revision,
                 &self.profile_id,
                 &self.reset_client_settings,
-            )?
+            )?;
+            if matches!(response.outcome, crate::ResponseOutcome::Error { .. }) {
+                transaction.execute_batch("ROLLBACK TO command_mutation")?;
+            }
+            transaction.execute_batch("RELEASE command_mutation")?;
+            response
         };
 
         let response_json = serde_json::to_string(&response)?;
@@ -3614,6 +3622,9 @@ fn apply_mutation(
             *disable_future,
             current_revision,
         ),
+        Command::DownloadAllPendingAdd { torrent_id } => {
+            download_all_pending_add(transaction, torrent_id, current_revision)
+        }
         Command::CancelPendingAdd { torrent_id } => {
             cancel_pending_add(transaction, torrent_id, current_revision)
         }
@@ -5201,6 +5212,84 @@ fn confirm_pending_file_selection(
             )
             .map_err(internal_error)?;
     }
+    Ok(revision)
+}
+
+/// Explicit all-files consent needs no catalog, so magnets can leave the
+/// selection stage before metadata arrives. The transaction is the authority
+/// for both selection and runtime admission, including after process restart.
+fn download_all_pending_add(
+    transaction: &Transaction<'_>,
+    torrent_id: &str,
+    current_revision: u64,
+) -> Result<u64, (ErrorCode, String)> {
+    let decoded = decode_torrent_id(torrent_id).ok_or_else(|| {
+        (
+            ErrorCode::InvalidRequest,
+            "invalid torrent identity".to_owned(),
+        )
+    })?;
+    let (pending, quarantine, removing) = transaction
+        .query_row(
+            "SELECT t.awaiting_file_selection, t.quarantine_reason,
+                    r.torrent_id IS NOT NULL
+             FROM torrents t LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
+             WHERE t.torrent_id = ?1",
+            [decoded.as_bytes()],
+            |row| {
+                Ok((
+                    row.get::<_, bool>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, bool>(2)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(internal_error)?
+        .ok_or_else(|| {
+            (
+                ErrorCode::UnknownTorrent,
+                format!("torrent {decoded} is not in the profile"),
+            )
+        })?;
+    if !pending || removing {
+        return Err((
+            ErrorCode::InvalidTorrentState,
+            "torrent is no longer awaiting file selection".to_owned(),
+        ));
+    }
+    if quarantine.is_some() {
+        return Err((
+            ErrorCode::StorageNeedsRepair,
+            "torrent storage needs repair before downloading".to_owned(),
+        ));
+    }
+    let revision = next_revision(transaction, current_revision)?;
+    for table in [
+        "file_selection",
+        "file_priorities",
+        "pending_selection_ranges",
+    ] {
+        transaction
+            .execute(
+                &format!("DELETE FROM {table} WHERE torrent_id = ?1"),
+                [decoded.as_bytes()],
+            )
+            .map_err(internal_error)?;
+    }
+    transaction
+        .execute(
+            "UPDATE torrents SET selection_default = 'wanted', awaiting_file_selection = 0,
+         desired_state = 'running', error = NULL, updated_revision = ?2 WHERE torrent_id = ?1",
+            params![
+                decoded.as_bytes(),
+                i64::try_from(revision)
+                    .map_err(|_| internal_message("profile revision overflow"))?
+            ],
+        )
+        .map_err(internal_error)?;
+    download_queue::append(transaction, &decoded)
+        .map_err(|error| internal_message(&error.to_string()))?;
     Ok(revision)
 }
 
@@ -8429,6 +8518,106 @@ mod tests {
         );
         drop(store);
         fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
+    fn download_all_pending_magnet_survives_reopen_and_late_metadata() {
+        let root = test_root("pending-all-before-metadata");
+        let configured = configured_root(&root);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).unwrap();
+        let raw_info = multi_file_info();
+        let info_hash: [u8; 20] = Sha1::digest(&raw_info).into();
+        let mut add = add_request("pending-all-add");
+        if let Command::AddMagnet {
+            magnet,
+            skip_files,
+            await_file_selection,
+            ..
+        } = &mut add.command
+        {
+            *magnet = format!("magnet:?xt=urn:btih:{}&so=1", super::encode_hex(&info_hash));
+            skip_files.clear();
+            *await_file_selection = true;
+        }
+        let added = store.handle_durable(&add).unwrap();
+        let torrent_id = added_torrent_id(&added);
+        let pending = store.snapshot().unwrap();
+        assert!(pending.torrents[0].awaiting_file_selection);
+        assert!(pending.torrents[0].file_catalog_id.is_none());
+        let request = RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: "pending-download-all".into(),
+            expected_revision: None,
+            command: Command::DownloadAllPendingAdd {
+                torrent_id: torrent_id.clone(),
+            },
+        };
+        // A failed durable write must leave the pending choice and source ranges intact.
+        store
+            .connection
+            .execute_batch(
+                "CREATE TRIGGER reject_pending_all BEFORE UPDATE ON torrents
+            BEGIN SELECT RAISE(ABORT, 'injected pending write failure'); END;",
+            )
+            .unwrap();
+        let before_failure = store.revision().unwrap();
+        let failed = store.handle_durable(&request).unwrap();
+        assert!(matches!(
+            failed.outcome,
+            crate::ResponseOutcome::Error { .. }
+        ));
+        assert_eq!(store.revision().unwrap(), before_failure);
+        assert_eq!(
+            store.snapshot().unwrap().torrents[0].selection_default,
+            FilePriority::Skip
+        );
+        assert!(store.snapshot().unwrap().torrents[0].awaiting_file_selection);
+        store
+            .connection
+            .execute_batch("DROP TRIGGER reject_pending_all")
+            .unwrap();
+        assert_eq!(store.handle_durable(&request).unwrap(), failed);
+        assert_eq!(store.revision().unwrap(), before_failure);
+        let mut request = request;
+        request.request_id = "pending-download-all-retry".into();
+        let response = store.handle_durable(&request).unwrap();
+        assert!(matches!(
+            response.outcome,
+            crate::ResponseOutcome::Success { .. }
+        ));
+        let revision = store.revision().unwrap();
+        assert_eq!(store.handle_durable(&request).unwrap(), response);
+        assert_eq!(store.revision().unwrap(), revision);
+        drop(store);
+        let mut store = SessionStore::open(&root, "default", &[configured]).unwrap();
+        let snapshot = store.snapshot().unwrap();
+        assert!(!snapshot.torrents[0].awaiting_file_selection);
+        assert!(snapshot.torrents[0].desired_running);
+        assert!(snapshot.storage.show_file_selection);
+        assert_eq!(snapshot.torrents[0].selection_default, FilePriority::Normal);
+        assert!(snapshot.torrents[0].selection_exceptions.is_empty());
+        // Delayed catalog arrival cannot resurrect the magnet's select-only ranges.
+        store.record_metadata(&torrent_id, &raw_info).unwrap();
+        let resume = store.load_resume(&torrent_id).unwrap();
+        assert!(resume.skip_files.is_empty());
+        assert!(resume.desired_running);
+        let mut all = request.clone();
+        let before = store.revision().unwrap();
+        all.request_id = "reject-existing-all".into();
+        let rejected = store.handle_durable(&all).unwrap();
+        assert!(matches!(
+            rejected.outcome,
+            crate::ResponseOutcome::Error {
+                error: crate::ErrorResponse {
+                    code: ErrorCode::InvalidTorrentState,
+                    ..
+                }
+            }
+        ));
+        assert_eq!(store.revision().unwrap(), before);
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

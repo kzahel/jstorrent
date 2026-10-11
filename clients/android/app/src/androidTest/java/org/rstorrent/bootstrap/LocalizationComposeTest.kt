@@ -52,7 +52,7 @@ class LocalizationComposeTest {
                 AddTorrentDialog(
                     enabled = true,
                     onDismiss = {},
-                    onAddMagnet = {},
+                    onAddMagnet = { _, _ -> },
                     onBrowse = {},
                 )
             }

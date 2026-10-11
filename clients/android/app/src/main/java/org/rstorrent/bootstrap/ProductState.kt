@@ -135,6 +135,7 @@ data class ExternalIntakeNotice(
 )
 
 data class ProductState(
+    val quickAddsInFlight: Int = 0,
     val ready: Boolean = false,
     val error: ProductError? = null,
     val storageRootReady: Boolean = false,

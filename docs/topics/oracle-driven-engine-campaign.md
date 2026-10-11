@@ -8,6 +8,15 @@ No product optimization or dependency change follows this measurement.
 Next executable action is a separate controlled RTT/loss and transport
 stall/retransmission study with explicit throughput and memory targets.
 
+Tactical [308](../tactical/308-android-optional-add-selection.md) owns optional
+Android add-time selection. Pinned BEP 53 and libtorrent magnet/resume source
+and tests support pre-metadata durable intent; explicit all consent replaces
+pending source selection without changing protocol or integrity ownership.
+Restart checkpoint: complete with deterministic late-metadata/reopen and failed
+write rollback, Rust/web gates, generated Swift/Kotlin, both Android ABIs,
+API 28/35 Compose and controlled installed SAF/external-intake evidence.
+Next action: none in this slice; production qualification stays separately owned.
+
 Topic: `oracle-driven-engine-campaign`
 
 Completed local Tactical [307](../tactical/307-direct-file-save-throughput.md)

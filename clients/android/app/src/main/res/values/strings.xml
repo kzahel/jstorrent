@@ -22,6 +22,8 @@
     <string name="action_delete_data">Delete data</string>
     <string name="action_done">Done</string>
     <string name="action_download">Download</string>
+    <string name="action_download_all">Download all</string>
+    <string name="action_choose_files">Choose files…</string>
     <string name="action_download_now">Download now</string>
     <string name="action_enable">Enable</string>
     <string name="action_force_recheck">Force recheck</string>
@@ -117,14 +119,14 @@
     <string name="add_torrent_title">Add torrent</string>
     <string name="add_magnet_label">Magnet link</string>
     <string name="add_folder_required">Choose an available download folder first.</string>
-    <string name="file_selection_explanation">Checked files use Normal priority. Unchecked files are skipped.</string>
+    <string name="file_selection_explanation">Choose the files you want to download.</string>
     <string name="file_selection_folder">Download folder: %1$s</string>
     <plurals name="file_selection_folder_pending">
         <item quantity="one">Download folder: %1$s · %2$d more pending</item>
         <item quantity="other">Download folder: %1$s · %2$d more pending</item>
     </plurals>
-    <string name="file_selection_fetching">Fetching file information…</string>
-    <string name="file_selection_download_blocked">No content files will download before you confirm.</string>
+    <string name="file_selection_fetching">Loading file list…</string>
+    <string name="file_selection_download_blocked">You can download all files without waiting.</string>
     <string name="file_selection_summary">%1$d of %2$d selected · %3$s</string>
     <string name="file_selection_override_limit">Use All or None, then change at most 4,096 files.</string>
     <string name="file_selection_disable_future">Don’t show file selection again</string>
@@ -205,9 +207,6 @@
     <!-- External intake and companion pairing. -->
     <string name="pairing_title">Connect Chrome extension?</string>
     <string name="pairing_identifiers">Extension %1$s\nInstallation %2$s</string>
-    <string name="intake_magnet_title">Magnet link from another app</string>
-    <string name="intake_torrent_title">Torrent file from another app</string>
-    <string name="intake_selection_notice">After adding, JSTorrent will ask which files to download when file selection is enabled.</string>
     <string name="intake_folder_required">Choose or repair a download folder before adding this item.</string>
     <string name="intake_adding">Adding…</string>
     <string name="intake_retryable_failure">The source could not be read. You can retry once.</string>

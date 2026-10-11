@@ -1,5 +1,15 @@
 # Application Control
 
+Tactical [308](../tactical/308-android-optional-add-selection.md) adds explicit
+`DownloadAllPendingAdd` consent without a catalog. One transaction clears pending
+selection and source-derived ranges, installs Normal for all ordinary files,
+sets running intent and queue order, then the existing metadata/content owners
+reconcile. Non-pending, removal and repair fences remain; no metadata is treated
+as verified before validation. This per-add action leaves future selection
+preferences unchanged. Typed rejected mutations now roll back to a command
+savepoint before their error receipt is committed, preventing partial intent
+or revision changes on a failed write.
+
 Topic: `application-control`
 
 Active Tactical

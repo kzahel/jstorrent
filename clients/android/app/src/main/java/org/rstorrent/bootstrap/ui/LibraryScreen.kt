@@ -85,7 +85,7 @@ internal fun LibraryScreen(
     onSelectStorage: () -> Unit,
     onRepairStorage: (String) -> Unit,
     onOpenTorrent: (String) -> Unit,
-    onAddMagnet: (String) -> Unit,
+    onAddMagnet: (String, Boolean) -> Unit,
     onBrowseTorrent: () -> Unit,
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
@@ -380,8 +380,8 @@ internal fun LibraryScreen(
         AddTorrentDialog(
             enabled = state.ready && state.storageRootReady,
             onDismiss = { addOpen = false },
-            onAddMagnet = {
-                onAddMagnet(it)
+            onAddMagnet = { magnet, chooseFiles ->
+                onAddMagnet(magnet, chooseFiles)
                 addOpen = false
             },
             onBrowse = {
@@ -599,7 +599,7 @@ private fun SelectionActions(
 internal fun AddTorrentDialog(
     enabled: Boolean,
     onDismiss: () -> Unit,
-    onAddMagnet: (String) -> Unit,
+    onAddMagnet: (String, Boolean) -> Unit,
     onBrowse: () -> Unit,
 ) {
     var magnet by rememberSaveable { mutableStateOf("") }
@@ -636,11 +636,19 @@ internal fun AddTorrentDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onAddMagnet(magnet.trim()) },
+                onClick = { onAddMagnet(magnet.trim(), false) },
                 enabled = enabled && magnet.isNotBlank(),
-            ) { Text(stringResource(R.string.action_add)) }
+            ) { Text(stringResource(R.string.action_download_all)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(
+                    onClick = { onAddMagnet(magnet.trim(), true) },
+                    enabled = enabled && magnet.isNotBlank(),
+                ) { Text(stringResource(R.string.action_choose_files)) }
+            }
+        },
     )
 }
 

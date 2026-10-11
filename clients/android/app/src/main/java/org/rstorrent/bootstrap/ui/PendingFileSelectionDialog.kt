@@ -63,6 +63,7 @@ internal fun PendingFileSelectionDialog(
     onRepairRoot: () -> Unit,
     onConfirm: (PendingFileSelectionDraft, Boolean) -> Unit,
     onCancel: () -> Unit,
+    onDownloadAll: () -> Unit,
 ) {
     var draft by remember(torrent.torrentId) { mutableStateOf(PendingFileSelectionDraft()) }
     var disableFuture by remember(torrent.torrentId) { mutableStateOf(false) }
@@ -243,17 +244,25 @@ internal fun PendingFileSelectionDialog(
                         }
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        disableFuture = !disableFuture
-                    },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(
-                        checked = disableFuture,
-                        onCheckedChange = { disableFuture = it },
-                    )
-                    Text(stringResource(R.string.file_selection_disable_future))
+                if (metadataReady) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            disableFuture = !disableFuture
+                        },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = disableFuture,
+                            onCheckedChange = { disableFuture = it },
+                        )
+                        Text(stringResource(R.string.file_selection_disable_future))
+                    }
+                    TextButton(
+                        onClick = { onConfirm(draft.selectAll(), disableFuture) },
+                        enabled = rootReady,
+                    ) {
+                        Text(stringResource(R.string.action_download_all))
+                    }
                 }
                 (draftError ?: error)?.let {
                     Text(it, color = MaterialTheme.colorScheme.error)
@@ -276,15 +285,21 @@ internal fun PendingFileSelectionDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 ) {
                     OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
-                    Button(
-                        onClick = { onConfirm(draft, disableFuture) },
-                        enabled = metadataReady && rootReady,
-                    ) {
-                        Text(
-                            stringResource(
-                                if (summary.count == 0L) R.string.action_add else R.string.action_download,
-                            ),
-                        )
+                    if (!metadataReady) {
+                        Button(onClick = onDownloadAll, enabled = rootReady) {
+                            Text(stringResource(R.string.action_download_all))
+                        }
+                    } else {
+                        Button(
+                            onClick = { onConfirm(draft, disableFuture) },
+                            enabled = rootReady,
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (summary.count == 0L) R.string.action_add else R.string.action_download,
+                                ),
+                            )
+                        }
                     }
                 }
             }

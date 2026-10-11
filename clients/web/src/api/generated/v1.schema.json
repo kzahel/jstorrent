@@ -2420,6 +2420,23 @@
               "type": "string"
             },
             "type": {
+              "const": "download_all_pending_add",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "torrent_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "torrent_id": {
+              "pattern": "^t1-[0-9a-f]{32}$",
+              "type": "string"
+            },
+            "type": {
               "const": "cancel_pending_add",
               "type": "string"
             }

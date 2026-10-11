@@ -1,5 +1,12 @@
 # Application View API
 
+Tactical [308](../tactical/308-android-optional-add-selection.md) adds the
+closed `download_all_pending_add` command carrying only the opaque torrent ID.
+It applies exclusively to a newly pending add, accepts no catalog or file
+indices and leaves settings unchanged. Existing snapshots clear pending state
+and retain authoritative metadata availability. TypeScript/schema, Kotlin and
+Swift boundaries are regenerated; only Android exposes the new action.
+
 Tactical [277](../tactical/277-android-observer-listener-readiness.md) repairs
 qualification of269's asynchronous listener startup. Source8c CI and a focused
 local reproduction fail the immediate optional snapshot. The unchanged

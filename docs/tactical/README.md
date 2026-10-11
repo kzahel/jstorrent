@@ -1182,3 +1182,6 @@ and [`../topics/oracle-driven-engine-campaign.md`](../topics/oracle-driven-engin
 - [305 — Canonical JSTorrent repository](305-canonical-jstorrent-repository.md):
   canonical Rust/legacy TypeScript names, update continuity and exact release
   alias validation; no bulk release copying or legacy app rebuild.
+
+- [308 — Optional Android add-time selection](308-android-optional-add-selection.md):
+  immediate Download all, optional checklist, concise intake and durable intent.

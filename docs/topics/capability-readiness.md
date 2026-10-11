@@ -8,6 +8,13 @@ This supplies diagnosis, not a product algorithm change, WAN qualification
 or a universal WebRTC ceiling. Further work should target RTT/loss and
 transport diagnostics before raising limits or changing dependencies.
 
+Tactical [308](../tactical/308-android-optional-add-selection.md) adds optional
+Android add-time selection: immediate Download all, explicit Choose files,
+concise external confirmation and durable pre-metadata consent. Deterministic
+reopen/late-metadata, Rust/web gates, both native ABIs and API 28/35 Compose
+checks pass. Controlled installed SAF and external-intake cohorts pass with
+hash verification and owned cleanup. Store delivery remains separate.
+
 Completed local [307](../tactical/307-direct-file-save-throughput.md) bounds
 remote Save to four outstanding 16-KiB chunks per range and bounds browser
 receive work independently. Repeated controlled 256-MiB disk saves improve

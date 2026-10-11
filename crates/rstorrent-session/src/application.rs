@@ -1814,7 +1814,8 @@ impl ApplicationService {
                 Some(storage_root.clone())
             }
             Command::SetDefaultStorageRoot { storage_root } => Some(storage_root.clone()),
-            Command::ConfirmPendingFileSelection { torrent_id, .. } => self
+            Command::ConfirmPendingFileSelection { torrent_id, .. }
+            | Command::DownloadAllPendingAdd { torrent_id } => self
                 .store_mut()?
                 .load_resume(&torrent_id.to_ascii_lowercase())
                 .ok()
@@ -2161,7 +2162,8 @@ impl ApplicationService {
                     self.start_if_possible(&torrent_id).await?;
                 }
             }
-            Command::ConfirmPendingFileSelection { torrent_id, .. } => {
+            Command::ConfirmPendingFileSelection { torrent_id, .. }
+            | Command::DownloadAllPendingAdd { torrent_id } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
                 self.views.record_diagnostic(
                     DiagnosticSeverity::Info,
@@ -12174,6 +12176,89 @@ mod tests {
     #[tokio::test]
     async fn metadata_only_add_verifies_metadata_without_content_artifacts() {
         assert_metadata_only_add(false).await;
+    }
+
+    #[tokio::test]
+    async fn download_all_pending_add_admits_late_metadata_without_another_confirmation() {
+        let root = test_root("pending-all-late-metadata");
+        let raw_info = multi_file_info();
+        let hash: [u8; 20] = Sha1::digest(&raw_info).into();
+        let (peer, release, peer_task) = spawn_gated_metadata_peer(raw_info).await;
+        let mut service = ApplicationService::open(config(&root)).await.unwrap();
+        let added = service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "pending-add".into(),
+                expected_revision: None,
+                command: Command::AddMagnet {
+                    magnet: format!(
+                        "magnet:?xt=urn:btih:{}&x.pe={peer}&so=1",
+                        super::encode_info_hash(hash)
+                    ),
+                    storage_root: "downloads".into(),
+                    start_content: true,
+                    await_file_selection: true,
+                    skip_files: vec![],
+                },
+            })
+            .await
+            .unwrap();
+        let Some(CommandResult::AddTorrent { result }) = added.result else {
+            panic!("add result")
+        };
+        let id = result.torrent_id;
+        let paths =
+            torrent_storage_paths(&root.join("payload"), "multi", id.parse().unwrap()).unwrap();
+        assert!(!paths.content.exists());
+        assert!(!paths.part.exists());
+        let confirmed = service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "download-all".into(),
+                expected_revision: None,
+                command: Command::DownloadAllPendingAdd {
+                    torrent_id: id.clone(),
+                },
+            })
+            .await
+            .unwrap();
+        assert!(matches!(confirmed.outcome, ResponseOutcome::Success { .. }));
+        release.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let response = service
+                    .dispatch(RequestEnvelope {
+                        version: CONTROL_VERSION,
+                        request_id: "all-snapshot".into(),
+                        expected_revision: None,
+                        command: Command::Snapshot,
+                    })
+                    .await
+                    .unwrap();
+                let ResponseOutcome::Success { snapshot } = response.outcome else {
+                    panic!("snapshot")
+                };
+                if snapshot.torrents[0].metadata_available {
+                    assert!(!snapshot.torrents[0].awaiting_file_selection);
+                    assert!(snapshot.torrents[0].desired_running);
+                    assert_eq!(
+                        snapshot.torrents[0].selected_file_count,
+                        snapshot.torrents[0].selectable_file_count
+                    );
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("late metadata admitted");
+        tokio::time::timeout(Duration::from_secs(2), peer_task)
+            .await
+            .unwrap()
+            .unwrap();
+        service.shutdown().await.unwrap();
+        drop(service);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[tokio::test]

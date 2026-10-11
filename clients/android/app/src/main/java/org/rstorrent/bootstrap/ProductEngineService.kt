@@ -45,6 +45,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.Channel
@@ -1011,7 +1012,7 @@ class ProductEngineService : Service() {
         }
     }
 
-    fun confirmExternalIntake(intakeId: Long) {
+    fun confirmExternalIntake(intakeId: Long, awaitFileSelection: Boolean? = null) {
         if (rejectMutationDuringDataReset()) return
         scope.launch {
             externalIntakeMutation.withLock {
@@ -1019,6 +1020,7 @@ class ProductEngineService : Service() {
                     externalIntakeController.confirm(
                         intakeId,
                         rootReady = currentSafRootForAdd() != null,
+                        awaitFileSelection = awaitFileSelection,
                     )
                 publishExternalSnapshot()
                 if (work != null) scheduleExternalSubmissionLocked(work)
@@ -1082,9 +1084,10 @@ class ProductEngineService : Service() {
                         )
                         return@launch
                     }
+                    val downloadAll = work.startContent && work.awaitFileSelection == false
                     val awaitFileSelection =
                         work.startContent &&
-                            (mutableState.value.storage?.showFileSelection ?: true)
+                            (work.awaitFileSelection ?: mutableState.value.storage?.showFileSelection ?: true)
                     val result =
                         when (work.source.kind) {
                             ExternalIntakeKind.MAGNET ->
@@ -1093,7 +1096,7 @@ class ProductEngineService : Service() {
                                         magnet = work.source.reveal().trim(),
                                         storageRoot = storageRoot,
                                         startContent = work.startContent,
-                                        awaitFileSelection = awaitFileSelection,
+                                        awaitFileSelection = awaitFileSelection || downloadAll,
                                         skipFiles = emptyList(),
                                     ),
                                 )
@@ -1113,11 +1116,14 @@ class ProductEngineService : Service() {
                                         work.startContent,
                                         FileSelectionIntent.All,
                                         storageRoot,
-                                        awaitFileSelection,
+                                        awaitFileSelection || downloadAll,
                                     )
                                 }
                             }
                         }
+                    if (downloadAll && result.disposition == AddTorrentDisposition.Added) {
+                        downloadAllPendingAwait(result.torrentId)
+                    }
                     val notice =
                         when (result.disposition) {
                             AddTorrentDisposition.Added -> ExternalIntakeNoticeKind.ADDED
@@ -1288,6 +1294,7 @@ class ProductEngineService : Service() {
         skipFiles: List<UInt> = emptyList(),
         startContent: Boolean = true,
         awaitFileSelection: Boolean = false,
+        downloadAll: Boolean = false,
     ) {
         if (rejectMutationDuringDataReset()) return
         val storageRoot = currentSafRootForAdd()
@@ -1295,22 +1302,27 @@ class ProductEngineService : Service() {
             mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
             return
         }
+        if (downloadAll) mutableState.update { it.copy(quickAddsInFlight = it.quickAddsInFlight + 1) }
         scope.launch {
             try {
                 clientReady.await()
-                dispatchAddAwait(
+                val result = dispatchAddResult(
                     Command.AddMagnet(
                         magnet = magnet.trim(),
                         storageRoot = storageRoot,
                         startContent = startContent,
-                        awaitFileSelection = awaitFileSelection,
+                        awaitFileSelection = awaitFileSelection || downloadAll,
                         skipFiles = skipFiles,
                     ),
-                    magnetV1(magnet),
-                    magnetV2(magnet),
                 )
+                if (downloadAll && result.disposition == AddTorrentDisposition.Added) {
+                    downloadAllPendingAwait(result.torrentId)
+                }
+                logAddResult(result, magnetV1(magnet), magnetV2(magnet))
             } catch (error: Throwable) {
                 reportError(error)
+            } finally {
+                if (downloadAll) mutableState.update { it.copy(quickAddsInFlight = it.quickAddsInFlight - 1) }
             }
         }
     }
@@ -2812,6 +2824,10 @@ class ProductEngineService : Service() {
         )
     }
 
+    fun downloadAllPendingAdd(torrentId: String) {
+        dispatch(Command.DownloadAllPendingAdd(torrentId))
+    }
+
     fun cancelPendingAdd(torrentId: String) {
         dispatch(Command.CancelPendingAdd(torrentId))
     }
@@ -3987,6 +4003,15 @@ class ProductEngineService : Service() {
         v1InfoHash: String?,
         v2InfoHash: String? = null,
     ): String = logAddResult(dispatchAddResult(command), v1InfoHash, v2InfoHash)
+
+    private suspend fun downloadAllPendingAwait(torrentId: String) {
+        dispatchForResponse(Command.DownloadAllPendingAdd(torrentId))
+        // Keep the intermediate pending add off screen until its authoritative
+        // summary catches up with the durable receipt.
+        withTimeout(5_000) {
+            state.first { it.torrents[torrentId]?.awaitingFileSelection == false }
+        }
+    }
 
     private suspend fun dispatchAddResult(command: Command): AddTorrentResult =
         addResult(dispatchForResponse(command))
