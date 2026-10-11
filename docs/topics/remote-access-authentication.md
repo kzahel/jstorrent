@@ -2,6 +2,14 @@
 
 Topic: `remote-access-authentication`
 
+Tactical [303](../tactical/303-canonical-remote-origin.md) prepares the accepted
+canonical controller at jstorrent.com/remote/. Production relay admission selects
+only the exact jstorrent.com origin; the relay hostname, host authority and
+cryptographic protocol are retained. Former and foreign origins are rejected.
+Cloudflare hosting retains strict remote HTTP protections; browser authorization
+requires fresh sign-in at the new origin. Local relay tests/clippy and website
+assembly guards pass; DNS/mail and deployed acceptance remain private checkpoints.
+
 Tactical [276](../tactical/276-preview-host-verification.md) corrects the
 private preview verifier after the approved source8c deployment encounters
 HTTP403 before activation. Direct private hops must name the configured public

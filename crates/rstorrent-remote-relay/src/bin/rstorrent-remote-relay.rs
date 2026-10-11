@@ -100,7 +100,7 @@ impl Arguments {
                 .is_some_and(|path| !path.is_absolute())
             || arguments.trusted_proxy.is_some() != arguments.operator_token_file.is_some()
             || (arguments.trusted_proxy.is_some()
-                && arguments.client_origin != "https://rstorrent.com")
+                && arguments.client_origin != "https://jstorrent.com")
         {
             return Err(ArgumentError::Usage);
         }
@@ -302,7 +302,7 @@ mod tests {
             OsString::from("--listen"),
             OsString::from("127.0.0.1:8443"),
             OsString::from("--client-origin"),
-            OsString::from("https://rstorrent.com"),
+            OsString::from("https://jstorrent.com"),
             OsString::from("--certificate-der"),
             certificate.into_os_string(),
             OsString::from("--private-key-der"),
@@ -333,22 +333,28 @@ mod tests {
             ]))
             .is_err()
         );
-        let wrong_origin = common.map(|value| {
-            if value == "https://rstorrent.com" {
-                OsString::from("https://example.com")
-            } else {
-                value
-            }
-        });
-        assert!(
-            Arguments::parse(wrong_origin.into_iter().chain([
-                OsString::from("--trusted-proxy"),
-                OsString::from("127.0.0.1"),
-                OsString::from("--operator-token-file"),
-                env::temp_dir().join("token").into_os_string(),
-            ]))
-            .is_err()
-        );
+        for origin in [
+            "https://example.com",
+            "https://rstorrent.com",
+            "https://www.jstorrent.com",
+        ] {
+            let wrong_origin = common.clone().map(|value| {
+                if value == "https://jstorrent.com" {
+                    OsString::from(origin)
+                } else {
+                    value
+                }
+            });
+            assert!(
+                Arguments::parse(wrong_origin.into_iter().chain([
+                    OsString::from("--trusted-proxy"),
+                    OsString::from("127.0.0.1"),
+                    OsString::from("--operator-token-file"),
+                    env::temp_dir().join("token").into_os_string(),
+                ]))
+                .is_err()
+            );
+        }
     }
 
     #[cfg(unix)]

@@ -1,9 +1,8 @@
 name: Production Website
 
 on:
-  workflow_run:
-    workflows: [Website]
-    types: [completed]
+  # Retained only as a manual rollback host. Cloudflare Website owns canonical
+  # marketing and the guarded remote controller after DNS consolidation.
   workflow_dispatch:
 
 permissions:
@@ -17,7 +16,6 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event != 'pull_request')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment:

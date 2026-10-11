@@ -104,7 +104,7 @@ impl ProductRelayOptions {
         }
         validate_operator_token(&operator_token)?;
         Ok(Self {
-            allowed_client_origin: "https://rstorrent.com".to_owned(),
+            allowed_client_origin: "https://jstorrent.com".to_owned(),
             trusted_proxy: Some(trusted_proxy),
             operator_token: Some(Zeroizing::new(operator_token)),
         })
@@ -1673,7 +1673,8 @@ fn validate_origin(origin: &str) -> Result<(), ProductRelayError> {
         || url.origin().ascii_serialization() != origin
         || !url.host().is_some_and(|host| match host {
             url::Host::Domain(name) => {
-                (name == "rstorrent.com" && url.port().is_none()) || name == "localhost"
+                (matches!(name, "jstorrent.com" | "rstorrent.com") && url.port().is_none())
+                    || name == "localhost"
             }
             url::Host::Ipv4(address) => address.is_loopback(),
             url::Host::Ipv6(address) => address.is_loopback(),
@@ -2082,7 +2083,24 @@ mod tests {
 
     #[test]
     fn product_origin_operator_token_and_route_namespace_are_exact() {
+        assert!(validate_origin("https://jstorrent.com").is_ok());
         assert!(validate_origin("https://rstorrent.com").is_ok());
+        for origin in [
+            "http://jstorrent.com",
+            "https://jstorrent.com/",
+            "https://jstorrent.com:444",
+            "https://www.jstorrent.com",
+            "https://evil.jstorrent.com",
+            "https://jstorrent.com.evil.test",
+        ] {
+            assert!(validate_origin(origin).is_err(), "accepted {origin}");
+        }
+        let production = ProductRelayOptions::production(
+            "127.0.0.1".parse().unwrap(),
+            "abcdefghijklmnopqrstuvwxyz012345".to_owned(),
+        )
+        .unwrap();
+        assert_eq!(production.allowed_client_origin, "https://jstorrent.com");
         assert!(validate_origin("https://rstorrent.com/").is_err());
         assert!(
             ProductRelayOptions::production(

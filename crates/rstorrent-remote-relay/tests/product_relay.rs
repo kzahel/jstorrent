@@ -244,6 +244,43 @@ async fn production_proxy_health_operator_metrics_and_kill_switch_are_bounded() 
     let health = client.get(format!("{base}/healthz")).send().await.unwrap();
     assert_eq!(health.status(), reqwest::StatusCode::OK);
     assert_eq!(health.text().await.unwrap(), r#"{"status":"ok"}"#);
+    // Real upgrades exercise the configured production origin, not just URL
+    // validation. The trusted proxy supplies an independently checked source.
+    for origin in [
+        "https://rstorrent.com",
+        "https://www.jstorrent.com",
+        "https://jstorrent.com:444",
+        "https://jstorrent.com.evil.test",
+    ] {
+        let mut request = format!("ws://{address}/client")
+            .into_client_request()
+            .unwrap();
+        request
+            .headers_mut()
+            .insert("origin", origin.parse().unwrap());
+        request
+            .headers_mut()
+            .insert("x-rstorrent-client-ip", "198.51.100.7".parse().unwrap());
+        assert!(
+            matches!(
+                connect_async(request).await,
+                Err(WebSocketError::Http(response)) if response.status() == 404
+            ),
+            "accepted {origin}"
+        );
+    }
+    let mut request = format!("ws://{address}/client")
+        .into_client_request()
+        .unwrap();
+    request
+        .headers_mut()
+        .insert("origin", "https://jstorrent.com".parse().unwrap());
+    request
+        .headers_mut()
+        .insert("x-rstorrent-client-ip", "198.51.100.7".parse().unwrap());
+    let (mut controller, response) = connect_async(request).await.unwrap();
+    assert_eq!(response.status(), 101);
+    controller.close(None).await.unwrap();
     assert_eq!(
         client
             .get(format!("{base}/operator/v1/status"))
