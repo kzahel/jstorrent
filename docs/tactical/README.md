@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [311 — Android notification settings consolidation](311-android-notification-settings-consolidation.md):
+  one status/action row opens system controls in granted and denied states;
+  independent notification preferences remain.
+
 - [309 — Direct file transport ceiling](309-direct-file-transport-ceiling.md):
   generated ranges, raw reliable RTC and browser control distinguish storage
   cost from transport; production unchanged, RTT/loss diagnosis next.

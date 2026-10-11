@@ -374,8 +374,6 @@
     <string name="notifications_needs_attention">Needs attention</string>
     <string name="notifications_needs_attention_detail">Notify when a torrent or download folder needs repair.</string>
     <string name="notifications_system_blocked">Blocked in Android system settings.</string>
-    <string name="notifications_manage_system">Manage system notification settings</string>
-    <string name="notifications_manage_system_detail">Review Android app and channel controls.</string>
 
     <!-- Appearance and lifecycle settings. -->
     <string name="settings_theme">Theme</string>

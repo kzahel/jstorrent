@@ -1458,6 +1458,13 @@ with exact SAF cleanup.
   evidence passes; the supported-phone gate still awaits explicit physical-
   handoff authorization. VPN-grade leak prevention still requires Android
   network binding and race analysis; proxy remains separate.
+- Tactical [311](../tactical/311-android-notification-settings-consolidation.md)
+  consolidates Android Notifications into one permission/app/channel status row
+  opening Android system controls: Enable without permission, Manage otherwise.
+  System controls remain reachable after permission denial; completion and
+  attention preferences remain independent. The duplicate Open row is removed.
+  Debug build, 123 JVM cases, lint, catalog checks and two focused navigation
+  cases on each owned API 28/35 AVD pass.
 - Android's one service-native notification owner now reports generic
   foreground state and derives bounded completion plus fatal/storage-repair
   edges from the authoritative torrent-list stream. Default-on app preferences

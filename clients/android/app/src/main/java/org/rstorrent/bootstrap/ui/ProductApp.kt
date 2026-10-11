@@ -1013,7 +1013,7 @@ private fun ProductNavHost(
                         } else {
                             stringResource(R.string.library_background_unavailable)
                         },
-                    onClick = if (notificationsGranted) onOpenNotificationSettings else onRequestNotifications,
+                    onClick = onOpenNotificationSettings,
                     action =
                         stringResource(
                             if (notificationsGranted) R.string.action_manage else R.string.action_enable,
@@ -1054,12 +1054,6 @@ private fun ProductNavHost(
                 notificationState.preferenceError?.let {
                     ReadOnlySetting(stringResource(R.string.setting_not_saved), productErrorText(it))
                 }
-                SettingAction(
-                    title = stringResource(R.string.notifications_manage_system),
-                    detail = stringResource(R.string.notifications_manage_system_detail),
-                    onClick = onOpenNotificationSettings,
-                    action = stringResource(R.string.action_open),
-                )
             }
         }
         composable(ProductRoutes.SETTINGS_NETWORK) {

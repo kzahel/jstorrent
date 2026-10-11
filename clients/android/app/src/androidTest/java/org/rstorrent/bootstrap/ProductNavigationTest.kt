@@ -989,14 +989,17 @@ class ProductNavigationTest {
     @Test
     fun notificationSettingsExposePermissionChannelsAndDurableChoices() {
         val changes = mutableListOf<Pair<ProductNotificationPreference, Boolean>>()
+        var permissionGranted by mutableStateOf(true)
+        var systemSettingsCalls = 0
+        var permissionRequests = 0
         compose.setContent {
             ProductApp(
                 service = null,
                 onSelectStorage = {},
                 onBrowseTorrent = {},
-                notificationsGranted = true,
-                onRequestNotifications = {},
-                onOpenNotificationSettings = {},
+                notificationsGranted = permissionGranted,
+                onRequestNotifications = { permissionRequests++ },
+                onOpenNotificationSettings = { systemSettingsCalls++ },
                 themeMode = ProductThemeMode.LIGHT,
                 dynamicColor = false,
                 onThemeMode = {},
@@ -1006,7 +1009,7 @@ class ProductNavigationTest {
                         ready = true,
                         notifications =
                             ProductNotificationState(
-                                permissionGranted = true,
+                                permissionGranted = permissionGranted,
                                 completionChannelEnabled = false,
                             ),
                     ),
@@ -1029,7 +1032,18 @@ class ProductNavigationTest {
         compose
             .onNodeWithText("Needs attention")
             .performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithText("Manage system notification settings").assertIsDisplayed()
+        compose.onAllNodesWithText("Manage").assertCountEquals(1)
+        compose.onAllNodesWithText("Open").assertCountEquals(0)
+        compose.onNodeWithText("Manage").performClick()
+        compose.runOnIdle { permissionGranted = false }
+        compose.onNodeWithText("Notifications disabled").assertIsDisplayed()
+        compose.onAllNodesWithText("Manage").assertCountEquals(0)
+        compose.onAllNodesWithText("Enable").assertCountEquals(1)
+        compose.onNodeWithText("Enable").performClick()
+        compose.runOnIdle {
+            assertEquals(2, systemSettingsCalls)
+            assertEquals(0, permissionRequests)
+        }
         assertEquals(
             listOf(
                 ProductNotificationPreference.DOWNLOAD_COMPLETE to false,
