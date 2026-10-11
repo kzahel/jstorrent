@@ -23,5 +23,7 @@ Budget: complete within 25 minutes. Report exactly which checks you ran and what
 they establish. If a check cannot run, state that limitation. Do not call an
 unperformed check passed. Return the requested JSON schema. Each finding needs
 an actionable title, evidence, a priority (0 urgent, 1 high, 2 normal, 3 low), and
-a narrow location on an added/context line of the PR diff. Return an empty list
+a narrow location on an added/context line of the PR diff. Finding paths must
+be repository-relative (for example, src/example.rs), without /workspace/ or
+other absolute prefixes. Return an empty list
 when no concrete introduced bug is established.

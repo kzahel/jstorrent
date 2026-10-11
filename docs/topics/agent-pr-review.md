@@ -33,6 +33,9 @@ output. No credentials, PR checkout or build
 cache crosses into the publisher. Titles, bodies, commands, paths and line
 numbers are treated as untrusted output; the validator checks shape, sizes,
 priority and location against GitHub's right-side PR diff before posting.
+The exact `/workspace/` container prefix may be stripped from a finding path;
+the remaining filename and line must still appear in that diff. Other absolute
+roots, traversal and unknown files are rejected.
 Large/truncated patches without an available GitHub patch cannot receive inline
 findings; the validation fails instead of silently attaching an unverifiable
 location.

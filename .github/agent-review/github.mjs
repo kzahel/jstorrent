@@ -46,9 +46,12 @@ export function reviewPayload(data, metadata, files) {
   const lines = changedLines(files);
   const comments = data.findings.map(finding => {
     keys(finding, ['title', 'body', 'priority', 'path', 'line']);
+    // Codex may use its known absolute container root for a diff location.
+    const path = typeof finding.path === 'string' && finding.path.startsWith('/workspace/')
+      ? finding.path.slice('/workspace/'.length) : finding.path;
     if (!Number.isInteger(finding.priority) || finding.priority < 0 || finding.priority > 3 ||
-        !Number.isInteger(finding.line) || !lines.get(finding.path)?.has(finding.line)) throw new Error('Finding is outside the PR diff');
-    return { path: finding.path, line: finding.line, side: 'RIGHT',
+        !Number.isInteger(finding.line) || !lines.get(path)?.has(finding.line)) throw new Error('Finding is outside the PR diff');
+    return { path, line: finding.line, side: 'RIGHT',
       body: `**[P${finding.priority}] ${text(finding.title, 160)}**\n\n${text(finding.body, 4000)}` };
   });
   const validation = data.validation.map(check => {

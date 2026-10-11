@@ -26,7 +26,11 @@ test('inline findings must use a visible right-side diff line', () => {
   const payload = reviewPayload(result, { head_sha: sha, pr: 1 }, files);
   assert.equal(payload.event, 'COMMENT'); assert.equal(payload.commit_id, sha);
   assert.ok(!payload.body.includes('@everyone'));
-  for (const change of [{ path: '../secret' }, { line: 99 }, { priority: 4 }, { extra: 'field' }]) {
+  const absolute = reviewPayload({ ...result, findings: [{ ...result.findings[0], path: '/workspace/src/example.rs' }] }, { head_sha: sha, pr: 1 }, files);
+  assert.deepEqual(absolute, payload);
+  for (const change of [{ path: '../secret' }, { path: '/tmp/src/example.rs' },
+    { path: '/workspace/../src/example.rs' }, { path: '/workspace/src/unknown.rs' },
+    { path: '/workspace-other/src/example.rs' }, { line: 99 }, { priority: 4 }, { extra: 'field' }]) {
     assert.throws(() => reviewPayload({ ...result, findings: [{ ...result.findings[0], ...change }] }, { head_sha: sha, pr: 1 }, files));
   }
   assert.throws(() => reviewPayload({ ...result, summary: 'x'.repeat(4001) }, { head_sha: sha, pr: 1 }, files));
