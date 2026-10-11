@@ -1,6 +1,6 @@
 # Tactical 303: Canonical JSTorrent Remote Origin
 
-Status: Active, 2026-10-11. Owners: remote-access-authentication and
+Status: Complete, 2026-10-11. Owners: remote-access-authentication and
 product-surfaces-and-migration. Private infrastructure acceptance owns DNS,
 forwarding, service deployment and provider administration.
 
@@ -53,5 +53,31 @@ clippy pass. The 54 website tests and nine assembly guards pass. Production
 Website is manual-only rollback; Cloudflare Website adds the same public source
 receipt to its combined artifact. Private service, candidate and restore inputs
 now select the canonical origin. No new tasks or cryptographic code are added.
-Next: push the qualified source and prepare exact-source deployment; verify mail
-forwarding before authoritative DNS activation.
+## Deployed acceptance
+
+Public source bd084f3cb2f90a46d52c0f8270adbc70d5fdeae2 is deployed on
+Cloudflare Pages and the production relay. Website CI 38135677840 passes;
+the ordinary public canonical origin passes all six manifest digests, strict
+remote headers, Wasm MIME and absent service-worker checks. Live TLS WebSocket
+admission accepts only the exact canonical origin; former/www/wrong-port and
+lookalike origins return 404. Existing relay authority is retained.
+
+A disposable exact-source headless host and bundled Chromium prove private
+password login, reload/restart resume, browser revocation, shared login and
+shared restart requiring a password. No page errors or third-party remote
+requests occur. Signed route release and profile/process cleanup restore the
+pre-test existing registration and waiting host. This qualifies the bounded
+canonical-origin canary, not new remote-controlled platform support.
+
+Thirty-two canonical marketing browser views and no-JavaScript downloads pass
+after DNS cutover. Former remote document entrypoints and www redirect to the
+canonical controller with query strings and browser fragments preserved.
+Hashed former-origin assets remain available for cached documents. Protected
+forwarding configuration and registrar/DNS ownership are recorded privately;
+registration remains with the previous registrar. Reports and captures are
+ignored, and public documents contain no private infrastructure inventory.
+
+Private deployment recovered a stuck shared-ingress reload by rolling the
+relay back with authority intact and restarting ingress. The qualified retry
+skips an unchanged ingress configuration/CA and completes HTTPS/WSS, backup
+and service checks. Desktop/headless release packages and protocol are unchanged.

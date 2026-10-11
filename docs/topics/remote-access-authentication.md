@@ -2,13 +2,17 @@
 
 Topic: `remote-access-authentication`
 
-Tactical [303](../tactical/303-canonical-remote-origin.md) prepares the accepted
+Tactical [303](../tactical/303-canonical-remote-origin.md) deploys the accepted
 canonical controller at jstorrent.com/remote/. Production relay admission selects
 only the exact jstorrent.com origin; the relay hostname, host authority and
 cryptographic protocol are retained. Former and foreign origins are rejected.
 Cloudflare hosting retains strict remote HTTP protections; browser authorization
-requires fresh sign-in at the new origin. Local relay tests/clippy and website
-assembly guards pass; DNS/mail and deployed acceptance remain private checkpoints.
+requires fresh sign-in at the new origin. Relay tests/clippy, website assembly
+guards, deployed six-file/header verification and live hostile-origin rejection
+pass. A disposable exact-source headless canary proves login, reload/restart
+resume, revocation, shared-session behavior and signed cleanup. Former remote
+document entrypoints redirect with query/fragment continuity. DNS/mail operation
+and ignored screenshots are recorded in the private infrastructure checklist.
 
 Tactical [276](../tactical/276-preview-host-verification.md) corrects the
 private preview verifier after the approved source8c deployment encounters

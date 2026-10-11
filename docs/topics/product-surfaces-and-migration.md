@@ -1,14 +1,19 @@
 # Product Surfaces And JSTorrent Migration
 
-Tactical [299](../tactical/299-production-website-consolidation.md) completes
-website consolidation: jstorrent.com serves this repository's established
-JSTorrent design, blog and compatibility routes through GitHub Pages. Qualified
-production releases automatically promote verified downloads and announcements,
-then deploy both website hosts. The old `/app` prototype has retirement guidance;
-rstorrent.com marketing redirects while its remote and installer routes remain.
-Registrar DNS/email and repository names are unchanged; private infrastructure
-acceptance records own those decisions. Both previous implementation READMEs
-point to this source. Repository renames remain a separate compatibility decision.
+Tacticals [299](../tactical/299-production-website-consolidation.md) and
+[303](../tactical/303-canonical-remote-origin.md) complete website consolidation.
+jstorrent.com serves this repository's established JSTorrent design, blog,
+compatibility routes and guarded `/remote/` controller through Cloudflare Pages.
+Qualified production releases automatically promote verified downloads and
+announcements, then deploy the combined website. GitHub Pages is manual-only
+marketing rollback. The old `/app` prototype has retirement guidance;
+rstorrent.com marketing and remote documents redirect, while hashed remote
+assets and installer routes remain available. The exact canonical remote browser
+origin passes deployed security and disposable host/browser acceptance.
+Private infrastructure records own the accepted DNS/forwarding migration;
+registrar and repository names remain unchanged. Both previous implementation
+READMEs point to this source. Repository renames remain a separate compatibility
+decision.
 
 ## Current store delivery checkpoint, 2026-10-10
 
