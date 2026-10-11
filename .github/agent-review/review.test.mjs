@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { once } from 'node:events';
-import { eligible, changedLines, reviewPayload } from './github.mjs';
+import { eligible, eligibleWorkflowRun, changedLines, reviewPayload } from './github.mjs';
 import { createProxy } from './proxy.mjs';
 
 const sha = 'a'.repeat(40);
@@ -20,6 +20,17 @@ test('only current owner-authored same-repository main PRs qualify', () => {
     assert.equal(eligible({ ...pr, ...change }, sha), false);
   }
   assert.equal(eligible(pr, 'b'.repeat(40)), false);
+});
+test('automatic review requires a successful completed Fast CI PR run', () => {
+  const run = { event: 'pull_request', status: 'completed', conclusion: 'success', head_sha: sha,
+    head_repository: { full_name: 'kzahel/jstorrent' } };
+  assert.equal(eligibleWorkflowRun(run, '.github/workflows/fast-ci.yml'), true);
+  for (const change of [{ event: 'push' }, { status: 'in_progress' }, { conclusion: 'failure' },
+    { conclusion: 'cancelled' }, { conclusion: 'skipped' }, { head_sha: 'bad' },
+    { head_repository: { full_name: 'attacker/fork' } }]) {
+    assert.equal(eligibleWorkflowRun({ ...run, ...change }, '.github/workflows/fast-ci.yml'), false);
+  }
+  assert.equal(eligibleWorkflowRun(run, '.github/workflows/ci.yml'), false);
 });
 test('inline findings must use a visible right-side diff line', () => {
   assert.deepEqual([...changedLines(files).get('src/example.rs')], [1, 2, 3, 4]);

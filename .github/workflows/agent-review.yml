@@ -2,7 +2,7 @@ name: Agent PR review
 
 on:
   workflow_run:
-    workflows: [CI]
+    workflows: [Fast CI]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -39,7 +39,9 @@ jobs:
     if: >-
       github.repository == 'kzahel/jstorrent' && github.ref == 'refs/heads/main' &&
       (vars.AGENT_REVIEW_ENABLED == 'true' || github.event_name == 'workflow_dispatch') &&
-      github.event_name != 'push'
+      github.event_name != 'push' &&
+      (github.event_name != 'workflow_run' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     outputs:

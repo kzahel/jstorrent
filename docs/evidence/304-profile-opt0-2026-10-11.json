@@ -1,0 +1,85 @@
+{
+  "platform": "darwin",
+  "arch": "arm64",
+  "logicalCpus": 14,
+  "memoryBytes": 51539607552,
+  "cargoJobs": 4,
+  "packages": [
+    "rstorrent-protocol",
+    "rstorrent-engine"
+  ],
+  "startedAt": "2026-10-11T12:27:55.870Z",
+  "results": [
+    {
+      "profile": "test",
+      "phase": "target-cold-compile",
+      "command": "cargo test --locked --profile test -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 114.179,
+      "counts": []
+    },
+    {
+      "profile": "test",
+      "phase": "unchanged-compile",
+      "command": "cargo test --locked --profile test -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 0.466,
+      "counts": []
+    },
+    {
+      "profile": "test",
+      "phase": "first-party-rebuild",
+      "command": "cargo test --locked --profile test -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 64.625,
+      "counts": []
+    },
+    {
+      "profile": "test",
+      "phase": "test-execution",
+      "command": "cargo test --locked --profile test -p rstorrent-protocol -p rstorrent-engine --lib",
+      "seconds": 10.487,
+      "counts": [
+        {
+          "passed": 263,
+          "failed": 0,
+          "ignored": 4
+        }
+      ]
+    },
+    {
+      "profile": "ci-fast",
+      "phase": "target-cold-compile",
+      "command": "cargo test --locked --profile ci-fast -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 43.191,
+      "counts": []
+    },
+    {
+      "profile": "ci-fast",
+      "phase": "unchanged-compile",
+      "command": "cargo test --locked --profile ci-fast -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 0.18,
+      "counts": []
+    },
+    {
+      "profile": "ci-fast",
+      "phase": "first-party-rebuild",
+      "command": "cargo test --locked --profile ci-fast -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 16.16,
+      "counts": []
+    }
+  ],
+  "sourceSha": "1e451f8f940c414522d0c9a8a52356eaba776665",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "candidate": {
+    "optLevel": 0,
+    "codegenUnits": 256
+  },
+  "failure": {
+    "phase": "test-execution",
+    "test": "swarm::tests::maximum_active_hot_path_does_not_touch_the_global_rarity_index",
+    "assertion": "started.elapsed() < Duration::from_secs(5)",
+    "enginePassed": 602,
+    "engineFailed": 1,
+    "engineIgnored": 9
+  },
+  "note": "Original benchmark stopped at this failure; candidate execution time and completion timestamp were not retained."
+}

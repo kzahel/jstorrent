@@ -387,16 +387,51 @@ cargo clippy --workspace -- -D warnings
 cargo test --workspace
 ```
 
-Presubmit runs shared-web validation, companion-extension packaging, and
-workflow/release-tool checks in independent jobs. A failed extension package
+The `Fast CI` workflow gives early PR feedback on the exact submitted head.
+It lints changed portable Rust crates and their portable dependents, runs
+formatting and the directly changed libraries' unit tests, and checks
+generated-contract drift when the gateway is affected. Web type/unit/
+build, companion packaging and website build checks run for their affected
+surfaces. Workflow/reviewer safety checks always run. Unknown executable or
+shared configuration changes select conservative checks; docs-only changes
+skip product builds. The stable aggregate check is **Fast PR feedback**.
+
+The warm-run target is 3--5 minutes, not a qualified duration or timeout.
+Cold dependencies and broad changes may take longer. Fast checks retain the
+ordinary optimized Rust profiles. They restore the ordinary CI dependency
+cache using the same shared key, without saving; full CI remains its owner.
+Fast checks omit dependents' runtime tests, Rust integration and feature-variant
+execution, browser E2E, native packaging and mobile builds.
+The existing `CI` workflow remains independent full qualification, with its
+original job names and coverage. Branch protection is unchanged.
+
+Full qualification runs shared-web validation, companion-extension packaging,
+and workflow/release-tool checks in independent jobs. A failed extension package
 does not suppress web contract drift, type, unit, production-build, or browser
 coverage. Native desktop, Android, and iOS jobs retain their separate gates.
 
 The optional custom agent PR review lane follows
 [`docs/topics/agent-pr-review.md`](docs/topics/agent-pr-review.md). It uses a
 separate isolated checkout, restores trusted main build caches, and publishes
-commit-bound findings after CI completes. Its explicit GitHub activation switch
-stays disabled until provider renewal and network enrollment are qualified.
+commit-bound findings after successful Fast CI PR checks. Failed/cancelled
+fast runs cannot start automatic review; full qualification may still be
+running. Explicit manual reviews remain available. Automatic activation is
+still disabled while the new lane and build cache are being qualified.
+
+Run the bounded build-profile comparison with four Cargo jobs:
+
+```bash
+source ~/.profile
+node .github/scripts/benchmark-fast-ci.mjs artifacts/verification/fast-ci-benchmark.json
+```
+
+This compares the same protocol/engine library cohort using the ordinary and
+temporary candidate profiles: empty build target, unchanged rerun, first-party
+rebuild with dependencies retained, and test execution. Each profile owns a disposable
+build tree. Cargo registry downloads may already be cached; a local result
+does not qualify GitHub runner latency. Tactical
+[`304`](docs/tactical/304-fast-pr-feedback-and-ci-benchmarks.md) owns the
+comparison, rejected profile and hosted follow-up.
 
 To distinguish Rust compilation from test execution using the CI commands:
 

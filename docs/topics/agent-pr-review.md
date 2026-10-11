@@ -10,7 +10,12 @@ runbook `runbooks/agent-pr-review.md`.
 ## Trigger and authority
 
 `.github/workflows/agent-review.yml` executes its controller from trusted main
-on completion of the existing CI workflow, or manual dispatch with a PR number.
+after a successful completed `Fast CI` pull-request workflow, or manual dispatch
+with a PR number. Both the job condition and controller reject failed,
+cancelled, skipped, incomplete and wrong-workflow automatic events. Full
+platform qualification is independent and may still be running. Tactical
+[304](../tactical/304-fast-pr-feedback-and-ci-benchmarks.md) owns the early
+feedback lane and benchmark evidence.
 It accepts only open, non-draft PRs authored by the maintainer's stable GitHub
 user ID, from this repository, targeting main. The controller checks the live
 GitHub PR and exact triggering head SHA; superseded results are skipped. The
@@ -57,8 +62,9 @@ the mounted Unix socket. The container receives a non-secret placeholder token.
 No provider credential is copied into GitHub or the review container.
 
 The model uses high reasoning effort and may inspect relevant code, build,
-test and create small repros. Existing CI conclusions are context, not a claim
-that additional checks ran. Live/public-swarm work and complete platform matrices
+test and create small repros. Existing fast-check conclusions are context,
+not a claim that full qualification or additional checks ran. Live/public-swarm
+work and complete platform matrices
 are excluded. The time limit is 25 minutes; execution is bounded to 8 GiB RAM,
 four CPUs and 512 PIDs. The gateway proxy permits at most 512 requests per run,
 32 MiB request bodies, 16 KiB headers and ten-minute stream idle time. This does

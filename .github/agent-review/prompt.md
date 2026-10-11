@@ -17,7 +17,9 @@ findings. Dependencies were prepared before this run; the container now has no
 external network. Use cargo --offline and npm --offline where appropriate. Rust
 1.97, Node 24, Linux desktop prerequisites and Codex are installed. Full platform
 matrices and live/public-swarm tests are out of scope. Prefer targeted checks over
-repeating the full CI suite. Existing CI status is in /review/context.json.
+repeating the full CI suite. Fast CI status is in /review/context.json when
+automatically triggered; full platform qualification may still be running.
+Successful fast checks do not establish successful full qualification.
 
 Budget: complete within 25 minutes. Report exactly which checks you ran and what
 they establish. If a check cannot run, state that limitation. Do not call an
