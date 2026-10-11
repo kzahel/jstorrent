@@ -43,7 +43,7 @@ required = true
 [[sibling]]
 name = "jstorrent"
 path = "../jstorrent"
-repository = "git@github.com:kzahel/jstorrent"
+repository = "git@github.com:kzahel/jstorrent-typescript"
 branch = "main"
 purpose = "First-party product behavior, fixtures, integration scenarios, and Android and ChromeOS lessons"
 required = true

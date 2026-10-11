@@ -21,9 +21,9 @@ These preview-reset instructions do not apply to production migration.
 Open **Settings → About & updates** and note the version, build, target and
 package. In builds with **Support diagnostics**, choose **Prepare diagnostics**
 and review the exact report. Copy it or download `jstorrent-diagnostics.json`,
-then attach it to a [new issue](https://github.com/kzahel/rstorrent/issues/new).
+then attach it to a [new issue](https://github.com/kzahel/jstorrent/issues/new).
 Include what you did, what you expected and what happened. Existing
-[open issues](https://github.com/kzahel/rstorrent/issues) may already describe
+[open issues](https://github.com/kzahel/jstorrent/issues) may already describe
 the problem.
 
 The report is limited to build/package facts, the update-check privacy model,
@@ -62,7 +62,7 @@ No automatic crash-upload service is enabled by Support diagnostics.
 Use **Check for updates**, then **Install and restart** when offered. Supported
 updater package forms are the self-contained macOS app, per-user Windows NSIS
 installation and user-writable Linux AppImage. Package-manager installations
-may require the manual [release downloads](https://github.com/kzahel/rstorrent/releases/latest)
+may require the manual [release downloads](https://github.com/kzahel/jstorrent/releases/latest)
 path shown in About. An installation failure should leave the current package
 available; do not infer success from a replacement file alone.
 

@@ -306,7 +306,7 @@ provenance are recorded in the tactical and
 [Android replacement topic](topics/android-jstorrent-replacement.md). No
 reference source, fixture or APK is imported into this repository.
 
-Repository: [kzahel/jstorrent](https://github.com/kzahel/jstorrent)
+Repository: [kzahel/jstorrent-typescript](https://github.com/kzahel/jstorrent-typescript)
 
 Typical local checkout: `~/code/jstorrent`
 
