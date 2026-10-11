@@ -51,7 +51,8 @@ jobs:
           node --input-type=module <<'JS'
           import { execFileSync } from 'node:child_process';
           import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-          const release = JSON.parse(readFileSync('website/src/data/production-release.json', 'utf8'));
+          const release = JSON.parse(readFileSync('website/src/data/production-release.json', 'utf8')).release;
+          if (typeof release?.version !== 'string') throw new Error('Missing qualified desktop version');
           mkdirSync('website/dist/.well-known', {recursive:true});
           writeFileSync('website/dist/.well-known/jstorrent-website.json', JSON.stringify({sourceRepository:process.env.SOURCE_REPOSITORY, sourceSha:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(), desktopVersion:release.version})+'\n');
           JS
