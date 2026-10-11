@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [309 — Direct file transport ceiling](309-direct-file-transport-ceiling.md):
+  generated ranges, raw reliable RTC and browser control distinguish storage
+  cost from transport; production unchanged, RTT/loss diagnosis next.
+
 - [307 — Direct file save throughput](307-direct-file-save-throughput.md):
   production-consumer baseline, bounded window experiments and Chrome/Edge
   large-save scope; Firefox/Safari large saves and playback deferred.

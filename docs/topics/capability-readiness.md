@@ -1,5 +1,13 @@
 # Capability Readiness
 
+Completed local Tactical [309](../tactical/309-direct-file-transport-ceiling.md)
+adds an experiment-only transport-ceiling harness: normal/generated disk
+saves remain about 51 MiB/s and bounded raw RTC reaches a stable 68.50 MiB/s.
+Exact bytes, queue caps, partial cancellation and terminal cleanup pass.
+This supplies diagnosis, not a product algorithm change, WAN qualification
+or a universal WebRTC ceiling. Further work should target RTT/loss and
+transport diagnostics before raising limits or changing dependencies.
+
 Completed local [307](../tactical/307-direct-file-save-throughput.md) bounds
 remote Save to four outstanding 16-KiB chunks per range and bounds browser
 receive work independently. Repeated controlled 256-MiB disk saves improve

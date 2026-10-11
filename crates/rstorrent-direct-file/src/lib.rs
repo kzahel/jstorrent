@@ -22,3 +22,6 @@ pub use endpoint::{
 pub use rtc::peer_connection::sdp::RTCSessionDescription;
 #[cfg(feature = "webrtc")]
 pub use rtc::peer_connection::transport::RTCIceCandidateInit;
+
+#[cfg(feature = "experiment")]
+pub use endpoint::ExperimentSource;

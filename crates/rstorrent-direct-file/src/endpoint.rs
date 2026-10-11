@@ -240,9 +240,31 @@ trait LazyEndpointStarter: Send + Sync {
     ) -> ProductEndpointStartFuture;
 }
 
+#[derive(Clone, Copy, Default)]
+pub enum ExperimentSource {
+    #[default]
+    Verified,
+    #[cfg(feature = "experiment")]
+    GeneratedRanges,
+    #[cfg(feature = "experiment")]
+    Raw { length: usize, buffer_bytes: usize },
+}
+
+#[cfg(feature = "experiment")]
+fn generated_bytes(offset: u64, length: usize) -> Vec<u8> {
+    (offset..offset + length as u64)
+        .map(|index| {
+            index
+                .wrapping_mul(31)
+                .wrapping_add((index >> 8).wrapping_mul(17)) as u8
+        })
+        .collect()
+}
+
 struct RtcEndpointStarter {
     application: SharedApplication,
     send_window_bytes: usize,
+    source: ExperimentSource,
 }
 
 impl LazyEndpointStarter for RtcEndpointStarter {
@@ -259,6 +281,7 @@ impl LazyEndpointStarter for RtcEndpointStarter {
             Vec::new(),
             offer,
             self.send_window_bytes,
+            self.source,
         ))
     }
 
@@ -269,6 +292,7 @@ impl LazyEndpointStarter for RtcEndpointStarter {
     ) -> ProductEndpointStartFuture {
         let application = self.application.clone();
         let send_window_bytes = self.send_window_bytes;
+        let source = self.source;
         Box::pin(async move {
             validate_offer(&offer)?;
             let (bind_ip, stun_addresses) = match resolve_stun_route().await {
@@ -285,6 +309,7 @@ impl LazyEndpointStarter for RtcEndpointStarter {
                 stun_addresses,
                 offer,
                 send_window_bytes,
+                source,
             )
             .await
         })
@@ -300,6 +325,7 @@ impl DirectFileEndpointFactory {
             starter: Arc::new(RtcEndpointStarter {
                 application,
                 send_window_bytes: SEND_WINDOW_BYTES,
+                source: ExperimentSource::Verified,
             }),
         }
     }
@@ -307,10 +333,30 @@ impl DirectFileEndpointFactory {
     /// Bounded experiment control; product hosts use the measured constant.
     #[cfg(feature = "experiment")]
     pub fn with_send_window(application: SharedApplication, bytes: usize) -> Option<Self> {
+        Self::with_experiment_source(application, bytes, ExperimentSource::Verified)
+    }
+
+    /// Local diagnostic sources are never selected by product factories.
+    #[cfg(feature = "experiment")]
+    pub fn with_experiment_source(
+        application: SharedApplication,
+        bytes: usize,
+        source: ExperimentSource,
+    ) -> Option<Self> {
+        if let ExperimentSource::Raw {
+            length,
+            buffer_bytes,
+        } = source
+            && (!(1..=256 * 1024 * 1024).contains(&length)
+                || !(MAX_CHUNK_BYTES..=MAX_TRANSPORT_QUEUE_BYTES).contains(&buffer_bytes))
+        {
+            return None;
+        }
         valid_window_bytes(bytes).then(|| Self {
             starter: Arc::new(RtcEndpointStarter {
                 application,
                 send_window_bytes: bytes,
+                source,
             }),
         })
     }
@@ -340,6 +386,7 @@ impl DirectFileEndpointFactory {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn answer_offer(
     application: SharedApplication,
     capability: String,
@@ -347,6 +394,7 @@ async fn answer_offer(
     stun_addresses: Vec<SocketAddr>,
     offer: RTCSessionDescription,
     send_window_bytes: usize,
+    source: ExperimentSource,
 ) -> Result<(OfferAnswer, DirectFileEndpoint), DirectFileEndpointError> {
     debug_assert!(valid_window_bytes(send_window_bytes));
     let remote_fingerprint = validate_offer(&offer)?;
@@ -451,6 +499,7 @@ async fn answer_offer(
             driver_cancellation,
             driver_metrics.clone(),
             send_window_bytes,
+            source,
         )
         .await;
         driver_metrics.active_tasks.store(0, Ordering::Release);
@@ -589,6 +638,7 @@ async fn run_driver(
     cancellation: CancellationToken,
     metrics: Arc<EndpointMetrics>,
     send_window_bytes: usize,
+    source: ExperimentSource,
 ) -> Result<(), DirectFileEndpointError> {
     let (outbound_tx, mut outbound_rx) = mpsc::channel::<OutboundFrame>(8);
     let mut pending = VecDeque::<OutboundFrame>::new();
@@ -601,7 +651,13 @@ async fn run_driver(
     let lifetime_deadline = tokio::time::Instant::now() + EXPERIMENT_LIFETIME;
     let mut stats_tick = tokio::time::interval(STATS_INTERVAL);
     stats_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    #[cfg(feature = "experiment")]
+    let mut raw_sent = 0usize;
     let terminal = 'driver: loop {
+        // A saturated diagnostic producer must still respond to cancellation.
+        if cancellation.is_cancelled() {
+            break 'driver "shutdown";
+        }
         while let Some(transmit) = peer.poll_write() {
             let transmit_socket = if transmit.transport.peer_addr == MDNS_DEST_ADDR {
                 &mdns_socket
@@ -676,6 +732,10 @@ async fn run_driver(
                 u64::try_from(message.data.len()).unwrap_or(u64::MAX),
                 Ordering::AcqRel,
             );
+            #[cfg(feature = "experiment")]
+            if matches!(source, ExperimentSource::Raw { .. }) {
+                break 'driver "unexpected_raw_input";
+            }
             match decode_control(&message.data) {
                 Ok(ControlFrame::RangeRequest {
                     request_id,
@@ -725,6 +785,7 @@ async fn run_driver(
                                 request_cancellation,
                                 request_metrics,
                                 send_window_bytes,
+                                source,
                             )
                             .await;
                             (request_id, terminal)
@@ -801,6 +862,38 @@ async fn run_driver(
                     u64::try_from(encoded_chunk_payload_bytes(&frame.bytes)).unwrap_or(u64::MAX),
                     Ordering::AcqRel,
                 );
+                continue;
+            }
+        }
+
+        #[cfg(feature = "experiment")]
+        if let (
+            Some(id),
+            ExperimentSource::Raw {
+                length,
+                buffer_bytes,
+            },
+        ) = (channel_id, source)
+            && raw_sent < length
+        {
+            let mut channel = peer.data_channel(id).ok_or_else(|| {
+                DirectFileEndpointError::Driver("raw DataChannel disappeared".to_owned())
+            })?;
+            let size = MAX_CHUNK_BYTES.min(length - raw_sent);
+            if channel.outstanding_bytes().saturating_add(size) <= buffer_bytes {
+                let bytes = generated_bytes(raw_sent as u64, size);
+                channel
+                    .send(BytesMut::from(bytes.as_slice()))
+                    .map_err(|error| DirectFileEndpointError::Driver(error.to_string()))?;
+                raw_sent += size;
+                let buffered = channel.outstanding_bytes();
+                metrics
+                    .transport_buffered_bytes
+                    .store(buffered, Ordering::Release);
+                metrics
+                    .transport_high_water
+                    .fetch_max(buffered, Ordering::AcqRel);
+                metrics.bytes_sent.fetch_add(size as u64, Ordering::AcqRel);
                 continue;
             }
         }
@@ -927,6 +1020,7 @@ async fn run_range_request(
     cancellation: CancellationToken,
     metrics: Arc<EndpointMetrics>,
     send_window_bytes: usize,
+    source: ExperimentSource,
 ) -> &'static str {
     let lease = {
         let mut application = application.lock().await;
@@ -1020,7 +1114,15 @@ async fn run_range_request(
             queue_frame(&outbound, &metrics, encode_range_error(request_id, code)).await;
             return "range_unavailable";
         }
-        let read = lease.read_range(current, chunk_length);
+        let read = async {
+            #[cfg(feature = "experiment")]
+            if matches!(source, ExperimentSource::GeneratedRanges) {
+                return Ok(generated_bytes(current, chunk_length));
+            }
+            #[cfg(not(feature = "experiment"))]
+            let _ = source;
+            lease.read_range(current, chunk_length).await
+        };
         let bytes = tokio::select! {
             _ = cancellation.cancelled() => return "cancelled",
             result = read => match result {

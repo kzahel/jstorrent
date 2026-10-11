@@ -1,5 +1,14 @@
 # Direct Remote File Streaming
 
+Completed local Tactical [309](../tactical/309-direct-file-transport-ceiling.md)
+measures 51.77 MiB/s for normal 256-MiB disk saves, 51.11 with generated
+ranges and a stable 68.50 raw RTC operating point at 64-KiB outstanding.
+Removing reads does not reveal a major disk-save gain. Larger raw buffers are
+slower/variable; no universal WebRTC ceiling or library ranking is established.
+Production algorithm/limits remain unchanged. Next study targets controlled
+RTT/loss, transport diagnostics and a throughput/memory target before further
+credit or writer tuning; external-picker/WAN qualification remains with 196.
+
 Topic: `direct-remote-file-streaming`
 
 Completed local Tactical [307](../tactical/307-direct-file-save-throughput.md)

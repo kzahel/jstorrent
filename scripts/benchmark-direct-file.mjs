@@ -18,14 +18,26 @@ function option(name, fallback) {
   const index = args.indexOf(name);
   return index < 0 ? fallback : args[index + 1];
 }
+const sourceKind = option("--source", "verified");
+const rawBufferKiB = Number(option("--raw-buffer-kib", "512"));
+assert([16, 32, 64, 128, 256, 512].includes(rawBufferKiB));
+const cancelAfterMiB = Number(option("--cancel-after-mib", "0"));
+assert(["verified", "generated", "raw", "browser"].includes(sourceKind));
+assert(Number.isInteger(cancelAfterMiB) && cancelAfterMiB >= 0 && cancelAfterMiB <= 255);
+const rawConsumer = ["raw", "browser"].includes(sourceKind);
+assert(!cancelAfterMiB || rawConsumer);
 const sizes = option("--sizes", "64,256").split(",").map(Number);
 const repeats = Number(option("--repeats", "3"));
 const ackDelayMs = Number(option("--ack-delay-ms", "0"));
 const windowKiB = option("--window-kib", "64");
-const sinks = option("--sinks", "opfs,drain").split(",");
+const sinks = option("--sinks", rawConsumer ? "drain" : "opfs,drain").split(",");
 assert(sizes.every((size) => Number.isInteger(size) && size >= 1 && size <= 256));
 assert(Number.isInteger(repeats) && repeats >= 1 && repeats <= 10);
 assert(Number.isInteger(ackDelayMs) && ackDelayMs >= 0 && ackDelayMs <= 100);
+assert(!rawConsumer || (sinks.length === 1 && sinks[0] === "drain"));
+assert(!cancelAfterMiB || sizes.every((size) => size > cancelAfterMiB));
+assert(!rawConsumer || !args.includes("--protocol-checks"));
+assert(!rawConsumer || ackDelayMs === 0);
 assert(sinks.every((sink) => ["opfs", "drain"].includes(sink)));
 if (windowKiB !== undefined) assert(["16", "32", "64"].includes(windowKiB));
 
@@ -38,7 +50,7 @@ if (consumerRef) {
   source = result.stdout;
 } else source = await readFile(join(root, "clients/web/src/direct-file-save.ts"), "utf8");
 const { code } = await transformWithOxc(source, "direct-file-save.ts");
-const driver = await readFile(join(root, "scripts/lib/direct-file-benchmark-browser.js"), "utf8");
+const driver = await readFile(join(root, rawConsumer ? "scripts/lib/direct-file-raw-benchmark-browser.js" : "scripts/lib/direct-file-benchmark-browser.js"), "utf8");
 const html = await readFile(join(root, "crates/rstorrent-direct-file/src/bin/experiment.html"), "utf8");
 const temporary = await mkdtemp(join(tmpdir(), "jstorrent-direct-benchmark-"));
 const browser = await chromium.launch({ headless: true }).catch(async (error) => {
@@ -52,7 +64,7 @@ process.once("SIGINT", interrupted);
 process.once("SIGTERM", interrupted);
 try {
   for (const size of sizes) {
-    const fixtureArgs = ["--fixture-mib", String(size)];
+    const fixtureArgs = ["--raw-buffer-kib", String(rawBufferKiB), "--fixture-mib", String(size), "--source", sourceKind === "browser" ? "verified" : sourceKind];
     if (windowKiB !== undefined) fixtureArgs.push("--window-kib", windowKiB);
     child = spawn(join(root, `target/release/rstorrent-direct-file-experiment${process.platform === "win32" ? ".exe" : ""}`), fixtureArgs, {
       cwd: root, stdio: ["ignore", "pipe", "pipe"],
@@ -102,23 +114,32 @@ try {
             contentType: "text/html", body: html.replace('<script src=', '<script type="module" src='),
           }));
           await page.route(`${ready.url}experiment.js`, (route) => route.fulfill({
-            contentType: "text/javascript", body: code + "\n" + driver,
+            contentType: "text/javascript", body: (rawConsumer ? "" : code + "\n") + driver,
           }));
           await page.goto(ready.url);
           await page.waitForFunction(() => typeof window.runDirectBenchmark === "function");
-          const result = await page.evaluate((options) => window.runDirectBenchmark(options), { sink, ackDelayMs });
-          assert.equal(result.bytes, ready.fixture.length);
+          const result = await page.evaluate((options) => window.runDirectBenchmark(options), { sink, ackDelayMs, cancelAfterMiB, peerKind: sourceKind });
+          if (cancelAfterMiB) {
+            assert.equal(result.cancelled, true);
+            assert(result.bytes >= cancelAfterMiB * 1048576 && result.bytes < ready.fixture.length);
+          } else assert.equal(result.bytes, ready.fixture.length);
           if (sink === "opfs") assert.equal(result.sha256, ready.fixture.sha256);
           assert.equal(result.snapshot.active_tasks, 0);
           assert.equal(result.snapshot.open_sockets, 0);
           assert.equal(result.snapshot.active_requests, 0);
           assert.equal(result.snapshot.queued_bytes, 0);
           assert.equal(result.snapshot.transport_buffered_bytes, 0);
-          assert.equal(result.snapshot.bytes_sent, ready.fixture.length);
-          assert.equal(result.snapshot.fingerprint_verified, true);
+          if (sourceKind === "browser") {
+            assert.equal(result.snapshot.bytes_sent, 0);
+            assert(result.senderHighWater > 0 && result.senderHighWater <= 512 * 1024);
+          } else {
+            if (cancelAfterMiB) assert(result.snapshot.bytes_sent >= result.bytes);
+            else assert.equal(result.snapshot.bytes_sent, ready.fixture.length);
+            assert.equal(result.snapshot.fingerprint_verified, true);
+          }
           assert(result.snapshot.queue_high_water <= 512 * 1024);
-          assert(result.snapshot.transport_high_water <= 512 * 1024);
-          const sample = { sizeMiB: size, sink, repetition, windowKiB: Number(windowKiB ?? 16), ackDelayMs, ...result };
+          assert(result.snapshot.transport_high_water <= (sourceKind === "raw" ? rawBufferKiB : 512) * 1024);
+          const sample = { source: sourceKind, sizeMiB: size, sink, repetition, windowKiB: rawConsumer ? null : Number(windowKiB ?? 16), rawBufferKiB: sourceKind === "raw" ? rawBufferKiB : null, ackDelayMs, cancelAfterMiB, ...result };
           samples.push(sample);
           process.stderr.write(`${JSON.stringify(sample)}\n`);
         } finally { await context.close(); }
@@ -128,8 +149,8 @@ try {
   }
   const report = {
     environment: { platform: process.platform, architecture: process.arch, cpu: cpus()[0]?.model,
-      browser: browser.version(), build: "release", consumer: "clients/web/src/direct-file-save.ts", consumerRef },
-    limitations: "Same-machine direct host candidates; local experiment signaling adapter, no relay/auth qualification. OPFS substitutes for external picker only in harness. Delayed ACK is application delay, not WAN emulation. Verification allocations occur after transfer timing. Drain checks deterministic bytes without retaining payload.",
+      browser: browser.version(), build: "release", consumer: rawConsumer ? "raw checking receiver" : "clients/web/src/direct-file-save.ts", source: sourceKind, consumerRef },
+    limitations: "Same-machine direct host candidates; local experiment signaling adapter, no relay/auth qualification. OPFS substitutes for external picker only in harness. Delayed ACK is application delay, not WAN emulation. Verification allocations occur after transfer timing. Drain checks deterministic bytes without retaining payload. Raw measures the current RTC stack/driver/browser at a 512-KiB sender cap, not a universal WebRTC ceiling or product receive-memory guarantee.",
     samples,
   };
   const json = JSON.stringify(report, null, 2) + "\n";

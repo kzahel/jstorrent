@@ -1,5 +1,13 @@
 # Oracle-Driven Engine Campaign
 
+Completed local Tactical [309](../tactical/309-direct-file-transport-ceiling.md)
+separates verified reads, generated ranges and raw reliable RTC. Disk-save
+medians are 51.77/51.11 MiB/s; the stable tested raw operating point is
+68.50 MiB/s at 64-KiB outstanding. Larger raw buffers degrade throughput.
+No product optimization or dependency change follows this measurement.
+Next executable action is a separate controlled RTT/loss and transport
+stall/retransmission study with explicit throughput and memory targets.
+
 Topic: `oracle-driven-engine-campaign`
 
 Completed local Tactical [307](../tactical/307-direct-file-save-throughput.md)

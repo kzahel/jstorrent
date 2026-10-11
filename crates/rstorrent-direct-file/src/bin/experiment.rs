@@ -11,7 +11,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use rstorrent_direct_file::{
-    DirectFileEndpoint, DirectFileEndpointFactory, DirectFileEndpointSnapshot, OfferAnswer,
+    DirectFileEndpoint, DirectFileEndpointFactory, DirectFileEndpointSnapshot, ExperimentSource,
+    OfferAnswer,
 };
 use rstorrent_session::{
     ApplicationConfig, ApplicationService, CONTROL_VERSION, Command, CommandResult,
@@ -73,7 +74,7 @@ struct ReadyView {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (mode, send_window_bytes) = parse_mode()?;
+    let (mode, send_window_bytes, source_name, raw_buffer_bytes) = parse_mode()?;
     let fixture_mib = match &mode {
         ExperimentMode::Serve { fixture_mib }
         | ExperimentMode::PrepareProfile { fixture_mib, .. } => *fixture_mib,
@@ -114,9 +115,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         expected_host: Arc::from(address.to_string()),
         udp_ip,
         capability: Arc::from(token),
-        factory: DirectFileEndpointFactory::with_send_window(
+        factory: DirectFileEndpointFactory::with_experiment_source(
             application.clone(),
             send_window_bytes,
+            match source_name.as_str() {
+                "verified" => ExperimentSource::Verified,
+                "generated" => ExperimentSource::GeneratedRanges,
+                "raw" => ExperimentSource::Raw {
+                    length: fixture_length,
+                    buffer_bytes: raw_buffer_bytes,
+                },
+                _ => unreachable!(),
+            },
         )
         .ok_or("window must be 16, 32 or 64 KiB")?,
         endpoint: Arc::new(Mutex::new(None)),
@@ -175,15 +185,33 @@ enum ExperimentMode {
     },
 }
 
-fn parse_mode() -> Result<(ExperimentMode, usize), Box<dyn std::error::Error>> {
+fn parse_mode() -> Result<(ExperimentMode, usize, String, usize), Box<dyn std::error::Error>> {
     let mut arguments = std::env::args().skip(1);
     let mut fixture_mib = DEFAULT_FIXTURE_MIB;
+    let mut source_name = "verified".to_owned();
+    let mut raw_buffer_bytes = 512 * 1024;
     let mut send_window_bytes = 64 * 1024;
     let mut profile_root = None;
     let mut payload_root = None;
     let mut profile_id = None;
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
+            "--raw-buffer-kib" => {
+                let kib: usize = arguments
+                    .next()
+                    .ok_or("--raw-buffer-kib requires a value")?
+                    .parse()?;
+                if !matches!(kib, 16 | 32 | 64 | 128 | 256 | 512) {
+                    return Err("raw buffer must be 16, 32, 64, 128, 256 or 512 KiB".into());
+                }
+                raw_buffer_bytes = kib * 1024;
+            }
+            "--source" => {
+                source_name = arguments.next().ok_or("--source requires a value")?;
+                if !matches!(source_name.as_str(), "verified" | "generated" | "raw") {
+                    return Err("source must be verified, generated or raw".into());
+                }
+            }
             "--window-kib" => {
                 let kib: usize = arguments
                     .next()
@@ -219,7 +247,12 @@ fn parse_mode() -> Result<(ExperimentMode, usize), Box<dyn std::error::Error>> {
         }
     }
     match (profile_root, payload_root, profile_id) {
-        (None, None, None) => Ok((ExperimentMode::Serve { fixture_mib }, send_window_bytes)),
+        (None, None, None) => Ok((
+            ExperimentMode::Serve { fixture_mib },
+            send_window_bytes,
+            source_name,
+            raw_buffer_bytes,
+        )),
         (Some(profile_root), Some(payload_root), Some(profile_id)) => Ok((
             ExperimentMode::PrepareProfile {
                 fixture_mib,
@@ -228,6 +261,8 @@ fn parse_mode() -> Result<(ExperimentMode, usize), Box<dyn std::error::Error>> {
                 profile_id,
             },
             send_window_bytes,
+            source_name,
+            raw_buffer_bytes,
         )),
         _ => Err(
             "profile preparation requires --prepare-profile, --payload-root, and --profile-id"
