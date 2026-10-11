@@ -91,8 +91,19 @@ Codex 0.160.0's official helper persisted replacement credentials through
 concurrent catalog reads and a catalog read after service restart succeeded.
 This verifies forced renewal, not an observed natural-expiry cycle. The scoped
 GitHub OIDC trust was created and its client ID/audience variables verified on
-2026-10-11. Actual inference and hosted review qualification remain pending.
-Activation stays false until these are complete.
+2026-10-11. The explicit hosted qualification succeeded against
+[sample PR 25](https://github.com/kzahel/rstorrent/pull/25) in
+[run 38136308656](https://github.com/kzahel/rstorrent/actions/runs/38136308656).
+The review and publishing jobs passed with automatic activation still false.
+The reviewer found the deliberately introduced inclusive-deadline bug and
+reported the focused Node check's expected two passes and one failure. The
+publisher posted a COMMENT review and an inline finding on line 3, both bound
+to head `cfc582203ac0baecedf4cfc9d082dd2281864e65`.
+
+This qualifies real inference, hosted OIDC enrollment, container execution and
+commit-bound publication. Automatic CI-triggered reviews and trusted main cache
+warming remain disabled and have not been exercised. The sample's normal CI was
+cancelled to keep qualification bounded; this is not full platform/build evidence.
 
 OpenAI documents API keys as the automation default and explicitly excludes
 public/open-source repositories from its advanced subscription-auth CI recipe.
@@ -121,9 +132,13 @@ The synthetic tests cover author/fork/draft/stale gates, output/location bounds,
 auth substitution, route denial, redirects, streaming, and request limits. The
 Linux smoke exercises the actual CLI through the Unix bridge against a fake
 Responses stream, checks network/secret/Docker-socket isolation, and cleans up
-its container and temporary directory. Hosted OIDC enrollment and real PR review
-still need live evidence after deployment. A review failure is advisory and does
-not replace required CI.
+its container and temporary directory. The hosted qualification also verified
+the private gateway's unauthenticated 401 boundary and ephemeral-node removal.
+Initial live attempts exposed the action's duplicate subnet-route flag and
+absolute finding paths; both were corrected before the successful run. The
+sample review reported an absent container shell profile, but its installed Node
+executable ran the focused checks. Rust workspace build/cache qualification is
+still outstanding. A review failure is advisory and does not replace required CI.
 
 Disable new runs with `AGENT_REVIEW_ENABLED=false`; revoke the gateway token and
 OIDC identity separately when retiring access. No automatic retry or fallback
