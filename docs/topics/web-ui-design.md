@@ -1364,3 +1364,43 @@ a horizontally scrolled details tab row as design follow-ups. Actual signed
 Android28 store capture084 retains a tight priority-button/file-name gap in
 the Files row. Current listing images use library/intake/details instead;
 these notes do not imply new package bytes or hidden runtime failures.
+
+## Known torrent-list scroll regression, 2026-10-11
+
+The maintainer reports that the updated desktop app returns a scrolled torrent
+list to the top about once a second. Source `c9d335f0` reproduces the behavior
+with the production shared React bundle, a real loopback-only gateway, a fresh
+temporary profile containing 120 independently generated stopped torrents, and
+bundled headless Playwright Chromium at 1280 by 800. With the first sorted row
+selected, mouse-wheel scrolling reaches `scrollTop = 1800`, then an application
+refresh sets it to zero. Repeating the scroll repeats the reset. Selecting a
+different row pulls the viewport back to that row instead. Clearing selection
+preserves the same 1800-pixel scroll across multiple one-second view batches.
+
+The existing 2,000-row `large-swarm` demo independently reproduces the reset
+with its clock running; `?demo=large-swarm&at=0&autoplay=0` preserves the scroll.
+`VirtualTable`'s current-row visibility effect depends on `sortedRows` and
+`getRowId`, so ordinary refreshes re-run its imperative `scrollTop` assignment
+even when the current row has not changed. This is a shared web presentation
+regression; the investigation does not qualify native Android/Compose behavior
+or the exact installed desktop package.
+
+Validation ran `cargo build --locked -p rstorrent-gateway --bin
+rstorrent-gateway`, the same-origin production `npm run build --prefix
+clients/web` including its CSP check, and a temporary Node/Playwright runner
+using real mouse-wheel input, 50-ms scroll samples, observed WebSocket batches,
+and instrumentation of programmatic scroll writes. Both corrected runner
+passes reproduced the reset. All gateway processes joined with exit
+zero, browsers closed, and temporary profiles, fixtures, runner and logs were
+removed. The installed profile and primary browser were not used.
+
+Completed Tactical [298](../tactical/298-torrent-list-refresh-scroll.md) fixes
+the shared component by revealing each current selection once when its row is
+available. Ordinary refreshes and reordering preserve manual scroll; cleared or
+changed selection and existing keyboard navigation still reveal the intended
+row. The new component and running-clock browser regressions fail before the
+fix and pass afterward. Web typecheck, 483 unit cases (two existing skips),
+all 31 inspection browser cases, and the production/CSP build pass. A fresh
+120-torrent gateway check preserves exact first/middle/reselected scroll
+positions across continued one-second view batches with zero programmatic
+writes. Installed-package delivery remains separate from this local fix.

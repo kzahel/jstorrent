@@ -1781,6 +1781,62 @@ test("Workbench detail has a return path at the layout breakpoint", async ({ pag
   }
 });
 
+test("torrent scrolling survives running updates and retains keyboard navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/?demo=large-swarm&at=0");
+  const torrents = page.getByRole("grid", { name: "Torrents", exact: true });
+  await expect(torrents).toHaveAttribute("aria-rowcount", "2001");
+  await expect(torrents.locator('[data-row-index="0"]')).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  const clock = page.getByLabel(/^Demo clock /);
+  const clockSeconds = async () => {
+    const label = (await clock.getAttribute("aria-label"))!;
+    const [, minutes, seconds] = /^Demo clock (\d+):(\d+)$/.exec(label)!;
+    return Number(minutes) * 60 + Number(seconds);
+  };
+  const bounds = (await torrents.boundingBox())!;
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 100);
+  await page.mouse.wheel(0, 1800);
+  await expect
+    .poll(() => torrents.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(800);
+  const scrolledTop = await torrents.evaluate((element) => element.scrollTop);
+  const initialClockSeconds = await clockSeconds();
+  const positions: number[] = [];
+  for (let sample = 0; sample < 65; sample += 1) {
+    await page.waitForTimeout(50);
+    positions.push(await torrents.evaluate((element) => element.scrollTop));
+  }
+  expect((await clockSeconds()) - initialClockSeconds).toBeGreaterThanOrEqual(3);
+  expect(Math.min(...positions)).toBe(scrolledTop);
+  expect(Math.max(...positions)).toBe(scrolledTop);
+  expect(await torrents.getByRole("row").count()).toBeLessThan(100);
+
+  await torrents.press("End");
+  await expect(torrents.locator('[data-row-index="1999"]')).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  await expect
+    .poll(() => torrents.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(scrolledTop);
+  await torrents.press("Home");
+  await expect.poll(() => torrents.evaluate((element) => element.scrollTop)).toBe(0);
+  await page.mouse.wheel(0, 1800);
+  await expect
+    .poll(() => torrents.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(800);
+  await torrents.press("Home");
+  await expect.poll(() => torrents.evaluate((element) => element.scrollTop)).toBe(0);
+  await torrents.press("ArrowDown");
+  await expect(torrents.locator('[data-row-index="1"]')).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+});
+
 test("large collections retain a bounded virtual DOM", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.addInitScript(() => {

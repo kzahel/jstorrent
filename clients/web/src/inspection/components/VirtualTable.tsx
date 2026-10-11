@@ -112,6 +112,7 @@ export function VirtualTable<Row>({
     "--ui-table-row-height": `${tableRowHeight}px`,
   } as CSSProperties;
   const viewportRef = useRef<HTMLDivElement>(null);
+  const revealedCurrentRowIdRef = useRef<string | null>(null);
   const contextTriggerRef = useRef<HTMLButtonElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportSize, setViewportSize] = useState({ width: 960, height: 360 });
@@ -231,10 +232,14 @@ export function VirtualTable<Row>({
   }, [currentRowId, getRowId, sortedRows]);
 
   useEffect(() => {
+    // Refreshes must not undo manual scrolling away from the current row.
+    if (currentRowId === revealedCurrentRowIdRef.current) return;
+    revealedCurrentRowIdRef.current = null;
     if (currentRowId === null) return;
     const index = sortedRows.findIndex((row) => getRowId(row) === currentRowId);
     const viewport = viewportRef.current;
     if (index < 0 || viewport === null) return;
+    revealedCurrentRowIdRef.current = currentRowId;
     const top = tableHeaderHeight + index * tableRowHeight;
     if (top < viewport.scrollTop + tableHeaderHeight) {
       viewport.scrollTop = Math.max(0, top - tableHeaderHeight);

@@ -1,5 +1,12 @@
 # Capability Readiness
 
+Tactical [298](../tactical/298-torrent-list-refresh-scroll.md) locally fixes
+shared web torrent lists jumping back to the selected row on periodic updates.
+Failing-before/passing-after regressions, web typecheck/483 unit cases, all 31
+inspection browser cases, production/CSP build, and an isolated 120-torrent
+real-gateway scroll check pass. The fix preserves explicit navigation and
+changes no engine or native Compose/iOS contract; installed delivery is pending.
+
 ## Current shipment checkpoint, 2026-10-10
 
 Shipment 295 publishes exact ff632 desktop 0.3.0 and corresponding sources;

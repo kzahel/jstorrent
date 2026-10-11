@@ -78,6 +78,80 @@ afterEach(() => {
 });
 
 describe("VirtualTable", () => {
+  it("preserves manual scrolling across refreshed and reordered rows", () => {
+    const rows = Array.from({ length: 100 }, (_, index) => ({
+      id: `row-${index}`,
+      value: String(index),
+    }));
+    const table = (currentRowId: string | null, values = rows) => (
+      <VirtualTable
+        tableId="refresh-scroll-test"
+        label="Refreshing rows"
+        rows={values}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        currentRowId={currentRowId}
+        emptyMessage="empty"
+      />
+    );
+    const rendered = render(table("row-0"));
+    const grid = screen.getByRole("grid", { name: "Refreshing rows" });
+    Object.defineProperty(grid, "clientHeight", { value: 360 });
+    grid.scrollTop = 1800;
+    fireEvent.scroll(grid);
+    rendered.rerender(
+      table("row-0", rows.map((row) => ({ ...row, value: "updated" }))),
+    );
+    expect(grid.scrollTop).toBe(1800);
+    rendered.rerender(table("row-0", [...rows].reverse()));
+    expect(grid.scrollTop).toBe(1800);
+
+    rendered.rerender(table("row-90"));
+    expect(grid.scrollTop).toBeGreaterThan(1800);
+    rendered.rerender(table(null));
+    grid.scrollTop = 1800;
+    fireEvent.scroll(grid);
+    rendered.rerender(table("row-90"));
+    expect(grid.scrollTop).toBeGreaterThan(1800);
+    rendered.rerender(table("row-0"));
+    expect(grid.scrollTop).toBe(0);
+    grid.scrollTop = 1800;
+    fireEvent.scroll(grid);
+    rendered.rerender(table("not-yet-loaded"));
+    expect(grid.scrollTop).toBe(1800);
+    rendered.rerender(table("row-0"));
+    expect(grid.scrollTop).toBe(0);
+  });
+
+  it("reveals a pending selection when its row arrives, then preserves scrolling", () => {
+    const rows = Array.from({ length: 100 }, (_, index) => ({
+      id: `row-${index}`,
+      value: String(index),
+    }));
+    const table = (values: readonly Row[]) => (
+      <VirtualTable
+        tableId="pending-selection-scroll-test"
+        label="Pending rows"
+        rows={values}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        currentRowId="row-90"
+        emptyMessage="empty"
+      />
+    );
+    const rendered = render(table([]));
+    const grid = screen.getByRole("grid", { name: "Pending rows" });
+    Object.defineProperty(grid, "clientHeight", { value: 360 });
+    rendered.rerender(table(rows));
+    expect(grid.scrollTop).toBeGreaterThan(1800);
+    grid.scrollTop = 1800;
+    fireEvent.scroll(grid);
+    rendered.rerender(table(rows.map((row) => ({ ...row }))));
+    expect(grid.scrollTop).toBe(1800);
+  });
+
   it("keeps table shortcuts on the grid after clearing selection in empty space", () => {
     function Table() {
       const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
