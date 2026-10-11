@@ -486,19 +486,19 @@ mod tests {
 
     #[test]
     fn torrent_id_round_trips_only_canonical_encoding() {
-        let id = TorrentId::new([0xab; 16]).unwrap();
-        assert_eq!(id.to_string(), "t1-abababababababababababababababab");
+        let id = TorrentId::new([0xcd; 16]).unwrap();
+        assert_eq!(id.to_string(), "t1-cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd");
         assert_eq!(id.to_string().parse(), Ok(id));
         assert_eq!(
             "t1-00000000000000000000000000000000".parse::<TorrentId>(),
             Err(TorrentIdError::Zero)
         );
         assert_eq!(
-            "t1-ABABABABABABABABABABABABABABABAB".parse::<TorrentId>(),
+            "t1-CDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCD".parse::<TorrentId>(),
             Err(TorrentIdError::Encoding)
         );
         assert_eq!(
-            "x1-abababababababababababababababab".parse::<TorrentId>(),
+            "x1-cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd".parse::<TorrentId>(),
             Err(TorrentIdError::Prefix)
         );
         assert_eq!("t1-ab".parse::<TorrentId>(), Err(TorrentIdError::Length));
