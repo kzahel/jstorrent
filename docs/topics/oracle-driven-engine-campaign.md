@@ -5,8 +5,9 @@ reliable credit-based direct ranges without changing engine storage or mobile
 semantics. Pure bounds, real concurrent/cancelled browser ranges, v1 fallback,
 byte integrity and zero terminal owners pass. Corrected 100-ms RTT/rate shaping
 shows 0.58 -> 7.94 MiB/s; lossy throughput stays congestion limited. Restart
-checkpoint: complete the authenticated product verifier and record final
-validation/evidence; do not infer WAN qualification from these simulations.
+checkpoint: complete with authenticated product, Rust/web and repeated local
+evidence. Next: 196 WAN/picker qualification or a bounded burst/loss/SCTP study;
+do not infer WAN qualification from these simulations.
 
 Completed local Tactical [309](../tactical/309-direct-file-transport-ceiling.md)
 separates verified reads, generated ranges and raw reliable RTC. Disk-save

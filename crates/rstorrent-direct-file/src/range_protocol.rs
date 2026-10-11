@@ -12,6 +12,10 @@ pub const HELLO_TAG: u8 = 4;
 /// Bounded BDP allowance at a 64-MiB/s design target; SCTP still owns congestion.
 /// Small local RTTs retain the measured 64-KiB operating point.
 pub fn transport_window(ceiling: usize, rtt_micros: u64) -> usize {
+    // Avoid enlarging the measured local queue because of millisecond jitter.
+    if rtt_micros <= 2_000 {
+        return MIN_TRANSPORT.min(ceiling);
+    }
     let bdp = rtt_micros.saturating_mul(64 * 1024 * 1024) / 1_000_000;
     MIN_TRANSPORT
         .max(usize::try_from(bdp).unwrap_or(MAX_BUDGET))
@@ -202,6 +206,8 @@ mod tests {
     #[test]
     fn transport_budget_tracks_rtt_without_enlarging_local_bursts() {
         assert_eq!(transport_window(MAX_BUDGET, 500), MIN_TRANSPORT);
+        assert_eq!(transport_window(MAX_BUDGET, 1500), MIN_TRANSPORT);
+        assert_eq!(transport_window(MAX_BUDGET, 2000), MIN_TRANSPORT);
         assert_eq!(transport_window(MAX_BUDGET, 100000), 6710886);
         assert_eq!(transport_window(MAX_BUDGET, u64::MAX), MAX_BUDGET);
         assert_eq!(transport_window(MIN_TRANSPORT, 100000), MIN_TRANSPORT);

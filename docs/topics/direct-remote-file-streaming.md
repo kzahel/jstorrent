@@ -6,7 +6,7 @@ reliable ordered v2 range streams with cumulative consumption credit, a shared
 cancellation/release barriers and v1 compatibility. Matched 100-ms-RTT,
 16-MiB/s shaped local saves improve from 0.58 to 7.94 MiB/s. Packet-loss saves
 retain exact hashes; high-rate bursts and lossy throughput remain limits to
-qualify. Rust/web gates pass; authenticated product verification is in progress.
+qualify. Rust/web gates and the full authenticated product verifier pass.
 Open/Play, automatic resume, real WAN/picker and mobile hosting remain separate.
 
 Completed local Tactical [309](../tactical/309-direct-file-transport-ceiling.md)
@@ -369,8 +369,31 @@ application/profile owner
                       -> DataChannel backpressure
 ```
 
-The Save consumer uses one reliable ordered channel and one sequential range
-request. Tactical 307 permits four 16-KiB chunks (64 KiB) of unacknowledged
+The default Save consumer negotiates v2: one reliable ordered control channel
+and one reliable ordered bulk channel, one whole-file u64 range, cumulative
+write-consumption credit and separately batched writes. A shared 8-MiB receive
+budget can be divided among up to four arbitrary/overlapping range owners;
+callers choose their windows when concurrent ranges are needed. The transport
+ceiling is independently bounded at 8 MiB and admits 64 KiB through 2-ms RTT,
+then a bounded bandwidth-delay-product allowance. Wire messages are <=16 KiB,
+verified reads <=64 KiB and default sink batches 128 KiB. See
+[Tactical 312](../tactical/312-reliable-credit-range-streams.md) for the exact
+wire layout, limits, generation semantics, API options and measurements.
+
+END/CANCELLED/ERROR follow data on bulk. RELEASED acknowledges owner join on
+control; receivers require both barriers before recycling a reservation.
+Cancellation rejects the caller promptly while accounting for already-sent
+bytes until they drain. Stale credit does not extend inactivity; invalid future
+consumption closes the peer. Browser payload, frame count, transient copies,
+native preparation and transport queues each have independent bounds. The
+8-MiB credit budget is not a promise about total browser/process RSS or the
+separately bounded Blob destination. Saved content succeeds only after writer
+close. Peer failure cancels and joins all range owners; automatic resume is
+not implemented. The opaque version identifies capability generation, not a
+payload digest.
+
+The compatibility Save consumer uses one reliable ordered channel and one
+sequential range request. Tactical 307 permits four 16-KiB chunks (64 KiB) of unacknowledged
 payload per range, overlapping reads/delivery with browser writes while
 preserving v1 frames and older consumers' per-chunk ACKs. The retained SCTP
 stack does not expose RFC 8260 message interleaving, so chunk size is unchanged.
@@ -395,23 +418,27 @@ queued byte terminates and joins before terminal cleanup is reported.
 
 ## File-Range Protocol
 
-DataChannel is message-oriented, not an HTTP URL. A narrow typed binary
-protocol should preserve the useful media contract without tunneling arbitrary
-HTTP:
+DataChannel is message-oriented, not an HTTP URL. The landed v2 binary protocol
+preserves a narrow file contract:
 
-- negotiate one protocol version, chunk limit, request ceiling, and supported
-  operations;
-- open an opaque capability bound to profile generation, authorization,
-  direct-peer generation, torrent, and file index;
-- request metadata, a complete representation, or one byte range with a
-  caller-generated bounded request ID;
-- return exact length, MIME hint, availability, accepted range, binary chunks
-  with exact offsets, terminal success, or a closed typed error;
-- cancel or replace a request promptly after seek or consumer abandonment;
-- enforce global, per-peer, per-capability, request, read, queued-byte, and idle
-  limits before allocating or touching storage; and
-- preserve the existing wait-for-verification, publication handoff, storage
-  generation, and no-progress behavior for active files.
+- authenticate one file-scoped capability and negotiate the optional v2 dialect
+  inside its DTLS peer, retaining legacy fallback;
+- expose length and opaque capability generation without granting another file;
+- accept monotonic, never-reused IDs and arbitrary half-open u64 byte ranges;
+- reserve fixed range windows within shared receive credit, independently of
+  wire/read/write batch sizes;
+- carry exact DATA offsets and ordered END/CANCELLED/ERROR markers, plus a
+  joined RELEASED acknowledgement;
+- grant credit only after consumption, ignore stale absolute updates and reject
+  future consumption or excess admission;
+- provide bounded urgent/bulk fairness without claiming preemption of already
+  transmitted ordered bytes; and
+- preserve global/per-peer/per-capability read, queue, idle and revocation
+  limits and the existing verified-reader storage-generation fencing.
+
+Only completed verified files are qualified in this slice. MIME metadata,
+active-file wait/demand, URL/media adapters and reconnect/resume semantics need
+separately bounded consumer work and evidence.
 
 The protocol never accepts a filesystem path, URL, HTTP header map, method
 string, storage root, SAF identifier, or arbitrary application command. DTLS

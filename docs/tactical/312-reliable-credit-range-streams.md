@@ -1,6 +1,6 @@
 # Reliable Credit-Based Range Streams
 
-Status: Active; maintainer-approved implementation.
+Status: Complete local implementation and evidence; WAN/picker qualification remains with 196.
 
 Topic: `direct-remote-file-streaming`
 
@@ -141,6 +141,7 @@ most 32 MiB, as before; successful Blob writes transfer ownership to that sink. 
 existing bounded Blob sink, without IndexedDB or whole-file staging.
 
 The negotiated transport ceiling defaults to 8 MiB. Actual bulk admission is
+64 KiB through 2-ms RTT; above that it is
 min(ceiling, max(64 KiB, measured RTT * 64 MiB/s)), preserving the measured small
 local queue and allowing a delayed path's bandwidth-delay product. This is an
 application admission target, not congestion control or a promised rate: SCTP
@@ -167,15 +168,16 @@ and never call an application timer a WAN test. Record memory high-waters.
 Run focused feature-on/off checks, Rust baseline, web typecheck/tests and the
 authenticated product verifier in proportion to the changes.
 
-Checkpoint: protocol/credit/admission, native owned producers, dual lanes,
-browser range consumption and Save integration are implemented. Real Chromium
+Checkpoint: complete. Protocol/credit/admission, native owned producers, dual
+lanes, browser range consumption and Save integration are implemented. Real Chromium
 checks cover four arbitrary/overlapping/empty ranges, owner release before
 reuse, cancellation with queued bytes, harmless credit duplicates, faulty
 future credit, withheld consumption and zero terminal resources. Existing v1
 real-browser checks and old-consumer benchmark compatibility pass. Repeated
-local comparisons are recorded below; final corrected network cohorts,
-packet-loss recovery and Rust/web validation now pass. Authenticated product
-verification and final evidence reconciliation are in progress.
+local comparisons, corrected network cohorts, packet-loss recovery, Rust/web
+validation and the authenticated product verifier pass. Next work is real
+WAN/external-picker qualification with 196, or a separately bounded burst/loss
+and SCTP-congestion study; playback and resume remain outside this slice.
 
 
 ## Experiment Ownership And Model Correction
@@ -225,5 +227,106 @@ reads/writes and bounded transport admission, not a UDP or RTC replacement.
   exact bytes against the experiment's legacy-only v1 decoder, including its
   actual unknown-HELLO malformed response, without opening a bulk channel.
   This is native legacy-path evidence, not a historical binary claim.
-- JavaScript syntax and `git diff --check`: pass. The authenticated full product
-  verifier is running; it also covers the unchanged small Blob destination.
+- JavaScript syntax and `git diff --check`: pass. Full
+  `node scripts/verify-remote-product.mjs` passes: encrypted login/resume,
+  browser/relay/installed-layout restart, revocation, changed host, audit,
+  256 invalid circuits, zero relay payload and service workers, and an exact
+  1-MiB Save through the unchanged bounded Blob destination. It uses bundled
+  Chromium, not an installed browser. Ordinary remote distribution is rebuilt
+  afterward with its normal relay URL; CSP passes for all 15 JS bundles.
+- The final local RTT floor additionally passes focused feature clippy/tests,
+  release saves and a final full workspace format/clippy/test rerun.
+
+
+## Recorded Measurements And Selected Defaults
+
+2026-10-11, Apple M4 Pro/macOS ARM64, release native endpoint, bundled Chromium
+151.0.7922.34, real production Save consumer and verified fixture reader.
+OPFS substitutes for a streaming external picker only in this harness.
+The checking drain independently verifies every byte without retaining payload;
+OPFS files match their independently expected SHA-256. Negotiation and hashing
+are outside transfer timing; successful timing includes destination close.
+
+Three earlier rounds alternate v1 (`--consumer-ref 9c558343`, 64-KiB credit)
+and v2 using fresh contexts; this is the matched local comparison. The final
+selected default is separately rechecked after full product validation. Normal
+workstation activity continues, so the local numbers are observations, not
+universal capacities.
+
+| Path / fixture | Seconds, three runs | Median MiB/s |
+| --- | --- | --- |
+| Matched v1 OPFS / 256 MiB | 4.720, 4.717, 4.718 | 54.26 |
+| Matched v2 OPFS / 256 MiB | 4.021, 3.945, 4.030 | 63.67 |
+| Matched v1 checking drain / 256 MiB | 4.341, 4.194, 4.309 | 59.42 |
+| Matched v2 checking drain / 256 MiB | 3.784, 3.674, 3.750 | 68.26 |
+| Final default v2 OPFS / 256 MiB | 4.634, 4.374, 4.474 | 57.22 |
+| Final default v2 checking drain / 256 MiB | 4.493, 4.140, 4.258 | 60.13 |
+| Matched v1 OPFS / 8 MiB, 100-ms RTT, 16-MiB/s shaping | 13.872, 13.831, 14.183 | 0.58 |
+| Matched v2 OPFS / same delayed/shaped link | 1.010, 1.005, 1.008 | 7.94 |
+| v2 OPFS / same link, every 100th UDP datagram dropped | 70.296, 68.385, 68.457 | 0.117 |
+
+The delayed/shaped comparison uses the corrected 32-KiB burst model and
+numeric diagnostics for both protocols. It improves about 13.8x, with measured
+RTT about 104..106 ms and no SCTP recovery updates/timeouts. Native transport
+high-water is <=7,088,631 bytes, application queue <=508,478, delayed datagrams
+<=3,613,290, and browser pending payload <=147,442. Legacy browser pending
+payload stays <=65,536. Every completed sample has zero terminal tasks,
+sockets, requests, credit reservations and queues.
+
+The three loss samples explicitly discard 117/116/116 datagrams, produce exact
+8-MiB hashes and join cleanly. Native SCTP records 78/75/75 fast-recovery updates
+and zero retransmission timeouts; maximum congestion window is only 70,333
+bytes. Application credit is ample, but congestion-limited throughput is poor.
+Reliability under this deterministic loss is proven locally; high lossy-path
+throughput is not. Do not try to repair that by increasing application credit
+or choosing unreliable delivery.
+
+A completed 32-MiB/64-MiB/s-shaped diagnostic transfer remains burst-sensitive:
+0.55 MiB/s, eleven recovery updates and three timeouts. Larger high-rate
+cohorts are deliberately stopped after recording a completed diagnostic, rather
+than turning this protocol slice into indefinite SCTP tuning. The whole-system
+UDP full-buffer counter rises during these studies, but it cannot identify
+which socket caused a drop; there is no claim of a proved kernel/library root
+cause. High-rate burst pacing, congestion behavior and real network evidence
+remain specific next concerns. An additional baseline overlapping Rust
+validation is excluded from throughput comparison.
+
+Final local pending payload is <=851,968 bytes for OPFS and 131,072 for drain;
+application queue <=508,478 and transport exactly <=65,536. The shared credit
+reservation can be 8 MiB without allocating it eagerly. A blocked-writer unit
+case also receives the full 8-MiB window including ordinary 64-KiB read tails:
+frame overhead is bounded independently without rejecting honest tails. The
+frame allowance is twice ceil(budget / maximum payload) plus 32, not a
+full-message-only estimate. Transient copies, frame headers and the bounded
+Blob destination are separately accounted, not called an 8-MiB total-RAM cap.
+
+The final floor keeps 64-KiB transport admission for RTT <=2 ms: an earlier
+post-validation local run expands to ~97 KiB from millisecond scheduling
+jitter, with 58.61-MiB/s OPFS median rather than a clear gain. The floor selects
+stable resource admission, not a claimed local speedup. Above it, bounded BDP
+admission enables the useful delayed-path gain. The shared receive budget is
+8 MiB, maximum verified read 64 KiB, write batch 128 KiB, maximum encoded wire
+message 16 KiB and maximum four ranges. API/harness options can choose smaller
+budgets/windows and write batches; no new user-facing preference is invented.
+
+## Reproduction
+
+Build after sourcing the configured toolchain profile:
+
+```bash
+cargo build --release -p rstorrent-direct-file --features experiment --bin rstorrent-direct-file-experiment
+node scripts/benchmark-direct-file.mjs --sizes 256 --repeats 3 --sinks opfs,drain
+node scripts/benchmark-direct-file.mjs --sizes 8 --repeats 1 --sinks opfs --v2-checks --protocol-checks
+node scripts/benchmark-direct-file.mjs --source legacy --sizes 8 --repeats 1 --sinks opfs
+node scripts/benchmark-direct-file.mjs --sizes 8 --repeats 3 --sinks opfs --delay-ms 50 --rate-mib 16 --diagnostics
+node scripts/benchmark-direct-file.mjs --sizes 8 --repeats 3 --sinks opfs --delay-ms 50 --rate-mib 16 --loss-every 100 --diagnostics
+```
+
+For the legacy comparison add `--consumer-ref 9c558343`. `--credit-kib`,
+`--transport-kib` and `--write-batch-kib` independently sweep receiver budget,
+transport ceiling and sink batch. `--ack-delay-ms` remains application delay
+and must not be reported as RTT. The runner owns/reaps its native child,
+bundled browser and temporary profile/files on success, failure and signals.
+Temporary reports, captures, logs and investigation scripts are removed after
+these evidence numbers are recorded. No deployment, public swarm, real WAN,
+external picker or physical mobile session is performed.
