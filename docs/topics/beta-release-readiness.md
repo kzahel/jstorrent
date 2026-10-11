@@ -1230,6 +1230,33 @@ compatibility and rollback policy declared with that baseline.
 
 ### CI and repository health
 
+Tactical [304](../tactical/304-fast-pr-feedback-and-ci-benchmarks.md) separates
+early PR feedback from full qualification using only standard free hosted
+runners. `Fast CI` lints affected portable crates and dependents, tests changed
+libraries, restores the ordinary CI cache, and exposes **Fast PR feedback**
+check. Its successful PR runs can trigger the isolated agent reviewer before
+full CI finishes; failed/cancelled fast runs cannot. The 3--5 minute warm-run
+duration remains a target: the initial broad, cache-miss hosted qualification
+passes in 14m02s, and the parallel-contract layout passes in 14m23s. The contract
+now runs alongside unit execution; compiler variation offsets that scheduling
+saving in this pair. PR 26 subsequently passes full qualification and merges.
+The first focused warm-dependency probe passes 603 engine tests with a 4m01s
+Rust job, but takes 9m34s overall, including 4m55s waiting for its Rust runner.
+The disposable probe's full matrix is cancelled to isolate build latency; this
+does not establish ordinary 3--5 minute end-to-end feedback. Automatic review
+is enabled and its first exact-head Fast CI trigger publishes a successful
+review, including offline focused Rust tests, in 6m03s. Trusted-main reviewer
+cache warming compiles locked workspace tests in 23m05s and saves a 2.25 GB
+cache. The focused repeat passes Fast CI in 4m00s with another dependency-cache
+hit and 603 passing tests. Its redundant full/performance runs are cancelled
+early; the initial queueing result remains relevant to ordinary concurrency.
+The second automatic review restores the reviewer cache in 37s and publishes
+against the exact repeat head in 7m21s; this verifies reuse without demonstrating
+a review-duration improvement. Existing
+qualification jobs, platform evidence, release gates and branch-protection
+policy are preserved. Queue contention and reviewer format/lint tooling are
+bounded follow-ups recorded in the owning topics.
+
 Tactical [`211`](../tactical/211-presubmit-signal-and-build-measurements.md)
 repairs the companion FormatJS diagnostic-link rejection and two test-owned
 completion/recheck seed-reconciliation waits. Ten ordinary jobs keep extension

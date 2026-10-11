@@ -152,7 +152,7 @@ jobs:
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.9
 
       - name: Verify PR review gates and proxy boundaries
-        run: node --test .github/agent-review/review.test.mjs
+        run: node --test .github/agent-review/review.test.mjs .github/scripts/fast-ci.test.mjs
 
       - name: Verify backport integrity and failure cases
         run: |

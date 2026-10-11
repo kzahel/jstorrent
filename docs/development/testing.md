@@ -157,3 +157,50 @@ jobs; [`verification-matrix.yml`](../../.github/workflows/verification-matrix.ym
 owns broader storage and recovery checks. Read the relevant job rather than
 maintaining another complete CI command list here. Record actual checks and
 limitations in the owning tactical, not in this guide.
+
+The `Fast CI` workflow gives early PR feedback on the exact submitted head.
+It lints changed portable Rust crates and their portable dependents, runs
+formatting and the directly changed libraries' unit tests, and checks
+generated-contract drift in parallel when the gateway is affected. Web type/unit/
+build, companion packaging and website build checks run for their affected
+surfaces. Workflow/reviewer safety checks always run. Unknown executable or
+shared configuration changes select conservative checks; docs-only changes
+skip product builds. The stable aggregate check is **Fast PR feedback**.
+
+The warm-run target is 3--5 minutes, not a qualified duration or timeout.
+Cold dependencies and broad changes may take longer. Fast checks retain the
+ordinary optimized Rust profiles. They restore the ordinary CI dependency
+and contract caches using the same shared keys, without saving; full CI remains
+their owner.
+Fast checks omit dependents' runtime tests, Rust integration and feature-variant
+execution, browser E2E, native packaging and mobile builds.
+The existing `CI` workflow remains independent full qualification, with its
+original job names and coverage. Branch protection is unchanged.
+
+Full qualification runs shared-web validation, companion-extension packaging,
+and workflow/release-tool checks in independent jobs. A failed extension package
+does not suppress web contract drift, type, unit, production-build, or browser
+coverage. Native desktop, Android, and iOS jobs retain their separate gates.
+
+The optional custom agent PR review lane follows
+[agent-pr-review](../topics/agent-pr-review.md). It uses a
+separate isolated checkout, restores trusted main build caches, and publishes
+commit-bound findings after successful Fast CI PR checks. Failed/cancelled
+fast runs cannot start automatic review; full qualification may still be
+running. Explicit manual reviews remain available. Automatic review is enabled;
+the topic records its qualification and limits.
+
+Run the bounded build-profile comparison with four Cargo jobs:
+
+```bash
+source ~/.profile
+node .github/scripts/benchmark-fast-ci.mjs artifacts/verification/fast-ci-benchmark.json
+```
+
+This compares the same protocol/engine library cohort using the ordinary and
+temporary candidate profiles: empty build target, unchanged rerun, first-party
+rebuild with dependencies retained, and test execution. Each profile owns a disposable
+build tree. Cargo registry downloads may already be cached; a local result
+does not qualify GitHub runner latency. Tactical
+[304](../tactical/304-fast-pr-feedback-and-ci-benchmarks.md) owns the
+comparison, rejected profile and hosted follow-up.

@@ -1,5 +1,6 @@
 # Rust
 /target/
+/fast-ci-plan.json
 
 # JavaScript and web tooling
 /node_modules/

@@ -71,6 +71,8 @@ checks, contract regeneration, controlled application smoke, Playwright and
 native-platform gates. [CI](.github/workflows/ci.yml) is the executable command
 inventory; [weekly verification](.github/workflows/verification-matrix.yml)
 covers broader storage/recovery cases.
+[Fast CI and review feedback](docs/development/testing.md#ci-as-the-executable-inventory)
+run independently of full qualification.
 
 Use the layer changed plus the integration that can fail. Public-swarm,
 off-LAN and physical-device runs are separate opt-in evidence. Record actual
