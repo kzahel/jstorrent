@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "enabled": true,
+  "release": {
+    "version": "0.3.0",
+    "tag": "desktop-v0.3.0",
+    "repository": "kzahel/rstorrent",
+    "sourceSha": "ff632f4588a474d7b169de3cea228bd406e6982d",
+    "updaterPublicKeyId": "415D3DF4B3D0CFB8",
+    "qualified": true,
+    "assets": [
+      {
+        "name": "JSTorrent_0.3.0_aarch64.AppImage",
+        "bytes": 99404296,
+        "sha256": "c90800c587da5eb4d8881f2e912fb6726fa83e1371d75b53d9848e474a1242e7"
+      },
+      {
+        "name": "JSTorrent_0.3.0_aarch64.AppImage.sig",
+        "bytes": 424,
+        "sha256": "32ec8ae2262921392a3ec320c633df55609eed94d3fe2ab9c4d163cdf560c19d"
+      },
+      {
+        "name": "JSTorrent_0.3.0_aarch64.dmg",
+        "bytes": 19313068,
+        "sha256": "1fa2a0c047d04132b31465356420f7b13ea46755f8531d00da7fafa7a6367b11"
+      },
+      {
+        "name": "JSTorrent_0.3.0_amd64.AppImage",
+        "bytes": 101231096,
+        "sha256": "88abbeac098954313493dcdc33e2741754d16a534e273309ac51f435b9bd19e4"
+      },
+      {
+        "name": "JSTorrent_0.3.0_amd64.AppImage.sig",
+        "bytes": 420,
+        "sha256": "a36762db52089b7b4d330914023084fc9cf6df977e0915c3a7816fbfe212df26"
+      },
+      {
+        "name": "JSTorrent_0.3.0_x64-setup.exe",
+        "bytes": 14702456,
+        "sha256": "b56e9c8e6e7b829547df694235f89416bd76c7f4b85c099adf04bad1ee6bc20d"
+      },
+      {
+        "name": "JSTorrent_0.3.0_x64-setup.exe.sig",
+        "bytes": 420,
+        "sha256": "465ed6b402e12d9adae7f2304b27d00eeac7852f0d4f53ebb44ecfa88ce413a7"
+      },
+      {
+        "name": "JSTorrent_0.3.0_x64.dmg",
+        "bytes": 20946844,
+        "sha256": "b22b415b0a0a66c380912c402105a6674245dd66b213aa1cc57701dc778b6ba1"
+      },
+      {
+        "name": "JSTorrent_0.3.0_x64_en-US.msi",
+        "bytes": 21094400,
+        "sha256": "2c286afa5c4244646d1bb0bbd68aa451e790a71bf7a66c6b6eb0b147b757a35a"
+      },
+      {
+        "name": "JSTorrent_0.3.0_x64_en-US.msi.sig",
+        "bytes": 420,
+        "sha256": "12e5c554721d71535dee4028e5e109f432024056a5916272ed242cb2423d3256"
+      },
+      {
+        "name": "JSTorrent_aarch64.app.tar.gz",
+        "bytes": 19943035,
+        "sha256": "9a54a1b2660b26d0907ad83d5f681415dc7c11bb6ce5252a2b20927bab7c0d19"
+      },
+      {
+        "name": "JSTorrent_aarch64.app.tar.gz.sig",
+        "bytes": 408,
+        "sha256": "81011f1805f9f9504ea2df4ce467199ecdb68637307a039a846520a3d29abef5"
+      },
+      {
+        "name": "JSTorrent_x64.app.tar.gz",
+        "bytes": 21376083,
+        "sha256": "cbcc7bd6e030188ae723f6abad09cd1d939591eaa82231dae689e7592d6cb0e7"
+      },
+      {
+        "name": "JSTorrent_x64.app.tar.gz.sig",
+        "bytes": 408,
+        "sha256": "82395e12743c5a62ff5f5377782911a0abec454d10c002fb875edf2dcadd4660"
+      },
+      {
+        "name": "latest.json",
+        "bytes": 6792,
+        "sha256": "cbc416a0560a7358c289c8f0ae33bad5bb7bf71a8495e0619b628864ef545784"
+      }
+    ],
+    "sourceMaterials": {
+      "name": "JSTorrent_0.3.0_AppImage-sources-final.tar.gz",
+      "bytes": 847197977,
+      "sha256": "124233d3f2aad395fa2bff07be4d2ae03aafdedaef2f6ab181574251583c1e5e"
+    }
+  }
+}

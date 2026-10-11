@@ -1,0 +1,12 @@
+[
+  {
+    "product": "Desktop App",
+    "version": "0.3.0",
+    "date": "2026-10-10",
+    "items": [
+      "A new first-party Rust torrent engine with the familiar JSTorrent branding.",
+      "Updates existing desktop installations while preserving the JSTorrent application identity.",
+      "Windows and Mac installers, plus best-effort Linux AppImages and corresponding source code."
+    ]
+  }
+]

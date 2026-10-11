@@ -116,3 +116,14 @@ packages it as `LICENSE.jstorrent.txt`. The iOS app bundles
 `App/Branding/JSTorrent-LICENSE.txt`; the website serves
 `LICENSE.jstorrent.txt`, and the gateway retains the original license beside
 its embedded image. No third-party logo is substituted.
+
+## JSTorrent Marketing Website
+
+Astro marketing components, layouts, CSS, historical blog posts, download
+presentation, bounded hosted-context helper and compatibility assets are
+adapted from `kzahel/JSTorrent` revision
+`e0cb8a3c2ff578f8ca65b1ee820321891789e5b7`, copyright 2025 Kyle Graehl,
+under its MIT license. The complete original notice is served at
+`website/public/LICENSE.jstorrent-website.txt`. The old TypeScript torrent
+engine and shared application packages are not included in this website.
+Existing brand-asset notices above remain applicable.

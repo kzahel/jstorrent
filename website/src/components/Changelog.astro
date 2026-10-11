@@ -1,0 +1,15 @@
+---
+import entries from '../data/product-releases.json';
+---
+<section id="news" class="section section-alt">
+  <div class="container">
+    <h2>Recent Changes</h2>
+    {entries.map(entry => (
+      <article class="changelog-entry">
+        <h3>{entry.product} v{entry.version}<span class="date">{new Date(entry.date + 'T12:00:00Z').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</span></h3>
+        <ul>{entry.items.map(item => <li>{item}</li>)}</ul>
+      </article>
+    ))}
+    <p><a href="/update-guide/">What to expect from your update</a></p>
+  </div>
+</section>

@@ -1,66 +1,25 @@
 ---
-import '../styles/global.css'
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Header from '../components/Header.astro'
+import Hero from '../components/Hero.astro'
+import About from '../components/About.astro'
+import Downloads from '../components/Downloads'
+import Changelog from '../components/Changelog.astro'
+import FAQ from '../components/FAQ.astro'
+import Footer from '../components/Footer.astro'
+import { productionSiteRelease } from '../lib/production-site'
 
-const title = 'JSTorrent — The next chapter'
-const description =
-  'The next generation of JSTorrent: your torrent library, powered by a first-party Rust engine.'
-const canonicalUrl = new URL(Astro.url.pathname, Astro.site)
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#0f172a" />
-    <link rel="icon" type="image/png" href="/jstorrent.png" />
-    <meta name="description" content={description} />
-    <link rel="canonical" href={canonicalUrl} />
-
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content={new URL("/jstorrent.png", Astro.site)} />
-    <meta property="og:site_name" content="JSTorrent" />
-    <meta property="og:title" content={title} />
-    <meta property="og:description" content={description} />
-    <meta property="og:url" content={canonicalUrl} />
-
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={description} />
-
-    <title>{title}</title>
-  </head>
-  <body>
-    <main>
-      <section class="hero" aria-labelledby="title">
-        <img class="brand-mark" src="/jstorrent.png" width="256" height="256" alt="" />
-
-        <div class="copy">
-          <p class="status"><span></span> Desktop update available</p>
-          <h1 id="title">JSTorrent</h1>
-          <p class="lead">Your torrent library. A new engine underneath.</p>
-          <p class="description">
-            The next generation of JSTorrent brings a familiar interface to desktop,
-            Android and ChromeOS, with an iOS client in development.
-          </p>
-
-          <a class="github-link" href="https://github.com/kzahel/rstorrent">
-            Follow development on GitHub
-            <span aria-hidden="true">↗</span>
-          </a>
-
-          <p class="availability">Desktop 0.3.0 is available from the JSTorrent website. Android and extension
-            store updates may arrive separately. Preview builds remain experimental. <a href="/update-guide/">Read the update guide</a>.</p>
-        </div>
-      </section>
-    </main>
-
-    <footer>
-      <p>
-        <a href="https://jstorrent.com/">JSTorrent</a> by Kyle Graehl.
-        Open source under the MIT License.
-      </p>
-    </footer>
-  </body>
-</html>
+<BaseLayout
+  title="JSTorrent — Torrent Client for Desktop, Android & Chromebook"
+  description="Open source torrent client for Windows, Mac, Android, and supported Chromebooks, with best-effort Linux support and optional browser integration."
+>
+  <Header />
+  <Hero />
+  <About />
+  <Downloads client:load productionRelease={productionSiteRelease} />
+  <Changelog />
+  <FAQ />
+  <Footer />
+</BaseLayout>

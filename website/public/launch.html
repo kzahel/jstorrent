@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/js-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/js-16.png" />
+    <title>JSTorrent Launcher</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        font-family: sans-serif;
+        padding: 2rem;
+        text-align: center;
+        background-color: #ffffff;
+        color: #1a1a1a;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #1a1a1a;
+          color: #e0e0e0;
+        }
+      }
+
+      h1 {
+        margin-bottom: 1.5rem;
+      }
+
+      .status {
+        margin-top: 1rem;
+        padding: 1rem;
+        border-radius: 4px;
+      }
+
+      .success {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      @media (prefers-color-scheme: dark) {
+        .success {
+          background-color: #1e4620;
+          color: #a3d9a5;
+        }
+      }
+
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .error a {
+        color: #721c24;
+        font-weight: bold;
+      }
+      @media (prefers-color-scheme: dark) {
+        .error {
+          background-color: #4a1c1c;
+          color: #f5a5a5;
+        }
+        .error a {
+          color: #f5a5a5;
+        }
+      }
+
+      .confirm {
+        background-color: #fff3cd;
+        color: #856404;
+      }
+      @media (prefers-color-scheme: dark) {
+        .confirm {
+          background-color: #4a3f1c;
+          color: #f5e6a5;
+        }
+      }
+
+      .info {
+        margin-top: 0.5rem;
+        font-size: 0.9em;
+        word-break: break-all;
+        opacity: 0.8;
+      }
+
+      button {
+        margin-top: 1rem;
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      .cancel-btn {
+        background-color: #6c757d;
+        margin-left: 0.5rem;
+      }
+      .cancel-btn:hover {
+        background-color: #545b62;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Launching JSTorrent...</h1>
+    <div id="status" class="status">Connecting to extension...</div>
+
+    <script>
+      const EXTENSION_ID = 'dbokmlpefliilbjldladbimlcfgbolhk'
+      const WEBSTORE_URL = `https://chromewebstore.google.com/detail/jstorrent/${EXTENSION_ID}`
+
+      const statusDiv = document.getElementById('status')
+
+      function updateStatus(message, type) {
+        statusDiv.textContent = message
+        statusDiv.className = 'status ' + type
+      }
+
+      function normalizeLaunchParams(params) {
+        const normalized = { ...params }
+        if (!normalized.magnet && normalized.magnet_uri) {
+          normalized.magnet = normalized.magnet_uri
+        }
+        return normalized
+      }
+
+      function getDesktopLaunchUrl() {
+        const params = normalizeLaunchParams(parseHashParams())
+        if (params.magnet) {
+          return 'jstorrent://launch?magnet=' + encodeURIComponent(params.magnet)
+        }
+        return 'jstorrent://launch'
+      }
+
+      function showExtensionUnavailable() {
+        statusDiv.className = 'status error'
+        statusDiv.innerHTML = ''
+
+        const msg = document.createElement('div')
+        msg.textContent = 'Could not connect to JSTorrent extension.'
+        msg.style.marginBottom = '0.75rem'
+        statusDiv.appendChild(msg)
+
+        const desktopBtn = document.createElement('button')
+        desktopBtn.textContent = 'Open in Desktop App'
+        desktopBtn.onclick = function () {
+          window.location.href = getDesktopLaunchUrl()
+        }
+        statusDiv.appendChild(desktopBtn)
+
+        const installLink = document.createElement('div')
+        installLink.style.marginTop = '0.75rem'
+        installLink.style.fontSize = '0.9em'
+        installLink.innerHTML =
+          'Or <a href="' + WEBSTORE_URL + '" target="_blank">install the extension</a>'
+        statusDiv.appendChild(installLink)
+      }
+
+      // Parse hash params: #magnet=ENCODED&token=TOKEN or #torrent=ENCODED&token=TOKEN
+      function parseHashParams() {
+        const hash = window.location.hash.slice(1) // remove #
+        if (!hash) return {}
+        const params = {}
+        for (const part of hash.split('&')) {
+          const eq = part.indexOf('=')
+          if (eq !== -1) {
+            params[part.slice(0, eq)] = decodeURIComponent(part.slice(eq + 1))
+          }
+        }
+        return params
+      }
+
+      function sendLaunchPing(message) {
+        console.log('Sending launch-ping to extension:', message.type)
+        window.chrome.runtime.sendMessage(EXTENSION_ID, message, (response) => {
+          console.log('Got response at', new Date().toISOString())
+          if (chrome.runtime.lastError) {
+            console.error('Extension error:', chrome.runtime.lastError)
+            showExtensionUnavailable()
+          } else if (response && response.error) {
+            updateStatus('Extension rejected the request: ' + response.error, 'error')
+          } else {
+            console.log('Extension response:', response)
+            updateStatus('Connected! Opening JSTorrent...', 'success')
+          }
+        })
+      }
+
+      function showConfirmPrompt(params) {
+        const isMagnet = !!params.magnet
+        const label = isMagnet ? 'magnet link' : 'torrent file'
+        const detail = isMagnet ? params.magnet : params.torrent
+
+        statusDiv.className = 'status confirm'
+        statusDiv.innerHTML = ''
+
+        const heading = document.createElement('div')
+        heading.textContent = 'Add this ' + label + ' to JSTorrent?'
+        heading.style.fontWeight = 'bold'
+        heading.style.marginBottom = '0.5rem'
+        statusDiv.appendChild(heading)
+
+        if (detail) {
+          const info = document.createElement('div')
+          info.className = 'info'
+          // Show truncated detail for magnets (they can be very long)
+          info.textContent = detail.length > 120 ? detail.slice(0, 120) + '...' : detail
+          statusDiv.appendChild(info)
+        }
+
+        const addBtn = document.createElement('button')
+        addBtn.textContent = 'Add Torrent'
+        addBtn.onclick = function () {
+          updateStatus('Connecting to extension...', '')
+          const message = { type: 'launch-ping' }
+          if (params.magnet) message.magnet = params.magnet
+          if (params.torrent) message.torrentPath = params.torrent
+          // No token — extension accepts tokenless messages from launch.html
+          sendLaunchPing(message)
+        }
+        statusDiv.appendChild(addBtn)
+
+        const cancelBtn = document.createElement('button')
+        cancelBtn.textContent = 'Cancel'
+        cancelBtn.className = 'cancel-btn'
+        cancelBtn.onclick = function () {
+          window.close()
+        }
+        statusDiv.appendChild(cancelBtn)
+      }
+
+      console.log('Launch page loaded at', new Date().toISOString())
+
+      // ?desktop=true — redirect straight to desktop app deep link
+      if (new URLSearchParams(window.location.search).get('desktop') === 'true') {
+        document.querySelector('h1').textContent = 'Opening Desktop App...'
+        updateStatus('Redirecting to JSTorrent desktop app...', 'success')
+        window.location.href = getDesktopLaunchUrl()
+      } else if (window.chrome && window.chrome.runtime) {
+        const params = normalizeLaunchParams(parseHashParams())
+        const hasMagnet = !!params.magnet
+        const hasTorrent = !!params.torrent
+        const hasToken = !!params.token
+
+        if ((hasMagnet || hasTorrent) && hasToken) {
+          // Token present — auto-forward immediately
+          const message = { type: 'launch-ping', token: params.token }
+          if (hasMagnet) message.magnet = params.magnet
+          if (hasTorrent) message.torrentPath = params.torrent
+          sendLaunchPing(message)
+        } else if (hasMagnet || hasTorrent) {
+          // No token — show confirmation prompt (drive-by protection)
+          document.querySelector('h1').textContent = 'Add Torrent'
+          showConfirmPrompt(params)
+        } else {
+          // No magnet/torrent params — basic launch-ping (legacy behavior)
+          sendLaunchPing({ type: 'launch-ping' })
+        }
+      } else {
+        showExtensionUnavailable()
+      }
+    </script>
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "70816ac6e8564121b329ed89b3849dba"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
+  </body>
+</html>

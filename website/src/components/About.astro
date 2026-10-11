@@ -1,0 +1,41 @@
+---
+import { sourceRepositoryUrl } from '../lib/production-site'
+const testimonials = [
+  '"It works great, it\'s easy to use."',
+  '"Essential app"',
+  '"Greatest app ever, it easily doubles the functionality of my chromebook. I don\'t remember it cost any money when i got it, but i would definitely pay for it. Just as good/better than a full desktop torrent client!"',
+  '"I know not everyone has a chromebook and it is nice to be able to find a program that simply works, THANK YOU."',
+]
+---
+
+<section id="about" class="section">
+  <div class="container">
+    <h2>About JSTorrent</h2>
+    <p>
+      JSTorrent is a BitTorrent client that downloads torrent files with ease. It runs as a
+      standalone desktop app on Windows, Mac, and Linux, as a native Android app, and as a
+      browser extension connected to the desktop or Android app. Supported Chromebooks
+      can use the Android app; browser integration requires a supported Chromium browser.
+      {' '}<a href="#help">See all supported platforms &rarr;</a>
+    </p>
+    <p>
+      Originally built for ChromeOS over 10 years ago, JSTorrent has been rebuilt from the
+      ground up as a multi-platform,
+      {' '}<a href={sourceRepositoryUrl}>open source</a> project.
+      Release packages and signatures are checked before distribution &mdash;
+      {' '}<a href="#help">learn more</a>.
+    </p>
+
+    <div class="rating-badge">
+      <span class="stars">&#9733;</span>
+      <strong>4.4</strong> (3,800+ ratings) on Chrome Web Store
+    </div>
+
+    <h3>What users say</h3>
+    <div class="quotes-grid">
+      {testimonials.map((quote) => (
+        <blockquote>{quote}</blockquote>
+      ))}
+    </div>
+  </div>
+</section>

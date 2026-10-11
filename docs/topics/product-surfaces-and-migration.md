@@ -1,5 +1,10 @@
 # Product Surfaces And JSTorrent Migration
 
+Tactical [299](../tactical/299-production-website-consolidation.md) starts the
+approved website consolidation: established JSTorrent design and compatibility
+routes move into this repository, with separate hosting and repository-name
+acceptance. Retire the old `/app` prototype; preserve the `/remote/` origin.
+
 ## Current store delivery checkpoint, 2026-10-10
 
 Desktop 0.3.0 downloads, corresponding sources, website and production updater

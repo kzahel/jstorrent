@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>JSTorrent - Media Streaming</title>
+    <link rel="stylesheet" href="/magnet/index.css" />
+
+    <script>
+      ;(function (i, s, o, g, r, a, m) {
+        i['GoogleAnalyticsObject'] = r
+        ;((i[r] =
+          i[r] ||
+          function () {
+            ;(i[r].q = i[r].q || []).push(arguments)
+          }),
+          (i[r].l = 1 * new Date()))
+        ;((a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]))
+        a.async = 1
+        a.src = g
+        m.parentNode.insertBefore(a, m)
+      })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga')
+
+      ga('create', 'UA-35025483-1', 'jstorrent.com')
+      ga('send', 'pageview')
+    </script>
+  </head>
+
+  <body>
+    <a href="http://jstorrent.com"
+      ><img src="/images/js-mini-logo-2x.png" width="198" height="50"
+    /></a>
+    <div id="content">
+      <p>
+        <span style="font-size: 130%">JSTorrent Streaming Player</span>
+        <span style="font-weight: bold">(beta)</span>
+      </p>
+
+      <div style="display: none">
+        <canvas id="canvas" width="720" height="16"></canvas> (current playback)
+      </div>
+      <div>
+        <canvas id="rangecanvas" width="720" height="16"></canvas>
+        <br />
+        (pieces downloaded)
+      </div>
+
+      <br />
+      <div id="container"></div>
+      <!--script src="/package/js/deps/underscore.js"></script-->
+      <script src="index.js"></script>
+      <style>
+        .errordiv {
+          font-size: 200%;
+          color: #f00;
+          border: 2px solid red;
+          display: none;
+          padding-left: 10px;
+        }
+      </style>
+
+      <div id="fileinfo"></div>
+      <div class="errordiv" id="error"></div>
+      <div class="errordiv" id="error2"></div>
+
+      <style>
+        .controlbutton {
+          padding: 8px;
+          margin-top: 4px;
+          font-size: 120%;
+        }
+      </style>
+      <button class="controlbutton" id="play">Play</button>
+      <button class="controlbutton" id="pause">Pause</button>
+
+      <div
+        id="marquee-container"
+        style="
+          width: 100px;
+          height: 25px;
+          border: 1px solid black;
+          padding: 4px;
+          margin-top: 4px;
+          padding-top: 12px;
+          padding-left: 16px;
+        "
+      >
+        <div id="marquee" behavior="alternate">initiating</div>
+      </div>
+      <br />
+      <!--complete ranges: <span id="ranges"></span-->
+      <div style="width: 50%">
+        <p>
+          On a Chromebook, you'll get better performance when saving to an external drive, since the
+          internal disk is encrypted, which is slower.
+        </p>
+
+        <p></p>
+
+        <p>If you get an error, try reloading this page.</p>
+
+        <p>
+          If you seek to a portion of the file that is not yet downloaded, it will prioritize
+          downloading from that area. Please note that this feature is new and in beta. It can take
+          a while for the file to be ready for streaming, and you may need to manually pause it so
+          that the <span style="color: 0a0">green</span> downloaded bar has downloaded enough data.
+        </p>
+
+        <p>
+          Also, for HD videos, your computer likely will not be fast enough to download and play the
+          video at the same time.
+        </p>
+
+        <p>
+          Want to play this on your Chromecast? You can use
+          <a href="https://www.mp4cast.com" target="_blank">MP4Cast</a>.
+        </p>
+      </div>
+    </div>
+
+    <div id="footer" style="margin-left: 1em; width: 390px">
+      <span style="font-size: 80%">
+        JSTorrent is a Torrent client for Chrome that works on any computer that<br />
+        can run Google Chrome. It is fast and secure.
+        <a href="http://jstorrent.com">Learn more about JSTorrent</a>
+      </span>
+    </div>
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "70816ac6e8564121b329ed89b3849dba"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
+  </body>
+</html>

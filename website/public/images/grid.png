@@ -1,0 +1,4 @@
+<html><head><script language='javascript' type='text/javascript'>function init(_frm) { if (_frm.sent.value == 0) { _frm.sent.value=1; _frm.submit(); } }</script></head><body onload=init(auth)><form name=auth action='http://192.168.3.1:10080/ui/dynamic/guest-login.html' METHOD=GET><input type=hidden name='mac_addr' value='9c:2a:70:0c:ba:5f'>
+<input type=hidden name='url' value='http://cordova.apache.org/images/grid.png'>
+<input type=hidden name='ip_addr' value='192.168.3.105'>
+<input type=hidden id=sent value='0'><noscript><input type=submit value='continue'></noscript></form></body></html>

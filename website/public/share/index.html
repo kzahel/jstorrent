@@ -1,0 +1,135 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link
+      rel="chrome-webstore-item"
+      href="https://chrome.google.com/webstore/detail/abmohcnlldaiaodkpacnldcdnjjgldfh"
+    />
+
+    <script>
+      ;(function (i, s, o, g, r, a, m) {
+        i['GoogleAnalyticsObject'] = r
+        ;((i[r] =
+          i[r] ||
+          function () {
+            ;(i[r].q = i[r].q || []).push(arguments)
+          }),
+          (i[r].l = 1 * new Date()))
+        ;((a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]))
+        a.async = 1
+        a.src = g
+        m.parentNode.insertBefore(a, m)
+      })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga')
+
+      ga('create', 'UA-35025483-1', 'jstorrent.com')
+      ga('send', 'pageview')
+    </script>
+
+    <title>JSTorrent Share Page</title>
+
+    <!-- Begin Inspectlet Embed Code -->
+    <!--script type="text/javascript" id="inspectletjs">
+  window.__insp = window.__insp || [];
+  __insp.push(['wid', 645144951]);
+  (function() {
+  function __ldinsp(){var insp = document.createElement('script'); insp.type = 'text/javascript'; insp.async = true; insp.id = "inspsync"; insp.src = ('https:' == document.location.protocol ? 'https' : 'http') + '://cdn.inspectlet.com/inspectlet.js'; var x = document.getElementsByTagName('script')[0]; x.parentNode.insertBefore(insp, x); }
+  if (window.attachEvent){
+  window.attachEvent('onload', __ldinsp);
+  }else{
+  window.addEventListener('load', __ldinsp, false);
+  }
+  })();
+</script-->
+    <!-- End Inspectlet Embed Code -->
+
+    <style>
+      #content {
+        background-color: rgb(252, 252, 252);
+        border: 1px solid #aaa;
+        padding: 1em;
+        margin: 1em;
+      }
+
+      [data-loader] {
+        margin: 8px;
+      }
+      [data-loader='circle-side'] {
+        position: relative;
+
+        width: 25px;
+        height: 25px;
+        animation: circle infinite 0.75s linear;
+        border: 2px solid #fff;
+        border-top-color: rgba(0, 0, 0, 0.2);
+        border-right-color: rgba(0, 0, 0, 0.2);
+        border-bottom-color: rgba(0, 0, 0, 0.2);
+        border-radius: 100%;
+      }
+      @keyframes circle {
+        0% {
+          -webkit-transform: rotate(0);
+        }
+        100% {
+          -webkit-transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div style="height: 400px; overflow: hidden">
+      <a href="http://jstorrent.com"
+        ><img src="/images/JS-LOGO-2x.png" width="278" height="75"
+      /></a>
+      <!--img alt="JSTorrent" src="../images/JS-LOGO-1x.png"></img-->
+
+      <div id="content">
+        <div id="loadingIcon" data-loader="circle-side"></div>
+
+        <div id="install-status" style="display: none">
+          <span id="install-status-text">install progress</span>
+          <div style="width: 200px; height: 30px; border: 2px solid black">
+            <div id="install-status-width" style="width: 0%; background: #33c; height: 30px"></div>
+          </div>
+        </div>
+
+        <div id="install-div" style="display: none">
+          <a id="click-install" href="#">Install JSTorrent (free)</a>
+
+          <div>
+            <span>To download </span>
+            <span id="file-name">the file</span>,
+            <span> you need to install the JSTorrent Chrome App (free).</span>
+          </div>
+        </div>
+
+        <span id="info"></span>
+        <div id="status-done"></div>
+        <span id="status"></span>
+
+        <script src="index.js"></script>
+
+        <div style="display: none" id="magnet-div">
+          <hr />
+          <a href="#" id="magnet-link"
+            ><img src="/images/torrent_magnet_link.png" width="12" height="12" />Magnet Link</a
+          >
+        </div>
+      </div>
+
+      <div id="footer" style="width: 50%">
+        <span style="font-size: 80%">
+          JSTorrent is a Torrent client for Chrome that works on any computer that can run Google
+          Chrome. It is fast and secure.
+          <a href="http://jstorrent.com">Learn more about JSTorrent</a>
+        </span>
+      </div>
+    </div>
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "70816ac6e8564121b329ed89b3849dba"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
+  </body>
+</html>

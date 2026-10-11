@@ -1,0 +1,127 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>JSTorrent - Magnet Link Setup</title>
+    <link rel="stylesheet" href="index.css" />
+
+    <script>
+      ;(function (i, s, o, g, r, a, m) {
+        i['GoogleAnalyticsObject'] = r
+        ;((i[r] =
+          i[r] ||
+          function () {
+            ;(i[r].q = i[r].q || []).push(arguments)
+          }),
+          (i[r].l = 1 * new Date()))
+        ;((a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]))
+        a.async = 1
+        a.src = g
+        m.parentNode.insertBefore(a, m)
+      })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga')
+
+      ga('create', 'UA-35025483-1', 'jstorrent.com')
+      ga('send', 'pageview')
+    </script>
+  </head>
+
+  <body>
+    <a href="http://jstorrent.com"><img src="/images/JS-LOGO-2x.png" width="278" height="75" /></a>
+    <div id="content">
+      <div id="allgood">
+        <h3>Good news!</h3>
+
+        <p>JSTorrent is setup to handle magnet links.</p>
+
+        <p>Now go and find some!</p>
+
+        <p>
+          <a href="https://www.google.com/search?q=what+are+magnet+links"
+            >Learn more about magnet links</a
+          >
+        </p>
+
+        <div class="equation">
+          <img src="/images/js-64.png" width="32" height="32" />
+          <span> + </span>
+          <img src="/images/torrent_magnet_link.png" />
+          <span> = </span>
+          <span class="smiley">😃</span>
+        </div>
+      </div>
+
+      <div id="setup" style="visibility: hidden">
+        <h3 style="margin-top: 0.5em">Magnet link setup</h3>
+
+        <img src="/images/jstorrent-urlbar.png" style="width: 488px; height: 72px" />
+
+        <ol>
+          <li>
+            Look for the icon in your URL bar:
+            <span style="margin-left: 4px; position: absolute"
+              ><img
+                class="hvr-pop"
+                style="width: 24px; height: 24px"
+                src="/images/protocolhandler.svg"
+            /></span>
+          </li>
+
+          <li>Click it, click "Allow"</li>
+          <li>
+            Done! (<a
+              id="magnet1"
+              class="magnet"
+              href="magnet:?xt=urn:btih:0000000000000000000000000000000000000000&dn=Test.Torrent.Magnet.Link&start=0&jstwn=tml"
+              ><img
+                src="/images/torrent_magnet_link.png"
+                style="width: 12px; height: 12px; margin-right: 1px"
+              />Test it</a
+            >)
+          </li>
+        </ol>
+
+        <!--h3 style="margin-top:1.5em">Trouble?</h3-->
+
+        <br />
+
+        <div class="cps">
+          <p>Trouble?</p>
+
+          <p>
+            Don't see it? Go to <span class="mono">chrome://settings/handlers</span>, make sure
+            "<span class="font-family:monospace">magnet:</span>" is not ignored (then reload the
+            page).
+          </p>
+          <p>
+            Maybe it already works? (<a
+              id="magnet2"
+              class="magnet"
+              href="magnet:?xt=urn:btih:0000000000000000000000000000000000000000&dn=Test.Torrent.Magnet.Link&start=0&jstwn=tml"
+              ><img
+                src="/images/torrent_magnet_link.png"
+                style="width: 12px; height: 12px; margin-right: 1px"
+              />Test it</a
+            >)
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script src="index.js"></script>
+
+    <div id="footer" style="margin-left: 1em; width: 390px">
+      <span style="font-size: 80%">
+        JSTorrent is a Torrent client for Chrome that works on any computer that<br />
+        can run Google Chrome. It is fast and secure.
+        <a href="http://jstorrent.com">Learn more about JSTorrent</a>
+      </span>
+    </div>
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "70816ac6e8564121b329ed89b3849dba"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
+  </body>
+</html>

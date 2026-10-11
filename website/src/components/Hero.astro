@@ -1,0 +1,28 @@
+---
+import { sourceRepositoryUrl } from '../lib/production-site'
+---
+
+<section class="hero">
+  <div class="container">
+    <img src="/cook/JSTorrent/js-256.png" alt="JSTorrent Logo" class="hero-logo" />
+    <div class="hero-content">
+      <h1>
+        <strong>JSTorrent</strong>
+      </h1>
+      <h2>Torrent downloads across your devices</h2>
+      <p class="description">
+        Torrent downloads for desktop, Android, and supported Chromebooks. <a href={sourceRepositoryUrl}>Open source</a>.
+      </p>
+      <a id="hero-download-btn" href="#download" class="btn btn-primary btn-large">
+        Download
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+  const btn = document.getElementById('hero-download-btn') as HTMLAnchorElement | null
+  if (btn && /android/i.test(navigator.userAgent)) {
+    btn.href = '#download-android'
+  }
+</script>

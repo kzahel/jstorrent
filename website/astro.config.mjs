@@ -1,9 +1,10 @@
-import { defineConfig } from 'astro/config'
+import { defineConfig } from 'astro/config';
+import react from '@astrojs/react';
+import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
-  site: 'https://rstorrent.com',
+  site: 'https://jstorrent.com',
   output: 'static',
-  build: {
-    inlineStylesheets: 'never',
-  },
-})
+  integrations: [react(), sitemap()],
+  build: { inlineStylesheets: 'never' },
+});

@@ -58,10 +58,10 @@ jobs:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
-      - name: Install Node.js 22
+      - name: Install Node.js 24
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: |
             clients/web/package-lock.json
@@ -90,6 +90,10 @@ jobs:
       - name: Install website dependencies
         working-directory: website
         run: npm ci
+
+      - name: Test website inventory, context and security guards
+        working-directory: website
+        run: npm test
 
       - name: Check website
         working-directory: website

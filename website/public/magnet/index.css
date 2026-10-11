@@ -1,0 +1,135 @@
+#content {
+  background-color: rgb(248, 248, 248);
+  border: 1px solid #aaa;
+  padding: 1em;
+  margin: 1em;
+}
+
+#allgood {
+  display: none;
+  position: absolute;
+}
+
+a,
+a:visited {
+  text-decoration: none;
+  color: #33e;
+}
+
+li {
+  line-height: 24px;
+}
+ul {
+  list-style-type: none;
+}
+ul li {
+  line-height: 24px;
+  padding-left: 0;
+}
+div.cps p {
+  line-height: 24px;
+  margin: 0px;
+  padding: 0;
+  color: #55a;
+}
+
+.mono {
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+  font-family: monospace;
+  background-color: #efefef;
+  padding: 2px;
+}
+
+.smiley {
+  font-size: 32px;
+}
+div.equation {
+  height: 200px;
+  display: flex;
+  align-items: center;
+}
+div.equation span {
+  margin: 4px;
+}
+div.equation img {
+  margin: 4px;
+}
+
+[data-loader] {
+  margin: 8px;
+}
+[data-loader='circle-side'] {
+  position: relative;
+
+  width: 25px;
+  height: 25px;
+  animation: circle infinite 0.75s linear;
+  border: 2px solid #fff;
+  border-top-color: rgba(0, 0, 0, 0.2);
+  border-right-color: rgba(0, 0, 0, 0.2);
+  border-bottom-color: rgba(0, 0, 0, 0.2);
+  border-radius: 100%;
+}
+@keyframes circle {
+  0% {
+    -webkit-transform: rotate(0);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+  }
+}
+
+/* Pop */
+@keyframes hvr-pop {
+  50% {
+    -webkit-transform: scale(1.2);
+    transform: scale(1.2);
+  }
+}
+
+.hvr-pop {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  /*    box-shadow: 0 0 1px rgba(0, 0, 0, 0);*/
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /*    -moz-osx-font-smoothing: grayscale;*/
+
+  -webkit-animation-name: hvr-pop;
+  animation-name: hvr-pop;
+  -webkit-animation-duration: 0.8s;
+  animation-duration: 0.8s;
+  -webkit-animation-timing-function: linear;
+  animation-timing-function: linear;
+  -webkit-animation-iteration-count: infinite;
+  animation-iteration-count: infinite;
+}
+/*
+.hvr-pop:hover, .hvr-pop:focus, .hvr-pop:active {
+                                    -webkit-animation-name: hvr-pop;
+                                    animation-name: hvr-pop;
+                                    -webkit-animation-duration: 0.3s;
+                                    animation-duration: 0.3s;
+                                    -webkit-animation-timing-function: linear;
+                                    animation-timing-function: linear;
+                                    -webkit-animation-iteration-count: infinite;
+                                    animation-iteration-count: infinite;
+                                }
+*/
+
+.fadeOut {
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    visibility 0s 2s,
+    opacity 2s linear;
+}
+
+.fadeIn {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 2s linear;
+}

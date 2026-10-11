@@ -1,0 +1,61 @@
+# Tactical 299: Production Website Consolidation
+
+Status: Active, 2026-10-11. Owners: product-surfaces-and-migration and
+beta-release-readiness. A private cross-project plan owns hosting, DNS and
+repository administration; this tactical owns portable source changes.
+
+## Scope and stopping condition
+
+Move the established JSTorrent marketing design, blog and compatibility URLs
+into this repository's website without old engine/client workspace imports.
+Retain production inventory, signing root, recipients and legacy magnet routes.
+Retire `/app`, identified by the maintainer as a prototype, with clear guidance.
+Automate website inventory updates after verified production release promotion.
+
+Stop after a frozen standalone build, metadata/security/route checks, actual
+phone/wide before/after captures and a verified deployed preview. Production
+hosting and repository names have separate recorded acceptance.
+
+## Invariants and non-goals
+
+- Preserve the established visual design and MIT source/assets notices.
+- Do not import `@jstorrent/engine`, `@jstorrent/client`, or `@jstorrent/ui`.
+- Preserve guarded `/remote/` build, relay identity and route policy; changing
+  remote origin, credentials or authentication is outside this tactical.
+- Preserve Google Form and analytics recipients; never submit test responses.
+  Render only bounded accepted query fields as text.
+- Keep compatibility URLs and both Linux AppImage source links.
+- No engine, application identity, signing key, store release or iOS changes.
+- Never promote a preview or incomplete inventory as production downloads.
+
+## Implementation and evidence
+
+Read the old website README/legacy map, production selector, source license,
+deployment workflow, public headers, assembly guards and remote-auth topic.
+Port Astro marketing/blog and React Downloads with focused source guard tests.
+Remove legacy discovery and app aliases. Render download links before hydration;
+replace old workspace changelog reads with published product release data.
+
+Generate scoped CSP hashes for trusted inline scripts after build; retain the
+restrictive remote policy. Test recipients, canonical URLs, missing/bad release
+metadata, query filtering and routes. Use owned bundled Chromium for platform
+tabs, theme, direct fragments, image decoding, overflow and CSP/error capture.
+Keep screenshots and operational receipts wholly outside tracked source.
+
+## Execution checkpoint
+
+The old `/app` imports the TypeScript client; targeted active-source search
+finds no `jstorrent.com/app` links. Marketing changelog reads old workspace
+files, while support/community URLs still select the TypeScript repo. Preserve
+historical blog content and reconcile present product links separately.
+
+Next: port and validate locally before any public hosting cutover.
+
+The standalone port passes Astro diagnostics (zero errors/warnings/hints),
+40 inventory/context/CSP cases, nine remote assembly guards, and 32 actual
+320/390/1200 light/dark/browser views. No-JavaScript Windows, both Mac and both
+Linux links are present. Analytics are blocked and forms substituted during
+capture. Per-route exact hashes permit existing marketing scripts without
+broadening remote policy. The old waitlist prototypes redirect to Download;
+prototype retirement is clearly styled. Initial local captures do not qualify
+public deployment; release automation and deployed preview remain next.
