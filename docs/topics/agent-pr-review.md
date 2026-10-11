@@ -22,8 +22,14 @@ That switch controls automatic reviews and trusted main cache warming; manual
 dispatch still enforces every PR eligibility and publication check.
 
 The review job has contents/actions/PR read permission and an OIDC permission
-for ephemeral network enrollment. The publishing job has PR write permission,
-and receives only bounded JSON output. No credentials, PR checkout or build
+for ephemeral network enrollment.
+Subnet-route acceptance is disabled immediately after the pinned Tailscale
+action joins, before gateway use; the action itself hardcodes route acceptance.
+The tag's network grant permits only the gateway throughout enrollment.
+The workflow verifies the gateway's unauthenticated 401 boundary before review.
+
+The publishing job has PR write permission and receives only bounded JSON
+output. No credentials, PR checkout or build
 cache crosses into the publisher. Titles, bodies, commands, paths and line
 numbers are treated as untrusted output; the validator checks shape, sizes,
 priority and location against GitHub's right-side PR diff before posting.

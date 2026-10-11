@@ -95,7 +95,20 @@ jobs:
           tags: tag:pr-review
           version: 1.104.1
           hostname: pr-review-${{ github.run_id }}-${{ github.run_attempt }}
-          args: --accept-routes=false
+
+      - name: Disable advertised subnet routes and verify the gateway
+        if: steps.select.outputs.eligible == 'true'
+        env:
+          AAR_URL: ${{ vars.AGENT_REVIEW_AAR_URL }}
+        run: |
+          sudo tailscale set --accept-routes=false
+          node --input-type=module - <<'NODE'
+          const response = await fetch(process.env.AAR_URL + '/responses', {
+            method: 'POST', redirect: 'error', signal: AbortSignal.timeout(30000),
+          });
+          if (response.status !== 401) throw new Error(`Expected gateway authentication boundary, received ${response.status}`);
+          console.log('Private HTTPS gateway is reachable and requires authorization');
+          NODE
 
       - name: Review with network isolated code execution
         if: steps.select.outputs.eligible == 'true'
