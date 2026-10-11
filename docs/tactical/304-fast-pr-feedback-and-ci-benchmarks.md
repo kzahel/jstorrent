@@ -100,4 +100,11 @@ This is broad/cold qualification, not evidence for the 3--5 minute warm target.
 The contract check costs 1m54s after unit tests, so move it to a required parallel
 job that restores the ordinary full-CI contract cache read-only. Aggregate
 negative tests now also reject failed/cancelled/skipped selected contract jobs.
-Re-qualify the parallel layout; warm focused-change/cache reuse remains next.
+The parallel layout at `80d581db356ec1e21555382b1d19d5dc2bfd6ed7` passes all
+checks in [run 38143665744](https://github.com/kzahel/jstorrent/actions/runs/38143665744).
+It takes 14m23s with another Rust dependency-cache miss; compilation is slower
+than the first run, so there is no demonstrated total-duration improvement.
+The contract job restores an exact cache match and completes in 2m17s alongside
+Rust. Full CI continues independently. Next: after this lane lands on main,
+measure a representative focused PR with a completed dependency cache before
+claiming the 3--5 minute target or enabling automatic reviews.

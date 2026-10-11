@@ -113,9 +113,42 @@ See the [cache version implementation](https://github.com/actions/toolkit/blob/m
 and [cache scoping documentation](https://github.com/actions/cache/blob/v4/README.md#cache-scopes).
 This run establishes neither cache reuse nor focused-change warm latency.
 
+The compilation timing artifact also shows why warming dependencies alone
+cannot make this broad run meet the target. Its longest compiler units are
+first-party test binaries: engine 295.91s, session 266.64s and gateway 217.84s.
+These elapsed unit durations overlap under compiler contention and must not be
+summed. The engine's non-test library takes 100.41s. This broad graph is not a
+measurement of an engine-only change.
+
+Selection against the actual workspace metadata chooses seven lint packages
+for an engine-only source change: direct-file, engine, gateway, headless, media,
+remote-host and session. Only the engine library's 603 tests execute, alongside
+web checks and the required parallel contract job. A web-only source change
+selects no Rust checks, and a docs-only Markdown change selects only tool safety
+checks. Hosted focused-change latency still needs measurement after the lane
+is available on main and a representative dependency cache has completed.
+
 The measured contract step is on the critical path despite being independent
 of unit execution. The next layout makes it a required parallel job, restoring
 the existing `ci-web-contract-ubuntu-24.04` cache read-only. It retains the same
 contract command and drift assertion. Full
 [CI 38142457145](https://github.com/kzahel/jstorrent/actions/runs/38142457145)
 continues independently; its completion is not inferred from this fast result.
+
+## Parallel Contract Qualification
+
+[Fast CI 38143665744](https://github.com/kzahel/jstorrent/actions/runs/38143665744)
+passes the parallel layout at `80d581db356ec1e21555382b1d19d5dc2bfd6ed7`.
+Dispatch to completion is **14m23s** (13:33:41--13:48:04 UTC); all 1,430
+portable tests and all selected surfaces pass. Rust still misses the ordinary
+dependency cache. Lint takes 2m10s and test compilation 10m06s, versus 1m45s
+and 7m49s initially. Consequently this pair does not demonstrate a total-time
+improvement or isolate runner variation from other uncontrolled differences.
+
+The required contract job restores the ordinary contract cache with an exact
+match in 9s and completes in 2m17s, including 1m46s of exporter compilation.
+It completes alongside Rust rather than extending the post-test critical path.
+The aggregate succeeds only after both jobs and every other selected surface
+pass. The follow-up [full CI](https://github.com/kzahel/jstorrent/actions/runs/38143665947)
+is independent and was still running at this measurement. The 3--5 minute
+focused warm-run target remains unqualified; automatic reviews remain off.
