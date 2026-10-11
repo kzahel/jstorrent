@@ -71,3 +71,11 @@ The Git API transaction tests prove stale-inventory and concurrent-main
 refusals prevent deployment dispatch. Inventory and announcements use one
 atomic tree/commit, preserve intervening announcement content and never force
 main. Existing qualified inventory is a no-op even if an output file remains.
+
+The first hosted Website run stops before deployment because the new Git API
+fixture reads paths relative to its invocation directory. Fix the fixture to
+resolve repository paths from its module and explicitly set child cwd; the
+actual package-level `npm test` command now covers the CI invocation. Public
+hosting remains unchanged by the failed run. The actual retained 17-asset
+0.3.0 capsule independently passes fresh public digests, six original-root
+signatures and all updater URL/signature bindings through the promoter.

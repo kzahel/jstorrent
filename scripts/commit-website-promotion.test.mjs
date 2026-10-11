@@ -5,11 +5,14 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 
+const repositoryRoot = resolve(import.meta.dirname, '..');
+const repoFile = path => join(repositoryRoot, path);
+
 for (const mode of ['success', 'stale-inventory', 'concurrent-main']) {
   test(`promotion Git API transaction: ${mode}`, { skip: process.platform === 'win32' }, t => {
     const root = mkdtempSync(join(tmpdir(), 'website-git-api-'));
     t.after(() => rmSync(root, { recursive: true, force: true }));
-    const baseline = readFileSync('website/src/data/production-release.json', 'utf8');
+    const baseline = readFileSync(repoFile('website/src/data/production-release.json'), 'utf8');
     const next = JSON.parse(baseline);
     const oldVersion = next.release.version;
     const parts = oldVersion.split('.').map(Number); parts[2]++;
@@ -39,7 +42,7 @@ else if(endpoint.endsWith('/git/refs/heads/main') && process.env.MOCK_MODE==='co
 console.log(JSON.stringify(result));
 `);
     chmodSync(gh, 0o700);
-    const result = spawnSync(process.execPath, ['scripts/commit-website-promotion.mjs', 'kzahel/rstorrent', inventory], { encoding: 'utf8', env: { ...process.env, PATH: root + ':' + process.env.PATH, MOCK_MODE: mode, MOCK_CALLS: calls, MOCK_BASELINE: resolve('website/src/data/production-release.json'), MOCK_NEWS: resolve('website/src/data/product-releases.json') } });
+    const result = spawnSync(process.execPath, [repoFile('scripts/commit-website-promotion.mjs'), 'kzahel/rstorrent', inventory], { cwd: repositoryRoot, encoding: 'utf8', env: { ...process.env, PATH: root + ':' + process.env.PATH, MOCK_MODE: mode, MOCK_CALLS: calls, MOCK_BASELINE: repoFile('website/src/data/production-release.json'), MOCK_NEWS: repoFile('website/src/data/product-releases.json') } });
     const history = readFileSync(calls, 'utf8').trim().split('\n').map(line => JSON.parse(line));
     const dispatched = history.some(call => call.args[0] === 'workflow');
     assert.equal(result.status === 0, mode === 'success', result.stderr);
