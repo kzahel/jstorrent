@@ -22,9 +22,10 @@ test('marketing headers never hash or broaden the remote client policy', async t
   t.after(() => rm(root, { recursive: true, force: true }));
   const original = "/*\n  Content-Security-Policy: script-src 'none'\n\n/remote/*\n  ! Content-Security-Policy\n  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'\n";
   await writeFile(join(root, '_headers'), original);
-  await writeFile(join(root, 'index.html'), '<script>trusted()</script>');
+  await writeFile(join(root, 'index.html'), '<html><head><script>trusted()</script></head><body>Home</body></html>');
   await mkdir(join(root, 'remote'));
-  await writeFile(join(root, 'remote/index.html'), '<script>remote()</script>');
+  const remote = '<html><head><script>remote()</script></head></html>';
+  await writeFile(join(root, 'remote/index.html'), remote);
   await mkdir(join(root, 'blog'));
   await writeFile(join(root, 'blog/index.html'), '<html>Blog</html>');
   assert.equal(await writeWebsiteHeaders(root), 2);
@@ -33,4 +34,25 @@ test('marketing headers never hash or broaden the remote client policy', async t
   assert(!output.includes(createHash('sha256').update('remote()').digest('base64')));
   assert(output.includes('\n/\n'));
   assert(output.includes('\n/blog/\n'));
+  const home = await readFile(join(root, 'index.html'), 'utf8');
+  assert(home.indexOf('http-equiv="Content-Security-Policy"') < home.indexOf('<script>'));
+  assert(home.includes("form-action 'none'"));
+  assert(!home.includes('frame-ancestors'));
+  assert.equal(await readFile(join(root, 'remote/index.html'), 'utf8'), remote);
+});
+
+test('static hosts retain retired prototype guidance without an open redirect', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'website-redirect-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, '_headers'), "/*\n  Content-Security-Policy: script-src 'none'\n");
+  await writeFile(join(root, '_redirects'), '/comingsoon.html /#download 301\n/comingsoon /#download 301\n');
+  assert.equal(await writeWebsiteHeaders(root), 3);
+  for (const path of ['comingsoon.html', 'comingsoon/index.html']) {
+    const html = await readFile(join(root, path), 'utf8');
+    assert(html.includes('0;url=https://jstorrent.com/#download'));
+    assert(html.includes('http-equiv="Content-Security-Policy"'));
+    assert(!html.includes('<script'));
+  }
+  await writeFile(join(root, '_redirects'), '/comingsoon.html https://unexpected.example 301\n');
+  await assert.rejects(writeWebsiteHeaders(root), /Unexpected retired prototype redirect/);
 });

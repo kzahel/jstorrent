@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -28,6 +28,19 @@ export function marketingPolicy(html) {
 export async function writeWebsiteHeaders(directory) {
   // Preserve the independently guarded remote policy byte-for-byte.
   const original = await readFile(join(directory, '_headers'), 'utf8');
+  // GitHub Pages ignores _redirects. Give the retired prototypes a bounded
+  // HTML fallback there; Cloudflare continues to return the original 301.
+  let redirects = '';
+  try { redirects = await readFile(join(directory, '_redirects'), 'utf8'); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  for (const line of redirects.split('\n')) {
+    const [source, target, code] = line.trim().split(/\s+/);
+    if (!/^\/comingsoon[1-5]?(?:\.html)?$/.test(source ?? '')) continue;
+    if (target !== '/#download' || code !== '301') throw new Error('Unexpected retired prototype redirect');
+    const file = join(directory, source.slice(1), ...(source.endsWith('.html') ? [] : ['index.html']));
+    await mkdir(join(file, '..'), { recursive: true });
+    await writeFile(file, '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0;url=https://jstorrent.com/#download"><link rel="canonical" href="https://jstorrent.com/#download"><title>Download JSTorrent</title><style>body{font:16px system-ui;background:#f4f7fb;color:#374151;margin:0;padding:3rem}main{max-width:32rem;margin:auto}a{color:#129bbb}</style></head><body><main><h1>JSTorrent</h1><p>JSTorrent is available now.</p><a href="https://jstorrent.com/#download">Download JSTorrent</a></main></body></html>');
+  }
   const blocks = [];
   async function walk(path) {
     for (const entry of (await readdir(path, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
@@ -36,6 +49,13 @@ export async function writeWebsiteHeaders(directory) {
       if (entry.isDirectory()) await walk(file);
       else if (entry.name.endsWith('.html')) {
         const html = await readFile(file, 'utf8');
+        // Static hosts such as GitHub Pages cannot apply custom HTTP headers.
+        // Keep script/frame/form restrictions in the document as well. The
+        // header-only ancestor restriction remains enforced by Cloudflare.
+        const documentPolicy = marketingPolicy(html).replace("; frame-ancestors 'none'", '');
+        if (!/<meta\b[^>]*http-equiv=["']Content-Security-Policy["']/i.test(html) && /<head\b[^>]*>/i.test(html)) {
+          await writeFile(file, html.replace(/<head\b[^>]*>/i, head => `${head}<meta http-equiv="Content-Security-Policy" content="${documentPolicy.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}">`));
+        }
         const full = '/' + relative(directory, file).replaceAll('\\', '/');
         // Cloudflare serves HTML through extensionless and trailing-slash URLs.
         const routes = full.endsWith('/index.html') ? [full.slice(0, -10)] : [full, full.slice(0, -5)];

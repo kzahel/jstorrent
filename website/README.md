@@ -72,3 +72,22 @@ because a GITHUB_TOKEN commit alone does not trigger the normal push workflow.
 Subsequent website builds therefore retain the promoted version. Signed packages
 and corresponding sources must already be publicly available; the workflow
 cannot manufacture or qualify a missing source archive.
+
+## Canonical static hosting
+
+`Production Website` deploys this standalone site to GitHub Pages after a
+successful main-branch `Website` qualification, or a maintainer dispatch.
+It checks out the exact qualified source SHA and uses the repository's Pages
+environment/token. Production release promotion already dispatches `Website`,
+so no cross-repository credential or manual download edit is needed.
+Cloudflare continues to deploy its independently guarded remote bundle.
+
+Built marketing documents include an exact-script CSP before scripts for
+static hosts; Cloudflare additionally enforces its HTTP ancestor policy and
+other response headers. GitHub Pages cannot apply `_headers` or `_redirects`.
+Retired waitlist paths therefore have a branded HTML redirect fallback there,
+while Cloudflare continues to issue HTTP 301 responses. Operational hostname,
+DNS and mail-provider decisions belong to the private infrastructure checklist.
+
+Use `WEBSITE_CAPTURE_BASE=https://your-hosted-origin` with the capture runner to
+repeat browser acceptance after deployment. Keep its output in an ignored path.

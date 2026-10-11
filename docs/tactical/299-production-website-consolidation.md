@@ -1,6 +1,6 @@
 # Tactical 299: Production Website Consolidation
 
-Status: Complete, 2026-10-11. Owners: product-surfaces-and-migration and
+Status: Active supplement, 2026-10-11. Owners: product-surfaces-and-migration and
 beta-release-readiness. A private cross-project plan owns hosting, DNS and
 repository administration; this tactical owns portable source changes.
 
@@ -93,3 +93,19 @@ The portable stopping condition is met. DNS delegation, canonical hostname
 binding, domain redirects and repository administration continue under the
 private consolidation checklist; deployed preview acceptance does not claim
 that jstorrent.com has already switched hosting.
+
+A hosting supplement keeps canonical website deployment in this repository
+without moving registrar DNS or mail providers. GitHub Pages will deploy the
+same standalone website after successful Website qualification, using the
+existing repository token and Pages environment. Cloudflare continues to own
+the remote origin. Add document CSP for static hosts that cannot apply custom
+HTTP headers; keep the stronger Cloudflare ancestor policy and remote policy.
+Qualify the hosted artifact before moving the existing custom-domain binding.
+Do not rename repositories or change email recipients as part of this slice.
+
+The static-host supplement passes 54 package tests, Astro diagnostics and a
+fresh 32-view browser acceptance run. HTML CSP precedes scripts without copying
+header-only directives, and the remote HTML/header bytes are untouched. Bounded
+waitlist fallbacks cannot redirect to arbitrary external destinations. The new
+Pages job records source SHA and desktop version for exact hosted acceptance;
+it does not need a cross-repository token or build the old TypeScript workspace.
