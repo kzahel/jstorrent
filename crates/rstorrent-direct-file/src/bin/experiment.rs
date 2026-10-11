@@ -1,3 +1,5 @@
+#[path = "experiment/diagnostics.rs"]
+mod diagnostics;
 use std::io::Write as _;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::{Path, PathBuf};
@@ -74,7 +76,19 @@ struct ReadyView {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (mode, send_window_bytes, source_name, raw_buffer_bytes) = parse_mode()?;
+    let Options {
+        mode,
+        send_window_bytes,
+        source_name,
+        raw_buffer_bytes,
+        delay_ms,
+        loss_every,
+        diagnostics,
+        rate_mib,
+    } = parse_mode()?;
+    if diagnostics {
+        self::diagnostics::enable();
+    }
     let fixture_mib = match &mode {
         ExperimentMode::Serve { fixture_mib }
         | ExperimentMode::PrepareProfile { fixture_mib, .. } => *fixture_mib,
@@ -119,8 +133,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             application.clone(),
             send_window_bytes,
             match source_name.as_str() {
+                "verified" if delay_ms > 0 || loss_every > 0 || rate_mib > 0 => {
+                    ExperimentSource::Network {
+                        delay_ms,
+                        loss_every,
+                        rate_mib,
+                    }
+                }
                 "verified" => ExperimentSource::Verified,
                 "generated" => ExperimentSource::GeneratedRanges,
+                "legacy" => ExperimentSource::LegacyVerified,
                 "raw" => ExperimentSource::Raw {
                     length: fixture_length,
                     buffer_bytes: raw_buffer_bytes,
@@ -185,9 +207,23 @@ enum ExperimentMode {
     },
 }
 
-fn parse_mode() -> Result<(ExperimentMode, usize, String, usize), Box<dyn std::error::Error>> {
+struct Options {
+    mode: ExperimentMode,
+    send_window_bytes: usize,
+    source_name: String,
+    raw_buffer_bytes: usize,
+    delay_ms: u64,
+    loss_every: u32,
+    diagnostics: bool,
+    rate_mib: u32,
+}
+fn parse_mode() -> Result<Options, Box<dyn std::error::Error>> {
     let mut arguments = std::env::args().skip(1);
     let mut fixture_mib = DEFAULT_FIXTURE_MIB;
+    let mut delay_ms = 0;
+    let mut diagnostics = false;
+    let mut rate_mib = 0;
+    let mut loss_every = 0;
     let mut source_name = "verified".to_owned();
     let mut raw_buffer_bytes = 512 * 1024;
     let mut send_window_bytes = 64 * 1024;
@@ -196,6 +232,25 @@ fn parse_mode() -> Result<(ExperimentMode, usize, String, usize), Box<dyn std::e
     let mut profile_id = None;
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
+            "--diagnostics" => diagnostics = true,
+            "--rate-mib" => {
+                rate_mib = arguments.next().ok_or("rate required")?.parse()?;
+                if rate_mib > 128 {
+                    return Err("rate must be <=128 MiB/s".into());
+                }
+            }
+            "--delay-ms" => {
+                delay_ms = arguments.next().ok_or("delay value required")?.parse()?;
+                if delay_ms > 250 {
+                    return Err("delay must be <=250 ms".into());
+                }
+            }
+            "--loss-every" => {
+                loss_every = arguments.next().ok_or("loss value required")?.parse()?;
+                if loss_every > 0 && loss_every < 20 {
+                    return Err("loss interval must be >=20".into());
+                }
+            }
             "--raw-buffer-kib" => {
                 let kib: usize = arguments
                     .next()
@@ -208,8 +263,11 @@ fn parse_mode() -> Result<(ExperimentMode, usize, String, usize), Box<dyn std::e
             }
             "--source" => {
                 source_name = arguments.next().ok_or("--source requires a value")?;
-                if !matches!(source_name.as_str(), "verified" | "generated" | "raw") {
-                    return Err("source must be verified, generated or raw".into());
+                if !matches!(
+                    source_name.as_str(),
+                    "verified" | "generated" | "raw" | "legacy"
+                ) {
+                    return Err("source must be verified, generated, raw or legacy".into());
                 }
             }
             "--window-kib" => {
@@ -246,29 +304,35 @@ fn parse_mode() -> Result<(ExperimentMode, usize, String, usize), Box<dyn std::e
             _ => return Err(format!("unknown argument: {argument}").into()),
         }
     }
-    match (profile_root, payload_root, profile_id) {
-        (None, None, None) => Ok((
-            ExperimentMode::Serve { fixture_mib },
-            send_window_bytes,
-            source_name,
-            raw_buffer_bytes,
-        )),
-        (Some(profile_root), Some(payload_root), Some(profile_id)) => Ok((
-            ExperimentMode::PrepareProfile {
-                fixture_mib,
-                profile_root,
-                payload_root,
-                profile_id,
-            },
-            send_window_bytes,
-            source_name,
-            raw_buffer_bytes,
-        )),
-        _ => Err(
-            "profile preparation requires --prepare-profile, --payload-root, and --profile-id"
-                .into(),
-        ),
+    if (delay_ms > 0 || loss_every > 0 || rate_mib > 0) && source_name != "verified" {
+        return Err("network impairment requires verified source".into());
     }
+    let mode =
+        match (profile_root, payload_root, profile_id) {
+            (None, None, None) => ExperimentMode::Serve { fixture_mib },
+            (Some(profile_root), Some(payload_root), Some(profile_id)) => {
+                ExperimentMode::PrepareProfile {
+                    fixture_mib,
+                    profile_root,
+                    payload_root,
+                    profile_id,
+                }
+            }
+            _ => return Err(
+                "profile preparation requires --prepare-profile, --payload-root, and --profile-id"
+                    .into(),
+            ),
+        };
+    Ok(Options {
+        mode,
+        send_window_bytes,
+        source_name,
+        raw_buffer_bytes,
+        delay_ms,
+        loss_every,
+        diagnostics,
+        rate_mib,
+    })
 }
 
 fn discover_private_ipv4() -> IpAddr {
@@ -455,6 +519,7 @@ async fn offer(
     Json(offer): Json<RTCSessionDescription>,
 ) -> Result<Json<OfferAnswer>, (StatusCode, String)> {
     require_host(&state, &headers).map_err(|status| (status, String::new()))?;
+    diagnostics::reset();
     let mut endpoint = state.endpoint.lock().await;
     if endpoint.is_some() {
         return Err((
@@ -507,21 +572,24 @@ async fn close(
 async fn status(
     State(state): State<ExperimentState>,
     headers: HeaderMap,
-) -> Result<Json<DirectFileEndpointSnapshot>, StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     require_host(&state, &headers)?;
     let endpoint = state.endpoint.lock().await;
-    if let Some(endpoint) = endpoint.as_ref() {
-        return Ok(Json(endpoint.snapshot()));
-    }
-    drop(endpoint);
-    Ok(Json(
+    let snapshot = if let Some(endpoint) = endpoint.as_ref() {
+        endpoint.snapshot()
+    } else {
         state
             .last_snapshot
             .lock()
             .await
             .clone()
-            .unwrap_or_else(|| state.factory.idle_snapshot()),
-    ))
+            .unwrap_or_else(|| state.factory.idle_snapshot())
+    };
+    let mut value =
+        serde_json::to_value(snapshot).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    value["sctp_diagnostics"] = serde_json::to_value(diagnostics::snapshot())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(value))
 }
 
 fn require_host(state: &ExperimentState, headers: &HeaderMap) -> Result<(), StatusCode> {

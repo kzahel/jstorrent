@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [312 — Reliable credit-based range streams](312-reliable-credit-range-streams.md):
+  shared receive credit, bounded reliable lanes, arbitrary ranges, consumption
+  and release barriers, compatibility and measured RTT/loss behavior.
+
 - [311 — Android notification settings consolidation](311-android-notification-settings-consolidation.md):
   one status/action row opens system controls in granted and denied states;
   independent notification preferences remain.

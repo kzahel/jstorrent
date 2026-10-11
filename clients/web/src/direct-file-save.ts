@@ -1,3 +1,4 @@
+import { negotiateRangeStream, type RangeStreamOptions } from "./direct-file-range-stream";
 import type {
   DirectFileResponse,
   RemoteApplicationWebSocket,
@@ -41,6 +42,7 @@ export interface DirectFileSaveRequest {
   readonly fileName: string;
   readonly expectedLength: bigint;
   readonly signal?: AbortSignal;
+  readonly rangeStreamOptions?: RangeStreamOptions;
   readonly onProgress?: (progress: DirectFileSaveProgress) => void;
 }
 
@@ -182,7 +184,19 @@ export async function saveDirectFile(
       "end_of_candidates",
     );
     await waitForDataChannel(channel, peer, request.signal);
-    await streamRanges(channel, sink, request, fileLength, response.max_chunk_bytes);
+    const ranges = await negotiateRangeStream(channel, peer, fileLength, request.signal, request.rangeStreamOptions);
+    if (ranges) {
+      try {
+        await ranges.read(0n, fileLength, {
+          signal: request.signal,
+          write: async (bytes) => {
+            try { await sink.write(bytes); }
+            catch (error) { throw new SinkWriteFailed(errorMessage(error)); }
+          },
+          onConsumed: (offset) => progress(request, "transferring", offset),
+        });
+      } finally { ranges.close(); }
+    } else await streamRanges(channel, sink, request, fileLength, response.max_chunk_bytes);
     await sink.close().catch((error: unknown) => {
       throw new SinkWriteFailed(errorMessage(error));
     });

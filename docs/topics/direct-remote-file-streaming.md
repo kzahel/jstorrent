@@ -1,5 +1,14 @@
 # Direct Remote File Streaming
 
+Tactical [312](../tactical/312-reliable-credit-range-streams.md) implements
+reliable ordered v2 range streams with cumulative consumption credit, a shared
+8-MiB receive budget, independent bounded transport admission, batched writes,
+cancellation/release barriers and v1 compatibility. Matched 100-ms-RTT,
+16-MiB/s shaped local saves improve from 0.58 to 7.94 MiB/s. Packet-loss saves
+retain exact hashes; high-rate bursts and lossy throughput remain limits to
+qualify. Rust/web gates pass; authenticated product verification is in progress.
+Open/Play, automatic resume, real WAN/picker and mobile hosting remain separate.
+
 Completed local Tactical [309](../tactical/309-direct-file-transport-ceiling.md)
 measures 51.77 MiB/s for normal 256-MiB disk saves, 51.11 with generated
 ranges and a stable 68.50 raw RTC operating point at 64-KiB outstanding.

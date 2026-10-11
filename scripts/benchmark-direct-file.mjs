@@ -12,17 +12,23 @@ import { once } from "node:events";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const requireWeb = createRequire(join(root, "clients/web/package.json"));
 const { chromium } = requireWeb("playwright");
-const { transformWithOxc } = await import(requireWeb.resolve("vite"));
+const { build, transformWithOxc } = await import(requireWeb.resolve("vite"));
 const args = process.argv.slice(2);
 function option(name, fallback) {
   const index = args.indexOf(name);
   return index < 0 ? fallback : args[index + 1];
 }
+const delayMs = Number(option("--delay-ms", "0"));
+const rateMiB = Number(option("--rate-mib", "0"));
+assert(Number.isInteger(rateMiB) && rateMiB >= 0 && rateMiB <= 128);
+const lossEvery = Number(option("--loss-every", "0"));
+assert(Number.isInteger(delayMs) && delayMs >= 0 && delayMs <= 250);
+assert(Number.isInteger(lossEvery) && (lossEvery === 0 || lossEvery >= 20));
 const sourceKind = option("--source", "verified");
 const rawBufferKiB = Number(option("--raw-buffer-kib", "512"));
 assert([16, 32, 64, 128, 256, 512].includes(rawBufferKiB));
 const cancelAfterMiB = Number(option("--cancel-after-mib", "0"));
-assert(["verified", "generated", "raw", "browser"].includes(sourceKind));
+assert(["verified", "generated", "raw", "browser", "legacy"].includes(sourceKind));
 assert(Number.isInteger(cancelAfterMiB) && cancelAfterMiB >= 0 && cancelAfterMiB <= 255);
 const rawConsumer = ["raw", "browser"].includes(sourceKind);
 assert(!cancelAfterMiB || rawConsumer);
@@ -49,7 +55,19 @@ if (consumerRef) {
   assert.equal(result.status, 0, result.stderr);
   source = result.stdout;
 } else source = await readFile(join(root, "clients/web/src/direct-file-save.ts"), "utf8");
-const { code } = await transformWithOxc(source, "direct-file-save.ts");
+let code;
+if (consumerRef) ({ code } = await transformWithOxc(source, "direct-file-save.ts"));
+else {
+  const bundle = await build({ configFile: false, root: join(root, "clients/web"), logLevel: "silent",
+    build: { write: false, minify: false, lib: { entry: join(root, "clients/web/src/direct-file-save.ts"), formats: ["es"] } } });
+  code = (Array.isArray(bundle) ? bundle[0] : bundle).output.find((item) => item.type === "chunk").code;
+}
+const creditKiB = Number(option("--credit-kib", "8192"));
+const transportKiB = Number(option("--transport-kib", "8192"));
+const batchKiB = Number(option("--write-batch-kib", "128"));
+assert(Number.isInteger(creditKiB) && creditKiB >= 1 && creditKiB <= 8192);
+assert(Number.isInteger(transportKiB) && transportKiB >= 64 && transportKiB <= 8192);
+assert(Number.isInteger(batchKiB) && batchKiB >= 1 && batchKiB <= 256);
 const driver = await readFile(join(root, rawConsumer ? "scripts/lib/direct-file-raw-benchmark-browser.js" : "scripts/lib/direct-file-benchmark-browser.js"), "utf8");
 const html = await readFile(join(root, "crates/rstorrent-direct-file/src/bin/experiment.html"), "utf8");
 const temporary = await mkdtemp(join(tmpdir(), "jstorrent-direct-benchmark-"));
@@ -64,7 +82,9 @@ process.once("SIGINT", interrupted);
 process.once("SIGTERM", interrupted);
 try {
   for (const size of sizes) {
-    const fixtureArgs = ["--raw-buffer-kib", String(rawBufferKiB), "--fixture-mib", String(size), "--source", sourceKind === "browser" ? "verified" : sourceKind];
+    assert(!(delayMs || lossEvery || rateMiB) || sourceKind === "verified");
+    const fixtureArgs = ["--rate-mib", String(rateMiB), "--delay-ms", String(delayMs), "--loss-every", String(lossEvery), "--raw-buffer-kib", String(rawBufferKiB), "--fixture-mib", String(size), "--source", sourceKind === "browser" ? "verified" : sourceKind];
+    if (args.includes("--diagnostics")) fixtureArgs.push("--diagnostics");
     if (windowKiB !== undefined) fixtureArgs.push("--window-kib", windowKiB);
     child = spawn(join(root, `target/release/rstorrent-direct-file-experiment${process.platform === "win32" ? ".exe" : ""}`), fixtureArgs, {
       cwd: root, stdio: ["ignore", "pipe", "pipe"],
@@ -83,6 +103,23 @@ try {
         if (line) { clearTimeout(timeout); resolveReady(JSON.parse(line.slice(line.indexOf(" ") + 1))); }
       });
     });
+    if (args.includes("--v2-checks")) {
+      const rangeBundle = await build({ configFile: false, root: join(root, "clients/web"), logLevel: "silent",
+        build: { write: false, minify: false, lib: { entry: join(root, "clients/web/src/direct-file-range-stream.ts"), formats: ["es"] } } });
+      const rangeCode = (Array.isArray(rangeBundle) ? rangeBundle[0] : rangeBundle).output.find(item => item.type === "chunk").code;
+      const checks = await readFile(join(root, "scripts/lib/direct-file-v2-checks.js"), "utf8");
+      const context = await browser.newContext();
+      try {
+        const page = await context.newPage();
+        await page.route(`${ready.url}experiment.js`, route => route.fulfill({ contentType: "text/javascript", body: checks }));
+        await page.route(`${ready.url}ranges.js`, route => route.fulfill({ contentType: "text/javascript", body: rangeCode }));
+        await page.route(ready.url, route => route.fulfill({ contentType: "text/html", body: html.replace('<script src=', '<script type="module" src=') }));
+        await page.goto(ready.url); await page.waitForFunction(() => typeof window.runV2Checks === "function");
+        page.on("console", message => process.stderr.write(`checks: ${message.text()}\n`));
+        const result = await page.evaluate(() => window.runV2Checks());
+        assert.equal(result.ok, true); process.stderr.write(`v2 checks: ${JSON.stringify(result)}\n`);
+      } finally { await context.close(); }
+    }
     if (args.includes("--protocol-checks")) {
       const context = await browser.newContext();
       try {
@@ -114,11 +151,12 @@ try {
             contentType: "text/html", body: html.replace('<script src=', '<script type="module" src='),
           }));
           await page.route(`${ready.url}experiment.js`, (route) => route.fulfill({
-            contentType: "text/javascript", body: (rawConsumer ? "" : code + "\n") + driver,
+            contentType: "text/javascript", body: (rawConsumer ? "" : 'import { saveDirectFile, prepareDirectFileSink } from "/consumer.js";\n') + driver,
           }));
+          await page.route(`${ready.url}consumer.js`, (route) => route.fulfill({ contentType: "text/javascript", body: code }));
           await page.goto(ready.url);
           await page.waitForFunction(() => typeof window.runDirectBenchmark === "function");
-          const result = await page.evaluate((options) => window.runDirectBenchmark(options), { sink, ackDelayMs, cancelAfterMiB, peerKind: sourceKind });
+          const result = await page.evaluate((options) => window.runDirectBenchmark(options), { sink, ackDelayMs, cancelAfterMiB, peerKind: sourceKind, rangeStreamOptions: { budgetBytes: creditKiB * 1024, transportBytes: transportKiB * 1024, writeBatchBytes: batchKiB * 1024 } });
           if (cancelAfterMiB) {
             assert.equal(result.cancelled, true);
             assert(result.bytes >= cancelAfterMiB * 1048576 && result.bytes < ready.fixture.length);
@@ -128,6 +166,8 @@ try {
           assert.equal(result.snapshot.open_sockets, 0);
           assert.equal(result.snapshot.active_requests, 0);
           assert.equal(result.snapshot.queued_bytes, 0);
+          assert.equal(result.snapshot.credit_reserved_bytes ?? 0, 0);
+          assert((result.snapshot.credit_high_water ?? 0) <= creditKiB * 1024);
           assert.equal(result.snapshot.transport_buffered_bytes, 0);
           if (sourceKind === "browser") {
             assert.equal(result.snapshot.bytes_sent, 0);
@@ -138,8 +178,10 @@ try {
             assert.equal(result.snapshot.fingerprint_verified, true);
           }
           assert(result.snapshot.queue_high_water <= 512 * 1024);
-          assert(result.snapshot.transport_high_water <= (sourceKind === "raw" ? rawBufferKiB : 512) * 1024);
-          const sample = { source: sourceKind, sizeMiB: size, sink, repetition, windowKiB: rawConsumer ? null : Number(windowKiB ?? 16), rawBufferKiB: sourceKind === "raw" ? rawBufferKiB : null, ackDelayMs, cancelAfterMiB, ...result };
+          assert(result.snapshot.transport_high_water <= (sourceKind === "raw" ? rawBufferKiB : Math.max(512, transportKiB) + 1) * 1024);
+          assert.equal(result.snapshot.network_overflow ?? 0, 0);
+          if (lossEvery) assert(result.snapshot.network_dropped > 0);
+          const sample = { rateMiB, delayMs, lossEvery, creditKiB, transportKiB, batchKiB, source: sourceKind, sizeMiB: size, sink, repetition, windowKiB: rawConsumer ? null : Number(windowKiB ?? 16), rawBufferKiB: sourceKind === "raw" ? rawBufferKiB : null, ackDelayMs, cancelAfterMiB, ...result };
           samples.push(sample);
           process.stderr.write(`${JSON.stringify(sample)}\n`);
         } finally { await context.close(); }

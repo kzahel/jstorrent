@@ -8,7 +8,7 @@ publish = false
 
 [features]
 default = []
-webrtc = ["dep:bytes", "dep:rtc", "dep:serde"]
+webrtc = ["dep:bytes", "dep:rtc", "dep:serde", "dep:sha2"]
 experiment = [
     "webrtc",
     "dep:axum",
@@ -16,9 +16,11 @@ experiment = [
     "dep:sha1",
     "dep:sha2",
     "dep:tempfile",
+    "dep:log",
 ]
 
 [dependencies]
+log = { version = "0.4.33", optional = true }
 axum = { workspace = true, optional = true }
 bytes = { version = "1.12.1", optional = true }
 rtc = { version = "=0.20.4", default-features = false, features = ["ring"], optional = true }

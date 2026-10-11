@@ -1,5 +1,13 @@
 # Oracle-Driven Engine Campaign
 
+Tactical [312](../tactical/312-reliable-credit-range-streams.md) lands
+reliable credit-based direct ranges without changing engine storage or mobile
+semantics. Pure bounds, real concurrent/cancelled browser ranges, v1 fallback,
+byte integrity and zero terminal owners pass. Corrected 100-ms RTT/rate shaping
+shows 0.58 -> 7.94 MiB/s; lossy throughput stays congestion limited. Restart
+checkpoint: complete the authenticated product verifier and record final
+validation/evidence; do not infer WAN qualification from these simulations.
+
 Completed local Tactical [309](../tactical/309-direct-file-transport-ceiling.md)
 separates verified reads, generated ranges and raw reliable RTC. Disk-save
 medians are 51.77/51.11 MiB/s; the stable tested raw operating point is

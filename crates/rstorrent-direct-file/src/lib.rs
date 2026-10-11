@@ -6,6 +6,12 @@
 //! the ICE, DTLS, SCTP, and certificate dependency graph.
 
 pub mod codec;
+#[cfg(feature = "experiment")]
+mod impairment;
+pub mod range_protocol;
+
+#[cfg(feature = "webrtc")]
+mod range_stream;
 #[cfg(feature = "webrtc")]
 mod send_window;
 

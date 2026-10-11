@@ -1,5 +1,5 @@
 // Appended to the transformed production save module by the local benchmark.
-window.runDirectBenchmark = async ({ sink: sinkKind, ackDelayMs }) => {
+window.runDirectBenchmark = async ({ sink: sinkKind, ackDelayMs, rangeStreamOptions }) => {
   const fixture = await fetch("/fixture").then((response) => response.json());
   const NativePeer = window.RTCPeerConnection;
   let received = 0;
@@ -104,7 +104,7 @@ window.runDirectBenchmark = async ({ sink: sinkKind, ackDelayMs }) => {
     const timeout = setTimeout(() => abort.abort(), 90_000);
     timers.add(timeout);
     await saveDirectFile(transport, { torrentId: "fixture", fileIndex: 0, fileName: fixture.file_name,
-      expectedLength: BigInt(fixture.length), signal: abort.signal }, prepareDirectFileSink(fixture.file_name, BigInt(fixture.length)));
+      expectedLength: BigInt(fixture.length), rangeStreamOptions, signal: abort.signal }, prepareDirectFileSink(fixture.file_name, BigInt(fixture.length)));
     clearTimeout(timeout);
     timers.delete(timeout);
     const end = performance.now();

@@ -4594,6 +4594,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "bytes",
+ "log",
  "rstorrent-session",
  "rtc",
  "serde",

@@ -299,6 +299,13 @@ class MockPeerConnection extends EventTarget {
   private readonly channel = MockPeerConnection.channelFactory();
 
   public createDataChannel(): RTCDataChannel {
+    const send = this.channel.send.bind(this.channel);
+    this.channel.send = (buffer) => {
+      const probe = new Uint8Array(buffer);
+      if (probe[0] === 1 && probe[1] === 4) {
+        this.channel.dispatchEvent(new MessageEvent("message", { data: new Uint8Array([1, 0xff, 0, 0, 0, 0, 1]).buffer }));
+      } else send(buffer);
+    };
     return this.channel as unknown as RTCDataChannel;
   }
 
