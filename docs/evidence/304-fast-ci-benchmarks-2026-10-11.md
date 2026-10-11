@@ -152,3 +152,104 @@ The aggregate succeeds only after both jobs and every other selected surface
 pass. The follow-up [full CI](https://github.com/kzahel/jstorrent/actions/runs/38143665947)
 is independent and was still running at this measurement. The 3--5 minute
 focused warm-run target remains unqualified; automatic reviews remain off.
+
+## Merged Lane And First Focused Probe
+
+[PR 26](https://github.com/kzahel/jstorrent/pull/26) merged at
+`6ad208d4b2ee471ae6a300840232c85c9650daae` after every qualification job
+passed. At its exact head `e347cce291fd822e7079bc311fb709930e48e5c5`,
+[Fast CI 38144727853](https://github.com/kzahel/jstorrent/actions/runs/38144727853)
+took 12m39s and
+[full CI 38144728289](https://github.com/kzahel/jstorrent/actions/runs/38144728289)
+took 56m05s. Fast feedback finished 43m26s earlier on this broad workflow PR.
+The full run includes a cold Windows release/package build; this is not a
+controlled comparison against the older 25m54s baseline.
+
+The first focused [probe PR 27](https://github.com/kzahel/jstorrent/pull/27)
+changes only four fixture lines in the existing canonical TorrentId test.
+Production code and test assertions remain equivalent. Head
+`3a7d2b4bdb6f48754b747cf596144ad1e9bddbec` passes
+[Fast CI 38148581335](https://github.com/kzahel/jstorrent/actions/runs/38148581335)
+in **9m34s** (14:47:01--14:56:35 UTC). Selection is seven portable lint
+packages, the engine library's 603 tests, generated contract, web and tool checks;
+extension and website checks are correctly unselected.
+
+The Rust job takes **4m01s**, restoring the ordinary 1,563,978,108-byte main
+cache in 21s. Lint takes 55s, test compilation 2m09s, and execution 15s:
+603 pass, zero fail, nine existing feature-dependent ignores. The contract
+restores its 379,541,410-byte cache and compiles the exporter in 1m09s without
+generated drift. Web and workflow/reviewer safety checks also pass.
+
+Rust waits **4m55s** between child-job scheduling and runner start
+(14:47:29--14:52:24 UTC), while main and probe full qualification are running.
+The disposable probe's redundant full matrix is cancelled at 14:52:09 UTC;
+its build jobs start shortly afterward. Main qualification continues. Therefore
+this is an intervened benchmark, not proof of ordinary 3--5 minute end-to-end
+feedback. Queue contention is a concrete follow-up; build performance must be
+reported separately from scheduling latency.
+
+Automatic reviews are enabled after merge. The exact successful Fast CI event
+starts [review 38149228310](https://github.com/kzahel/jstorrent/actions/runs/38149228310)
+two seconds later. The cold reviewer run completes in **6m03s**, with 3m48s
+inside the model/tool step. OIDC enrollment, the gateway 401 boundary, isolation,
+inference and publication pass. Its
+[COMMENT review](https://github.com/kzahel/jstorrent/pull/27#pullrequestreview-5483770047)
+is bound to the probe head, reports no introduced bugs, and builds/runs all ten
+focused Rust identity tests offline. It also checks the diff and unchanged
+production source. The image lacks rustfmt; the reviewer reports that limitation
+instead of claiming formatting ran. Fast CI already verifies formatting.
+
+This first review misses its separate container build cache; the ordinary
+Fast CI cache hit does not establish reviewer-cache reuse.
+
+## Trusted-Main Reviewer Cache Qualification
+
+The push-event retry of
+[run 38148525890](https://github.com/kzahel/jstorrent/actions/runs/38148525890)
+passes the `warm-cache` job on trusted main `6ad208d4`. Its first cache lookup
+misses. The isolated container fetches locked Rust dependencies, installs locked
+web dependencies and runs `cargo test --locked --workspace --no-run` successfully
+in **23m05s**. This compiles tests; it does not execute the workspace suite.
+The cache save takes 46s and publishes a 2,245,621,249-byte main-only cache at
+15:11:57 UTC. The key includes the pinned image/lockfile digest and main SHA;
+PR reviewers restore but never save. No tailnet enrollment or model credentials
+are introduced during warming.
+
+## Focused Repeat And Warm Reviewer
+
+The repeat head `abc14750b8cd8aaec5c3366e33ceda49097303cb` changes the same
+fixture consistently to `0xef`. Production code and assertion coverage remain
+unchanged.
+[Fast CI 38150423038](https://github.com/kzahel/jstorrent/actions/runs/38150423038)
+passes in **4m00s** (15:14:08--15:18:08 UTC), including all 603 engine tests,
+zero failures and nine existing ignores. Rust starts two seconds after its
+job is created and takes 3m24s. Its 1.5 GB cache restores in 34s, lint takes
+38s, compilation 1m35s and execution 14s. Contract, web, formatting and tool
+checks pass. This meets the target on this focused warm-dependency repeat.
+
+The disposable probe's redundant full and performance workflows are cancelled
+early; main qualification continues. Fast build jobs already have runners
+before those cancellations complete. This is a controlled repeat with available
+capacity, not a guarantee that ordinary concurrent PR/main matrices will avoid
+the queueing measured in the first run. Profiles, runner sizes, test deadlines,
+assertion coverage and qualification coverage remain unchanged.
+
+The successful Fast CI event starts
+[review 38150705796](https://github.com/kzahel/jstorrent/actions/runs/38150705796)
+one second later. Its log confirms an exact-key hit and successful restoration
+of the 2,245,621,249-byte trusted-main reviewer cache in **37s**. The workflow
+passes in **7m21s**, including 4m04s in the model/tool step. Its
+[COMMENT review](https://github.com/kzahel/jstorrent/pull/27#pullrequestreview-5483837979)
+is bound to the exact repeat head, reports no introduced bugs, and reports
+that all ten focused identity tests pass offline. It also reports recovering
+from the absent shell profile/Rust login-shell PATH by sourcing
+`/usr/local/cargo/env`; rustfmt remains absent. Fast CI independently checks
+formatting. These are concrete reviewer-tooling follow-ups.
+
+Cache reuse is established, but this pair does **not** demonstrate reduced
+review duration: the cold review takes 6m03s and the warm review takes 7m21s.
+Image build, cache transfer and model/tool behavior vary, and the fixture heads
+differ. The bounded slice is qualified: fast feedback, green-only exact-head
+automatic review, real inference/publication and trusted-main cache warming/
+restoration work on free runners. Scheduling full qualification after fast
+feedback and installing/bootstrapping reviewer tools remain follow-ups.
