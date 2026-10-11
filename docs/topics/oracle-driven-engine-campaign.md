@@ -2,6 +2,13 @@
 
 Topic: `oracle-driven-engine-campaign`
 
+Tactical [307](../tactical/307-direct-file-save-throughput.md) owns a bounded
+direct-file throughput investigation. Its source/specification review,
+host-only platform applicability and owner/cancellation map are recorded.
+Restart checkpoint: benchmark the one-chunk production save path, then compare
+bounded windows with integrity and queue high-water evidence. Other active
+engine and qualification tacticals remain independent.
+
 Completed [258](../tactical/258-cross-surface-branding-and-design-audit.md)
 changes only engine-facing presentation labels: RS peer-ID display and UPnP
 mapping description now say JSTorrent while their wire/ownership behavior stays

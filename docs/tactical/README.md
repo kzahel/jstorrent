@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [307 — Direct file save throughput](307-direct-file-save-throughput.md):
+  production-consumer baseline, bounded window experiments and Chrome/Edge
+  large-save scope; Firefox/Safari large saves and playback deferred.
+
 - [306 — Development documentation map](306-development-documentation-map.md):
   focused runtime/testing guides and a separate legacy migration stream.
 

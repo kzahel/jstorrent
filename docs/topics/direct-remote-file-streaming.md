@@ -2,6 +2,13 @@
 
 Topic: `direct-remote-file-streaming`
 
+Tactical [307](../tactical/307-direct-file-save-throughput.md) measures and
+improves completed-file Save with bounded producer credit and the production
+browser consumer. Large remote saves target Chrome/Edge's streaming file
+writer; Firefox/Safari large-file support is deferred by maintainer direction.
+The existing 32-MiB Blob fallback remains. OPFS is a disk-backed benchmark
+destination only, not a production save policy. Open/Play stays deferred.
+
 Tactical [301](../tactical/301-remote-save-progress-presentation.md) repairs the
 Files Save presentation after an owner reports a successful remote save with
 rapid percentage/layout movement. A separate bounded progress row gates
