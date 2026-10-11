@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 export const MANIFEST_NAME = "rstorrent-headless-release.manifest";
 export const SIGNATURE_NAME = "rstorrent-headless-release.manifest.minisig";
 export const INSTALL_PROTOCOL_VERSION = 1;
+// Signed v1 protocol identity; not a mutable GitHub transport URL.
 export const REPOSITORY = "kzahel/rstorrent";
 export const RUNTIME = "linux-gnu-headless-package";
 

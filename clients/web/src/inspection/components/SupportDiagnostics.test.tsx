@@ -31,7 +31,7 @@ describe("support report preview", () => {
     await user.click(screen.getByRole("button", { name: "Refresh diagnostics" }));
     expect(preview.value).not.toBe(original);
     expect(screen.queryByText("Diagnostics copied.")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Report a problem" })).toHaveAttribute("href", "https://github.com/kzahel/rstorrent/issues/new");
+    expect(screen.getByRole("link", { name: "Report a problem" })).toHaveAttribute("href", "https://github.com/kzahel/jstorrent/issues/new");
   });
 
   it("selects the exact report after clipboard denial without revealing the exception", async () => {

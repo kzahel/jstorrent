@@ -12,19 +12,19 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         {
-          "url": "https://github.com/kzahel/rstorrent/issues"
+          "url": "https://github.com/kzahel/jstorrent/issues"
         },
         {
-          "url": "https://github.com/kzahel/rstorrent/issues/new"
+          "url": "https://github.com/kzahel/jstorrent/issues/new"
         },
         {
-          "url": "https://github.com/kzahel/rstorrent/blob/main/docs/user-support.md"
+          "url": "https://github.com/kzahel/jstorrent/blob/main/docs/user-support.md"
         },
         {
-          "url": "https://github.com/kzahel/rstorrent/releases/latest"
+          "url": "https://github.com/kzahel/jstorrent/releases/latest"
         },
         {
-          "url": "https://github.com/kzahel/rstorrent/releases/tag/*"
+          "url": "https://github.com/kzahel/jstorrent/releases/tag/*"
         }
       ]
     }

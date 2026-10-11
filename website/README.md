@@ -97,3 +97,18 @@ configuration remain private infrastructure concerns.
 
 Use `WEBSITE_CAPTURE_BASE=https://your-hosted-origin` with the capture runner to
 repeat browser acceptance after deployment. Keep its output in an ignored path.
+
+## Canonical repository
+
+Tactical 305 consolidates this implementation at `kzahel/jstorrent`; the previous
+implementation is `kzahel/jstorrent-typescript`. Published package/signature
+bytes remain immutable. Promotion recognizes only the exact former/current
+Rust names as aliases; rendered production downloads always use the canonical
+name. Existing version-1 signed headless/Crostini manifest identity remains
+`kzahel/rstorrent`, independently of the canonical installer transport URL.
+
+The root legacy Linux installer now prints current AppImage/headless guidance
+and installs nothing. The hosted AltStore source points to the previous
+TypeScript release; the discussion community stays in that repository. One
+MIT-attributed static search plugin preserves the path used by installed older
+TypeScript clients; no legacy application rebuild is required.

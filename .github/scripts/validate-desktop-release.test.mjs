@@ -4,7 +4,7 @@ import test from "node:test";
 import { validateDesktopRelease } from "./validate-desktop-release.mjs";
 
 const tag = "desktop-v1.2.3";
-const repository = "kzahel/rstorrent";
+const repository = "kzahel/jstorrent";
 const version = "1.2.3";
 const digest = `sha256:${"a".repeat(64)}`;
 

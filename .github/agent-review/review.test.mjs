@@ -7,8 +7,8 @@ import { createProxy } from './proxy.mjs';
 
 const sha = 'a'.repeat(40);
 const pr = { state: 'open', draft: false, user: { id: 158352 },
-  head: { sha, repo: { full_name: 'kzahel/rstorrent' } },
-  base: { sha, ref: 'main', repo: { full_name: 'kzahel/rstorrent' } } };
+  head: { sha, repo: { full_name: 'kzahel/jstorrent' } },
+  base: { sha, ref: 'main', repo: { full_name: 'kzahel/jstorrent' } } };
 const files = [{ filename: 'src/example.rs', patch: '@@ -1,3 +1,4 @@\n same\n-old\n+new\n+extra\n context' }];
 const result = { summary: 'Review @everyone', validation: [{ command: 'cargo test', result: 'passed' }], limitations: [],
   findings: [{ title: 'Bug', body: 'Evidence', priority: 1, path: 'src/example.rs', line: 2 }] };

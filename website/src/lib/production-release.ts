@@ -1,4 +1,10 @@
 /** Curated release metadata; byte/signature verification is a separate gate. */
+export const PRODUCTION_REPOSITORY = 'kzahel/jstorrent'
+// Former name remains vacant on GitHub; signed historical metadata is immutable.
+export const PRODUCTION_REPOSITORY_ALIASES = [PRODUCTION_REPOSITORY, 'kzahel/rstorrent'] as const
+export function isProductionRepository(value: unknown): value is string {
+  return PRODUCTION_REPOSITORY_ALIASES.some((repository) => repository === value)
+}
 export interface DesktopDownloadLinks {
   tag: string
   windowsUrl: string
@@ -49,7 +55,7 @@ export function selectProductionWebsiteRelease(value: unknown): DesktopDownloadL
   )
   if (
     release.qualified !== true ||
-    release.repository !== 'kzahel/rstorrent' ||
+    !isProductionRepository(release.repository) ||
     release.updaterPublicKeyId !== '415D3DF4B3D0CFB8' ||
     typeof release.sourceSha !== 'string' ||
     !/^[0-9a-f]{40}$/.test(release.sourceSha) ||
@@ -112,7 +118,7 @@ export function selectProductionWebsiteRelease(value: unknown): DesktopDownloadL
     throw new Error('Invalid AppImage source name, hash or size')
   }
   if (!descriptor.enabled) return null
-  const prefix = `https://github.com/kzahel/rstorrent/releases/download/${release.tag}/`
+  const prefix = `https://github.com/${PRODUCTION_REPOSITORY}/releases/download/${release.tag}/`
   const url = (name: string) => prefix + name
   const arm = url(`JSTorrent_${version}_aarch64.dmg`)
   const intel = url(`JSTorrent_${version}_x64.dmg`)

@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[3]
 ANDROID = ROOT / "clients/android"
 PACKAGE = "com.jstorrent.app"
 SHA256 = "a938b46825157668e804d1efbf01a2cce461a8e23ce1028e909aa919145cfa84"
-URL = "https://github.com/kzahel/JSTorrent/releases/download/android-v1.0.24/app-release.apk"
+URL = "https://github.com/kzahel/jstorrent-typescript/releases/download/android-v1.0.24/app-release.apk"
 
 
 def load_matrix():

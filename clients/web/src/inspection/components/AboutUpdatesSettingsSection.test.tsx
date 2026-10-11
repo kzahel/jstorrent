@@ -52,7 +52,7 @@ describe("About and updates settings", () => {
     expect(screen.getByText(/Linux DEB package stays/)).toBeVisible();
     expect(
       screen.getByRole("link", { name: "Open release downloads" }),
-    ).toHaveAttribute("href", "https://github.com/kzahel/rstorrent/releases/latest");
+    ).toHaveAttribute("href", "https://github.com/kzahel/jstorrent/releases/latest");
   });
 
   it.each(["msi", "deb", "rpm", "unknown"] as const)("%s renders its initial real controller state without automatic controls", (bundleType) => {
@@ -108,7 +108,7 @@ describe("About and updates settings", () => {
             manualApply: {
               command: "$HOME/.local/bin/rstorrent-headless update --apply",
               releaseUrl:
-                "https://github.com/kzahel/rstorrent/releases/tag/headless-v0.1.1",
+                "https://github.com/kzahel/jstorrent/releases/tag/headless-v0.1.1",
             },
           },
         }}
@@ -131,7 +131,7 @@ describe("About and updates settings", () => {
       within(view.container).getByRole("link", { name: "Review signed release" }),
     ).toHaveAttribute(
       "href",
-      "https://github.com/kzahel/rstorrent/releases/tag/headless-v0.1.1",
+      "https://github.com/kzahel/jstorrent/releases/tag/headless-v0.1.1",
     );
   });
 });

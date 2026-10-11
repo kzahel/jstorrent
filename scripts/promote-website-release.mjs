@@ -5,10 +5,11 @@ import { createReadStream, mkdtempSync, readFileSync, rmSync, writeFileSync } fr
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { selectProductionWebsiteRelease } from '../website/src/lib/production-release.ts';
+import { selectProductionWebsiteRelease, isProductionRepository, PRODUCTION_REPOSITORY, PRODUCTION_REPOSITORY_ALIASES } from '../website/src/lib/production-release.ts';
 import { signatureKeyId, updaterPublicKey, verifySignature } from './verify-desktop-signatures.mjs';
 
 export function descriptorFromRelease(release, sourceSha, repository) {
+  assert(isProductionRepository(repository), 'unexpected production repository');
   assert.equal(release.draft, false, 'release is still a draft');
   assert.equal(release.prerelease, false, 'release is a preview');
   assert(release.published_at, 'release has not been published');
@@ -42,8 +43,23 @@ export function compareVersions(left, right) {
   return 0;
 }
 export function sameInventory(left, right) {
-  const normalize = value => ({ ...value.release, assets: [...value.release.assets].sort((a, b) => a.name.localeCompare(b.name)) });
+  const normalize = value => {
+    selectProductionWebsiteRelease(value);
+    assert(value.release, 'missing qualified inventory');
+    return { ...value, release: { ...value.release, repository: PRODUCTION_REPOSITORY,
+      assets: [...value.release.assets].sort((a, b) => a.name.localeCompare(b.name)) } };
+  };
   return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
+}
+
+export function updaterAssetName(url, tag) {
+  assert(typeof url === 'string', 'invalid updater URL');
+  const prefix = PRODUCTION_REPOSITORY_ALIASES.map(repository =>
+    `https://github.com/${repository}/releases/download/${tag}/`).find(prefix => url.startsWith(prefix));
+  assert(prefix, 'updater URL escaped release');
+  const name = url.slice(prefix.length);
+  assert(/^[A-Za-z0-9_.-]+$/.test(name), 'invalid updater asset name');
+  return name;
 }
 
 export async function verifyDownloadedRelease(release, descriptor, directory) {
@@ -61,7 +77,6 @@ export async function verifyDownloadedRelease(release, descriptor, directory) {
   assert.equal(readFileSync(join(directory, 'SHA256SUMS'), 'utf8'), sums, 'checksum inventory does not bind exact core and source bytes');
   const latest = JSON.parse(readFileSync(join(directory, 'latest.json'), 'utf8'));
   assert.equal(latest.version, descriptor.release.version, 'updater version disagrees');
-  const prefix = `https://github.com/${descriptor.release.repository}/releases/download/${descriptor.release.tag}/`;
   const required = ['windows-x86_64', 'darwin-aarch64', 'darwin-x86_64', 'linux-x86_64', 'linux-aarch64'];
   for (const key of required) assert(latest.platforms[key], `missing updater platform: ${key}`);
   const key = updaterPublicKey('JSTorrent');
@@ -73,8 +88,7 @@ export async function verifyDownloadedRelease(release, descriptor, directory) {
     verifySignature(join(directory, asset.name.slice(0, -4)), signature, key);
   }
   for (const value of Object.values(latest.platforms)) {
-    assert(value.url.startsWith(prefix), 'updater URL escaped release');
-    const name = value.url.slice(prefix.length);
+    const name = updaterAssetName(value.url, descriptor.release.tag);
     assert(expected.has(name + '.sig'), 'updater selected an unsigned/unknown asset');
     assert.equal(value.signature, readFileSync(join(directory, name + '.sig'), 'utf8').trim(), 'updater signature does not match the published payload');
   }
@@ -82,7 +96,7 @@ export async function verifyDownloadedRelease(release, descriptor, directory) {
 
 async function main() {
   const [repository, tag, output] = process.argv.slice(2);
-  assert(['kzahel/rstorrent'].includes(repository), 'unexpected production repository');
+  assert(isProductionRepository(repository), 'unexpected production repository');
   assert(/^desktop-v\d+\.\d+\.\d+$/.test(tag ?? ''), 'invalid production tag');
   assert(output, 'usage: promote-website-release.mjs REPOSITORY TAG OUTPUT');
   const gh = args => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 1024 * 1024 });

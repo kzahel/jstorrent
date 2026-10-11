@@ -28,7 +28,7 @@
           "buildVersion": "9",
           "date": "2026-04-01T11:30:07Z",
           "localizedDescription": "### Changed - Fix CI: repurpose versions in any non-terminal state (cancel active submissions first)",
-          "downloadURL": "https://github.com/kzahel/JSTorrent/releases/download/ios-v1.0.7/adp.tar.gz",
+          "downloadURL": "https://github.com/kzahel/jstorrent-typescript/releases/download/ios-v1.0.7/adp.tar.gz",
           "size": 0,
           "minOSVersion": "16.0"
         }

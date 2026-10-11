@@ -143,3 +143,11 @@ still outstanding. A review failure is advisory and does not replace required CI
 Disable new runs with `AGENT_REVIEW_ENABLED=false`; revoke the gateway token and
 OIDC identity separately when retiring access. No automatic retry or fallback
 changes provider authentication ownership.
+
+## Canonical repository rename
+
+Tactical [305](../tactical/305-canonical-jstorrent-repository.md) retargets the
+controller and workflow to `kzahel/jstorrent`. The Rust repository ID is
+unchanged; owner/main/head-SHA and fork rejection stay exact. Automatic review
+remains disabled while the existing OIDC identity is retargeted and qualified
+under the same private network/tag/scope restrictions.

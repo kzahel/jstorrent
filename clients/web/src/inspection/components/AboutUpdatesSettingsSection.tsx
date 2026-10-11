@@ -11,7 +11,7 @@ import styles from "./SettingsDialog.module.css";
 import { ExternalLink } from "./ExternalLink";
 import { SupportDiagnostics } from "./SupportDiagnostics";
 
-const RELEASES_URL = "https://github.com/kzahel/rstorrent/releases/latest";
+const RELEASES_URL = "https://github.com/kzahel/jstorrent/releases/latest";
 
 export interface AboutUpdatesSettingsSectionProps {
   readonly updater: DesktopUpdater;

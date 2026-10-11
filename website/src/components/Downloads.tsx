@@ -237,7 +237,7 @@ export default function Downloads({ productionRelease }: DownloadsProps) {
                   <p>
                     Linux desktop support is best effort. These AppImages run without a system-wide
                     install. For a setup without the desktop window, see{' '}
-                    <a href="https://github.com/kzahel/rstorrent/blob/main/DEVELOPMENT.md#packaging-and-running-the-linux-headless-service">
+                    <a href="https://github.com/kzahel/jstorrent/blob/main/DEVELOPMENT.md#packaging-and-running-the-linux-headless-service">
                       headless setup from source
                     </a>
                     .

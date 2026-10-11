@@ -30,7 +30,7 @@ def read_text(path):
 
 def branding_notice():
     return ('# JSTorrent branding assets\n\n'
-            'Original first-party icons from kzahel/jstorrent, revision\n'
+            'Original first-party icons from kzahel/jstorrent-typescript, revision\n'
             '25e4b701433fd815398ba89526546f5e4f072e3f, used without modification.\n\n'
             + read_text(ROOT / 'distribution/branding/JSTorrent-LICENSE.txt'))
 

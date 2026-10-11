@@ -42,7 +42,7 @@ else if(endpoint.endsWith('/git/refs/heads/main') && process.env.MOCK_MODE==='co
 console.log(JSON.stringify(result));
 `);
     chmodSync(gh, 0o700);
-    const result = spawnSync(process.execPath, [repoFile('scripts/commit-website-promotion.mjs'), 'kzahel/rstorrent', inventory], { cwd: repositoryRoot, encoding: 'utf8', env: { ...process.env, PATH: root + ':' + process.env.PATH, MOCK_MODE: mode, MOCK_CALLS: calls, MOCK_BASELINE: repoFile('website/src/data/production-release.json'), MOCK_NEWS: repoFile('website/src/data/product-releases.json') } });
+    const result = spawnSync(process.execPath, [repoFile('scripts/commit-website-promotion.mjs'), 'kzahel/jstorrent', inventory], { cwd: repositoryRoot, encoding: 'utf8', env: { ...process.env, PATH: root + ':' + process.env.PATH, MOCK_MODE: mode, MOCK_CALLS: calls, MOCK_BASELINE: repoFile('website/src/data/production-release.json'), MOCK_NEWS: repoFile('website/src/data/product-releases.json') } });
     const history = readFileSync(calls, 'utf8').trim().split('\n').map(line => JSON.parse(line));
     const dispatched = history.some(call => call.args[0] === 'workflow');
     assert.equal(result.status === 0, mode === 'success', result.stderr);

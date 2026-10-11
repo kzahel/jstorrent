@@ -185,15 +185,34 @@ export function validateDesktopReleaseConfiguration({
   ) {
     fail("RSTorrent updater public key is malformed");
   }
-  const permissions = new Set(capability.permissions ?? []);
+  const entries = capability.permissions ?? [];
+  const permissions = new Set(entries.map(permission =>
+    typeof permission === "string" ? permission : permission?.identifier));
   if (!permissions.has("updater:default")) {
     fail("missing desktop permission updater:default");
   }
   if (permissions.has("process:default")) {
     fail("raw process restart permission must stay disabled");
   }
-  if ([...permissions].some((permission) => permission.startsWith("notification:"))) {
+  if ([...permissions].some((permission) => typeof permission === "string" && permission.startsWith("notification:"))) {
     fail("webview notification permissions must stay disabled");
+  }
+  const approvedUrls = [
+    "https://github.com/kzahel/jstorrent/issues",
+    "https://github.com/kzahel/jstorrent/issues/new",
+    "https://github.com/kzahel/jstorrent/blob/main/docs/user-support.md",
+    "https://github.com/kzahel/jstorrent/releases/latest",
+    "https://github.com/kzahel/jstorrent/releases/tag/*",
+  ];
+  const scoped = entries.filter(permission => typeof permission !== "string");
+  if (scoped.length !== 1 || scoped[0]?.identifier !== "opener:allow-open-url" ||
+      Object.keys(scoped[0]).sort().join() !== "allow,identifier" ||
+      !Array.isArray(scoped[0].allow) || scoped[0].allow.length !== approvedUrls.length ||
+      scoped[0].allow.some((entry, index) => Object.keys(entry ?? {}).join() !== "url" ||
+        entry.url !== approvedUrls[index]) ||
+      [...permissions].some(permission => typeof permission === "string" &&
+        permission.startsWith("opener:") && permission !== "opener:allow-open-url")) {
+    fail("desktop external links must retain the exact scoped opener permission");
   }
   if (!cargo.includes("tauri-plugin-updater =")) {
     fail("missing Rust dependency tauri-plugin-updater");
@@ -338,7 +357,7 @@ export function validateDesktopReleaseConfiguration({
     displayName: "JSTorrent Preview",
     hostnames: ["updates.graehlarts.com"],
     pathPrefix: "/rstorrent",
-    githubRepo: "kzahel/rstorrent",
+    githubRepo: "kzahel/jstorrent",
     tagPrefix: "desktop-v",
     tauriUpdates: true,
     channels: {

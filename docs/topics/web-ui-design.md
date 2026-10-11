@@ -1427,3 +1427,11 @@ all 31 inspection browser cases, and the production/CSP build pass. A fresh
 120-torrent gateway check preserves exact first/middle/reselected scroll
 positions across continued one-second view batches with zero programmatic
 writes. Installed-package delivery remains separate from this local fix.
+
+## Canonical repository links
+
+Tactical [305](../tactical/305-canonical-jstorrent-repository.md) retargets
+shared support/download navigation and the matching exact Tauri opener scopes
+to `kzahel/jstorrent`. Browser behavior and native opener ownership are retained.
+Headless release hints accept only the exact current/former Rust repository
+URLs for the same version, allowing already-installed hosts during cutover.

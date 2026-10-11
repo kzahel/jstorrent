@@ -11,9 +11,9 @@ it("uses the actual opener binding with the default browser and preserves reject
     calls.push({ command, args });
     if (args && "url" in args && args.url === "file:///private") throw new Error("denied");
   });
-  await openTauriExternalUrl("https://github.com/kzahel/rstorrent/issues");
+  await openTauriExternalUrl("https://github.com/kzahel/jstorrent/issues");
   expect(calls).toEqual([{ command: "plugin:opener|open_url", args: {
-    url: "https://github.com/kzahel/rstorrent/issues", with: undefined,
+    url: "https://github.com/kzahel/jstorrent/issues", with: undefined,
   } }]);
   await expect(openTauriExternalUrl("file:///private")).rejects.toThrow("denied");
 });

@@ -1521,3 +1521,15 @@ coordinated extension rollout. When implementation is authorized, create its
 bounded production-handoff tactical to fix the intentionally best-effort
 legacy-state scope from then-current evidence before scheduling a store
 replacement.
+
+## Canonical repository consolidation, 2026-10-11
+
+Tactical [305](../tactical/305-canonical-jstorrent-repository.md) owns the
+authorized rename of the previous implementation to `jstorrent-typescript`
+and this Rust implementation to `jstorrent`. Production updater routes,
+application/store identities, original trust keys and immutable packages stay
+unchanged. Release promotion distinguishes an approved repository alias from
+changed bytes/source/trust. Existing signed headless/Crostini v1 identity remains
+unchanged. Historical issue preservation and bulk legacy asset copying are not
+required; bounded hosted asset/plugin continuity is. The original Chrome App
+repository and local checkout directory names remain unchanged.

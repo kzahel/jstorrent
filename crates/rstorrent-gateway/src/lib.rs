@@ -1421,7 +1421,7 @@ fn valid_update_candidate(candidate: &HostedUpdateCandidate) -> bool {
     valid_final_release_version(&candidate.version)
         && candidate.release_url
             == format!(
-                "https://github.com/kzahel/rstorrent/releases/tag/headless-v{}",
+                "https://github.com/kzahel/jstorrent/releases/tag/headless-v{}",
                 candidate.version
             )
         && candidate.apply_command == "$HOME/.local/bin/rstorrent-headless update --apply"
@@ -2019,7 +2019,7 @@ mod tests {
             Box::pin(async {
                 Ok(Some(HostedUpdateCandidate {
                     version: "0.1.1".to_owned(),
-                    release_url: "https://github.com/kzahel/rstorrent/releases/tag/headless-v0.1.1"
+                    release_url: "https://github.com/kzahel/jstorrent/releases/tag/headless-v0.1.1"
                         .to_owned(),
                     apply_command: "$HOME/.local/bin/rstorrent-headless update --apply".to_owned(),
                 }))
@@ -4859,7 +4859,7 @@ mod tests {
             serde_json::from_slice::<serde_json::Value>(&candidate.1).expect("candidate JSON"),
             serde_json::json!({
                 "version": "0.1.1",
-                "release_url": "https://github.com/kzahel/rstorrent/releases/tag/headless-v0.1.1",
+                "release_url": "https://github.com/kzahel/jstorrent/releases/tag/headless-v0.1.1",
                 "apply_command": "$HOME/.local/bin/rstorrent-headless update --apply",
             })
         );

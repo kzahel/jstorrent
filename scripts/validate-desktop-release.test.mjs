@@ -360,3 +360,20 @@ test("rejects preview feed selection without its own package marker", () => {
   mixed.product.channels.latest.requiredAsset = "JSTorrent_x64.app.tar.gz";
   assert.throws(() => validateDesktopReleaseConfiguration(mixed), /unexpected updater product config/);
 });
+
+// Scoped opener permissions are objects, not string permission identifiers.
+test("rejects broadened, duplicated and foreign desktop external-link scopes", () => {
+  for (const mutate of [
+    permission => permission.allow[0].url = "https://github.com/*",
+    permission => permission.allow[0].url = "https://github.com/kzahel/jstorrent-typescript/issues",
+    permission => permission.allow.push(permission.allow[0]),
+    permission => permission.deny = [],
+  ]) {
+    const fixture = repositoryFixture();
+    mutate(fixture.capability.permissions.find(permission => typeof permission === "object"));
+    assert.throws(() => validateDesktopReleaseConfiguration(fixture), /exact scoped opener/);
+  }
+  const fixture = repositoryFixture();
+  fixture.capability.permissions.push("opener:default");
+  assert.throws(() => validateDesktopReleaseConfiguration(fixture), /exact scoped opener/);
+});

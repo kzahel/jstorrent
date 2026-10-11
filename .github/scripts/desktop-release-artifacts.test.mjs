@@ -18,7 +18,7 @@ const version = "1.2.3";
 const sourceSha = "a".repeat(40);
 const runId = "77";
 const attempt = "1";
-const repository = "kzahel/rstorrent";
+const repository = "kzahel/jstorrent";
 const signature = Buffer.from("untrusted comment: fixture signature\nfixture\n").toString("base64");
 
 function fixture(product = "RSTorrent") {

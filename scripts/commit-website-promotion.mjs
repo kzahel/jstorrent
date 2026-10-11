@@ -4,10 +4,10 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { compareVersions, sameInventory } from './promote-website-release.mjs';
-import { selectProductionWebsiteRelease } from '../website/src/lib/production-release.ts';
+import { selectProductionWebsiteRelease, isProductionRepository } from '../website/src/lib/production-release.ts';
 
 const [repository, inventory] = process.argv.slice(2);
-assert.equal(repository, 'kzahel/rstorrent');
+assert(isProductionRepository(repository), 'unexpected production repository');
 if (!existsSync(inventory)) { console.log('No new production inventory to commit'); process.exit(0); }
 const descriptor = JSON.parse(readFileSync(inventory, 'utf8'));
 selectProductionWebsiteRelease(descriptor);

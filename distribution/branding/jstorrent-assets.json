@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "repository": "https://github.com/kzahel/jstorrent",
+  "repository": "https://github.com/kzahel/jstorrent-typescript",
   "revision": "25e4b701433fd815398ba89526546f5e4f072e3f",
   "license": "MIT",
   "license_path": "distribution/branding/JSTorrent-LICENSE.txt",

@@ -3,7 +3,7 @@ import { readFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
-import { descriptorFromRelease, compareVersions, sameInventory, verifyDownloadedRelease } from './promote-website-release.mjs';
+import { descriptorFromRelease, compareVersions, sameInventory, verifyDownloadedRelease, updaterAssetName } from './promote-website-release.mjs';
 
 const descriptor = JSON.parse(readFileSync(new URL('../website/src/data/production-release.json', import.meta.url)));
 function release() {
@@ -37,4 +37,27 @@ test('download verification rejects corrupted bytes before trusting signatures',
   const r = release(); r.assets = [{ name: 'payload', size: 4, digest: `sha256:${'b'.repeat(64)}` }];
   writeFileSync(join(root, 'payload'), 'evil');
   await assert.rejects(verifyDownloadedRelease(r, descriptor, root), /download digest mismatch/);
+});
+
+test('repository rename preserves inventory equivalence but never changed bytes or authority', () => {
+  const legacy = structuredClone(descriptor); legacy.release.repository = 'kzahel/rstorrent';
+  const canonical = structuredClone(legacy); canonical.release.repository = 'kzahel/jstorrent';
+  assert(sameInventory(legacy, canonical));
+  for (const mutate of [d => d.release.assets[0].sha256 = 'f'.repeat(64),
+    d => d.release.sourceSha = 'f'.repeat(40), d => d.enabled = false]) {
+    const changed = structuredClone(canonical); mutate(changed); assert(!sameInventory(legacy, changed));
+  }
+  canonical.release.repository = 'kzahel/jstorrent-typescript';
+  assert.throws(() => sameInventory(legacy, canonical));
+});
+test('immutable updater URLs permit only exact former/current repository and tag', () => {
+  const tag = 'desktop-v0.3.0'; const name = 'JSTorrent_0.3.0_x64-setup.exe';
+  for (const repository of ['kzahel/rstorrent', 'kzahel/jstorrent'])
+    assert.equal(updaterAssetName(`https://github.com/${repository}/releases/download/${tag}/${name}`, tag), name);
+  for (const url of [`https://github.com/kzahel/jstorrent-typescript/releases/download/${tag}/${name}`,
+    `https://github.com/attacker/jstorrent/releases/download/${tag}/${name}`,
+    `https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.1/${name}`,
+    `https://github.com/kzahel/jstorrent/releases/download/${tag}/../${name}`,
+    `https://github.com/kzahel/jstorrent/releases/download/${tag}/${name}?redirect=1`])
+    assert.throws(() => updaterAssetName(url, tag));
 });

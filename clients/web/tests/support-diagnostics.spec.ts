@@ -4,9 +4,9 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 const supportLinks = [
-  ["Known issues", "https://github.com/kzahel/rstorrent/issues"],
-  ["Report a problem", "https://github.com/kzahel/rstorrent/issues/new"],
-  ["Privacy and recovery guidance", "https://github.com/kzahel/rstorrent/blob/main/docs/user-support.md"],
+  ["Known issues", "https://github.com/kzahel/jstorrent/issues"],
+  ["Report a problem", "https://github.com/kzahel/jstorrent/issues/new"],
+  ["Privacy and recovery guidance", "https://github.com/kzahel/jstorrent/blob/main/docs/user-support.md"],
 ] as const;
 
 test("desktop support and release links use the injected opener and recover from failure", async ({ page }) => {
@@ -21,21 +21,21 @@ test("desktop support and release links use the injected opener and recover from
   await page.getByRole("link", { name: "Open release downloads" }).click({ modifiers: ["ControlOrMeta"] });
   expect(await page.evaluate(() => (window as unknown as { openedUrls: string[] }).openedUrls)).toEqual([
     supportLinks[0][1], ...supportLinks.map(([, url]) => url),
-    "https://github.com/kzahel/rstorrent/releases/latest",
+    "https://github.com/kzahel/jstorrent/releases/latest",
   ]);
   expect(popups).toEqual([]);
   await expect(page).toHaveURL(/support-harness/);
   await page.goto("/tests/fixtures/support-harness.html?desktop&manual");
   await page.getByRole("link", { name: "Review signed release" }).click();
   expect(await page.evaluate(() => (window as unknown as { openedUrls: string[] }).openedUrls)).toEqual([
-    "https://github.com/kzahel/rstorrent/releases/tag/headless-v0.1.4",
+    "https://github.com/kzahel/jstorrent/releases/tag/headless-v0.1.4",
   ]);
 });
 
 test("browser support and release links open isolated tabs at their exact URLs", async ({ page, context }) => {
   await context.route("https://github.com/**", (route) => route.fulfill({ contentType: "text/html", body: "<h1>Controlled external destination</h1>" }));
   await page.goto("/tests/fixtures/support-harness.html?package=msi");
-  for (const [name, url] of [...supportLinks, ["Open release downloads", "https://github.com/kzahel/rstorrent/releases/latest"]]) {
+  for (const [name, url] of [...supportLinks, ["Open release downloads", "https://github.com/kzahel/jstorrent/releases/latest"]]) {
     const pending = page.waitForEvent("popup");
     await page.getByRole("link", { name }).click();
     const popup = await pending;
@@ -123,7 +123,7 @@ for (const bundleType of ["msi", "deb", "rpm", "unknown"]) {
         await expect(updates.getByText("Manual update required", { exact: true })).toBeVisible();
         await expect(updates.getByText(/stays with its package channel/)).toBeVisible();
         const releases = updates.getByRole("link", { name: "Open release downloads" });
-        await expect(releases).toHaveAttribute("href", "https://github.com/kzahel/rstorrent/releases/latest");
+        await expect(releases).toHaveAttribute("href", "https://github.com/kzahel/jstorrent/releases/latest");
         await expect(updates.getByRole("button")).toHaveCount(0);
         await expect(updates.getByRole("combobox")).toHaveCount(0);
         await expect(updates).not.toContainText(/Automatic updates enabled|checks automatically|installation identifier|usage statistics/);

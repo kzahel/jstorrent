@@ -1167,3 +1167,7 @@ Tactical `015` completed the oracle campaign's headless measurement
 foundation. Current prioritization and the compaction-safe restart
 checkpoint live in [`../topics/capability-readiness.md`](../topics/capability-readiness.md)
 and [`../topics/oracle-driven-engine-campaign.md`](../topics/oracle-driven-engine-campaign.md).
+
+- [305 — Canonical JSTorrent repository](305-canonical-jstorrent-repository.md):
+  canonical Rust/legacy TypeScript names, update continuity and exact release
+  alias validation; no bulk release copying or legacy app rebuild.

@@ -8,7 +8,7 @@ import { ExternalLink } from "./ExternalLink";
 import { SupportDiagnostics } from "./SupportDiagnostics";
 
 afterEach(cleanup);
-const url = "https://github.com/kzahel/rstorrent/issues";
+const url = "https://github.com/kzahel/jstorrent/issues";
 
 describe("external links", () => {
   it("leaves browser navigation and modified clicks to the native anchor", () => {

@@ -7,19 +7,19 @@ use tauri::utils::assets::{AssetKey, AssetsIter, CspHash};
 const SCRIPT: &str = r#"
 addEventListener('DOMContentLoaded', async () => {
   const allowed = [
-    'https://github.com/kzahel/rstorrent/issues',
-    'https://github.com/kzahel/rstorrent/issues/new',
-    'https://github.com/kzahel/rstorrent/blob/main/docs/user-support.md',
-    'https://github.com/kzahel/rstorrent/releases/latest',
-    'https://github.com/kzahel/rstorrent/releases/tag/v0.3.0',
+    'https://github.com/kzahel/jstorrent/issues',
+    'https://github.com/kzahel/jstorrent/issues/new',
+    'https://github.com/kzahel/jstorrent/blob/main/docs/user-support.md',
+    'https://github.com/kzahel/jstorrent/releases/latest',
+    'https://github.com/kzahel/jstorrent/releases/tag/v0.3.0',
   ];
   const denied = [
     'file:///tmp/rstorrent-link-smoke', 'javascript:alert(1)',
-    'https://example.com/', 'http://github.com/kzahel/rstorrent/issues',
-    'https://github.com.evil.example/kzahel/rstorrent/issues',
-    'https://github.com/kzahel/rstorrent/issues/123',
-    'https://github.com/kzahel/rstorrent/releases/tagged/v0.3.0',
-    'https://github.com/kzahel/rstorrent/issues?unexpected=1',
+    'https://example.com/', 'http://github.com/kzahel/jstorrent/issues',
+    'https://github.com.evil.example/kzahel/jstorrent/issues',
+    'https://github.com/kzahel/jstorrent/issues/123',
+    'https://github.com/kzahel/jstorrent/releases/tagged/v0.3.0',
+    'https://github.com/kzahel/jstorrent/issues?unexpected=1',
   ];
   const results = [];
   for (const url of denied) {

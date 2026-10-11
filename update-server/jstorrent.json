@@ -4,7 +4,7 @@
   "hostnames": [
     "updates.jstorrent.com"
   ],
-  "githubRepo": "kzahel/rstorrent",
+  "githubRepo": "kzahel/jstorrent",
   "tagPrefix": "desktop-v",
   "tauriUpdates": true,
   "channels": {

@@ -4,7 +4,7 @@
   "release": {
     "version": "0.3.0",
     "tag": "desktop-v0.3.0",
-    "repository": "kzahel/rstorrent",
+    "repository": "kzahel/jstorrent",
     "sourceSha": "ff632f4588a474d7b169de3cea228bd406e6982d",
     "updaterPublicKeyId": "415D3DF4B3D0CFB8",
     "qualified": true,

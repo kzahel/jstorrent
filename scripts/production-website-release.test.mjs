@@ -69,7 +69,7 @@ test('an enabled qualified matrix binds all platform URLs to its immutable relea
   for (const [field, name] of Object.entries(expectedSuffixes)) {
     assert.equal(
       links[field],
-      'https://github.com/kzahel/rstorrent/releases/download/desktop-v0.3.0/' + name,
+      'https://github.com/kzahel/jstorrent/releases/download/desktop-v0.3.0/' + name,
     )
   }
   assert.equal(qualifiedFixture().release.assets.length, 15)
@@ -260,3 +260,9 @@ for (const [name, mutate] of [
     assert.throws(() => selectProductionWebsiteRelease(data))
   })
 }
+
+test('former repository inventory renders canonical URLs without changing qualification', () => {
+  const legacy = qualifiedFixture(); const canonical = structuredClone(legacy);
+  canonical.release.repository = 'kzahel/jstorrent';
+  assert.deepEqual(selectProductionWebsiteRelease(legacy), selectProductionWebsiteRelease(canonical));
+});

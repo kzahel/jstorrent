@@ -33,7 +33,7 @@ const release = readJson(path.join(directory, "release.json"));
 const latest = readJson(path.join(directory, "assets/latest.json"));
 assert(release.isDraft === true && release.isPrerelease === false && release.tagName === `desktop-v${latest.version}`);
 assert(release.assets.length === 15, "Expected complete AppImage-only production candidate inventory");
-validateDesktopRelease({release, latest, tag:release.tagName, repository:"kzahel/rstorrent"});
+validateDesktopRelease({release, latest, tag:release.tagName, repository:"kzahel/jstorrent"});
 const names = new Set();
 for (const receipt of release.assets) {
   assert(typeof receipt.name === "string" && path.basename(receipt.name) === receipt.name && !names.has(receipt.name));

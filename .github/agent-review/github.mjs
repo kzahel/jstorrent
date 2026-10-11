@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ownerId = 158352;
-const repository = 'kzahel/rstorrent';
+const repository = 'kzahel/jstorrent';
 const shaPattern = /^[a-f0-9]{40}$/;
 
 export function eligible(pr, expectedSha) {

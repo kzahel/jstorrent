@@ -67,9 +67,9 @@ export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpd
       )}
       <p className={styles.updatePrivacy}>{message("support.diagnostics.public.report")}</p>
       <div className={styles.updateActions}>
-        <ExternalLink href="https://github.com/kzahel/rstorrent/issues">{message("support.known.issues")}</ExternalLink>
-        <ExternalLink href="https://github.com/kzahel/rstorrent/issues/new">{message("support.report.problem")}</ExternalLink>
-        <ExternalLink href="https://github.com/kzahel/rstorrent/blob/main/docs/user-support.md">{message("support.privacy.recovery")}</ExternalLink>
+        <ExternalLink href="https://github.com/kzahel/jstorrent/issues">{message("support.known.issues")}</ExternalLink>
+        <ExternalLink href="https://github.com/kzahel/jstorrent/issues/new">{message("support.report.problem")}</ExternalLink>
+        <ExternalLink href="https://github.com/kzahel/jstorrent/blob/main/docs/user-support.md">{message("support.privacy.recovery")}</ExternalLink>
       </div>
     </fieldset>
   );

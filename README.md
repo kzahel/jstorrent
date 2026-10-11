@@ -1,6 +1,6 @@
-# RSTorrent
+# JSTorrent
 
-RSTorrent is a functional alpha BitTorrent client built around a first-party
+JSTorrent is a BitTorrent client built around a first-party
 Rust engine. The qualified JSTorrent desktop 0.3.0 replacement is now public. Android and
 extension store delivery remain in progress; feature support stays bounded by
 the recorded capability evidence.
@@ -44,7 +44,7 @@ and [protocol support matrix](docs/topics/protocol-support.md).
   real non-English locale requires a separately reviewed translation cohort;
   see the [localization policy and workflow](docs/topics/localization.md).
 
-## What RSTorrent Is
+## What JSTorrent Is
 
 RSTorrent has one reusable Rust engine behind a typed application service:
 
@@ -176,6 +176,6 @@ for toolchain setup, build, test, and launch instructions.
 
 ## License
 
-RSTorrent is licensed under the [MIT License](LICENSE). Third-party components
+JSTorrent is licensed under the [MIT License](LICENSE). Third-party components
 and adapted source remain under their respective licenses; see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -14,7 +14,7 @@ from pathlib import Path
 from legacy_writer_upgrade import FOLDERS, PACKAGE, click, wait_hash
 
 ROOT = Path(__file__).resolve().parents[3]
-EXTENSION_URL = 'https://github.com/kzahel/JSTorrent/releases/download/extension-v1.1.1/jstorrent-extension.zip'
+EXTENSION_URL = 'https://github.com/kzahel/jstorrent-typescript/releases/download/extension-v1.1.1/jstorrent-extension.zip'
 EXTENSION_SHA256 = '9366af2f2443d2e50b9ebf5c6b8f3097c8e96c51e386a2779e6896ee149812b6'
 
 class CompanionBrowser:

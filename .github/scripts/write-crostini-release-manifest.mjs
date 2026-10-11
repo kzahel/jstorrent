@@ -9,6 +9,7 @@ export const MANIFEST_NAME = "rstorrent-crostini-release.manifest";
 export const SIGNATURE_NAME = "rstorrent-crostini-release.manifest.minisig";
 export const LAUNCH_PROTOCOL_VERSION = 1;
 export const EXTENSION_ID = "gcgoepclopkgijmclmlheafaglmbjlcc";
+// Signed v1 protocol identity; not a mutable GitHub transport URL.
 export const REPOSITORY = "kzahel/rstorrent";
 export const RUNTIME = "linux-gnu-crostini-package";
 

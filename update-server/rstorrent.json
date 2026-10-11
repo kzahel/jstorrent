@@ -5,7 +5,7 @@
     "updates.graehlarts.com"
   ],
   "pathPrefix": "/rstorrent",
-  "githubRepo": "kzahel/rstorrent",
+  "githubRepo": "kzahel/jstorrent",
   "tagPrefix": "desktop-v",
   "tauriUpdates": true,
   "channels": {

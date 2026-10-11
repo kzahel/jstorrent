@@ -32,7 +32,7 @@ env:
 jobs:
   review:
     if: >-
-      github.repository == 'kzahel/rstorrent' && github.ref == 'refs/heads/main' &&
+      github.repository == 'kzahel/jstorrent' && github.ref == 'refs/heads/main' &&
       (vars.AGENT_REVIEW_ENABLED == 'true' || github.event_name == 'workflow_dispatch') &&
       github.event_name != 'push'
     runs-on: ubuntu-24.04
@@ -172,7 +172,7 @@ jobs:
 
   warm-cache:
     if: >-
-      github.repository == 'kzahel/rstorrent' && github.event_name == 'push' &&
+      github.repository == 'kzahel/jstorrent' && github.event_name == 'push' &&
       vars.AGENT_REVIEW_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 50

@@ -14,7 +14,7 @@
     "baselineVersionCode": 24,
     "uploadCertificateSha256": "ccb5af8e44d626e9aefb1f0fbd8496dbf23ad27da9347248e71fb3ce70044915",
     "certificateSource": {
-      "url": "https://github.com/kzahel/JSTorrent/releases/download/android-v1.0.24/app-release.apk",
+      "url": "https://github.com/kzahel/jstorrent-typescript/releases/download/android-v1.0.24/app-release.apk",
       "artifactSha256": "a938b46825157668e804d1efbf01a2cce461a8e23ce1028e909aa919145cfa84",
       "sourceRevision": "7b454be4410385f9c4f7f135cb6b16194a2b0409"
     },

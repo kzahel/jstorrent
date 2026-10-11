@@ -110,7 +110,7 @@ currently unresolved advisory blockers and its expiring review date.
 ## JSTorrent Brand Assets
 
 Original desktop, Android adaptive/launcher/store, iOS app/header, extension,
-shared web, gateway and website icon assets are copied unchanged from `kzahel/jstorrent` revision
+shared web, gateway and website icon assets are copied unchanged from `kzahel/jstorrent-typescript` revision
 `25e4b701433fd815398ba89526546f5e4f072e3f` under its MIT license, copyright
 2025 Kyle Graehl. Reuse preserves the established first-party product identity
 for in-place succession. `distribution/branding/jstorrent-assets.json` records
@@ -126,9 +126,17 @@ its embedded image. No third-party logo is substituted.
 
 Astro marketing components, layouts, CSS, historical blog posts, download
 presentation, bounded hosted-context helper and compatibility assets are
-adapted from `kzahel/JSTorrent` revision
+adapted from `kzahel/jstorrent-typescript` revision
 `e0cb8a3c2ff578f8ca65b1ee820321891789e5b7`, copyright 2025 Kyle Graehl,
 under its MIT license. The complete original notice is served at
 `website/public/LICENSE.jstorrent-website.txt`. The old TypeScript torrent
 engine and shared application packages are not included in this website.
 Existing brand-asset notices above remain applicable.
+
+## Legacy installed-client search plugin
+
+`search-plugins/internet-archive.js` retains the self-contained Internet Archive
+plugin fetched by older TypeScript clients from the canonical repository path.
+It is reused from the MIT-licensed previous implementation; its complete Kyle
+Graehl copyright and license are retained in the file. No TypeScript engine is
+imported. Source and exact revision are recorded in the file header.

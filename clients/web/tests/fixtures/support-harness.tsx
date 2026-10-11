@@ -26,7 +26,7 @@ let snapshot: DesktopUpdaterSnapshot = {
     arch: "aarch64", bundleType: manualUpdate ? "headless" : "app", checkPrivacy: manualUpdate ? "anonymous" : "preference-controlled" },
   state: manualUpdate ? { phase: "available", version: "0.1.4", reason: "startup",
     manualApply: {command: "$HOME/.local/bin/rstorrent-headless update --apply",
-      releaseUrl: "https://github.com/kzahel/rstorrent/releases/tag/headless-v0.1.4"} } : { phase: "idle" },
+      releaseUrl: "https://github.com/kzahel/jstorrent/releases/tag/headless-v0.1.4"} } : { phase: "idle" },
 };
 const updater = {
   getSnapshot: () => snapshot,

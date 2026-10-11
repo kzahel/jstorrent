@@ -5,7 +5,9 @@ set -euo pipefail
 # Usage: curl -fsSL https://rstorrent.com/install-headless.sh | bash
 
 PINNED_TAG="headless-v0.1.0"
-REPOSITORY="kzahel/rstorrent"
+REPOSITORY="kzahel/jstorrent"
+# Immutable signed v1 identity is retained across the GitHub rename.
+MANIFEST_REPOSITORY="kzahel/rstorrent"
 MANIFEST_NAME="rstorrent-headless-release.manifest"
 SIGNATURE_NAME="rstorrent-headless-release.manifest.minisig"
 INSTALL_PROTOCOL_VERSION="1"
@@ -124,7 +126,7 @@ signature_asset'
     signature_asset=$(manifest_value signature_asset "$manifest") || return 1
     if [[ ! "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] ||
        [ "$RELEASE_TAG" != "headless-v${RELEASE_VERSION}" ] ||
-       [ "$RELEASE_REPOSITORY" != "$REPOSITORY" ] ||
+       [ "$RELEASE_REPOSITORY" != "$MANIFEST_REPOSITORY" ] ||
        [[ ! "$source_commit" =~ ^[0-9a-f]{40}$ ]] ||
        [ "$install_protocol" != "$INSTALL_PROTOCOL_VERSION" ] ||
        [ "$runtime" != "$RUNTIME" ] ||
@@ -306,7 +308,7 @@ installer_main() (
         fi
     fi
     local asset="$temp_dir/$RELEASE_ASSET"
-    local asset_url="https://github.com/${RELEASE_REPOSITORY}/releases/download/${RELEASE_TAG}/${RELEASE_ASSET}"
+    local asset_url="https://github.com/${REPOSITORY}/releases/download/${RELEASE_TAG}/${RELEASE_ASSET}"
     info "Downloading ${RELEASE_ASSET}..."
     download_release_asset "$asset_url" "$asset" "$RELEASE_SIZE" || return 1
     verify_release_asset "$asset" "$RELEASE_SIZE" "$RELEASE_SHA256" || return 1
