@@ -1,6 +1,6 @@
 # Tactical 299: Production Website Consolidation
 
-Status: Active supplement, 2026-10-11. Owners: product-surfaces-and-migration and
+Status: Complete, 2026-10-11. Owners: product-surfaces-and-migration and
 beta-release-readiness. A private cross-project plan owns hosting, DNS and
 repository administration; this tactical owns portable source changes.
 
@@ -49,7 +49,7 @@ finds no `jstorrent.com/app` links. Marketing changelog reads old workspace
 files, while support/community URLs still select the TypeScript repo. Preserve
 historical blog content and reconcile present product links separately.
 
-Next: port and validate locally before any public hosting cutover.
+The following execution record covers local qualification and deployed acceptance.
 
 The standalone port passes Astro diagnostics (zero errors/warnings/hints),
 40 inventory/context/CSP cases, nine remote assembly guards, and 32 actual
@@ -115,4 +115,28 @@ that the official artifact action excludes dot-directories by default, removing
 both Digital Asset Links and source provenance. Enable its documented hidden
 file input on the already-built public directory; `.git` and `.github` stay
 excluded. This finding reinforces checking actual deployed routes before
-moving the production hostname. Preview certificate issuance is still pending.
+moving the production hostname. Preview certificate issuance subsequently passed.
+
+Final GitHub Pages acceptance passes all 32 responsive/theme views and all five
+no-JavaScript download links. Both hidden-file routes are present; the provenance
+receipt identifies source ec3ae246 and desktop 0.3.0. Canonical HTTPS cutover to
+this artifact completed at 10:51:21 UTC. Apex and www, blog/RSS, privacy, forms,
+prototype retirement and legacy URLs respond from the qualified source. The
+six-file remote artifact and relay health remain verified at the original origin.
+Marketing-only redirects preserve queries and exclude installers, pairing and
+remote routes. The previous TypeScript website workflow is now manual-only.
+
+An additional 18 deployed captures record nine historical compatibility and
+diagnostic pages at phone/wide widths. All respond with intact images and no
+RSTorrent display text. The old magnet helper overflows on phones; the streaming
+helper also overflows and expects the retired Chrome App API. Three unlinked
+launch diagnostic pages use plain styling. These inherited limitations are
+recorded as design follow-ups, not claimed as modern-client functionality or
+full Chrome App interoperability. Preserve their existing handler contracts.
+
+Final validation: frozen standalone build, zero Astro diagnostics, 54 package
+tests, nine remote assembly guards, zero website dependency advisories, real
+17-file digest/six-signature verification, hosted promotion no-op and canonical
+browser acceptance. No engine or product-client code changed. Infrastructure
+receipts and per-slice reports/screenshots remain private and ignored. Mail
+delivery and repository renames are not claimed by this portable completion.
