@@ -1,5 +1,13 @@
 # Client Surfaces
 
+Tactical [302](../tactical/302-desktop-external-links.md) repairs shared About
+support and release navigation. Browser clients retain native isolated-tab
+anchors; desktop bootstrap injects the official Tauri opener through a small
+shared link provider. Desktop URL permissions cover only the approved support
+and release destinations, and opening failures show generic localized retry
+feedback. Engine/API/media authority and native Android/iOS presentation are
+unchanged. Exact validation and native handoff evidence are in the tactical.
+
 Tactical [291](../tactical/291-companion-shutdown-recovery-copy.md) locally
 clarifies normal Android launch before attach-only Retry after Shutdown and
 fixes dim companion troubleshooting links with the existing foreground token.

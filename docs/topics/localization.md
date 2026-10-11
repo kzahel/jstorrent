@@ -1,5 +1,9 @@
 # Localization
 
+Tactical [302](../tactical/302-desktop-external-links.md) adds one shared
+English message for external-link opening failure and retry. Raw plugin errors
+are not shown; shipping locale policy and native catalogs remain unchanged.
+
 Tactical [291](../tactical/291-companion-shutdown-recovery-copy.md) locally
 clarifies normal Android launch before attach-only Retry after Shutdown and
 fixes dim companion troubleshooting links with the existing foreground token.

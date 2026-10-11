@@ -8211,5 +8211,11 @@
       "type": 0,
       "value": "Copy update command"
     }
+  ],
+  "external-link.open-failed": [
+    {
+      "type": 0,
+      "value": "Could not open the link. Please try again."
+    }
   ]
 }

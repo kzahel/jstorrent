@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { message } from "../../localization/runtime";
 import { buildDiagnostics, DIAGNOSTICS_FILENAME } from "../support/diagnostics";
 import type { DesktopUpdaterSnapshot } from "../updater/types";
+import { ExternalLink } from "./ExternalLink";
 import styles from "./SettingsDialog.module.css";
 
 export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpdaterSnapshot }) {
@@ -66,9 +67,9 @@ export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpd
       )}
       <p className={styles.updatePrivacy}>{message("support.diagnostics.public.report")}</p>
       <div className={styles.updateActions}>
-        <a href="https://github.com/kzahel/rstorrent/issues" target="_blank" rel="noreferrer">{message("support.known.issues")}</a>
-        <a href="https://github.com/kzahel/rstorrent/issues/new" target="_blank" rel="noreferrer">{message("support.report.problem")}</a>
-        <a href="https://github.com/kzahel/rstorrent/blob/main/docs/user-support.md" target="_blank" rel="noreferrer">{message("support.privacy.recovery")}</a>
+        <ExternalLink href="https://github.com/kzahel/rstorrent/issues">{message("support.known.issues")}</ExternalLink>
+        <ExternalLink href="https://github.com/kzahel/rstorrent/issues/new">{message("support.report.problem")}</ExternalLink>
+        <ExternalLink href="https://github.com/kzahel/rstorrent/blob/main/docs/user-support.md">{message("support.privacy.recovery")}</ExternalLink>
       </div>
     </fieldset>
   );

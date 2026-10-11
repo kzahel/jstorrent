@@ -3,6 +3,49 @@ import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+const supportLinks = [
+  ["Known issues", "https://github.com/kzahel/rstorrent/issues"],
+  ["Report a problem", "https://github.com/kzahel/rstorrent/issues/new"],
+  ["Privacy and recovery guidance", "https://github.com/kzahel/rstorrent/blob/main/docs/user-support.md"],
+] as const;
+
+test("desktop support and release links use the injected opener and recover from failure", async ({ page }) => {
+  const popups: unknown[] = [];
+  page.on("popup", (popup) => popups.push(popup));
+  await page.goto("/tests/fixtures/support-harness.html?desktop&rejectOpen&package=msi");
+  await page.getByRole("link", { name: "Known issues" }).click();
+  await expect(page.getByRole("alert")).toHaveText("Could not open the link. Please try again.");
+  await page.getByRole("link", { name: "Known issues" }).press("Enter");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  for (const [name] of supportLinks.slice(1)) await page.getByRole("link", { name }).click();
+  await page.getByRole("link", { name: "Open release downloads" }).click({ modifiers: ["ControlOrMeta"] });
+  expect(await page.evaluate(() => (window as unknown as { openedUrls: string[] }).openedUrls)).toEqual([
+    supportLinks[0][1], ...supportLinks.map(([, url]) => url),
+    "https://github.com/kzahel/rstorrent/releases/latest",
+  ]);
+  expect(popups).toEqual([]);
+  await expect(page).toHaveURL(/support-harness/);
+  await page.goto("/tests/fixtures/support-harness.html?desktop&manual");
+  await page.getByRole("link", { name: "Review signed release" }).click();
+  expect(await page.evaluate(() => (window as unknown as { openedUrls: string[] }).openedUrls)).toEqual([
+    "https://github.com/kzahel/rstorrent/releases/tag/headless-v0.1.4",
+  ]);
+});
+
+test("browser support and release links open isolated tabs at their exact URLs", async ({ page, context }) => {
+  await context.route("https://github.com/**", (route) => route.fulfill({ contentType: "text/html", body: "<h1>Controlled external destination</h1>" }));
+  await page.goto("/tests/fixtures/support-harness.html?package=msi");
+  for (const [name, url] of [...supportLinks, ["Open release downloads", "https://github.com/kzahel/rstorrent/releases/latest"]]) {
+    const pending = page.waitForEvent("popup");
+    await page.getByRole("link", { name }).click();
+    const popup = await pending;
+    await expect(popup).toHaveURL(url!);
+    expect(await popup.evaluate(() => window.opener)).toBeNull();
+    await popup.close();
+  }
+  await expect(page).toHaveURL(/support-harness/);
+});
+
 for (const width of [320, 1440]) {
   for (const theme of ["light", "dark"]) {
     test(`support preview, copy and download at ${width}px ${theme}`, async ({ page, context }) => {

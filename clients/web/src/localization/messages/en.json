@@ -5175,5 +5175,9 @@
   "updates.command-copy-failed": {
     "defaultMessage": "The command could not be copied. Check browser clipboard access and try again.",
     "description": "Manual headless update command clipboard action"
+  },
+  "external-link.open-failed": {
+    "defaultMessage": "Could not open the link. Please try again.",
+    "description": "Shown when the desktop cannot open an external link in the browser"
   }
 }

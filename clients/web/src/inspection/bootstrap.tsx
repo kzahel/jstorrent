@@ -1,6 +1,7 @@
 import { createRoot, type Root } from "react-dom/client";
 import { LocalizationProvider } from "../localization/runtime";
 
+import { ExternalUrlProvider, type OpenExternalUrl } from "./external-links";
 import { App } from "./components/App";
 import { WebAuthGate } from "./components/WebAuthGate";
 import { InspectionProvider } from "./context";
@@ -132,6 +133,7 @@ async function openLiveInspection(
 }
 
 export async function startTauriInspection(): Promise<void> {
+  const { openTauriExternalUrl } = await import("../tauri-external-links");
   const [updater, notifications, power, remoteAccess, productPrivacy, application, externalIntake] =
     await Promise.all([
       import("../tauri-updater")
@@ -189,6 +191,7 @@ export async function startTauriInspection(): Promise<void> {
     undefined,
     undefined,
     productPrivacy,
+    openTauriExternalUrl,
   );
 }
 
@@ -225,23 +228,26 @@ function renderInspection(
   accessMode?: HostedAccessMode,
   hostedProduct?: HostedProduct,
   productPrivacy?: ProductPrivacyController,
+  openExternalUrl?: OpenExternalUrl,
 ): void {
   controller.start();
   root.render(
     <LocalizationProvider>
-      <InspectionProvider controller={controller}>
-        <App
-          webAuth={webAuth}
-          updater={updater}
-          externalIntake={externalIntake}
-          notifications={notifications}
-          power={power}
-          remoteAccess={remoteAccess}
-          accessMode={accessMode}
-          hostedProduct={hostedProduct}
-          productPrivacy={productPrivacy}
-        />
-      </InspectionProvider>
+      <ExternalUrlProvider openUrl={openExternalUrl}>
+        <InspectionProvider controller={controller}>
+          <App
+            webAuth={webAuth}
+            updater={updater}
+            externalIntake={externalIntake}
+            notifications={notifications}
+            power={power}
+            remoteAccess={remoteAccess}
+            accessMode={accessMode}
+            hostedProduct={hostedProduct}
+            productPrivacy={productPrivacy}
+          />
+        </InspectionProvider>
+      </ExternalUrlProvider>
     </LocalizationProvider>,
   );
 }

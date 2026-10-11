@@ -59,6 +59,11 @@ upstream packages and artifacts contain their applicable license texts.
 
 Notable distribution considerations in the current dependency graph include:
 
+- Desktop external links use `tauri-plugin-opener` and its JavaScript bindings
+  2.5.3 under MIT OR Apache-2.0. Its resolved `open` 5.4.4 dependency is MIT;
+  `is-wsl` 0.4.0 and `is-docker` 0.2.0 are MIT. Release notices must include
+  these exact lockfile-resolved components. No upstream implementation source
+  is copied into this repository.
 - `dontfrag` 1.0.1 is used only on macOS under its dual MIT OR Apache-2.0
   license to access the IPv4 don't-fragment socket policy through a safe API.
 - `keepawake` 0.6.1 is used only on macOS and Windows under its MIT license to

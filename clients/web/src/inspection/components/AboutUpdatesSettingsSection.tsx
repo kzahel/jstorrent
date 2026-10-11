@@ -8,6 +8,7 @@ import type {
   UpdaterState,
 } from "../updater/types";
 import styles from "./SettingsDialog.module.css";
+import { ExternalLink } from "./ExternalLink";
 import { SupportDiagnostics } from "./SupportDiagnostics";
 
 const RELEASES_URL = "https://github.com/kzahel/rstorrent/releases/latest";
@@ -104,7 +105,7 @@ export function AboutUpdatesSettingsSection({
             <p role="status">{commandCopyStatus === undefined ? null : commandCopyStatus === "copied"
               ? localizedMessage("updates.command-copied")
               : localizedMessage("updates.command-copy-failed")}</p>
-            <a href={state.manualApply.releaseUrl} rel="noreferrer" target="_blank">{localizedMessage("inspection.components.about.updates.settings.section.review.signed.release")}</a>
+            <ExternalLink href={state.manualApply.releaseUrl}>{localizedMessage("inspection.components.about.updates.settings.section.review.signed.release")}</ExternalLink>
           </div>
         ) : null}
         <div className={styles.updateActions}>
@@ -125,7 +126,7 @@ export function AboutUpdatesSettingsSection({
             >{localizedMessage("inspection.components.about.updates.settings.section.install.and.restart")}</button>
           ) : null}
           {state.phase === "manual-install" ? (
-            <a href={RELEASES_URL} rel="noreferrer" target="_blank">{localizedMessage("inspection.components.about.updates.settings.section.open.release.downloads")}</a>
+            <ExternalLink href={RELEASES_URL}>{localizedMessage("inspection.components.about.updates.settings.section.open.release.downloads")}</ExternalLink>
           ) : null}
         </div>
         {policy.canCheck ? <p className={styles.updatePrivacy}>{snapshot.channel === "latest"

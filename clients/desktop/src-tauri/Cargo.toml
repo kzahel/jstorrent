@@ -36,6 +36,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 tauri = { version = "2.11.5", features = ["image-png", "tray-icon"] }
+tauri-plugin-opener = "=2.5.3"
 tauri-plugin-deep-link = "=2.4.9"
 tauri-plugin-dialog = "=2.7.2"
 tauri-plugin-notification = "=2.3.3"
