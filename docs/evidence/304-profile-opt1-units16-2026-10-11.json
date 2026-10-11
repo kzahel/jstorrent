@@ -1,0 +1,102 @@
+{
+  "platform": "darwin",
+  "arch": "arm64",
+  "logicalCpus": 14,
+  "memoryBytes": 51539607552,
+  "cargoJobs": 4,
+  "packages": [
+    "rstorrent-protocol",
+    "rstorrent-engine"
+  ],
+  "startedAt": "2026-10-11T12:41:04.020Z",
+  "results": [
+    {
+      "profile": "test",
+      "phase": "target-cold-compile",
+      "command": "cargo test --locked --profile test -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 98.264,
+      "counts": []
+    },
+    {
+      "profile": "test",
+      "phase": "unchanged-compile",
+      "command": "cargo test --locked --profile test -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 0.168,
+      "counts": []
+    },
+    {
+      "profile": "test",
+      "phase": "first-party-rebuild",
+      "command": "cargo test --locked --profile test -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 59.728,
+      "counts": []
+    },
+    {
+      "profile": "test",
+      "phase": "test-execution",
+      "command": "cargo test --locked --profile test -p rstorrent-protocol -p rstorrent-engine --lib",
+      "seconds": 10.402,
+      "counts": [
+        {
+          "passed": 603,
+          "failed": 0,
+          "ignored": 9
+        },
+        {
+          "passed": 263,
+          "failed": 0,
+          "ignored": 4
+        }
+      ]
+    },
+    {
+      "profile": "ci-fast",
+      "phase": "target-cold-compile",
+      "command": "cargo test --locked --profile ci-fast -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 95.078,
+      "counts": []
+    },
+    {
+      "profile": "ci-fast",
+      "phase": "unchanged-compile",
+      "command": "cargo test --locked --profile ci-fast -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 0.252,
+      "counts": []
+    },
+    {
+      "profile": "ci-fast",
+      "phase": "first-party-rebuild",
+      "command": "cargo test --locked --profile ci-fast -p rstorrent-protocol -p rstorrent-engine --lib --no-run",
+      "seconds": 61.683,
+      "counts": []
+    },
+    {
+      "profile": "ci-fast",
+      "phase": "test-execution",
+      "command": "cargo test --locked --profile ci-fast -p rstorrent-protocol -p rstorrent-engine --lib",
+      "seconds": 10.475,
+      "counts": [
+        {
+          "passed": 603,
+          "failed": 0,
+          "ignored": 9
+        },
+        {
+          "passed": 263,
+          "failed": 0,
+          "ignored": 4
+        }
+      ]
+    }
+  ],
+  "sourceSha": "1e451f8f940c414522d0c9a8a52356eaba776665",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "manifestDiff": "diff --git a/Cargo.toml b/Cargo.toml\nindex 92d834ee..7111e665 100644\n--- a/Cargo.toml\n+++ b/Cargo.toml\n@@ -80,6 +80,12 @@ opt-level = 2\n debug = \"line-tables-only\"\n incremental = false\n \n+# Fast PR checks have separate artifacts and preserve development assertions.\n+# Full qualification continues to use the ordinary optimized test profile.\n+[profile.ci-fast]\n+inherits = \"dev\"\n+opt-level = 1\n+\n # Use this profile for deliberate source-level debugger sessions that need\n # local variables and unoptimized control flow. It has a separate output\n # directory so its full debug artifacts can be cleaned independently.\n",
+  "finalSourceSha": "1e451f8f940c414522d0c9a8a52356eaba776665",
+  "completedAt": "2026-10-11T12:46:40.440Z",
+  "candidate": {
+    "optLevel": 1,
+    "codegenUnits": 16
+  }
+}

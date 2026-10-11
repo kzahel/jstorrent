@@ -14,6 +14,12 @@ export function eligible(pr, expectedSha) {
     (!expectedSha || pr.head.sha === expectedSha);
 }
 
+export function eligibleWorkflowRun(run, workflowPath) {
+  return run.event === 'pull_request' && run.status === 'completed' && run.conclusion === 'success' &&
+    run.head_repository?.full_name === repository && shaPattern.test(run.head_sha) &&
+    workflowPath === '.github/workflows/fast-ci.yml';
+}
+
 export function changedLines(files) {
   const result = new Map();
   for (const file of files) {
@@ -101,9 +107,10 @@ async function main() {
     let number; let expectedSha; let ci;
     if (process.env.GITHUB_EVENT_NAME === 'workflow_run') {
       ci = event.workflow_run;
-      if (ci.event !== 'pull_request' || ci.head_repository?.full_name !== repository || !shaPattern.test(ci.head_sha)) return;
+      if (ci.event !== 'pull_request' || ci.status !== 'completed' || ci.conclusion !== 'success' ||
+          ci.head_repository?.full_name !== repository || !shaPattern.test(ci.head_sha)) return;
       const workflow = await api(`actions/workflows/${ci.workflow_id}`);
-      if (workflow.path !== '.github/workflows/ci.yml') return;
+      if (!eligibleWorkflowRun(ci, workflow.path)) return;
       expectedSha = ci.head_sha;
       const candidates = ci.pull_requests?.length ? ci.pull_requests : await api(`commits/${expectedSha}/pulls`);
       if (candidates.length !== 1) return;
@@ -124,7 +131,7 @@ async function main() {
     let jobs = [];
     if (ci) jobs = (await api(`actions/runs/${ci.id}/jobs?per_page=100`)).jobs.map(j => ({ name: j.name, conclusion: j.conclusion }));
     await writeFile(`${root}/metadata.json`, JSON.stringify({ pr: number, head_sha: pr.head.sha, base_sha: baseSha,
-      ci: ci ? { url: ci.html_url, conclusion: ci.conclusion, jobs } : null }));
+      ci: ci ? { name: ci.name, url: ci.html_url, conclusion: ci.conclusion, jobs } : null }));
     await appendFile(process.env.GITHUB_OUTPUT, `eligible=true\npr=${number}\nsha=${pr.head.sha}\n`);
   } else if (process.argv[2] === 'publish') {
     const metadata = JSON.parse(await readFile(`${root}/metadata.json`));
