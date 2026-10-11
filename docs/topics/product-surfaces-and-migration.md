@@ -1,5 +1,44 @@
 # Product Surfaces And JSTorrent Migration
 
+## JSTorrent-only release policy, 2026-10-11
+
+Maintainer direction freezes the RSTorrent incubation release track. All new
+product releases use JSTorrent identities and established signing continuity;
+there is no ongoing second flavor or incubation release campaign. Desktop
+already uses `com.jstorrent.desktop`, the original JSTorrent updater signing
+key and `https://updates.jstorrent.com`; public 0.3.0 under
+[295](../tactical/295-qualified-candidate-shipment.md) records the cutover.
+This is an accepted freeze, not a proposal to provision that key again.
+Isolated debug/test package identities and internal `rstorrent-*` names may
+remain without constituting another release track.
+
+The last recorded incubation desktop offers are Stable 0.1.4 and Latest
+0.2.801. Retain published historical artifacts and existing legacy route
+behavior while retiring release machinery; do not re-enable
+`INCUBATION_PUBLICATION_ENABLED`, create new incubation packages, or advance
+those channels. Old incubation clients trust a different updater key and must
+not be redirected to JSTorrent payloads as an automatic migration.
+
+For installed JSTorrent clients, preserve the existing update-check URL shape
+`/tauri/{target}/{arch}/{current_version}`, implicit Stable selection when no
+channel is supplied, the Tauri response fields, HTTP 204 for no update, and
+the embedded signing trust root. The server may change its release discovery
+and configuration behind that contract. Platform selection continues to use
+the selected release's `latest.json` platform entries.
+
+Tactical [296](../tactical/296-production-preview-feed-separation.md)'s exact
+asset filters still prevent historical incubation releases from entering the
+JSTorrent feed. The current `JSTorrent_x64.app.tar.gz` requirement is a legacy
+release-selection guard, not a client requirement or the desired platform
+model. A subsequent bounded cleanup should select eligible JSTorrent releases
+without depending on one platform's filename, preserve historical exclusion
+and isolate caches/notes, and verify existing client requests across platforms,
+versions and channels. This documentation change does not remove that filter
+or alter the deployed service.
+
+Earlier incubation/qualification checkpoints below retain their evidence;
+this policy supersedes their recommendations to continue RSTorrent releases.
+
 Tacticals [299](../tactical/299-production-website-consolidation.md) and
 [303](../tactical/303-canonical-remote-origin.md) complete website consolidation.
 jstorrent.com serves this repository's established JSTorrent design, blog,
@@ -667,12 +706,10 @@ updates and legacy launch routes remain explicit gates. Minimum API 28
 replacement cohort and need explicit unsupported-device guidance. Candidate
 mechanics do not graduate the product for shipment.
 
-The destination is one JSTorrent shipping lane. Incubation source/key separation
-is temporary qualification protection, not a plan to maintain two products.
-Manual desktop CI now selects JSTorrent config/validation/public trust and
-incubation publication is paused. Replace the existing Tauri secret contents
-with original inputs; keep publication gated by the checklist.
-Normal isolated debug builds remain useful after production succession.
+The destination is one JSTorrent shipping lane. Original signing inputs are
+already in use and desktop 0.3.0 is public. Incubation publication is frozen
+under the 2026-10-11 policy above, rather than temporarily paused pending key
+provisioning. Normal isolated debug builds remain useful after succession.
 
 ## Production Replacement And Branding
 
@@ -1349,7 +1386,11 @@ lifecycle still requires a tactical.
 
 ## Later JSTorrent Graduation
 
-RSTorrent's current work is an independent incubation beta. Desktop beta uses
+The following records the pre-cutover plan; desktop 0.3.0 has since shipped
+under JSTorrent and the incubation release track is frozen. Remaining migration
+and store-delivery evidence continues under its owning tacticals.
+
+RSTorrent's early work was an independent incubation beta. Desktop beta used
 the `com.jstorrent.rstorrent` identifier, the RSTorrent update route, and its
 own updater key so it can coexist safely with current JSTorrent installations.
 There is no promise that an RSTorrent beta installation will silently change
@@ -1384,8 +1425,8 @@ production update, or add migration work to the current beta checklist.
 
 ## Working Name And Product Identity
 
-`RSTorrent` remains a useful incubation and component name because it connects
-the Rust engine with JSTorrent's product lineage. Its similarity to the older
+`RSTorrent` remains a historical incubation and internal component name because
+it connects the Rust engine with JSTorrent's product lineage. Its similarity to the older
 `rTorrent` name is acknowledged but is not currently considered a reason to
 discard it: the visual and historical connection to JSTorrent is stronger in
 this product context. `KTorrent` is not a practical alternative because it is
@@ -1394,23 +1435,22 @@ already the established KDE client name.
 Maintainer direction on 2026-08-22 selects RSTorrent as the public product name
 for the historical incubation line. The production replacement decision above
 supersedes that earlier foreseeable-product policy.
-Direction on 2026-08-23 selects
-`com.jstorrent.rstorrent` as its current desktop identifier. The selected production
-graduation retains JSTorrent's installed application and extension audience
-while replacing the engine. Maintainer direction on
+Direction on 2026-08-23 selected
+`com.jstorrent.rstorrent` as the incubation desktop identifier. Production
+retains JSTorrent's installed application and extension audience while replacing
+the engine. Maintainer direction on
 2026-08-27 nevertheless makes every `0.1.x` identifier and installation
 disposable incubation state rather than a compatibility obligation for the
-first supported release. That value remains the incubation operational default; production package
-configuration follows the explicit replacement decision above.
+first supported release. That identifier may remain in isolated development
+builds; new releases use the JSTorrent production configuration.
 
 ## Existing Distribution And Coexistence
 
 The existing JSTorrent desktop and extension identities and their installed
-audiences are important assets. The selected production graduation will update
-those products to use the proven Rust application contract instead of
-launching unrelated replacement identities. RSTorrent remains independently
-released during incubation. Exact production extension/store delivery and retirement mechanics now require
-a bounded qualification slice under the selected graduation campaign.
+audiences are important assets. Production succession updates those products to
+use the proven Rust application contract. The RSTorrent release track is frozen;
+its retained artifacts and routes serve historical installs only. Exact
+production extension/store delivery remains under the selected cutover campaign.
 Preserving a familiar product capability does not require preserving its old
 storage schema, JavaScript owner, Chrome-sync use, or unsafe privacy wording.
 
@@ -1444,8 +1484,8 @@ fixture, or wire contract from either sibling project.
 
 ## Open Decisions And Required Evidence
 
-- The exact later stage at which the proven implementation graduates through
-  JSTorrent's existing product and updater identity.
+- Remaining store delivery and installed migration evidence after the desktop
+  0.3.0 cutover through JSTorrent's existing product and updater identity.
 - The exact desktop native-host/backend process, single-instance, window, and
   shutdown ownership model. Desktop beta updating now adopts the external
   `desktop-update-v1` contract; its independent route/key, client presentation,
@@ -1494,10 +1534,11 @@ No personal migration has run.
 Existing independent release and platform campaigns below continue under
 their own gates.
 
-Completed Tactical `166` supplies the exact store identity and installed
-desktop bootstrap evidence; resume the beta-readiness campaign's signed
-RSTorrent package and updater gates. Completed Tactical `167` supplies the
-bounded ChromeOS Linux source package and physical handoff evidence. Completed
+Completed Tactical `166` supplies historical store identity and installed
+desktop bootstrap evidence. New signed desktop work uses JSTorrent's existing
+identity and trust root; do not resume RSTorrent publication. Completed Tactical
+`167` supplies the bounded ChromeOS Linux source package and physical handoff
+evidence. Completed
 Tactical `169` plus its separately authorized release operation supply signed
 public `crostini-v0.1.0` artifacts and exact x86_64 website-install acceptance;
 do not treat that as full extension control, physical ARM64 runtime,

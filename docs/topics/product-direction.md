@@ -2,6 +2,24 @@
 
 Topic: `product-direction`
 
+## JSTorrent-only releases, accepted 2026-10-11
+
+JSTorrent is the sole active product and release identity. The RSTorrent
+incubation release track is frozen; no new releases or resumed nightly
+publication are planned for that flavor. The switch to JSTorrent's existing
+desktop signing key, `com.jstorrent.desktop` identity and updater endpoint has
+already occurred, with public desktop 0.3.0 recorded in Tactical
+[295](../tactical/295-qualified-candidate-shipment.md). It is not future
+provisioning work or a second product to maintain.
+
+Retained incubation descriptors, routes, package identities and artifacts are
+historical compatibility or isolated development infrastructure. They do not
+authorize new incubation publication, a signing-key rotation, or automatic
+conversion of an old RSTorrent installation into JSTorrent. The continuing
+[release and updater contract](product-surfaces-and-migration.md#jstorrent-only-release-policy-2026-10-11)
+owns the freeze and compatibility boundary. This supersedes earlier references
+to independent incubation releases continuing during qualification.
+
 ## MIT licensing retained, accepted 2026-10-10
 
 The maintainer explicitly retains MIT for this public, open-source project.

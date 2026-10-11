@@ -1,7 +1,8 @@
 # Product Vision: JSTorrent Rebuilt Around A Native Engine
 
-Status: JSTorrent succession accepted; near-term in-place desktop, Android and
-extension replacement selected on 2026-09-30, with qualification still required.
+Status: JSTorrent succession selected on 2026-09-30; desktop 0.3.0 is public.
+RSTorrent releases are frozen by maintainer direction on 2026-10-11. Remaining
+platform qualification and store delivery follow their owning topics.
 
 ## Thesis
 
@@ -14,9 +15,10 @@ The intended desktop result is a normal JSTorrent update retaining
 `com.jstorrent.desktop` and its existing updater trust root. Android updates the
 existing `com.jstorrent.app` Play app with package/signing continuity. The
 extension updates the existing production Web Store item using this repository's
-implementation. Their updates may arrive independently. Incubation packages
-retain separate identities/routes until production qualification is complete;
-repository, crate and protocol names are internal implementation details.
+implementation. Their updates may arrive independently. JSTorrent is the sole
+active release identity and already uses its established desktop signing key.
+Historical RSTorrent packages/routes are frozen compatibility infrastructure;
+isolated debug identities, crate and protocol names are implementation details.
 
 The `JS` in JSTorrent describes the project's origin, not necessarily a
 permanent implementation constraint or a promise users depend on. The durable
@@ -74,11 +76,12 @@ engine tactical.
 
 ## Incubation And Graduation
 
-The separate RSTorrent name and repository create room to build deeply without
-destabilizing the current JSTorrent product or treating its internals as
-compatibility constraints.
+The separate RSTorrent name and repository originally created room to build
+deeply without destabilizing JSTorrent or treating its internals as compatibility
+constraints. The Rust implementation now occupies the canonical JSTorrent
+repository and the independent RSTorrent release track is frozen.
 
-A likely progression is:
+The original progression was:
 
 1. Build and validate the engine under the RSTorrent working name.
 2. Ship an explicitly experimental native client to learn from real use.

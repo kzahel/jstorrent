@@ -73,10 +73,13 @@ a living topic records an accepted replacement:
   updater trust root; update the existing `com.jstorrent.app` Play app and the
   existing production extension item. Their updates may arrive independently
   under `docs/topics/product-surfaces-and-migration.md`. Best-effort migration
-  and branding have bounded implementation slices. Separate incubation/test
-  identifiers, RSTorrent desktop update route and per-app key remain until
-  production packaging/signing/store continuity is qualified. Do not switch
-  them merely as part of a display-name or icon edit.
+  and branding have bounded implementation slices. JSTorrent is the sole active
+  release identity and uses its existing signing key and updater endpoint.
+  Maintainer direction on 2026-10-11 freezes the RSTorrent release track: do not
+  publish new incubation releases or re-enable its nightly publication. Retained
+  RSTorrent routes, descriptors, keys and historical artifacts are legacy
+  compatibility, not a second shipping lane. Isolated debug/test identities may
+  remain; do not redirect old incubation clients across signing roots.
 - Engine and product-client work both proceed, each under its own numbered
   tactical. Neither is globally paused in favor of the other, and neither is
   standing authorization to start implementing without one.

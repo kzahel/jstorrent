@@ -1,11 +1,33 @@
 # Desktop Release Runbook
 
+## Release track status, 2026-10-11
+
+JSTorrent is the sole active desktop release identity. Desktop 0.3.0 is public
+with `com.jstorrent.desktop`, the existing JSTorrent updater signing key and
+`updates.jstorrent.com`. Use
+[JSTorrent candidate builds](../DEVELOPMENT.md#building-jstorrent-production-candidates)
+and [explicit publication](../DEVELOPMENT.md#explicit-production-desktop-publication)
+for new work, with the existing release qualification gates.
+
+The RSTorrent track is frozen at its last recorded Stable 0.1.4 and Latest
+0.2.801 offers. No new incubation releases or resumed nightly publication are
+planned. Its descriptor, artifacts and updater route remain historical
+compatibility; old clients use a different signing root and must not be
+redirected to JSTorrent packages. See the
+[owning release policy](topics/product-surfaces-and-migration.md#jstorrent-only-release-policy-2026-10-11)
+and [updater configuration](../update-server/README.md).
+
+The incubation commands and checkpoints below are historical. They do not
+authorize publishing that flavor or enabling `INCUBATION_PUBLICATION_ENABLED`.
+
+## Historical packaging and channel runbook
+
 For the first JSTorrent production replacement, Linux support is best effort
 and offers AppImages only. Both Linux lanes use Ubuntu 24.04 and refresh vendor
 WebKit/OpenSSL packages; the reviewed WebKit build floor is 2.52.6. The production
 collector requires 15 core assets, six signature sidecars and 11 updater keys;
 `SHA256SUMS` is the additional 16th support asset. Production DEB/RPM assets and
-selectors are refused. Preview still uses the existing 23-asset/15-key matrix.
+selectors are refused. The frozen preview used a 23-asset/15-key matrix.
 Tactical 285 records local validation. A new signed inventory, actual ABI/minimum
 requirements and representative launch checks remain required before shipment.
 
@@ -40,11 +62,11 @@ selected channel in the response, while old clients continue to use Stable.
 Remy's registry was deployed on 2026-09-27 and publicly advertises both
 channels. The first signed Latest release was `desktop-latest-v0.2.301`.
 The current qualified Latest is `desktop-latest-v0.2.801` at source `fc401ecf`;
-production Latest checks offer 0.2.801. Its
+the legacy preview Latest checks offered 0.2.801. Its
 [public evidence](evidence/desktop-latest-v0.2.801.md)
 and [installed checkpoint](tactical/240-signed-desktop-control-qualification.md)
 cover outer-DMG notarization, bundled/registered helper trust and three-platform
-native updating plus extension control. Stable remains 0.1.4.
+native updating plus extension control. Frozen preview Stable remains 0.1.4.
 
 The [first Latest release evidence](evidence/desktop-latest-v0.2.301.md)
 records the signed hosted workflow and all five production routes. Installed

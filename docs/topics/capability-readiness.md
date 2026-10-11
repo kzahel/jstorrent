@@ -1,5 +1,14 @@
 # Capability Readiness
 
+## Release identity, 2026-10-11
+
+JSTorrent is the sole active product release identity and already uses its
+established desktop signing key and updater endpoint. The RSTorrent release
+track is frozen; its legacy Stable 0.1.4/Latest 0.2.801 offers are not active
+release work. See the [owning policy](product-surfaces-and-migration.md#jstorrent-only-release-policy-2026-10-11).
+This changes release direction, not feature readiness or remaining platform
+qualification. Earlier incubation publication proposals below are superseded.
+
 Tactical [298](../tactical/298-torrent-list-refresh-scroll.md) locally fixes
 shared web torrent lists jumping back to the selected row on periodic updates.
 Failing-before/passing-after regressions, web typecheck/483 unit cases, all 31

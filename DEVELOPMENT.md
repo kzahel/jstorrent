@@ -1,10 +1,13 @@
-# RSTorrent Development
+# JSTorrent Development
 
-RSTorrent has a pure protocol core, a Tokio runtime, an application service,
+JSTorrent has a pure protocol core, a Tokio runtime, an application service,
 maintained first-party desktop, Android, and iOS clients, and loopback
 libtorrent interoperability harnesses. Product clients explicitly use online
 tracker and peer networking while diagnostic tools retain loopback-only
-policy. It is not yet a generally useful torrent client.
+policy. Public desktop 0.3.0 uses JSTorrent's established identity and signing
+key. The RSTorrent release track is frozen; retained incubation build paths are
+for isolated development and historical compatibility, not publication. See
+the [release policy](docs/topics/product-surfaces-and-migration.md#jstorrent-only-release-policy-2026-10-11).
 
 ## Starting A Session
 
@@ -555,12 +558,10 @@ content-versioned per-user location, writes the bounded launch configuration,
 and repairs exact Chrome native-host registration. AppImage registration
 targets the stable AppImage path rather than its temporary mount.
 
-Signed packaging, updater rehearsals, version bumps, and tagged publication
-use the exact commands and validation gates in
-[`docs/desktop-release.md`](docs/desktop-release.md).
-The same runbook now documents the source-wired Stable/Latest desktop
-channels, nightly verified-source selection, and the pending hosted and
-installed acceptance gates for Tactical `230`.
+Signed JSTorrent packaging and publication use the production sections below.
+[`docs/desktop-release.md`](docs/desktop-release.md) retains the frozen
+RSTorrent track's historical runbook and channel evidence; do not use its
+incubation publication commands for new releases.
 
 Validate desktop activation wiring and generated package metadata with:
 
@@ -609,25 +610,15 @@ launch can migrate installed legacy state; use owned guests for installed tests.
 Source versions exceed pinned legacy baselines; check all store tracks before
 shipment. No build command above publishes or changes an update service.
 
-Production succession selects one JSTorrent shipping lane. Manual desktop CI now
-selects the production config, public trust and validation, without publication.
-Automatic incubation publication is paused during qualification. Provision the
-original JSTorrent key under the existing updater secret names:
+JSTorrent is the sole active shipping lane. Its original signing inputs are
+already configured under `TAURI_SIGNING_PRIVATE_KEY` and
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; do not reprovision or rotate them as part
+of flavor cleanup. RSTorrent publication is frozen, including its gated nightly
+workflow. Ordinary debug identities remain isolated. Build a manual
+nonpublishing JSTorrent candidate with:
 
 ```bash
-gh secret set TAURI_SIGNING_PRIVATE_KEY --repo kzahel/rstorrent < /path/to/jstorrent.key
-gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --repo kzahel/rstorrent
-```
-
-The second command prompts for a password; use it if the key is password
-protected. Supply the original Tauri key file's complete contents, keeping its
-existing encoding. Do not upload a public key file. These commands overwrite
-the existing incubation signing inputs. Keep incubation publication paused;
-ordinary debug identities remain isolated after the cutover. Dispatch a manual
-production candidate after provisioning:
-
-```bash
-gh workflow run desktop-release.yml --repo kzahel/rstorrent --ref main -f production_candidate=true
+gh workflow run desktop-release.yml --repo kzahel/jstorrent --ref main -f production_candidate=true
 ```
 
 The nonce proof and all six production updater payload signatures must verify
@@ -646,10 +637,11 @@ and simultaneous candidate mode refuse. Do not invoke this until the complete
 cutover capsule is qualified and the maintainer explicitly authorizes this
 publication. Tag creation/push remains a separate authorized operation.
 
-For the reviewed0.3.0 tag, the eventual authorized dispatch is:
+Desktop 0.3.0 has already been published under Tactical295. For a future
+qualified and explicitly authorized tag, the dispatch shape is:
 
 ```bash
-gh workflow run desktop-release.yml --repo kzahel/rstorrent --ref desktop-v0.3.0 -f production_candidate=false -f production_publication=true
+gh workflow run desktop-release.yml --repo kzahel/jstorrent --ref desktop-vX.Y.Z -f production_candidate=false -f production_publication=true
 ```
 
 The collector rechecks that the fetched tag still resolves to the exact built
@@ -657,7 +649,8 @@ source before draft creation and publication. It validates every same-run leg,
 all original-root updater signatures and the complete private draft. Production
 now requires 15 core assets, including six signature sidecars; `SHA256SUMS` is
 an additional 16th support asset. Both production Linux lanes build AppImages
-only on Ubuntu 24.04. Preview retains its existing 23-asset package matrix.
+only on Ubuntu 24.04. The old 23-asset preview matrix is retained history, not
+an active release target.
 The website's curated inventory must match the new exact production asset set
 when the final candidate is selected. Final native/store/public-route acceptance is not
 implied by this workflow mode or local publisher tests.

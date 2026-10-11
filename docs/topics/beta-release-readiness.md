@@ -1,5 +1,15 @@
 # Beta Release Readiness
 
+## Release identity, 2026-10-11
+
+JSTorrent is the sole active release lane; desktop 0.3.0 already ships with its
+original identity, signing key and updater endpoint. The RSTorrent incubation
+release track is frozen. Earlier instructions to resume that flavor's package
+or updater campaign are superseded by the
+[owning release policy](product-surfaces-and-migration.md#jstorrent-only-release-policy-2026-10-11).
+Historical validation remains evidence for its exact artifacts; retained
+debug identities and legacy routes do not constitute an active release lane.
+
 Hosted CI38056213798 passes every applicable job at37a09a68, including both
 Linux extracted native/MIT packaging gates and Windows. Workflow preparation
 corrects the earlier unsigned Linux failures without changing signedff632
