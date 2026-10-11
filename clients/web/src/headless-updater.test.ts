@@ -33,7 +33,7 @@ describe("headless browser updater", () => {
     if (integration?.updater !== undefined) openUpdaters.push(integration.updater);
   });
 
-  it("reports LAN exposure and presents a signed shell-approved update", async () => {
+  it.each(["rstorrent", "jstorrent"])("reports LAN exposure and accepts the %s release alias", async (repository) => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({
@@ -47,7 +47,7 @@ describe("headless browser updater", () => {
         jsonResponse({
           version: "0.1.1",
           release_url:
-            "https://github.com/kzahel/rstorrent/releases/tag/headless-v0.1.1",
+            `https://github.com/kzahel/${repository}/releases/tag/headless-v0.1.1`,
           apply_command:
             "$HOME/.local/bin/rstorrent-headless update --apply",
         }),
@@ -78,7 +78,7 @@ describe("headless browser updater", () => {
       manualApply: {
         command: "$HOME/.local/bin/rstorrent-headless update --apply",
         releaseUrl:
-          "https://github.com/kzahel/rstorrent/releases/tag/headless-v0.1.1",
+          `https://github.com/kzahel/${repository}/releases/tag/headless-v0.1.1`,
       },
     });
     expect(fetcher.mock.calls[2]?.[1]).toMatchObject({

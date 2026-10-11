@@ -46,7 +46,7 @@ and [protocol support matrix](docs/topics/protocol-support.md).
 
 ## What JSTorrent Is
 
-RSTorrent has one reusable Rust engine behind a typed application service:
+JSTorrent has one reusable Rust engine behind a typed application service:
 
 ```text
 Desktop client ─┐
@@ -60,7 +60,7 @@ The engine runs in-process in first-party clients and owns peer networking,
 discovery, protocol state, hashing, scheduling, persistence, and hot-path file
 I/O. Platform code owns operating-system integration such as windows,
 activities, lifecycle, notifications, permissions, and Android document
-access. RSTorrent is an independently implemented engine, not a wrapper around
+access. JSTorrent is an independently implemented engine, not a wrapper around
 libtorrent, librqbit, or a separate torrent daemon.
 
 The desktop product uses a shared React interface hosted by Tauri and provides

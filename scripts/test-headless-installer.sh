@@ -204,6 +204,10 @@ download_release_metadata() {
     cp "$TEST_DIR/$SIGNATURE_NAME" "$destination/$SIGNATURE_NAME"
 }
 download_release_asset() {
+    case "$1" in
+        https://github.com/kzahel/jstorrent/releases/download/*) ;;
+        *) echo "FAIL: installer did not use canonical release transport" >&2; return 1 ;;
+    esac
     local _url="$1" output="$2" _maximum_size="$3"
     cp "$ASSET" "$output"
 }

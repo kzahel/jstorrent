@@ -180,10 +180,11 @@ function parseCandidate(value: unknown): UpdateCandidate {
   if (
     !hasExactKeys(value, ["version", "release_url", "apply_command"]) ||
     !validVersion(value.version) ||
+    typeof value.release_url !== "string" ||
     ![
       `https://github.com/kzahel/jstorrent/releases/tag/headless-v${value.version}`,
       `https://github.com/kzahel/rstorrent/releases/tag/headless-v${value.version}`,
-    ].includes(value.release_url as string) ||
+    ].includes(value.release_url) ||
     value.apply_command !== APPLY_COMMAND
   ) {
     throw new Error("Headless update candidate is invalid");
