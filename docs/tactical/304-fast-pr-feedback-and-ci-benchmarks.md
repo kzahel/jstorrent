@@ -88,6 +88,16 @@ with warnings denied; web typecheck/unit/build pass. The temporary candidate
 Cargo configuration also compiles protocol tests successfully. The default
 profile's protocol/engine/session/gateway cohort passes 1,298 tests with 17
 existing feature-dependent ignores; the contract command has no generated drift.
-The isolated checkout starts at canonical-name preparation `d2caeb16`; the
-rename workstream owns new provider identity qualification. Review stays
-disabled under Tactical 305 until that passes. Hosted fast latency remains next.
+The qualification branch is rebased onto canonical-name qualification
+`726664e6`; Tactical 305 owns provider identity acceptance. Automatic review
+remains disabled independently of this draft PR.
+
+Draft [PR 26](https://github.com/kzahel/jstorrent/pull/26), initial head
+`4ac53d407dba9d8d6d0457fb82b978efd64cd429`, passes all Fast CI jobs in 14m02s
+on free Ubuntu runners. Shared CI inputs select all 16 portable libraries;
+1,430 unit tests pass with 18 existing ignores. The dependency cache misses.
+This is broad/cold qualification, not evidence for the 3--5 minute warm target.
+The contract check costs 1m54s after unit tests, so move it to a required parallel
+job that restores the ordinary full-CI contract cache read-only. Aggregate
+negative tests now also reject failed/cancelled/skipped selected contract jobs.
+Re-qualify the parallel layout; warm focused-change/cache reuse remains next.

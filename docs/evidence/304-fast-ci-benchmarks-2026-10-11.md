@@ -59,7 +59,7 @@ violates an existing test bound; the passing candidates show no meaningful
 first-party compilation improvement. Early feedback comes from selecting tests
 for directly changed libraries, linting their dependents, and separating full
 qualification and review triggers. Fast CI restores the existing ordinary-CI
-dependency cache with the same shared key and does not save into it.
+dependency and contract caches with the same shared keys and does not save into them.
 
 Bounded raw records:
 
@@ -74,10 +74,48 @@ passes 1,298 tests with 17 existing feature-dependent ignores. All 16 portable
 crates pass warnings-denied all-target Clippy. The generated-contract command
 produces no drift. Formatting, 12 selection/reviewer/proxy tests, actionlint,
 and web typecheck/unit/build pass locally. The isolated CI checkout is based
-on canonical-name preparation `d2caeb16`; Tactical 305 owns rename/provider
+on canonical-name qualification `726664e6`; Tactical 305 owns rename/provider
 identity acceptance and preserves the automatic-review kill switch.
 
 The 3--5 minute warm Fast CI target has not been established on GitHub.
 Cold or shared-input changes conservatively select more checks and may exceed
 it. Full platform qualification and existing release requirements are retained.
 Automatic AI review/cache warming remain disabled during this qualification.
+
+## Initial Hosted Fast Qualification
+
+[Fast CI 38142457026](https://github.com/kzahel/jstorrent/actions/runs/38142457026)
+passes on draft [PR 26](https://github.com/kzahel/jstorrent/pull/26), head
+`4ac53d407dba9d8d6d0457fb82b978efd64cd429`. Standard free `ubuntu-24.04`
+runners, Rust 1.97.0, Node 24.18.0, ordinary optimized profiles. Shared workflow
+and tool changes conservatively select all 16 portable library test packages.
+
+Dispatch to completion: **14m02s** (13:15:30--13:29:32 UTC). The Rust job takes
+12m50s; scheduling between selection completion and its start costs 34s.
+All 1,430 selected unit tests pass with 18 existing feature-dependent ignores;
+generated contract has no drift. Web/extension, website, formatting and tool
+safety checks all pass; the aggregate requires every selected job.
+
+| Rust step | Duration |
+| --- | ---: |
+| Dependency cache lookup (miss) | 2s |
+| All-target lint | 1m45s |
+| Portable unit-test compilation | 7m49s |
+| Portable unit-test execution | 55s |
+| Generated contract build/check | 1m54s |
+
+The log reports `No cache found` despite an ordinary main cache with the same
+key, `v0-rust-ci-rust-ubuntu-24.04-Linux-x64-9f881967-d901f814`. The renamed
+checkout is `/home/runner/work/jstorrent/jstorrent`, whereas the earlier cache
+used the former repository path. Cache versions include cache paths; the rename
+is therefore a likely invalidation cause, not a measured compiler regression.
+See the [cache version implementation](https://github.com/actions/toolkit/blob/main/packages/cache/src/internal/cacheUtils.ts)
+and [cache scoping documentation](https://github.com/actions/cache/blob/v4/README.md#cache-scopes).
+This run establishes neither cache reuse nor focused-change warm latency.
+
+The measured contract step is on the critical path despite being independent
+of unit execution. The next layout makes it a required parallel job, restoring
+the existing `ci-web-contract-ubuntu-24.04` cache read-only. It retains the same
+contract command and drift assertion. Full
+[CI 38142457145](https://github.com/kzahel/jstorrent/actions/runs/38142457145)
+continues independently; its completion is not inferred from this fast result.

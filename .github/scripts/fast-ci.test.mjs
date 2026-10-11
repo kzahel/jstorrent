@@ -42,18 +42,18 @@ test('deletions and moved old paths retain their former dependency impact', () =
   assert.deepEqual(p.packages, ['rstorrent-engine', 'rstorrent-gateway', 'rstorrent-protocol', 'rstorrent-session']);
 });
 test('the aggregate requires selected jobs and tools, with explicit unselected skips', () => {
-  const jobs = { plan: { result: 'success', outputs: { rust: 'true', unitTests: 'true', web: 'true', extension: 'false', website: 'false' } },
-    rust: { result: 'success' }, web: { result: 'success' }, website: { result: 'skipped' }, tools: { result: 'success' } };
+  const jobs = { plan: { result: 'success', outputs: { rust: 'true', unitTests: 'true', contract: 'true', web: 'true', extension: 'false', website: 'false' } },
+    rust: { result: 'success' }, contract: { result: 'success' }, web: { result: 'success' }, website: { result: 'skipped' }, tools: { result: 'success' } };
   assert.doesNotThrow(() => requireFastSuccess(jobs));
-  for (const name of ['plan', 'rust', 'web', 'tools']) {
+  for (const name of ['plan', 'rust', 'contract', 'web', 'tools']) {
     for (const result of ['failure', 'cancelled', 'skipped']) {
       assert.throws(() => requireFastSuccess({ ...jobs, [name]: { ...jobs[name], result } }));
     }
   }
   assert.throws(() => requireFastSuccess({ ...jobs, website: { result: 'failure' } }));
   assert.throws(() => requireFastSuccess({ ...jobs, plan: { result: 'success', outputs: {} } }));
-  const docs = { ...jobs, plan: { result: 'success', outputs: { rust: 'false', unitTests: 'false', web: 'false', extension: 'false', website: 'false' } },
-    rust: { result: 'skipped' }, web: { result: 'skipped' } };
+  const docs = { ...jobs, plan: { result: 'success', outputs: { rust: 'false', unitTests: 'false', contract: 'false', web: 'false', extension: 'false', website: 'false' } },
+    rust: { result: 'skipped' }, contract: { result: 'skipped' }, web: { result: 'skipped' } };
   assert.doesNotThrow(() => requireFastSuccess(docs));
   assert.throws(() => requireFastSuccess({ ...docs, tools: { result: 'failure' } }));
 });

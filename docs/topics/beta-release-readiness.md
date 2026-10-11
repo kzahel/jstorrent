@@ -1226,7 +1226,9 @@ runners. `Fast CI` lints affected portable crates and dependents, tests changed
 libraries, restores the ordinary CI cache, and exposes **Fast PR feedback**
 check. Its successful PR runs can trigger the isolated agent reviewer before
 full CI finishes; failed/cancelled fast runs cannot. The 3--5 minute warm-run
-duration is a target pending hosted measurement. Existing qualification jobs,
+duration remains a target: the initial broad, cache-miss hosted qualification
+passes in 14m02s. Its 1m54s contract step now runs in parallel rather than after
+unit execution. Warm focused-change latency remains unqualified. Existing qualification jobs,
 platform evidence, release gates and branch-protection policy are preserved.
 
 Tactical [`211`](../tactical/211-presubmit-signal-and-build-measurements.md)

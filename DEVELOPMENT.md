@@ -390,7 +390,7 @@ cargo test --workspace
 The `Fast CI` workflow gives early PR feedback on the exact submitted head.
 It lints changed portable Rust crates and their portable dependents, runs
 formatting and the directly changed libraries' unit tests, and checks
-generated-contract drift when the gateway is affected. Web type/unit/
+generated-contract drift in parallel when the gateway is affected. Web type/unit/
 build, companion packaging and website build checks run for their affected
 surfaces. Workflow/reviewer safety checks always run. Unknown executable or
 shared configuration changes select conservative checks; docs-only changes
@@ -399,7 +399,8 @@ skip product builds. The stable aggregate check is **Fast PR feedback**.
 The warm-run target is 3--5 minutes, not a qualified duration or timeout.
 Cold dependencies and broad changes may take longer. Fast checks retain the
 ordinary optimized Rust profiles. They restore the ordinary CI dependency
-cache using the same shared key, without saving; full CI remains its owner.
+and contract caches using the same shared keys, without saving; full CI remains
+their owner.
 Fast checks omit dependents' runtime tests, Rust integration and feature-variant
 execution, browser E2E, native packaging and mobile builds.
 The existing `CI` workflow remains independent full qualification, with its

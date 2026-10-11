@@ -10,10 +10,11 @@ const documentation = path => /^(docs\/.*|README\.md|DEVELOPMENT\.md|AGENTS\.md|
 
 export function requireFastSuccess(jobs) {
   if (jobs.plan?.result !== 'success') throw new Error('Selection did not succeed');
-  for (const flag of ['rust', 'unitTests', 'web', 'extension', 'website']) {
+  for (const flag of ['rust', 'unitTests', 'contract', 'web', 'extension', 'website']) {
     if (!['true', 'false'].includes(jobs.plan.outputs?.[flag])) throw new Error(`Missing selection: ${flag}`);
   }
   const required = { tools: true, rust: jobs.plan.outputs.rust === 'true',
+    contract: jobs.plan.outputs.contract === 'true',
     web: jobs.plan.outputs.web === 'true' || jobs.plan.outputs.extension === 'true',
     website: jobs.plan.outputs.website === 'true' };
   for (const [name, selected] of Object.entries(required)) {

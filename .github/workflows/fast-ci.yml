@@ -86,9 +86,6 @@ jobs:
       - name: Run directly changed portable unit tests
         if: needs.plan.outputs.unitTests == 'true'
         run: node .github/scripts/fast-ci.mjs test
-      - name: Verify the generated application contract
-        if: needs.plan.outputs.contract == 'true'
-        run: node .github/scripts/fast-ci.mjs contract
       - name: Retain bounded compilation timings
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -97,6 +94,31 @@ jobs:
           path: target/cargo-timings/*.html
           if-no-files-found: ignore
           retention-days: 7
+
+  contract:
+    name: Fast generated contract checks
+    needs: plan
+    if: needs.plan.outputs.contract == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      FAST_CI_PACKAGES: '["rstorrent-gateway"]'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+      - uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613 # 1.97.0
+      - name: Restore ordinary contract dependency cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: ci-web-contract-ubuntu-24.04
+          save-if: 'false'
+      - name: Verify the generated application contract
+        run: node .github/scripts/fast-ci.mjs contract
 
   web:
     name: Fast web and extension checks
@@ -164,7 +186,7 @@ jobs:
 
   gate:
     name: Fast PR feedback
-    needs: [plan, rust, web, website, tools]
+    needs: [plan, rust, contract, web, website, tools]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 2
