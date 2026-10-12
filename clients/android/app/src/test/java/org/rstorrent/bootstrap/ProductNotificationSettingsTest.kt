@@ -104,16 +104,35 @@ class ProductNotificationSettingsTest {
     }
 
     @Test
+    fun replacedActivityStoppingAfterItsSuccessorStartsKeepsTheLease() {
+        ProductInteractionRegistry.resetForTest()
+        val observed = mutableListOf<Set<String>>()
+        ProductInteractionRegistry.attach(observed::add)
+        val original = Any()
+        val relaunched = Any()
+
+        ProductInteractionRegistry.setActivityVisible(original, true)
+        ProductInteractionRegistry.setActivityVisible(relaunched, true)
+        ProductInteractionRegistry.setActivityVisible(original, false)
+        assertEquals(setOf(ProductEngineService.INTERACTION_ACTIVITY), observed.last())
+
+        ProductInteractionRegistry.setActivityVisible(relaunched, false)
+        assertEquals(emptySet<String>(), observed.last())
+        ProductInteractionRegistry.resetForTest()
+    }
+
+    @Test
     fun activityVisibilityConvergesBeforeAndAfterServiceAttachment() {
         ProductInteractionRegistry.resetForTest()
         val observed = mutableListOf<Set<String>>()
 
-        ProductInteractionRegistry.setActivityVisible(true)
+        val activity = Any()
+        ProductInteractionRegistry.setActivityVisible(activity, true)
         ProductInteractionRegistry.attach(observed::add)
         ProductInteractionRegistry.setLease("picker", true)
-        ProductInteractionRegistry.setActivityVisible(false)
+        ProductInteractionRegistry.setActivityVisible(activity, false)
         ProductInteractionRegistry.detach()
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(activity, true)
 
         assertEquals(
             listOf(

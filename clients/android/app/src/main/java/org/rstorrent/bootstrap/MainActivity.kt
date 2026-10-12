@@ -20,6 +20,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.rstorrent.bootstrap.ui.ProductApp
 import org.rstorrent.bootstrap.ui.ProductThemeMode
@@ -34,6 +36,7 @@ class MainActivity : ComponentActivity() {
     private val themeMode = mutableStateOf(ProductThemeMode.SYSTEM)
     private val dynamicColor = mutableStateOf(true)
     private var productBound = false
+    private var serviceStopWatch: Job? = null
     private var productMode = false
     private var productStartRequested = false
     private var pendingProductMagnet: String? = null
@@ -168,6 +171,12 @@ class MainActivity : ComponentActivity() {
                     service.cancelCompanionRootRequest(it)
                 }
                 productService.value = service
+                serviceStopWatch?.cancel()
+                serviceStopWatch =
+                    lifecycleScope.launch {
+                        service.state.first { it.serviceStopped }
+                        reconnectStoppedProductService(service)
+                    }
                 recordProductForegroundIfPending(service)
                 pendingProductMagnet?.let {
                     pendingProductMagnet = null
@@ -277,9 +286,35 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onServiceDisconnected(name: ComponentName) {
+                serviceStopWatch?.cancel()
+                serviceStopWatch = null
                 productService.value = null
             }
         }
+
+    /**
+     * The service can stop itself while this activity is still bound, for
+     * example after a lifecycle stop decision. Its engine client is closed by
+     * then, so rebind to a fresh service instead of showing stale state that
+     * rejects every command.
+     */
+    private fun reconnectStoppedProductService(stopped: ProductEngineService) {
+        if (
+            productService.value !== stopped ||
+            !productBound ||
+            isFinishing ||
+            !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+        ) {
+            return
+        }
+        android.util.Log.i("RSTorrentProduct", "product_service_reconnect")
+        serviceStopWatch = null
+        unbindService(productConnection)
+        productBound = false
+        productService.value = null
+        startProductService()
+        bindProductService()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -361,7 +396,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(this, true)
         if (productMode) {
             if (!productStartRequested) startProductService()
             bindProductService()
@@ -391,7 +426,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        ProductInteractionRegistry.setActivityVisible(false)
+        ProductInteractionRegistry.setActivityVisible(this, false)
+        serviceStopWatch?.cancel()
+        serviceStopWatch = null
         if (productBound) {
             unbindService(productConnection)
             productBound = false

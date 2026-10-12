@@ -4456,6 +4456,15 @@ class ProductEngineService : Service() {
         update: ViewUpdate,
         product: ProductState,
     ) {
+        // Session rates arrive every 500 ms for the library header; tracing
+        // them would flood the log without describing any torrent.
+        val payload = update.payload
+        if (
+            (payload is ViewUpdatePayload.Snapshot && payload.snapshot is ViewSnapshot.SessionCurrentRates) ||
+            (payload is ViewUpdatePayload.Patch && payload.patch is ViewPatch.SessionCurrentRates)
+        ) {
+            return
+        }
         val kind =
             when (update.payload) {
                 is ViewUpdatePayload.Snapshot -> "snapshot"
@@ -4842,6 +4851,9 @@ class ProductEngineService : Service() {
             } finally {
                 val safeStartId = maxOf(startId ?: 0, latestStartId.get())
                 if (safeStartId == 0 || !stopSelfResult(safeStartId)) stopSelf()
+                // Published after stopSelf so a bound activity that unbinds in
+                // response lets this instance be destroyed before it restarts.
+                mutableState.update { it.copy(ready = false, serviceStopped = true) }
             }
         }
     }

@@ -143,6 +143,8 @@ data class TorrentCommandFailure(
 data class ProductState(
     val quickAddsInFlight: Int = 0,
     val ready: Boolean = false,
+    /** The service has shut down; a still-bound activity must rebind to a new one. */
+    val serviceStopped: Boolean = false,
     val error: ProductError? = null,
     val storageRootReady: Boolean = false,
     val storageRootChecking: Boolean = true,

@@ -70,6 +70,7 @@ internal data class NotificationEligibility(
 internal object ProductInteractionRegistry {
     private val ownership = Any()
     private val leases = mutableSetOf<String>()
+    private val visibleActivities = mutableSetOf<Any>()
     private var listener: ((Set<String>) -> Unit)? = null
 
     fun setLease(
@@ -86,8 +87,29 @@ internal object ProductInteractionRegistry {
         callback?.invoke(snapshot)
     }
 
-    fun setActivityVisible(visible: Boolean) {
-        setLease(ProductEngineService.INTERACTION_ACTIVITY, visible)
+    /**
+     * Each activity instance reports its own visibility; the activity lease is
+     * held while any of them is visible. A relaunched activity can start before
+     * the instance it replaces stops, so one shared flag would be cleared while
+     * the new instance is on screen.
+     */
+    fun setActivityVisible(
+        activity: Any,
+        visible: Boolean,
+    ) {
+        val callback: ((Set<String>) -> Unit)?
+        val snapshot: Set<String>
+        synchronized(ownership) {
+            if (visible) visibleActivities.add(activity) else visibleActivities.remove(activity)
+            if (visibleActivities.isEmpty()) {
+                leases.remove(ProductEngineService.INTERACTION_ACTIVITY)
+            } else {
+                leases.add(ProductEngineService.INTERACTION_ACTIVITY)
+            }
+            callback = listener
+            snapshot = leases.toSet()
+        }
+        callback?.invoke(snapshot)
     }
 
     fun attach(listener: (Set<String>) -> Unit) {
@@ -108,6 +130,7 @@ internal object ProductInteractionRegistry {
         synchronized(ownership) {
             listener = null
             leases.clear()
+            visibleActivities.clear()
         }
     }
 }
