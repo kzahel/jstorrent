@@ -76,6 +76,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -859,11 +860,15 @@ private fun ProductNavHost(
         composable(ProductRoutes.DETAIL) { entry ->
             val torrentId = requireNotNull(entry.arguments?.getString("torrentId"))
             val torrent = state.presentedTorrent(state.torrents[torrentId])
+            // The service is replaced when the activity returns after a
+            // lifecycle stop; select on each owner and clear on the current one.
+            val currentService by rememberUpdatedState(service)
+            LaunchedEffect(torrentId, service) { service?.selectTorrent(torrentId) }
             DisposableEffect(torrentId) {
-                service?.selectTorrent(torrentId)
-                onDispose { service?.clearTorrentPresentation(torrentId) }
+                onDispose { currentService?.clearTorrentPresentation(torrentId) }
             }
             TorrentDetailScreen(
+                presentationOwner = service,
                 torrent = torrent,
                 state = state,
                 onBack = navController::popBackStack,
@@ -882,10 +887,12 @@ private fun ProductNavHost(
                 onLogs = { navController.navigate(ProductRoutes.LOGS) },
                 onSettings = { navController.navigate(ProductRoutes.SETTINGS) },
                 onPresent = { service?.presentTorrent(torrentId, it) },
-                onSetFilePriority = { file, priority ->
-                    service?.setFilePriority(torrentId, file.fileIndex, priority)
+                onSetFilePriority = { files, priority ->
+                    service?.setFilePriority(torrentId, files.map { it.fileIndex }, priority)
                 },
-                onDownloadFile = { service?.downloadFileNow(torrentId, it.fileIndex) },
+                onDownloadFile = { files ->
+                    service?.downloadFilesNow(torrentId, files.map { it.fileIndex })
+                },
                 onPlayFile = { file -> service?.playMedia(torrentId, file) },
                 onOpenFile = { file ->
                     torrent?.displayName?.let {
@@ -1626,6 +1633,7 @@ private fun ProductNavHost(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TorrentDetailScreen(
+    presentationOwner: Any?,
     torrent: TorrentView?,
     state: ProductState,
     onBack: () -> Unit,
@@ -1644,8 +1652,8 @@ private fun TorrentDetailScreen(
     onLogs: () -> Unit,
     onSettings: () -> Unit,
     onPresent: (TorrentPresentation) -> Unit,
-    onSetFilePriority: (org.rstorrent.session.uniffi.FileView, FilePriority) -> Unit,
-    onDownloadFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
+    onSetFilePriority: (List<org.rstorrent.session.uniffi.FileView>, FilePriority) -> Unit,
+    onDownloadFile: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onPlayFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
     onOpenFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
     onFilePage: (UInt) -> Unit,
@@ -1654,7 +1662,9 @@ private fun TorrentDetailScreen(
     var overflow by remember { mutableStateOf(false) }
     val pager = rememberPagerState(pageCount = { TorrentDetailTab.entries.size })
     val scope = rememberCoroutineScope()
-    LaunchedEffect(pager.currentPage) {
+    // A stopped activity can return to a new service whose presentation
+    // repository has never been told which tab is showing.
+    LaunchedEffect(pager.currentPage, presentationOwner) {
         val presentation =
             when (TorrentDetailTab.entries[pager.currentPage]) {
                 TorrentDetailTab.DETAILS,
@@ -1775,8 +1785,8 @@ private fun DetailTabContent(
     tab: TorrentDetailTab,
     torrent: TorrentView?,
     state: ProductState,
-    onSetFilePriority: (org.rstorrent.session.uniffi.FileView, FilePriority) -> Unit,
-    onDownloadFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
+    onSetFilePriority: (List<org.rstorrent.session.uniffi.FileView>, FilePriority) -> Unit,
+    onDownloadFile: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onPlayFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
     onOpenFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
     onFilePage: (UInt) -> Unit,

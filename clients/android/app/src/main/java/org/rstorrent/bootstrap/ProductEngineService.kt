@@ -2906,25 +2906,27 @@ class ProductEngineService : Service() {
 
     fun setFilePriority(
         torrentId: String,
-        fileIndex: UInt,
+        fileIndices: List<UInt>,
         priority: FilePriority,
     ) {
+        if (fileIndices.isEmpty()) return
         dispatchTorrentCommands(
             listOf(
                 Command.SetFilePriority(
                     torrentId,
-                    listOf(fileIndex),
+                    fileIndices,
                     priority,
                 ),
             ),
         )
     }
 
-    fun downloadFileNow(
+    fun downloadFilesNow(
         torrentId: String,
-        fileIndex: UInt,
+        fileIndices: List<UInt>,
     ) {
-        dispatchTorrentCommands(listOf(Command.DownloadFiles(torrentId, listOf(fileIndex))))
+        if (fileIndices.isEmpty()) return
+        dispatchTorrentCommands(listOf(Command.DownloadFiles(torrentId, fileIndices)))
     }
 
     fun openCompletedFile(

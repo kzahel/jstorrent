@@ -112,6 +112,7 @@
     <string name="a11y_keep_seeding_background">Keep seeding in background</string>
     <string name="a11y_more_options">More options</string>
     <string name="a11y_clear_selection">Clear selection</string>
+    <string name="a11y_file_actions">File actions</string>
     <string name="a11y_sort_torrents">Sort torrents</string>
 
     <!-- Library filters, sorts, status, and empty states. -->
@@ -195,7 +196,17 @@
         <item quantity="one">%1$d file</item>
         <item quantity="other">%1$d files</item>
     </plurals>
-    <string name="catalog_showing">%1$s · showing %2$d of %3$d</string>
+    <plurals name="file_skipped_count">
+        <item quantity="one">%1$d skipped</item>
+        <item quantity="other">%1$d skipped</item>
+    </plurals>
+    <string name="files_metadata_pending">Waiting for torrent metadata</string>
+    <string name="file_progress_status">%1$s · %2$s of %3$s</string>
+    <string name="file_priority_title">Priority</string>
+    <string name="file_priority_skipped_label">Skipped</string>
+    <string name="file_priority_high_detail">Downloads before normal files.</string>
+    <string name="file_priority_normal_detail">Downloads in the usual order.</string>
+    <string name="file_priority_skip_detail">Not downloaded. Data already on disk is kept.</string>
     <string name="priority_high">High</string>
     <string name="priority_normal">Normal</string>
     <string name="priority_skip">Skip</string>

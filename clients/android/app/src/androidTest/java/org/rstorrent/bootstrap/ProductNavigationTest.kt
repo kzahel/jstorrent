@@ -4,6 +4,8 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertCountEquals
@@ -14,6 +16,7 @@ import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -372,8 +375,11 @@ class ProductNavigationTest {
             .onNodeWithTag("play-media-file")
             .assertIsEnabled()
             .performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithTag("open-media-file").assertIsNotEnabled()
         assertEquals(listOf(file), played)
+        compose.onNodeWithTag("more-media-file").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("sheet-play-media-file").assertIsEnabled()
+        compose.onNodeWithTag("sheet-open-media-file").assertIsNotEnabled()
+        compose.onNodeWithTag("sheet-download-media-file").assertIsEnabled()
     }
 
     @Test
@@ -395,11 +401,114 @@ class ProductNavigationTest {
         }
 
         compose.onNodeWithTag("play-media-file").assertIsNotEnabled()
+        compose.onNodeWithTag("more-media-file").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("sheet-play-media-file").assertIsNotEnabled()
+        compose.onNodeWithTag("sheet-download-media-file").assertIsNotEnabled()
         compose
-            .onNodeWithTag("open-media-file")
+            .onNodeWithTag("sheet-open-media-file")
             .assertIsEnabled()
             .performSemanticsAction(SemanticsActions.OnClick)
         assertEquals(listOf(file), opened)
+    }
+
+    @Test
+    fun filePrioritySheetOffersThreeExplicitChoices() {
+        val file = mediaFile(MediaFileAvailability.STREAMABLE, verifiedBytes = "32768")
+        val changes = mutableListOf<Pair<List<FileView>, FilePriority>>()
+        compose.setContent {
+            RstorrentTheme(ProductThemeMode.LIGHT, dynamicColor = false) {
+                FilesScreen(
+                    catalog = fileCatalog(file),
+                    onSetPriority = { files, priority -> changes += files to priority },
+                    onDownloadNow = {},
+                    onPlay = {},
+                    onOpen = {},
+                    mediaLaunchPending = false,
+                    onPage = {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("file-media-file").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("priority-normal").assertIsSelected()
+        compose.onNodeWithTag("priority-skip").assertIsNotSelected()
+        compose.onNodeWithTag("priority-high").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("priority-skip").performSemanticsAction(SemanticsActions.OnClick)
+        // The current value is not re-sent.
+        compose.onNodeWithTag("priority-normal").performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(
+            listOf(listOf(file) to FilePriority.HIGH, listOf(file) to FilePriority.SKIP),
+            changes,
+        )
+    }
+
+    @Test
+    fun fileMultiselectFollowsLibraryMechanicsAndBatchesCommands() {
+        val first = mediaFile(MediaFileAvailability.STREAMABLE, verifiedBytes = "32768")
+        val second =
+            first.copy(
+                fileId = "notes-file",
+                fileIndex = 1U,
+                path = listOf("Fixture", "notes.txt"),
+                selection = FileSelectionView.SKIPPED,
+                verifiedBytes = "0",
+                doneBytes = "0",
+            )
+        val third =
+            first.copy(
+                fileId = "cover-file",
+                fileIndex = 2U,
+                path = listOf("Fixture", "cover.jpg"),
+                verifiedBytes = "65536",
+                doneBytes = "65536",
+            )
+        val catalog =
+            FileCatalogViewState(
+                state = FileCatalogState.AVAILABLE,
+                filesystemContentBase = null,
+                page = CatalogPageView(0U, 3U, 3U, null),
+                files = listOf(first, second, third).associateBy(FileView::fileId),
+            )
+        val priorities = mutableListOf<Pair<List<FileView>, FilePriority>>()
+        val downloads = mutableListOf<List<FileView>>()
+        compose.setContent {
+            RstorrentTheme(ProductThemeMode.LIGHT, dynamicColor = false) {
+                FilesScreen(
+                    catalog = catalog,
+                    onSetPriority = { files, priority -> priorities += files to priority },
+                    onDownloadNow = { downloads += it },
+                    onPlay = {},
+                    onOpen = {},
+                    mediaLaunchPending = false,
+                    onPage = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("1 skipped").assertIsDisplayed()
+        compose.onNodeWithTag("open-cover-file").assertIsEnabled()
+        compose.onAllNodesWithTag("open-notes-file").assertCountEquals(0)
+
+        compose.onNodeWithTag("file-media-file").performSemanticsAction(SemanticsActions.OnLongClick)
+        compose.onNodeWithText("1 selected").assertIsDisplayed()
+        compose.onNodeWithTag("play-media-file").assertIsNotEnabled()
+        // Tap toggles while any file is selected instead of opening the sheet.
+        compose.onNodeWithTag("file-notes-file").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("2 selected").assertIsDisplayed()
+        compose.onAllNodesWithTag("priority-normal").assertCountEquals(0)
+        compose.onNodeWithTag("files-priority-high").performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(listOf(listOf(first, second) to FilePriority.HIGH), priorities)
+
+        compose.onNodeWithTag("files-select-all").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("3 selected").assertIsDisplayed()
+        compose.onNodeWithTag("files-select-all").assertIsNotEnabled()
+        // Download now targets only wanted, incomplete files.
+        compose.onNodeWithTag("files-download-now").performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(listOf(listOf(first)), downloads)
+
+        compose.onNodeWithText("Done").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onAllNodesWithTag("files-select-all").assertCountEquals(0)
+        compose.onNodeWithTag("play-media-file").assertIsEnabled()
     }
 
     @Test

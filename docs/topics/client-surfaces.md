@@ -673,6 +673,13 @@ the three values through its existing grouped file actions, Android Compose
 replaces the binary checkbox with a three-value menu, and iOS SwiftUI displays
 and sets the same values. This presentation does not add a second scheduler or
 progressive Android/iOS playback.
+Tactical
+[`317`](../tactical/317-android-files-tab-rows-and-multiselect.md) replaces
+that Android menu and its three-band rows with compact file rows, an actions
+sheet whose priority is an explicit Skip/Normal/High segmented control, and
+multi-file selection that follows the Library's long-press mechanics and
+sends one bounded batch command per action. Selection is scoped to the
+presented catalog page; folder grouping remains absent.
 Completed Tactical
 [`072`](../tactical/072-derived-media-catalog.md) adds a media-first torrent
 detail to the shared React browser/Tauri presentation. It leases a generated

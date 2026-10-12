@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [317 — Android Files tab rows and multiselect](317-android-files-tab-rows-and-multiselect.md):
+  compact file rows, an explicit three-way priority sheet and Library-style
+  multi-file selection with bounded batch commands; presentation only.
+
 - [315 — Android 1.0.29 production release](315-android-1-0-29-production-release.md):
   signed crash/UX hotfix, production review, automatic publication and100%
   rollout under explicit maintainer direction.
