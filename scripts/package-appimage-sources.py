@@ -32,6 +32,16 @@ def safe_name(name: str) -> str:
     return name
 
 
+def candidate_version(candidate: dict, source_sha: str, tauri_source: str) -> str:
+    version = candidate.get("version")
+    if (candidate.get("sourceSha") != source_sha
+            or not isinstance(version, str)
+            or not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version)
+            or json.loads(tauri_source).get("version") != version):
+        raise ValueError("Candidate source/version mismatch")
+    return version
+
+
 def verify_archive(path: Path) -> int:
     actual = {}
     checks = None
@@ -91,8 +101,9 @@ def main() -> None:
     if args.output.exists() or args.output.with_suffix(".partial").exists():
         raise ValueError("Output already exists")
     candidate = json.loads(args.candidate.read_text())
-    if candidate["sourceSha"] != args.source_sha or candidate["version"] != "0.3.0":
-        raise ValueError("Candidate source/version mismatch")
+    version = candidate_version(candidate, args.source_sha, subprocess.check_output(
+        ["git", "show", f"{args.source_sha}:clients/desktop/src-tauri/tauri.conf.json"],
+        text=True))
     if candidate["result"] != "pass_exact_five_target_nonpublishing_collector":
         raise ValueError("Candidate lacks exact artifact verification")
     assets = {asset["name"]: asset for asset in candidate["assets"]}
@@ -112,7 +123,7 @@ def main() -> None:
               for r in json.loads(args.source_index.read_text())["rows"]}
     runtime_bindings = {r["artifact"]: r for r in
                         json.loads(args.runtime_binding.read_text())["artifacts"]}
-    root = "JSTorrent-0.3.0-AppImage-sources"
+    root = f"JSTorrent-{version}-AppImage-sources"
     checks = {}
     receipt = {"sourceSha": args.source_sha, "artifacts": [], "nativePackages": [],
                "dependencyLocksIdentical": True, "publiclyDelivered": False}
@@ -163,8 +174,8 @@ def main() -> None:
                             or relative == "cargo-vendor-config.toml"):
                         add_stream(relative, dependencies.extractfile(member), member.size, member.mode)
             pairs = set()
-            for arch, name in (("x64", "JSTorrent_0.3.0_amd64.AppImage"),
-                               ("arm64", "JSTorrent_0.3.0_aarch64.AppImage")):
+            for arch, name in (("x64", f"JSTorrent_{version}_amd64.AppImage"),
+                               ("arm64", f"JSTorrent_{version}_aarch64.AppImage")):
                 image = args.assets / name
                 asset = assets[name]
                 if image.stat().st_size != asset["size"] or "sha256:" + digest(image) != asset["digest"]:

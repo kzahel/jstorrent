@@ -1,8 +1,17 @@
 # Changelog
 
-All notable desktop incubation changes are recorded here. RSTorrent follows
+Notable desktop changes are recorded here. JSTorrent follows
 three-component versions, and desktop release tags use
 `desktop-v<version>`.
+
+## [0.3.1] - 2026-10-13
+
+- Fix file-selection dialogs freezing when several torrents are queued, and
+  start the remaining queued additions when file selection is turned off.
+- Preserve torrent-list scroll position while transfer state updates.
+- Open desktop support and release links through the native browser opener.
+- Improve first-use disclosure, archive actions and removal feedback.
+- Improve remote file saves and add completed MP4 playback.
 
 ## [0.3.0]
 

@@ -13,6 +13,22 @@ spec.loader.exec_module(module)
 
 
 class SourceCarrierTests(unittest.TestCase):
+    def test_candidate_version_is_bound_to_committed_source(self):
+        candidate = {"sourceSha": "a" * 40, "version": "0.3.1"}
+        self.assertEqual(module.candidate_version(
+            candidate, "a" * 40, '{"version":"0.3.1"}'), "0.3.1")
+        for source, version, tauri in [
+            ("b" * 40, "0.3.1", "0.3.1"),
+            ("a" * 40, "0.3.1", "0.3.0"),
+            ("a" * 40, "../0.3.1", "../0.3.1"),
+            ("a" * 40, "00.3.1", "00.3.1"),
+        ]:
+            with self.subTest(source=source, version=version, tauri=tauri):
+                with self.assertRaises(ValueError):
+                    module.candidate_version(
+                        {"sourceSha": source, "version": version}, "a" * 40,
+                        '{"version":"' + tauri + '"}')
+
     def carrier(self, directory, members, inventory):
         path = Path(directory) / "source.tar.gz"
         with tarfile.open(path, "w:gz") as archive:

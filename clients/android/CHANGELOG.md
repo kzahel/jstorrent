@@ -1,5 +1,15 @@
 # Android Changelog
 
+## [1.0.30]
+
+- Improve Android file rows, file priorities and multiple-file selection.
+- Show transfer rates in the library and background notification.
+- Recover Chromebook setup after cancellation and return to Chrome reliably.
+- Fix torrent-detail navigation after removal and feedback checkbox interaction.
+- Allow skipping file selection before magnet metadata, and release queued adds
+  when file selection is turned off.
+- Improve archive, selection, removal and notification feedback.
+
 ## [1.0.29]
 
 - Fix a shutdown-related crash when opening torrent details.

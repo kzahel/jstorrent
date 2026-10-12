@@ -1,5 +1,13 @@
 # Implementation Tactical Docs
 
+- [326 — Full product release](326-full-product-release.md): Android 1.0.30
+  at 100%, desktop 0.3.1 and production extension 1.1.4, with exact signed
+  candidates, current dependency review and matching Linux sources.
+
+- [325 — Android CI library readiness](325-android-ci-library-readiness.md):
+  owned first-use smoke observes the current All tab after statistics opt-out;
+  preserves complete SAF lifecycle assertions and bounded cleanup.
+
 - [324 — Release queued adds on skip file selection](324-release-queued-adds-on-skip-file-selection.md):
   `Don’t show file selection again` releases the rest of the add queue with
   its existing selection, and the web dialog no longer freezes on `Saving…`.

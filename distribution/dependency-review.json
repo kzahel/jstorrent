@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "reviewed_at": "2026-09-12",
-  "review_expires": "2026-10-12",
+  "reviewed_at": "2026-10-13",
+  "review_expires": "2026-11-12",
   "warnings": [
     {
       "kind": "unmaintained",

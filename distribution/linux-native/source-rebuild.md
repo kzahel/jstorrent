@@ -1,7 +1,7 @@
-# JSTorrent 0.3.0 AppImage sources and rebuilding
+# JSTorrent AppImage sources and rebuilding
 
-This carrier matches signed desktop source
-`ff632f4588a474d7b169de3cea228bd406e6982d`. `source-index.json` binds both
+The enclosed `candidate.json` and `source-index.json` identify the exact signed
+desktop version and source commit matched by this carrier. `source-index.json` binds both
 AppImages by size and SHA-256 and maps every selected Ubuntu binary package to
 its exact source version, notice and bundled components. First-party source
 remains MIT. Original third-party source files retain their own terms; supplying

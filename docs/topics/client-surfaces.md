@@ -1,5 +1,11 @@
 # Client Surfaces
 
+Tactical [325](../tactical/325-android-ci-library-readiness.md) repairs the
+owned Android CI first-use assertion to observe All after statistics opt-out.
+The unchanged APK fails before and passes the full API 35 ARM64 SAF lifecycle
+after the harness fix, with exact hashes/removal, bounded handles and AVD
+cleanup. Product behavior is unchanged; repaired-source hosted CI remains unrun.
+
 Tactical [322](../tactical/322-android-empty-filter-navigation.md) replaces
 Android's empty filtered-library hint with a `View all torrents` text button
 when All has torrents. The action selects and reveals All. An entirely empty
