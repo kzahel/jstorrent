@@ -2,7 +2,10 @@ package org.rstorrent.bootstrap.ui
 
 import org.rstorrent.bootstrap.checkingStorage
 
+import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,9 +31,20 @@ import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material.icons.outlined.Unarchive
+import androidx.compose.material.icons.outlined.VerticalAlignBottom
+import androidx.compose.material.icons.outlined.VerticalAlignTop
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -42,7 +57,9 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -52,7 +69,9 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,10 +79,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -88,11 +110,15 @@ internal fun LibraryScreen(
     onOpenTorrent: (String) -> Unit,
     onAddMagnet: (String, Boolean) -> Unit,
     onBrowseTorrent: () -> Unit,
+    onAddTestTorrents: ((List<TestTorrent>) -> Unit)?,
     onPause: (String) -> Unit,
     onResume: (String) -> Unit,
-    onMoveTop: (String) -> Unit,
-    onMoveBottom: (String) -> Unit,
-    onArchive: (String) -> Unit,
+    onMoveTop: (List<String>) -> Unit,
+    onMoveBottom: (List<String>) -> Unit,
+    onForceRecheck: (String) -> Unit,
+    onCopyMagnets: (List<String>) -> Unit,
+    onArchive: (List<String>) -> Unit,
+    onRestore: (List<String>) -> Unit,
     onRemove: (Set<String>) -> Unit,
     onSpeed: () -> Unit,
     onDht: () -> Unit,
@@ -111,6 +137,16 @@ internal fun LibraryScreen(
     val filter = LibraryFilter.valueOf(filterName)
     val sort = LibrarySort.valueOf(sortName)
     val torrents = filteredAndSortedTorrents(state.torrents.values, filter, sort)
+    // Selection follows the visible tab: rows that leave it (for example after
+    // archiving) drop out, and the selected rows keep their list order.
+    val selectedTorrents = torrents.filter { it.torrentId in selection }
+    LaunchedEffect(selectedTorrents.size, selection.size, state.ready) {
+        // Skip while the library is not loaded so a reconnect keeps the selection.
+        if (state.ready && selectedTorrents.size != selection.size) {
+            selection = selectedTorrents.mapTo(mutableSetOf(), TorrentView::torrentId)
+        }
+    }
+    BackHandler(enabled = selection.isNotEmpty()) { selection = emptySet() }
     val networkRuntime = state.clientSettings?.applicationNetwork
     val waitingForUnmeteredNetwork =
         networkRuntime?.requestedPrerequisite ==
@@ -123,89 +159,104 @@ internal fun LibraryScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RstorrentLogo(Modifier.size(40.dp))
-                        Spacer(Modifier.size(10.dp))
-                        Column {
-                            Text(stringResource(R.string.app_name), fontWeight = FontWeight.SemiBold)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(
-                                    modifier = Modifier.size(8.dp),
-                                    shape = CircleShape,
-                                    color =
-                                        if (state.ready && !state.checkingStorage) {
-                                            Color(0xFF2E7D32)
-                                        } else {
-                                            MaterialTheme.colorScheme.outline
+            if (selection.isNotEmpty()) {
+                SelectionTopBar(
+                    count = selection.size,
+                    onClear = { selection = emptySet() },
+                    onSelectAll = {
+                        selection = torrents.mapTo(mutableSetOf(), TorrentView::torrentId)
+                    },
+                )
+            } else {
+                TopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RstorrentLogo(Modifier.size(40.dp))
+                            Spacer(Modifier.size(10.dp))
+                            Column {
+                                Text(stringResource(R.string.app_name), fontWeight = FontWeight.SemiBold)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(
+                                        modifier = Modifier.size(8.dp),
+                                        shape = CircleShape,
+                                        color =
+                                            if (state.ready && !state.checkingStorage) {
+                                                Color(0xFF2E7D32)
+                                            } else {
+                                                MaterialTheme.colorScheme.outline
+                                            },
+                                    ) {}
+                                    Spacer(Modifier.size(6.dp))
+                                    Text(
+                                        stringResource(
+                                            if (state.ready && !state.checkingStorage) R.string.status_live else R.string.status_connecting,
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    actions = {
+                        Box {
+                            IconButton(
+                                onClick = { sortOpen = true },
+                                modifier =
+                                    Modifier.semantics { contentDescription = sortDescription },
+                            ) {
+                                Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = null)
+                            }
+                            DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
+                                LibrarySort.entries.forEach { candidate ->
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(candidate.labelRes)) },
+                                        onClick = {
+                                            sortName = candidate.name
+                                            sortOpen = false
                                         },
-                                ) {}
-                                Spacer(Modifier.size(6.dp))
-                                Text(
-                                    stringResource(
-                                        if (state.ready && !state.checkingStorage) R.string.status_live else R.string.status_connecting,
-                                    ),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                        leadingIcon = {
+                                            if (candidate == sort) {
+                                                Text(stringResource(R.string.selection_mark))
+                                            }
+                                        },
+                                    )
+                                }
                             }
                         }
-                    }
-                },
-                actions = {
-                    Box {
-                        IconButton(
-                            onClick = { sortOpen = true },
-                            modifier =
-                                Modifier.semantics { contentDescription = sortDescription },
-                        ) {
-                            Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = null)
-                        }
-                        DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
-                            LibrarySort.entries.forEach { candidate ->
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(candidate.labelRes)) },
-                                    onClick = {
-                                        sortName = candidate.name
-                                        sortOpen = false
-                                    },
-                                    leadingIcon = {
-                                        if (candidate == sort) {
-                                            Text(stringResource(R.string.selection_mark))
-                                        }
-                                    },
-                                )
+                        Box {
+                            IconButton(
+                                onClick = { overflowOpen = true },
+                                modifier =
+                                    Modifier.semantics { contentDescription = moreDescription },
+                            ) {
+                                Icon(Icons.Outlined.MoreVert, contentDescription = null)
                             }
+                            LibraryOverflowMenu(
+                                expanded = overflowOpen,
+                                onDismiss = { overflowOpen = false },
+                                onPauseAll = {
+                                    state.torrents.values
+                                        .targetsFor(TorrentAction.PAUSE)
+                                        .forEach(onPause)
+                                },
+                                onResumeAll = {
+                                    state.torrents.values
+                                        .targetsFor(TorrentAction.START)
+                                        .forEach(onResume)
+                                },
+                                onSelectStorage = onSelectStorage,
+                                onAddTestTorrents = onAddTestTorrents,
+                                onSpeed = onSpeed,
+                                onDht = onDht,
+                                onLogs = onLogs,
+                                onSettings = onSettings,
+                                onShutdown = onShutdown,
+                            )
                         }
-                    }
-                    Box {
-                        IconButton(
-                            onClick = { overflowOpen = true },
-                            modifier =
-                                Modifier.semantics { contentDescription = moreDescription },
-                        ) {
-                            Icon(Icons.Outlined.MoreVert, contentDescription = null)
-                        }
-                        LibraryOverflowMenu(
-                            expanded = overflowOpen,
-                            onDismiss = { overflowOpen = false },
-                            onPauseAll = {
-                                state.torrents.values.forEach { onPause(it.torrentId) }
-                            },
-                            onResumeAll = {
-                                state.torrents.values.forEach { onResume(it.torrentId) }
-                            },
-                            onSelectStorage = onSelectStorage,
-                            onSpeed = onSpeed,
-                            onDht = onDht,
-                            onLogs = onLogs,
-                            onSettings = onSettings,
-                            onShutdown = onShutdown,
-                        )
-                    }
-                },
-            )
+                    },
+                )
+            }
         },
         floatingActionButton = {
             if (selection.isEmpty()) {
@@ -220,15 +271,24 @@ internal fun LibraryScreen(
         },
         bottomBar = {
             if (selection.isNotEmpty()) {
-                SelectionActions(
-                    count = selection.size,
-                    onPause = { selection.forEach(onPause) },
-                    onResume = { selection.forEach(onResume) },
-                    onMoveTop = { selection.forEach(onMoveTop) },
-                    onMoveBottom = { selection.forEach(onMoveBottom) },
-                    onArchive = { selection.forEach(onArchive) },
-                    onRemove = { onRemove(selection) },
-                    onClear = { selection = emptySet() },
+                SelectionBottomBar(
+                    selected = selectedTorrents,
+                    archivedTab = filter == LibraryFilter.ARCHIVED,
+                    onResume = { it.forEach(onResume) },
+                    onPause = { it.forEach(onPause) },
+                    onArchive = {
+                        onArchive(it)
+                        selection = emptySet()
+                    },
+                    onRestore = {
+                        onRestore(it)
+                        selection = emptySet()
+                    },
+                    onRemove = { onRemove(it.toSet()) },
+                    onMoveTop = onMoveTop,
+                    onMoveBottom = onMoveBottom,
+                    onForceRecheck = { it.forEach(onForceRecheck) },
+                    onCopyMagnets = onCopyMagnets,
                 )
             }
         },
@@ -238,7 +298,10 @@ internal fun LibraryScreen(
                 LibraryFilter.entries.forEach { candidate ->
                     Tab(
                         selected = candidate == filter,
-                        onClick = { filterName = candidate.name },
+                        onClick = {
+                            filterName = candidate.name
+                            selection = emptySet()
+                        },
                         text = { Text(stringResource(candidate.labelRes)) },
                     )
                 }
@@ -408,6 +471,7 @@ private fun LibraryOverflowMenu(
     onPauseAll: () -> Unit,
     onResumeAll: () -> Unit,
     onSelectStorage: () -> Unit,
+    onAddTestTorrents: ((List<TestTorrent>) -> Unit)?,
     onSpeed: () -> Unit,
     onDht: () -> Unit,
     onLogs: () -> Unit,
@@ -415,6 +479,20 @@ private fun LibraryOverflowMenu(
     onShutdown: () -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        if (onAddTestTorrents != null) {
+            // Debug builds only: public WebTorrent samples for manual testing.
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.debug_add_all_test_torrents)) },
+                onClick = { onDismiss(); onAddTestTorrents(WEBTORRENT_TEST_TORRENTS) },
+            )
+            WEBTORRENT_TEST_TORRENTS.forEach { torrent ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.debug_add_test_torrent, torrent.label)) },
+                    onClick = { onDismiss(); onAddTestTorrents(listOf(torrent)) },
+                )
+            }
+            HorizontalDivider()
+        }
         DropdownMenuItem(text = { Text(stringResource(R.string.action_pause_all)) }, onClick = { onDismiss(); onPauseAll() })
         DropdownMenuItem(text = { Text(stringResource(R.string.action_resume_all)) }, onClick = { onDismiss(); onResumeAll() })
         DropdownMenuItem(
@@ -532,18 +610,29 @@ private fun TorrentCard(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(
-                onClick = if (paused) onResume else onPause,
-                enabled = !selectionMode,
-                modifier =
-                    Modifier.clip(CircleShape)
-                        .semantics { contentDescription = pauseResumeDescription },
-            ) {
-                Icon(
-                    if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+            if (torrent.archived) {
+                // Archived torrents cannot start; restore them from the selection bar.
+                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Outlined.Archive,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.outline,
+                    )
+                }
+            } else {
+                IconButton(
+                    onClick = if (paused) onResume else onPause,
+                    enabled = !selectionMode,
+                    modifier =
+                        Modifier.clip(CircleShape)
+                            .semantics { contentDescription = pauseResumeDescription },
+                ) {
+                    Icon(
+                        if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
             Column(Modifier.weight(1f)) {
                 Text(
@@ -557,13 +646,13 @@ private fun TorrentCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        torrent.downloadQueuePosition?.let {
+                        torrent.downloadQueuePosition?.takeUnless { torrent.archived }?.let {
                             stringResource(
                                 R.string.library_queue_position,
                                 operationalLabel(torrent.operationalState),
                                 it.toInt(),
                             )
-                        } ?: operationalLabel(torrent.operationalState),
+                        } ?: torrentStatusLabel(torrent),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -587,32 +676,136 @@ private fun TorrentCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SelectionActions(
+private fun SelectionTopBar(
     count: Int,
-    onPause: () -> Unit,
-    onResume: () -> Unit,
-    onMoveTop: () -> Unit,
-    onMoveBottom: () -> Unit,
-    onArchive: () -> Unit,
-    onRemove: () -> Unit,
     onClear: () -> Unit,
+    onSelectAll: () -> Unit,
 ) {
-    Surface(shadowElevation = 8.dp) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(pluralStringResource(R.plurals.library_selected_count, count, count), modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = onPause) { Text(stringResource(R.string.action_pause)) }
-                TextButton(onClick = onResume) { Text(stringResource(R.string.action_resume)) }
-                TextButton(onClick = onClear) { Text(stringResource(R.string.action_done)) }
+    TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = onClear) {
+                Icon(
+                    Icons.Outlined.Close,
+                    contentDescription = stringResource(R.string.a11y_clear_selection),
+                )
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onMoveTop) { Text(stringResource(R.string.action_top)) }
-                TextButton(onClick = onMoveBottom) { Text(stringResource(R.string.action_bottom)) }
-                TextButton(onClick = onArchive) { Text(stringResource(R.string.action_archive_or_restore)) }
-                TextButton(onClick = onRemove) { Text(stringResource(R.string.action_remove)) }
+        },
+        title = { Text(pluralStringResource(R.plurals.library_selected_count, count, count)) },
+        actions = {
+            IconButton(onClick = onSelectAll) {
+                Icon(
+                    Icons.Outlined.SelectAll,
+                    contentDescription = stringResource(R.string.action_select_all),
+                )
+            }
+        },
+        colors =
+            TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            ),
+    )
+}
+
+/**
+ * Labeled actions for the selected torrents. Every action applies only to the
+ * selected torrents that allow it and is disabled when none do. Tabs never mix
+ * archived and unarchived torrents, so the bar offers Archive or Restore.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SelectionBottomBar(
+    selected: List<TorrentView>,
+    archivedTab: Boolean,
+    onResume: (List<String>) -> Unit,
+    onPause: (List<String>) -> Unit,
+    onArchive: (List<String>) -> Unit,
+    onRestore: (List<String>) -> Unit,
+    onRemove: (List<String>) -> Unit,
+    onMoveTop: (List<String>) -> Unit,
+    onMoveBottom: (List<String>) -> Unit,
+    onForceRecheck: (List<String>) -> Unit,
+    onCopyMagnets: (List<String>) -> Unit,
+) {
+    var moreOpen by remember { mutableStateOf(false) }
+    @Composable
+    fun RowScope.Action(icon: ImageVector, @StringRes label: Int, action: TorrentAction, run: (List<String>) -> Unit) {
+        val targets = selected.targetsFor(action)
+        SelectionBarButton(icon, stringResource(label), enabled = targets.isNotEmpty()) { run(targets) }
+    }
+    BottomAppBar {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            if (archivedTab) {
+                Action(Icons.Outlined.Unarchive, R.string.action_restore, TorrentAction.RESTORE, onRestore)
+            } else {
+                Action(Icons.Default.PlayArrow, R.string.action_resume, TorrentAction.START, onResume)
+                Action(Icons.Default.Pause, R.string.action_pause, TorrentAction.PAUSE, onPause)
+                Action(Icons.Outlined.Archive, R.string.action_archive, TorrentAction.ARCHIVE, onArchive)
+            }
+            Action(Icons.Outlined.Delete, R.string.action_remove, TorrentAction.REMOVE, onRemove)
+            SelectionBarButton(Icons.Outlined.MoreHoriz, stringResource(R.string.action_more), enabled = true) {
+                moreOpen = true
             }
         }
+    }
+    if (moreOpen) {
+        ModalBottomSheet(onDismissRequest = { moreOpen = false }) {
+            @Composable
+            fun SheetAction(icon: ImageVector, label: String, action: TorrentAction, run: (List<String>) -> Unit) {
+                val targets = selected.targetsFor(action)
+                ListItem(
+                    headlineContent = { Text(label) },
+                    leadingContent = { Icon(icon, contentDescription = null) },
+                    modifier =
+                        Modifier.clickable(enabled = targets.isNotEmpty()) {
+                            moreOpen = false
+                            run(targets)
+                        }.alpha(if (targets.isEmpty()) 0.38f else 1f),
+                )
+            }
+            if (!archivedTab) {
+                SheetAction(Icons.Outlined.VerticalAlignTop, stringResource(R.string.action_move_top), TorrentAction.MOVE_TOP, onMoveTop)
+                SheetAction(
+                    Icons.Outlined.VerticalAlignBottom,
+                    stringResource(R.string.action_move_bottom),
+                    TorrentAction.MOVE_BOTTOM,
+                    onMoveBottom,
+                )
+            }
+            SheetAction(Icons.Outlined.Refresh, stringResource(R.string.action_force_recheck), TorrentAction.FORCE_RECHECK, onForceRecheck)
+            SheetAction(
+                Icons.Outlined.Link,
+                stringResource(if (selected.size == 1) R.string.action_copy_magnet else R.string.action_copy_magnets),
+                TorrentAction.COPY_MAGNET,
+                onCopyMagnets,
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun RowScope.SelectionBarButton(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val color =
+        if (enabled) MaterialTheme.colorScheme.onSurface
+        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    Column(
+        modifier =
+            Modifier.weight(1f)
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(icon, contentDescription = null, tint = color)
+        Spacer(Modifier.height(4.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium, color = color, maxLines = 1)
     }
 }
 

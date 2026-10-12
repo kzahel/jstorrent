@@ -14,9 +14,11 @@ export function TorrentStatus({
     (state) => state.openTorrentErrorDetail,
   );
   const statusLabel =
-    row.progressReason === "waiting for storage"
-      ? localizedMessage("inspection.components.torrent.status.storage.unavailable")
-      : label;
+    row.archived === true
+      ? localizedMessage("inspection.components.torrent.status.archived")
+      : row.progressReason === "waiting for storage"
+        ? localizedMessage("inspection.components.torrent.status.storage.unavailable")
+        : label;
 
   if (row.error === null) {
     return (

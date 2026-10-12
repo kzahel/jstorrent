@@ -134,6 +134,12 @@ data class ExternalIntakeNotice(
     val kind: ExternalIntakeNoticeKind,
 )
 
+/** A rejected torrent command, shown once as a transient message. */
+data class TorrentCommandFailure(
+    val sequence: Long,
+    val detail: String,
+)
+
 data class ProductState(
     val quickAddsInFlight: Int = 0,
     val ready: Boolean = false,
@@ -144,6 +150,7 @@ data class ProductState(
     val externalIntake: ExternalIntakePresentation? = null,
     val externalIntakeDepth: Int = 0,
     val externalIntakeNotice: ExternalIntakeNotice? = null,
+    val torrentCommandFailure: TorrentCommandFailure? = null,
     val companionPort: UShort? = null,
     val legacyChromeOsMigration: Boolean = false,
     val companionPairing: CompanionPairingState? = null,

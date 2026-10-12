@@ -2,6 +2,7 @@
 
 package org.rstorrent.bootstrap.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Folder
@@ -37,7 +39,9 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
@@ -48,8 +52,10 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -69,6 +75,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -88,6 +95,7 @@ import kotlinx.coroutines.launch
 import org.rstorrent.bootstrap.ProductEngineService
 import org.rstorrent.bootstrap.ProductDataResetPhase
 import org.rstorrent.bootstrap.ProductDataResetState
+import org.rstorrent.bootstrap.BuildConfig
 import org.rstorrent.bootstrap.R
 import org.rstorrent.bootstrap.ProductNotificationNavigation
 import org.rstorrent.bootstrap.ProductNotificationPreference
@@ -184,6 +192,18 @@ fun ProductApp(
         LaunchedEffect(state.externalIntakeNotice?.sequence, externalIntakeNotice) {
             externalIntakeNotice?.let { snackbar.showSnackbar(it) }
         }
+        LaunchedEffect(state.torrentCommandFailure?.sequence) {
+            val failure = state.torrentCommandFailure ?: return@LaunchedEffect
+            // Consume the failure so a recreated UI does not show it again.
+            service?.clearTorrentCommandFailure(failure.sequence)
+            notificationScope.launch {
+                snackbar.showSnackbar(
+                    failure.detail,
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Long,
+                )
+            }
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             Surface(modifier = Modifier.fillMaxSize()) {
                 ProductNavHost(
@@ -203,6 +223,18 @@ fun ProductApp(
                     onNotificationNavigationConsumed = onNotificationNavigationConsumed,
                     onNotificationNavigationFallback = { message ->
                         notificationScope.launch { snackbar.showSnackbar(message) }
+                    },
+                    onUndoableAction = { message, undoLabel, undo ->
+                        notificationScope.launch {
+                            snackbar.currentSnackbarData?.dismiss()
+                            val result =
+                                snackbar.showSnackbar(
+                                    message,
+                                    actionLabel = undoLabel,
+                                    duration = SnackbarDuration.Long,
+                                )
+                            if (result == SnackbarResult.ActionPerformed) undo()
+                        }
                     },
                     onUpdateNotificationPreference =
                         onUpdateNotificationPreference ?: { preference, enabled ->
@@ -676,6 +708,7 @@ private fun ProductNavHost(
     notificationNavigation: ProductNotificationNavigation?,
     onNotificationNavigationConsumed: (Long) -> Unit,
     onNotificationNavigationFallback: (String) -> Unit,
+    onUndoableAction: (message: String, undoLabel: String, undo: () -> Unit) -> Unit,
     onUpdateNotificationPreference: (ProductNotificationPreference, Boolean) -> Unit,
     onBackgroundDownloads: (Boolean) -> Unit,
     onKeepSeedingInBackground: (Boolean) -> Unit,
@@ -692,6 +725,8 @@ private fun ProductNavHost(
     onClearAllData: (Boolean) -> Unit,
 ) {
     val navController = rememberNavController()
+    val resources = LocalContext.current.resources
+    val undoLabel = stringResource(R.string.action_undo)
     var removeTargets by remember { mutableStateOf(emptySet<String>()) }
     var removeStorageRoot by remember { mutableStateOf<String?>(null) }
     var confirmKeepSeeding by remember { mutableStateOf(false) }
@@ -774,13 +809,35 @@ private fun ProductNavHost(
                 onBrowseTorrent = {
                     onBrowseTorrent(state.storage?.showFileSelection ?: true)
                 },
+                onAddTestTorrents =
+                    if (BuildConfig.DEBUG) {
+                        { torrents ->
+                            torrents.forEach { service?.addMagnet(it.magnet, downloadAll = true) }
+                        }
+                    } else {
+                        null
+                    },
                 onPause = { service?.pause(it) },
                 onResume = { service?.resume(it) },
-                onMoveTop = { service?.moveDownloadToTop(it) },
-                onMoveBottom = { service?.moveDownloadToBottom(it) },
-                onArchive = { id ->
-                    if (state.torrents[id]?.archived == true) service?.restoreArchive(id)
-                    else service?.archive(id)
+                onMoveTop = { service?.moveDownloadsToTop(it) },
+                onMoveBottom = { service?.moveDownloadsToBottom(it) },
+                onForceRecheck = { service?.forceRecheck(it) },
+                onCopyMagnets = { service?.copyMagnets(it) },
+                onArchive = { ids ->
+                    // Archiving pauses; undo resumes the torrents that were running.
+                    val wasRunning = ids.filter { state.torrents[it]?.runningBeforeArchive() == true }
+                    service?.archive(ids)
+                    onUndoableAction(
+                        resources.getQuantityString(R.plurals.library_archived_count, ids.size, ids.size),
+                        undoLabel,
+                    ) { service?.restoreArchive(ids, resume = wasRunning) }
+                },
+                onRestore = { ids ->
+                    service?.restoreArchive(ids)
+                    onUndoableAction(
+                        resources.getQuantityString(R.plurals.library_restored_count, ids.size, ids.size),
+                        undoLabel,
+                    ) { service?.archive(ids) }
                 },
                 onRemove = { removeTargets = it },
                 onSpeed = { navController.navigate(ProductRoutes.SPEED) },
@@ -806,10 +863,10 @@ private fun ProductNavHost(
                 onForceRecheck = { service?.forceRecheck(torrentId) },
                 onMoveTop = { service?.moveDownloadToTop(torrentId) },
                 onMoveBottom = { service?.moveDownloadToBottom(torrentId) },
-                onArchive = { service?.archive(torrentId) },
-                onRestore = { service?.restoreArchive(torrentId) },
+                onArchive = { service?.archive(listOf(torrentId)) },
+                onRestore = { service?.restoreArchive(listOf(torrentId)) },
                 onRemove = { removeTargets = setOf(torrentId) },
-                onCopyMagnet = { service?.copyMagnet(torrentId) },
+                onCopyMagnet = { service?.copyMagnets(listOf(torrentId)) },
                 onTransferLimits = { onUpdateTorrentSettings(torrentId, it) },
                 onSpeed = { navController.navigate(ProductRoutes.SPEED) },
                 onDht = { navController.navigate(ProductRoutes.DHT) },
@@ -1614,15 +1671,17 @@ private fun TorrentDetailScreen(
                     )
                 },
                 actions = {
-                    val paused = torrent?.operationalState == TorrentOperationalState.PAUSED
-                    IconButton(onClick = if (paused) onResume else onPause, enabled = torrent != null) {
-                        Icon(
-                            if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                            contentDescription =
-                                stringResource(
-                                    if (paused) R.string.action_resume else R.string.action_pause,
-                                ),
-                        )
+                    if (torrent != null && !torrent.archived) {
+                        val paused = torrent.operationalState == TorrentOperationalState.PAUSED
+                        IconButton(onClick = if (paused) onResume else onPause) {
+                            Icon(
+                                if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                contentDescription =
+                                    stringResource(
+                                        if (paused) R.string.action_resume else R.string.action_pause,
+                                    ),
+                            )
+                        }
                     }
                     Box {
                         IconButton(onClick = { overflow = true }) {
@@ -1632,29 +1691,22 @@ private fun TorrentDetailScreen(
                             )
                         }
                         DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action_force_recheck)) },
-                                enabled = torrent?.forceRecheckAvailable == true,
-                                onClick = { overflow = false; onForceRecheck() },
-                            )
-                            DropdownMenuItem(text = { Text(stringResource(R.string.action_move_top)) }, onClick = { overflow = false; onMoveTop() })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.action_move_bottom)) }, onClick = { overflow = false; onMoveBottom() })
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        stringResource(
-                                            if (torrent?.archived == true) {
-                                                R.string.action_restore_archive
-                                            } else {
-                                                R.string.action_archive
-                                            },
-                                        ),
-                                    )
-                                },
-                                onClick = { overflow = false; if (torrent?.archived == true) onRestore() else onArchive() },
-                            )
-                            DropdownMenuItem(text = { Text(stringResource(R.string.action_remove_torrent)) }, onClick = { overflow = false; onRemove() })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.action_copy_magnet)) }, onClick = { overflow = false; onCopyMagnet() })
+                            val dismiss = { overflow = false }
+                            if (torrent?.allows(TorrentAction.START) == true) {
+                                TorrentMenuItem(R.string.action_resume, torrent, TorrentAction.START, dismiss, onResume)
+                            } else if (torrent?.allows(TorrentAction.PAUSE) == true) {
+                                TorrentMenuItem(R.string.action_pause, torrent, TorrentAction.PAUSE, dismiss, onPause)
+                            }
+                            TorrentMenuItem(R.string.action_move_top, torrent, TorrentAction.MOVE_TOP, dismiss, onMoveTop)
+                            TorrentMenuItem(R.string.action_move_bottom, torrent, TorrentAction.MOVE_BOTTOM, dismiss, onMoveBottom)
+                            TorrentMenuItem(R.string.action_force_recheck, torrent, TorrentAction.FORCE_RECHECK, dismiss, onForceRecheck)
+                            if (torrent?.archived == true) {
+                                TorrentMenuItem(R.string.action_restore, torrent, TorrentAction.RESTORE, dismiss, onRestore)
+                            } else {
+                                TorrentMenuItem(R.string.action_archive, torrent, TorrentAction.ARCHIVE, dismiss, onArchive)
+                            }
+                            TorrentMenuItem(R.string.action_copy_magnet, torrent, TorrentAction.COPY_MAGNET, dismiss, onCopyMagnet)
+                            TorrentMenuItem(R.string.action_remove, torrent, TorrentAction.REMOVE, dismiss, onRemove)
                             HorizontalDivider()
                             DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_speed)) }, onClick = { overflow = false; onSpeed() })
                             DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_dht)) }, onClick = { overflow = false; onDht() })
@@ -1667,6 +1719,9 @@ private fun TorrentDetailScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            if (torrent?.archived == true) {
+                ArchivedBanner(onRestore)
+            }
             ScrollableTabRow(selectedTabIndex = pager.currentPage, edgePadding = 8.dp) {
                 TorrentDetailTab.entries.forEachIndexed { index, tab ->
                     Tab(
@@ -1725,7 +1780,7 @@ private fun DetailTabContent(
                     } else {
                         add(stringResource(R.string.detail_info_hash) to (v1 ?: v2 ?: "—"))
                     }
-                    add(stringResource(R.string.detail_state) to operationalLabel(torrent.operationalState))
+                    add(stringResource(R.string.detail_state) to torrentStatusLabel(torrent))
                     add(stringResource(R.string.detail_required) to formatBytes(torrent.requiredPayloadBytes))
                     add(stringResource(R.string.detail_remaining) to formatBytes(torrent.remainingPayloadBytes))
                     add(stringResource(R.string.detail_pieces) to "${torrent.verifiedPieceCount} / ${torrent.pieceCount}")
@@ -1777,6 +1832,7 @@ private fun DetailTabContent(
         TorrentDetailTab.FILES ->
             FilesScreen(
                 state.files[torrent.torrentId],
+                torrent.archived,
                 onSetFilePriority,
                 onDownloadFile,
                 onPlayFile,
@@ -2151,6 +2207,56 @@ private fun SettingAction(
 private fun CenterMessage(message: String) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun TorrentMenuItem(
+    @StringRes label: Int,
+    torrent: TorrentView?,
+    action: TorrentAction,
+    dismiss: () -> Unit,
+    onClick: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(stringResource(label)) },
+        enabled = torrent?.allows(action) == true,
+        onClick = {
+            dismiss()
+            onClick()
+        },
+    )
+}
+
+@Composable
+private fun ArchivedBanner(onRestore: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Outlined.Archive,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(
+                    stringResource(R.string.detail_archived_title),
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    stringResource(R.string.detail_archived_detail),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            Button(onClick = onRestore) { Text(stringResource(R.string.action_restore)) }
+        }
     }
 }
 

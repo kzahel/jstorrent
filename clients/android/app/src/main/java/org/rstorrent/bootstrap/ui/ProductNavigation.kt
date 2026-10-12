@@ -31,11 +31,19 @@ enum class LibraryFilter(
     ACTIVE(R.string.library_filter_active),
     QUEUED(R.string.library_filter_queued),
     FINISHED(R.string.library_filter_finished),
+    ARCHIVED(R.string.library_filter_archived),
     ;
 
+    /** Archived torrents appear only in the Archived tab, never in All. */
     fun matches(torrent: TorrentView): Boolean =
         when (this) {
-            ALL -> true
+            ARCHIVED -> torrent.archived
+            else -> !torrent.archived && matchesUnarchived(torrent)
+        }
+
+    private fun matchesUnarchived(torrent: TorrentView): Boolean =
+        when (this) {
+            ALL, ARCHIVED -> true
             ACTIVE ->
                 torrent.operationalState in
                     setOf(
@@ -46,7 +54,7 @@ enum class LibraryFilter(
                         TorrentOperationalState.SEEDING,
                     )
             QUEUED -> torrent.operationalState == TorrentOperationalState.QUEUED
-            FINISHED -> torrent.state == TorrentState.COMPLETE || torrent.archived
+            FINISHED -> torrent.state == TorrentState.COMPLETE
         }
 }
 

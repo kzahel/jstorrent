@@ -17,6 +17,8 @@
   "android.companion.unavailable-guidance": {"defaultMessage": "Looking for the Android service. Open the Android app and enable browser control. If you recently updated JSTorrent, update both the Android app and extension; you can use Android directly meanwhile.", "description": "ChromeOS independent extension and Android update recovery guidance."},
   "android.companion.open-update": {"defaultMessage": "Open JSTorrent in Google Play", "description": "ChromeOS independent extension and Android update recovery guidance."},
   "inspection.components.torrent.status.storage.unavailable": { "defaultMessage": "Storage unavailable", "description": "Torrent status when progress is blocked waiting for its download storage" },
+  "inspection.components.torrent.status.archived": { "defaultMessage": "Archived", "description": "Torrent status for an archived torrent, which stays paused until restored" },
+  "inspection.file.actions.restore.before.downloading": { "defaultMessage": "Restore this archived torrent before downloading files.", "description": "Reason file Download now is unavailable for an archived torrent" },
   "inspection.components.data.reset.app.data.cleared": { "defaultMessage": "App data cleared.", "description": "Clear app data completion" },
   "inspection.components.data.reset.cancel": { "defaultMessage": "Cancel", "description": "Cancel reset confirmation" },
   "inspection.components.data.reset.category": { "defaultMessage": "Data & reset", "description": "Settings category for data management" },
@@ -4828,6 +4830,18 @@
   "inspection.torrent.actions.archive.state.is.unavailable.for.a.selected": {
     "defaultMessage": "Archive state is unavailable for a selected torrent.",
     "description": "Product copy in inspection/torrent-actions.ts"
+  },
+  "inspection.torrent.actions.choose.files.before.archiving": {
+    "defaultMessage": "Confirm or cancel the pending file selection before archiving.",
+    "description": "Reason Archive is unavailable for a torrent awaiting add-time file selection"
+  },
+  "inspection.torrent.actions.restore.archived.torrent.first": {
+    "defaultMessage": "A selected torrent is archived. Restore it first.",
+    "description": "Reason start or queue movement is unavailable because one selected torrent is archived"
+  },
+  "inspection.torrent.actions.restore.archived.torrents.first": {
+    "defaultMessage": "{count} selected torrents are archived. Restore them first.",
+    "description": "Reason start or queue movement is unavailable because several selected torrents are archived"
   },
   "inspection.torrent.actions.select.a.torrent.to.use.this.action": {
     "defaultMessage": "Select a torrent to use this action.",

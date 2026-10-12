@@ -65,4 +65,17 @@ describe("file selection actions", () => {
       resolveFileActions(2, 1, false).every((action) => !action.disabled),
     ).toBe(true);
   });
+
+  it("requires restore before Download now on an archived torrent", () => {
+    const actions = resolveFileActions(2, 1, false, undefined, undefined, true);
+    expect(actions.find((action) => action.id === "download_now")).toMatchObject({
+      disabled: true,
+      disabledReason: "Restore this archived torrent before downloading files.",
+    });
+    expect(
+      actions
+        .filter((action) => action.id !== "download_now")
+        .every((action) => !action.disabled),
+    ).toBe(true);
+  });
 });

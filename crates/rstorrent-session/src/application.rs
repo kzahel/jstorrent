@@ -2186,7 +2186,15 @@ impl ApplicationService {
                     "Torrent archived",
                     &[],
                 )?;
-                self.reconcile_incoming_torrent(&torrent_id).await?;
+                // Archive persists paused intent. Unlike Pause, a running
+                // checker is joined rather than parked: an archived torrent
+                // cannot resume it, and a parked checker would hold the only
+                // verification slot. Pending verification restarts on Resume.
+                self.unregister_incoming(&torrent_id).await?;
+                let joined = self.join_active_content(&torrent_id).await;
+                let incoming = self.reconcile_incoming_torrent(&torrent_id).await;
+                joined.and(incoming)?;
+                self.reconcile_admission().await?;
             }
             Command::RestoreArchive { torrent_id } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
@@ -3960,7 +3968,9 @@ impl ApplicationService {
             };
             let is_checking = resume.state == TorrentState::Checking;
             let active = self.active_download_for(&torrent.torrent_id).is_some();
-            if is_checking {
+            // Archived torrents are inactive: their pending verification waits
+            // for Restore instead of occupying the single checker slot.
+            if is_checking && !torrent.archived {
                 checking.push((
                     resume.download_queue_position.unwrap_or(i64::MAX),
                     torrent.torrent_id.clone(),
@@ -14859,6 +14869,115 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn archive_joins_a_running_checker_instead_of_parking_it() {
+        let root = test_root("archive-running-checker");
+        let mut configuration = config(&root);
+        configuration.storage_hash_delay_for_testing = Duration::from_millis(150);
+        configuration.storage_hash_concurrency_for_testing = 1;
+        let piece_length = 16_384;
+        let payload = (0..(8 * piece_length))
+            .map(|offset| ((offset * 31 + offset / 13) & 0xff) as u8)
+            .collect::<Vec<_>>();
+        let raw_info = single_file_info("archive-checker.bin", &payload, piece_length);
+        let info_hash: [u8; 20] = Sha1::digest(&raw_info).into();
+        let torrent_id = super::encode_info_hash(info_hash);
+        let mut store = SessionStore::open(
+            configuration
+                .durable_profile_root()
+                .expect("durable profile root"),
+            &configuration.profile_id,
+            &configuration.storage_roots,
+        )
+        .expect("open setup store");
+        let torrent_id = add_store_torrent(&mut store, "add-archive-checker", &torrent_id);
+        store
+            .record_metadata(&torrent_id, &raw_info)
+            .expect("record metadata");
+        store
+            .record_pieces(&torrent_id, &(0..8).collect::<Vec<_>>())
+            .expect("record old have");
+        store.mark_complete(&torrent_id).expect("mark complete");
+        store.begin_recheck(&torrent_id).expect("begin recheck");
+        drop(store);
+        let output = root.join("payload/archive-checker.bin");
+        fs::create_dir_all(output.parent().expect("payload parent")).expect("create payload root");
+        fs::write(&output, &payload).expect("write direct payload");
+
+        let mut service = ApplicationService::open(configuration)
+            .await
+            .expect("open checking application");
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !service.active_download().is_some_and(|active| {
+                active
+                    .1
+                    .control
+                    .checker_snapshot()
+                    .is_some_and(|progress| progress.active_hash_jobs == 1)
+            }) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("checker hash did not start");
+
+        let dispatch = |request_id: &str, command: Command| RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            command,
+        };
+        service
+            .dispatch(dispatch(
+                "archive-running-checker",
+                Command::Archive {
+                    torrent_id: torrent_id.clone(),
+                },
+            ))
+            .await
+            .expect("archive checker");
+        // The checker is joined, not parked, so it cannot hold the
+        // verification slot while the torrent stays archived.
+        assert!(service.active_download().is_none());
+        let resume = service
+            .store_mut()
+            .expect("store")
+            .load_resume(&torrent_id)
+            .expect("archived resume");
+        assert!(!resume.desired_running);
+        assert!(resume.verification.is_pending());
+
+        service
+            .dispatch(dispatch(
+                "restore-checker",
+                Command::RestoreArchive {
+                    torrent_id: torrent_id.clone(),
+                },
+            ))
+            .await
+            .expect("restore checker");
+        service
+            .dispatch(dispatch(
+                "resume-checker",
+                Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            ))
+            .await
+            .expect("resume checker");
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while service.active_download().is_none() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("pending verification did not restart after restore");
+
+        service.shutdown().await.expect("shutdown");
+        drop(service);
+        fs::remove_dir_all(root).expect("remove test root");
+    }
+
+    #[tokio::test]
     async fn pause_and_resume_retain_the_active_checker_generation_and_cursor() {
         let root = test_root("pause-running-checker");
         let mut configuration = config(&root);
@@ -15560,6 +15679,19 @@ mod tests {
             })
             .await
             .expect("restore active content");
+        // Restore leaves the archived torrent paused until it is started again.
+        wait_for_active_route(&service, 0).await;
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "resume-restored-content".to_owned(),
+                expected_revision: None,
+                command: Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .await
+            .expect("resume restored content");
         wait_for_active_route(&service, 1).await;
         let removal_control = service
             .active_download()
@@ -18063,6 +18195,18 @@ mod tests {
             })
             .await
             .expect("restore seed");
+        wait_for_seed_registrations(&second, 0).await;
+        second
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "resume-restored-seed".to_owned(),
+                expected_revision: None,
+                command: Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .await
+            .expect("resume restored seed");
         wait_for_seed_registrations(&second, 1).await;
         assert_eq!(
             second

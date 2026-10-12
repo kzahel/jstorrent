@@ -128,6 +128,7 @@ class ProductEngineService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val requestPrefix = UUID.randomUUID().toString()
     private val requestIds = AtomicLong(1)
+    private val torrentCommandFailureSequence = AtomicLong()
     private val stopped = AtomicBoolean(false)
     private val stopRequested = AtomicBoolean(false)
     private val dataResetActive = AtomicBoolean(false)
@@ -198,6 +199,9 @@ class ProductEngineService : Service() {
     private val externalIntakeMutation = Mutex()
     private val externalContentMutation = Mutex()
     private val productCommandMutation = Mutex()
+    // Serializes torrent command batches so an Undo cannot interleave with the
+    // batch it reverses. Mutex waiters are served in FIFO order.
+    private val torrentCommandBatches = Mutex()
     private val dataResetOwnerMutation = Mutex()
     @Volatile private var dataResetJournal: ProductDataResetJournal? = null
     @Volatile private var dataResetProcessKillAfterTorrentsForTest: Int? = null
@@ -2768,38 +2772,106 @@ class ProductEngineService : Service() {
     }
 
     fun pause(torrentId: String) {
-        dispatch(Command.Pause(torrentId))
+        dispatchTorrentCommands(listOf(Command.Pause(torrentId)))
     }
 
     fun resume(torrentId: String) {
-        dispatch(Command.Resume(torrentId))
+        dispatchTorrentCommands(listOf(Command.Resume(torrentId)))
     }
 
     fun forceRecheck(torrentId: String) {
-        dispatch(Command.ForceRecheck(torrentId))
+        dispatchTorrentCommands(listOf(Command.ForceRecheck(torrentId)))
     }
 
     fun moveDownloadToTop(torrentId: String) {
-        dispatch(Command.MoveDownloadToTop(torrentId))
+        dispatchTorrentCommands(listOf(Command.MoveDownloadToTop(torrentId)))
     }
 
     fun moveDownloadToBottom(torrentId: String) {
-        dispatch(Command.MoveDownloadToBottom(torrentId))
+        dispatchTorrentCommands(listOf(Command.MoveDownloadToBottom(torrentId)))
     }
 
-    fun archive(torrentId: String) {
-        dispatch(Command.Archive(torrentId))
+    fun archive(torrentIds: Collection<String>) {
+        dispatchTorrentCommands(torrentIds.map(Command::Archive))
     }
 
-    fun restoreArchive(torrentId: String) {
-        dispatch(Command.RestoreArchive(torrentId))
+    /** Restores in order, then resumes [resume] (used to undo an archive). */
+    fun restoreArchive(
+        torrentIds: Collection<String>,
+        resume: Collection<String> = emptyList(),
+    ) {
+        dispatchTorrentCommands(
+            torrentIds.map(Command::RestoreArchive) + resume.map(Command::Resume),
+        )
     }
 
     fun removeTorrent(
         torrentId: String,
         policy: RemovalDataPolicy,
     ) {
-        dispatch(Command.RemoveTorrent(torrentId, policy))
+        dispatchTorrentCommands(listOf(Command.RemoveTorrent(torrentId, policy)))
+    }
+
+    fun moveDownloadsToTop(torrentIds: List<String>) {
+        // Moving each to the top in reverse keeps the selection's list order.
+        dispatchTorrentCommands(torrentIds.reversed().map(Command::MoveDownloadToTop))
+    }
+
+    fun moveDownloadsToBottom(torrentIds: List<String>) {
+        dispatchTorrentCommands(torrentIds.map(Command::MoveDownloadToBottom))
+    }
+
+    fun clearTorrentCommandFailure(sequence: Long) {
+        mutableState.update {
+            if (it.torrentCommandFailure?.sequence == sequence) it.copy(torrentCommandFailure = null)
+            else it
+        }
+    }
+
+    /**
+     * Runs torrent commands in order, one batch at a time, so dependent
+     * commands and later batches keep their order. A rejected command is
+     * reported as a transient failure rather than the library error card, and
+     * later commands still run.
+     */
+    private fun dispatchTorrentCommands(commands: List<Command>) {
+        if (commands.isEmpty()) return
+        scope.launch {
+            try {
+                clientReady.await()
+            } catch (error: Throwable) {
+                reportError(error)
+                return@launch
+            }
+            torrentCommandBatches.withLock {
+                for (command in commands) {
+                    try {
+                        dispatchAwait(command)
+                    } catch (error: Throwable) {
+                        if (error is CancellationException) throw error
+                        reportTorrentCommandFailure(error)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun reportTorrentCommandFailure(error: Throwable) {
+        if (error is ProductDataResetInProgressException) {
+            reportError(error)
+            return
+        }
+        Log.e(TAG, "torrent command failed", error)
+        val sequence = torrentCommandFailureSequence.incrementAndGet()
+        mutableState.update {
+            it.copy(
+                torrentCommandFailure =
+                    TorrentCommandFailure(
+                        sequence,
+                        productFailureDetail(error, getString(R.string.error_operation_failed)),
+                    ),
+            )
+        }
     }
 
     fun setShowFileSelection(show: Boolean) {
@@ -2837,11 +2909,13 @@ class ProductEngineService : Service() {
         fileIndex: UInt,
         priority: FilePriority,
     ) {
-        dispatch(
-            Command.SetFilePriority(
-                torrentId,
-                listOf(fileIndex),
-                priority,
+        dispatchTorrentCommands(
+            listOf(
+                Command.SetFilePriority(
+                    torrentId,
+                    listOf(fileIndex),
+                    priority,
+                ),
             ),
         )
     }
@@ -2850,7 +2924,7 @@ class ProductEngineService : Service() {
         torrentId: String,
         fileIndex: UInt,
     ) {
-        dispatch(Command.DownloadFiles(torrentId, listOf(fileIndex)))
+        dispatchTorrentCommands(listOf(Command.DownloadFiles(torrentId, listOf(fileIndex))))
     }
 
     fun openCompletedFile(
@@ -3776,22 +3850,29 @@ class ProductEngineService : Service() {
         }
     }
 
-    fun copyMagnet(torrentId: String) {
+    /** Copies one magnet link per torrent, newline-separated, in the given order. */
+    fun copyMagnets(torrentIds: List<String>) {
+        if (torrentIds.isEmpty()) return
         scope.launch {
             try {
                 clientReady.await()
-                val response = dispatchForResponse(Command.ExportMagnet(torrentId))
-                val result = response.result as? CommandResult.ExportMagnet
-                    ?: error("Magnet export returned no value")
+                val magnets =
+                    torrentIds.map { torrentId ->
+                        val response = dispatchForResponse(Command.ExportMagnet(torrentId))
+                        val result = response.result as? CommandResult.ExportMagnet
+                            ?: error("Magnet export returned no value")
+                        result.result.magnet
+                    }
                 val clipboard = getSystemService(ClipboardManager::class.java)
                 clipboard.setPrimaryClip(
                     ClipData.newPlainText(
                         getString(R.string.add_magnet_label),
-                        result.result.magnet,
+                        magnets.joinToString("\n"),
                     ),
                 )
             } catch (error: Throwable) {
-                reportError(error)
+                if (error is CancellationException) throw error
+                reportTorrentCommandFailure(error)
             }
         }
     }

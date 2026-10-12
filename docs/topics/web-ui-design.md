@@ -781,10 +781,12 @@ The resulting conceptual hierarchy is:
 6. progressive detail for a peer, file, tracker, piece, or other selected row
    when useful.
 
-Archive is not deletion. Its exact relationship to pause, queue, content
-retention, and the default library view remains an application-state decision.
-Durable categories and labels belong above browser-local presentation state,
-even when Android does not initially expose them.
+Archive is not deletion. Tactical `316` decides its relationship to pause:
+an archived torrent is paused and cannot be started, queued or given Download
+now until it is restored, and Restore leaves it paused. Archived torrents
+appear only in the Archived category on every surface; All excludes them.
+Content retention and queue position are unchanged by archiving. Durable
+categories and labels belong above browser-local presentation state.
 
 ## Adaptive Navigation And Layout
 

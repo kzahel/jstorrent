@@ -1,5 +1,15 @@
 # Client Surfaces
 
+Tactical [316](../tactical/316-archived-torrents-and-android-selection-actions.md)
+gives Android an Archived library tab; All and the other tabs exclude archived
+torrents. Selection mode uses a contextual top bar (close, count, select all),
+Back to exit, and a labeled bottom bar (Resume, Pause, Archive or Restore,
+Remove, More with queue moves, Force recheck and Copy magnet links). Actions
+apply only to eligible torrents. Archive/Restore offer Undo; the detail screen
+shows an Archived banner with Restore and gates Files Download now. Rejected
+torrent commands appear as a transient snackbar instead of the library error
+card. React disables Start, queue moves and Download now for archived rows.
+
 Tactical [314](../tactical/314-android-presentation-shutdown-race.md) repairs
 Android presentation requests racing native-client release. The repository
 closes terminally under its acquisition mutex, reports active setup errors,

@@ -1,5 +1,12 @@
 # Capability Readiness
 
+Tactical [316](../tactical/316-archived-torrents-and-android-selection-actions.md)
+makes archived torrents paused and unstartable until restored, normalizes
+older archived rows on open, adds the Android Archived tab and labeled
+selection actions, and gates React Start/queue/Download now for archived rows.
+Rust workspace, web and Android JVM/lint suites pass; a Pixel 9 debug install
+covers setup, tabs and the detail menu. Release delivery remains separate.
+
 Local Tactical [314](../tactical/314-android-presentation-shutdown-race.md)
 repairs the Android presentation shutdown race behind version 28's first
 observed production crash. Thirteen regressions, all 136 debug JVM cases and

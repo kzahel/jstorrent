@@ -133,6 +133,9 @@ export class DemoApplication implements InspectionApplication {
         return accepted("Torrent paused");
       case "resume":
         if (this.snapshot.torrents[command.torrentId] === undefined) return rejected("Torrent is not present");
+        if (this.archived.has(command.torrentId)) {
+          return rejected("Archived torrent must be restored before starting");
+        }
         this.paused.delete(command.torrentId);
         this.addCommandLog("lifecycle", "Torrent resumed in demo mode", command.torrentId);
         this.advance(0);
@@ -142,6 +145,7 @@ export class DemoApplication implements InspectionApplication {
         return rejected("Queue movement is unavailable in demo scenarios");
       case "archive":
         this.archived.add(command.torrentId);
+        this.paused.add(command.torrentId);
         this.addCommandLog("lifecycle", "Torrent archived in demo mode", command.torrentId);
         this.advance(0);
         return accepted("Torrent archived");

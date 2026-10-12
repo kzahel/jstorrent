@@ -50,6 +50,7 @@ import org.rstorrent.session.uniffi.PeerView
 @Composable
 internal fun FilesScreen(
     catalog: FileCatalogViewState?,
+    archived: Boolean = false,
     onSetPriority: (FileView, FilePriority) -> Unit,
     onDownloadNow: (FileView) -> Unit,
     onPlay: (FileView) -> Unit,
@@ -79,6 +80,14 @@ internal fun FilesScreen(
                     )
                 },
             )
+            if (archived) {
+                Text(
+                    stringResource(R.string.file_restore_to_download),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             HorizontalDivider()
             CatalogPager(catalog.page, onPage)
         }
@@ -146,7 +155,7 @@ internal fun FilesScreen(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    OutlinedButton(onClick = { onDownloadNow(file) }, enabled = wanted && !complete) {
+                    OutlinedButton(onClick = { onDownloadNow(file) }, enabled = wanted && !complete && !archived) {
                         Text(stringResource(R.string.action_download_now))
                     }
                     if (AndroidMediaPlaybackPolicy.isRecognizedVideo(file.path)) {

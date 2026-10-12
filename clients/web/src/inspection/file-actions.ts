@@ -46,6 +46,7 @@ export function resolveFileActions(
   pending: boolean,
   unavailableReason?: string,
   openAvailability?: MediaFileAvailability,
+  torrentArchived = false,
 ): readonly ResolvedFileAction[] {
   const disabledReason = pending
     ? "Another file action is still in progress."
@@ -59,9 +60,16 @@ export function resolveFileActions(
           (openAvailability === "available" ||
             openAvailability === "streamable"))) &&
       (action.id !== "download_now" || skippedTargetCount > 0),
-  ).map((action) => ({
-    ...action,
-    disabled: disabledReason !== undefined,
-    ...(disabledReason === undefined ? {} : { disabledReason }),
-  }));
+  ).map((action) => {
+    const reason =
+      disabledReason ??
+      (action.id === "download_now" && torrentArchived
+        ? localizedMessage("inspection.file.actions.restore.before.downloading")
+        : undefined);
+    return {
+      ...action,
+      disabled: reason !== undefined,
+      ...(reason === undefined ? {} : { disabledReason: reason }),
+    };
+  });
 }

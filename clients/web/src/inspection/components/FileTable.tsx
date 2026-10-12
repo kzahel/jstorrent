@@ -179,6 +179,9 @@ export function FileTable({
   const [directSaveAbort, setDirectSaveAbort] = useState<AbortController | null>(null);
   const execute = useInspectionCommand();
   const demo = useInspectionStore((state) => state.demo);
+  const torrentArchived = useInspectionStore(
+    (state) => state.torrents[torrentId]?.archived === true,
+  );
   const fileSet = useInspectionStore(
     (state) => state.filesByTorrent[torrentId],
   );
@@ -286,6 +289,7 @@ export function FileTable({
     fileActionPending,
     unavailableReason,
     selectedOpenAvailability,
+    torrentArchived,
   ), rows.filter(row => selectedFileIds.has(row.id)));
   const selectedRows = rows.filter((row) => selectedFileIds.has(row.id));
   const toolbarDirectSave = resolveDirectSave(
@@ -337,6 +341,7 @@ export function FileTable({
       fileActionPending,
       unavailableReason,
       targetRows.length === 1 ? targetRows[0]?.mediaAvailability : undefined,
+      torrentArchived,
     ), targetRows).find((candidate) => candidate.id === actionId);
     if (action === undefined || action.disabled) {
       if (action?.disabledReason !== undefined) {
@@ -524,6 +529,7 @@ export function FileTable({
               targetIds.length === 1
                 ? rows.find((row) => row.id === targetIds[0])?.mediaAvailability
                 : undefined,
+              torrentArchived,
             ), rows.filter(row => targetIdSet.has(row.id)));
             const directSave = resolveDirectSave(
               remoteAccess,

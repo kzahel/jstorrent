@@ -6202,6 +6202,12 @@
       "value": "Torrent settings"
     }
   ],
+  "inspection.components.torrent.status.archived": [
+    {
+      "type": 0,
+      "value": "Archived"
+    }
+  ],
   "inspection.components.torrent.status.storage.unavailable": [
     {
       "type": 0,
@@ -7348,6 +7354,12 @@
       "value": "Open"
     }
   ],
+  "inspection.file.actions.restore.before.downloading": [
+    {
+      "type": 0,
+      "value": "Restore this archived torrent before downloading files."
+    }
+  ],
   "inspection.file.actions.skip": [
     {
       "type": 0,
@@ -7724,6 +7736,28 @@
     {
       "type": 0,
       "value": "Archive state is unavailable for a selected torrent."
+    }
+  ],
+  "inspection.torrent.actions.choose.files.before.archiving": [
+    {
+      "type": 0,
+      "value": "Confirm or cancel the pending file selection before archiving."
+    }
+  ],
+  "inspection.torrent.actions.restore.archived.torrent.first": [
+    {
+      "type": 0,
+      "value": "A selected torrent is archived. Restore it first."
+    }
+  ],
+  "inspection.torrent.actions.restore.archived.torrents.first": [
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " selected torrents are archived. Restore them first."
     }
   ],
   "inspection.torrent.actions.select.a.torrent.to.use.this.action": [

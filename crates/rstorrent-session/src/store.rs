@@ -573,6 +573,7 @@ impl SessionStore {
             }
         }
         register_storage_roots(&mut connection, storage_roots)?;
+        normalize_archived_intent(&mut connection)?;
 
         let store = Self {
             connection,
@@ -3426,6 +3427,37 @@ fn read_storage_settings(connection: &Connection) -> Result<StorageSettingsSnaps
     })
 }
 
+/// Profiles written before archive implied paused intent may hold archived
+/// rows that are running or awaiting add-time selection. Neither state can be
+/// reached by current commands, so normalize them once in a single revision.
+fn normalize_archived_intent(connection: &mut Connection) -> Result<(), StoreError> {
+    let transaction = connection.transaction()?;
+    let stale: i64 = transaction.query_row(
+        "SELECT count(*) FROM torrents
+         WHERE archived = 1
+           AND (desired_state = 'running' OR awaiting_file_selection = 1)",
+        [],
+        |row| row.get(0),
+    )?;
+    if stale == 0 {
+        return Ok(());
+    }
+    let revision = next_revision_strict(&transaction, read_revision(&transaction)?)?;
+    let revision_sql = sql_revision(revision)?;
+    transaction.execute(
+        "UPDATE torrents SET archived = 0, updated_revision = ?1
+         WHERE archived = 1 AND awaiting_file_selection = 1",
+        [revision_sql],
+    )?;
+    transaction.execute(
+        "UPDATE torrents SET desired_state = 'paused', updated_revision = ?1
+         WHERE archived = 1 AND desired_state = 'running'",
+        [revision_sql],
+    )?;
+    transaction.commit()?;
+    Ok(())
+}
+
 fn register_storage_roots(
     connection: &mut Connection,
     storage_roots: &[ConfiguredStorageRoot],
@@ -4861,7 +4893,7 @@ fn set_desired_state(
     let row = transaction
         .query_row(
             "SELECT t.desired_state, t.quarantine_reason,
-                    r.torrent_id IS NOT NULL, t.awaiting_file_selection
+                    r.torrent_id IS NOT NULL, t.awaiting_file_selection, t.archived
              FROM torrents t
              LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
              WHERE t.torrent_id = ?1",
@@ -4872,6 +4904,7 @@ fn set_desired_state(
                     row.get::<_, Option<String>>(1)?,
                     row.get::<_, bool>(2)?,
                     row.get::<_, bool>(3)?,
+                    row.get::<_, bool>(4)?,
                 ))
             },
         )
@@ -4893,6 +4926,12 @@ fn set_desired_state(
         return Err((
             ErrorCode::InvalidTorrentState,
             "torrent must confirm its pending file selection before resuming".to_owned(),
+        ));
+    }
+    if running && row.4 {
+        return Err((
+            ErrorCode::InvalidTorrentState,
+            "archived torrent must be restored before starting".to_owned(),
         ));
     }
     let desired = if running { "running" } else { "paused" };
@@ -4977,12 +5016,18 @@ fn set_archived(
     })?;
     let current = transaction
         .query_row(
-            "SELECT t.archived, r.torrent_id IS NOT NULL
+            "SELECT t.archived, r.torrent_id IS NOT NULL, t.awaiting_file_selection
              FROM torrents t
              LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
              WHERE t.torrent_id = ?1",
             [torrent_id.as_bytes()],
-            |row| Ok((row.get::<_, bool>(0)?, row.get::<_, bool>(1)?)),
+            |row| {
+                Ok((
+                    row.get::<_, bool>(0)?,
+                    row.get::<_, bool>(1)?,
+                    row.get::<_, bool>(2)?,
+                ))
+            },
         )
         .optional()
         .map_err(internal_error)?
@@ -5001,10 +5046,20 @@ fn set_archived(
     if current.0 == archived {
         return Ok(current_revision);
     }
+    if archived && current.2 {
+        return Err((
+            ErrorCode::InvalidTorrentState,
+            "torrent must confirm or cancel its pending file selection before archiving".to_owned(),
+        ));
+    }
     let revision = next_revision(transaction, current_revision)?;
+    // Archived torrents are inactive: archiving also persists paused intent,
+    // and restoring leaves the torrent paused until it is started again.
     transaction
         .execute(
-            "UPDATE torrents SET archived = ?2, updated_revision = ?3
+            "UPDATE torrents
+             SET archived = ?2, updated_revision = ?3,
+                 desired_state = CASE WHEN ?2 THEN 'paused' ELSE desired_state END
              WHERE torrent_id = ?1",
             params![
                 torrent_id.as_bytes(),
@@ -9679,6 +9734,215 @@ mod tests {
             first
         );
         drop(reopened);
+        fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
+    fn archive_persists_paused_intent_and_blocks_starting_until_restored() {
+        let root = test_root("archive-paused");
+        let configured = configured_root(&root);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).expect("open");
+        let added = store
+            .handle_durable(&add_request("add-archive"))
+            .expect("add torrent");
+        let torrent_id = added_torrent_id(&added);
+        assert!(
+            store
+                .load_resume(&torrent_id)
+                .expect("resume")
+                .desired_running
+        );
+        let request = |request_id: &str, command: Command| RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            command,
+        };
+        let id = || torrent_id.clone();
+
+        store
+            .handle_durable(&request("archive", Command::Archive { torrent_id: id() }))
+            .expect("archive");
+        let archived_revision = store.revision().expect("archived revision");
+        let resume = store.load_resume(&torrent_id).expect("archived resume");
+        assert!(!resume.desired_running);
+        assert!(store.snapshot().expect("snapshot").torrents[0].archived);
+
+        for (request_id, command) in [
+            // DownloadFiles on an archived torrent with metadata is covered by
+            // download_files_commits_one_replay_safe_wanted_and_running_revision.
+            ("resume", Command::Resume { torrent_id: id() }),
+            ("move-top", Command::MoveDownloadToTop { torrent_id: id() }),
+        ] {
+            let response = store
+                .handle_durable(&request(request_id, command))
+                .expect("durable response");
+            assert!(
+                matches!(
+                    response.outcome,
+                    ResponseOutcome::Error {
+                        ref error,
+                    } if error.code == ErrorCode::InvalidTorrentState
+                        && (error.message.contains("archived")
+                            || error.message.contains("queue movement"))
+                ),
+                "{request_id} must be rejected while archived: {:?}",
+                response.outcome
+            );
+        }
+        assert_eq!(store.revision().expect("unchanged"), archived_revision);
+        assert!(
+            !store
+                .load_resume(&torrent_id)
+                .expect("resume")
+                .desired_running
+        );
+
+        store
+            .handle_durable(&request(
+                "restore",
+                Command::RestoreArchive { torrent_id: id() },
+            ))
+            .expect("restore");
+        assert!(!store.snapshot().expect("snapshot").torrents[0].archived);
+        assert!(
+            !store
+                .load_resume(&torrent_id)
+                .expect("resume")
+                .desired_running
+        );
+        store
+            .handle_durable(&request("start", Command::Resume { torrent_id: id() }))
+            .expect("start after restore");
+        assert!(
+            store
+                .load_resume(&torrent_id)
+                .expect("resume")
+                .desired_running
+        );
+        drop(store);
+        fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
+    fn archive_rejects_pending_file_selection() {
+        let root = test_root("archive-pending");
+        let configured = configured_root(&root);
+        let mut store = SessionStore::open(&root, "default", &[configured]).expect("open");
+        let mut add = add_request("add-pending");
+        if let Command::AddMagnet {
+            await_file_selection,
+            skip_files,
+            ..
+        } = &mut add.command
+        {
+            *await_file_selection = true;
+            skip_files.clear();
+        }
+        let torrent_id = added_torrent_id(&store.handle_durable(&add).expect("add pending"));
+        let revision = store.revision().expect("revision");
+        let response = store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "archive-pending".to_owned(),
+                expected_revision: None,
+                command: Command::Archive {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .expect("durable response");
+        assert!(matches!(
+            response.outcome,
+            ResponseOutcome::Error { ref error } if error.code == ErrorCode::InvalidTorrentState
+        ));
+        assert_eq!(store.revision().expect("unchanged"), revision);
+        assert!(!store.snapshot().expect("snapshot").torrents[0].archived);
+        drop(store);
+        fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
+    fn open_normalizes_archived_rows_written_before_archive_implied_pause() {
+        let root = test_root("archive-normalize");
+        let configured = configured_root(&root);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).expect("open");
+        let running = added_torrent_id(
+            &store
+                .handle_durable(&add_hash_request("add-running", 0x21))
+                .expect("add running"),
+        );
+        let mut pending_add = add_hash_request("add-pending", 0x22);
+        if let Command::AddMagnet {
+            await_file_selection,
+            ..
+        } = &mut pending_add.command
+        {
+            *await_file_selection = true;
+        }
+        let pending = added_torrent_id(&store.handle_durable(&pending_add).expect("add pending"));
+        let paused = added_torrent_id(
+            &store
+                .handle_durable(&add_hash_request("add-paused", 0x23))
+                .expect("add paused"),
+        );
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "archive-paused".to_owned(),
+                expected_revision: None,
+                command: Command::Archive {
+                    torrent_id: paused.clone(),
+                },
+            })
+            .expect("archive paused");
+        let database_path = store.database_path().expect("durable path").to_owned();
+        drop(store);
+
+        // Simulate rows committed by a build where archive kept running intent.
+        let connection = Connection::open(&database_path).expect("open raw database");
+        connection
+            .execute(
+                "UPDATE torrents SET archived = 1 WHERE torrent_id IN (?1, ?2)",
+                params![
+                    super::decode_torrent_id(&running)
+                        .expect("running id")
+                        .as_bytes(),
+                    super::decode_torrent_id(&pending)
+                        .expect("pending id")
+                        .as_bytes(),
+                ],
+            )
+            .expect("write legacy archive rows");
+        drop(connection);
+
+        let store = SessionStore::open(&root, "default", std::slice::from_ref(&configured))
+            .expect("reopen");
+        let normalized_revision = store.revision().expect("revision");
+        let snapshot = store.snapshot().expect("snapshot");
+        let torrent = |id: &str| {
+            snapshot
+                .torrents
+                .iter()
+                .find(|torrent| torrent.torrent_id == id)
+                .expect("torrent")
+        };
+        assert!(torrent(&running).archived);
+        assert!(
+            !store
+                .load_resume(&running)
+                .expect("running")
+                .desired_running
+        );
+        assert!(!torrent(&pending).archived);
+        assert!(torrent(&pending).awaiting_file_selection);
+        assert!(torrent(&paused).archived);
+        drop(store);
+
+        let store = SessionStore::open(&root, "default", &[configured]).expect("reopen again");
+        assert_eq!(store.revision().expect("idempotent"), normalized_revision);
+        drop(store);
         fs::remove_dir_all(root).expect("remove test profile");
     }
 

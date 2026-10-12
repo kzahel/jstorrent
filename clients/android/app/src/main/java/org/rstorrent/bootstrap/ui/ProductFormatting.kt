@@ -136,6 +136,12 @@ internal fun operationalLabel(state: TorrentOperationalState): String =
         },
     )
 
+/** Archived torrents are paused and inactive; show that instead of the paused state. */
+@Composable
+internal fun torrentStatusLabel(torrent: TorrentView): String =
+    if (torrent.archived) stringResource(R.string.state_archived)
+    else operationalLabel(torrent.operationalState)
+
 @Composable
 internal fun settingsApplicationLabel(state: ClientSettingsApplicationState): String =
     when (state) {

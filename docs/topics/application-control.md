@@ -496,6 +496,16 @@ adapter. Failed cleanup stays visible and can be retried with either retention
 policy. Android SAF plans and confirmations are in-process operations keyed by
 the matching generation; browser commands never carry paths or document URIs.
 
+Tactical [`316`](../tactical/316-archived-torrents-and-android-selection-actions.md)
+replaces the orthogonal archive rule: archived means shelved and inactive.
+Archive persists paused intent in the same revision and joins active work
+through the ordinary pause path; Restore leaves the torrent paused. Resume,
+Download now and queue moves reject archived torrents with
+`InvalidTorrentState`, and a torrent awaiting add-time file selection cannot
+be archived. Opening a profile normalizes older archived rows that are running
+or awaiting selection, without a schema version change. Force recheck, file
+priorities, magnet export and removal remain available while archived.
+
 Tactical `046` corrects the ordinary pause join beneath that application
 contract. The application still persists paused intent first, requests safe
 cancellation, and awaits the active task. Engine wrappers no longer race and

@@ -192,6 +192,23 @@ export function torrentActionAvailability(
     };
   }
 
+  // Archived torrents stay paused; the engine rejects starting or queueing
+  // them until they are restored.
+  if (actionId === "start" || actionId === "move_to_top" || actionId === "move_to_bottom") {
+    const archived = targets.filter((row) => row.archived === true).length;
+    if (archived > 0) {
+      return {
+        disabled: true,
+        reason:
+          archived === 1
+            ? localizedMessage("inspection.torrent.actions.restore.archived.torrent.first")
+            : localizedMessage("inspection.torrent.actions.restore.archived.torrents.first", {
+                count: archived.toLocaleString(),
+              }),
+      };
+    }
+  }
+
   switch (actionId) {
     case "start":
     case "pause":
@@ -231,6 +248,12 @@ export function torrentActionAvailability(
         return {
           disabled: true,
           reason: localizedMessage("inspection.torrent.actions.archive.state.is.unavailable.for.a.selected"),
+        };
+      }
+      if (actionId === "archive" && targets.some((row) => row.awaitingFileSelection === true)) {
+        return {
+          disabled: true,
+          reason: localizedMessage("inspection.torrent.actions.choose.files.before.archiving"),
         };
       }
       const alreadySatisfied = targets.every((row) =>

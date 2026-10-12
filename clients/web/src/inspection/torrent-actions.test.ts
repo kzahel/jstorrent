@@ -70,6 +70,38 @@ describe("torrent selection actions", () => {
     });
   });
 
+  it("requires restore before starting or queueing archived torrents", () => {
+    const archived = row("archived", { archived: true, status: "paused" });
+    for (const action of ["start", "move_to_top", "move_to_bottom"] as const) {
+      expect(torrentActionAvailability(action, [archived])).toEqual({
+        disabled: true,
+        reason: "A selected torrent is archived. Restore it first.",
+      });
+    }
+    expect(
+      torrentActionAvailability("start", [
+        archived,
+        row("other", { archived: true }),
+        row("active"),
+      ]),
+    ).toEqual({
+      disabled: true,
+      reason: "2 selected torrents are archived. Restore them first.",
+    });
+    for (const action of ["pause", "force_recheck", "copy_magnet", "restore", "remove"] as const) {
+      expect(torrentActionAvailability(action, [archived]).disabled).toBe(false);
+    }
+  });
+
+  it("requires a pending file selection to finish before archiving", () => {
+    expect(
+      torrentActionAvailability("archive", [row("pending", { awaitingFileSelection: true })]),
+    ).toEqual({
+      disabled: true,
+      reason: "Confirm or cancel the pending file selection before archiving.",
+    });
+  });
+
   it("keeps copy available but blocks mutations during removal", () => {
     const targets = [row("removing", { removalState: "pending" })];
     expect(torrentActionAvailability("copy_magnet", targets).disabled).toBe(false);
