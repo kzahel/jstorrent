@@ -54,6 +54,24 @@ registrar and repository names remain unchanged. Both previous implementation
 READMEs point to this source. Repository renames remain a separate compatibility
 decision.
 
+## Production Android crash checkpoint, 2026-10-12
+
+Read-only Play monitoring at approximately 05:12 UTC now shows one version-28
+foreground crash, one affected user and one event on a Pixelbook/API 33. The
+generated `AndroidApplicationClient.subscribe$suspendImpl` line 7308 maps
+exactly to the destroyed-client handle guard. Version 28's all-category issue
+view shows no other crash/ANR clusters in the September 14–October 12 window;
+usable failure-rate denominators remain unavailable. These observations do not
+establish population stability or the exact customer lifecycle trigger.
+
+Tactical [314](../tactical/314-android-presentation-shutdown-race.md) reproduces
+the late-request failure and locally fences terminal presentation closure,
+contains setup errors and releases partially acquired groups. Android build
+and regression evidence belong to 314; production delivery and observation
+remain under 297. No store version, release binding or rollout is changed.
+Play Statistics reports seven version 28 update events on October 10 and 17 on
+October 11; these events are not unique users or a crash-rate denominator.
+
 ## Current store delivery checkpoint, 2026-10-11
 
 Android 1.0.28/code 28 is now at 100% following explicit maintainer direction

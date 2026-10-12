@@ -1,5 +1,12 @@
 # Client Surfaces
 
+Tactical [314](../tactical/314-android-presentation-shutdown-race.md) repairs
+Android presentation requests racing native-client release. The repository
+closes terminally under its acquisition mutex, reports active setup errors,
+and releases partial subscription groups on failure/cancellation. The version-28
+production stack's exact generated line maps to the destroyed-client guard;
+local regressions and dual-ABI build pass. Store delivery remains separate.
+
 Completed remote MP4/M4V playback is implemented by the lazy browser
 playsvideo consumer in [313](../tactical/313-completed-remote-video-playback.md).
 Its Files/Library dialog reuses authenticated reliable ranges, owns cancellation

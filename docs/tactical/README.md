@@ -1,5 +1,13 @@
 # Implementation Tactical Docs
 
+- [315 — Android 1.0.29 production release](315-android-1-0-29-production-release.md):
+  signed crash/UX hotfix, production review, automatic publication and100%
+  rollout under explicit maintainer direction.
+
+- [314 — Android presentation shutdown race](314-android-presentation-shutdown-race.md):
+  terminal subscription ownership, contained setup failures and cancellation
+  cleanup following the version28 production crash; store delivery separate.
+
 - [312 — Reliable credit-based range streams](312-reliable-credit-range-streams.md):
   shared receive credit, bounded reliable lanes, arbitrary ranges, consumption
   and release barriers, compatibility and measured RTT/loss behavior.

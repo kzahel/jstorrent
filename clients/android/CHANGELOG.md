@@ -1,5 +1,14 @@
 # Android Changelog
 
+## [1.0.29]
+
+- Fix a shutdown-related crash when opening torrent details.
+- Download all files immediately, or choose files explicitly when adding a
+  torrent, without waiting for magnet metadata to download everything.
+- Simplify first launch and folder setup, and enable background downloads
+  together with their notification permission.
+- Consolidate notification settings into one Enable or Manage action.
+
 ## [1.0.28]
 
 - Preserve a torrent's paused or running choice when repairing its download

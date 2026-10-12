@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -12,6 +13,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.rstorrent.bootstrap.uniffi.AndroidApplicationClient
 import org.rstorrent.bootstrap.uniffi.AndroidViewSubscription
 import org.rstorrent.session.uniffi.CatalogPageRequest
@@ -38,6 +40,7 @@ internal class AndroidPresentationRepository(
     private val onError: (Throwable) -> Unit,
 ) {
     private val ownership = Mutex()
+    private var closed = false
     private lateinit var client: AndroidApplicationClient
     private var list: OwnedSubscription? = null
     private val detail = mutableListOf<OwnedSubscription>()
@@ -57,6 +60,7 @@ internal class AndroidPresentationRepository(
 
     suspend fun start(client: AndroidApplicationClient) {
         ownership.withLock {
+            check(!closed) { "presentation repository is closed" }
             this.client = client
             list =
                 subscribe(
@@ -74,13 +78,11 @@ internal class AndroidPresentationRepository(
     }
 
     fun selectTorrent(torrentId: String) {
-        scope.launch {
-            ownership.withLock {
-                if (selectedTorrent == torrentId) return@withLock
-                selectedTorrent = torrentId
-                state.update { it.copy(selectedTorrent = torrentId) }
-                if (diagnosticTorrentOnly) replaceDiagnostics()
-            }
+        launchPresentation {
+            if (selectedTorrent == torrentId) return@launchPresentation
+            selectedTorrent = torrentId
+            state.update { it.copy(selectedTorrent = torrentId) }
+            if (diagnosticTorrentOnly) replaceDiagnostics()
         }
     }
 
@@ -89,34 +91,30 @@ internal class AndroidPresentationRepository(
         presentation: TorrentPresentation,
     ) {
         val request = detailRequest.incrementAndGet()
-        scope.launch {
-            ownership.withLock {
-                if (request != detailRequest.get()) return@withLock
-                selectedTorrent = torrentId
-                closeAll(detail)
-                state.update {
-                    it.copy(
-                        selectedTorrent = torrentId,
-                        files = it.files.filterKeys { id -> id == torrentId },
-                        trackers = it.trackers.filterKeys { id -> id == torrentId },
-                        peers = it.peers.filterKeys { id -> id == torrentId },
-                        swarms = it.swarms.filterKeys { id -> id == torrentId },
-                    )
-                }
-                detail += torrentSpecs(torrentId, presentation).map { subscribe(it, false) }
-                if (diagnosticTorrentOnly) replaceDiagnostics()
+        launchPresentation {
+            if (request != detailRequest.get()) return@launchPresentation
+            selectedTorrent = torrentId
+            closeAll(detail)
+            state.update {
+                it.copy(
+                    selectedTorrent = torrentId,
+                    files = it.files.filterKeys { id -> id == torrentId },
+                    trackers = it.trackers.filterKeys { id -> id == torrentId },
+                    peers = it.peers.filterKeys { id -> id == torrentId },
+                    swarms = it.swarms.filterKeys { id -> id == torrentId },
+                )
             }
+            acquireGroup(detail, torrentSpecs(torrentId, presentation))
+            if (diagnosticTorrentOnly) replaceDiagnostics()
         }
     }
 
     fun clearTorrent(torrentId: String) {
         val request = detailRequest.incrementAndGet()
-        scope.launch {
-            ownership.withLock {
-                if (request != detailRequest.get()) return@withLock
-                if (selectedTorrent != torrentId) return@withLock
-                closeAll(detail)
-            }
+        launchPresentation {
+            if (request != detailRequest.get()) return@launchPresentation
+            if (selectedTorrent != torrentId) return@launchPresentation
+            closeAll(detail)
         }
     }
 
@@ -130,19 +128,17 @@ internal class AndroidPresentationRepository(
                 presentation == TorrentPresentation.TRACKERS,
         ) { "only paged catalog presentations accept an offset" }
         val request = detailRequest.incrementAndGet()
-        scope.launch {
-            ownership.withLock {
-                if (request != detailRequest.get()) return@withLock
-                selectedTorrent = torrentId
-                closeAll(detail)
-                val projection =
-                    if (presentation == TorrentPresentation.FILES) {
-                        ViewProjection.FILES
-                    } else {
-                        ViewProjection.TRACKERS
-                    }
-                detail += subscribe(catalogSpec(torrentId, projection, offset), false)
-            }
+        launchPresentation {
+            if (request != detailRequest.get()) return@launchPresentation
+            selectedTorrent = torrentId
+            closeAll(detail)
+            val projection =
+                if (presentation == TorrentPresentation.FILES) {
+                    ViewProjection.FILES
+                } else {
+                    ViewProjection.TRACKERS
+                }
+            detail += subscribe(catalogSpec(torrentId, projection, offset), false)
         }
     }
 
@@ -151,54 +147,48 @@ internal class AndroidPresentationRepository(
         offset: UInt,
     ) {
         val request = pendingSelectionRequest.incrementAndGet()
-        scope.launch {
-            ownership.withLock {
-                if (request != pendingSelectionRequest.get()) return@withLock
-                pendingSelection?.close()
-                val previousTorrent = pendingSelectionTorrent
-                pendingSelectionTorrent = torrentId
-                state.update {
-                    it.copy(
-                        files =
-                            it.files - torrentId - listOfNotNull(previousTorrent).toSet(),
-                    )
-                }
-                pendingSelection =
-                    subscribe(catalogSpec(torrentId, ViewProjection.FILES, offset), false)
+        launchPresentation {
+            if (request != pendingSelectionRequest.get()) return@launchPresentation
+            pendingSelection?.close()
+            val previousTorrent = pendingSelectionTorrent
+            pendingSelectionTorrent = torrentId
+            state.update {
+                it.copy(
+                    files =
+                        it.files - torrentId - listOfNotNull(previousTorrent).toSet(),
+                )
             }
+            pendingSelection =
+                subscribe(catalogSpec(torrentId, ViewProjection.FILES, offset), false)
         }
     }
 
     fun clearPendingFileSelection() {
         val request = pendingSelectionRequest.incrementAndGet()
-        scope.launch {
-            ownership.withLock {
-                if (request != pendingSelectionRequest.get()) return@withLock
-                pendingSelection?.close()
-                pendingSelection = null
-                val torrentId = pendingSelectionTorrent
-                pendingSelectionTorrent = null
-                if (torrentId != null) state.update { it.copy(files = it.files - torrentId) }
-            }
+        launchPresentation {
+            if (request != pendingSelectionRequest.get()) return@launchPresentation
+            pendingSelection?.close()
+            pendingSelection = null
+            val torrentId = pendingSelectionTorrent
+            pendingSelectionTorrent = null
+            if (torrentId != null) state.update { it.copy(files = it.files - torrentId) }
         }
     }
 
     fun presentGlobal(presentation: GlobalPresentation) {
         val request = globalRequest.incrementAndGet()
-        scope.launch {
-            ownership.withLock {
-                if (request != globalRequest.get()) return@withLock
-                closeAll(global)
-                global +=
-                    when (presentation) {
-                        GlobalPresentation.NONE -> emptyList()
-                        GlobalPresentation.SPEED ->
-                            listOf(currentRatesSpec(), speedHistorySpec()).map {
-                                subscribe(it, false)
-                            }
-                        GlobalPresentation.DHT -> listOf(subscribe(dhtSpec(), false))
-                    }
-            }
+        launchPresentation {
+            if (request != globalRequest.get()) return@launchPresentation
+            closeAll(global)
+            acquireGroup(
+                global,
+                when (presentation) {
+                    GlobalPresentation.NONE -> emptyList()
+                    GlobalPresentation.SPEED ->
+                        listOf(currentRatesSpec(), speedHistorySpec())
+                    GlobalPresentation.DHT -> listOf(dhtSpec())
+                },
+            )
         }
     }
 
@@ -209,15 +199,13 @@ internal class AndroidPresentationRepository(
         torrentOnly: Boolean,
     ) {
         val request = diagnosticRequest.incrementAndGet()
-        scope.launch {
-            ownership.withLock {
-                if (request != diagnosticRequest.get()) return@withLock
-                diagnosticProfile = profile
-                diagnosticSeverity = severity
-                diagnosticCategories = categories
-                diagnosticTorrentOnly = torrentOnly
-                if (::client.isInitialized) replaceDiagnostics()
-            }
+        launchPresentation {
+            if (request != diagnosticRequest.get()) return@launchPresentation
+            diagnosticProfile = profile
+            diagnosticSeverity = severity
+            diagnosticCategories = categories
+            diagnosticTorrentOnly = torrentOnly
+            if (::client.isInitialized) replaceDiagnostics()
         }
     }
 
@@ -227,6 +215,7 @@ internal class AndroidPresentationRepository(
         globalRequest.incrementAndGet()
         diagnosticRequest.incrementAndGet()
         ownership.withLock {
+            closed = true
             list?.close()
             list = null
             closeAll(detail)
@@ -236,6 +225,43 @@ internal class AndroidPresentationRepository(
             closeAll(global)
             diagnostics?.close()
             diagnostics = null
+        }
+    }
+
+    private fun launchPresentation(action: suspend () -> Unit) {
+        scope.launch {
+            try {
+                ownership.withLock {
+                    // Closure and acquisition share one barrier. Request epochs
+                    // alone cannot fence a request submitted after close().
+                    if (closed || stopped.get()) return@withLock
+                    action()
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                if (!stopped.get() && currentCoroutineContext().isActive) onError(error)
+            }
+        }
+    }
+
+    private suspend fun acquireGroup(
+        subscriptions: MutableList<OwnedSubscription>,
+        specs: List<SubscriptionSpec>,
+    ) {
+        try {
+            for (spec in specs) subscriptions += subscribe(spec, false)
+        } catch (error: Throwable) {
+            // Keep each acquisition owned immediately, including when a later
+            // acquisition fails or is cancelled before the group is complete.
+            withContext(NonCancellable) {
+                try {
+                    closeAll(subscriptions)
+                } catch (cleanup: Throwable) {
+                    error.addSuppressed(cleanup)
+                }
+            }
+            throw error
         }
     }
 

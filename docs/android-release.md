@@ -1,7 +1,10 @@
 # Android Release Runbook
 
-Android release now targets the existing JSTorrent `com.jstorrent.app` app,
-with next local candidate 1.0.27/versionCode 27 and `android-vX.Y.Z` tags.
+Android release targets the existing JSTorrent `com.jstorrent.app` app,
+currently production 1.0.28/code 28, with `android-vX.Y.Z` tags. Tactical
+[315](tactical/315-android-1-0-29-production-release.md) owns the explicitly
+authorized 1.0.29/code 29 production review, automatic publication and 100%
+rollout. Earlier candidate/track checkpoints below remain historical.
 Debug builds retain `org.rstorrent.bootstrap`; Kotlin/JNI namespace stays
 unchanged. A release-only alias preserves the legacy launcher component.
 The Android Release workflow builds both arm64-v8a and x86_64, runs release
@@ -34,12 +37,12 @@ passed build, signature/packaging validation, and prerelease publication.
 
 ## Release A Version
 
-Only after explicit release authorization, add a nonempty `## [1.0.27]`
+Only after explicit release authorization, add a nonempty `## [1.0.29]`
 section to `clients/android/CHANGELOG.md` and commit it first. From a clean `main` checkout:
 
 ```sh
-scripts/release-android.sh 1.0.27 --dry-run
-scripts/release-android.sh 1.0.27
+scripts/release-android.sh 1.0.29 --dry-run
+scripts/release-android.sh 1.0.29
 ```
 
 The helper validates the version and changelog, increments Gradle's integer
@@ -134,6 +137,12 @@ the upload key authenticates uploaded bundles. A directly installed APK may
 therefore have a different signing identity from the Play-installed app.
 
 ## Upload To Play
+
+For the authorized 1.0.29 release, use the existing production track at 100% and
+turn managed publishing off so approval publishes automatically. Inspect
+pending changes first; this authorizes the 29 release, not unrelated drafts.
+Earlier internal-first qualification below describes the initial replacement,
+not a mandatory track sequence for this approved hotfix.
 
 Select the **existing JSTorrent (`com.jstorrent.app`)** app. After signing,
 version and cutover gates pass and upload is explicitly authorized, upload the

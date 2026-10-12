@@ -1,5 +1,11 @@
 # Application View API
 
+Tactical [314](../tactical/314-android-presentation-shutdown-race.md) makes the
+Android presentation adapter terminal after close and retains ownership during
+partial subscription setup failures. Acquisition and closure share the existing
+mutex; cancellation remains explicit. View semantics and generated contracts
+are unchanged. The local repair is separate from delivery to installed clients.
+
 Tactical [308](../tactical/308-android-optional-add-selection.md) adds the
 closed `download_all_pending_add` command carrying only the opaque torrent ID.
 It applies exclusively to a newly pending add, accepts no catalog or file

@@ -1,5 +1,14 @@
 # Android JSTorrent Replacement Readiness
 
+October 12 production monitoring finds one version-28 foreground crash on a
+Pixelbook/API 33 in torrent-detail subscription setup. Tactical
+[314](../tactical/314-android-presentation-shutdown-race.md) maps the exact
+generated line to a destroyed client and locally repairs the presentation
+closure fence, setup error boundary and partial-owner cleanup. Thirteen new
+regressions, all 136 debug JVM cases, regenerated Kotlin and both native ABIs
+pass. This is a local repair; production remains 1.0.28/code 28, with customer
+trigger reproduction and delivery/soak evidence separate.
+
 Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
 simplifies first launch: concise statistics choice, folder setup, then an
 optional background-download offer. Library Enable now requests notifications
