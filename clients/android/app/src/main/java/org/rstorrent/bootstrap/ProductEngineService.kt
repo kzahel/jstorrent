@@ -2181,6 +2181,12 @@ class ProductEngineService : Service() {
         check(isChromeOs()) { "Chrome extension setup requires ChromeOS" }
         ProductCompanionPreference.enable(this)
         clientReady.await()
+        notificationEligibilityMutation.withLock {
+            val eligibility = notificationCoordinator.refreshPlatformState(interactionLeases.size)
+            check(eligibility.backgroundNotificationVisible) { "Chrome requires visible Android notifications" }
+            lifecycleCoordinator.updateNotificationEligibility(true)
+            publishLifecyclePreferences(true)
+        }
         startChromeOsCompanionOwners()
     }
 

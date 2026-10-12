@@ -20,6 +20,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
@@ -655,11 +656,16 @@ class MainActivity : ComponentActivity() {
                     onDynamicColor = ::setDynamicColor,
                 )
                 if (chromeExtensionSetupVisible.value) {
+                    val notifications = productService.value?.state
+                        ?.collectAsStateWithLifecycle()?.value?.notifications ?: ProductNotificationState()
                     ChromeExtensionSetupDialog(
                         ready = productService.value != null,
                         busy = chromeExtensionSetupBusy.value,
                         failed = chromeExtensionSetupFailed.value,
                         onOpenChrome = ::openChromeExtension,
+                        notificationAction = ProductChromeExtensionSetup.notificationAction(notifications),
+                        onAllowNotifications = ::requestNotificationPermission,
+                        onOpenNotificationSettings = ::openNotificationSettings,
                         onDismiss = {
                             chromeExtensionSetupJob?.cancel()
                             chromeExtensionSetupVisible.value = false

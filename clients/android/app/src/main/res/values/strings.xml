@@ -590,4 +590,7 @@
     <string name="chrome_extension_setup_failed">Chrome could not be opened. Try again, or return to the extension manually.</string>
     <string name="chrome_extension_setup_open">Open Chrome library</string>
     <string name="chrome_extension_setup_opening">Opening Chrome…</string>
+    <string name="chrome_extension_setup_notifications">Allow Android notifications so JSTorrent can stay connected while you use Chrome. This does not enable background downloads or seeding.</string>
+    <string name="chrome_extension_setup_allow_notifications">Allow notifications</string>
+    <string name="chrome_extension_setup_notification_settings">Open notification settings</string>
 </resources>

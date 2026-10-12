@@ -136,7 +136,9 @@ async function openAndroidUi() {
     const tabId = await readRememberedTab(ANDROID_TAB_KEY);
     // Extension documents receive runtime messages; tabs.sendMessage targets
     // content scripts. Only the named owned page may retry an idle attempt.
-    await chrome.runtime.sendMessage({ type: "androidAttachRequested", tabId }).catch(() => {});
+    // The website receipt means UI opened, not connection established. A tab
+    // that freezes or never answers must not hold that receipt or the singleton.
+    void chrome.runtime.sendMessage({ type: "androidAttachRequested", tabId }).catch(() => {});
   }
   return { ok: true, result: { kind: "android_ui", status } };
 }

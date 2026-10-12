@@ -306,6 +306,19 @@ test("Android return rejects malformed messages and every broader sender authori
   assert.equal(tabs.size, 0);
 });
 
+test("a nonresponding retry notification cannot hold the website UI-open receipt", async () => {
+  stored.androidUiTabId = 77;
+  tabs.set(77, { id: 77, windowId: 5, url: chrome.runtime.getURL("companion/companion.html") });
+  const send = chrome.runtime.sendMessage;
+  chrome.runtime.sendMessage = () => new Promise(() => {});
+  try {
+    const response = await sendExternal({ type: "openAndroidUi", protocolVersion: 1 },
+      { url: "https://jstorrent.com/chrome-extension.html", frameId: 0, tab: { id: 42 } });
+    assert.equal(response.ok, true);
+    assert.equal(response.result.status, "focused");
+  } finally { chrome.runtime.sendMessage = send; }
+});
+
 test("external messages fail closed for URL and shape drift", () => {
   for (const [message, url] of [
     [{ type: "openCrostiniUi", protocolVersion: 2 }, "http://jstorrent.localhost:3030/launch-chromeos"],

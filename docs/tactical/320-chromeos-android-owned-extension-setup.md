@@ -166,3 +166,35 @@ one bounded `org.jstorrent.setup320` qualification identity to the existing
 explicit debug-package allowlist so physical testing can preserve Play data.
 Candidate fixtures will document package/extension-ID substitutions if required.
 The website source is built locally; no public deployment is authorized.
+
+
+### Physical Findings And Repair
+
+Both candidates are installed alongside untouched Play apps. Cohort B's exact
+installed certificate is the Play app-signing root, distinct from the upload
+root used by the signed local APK. The physical candidate therefore uses the
+explicit isolated Android identity and existing allowed beta extension identity.
+The HTTPS fixture substitutes only that extension ID; the launch test substitutes
+only the isolated package. Cohort A's production listener remains running, so
+its test page filters discovery to the separately observed candidate port 3031;
+cohort B uses the candidate's actual port 3030. No production pairing is altered.
+
+Actual cancellation/reopen leaves the direct launch link usable and its chooser
+contains one candidate even with other apps installed. Cohort B's browser denial
+is recoverable and its normal Android launch reaches Settings setup. Both exact
+HTTPS candidate pages open/focus one extension UI. An unanswered retry notification
+initially held the website receipt on A; the worker now treats it as best effort
+and returns the already-observed UI-open receipt. Both physical receipts pass.
+
+Fresh API-33 cohort A then exposes notification ineligibility: leaving Android
+stops the owner before pairing can settle. Setup now requires existing permission,
+app-notification and ongoing-channel eligibility before browser return, exposes
+Allow notifications/notification settings, and does not enable background-download
+or seeding preferences. The existing lifetime policy is unchanged. A service-side
+eligibility recheck fences permission/channel races before navigation. Add JVM and
+Compose regressions for denied permission and blocked-channel recovery.
+
+The interception fixture uses explicit target discovery for ARC-opened tabs and
+never pauses targets or workers. Initial failed candidate-navigation/receipt
+observations remain failures; a candidate reload is distinct from native URL
+navigation and does not qualify public hosting.

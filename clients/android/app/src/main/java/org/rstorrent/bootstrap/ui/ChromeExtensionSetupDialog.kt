@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.rstorrent.bootstrap.R
+import org.rstorrent.bootstrap.ProductChromeExtensionSetup.NotificationAction
 
 @Composable
 fun ChromeExtensionSetupDialog(
@@ -19,6 +20,9 @@ fun ChromeExtensionSetupDialog(
     failed: Boolean,
     onOpenChrome: () -> Unit,
     onDismiss: () -> Unit,
+    notificationAction: NotificationAction = NotificationAction.NONE,
+    onAllowNotifications: () -> Unit = {},
+    onOpenNotificationSettings: () -> Unit = {},
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -28,6 +32,15 @@ fun ChromeExtensionSetupDialog(
                 Text(stringResource(R.string.chrome_extension_setup_detail))
                 Spacer(Modifier.height(12.dp))
                 Text(stringResource(R.string.chrome_extension_setup_manual))
+                if (notificationAction != NotificationAction.NONE) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.chrome_extension_setup_notifications))
+                    if (notificationAction == NotificationAction.REQUEST_PERMISSION) {
+                        TextButton(onClick = onOpenNotificationSettings) {
+                            Text(stringResource(R.string.chrome_extension_setup_notification_settings))
+                        }
+                    }
+                }
                 if (failed) {
                     Spacer(Modifier.height(12.dp))
                     Text(stringResource(R.string.chrome_extension_setup_failed))
@@ -35,8 +48,18 @@ fun ChromeExtensionSetupDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onOpenChrome, enabled = ready && !busy) {
-                Text(stringResource(if (busy) R.string.chrome_extension_setup_opening else R.string.chrome_extension_setup_open))
+            if (notificationAction == NotificationAction.REQUEST_PERMISSION) {
+                TextButton(onClick = onAllowNotifications, enabled = ready && !busy) {
+                    Text(stringResource(R.string.chrome_extension_setup_allow_notifications))
+                }
+            } else if (notificationAction == NotificationAction.OPEN_SETTINGS) {
+                TextButton(onClick = onOpenNotificationSettings, enabled = ready && !busy) {
+                    Text(stringResource(R.string.chrome_extension_setup_notification_settings))
+                }
+            } else {
+                TextButton(onClick = onOpenChrome, enabled = ready && !busy) {
+                    Text(stringResource(if (busy) R.string.chrome_extension_setup_opening else R.string.chrome_extension_setup_open))
+                }
             }
         },
         dismissButton = {

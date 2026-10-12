@@ -4,6 +4,15 @@ package org.rstorrent.bootstrap
 object ProductChromeExtensionSetup {
     const val HANDOFF_URL = "https://jstorrent.com/chrome-extension.html"
 
+    enum class NotificationAction { NONE, REQUEST_PERMISSION, OPEN_SETTINGS }
+
+    fun notificationAction(state: ProductNotificationState): NotificationAction =
+        when {
+            !state.permissionGranted -> NotificationAction.REQUEST_PERMISSION
+            !state.eligibility.backgroundNotificationVisible -> NotificationAction.OPEN_SETTINGS
+            else -> NotificationAction.NONE
+        }
+
     fun acceptsLaunch(
         scheme: String?,
         host: String?,

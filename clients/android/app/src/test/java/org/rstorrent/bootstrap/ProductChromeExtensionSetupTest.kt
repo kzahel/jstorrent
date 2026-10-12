@@ -31,4 +31,16 @@ class ProductChromeExtensionSetupTest {
         assertFalse(accepts(port = 3030))
         assertFalse(accepts(userInfo = "user"))
     }
+
+    @Test
+    fun browserReturnRequiresTheExistingNotificationEligibility() {
+        val state = ProductNotificationState(permissionGranted = true)
+        val none = ProductChromeExtensionSetup.NotificationAction.NONE
+        val permission = ProductChromeExtensionSetup.NotificationAction.REQUEST_PERMISSION
+        val settings = ProductChromeExtensionSetup.NotificationAction.OPEN_SETTINGS
+        org.junit.Assert.assertEquals(none, ProductChromeExtensionSetup.notificationAction(state))
+        org.junit.Assert.assertEquals(permission, ProductChromeExtensionSetup.notificationAction(state.copy(permissionGranted = false)))
+        org.junit.Assert.assertEquals(settings, ProductChromeExtensionSetup.notificationAction(state.copy(appNotificationsEnabled = false)))
+        org.junit.Assert.assertEquals(settings, ProductChromeExtensionSetup.notificationAction(state.copy(backgroundChannelEnabled = false)))
+    }
 }
