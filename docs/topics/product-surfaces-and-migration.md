@@ -54,6 +54,25 @@ registrar and repository names remain unchanged. Both previous implementation
 READMEs point to this source. Repository renames remain a separate compatibility
 decision.
 
+## Android 1.0.29 production review submission, 2026-10-12
+
+Tactical [315](../tactical/315-android-1-0-29-production-release.md) submits
+the exact original-upload-key signed 1.0.29/code 29 AAB from tagged source
+`8ddf2e8b` to the existing production app. At 07:01 UTC, Play shows the sole
+change **29 (1.0.29), Start full rollout** under **Changes in review**.
+The preview confirms 100% and all targeted countries with zero device losses;
+managed publishing is off for automatic publication after approval. At 15:34
+UTC quick checks have completed and Play explicitly confirms changes are now
+in review; approval and public availability are not inferred.
+
+The release includes 314's crash repair and the landed 308/310/311 file-selection,
+setup/background and notification-settings fixes. Signed/publication and full
+source CI pass; independent hashes, original signatures, identity, native
+equality, alignment and notices pass. Fresh API 28/35 cohorts pass 29 owned
+navigation/shutdown cases each. Native symbols are included, with readable
+production symbolication unqualified. Production 28 remains until approval;
+desktop 0.3.0 and extension 1.1.3 retain their separate delivery bindings.
+
 ## Production Android crash checkpoint, 2026-10-12
 
 Read-only Play monitoring at approximately 05:12 UTC now shows one version-28

@@ -1,5 +1,16 @@
 # Beta Release Readiness
 
+## Android 1.0.29 submission, 2026-10-12
+
+Tactical [315](../tactical/315-android-1-0-29-production-release.md) records the
+original-key signed 1.0.29/code 29 production submission from tagged 8ddf2e8b.
+Full source/signed CI, independent APK/AAB gates and 29 owned navigation/shutdown
+cases each on API 28/35 pass. At 07:01 UTC Play shows only 29, Start full rollout,
+Changes in review, with managed publishing off. By 15:34 UTC quick checks have
+completed and Play explicitly confirms changes are now in review. Automatic
+100% publication follows approval. Approval and installed stability are not
+inferred.
+
 ## Store delivery, 2026-10-11
 
 Extension 1.1.3 is approved and published to the existing production Web Store

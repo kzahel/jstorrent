@@ -7,6 +7,13 @@ selection actions, and gates React Start/queue/Download now for archived rows.
 Rust workspace, web and Android JVM/lint suites pass; a Pixel 9 debug install
 covers setup, tabs and the detail menu. Release delivery remains separate.
 
+Tactical [315](../tactical/315-android-1-0-29-production-release.md) completes
+the 1.0.29/code 29 production review submission at 100%, automatically publishing
+after approval. Full source/signed CI, independent artifact gates and 29 owned
+API 28/35 navigation/shutdown cases each pass. Play quick checks complete by
+15:34 UTC; review/approval remain asynchronous. Migration and population
+stability are not qualified.
+
 Local Tactical [314](../tactical/314-android-presentation-shutdown-race.md)
 repairs the Android presentation shutdown race behind version 28's first
 observed production crash. Thirteen regressions, all 136 debug JVM cases and

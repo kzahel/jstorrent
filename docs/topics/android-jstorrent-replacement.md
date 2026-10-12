@@ -1,5 +1,12 @@
 # Android JSTorrent Replacement Readiness
 
+Tactical [315](../tactical/315-android-1-0-29-production-release.md) submits
+signed 1.0.29/code 29 from 8ddf2e8b for production review at 100%, automatically
+publishing after approval. Full source/signed CI, independent artifact checks
+and 29 owned navigation/shutdown cases each on API 28/35 pass. Play quick checks
+complete by 15:34 UTC; review/approval and installed production stability remain
+pending. This does not establish migration or vitals success.
+
 October 12 production monitoring finds one version-28 foreground crash on a
 Pixelbook/API 33 in torrent-detail subscription setup. Tactical
 [314](../tactical/314-android-presentation-shutdown-race.md) maps the exact
