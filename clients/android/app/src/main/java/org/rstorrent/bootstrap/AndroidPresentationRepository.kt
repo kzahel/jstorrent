@@ -175,7 +175,10 @@ internal class AndroidPresentationRepository(
         }
     }
 
-    fun presentGlobal(presentation: GlobalPresentation) {
+    fun presentGlobal(
+        presentation: GlobalPresentation,
+        speedRange: SpeedRange = SpeedRange.MINUTES2,
+    ) {
         val request = globalRequest.incrementAndGet()
         launchPresentation {
             if (request != globalRequest.get()) return@launchPresentation
@@ -185,7 +188,7 @@ internal class AndroidPresentationRepository(
                 when (presentation) {
                     GlobalPresentation.NONE -> emptyList()
                     GlobalPresentation.SPEED ->
-                        listOf(currentRatesSpec(), speedHistorySpec())
+                        listOf(currentRatesSpec(), speedHistorySpec(speedRange))
                     GlobalPresentation.DHT -> listOf(dhtSpec())
                 },
             )
@@ -412,9 +415,9 @@ internal class AndroidPresentationRepository(
             null,
         )
 
-    private fun speedHistorySpec() =
+    private fun speedHistorySpec(range: SpeedRange) =
         SubscriptionSpec(
-            ViewSelector.SessionSpeedHistory(SpeedRange.MINUTES2, speedMetrics),
+            ViewSelector.SessionSpeedHistory(range, speedMetrics),
             ViewProjection.SPEED_HISTORY,
             DeliveryPolicy(500U, 512U * 1024U),
             null,

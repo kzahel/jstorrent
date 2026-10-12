@@ -4026,8 +4026,11 @@ class ProductEngineService : Service() {
         withPresentation(AndroidPresentationRepository::clearPendingFileSelection)
     }
 
-    fun presentGlobal(presentation: GlobalPresentation) {
-        withPresentation { it.presentGlobal(presentation) }
+    fun presentGlobal(
+        presentation: GlobalPresentation,
+        speedRange: SpeedRange = SpeedRange.MINUTES2,
+    ) {
+        withPresentation { it.presentGlobal(presentation, speedRange) }
     }
 
     fun configureDiagnostics(

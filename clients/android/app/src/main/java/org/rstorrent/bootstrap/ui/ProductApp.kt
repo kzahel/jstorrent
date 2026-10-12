@@ -117,6 +117,7 @@ import org.rstorrent.session.uniffi.ClientSettingsPatch
 import org.rstorrent.session.uniffi.FilePriority
 import org.rstorrent.session.uniffi.ProductFeedbackPreview
 import org.rstorrent.session.uniffi.RemovalDataPolicy
+import org.rstorrent.session.uniffi.SpeedRange
 import org.rstorrent.session.uniffi.StorageRootAvailability
 import org.rstorrent.session.uniffi.TorrentOperationalState
 import org.rstorrent.session.uniffi.TorrentSettingsPatch
@@ -892,11 +893,18 @@ private fun ProductNavHost(
             )
         }
         composable(ProductRoutes.SPEED) {
-            DisposableEffect(service) {
-                service?.presentGlobal(GlobalPresentation.SPEED)
+            var speedRange by rememberSaveable { mutableStateOf(SpeedRange.MINUTES2) }
+            DisposableEffect(service, speedRange) {
+                service?.presentGlobal(GlobalPresentation.SPEED, speedRange)
                 onDispose { service?.presentGlobal(GlobalPresentation.NONE) }
             }
-            SpeedScreen(state.speed, state.currentRates, navController::popBackStack)
+            SpeedScreen(
+                state.speed,
+                state.currentRates,
+                speedRange,
+                { speedRange = it },
+                navController::popBackStack,
+            )
         }
         composable(ProductRoutes.DHT) {
             DisposableEffect(service) {
@@ -1999,7 +2007,8 @@ private fun LogsShell(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            events.takeLast(200).forEach { event ->
+            // Newest first: the latest event is visible without scrolling.
+            events.takeLast(200).asReversed().forEach { event ->
                 ListItem(
                     headlineContent = { Text(event.code, fontFamily = FontFamily.Monospace) },
                     supportingContent = {
