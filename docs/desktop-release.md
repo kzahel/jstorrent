@@ -1,13 +1,16 @@
 # Desktop Release Runbook
 
-## Release track status, 2026-10-11
+## Release track status, 2026-10-13
 
-JSTorrent is the sole active desktop release identity. Desktop 0.3.0 is public
+JSTorrent is the sole active desktop release identity. Desktop 0.3.1 is public
 with `com.jstorrent.desktop`, the existing JSTorrent updater signing key and
 `updates.jstorrent.com`. Use
 [JSTorrent candidate builds](../DEVELOPMENT.md#building-jstorrent-production-candidates)
 and [explicit publication](../DEVELOPMENT.md#explicit-production-desktop-publication)
 for new work, with the existing release qualification gates.
+
+Tactical [326](tactical/326-full-product-release.md) records its exact signed
+source, matching source archive, website and all 11 updater offers.
 
 The RSTorrent track is frozen at its last recorded Stable 0.1.4 and Latest
 0.2.801 offers. No new incubation releases or resumed nightly publication are

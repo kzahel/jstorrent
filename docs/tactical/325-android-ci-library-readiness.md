@@ -1,6 +1,6 @@
 # Tactical 325: Android CI Library Readiness
 
-Status: Complete locally, 2026-10-13. Repaired-source hosted CI remains unrun.
+Status: Complete locally and in hosted CI, 2026-10-13.
 
 Topics: `client-surfaces`
 
@@ -80,3 +80,8 @@ No push or publication occurs. Latest hosted full CI remains failed at
 `e7542c57`; the other applicable jobs and Fast CI passed there. The checkout
 also contains newer local commits, so a future push must qualify its exact
 submitted source rather than rerun the obsolete failed revision.
+
+Tactical [326](326-full-product-release.md) pushes the completed repair with
+release source 5fa018ff. Full CI 38316599207 passes its Android dual-ABI/JVM/lint
+and owned API 35 SAF lifecycle job at that exact source, closing the hosted
+follow-up. The earlier failed source remains historical evidence.

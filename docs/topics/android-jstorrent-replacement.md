@@ -1,5 +1,14 @@
 # Android JSTorrent Replacement Readiness
 
+Tactical [326](../tactical/326-full-product-release.md) submits original-key
+Android 1.0.30/code 30 at 100%, automatically publishing after approval. Exact
+tagged APK/AAB, dual-ABI/JVM/lint and owned API 35 SAF lifecycle checks pass.
+Play quick checks complete and changes are in review. Production 29 remains
+available until approval; no cancellation is needed. Extension 1.1.4 is packaged
+but Google owner verification blocks confirming upload/submission. Installed
+production acceptance and stability remain separate.
+
+
 Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) adds
 ChromeOS-only Settings → Advanced → Connect Chrome extension and a new JSTorrent
 launch scheme, retaining the old scheme as input compatibility. Setup gates

@@ -1,5 +1,15 @@
 # Beta Release Readiness
 
+Tactical [326](../tactical/326-full-product-release.md) publishes desktop 0.3.1
+from tagged 5fa018ff after full source/signed CI and independent package/source
+qualification. All 17 public assets, the live website and 11 production updater
+selectors verify; frozen incubation offers remain unchanged. Original-key Android
+1.0.30/code 30 is in review at 100%, automatically publishing after approval.
+Exact tagged artifacts and source Android/SAF checks pass. Extension 1.1.4 is
+packaged but Google owner verification blocks confirming upload/submission.
+Store approval, installed acceptance and stability are not inferred.
+
+
 ## Android 1.0.29 submission, 2026-10-12
 
 Tactical [315](../tactical/315-android-1-0-29-production-release.md) records the

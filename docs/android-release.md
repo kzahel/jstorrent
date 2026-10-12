@@ -2,10 +2,12 @@
 
 Android release targets the existing JSTorrent `com.jstorrent.app` app,
 with `android-vX.Y.Z` tags. Tactical
-[315](tactical/315-android-1-0-29-production-release.md) records the October 12
-1.0.29/code 29 production submission, automatic publication and 100% rollout.
-Play quick checks complete and changes are in review as of 15:34 UTC;
-approval/publication remain pending. Production remains 28 at submission.
+[326](tactical/326-full-product-release.md) records the October 13 local-date
+1.0.30/code 30 production submission, automatic publication and 100% rollout.
+Play quick checks complete and changes are in review; approval/publication
+remain pending. Production
+29 is available. Tactical [315](tactical/315-android-1-0-29-production-release.md)
+retains the preceding 29 source/signing and submission evidence.
 Earlier candidate/track checkpoints below remain historical.
 Debug builds retain `org.rstorrent.bootstrap`; Kotlin/JNI namespace stays
 unchanged. A release-only alias preserves the legacy launcher component.
@@ -39,12 +41,12 @@ passed build, signature/packaging validation, and prerelease publication.
 
 ## Release A Version
 
-Only after explicit release authorization, add a nonempty `## [1.0.30]`
+Only after explicit release authorization, add a nonempty `## [1.0.31]`
 section to `clients/android/CHANGELOG.md` and commit it first. From a clean `main` checkout:
 
 ```sh
-scripts/release-android.sh 1.0.30 --dry-run
-scripts/release-android.sh 1.0.30
+scripts/release-android.sh 1.0.31 --dry-run
+scripts/release-android.sh 1.0.31
 ```
 
 The helper validates the version and changelog, increments Gradle's integer
@@ -140,9 +142,9 @@ therefore have a different signing identity from the Play-installed app.
 
 ## Upload To Play
 
-For the authorized 1.0.29 release, use the existing production track at 100% and
+For the authorized 1.0.30 release, use the existing production track at 100% and
 turn managed publishing off so approval publishes automatically. Inspect
-pending changes first; this authorizes the 29 release, not unrelated drafts.
+pending changes first; this authorizes the 30 release, not unrelated drafts.
 Earlier internal-first qualification below describes the initial replacement,
 not a mandatory track sequence for this approved hotfix.
 
