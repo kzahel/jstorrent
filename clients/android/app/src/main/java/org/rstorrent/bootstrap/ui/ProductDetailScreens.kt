@@ -320,7 +320,13 @@ internal fun PeersScreen(
         }
         items(rows, key = PeerView::connectionId) { peer -> PeerRow(peer) }
         if (rows.isEmpty()) {
-            item("empty") { ProductLoading(stringResource(R.string.no_peers_connected)) }
+            item("empty") {
+                Text(
+                    stringResource(R.string.no_peers_connected),
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
         }
     }
 }
