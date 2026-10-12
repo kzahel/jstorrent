@@ -1,10 +1,11 @@
 # Android JSTorrent Replacement Readiness
 
 Tactical [326](../tactical/326-full-product-release.md) submits original-key
-Android 1.0.30/code 30 at 100%, automatically publishing after approval. Exact
+Android 1.0.30/code 30, now available on Google Play at 100% in all 178
+targeted countries. Exact
 tagged APK/AAB, dual-ABI/JVM/lint and owned API 35 SAF lifecycle checks pass.
-Play quick checks complete and changes are in review. Production 29 remains
-available until approval; no cancellation is needed. Extension 1.1.4 is packaged
+Play confirms publication at October 13 01:24 local time; version 29 is
+deactivated and no bundles are retained. No cancellation is needed. Extension 1.1.4 is packaged
 but Google owner verification blocks confirming upload/submission. Installed
 production acceptance and stability remain separate.
 

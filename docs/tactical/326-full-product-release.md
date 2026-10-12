@@ -1,6 +1,6 @@
 # Tactical 326: Full Product Release
 
-Status: Desktop 0.3.1 published; Android 1.0.30 in review at 100%;
+Status: Desktop 0.3.1 published; Android 1.0.30 published at 100%;
 extension 1.1.4 needs Google verification, 2026-10-13.
 
 Topics: `beta-release-readiness`, `product-surfaces-and-migration`,
@@ -227,11 +227,21 @@ instrumentation compilation, notice checks and owned API 35 SAF lifecycle.
 Platform native packaging checks pass on Windows, Mac and both Linux lanes.
 The CI-only iOS simulator job also passes; no iOS release is made.
 
+## Android publication confirmation
+
+At 23:57 UTC on October 12 (October 13 local date), the fresh production release
+details show **30 (1.0.30), Available on Google Play**, released October 13 at
+01:24 local time, **Rollout percentage 100%**, and availability in **178 of 178
+countries / regions** on 12,164 supported devices. Version 29 is deactivated;
+no bundles are retained. Publishing overview has no unpublished changes.
+The saved private screenshot records the published full-rollout state. Actual
+installed acceptance and production stability remain separate evidence.
+
 ## Remaining extension action and cleanup
 
-Desktop publication and Android automatic full-rollout submission are complete.
-Actual Android approval/public availability, installed delivery and stability
-remain asynchronous or separate evidence. Extension publication is incomplete:
+Desktop publication and Android publication at 100% are complete.
+Installed delivery and stability remain separate evidence. Extension publication
+is incomplete:
 Google owner verification is still required before its accepted draft version
 and submission can be confirmed. The exact 1.1.4 archive remains ready at the
 recorded hash. After the owner completes the Google passkey check on the existing verification
