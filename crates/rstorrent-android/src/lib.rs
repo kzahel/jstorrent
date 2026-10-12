@@ -47,7 +47,8 @@ const MAX_FILE_SELECTIONS: usize = 1_024;
 const MAX_STORAGE_WRITE_DELAY_MILLIS: u64 = 5_000;
 const DESCRIPTOR_HASH_BUFFER: usize = 16 * 1024;
 const MAX_ANDROID_PATH_BYTES: usize = 4 * 1024;
-const HOSTED_PRODUCT_CONTEXT_READY: bool = false;
+// Hosted privacy, forms and bounded parser verified in Tactical 321.
+const HOSTED_PRODUCT_CONTEXT_READY: bool = true;
 
 uniffi::setup_scaffolding!();
 
@@ -2564,7 +2565,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn product_privacy_boundary_is_native_bounded_and_hosted_gated() {
+    async fn product_privacy_boundary_requires_disclosure_and_report_consent() {
         let root = test_path("application-product-privacy");
         let content = root.join("content");
         fs::create_dir_all(&content).expect("create content root");
@@ -2591,6 +2592,12 @@ mod tests {
                 .disclosure_version,
             0
         );
+        let undisclosed = client
+            .product_feedback_preview("15".to_owned(), "Google Pixel 9".to_owned(), true)
+            .expect("undisclosed preview");
+        assert!(undisclosed.hosted_context_ready);
+        assert!(!undisclosed.statistics_available);
+        assert!(!undisclosed.statistics_included);
         let acknowledged = client
             .acknowledge_product_disclosure(true)
             .expect("acknowledge disclosure");
@@ -2605,11 +2612,15 @@ mod tests {
         let preview = client
             .product_feedback_preview("15".to_owned(), "Google Pixel 9".to_owned(), true)
             .expect("preview feedback");
-        assert!(!preview.hosted_context_ready);
-        assert!(!preview.statistics_included);
+        assert!(preview.hosted_context_ready);
+        assert!(preview.statistics_available);
+        assert!(preview.statistics_included);
         assert_eq!(
             preview.url,
-            "https://jstorrent.com/feedback.html?platform=android&v=0.1-test&android=15&device=Google+Pixel+9"
+            format!(
+                "https://jstorrent.com/feedback.html?platform=android&v=0.1-test&android=15&device=Google+Pixel+9&id={}&days=0&added=0&completed=0&sessions=1",
+                acknowledged.installation_id
+            )
         );
         assert_eq!(
             client
@@ -2632,6 +2643,30 @@ mod tests {
                 )
                 .is_err()
         );
+        let omitted = client
+            .product_feedback_preview("15".to_owned(), "Google Pixel 9".to_owned(), false)
+            .expect("omit for this report");
+        assert!(omitted.statistics_available);
+        assert!(!omitted.statistics_included);
+        assert_eq!(omitted.url, undisclosed.url);
+        assert!(client.product_summary().unwrap().statistics_enabled);
+        assert!(
+            client
+                .confirm_product_feedback(
+                    "15".to_owned(),
+                    "Google Pixel 9".to_owned(),
+                    false,
+                    preview.url,
+                )
+                .is_err()
+        );
+        client.set_product_statistics_enabled(false).unwrap();
+        let disabled = client
+            .product_feedback_preview("15".to_owned(), "Google Pixel 9".to_owned(), true)
+            .expect("durable opt-out");
+        assert!(!disabled.statistics_available);
+        assert!(!disabled.statistics_included);
+        assert_eq!(disabled.url, undisclosed.url);
         client
             .shutdown()
             .await

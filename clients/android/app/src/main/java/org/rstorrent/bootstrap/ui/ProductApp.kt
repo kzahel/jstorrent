@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -1470,10 +1471,15 @@ private fun ProductNavHost(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier =
                             Modifier.fillMaxWidth()
-                                .clickable(enabled = preview.statisticsAvailable) {
-                                    val include = !feedbackIncludeStatistics
+                                .toggleable(
+                                    value = feedbackIncludeStatistics && preview.statisticsAvailable,
+                                    enabled = preview.statisticsAvailable && !feedbackBusy,
+                                    role = Role.Checkbox,
+                                ) { include ->
+                                    val previousInclude = feedbackIncludeStatistics
                                     feedbackIncludeStatistics = include
                                     feedbackBusy = true
+                                    feedbackError = null
                                     productPrivacyScope.launch {
                                         runCatching {
                                             onPreviewFeedback?.invoke(include)
@@ -1481,16 +1487,17 @@ private fun ProductNavHost(
                                         }
                                             .onSuccess { feedbackPreview = it }
                                             .onFailure {
+                                                feedbackIncludeStatistics = previousInclude
                                                 feedbackError = it.message ?: feedbackPreviewFailedMessage
                                             }
                                         feedbackBusy = false
                                     }
-                                }.semantics(mergeDescendants = true) { role = Role.Checkbox },
+                                },
                     ) {
                         Checkbox(
                             checked = feedbackIncludeStatistics && preview.statisticsAvailable,
                             onCheckedChange = null,
-                            enabled = preview.statisticsAvailable,
+                            enabled = preview.statisticsAvailable && !feedbackBusy,
                         )
                         Text(stringResource(R.string.feedback_include_statistics_once))
                     }

@@ -1,5 +1,13 @@
 # Installation Product State And Feedback
 
+Tactical [321](../tactical/321-android-feedback-statistics-checkbox.md) verifies
+the deployed privacy, feedback, uninstall and bounded-parser source on
+2026-10-12 and enables Android's hosted-context gate. The feedback checkbox
+can include or omit the exact previewed statistics for one report, with proper
+toggle semantics and no interaction while the preview refreshes. Disclosure
+acknowledgement and the durable opt-out still control availability. Desktop
+and extension gates remain disabled; release delivery is separate.
+
 Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
 replaces the long React/Android first-use disclosure with one concise paragraph,
 a plain usage-statistics checkbox and the existing privacy link. It retains
@@ -63,15 +71,17 @@ landed on 2026-09-01 through Tactical
 Installation-wide identity, coarse engagement counters, and disclosed
 feedback/update/uninstall context now share one product-state boundary above
 every native profile; the extension retains its own installation-scoped local
-record. No general analytics service or prompt campaign exists. New optional
-feedback/uninstall identifier/counter query transmission remains release-
-disabled until the corrected hosted pages are deployed and publicly verified.
+record. No general analytics service or prompt campaign exists. Android's
+optional feedback identifier/counter query transmission is enabled in source
+after Tactical 321's hosted verification. Desktop feedback and extension
+uninstall transmission remain release-disabled.
 The separately disclosed updater boundary follows the acknowledged durable
 preference. Completed Tactical
 [`206`](../tactical/206-android-jstorrent-feedback-handoff.md) adds the one
 narrow Android-only external feedback navigation baseline described below.
 Tactical `208` widens the local preview and controls while its fail-closed
-hosted gate preserves that baseline URL. The desktop updater now reads its
+hosted gate preserved that baseline URL until Tactical 321. The desktop updater
+now reads its
 optional `desktop-update-v1` `X-CFU-Id` header from `product.db`; a valid
 legacy `cfu-id` is transactionally adopted and the old file removed only
 afterward, so no second identity authority remains. Tactical `162`'s versioned
@@ -327,11 +337,11 @@ manufacturer/model. Those fields are transmitted on navigation and may reach
 browser history, website logs/referrers, the embedded Google Form, and the
 page's existing analytics before form submission. No stable identifier,
 counter, error, runtime diagnostic, lifecycle fact, torrent/peer/storage fact,
-or user prose currently enters that URL. Tactical `208` has landed the
-accepted preview, privacy presentation, and controls, but its hosted gate
-keeps the richer product summary out of the URL until the corrected pages are
-deployed and publicly verified. Tactical `206`'s exact four-field URL remains
-the enabled authority meanwhile.
+or user prose entered that original URL. Tactical `208` landed the accepted
+preview, privacy presentation and controls. Tactical `321` verifies the hosted
+pages and enables the richer Android product summary only when disclosure,
+durable preference and per-report consent permit it. Opt-out retains Tactical
+`206`'s exact four-field URL.
 
 ## JSTorrent Reference Evidence
 

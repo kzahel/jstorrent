@@ -1,5 +1,10 @@
 # Capability Readiness
 
+Tactical [321](../tactical/321-android-feedback-statistics-checkbox.md) enables
+Android's per-report statistics checkbox after fresh hosted-page verification.
+Disclosure, durable opt-out and exact reviewed-URL confirmation remain required.
+Desktop/extension gates and release delivery remain separate.
+
 Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) is
 complete locally: directly clicked production JSTorrent launch, Android-owned
 notification-gated setup, exact credential-free HTTPS UI return, explicit

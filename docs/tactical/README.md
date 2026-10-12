@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [321 — Android feedback statistics checkbox](321-android-feedback-statistics-checkbox.md):
+  verified hosted pages, enabled Android context gate and accessible per-report
+  statistics toggle.
+
 - [320 — Android-owned ChromeOS extension setup](320-chromeos-android-owned-extension-setup.md):
   complete locally; direct production launch, notification-gated native setup,
   exact HTTPS UI return and two-device isolated pairing/recovery evidence.

@@ -176,6 +176,61 @@ class ProductNavigationTest {
     }
 
     @Test
+    fun feedbackStatisticsCheckboxCanBeCheckedAndUnchecked() {
+        val requests = mutableListOf<Boolean>()
+        val opened = mutableListOf<Pair<Boolean, String>>()
+        val baseUrl = "https://jstorrent.com/feedback.html?platform=android&v=1.0.29"
+        val includedUrl = "$baseUrl&sessions=1"
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                onOpenFeedback = { include, url -> opened += include to url },
+                onPreviewFeedback = { include ->
+                    requests += include
+                    org.rstorrent.session.uniffi.ProductFeedbackPreview(
+                        destination = "https://jstorrent.com/feedback.html",
+                        url = if (include) includedUrl else baseUrl,
+                        fields =
+                            if (include) {
+                                listOf(org.rstorrent.session.uniffi.ProductFeedbackField("sessions", "1", true))
+                            } else {
+                                emptyList()
+                            },
+                        statisticsAvailable = true,
+                        statisticsIncluded = include,
+                        hostedContextReady = true,
+                    )
+                },
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+            )
+        }
+        compose.onNodeWithContentDescription("More options").performClick()
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Advanced").performScrollTo().performClick()
+        compose.onNodeWithText("Report Bug / Send Feedback").performScrollTo().performClick()
+        val checkbox = compose.onNodeWithText("Include pseudonymous usage statistics for this report")
+        checkbox.assertIsEnabled().assertIsOff().performClick()
+        checkbox.assertIsOn()
+        compose.onNodeWithText("sessions: 1").assertIsDisplayed()
+        checkbox.performClick().assertIsOff()
+        compose.onNodeWithText("sessions: 1").assertDoesNotExist()
+        checkbox.performClick().assertIsOn()
+        compose.onNodeWithText("Open feedback page").performClick()
+        compose.runOnIdle {
+            assertEquals(listOf(false, true, false, true), requests)
+            assertEquals(listOf(true to includedUrl), opened)
+        }
+    }
+
+    @Test
     fun advancedResetAndClearRequireExplicitNonStickyConfirmations() {
         var resetCalls = 0
         val clearCalls = mutableListOf<Boolean>()
