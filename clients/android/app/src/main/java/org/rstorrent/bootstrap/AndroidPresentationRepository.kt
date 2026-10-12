@@ -43,6 +43,9 @@ internal class AndroidPresentationRepository(
     private var closed = false
     private lateinit var client: AndroidApplicationClient
     private var list: OwnedSubscription? = null
+    // Session rates feed the library status line and the Speed screen, so
+    // they live as long as the list instead of with the Speed screen.
+    private var rates: OwnedSubscription? = null
     private val detail = mutableListOf<OwnedSubscription>()
     private var pendingSelection: OwnedSubscription? = null
     private var pendingSelectionTorrent: String? = null
@@ -73,6 +76,7 @@ internal class AndroidPresentationRepository(
                     ),
                     driveSaf = true,
                 )
+            rates = subscribe(currentRatesSpec(), false)
             replaceDiagnostics()
         }
     }
@@ -187,8 +191,7 @@ internal class AndroidPresentationRepository(
                 global,
                 when (presentation) {
                     GlobalPresentation.NONE -> emptyList()
-                    GlobalPresentation.SPEED ->
-                        listOf(currentRatesSpec(), speedHistorySpec(speedRange))
+                    GlobalPresentation.SPEED -> listOf(speedHistorySpec(speedRange))
                     GlobalPresentation.DHT -> listOf(dhtSpec())
                 },
             )
@@ -221,6 +224,8 @@ internal class AndroidPresentationRepository(
             closed = true
             list?.close()
             list = null
+            rates?.close()
+            rates = null
             closeAll(detail)
             pendingSelection?.close()
             pendingSelection = null

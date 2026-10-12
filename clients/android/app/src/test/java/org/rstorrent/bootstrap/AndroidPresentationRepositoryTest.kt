@@ -48,7 +48,7 @@ class AndroidPresentationRepositoryTest {
         fixture.closeRepository()
         fixture.client.close()
         fixture.repository.presentTorrent("torrent", TorrentPresentation.PEERS)
-        assertEquals(2, fixture.client.calls)
+        assertEquals(3, fixture.client.calls)
         assertTrue(fixture.uncaught.isEmpty())
         assertTrue(fixture.errors.isEmpty())
     }
@@ -66,7 +66,7 @@ class AndroidPresentationRepositoryTest {
         fixture.repository.configureDiagnostics(
             DiagnosticProfile.NORMAL, DiagnosticSeverity.INFO, emptyList(), true,
         )
-        assertEquals(2, fixture.client.calls)
+        assertEquals(3, fixture.client.calls)
         assertTrue(fixture.client.subscriptions.all { it.closed })
         assertTrue(fixture.uncaught.isEmpty())
     }
@@ -79,7 +79,7 @@ class AndroidPresentationRepositoryTest {
             fixture.closeRepository()
             fixture.client.close()
             dispatcher.runAll()
-            assertEquals(2, fixture.client.calls)
+            assertEquals(3, fixture.client.calls)
             assertTrue(fixture.uncaught.isEmpty())
         }
     }
@@ -92,7 +92,7 @@ class AndroidPresentationRepositoryTest {
             fixture.client.close()
             fixture.repository.presentTorrent("torrent", TorrentPresentation.PEERS)
             dispatcher.runAll()
-            assertEquals(2, fixture.client.calls)
+            assertEquals(3, fixture.client.calls)
             assertTrue(fixture.uncaught.isEmpty())
         }
     }
@@ -102,7 +102,7 @@ class AndroidPresentationRepositoryTest {
         fixture.stopped.set(true)
         fixture.repository.presentTorrent("torrent", TorrentPresentation.PEERS)
         fixture.repository.presentGlobal(GlobalPresentation.SPEED)
-        assertEquals(2, fixture.client.calls)
+        assertEquals(3, fixture.client.calls)
         assertTrue(fixture.uncaught.isEmpty())
     }
 
@@ -123,10 +123,10 @@ class AndroidPresentationRepositoryTest {
     fun partialGroupFailureReleasesAlreadyAcquiredSubscription() = withFixture { fixture ->
         val failure = AndroidClientException.Failure("second subscription rejected")
         fixture.client.acquire = {
-            if (fixture.client.calls == 4) throw failure
+            if (fixture.client.calls == 5) throw failure
             FakeSubscription()
         }
-        fixture.repository.presentGlobal(GlobalPresentation.SPEED)
+        fixture.repository.presentTorrent("torrent", TorrentPresentation.PIECES)
         assertTrue(fixture.client.subscriptions.last().closed)
         assertSame(failure, fixture.errors.single())
         assertTrue(fixture.uncaught.isEmpty())
@@ -135,7 +135,7 @@ class AndroidPresentationRepositoryTest {
     @Test
     fun partialGroupCancellationReleasesItsOwnerWithoutReportingFailure() = withFixture { fixture ->
         fixture.client.acquire = {
-            if (fixture.client.calls == 4) throw CancellationException("cancel second acquisition")
+            if (fixture.client.calls == 5) throw CancellationException("cancel second acquisition")
             FakeSubscription()
         }
         fixture.repository.presentTorrent("torrent", TorrentPresentation.PEERS)
@@ -160,7 +160,7 @@ class AndroidPresentationRepositoryTest {
         fixture.repository.presentTorrent("second", TorrentPresentation.FILES)
         assertTrue(previous.all { it.closed })
         assertFalse(fixture.client.subscriptions.last().closed)
-        assertEquals(5, fixture.client.calls)
+        assertEquals(6, fixture.client.calls)
         assertTrue(fixture.errors.isEmpty())
         assertTrue(fixture.uncaught.isEmpty())
     }

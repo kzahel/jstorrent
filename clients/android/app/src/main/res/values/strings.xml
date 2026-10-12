@@ -123,8 +123,12 @@
     <string name="library_sort_stable">Queue / stable order</string>
     <string name="library_sort_name">Name</string>
     <string name="library_sort_download_speed">Download speed</string>
-    <string name="status_live">Live</string>
-    <string name="status_connecting">Connecting</string>
+    <string name="status_starting">Starting…</string>
+    <string name="status_checking_storage">Checking storage…</string>
+    <string name="status_waiting_unmetered">Waiting for unmetered network</string>
+    <string name="status_idle">Idle</string>
+    <string name="status_rates">↓ %1$s · ↑ %2$s</string>
+    <string name="a11y_status_rates">Downloading at %1$s, uploading at %2$s</string>
     <string name="library_empty">No torrents yet</string>
     <string name="library_empty_filtered">No %1$s torrents</string>
     <string name="library_empty_hint">Tap Add to paste a magnet or choose a .torrent file.</string>

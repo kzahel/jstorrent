@@ -66,7 +66,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -101,6 +100,7 @@ import org.rstorrent.bootstrap.R
 import org.rstorrent.session.uniffi.ApplicationNetworkPrerequisiteView
 import org.rstorrent.session.uniffi.ApplicationNetworkRuntimeState
 import org.rstorrent.session.uniffi.RemovalState
+import org.rstorrent.session.uniffi.SpeedMetric
 import org.rstorrent.session.uniffi.TorrentOperationalState
 import org.rstorrent.session.uniffi.TorrentView
 
@@ -182,26 +182,11 @@ internal fun LibraryScreen(
                             Spacer(Modifier.size(10.dp))
                             Column {
                                 Text(stringResource(R.string.app_name), fontWeight = FontWeight.SemiBold)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Surface(
-                                        modifier = Modifier.size(8.dp),
-                                        shape = CircleShape,
-                                        color =
-                                            if (state.ready && !state.checkingStorage) {
-                                                Color(0xFF2E7D32)
-                                            } else {
-                                                MaterialTheme.colorScheme.outline
-                                            },
-                                    ) {}
-                                    Spacer(Modifier.size(6.dp))
-                                    Text(
-                                        stringResource(
-                                            if (state.ready && !state.checkingStorage) R.string.status_live else R.string.status_connecting,
-                                        ),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
+                                LibraryStatusLine(
+                                    state = state,
+                                    waitingForUnmeteredNetwork = waitingForUnmeteredNetwork,
+                                    onSpeed = onSpeed,
+                                )
                             }
                         }
                     },
@@ -696,6 +681,50 @@ private fun TorrentCard(
             }
         }
     }
+}
+
+/**
+ * One line under the app name: startup and blocking states first, otherwise
+ * the session payload rates. Tapping the rates opens the Speed screen.
+ */
+@Composable
+private fun LibraryStatusLine(
+    state: ProductState,
+    waitingForUnmeteredNetwork: Boolean,
+    onSpeed: () -> Unit,
+) {
+    val style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum")
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    val blocked =
+        when {
+            !state.ready -> R.string.status_starting
+            state.checkingStorage -> R.string.status_checking_storage
+            waitingForUnmeteredNetwork -> R.string.status_waiting_unmetered
+            else -> null
+        }
+    if (blocked != null) {
+        Text(stringResource(blocked), style = style, color = color)
+        return
+    }
+    val rates = state.currentRates?.rates?.associate { it.metric to it.bytes }.orEmpty()
+    val download = rates[SpeedMetric.PAYLOAD_RECEIVED]
+    val upload = rates[SpeedMetric.PAYLOAD_UPLOADED]
+    val idle = (download?.toULongOrNull() ?: 0UL) == 0UL && (upload?.toULongOrNull() ?: 0UL) == 0UL
+    val speedLabel = stringResource(R.string.library_menu_speed)
+    val label =
+        if (idle) stringResource(R.string.status_idle)
+        else stringResource(R.string.status_rates, formatRate(download), formatRate(upload))
+    val description =
+        if (idle) label
+        else stringResource(R.string.a11y_status_rates, formatRate(download), formatRate(upload))
+    Text(
+        label,
+        style = style,
+        color = color,
+        modifier =
+            Modifier.clickable(onClickLabel = speedLabel, onClick = onSpeed)
+                .semantics { contentDescription = description },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
