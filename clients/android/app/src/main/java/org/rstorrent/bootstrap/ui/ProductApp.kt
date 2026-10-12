@@ -52,10 +52,15 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -67,6 +72,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -198,6 +204,8 @@ fun ProductApp(
             // Consume the failure so a recreated UI does not show it again.
             service?.clearTorrentCommandFailure(failure.sequence)
             notificationScope.launch {
+                // Replace a shown failure instead of queueing behind it.
+                snackbar.currentSnackbarData?.dismiss()
                 snackbar.showSnackbar(
                     failure.detail,
                     withDismissAction = true,
@@ -291,7 +299,7 @@ fun ProductApp(
             SnackbarHost(
                 hostState = snackbar,
                 modifier = Modifier.align(Alignment.BottomCenter),
-            )
+            ) { data -> SwipeableSnackbar(data) }
         }
         state.productSummary
             ?.takeIf { it.disclosureVersion < 1U }
@@ -2288,4 +2296,25 @@ private fun RemoveDialog(
             }
         },
     )
+}
+
+/**
+ * Material snackbars cannot be swiped away on their own. A sideways swipe
+ * dismisses this one, which also declines its action, and lets the next
+ * queued message show at once.
+ */
+@Composable
+private fun SwipeableSnackbar(data: SnackbarData) {
+    key(data) {
+        val dismissState =
+            rememberSwipeToDismissBoxState(
+                confirmValueChange = { value ->
+                    if (value != SwipeToDismissBoxValue.Settled) data.dismiss()
+                    true
+                },
+            )
+        SwipeToDismissBox(state = dismissState, backgroundContent = {}) {
+            Snackbar(data)
+        }
+    }
 }
