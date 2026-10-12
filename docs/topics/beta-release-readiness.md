@@ -1,5 +1,21 @@
 # Beta Release Readiness
 
+## Store delivery, 2026-10-11
+
+Extension 1.1.3 is approved and published to the existing production Web Store
+item. Separate ignored receipt089 confirms the physical live listing, fresh
+store installation/source/version, Android28 pairing and empty-library
+connection, retained pairing on reload and normal Shutdown/relaunch/Retry
+reconnect. Package, persisted grants and notification preference are preserved;
+individual tabs/windows close and the installed extension remains for canaries.
+This supersedes the pending-review state in the historical paragraphs below.
+An existing-extension update, Android production-installed canary and real
+24-hour observation remain under [297](../tactical/297-staged-store-delivery-and-soak.md).
+The maintainer explicitly directs Android 1.0.28/code 28 to 100% at 19:52 UTC;
+Play confirms full availability and ignored report090 preserves the state.
+This supersedes the 5% hold. The tested Android28 predates production
+publication; production-installed migration and stability evidence remain open.
+
 ## Release identity, 2026-10-11
 
 JSTorrent is the sole active release lane; desktop 0.3.0 already ships with its

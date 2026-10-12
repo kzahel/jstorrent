@@ -54,20 +54,42 @@ registrar and repository names remain unchanged. Both previous implementation
 READMEs point to this source. Repository renames remain a separate compatibility
 decision.
 
-## Current store delivery checkpoint, 2026-10-10
+## Current store delivery checkpoint, 2026-10-11
+
+Android 1.0.28/code 28 is now at 100% following explicit maintainer direction
+at 19:52 UTC. Play confirms the rollout update and full availability; ignored
+report090 records the release state. This supersedes the 5% hold below.
+Expansion addresses the new extension's requirement for the successor Android
+companion; production-installed migration and usable stability evidence remain
+open under [297](../tactical/297-staged-store-delivery-and-soak.md).
 
 Desktop 0.3.0 downloads, corresponding sources, website and production updater
 are live and verified under295. Play approves all 92 changes and publishes
 Android 28 at 5% at 16:51 UTC; managed publishing stays on and release 23
-remains available. Renewed Web Store authentication confirms extension 1.1.3
-still Pending review with publication deferred. Separate ignored report088
-records actual states and refreshed public Play listing copy/images/disclosure.
+remains available. Extension 1.1.3 is approved and published on October 11;
+the physical public listing and fresh Chrome Web Store installation confirm
+delivery. Separate ignored receipt089 passes actual popup, Android28 pairing,
+connected empty library, reload and normal Shutdown/relaunch/Retry reconnect,
+with package/grants/notification preference preserved and tab/window cleanup.
+This is fresh extension installation against an earlier internal Android28,
+not an existing-extension update or Android production-installed canary.
+Separate ignored report088 records the earlier actual Play publication states
+and refreshed public Play listing copy/images/disclosure.
 The local update guide now explains gradual Android rollout; Astro check/build
 and styled phone/wide captures pass after correcting the capture server MIME
 type. Public deployment of this root Astro guide is not asserted.
 Production-channel canaries and real 24-hour observation
 continue under [297](../tactical/297-staged-store-delivery-and-soak.md); earliest
 observation end is October 11 at 16:51 UTC, not an automatic expansion time.
+The 14:42 UTC read-only check finds eight version 28 device-update events since
+rollout start in Play Statistics, despite unavailable release-dashboard totals.
+Those are events, not unique users or a production-track installation receipt.
+Version 28 vitals remain unavailable and the current feedback feed has no
+1.0.28-tagged responses; see 297 for the report bounds.
+At 19:41 UTC, the rollout remains at 5% and the Statistics table reports at
+least ten version 28 update events, up from eight. Crash/ANR rates remain
+unavailable and the feedback feed still has no 1.0.28 tag. The 24-hour minimum
+has elapsed; production-installed canary and stability evidence remain open.
 Earlier prepared-draft checkpoints below remain historical.
 
 

@@ -1,6 +1,11 @@
 # Tactical 259: JSTorrent Finish-Line Checks
 
-## Current restart checkpoint: public desktop cutover, 2026-10-10
+## Current restart checkpoint: public desktop and extension, 2026-10-11
+
+The maintainer explicitly directs Android 1.0.28/code 28 to 100% on October 11
+at 19:52 UTC. Play confirms full availability; ignored report090 records the
+state. This supersedes the earlier 5% hold, while production-installed
+migration and stability evidence remain open under297.
 
 Shipment [295](295-qualified-candidate-shipment.md) now owns the live checkpoint.
 Exactff632 desktop0.3.0 and final AppImage sources are public;17 downloaded
@@ -14,9 +19,14 @@ hash, stop-at-completion and independent three-reopen continuation under074.
 The original Pause lookup harness failure is preserved. Owned row/file/source
 cleanup and zero observed Chromebook tabs/windows pass. On October 10,
 Play approves all 92 changes and publishes exact Android 28 at 5% at 16:51 UTC.
-Managed publishing stays on and release 23 remains available. Renewed Web Store
-sign-in confirms extension 1.1.3 still Pending review. Separate088 preserves
-actual approval/publication evidence. The qualified 64-bit/API28+ build is
+Managed publishing stays on and release 23 remains available. Extension 1.1.3
+is approved and published on October 11. Separate089 confirms the physical
+public listing, fresh store installation and Android28 pairing/reload/normal
+Shutdown/relaunch reconnect, with preserved package/grants/preferences and
+workspace cleanup. Existing-extension update and Android production delivery
+remain separate; the tested Android28 predates production publication.
+Separate088 preserves earlier Play publication evidence. The qualified
+64-bit/API28+ build is
 unchanged; older unsupported devices retain the old app. Separate078/084 record
 privacy/access/optional Diagnostics and listing changes, including29 languages.
 

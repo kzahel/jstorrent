@@ -62,7 +62,7 @@ inspection browser cases, production/CSP build, and an isolated 120-torrent
 real-gateway scroll check pass. The fix preserves explicit navigation and
 changes no engine or native Compose/iOS contract; installed delivery is pending.
 
-## Current shipment checkpoint, 2026-10-10
+## Current shipment checkpoint, 2026-10-11
 
 Shipment 295 publishes exact ff632 desktop 0.3.0 and corresponding sources;
 website/download hashes and all 11 production updater selectors pass. Managed
@@ -71,9 +71,17 @@ foreground upload pass with preserved grants/preferences and owned cleanup.
 All VMs are off; both Chromebook tab/window inventories are empty.
 
 Play approves and publishes Android 28 at 5% on October 10 at 16:51 UTC;
-managed publishing stays on. Renewed sign-in confirms CWS 1.1.3 still Pending
-review. Separate088 records the actual store states. Production-channel
-installed canaries, extension approval/publication and 24-hour observation
+the maintainer explicitly expands it to 100% on October 11 at 19:52 UTC.
+Play confirms full availability under ignored report090; outstanding
+production-installed migration and stability checks are not marked passed.
+CWS 1.1.3 is approved and published on October 11.
+Separate089 confirms the live public version and fresh store installation,
+Android28 pairing, reload and normal Shutdown/relaunch/Retry reconnect on a
+physical Chromebook, with inherited package/grants/preferences preserved and
+workspace cleanup. An existing-extension update and Android production-channel
+installed canary remain unrun; the Android installation is earlier internal28.
+Separate088 records the actual earlier Play state. Remaining canaries and
+24-hour observation
 continue under [297](../tactical/297-staged-store-delivery-and-soak.md). Unrun
 physical cases in 259 are not marked passed; iOS stays out of release scope.
 Earlier intermediate shipment/source proposals below remain historical.
