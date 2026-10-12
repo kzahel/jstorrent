@@ -3144,10 +3144,10 @@ def dismiss_owned_product_disclosure(target: Any, probe: ModuleType) -> None:
                 target.shell(["input", "tap", str(x), str(y)])
             else:
                 probe.click_from_nodes(target, nodes, ["Save and continue"])
-        elif "Live" in labels:
+        elif "All" in labels:
             return
         time.sleep(0.2)
-    raise BootstrapFailure("owned product disclosure did not reach the Live library")
+    raise BootstrapFailure("owned product disclosure did not reach the All library")
 
 
 def prepare_product_saf(target: Any, probe: ModuleType, grant_storage: str) -> None:
