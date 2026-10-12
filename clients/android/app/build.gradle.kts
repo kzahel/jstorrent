@@ -56,6 +56,16 @@ android {
             java.srcDir(layout.buildDirectory.dir("generated/source/uniffi"))
             jniLibs.srcDir(layout.buildDirectory.dir("generated/jniLibs"))
         }
+        // Debug installs sit beside the Play app on a device. Label and tint
+        // each debug identity so it is not mistaken for production or for
+        // another debug install. The legacy upgrade identity stands in for
+        // production and keeps production branding.
+        getByName("debug") {
+            if (!providers.gradleProperty("legacyUpgradeTestPackage").isPresent) {
+                val qualification = providers.gradleProperty("chromeosQualificationTestPackage").isPresent
+                res.srcDir(if (qualification) "src/debugQualification/res" else "src/debugDev/res")
+            }
+        }
     }
 
     compileOptions {

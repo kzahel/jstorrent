@@ -1,0 +1,4 @@
+<resources>
+    <!-- The side-by-side qualification install is neither the Play app nor the ordinary debug install. -->
+    <string name="app_name" translatable="false">JSTorrent QA</string>
+</resources>

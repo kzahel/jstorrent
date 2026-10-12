@@ -35,6 +35,15 @@ native library and packages independently cross-built `x86_64` and
 `arm64-v8a` libraries. Generated bindings, native libraries, reports, and APKs
 remain under ignored build directories.
 
+Debug installs are branded so they are not mistaken for the Play app or for
+each other. The ordinary debug identity is labeled `JSTorrent Dev` with an
+amber launcher background, and the side-by-side
+`chromeosQualificationTestPackage` identity is labeled `JSTorrent QA` with a
+purple one; the in-app header and notifications use the same label. The
+`legacyUpgradeTestPackage` identity stands in for production and keeps
+`JSTorrent`, as do release builds. The overrides live in `app/src/debugDev`
+and `app/src/debugQualification`.
+
 Run product lint, unit, and instrumentation packaging after the full build:
 
 ```bash
