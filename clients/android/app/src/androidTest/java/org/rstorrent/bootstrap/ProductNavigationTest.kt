@@ -356,6 +356,91 @@ class ProductNavigationTest {
     }
 
     @Test
+    fun confirmingRemovalFromDetailReturnsToLibrary() {
+        val torrent = torrent()
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride =
+                    ProductState(
+                        ready = true,
+                        storageRootReady = true,
+                        storageRootChecking = false,
+                        torrents = mapOf(torrent.torrentId to torrent),
+                    ),
+            )
+        }
+
+        compose.onNodeWithText("Fixture torrent").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Info hash (v1)")
+        compose
+            .onNodeWithContentDescription("More options")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Remove").performSemanticsAction(SemanticsActions.OnClick)
+        // Cancelling keeps the detail; only a confirmed removal leaves it.
+        compose.onNodeWithText("Cancel").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Info hash (v1)").assertIsDisplayed()
+        compose
+            .onNodeWithContentDescription("More options")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Remove").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Keep data").performSemanticsAction(SemanticsActions.OnClick)
+
+        // The fixture has no service, so the torrent is still listed.
+        awaitLibrary()
+        compose.onNodeWithText("Fixture torrent").assertIsDisplayed()
+    }
+
+    @Test
+    fun detailLeavesWhenItsTorrentDisappearsFromALoadedLibrary() {
+        val torrent = torrent()
+        val loaded =
+            ProductState(
+                ready = true,
+                storageRootReady = true,
+                storageRootChecking = false,
+                torrents = mapOf(torrent.torrentId to torrent),
+            )
+        var state by mutableStateOf(loaded)
+        compose.setContent {
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.LIGHT,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride = state,
+            )
+        }
+
+        compose.onNodeWithText("Fixture torrent").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("Info hash (v1)")
+
+        // A reconnecting service has no torrents yet; that is not a removal.
+        state = loaded.copy(ready = false, torrents = emptyMap())
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Back").assertIsDisplayed()
+
+        state = loaded.copy(torrents = emptyMap())
+        awaitLibrary()
+        compose.onNodeWithText("No torrents yet").assertIsDisplayed()
+    }
+
+    @Test
     fun streamableVideoExposesPlayButKeepsCompletedOpenDisabled() {
         val file = mediaFile(MediaFileAvailability.STREAMABLE, verifiedBytes = "32768")
         val played = mutableListOf<FileView>()
@@ -1609,6 +1694,13 @@ class ProductNavigationTest {
             throttleWaitHighWaterMicros = "0",
             currentBurstCreditBytes = "0",
         )
+
+    /** The library is the only screen here without a Back button. */
+    private fun awaitLibrary() {
+        compose.waitUntil(timeoutMillis = 5_000) {
+            compose.onAllNodesWithContentDescription("Back").fetchSemanticsNodes().isEmpty()
+        }
+    }
 
     private fun awaitDisplayed(text: String) {
         compose.waitUntil(timeoutMillis = 5_000) {

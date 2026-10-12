@@ -868,6 +868,12 @@ private fun ProductNavHost(
             DisposableEffect(torrentId) {
                 onDispose { currentService?.clearTorrentPresentation(torrentId) }
             }
+            // Leave once the loaded library no longer has this torrent, however
+            // it was removed. Skip while not loaded so a reconnect stays here.
+            val gone = state.ready && torrentId !in state.torrents
+            LaunchedEffect(gone) {
+                if (gone) navController.popBackStack(ProductRoutes.DETAIL, inclusive = true)
+            }
             TorrentDetailScreen(
                 presentationOwner = service,
                 torrent = torrent,
@@ -1589,17 +1595,19 @@ private fun ProductNavHost(
         )
     }
     if (removeTargets.isNotEmpty()) {
+        val remove = { policy: RemovalDataPolicy ->
+            removeTargets.forEach { service?.removeTorrent(it, policy) }
+            // Deleting data can keep the torrent listed for a while, so leave
+            // its detail now; the library shows the removal and any failure.
+            val shown = navController.currentBackStackEntry?.arguments?.getString("torrentId")
+            if (shown in removeTargets) navController.popBackStack()
+            removeTargets = emptySet()
+        }
         RemoveDialog(
             count = removeTargets.size,
             onDismiss = { removeTargets = emptySet() },
-            onKeep = {
-                removeTargets.forEach { service?.removeTorrent(it, RemovalDataPolicy.KEEP) }
-                removeTargets = emptySet()
-            },
-            onDelete = {
-                removeTargets.forEach { service?.removeTorrent(it, RemovalDataPolicy.DELETE_DATA) }
-                removeTargets = emptySet()
-            },
+            onKeep = { remove(RemovalDataPolicy.KEEP) },
+            onDelete = { remove(RemovalDataPolicy.DELETE_DATA) },
         )
     }
     removeStorageRoot?.let { rootId ->
