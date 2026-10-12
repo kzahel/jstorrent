@@ -20,9 +20,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.rstorrent.bootstrap.ui.ChromeExtensionSetupDialog
 import org.rstorrent.bootstrap.ui.ProductApp
 import org.rstorrent.bootstrap.ui.ProductThemeMode
 import org.rstorrent.session.uniffi.FileIndexRange
@@ -35,6 +37,10 @@ class MainActivity : ComponentActivity() {
     private val notificationNavigation = mutableStateOf<ProductNotificationNavigation?>(null)
     private val themeMode = mutableStateOf(ProductThemeMode.SYSTEM)
     private val dynamicColor = mutableStateOf(true)
+    private val chromeExtensionSetupVisible = mutableStateOf(false)
+    private val chromeExtensionSetupBusy = mutableStateOf(false)
+    private val chromeExtensionSetupFailed = mutableStateOf(false)
+    private var chromeExtensionSetupJob: Job? = null
     private var productBound = false
     private var serviceStopWatch: Job? = null
     private var productMode = false
@@ -589,6 +595,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showProductSurface(command: Intent) {
+        if (isChromeOs() && isChromeOsCompanionLaunch(command)) {
+            chromeExtensionSetupVisible.value = true
+            chromeExtensionSetupFailed.value = false
+        }
         ProductForegroundSessionEpoch.showProductSurface()
         productService.value?.let(::recordProductForegroundIfPending)
         if (!ProductDataSyncQuotaFence.clearForUserVisibleStart(this)) {
@@ -623,6 +633,11 @@ class MainActivity : ComponentActivity() {
                     onOpenNotificationSettings = ::openNotificationSettings,
                     onOpenFeedback = ::openFeedback,
                     onOpenPrivacy = ::openPrivacy,
+                    onConnectChromeExtension = if (isChromeOs()) {
+                        { chromeExtensionSetupVisible.value = true }
+                    } else {
+                        null
+                    },
                     onShutdown = {
                         productService.value?.shutdownFromUi()
                         finishAndRemoveTask()
@@ -639,6 +654,18 @@ class MainActivity : ComponentActivity() {
                     onThemeMode = ::setThemeMode,
                     onDynamicColor = ::setDynamicColor,
                 )
+                if (chromeExtensionSetupVisible.value) {
+                    ChromeExtensionSetupDialog(
+                        ready = productService.value != null,
+                        busy = chromeExtensionSetupBusy.value,
+                        failed = chromeExtensionSetupFailed.value,
+                        onOpenChrome = ::openChromeExtension,
+                        onDismiss = {
+                            chromeExtensionSetupJob?.cancel()
+                            chromeExtensionSetupVisible.value = false
+                        },
+                    )
+                }
             }
         }
         if (ProductSafDocuments.isDebuggable(this)) {
@@ -1169,9 +1196,38 @@ class MainActivity : ComponentActivity() {
                 BootstrapContract.ACTION_VERIFY,
             )
 
-    private fun isChromeOsCompanionLaunch(command: Intent): Boolean =
-        command.data?.scheme == CHROMEOS_COMPANION_SCHEME &&
-            command.data?.host == CHROMEOS_COMPANION_HOST
+    private fun isChromeOs(): Boolean =
+        packageManager.hasSystemFeature("org.chromium.arc") ||
+            packageManager.hasSystemFeature("org.chromium.arc.device_management")
+
+    private fun openChromeExtension() {
+        if (!isChromeOs() || chromeExtensionSetupBusy.value) return
+        val service = productService.value ?: return
+        chromeExtensionSetupBusy.value = true
+        chromeExtensionSetupFailed.value = false
+        chromeExtensionSetupJob = lifecycleScope.launch {
+            try {
+                service.prepareChromeExtensionSetup()
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ProductChromeExtensionSetup.HANDOFF_URL)))
+                chromeExtensionSetupVisible.value = false
+            } catch (canceled: CancellationException) {
+                throw canceled
+            } catch (_: Exception) {
+                // No raw transport/platform error or URL authority enters UI.
+                chromeExtensionSetupFailed.value = true
+            } finally {
+                chromeExtensionSetupBusy.value = false
+            }
+        }
+    }
+
+    private fun isChromeOsCompanionLaunch(command: Intent): Boolean {
+        val uri = command.data ?: return false
+        return command.action == Intent.ACTION_VIEW &&
+            ProductChromeExtensionSetup.acceptsLaunch(
+                uri.scheme, uri.host, uri.path, uri.query, uri.fragment, uri.port, uri.userInfo,
+            )
+    }
 
     private fun finishIfRequested(command: Intent) {
         if (command.getBooleanExtra("finish_activity", false)) {
@@ -1213,8 +1269,6 @@ class MainActivity : ComponentActivity() {
         private const val STATE_NOTIFICATION_ROUTE = "notification_route"
         private const val STATE_NOTIFICATION_TORRENT_ID = "notification_torrent_id"
         private const val STATE_NOTIFICATION_STORAGE_ROOT_ID = "notification_storage_root_id"
-        private const val CHROMEOS_COMPANION_SCHEME = "rstorrent"
-        private const val CHROMEOS_COMPANION_HOST = "chromeos-companion"
         private val TORRENT_ID_PATTERN = Regex("^t1-[0-9a-f]{32}$")
         const val EXTRA_PRODUCT_MAGNET = "product_magnet"
         const val EXTRA_PRODUCT_TRACKER_HTTPS_POLICY = "product_tracker_https_policy"

@@ -142,6 +142,7 @@ fun ProductApp(
     onOpenFeedback: (Boolean, String) -> Unit = { _, _ -> },
     onPreviewFeedback: (suspend (Boolean) -> ProductFeedbackPreview?)? = null,
     onOpenPrivacy: () -> Unit = {},
+    onConnectChromeExtension: (() -> Unit)? = null,
     onShutdown: () -> Unit = { service?.shutdownFromUi() },
     themeMode: ProductThemeMode,
     dynamicColor: Boolean,
@@ -230,6 +231,7 @@ fun ProductApp(
                     onOpenFeedback = onOpenFeedback,
                     onPreviewFeedback = onPreviewFeedback,
                     onOpenPrivacy = onOpenPrivacy,
+                    onConnectChromeExtension = onConnectChromeExtension,
                     notificationNavigation = notificationNavigation,
                     onNotificationNavigationConsumed = onNotificationNavigationConsumed,
                     onNotificationNavigationFallback = { message ->
@@ -716,6 +718,7 @@ private fun ProductNavHost(
     onOpenFeedback: (Boolean, String) -> Unit,
     onPreviewFeedback: (suspend (Boolean) -> ProductFeedbackPreview?)?,
     onOpenPrivacy: () -> Unit,
+    onConnectChromeExtension: (() -> Unit)?,
     notificationNavigation: ProductNotificationNavigation?,
     onNotificationNavigationConsumed: (Long) -> Unit,
     onNotificationNavigationFallback: (String) -> Unit,
@@ -1351,6 +1354,15 @@ private fun ProductNavHost(
                         detail = stringResource(R.string.product_statistics_reset_detail),
                         onClick = { confirmResetStatistics = true },
                         action = stringResource(R.string.action_reset),
+                        enabled = service != null,
+                    )
+                }
+                onConnectChromeExtension?.let { connect ->
+                    SettingAction(
+                        title = stringResource(R.string.chrome_extension_setup_action),
+                        detail = stringResource(R.string.chrome_extension_setup_settings_detail),
+                        onClick = connect,
+                        action = stringResource(R.string.action_open),
                         enabled = service != null,
                     )
                 }

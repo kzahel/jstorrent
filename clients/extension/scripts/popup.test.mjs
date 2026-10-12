@@ -56,7 +56,7 @@ test("ChromeOS copy uses only the exact published Android listing", () => {
 
 // Execute the actual popup entry point with browser/document boundaries mocked.
 // A tab with the popup URL must not be mistaken for the toolbar action.
-async function runPopup({ os = "mac", popupView = false, granted = true, launchRequested = true } = {}) {
+async function runPopup({ os = "mac", popupView = false, granted = true } = {}) {
   const { runInNewContext } = await import("node:vm");
   const requests = [];
   const elements = new Map();
@@ -80,7 +80,7 @@ async function runPopup({ os = "mac", popupView = false, granted = true, launchR
         getPlatformInfo: async () => ({ os }),
         async sendMessage(request) {
           requests.push(request);
-          if (request.type === "androidBootstrap") return { ok: true, result: { launchRequested } };
+          if (request.type === "androidBootstrap") return { ok: true, result: { kind: "android_ui", status: "opened" } };
           if (request.type === "productMetrics") return { ok: true, state: metrics };
           return { ok: true, result: { kind: request.op === "hello" ? "hello" : "desktop_ui", hostVersion: "test" } };
         },
@@ -119,11 +119,16 @@ test("denied Android permission never launches or contacts the app", async () =>
   assert.match(popup.androidStatus(), /not granted/u);
 });
 
-test("rejected OS launch remains unknown app and Play state", async () => {
-  const popup = await runPopup({ os: "cros", launchRequested: false });
+test("Android connection opens UI and never claims an OS launch", async () => {
+  const popup = await runPopup({ os: "cros" });
   await popup.android();
-  assert.match(popup.androidStatus(), /did not accept the launch request/u);
-  assert.match(popup.androidStatus(), /installation and Play availability are unknown/u);
+  assert.match(popup.androidStatus(), /Connection page opened/u);
+  assert.match(popup.androidStatus(), /not yet confirmed/u);
+});
+
+test("Android launch is a directly clicked production JSTorrent link", () => {
+  assert.match(popup, /href="intent:\/\/chromeos-companion#Intent;scheme=jstorrent;package=com\.jstorrent\.app;end"/u);
+  assert.doesNotMatch(popup, /rstorrent:\/\//u);
 });
 
 test("Linux tab request is not presented as a connected application", async () => {

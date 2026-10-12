@@ -44,7 +44,7 @@ try {
         };
       }, { scenario });
       await page.goto(`${origin}/companion/companion.html`);
-      const retry = page.getByRole("button", { name: "Retry", exact: true });
+      const retry = page.getByRole("button", { name: "Retry connection", exact: true });
       if (scenario === "offline") {
         await page.getByRole("button", { name: "Cancel", exact: true }).click();
         await retry.waitFor();

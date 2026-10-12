@@ -3,14 +3,14 @@
   "android.companion.pairing-canceled": {"defaultMessage": "Pairing canceled. The Android approval request may remain pending for up to two minutes. Wait for it to expire before selecting Retry.", "description": "Local cancellation does not cancel the bounded Android approval request."},
   "android.companion.pairing-rejected": {"defaultMessage": "Pairing was rejected in the Android app. Select Retry to request approval again, or use the Android app directly.", "description": "Observed ChromeOS pairing failure with manual recovery."},
   "android.companion.pairing-expired": {"defaultMessage": "The pairing request expired. Open the Android app, then select Retry and approve the new request.", "description": "Observed ChromeOS pairing failure with manual recovery."},
-  "android.companion.unreachable": {"defaultMessage": "JSTorrent Android did not respond. Open the Android app and confirm any ChromeOS launch prompt, then retry. If it still will not connect, open Setup and troubleshooting.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
+  "android.companion.unreachable": {"defaultMessage": "JSTorrent Android did not respond. Choose Open JSTorrent Android to finish setup, then retry the connection. You can also open JSTorrent Settings and choose Connect Chrome extension.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.authenticating": {"defaultMessage": "Connecting to the approved Android library…", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.help": {"defaultMessage": "Setup and troubleshooting", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.linux": {"defaultMessage": "Use Linux instead", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.support-preview": {"defaultMessage": "Preview connection support context", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.support-privacy": {"defaultMessage": "Review before copying or sharing. This context contains no paths, accounts, credentials or torrent data. Nothing is uploaded.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.failed": {"defaultMessage": "The connection attempt failed. Open setup and troubleshooting for the failed stage, then retry manually.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
-  "android.companion.permission-denied": {"defaultMessage": "Browser access to JSTorrent Android is not allowed. Select Connect Android app in the extension popup and allow access, then retry.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
+  "android.companion.permission-denied": {"defaultMessage": "Allow Android connection to let this extension connect to the app. No local service has been contacted.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.attempt-timeout": {"defaultMessage": "The connection attempt timed out. Open JSTorrent, check pairing approval and retry manually.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.update-android": {"defaultMessage": "Update the JSTorrent Android app in Google Play, then retry. This extension requires the new Android app. You can use the Android app directly while updates arrive.", "description": "ChromeOS independent extension and Android update recovery guidance."},
   "android.companion.update-extension": {"defaultMessage": "Update the JSTorrent extension, then retry. You can use the Android app directly while updates arrive.", "description": "ChromeOS independent extension and Android update recovery guidance."},
@@ -46,10 +46,6 @@
   "android.companion.client.the.saved.pairing.is.no.longer.accepted": {
     "defaultMessage": "The saved pairing is no longer accepted. Approve a replacement in Android.",
     "description": "Product copy in android-companion-client.ts"
-  },
-  "common.action.retry": {
-    "defaultMessage": "Retry",
-    "description": "Button that retries a failed operation"
   },
   "common.files.pending": {
     "defaultMessage": "{count, plural, one {# more torrent pending} other {# more torrents pending}}",
@@ -5250,5 +5246,8 @@
   "remote.video.completed.mp4": {
     "defaultMessage": "Remote playback supports completed MP4 files.",
     "description": "Remote completed-file video player: completed.mp4."
-  }
+  },
+  "android.companion.open-android": {"defaultMessage": "Open JSTorrent Android", "description": "Direct package-targeted launch link; cancellation leaves the link usable."},
+  "android.companion.grant-access": {"defaultMessage": "Allow Android connection", "description": "Explicit optional ARC host permission, requested only by a user click."},
+  "android.companion.retry-connection": {"defaultMessage": "Retry connection", "description": "Attach-only retry; opening Android is a separate action."}
 }

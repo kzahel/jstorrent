@@ -4,16 +4,24 @@ import { startCompanionInspection } from "./inspection/companion-bootstrap";
 import { message } from "./localization/runtime";
 
 interface ChromeConnectionContext {
-  runtime: { getManifest(): { version: string } };
-  permissions: { contains(permission: { origins: string[] }): Promise<boolean> };
+  runtime: {
+    id: string;
+    getManifest(): { version: string };
+    onMessage?: { addListener(listener: AttachListener): void; removeListener(listener: AttachListener): void };
+  };
+  tabs?: { getCurrent(): Promise<{ id?: number } | undefined> };
+  permissions: { contains(permission: { origins: string[] }): Promise<boolean>; request?(permission: { origins: string[] }): Promise<boolean> };
 }
 
+type AttachListener = (message: { type?: string; tabId?: number }, sender: { id?: string }, respond: (value: { ok: boolean }) => void) => boolean;
+
 // One page owns one attach attempt and one mounted view. Retry never launches
-// an app; only the popup's explicit Connect action owns that OS handoff.
+// an app; the visible production-targeted anchor owns the OS handoff.
 export async function startAndroidCompanion(): Promise<void> {
   const element = (id: string) => document.getElementById(id)!;
   const status = element("companion-status");
   const retry = element("companion-cancel") as HTMLButtonElement;
+  const grantAccess = element("companion-permission") as HTMLButtonElement;
   const preview = element("companion-preview") as HTMLButtonElement;
   const context = element("companion-context") as HTMLTextAreaElement;
   const bootstrap = element("companion-bootstrap");
@@ -32,6 +40,7 @@ export async function startAndroidCompanion(): Promise<void> {
   let client: ApplicationViewClient | undefined;
   let unmount: (() => Promise<void>) | undefined;
   let connecting = false;
+  const currentTab = await chrome?.tabs?.getCurrent();
   identity.replaceChildren();
   const help = document.createElement("a");
   help.href = "../crostini/setup.html#android";
@@ -55,7 +64,7 @@ export async function startAndroidCompanion(): Promise<void> {
     context.select();
   };
   const finish = () => {
-    retry.textContent = message("common.action.retry");
+    retry.textContent = message("android.companion.retry-connection");
     retry.disabled = false;
     connecting = false;
   };
@@ -70,6 +79,27 @@ export async function startAndroidCompanion(): Promise<void> {
       void connect();
     }
   };
+  grantAccess.onclick = () => {
+    if (!active || connecting || grantAccess.disabled || !chrome?.permissions.request) return;
+    grantAccess.disabled = true;
+    // Invoke synchronously in the user click; do not request from restoration
+    // or the website handoff, which carries no permission authority.
+    void chrome.permissions.request({ origins: ["http://100.115.92.2/*"] }).then(async granted => {
+      if (!active) return;
+      if (granted) await connect();
+    }).catch(() => {
+      if (active) status.textContent = message("android.companion.permission-denied");
+    }).finally(() => { grantAccess.disabled = false; });
+  };
+  const attach: AttachListener = (request, sender, respond) => {
+    if (sender.id !== chrome?.runtime.id || request?.type !== "androidAttachRequested" ||
+        !Number.isInteger(currentTab?.id) || request.tabId !== currentTab?.id ||
+        Object.keys(request).sort().join(",") !== "tabId,type") return false;
+    if (active && !connecting && !client && !task) void connect();
+    respond({ ok: true });
+    return false;
+  };
+  chrome?.runtime.onMessage?.addListener(attach);
   function connect(): Promise<void> {
     if (task) return task;
     task = run().finally(() => { task = undefined; });
@@ -103,6 +133,7 @@ export async function startAndroidCompanion(): Promise<void> {
     element("companion-update-extension").hidden = true;
     retry.textContent = message("shell.companion.cancel");
     retry.disabled = true;
+    grantAccess.hidden = true;
     status.textContent = message("shell.companion.loading");
     try {
       if (chrome) {
@@ -111,6 +142,7 @@ export async function startAndroidCompanion(): Promise<void> {
         permission = await chrome.permissions.contains({ origins: ["http://100.115.92.2/*"] }) ? "granted" : "denied";
         if (abort.signal.aborted) return;
         if (permission === "denied") {
+          grantAccess.hidden = false;
           category = "permission_denied";
           status.textContent = message("android.companion.permission-denied");
           return;
@@ -178,6 +210,7 @@ export async function startAndroidCompanion(): Promise<void> {
     controller?.abort();
     app.hidden = true;
     if (!event.persisted) {
+      chrome?.runtime.onMessage?.removeListener(attach);
       window.removeEventListener("pagehide", pagehide);
       window.removeEventListener("pageshow", pageshow);
     }

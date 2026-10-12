@@ -35,6 +35,12 @@
       "value": "Folder selection timed out. Close the Android folder picker, then try selecting the folder again."
     }
   ],
+  "android.companion.grant-access": [
+    {
+      "type": 0,
+      "value": "Allow Android connection"
+    }
+  ],
   "android.companion.help": [
     {
       "type": 0,
@@ -45,6 +51,12 @@
     {
       "type": 0,
       "value": "Use Linux instead"
+    }
+  ],
+  "android.companion.open-android": [
+    {
+      "type": 0,
+      "value": "Open JSTorrent Android"
     }
   ],
   "android.companion.open-update": [
@@ -74,7 +86,13 @@
   "android.companion.permission-denied": [
     {
       "type": 0,
-      "value": "Browser access to JSTorrent Android is not allowed. Select Connect Android app in the extension popup and allow access, then retry."
+      "value": "Allow Android connection to let this extension connect to the app. No local service has been contacted."
+    }
+  ],
+  "android.companion.retry-connection": [
+    {
+      "type": 0,
+      "value": "Retry connection"
     }
   ],
   "android.companion.support-preview": [
@@ -98,7 +116,7 @@
   "android.companion.unreachable": [
     {
       "type": 0,
-      "value": "JSTorrent Android did not respond. Open the Android app and confirm any ChromeOS launch prompt, then retry. If it still will not connect, open Setup and troubleshooting."
+      "value": "JSTorrent Android did not respond. Choose Open JSTorrent Android to finish setup, then retry the connection. You can also open JSTorrent Settings and choose Connect Chrome extension."
     }
   ],
   "android.companion.update-android": [
@@ -111,12 +129,6 @@
     {
       "type": 0,
       "value": "Update the JSTorrent extension, then retry. You can use the Android app directly while updates arrive."
-    }
-  ],
-  "common.action.retry": [
-    {
-      "type": 0,
-      "value": "Retry"
     }
   ],
   "common.files.pending": [

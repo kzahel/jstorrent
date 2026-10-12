@@ -14,6 +14,7 @@ let focusedWindow;
 let stored = {};
 let tabs = new Map();
 let uninstallUrl;
+let attachRequests;
 
 globalThis.chrome = {
   runtime: {
@@ -33,6 +34,7 @@ globalThis.chrome = {
       nativeRequest = { host, request };
       callback(nativeResponse(request));
     },
+    async sendMessage(message) { attachRequests.push(message); return { ok: true }; },
     getURL(path) {
       return `chrome-extension://gcgoepclopkgijmclmlheafaglmbjlcc/${path}`;
     },
@@ -129,6 +131,7 @@ beforeEach(() => {
   stored = {};
   tabs = new Map();
   uninstallUrl = undefined;
+  attachRequests = [];
 });
 
 function sendInternal(message) {
@@ -239,7 +242,7 @@ test("real Linux handoff replaces a remembered recovery page and removes its dis
   assert.equal(tabs.has(42), false);
 });
 
-test("Android action attempts the fixed launch and opens one packaged React tab", async () => {
+test("Android action opens one packaged React tab without launching an app", async () => {
   const response = await sendInternal({ type: "androidBootstrap", op: "open" });
 
   assert.deepEqual(response, {
@@ -247,15 +250,14 @@ test("Android action attempts the fixed launch and opens one packaged React tab"
     result: {
       kind: "android_ui",
       status: "opened",
-      launchRequested: true,
     },
   });
-  assert.equal(tabs.get(100).url, "rstorrent://chromeos-companion");
   assert.equal(
-    tabs.get(101).url,
+    tabs.get(100).url,
     "chrome-extension://gcgoepclopkgijmclmlheafaglmbjlcc/companion/companion.html",
   );
-  assert.equal(stored.androidUiTabId, 101);
+  assert.equal(stored.androidUiTabId, 100);
+  assert.equal(tabs.size, 1);
 });
 
 test("repeated Android action focuses the one visible application tab", async () => {
@@ -271,6 +273,7 @@ test("repeated Android action focuses the one visible application tab", async ()
   assert.equal(response.result.status, "focused");
   assert.equal(tabs.get(77).active, true);
   assert.equal(stored.androidUiTabId, 77);
+  assert.deepEqual(attachRequests, [{ type: "androidAttachRequested", tabId: 77 }]);
 });
 
 test("external messages fail closed for URL and shape drift", () => {

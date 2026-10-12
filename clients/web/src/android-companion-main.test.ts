@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AndroidCompanionPairingFailed, AndroidCompanionUnavailable, AndroidCompanionUpdateRequired } from "./android-companion-client";
-const mock = vi.hoisted(() => ({ connect: vi.fn(), mount: vi.fn(), permission: vi.fn() }));
+const mock = vi.hoisted(() => ({ connect: vi.fn(), mount: vi.fn(), permission: vi.fn(), grant: vi.fn(), addListener: vi.fn(), removeListener: vi.fn() }));
 vi.mock("./android-companion-client", async (original) => ({
   ...await original<typeof import("./android-companion-client")>(), connectAndroidCompanion: mock.connect,
 }));
@@ -22,9 +22,9 @@ function connected() {
 describe("Android pre-connection recovery ownership", () => {
   beforeEach(() => {
     vi.useFakeTimers(); vi.resetAllMocks();
-    document.body.innerHTML = '<section id="companion-bootstrap"><p id="companion-status"></p><button id="companion-cancel"></button><a id="companion-update-android" hidden></a><a id="companion-update-extension" hidden></a><button id="companion-preview"></button><textarea id="companion-context" hidden></textarea><p id="companion-context-privacy" hidden></p></section><header id="companion-identity" hidden></header><main id="app" hidden></main>';
+    document.body.innerHTML = '<section id="companion-bootstrap"><p id="companion-status"></p><button id="companion-cancel"></button><button id="companion-permission" hidden></button><a id="companion-update-android" hidden></a><a id="companion-update-extension" hidden></a><button id="companion-preview"></button><textarea id="companion-context" hidden></textarea><p id="companion-context-privacy" hidden></p></section><header id="companion-identity" hidden></header><main id="app" hidden></main>';
     mock.permission.mockResolvedValue(true);
-    vi.stubGlobal("chrome", { runtime: { getManifest: () => ({ version: "1.1.2" }) }, permissions: { contains: mock.permission } });
+    vi.stubGlobal("chrome", { runtime: { id: "extension", getManifest: () => ({ version: "1.1.2" }), onMessage: { addListener: mock.addListener, removeListener: mock.removeListener } }, tabs: { getCurrent: async () => ({ id: 7 }) }, permissions: { contains: mock.permission, request: mock.grant } });
   });
   afterEach(async () => {
     window.dispatchEvent(new PageTransitionEvent("pagehide"));
@@ -47,7 +47,51 @@ describe("Android pre-connection recovery ownership", () => {
     const report = JSON.parse((document.getElementById("companion-context") as HTMLTextAreaElement).value);
     expect(report).toMatchObject({ stage: "pairing", category: `pairing_${outcome}`, play_availability: "unknown", device_policy: "unknown" });
     expect(status()).toBe(new AndroidCompanionPairingFailed(outcome).message);
-    expect(button().textContent).toBe("common.action.retry");
+    expect(button().textContent).toBe("android.companion.retry-connection");
+  });
+  it("permission denial exposes a user action and grant retries without launching Android", async () => {
+    mock.permission.mockResolvedValueOnce(false).mockResolvedValue(true);
+    mock.grant.mockResolvedValue(true);
+    mock.connect.mockRejectedValue(new AndroidCompanionUnavailable());
+    await startAndroidCompanion();
+    expect(button("companion-permission").hidden).toBe(false);
+    expect(mock.grant).not.toHaveBeenCalled();
+    expect(mock.connect).not.toHaveBeenCalled();
+    button("companion-permission").click(); button("companion-permission").click();
+    expect(mock.grant).toHaveBeenCalledExactlyOnceWith({ origins: ["http://100.115.92.2/*"] });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mock.connect).toHaveBeenCalledOnce();
+  });
+  it("only a handoff addressed to this owned tab can retry an idle failure", async () => {
+    mock.connect.mockRejectedValue(new AndroidCompanionUnavailable());
+    await startAndroidCompanion();
+    const listener = mock.addListener.mock.calls[0]![0];
+    const respond = vi.fn();
+    for (const [request, sender] of [
+      [{ type: "androidAttachRequested", tabId: 8 }, { id: "extension" }],
+      [{ type: "androidAttachRequested", tabId: 7 }, { id: "other" }],
+      [{ type: "androidAttachRequested", tabId: 7, credential: "untrusted" }, { id: "extension" }],
+    ]) listener(request, sender, respond);
+    expect(mock.connect).toHaveBeenCalledOnce();
+    listener({ type: "androidAttachRequested", tabId: 7 }, { id: "extension" }, respond);
+    listener({ type: "androidAttachRequested", tabId: 7 }, { id: "extension" }, respond);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mock.connect).toHaveBeenCalledTimes(2);
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
+    expect(mock.removeListener).toHaveBeenCalledWith(listener);
+  });
+  it("handoff focuses a connected owner and retries after its disconnect", async () => {
+    const connection = connected();
+    const running = startAndroidCompanion();
+    await vi.advanceTimersByTimeAsync(0);
+    const listener = mock.addListener.mock.calls[0]![0];
+    listener({ type: "androidAttachRequested", tabId: 7 }, { id: "extension" }, vi.fn());
+    expect(mock.connect).toHaveBeenCalledOnce();
+    connection.disconnect(); await running;
+    mock.connect.mockRejectedValue(new AndroidCompanionUnavailable());
+    listener({ type: "androidAttachRequested", tabId: 7 }, { id: "extension" }, vi.fn());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mock.connect).toHaveBeenCalledTimes(2);
   });
   it("offline failure stays terminal until manual attach-only retry", async () => {
     mock.connect.mockRejectedValue(new AndroidCompanionUnavailable());

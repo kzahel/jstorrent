@@ -31,6 +31,9 @@
                 <data
                     android:scheme="rstorrent"
                     android:host="chromeos-companion" />
+                <data
+                    android:scheme="jstorrent"
+                    android:host="chromeos-companion" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

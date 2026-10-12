@@ -581,4 +581,13 @@
     <string name="port_mapping_failure_detail">%1$s: %2$s</string>
     <string name="port_mapping_renewal_failed">Lease renewal failed for router address %1$s, port %2$d: %3$s</string>
     <string name="port_mapping_cleanup_failed">Router address %1$s, port %2$d may remain open for %3$d seconds. Cleanup failed: %4$s</string>
+    <!-- ChromeOS-only setup: the website handoff opens UI, never carries credentials. -->
+    <string name="chrome_extension_setup_action">Connect Chrome extension</string>
+    <string name="chrome_extension_setup_settings_detail">Use the same Android library in Chrome.</string>
+    <string name="chrome_extension_setup_title">Use JSTorrent in Chrome</string>
+    <string name="chrome_extension_setup_detail">Downloads stay in this Android app. Open your Chrome library, then return here to approve pairing if asked.</string>
+    <string name="chrome_extension_setup_manual">If the website is unavailable, click the JSTorrent extension in Chrome and choose Connect in Chrome. Allow Android connection if asked.</string>
+    <string name="chrome_extension_setup_failed">Chrome could not be opened. Try again, or return to the extension manually.</string>
+    <string name="chrome_extension_setup_open">Open Chrome library</string>
+    <string name="chrome_extension_setup_opening">Opening Chrome…</string>
 </resources>

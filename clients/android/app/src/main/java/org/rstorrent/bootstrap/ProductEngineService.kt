@@ -2176,6 +2176,14 @@ class ProductEngineService : Service() {
         }
     }
 
+    suspend fun prepareChromeExtensionSetup() {
+        check(!rejectMutationDuringDataReset()) { "Data reset is in progress" }
+        check(isChromeOs()) { "Chrome extension setup requires ChromeOS" }
+        ProductCompanionPreference.enable(this)
+        clientReady.await()
+        startChromeOsCompanionOwners()
+    }
+
     private suspend fun startChromeOsCompanionOwners() {
         companionOwnerMutation.withLock {
             check(isChromeOs()) { "ChromeOS companion listener is unavailable on this device" }

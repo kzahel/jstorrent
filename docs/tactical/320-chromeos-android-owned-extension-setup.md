@@ -129,5 +129,17 @@ protocol component depends on the website, browser, or Compose.
 
 ## Execution Checkpoint
 
-Plan written; implementation not started. Next executable action: commit this
-plan, then replace the worker launch and add the Android setup entry point.
+Direct production launch and Android-owned setup are implemented. The worker
+only focuses/opens an attach page; a targeted runtime notification can retry an
+idle page without duplicating a live owner. The connection page retains its
+launch anchor after cancel/failure and offers explicit permission recovery.
+Android accepts the new scheme and old compatibility input, exposes ChromeOS
+setup in Settings, and waits for listener readiness before browser navigation.
+
+Validation so far: web typecheck; 24 focused connection/recovery tests; 57
+extension tests and source validation; localization; Android compileDebugKotlin
+and testDebugUnitTest. Existing Android deprecation warnings remain. Full
+packaged, website and physical evidence follows in the next slices.
+
+Next executable action: implement and validate the exact static HTTPS return
+page and external sender contract, then build installable candidates.

@@ -5,6 +5,8 @@ import { localizeDocumentShell } from "./localization/runtime";
 
 localizeDocumentShell();
 if (new URL(window.location.href).searchParams.get("backend") === "desktop") {
+  document.getElementById("companion-open-android")!.hidden = true;
+  document.getElementById("companion-permission")!.hidden = true;
   document.getElementById("companion-help")!.hidden = true;
   document.getElementById("companion-linux")!.hidden = true;
   document.getElementById("companion-preview")!.hidden = true;

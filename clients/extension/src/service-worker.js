@@ -7,10 +7,10 @@ const CROSTINI_ROOT = `${CROSTINI_ORIGIN}/`;
 const CROSTINI_LAUNCH_URL = `${CROSTINI_ORIGIN}/launch-chromeos`;
 const CROSTINI_CONNECTION_PAGE = "crostini/connect.html";
 const CROSTINI_TAB_KEY = "crostiniUiTabId";
-const ANDROID_LAUNCH_URL = "rstorrent://chromeos-companion";
 const ANDROID_PAGE = "companion/companion.html";
 const DESKTOP_TAB_KEY = "desktopUiTabId";
 let desktopOpen;
+let androidOpen;
 const ANDROID_TAB_KEY = "androidUiTabId";
 const productMetrics = new ProductMetricsOwner(chrome, chrome.runtime.getManifest().version);
 productMetrics.start();
@@ -84,7 +84,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message?.type === "androidBootstrap" && message.op === "open") {
-    launchAndOpenAndroid().then(sendResponse);
+    androidOpen ??= openAndroidUi().finally(() => { androidOpen = undefined; });
+    androidOpen.then(sendResponse);
     return true;
   }
   return false;
@@ -123,24 +124,15 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   });
 });
 
-async function launchAndOpenAndroid() {
-  let launchRequested = false;
-  try {
-    await chrome.tabs.create({ url: ANDROID_LAUNCH_URL, active: true });
-    launchRequested = true;
-  } catch {
-    // ChromeOS may reject or defer the custom-scheme launch. The visible
-    // companion page keeps probing and explains how to retry.
+async function openAndroidUi() {
+  const status = await focusOrOpenExtensionTab(ANDROID_TAB_KEY, ANDROID_PAGE);
+  if (status === "focused") {
+    const tabId = await readRememberedTab(ANDROID_TAB_KEY);
+    // Extension documents receive runtime messages; tabs.sendMessage targets
+    // content scripts. Only the named owned page may retry an idle attempt.
+    await chrome.runtime.sendMessage({ type: "androidAttachRequested", tabId }).catch(() => {});
   }
-  const tab = await focusOrOpenExtensionTab(ANDROID_TAB_KEY, ANDROID_PAGE);
-  return {
-    ok: true,
-    result: {
-      kind: "android_ui",
-      status: tab,
-      launchRequested,
-    },
-  };
+  return { ok: true, result: { kind: "android_ui", status } };
 }
 
 async function readRememberedTab(key) {
