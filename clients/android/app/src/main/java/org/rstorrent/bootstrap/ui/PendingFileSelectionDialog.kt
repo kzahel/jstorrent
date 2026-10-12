@@ -63,7 +63,7 @@ internal fun PendingFileSelectionDialog(
     onRepairRoot: () -> Unit,
     onConfirm: (PendingFileSelectionDraft, Boolean) -> Unit,
     onCancel: () -> Unit,
-    onDownloadAll: () -> Unit,
+    onDownloadAll: (Boolean) -> Unit,
 ) {
     var draft by remember(torrent.torrentId) { mutableStateOf(PendingFileSelectionDraft()) }
     var disableFuture by remember(torrent.torrentId) { mutableStateOf(false) }
@@ -244,19 +244,19 @@ internal fun PendingFileSelectionDialog(
                         }
                     }
                 }
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        disableFuture = !disableFuture
+                    },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = disableFuture,
+                        onCheckedChange = { disableFuture = it },
+                    )
+                    Text(stringResource(R.string.file_selection_disable_future))
+                }
                 if (metadataReady) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable {
-                            disableFuture = !disableFuture
-                        },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = disableFuture,
-                            onCheckedChange = { disableFuture = it },
-                        )
-                        Text(stringResource(R.string.file_selection_disable_future))
-                    }
                     TextButton(
                         onClick = { onConfirm(draft.selectAll(), disableFuture) },
                         enabled = rootReady,
@@ -286,7 +286,7 @@ internal fun PendingFileSelectionDialog(
                 ) {
                     OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.action_cancel)) }
                     if (!metadataReady) {
-                        Button(onClick = onDownloadAll, enabled = rootReady) {
+                        Button(onClick = { onDownloadAll(disableFuture) }, enabled = rootReady) {
                             Text(stringResource(R.string.action_download_all))
                         }
                     } else {

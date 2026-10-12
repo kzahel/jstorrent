@@ -2912,8 +2912,11 @@ class ProductEngineService : Service() {
         )
     }
 
-    fun downloadAllPendingAdd(torrentId: String) {
-        dispatch(Command.DownloadAllPendingAdd(torrentId))
+    fun downloadAllPendingAdd(
+        torrentId: String,
+        disableFuture: Boolean,
+    ) {
+        dispatch(Command.DownloadAllPendingAdd(torrentId, disableFuture))
     }
 
     fun cancelPendingAdd(torrentId: String) {
@@ -4088,7 +4091,8 @@ class ProductEngineService : Service() {
     ): String = logAddResult(dispatchAddResult(command), v1InfoHash, v2InfoHash)
 
     private suspend fun downloadAllPendingAwait(torrentId: String) {
-        dispatchForResponse(Command.DownloadAllPendingAdd(torrentId))
+        // Add-time Download all is per-add consent; the preference is untouched.
+        dispatchForResponse(Command.DownloadAllPendingAdd(torrentId, disableFuture = false))
         // Keep the intermediate pending add off screen until its authoritative
         // summary catches up with the durable receipt.
         withTimeout(5_000) {

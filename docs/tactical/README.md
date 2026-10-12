@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [323 — Pre-metadata skip file selection](323-pre-metadata-skip-file-selection.md):
+  Android shows `Don’t show file selection again` while a magnet loads and
+  pre-metadata Download all applies it atomically with the add.
+
 - [322 — Android empty filter navigation](322-android-empty-filter-navigation.md):
   actionable return to All from empty filters, with Add guidance for an empty
   library.

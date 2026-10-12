@@ -7,9 +7,11 @@ mutex; cancellation remains explicit. View semantics and generated contracts
 are unchanged. The local repair is separate from delivery to installed clients.
 
 Tactical [308](../tactical/308-android-optional-add-selection.md) adds the
-closed `download_all_pending_add` command carrying only the opaque torrent ID.
-It applies exclusively to a newly pending add, accepts no catalog or file
-indices and leaves settings unchanged. Existing snapshots clear pending state
+closed `download_all_pending_add` command carrying the opaque torrent ID.
+It applies exclusively to a newly pending add and accepts no catalog or file
+indices. Tactical [323](../tactical/323-pre-metadata-skip-file-selection.md)
+adds a serde-defaulted `disable_future` flag; only when true does it also
+turn off future file selection, atomically with the add. Existing snapshots clear pending state
 and retain authoritative metadata availability. TypeScript/schema, Kotlin and
 Swift boundaries are regenerated; only Android exposes the new action.
 

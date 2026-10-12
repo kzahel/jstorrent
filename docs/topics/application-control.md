@@ -6,7 +6,9 @@ selection and source-derived ranges, installs Normal for all ordinary files,
 sets running intent and queue order, then the existing metadata/content owners
 reconcile. Non-pending, removal and repair fences remain; no metadata is treated
 as verified before validation. This per-add action leaves future selection
-preferences unchanged. Typed rejected mutations now roll back to a command
+preferences unchanged unless its `disable_future` flag
+([323](../tactical/323-pre-metadata-skip-file-selection.md)) clears
+`show_file_selection` in the same transaction, as confirmation already can. Typed rejected mutations now roll back to a command
 savepoint before their error receipt is committed, preventing partial intent
 or revision changes on a failed write.
 

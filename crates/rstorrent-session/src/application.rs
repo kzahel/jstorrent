@@ -1815,7 +1815,7 @@ impl ApplicationService {
             }
             Command::SetDefaultStorageRoot { storage_root } => Some(storage_root.clone()),
             Command::ConfirmPendingFileSelection { torrent_id, .. }
-            | Command::DownloadAllPendingAdd { torrent_id } => self
+            | Command::DownloadAllPendingAdd { torrent_id, .. } => self
                 .store_mut()?
                 .load_resume(&torrent_id.to_ascii_lowercase())
                 .ok()
@@ -2163,7 +2163,7 @@ impl ApplicationService {
                 }
             }
             Command::ConfirmPendingFileSelection { torrent_id, .. }
-            | Command::DownloadAllPendingAdd { torrent_id } => {
+            | Command::DownloadAllPendingAdd { torrent_id, .. } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
                 self.views.record_diagnostic(
                     DiagnosticSeverity::Info,
@@ -12228,6 +12228,7 @@ mod tests {
                 expected_revision: None,
                 command: Command::DownloadAllPendingAdd {
                     torrent_id: id.clone(),
+                    disable_future: false,
                 },
             })
             .await

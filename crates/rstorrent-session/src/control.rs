@@ -146,6 +146,8 @@ pub enum Command {
     DownloadAllPendingAdd {
         #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
         torrent_id: String,
+        #[serde(default)]
+        disable_future: bool,
     },
     CancelPendingAdd {
         #[schemars(regex(pattern = "^t1-[0-9a-f]{32}$"))]
@@ -640,7 +642,7 @@ pub(crate) fn validate_request(request: &RequestEnvelope) -> Result<(), (ErrorCo
         | Command::RestoreArchive { torrent_id }
         | Command::RemoveTorrent { torrent_id, .. }
         | Command::CancelPendingAdd { torrent_id }
-        | Command::DownloadAllPendingAdd { torrent_id }
+        | Command::DownloadAllPendingAdd { torrent_id, .. }
         | Command::ExportMagnet { torrent_id } => {
             validate_torrent_id(torrent_id)?;
         }

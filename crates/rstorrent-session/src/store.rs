@@ -3654,9 +3654,10 @@ fn apply_mutation(
             *disable_future,
             current_revision,
         ),
-        Command::DownloadAllPendingAdd { torrent_id } => {
-            download_all_pending_add(transaction, torrent_id, current_revision)
-        }
+        Command::DownloadAllPendingAdd {
+            torrent_id,
+            disable_future,
+        } => download_all_pending_add(transaction, torrent_id, *disable_future, current_revision),
         Command::CancelPendingAdd { torrent_id } => {
             cancel_pending_add(transaction, torrent_id, current_revision)
         }
@@ -5260,14 +5261,21 @@ fn confirm_pending_file_selection(
     download_queue::append(transaction, &torrent_id)
         .map_err(|error| internal_message(&error.to_string()))?;
     if disable_future {
-        transaction
-            .execute(
-                "UPDATE storage_settings SET show_file_selection = 0 WHERE singleton = 1",
-                [],
-            )
-            .map_err(internal_error)?;
+        disable_future_file_selection(transaction)?;
     }
     Ok(revision)
+}
+
+/// A "don't show again" choice commits with the add it accompanies, so a
+/// rejected add never silently changes the preference.
+fn disable_future_file_selection(transaction: &Transaction<'_>) -> Result<(), (ErrorCode, String)> {
+    transaction
+        .execute(
+            "UPDATE storage_settings SET show_file_selection = 0 WHERE singleton = 1",
+            [],
+        )
+        .map_err(internal_error)?;
+    Ok(())
 }
 
 /// Explicit all-files consent needs no catalog, so magnets can leave the
@@ -5276,6 +5284,7 @@ fn confirm_pending_file_selection(
 fn download_all_pending_add(
     transaction: &Transaction<'_>,
     torrent_id: &str,
+    disable_future: bool,
     current_revision: u64,
 ) -> Result<u64, (ErrorCode, String)> {
     let decoded = decode_torrent_id(torrent_id).ok_or_else(|| {
@@ -5345,6 +5354,9 @@ fn download_all_pending_add(
         .map_err(internal_error)?;
     download_queue::append(transaction, &decoded)
         .map_err(|error| internal_message(&error.to_string()))?;
+    if disable_future {
+        disable_future_file_selection(transaction)?;
+    }
     Ok(revision)
 }
 
@@ -8606,6 +8618,7 @@ mod tests {
             expected_revision: None,
             command: Command::DownloadAllPendingAdd {
                 torrent_id: torrent_id.clone(),
+                disable_future: false,
             },
         };
         // A failed durable write must leave the pending choice and source ranges intact.
@@ -8671,6 +8684,76 @@ mod tests {
             }
         ));
         assert_eq!(store.revision().unwrap(), before);
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn download_all_pending_add_disables_future_selection_atomically() {
+        let root = test_root("pending-all-disable-future");
+        let configured = configured_root(&root);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).unwrap();
+        let mut add = add_request("pending-all-disable-add");
+        if let Command::AddMagnet {
+            skip_files,
+            await_file_selection,
+            ..
+        } = &mut add.command
+        {
+            skip_files.clear();
+            *await_file_selection = true;
+        }
+        let torrent_id = added_torrent_id(&store.handle_durable(&add).unwrap());
+        assert!(
+            store.snapshot().unwrap().torrents[0]
+                .file_catalog_id
+                .is_none()
+        );
+        let mut request = RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: "pending-all-disable".into(),
+            expected_revision: None,
+            command: Command::DownloadAllPendingAdd {
+                torrent_id,
+                disable_future: true,
+            },
+        };
+        // The preference is written last; its failure must also roll back the add.
+        store
+            .connection
+            .execute_batch(
+                "CREATE TRIGGER reject_preference BEFORE UPDATE ON storage_settings
+            BEGIN SELECT RAISE(ABORT, 'injected preference write failure'); END;",
+            )
+            .unwrap();
+        let before_failure = store.revision().unwrap();
+        let failed = store.handle_durable(&request).unwrap();
+        assert!(matches!(
+            failed.outcome,
+            crate::ResponseOutcome::Error { .. }
+        ));
+        assert_eq!(store.revision().unwrap(), before_failure);
+        let snapshot = store.snapshot().unwrap();
+        assert!(snapshot.torrents[0].awaiting_file_selection);
+        assert!(!snapshot.torrents[0].desired_running);
+        assert!(snapshot.storage.show_file_selection);
+        store
+            .connection
+            .execute_batch("DROP TRIGGER reject_preference")
+            .unwrap();
+        request.request_id = "pending-all-disable-retry".into();
+        let response = store.handle_durable(&request).unwrap();
+        assert!(matches!(
+            response.outcome,
+            crate::ResponseOutcome::Success { .. }
+        ));
+        drop(store);
+        let store = SessionStore::open(&root, "default", &[configured]).unwrap();
+        let snapshot = store.snapshot().unwrap();
+        assert!(!snapshot.torrents[0].awaiting_file_selection);
+        assert!(snapshot.torrents[0].desired_running);
+        assert!(!snapshot.storage.show_file_selection);
         drop(store);
         fs::remove_dir_all(root).unwrap();
     }

@@ -409,7 +409,9 @@ fun ProductApp(
                         )
                     }
                 },
-                onDownloadAll = { service?.downloadAllPendingAdd(torrent.torrentId) },
+                onDownloadAll = { disableFuture ->
+                    service?.downloadAllPendingAdd(torrent.torrentId, disableFuture)
+                },
                 onCancel = { service?.cancelPendingAdd(torrent.torrentId) },
             )
         }

@@ -1077,7 +1077,7 @@ class ProductNavigationTest {
 
     @Test
     fun pendingMagnetCanDownloadAllBeforeFileListArrives() {
-        var downloads = 0
+        val downloads = mutableListOf<Boolean>()
         var confirmations = 0
         compose.setContent {
             RstorrentTheme(ProductThemeMode.LIGHT, false) {
@@ -1092,15 +1092,62 @@ class ProductNavigationTest {
                     onRepairRoot = {},
                     onConfirm = { _, _ -> confirmations++ },
                     onCancel = {},
-                    onDownloadAll = { downloads++ },
+                    onDownloadAll = { downloads += it },
                 )
             }
         }
         compose.onNodeWithText("Loading file list…").assertIsDisplayed()
         compose.onNodeWithText("Download all").assertIsEnabled()
             .performSemanticsAction(SemanticsActions.OnClick)
-        assertEquals(1, downloads)
+        compose
+            .onNodeWithText("Don’t show file selection again")
+            .assertIsDisplayed()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Download all").performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(listOf(false, true), downloads)
         assertEquals(0, confirmations)
+    }
+
+    @Test
+    fun pendingFileSelectionKeepsSkipChoiceWhenFileListArrives() {
+        val file = mediaFile(MediaFileAvailability.UNVERIFIED, "0")
+        val pending =
+            torrent().copy(
+                awaitingFileSelection = true,
+                pendingFileSelectionPosition = 0U,
+                fileCatalogId = null,
+                selectableFileCount = 1U,
+                selectedFileCount = 1U,
+                selectableFileBytes = file.lengthBytes,
+                selectedFileBytes = file.lengthBytes,
+            )
+        var metadataReady by mutableStateOf(false)
+        var disableFuture: Boolean? = null
+        compose.setContent {
+            RstorrentTheme(ProductThemeMode.LIGHT, false) {
+                PendingFileSelectionDialog(
+                    torrent =
+                        if (metadataReady) pending.copy(fileCatalogId = "a".repeat(64)) else pending,
+                    files = if (metadataReady) fileCatalog(file) else null,
+                    rootLabel = "Downloads",
+                    rootReady = true,
+                    queuedCount = 0,
+                    error = null,
+                    onPage = {},
+                    onRepairRoot = {},
+                    onConfirm = { _, disable -> disableFuture = disable },
+                    onCancel = {},
+                    onDownloadAll = {},
+                )
+            }
+        }
+        compose
+            .onNodeWithText("Don’t show file selection again")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        metadataReady = true
+        compose.onNodeWithText("Fixture/clip.mp4").assertIsDisplayed()
+        compose.onNodeWithText("Download").performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(true, disableFuture)
     }
 
     @Test
