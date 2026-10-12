@@ -133,6 +133,7 @@
     <string name="library_empty_filtered">No %1$s torrents</string>
     <string name="library_empty_hint">Tap Add to paste a magnet or choose a .torrent file.</string>
     <string name="library_empty_filtered_hint">Try another library filter.</string>
+    <string name="library_view_all">View all torrents</string>
     <plurals name="library_selected_count">
         <item quantity="one">%1$d selected</item>
         <item quantity="other">%1$d selected</item>

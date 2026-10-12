@@ -417,7 +417,18 @@ internal fun LibraryScreen(
                     }
                 }
                 if (torrents.isEmpty() && !state.checkingStorage) {
-                    item("empty") { EmptyLibrary(filter) }
+                    item("empty") {
+                        EmptyLibrary(
+                            filter = filter,
+                            libraryEmpty = state.torrents.isEmpty(),
+                            canViewAll = filter != LibraryFilter.ALL &&
+                                state.torrents.values.any(LibraryFilter.ALL::matches),
+                            onViewAll = {
+                                filterName = LibraryFilter.ALL.name
+                                selection = emptySet()
+                            },
+                        )
+                    }
                 }
                 items(if (state.checkingStorage) emptyList() else torrents, key = TorrentView::torrentId) { torrent ->
                     TorrentCard(
@@ -535,7 +546,12 @@ private fun SetupCard(
 }
 
 @Composable
-private fun EmptyLibrary(filter: LibraryFilter) {
+private fun EmptyLibrary(
+    filter: LibraryFilter,
+    libraryEmpty: Boolean,
+    canViewAll: Boolean,
+    onViewAll: () -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -548,7 +564,7 @@ private fun EmptyLibrary(filter: LibraryFilter) {
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            if (filter == LibraryFilter.ALL) {
+            if (libraryEmpty || filter == LibraryFilter.ALL) {
                 stringResource(R.string.library_empty)
             } else {
                 stringResource(
@@ -558,17 +574,23 @@ private fun EmptyLibrary(filter: LibraryFilter) {
             },
             style = MaterialTheme.typography.titleMedium,
         )
-        Text(
-            stringResource(
-                if (filter == LibraryFilter.ALL) {
-                    R.string.library_empty_hint
-                } else {
-                    R.string.library_empty_filtered_hint
-                },
-            ),
-            modifier = Modifier.padding(top = 4.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (canViewAll) {
+            TextButton(onClick = onViewAll, modifier = Modifier.padding(top = 4.dp)) {
+                Text(stringResource(R.string.library_view_all))
+            }
+        } else {
+            Text(
+                stringResource(
+                    if (libraryEmpty || filter == LibraryFilter.ALL) {
+                        R.string.library_empty_hint
+                    } else {
+                        R.string.library_empty_filtered_hint
+                    },
+                ),
+                modifier = Modifier.padding(top = 4.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

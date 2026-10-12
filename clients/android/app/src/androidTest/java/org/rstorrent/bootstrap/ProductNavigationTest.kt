@@ -1,5 +1,9 @@
 package org.rstorrent.bootstrap
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -1498,6 +1502,65 @@ class ProductNavigationTest {
     @Test
     fun libraryRepairTargetsRetainedDefaultRoot() {
         checkLibraryStorageAction(repair = true)
+    }
+
+    @Test
+    fun emptyLibraryFiltersReturnToAllAndRevealItsTab() {
+        showNarrowLibrary(listOf(torrent().copy(operationalState = TorrentOperationalState.PAUSED)))
+
+        for (tab in listOf("Active", "Queued", "Finished", "Archived")) {
+            compose.onNodeWithText(tab).performScrollTo().performClick()
+            compose.onNodeWithText("View all torrents").performScrollTo().assertIsEnabled().performClick()
+            compose.onNodeWithText("All").assertIsSelected().assertIsDisplayed()
+            compose.onNodeWithText("Fixture torrent").performScrollTo().assertIsDisplayed()
+            compose.onAllNodesWithText("View all torrents").assertCountEquals(0)
+        }
+    }
+
+    @Test
+    fun emptyLibraryShowsAddGuidanceOnFilteredTab() {
+        showNarrowLibrary(emptyList())
+        compose.onNodeWithText("Archived").performScrollTo().performClick()
+        compose.onNodeWithText("No torrents yet").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Tap Add to paste a magnet or choose a .torrent file.")
+            .performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("View all torrents").assertCountEquals(0)
+    }
+
+    @Test
+    fun archiveOnlyLibraryDoesNotOfferAnEmptyAllView() {
+        showNarrowLibrary(listOf(torrent().copy(archived = true, operationalState = TorrentOperationalState.PAUSED)))
+        compose.onNodeWithText("Active").performScrollTo().performClick()
+        compose.onNodeWithText("Try another library filter.").performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("View all torrents").assertCountEquals(0)
+        compose.onNodeWithText("Archived").performScrollTo().performClick()
+        compose.onNodeWithText("Fixture torrent").performScrollTo().assertIsDisplayed()
+    }
+
+    private fun showNarrowLibrary(torrents: List<TorrentView>) {
+        compose.setContent {
+            Box(Modifier.width(360.dp)) {
+                ProductApp(
+                    service = null,
+                    onSelectStorage = {},
+                    onBrowseTorrent = {},
+                    notificationsGranted = true,
+                    onRequestNotifications = {},
+                    onOpenNotificationSettings = {},
+                    themeMode = ProductThemeMode.LIGHT,
+                    dynamicColor = false,
+                    onThemeMode = {},
+                    onDynamicColor = {},
+                    stateOverride = ProductState(
+                        ready = true,
+                        storageRootReady = true,
+                        storageRootChecking = false,
+                        lifecycle = ProductLifecycleState(effectiveBackgroundDownloads = true),
+                        torrents = torrents.associateBy(TorrentView::torrentId),
+                    ),
+                )
+            }
+        }
     }
 
     @Test

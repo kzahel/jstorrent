@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [322 — Android empty filter navigation](322-android-empty-filter-navigation.md):
+  actionable return to All from empty filters, with Add guidance for an empty
+  library.
+
 - [321 — Android feedback statistics checkbox](321-android-feedback-statistics-checkbox.md):
   verified hosted pages, enabled Android context gate and accessible per-report
   statistics toggle.

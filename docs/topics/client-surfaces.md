@@ -1,5 +1,11 @@
 # Client Surfaces
 
+Tactical [322](../tactical/322-android-empty-filter-navigation.md) replaces
+Android's empty filtered-library hint with a `View all torrents` text button
+when All has torrents. The action selects and reveals All. An entirely empty
+library shows Add guidance on every tab; archive-only libraries retain the
+filter hint where All would also be empty.
+
 Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) locally
 qualifies Android-owned ChromeOS setup on both physical API-33 cohorts: a direct
 production JSTorrent link, native notification/companion setup, exact HTTPS
