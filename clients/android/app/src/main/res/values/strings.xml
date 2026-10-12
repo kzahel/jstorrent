@@ -56,6 +56,7 @@
     <string name="action_copy_magnets">Copy magnet links</string>
     <string name="action_more">More</string>
     <string name="action_select_all">Select all</string>
+    <string name="action_deselect_all">Deselect all</string>
     <string name="action_undo">Undo</string>
     <string name="action_clear">Clear</string>
     <string name="action_clear_all_data">Clear all data</string>

@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Deselect
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.MoreHoriz
@@ -57,6 +58,7 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -68,8 +70,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -163,6 +168,7 @@ internal fun LibraryScreen(
             if (selection.isNotEmpty()) {
                 SelectionTopBar(
                     count = selection.size,
+                    allSelected = selectedTorrents.size == torrents.size,
                     onClear = { selection = emptySet() },
                     onSelectAll = {
                         selection = torrents.mapTo(mutableSetOf(), TorrentView::torrentId)
@@ -696,9 +702,13 @@ private fun TorrentCard(
 @Composable
 private fun SelectionTopBar(
     count: Int,
+    allSelected: Boolean,
     onClear: () -> Unit,
     onSelectAll: () -> Unit,
 ) {
+    // Toggles: once every torrent in the tab is selected it deselects them all.
+    val toggleLabel =
+        stringResource(if (allSelected) R.string.action_deselect_all else R.string.action_select_all)
     TopAppBar(
         navigationIcon = {
             IconButton(onClick = onClear) {
@@ -710,11 +720,17 @@ private fun SelectionTopBar(
         },
         title = { Text(pluralStringResource(R.plurals.library_selected_count, count, count)) },
         actions = {
-            IconButton(onClick = onSelectAll) {
-                Icon(
-                    Icons.Outlined.SelectAll,
-                    contentDescription = stringResource(R.string.action_select_all),
-                )
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = { PlainTooltip { Text(toggleLabel) } },
+                state = rememberTooltipState(),
+            ) {
+                IconButton(onClick = if (allSelected) onClear else onSelectAll) {
+                    Icon(
+                        if (allSelected) Icons.Outlined.Deselect else Icons.Outlined.SelectAll,
+                        contentDescription = toggleLabel,
+                    )
+                }
             }
         },
         colors =
