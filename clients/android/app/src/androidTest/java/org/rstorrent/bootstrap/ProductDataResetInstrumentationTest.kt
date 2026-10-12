@@ -38,7 +38,7 @@ class ProductDataResetInstrumentationTest {
         val appearance = context.getSharedPreferences("product_ui", Context.MODE_PRIVATE)
         val sentinel = File(context.filesDir, "data-reset-unrelated-sentinel")
         prepareFreshFixture(context, appearance, sentinel)
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
         context.startForegroundService(Intent(context, ProductEngineService::class.java))
         val binder: IBinder =
             serviceRule.bindService(Intent(context, ProductEngineService::class.java))
@@ -119,7 +119,7 @@ class ProductDataResetInstrumentationTest {
             assertEquals("preserve", sentinel.readText())
             assertTrue(File(context.filesDir, ProductPrivateProfileReset.PROFILE_DIRECTORY).isDirectory)
         } finally {
-            ProductInteractionRegistry.setActivityVisible(false)
+            ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, false)
             service.shutdownFromUi()
             awaitShutdown(service)
             context.stopService(Intent(context, ProductEngineService::class.java))
@@ -150,7 +150,7 @@ class ProductDataResetInstrumentationTest {
                 roots = emptyList(),
             ).copy(phase = ProductDataResetPhase.RESETTING_PROFILE)
         ProductDataResetJournalStore.persist(context, journal)
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
         context.startForegroundService(Intent(context, ProductEngineService::class.java))
         val binder: IBinder =
             serviceRule.bindService(Intent(context, ProductEngineService::class.java))
@@ -176,7 +176,7 @@ class ProductDataResetInstrumentationTest {
             assertFalse(appearance.getBoolean("dynamic_color", true))
             assertEquals("preserve", sentinel.readText())
         } finally {
-            ProductInteractionRegistry.setActivityVisible(false)
+            ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, false)
             service.shutdownFromUi()
             awaitShutdown(service)
             context.stopService(Intent(context, ProductEngineService::class.java))

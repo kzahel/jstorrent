@@ -34,7 +34,7 @@ class ProductBackgroundLifecycleTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         assertTrue(ProductLifecyclePreferenceStore(context).write(ProductLifecyclePreferences()))
         ProductInteractionRegistry.resetForTest()
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
         context.startForegroundService(Intent(context, ProductEngineService::class.java))
         val binder: IBinder =
             serviceRule.bindService(Intent(context, ProductEngineService::class.java))
@@ -59,7 +59,7 @@ class ProductBackgroundLifecycleTest {
             assertTrue(service.state.value.lifecycle.backgroundDownloadsEnabled)
             assertTrue(service.state.value.lifecycle.effectiveBackgroundDownloads)
 
-            ProductInteractionRegistry.setActivityVisible(false)
+            ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, false)
             withTimeout(5_000L) {
                 service.state.first { it.lifecycle.foreground }
             }
@@ -67,13 +67,13 @@ class ProductBackgroundLifecycleTest {
             assertTrue(service.resourceSnapshotForTest().lifecycleDeadlineScheduled)
             assertFalse(service.resourceSnapshotForTest().backgroundAdmitted)
 
-            ProductInteractionRegistry.setActivityVisible(true)
+            ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
             withTimeout(5_000L) {
                 service.state.first { !it.lifecycle.foreground }
             }
             assertFalse(service.resourceSnapshotForTest().shutdownComplete)
 
-            ProductInteractionRegistry.setActivityVisible(false)
+            ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, false)
             val deadline = SystemClock.elapsedRealtime() + 10_000L
             while (
                 !service.resourceSnapshotForTest().shutdownComplete &&
@@ -100,7 +100,7 @@ class ProductBackgroundLifecycleTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         assertTrue(ProductLifecyclePreferenceStore(context).write(ProductLifecyclePreferences()))
         ProductInteractionRegistry.resetForTest()
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
         var testBound = false
 
         try {

@@ -36,7 +36,7 @@ class ProductNetworkPolicyTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         assertTrue(ProductNetworkPreference.persist(context, false))
         ProductInteractionRegistry.resetForTest()
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
         context.startForegroundService(Intent(context, ProductEngineService::class.java))
         val binder: IBinder =
             serviceRule.bindService(Intent(context, ProductEngineService::class.java))
@@ -87,7 +87,7 @@ class ProductNetworkPolicyTest {
             }
             assertFalse(ProductNetworkPreference.read(context))
         } finally {
-            ProductInteractionRegistry.setActivityVisible(false)
+            ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, false)
             service.shutdownFromUi()
             val deadline = SystemClock.elapsedRealtime() + 30_000L
             while (

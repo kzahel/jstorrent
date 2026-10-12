@@ -28,7 +28,7 @@ class LegacyAndroidUpgradeTest {
         assertEquals(File(context.filesDir, "legacy-upgrade-uid").readText(), Process.myUid().toString())
         assertEquals(File(context.filesDir,"legacy-upgrade-db-hash").readText(), hex(MessageDigest.getInstance("SHA-256").digest(context.getDatabasePath("jstorrent_kv.db").readBytes())))
         assertEquals(File(context.filesDir,"legacy-upgrade-roots-hash").readText(), hex(MessageDigest.getInstance("SHA-256").digest(File(context.filesDir,"roots.json").readBytes())))
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
         if (android.os.Build.VERSION.SDK_INT >= 33) InstrumentationRegistry.getInstrumentation().uiAutomation.grantRuntimePermission(context.packageName, "android.permission.POST_NOTIFICATIONS")
         val serviceRule = androidx.test.rule.ServiceTestRule.withTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
         context.startForegroundService(Intent(context, ProductEngineService::class.java))
@@ -89,7 +89,7 @@ class LegacyAndroidUpgradeTest {
             assertEquals(hex(MessageDigest.getInstance("SHA-256").digest(ByteArray(16384) { 37 })), digests["intact.bin"])
             assertEquals(hex(MessageDigest.getInstance("SHA-256").digest(ByteArray(16384) { 38 })), digests["corrupt.bin"])
             assertArrayEquals(ByteArray(16384) { 37 }, File(context.filesDir,"downloads/private.bin").readBytes())
-        } finally { serviceRule.unbindService(); context.stopService(Intent(context, ProductEngineService::class.java)); ProductInteractionRegistry.setActivityVisible(false) }
+        } finally { serviceRule.unbindService(); context.stopService(Intent(context, ProductEngineService::class.java)); ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, false) }
     }
     @Test fun verifyOrdinaryWriterUpgrade() = runBlocking {
         org.junit.Assume.assumeTrue("requires owned upgrade runner", enabled)
@@ -126,7 +126,7 @@ class LegacyAndroidUpgradeTest {
         }
         val expectedWifi = spec.optBoolean("wifi_only_enabled", true)
         assertEquals(expectedWifi, context.getSharedPreferences("jstorrent_settings", Context.MODE_PRIVATE).getBoolean("wifi_only_enabled", false))
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
         val rule = androidx.test.rule.ServiceTestRule.withTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
         context.startForegroundService(Intent(context, ProductEngineService::class.java))
         val service = (rule.bindService(Intent(context, ProductEngineService::class.java)) as ProductEngineService.LocalBinder).service
@@ -170,7 +170,7 @@ class LegacyAndroidUpgradeTest {
         } finally {
             rule.unbindService()
             context.stopService(Intent(context, ProductEngineService::class.java))
-            ProductInteractionRegistry.setActivityVisible(false)
+            ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, false)
         }
     }
 
@@ -180,7 +180,7 @@ class LegacyAndroidUpgradeTest {
         val ready = File(context.cacheDir, "t248-companion-ready")
         val finished = File(context.cacheDir, "t248-companion-finished")
         ready.delete(); finished.delete()
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
         val rule = androidx.test.rule.ServiceTestRule.withTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
         context.startForegroundService(Intent(context, ProductEngineService::class.java))
         val service = (rule.bindService(Intent(context, ProductEngineService::class.java)) as ProductEngineService.LocalBinder).service
@@ -218,7 +218,7 @@ class LegacyAndroidUpgradeTest {
             ready.delete(); finished.delete()
             rule.unbindService()
             context.stopService(Intent(context, ProductEngineService::class.java))
-            ProductInteractionRegistry.setActivityVisible(false)
+            ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, false)
         }
     }
 
@@ -232,7 +232,7 @@ class LegacyAndroidUpgradeTest {
 
     @Test fun verifyRevoked() = runBlocking {
         org.junit.Assume.assumeTrue("requires owned upgrade runner", enabled)
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
         val rule = androidx.test.rule.ServiceTestRule.withTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
         context.startForegroundService(Intent(context, ProductEngineService::class.java))
         val service = (rule.bindService(Intent(context, ProductEngineService::class.java)) as ProductEngineService.LocalBinder).service
@@ -245,7 +245,7 @@ class LegacyAndroidUpgradeTest {
             // Root health is authoritative even for paused/pending torrent views.
             assertFalse(state.storageRootReady)
             assertTrue(state.torrents.values.all { it.activePeerConnections == 0U })
-        } finally { rule.unbindService(); context.stopService(Intent(context, ProductEngineService::class.java)); ProductInteractionRegistry.setActivityVisible(false) }
+        } finally { rule.unbindService(); context.stopService(Intent(context, ProductEngineService::class.java)); ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, false) }
     }
 
     @Test fun verifyClearDoesNotReimport() = runBlocking {
@@ -256,7 +256,7 @@ class LegacyAndroidUpgradeTest {
         ProductNetworkPreference.reset(context)
         ProductPowerPreference.reset(context)
         ProductLifecyclePreferenceStore(context).reset()
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
         val rule = androidx.test.rule.ServiceTestRule.withTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
         context.startForegroundService(Intent(context, ProductEngineService::class.java))
         val service = (rule.bindService(Intent(context, ProductEngineService::class.java)) as ProductEngineService.LocalBinder).service
@@ -271,7 +271,7 @@ class LegacyAndroidUpgradeTest {
             assertFalse(ProductNetworkPreference.read(context))
             assertArrayEquals(ByteArray(16384) { 37 }, File(context.filesDir,"downloads/private.bin").readBytes())
             assertEquals(File(context.filesDir,"legacy-upgrade-db-hash").readText(), hex(MessageDigest.getInstance("SHA-256").digest(context.getDatabasePath("jstorrent_kv.db").readBytes())))
-        } finally { rule.unbindService(); context.stopService(Intent(context, ProductEngineService::class.java)); ProductInteractionRegistry.setActivityVisible(false) }
+        } finally { rule.unbindService(); context.stopService(Intent(context, ProductEngineService::class.java)); ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, false) }
     }
 
     @Test fun verifyRootOnlyMigration() = runBlocking {
@@ -297,7 +297,7 @@ class LegacyAndroidUpgradeTest {
     }
 
     private suspend fun verifyEmptyStartup(expectedRoots: Int, expectedUnmetered: Boolean) {
-        ProductInteractionRegistry.setActivityVisible(true)
+        ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, true)
         val rule = androidx.test.rule.ServiceTestRule.withTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
         context.startForegroundService(Intent(context, ProductEngineService::class.java))
         val service = (rule.bindService(Intent(context, ProductEngineService::class.java)) as ProductEngineService.LocalBinder).service
@@ -312,7 +312,7 @@ class LegacyAndroidUpgradeTest {
                 if (expectedRoots == 0) database.rawQuery("SELECT count(*) FROM sqlite_master WHERE name='legacy_android_import'",null).use { rows -> assertTrue(rows.moveToFirst()); assertEquals(0,rows.getInt(0)) }
             }
             assertFalse(context.getDatabasePath("jstorrent_kv.db").exists())
-        } finally { rule.unbindService(); context.stopService(Intent(context, ProductEngineService::class.java)); ProductInteractionRegistry.setActivityVisible(false) }
+        } finally { rule.unbindService(); context.stopService(Intent(context, ProductEngineService::class.java)); ProductInteractionRegistry.setActivityVisible(ProductInteractionRegistry, false) }
     }
 
 }

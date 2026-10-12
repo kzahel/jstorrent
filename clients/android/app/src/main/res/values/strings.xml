@@ -70,7 +70,6 @@
     <string name="speed_loading">Speed history is loading…</string>
     <string name="speed_download">Download</string>
     <string name="speed_upload">Upload</string>
-    <string name="speed_transfer">Transfer</string>
     <string name="speed_disk">Disk</string>
     <string name="speed_disk_written">Written</string>
     <string name="speed_disk_verified">Verified</string>
