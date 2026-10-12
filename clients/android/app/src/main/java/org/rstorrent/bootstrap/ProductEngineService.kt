@@ -2188,6 +2188,7 @@ class ProductEngineService : Service() {
             publishLifecyclePreferences(true)
         }
         startChromeOsCompanionOwners()
+        lifecycleCoordinator.companionSetupRequested()
     }
 
     private suspend fun startChromeOsCompanionOwners() {

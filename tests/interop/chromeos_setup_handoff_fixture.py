@@ -41,7 +41,10 @@ def main():
         ws.send(json.dumps(message))
 
     patterns = [
-        {"urlPattern": "https://jstorrent.com/" + name, "requestStage": "Request"}
+        # ARC can begin a top-level request before its target-created event.
+        # Intercept the response so attachment can catch that first navigation
+        # without pausing unrelated pages or extension service workers.
+        {"urlPattern": "https://jstorrent.com/" + name, "requestStage": "Response"}
         for name in ("chrome-extension.html", "chrome-extension.js", "chrome-extension.css", "js-32.png", "favicon.ico")
     ]
     # Explicit discovery includes new top-level tabs opened through ARC. Those

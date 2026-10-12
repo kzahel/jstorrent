@@ -141,6 +141,15 @@ internal class ProductLifecycleCoordinator(
         }
     }
 
+    /** Only an explicit Android setup action renews a bootstrap grace. */
+    fun companionSetupRequested() {
+        mutate { now ->
+            if (companionConnections > 0) return@mutate false
+            companionGraceDeadlineMillis = now + durations.companionGraceMillis
+            true
+        }
+    }
+
     fun updateCompanionConnections(count: Int) {
         require(count >= 0)
         mutate { now ->

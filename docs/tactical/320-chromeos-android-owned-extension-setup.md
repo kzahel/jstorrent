@@ -198,3 +198,25 @@ The interception fixture uses explicit target discovery for ARC-opened tabs and
 never pauses targets or workers. Initial failed candidate-navigation/receipt
 observations remain failures; a candidate reload is distinct from native URL
 navigation and does not qualify public hosting.
+
+
+### Explicit Bootstrap Grace
+
+Both devices run Android API 33 (the second device's initially inferred older
+Android version was incorrect). Both now expose the notification gate. Actual
+permission denial/retry/grant on A leaves Chrome unavailable until eligible;
+permission grant alone does not create background-download/seeding preferences.
+The two Compose denial/channel regressions pass on both physical devices.
+
+Source review finds a separate slow-setup boundary: `companionStarted` deliberately
+does not renew an existing reconnect deadline, so an Android setup screen left
+open longer than that deadline can hand off with no remaining grace. Only the
+explicit Android preparation action now renews the existing fixed grace when no
+connection is active. Passive discovery, website messages and ordinary startup
+cannot renew it. Existing notification and terminal-stop precedence remain.
+A fake-clock regression covers expired grace, fresh retention and terminal Stop.
+
+The HTTPS fixture now replaces response bytes to catch an ARC-opened first
+navigation without pausing browser targets/workers. It still makes no public
+hosting claim. Final pairing expiry, approval, reconnect and cleanup remain in
+progress on both cohorts.
