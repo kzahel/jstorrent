@@ -1,5 +1,35 @@
 # Product Surfaces And JSTorrent Migration
 
+## Android-owned ChromeOS setup, 2026-10-12
+
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) is
+complete locally. The extension's Open JSTorrent Android action is a directly
+clicked `jstorrent` intent targeting `com.jstorrent.app`; debug installs cannot
+compete in that chooser. The old `rstorrent` scheme is incoming compatibility.
+Connect in Chrome and Retry connection are attach-only, with explicit optional
+browser permission recovery on the page.
+
+Android owns setup, including a normal Settings → Advanced entry. It requires
+notification eligibility, starts the existing companion and gives the explicit
+setup action a fresh fixed bootstrap grace before opening the exact HTTPS
+website handoff. The handoff only opens/focuses one extension UI; Android still
+approves pairing, and credentials never enter the website URL/message. Website
+unavailability retains the manual extension route. No standalone background or
+seeding preference is enabled by setup.
+
+Two physical API-33 cohorts pass isolated candidate launch/cancel/retry, native
+setup, browser permission recovery, rejection/real expiry/fresh approval,
+reload/process restart, singleton and unavailable-website manual return. Two
+notification/channel Compose cases pass on each. Play signing differs from the
+local upload signer, so this evidence preserves production packages and uses
+explicit test identities plus exact HTTPS candidate bytes. Public hosting and
+Play/Web Store updates are not deployed by this tactical. Deliver the website,
+then the Android scheme/setup update, then the extension's new launch link;
+qualify the production-installed pair before claiming the new public journey.
+This supersedes the old no-return-path description below, without promising
+one-action first setup or closing Tactical 253's broader ChromeOS matrix.
+
+
 ## JSTorrent-only release policy, 2026-10-11
 
 Maintainer direction freezes the RSTorrent incubation release track. All new
@@ -1269,10 +1299,12 @@ reliable one-action chain:
 - the browser can make only a best-effort Android intent launch and ChromeOS
   requires an **Open with** confirmation;
 - the remembered-launch choice is not reliable in current maintainer use; and
-- the Android app cannot reliably open the browser extension UI in return.
+- Android now has a qualified candidate HTTPS UI-return path under Tactical
+  `320`; public hosted/store delivery still needs qualification.
 
-A cold user therefore starts or confirms the Android application and then
-opens the extension. Once the Android foreground service is already running,
+A cold user starts or confirms Android and completes native setup, then opens
+Chrome through the handoff or returns manually to the extension. Once the
+Android foreground service is already running,
 the extension can reconnect directly. Product copy must describe this rather
 than promise seamless launch.
 

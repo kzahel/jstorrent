@@ -1,5 +1,17 @@
 # Android JSTorrent Replacement Readiness
 
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) adds
+ChromeOS-only Settings → Advanced → Connect Chrome extension and a new JSTorrent
+launch scheme, retaining the old scheme as input compatibility. Setup gates
+browser return on existing notification eligibility, offers permission/settings
+recovery and renews the fixed bootstrap grace only on explicit native preparation.
+Standalone background/seeding preferences and terminal-stop precedence remain.
+Both API-33 physical cohorts pass isolated candidate setup, pairing expiry and
+approval, saved reconnect and process restart; notification/channel Compose
+regressions pass on each. Play-installed packages/data are preserved and public
+hosted/store delivery remains separately qualified.
+
+
 Tactical [315](../tactical/315-android-1-0-29-production-release.md) submits
 signed 1.0.29/code 29 from 8ddf2e8b for production review at 100%, automatically
 publishing after approval. Full source/signed CI, independent artifact checks

@@ -1,5 +1,16 @@
 # Web UI Design
 
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) makes
+Android setup recoverable after cancel: Open JSTorrent Android is a direct
+production-targeted link, while Connect in Chrome and Retry connection attach
+only. The page exposes an explicit Allow Android connection action after denied
+permission. Android owns setup and exact HTTPS return; foreground notifications
+must be eligible before leaving Android. The credential-free website receives
+only a UI-open receipt and has local-only assets/CSP without analytics. Both
+physical candidate journeys, failure/expiry/restart and singleton checks pass;
+public hosted/store delivery remains separate.
+
+
 Tactical [313](../tactical/313-completed-remote-video-playback.md) adds a
 closeable, keyboard-accessible remote video dialog with native media controls
 and localized connection/buffering/error status. Files exposes **Play** for

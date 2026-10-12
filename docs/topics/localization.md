@@ -1,5 +1,13 @@
 # Localization
 
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) adds
+English setup, direct launch, permission and attach-only retry messages to the
+shared compiled catalog and Android resources. Android explains why notifications
+are required for Chrome without opting into standalone background preferences.
+Localization checks, full web validation and physical setup/recovery pass on
+both cohorts; shipping locales remain English.
+
+
 Tactical [310](../tactical/310-concise-first-use-and-background-setup.md)
 adds plain first-use statistics labels and Android background setup copy.
 Technical statistics controls and detailed feedback-recipient explanations

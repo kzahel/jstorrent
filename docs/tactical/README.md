@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [320 — Android-owned ChromeOS extension setup](320-chromeos-android-owned-extension-setup.md):
+  complete locally; direct production launch, notification-gated native setup,
+  exact HTTPS UI return and two-device isolated pairing/recovery evidence.
+
 - [319 — Android ongoing notification rates](319-android-ongoing-notification-rates.md):
   background notification shows download and upload rates, reposted at most
   every two seconds by one content owner.

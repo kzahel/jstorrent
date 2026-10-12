@@ -1,5 +1,17 @@
 # Application Connection Architecture
 
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) adds
+only setup/navigation around the existing same-device connection. An exact
+HTTPS, top-frame, closed-message website request can focus/open the packaged
+Android UI, but cannot launch the native service, request browser permission,
+supply endpoints or credentials, or approve pairing. Android explicitly enables
+its existing owner, verifies notification eligibility and renews one bounded
+bootstrap grace before browser return. Passive retries cannot renew that grace.
+The typed WebSocket and generated application contract are unchanged. Two
+isolated physical candidate cohorts pass; public hosted/store acceptance is
+still a release gate.
+
+
 Topic: `application-connection-architecture`
 
 Tactical 253 replaces Crostini's exact `penguin.linux.test` authority with

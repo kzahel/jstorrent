@@ -1,5 +1,16 @@
 # Capability Readiness
 
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) is
+complete locally: directly clicked production JSTorrent launch, Android-owned
+notification-gated setup, exact credential-free HTTPS UI return, explicit
+permission/attach recovery and bounded user-requested bootstrap grace. Both
+physical API-33 cohorts pass isolated candidate pairing, real rejection/expiry,
+reload, process restart, singleton and unavailable-website manual return. Play
+signing differs from the local upload signer, so production packages are preserved.
+Public website/Play/extension delivery and installed production acceptance remain
+separate; this closes the bounded repair, not Tactical 253's broader matrix.
+
+
 Tactical [316](../tactical/316-archived-torrents-and-android-selection-actions.md)
 makes archived torrents paused and unstartable until restored, normalizes
 older archived rows on open, adds the Android Archived tab and labeled

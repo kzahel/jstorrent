@@ -1,5 +1,13 @@
 # Client Surfaces
 
+Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) locally
+qualifies Android-owned ChromeOS setup on both physical API-33 cohorts: a direct
+production JSTorrent link, native notification/companion setup, exact HTTPS
+UI-only return and explicit offline/permission/retry recovery. Actual pairing
+rejection/expiry, approval, reload, app restart and singleton checks pass with
+isolated identities. Public hosted/store delivery remains separate.
+
+
 Tactical [316](../tactical/316-archived-torrents-and-android-selection-actions.md)
 gives Android an Archived library tab; All and the other tabs exclude archived
 torrents. Selection mode uses a contextual top bar (close, count, select all),

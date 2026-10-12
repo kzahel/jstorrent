@@ -1,6 +1,6 @@
 # Tactical 320: Android-Owned ChromeOS Extension Setup
 
-Status: **Active, 2026-10-12.** Maintainer authorizes the plan, end-to-end
+Status: **Complete locally, 2026-10-12.** Maintainer authorizes the plan, end-to-end
 implementation, incremental local commits, and verification on both physical
 Chromebooks. Public website/store publication and Git pushes are separate.
 
@@ -220,3 +220,80 @@ The HTTPS fixture now replaces response bytes to catch an ARC-opened first
 navigation without pausing browser targets/workers. It still makes no public
 hosting claim. Final pairing expiry, approval, reconnect and cleanup remain in
 progress on both cohorts.
+
+
+## Final Qualification And Delivery Boundary
+
+Both physical cohorts run ChromeOS/Chrome 150 and Android API 33. The isolated
+APK is version 1.0.29/code 29 with package `org.jstorrent.setup320`; native and
+JNI/source namespaces are unchanged. Its SHA-256 is `dff692f5fd4089cecdd8e101f0b3ff3ff92cdcd968a41ae512b4ac5858eab1b7`.
+The working-tree build includes preserved, unrelated Tactical 318 Android edits;
+those edits are excluded from every 320 commit. Physical test identity and
+candidate HTTPS extension-ID substitutions are explicit, not store acceptance.
+Cohort A's observed candidate port is 3031 alongside an inherited listener;
+its test page restricts discovery to that port. B uses candidate port 3030.
+
+| Check | Cohort A | Cohort B |
+| --- | --- | --- |
+| Direct new-scheme package-targeted chooser, cancel and click again | Pass; one QA entry despite other apps | Pass; one QA entry despite other apps |
+| Normal Android Settings entry and cancel | Pass on final APK | Pass; no launch intent required |
+| Notification requirement and permission recovery | Real deny → retry → grant; Chrome unavailable before eligibility | Real grant before Chrome return |
+| Denied/channel recovery Compose regression | 2 cases pass | 2 cases pass |
+| Browser optional permission and attach | Real grant; local page recovery | Real deny → explicit grant recovery |
+| Exact HTTPS candidate UI return | Pass, exact sender and one UI | Pass, exact sender and one UI |
+| Android rejection and manual retry | Pass | Pass |
+| Actual two-minute approval expiry, then new approval | Pass | Pass |
+| Saved pairing across page reload | Pass, same authority accepted | Pass, same authority accepted |
+| Owned app force-stop, normal relaunch and retry | Pass, no fresh approval | Pass, no fresh approval |
+| Concurrent/repeated handoff while connected | One tab; document marker retained | One tab; document marker retained |
+| Website unavailable/manual return | Injected `ERR_INTERNET_DISCONNECTED`; existing library retained | Injected `ERR_INTERNET_DISCONNECTED`; existing library retained |
+| Existing package preservation and owned cleanup | Production 29 plus inherited debug apps retained | Production 29 plus inherited qualification app retained |
+
+Initial missed fixture navigation, held receipt, notification-ineligible stop
+and UI-capture failures are retained as failed observations above. Final success
+uses the repaired code and actual native approval, not a mock approval. The
+HTTPS fixture substitutes only candidate assets at the exact route, with an
+explicit beta-ID substitution; it does not publish or qualify the public site.
+No production pairing credential is changed. No torrent, root, grant or payload
+is created or removed in an inherited application.
+
+Checks actually run:
+
+- `npm run typecheck --prefix clients/web`; full web suite: 531 passed, two
+  existing skips; 24 focused ownership/recovery cases also pass.
+- `npm test --prefix clients/extension`: final 60 cases and source validation;
+  both local package identities/CSP validate. Final production archive runs the
+  packaged controlled Android/Linux recovery/cache journey.
+- `npm test --prefix website`: 64 cases; Astro check has zero errors/warnings/
+  hints; website build emits the restrictive handoff document/header policy.
+- Localization source/catalog checker and compiled English regeneration pass.
+- Android `compileDebugKotlin`, `assembleDebug`, `assembleDebugAndroidTest`,
+  `testDebugUnitTest`, signed `assembleRelease`, `testReleaseUnitTest` and
+  `lintRelease`: 152 JVM cases in each variant, all pass. Existing deprecation
+  warnings remain. Unchanged generated dual-ABI libraries/bindings are reused.
+- Notice/native library inventory inspection and pinned APK certificate check;
+  the installed B Play root differs from the local upload root.
+- Actual `ChromeExtensionSetupDialogTest` instrumentation: two cases pass on
+  each physical device. Fixture Python compiles. Git whitespace checks pass.
+- No Rust source/DTO changes; no engine test, public swarm, OS reboot or public
+  release/push is part of this slice.
+
+Cleanup stops/join-reaps owned fixture processes, removes only the isolated
+APK/test APK and newly installed test extension, closes owned website/test tabs,
+and deletes deployed captures/fixtures. Production packages, original tabs,
+profile data and appliance availability policy remain. The second cohort's
+pre-existing pending OS update/SSH-boot degradation is not repaired or rebooted.
+
+Public website deployment, Android/extension store publication, exact Play-signed
+installed acceptance and Tactical 253's broader install/storage/OS matrix remain
+separate. New outward launch requires the Android scheme/setup update first;
+older apps retain their standalone/manual route while independent updates arrive.
+Local implementation and bounded two-device candidate qualification are complete.
+
+
+Final cleanup observation: both test APKs and test extension identities are absent,
+owned fixture process count is zero, deployed files and test tabs are removed,
+and production remains 1.0.29/code 29 on both devices. Cohort A's original saved
+pairing reconnects after an ordinary cold restart/legacy-input activation and
+manual Retry, with no new approval. No production notification preference is
+changed. Common doctor preserves the initial A-ready/B-boot-degraded state.
