@@ -1747,7 +1747,12 @@ private fun TorrentDetailScreen(
                     )
                 }
             }
-            HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
+            // Pages start at the top; the pager would otherwise center short pages.
+            HorizontalPager(
+                state = pager,
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.Top,
+            ) { page ->
                 DetailTabContent(
                     TorrentDetailTab.entries[page],
                     torrent,
@@ -1831,7 +1836,7 @@ private fun DetailTabContent(
             if (pieces == null) {
                 CenterMessage(stringResource(R.string.piece_activity_loading))
             } else {
-                Column(Modifier.padding(16.dp)) {
+                Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
                     Text(
                         stringResource(
                             R.string.pieces_verified,
