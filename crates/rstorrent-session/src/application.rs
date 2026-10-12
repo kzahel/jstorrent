@@ -1846,6 +1846,30 @@ impl ApplicationService {
                 },
             ));
         }
+        // Disabling file selection also releases the rest of the add queue in
+        // the same transaction; remember it so each release reaches runtime.
+        let queued_selection = match &command {
+            Command::ConfirmPendingFileSelection {
+                torrent_id,
+                disable_future: true,
+                ..
+            }
+            | Command::DownloadAllPendingAdd {
+                torrent_id,
+                disable_future: true,
+            } => self
+                .store_mut()?
+                .snapshot()?
+                .torrents
+                .into_iter()
+                .filter(|torrent| {
+                    torrent.awaiting_file_selection
+                        && !torrent.torrent_id.eq_ignore_ascii_case(torrent_id)
+                })
+                .map(|torrent| torrent.torrent_id)
+                .collect(),
+            _ => Vec::new(),
+        };
         let incoming_fence = match &command {
             Command::Pause { torrent_id }
             | Command::ForceRecheck { torrent_id }
@@ -2173,8 +2197,36 @@ impl ApplicationService {
                     "Add-time file selection confirmed",
                     &[],
                 )?;
+                let still_queued: std::collections::BTreeSet<_> = if queued_selection.is_empty() {
+                    Default::default()
+                } else {
+                    self.store_mut()?
+                        .snapshot()?
+                        .torrents
+                        .into_iter()
+                        .filter(|torrent| torrent.awaiting_file_selection)
+                        .map(|torrent| torrent.torrent_id)
+                        .collect()
+                };
+                let released: Vec<_> = queued_selection
+                    .into_iter()
+                    .filter(|queued| !still_queued.contains(queued))
+                    .collect();
+                for queued in &released {
+                    self.views.record_diagnostic(
+                        DiagnosticSeverity::Info,
+                        category::LIFECYCLE_TORRENT,
+                        "pending_file_selection_released",
+                        Some(queued),
+                        "Queued add released when file selection was turned off",
+                        &[],
+                    )?;
+                }
                 self.start_if_possible(&torrent_id).await?;
                 self.reconcile_incoming_torrent(&torrent_id).await?;
+                for queued in &released {
+                    self.reconcile_incoming_torrent(queued).await?;
+                }
             }
             Command::Archive { torrent_id } => {
                 let torrent_id = torrent_id.to_ascii_lowercase();
@@ -10858,6 +10910,75 @@ mod tests {
         assert!(!paths.part.exists());
         reopened.shutdown().await.expect("shutdown reopened");
         drop(reopened);
+        fs::remove_dir_all(root).expect("remove test root");
+    }
+
+    #[tokio::test]
+    async fn disabling_file_selection_releases_the_queued_adds() {
+        let root = test_root("pending-release-queue");
+        let mut service = ApplicationService::open(config(&root))
+            .await
+            .expect("open application");
+        let mut torrent_ids = Vec::new();
+        for (request_id, raw_info) in [
+            ("pending-current", multi_file_info()),
+            ("pending-queued", single_file_info("queued", b"data", 4)),
+        ] {
+            let mut source = b"d4:info".to_vec();
+            source.extend_from_slice(&raw_info);
+            source.push(b'e');
+            let mut request = torrent_bytes_request(request_id, &source, true);
+            request.await_file_selection = true;
+            let response = service
+                .add_torrent_bytes(request, source)
+                .await
+                .expect("add pending torrent bytes");
+            torrent_ids.push(match response.result {
+                Some(CommandResult::AddTorrent { result }) => result.torrent_id,
+                _ => panic!("pending torrent bytes add result"),
+            });
+        }
+        let snapshot = service
+            .store_mut()
+            .expect("store")
+            .snapshot()
+            .expect("pending snapshot");
+        let catalog_id = snapshot
+            .torrents
+            .iter()
+            .find(|torrent| torrent.torrent_id == torrent_ids[0])
+            .and_then(|torrent| torrent.file_catalog_id.clone())
+            .expect("pending file catalog");
+        let response = service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "confirm-disable-future".to_owned(),
+                expected_revision: None,
+                command: Command::ConfirmPendingFileSelection {
+                    torrent_id: torrent_ids[0].clone(),
+                    catalog_id,
+                    base: crate::PendingFileSelectionBase::Current,
+                    overrides: Vec::new(),
+                    disable_future: true,
+                },
+            })
+            .await
+            .expect("confirm with disable future");
+        assert!(matches!(response.outcome, ResponseOutcome::Success { .. }));
+
+        let snapshot = service
+            .store_mut()
+            .expect("store")
+            .snapshot()
+            .expect("released snapshot");
+        assert!(!snapshot.storage.show_file_selection);
+        for torrent in &snapshot.torrents {
+            assert!(!torrent.awaiting_file_selection);
+            assert!(torrent.desired_running);
+            assert!(torrent.download_queue_position.is_some());
+        }
+        service.shutdown().await.expect("shutdown application");
+        drop(service);
         fs::remove_dir_all(root).expect("remove test root");
     }
 

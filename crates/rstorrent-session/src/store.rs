@@ -5261,20 +5261,62 @@ fn confirm_pending_file_selection(
     download_queue::append(transaction, &torrent_id)
         .map_err(|error| internal_message(&error.to_string()))?;
     if disable_future {
-        disable_future_file_selection(transaction)?;
+        disable_future_file_selection(transaction, revision)?;
     }
     Ok(revision)
 }
 
 /// A "don't show again" choice commits with the add it accompanies, so a
 /// rejected add never silently changes the preference.
-fn disable_future_file_selection(transaction: &Transaction<'_>) -> Result<(), (ErrorCode, String)> {
+///
+/// The same choice releases every other queued add with the selection it
+/// already holds, exactly as if it had been added with the dialog off, so the
+/// user is not asked again for adds made before the choice. Torrents being
+/// removed or needing storage repair stay queued for their own dialog.
+fn disable_future_file_selection(
+    transaction: &Transaction<'_>,
+    revision: u64,
+) -> Result<(), (ErrorCode, String)> {
     transaction
         .execute(
             "UPDATE storage_settings SET show_file_selection = 0 WHERE singleton = 1",
             [],
         )
         .map_err(internal_error)?;
+    let queued = {
+        let mut statement = transaction
+            .prepare(
+                "SELECT t.torrent_id FROM torrents t
+                 LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
+                 WHERE t.awaiting_file_selection = 1
+                   AND t.quarantine_reason IS NULL
+                   AND r.torrent_id IS NULL
+                 ORDER BY t.created_revision, t.torrent_id",
+            )
+            .map_err(internal_error)?;
+        statement
+            .query_map([], |row| row.get::<_, Vec<u8>>(0))
+            .map_err(internal_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(internal_error)?
+    };
+    let revision_sql =
+        i64::try_from(revision).map_err(|_| internal_message("profile revision overflow"))?;
+    for bytes in queued {
+        let torrent_id = decode_stored_torrent_id(bytes)
+            .map_err(|error| (ErrorCode::InvalidDurableState, error.to_string()))?;
+        transaction
+            .execute(
+                "UPDATE torrents
+                 SET awaiting_file_selection = 0, desired_state = 'running',
+                     error = NULL, updated_revision = ?2
+                 WHERE torrent_id = ?1",
+                params![torrent_id.as_bytes(), revision_sql],
+            )
+            .map_err(internal_error)?;
+        download_queue::append(transaction, &torrent_id)
+            .map_err(|error| internal_message(&error.to_string()))?;
+    }
     Ok(())
 }
 
@@ -5355,7 +5397,7 @@ fn download_all_pending_add(
     download_queue::append(transaction, &decoded)
         .map_err(|error| internal_message(&error.to_string()))?;
     if disable_future {
-        disable_future_file_selection(transaction)?;
+        disable_future_file_selection(transaction, revision)?;
     }
     Ok(revision)
 }
@@ -8839,6 +8881,132 @@ mod tests {
         assert_eq!(snapshot.torrents[0].skip_files, [1, 2]);
         assert!(!snapshot.storage.show_file_selection);
         drop(reopened);
+        fs::remove_dir_all(root).expect("remove profile");
+    }
+
+    #[test]
+    fn disabling_file_selection_releases_queued_adds_with_their_selection() {
+        let root = test_root("pending-add-release-queue");
+        let configured = configured_root(&root);
+        let mut store = SessionStore::open(&root, "default", std::slice::from_ref(&configured))
+            .expect("open store");
+        let add_pending = |store: &mut SessionStore, request_id: &str, file_count: u32| {
+            let source = multi_file_torrent_source(file_count);
+            let mut request = torrent_bytes_request(request_id, &source);
+            request.await_file_selection = true;
+            added_torrent_id(
+                &store
+                    .handle_torrent_bytes(&request, source)
+                    .expect("add pending torrent"),
+            )
+        };
+        let current = add_pending(&mut store, "pending-current", 2);
+        let queued = add_pending(&mut store, "pending-queued", 3);
+        let mut magnet = add_request("pending-select-only");
+        if let Command::AddMagnet {
+            magnet,
+            skip_files,
+            await_file_selection,
+            ..
+        } = &mut magnet.command
+        {
+            *magnet = format!("magnet:?xt=urn:btih:{}&so=1", "ab".repeat(20));
+            skip_files.clear();
+            *await_file_selection = true;
+        }
+        let select_only = added_torrent_id(&store.handle_durable(&magnet).unwrap());
+        let cancelled = add_pending(&mut store, "pending-cancelled", 4);
+        let cancel = store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "cancel-pending".to_owned(),
+                expected_revision: None,
+                command: Command::CancelPendingAdd {
+                    torrent_id: cancelled.clone(),
+                },
+            })
+            .expect("cancel pending add");
+        assert!(matches!(
+            cancel.outcome,
+            crate::ResponseOutcome::Success { .. }
+        ));
+        let catalog_id = store
+            .snapshot()
+            .unwrap()
+            .torrents
+            .into_iter()
+            .find(|torrent| torrent.torrent_id == current)
+            .and_then(|torrent| torrent.file_catalog_id)
+            .expect("catalog identity");
+
+        let confirmed = store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "confirm-none-disable".to_owned(),
+                expected_revision: None,
+                command: Command::ConfirmPendingFileSelection {
+                    torrent_id: current.clone(),
+                    catalog_id,
+                    base: crate::PendingFileSelectionBase::None,
+                    overrides: Vec::new(),
+                    disable_future: true,
+                },
+            })
+            .expect("confirm selection");
+        assert!(matches!(
+            confirmed.outcome,
+            crate::ResponseOutcome::Success { .. }
+        ));
+
+        drop(store);
+        let store = SessionStore::open(&root, "default", &[configured]).expect("reopen store");
+        let snapshot = store.snapshot().expect("released snapshot");
+        assert!(!snapshot.storage.show_file_selection);
+        let find = |torrent_id: &str| {
+            snapshot
+                .torrents
+                .iter()
+                .find(|torrent| torrent.torrent_id == torrent_id)
+                .expect("torrent in snapshot")
+        };
+        // The confirmed torrent keeps its own choice; queued torrents keep
+        // their add-time selection rather than inheriting it.
+        assert_eq!(find(&current).selection_default, FilePriority::Skip);
+        let released = find(&queued);
+        assert!(!released.awaiting_file_selection);
+        assert!(released.desired_running);
+        assert_eq!(released.selection_default, FilePriority::Normal);
+        assert!(released.skip_files.is_empty());
+        let released = find(&select_only);
+        assert!(!released.awaiting_file_selection);
+        assert!(released.desired_running);
+        assert_eq!(released.selection_default, FilePriority::Skip);
+        let pending_ranges: i64 = store
+            .connection
+            .query_row(
+                "SELECT count(*) FROM pending_selection_ranges WHERE torrent_id = ?1",
+                [super::decode_torrent_id(&select_only).unwrap().as_bytes()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(pending_ranges, 1);
+        // Released adds join the download queue in add order.
+        let order: Vec<_> = [&current, &queued, &select_only]
+            .into_iter()
+            .map(|torrent_id| find(torrent_id).download_queue_position.expect("queued"))
+            .collect();
+        assert!(order[0] < order[1] && order[1] < order[2]);
+        // A torrent already being removed is never revived.
+        let cancelled_pending: bool = store
+            .connection
+            .query_row(
+                "SELECT awaiting_file_selection FROM torrents WHERE torrent_id = ?1",
+                [super::decode_torrent_id(&cancelled).unwrap().as_bytes()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(cancelled_pending);
+        drop(store);
         fs::remove_dir_all(root).expect("remove profile");
     }
 

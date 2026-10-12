@@ -8,7 +8,11 @@ reconcile. Non-pending, removal and repair fences remain; no metadata is treated
 as verified before validation. This per-add action leaves future selection
 preferences unchanged unless its `disable_future` flag
 ([323](../tactical/323-pre-metadata-skip-file-selection.md)) clears
-`show_file_selection` in the same transaction, as confirmation already can. Typed rejected mutations now roll back to a command
+`show_file_selection` in the same transaction, as confirmation already can.
+Tactical [324](../tactical/324-release-queued-adds-on-skip-file-selection.md)
+makes that flag also release every other queued add with its existing
+selection, in add order, except removing or quarantined torrents; the web
+dialog draft is keyed by torrent. Typed rejected mutations now roll back to a command
 savepoint before their error receipt is committed, preventing partial intent
 or revision changes on a failed write.
 

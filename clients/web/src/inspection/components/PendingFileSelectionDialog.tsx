@@ -43,7 +43,16 @@ export interface PendingFileSelectionDialogProps {
   readonly onCancel: () => Promise<void>;
 }
 
-export function PendingFileSelectionDialog({
+/**
+ * The add queue presents one torrent at a time in the same place, so the
+ * draft is keyed by torrent: a confirmed torrent's pending state, choices and
+ * cached pages never carry over to the next queued torrent.
+ */
+export function PendingFileSelectionDialog(props: PendingFileSelectionDialogProps) {
+  return <PendingFileSelectionDraft key={props.torrent.id} {...props} />;
+}
+
+function PendingFileSelectionDraft({
   torrent,
   files,
   rootLabel,

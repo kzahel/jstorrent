@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [324 — Release queued adds on skip file selection](324-release-queued-adds-on-skip-file-selection.md):
+  `Don’t show file selection again` releases the rest of the add queue with
+  its existing selection, and the web dialog no longer freezes on `Saving…`.
+
 - [323 — Pre-metadata skip file selection](323-pre-metadata-skip-file-selection.md):
   Android shows `Don’t show file selection again` while a magnet loads and
   pre-metadata Download all applies it atomically with the add.

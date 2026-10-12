@@ -50,6 +50,35 @@ describe("pending file selection", () => {
     );
   });
 
+  it("starts a fresh draft for the next queued torrent after confirming", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn(async () => undefined);
+    const view = renderDialog({ onConfirm, queuedCount: 1 });
+
+    await user.click(screen.getByRole("checkbox", { name: /first\.mkv/i }));
+    await user.click(
+      screen.getByRole("checkbox", { name: /Don’t show file selection again/i }),
+    );
+    await user.click(screen.getByRole("button", { name: "Download" }));
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledOnce());
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+
+    view.rerender(
+      dialogElement({
+        onConfirm,
+        torrent: { ...torrent(), id: "t1-11111111111111111111111111111111", name: "Next" },
+      }),
+    );
+
+    expect(screen.getByRole("heading", { name: "Next" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    expect(
+      screen.getByRole("checkbox", { name: /Don’t show file selection again/i }),
+    ).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /first\.mkv/i })).toBeChecked();
+  });
+
   it("waits for magnet metadata and offers explicit cancellation", async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn(async () => undefined);
