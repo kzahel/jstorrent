@@ -7,6 +7,7 @@ const CROSTINI_ROOT = `${CROSTINI_ORIGIN}/`;
 const CROSTINI_LAUNCH_URL = `${CROSTINI_ORIGIN}/launch-chromeos`;
 const CROSTINI_CONNECTION_PAGE = "crostini/connect.html";
 const CROSTINI_TAB_KEY = "crostiniUiTabId";
+const ANDROID_HANDOFF_URL = "https://jstorrent.com/chrome-extension.html";
 const ANDROID_PAGE = "companion/companion.html";
 const DESKTOP_TAB_KEY = "desktopUiTabId";
 let desktopOpen;
@@ -104,6 +105,11 @@ function productMetricsOperation(message) {
 }
 
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  if (validAndroidHandoffMessage(message, sender)) {
+    androidOpen ??= openAndroidUi().finally(() => { androidOpen = undefined; });
+    androidOpen.then(sendResponse, () => sendResponse({ ok: false }));
+    return true;
+  }
   if (!validCrostiniLaunchMessage(message, sender)) {
     return false;
   }
@@ -168,6 +174,13 @@ async function focusOrOpenExtensionTab(key, relativeUrl) {
   }
   await chrome.storage.session.set({ [key]: tab.id });
   return "opened";
+}
+
+function validAndroidHandoffMessage(message, sender) {
+  return message?.type === "openAndroidUi" && message.protocolVersion === 1 &&
+    Object.keys(message).sort().join(",") === "protocolVersion,type" &&
+    Number.isInteger(sender?.tab?.id) && sender.tab.id >= 0 &&
+    sender.frameId === 0 && sender.url === ANDROID_HANDOFF_URL;
 }
 
 function validCrostiniLaunchMessage(message, sender) {

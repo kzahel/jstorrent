@@ -29,7 +29,8 @@
   },
   "externally_connectable": {
     "matches": [
-      "http://jstorrent.localhost/*"
+      "http://jstorrent.localhost/*",
+      "https://jstorrent.com/chrome-extension.html"
     ]
   },
   "host_permissions": [

@@ -143,3 +143,26 @@ packaged, website and physical evidence follows in the next slices.
 
 Next executable action: implement and validate the exact static HTTPS return
 page and external sender contract, then build installable candidates.
+
+
+### Integrated Source Checkpoint
+
+The static exact HTTPS handoff and worker admission are implemented. The page
+sends only the production extension ID plus closed UI-open intent, has a
+five-second deadline, fences late callbacks across retry, and restores cached
+pages without replay. Exact top-frame sender validation excludes every broader
+URL authority. Its document/header CSP has no analytics or network authority.
+
+Checks pass: web typecheck and full 531 cases (two existing skips), 59 extension
+cases/source validation, production extension package and CSP check, 64 website
+cases plus Astro build, and the packaged controlled onboarding/recovery runner.
+Signed Android assembleRelease/testReleaseUnitTest/lintRelease and debug Android
+instrumentation assembly pass. Existing generated dual-ABI Rust/Kotlin artifacts
+are reused; no Rust or generated application boundary changes occur.
+
+Cohort B's installed Android has Play split APKs. The local candidate uses the
+upload signer; verify the exact installed certificate before replacement. Add
+one bounded `org.jstorrent.setup320` qualification identity to the existing
+explicit debug-package allowlist so physical testing can preserve Play data.
+Candidate fixtures will document package/extension-ID substitutions if required.
+The website source is built locally; no public deployment is authorized.

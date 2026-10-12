@@ -276,6 +276,36 @@ test("repeated Android action focuses the one visible application tab", async ()
   assert.deepEqual(attachRequests, [{ type: "androidAttachRequested", tabId: 77 }]);
 });
 
+test("exact Android website return coalesces into one attach page without launching", async () => {
+  const message = { type: "openAndroidUi", protocolVersion: 1 };
+  const sender = { url: "https://jstorrent.com/chrome-extension.html", frameId: 0, tab: { id: 42 } };
+  const results = await Promise.all([sendExternal(message, sender), sendExternal(message, sender)]);
+  assert.equal(results.every(response => response.ok && response.result.kind === "android_ui"), true);
+  assert.equal(tabs.size, 1);
+  assert.equal(tabs.get(100).url, chrome.runtime.getURL("companion/companion.html"));
+  await sendExternal(message, sender);
+  assert.equal(tabs.size, 1);
+  assert.deepEqual(attachRequests, [{ type: "androidAttachRequested", tabId: 100 }]);
+});
+
+test("Android return rejects malformed messages and every broader sender authority", () => {
+  const message = { type: "openAndroidUi", protocolVersion: 1 };
+  const sender = { url: "https://jstorrent.com/chrome-extension.html", frameId: 0, tab: { id: 42 } };
+  for (const url of [
+    "http://jstorrent.com/chrome-extension.html", "https://www.jstorrent.com/chrome-extension.html",
+    "https://jstorrent.com.attacker.example/chrome-extension.html", "https://jstorrent.com/other.html",
+    "https://jstorrent.com/chrome-extension.html?token=untrusted", "https://jstorrent.com/chrome-extension.html#untrusted",
+    "https://user@jstorrent.com/chrome-extension.html", "https://jstorrent.com:444/chrome-extension.html",
+  ]) assert.equal(externalListener(message, { ...sender, url }, () => assert.fail("rejected request answered")), false);
+  for (const invalidSender of [{ ...sender, frameId: 1 }, { ...sender, frameId: undefined }, { ...sender, tab: {} }, { ...sender, tab: { id: -1 } }]) {
+    assert.equal(externalListener(message, invalidSender, () => assert.fail("rejected request answered")), false);
+  }
+  for (const invalid of [null, { ...message, protocolVersion: 2 }, { ...message, protocolVersion: "1" }, { ...message, token: "untrusted" }]) {
+    assert.equal(externalListener(invalid, sender, () => assert.fail("rejected request answered")), false);
+  }
+  assert.equal(tabs.size, 0);
+});
+
 test("external messages fail closed for URL and shape drift", () => {
   for (const [message, url] of [
     [{ type: "openCrostiniUi", protocolVersion: 2 }, "http://jstorrent.localhost:3030/launch-chromeos"],

@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { marketingPolicy, writeWebsiteHeaders } from './website-security.mjs';
+import { chromeExtensionPolicy, marketingPolicy, writeWebsiteHeaders } from './website-security.mjs';
 
 test('only the exact trusted inline script bytes receive CSP authority', () => {
   const body = "\nconsole.log('theme');\n";
@@ -55,4 +55,20 @@ test('static hosts retain retired prototype guidance without an open redirect', 
   }
   await writeFile(join(root, '_redirects'), '/comingsoon.html https://unexpected.example 301\n');
   await assert.rejects(writeWebsiteHeaders(root), /Unexpected retired prototype redirect/);
+});
+
+test('Android handoff gets local-only document and header policy without analytics', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'website-handoff-policy-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, '_headers'), "/*\n  Referrer-Policy: strict-origin-when-cross-origin\n");
+  await writeFile(join(root, 'chrome-extension.html'), '<html><head><script type="module" src="/chrome-extension.js"></script></head></html>');
+  await writeWebsiteHeaders(root);
+  const html = await readFile(join(root, 'chrome-extension.html'), 'utf8');
+  const headers = await readFile(join(root, '_headers'), 'utf8');
+  assert(html.includes(chromeExtensionPolicy().replace("; frame-ancestors 'none'", '')));
+  assert(headers.includes(chromeExtensionPolicy()));
+  assert(headers.includes('Referrer-Policy: no-referrer'));
+  assert(headers.includes('Cache-Control: no-store'));
+  assert(!html.includes('analytics'));
+  assert(!headers.includes('analytics'));
 });

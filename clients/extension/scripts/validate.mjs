@@ -104,9 +104,9 @@ export function validateSource(production = false) {
   }
   if (
     JSON.stringify(manifest.externally_connectable) !==
-    JSON.stringify({ matches: ["http://jstorrent.localhost/*"] })
+    JSON.stringify({ matches: ["http://jstorrent.localhost/*", "https://jstorrent.com/chrome-extension.html"] })
   ) {
-    fail("externally_connectable must contain only the exact Crostini host match");
+    fail("externally_connectable must contain only Crostini and the exact JSTorrent Android handoff");
   }
   if (manifest.background?.service_worker !== "src/service-worker.js") {
     fail("unexpected service worker entry point");
@@ -149,6 +149,7 @@ export function validateSource(production = false) {
           url !== "http://100.115.92.2/*" &&
           url !== "http://jstorrent.localhost/*" &&
           url !== "https://jstorrent.com/privacy.html" &&
+          url !== "https://jstorrent.com/chrome-extension.html" &&
           url !== "https://jstorrent.com/uninstall.html",
       )
     ) {

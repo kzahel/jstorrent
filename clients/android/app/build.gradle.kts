@@ -84,7 +84,7 @@ androidComponents {
         val upgradePackage = providers.gradleProperty("legacyUpgradeTestPackage").orNull
         val qualificationPackage = providers.gradleProperty("chromeosQualificationTestPackage").orNull
         require(upgradePackage == null || upgradePackage == "com.jstorrent.app") { "unsupported upgrade test identity" }
-        require(qualificationPackage == null || qualificationPackage == "org.rstorrent.qualification253") { "unsupported ChromeOS qualification identity" }
+        require(qualificationPackage == null || qualificationPackage in setOf("org.rstorrent.qualification253", "org.jstorrent.setup320")) { "unsupported ChromeOS qualification identity" }
         require(upgradePackage == null || qualificationPackage == null) { "test identities cannot be combined" }
         variant.applicationId.set(qualificationPackage ?: upgradePackage ?: "org.rstorrent.bootstrap")
         if (upgradePackage != null) variant.outputs.forEach { it.versionCode.set(25) }

@@ -25,6 +25,10 @@ export function marketingPolicy(html) {
   return policy;
 }
 
+export function chromeExtensionPolicy() {
+  return "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'; form-action 'none'";
+}
+
 export async function writeWebsiteHeaders(directory) {
   // Preserve the independently guarded remote policy byte-for-byte.
   const original = await readFile(join(directory, '_headers'), 'utf8');
@@ -52,14 +56,16 @@ export async function writeWebsiteHeaders(directory) {
         // Static hosts such as GitHub Pages cannot apply custom HTTP headers.
         // Keep script/frame/form restrictions in the document as well. The
         // header-only ancestor restriction remains enforced by Cloudflare.
-        const documentPolicy = marketingPolicy(html).replace("; frame-ancestors 'none'", '');
+        const policy = entry.name === 'chrome-extension.html' ? chromeExtensionPolicy() : marketingPolicy(html);
+        const documentPolicy = policy.replace("; frame-ancestors 'none'", '');
         if (!/<meta\b[^>]*http-equiv=["']Content-Security-Policy["']/i.test(html) && /<head\b[^>]*>/i.test(html)) {
           await writeFile(file, html.replace(/<head\b[^>]*>/i, head => `${head}<meta http-equiv="Content-Security-Policy" content="${documentPolicy.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}">`));
         }
         const full = '/' + relative(directory, file).replaceAll('\\', '/');
         // Cloudflare serves HTML through extensionless and trailing-slash URLs.
         const routes = full.endsWith('/index.html') ? [full.slice(0, -10)] : [full, full.slice(0, -5)];
-        for (const route of routes) blocks.push(`${route}\n  ! Content-Security-Policy\n  Content-Security-Policy: ${marketingPolicy(html)}\n`);
+        const privateHeaders = entry.name === 'chrome-extension.html' ? '  ! Referrer-Policy\n  Referrer-Policy: no-referrer\n  Cache-Control: no-store\n' : '';
+        for (const route of routes) blocks.push(`${route}\n  ! Content-Security-Policy\n  Content-Security-Policy: ${policy}\n${privateHeaders}`);
       }
     }
   }
