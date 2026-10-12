@@ -45,6 +45,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -3311,9 +3312,6 @@ class ProductEngineService : Service() {
                                     ),
                             )
                         }
-                        notificationCoordinator.updateOngoingNotification(
-                            getString(R.string.notification_ready),
-                        )
                         return
                     }
                 }
@@ -3339,9 +3337,6 @@ class ProductEngineService : Service() {
                 .onFailure(error::addSuppressed)
             Log.e(TAG, "product data reset failed phase=${current.phase}", error)
             mutableState.update { it.copy(error = null) }
-            notificationCoordinator.updateOngoingNotification(
-                getString(R.string.notification_needs_attention),
-            )
         }
     }
 
@@ -3613,19 +3608,6 @@ class ProductEngineService : Service() {
                     ),
                 error = null,
             )
-        }
-        if (::notificationCoordinator.isInitialized) {
-            val message =
-                if (journal.phase == ProductDataResetPhase.REMOVING_TORRENTS) {
-                    getString(
-                        R.string.notification_clearing_data_progress,
-                        journal.completedTorrentCount,
-                        journal.torrentIds.size,
-                    )
-                } else {
-                    getString(R.string.notification_clearing_data)
-                }
-            notificationCoordinator.updateOngoingNotification(message)
         }
     }
 
@@ -4794,16 +4776,30 @@ class ProductEngineService : Service() {
 
     private fun observePowerAndNotification() {
         powerNotificationJob = scope.launch {
-            state.collect { product ->
-                val active =
-                    product.preventSleepDuringActiveDownloads &&
-                        requiresSleepInhibition(product.torrents.values)
-                updatePowerLock(active)
-                if (foreground.get()) {
-                    notificationCoordinator.updateOngoingNotification(
-                        productOngoingNotificationText(product),
-                    )
+            launch {
+                state.collect { product ->
+                    val active =
+                        product.preventSleepDuringActiveDownloads &&
+                            requiresSleepInhibition(product.torrents.values)
+                    updatePowerLock(active)
                 }
+            }
+            // The only steady-state writer of the ongoing notification; a newer
+            // emission cancels a pending rate post and the throttle recomputes it.
+            val throttle = ProductOngoingNotificationThrottle()
+            state.collectLatest { product ->
+                if (!foreground.get()) {
+                    throttle.forget()
+                    return@collectLatest
+                }
+                val content = productOngoingNotificationContent(product)
+                val wait =
+                    throttle.delayMillis(content, SystemClock.elapsedRealtime())
+                        ?: return@collectLatest
+                if (wait > 0L) delay(wait)
+                if (!foreground.get()) return@collectLatest
+                notificationCoordinator.updateOngoingNotification(content)
+                throttle.posted(content, SystemClock.elapsedRealtime())
             }
         }
     }

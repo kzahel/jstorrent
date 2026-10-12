@@ -13,6 +13,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import org.rstorrent.bootstrap.ui.formatRate
+import org.rstorrent.session.uniffi.SpeedMetric
 import org.rstorrent.session.uniffi.TorrentState
 import org.rstorrent.session.uniffi.ViewPatch
 import org.rstorrent.session.uniffi.ViewSnapshot
@@ -186,7 +188,11 @@ internal class AndroidNotificationCoordinator(
         return notifications.eligibility
     }
 
-    fun ongoingNotification(detail: String): Notification {
+    /** Without [rates] the app name is the title; with them the status is. */
+    fun ongoingNotification(
+        detail: String,
+        rates: String? = null,
+    ): Notification {
         val open =
             PendingIntent.getActivity(
                 context,
@@ -206,10 +212,12 @@ internal class AndroidNotificationCoordinator(
         return NotificationCompat
             .Builder(context, AndroidNotificationContract.BACKGROUND_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_rstorrent_notification)
-            .setContentTitle(context.getString(R.string.app_name))
-            .setContentText(detail)
+            .setContentTitle(if (rates == null) context.getString(R.string.app_name) else detail)
+            .setContentText(rates ?: detail)
             .setContentIntent(open)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setShowWhen(false)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .addAction(
@@ -219,11 +227,21 @@ internal class AndroidNotificationCoordinator(
             ).build()
     }
 
-    fun updateOngoingNotification(detail: String) {
+    fun updateOngoingNotification(content: ProductOngoingNotificationContent) {
+        updateOngoingNotification(
+            context.productOngoingNotificationText(content.message),
+            content.rates?.let(context::productOngoingNotificationRates),
+        )
+    }
+
+    fun updateOngoingNotification(
+        detail: String,
+        rates: String? = null,
+    ) {
         runCatching {
             manager.notify(
                 AndroidNotificationContract.ONGOING_NOTIFICATION_ID,
-                ongoingNotification(detail),
+                ongoingNotification(detail, rates),
             )
         }.onFailure { error ->
             Log.w(TAG, "notification_delivery category=background result=rejected", error)
@@ -506,8 +524,11 @@ internal fun productNotificationTagPrefix(category: ProductNotificationCategory)
 internal data class ProductOngoingNotificationMessage(
     val kind: Kind,
     val count: Int = 0,
+    val total: Int = 0,
 ) {
     enum class Kind {
+        CLEARING_DATA,
+        CLEARING_DATA_PROGRESS,
         OPENING_PROFILE,
         NEEDS_ATTENTION,
         SEEDING_BACKGROUND,
@@ -520,7 +541,98 @@ internal data class ProductOngoingNotificationMessage(
     }
 }
 
+internal data class ProductOngoingNotificationRates(
+    val downloadBytes: ULong,
+    val uploadBytes: ULong,
+)
+
+internal data class ProductOngoingNotificationContent(
+    val message: ProductOngoingNotificationMessage,
+    val rates: ProductOngoingNotificationRates? = null,
+)
+
+internal fun productOngoingNotificationContent(product: ProductState): ProductOngoingNotificationContent {
+    val message = productOngoingNotificationMessage(product)
+    val current = product.currentRates?.rates?.associate { it.metric to it.bytes }.orEmpty()
+    val rates =
+        ProductOngoingNotificationRates(
+            downloadBytes = current[SpeedMetric.PAYLOAD_RECEIVED]?.toULongOrNull() ?: 0UL,
+            uploadBytes = current[SpeedMetric.PAYLOAD_UPLOADED]?.toULongOrNull() ?: 0UL,
+        )
+    val shown =
+        when (message.kind) {
+            ProductOngoingNotificationMessage.Kind.DOWNLOADING,
+            ProductOngoingNotificationMessage.Kind.SEEDING_BACKGROUND,
+            -> true
+            ProductOngoingNotificationMessage.Kind.READY,
+            ProductOngoingNotificationMessage.Kind.READY_CHROME,
+            ProductOngoingNotificationMessage.Kind.CHROME_CONNECTED,
+            ProductOngoingNotificationMessage.Kind.CHROME_RECONNECT,
+            -> rates.downloadBytes > 0UL || rates.uploadBytes > 0UL
+            else -> false
+        }
+    return ProductOngoingNotificationContent(message, rates.takeIf { shown })
+}
+
+/**
+ * Coalesces rate-only changes to the ongoing notification. Status changes post
+ * at once; changed rate values post at most once per [rateIntervalMillis].
+ */
+internal class ProductOngoingNotificationThrottle(
+    private val rateIntervalMillis: Long = ONGOING_RATE_INTERVAL_MILLIS,
+) {
+    private var posted: ProductOngoingNotificationContent? = null
+    private var postedAtMillis = 0L
+
+    /** Milliseconds to wait before posting [content], or null when it is already shown. */
+    fun delayMillis(
+        content: ProductOngoingNotificationContent,
+        nowMillis: Long,
+    ): Long? {
+        val previous = posted
+        if (content == previous) return null
+        val ratesOnly =
+            previous != null &&
+                previous.message == content.message &&
+                previous.rates != null &&
+                content.rates != null
+        if (!ratesOnly) return 0L
+        return (postedAtMillis + rateIntervalMillis - nowMillis).coerceAtLeast(0L)
+    }
+
+    fun posted(
+        content: ProductOngoingNotificationContent,
+        nowMillis: Long,
+    ) {
+        posted = content
+        postedAtMillis = nowMillis
+    }
+
+    /** The notification now shows something else, or nothing. */
+    fun forget() {
+        posted = null
+    }
+
+    companion object {
+        const val ONGOING_RATE_INTERVAL_MILLIS = 2_000L
+    }
+}
+
 internal fun productOngoingNotificationMessage(product: ProductState): ProductOngoingNotificationMessage {
+    val reset = product.dataReset?.takeUnless { it.complete }
+    if (reset != null) {
+        return when {
+            reset.failure != null ->
+                ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.NEEDS_ATTENTION)
+            reset.phase == ProductDataResetPhase.REMOVING_TORRENTS ->
+                ProductOngoingNotificationMessage(
+                    ProductOngoingNotificationMessage.Kind.CLEARING_DATA_PROGRESS,
+                    reset.completedTorrents,
+                    reset.totalTorrents,
+                )
+            else -> ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.CLEARING_DATA)
+        }
+    }
     if (!product.ready && product.error == null) {
         return ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.OPENING_PROFILE)
     }
@@ -558,9 +670,22 @@ internal fun productOngoingNotificationMessage(product: ProductState): ProductOn
     return ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.READY)
 }
 
-internal fun Context.productOngoingNotificationText(product: ProductState): String {
-    val message = productOngoingNotificationMessage(product)
-    return when (message.kind) {
+internal fun Context.productOngoingNotificationText(product: ProductState): String =
+    productOngoingNotificationText(productOngoingNotificationMessage(product))
+
+internal fun Context.productOngoingNotificationRates(rates: ProductOngoingNotificationRates): String =
+    getString(
+        R.string.status_rates,
+        formatRate(rates.downloadBytes.toString()),
+        formatRate(rates.uploadBytes.toString()),
+    )
+
+internal fun Context.productOngoingNotificationText(message: ProductOngoingNotificationMessage): String =
+    when (message.kind) {
+        ProductOngoingNotificationMessage.Kind.CLEARING_DATA ->
+            getString(R.string.notification_clearing_data)
+        ProductOngoingNotificationMessage.Kind.CLEARING_DATA_PROGRESS ->
+            getString(R.string.notification_clearing_data_progress, message.count, message.total)
         ProductOngoingNotificationMessage.Kind.OPENING_PROFILE ->
             getString(R.string.notification_opening_profile)
         ProductOngoingNotificationMessage.Kind.NEEDS_ATTENTION ->
@@ -583,4 +708,3 @@ internal fun Context.productOngoingNotificationText(product: ProductState): Stri
             getString(R.string.notification_ready_chrome)
         ProductOngoingNotificationMessage.Kind.READY -> getString(R.string.notification_ready)
     }
-}

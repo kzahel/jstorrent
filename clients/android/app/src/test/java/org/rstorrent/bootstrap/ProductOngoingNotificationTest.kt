@@ -1,12 +1,16 @@
 package org.rstorrent.bootstrap
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.rstorrent.session.uniffi.ProgressAssessment
 import org.rstorrent.session.uniffi.ProgressDisposition
 import org.rstorrent.session.uniffi.ProgressPhase
 import org.rstorrent.session.uniffi.ProgressReason
 import org.rstorrent.session.uniffi.SeedAdmissionView
+import org.rstorrent.session.uniffi.SessionCurrentRatesView
+import org.rstorrent.session.uniffi.SpeedCurrentRate
+import org.rstorrent.session.uniffi.SpeedMetric
 import org.rstorrent.session.uniffi.StorageState
 import org.rstorrent.session.uniffi.TorrentEtaView
 import org.rstorrent.session.uniffi.TorrentLifetimeView
@@ -64,6 +68,171 @@ class ProductOngoingNotificationTest {
             productOngoingNotificationMessage(ProductState(ready = true)),
         )
     }
+
+    @Test
+    fun downloadingAndBackgroundSeedingAlwaysShowBothRates() {
+        val downloading =
+            ProductState(
+                ready = true,
+                torrents = mapOf("one" to torrent("one")),
+                currentRates = rates(download = "1048576", upload = null),
+            )
+        assertEquals(
+            ProductOngoingNotificationContent(
+                ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.DOWNLOADING, 1),
+                ProductOngoingNotificationRates(1_048_576UL, 0UL),
+            ),
+            productOngoingNotificationContent(downloading),
+        )
+        val seeding =
+            ProductState(
+                ready = true,
+                lifecycle = ProductLifecycleState(reason = "retain_background_seeding"),
+            )
+        assertEquals(
+            ProductOngoingNotificationContent(
+                ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.SEEDING_BACKGROUND),
+                ProductOngoingNotificationRates(0UL, 0UL),
+            ),
+            productOngoingNotificationContent(seeding),
+        )
+    }
+
+    @Test
+    fun readyStatesShowRatesOnlyWhileTransferring() {
+        assertNull(productOngoingNotificationContent(ProductState(ready = true)).rates)
+        assertNull(
+            productOngoingNotificationContent(
+                ProductState(ready = true, currentRates = rates(download = "0", upload = "0")),
+            ).rates,
+        )
+        assertEquals(
+            ProductOngoingNotificationRates(0UL, 512UL),
+            productOngoingNotificationContent(
+                ProductState(
+                    ready = true,
+                    companionPort = 9876U,
+                    currentRates = rates(download = "0", upload = "512"),
+                ),
+            ).rates,
+        )
+    }
+
+    @Test
+    fun blockedStatesNeverShowRates() {
+        val transferring = rates(download = "100", upload = "100")
+        listOf(
+            ProductState(currentRates = transferring),
+            ProductState(
+                ready = true,
+                error = ProductError.Technical("failed"),
+                currentRates = transferring,
+            ),
+            ProductState(
+                ready = true,
+                torrents = mapOf("one" to torrent("one")),
+                dataReset = reset(ProductDataResetPhase.REMOVING_TORRENTS),
+                currentRates = transferring,
+            ),
+        ).forEach { product -> assertNull(productOngoingNotificationContent(product).rates) }
+    }
+
+    @Test
+    fun dataResetDominatesOrdinaryStatus() {
+        val downloading = mapOf("one" to torrent("one"))
+        assertEquals(
+            ProductOngoingNotificationMessage(
+                ProductOngoingNotificationMessage.Kind.CLEARING_DATA_PROGRESS,
+                count = 2,
+                total = 5,
+            ),
+            productOngoingNotificationMessage(
+                ProductState(
+                    ready = true,
+                    torrents = downloading,
+                    dataReset = reset(ProductDataResetPhase.REMOVING_TORRENTS),
+                ),
+            ),
+        )
+        assertEquals(
+            ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.CLEARING_DATA),
+            productOngoingNotificationMessage(
+                ProductState(dataReset = reset(ProductDataResetPhase.RESTARTING_APPLICATION)),
+            ),
+        )
+        assertEquals(
+            ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.NEEDS_ATTENTION),
+            productOngoingNotificationMessage(
+                ProductState(
+                    ready = true,
+                    dataReset =
+                        reset(ProductDataResetPhase.REMOVING_TORRENTS)
+                            .copy(failure = ProductDataResetFailureState("failed", "detail")),
+                ),
+            ),
+        )
+        assertEquals(
+            ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.READY),
+            productOngoingNotificationMessage(
+                ProductState(
+                    ready = true,
+                    dataReset = reset(ProductDataResetPhase.VERIFYING_APPLICATION).copy(complete = true),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun throttlePostsStatusAtOnceAndCoalescesRates() {
+        val throttle = ProductOngoingNotificationThrottle(rateIntervalMillis = 2_000L)
+        val first = downloadingContent(download = 100UL)
+        assertEquals(0L, throttle.delayMillis(first, nowMillis = 10_000L))
+        throttle.posted(first, nowMillis = 10_000L)
+
+        assertNull(throttle.delayMillis(first, nowMillis = 10_500L))
+        val faster = downloadingContent(download = 200UL)
+        assertEquals(1_500L, throttle.delayMillis(faster, nowMillis = 10_500L))
+        assertEquals(0L, throttle.delayMillis(faster, nowMillis = 12_500L))
+
+        val more =
+            faster.copy(
+                message = ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.DOWNLOADING, 2),
+            )
+        assertEquals(0L, throttle.delayMillis(more, nowMillis = 10_500L))
+        assertEquals(0L, throttle.delayMillis(first.copy(rates = null), nowMillis = 10_500L))
+
+        throttle.forget()
+        assertEquals(0L, throttle.delayMillis(first, nowMillis = 10_500L))
+    }
+
+    private fun downloadingContent(download: ULong) =
+        ProductOngoingNotificationContent(
+            ProductOngoingNotificationMessage(ProductOngoingNotificationMessage.Kind.DOWNLOADING, 1),
+            ProductOngoingNotificationRates(download, 0UL),
+        )
+
+    private fun rates(
+        download: String?,
+        upload: String?,
+    ) = SessionCurrentRatesView(
+        capturedMillis = "0",
+        rates =
+            listOf(
+                SpeedCurrentRate(SpeedMetric.PAYLOAD_RECEIVED, download),
+                SpeedCurrentRate(SpeedMetric.PAYLOAD_UPLOADED, upload),
+                SpeedCurrentRate(SpeedMetric.PEER_WIRE_RECEIVED, "999999"),
+            ),
+    )
+
+    private fun reset(phase: ProductDataResetPhase) =
+        ProductDataResetState(
+            operationId = "reset",
+            phase = phase,
+            completedTorrents = 2,
+            totalTorrents = 5,
+            deleteDataRequested = false,
+            downgradedToKeep = false,
+        )
 
     private fun torrent(id: String) =
         TorrentView(

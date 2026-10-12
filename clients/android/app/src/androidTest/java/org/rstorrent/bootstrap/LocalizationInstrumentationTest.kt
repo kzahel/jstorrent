@@ -53,11 +53,17 @@ class LocalizationInstrumentationTest {
             )
         assertNotEquals(englishOne, englishMany)
 
-        val notification =
+        val coordinator =
             AndroidNotificationCoordinator(
                 expanded,
                 MutableStateFlow(ProductState()),
-            ).ongoingNotification(expanded.getString(R.string.notification_ready))
+            )
+        val rates = expanded.productOngoingNotificationRates(ProductOngoingNotificationRates(2048UL, 0UL))
+        val withRates = coordinator.ongoingNotification(expandedMany(expanded), rates)
+        assertEquals(expandedMany(expanded), withRates.extras.getCharSequence(Notification.EXTRA_TITLE))
+        assertEquals(rates, withRates.extras.getCharSequence(Notification.EXTRA_TEXT))
+
+        val notification = coordinator.ongoingNotification(expanded.getString(R.string.notification_ready))
         assertEquals(
             expanded.getString(R.string.app_name),
             notification.extras.getCharSequence(Notification.EXTRA_TITLE),
@@ -71,6 +77,9 @@ class LocalizationInstrumentationTest {
             notification.extras.getCharSequence(Notification.EXTRA_TEXT),
         )
     }
+
+    private fun expandedMany(context: Context): String =
+        context.resources.getQuantityString(R.plurals.notification_downloading_torrents, 3, 3)
 
     private fun localizedContext(languageTag: String): Context {
         val base = ApplicationProvider.getApplicationContext<Context>()

@@ -1519,6 +1519,12 @@ with exact SAF cleanup.
   notification-Stop, relaunch, listener-refusal, and cleanup strengthening in
   addition to the original compositional close. VPN policy remains separate
   from Tactical `194`'s connection transport.
+- Tactical [319](../tactical/319-android-ongoing-notification-rates.md) shows
+  session payload download and upload rates in the ongoing notification while
+  downloading or seeding in the background, and in ready states while either
+  rate is nonzero. One state collector owns the notification content,
+  including data-reset progress; status changes post at once and rate-only
+  changes at most every two seconds.
 - Android now has Compose connection/seeding settings for backed peer, upload-
   slot, active-download, listener, port-mapping, IPv6, and encryption values,
   including configured/effective/application truth, plus backed session and

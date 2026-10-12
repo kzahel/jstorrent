@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [319 — Android ongoing notification rates](319-android-ongoing-notification-rates.md):
+  background notification shows download and upload rates, reposted at most
+  every two seconds by one content owner.
+
 - [317 — Android Files tab rows and multiselect](317-android-files-tab-rows-and-multiselect.md):
   compact file rows, an explicit three-way priority sheet and Library-style
   multi-file selection with bounded batch commands; presentation only.
