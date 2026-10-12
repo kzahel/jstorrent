@@ -1,5 +1,6 @@
 import { message as localizedMessage } from "../localization/runtime";
 import type { IconName } from "./components/Icon";
+import { torrentRemovalActive } from "./format";
 import type { TorrentRow } from "./model";
 
 export type TorrentActionId =
@@ -171,9 +172,7 @@ export function torrentActionAvailability(
     return { disabled: true, reason: localizedMessage("inspection.torrent.actions.select.one.torrent.to.edit.settings") };
   }
 
-  const activeRemovalCount = targets.filter(
-    (row) => row.removalState === "pending" || row.removalState === "awaiting_platform",
-  ).length;
+  const activeRemovalCount = targets.filter(torrentRemovalActive).length;
   if (activeRemovalCount > 0) {
     return {
       disabled: true,

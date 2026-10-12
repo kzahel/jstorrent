@@ -7408,6 +7408,18 @@
       "value": "Queued for checking"
     }
   ],
+  "inspection.format.removal.failed": [
+    {
+      "type": 0,
+      "value": "Removal failed"
+    }
+  ],
+  "inspection.format.removing": [
+    {
+      "type": 0,
+      "value": "Removing…"
+    }
+  ],
   "inspection.format.transfer.stalled": [
     {
       "type": 0,

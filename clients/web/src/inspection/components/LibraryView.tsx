@@ -14,6 +14,7 @@ import {
   checkingStatusLabel,
   formatBytes,
   formatProgress,
+  torrentRemovalLabel,
   torrentVisibleProgress,
 } from "../format";
 import type {
@@ -466,6 +467,8 @@ function categoryLabel(category: LibraryCategory): string {
 }
 
 function availabilityLabel(row: TorrentRow): string {
+  const removal = torrentRemovalLabel(row);
+  if (removal !== null) return removal;
   switch (row.status) {
     case "metadata":
       return localizedMessage("inspection.components.library.view.finding.content.details");

@@ -9,6 +9,7 @@ import {
   formatBytes,
   formatEta,
   formatRate,
+  torrentRemovalActive,
 } from "../format";
 import type { TorrentRow, ViewMaterialization } from "../model";
 import { torrentMatchesCategory } from "../state";
@@ -31,7 +32,11 @@ const columns = (
     sortable: true,
     sortValue: (row) => row.name,
     render: (row) => (
-      <span className={styles.name} title={row.name}>
+      <span
+        className={styles.name}
+        title={row.name}
+        data-removing={torrentRemovalActive(row) || undefined}
+      >
         <span
           className={styles.stateDot}
           data-status={row.status}

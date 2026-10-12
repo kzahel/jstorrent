@@ -4611,6 +4611,14 @@
     "defaultMessage": "Queued for checking",
     "description": "Product copy in inspection/format.ts"
   },
+  "inspection.format.removal.failed": {
+    "defaultMessage": "Removal failed",
+    "description": "Torrent status when removing the torrent or its data failed; removing it again retries"
+  },
+  "inspection.format.removing": {
+    "defaultMessage": "Removing…",
+    "description": "Torrent status while the torrent and any requested data are being removed"
+  },
   "inspection.format.transfer.stalled": {
     "defaultMessage": "Transfer stalled",
     "description": "Product copy in inspection/format.ts"

@@ -21,11 +21,14 @@ internal enum class TorrentAction {
     REMOVE,
 }
 
+/** Removal is committed and still running in the engine or Android storage. */
+internal val TorrentView.removalActive: Boolean
+    get() = removalState == RemovalState.PENDING || removalState == RemovalState.AWAITING_PLATFORM
+
 internal fun TorrentView.allows(action: TorrentAction): Boolean {
     if (action == TorrentAction.COPY_MAGNET) return true
-    if (action == TorrentAction.REMOVE) {
-        return removalState != RemovalState.PENDING && removalState != RemovalState.AWAITING_PLATFORM
-    }
+    // A failed removal can be retried by removing it again.
+    if (action == TorrentAction.REMOVE) return !removalActive
     if (removalState != null) return false
     val paused = operationalState == TorrentOperationalState.PAUSED
     return when (action) {

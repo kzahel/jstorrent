@@ -95,6 +95,7 @@ import org.rstorrent.bootstrap.ProductState
 import org.rstorrent.bootstrap.R
 import org.rstorrent.session.uniffi.ApplicationNetworkPrerequisiteView
 import org.rstorrent.session.uniffi.ApplicationNetworkRuntimeState
+import org.rstorrent.session.uniffi.RemovalState
 import org.rstorrent.session.uniffi.TorrentOperationalState
 import org.rstorrent.session.uniffi.TorrentView
 
@@ -593,6 +594,7 @@ private fun TorrentCard(
 ) {
     val progress = torrentProgress(torrent)
     val paused = torrent.operationalState == TorrentOperationalState.PAUSED
+    val removing = torrent.removalActive
     val pauseResumeDescription =
         stringResource(if (paused) R.string.action_resume else R.string.action_pause)
     Card(
@@ -622,7 +624,7 @@ private fun TorrentCard(
             } else {
                 IconButton(
                     onClick = if (paused) onResume else onPause,
-                    enabled = !selectionMode,
+                    enabled = !selectionMode && !removing,
                     modifier =
                         Modifier.clip(CircleShape)
                             .semantics { contentDescription = pauseResumeDescription },
@@ -640,29 +642,43 @@ private fun TorrentCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     fontWeight = FontWeight.SemiBold,
+                    color =
+                        if (removing) MaterialTheme.colorScheme.onSurfaceVariant
+                        else Color.Unspecified,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        torrent.downloadQueuePosition?.takeUnless { torrent.archived }?.let {
-                            stringResource(
-                                R.string.library_queue_position,
-                                operationalLabel(torrent.operationalState),
-                                it.toInt(),
-                            )
-                        } ?: torrentStatusLabel(torrent),
+                        torrent.downloadQueuePosition
+                            ?.takeUnless { torrent.archived || torrent.removalState != null }
+                            ?.let {
+                                stringResource(
+                                    R.string.library_queue_position,
+                                    operationalLabel(torrent.operationalState),
+                                    it.toInt(),
+                                )
+                            } ?: torrentStatusLabel(torrent),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color =
+                            if (torrent.removalState == RemovalState.FAILED) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                     )
-                    Text(percentLabel(progress), style = MaterialTheme.typography.labelMedium)
+                    if (!removing) {
+                        Text(percentLabel(progress), style = MaterialTheme.typography.labelMedium)
+                    }
                 }
                 Spacer(Modifier.height(6.dp))
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                )
+                val progressModifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape)
+                if (removing) {
+                    LinearProgressIndicator(modifier = progressModifier)
+                } else {
+                    LinearProgressIndicator(progress = { progress }, modifier = progressModifier)
+                }
                 Spacer(Modifier.height(7.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),

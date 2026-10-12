@@ -10,6 +10,10 @@
   text-overflow: ellipsis;
 }
 
+.name[data-removing="true"] {
+  color: var(--text-muted);
+}
+
 .stateDot {
   flex: 0 0 auto;
   width: 0.48rem;
@@ -77,6 +81,11 @@
 .status[data-status="error"] {
   color: var(--danger);
   font-weight: 650;
+}
+
+.status[data-status="removing"] {
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .status[data-status="complete"] {

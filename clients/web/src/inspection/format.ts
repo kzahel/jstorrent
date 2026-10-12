@@ -124,6 +124,18 @@ export function torrentProgressSortValue(row: TorrentRow): number | null {
     : row.progress;
 }
 
+/** Removal is committed and still running in the engine or platform. */
+export function torrentRemovalActive(row: TorrentRow): boolean {
+  return row.removalState === "pending" || row.removalState === "awaiting_platform";
+}
+
+/** Status that replaces the transfer state while a torrent is being removed. */
+export function torrentRemovalLabel(row: TorrentRow): string | null {
+  if (torrentRemovalActive(row)) return localizedMessage("inspection.format.removing");
+  if (row.removalState === "failed") return localizedMessage("inspection.format.removal.failed");
+  return null;
+}
+
 export function torrentVisibleProgress(row: TorrentRow): number | null {
   return row.status === "checking" && row.checking?.phase !== "hashing"
     ? null

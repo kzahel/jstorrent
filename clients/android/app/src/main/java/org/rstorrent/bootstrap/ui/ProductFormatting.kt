@@ -10,6 +10,7 @@ import java.util.Locale
 import kotlin.math.max
 import org.rstorrent.bootstrap.R
 import org.rstorrent.session.uniffi.ClientSettingsApplicationState
+import org.rstorrent.session.uniffi.RemovalState
 import org.rstorrent.session.uniffi.SeedAdmissionView
 import org.rstorrent.session.uniffi.SeedGoalView
 import org.rstorrent.session.uniffi.TorrentEtaView
@@ -136,11 +137,18 @@ internal fun operationalLabel(state: TorrentOperationalState): String =
         },
     )
 
-/** Archived torrents are paused and inactive; show that instead of the paused state. */
+/**
+ * Removal outranks every other state because the torrent is going away.
+ * Archived torrents are paused and inactive; show that instead of the paused state.
+ */
 @Composable
 internal fun torrentStatusLabel(torrent: TorrentView): String =
-    if (torrent.archived) stringResource(R.string.state_archived)
-    else operationalLabel(torrent.operationalState)
+    when {
+        torrent.removalActive -> stringResource(R.string.state_removing)
+        torrent.removalState == RemovalState.FAILED -> stringResource(R.string.state_removal_failed)
+        torrent.archived -> stringResource(R.string.state_archived)
+        else -> operationalLabel(torrent.operationalState)
+    }
 
 @Composable
 internal fun settingsApplicationLabel(state: ClientSettingsApplicationState): String =

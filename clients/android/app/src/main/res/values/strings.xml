@@ -526,6 +526,8 @@
     <string name="state_seeding">Seeding</string>
     <string name="state_paused">Paused</string>
     <string name="state_archived">Archived</string>
+    <string name="state_removing">Removing…</string>
+    <string name="state_removal_failed">Removal failed</string>
     <string name="state_error">Error</string>
     <string name="duration_days_hours">%1$d d %2$d h</string>
     <string name="duration_hours_minutes">%1$d h %2$d min</string>

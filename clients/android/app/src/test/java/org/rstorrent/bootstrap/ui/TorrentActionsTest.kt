@@ -78,6 +78,11 @@ class TorrentActionsTest {
 
         assertEquals(setOf(TorrentAction.COPY_MAGNET), TorrentAction.entries.filter(removing::allows).toSet())
         assertTrue(failed.allows(TorrentAction.REMOVE))
+        assertTrue(removing.removalActive)
+        assertTrue(
+            torrent("platform", removal = RemovalState.AWAITING_PLATFORM).removalActive,
+        )
+        assertFalse(failed.removalActive)
         assertFalse(failed.allows(TorrentAction.START))
     }
 

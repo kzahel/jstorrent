@@ -8,6 +8,8 @@ import {
   formatEta,
   formatExactBytes,
   formatRate,
+  torrentRemovalActive,
+  torrentRemovalLabel,
   torrentVisibleProgress,
 } from "./format";
 import type { TorrentCheckingPhase, TorrentRow } from "./model";
@@ -128,5 +130,20 @@ describe("checker formatting", () => {
   it("uses exact checker counters only while hashing", () => {
     expect(checkingStatusLabel(row("hashing"))).toBe("Checked 25.0%");
     expect(torrentVisibleProgress(row("hashing"))).toBe(0.25);
+  });
+});
+
+describe("removal formatting", () => {
+  const row = (removalState: TorrentRow["removalState"]): TorrentRow =>
+    ({ status: "downloading", removalState }) as TorrentRow;
+
+  it.each([
+    ["pending", true, "Removing…"],
+    ["awaiting_platform", true, "Removing…"],
+    ["failed", false, "Removal failed"],
+    [null, false, null],
+  ] as const)("labels %s removals", (state, active, label) => {
+    expect(torrentRemovalActive(row(state))).toBe(active);
+    expect(torrentRemovalLabel(row(state))).toBe(label);
   });
 });

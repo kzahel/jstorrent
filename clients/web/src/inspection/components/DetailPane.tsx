@@ -11,6 +11,7 @@ import {
   formatProgress,
   formatRate,
   formatShareRatio,
+  torrentRemovalLabel,
   torrentVisibleProgress,
 } from "../format";
 import type { DetailTab } from "../model";
@@ -264,7 +265,9 @@ function GeneralDetail({
       <dl className={styles.metrics}>
         <Metric
           label={localizedMessage("inspection.components.detail.pane.status")}
-          value={torrent.operationalState.replaceAll("_", " ")}
+          value={
+            torrentRemovalLabel(torrent) ?? torrent.operationalState.replaceAll("_", " ")
+          }
         />
         <Metric
           label={localizedMessage("inspection.components.detail.pane.size")}
