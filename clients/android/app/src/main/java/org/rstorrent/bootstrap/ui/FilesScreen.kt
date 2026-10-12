@@ -8,7 +8,6 @@ package org.rstorrent.bootstrap.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,20 +21,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FolderZip
+import androidx.compose.material.icons.outlined.HorizontalRule
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.KeyboardDoubleArrowUp
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.MusicNote
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,9 +46,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -86,10 +85,20 @@ private val imageExtensions = setOf("bmp", "gif", "jpeg", "jpg", "png", "svg", "
 private val textExtensions = setOf("ass", "md", "nfo", "pdf", "srt", "sub", "txt", "vtt")
 private val archiveExtensions = setOf("7z", "bz2", "gz", "iso", "rar", "tar", "xz", "zip")
 
+/** Non-padding files of the presented catalog page, in torrent order. */
+internal fun presentedFiles(catalog: FileCatalogViewState?): List<FileView> =
+    catalog?.files?.values?.filterNot(FileView::padding)?.sortedBy(FileView::fileIndex).orEmpty()
+
+/**
+ * The Files tab. The torrent detail screen owns [selection] so that, as in the
+ * Library, its selection bars can replace the screen's app bar.
+ */
 @Composable
 internal fun FilesScreen(
     catalog: FileCatalogViewState?,
     archived: Boolean = false,
+    selection: Set<String> = emptySet(),
+    onSelectionChange: (Set<String>) -> Unit = {},
     onSetPriority: (List<FileView>, FilePriority) -> Unit,
     onDownloadNow: (List<FileView>) -> Unit,
     onPlay: (FileView) -> Unit,
@@ -101,68 +110,46 @@ internal fun FilesScreen(
         ProductLoading(stringResource(R.string.file_catalog_title))
         return
     }
-    val files =
-        remember(catalog.files) {
-            catalog.files.values.filterNot(FileView::padding).sortedBy(FileView::fileIndex)
-        }
-    // Selection is scoped to the presented catalog page, as in the Library.
-    var selection by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    val files = remember(catalog.files) { presentedFiles(catalog) }
     var sheetFileId by rememberSaveable { mutableStateOf<String?>(null) }
-    val selected = files.filter { it.fileId in selection }
-    val selectionMode = selected.isNotEmpty()
+    val selectionMode = files.any { it.fileId in selection }
 
-    Column(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
-            item("summary") {
-                FilesSummary(catalog, files)
-                if (archived) {
-                    Text(
-                        stringResource(R.string.file_restore_to_download),
-                        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                HorizontalDivider()
-                CatalogPager(catalog.page) {
-                    selection = emptySet()
-                    onPage(it)
-                }
-            }
-            items(files, key = FileView::fileId) { file ->
-                FileRow(
-                    file = file,
-                    selected = file.fileId in selection,
-                    selectionMode = selectionMode,
-                    mediaLaunchPending = mediaLaunchPending,
-                    onClick = {
-                        if (selectionMode) {
-                            selection = selection.toggleFile(file.fileId)
-                        } else {
-                            sheetFileId = file.fileId
-                        }
-                    },
-                    onLongClick = { selection = selection.toggleFile(file.fileId) },
-                    onPlay = { onPlay(file) },
-                    onOpen = { onOpen(file) },
+    LazyColumn(Modifier.fillMaxSize()) {
+        item("summary") {
+            FilesSummary(catalog, files)
+            if (archived) {
+                Text(
+                    stringResource(R.string.file_restore_to_download),
+                    modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                HorizontalDivider()
+            }
+            HorizontalDivider()
+            // Selection is scoped to the presented catalog page.
+            CatalogPager(catalog.page) {
+                onSelectionChange(emptySet())
+                onPage(it)
             }
         }
-        if (selectionMode) {
-            val prioritizable = selected.filter { it.selection != null }
-            // An archived torrent cannot start until it is restored.
-            val downloadable = if (archived) emptyList() else selected.filter(::downloadNowEligible)
-            FileSelectionActions(
-                count = selected.size,
-                allSelected = selected.size == files.size,
-                prioritizable = prioritizable.isNotEmpty(),
-                downloadable = downloadable.isNotEmpty(),
-                onSelectAll = { selection = files.map(FileView::fileId).toSet() },
-                onSetPriority = { onSetPriority(prioritizable, it) },
-                onDownloadNow = { onDownloadNow(downloadable) },
-                onClear = { selection = emptySet() },
+        items(files, key = FileView::fileId) { file ->
+            FileRow(
+                file = file,
+                selected = file.fileId in selection,
+                selectionMode = selectionMode,
+                mediaLaunchPending = mediaLaunchPending,
+                onClick = {
+                    if (selectionMode) {
+                        onSelectionChange(selection.toggleFile(file.fileId))
+                    } else {
+                        sheetFileId = file.fileId
+                    }
+                },
+                onLongClick = { onSelectionChange(selection.toggleFile(file.fileId)) },
+                onPlay = { onPlay(file) },
+                onOpen = { onOpen(file) },
             )
+            HorizontalDivider()
         }
     }
 
@@ -253,16 +240,12 @@ private fun FileRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-            if (selectionMode) {
-                Checkbox(checked = selected, onCheckedChange = null)
-            } else {
-                Icon(
-                    fileTypeIcon(file.path),
-                    contentDescription = null,
-                    modifier = Modifier.alpha(if (skipped) 0.5f else 1f),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Icon(
+                fileTypeIcon(file.path),
+                contentDescription = null,
+                modifier = Modifier.alpha(if (skipped) 0.5f else 1f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
             Text(
@@ -481,63 +464,49 @@ private fun FileSheetAction(
     }
 }
 
+/**
+ * Labeled actions for the selected files, shaped like the Library selection
+ * bar. Every action applies only to the selected files that allow it and is
+ * disabled when none do; each is one bounded batch command.
+ */
 @Composable
-private fun FileSelectionActions(
-    count: Int,
-    allSelected: Boolean,
-    prioritizable: Boolean,
-    downloadable: Boolean,
-    onSelectAll: () -> Unit,
-    onSetPriority: (FilePriority) -> Unit,
-    onDownloadNow: () -> Unit,
-    onClear: () -> Unit,
+internal fun FileSelectionBottomBar(
+    selected: List<FileView>,
+    archived: Boolean,
+    onSetPriority: (List<FileView>, FilePriority) -> Unit,
+    onDownloadNow: (List<FileView>) -> Unit,
 ) {
-    Surface(shadowElevation = 8.dp) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    pluralStringResource(R.plurals.library_selected_count, count, count),
-                    modifier = Modifier.weight(1f),
-                    fontWeight = FontWeight.SemiBold,
-                )
-                TextButton(
-                    onClick = onSelectAll,
-                    enabled = !allSelected,
-                    modifier = Modifier.testTag("files-select-all"),
+    val prioritizable = selected.filter { it.selection != null }
+    // An archived torrent cannot start until it is restored.
+    val downloadable = if (archived) emptyList() else selected.filter(::downloadNowEligible)
+    BottomAppBar {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            filePriorityChoices.forEach { (priority, _, label) ->
+                SelectionBarButton(
+                    filePriorityIcon(priority),
+                    stringResource(label),
+                    enabled = prioritizable.isNotEmpty(),
                 ) {
-                    Text(stringResource(R.string.action_select_all))
+                    onSetPriority(prioritizable, priority)
                 }
-                TextButton(onClick = onClear) { Text(stringResource(R.string.action_done)) }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                verticalAlignment = Alignment.CenterVertically,
+            SelectionBarButton(
+                Icons.Outlined.Download,
+                stringResource(R.string.action_download_now),
+                enabled = downloadable.isNotEmpty(),
             ) {
-                Text(
-                    stringResource(R.string.file_priority_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                filePriorityChoices.forEach { (priority, _, label) ->
-                    TextButton(
-                        onClick = { onSetPriority(priority) },
-                        enabled = prioritizable,
-                        modifier = Modifier.testTag("files-priority-${priority.name.lowercase()}"),
-                    ) {
-                        Text(stringResource(label))
-                    }
-                }
-                TextButton(
-                    onClick = onDownloadNow,
-                    enabled = downloadable,
-                    modifier = Modifier.testTag("files-download-now"),
-                ) {
-                    Text(stringResource(R.string.action_download_now))
-                }
+                onDownloadNow(downloadable)
             }
         }
     }
 }
+
+private fun filePriorityIcon(priority: FilePriority): ImageVector =
+    when (priority) {
+        FilePriority.SKIP -> Icons.Outlined.Block
+        FilePriority.NORMAL -> Icons.Outlined.HorizontalRule
+        FilePriority.HIGH -> Icons.Outlined.KeyboardDoubleArrowUp
+    }
 
 private fun fileLengthBytes(file: FileView): ULong = file.lengthBytes.toULongOrNull() ?: 0UL
 

@@ -2,6 +2,7 @@
 
 package org.rstorrent.bootstrap.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -1662,6 +1663,24 @@ private fun TorrentDetailScreen(
     var overflow by remember { mutableStateOf(false) }
     val pager = rememberPagerState(pageCount = { TorrentDetailTab.entries.size })
     val scope = rememberCoroutineScope()
+    // File selection lives here so its bars can replace this screen's app bar,
+    // with the same mechanics as the Library selection.
+    var fileSelection by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    val fileCatalog = torrent?.let { state.files[it.torrentId] }
+    val files = remember(fileCatalog?.files) { presentedFiles(fileCatalog) }
+    val selectedFiles = files.filter { it.fileId in fileSelection }
+    LaunchedEffect(selectedFiles.size, fileSelection.size, fileCatalog != null) {
+        // Skip while the catalog is not loaded so a reconnect keeps the selection.
+        if (fileCatalog != null && selectedFiles.size != fileSelection.size) {
+            fileSelection = selectedFiles.mapTo(mutableSetOf()) { it.fileId }
+        }
+    }
+    LaunchedEffect(pager.currentPage) {
+        if (TorrentDetailTab.entries[pager.currentPage] != TorrentDetailTab.FILES) {
+            fileSelection = emptySet()
+        }
+    }
+    BackHandler(enabled = fileSelection.isNotEmpty()) { fileSelection = emptySet() }
     // A stopped activity can return to a new service whose presentation
     // repository has never been told which tab is showing.
     LaunchedEffect(pager.currentPage, presentationOwner) {
@@ -1679,69 +1698,88 @@ private fun TorrentDetailScreen(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
+            if (fileSelection.isNotEmpty()) {
+                SelectionTopBar(
+                    count = fileSelection.size,
+                    allSelected = selectedFiles.size == files.size,
+                    onClear = { fileSelection = emptySet() },
+                    onSelectAll = { fileSelection = files.mapTo(mutableSetOf()) { it.fileId } },
+                )
+            } else {
+                TopAppBar(
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.ArrowBack,
+                                contentDescription = stringResource(R.string.action_back),
+                            )
+                        }
+                    },
+                    title = {
+                        Text(
+                            torrent?.let(::torrentPresentationName)
+                                ?: stringResource(R.string.torrent_fallback_name),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                    }
-                },
-                title = {
-                    Text(
-                        torrent?.let(::torrentPresentationName)
-                            ?: stringResource(R.string.torrent_fallback_name),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                actions = {
-                    if (torrent != null && !torrent.archived) {
-                        val paused = torrent.operationalState == TorrentOperationalState.PAUSED
-                        IconButton(onClick = if (paused) onResume else onPause) {
-                            Icon(
-                                if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                                contentDescription =
-                                    stringResource(
-                                        if (paused) R.string.action_resume else R.string.action_pause,
-                                    ),
-                            )
-                        }
-                    }
-                    Box {
-                        IconButton(onClick = { overflow = true }) {
-                            Icon(
-                                Icons.Outlined.MoreVert,
-                                contentDescription = stringResource(R.string.a11y_more_options),
-                            )
-                        }
-                        DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
-                            val dismiss = { overflow = false }
-                            if (torrent?.allows(TorrentAction.START) == true) {
-                                TorrentMenuItem(R.string.action_resume, torrent, TorrentAction.START, dismiss, onResume)
-                            } else if (torrent?.allows(TorrentAction.PAUSE) == true) {
-                                TorrentMenuItem(R.string.action_pause, torrent, TorrentAction.PAUSE, dismiss, onPause)
+                    },
+                    actions = {
+                        if (torrent != null && !torrent.archived) {
+                            val paused = torrent.operationalState == TorrentOperationalState.PAUSED
+                            IconButton(onClick = if (paused) onResume else onPause) {
+                                Icon(
+                                    if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                    contentDescription =
+                                        stringResource(
+                                            if (paused) R.string.action_resume else R.string.action_pause,
+                                        ),
+                                )
                             }
-                            TorrentMenuItem(R.string.action_move_top, torrent, TorrentAction.MOVE_TOP, dismiss, onMoveTop)
-                            TorrentMenuItem(R.string.action_move_bottom, torrent, TorrentAction.MOVE_BOTTOM, dismiss, onMoveBottom)
-                            TorrentMenuItem(R.string.action_force_recheck, torrent, TorrentAction.FORCE_RECHECK, dismiss, onForceRecheck)
-                            if (torrent?.archived == true) {
-                                TorrentMenuItem(R.string.action_restore, torrent, TorrentAction.RESTORE, dismiss, onRestore)
-                            } else {
-                                TorrentMenuItem(R.string.action_archive, torrent, TorrentAction.ARCHIVE, dismiss, onArchive)
-                            }
-                            TorrentMenuItem(R.string.action_copy_magnet, torrent, TorrentAction.COPY_MAGNET, dismiss, onCopyMagnet)
-                            TorrentMenuItem(R.string.action_remove, torrent, TorrentAction.REMOVE, dismiss, onRemove)
-                            HorizontalDivider()
-                            DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_speed)) }, onClick = { overflow = false; onSpeed() })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_dht)) }, onClick = { overflow = false; onDht() })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.logs_title)) }, onClick = { overflow = false; onLogs() })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.settings_title)) }, onClick = { overflow = false; onSettings() })
                         }
-                    }
-                },
-            )
+                        Box {
+                            IconButton(onClick = { overflow = true }) {
+                                Icon(
+                                    Icons.Outlined.MoreVert,
+                                    contentDescription = stringResource(R.string.a11y_more_options),
+                                )
+                            }
+                            DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
+                                val dismiss = { overflow = false }
+                                if (torrent?.allows(TorrentAction.START) == true) {
+                                    TorrentMenuItem(R.string.action_resume, torrent, TorrentAction.START, dismiss, onResume)
+                                } else if (torrent?.allows(TorrentAction.PAUSE) == true) {
+                                    TorrentMenuItem(R.string.action_pause, torrent, TorrentAction.PAUSE, dismiss, onPause)
+                                }
+                                TorrentMenuItem(R.string.action_move_top, torrent, TorrentAction.MOVE_TOP, dismiss, onMoveTop)
+                                TorrentMenuItem(R.string.action_move_bottom, torrent, TorrentAction.MOVE_BOTTOM, dismiss, onMoveBottom)
+                                TorrentMenuItem(R.string.action_force_recheck, torrent, TorrentAction.FORCE_RECHECK, dismiss, onForceRecheck)
+                                if (torrent?.archived == true) {
+                                    TorrentMenuItem(R.string.action_restore, torrent, TorrentAction.RESTORE, dismiss, onRestore)
+                                } else {
+                                    TorrentMenuItem(R.string.action_archive, torrent, TorrentAction.ARCHIVE, dismiss, onArchive)
+                                }
+                                TorrentMenuItem(R.string.action_copy_magnet, torrent, TorrentAction.COPY_MAGNET, dismiss, onCopyMagnet)
+                                TorrentMenuItem(R.string.action_remove, torrent, TorrentAction.REMOVE, dismiss, onRemove)
+                                HorizontalDivider()
+                                DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_speed)) }, onClick = { overflow = false; onSpeed() })
+                                DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_dht)) }, onClick = { overflow = false; onDht() })
+                                DropdownMenuItem(text = { Text(stringResource(R.string.logs_title)) }, onClick = { overflow = false; onLogs() })
+                                DropdownMenuItem(text = { Text(stringResource(R.string.settings_title)) }, onClick = { overflow = false; onSettings() })
+                            }
+                        }
+                    },
+                )
+            }
+        },
+        bottomBar = {
+            if (fileSelection.isNotEmpty()) {
+                FileSelectionBottomBar(
+                    selected = selectedFiles,
+                    archived = torrent?.archived == true,
+                    onSetPriority = onSetFilePriority,
+                    onDownloadNow = onDownloadFile,
+                )
+            }
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -1767,6 +1805,8 @@ private fun TorrentDetailScreen(
                     TorrentDetailTab.entries[page],
                     torrent,
                     state,
+                    fileSelection,
+                    { fileSelection = it },
                     onSetFilePriority,
                     onDownloadFile,
                     onPlayFile,
@@ -1785,6 +1825,8 @@ private fun DetailTabContent(
     tab: TorrentDetailTab,
     torrent: TorrentView?,
     state: ProductState,
+    fileSelection: Set<String>,
+    onFileSelectionChange: (Set<String>) -> Unit,
     onSetFilePriority: (List<org.rstorrent.session.uniffi.FileView>, FilePriority) -> Unit,
     onDownloadFile: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onPlayFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
@@ -1862,14 +1904,16 @@ private fun DetailTabContent(
         }
         TorrentDetailTab.FILES ->
             FilesScreen(
-                state.files[torrent.torrentId],
-                torrent.archived,
-                onSetFilePriority,
-                onDownloadFile,
-                onPlayFile,
-                onOpenFile,
-                state.mediaLaunchPending,
-                onFilePage,
+                catalog = state.files[torrent.torrentId],
+                archived = torrent.archived,
+                selection = fileSelection,
+                onSelectionChange = onFileSelectionChange,
+                onSetPriority = onSetFilePriority,
+                onDownloadNow = onDownloadFile,
+                onPlay = onPlayFile,
+                onOpen = onOpenFile,
+                mediaLaunchPending = state.mediaLaunchPending,
+                onPage = onFilePage,
             )
         TorrentDetailTab.TRACKERS ->
             TrackersScreen(state.trackers[torrent.torrentId], onTrackerPage)

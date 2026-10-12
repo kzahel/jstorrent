@@ -729,7 +729,7 @@ private fun LibraryStatusLine(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SelectionTopBar(
+internal fun SelectionTopBar(
     count: Int,
     allSelected: Boolean,
     onClear: () -> Unit,
@@ -847,7 +847,7 @@ private fun SelectionBottomBar(
 }
 
 @Composable
-private fun RowScope.SelectionBarButton(
+internal fun RowScope.SelectionBarButton(
     icon: ImageVector,
     label: String,
     enabled: Boolean,

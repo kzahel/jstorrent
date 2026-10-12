@@ -1,7 +1,8 @@
 # Tactical 317: Android Files Tab Rows And Multiselect
 
-Status: Complete locally on 2026-10-12 after maintainer hands-on review on
-the attached Pixel 9. Maintainer authorizes the commit. No push or release is
+Status: Complete on 2026-10-12 after maintainer hands-on review on the
+attached Pixel 9; committed and pushed at maintainer direction. The selection
+rework that follows Tactical `316` is committed separately. No release is
 authorized by this tactical.
 
 ## Scope and stopping condition
@@ -52,10 +53,17 @@ row, so a priority change is reflected without reopening it.
 
 Selection follows the Library screen: long-press toggles a file and enters
 selection mode, tap toggles while any file is selected, selected rows use the
-primary container color, row actions are disabled, and a bottom action bar
-shows the selected count with `Done` to clear. The bar adds `Select all`,
-the three priorities and `Download now`. The Library has no select-all
-today; this tactical does not add one there.
+primary container color and row actions are disabled. The first version used
+a text-button bar with the count, `Select all` and `Done`, written against a
+Library that had no select-all. Tactical `316` then gave the Library a
+selection top bar and an icon bottom bar, so the Files selection was reworked
+to use those same components: the torrent detail screen owns the file
+selection, its app bar is replaced by the shared selection top bar (close,
+selected count, and one toggle that selects every file and then offers to
+deselect them all), and a bottom bar of labeled icon actions offers Skip,
+Normal, High and `Download now`. Back clears the selection, and leaving the
+Files tab clears it as changing Library tabs does. Rows show no checkbox,
+matching torrent cards.
 
 Summary: one line with the file count, the skipped count when nonzero, and a
 localized state only when the catalog is not available.
@@ -150,6 +158,20 @@ freshly owned API 28 and API 35 AVDs. That rebase needed
 two repairs to the remote state, committed separately: four instrumentation
 test files still called the single-argument `setActivityVisible`, and the
 unused `speed_transfer` resource failed the localization catalog check.
+
+Selection rework: `SelectionTopBar` and `SelectionBarButton` in
+`LibraryScreen.kt` are now shared rather than private, `FilesScreen` takes the
+caller-owned selection, and `FileSelectionBottomBar` owns batch eligibility.
+The Gradle build/JVM/lint command passes with 142 JVM tests and the
+localization catalog check passes. The component-level multiselect case is
+replaced by `fileSelectionReplacesDetailBarWithLibrarySelectionMechanics`,
+which drives the real detail screen, and
+`fileSelectionBarBatchesCommandsForEligibleFiles`; with the three other Files
+cases and `liveTorrentReachesAllDetailAndGlobalRoutes`, six cases pass on
+freshly owned API 28 and API 35 AVDs. On the Pixel 9 review install,
+long-press showed the selection top bar and icon bottom bar, the toggle
+selected all three files and changed to Deselect all, and Back cleared the
+selection while staying on the detail screen.
 
 Pixel 9 review build: the existing `org.rstorrent.bootstrap` install is a
 debug build signed by a different machine's debug key, so an in-place update

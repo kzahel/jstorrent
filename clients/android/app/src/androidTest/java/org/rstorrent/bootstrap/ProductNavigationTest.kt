@@ -16,6 +16,7 @@ import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -34,6 +35,7 @@ import org.junit.Test
 import org.rstorrent.bootstrap.ui.ProductApp
 import org.rstorrent.bootstrap.ui.PendingFileSelectionDialog
 import org.rstorrent.bootstrap.ui.ProductThemeMode
+import org.rstorrent.bootstrap.ui.FileSelectionBottomBar
 import org.rstorrent.bootstrap.ui.FilesScreen
 import org.rstorrent.bootstrap.ui.RstorrentTheme
 import org.rstorrent.session.uniffi.ApplicationNetworkPrerequisiteView
@@ -443,72 +445,114 @@ class ProductNavigationTest {
     }
 
     @Test
-    fun fileMultiselectFollowsLibraryMechanicsAndBatchesCommands() {
-        val first = mediaFile(MediaFileAvailability.STREAMABLE, verifiedBytes = "32768")
-        val second =
-            first.copy(
-                fileId = "notes-file",
-                fileIndex = 1U,
-                path = listOf("Fixture", "notes.txt"),
-                selection = FileSelectionView.SKIPPED,
-                verifiedBytes = "0",
-                doneBytes = "0",
-            )
-        val third =
-            first.copy(
-                fileId = "cover-file",
-                fileIndex = 2U,
-                path = listOf("Fixture", "cover.jpg"),
-                verifiedBytes = "65536",
-                doneBytes = "65536",
-            )
-        val catalog =
-            FileCatalogViewState(
-                state = FileCatalogState.AVAILABLE,
-                filesystemContentBase = null,
-                page = CatalogPageView(0U, 3U, 3U, null),
-                files = listOf(first, second, third).associateBy(FileView::fileId),
-            )
-        val priorities = mutableListOf<Pair<List<FileView>, FilePriority>>()
-        val downloads = mutableListOf<List<FileView>>()
+    fun fileSelectionReplacesDetailBarWithLibrarySelectionMechanics() {
+        val torrent = torrent()
+        val files = selectionFiles()
         compose.setContent {
-            RstorrentTheme(ProductThemeMode.LIGHT, dynamicColor = false) {
-                FilesScreen(
-                    catalog = catalog,
-                    onSetPriority = { files, priority -> priorities += files to priority },
-                    onDownloadNow = { downloads += it },
-                    onPlay = {},
-                    onOpen = {},
-                    mediaLaunchPending = false,
-                    onPage = {},
-                )
-            }
+            ProductApp(
+                service = null,
+                onSelectStorage = {},
+                onBrowseTorrent = {},
+                notificationsGranted = true,
+                onRequestNotifications = {},
+                onOpenNotificationSettings = {},
+                themeMode = ProductThemeMode.DARK,
+                dynamicColor = false,
+                onThemeMode = {},
+                onDynamicColor = {},
+                stateOverride =
+                    ProductState(
+                        ready = true,
+                        storageRootReady = true,
+                        storageRootChecking = false,
+                        torrents = mapOf(torrent.torrentId to torrent),
+                        files =
+                            mapOf(
+                                torrent.torrentId to
+                                    FileCatalogViewState(
+                                        state = FileCatalogState.AVAILABLE,
+                                        filesystemContentBase = null,
+                                        page = CatalogPageView(0U, 3U, 3U, null),
+                                        files = files.associateBy(FileView::fileId),
+                                    ),
+                            ),
+                    ),
+            )
         }
 
-        compose.onNodeWithText("1 skipped").assertIsDisplayed()
+        compose.onNodeWithText("Fixture torrent").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Files").performSemanticsAction(SemanticsActions.OnClick)
+        awaitDisplayed("1 skipped")
         compose.onNodeWithTag("open-cover-file").assertIsEnabled()
         compose.onAllNodesWithTag("open-notes-file").assertCountEquals(0)
 
+        // Long-press enters selection: the selection bar replaces the detail bar.
         compose.onNodeWithTag("file-media-file").performSemanticsAction(SemanticsActions.OnLongClick)
         compose.onNodeWithText("1 selected").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Clear selection").assertIsDisplayed()
+        compose.onAllNodesWithContentDescription("Back").assertCountEquals(0)
         compose.onNodeWithTag("play-media-file").assertIsNotEnabled()
         // Tap toggles while any file is selected instead of opening the sheet.
         compose.onNodeWithTag("file-notes-file").performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("2 selected").assertIsDisplayed()
         compose.onAllNodesWithTag("priority-normal").assertCountEquals(0)
-        compose.onNodeWithTag("files-priority-high").performSemanticsAction(SemanticsActions.OnClick)
-        assertEquals(listOf(listOf(first, second) to FilePriority.HIGH), priorities)
 
-        compose.onNodeWithTag("files-select-all").performSemanticsAction(SemanticsActions.OnClick)
+        // The toggle selects every file, then offers to deselect them all.
+        compose.onNodeWithContentDescription("Select all").performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("3 selected").assertIsDisplayed()
-        compose.onNodeWithTag("files-select-all").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Deselect all").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onAllNodesWithContentDescription("Clear selection").assertCountEquals(0)
+        compose.onNodeWithContentDescription("Back").assertIsDisplayed()
+
+        // Leaving the Files tab clears the selection, as changing Library tabs does.
+        compose.onNodeWithTag("file-media-file").performSemanticsAction(SemanticsActions.OnLongClick)
+        compose.onNodeWithText("1 selected").assertIsDisplayed()
+        compose.onNodeWithText("Trackers").performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithContentDescription("Clear selection").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithText("Files").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithTag("play-media-file").assertIsEnabled()
+
+        compose.onNodeWithTag("file-media-file").performSemanticsAction(SemanticsActions.OnLongClick)
+        compose.onNodeWithContentDescription("Clear selection").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onAllNodesWithText("1 selected").assertCountEquals(0)
+    }
+
+    @Test
+    fun fileSelectionBarBatchesCommandsForEligibleFiles() {
+        val (first, second, third) = selectionFiles()
+        var archived by mutableStateOf(false)
+        val priorities = mutableListOf<Pair<List<FileView>, FilePriority>>()
+        val downloads = mutableListOf<List<FileView>>()
+        compose.setContent {
+            RstorrentTheme(ProductThemeMode.LIGHT, dynamicColor = false) {
+                FileSelectionBottomBar(
+                    selected = listOf(first, second, third),
+                    archived = archived,
+                    onSetPriority = { files, priority -> priorities += files to priority },
+                    onDownloadNow = { downloads += it },
+                )
+            }
+        }
+
+        compose.onNodeWithText("High").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Skip").performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(
+            listOf(
+                listOf(first, second, third) to FilePriority.HIGH,
+                listOf(first, second, third) to FilePriority.SKIP,
+            ),
+            priorities,
+        )
         // Download now targets only wanted, incomplete files.
-        compose.onNodeWithTag("files-download-now").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Download now").performSemanticsAction(SemanticsActions.OnClick)
         assertEquals(listOf(listOf(first)), downloads)
 
-        compose.onNodeWithText("Done").performSemanticsAction(SemanticsActions.OnClick)
-        compose.onAllNodesWithTag("files-select-all").assertCountEquals(0)
-        compose.onNodeWithTag("play-media-file").assertIsEnabled()
+        // An archived torrent cannot start, but its priorities stay editable.
+        archived = true
+        compose.onNodeWithText("Download now").assertIsNotEnabled()
+        compose.onNodeWithText("Normal").assertIsEnabled()
     }
 
     @Test
@@ -1444,6 +1488,29 @@ class ProductNavigationTest {
             verifiedBytes = verifiedBytes,
             mediaAvailability = availability,
         )
+
+    /** A streamable video, a skipped empty file and a completed image. */
+    private fun selectionFiles(): List<FileView> {
+        val first = mediaFile(MediaFileAvailability.STREAMABLE, verifiedBytes = "32768")
+        return listOf(
+            first,
+            first.copy(
+                fileId = "notes-file",
+                fileIndex = 1U,
+                path = listOf("Fixture", "notes.txt"),
+                selection = FileSelectionView.SKIPPED,
+                verifiedBytes = "0",
+                doneBytes = "0",
+            ),
+            first.copy(
+                fileId = "cover-file",
+                fileIndex = 2U,
+                path = listOf("Fixture", "cover.jpg"),
+                verifiedBytes = "65536",
+                doneBytes = "65536",
+            ),
+        )
+    }
 
     private fun fileCatalog(file: FileView): FileCatalogViewState =
         FileCatalogViewState(
