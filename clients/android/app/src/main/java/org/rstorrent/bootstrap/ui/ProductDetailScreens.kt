@@ -318,16 +318,8 @@ internal fun PeersScreen(
             )
             HorizontalDivider()
         }
+        // The summary already reads "0 connected peers" when the list is empty.
         items(rows, key = PeerView::connectionId) { peer -> PeerRow(peer) }
-        if (rows.isEmpty()) {
-            item("empty") {
-                Text(
-                    stringResource(R.string.no_peers_connected),
-                    modifier = Modifier.fillMaxWidth().padding(24.dp),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
-        }
     }
 }
 

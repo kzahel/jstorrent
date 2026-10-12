@@ -212,7 +212,6 @@
     </plurals>
     <string name="swarm_summary">%1$d known · %2$s · cap %3$d</string>
     <string name="swarm_loading">Swarm catalog is loading…</string>
-    <string name="no_peers_connected">No peers connected</string>
     <string name="peer_summary">%1$s · %2$s · %3$s</string>
     <string name="peer_transfer_summary">↓ %1$s · ↑ %2$s · requests %3$d</string>
     <string name="storage_pipeline">Storage pipeline</string>
