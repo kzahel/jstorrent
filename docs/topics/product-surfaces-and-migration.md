@@ -1,5 +1,14 @@
 # Product Surfaces And JSTorrent Migration
 
+Tactical [330](../tactical/330-android-1-0-31-production-release.md) submits
+Android 1.0.31/code 31 for production at 100%, automatically publishing after
+approval. Exact tagged signed APK/AAB checks and source Android/SAF integration
+pass. At 14:37 UTC on October 13, Play shows only 31 Start full rollout in
+Changes in review; quick checks are running and managed publishing is off.
+Production remains 1.0.30 until approval. Installed delivery and stability
+remain separate. Full source CI has one Windows socket-bind test failure;
+all other applicable jobs, including Rust/web/Android, pass.
+
 Tactical [326](../tactical/326-full-product-release.md) publishes desktop 0.3.1
 from tagged 5fa018ff after full source/signed CI and independent package/source
 qualification. All 17 public assets, the live website and 11 production updater

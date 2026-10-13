@@ -1,8 +1,8 @@
 # Implementation Tactical Docs
 
 - [330 — Android 1.0.31 production release](330-android-1-0-31-production-release.md):
-  tagged signing and package qualification, then the existing production Play
-  track with automatic publication after approval.
+  exact signed artifacts qualified and production review submitted at 100%;
+  automatic publication after approval, with quick checks pending.
 
 - [329 — Android remove download folder](329-android-remove-download-folder.md):
   any folder can be removed; its torrents stop safely and wait for repair,

@@ -2,7 +2,10 @@
 
 Android release targets the existing JSTorrent `com.jstorrent.app` app,
 with `android-vX.Y.Z` tags. Tactical
-[326](tactical/326-full-product-release.md) records the October 13 local-date
+[330](tactical/330-android-1-0-31-production-release.md) records the October 13
+1.0.31/code 31 production review submission at 100%, with automatic publication
+after approval. Quick checks are running; public availability remains pending.
+Tactical [326](tactical/326-full-product-release.md) records the October 13 local-date
 1.0.30/code 30 production submission and confirmed publication at 100% in all
 178 targeted countries. Play shows Available on Google Play, released October
 13 at 01:24 local time, with 29 deactivated and no retained bundles. Tactical [315](tactical/315-android-1-0-29-production-release.md)
@@ -40,12 +43,12 @@ passed build, signature/packaging validation, and prerelease publication.
 
 ## Release A Version
 
-Only after explicit release authorization, add a nonempty `## [1.0.31]`
+Only after explicit release authorization, add a nonempty `## [1.0.32]`
 section to `clients/android/CHANGELOG.md` and commit it first. From a clean `main` checkout:
 
 ```sh
-scripts/release-android.sh 1.0.31 --dry-run
-scripts/release-android.sh 1.0.31
+scripts/release-android.sh 1.0.32 --dry-run
+scripts/release-android.sh 1.0.32
 ```
 
 The helper validates the version and changelog, increments Gradle's integer
@@ -141,9 +144,9 @@ therefore have a different signing identity from the Play-installed app.
 
 ## Upload To Play
 
-For the authorized 1.0.30 release, use the existing production track at 100% and
+For the authorized 1.0.31 release, use the existing production track at 100% and
 turn managed publishing off so approval publishes automatically. Inspect
-pending changes first; this authorizes the 30 release, not unrelated drafts.
+pending changes first; this authorizes the 31 release, not unrelated drafts.
 Earlier internal-first qualification below describes the initial replacement,
 not a mandatory track sequence for this approved hotfix.
 
