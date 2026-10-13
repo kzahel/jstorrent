@@ -36,6 +36,10 @@
   background notification shows download and upload rates, reposted at most
   every two seconds by one content owner.
 
+- [318 — Android duplicate add feedback](318-android-duplicate-add-feedback.md):
+  in-app adds report torrents already present, archived matches offer
+  Restore, and test torrents honor the file selection setting.
+
 - [317 — Android Files tab rows and multiselect](317-android-files-tab-rows-and-multiselect.md):
   compact file rows, an explicit three-way priority sheet and Library-style
   multi-file selection with bounded batch commands; presentation only.

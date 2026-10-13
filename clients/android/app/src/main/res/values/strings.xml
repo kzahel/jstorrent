@@ -138,6 +138,14 @@
         <item quantity="one">%1$d selected</item>
         <item quantity="other">%1$d selected</item>
     </plurals>
+    <plurals name="add_already_present_count">
+        <item quantity="one">Torrent already present.</item>
+        <item quantity="other">%1$d torrents already present.</item>
+    </plurals>
+    <plurals name="add_already_archived_count">
+        <item quantity="one">Torrent is already in Archived.</item>
+        <item quantity="other">%1$d torrents are already in Archived.</item>
+    </plurals>
     <plurals name="library_archived_count">
         <item quantity="one">Archived %1$d torrent</item>
         <item quantity="other">Archived %1$d torrents</item>

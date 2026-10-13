@@ -134,6 +134,34 @@ data class ExternalIntakeNotice(
     val kind: ExternalIntakeNoticeKind,
 )
 
+/**
+ * Adds that matched torrents already in the session, shown once. Archived
+ * matches stay hidden from the library, so the notice offers to restore them.
+ */
+data class AlreadyPresentNotice(
+    val sequence: Long,
+    val count: Int,
+    val archivedTorrentIds: List<String>,
+    /** The add asked to start content, so a restore also resumes. */
+    val resumeOnRestore: Boolean,
+)
+
+internal fun alreadyPresentNotice(
+    sequence: Long,
+    torrentIds: List<String>,
+    torrents: Map<String, TorrentView>,
+    resumeOnRestore: Boolean,
+): AlreadyPresentNotice? {
+    val distinct = torrentIds.distinct()
+    if (distinct.isEmpty()) return null
+    return AlreadyPresentNotice(
+        sequence,
+        distinct.size,
+        distinct.filter { torrents[it]?.archived == true },
+        resumeOnRestore,
+    )
+}
+
 /** A rejected torrent command, shown once as a transient message. */
 data class TorrentCommandFailure(
     val sequence: Long,
@@ -152,6 +180,7 @@ data class ProductState(
     val externalIntake: ExternalIntakePresentation? = null,
     val externalIntakeDepth: Int = 0,
     val externalIntakeNotice: ExternalIntakeNotice? = null,
+    val alreadyPresentNotice: AlreadyPresentNotice? = null,
     val torrentCommandFailure: TorrentCommandFailure? = null,
     val companionPort: UShort? = null,
     val legacyChromeOsMigration: Boolean = false,

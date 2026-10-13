@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.rstorrent.bootstrap.alreadyPresentNotice
 import org.rstorrent.session.uniffi.ProgressAssessment
 import org.rstorrent.session.uniffi.ProgressDisposition
 import org.rstorrent.session.uniffi.ProgressPhase
@@ -22,6 +23,24 @@ import org.rstorrent.session.uniffi.TorrentView
 import org.rstorrent.session.uniffi.TransferRateLimit
 
 class TorrentActionsTest {
+    @Test
+    fun alreadyPresentNoticeCountsDistinctMatchesAndKeepsArchivedOnes() {
+        val torrents =
+            listOf(torrent("visible"), torrent("archived", archived = true)).associateBy { it.torrentId }
+
+        assertEquals(null, alreadyPresentNotice(1L, emptyList(), torrents, resumeOnRestore = true))
+        val notice =
+            alreadyPresentNotice(
+                2L,
+                listOf("visible", "archived", "archived", "unknown"),
+                torrents,
+                resumeOnRestore = true,
+            )!!
+        assertEquals(3, notice.count)
+        assertEquals(listOf("archived"), notice.archivedTorrentIds)
+        assertTrue(notice.resumeOnRestore)
+    }
+
     @Test
     fun archivedTorrentsAppearOnlyInTheArchivedTab() {
         val archivedComplete = torrent("archived", state = TorrentState.COMPLETE, archived = true)

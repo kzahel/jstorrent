@@ -130,6 +130,7 @@ class ProductEngineService : Service() {
     private val requestPrefix = UUID.randomUUID().toString()
     private val requestIds = AtomicLong(1)
     private val torrentCommandFailureSequence = AtomicLong()
+    private val alreadyPresentSequence = AtomicLong()
     private val stopped = AtomicBoolean(false)
     private val stopRequested = AtomicBoolean(false)
     private val dataResetActive = AtomicBoolean(false)
@@ -1162,7 +1163,14 @@ class ProductEngineService : Service() {
                                 currentSafRootForAdd() != null,
                             )
                         ) {
-                            publishExternalNotice(notice)
+                            if (
+                                notice == ExternalIntakeNoticeKind.ALREADY_PRESENT &&
+                                mutableState.value.torrents[result.torrentId]?.archived == true
+                            ) {
+                                publishAlreadyPresent(listOf(result.torrentId), work.startContent)
+                            } else {
+                                publishExternalNotice(notice)
+                            }
                             publishExternalSnapshot()
                             logExternalIntake(
                                 work.intakeId,
@@ -1301,7 +1309,21 @@ class ProductEngineService : Service() {
         awaitFileSelection: Boolean = false,
         downloadAll: Boolean = false,
     ) {
-        if (rejectMutationDuringDataReset()) return
+        addMagnets(listOf(magnet), skipFiles, startContent, awaitFileSelection, downloadAll)
+    }
+
+    /**
+     * Adds [magnets] in order. A failed add does not stop later ones, and
+     * matches already in the session are reported together once the batch ends.
+     */
+    fun addMagnets(
+        magnets: List<String>,
+        skipFiles: List<UInt> = emptyList(),
+        startContent: Boolean = true,
+        awaitFileSelection: Boolean = false,
+        downloadAll: Boolean = false,
+    ) {
+        if (magnets.isEmpty() || rejectMutationDuringDataReset()) return
         val storageRoot = currentSafRootForAdd()
         if (storageRoot == null) {
             mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
@@ -1311,24 +1333,54 @@ class ProductEngineService : Service() {
         scope.launch {
             try {
                 clientReady.await()
-                val result = dispatchAddResult(
-                    Command.AddMagnet(
-                        magnet = magnet.trim(),
-                        storageRoot = storageRoot,
-                        startContent = startContent,
-                        awaitFileSelection = awaitFileSelection || downloadAll,
-                        skipFiles = skipFiles,
-                    ),
-                )
-                if (downloadAll && result.disposition == AddTorrentDisposition.Added) {
-                    downloadAllPendingAwait(result.torrentId)
+                val alreadyPresent = mutableListOf<String>()
+                for (magnet in magnets) {
+                    try {
+                        val result = dispatchAddResult(
+                            Command.AddMagnet(
+                                magnet = magnet.trim(),
+                                storageRoot = storageRoot,
+                                startContent = startContent,
+                                awaitFileSelection = awaitFileSelection || downloadAll,
+                                skipFiles = skipFiles,
+                            ),
+                        )
+                        if (downloadAll && result.disposition == AddTorrentDisposition.Added) {
+                            downloadAllPendingAwait(result.torrentId)
+                        }
+                        if (result.disposition == AddTorrentDisposition.AlreadyPresent) {
+                            alreadyPresent += result.torrentId
+                        }
+                        logAddResult(result, magnetV1(magnet), magnetV2(magnet))
+                    } catch (error: Throwable) {
+                        if (error is CancellationException) throw error
+                        reportError(error)
+                    }
                 }
-                logAddResult(result, magnetV1(magnet), magnetV2(magnet))
+                publishAlreadyPresent(alreadyPresent, startContent)
             } catch (error: Throwable) {
                 reportError(error)
             } finally {
                 if (downloadAll) mutableState.update { it.copy(quickAddsInFlight = it.quickAddsInFlight - 1) }
             }
+        }
+    }
+
+    private fun publishAlreadyPresent(torrentIds: List<String>, resumeOnRestore: Boolean) {
+        if (torrentIds.isEmpty()) return
+        val sequence = alreadyPresentSequence.incrementAndGet()
+        mutableState.update { state ->
+            state.copy(
+                alreadyPresentNotice =
+                    alreadyPresentNotice(sequence, torrentIds, state.torrents, resumeOnRestore),
+            )
+        }
+    }
+
+    fun clearAlreadyPresentNotice(sequence: Long) {
+        mutableState.update {
+            if (it.alreadyPresentNotice?.sequence == sequence) it.copy(alreadyPresentNotice = null)
+            else it
         }
     }
 
@@ -1408,6 +1460,9 @@ class ProductEngineService : Service() {
                 storageRoot,
                 awaitFileSelection,
             )
+        if (add.disposition == AddTorrentDisposition.AlreadyPresent) {
+            publishAlreadyPresent(listOf(add.torrentId), startContent)
+        }
         logAddResult(add, null)
     }
 

@@ -203,6 +203,43 @@ fun ProductApp(
         LaunchedEffect(state.externalIntakeNotice?.sequence, externalIntakeNotice) {
             externalIntakeNotice?.let { snackbar.showSnackbar(it) }
         }
+        val resources = LocalContext.current.resources
+        val restoreLabel = stringResource(R.string.action_restore)
+        LaunchedEffect(state.alreadyPresentNotice?.sequence) {
+            val notice = state.alreadyPresentNotice ?: return@LaunchedEffect
+            // Consume the notice so a recreated UI does not show it again.
+            service?.clearAlreadyPresentNotice(notice.sequence)
+            notificationScope.launch {
+                snackbar.currentSnackbarData?.dismiss()
+                val archived = notice.archivedTorrentIds
+                if (archived.isEmpty()) {
+                    snackbar.showSnackbar(
+                        resources.getQuantityString(
+                            R.plurals.add_already_present_count,
+                            notice.count,
+                            notice.count,
+                        ),
+                    )
+                    return@launch
+                }
+                val result =
+                    snackbar.showSnackbar(
+                        resources.getQuantityString(
+                            R.plurals.add_already_archived_count,
+                            archived.size,
+                            archived.size,
+                        ),
+                        actionLabel = restoreLabel,
+                        duration = SnackbarDuration.Long,
+                    )
+                if (result == SnackbarResult.ActionPerformed) {
+                    service?.restoreArchive(
+                        archived,
+                        resume = if (notice.resumeOnRestore) archived else emptyList(),
+                    )
+                }
+            }
+        }
         LaunchedEffect(state.torrentCommandFailure?.sequence) {
             val failure = state.torrentCommandFailure ?: return@LaunchedEffect
             // Consume the failure so a recreated UI does not show it again.
@@ -829,7 +866,14 @@ private fun ProductNavHost(
                 onAddTestTorrents =
                     if (BuildConfig.DEBUG) {
                         { torrents ->
-                            torrents.forEach { service?.addMagnet(it.magnet, downloadAll = true) }
+                            // Follow the file selection setting like any other add.
+                            val chooseFiles = state.storage?.showFileSelection ?: true
+                            service?.addMagnets(
+                                torrents.map { it.magnet },
+                                awaitFileSelection = chooseFiles,
+                                downloadAll = !chooseFiles,
+                            )
+                            Unit
                         }
                     } else {
                         null
