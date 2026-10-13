@@ -263,6 +263,13 @@ function checkAndroidCatalog() {
     }
   }
   if (resources.size === 0) fail("Android English catalog is empty");
+  // Tactical 331: product copy uses user vocabulary, not engine or policy terms.
+  const maintainerVocabulary =
+    /\b(?:effective|applied|genuinely|durable|payload|registrations?|fresh-profile|inactive-exempt|desired-running|root|KiB|MiB|GiB)\b|Not available yet/i;
+  for (const [name, { body }] of resources) {
+    const term = body.match(maintainerVocabulary);
+    if (term) fail(`Android resource ${name} uses maintainer vocabulary "${term[0]}"`);
+  }
 
   const referenced = new Set();
   const sourceFiles = walkFiles("clients/android/app/src/main/java").filter((file) => file.endsWith(".kt"));
@@ -272,6 +279,15 @@ function checkAndroidCatalog() {
       referenced.add(match[1]);
     }
     const relative = path.relative(repositoryRoot, file);
+    // Settings and torrent detail copy must map enums to catalog labels. Log
+    // severity and profile names in the Logs screen are verbatim diagnostics.
+    if (/ui\/Product(?:App|Formatting|SettingsScreens)\.kt$/.test(relative)) {
+      for (const line of kotlin.split("\n")) {
+        if (/\.name\.lowercase\(\)/.test(line) && !/\b(?:severity|profile)\.name/.test(line)) {
+          fail(`raw enum name shown as product copy in ${relative}: ${line.trim()}`);
+        }
+      }
+    }
     for (const [pattern, interpolationAware] of [
       [/\bText\(\s*"([^"\n]*)"/, true],
       [/contentDescription\s*=\s*"([^"\n]*)"/, false],

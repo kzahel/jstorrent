@@ -3,7 +3,6 @@ package org.rstorrent.bootstrap.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import org.rstorrent.bootstrap.ProductError
-import org.rstorrent.bootstrap.ProductNetworkTruth
 import org.rstorrent.bootstrap.R
 import org.rstorrent.session.uniffi.MediaFileAvailability
 
@@ -58,20 +57,5 @@ private fun mediaUnavailableText(reason: MediaFileAvailability): String =
             MediaFileAvailability.AVAILABLE,
             MediaFileAvailability.STREAMABLE,
             -> R.string.error_media_start_failed
-        },
-    )
-
-@Composable
-internal fun productNetworkTruthText(truth: ProductNetworkTruth): String =
-    stringResource(
-        when (truth) {
-            ProductNetworkTruth.UNRESTRICTED -> R.string.network_truth_unrestricted
-            ProductNetworkTruth.UNMETERED -> R.string.network_truth_unmetered
-            ProductNetworkTruth.METERED -> R.string.network_truth_metered
-            ProductNetworkTruth.NO_VALIDATED_INTERNET ->
-                R.string.network_truth_no_validated_internet
-            ProductNetworkTruth.TEMPORARILY_UNAVAILABLE ->
-                R.string.network_truth_temporarily_unavailable
-            ProductNetworkTruth.CHECKING -> R.string.network_truth_checking
         },
     )

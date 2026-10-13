@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [331 — Android settings plain copy](331-android-settings-plain-copy.md):
+  Settings and torrent Details/Status use plain copy with section headers and
+  speed presets; engine state, enum names and seeding goals are no longer shown.
+
 - [330 — Android 1.0.31 production release](330-android-1-0-31-production-release.md):
   exact signed artifacts qualified and production review submitted at 100%;
   automatic publication after approval, with quick checks pending.

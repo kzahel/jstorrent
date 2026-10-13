@@ -2,14 +2,17 @@ package org.rstorrent.bootstrap.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -18,23 +21,28 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import java.text.NumberFormat
 import org.rstorrent.bootstrap.ProductNetworkState
 import org.rstorrent.bootstrap.R
 import org.rstorrent.session.uniffi.ActiveSeedLimit
+import org.rstorrent.session.uniffi.ClientSettingsApplicationState
 import org.rstorrent.session.uniffi.ClientSettingsRuntimeView
 import org.rstorrent.session.uniffi.EncryptionPolicy
 import org.rstorrent.session.uniffi.ListenerBindFailureReason
-import org.rstorrent.session.uniffi.ListenerStatus
 import org.rstorrent.session.uniffi.ListenerPolicy
+import org.rstorrent.session.uniffi.ListenerStatus
 import org.rstorrent.session.uniffi.PortMappingFailureStage
-import org.rstorrent.session.uniffi.PortMappingStatus
 import org.rstorrent.session.uniffi.PortMappingPolicy
+import org.rstorrent.session.uniffi.PortMappingStatus
 import org.rstorrent.session.uniffi.TransferRateLimit
 
 @Composable
@@ -44,21 +52,51 @@ internal fun ConnectionLimitsSettings(
     onUploadSlots: (UShort) -> Unit,
     onActiveDownloads: (UShort) -> Unit,
     onActiveSeeds: (ActiveSeedLimit) -> Unit,
-    onShareRatioLimit: (UInt) -> Unit,
-    onFinishedDownloadRatioLimit: (UInt) -> Unit,
-    onFinishedTimeLimit: (UInt) -> Unit,
     onUploadRateLimit: (TransferRateLimit) -> Unit,
     onDownloadRateLimit: (TransferRateLimit) -> Unit,
 ) {
+    SettingsSection(stringResource(R.string.settings_section_speed_limits))
+    RateLimitSetting(
+        title = stringResource(R.string.setting_download),
+        configured = settings.configured.downloadRateLimit,
+        effective = settings.effectiveDownloadRateLimit,
+        application = settings.bandwidthApplication,
+        onValue = onDownloadRateLimit,
+    )
+    RateLimitSetting(
+        title = stringResource(R.string.setting_upload),
+        configured = settings.configured.uploadRateLimit,
+        effective = settings.effectiveUploadRateLimit,
+        application = settings.bandwidthApplication,
+        onValue = onUploadRateLimit,
+    )
+    SettingsSection(stringResource(R.string.settings_section_queue))
+    NumericSetting(
+        stringResource(R.string.setting_active_downloads),
+        settings.configured.activeDownloads.toInt(),
+        1..20,
+        supporting =
+            limitedNote(
+                settings.configured.activeDownloads.toLong(),
+                settings.effectiveActiveDownloads.toLong(),
+            ),
+    ) { onActiveDownloads(it.toUShort()) }
+    ActiveSeedSetting(
+        configured = settings.configured.activeSeeds,
+        onValue = onActiveSeeds,
+    )
+    SettingsSection(stringResource(R.string.settings_section_connections))
     NumericSetting(
         stringResource(R.string.setting_peer_connections),
         settings.configured.peerConnectionLimit.toInt(),
         1..2_000,
         supporting =
-            stringResource(
-                R.string.setting_effective,
-                settings.effectivePeerConnectionLimit.toLong(),
-                settingsApplicationLabel(settings.peerConnectionsApplication),
+            settingNote(
+                settings.peerConnectionsApplication,
+                limitedNote(
+                    settings.configured.peerConnectionLimit.toLong(),
+                    settings.effectivePeerConnectionLimit.toLong(),
+                ),
             ),
     ) { onPeerConnections(it.toUInt()) }
     NumericSetting(
@@ -66,98 +104,40 @@ internal fun ConnectionLimitsSettings(
         settings.configured.uploadSlots.toInt(),
         0..50,
         supporting =
-            stringResource(
-                R.string.setting_effective,
-                settings.effectiveUploadSlots.toLong(),
-                settingsApplicationLabel(settings.uploadSlotsApplication),
+            settingNote(
+                settings.uploadSlotsApplication,
+                limitedNote(
+                    settings.configured.uploadSlots.toLong(),
+                    settings.effectiveUploadSlots.toLong(),
+                ),
             ),
     ) { onUploadSlots(it.toUShort()) }
-    NumericSetting(
-        stringResource(R.string.setting_active_downloads),
-        settings.configured.activeDownloads.toInt(),
-        1..20,
-        supporting =
-            settings.activeDownloadsClampReason?.let {
-                stringResource(
-                    R.string.setting_effective_android_clamped,
-                    settings.effectiveActiveDownloads.toLong(),
-                    it.name.lowercase(),
-                )
-            } ?: stringResource(
-                R.string.setting_effective_android,
-                settings.effectiveActiveDownloads.toLong(),
-            ),
-    ) { onActiveDownloads(it.toUShort()) }
-    ActiveSeedSetting(
-        configured = settings.configured.activeSeeds,
-        effective = settings.effectiveActiveSeeds,
-        activeCount = settings.activeSeedCount,
-        inactiveCount = settings.inactiveSeedCount,
-        onValue = onActiveSeeds,
-    )
-    NumericSetting(
-        stringResource(R.string.setting_share_ratio_goal),
-        settings.configured.shareRatioLimitPercent.toInt(),
-        0..Int.MAX_VALUE,
-        supporting =
-            stringResource(R.string.setting_share_ratio_goal_detail),
-    ) { onShareRatioLimit(it.toUInt()) }
-    NumericSetting(
-        stringResource(R.string.setting_finished_download_goal),
-        settings.configured.finishedDownloadRatioLimitPercent.toInt(),
-        0..Int.MAX_VALUE,
-        supporting = stringResource(R.string.setting_finished_download_goal_detail),
-    ) { onFinishedDownloadRatioLimit(it.toUInt()) }
-    NumericSetting(
-        stringResource(R.string.setting_finished_time_goal),
-        settings.configured.finishedTimeLimitSeconds.toInt(),
-        0..Int.MAX_VALUE,
-        supporting = stringResource(R.string.setting_finished_time_goal_detail),
-    ) { onFinishedTimeLimit(it.toUInt()) }
-    RateLimitSetting(
-        title = stringResource(R.string.setting_all_download_limit),
-        configured = settings.configured.downloadRateLimit,
-        effective = settings.effectiveDownloadRateLimit,
-        application = settingsApplicationLabel(settings.bandwidthApplication),
-        onValue = onDownloadRateLimit,
-    )
-    RateLimitSetting(
-        title = stringResource(R.string.setting_all_upload_limit),
-        configured = settings.configured.uploadRateLimit,
-        effective = settings.effectiveUploadRateLimit,
-        application = settingsApplicationLabel(settings.bandwidthApplication),
-        onValue = onUploadRateLimit,
-    )
 }
+
+/** Nothing when a setting applied normally; a short line while pending or when it failed. */
+@Composable
+internal fun settingNote(
+    application: ClientSettingsApplicationState,
+    applied: String? = null,
+): String? =
+    when (application) {
+        ClientSettingsApplicationState.Applied -> applied
+        ClientSettingsApplicationState.Applying -> stringResource(R.string.state_applying)
+        is ClientSettingsApplicationState.Degraded -> stringResource(R.string.setting_not_applied)
+    }
+
+@Composable
+private fun limitedNote(configured: Long, effective: Long): String? =
+    if (effective != configured) stringResource(R.string.setting_limited_on_device, effective) else null
 
 @Composable
 private fun ActiveSeedSetting(
     configured: ActiveSeedLimit,
-    effective: ActiveSeedLimit,
-    activeCount: UShort,
-    inactiveCount: UShort,
     onValue: (ActiveSeedLimit) -> Unit,
 ) {
     var dialog by remember { mutableStateOf(false) }
-    val configuredLabel = activeSeedLimitLabel(configured)
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.setting_active_seeds)) },
-        supportingContent = {
-            Text(
-                stringResource(
-                    R.string.setting_active_seeds_detail,
-                    activeSeedLimitLabel(effective),
-                    activeCount.toLong(),
-                    inactiveCount.toLong(),
-                ),
-            )
-        },
-        trailingContent = {
-            Text(configuredLabel, color = MaterialTheme.colorScheme.primary)
-        },
-        modifier = Modifier.clickable { dialog = true },
-    )
-    HorizontalDivider()
+    val title = stringResource(R.string.setting_active_seeds)
+    ValueRow(title, activeSeedLimitLabel(configured), null) { dialog = true }
     if (dialog) {
         var unlimited by remember(configured) {
             mutableStateOf(configured is ActiveSeedLimit.Unlimited)
@@ -168,12 +148,11 @@ private fun ActiveSeedSetting(
         val parsed = if (unlimited) null else text.toIntOrNull()?.takeIf { it in 0..500 }
         AlertDialog(
             onDismissRequest = { dialog = false },
-            title = { Text(stringResource(R.string.setting_active_seeds)) },
+            title = { Text(title) },
             text = {
                 Column(Modifier.fillMaxWidth()) {
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.setting_unlimited)) },
-                        supportingContent = { Text(stringResource(R.string.setting_active_seed_ceiling)) },
                         trailingContent = {
                             Switch(unlimited, onCheckedChange = { unlimited = it })
                         },
@@ -183,9 +162,8 @@ private fun ActiveSeedSetting(
                         onValueChange = { text = it.filter(Char::isDigit) },
                         enabled = !unlimited,
                         singleLine = true,
-                        label = { Text(stringResource(R.string.setting_count)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        supportingText = { Text(stringResource(R.string.setting_active_seed_range)) },
+                        supportingText = { Text(stringResource(R.string.setting_range, 0, 500)) },
                         isError = !unlimited && parsed == null,
                     )
                 }
@@ -214,84 +192,126 @@ private fun activeSeedLimitLabel(limit: ActiveSeedLimit): String =
         is ActiveSeedLimit.Limited -> limit.torrents.toString()
     }
 
+private const val KIB = 1_024U
+private const val MIB = 1_048_576U
+
+/** Rate presets in bytes per second; KB and MB are 1024-based. */
+internal val RATE_LIMIT_PRESETS: List<UInt> =
+    listOf(100U * KIB, 500U * KIB, MIB, 5U * MIB, 10U * MIB)
+
 @Composable
 internal fun RateLimitSetting(
     title: String,
     configured: TransferRateLimit,
     effective: TransferRateLimit? = null,
-    application: String? = null,
+    application: ClientSettingsApplicationState? = null,
     onValue: (TransferRateLimit) -> Unit,
 ) {
     var dialog by remember { mutableStateOf(false) }
-    val supporting =
-        buildList {
-            add(stringResource(R.string.setting_rate_summary, rateLimitLabel(configured, stringResource(R.string.setting_unlimited))))
-            effective?.let {
-                add(
-                    stringResource(
-                        R.string.setting_rate_effective,
-                        rateLimitLabel(it, stringResource(R.string.setting_unlimited)),
-                    ),
-                )
-            }
-            application?.let(::add)
-        }.joinToString(" · ")
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(supporting) },
-        trailingContent = {
-            Text(
-                rateLimitLabel(configured, stringResource(R.string.setting_unlimited)),
-                color = MaterialTheme.colorScheme.primary,
-            )
-        },
-        modifier = Modifier.clickable { dialog = true },
-    )
-    HorizontalDivider()
-    if (dialog) {
-        var unlimited by remember(configured) { mutableStateOf(configured is TransferRateLimit.Unlimited) }
-        var text by remember(configured) {
-            mutableStateOf(
-                (configured as? TransferRateLimit.Limited)?.let {
-                    rateLimitKiBValue(it.bytesPerSecond)
-                } ?: "1024",
-            )
+    val usingNote =
+        effective?.takeIf { it != configured }?.let {
+            stringResource(R.string.setting_using_value, rateLimitLabel(it))
         }
-        val parsed = if (unlimited) TransferRateLimit.Unlimited else parseRateLimit(text)
-        AlertDialog(
-            onDismissRequest = { dialog = false },
-            title = { Text(title) },
-            text = {
-                Column(Modifier.fillMaxWidth()) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.setting_unlimited)) },
-                        trailingContent = {
-                            Switch(
-                                checked = unlimited,
-                                onCheckedChange = { unlimited = it },
-                            )
-                        },
-                    )
+    val supporting = application?.let { settingNote(it, usingNote) } ?: usingNote
+    ValueRow(title, rateLimitLabel(configured), supporting) { dialog = true }
+    if (dialog) {
+        RateLimitDialog(title, configured, onDismiss = { dialog = false }) {
+            onValue(it)
+            dialog = false
+        }
+    }
+}
+
+/** One choice in the rate dialog: unlimited, a preset, or a custom value. */
+private sealed interface RateChoice {
+    data object Unlimited : RateChoice
+
+    data class Preset(val bytesPerSecond: UInt) : RateChoice
+
+    data object Custom : RateChoice
+}
+
+@Composable
+private fun RateLimitDialog(
+    title: String,
+    configured: TransferRateLimit,
+    onDismiss: () -> Unit,
+    onApply: (TransferRateLimit) -> Unit,
+) {
+    var choice by remember(configured) {
+        mutableStateOf(
+            when (configured) {
+                TransferRateLimit.Unlimited -> RateChoice.Unlimited
+                is TransferRateLimit.Limited ->
+                    if (configured.bytesPerSecond in RATE_LIMIT_PRESETS) {
+                        RateChoice.Preset(configured.bytesPerSecond)
+                    } else {
+                        RateChoice.Custom
+                    }
+            },
+        )
+    }
+    var text by remember(configured) { mutableStateOf(customRateText(configured)) }
+    val parsed: TransferRateLimit? =
+        when (val selected = choice) {
+            RateChoice.Unlimited -> TransferRateLimit.Unlimited
+            is RateChoice.Preset -> TransferRateLimit.Limited(selected.bytesPerSecond)
+            RateChoice.Custom -> parseRateLimit(text)
+        }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(Modifier.fillMaxWidth()) {
+                ChoiceRow(stringResource(R.string.setting_unlimited), choice == RateChoice.Unlimited) {
+                    choice = RateChoice.Unlimited
+                }
+                RATE_LIMIT_PRESETS.forEach { preset ->
+                    ChoiceRow(
+                        rateLimitLabel(TransferRateLimit.Limited(preset)),
+                        choice == RateChoice.Preset(preset),
+                    ) { choice = RateChoice.Preset(preset) }
+                }
+                ChoiceRow(stringResource(R.string.setting_custom), choice == RateChoice.Custom) {
+                    choice = RateChoice.Custom
+                }
+                if (choice == RateChoice.Custom) {
                     OutlinedTextField(
                         value = text,
                         onValueChange = { text = it.filter { character -> character.isDigit() || character == '.' } },
-                        enabled = !unlimited,
                         singleLine = true,
                         label = { Text(stringResource(R.string.setting_rate_unit)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        supportingText = { Text(stringResource(R.string.setting_rate_precision)) },
-                        isError = !unlimited && parsed == null,
+                        isError = parsed == null,
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { onValue(requireNotNull(parsed)); dialog = false },
-                    enabled = parsed != null,
-                ) { Text(stringResource(R.string.action_apply)) }
-            },
-            dismissButton = { TextButton(onClick = { dialog = false }) { Text(stringResource(R.string.action_cancel)) } },
-        )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onApply(requireNotNull(parsed)) },
+                enabled = parsed != null,
+            ) { Text(stringResource(R.string.action_apply)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+}
+
+@Composable
+private fun ChoiceRow(
+    label: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier.fillMaxWidth()
+                .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Text(label, modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp))
     }
 }
 
@@ -304,19 +324,30 @@ internal fun parseRateLimit(valueKiB: String): TransferRateLimit.Limited? {
     return TransferRateLimit.Limited(bytes.toLong().toUInt())
 }
 
-internal fun rateLimitLabel(
-    limit: TransferRateLimit,
-    unlimitedLabel: String,
-): String =
+/** The custom field's starting text: the exact limit in KB/s, or a 1 MB/s suggestion. */
+internal fun customRateText(limit: TransferRateLimit): String =
     when (limit) {
-        TransferRateLimit.Unlimited -> unlimitedLabel
-        is TransferRateLimit.Limited -> "${rateLimitKiBValue(limit.bytesPerSecond)} KiB/s"
+        TransferRateLimit.Unlimited -> "1024"
+        is TransferRateLimit.Limited -> {
+            val kib = limit.bytesPerSecond.toDouble() / 1024.0
+            if (kib % 1.0 == 0.0) kib.toLong().toString() else kib.toString()
+        }
     }
 
-private fun rateLimitKiBValue(bytesPerSecond: UInt): String {
-    val kib = bytesPerSecond.toDouble() / 1024.0
-    return if (kib % 1.0 == 0.0) kib.toLong().toString() else kib.toString()
-}
+@Composable
+internal fun rateLimitLabel(limit: TransferRateLimit): String =
+    when (limit) {
+        TransferRateLimit.Unlimited -> stringResource(R.string.setting_unlimited)
+        is TransferRateLimit.Limited -> {
+            val bytes = limit.bytesPerSecond
+            val format = NumberFormat.getNumberInstance().apply { maximumFractionDigits = 1 }
+            if (bytes % MIB == 0U) {
+                stringResource(R.string.rate_megabytes_per_second, format.format((bytes / MIB).toLong()))
+            } else {
+                stringResource(R.string.rate_kilobytes_per_second, format.format(bytes.toDouble() / 1024.0))
+            }
+        }
+    }
 
 @Composable
 internal fun NetworkSettings(
@@ -330,31 +361,20 @@ internal fun NetworkSettings(
     onPeerExchange: (Boolean) -> Unit,
     onEncryption: (EncryptionPolicy) -> Unit,
 ) {
+    SettingsSection(stringResource(R.string.settings_section_connection))
     ToggleSetting(
-        title = stringResource(R.string.setting_unmetered_only),
-        detail =
-            stringResource(
-                R.string.setting_unmetered_detail,
-                productNetworkTruthText(network.currentTruth),
-                settings.applicationNetwork.state.name.lowercase(),
-            ),
+        title = stringResource(R.string.setting_wifi_only),
+        detail = stringResource(R.string.setting_wifi_only_detail),
         checked = network.unmeteredNetworksOnly,
         onChecked = onUnmeteredNetworksOnly,
     )
     network.preferenceError?.let {
-        ListItem(
-            headlineContent = { Text(stringResource(R.string.setting_not_saved)) },
-            supportingContent = { Text(productErrorText(it)) },
-        )
-        HorizontalDivider()
+        ReadOnlySettingsRow(stringResource(R.string.setting_not_saved), productErrorText(it))
     }
     network.runtimeError?.let {
-        ListItem(
-            headlineContent = { Text(stringResource(R.string.setting_network_attention)) },
-            supportingContent = { Text(productErrorText(it)) },
-        )
-        HorizontalDivider()
+        ReadOnlySettingsRow(stringResource(R.string.setting_network_attention), productErrorText(it))
     }
+    SettingsSection(stringResource(R.string.settings_section_peers))
     ToggleSetting(
         title = stringResource(R.string.setting_incoming_connections),
         detail = listenerStatusText(settings.listenerStatus),
@@ -369,26 +389,23 @@ internal fun NetworkSettings(
     )
     ToggleSetting(
         title = stringResource(R.string.setting_ipv6),
-        detail = settingsApplicationLabel(settings.ipv6Application),
+        detail = settingNote(settings.ipv6Application),
         checked = settings.configured.ipv6Enabled,
         onChecked = onIpv6,
     )
     ToggleSetting(
         title = stringResource(R.string.setting_dht),
         detail =
-            stringResource(
-                R.string.setting_dht_detail,
-                settingsApplicationLabel(settings.dhtApplication),
-            ),
+            settingNote(settings.dhtApplication, stringResource(R.string.setting_dht_detail)),
         checked = settings.configured.dhtEnabled,
         onChecked = onDht,
     )
     ToggleSetting(
         title = stringResource(R.string.setting_peer_exchange),
         detail =
-            stringResource(
-                R.string.setting_peer_exchange_detail,
-                settingsApplicationLabel(settings.peerExchangeApplication),
+            settingNote(
+                settings.peerExchangeApplication,
+                stringResource(R.string.setting_peer_exchange_detail),
             ),
         checked = settings.configured.peerExchangeEnabled,
         onChecked = onPeerExchange,
@@ -399,15 +416,14 @@ internal fun NetworkSettings(
         values = EncryptionPolicy.entries,
         label = { encryptionLabel(it) },
         detail =
-            stringResource(
-                R.string.setting_effective_value,
-                encryptionLabel(settings.effectiveEncryption),
-                settingsApplicationLabel(settings.encryptionApplication),
+            settingNote(
+                settings.encryptionApplication,
+                settings.effectiveEncryption.takeIf { it != settings.configured.encryption }?.let {
+                    stringResource(R.string.setting_using_value, encryptionLabel(it))
+                },
             ),
         onSelected = onEncryption,
     )
-    DisabledSetting(stringResource(R.string.setting_vpn_only))
-    DisabledSetting(stringResource(R.string.setting_proxy))
 }
 
 @Composable
@@ -422,6 +438,34 @@ private fun encryptionLabel(policy: EncryptionPolicy): String =
     )
 
 @Composable
+internal fun SettingsSection(title: String) {
+    Text(
+        title,
+        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp),
+    )
+}
+
+/** A tappable row whose current value sits on the trailing edge. */
+@Composable
+private fun ValueRow(
+    title: String,
+    value: String,
+    supporting: String?,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = supporting?.let { { Text(it) } },
+        trailingContent = { Text(value, color = MaterialTheme.colorScheme.primary) },
+        modifier = Modifier.clickable(onClick = onClick),
+    )
+    HorizontalDivider()
+}
+
+@Composable
 private fun NumericSetting(
     title: String,
     value: Int,
@@ -430,18 +474,7 @@ private fun NumericSetting(
     onValue: (Int) -> Unit,
 ) {
     var dialog by remember { mutableStateOf(false) }
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = {
-            Text(
-                supporting
-                    ?: stringResource(R.string.setting_allowed_range, range.first, range.last),
-            )
-        },
-        trailingContent = { Text(value.toString(), color = MaterialTheme.colorScheme.primary) },
-        modifier = Modifier.clickable { dialog = true },
-    )
-    HorizontalDivider()
+    ValueRow(title, value.toString(), supporting) { dialog = true }
     if (dialog) {
         var text by remember(value) { mutableStateOf(value.toString()) }
         val parsed = text.toIntOrNull()
@@ -473,13 +506,13 @@ private fun NumericSetting(
 @Composable
 private fun ToggleSetting(
     title: String,
-    detail: String,
+    detail: String?,
     checked: Boolean,
     onChecked: (Boolean) -> Unit,
 ) {
     ListItem(
         headlineContent = { Text(title) },
-        supportingContent = { Text(detail) },
+        supportingContent = detail?.let { { Text(it) } },
         trailingContent = {
             Switch(
                 checked = checked,
@@ -492,7 +525,7 @@ private fun ToggleSetting(
 }
 
 @Composable
-private fun <T> ChoiceSetting(
+internal fun <T> ChoiceSetting(
     title: String,
     selected: T,
     values: List<T>,
@@ -501,12 +534,7 @@ private fun <T> ChoiceSetting(
     onSelected: (T) -> Unit,
 ) {
     var dialog by remember { mutableStateOf(false) }
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(listOfNotNull(label(selected), detail).joinToString(" · ")) },
-        modifier = Modifier.clickable { dialog = true },
-    )
-    HorizontalDivider()
+    ValueRow(title, label(selected), detail) { dialog = true }
     if (dialog) {
         AlertDialog(
             onDismissRequest = { dialog = false },
@@ -514,17 +542,10 @@ private fun <T> ChoiceSetting(
             text = {
                 Column(Modifier.fillMaxWidth()) {
                     values.forEach { value ->
-                        Text(
-                            label(value),
-                            modifier =
-                                Modifier.fillMaxWidth().clickable {
-                                    onSelected(value)
-                                    dialog = false
-                                }.padding(16.dp),
-                            color =
-                                if (value == selected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface,
-                        )
+                        ChoiceRow(label(value), value == selected) {
+                            onSelected(value)
+                            dialog = false
+                        }
                     }
                 }
             },
@@ -542,85 +563,44 @@ internal fun ReadOnlySettingsRow(
     HorizontalDivider()
 }
 
+/** Plain status for the incoming-connections row; nothing when it is off. */
 @Composable
-internal fun DisabledSetting(title: String) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(stringResource(R.string.setting_not_available)) },
-        colors =
-            androidx.compose.material3.ListItemDefaults.colors(
-                headlineColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                supportingColor = MaterialTheme.colorScheme.outline,
-            ),
-    )
-    HorizontalDivider()
-}
-
-@Composable
-internal fun listenerStatusText(status: ListenerStatus): String =
+internal fun listenerStatusText(status: ListenerStatus): String? =
     when (status) {
-        ListenerStatus.Disabled -> stringResource(R.string.listener_disabled)
-        is ListenerStatus.Listening ->
-            stringResource(R.string.listener_listening, status.address, status.port.toInt())
-        is ListenerStatus.BindFailed -> {
-            val reason =
-                stringResource(
-                    when (status.reason) {
-                        ListenerBindFailureReason.ADDRESS_IN_USE -> R.string.listener_address_in_use
-                        ListenerBindFailureReason.PERMISSION_DENIED -> R.string.listener_permission_denied
-                        ListenerBindFailureReason.ADDRESS_UNAVAILABLE -> R.string.listener_address_unavailable
-                        ListenerBindFailureReason.OTHER -> R.string.listener_bind_failed
-                    },
-                )
-            stringResource(R.string.listener_failure_detail, reason, status.detail)
-        }
+        ListenerStatus.Disabled -> null
+        is ListenerStatus.Listening -> stringResource(R.string.listener_listening, status.port.toInt())
+        is ListenerStatus.BindFailed ->
+            stringResource(
+                when (status.reason) {
+                    ListenerBindFailureReason.ADDRESS_IN_USE -> R.string.listener_address_in_use
+                    ListenerBindFailureReason.PERMISSION_DENIED -> R.string.listener_permission_denied
+                    ListenerBindFailureReason.ADDRESS_UNAVAILABLE -> R.string.listener_address_unavailable
+                    ListenerBindFailureReason.OTHER -> R.string.listener_bind_failed
+                },
+            )
     }
 
+/** Plain status for the port-forwarding row; router and lease facts stay in logs. */
 @Composable
-internal fun portMappingStatusText(status: PortMappingStatus): String =
+internal fun portMappingStatusText(status: PortMappingStatus): String? =
     when (status) {
-        PortMappingStatus.Disabled -> stringResource(R.string.port_mapping_disabled)
+        PortMappingStatus.Disabled -> null
         PortMappingStatus.Ineligible -> stringResource(R.string.port_mapping_ineligible)
         PortMappingStatus.Discovering -> stringResource(R.string.port_mapping_discovering)
         PortMappingStatus.Mapping -> stringResource(R.string.port_mapping_requesting)
         PortMappingStatus.Stopping -> stringResource(R.string.port_mapping_stopping)
         is PortMappingStatus.Mapped ->
+            stringResource(R.string.port_mapping_mapped, status.externalPort.toInt())
+        is PortMappingStatus.Failed ->
             stringResource(
-                R.string.port_mapping_mapped,
-                status.externalAddress,
-                status.externalPort.toInt(),
-                status.localAddress,
-                status.localPort.toInt(),
-                status.leaseSeconds.toLong(),
+                if (status.stage == PortMappingFailureStage.DISCOVERY) {
+                    R.string.port_mapping_no_router
+                } else {
+                    R.string.port_mapping_failed
+                },
             )
-        is PortMappingStatus.Failed -> {
-            val stage =
-                stringResource(
-                    when (status.stage) {
-                        PortMappingFailureStage.DISCOVERY -> R.string.port_mapping_stage_discovery
-                        PortMappingFailureStage.DESCRIPTION -> R.string.port_mapping_stage_description
-                        PortMappingFailureStage.EXTERNAL_ADDRESS -> R.string.port_mapping_stage_address
-                        PortMappingFailureStage.ADD -> R.string.port_mapping_stage_add
-                        PortMappingFailureStage.VERIFY -> R.string.port_mapping_stage_verify
-                        PortMappingFailureStage.RENEWAL -> R.string.port_mapping_stage_renewal
-                        PortMappingFailureStage.DELETE -> R.string.port_mapping_stage_delete
-                    },
-                )
-            stringResource(R.string.port_mapping_failure_detail, stage, status.detail)
-        }
         is PortMappingStatus.RenewalFailed ->
-            stringResource(
-                R.string.port_mapping_renewal_failed,
-                status.externalAddress,
-                status.externalPort.toInt(),
-                status.detail,
-            )
+            stringResource(R.string.port_mapping_renewal_failed, status.externalPort.toInt())
         is PortMappingStatus.CleanupFailed ->
-            stringResource(
-                R.string.port_mapping_cleanup_failed,
-                status.externalAddress,
-                status.externalPort.toInt(),
-                status.remainingLeaseSeconds.toLong(),
-                status.detail,
-            )
+            stringResource(R.string.port_mapping_cleanup_failed, status.externalPort.toInt())
     }

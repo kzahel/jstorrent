@@ -1,5 +1,15 @@
 # Localization
 
+Tactical [331](../tactical/331-android-settings-plain-copy.md) rewrites
+Android Settings and torrent Details/Status copy in user vocabulary, removing
+48 resources (540 to 492). Settings rows no longer show engine application
+state, engine-authored detail or enum names; a failure shows one localized
+line. Sizes and rates display as KB/MB (1024-based) and the unmetered
+preference is labelled Wi-Fi only. The Android catalog check now rejects
+maintainer vocabulary (effective, applied, payload, root, KiB, ...) and raw
+`enum.name.lowercase()` in settings/detail sources. Shipping locales remain
+English; translations are a later tactical.
+
 Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) adds
 English setup, direct launch, permission and attach-only retry messages to the
 shared compiled catalog and Android resources. Android explains why notifications

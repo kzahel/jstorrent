@@ -2,6 +2,7 @@
 
 package org.rstorrent.bootstrap.ui
 
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -29,6 +30,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.BugReport
@@ -632,12 +635,8 @@ private fun dataResetPhaseText(phase: ProductDataResetPhase?): String =
     stringResource(
         when (phase) {
             ProductDataResetPhase.REMOVING_TORRENTS -> R.string.data_reset_phase_torrents
-            ProductDataResetPhase.RESETTING_PROFILE -> R.string.data_reset_phase_profile
-            ProductDataResetPhase.RELEASING_ROOTS -> R.string.data_reset_phase_folders
-            ProductDataResetPhase.RESETTING_PREFERENCES -> R.string.data_reset_phase_preferences
-            ProductDataResetPhase.RESTARTING_APPLICATION -> R.string.data_reset_phase_restarting
-            ProductDataResetPhase.VERIFYING_APPLICATION -> R.string.data_reset_phase_verifying
             null -> R.string.data_reset_phase_starting
+            else -> R.string.data_reset_phase_finishing
         },
     )
 
@@ -1013,71 +1012,39 @@ private fun ProductNavHost(
         }
         composable(ProductRoutes.SETTINGS_STORAGE) {
             SettingsPage(stringResource(R.string.settings_storage), navController::popBackStack) {
-                SettingAction(
-                    title = state.storageRootLabel ?: stringResource(R.string.download_folder),
-                    detail =
-                        stringResource(
-                            if (state.storageRootReady) {
-                                R.string.storage_available
-                            } else {
-                                R.string.storage_unavailable
-                            },
-                        ),
-                    onClick = onSelectStorage,
-                    action =
-                        stringResource(
-                            if (state.storageRootReady) R.string.action_change else R.string.action_select,
-                        ),
+                SettingsSection(stringResource(R.string.settings_section_download_folders))
+                Text(
+                    stringResource(R.string.storage_explanation),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
+                state.storage?.roots.orEmpty().forEach { root ->
+                    StorageRootRow(
+                        label = root.label,
+                        path = root.displayPath,
+                        isDefault = root.rootId == state.storage?.defaultRoot,
+                        available = root.availability != StorageRootAvailability.UNAVAILABLE,
+                        onRepair = { onRepairStorage(root.rootId) },
+                        onMakeDefault = { service?.makeSafRootCurrent(root.rootId) },
+                        onRemove = { removeStorageRoot = root.rootId },
+                    )
+                }
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.storage_add_folder)) },
+                    leadingContent = { Icon(Icons.Outlined.Add, contentDescription = null) },
+                    modifier =
+                        Modifier.clickable(onClick = onSelectStorage)
+                            .semantics(mergeDescendants = true) { role = Role.Button },
+                )
+                HorizontalDivider()
+                SettingsSection(stringResource(R.string.settings_section_adding))
                 NotificationToggleSetting(
                     title = stringResource(R.string.storage_show_file_selection),
                     detail = stringResource(R.string.storage_show_file_selection_detail),
                     checked = state.storage?.showFileSelection ?: true,
                     onChecked = { service?.setShowFileSelection(it) },
                 )
-                state.storage?.roots.orEmpty().forEach { root ->
-                    val isCurrent = root.rootId == state.storage?.defaultRoot
-                    val title =
-                        if (isCurrent) {
-                            stringResource(R.string.storage_current_suffix, root.label)
-                        } else {
-                            root.label
-                        }
-                    val detail =
-                        root.displayPath?.let {
-                            stringResource(
-                                R.string.storage_path_detail,
-                                root.availability.name.lowercase(),
-                                it,
-                            )
-                        } ?: stringResource(
-                            R.string.storage_provider_detail,
-                            root.availability.name.lowercase(),
-                        )
-                    if (root.availability == StorageRootAvailability.UNAVAILABLE) {
-                        SettingAction(
-                            title = title,
-                            detail = detail,
-                            onClick = { onRepairStorage(root.rootId) },
-                            action = stringResource(R.string.action_repair),
-                        )
-                    } else if (!isCurrent) {
-                        SettingAction(
-                            title = title,
-                            detail = detail,
-                            onClick = { service?.makeSafRootCurrent(root.rootId) },
-                            action = stringResource(R.string.action_use),
-                        )
-                    } else {
-                        ReadOnlySettingsRow(title, detail)
-                    }
-                    SettingAction(
-                        title = stringResource(R.string.forget_folder_action, root.label),
-                        detail = stringResource(R.string.forget_folder_detail),
-                        onClick = { removeStorageRoot = root.rootId },
-                        action = stringResource(R.string.action_remove),
-                    )
-                }
             }
         }
         composable(ProductRoutes.SETTINGS_SPEED) {
@@ -1106,23 +1073,6 @@ private fun ProductNavHost(
                                 clientSettingsPatch(activeSeeds = value),
                             )
                         },
-                        onShareRatioLimit = { value ->
-                            onUpdateClientSettings(
-                                clientSettingsPatch(shareRatioLimitPercent = value),
-                            )
-                        },
-                        onFinishedDownloadRatioLimit = { value ->
-                            onUpdateClientSettings(
-                                clientSettingsPatch(
-                                    finishedDownloadRatioLimitPercent = value,
-                                ),
-                            )
-                        },
-                        onFinishedTimeLimit = { value ->
-                            onUpdateClientSettings(
-                                clientSettingsPatch(finishedTimeLimitSeconds = value),
-                            )
-                        },
                         onUploadRateLimit = { value ->
                             onUpdateClientSettings(
                                 clientSettingsPatch(uploadRateLimit = value),
@@ -1140,10 +1090,7 @@ private fun ProductNavHost(
         composable(ProductRoutes.SETTINGS_NOTIFICATIONS) {
             SettingsPage(stringResource(R.string.settings_notifications), navController::popBackStack) {
                 val notificationState = state.notifications
-                val backgroundVisible =
-                    notificationsGranted &&
-                        notificationState.appNotificationsEnabled &&
-                        notificationState.backgroundChannelEnabled
+                SettingsSection(stringResource(R.string.settings_section_permission))
                 SettingAction(
                     title =
                         when {
@@ -1153,18 +1100,14 @@ private fun ProductNavHost(
                                 stringResource(R.string.notifications_background_blocked)
                             else -> stringResource(R.string.notifications_enabled)
                         },
-                    detail =
-                        if (backgroundVisible) {
-                            stringResource(R.string.notifications_foreground_status)
-                        } else {
-                            stringResource(R.string.library_background_unavailable)
-                        },
+                    detail = stringResource(R.string.notifications_required_for_background),
                     onClick = onOpenNotificationSettings,
                     action =
                         stringResource(
                             if (notificationsGranted) R.string.action_manage else R.string.action_enable,
                         ),
                 )
+                SettingsSection(stringResource(R.string.settings_section_alerts))
                 NotificationToggleSetting(
                     title = stringResource(R.string.notifications_download_completed),
                     detail =
@@ -1254,17 +1197,15 @@ private fun ProductNavHost(
         composable(ProductRoutes.SETTINGS_POWER) {
             SettingsPage(stringResource(R.string.settings_power_management), navController::popBackStack) {
                 val lifecycle = state.lifecycle
+                SettingsSection(stringResource(R.string.settings_section_background))
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.power_continue_background)) },
                     supportingContent = {
                         Text(
-                            when {
-                                lifecycle.effectiveBackgroundDownloads ->
-                                    stringResource(R.string.power_continue_effective)
-                                lifecycle.backgroundDownloadsEnabled ->
-                                    stringResource(R.string.power_continue_blocked)
-                                else ->
-                                    stringResource(R.string.power_continue_detail)
+                            if (lifecycle.backgroundDownloadsEnabled && !lifecycle.effectiveBackgroundDownloads) {
+                                stringResource(R.string.power_continue_blocked)
+                            } else {
+                                stringResource(R.string.power_continue_detail)
                             },
                         )
                     },
@@ -1280,6 +1221,7 @@ private fun ProductNavHost(
                         )
                     },
                 )
+                HorizontalDivider()
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.power_keep_seeding_background)) },
                     supportingContent = {
@@ -1287,7 +1229,7 @@ private fun ProductNavHost(
                             if (lifecycle.backgroundDownloadsEnabled) {
                                 stringResource(R.string.power_keep_seeding_detail_enabled)
                             } else {
-                                stringResource(R.string.power_keep_seeding_requires_background)
+                                stringResource(R.string.error_background_downloads_required)
                             },
                         )
                     },
@@ -1308,6 +1250,7 @@ private fun ProductNavHost(
                         )
                     },
                 )
+                HorizontalDivider()
                 ListItem(
                     headlineContent = {
                         Text(stringResource(R.string.power_prevent_sleep))
@@ -1327,14 +1270,16 @@ private fun ProductNavHost(
                         )
                     },
                 )
-                ReadOnlySetting(
-                    stringResource(R.string.power_background_limits),
-                    stringResource(R.string.power_background_limits_detail),
-                )
+                HorizontalDivider()
                 lifecycle.preferenceError?.let {
                     ReadOnlySetting(stringResource(R.string.setting_not_saved), productErrorText(it))
                 }
-                UnavailableSetting(stringResource(R.string.power_low_battery_shutdown))
+                Text(
+                    stringResource(R.string.power_background_limits_detail),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
+                )
             }
             if (confirmKeepSeeding) {
                 AlertDialog(
@@ -1365,24 +1310,33 @@ private fun ProductNavHost(
         }
         composable(ProductRoutes.SETTINGS_ADVANCED) {
             SettingsPage(stringResource(R.string.settings_advanced), navController::popBackStack) {
-                Text(stringResource(R.string.settings_theme), modifier = Modifier.padding(16.dp), fontWeight = FontWeight.SemiBold)
-                ProductThemeMode.entries.forEach { mode ->
-                    ListItem(
-                        headlineContent = { Text(productThemeModeLabel(mode)) },
-                        leadingContent = {
-                            RadioButton(selected = themeMode == mode, onClick = { onThemeMode(mode) })
-                        },
-                        modifier = Modifier.semantics { role = Role.RadioButton },
+                SettingsSection(stringResource(R.string.settings_section_appearance))
+                ChoiceSetting(
+                    title = stringResource(R.string.settings_theme),
+                    selected = themeMode,
+                    values = ProductThemeMode.entries,
+                    label = { productThemeModeLabel(it) },
+                    onSelected = onThemeMode,
+                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    NotificationToggleSetting(
+                        title = stringResource(R.string.theme_use_system_colors),
+                        detail = null,
+                        checked = dynamicColor,
+                        onChecked = onDynamicColor,
                     )
                 }
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.theme_use_system_colors)) },
-                    supportingContent = { Text(stringResource(R.string.theme_system_colors_requirement)) },
-                    trailingContent = {
-                        Switch(checked = dynamicColor, onCheckedChange = onDynamicColor)
-                    },
-                )
-                HorizontalDivider()
+                onConnectChromeExtension?.let { connect ->
+                    SettingsSection(stringResource(R.string.settings_section_chrome))
+                    SettingAction(
+                        title = stringResource(R.string.chrome_extension_setup_action),
+                        detail = stringResource(R.string.chrome_extension_setup_settings_detail),
+                        onClick = connect,
+                        action = stringResource(R.string.action_open),
+                        enabled = service != null,
+                    )
+                }
+                SettingsSection(stringResource(R.string.settings_section_privacy))
                 state.productSummary?.let { summary ->
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.product_statistics_include)) },
@@ -1395,33 +1349,22 @@ private fun ProductNavHost(
                             )
                         },
                     )
-                    ReadOnlySetting(
-                        stringResource(R.string.product_statistics_summary),
-                        stringResource(
-                            R.string.product_statistics_summary_values,
-                            summary.daysSinceFirstUse.toString(),
-                            summary.torrentsAdded,
-                            summary.downloadsCompleted,
-                            summary.foregroundSessions,
-                        ),
-                    )
+                    HorizontalDivider()
                     SettingAction(
                         title = stringResource(R.string.product_statistics_reset),
-                        detail = stringResource(R.string.product_statistics_reset_detail),
+                        detail = null,
                         onClick = { confirmResetStatistics = true },
                         action = stringResource(R.string.action_reset),
                         enabled = service != null,
                     )
                 }
-                onConnectChromeExtension?.let { connect ->
-                    SettingAction(
-                        title = stringResource(R.string.chrome_extension_setup_action),
-                        detail = stringResource(R.string.chrome_extension_setup_settings_detail),
-                        onClick = connect,
-                        action = stringResource(R.string.action_open),
-                        enabled = service != null,
-                    )
-                }
+                SettingAction(
+                    title = stringResource(R.string.action_privacy_policy),
+                    detail = null,
+                    onClick = onOpenPrivacy,
+                    action = stringResource(R.string.action_open),
+                )
+                SettingsSection(stringResource(R.string.settings_section_support))
                 FeedbackSetting {
                     val include = state.productSummary?.statisticsEnabled == true
                     feedbackIncludeStatistics = include
@@ -1437,12 +1380,6 @@ private fun ProductNavHost(
                         feedbackBusy = false
                     }
                 }
-                SettingAction(
-                    title = stringResource(R.string.action_privacy_policy),
-                    detail = stringResource(R.string.product_privacy_policy_detail),
-                    onClick = onOpenPrivacy,
-                    action = stringResource(R.string.action_open),
-                )
                 if (feedbackBusy) {
                     ReadOnlySetting(
                         stringResource(R.string.feedback_preview_title),
@@ -1455,7 +1392,7 @@ private fun ProductNavHost(
                         it,
                     )
                 }
-                UnavailableSetting(stringResource(R.string.settings_search_plugins))
+                SettingsSection(stringResource(R.string.settings_section_reset))
                 SettingAction(
                     title = stringResource(R.string.settings_reset_engine),
                     detail = stringResource(R.string.settings_reset_engine_detail),
@@ -1632,16 +1569,12 @@ private fun ProductNavHost(
                         )
                         Text(stringResource(R.string.clear_all_data_delete_files))
                     }
-                    Text(
-                        stringResource(
-                            if (deleteDownloadedFiles) {
-                                R.string.clear_all_data_delete_scope
-                            } else {
-                                R.string.clear_all_data_keep_scope
-                            },
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    if (deleteDownloadedFiles) {
+                        Text(
+                            stringResource(R.string.clear_all_data_delete_scope),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -2005,35 +1938,28 @@ private fun DetailTabContent(
                     } else {
                         add(stringResource(R.string.detail_info_hash) to (v1 ?: v2 ?: "—"))
                     }
-                    add(stringResource(R.string.detail_state) to torrentStatusLabel(torrent))
-                    add(stringResource(R.string.detail_required) to formatBytes(torrent.requiredPayloadBytes))
-                    add(stringResource(R.string.detail_remaining) to formatBytes(torrent.remainingPayloadBytes))
-                    add(stringResource(R.string.detail_pieces) to "${torrent.verifiedPieceCount} / ${torrent.pieceCount}")
-                    add(stringResource(R.string.detail_trackers) to (torrent.configuredTrackerCount?.toString() ?: "—"))
-                    add(stringResource(R.string.detail_lifetime_downloaded) to formatBytes(torrent.lifetime.downloadedPayloadBytes))
-                    add(stringResource(R.string.detail_lifetime_uploaded) to formatBytes(torrent.lifetime.uploadedPayloadBytes))
-                    add(stringResource(R.string.detail_share_ratio) to formatShareRatio(torrent.lifetime.shareRatioHundredths))
-                    add(stringResource(R.string.detail_active_time) to formatDuration(torrent.lifetime.activeSeconds))
-                    add(stringResource(R.string.detail_finished_time) to formatDuration(torrent.lifetime.finishedSeconds))
-                    add(stringResource(R.string.detail_seeding_time) to formatDuration(torrent.lifetime.seedingSeconds))
-                    if (torrent.seeding.goal != null) {
-                        add(stringResource(R.string.detail_seed_admission) to seedAdmissionLabel(torrent.seeding.admission))
-                        add(stringResource(R.string.detail_seeding_priority_goal) to seedGoalLabel(torrent.seeding.goal))
-                        add(
-                            stringResource(R.string.detail_goal_behavior) to
-                                stringResource(R.string.detail_goal_behavior_value),
-                        )
+                    add(stringResource(R.string.detail_size) to formatBytes(torrent.totalSizeBytes))
+                    state.storage?.roots?.firstOrNull { it.rootId == torrent.storageRoot }?.let {
+                        add(stringResource(R.string.detail_save_location) to it.label)
                     }
+                    add(stringResource(R.string.detail_downloaded) to formatBytes(torrent.lifetime.downloadedPayloadBytes))
+                    add(stringResource(R.string.detail_uploaded) to formatBytes(torrent.lifetime.uploadedPayloadBytes))
+                    add(stringResource(R.string.detail_share_ratio) to formatShareRatio(torrent.lifetime.shareRatioHundredths))
+                    add(stringResource(R.string.detail_seeding_time) to formatDuration(torrent.lifetime.seedingSeconds))
                 }.toTypedArray(),
             )
         TorrentDetailTab.STATUS ->
             DetailList(
-                stringResource(R.string.detail_download) to formatRate(torrent.payloadDownloadRateBytes),
-                stringResource(R.string.detail_peers) to torrent.activePeerConnections.toString(),
-                stringResource(R.string.detail_eta) to torrentEta(torrent),
-                stringResource(R.string.detail_storage) to torrent.storageState.name.lowercase(),
-                stringResource(R.string.detail_progress) to torrent.progress.reason.name.lowercase(),
-                stringResource(R.string.detail_error) to (torrent.error ?: stringResource(R.string.detail_none)),
+                *buildList {
+                    val state = torrentStatusLabel(torrent)
+                    val activity = progressReasonLabel(torrent.progress.reason)
+                    add(stringResource(R.string.detail_state) to state)
+                    if (activity != state) add(stringResource(R.string.detail_activity) to activity)
+                    add(stringResource(R.string.detail_download) to formatRate(torrent.payloadDownloadRateBytes))
+                    add(stringResource(R.string.detail_peers) to torrent.activePeerConnections.toString())
+                    add(stringResource(R.string.detail_eta) to torrentEta(torrent))
+                    torrent.error?.let { add(stringResource(R.string.detail_error) to it) }
+                }.toTypedArray(),
             )
         TorrentDetailTab.PIECES -> {
             val pieces = state.pieces[torrent.torrentId]
@@ -2088,6 +2014,7 @@ private fun TorrentDetails(
         contentPadding = PaddingValues(vertical = 8.dp),
     ) {
         items(rows.toList()) { (label, value) -> ReadOnlySetting(label, value) }
+        item("speed-limits") { SettingsSection(stringResource(R.string.settings_section_speed_limits)) }
         item("download-rate-limit") {
             RateLimitSetting(
                 title = stringResource(R.string.torrent_download_limit),
@@ -2373,30 +2300,17 @@ private fun ReadOnlySetting(
 @Composable
 private fun NotificationToggleSetting(
     title: String,
-    detail: String,
+    detail: String?,
     checked: Boolean,
     onChecked: (Boolean) -> Unit,
 ) {
     ListItem(
         headlineContent = { Text(title) },
-        supportingContent = { Text(detail) },
+        supportingContent = detail?.let { { Text(it) } },
         trailingContent = { Switch(checked = checked, onCheckedChange = null) },
         modifier =
             Modifier.clickable { onChecked(!checked) }
                 .semantics(mergeDescendants = true) { role = Role.Switch },
-    )
-    HorizontalDivider()
-}
-
-@Composable
-private fun UnavailableSetting(title: String) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(stringResource(R.string.setting_not_available)) },
-        colors = androidx.compose.material3.ListItemDefaults.colors(
-            headlineColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            supportingColor = MaterialTheme.colorScheme.outline,
-        ),
     )
     HorizontalDivider()
 }
@@ -2418,15 +2332,70 @@ private fun FeedbackSetting(onClick: () -> Unit) {
 @Composable
 private fun SettingAction(
     title: String,
-    detail: String,
+    detail: String?,
     onClick: () -> Unit,
     action: String,
     enabled: Boolean = true,
 ) {
     ListItem(
         headlineContent = { Text(title) },
-        supportingContent = { Text(detail) },
+        supportingContent = detail?.let { { Text(it) } },
         trailingContent = { TextButton(onClick = onClick, enabled = enabled) { Text(action) } },
+    )
+    HorizontalDivider()
+}
+
+/** One download folder: a star marks the default; the menu holds the less common actions. */
+@Composable
+private fun StorageRootRow(
+    label: String,
+    path: String?,
+    isDefault: Boolean,
+    available: Boolean,
+    onRepair: () -> Unit,
+    onMakeDefault: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    var menu by remember { mutableStateOf(false) }
+    val defaultDescription = stringResource(R.string.storage_default)
+    val supporting = if (available) path else stringResource(R.string.storage_unavailable)
+    ListItem(
+        headlineContent = { Text(label) },
+        supportingContent = supporting?.let { { Text(it) } },
+        leadingContent = {
+            if (isDefault) {
+                Icon(Icons.Filled.Star, contentDescription = defaultDescription)
+            } else {
+                Icon(Icons.Outlined.Folder, contentDescription = null)
+            }
+        },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!available) {
+                    TextButton(onClick = onRepair) { Text(stringResource(R.string.action_repair)) }
+                }
+                Box {
+                    IconButton(onClick = { menu = true }) {
+                        Icon(
+                            Icons.Outlined.MoreVert,
+                            contentDescription = stringResource(R.string.storage_folder_actions, label),
+                        )
+                    }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        if (!isDefault && available) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.storage_set_default)) },
+                                onClick = { menu = false; onMakeDefault() },
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.storage_remove_folder)) },
+                            onClick = { menu = false; onRemove() },
+                        )
+                    }
+                }
+            }
+        },
     )
     HorizontalDivider()
 }

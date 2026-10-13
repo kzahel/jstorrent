@@ -1,5 +1,11 @@
 # Android JSTorrent Replacement Readiness
 
+Tactical [331](../tactical/331-android-settings-plain-copy.md) brings
+Settings closer to the original app: section headers on every page, speed
+limits first with presets, one row per download folder, plain network status,
+and no "Not available yet" rows. Seeding-goal controls leave the Android UI;
+engine values are unchanged. Presentation only.
+
 Tactical [330](../tactical/330-android-1-0-31-production-release.md) submits
 Android 1.0.31/code 31 for production at 100%, automatically publishing after
 approval. Exact tagged signed APK/AAB checks and source Android/SAF integration

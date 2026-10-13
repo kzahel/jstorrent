@@ -14,6 +14,7 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.isDialog
@@ -28,7 +29,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -121,7 +122,7 @@ class ProductNavigationTest {
             .performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("Settings").performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("Storage").performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithText("Download folder").assertIsDisplayed()
+        compose.onNodeWithText("Add download folder").assertIsDisplayed()
     }
 
     @Test
@@ -261,9 +262,9 @@ class ProductNavigationTest {
         compose.onNodeWithText("Settings").performClick()
         compose.onNodeWithText("Advanced").performScrollTo().performClick()
 
-        compose.onNodeWithText("Reset engine settings").performScrollTo()
-        compose.onNodeWithText("Reset").performClick()
-        compose.onNodeWithText("Reset all engine settings?").assertIsDisplayed()
+        compose.onNodeWithText("Reset settings").performScrollTo()
+        compose.onNode(hasText("Reset") and hasClickAction()).performClick()
+        compose.onNodeWithText("Reset settings?").assertIsDisplayed()
         compose.onNode(hasText("Reset") and hasAnyAncestor(isDialog())).performClick()
         compose.runOnIdle { assertEquals(1, resetCalls) }
 
@@ -320,7 +321,7 @@ class ProductNavigationTest {
             )
         }
 
-        compose.onNodeWithText("Clearing app data").assertIsDisplayed()
+        compose.onNodeWithText("Clearing data").assertIsDisplayed()
         compose.onNodeWithText("2 of 5 torrents removed").assertIsDisplayed()
         compose.runOnIdle {
             state =
@@ -338,7 +339,7 @@ class ProductNavigationTest {
         compose.onNodeWithText("Couldn’t finish clearing data").assertIsDisplayed()
         compose.onNodeWithText("Retry").performClick()
         compose.onNodeWithText("Finish without deleting remaining files").performClick()
-        compose.onNodeWithText("Keep every remaining downloaded file?").assertIsDisplayed()
+        compose.onNodeWithText("Keep the remaining files?").assertIsDisplayed()
         compose
             .onAllNodesWithText("Finish without deleting remaining files")[1]
             .performClick()
@@ -356,7 +357,7 @@ class ProductNavigationTest {
                         ),
                 )
         }
-        compose.onNodeWithText("App data cleared").assertIsDisplayed()
+        compose.onNodeWithText("Data cleared").assertIsDisplayed()
         compose.onNodeWithText("Done").performClick()
         compose.runOnIdle { assertEquals(1, completions) }
     }
@@ -737,14 +738,12 @@ class ProductNavigationTest {
         }
 
         compose.onNodeWithText("Fixture torrent").performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithTag("torrent-details").performScrollToIndex(13)
+        compose.onNodeWithTag("torrent-details").performScrollToNode(hasText("Download limit"))
         compose
-            .onNodeWithText("Torrent download limit")
+            .onNodeWithText("Download limit")
             .performSemanticsAction(SemanticsActions.OnClick)
-        compose
-            .onNode(isToggleable())
-            .performSemanticsAction(SemanticsActions.OnClick)
-            .assertIsOn()
+        val unlimited = compose.onNode(hasText("Unlimited") and hasAnyAncestor(isDialog()))
+        unlimited.performSemanticsAction(SemanticsActions.OnClick).assertIsSelected()
         repeat(24) { index ->
             compose.runOnIdle {
                 val fresh =
@@ -759,7 +758,7 @@ class ProductNavigationTest {
                 state = state.copy(torrents = mapOf(fresh.torrentId to fresh))
             }
         }
-        compose.onNode(isToggleable()).assertIsOn()
+        unlimited.assertIsSelected()
         compose.onNodeWithText("Apply").performSemanticsAction(SemanticsActions.OnClick)
 
         assertEquals(1, patches.size)
@@ -797,15 +796,16 @@ class ProductNavigationTest {
             .performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("Settings").performSemanticsAction(SemanticsActions.OnClick)
         compose
-            .onNodeWithText("Speed & Connection Limits")
+            .onNodeWithText("Speed & Limits")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("256 KB/s").assertIsDisplayed()
+        compose
+            .onNodeWithText("Download")
             .performSemanticsAction(SemanticsActions.OnClick)
         compose
-            .onNodeWithText("All torrents download limit")
+            .onNode(hasText("Unlimited") and hasAnyAncestor(isDialog()))
             .performSemanticsAction(SemanticsActions.OnClick)
-        compose
-            .onNode(isToggleable())
-            .performSemanticsAction(SemanticsActions.OnClick)
-            .assertIsOn()
+            .assertIsSelected()
         compose.onNodeWithText("Apply").performSemanticsAction(SemanticsActions.OnClick)
 
         assertEquals(1, patches.size)
@@ -815,7 +815,7 @@ class ProductNavigationTest {
     }
 
     @Test
-    fun speedSettingsExposeSeedCapacityAndPriorityGoals() {
+    fun speedSettingsEditActiveSeedsWithoutSeedingGoals() {
         val patches = mutableListOf<ClientSettingsPatch>()
         compose.setContent {
             ProductApp(
@@ -844,28 +844,19 @@ class ProductNavigationTest {
             .performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("Settings").performSemanticsAction(SemanticsActions.OnClick)
         compose
-            .onNodeWithText("Speed & Connection Limits")
+            .onNodeWithText("Speed & Limits")
             .performSemanticsAction(SemanticsActions.OnClick)
+        compose.onAllNodesWithText("goal", substring = true).assertCountEquals(0)
+        compose.onAllNodesWithText("Effective", substring = true).assertCountEquals(0)
         compose
-            .onNodeWithText("Active seeds")
+            .onNodeWithText("Max active seeds")
             .performScrollTo()
             .performSemanticsAction(SemanticsActions.OnClick)
-        compose
-            .onNodeWithText("The fixed shared 500-torrent ceiling remains")
-            .assertIsDisplayed()
         compose
             .onNode(isToggleable())
             .performSemanticsAction(SemanticsActions.OnClick)
             .assertIsOn()
         compose.onNodeWithText("Apply").performSemanticsAction(SemanticsActions.OnClick)
-        compose
-            .onNodeWithText("Share-ratio priority goal (%)")
-            .performScrollTo()
-            .assertIsDisplayed()
-        compose
-            .onNodeWithText("A goal-met torrent may continue seeding while capacity is available")
-            .performScrollTo()
-            .assertIsDisplayed()
 
         assertEquals(1, patches.size)
         assertEquals(ActiveSeedLimit.Unlimited, patches.single().activeSeeds)
@@ -910,7 +901,7 @@ class ProductNavigationTest {
             .assertIsOn()
             .performSemanticsAction(SemanticsActions.OnClick)
         compose
-            .onNodeWithContentDescription("Peer exchange")
+            .onNodeWithContentDescription("Peer exchange (PEX)")
             .assertIsOn()
             .performSemanticsAction(SemanticsActions.OnClick)
 
@@ -922,7 +913,7 @@ class ProductNavigationTest {
     }
 
     @Test
-    fun networkStatusUsesProductCopyAndPreservesFailureAndLeaseFacts() {
+    fun networkStatusUsesPlainProductCopy() {
         var settings by mutableStateOf(clientSettings())
         compose.setContent {
             ProductApp(
@@ -949,8 +940,9 @@ class ProductNavigationTest {
         compose.onNodeWithText("Settings").performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("Network & Privacy")
             .performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithText("Incoming connections are disabled.").assertIsDisplayed()
-        compose.onNodeWithText("Port mapping is disabled.").assertIsDisplayed()
+        compose.onNodeWithText("Incoming connections").assertIsDisplayed()
+        compose.onAllNodesWithText("Port", substring = true).assertCountEquals(0)
+        compose.onAllNodesWithText("Applied", substring = true).assertCountEquals(0)
         compose.onAllNodesWithText("org.rstorrent", substring = true).assertCountEquals(0)
 
         compose.runOnIdle {
@@ -961,11 +953,9 @@ class ProductNavigationTest {
                 ),
             )
         }
-        compose.onNodeWithText("Listening on ::1, port 6881").assertIsDisplayed()
-        compose.onNodeWithText(
-            "Router address 203.0.113.9, port 4567 may remain open for 120 seconds. " +
-                "Cleanup failed: Router refused deletion",
-        ).assertIsDisplayed()
+        compose.onNodeWithText("Port 6881").assertIsDisplayed()
+        compose.onNodeWithText("The router may keep port 4567 open").assertIsDisplayed()
+        compose.onAllNodesWithText("Router refused deletion", substring = true).assertCountEquals(0)
         compose.runOnIdle {
             settings = settings.copy(
                 listenerStatus = ListenerStatus.BindFailed(
@@ -973,8 +963,8 @@ class ProductNavigationTest {
                 ),
             )
         }
-        compose.onNodeWithText("The incoming port is already in use: Port 6881 is occupied")
-            .assertIsDisplayed()
+        compose.onNodeWithText("Port already in use").assertIsDisplayed()
+        compose.onAllNodesWithText("Port 6881 is occupied").assertCountEquals(0)
         compose.onAllNodesWithText("org.rstorrent", substring = true).assertCountEquals(0)
     }
 
@@ -1370,10 +1360,10 @@ class ProductNavigationTest {
             .performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("Settings").performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("Notifications").performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithText("Notifications enabled").assertIsDisplayed()
-        compose.onNodeWithText("Blocked in Android system settings.").assertIsDisplayed()
+        compose.onNodeWithText("Notifications allowed").assertIsDisplayed()
+        compose.onNodeWithText("Blocked in Android settings").assertIsDisplayed()
         compose
-            .onNodeWithText("Download completed")
+            .onNodeWithText("Download complete")
             .performSemanticsAction(SemanticsActions.OnClick)
         compose
             .onNodeWithText("Needs attention")
@@ -1382,7 +1372,7 @@ class ProductNavigationTest {
         compose.onAllNodesWithText("Open").assertCountEquals(0)
         compose.onNodeWithText("Manage").performClick()
         compose.runOnIdle { permissionGranted = false }
-        compose.onNodeWithText("Notifications disabled").assertIsDisplayed()
+        compose.onNodeWithText("Notifications off").assertIsDisplayed()
         compose.onAllNodesWithText("Manage").assertCountEquals(0)
         compose.onAllNodesWithText("Enable").assertCountEquals(1)
         compose.onNodeWithText("Enable").performClick()
@@ -1430,10 +1420,8 @@ class ProductNavigationTest {
             .performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("Settings").performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("Notifications").performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithText("Background activity blocked").assertIsDisplayed()
-        compose.onNodeWithText(
-            "JSTorrent works while Android is visible. Leaving Android stops background work.",
-        ).assertIsDisplayed()
+        compose.onNodeWithText("Background notifications blocked").assertIsDisplayed()
+        compose.onNodeWithText("Required for background downloads").assertIsDisplayed()
     }
 
     @Test
@@ -1474,14 +1462,18 @@ class ProductNavigationTest {
             .onNodeWithText("Power Management")
             .performScrollTo()
             .performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithText("Android background limits").performScrollTo().assertIsDisplayed()
         compose
-            .onNodeWithContentDescription("Continue downloads in background")
+            .onNodeWithText("Android may stop long background sessions. Open JSTorrent to resume.")
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onAllNodesWithText("Not available", substring = true).assertCountEquals(0)
+        compose
+            .onNodeWithContentDescription("Download in background")
             .performSemanticsAction(SemanticsActions.OnClick)
         compose
-            .onNodeWithContentDescription("Keep seeding in background")
+            .onNodeWithContentDescription("Keep seeding when done")
             .performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithText("Keep seeding in background?").assertIsDisplayed()
+        compose.onNodeWithText("Keep seeding when done?").assertIsDisplayed()
         compose.onNodeWithText("Keep seeding").performSemanticsAction(SemanticsActions.OnClick)
 
         assertEquals(listOf(false), backgroundChanges)

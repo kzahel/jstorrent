@@ -88,7 +88,8 @@ import org.rstorrent.bootstrap.ui.LibraryFilter
 import org.rstorrent.bootstrap.ui.LibrarySort
 import org.rstorrent.bootstrap.ui.filteredAndSortedTorrents
 import org.rstorrent.bootstrap.ui.parseRateLimit
-import org.rstorrent.bootstrap.ui.rateLimitLabel
+import org.rstorrent.bootstrap.ui.RATE_LIMIT_PRESETS
+import org.rstorrent.bootstrap.ui.customRateText
 import org.rstorrent.bootstrap.ui.torrentPresentationName
 
 class ProductStateReducerTest {
@@ -303,7 +304,15 @@ class ProductStateReducerTest {
         assertEquals(null, parseRateLimit("0.5"))
         assertEquals(TransferRateLimit.Limited(1_024U), parseRateLimit("1"))
         assertEquals(TransferRateLimit.Limited(UInt.MAX_VALUE), parseRateLimit("4194303.9990234375"))
-        assertEquals("Unlimited", rateLimitLabel(TransferRateLimit.Unlimited, "Unlimited"))
+        assertEquals("1024", customRateText(TransferRateLimit.Unlimited))
+        assertEquals("1.5", customRateText(TransferRateLimit.Limited(1_536U)))
+        assertEquals(
+            listOf(100U * 1_024U, 500U * 1_024U, 1_048_576U, 5U * 1_048_576U, 10U * 1_048_576U),
+            RATE_LIMIT_PRESETS,
+        )
+        RATE_LIMIT_PRESETS.forEach {
+            assertEquals(TransferRateLimit.Limited(it), parseRateLimit(customRateText(TransferRateLimit.Limited(it))))
+        }
 
         val limits =
             TorrentTransferLimits(

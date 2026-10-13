@@ -1,19 +1,14 @@
 package org.rstorrent.bootstrap.ui
 
-import android.icu.text.ListFormatter
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.max
 import org.rstorrent.bootstrap.R
-import org.rstorrent.session.uniffi.ClientSettingsApplicationState
 import org.rstorrent.session.uniffi.ProgressReason
 import org.rstorrent.session.uniffi.RemovalState
-import org.rstorrent.session.uniffi.SeedAdmissionView
-import org.rstorrent.session.uniffi.SeedGoalView
 import org.rstorrent.session.uniffi.TorrentEtaView
 import org.rstorrent.session.uniffi.TorrentOperationalState
 import org.rstorrent.session.uniffi.TorrentView
@@ -23,7 +18,8 @@ internal fun productFailureDetail(error: Throwable, fallback: String): String =
 
 internal fun formatBytes(decimal: String?): String {
     val bytes = decimal?.toDoubleOrNull() ?: return "—"
-    val units = arrayOf("B", "KiB", "MiB", "GiB", "TiB")
+    // 1024-based, labelled KB/MB like the original JSTorrent app.
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
     var value = bytes
     var unit = 0
     while (value >= 1024.0 && unit < units.lastIndex) {
@@ -67,38 +63,6 @@ internal fun formatShareRatio(hundredths: String?): String {
         maximumFractionDigits = 2
         isGroupingUsed = false
     }.format(BigDecimal(value).movePointLeft(2))
-}
-
-@Composable
-internal fun seedAdmissionLabel(admission: SeedAdmissionView): String =
-    when (admission) {
-        SeedAdmissionView.ACTIVE -> stringResource(R.string.seed_active)
-        SeedAdmissionView.QUEUED -> stringResource(R.string.seed_queued)
-        SeedAdmissionView.INACTIVE_EXEMPT -> stringResource(R.string.seed_inactive_exempt)
-        SeedAdmissionView.INELIGIBLE -> stringResource(R.string.seed_ineligible)
-    }
-
-@Composable
-internal fun seedGoalLabel(goal: SeedGoalView?): String {
-    goal ?: return "—"
-    val configuration = LocalConfiguration.current
-    val thresholds =
-        buildList {
-            if (goal.shareRatioMet) add(stringResource(R.string.seed_goal_share_ratio))
-            if (goal.finishedDownloadRatioMet) {
-                add(stringResource(R.string.seed_goal_finished_download_ratio))
-            }
-            if (goal.finishedTimeMet) add(stringResource(R.string.seed_goal_finished_time))
-        }.ifEmpty { listOf(stringResource(R.string.seed_goal_none)) }
-    val status =
-        stringResource(
-            if (goal.status.name == "MET") R.string.seed_goal_met else R.string.seed_goal_unmet,
-        )
-    return stringResource(
-        R.string.seed_goal_summary,
-        status,
-        ListFormatter.getInstance(configuration.locales[0]).format(thresholds),
-    )
 }
 
 internal fun torrentProgress(torrent: TorrentView): Float {
@@ -156,13 +120,29 @@ internal fun torrentStatusLabel(torrent: TorrentView): String =
         else -> operationalLabel(torrent.operationalState)
     }
 
+/** What the torrent is doing right now, for the Status tab. */
 @Composable
-internal fun settingsApplicationLabel(state: ClientSettingsApplicationState): String =
-    when (state) {
-        ClientSettingsApplicationState.Applied -> stringResource(R.string.state_applied)
-        ClientSettingsApplicationState.Applying -> stringResource(R.string.state_applying)
-        is ClientSettingsApplicationState.Degraded -> state.detail
-    }
+internal fun progressReasonLabel(reason: ProgressReason): String =
+    stringResource(
+        when (reason) {
+            ProgressReason.NETWORK_DISABLED -> R.string.activity_network_off
+            ProgressReason.WAITING_FOR_UNMETERED_NETWORK -> R.string.status_waiting_unmetered
+            ProgressReason.DISCOVERING_PEERS,
+            ProgressReason.WAITING_FOR_DISCOVERY,
+            -> R.string.activity_finding_peers
+            ProgressReason.NO_ENABLED_DISCOVERY_SOURCE -> R.string.activity_no_peer_sources
+            ProgressReason.ACQUIRING_METADATA -> R.string.activity_getting_metadata
+            ProgressReason.PREPARING_STORAGE -> R.string.activity_preparing_files
+            ProgressReason.WAITING_FOR_STORAGE -> R.string.state_folder_unavailable
+            ProgressReason.PREPARING_INTEGRITY -> R.string.state_checking
+            ProgressReason.TRANSFERRING_PIECES -> R.string.state_downloading
+            ProgressReason.VERIFYING_PIECES -> R.string.activity_verifying
+            ProgressReason.PAUSED -> R.string.state_paused
+            ProgressReason.COMPLETE -> R.string.activity_complete
+            ProgressReason.NEEDS_REPAIR -> R.string.activity_needs_repair
+            ProgressReason.FAILED -> R.string.state_error
+        },
+    )
 
 internal fun percentLabel(progress: Float): String =
     String.format(Locale.getDefault(), "%.1f%%", max(0f, progress) * 100f)
