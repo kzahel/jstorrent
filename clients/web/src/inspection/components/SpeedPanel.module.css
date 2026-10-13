@@ -41,15 +41,7 @@
 .subtitle { margin: 0; color: var(--text-muted); font-size: var(--ui-font-small); }
 
 .range { display: grid; gap: 5px; color: var(--text-muted); font-size: var(--ui-font-caption); }
-.range select {
-  min-width: 116px;
-  min-height: var(--ui-control-height);
-  padding: 0 28px 0 10px;
-  color: var(--text-primary);
-  background: var(--surface-primary);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-}
+.range select { min-width: 116px; }
 
 .heroRates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-bottom: 12px; overflow: hidden; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); background: var(--border-soft); }
 .heroRates > div { display: grid; gap: 4px; padding: 12px 14px; background: var(--surface-primary); }

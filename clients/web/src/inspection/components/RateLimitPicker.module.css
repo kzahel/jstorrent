@@ -24,18 +24,6 @@
   gap: var(--ui-space-sm);
 }
 
-.controls select,
-.custom input {
-  min-height: var(--ui-control-height);
-  box-sizing: border-box;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 0 var(--ui-space-sm);
-  color: var(--text-primary);
-  background: var(--surface-primary);
-  font: inherit;
-}
-
 .controls select {
   width: min(100%, 12rem);
 }
@@ -56,11 +44,6 @@
   border-color: var(--danger);
 }
 
-.controls select:focus-visible,
-.custom input:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
 
 .error {
   color: var(--danger-strong);

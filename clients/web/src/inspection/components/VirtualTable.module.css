@@ -94,10 +94,7 @@
 }
 
 .selectionCheckbox {
-  width: 1rem;
-  height: 1rem;
   margin: 0;
-  accent-color: var(--accent);
   cursor: pointer;
 }
 

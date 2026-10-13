@@ -27,6 +27,9 @@
   --text-muted: #6b635a;
   --border-strong: #d9d2c9;
   --border-soft: #ebe6e0;
+  /* Outlines of checkboxes and radios: 4:1 or better on every surface. */
+  --control-border: #7d756c;
+  --control-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%2357504a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
   /* Text-safe accent; fills that need not carry text use --water. */
   --accent: #1373d0;
@@ -99,6 +102,7 @@
   --ui-font-display: 1.375rem;
   --ui-icon-size: 1.125rem;
   --ui-control-height: 2.25rem;
+  --ui-check-size: 1.125rem;
   --ui-header-height: 52px;
   --ui-actionbar-height: 46px;
   --ui-tab-height: 42px;
@@ -121,6 +125,7 @@
   --ui-font-display: 1.25rem;
   --ui-icon-size: 1rem;
   --ui-control-height: 1.875rem;
+  --ui-check-size: 1rem;
   --ui-header-height: 48px;
   --ui-actionbar-height: 40px;
   --ui-tab-height: 38px;
@@ -140,6 +145,7 @@
   --ui-font-display: 1.5rem;
   --ui-icon-size: 1.25rem;
   --ui-control-height: 2.75rem;
+  --ui-check-size: 1.25rem;
   --ui-header-height: 60px;
   --ui-actionbar-height: 56px;
   --ui-tab-height: 48px;
@@ -185,9 +191,147 @@ th {
   font-weight: var(--weight-strong);
 }
 
-input,
 progress {
   accent-color: var(--accent);
+}
+
+/*
+ * Form controls share one look at zero specificity (`:where`), so component
+ * CSS sets layout and width and may still override details. Fields and
+ * dropdowns match the buttons and segmented controls; a checkbox is the
+ * icon's box and fills with water when checked.
+ */
+:where(
+    select,
+    textarea,
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"])
+  ) {
+  min-height: var(--ui-control-height);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 0 var(--ui-space-sm);
+  color: var(--text-primary);
+  background-color: var(--surface-primary);
+  font: inherit;
+  font-size: var(--ui-font-body);
+  transition: border-color 120ms ease;
+}
+
+:where(textarea) {
+  padding-block: var(--ui-space-xs);
+}
+
+:where(select) {
+  padding-right: calc(var(--ui-space-sm) + 1.25rem);
+  background-image: var(--control-chevron);
+  background-position: right var(--ui-space-sm) center;
+  background-repeat: no-repeat;
+  background-size: 0.75rem;
+  cursor: pointer;
+  appearance: none;
+}
+
+:where(select, textarea, input):hover:not(:disabled) {
+  border-color: var(--control-border);
+}
+
+:where(select, textarea, input:not([type="checkbox"], [type="radio"])):focus-visible {
+  border-color: var(--focus);
+  outline: 2px solid color-mix(in srgb, var(--focus) 35%, transparent);
+  outline-offset: 0;
+}
+
+:where(select, textarea, input):disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+:where(input[type="checkbox"], input[type="radio"]) {
+  position: relative;
+  display: inline-grid;
+  inline-size: var(--ui-check-size);
+  block-size: var(--ui-check-size);
+  flex: 0 0 auto;
+  place-content: center;
+  margin: 0;
+  border: 1.5px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-primary);
+  vertical-align: middle;
+  cursor: pointer;
+  appearance: none;
+  transition: border-color 120ms ease, background-size 180ms ease;
+}
+
+:where(input[type="checkbox"]) {
+  background-image: linear-gradient(var(--accent-action), var(--accent-action));
+  background-position: bottom;
+  background-repeat: no-repeat;
+  background-size: 100% 0%;
+}
+
+:where(input[type="checkbox"])::after {
+  inline-size: calc(var(--ui-check-size) * 0.3);
+  block-size: calc(var(--ui-check-size) * 0.55);
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  content: "";
+  transform: translateY(-10%) rotate(45deg) scale(0);
+  transition: transform 120ms ease 60ms;
+}
+
+:where(input[type="checkbox"]:checked, input[type="checkbox"]:indeterminate) {
+  border-color: var(--accent-action);
+  background-size: 100% 100%;
+}
+
+:where(input[type="checkbox"]:checked)::after {
+  transform: translateY(-10%) rotate(45deg) scale(1);
+}
+
+:where(input[type="checkbox"]:indeterminate)::after {
+  inline-size: calc(var(--ui-check-size) * 0.5);
+  block-size: 0;
+  border-width: 0 0 2px;
+  transform: none;
+}
+
+:where(input[type="radio"]) {
+  border-radius: 50%;
+}
+
+:where(input[type="radio"])::after {
+  inline-size: calc(var(--ui-check-size) * 0.45);
+  block-size: calc(var(--ui-check-size) * 0.45);
+  border-radius: 50%;
+  background: var(--accent-action);
+  content: "";
+  transform: scale(0);
+  transition: transform 120ms ease;
+}
+
+:where(input[type="radio"]:checked) {
+  border-color: var(--accent-action);
+}
+
+:where(input[type="radio"]:checked)::after {
+  transform: scale(1);
+}
+
+:where(input[type="checkbox"], input[type="radio"]):hover:not(:disabled, :checked, :indeterminate) {
+  border-color: var(--text-secondary);
+}
+
+:where(input[type="checkbox"], input[type="radio"]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(select, textarea, input),
+  :where(input[type="checkbox"], input[type="radio"])::after {
+    transition: none;
+  }
 }
 
 button,
@@ -214,6 +358,8 @@ input:focus-visible {
   --text-muted: #a59b90;
   --border-strong: #423c35;
   --border-soft: #2e2a26;
+  --control-border: #8f867c;
+  --control-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23c2b9ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --accent: #48acfb;
   --accent-strong: #80c7ff;
   --accent-action: #80c7ff;
@@ -275,6 +421,10 @@ input:focus-visible {
     --text-muted: #a59b90;
     --border-strong: #423c35;
     --border-soft: #2e2a26;
+    --control-border: #8f867c;
+    --control-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23c2b9ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --control-border: #8f867c;
+  --control-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23c2b9ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     --accent: #48acfb;
     --accent-strong: #80c7ff;
     --accent-action: #80c7ff;
@@ -332,6 +482,7 @@ input:focus-visible {
 @media (pointer: coarse) {
   :root[data-interface-size] {
     --ui-control-height: 44px;
+    --ui-check-size: 1.375rem;
     --ui-actionbar-height: 54px;
     --ui-tab-height: 44px;
   }

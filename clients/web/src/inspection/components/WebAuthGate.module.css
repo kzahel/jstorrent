@@ -88,11 +88,6 @@
 
 .codeForm input {
   min-height: 3.2rem;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  background: var(--surface-primary);
-  font: inherit;
   font-size: calc(var(--ui-font-display) * 1.2);
   letter-spacing: 0.35em;
   text-align: center;

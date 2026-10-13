@@ -182,11 +182,6 @@
   line-height: 1.4;
 }
 
-.preference input,
-.files input,
-.location input {
-  accent-color: var(--accent);
-}
 
 .error {
   border-left: 3px solid var(--danger);

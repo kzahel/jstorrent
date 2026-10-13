@@ -116,14 +116,7 @@
 }
 
 .form input {
-  min-height: var(--ui-control-height);
   box-sizing: border-box;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 0 var(--ui-space-sm);
-  color: var(--text-primary);
-  background: var(--surface-primary);
-  font: inherit;
 }
 
 .form button {

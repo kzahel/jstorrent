@@ -31,13 +31,9 @@
 
 .bar select {
   width: min(15rem, 30vw);
-  height: var(--ui-control-height);
-  border: 1px solid var(--demo-control-border);
-  border-radius: var(--radius-md);
-  padding: 0 1.8rem 0 0.5rem;
+  border-color: var(--demo-control-border);
   color: var(--demo-control-text);
-  background: var(--demo-control);
-  font: inherit;
+  background-color: var(--demo-control);
 }
 
 .clock {

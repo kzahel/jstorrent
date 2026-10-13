@@ -75,12 +75,6 @@
   width: 100%;
   margin-top: 8px;
   padding: 12px 13px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  outline: none;
-  color: var(--text-primary);
-  background: var(--surface-primary);
-  font: inherit;
 }
 
 .form input:focus-visible,
@@ -110,7 +104,6 @@
 
 .choice input {
   margin-top: 3px;
-  accent-color: var(--accent);
 }
 
 .choice strong {

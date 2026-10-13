@@ -33,12 +33,9 @@
   gap: 0.32rem;
 }
 
-.captureBar select,
-.filterBar select,
-.filterBar input,
 .filterBar button {
   min-height: var(--ui-control-height);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   padding: 0.15rem 0.42rem;
   color: var(--text-primary);

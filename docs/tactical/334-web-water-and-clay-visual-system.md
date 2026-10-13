@@ -149,6 +149,29 @@ evidence.
   resolved `--surface-raised` rather than the page background. The peer
   flag legend keeps its 11 px density (`caption - 1px`) and regular weight.
 
+### Form controls follow-up, 2026-10-13
+
+Maintainer feedback on the desktop build: the native checkbox in the
+first-use statistics dialog was tiny and unreadable, and native dropdowns
+did not match the switches and segmented controls. The UI has 17
+checkboxes in 10 components, 6 radios and 8 dropdowns.
+
+- `global.css` styles every field, dropdown, checkbox and radio at zero
+  specificity (`:where`), so component CSS keeps layout and widths. Fields
+  and dropdowns share the button height, border and radius; dropdowns
+  draw a themed chevron (`--control-chevron`). The opened option list
+  stays the platform menu, which Playwright `selectOption` (10 uses)
+  depends on.
+- Checkboxes are the icon's box: 18 px at standard size (16 compact, 20
+  spacious, 22 on coarse pointers via `--ui-check-size`), a 1.5 px
+  `--control-border` outline (4:1 or better on light surfaces, against
+  1.5:1 for `--border-strong`), filling with water from the bottom when
+  checked, then a check mark; indeterminate shows a dash. Radios are a
+  matching ring and dot. Settings switches grow to 40 × 23 px.
+- Per-component duplicates of the field look (Log filters, Speed range,
+  scenario bar, rate picker, Settings fields, remote-access forms and
+  sign-in inputs) and the 1 rem checkbox sizes are removed.
+
 ## Evidence
 
 - `npm run typecheck --prefix clients/web`: pass.
