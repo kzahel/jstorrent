@@ -218,10 +218,12 @@ class ProductEngineService : Service() {
     private data class ExternalContentHint(
         val announcedMimeType: String?,
         val pathHasTorrentSuffix: Boolean,
+        val pickedInApp: Boolean = false,
     ) {
         val independentlyEligible: Boolean
             get() =
-                announcedMimeType.equals(BITTORRENT_MIME_TYPE, ignoreCase = true) ||
+                pickedInApp ||
+                    announcedMimeType.equals(BITTORRENT_MIME_TYPE, ignoreCase = true) ||
                     pathHasTorrentSuffix
     }
 
@@ -804,7 +806,11 @@ class ProductEngineService : Service() {
                 )
                 publishExternalSnapshot()
                 if (hint == null) {
-                    logExternalIntake(intakeId, source.kind, "presented", "ready")
+                    if (currentSafRootForAdd() != null) {
+                        logExternalIntake(intakeId, source.kind, "presented", "ready")
+                    } else {
+                        logExternalIntake(intakeId, source.kind, "awaiting_root", "no_root")
+                    }
                 } else {
                     scheduleExternalAdmissionLocked()
                 }
@@ -830,6 +836,35 @@ class ProductEngineService : Service() {
                 )
             }
         }
+    }
+
+    /**
+     * Queues in-app adds made before a usable download folder exists. The
+     * intake dialog asks for the folder, then presents each add as usual.
+     * Returns false when a source cannot be held, leaving the caller to report.
+     */
+    private fun holdForStorageRoot(
+        kind: ExternalIntakeKind,
+        values: List<String>,
+    ): Boolean {
+        val sources =
+            values.map {
+                runCatching { ExternalIntakeSource.create(kind, it.trim()) }.getOrNull()
+                    ?: return false
+            }
+        val hint =
+            if (kind == ExternalIntakeKind.TORRENT_FILE) {
+                ExternalContentHint(null, pathHasTorrentSuffix = false, pickedInApp = true)
+            } else {
+                null
+            }
+        scope.launch {
+            val started = SystemClock.elapsedRealtime()
+            externalIntakeMutation.withLock {
+                for (source in sources) admitExternalSource(source, hint, started)
+            }
+        }
+        return true
     }
 
     private fun rejectExternalIntent(
@@ -1326,7 +1361,12 @@ class ProductEngineService : Service() {
         if (magnets.isEmpty() || rejectMutationDuringDataReset()) return
         val storageRoot = currentSafRootForAdd()
         if (storageRoot == null) {
-            mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
+            val held =
+                startContent && skipFiles.isEmpty() &&
+                    holdForStorageRoot(ExternalIntakeKind.MAGNET, magnets)
+            if (!held) {
+                mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
+            }
             return
         }
         if (downloadAll) mutableState.update { it.copy(quickAddsInFlight = it.quickAddsInFlight + 1) }
@@ -1392,7 +1432,12 @@ class ProductEngineService : Service() {
         if (rejectMutationDuringDataReset()) return
         val storageRoot = currentSafRootForAdd()
         if (storageRoot == null) {
-            mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
+            val held =
+                startContent &&
+                    holdForStorageRoot(ExternalIntakeKind.TORRENT_FILE, listOf(uri.toString()))
+            if (!held) {
+                mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
+            }
             return
         }
         scope.launch(Dispatchers.IO) {

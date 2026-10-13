@@ -660,28 +660,21 @@ private fun ExternalTorrentIntakeDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 intake.displayLabel?.let { Text(it) }
-                Text(
-                    stringResource(R.string.file_selection_folder, rootLabel),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                if (!storageRootReady) {
-                    Text(stringResource(R.string.intake_folder_required))
-                    TextButton(
-                        onClick = {
-                            if (repairRootId == null) onSelectStorage()
-                            else onRepairStorage(repairRootId)
-                        },
-                    ) {
-                        Text(
-                            stringResource(
-                                if (repairRootId == null) {
-                                    R.string.action_select_folder
-                                } else {
-                                    R.string.action_repair_folder
-                                },
-                            ),
-                        )
-                    }
+                if (storageRootReady) {
+                    Text(
+                        stringResource(R.string.file_selection_folder, rootLabel),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                } else {
+                    Text(
+                        stringResource(
+                            if (repairRootId == null) {
+                                R.string.intake_folder_required
+                            } else {
+                                R.string.intake_folder_repair_required
+                            },
+                        ),
+                    )
                 }
                 when (intake.phase) {
                     ExternalIntakePhase.AWAITING_ROOT -> Unit
@@ -693,29 +686,47 @@ private fun ExternalTorrentIntakeDialog(
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    if (intake.phase == ExternalIntakePhase.RETRYABLE_FAILURE) {
-                        onRetry(intake.intakeId)
-                    } else {
-                        onConfirm(intake.intakeId)
-                    }
-                },
-                enabled =
-                    storageRootReady &&
-                        intake.phase in
-                        setOf(
-                            ExternalIntakePhase.PRESENTED,
-                            ExternalIntakePhase.RETRYABLE_FAILURE,
-                        ),
-            ) {
-                Text(
-                    if (intake.phase == ExternalIntakePhase.RETRYABLE_FAILURE) {
-                        stringResource(R.string.action_retry)
-                    } else {
-                        stringResource(R.string.action_download_all)
+            if (!storageRootReady) {
+                TextButton(
+                    onClick = {
+                        if (repairRootId == null) onSelectStorage()
+                        else onRepairStorage(repairRootId)
                     },
-                )
+                ) {
+                    Text(
+                        stringResource(
+                            if (repairRootId == null) {
+                                R.string.action_select_folder
+                            } else {
+                                R.string.action_repair_folder
+                            },
+                        ),
+                    )
+                }
+            } else {
+                TextButton(
+                    onClick = {
+                        if (intake.phase == ExternalIntakePhase.RETRYABLE_FAILURE) {
+                            onRetry(intake.intakeId)
+                        } else {
+                            onConfirm(intake.intakeId)
+                        }
+                    },
+                    enabled =
+                        intake.phase in
+                            setOf(
+                                ExternalIntakePhase.PRESENTED,
+                                ExternalIntakePhase.RETRYABLE_FAILURE,
+                            ),
+                ) {
+                    Text(
+                        if (intake.phase == ExternalIntakePhase.RETRYABLE_FAILURE) {
+                            stringResource(R.string.action_retry)
+                        } else {
+                            stringResource(R.string.action_download_all)
+                        },
+                    )
+                }
             }
         },
         dismissButton = {

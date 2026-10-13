@@ -1184,7 +1184,9 @@ class ProductNavigationTest {
 
         compose.onNodeWithText("Add torrent").assertIsDisplayed()
         compose.onNodeWithText("safe.torrent").assertIsDisplayed()
-        compose.onNodeWithText("Download all").assertIsNotEnabled()
+        compose.onNodeWithText("Choose a download folder first. Downloads are saved there.")
+            .assertIsDisplayed()
+        compose.onAllNodesWithText("Download all").assertCountEquals(0)
         compose.onNode(
             hasText("Select folder") and hasAnyAncestor(isDialog()),
         ).performSemanticsAction(SemanticsActions.OnClick)

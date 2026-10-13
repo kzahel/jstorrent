@@ -176,7 +176,6 @@
     <!-- Add and add-time file selection. -->
     <string name="add_torrent_title">Add torrent</string>
     <string name="add_magnet_label">Magnet link</string>
-    <string name="add_folder_required">Choose an available download folder first.</string>
     <string name="file_selection_explanation">Choose the files you want to download.</string>
     <string name="file_selection_folder">Download folder: %1$s</string>
     <plurals name="file_selection_folder_pending">
@@ -274,7 +273,8 @@
     <!-- External intake and companion pairing. -->
     <string name="pairing_title">Connect Chrome extension?</string>
     <string name="pairing_identifiers">Extension %1$s\nInstallation %2$s</string>
-    <string name="intake_folder_required">Choose or repair a download folder before adding this item.</string>
+    <string name="intake_folder_required">Choose a download folder first. Downloads are saved there.</string>
+    <string name="intake_folder_repair_required">The download folder is unavailable. Repair it to add this torrent.</string>
     <string name="intake_adding">Adding…</string>
     <string name="intake_retryable_failure">The source could not be read. You can retry once.</string>
     <string name="intake_rejected">That item can’t be added.</string>

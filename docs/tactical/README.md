@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [328 — Android add before download folder](328-android-add-before-download-folder.md):
+  in-app adds without a folder wait in the intake dialog, which asks for the
+  folder and then becomes the ordinary Add torrent confirmation.
+
 - [327 — Removal hang with inbound peers](327-removal-hang-with-inbound-peers.md):
   removing a fast download with attached inbound peers no longer freezes the
   Android engine; teardown closes the inbound event queue before joining.

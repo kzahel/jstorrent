@@ -453,7 +453,8 @@ internal fun LibraryScreen(
 
     if (addOpen) {
         AddTorrentDialog(
-            enabled = state.ready && state.storageRootReady,
+            // Adds made before a usable folder exists wait in the intake dialog.
+            enabled = state.ready,
             onDismiss = { addOpen = false },
             onAddMagnet = { magnet, chooseFiles ->
                 onAddMagnet(magnet, chooseFiles)
@@ -921,13 +922,6 @@ internal fun AddTorrentDialog(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.action_browse_torrent))
-                }
-                if (!enabled) {
-                    Text(
-                        stringResource(R.string.add_folder_required),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
                 }
             }
         },
