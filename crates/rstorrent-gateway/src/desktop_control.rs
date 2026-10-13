@@ -502,14 +502,13 @@ mod tests {
         let metrics = server.metrics();
         let cancel = CancellationToken::new();
         let task = tokio::spawn(server.serve(cancel.clone()));
-        let request = || {
+        let request = |origin: &str| {
             let mut request = format!("ws://{address}/api/v1/connect")
                 .into_client_request()
                 .unwrap();
-            request.headers_mut().insert(
-                "Origin",
-                chromeos_companion::BETA_EXTENSION_ORIGIN.parse().unwrap(),
-            );
+            request
+                .headers_mut()
+                .insert("Origin", origin.parse().unwrap());
             request
         };
         for (header, value) in [
@@ -520,7 +519,7 @@ mod tests {
             ),
             ("Host", "localhost:1234"),
         ] {
-            let mut bad = request();
+            let mut bad = request(chromeos_companion::PRODUCTION_EXTENSION_ORIGIN);
             bad.headers_mut().insert(header, value.parse().unwrap());
             assert!(connect_async(bad).await.is_err());
         }
@@ -568,7 +567,9 @@ mod tests {
             .unwrap();
         assert!(String::from_utf8_lossy(&refusal[..size]).contains("431"));
         let hello = |credential: &str, id: usize| json!({"type":"connect", "api_version":1, "encoding":"json", "client_instance_id":format!("{id:032x}"), "token":credential});
-        let (mut bad, _) = connect_async(request()).await.unwrap();
+        let (mut bad, _) = connect_async(request(chromeos_companion::PRODUCTION_EXTENSION_ORIGIN))
+            .await
+            .unwrap();
         bad.send(Message::Text(hello("wrong", 1).to_string().into()))
             .await
             .unwrap();
@@ -578,7 +579,12 @@ mod tests {
         drop(bad);
         let mut clients = Vec::new();
         for id in 1..=4 {
-            let (mut client, _) = connect_async(request()).await.unwrap();
+            let origin = if id % 2 == 0 {
+                chromeos_companion::BETA_EXTENSION_ORIGIN
+            } else {
+                chromeos_companion::PRODUCTION_EXTENSION_ORIGIN
+            };
+            let (mut client, _) = connect_async(request(origin)).await.unwrap();
             client
                 .send(Message::Text(hello(&token, id).to_string().into()))
                 .await
@@ -607,7 +613,11 @@ mod tests {
             assert_eq!(frame["type"], "result", "{frame}");
             clients.push(client);
         }
-        assert!(connect_async(request()).await.is_err());
+        assert!(
+            connect_async(request(chromeos_companion::PRODUCTION_EXTENSION_ORIGIN))
+                .await
+                .is_err()
+        );
         let _idle_at_quit = tokio::net::TcpStream::connect(address).await.unwrap();
         cancel.cancel();
         // Drain close frames so cooperative writer shutdown is exercised.

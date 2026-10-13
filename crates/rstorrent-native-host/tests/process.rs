@@ -60,6 +60,50 @@ fn malformed_process_input_never_contaminates_stdout() {
 }
 
 #[test]
+fn product_origins_can_attach_without_launching_a_stopped_desktop() {
+    let owned = tempfile::tempdir().unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(owned.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    let suffix = if cfg!(windows) { ".exe" } else { "" };
+    let executable = owned.path().join(format!("host{suffix}"));
+    std::fs::copy(env!("CARGO_BIN_EXE_rstorrent-native-host"), &executable).unwrap();
+    for origin in [
+        rstorrent_native_host::control::PRODUCTION_ORIGIN,
+        rstorrent_native_host::control::BETA_ORIGIN,
+    ] {
+        let mut child = Command::new(&executable)
+            .arg(origin)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(&framed(
+                r#"{"id":"passive-attach","protocolVersion":1,"op":"attach_control"}"#,
+            ))
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(output.status.success());
+        let frames = decode_frames(&output.stdout).unwrap();
+        assert_eq!(frames.len(), 1);
+        assert_eq!(frames[0]["error"]["code"], "control_unavailable");
+        assert_eq!(
+            frames[0]["error"]["message"],
+            "Desktop is stopped. Select Start to open it."
+        );
+        // Passive attach neither consults a launch config nor creates files.
+        assert_eq!(std::fs::read_dir(owned.path()).unwrap().count(), 1);
+    }
+}
+
+#[test]
 fn retired_host_never_reads_launch_configuration_or_returns_authority() {
     let owned = tempfile::tempdir().unwrap();
     let suffix = if cfg!(windows) { ".exe" } else { "" };

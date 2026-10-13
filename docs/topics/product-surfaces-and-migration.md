@@ -1,5 +1,13 @@
 # Product Surfaces And JSTorrent Migration
 
+Tactical [336](../tactical/336-production-desktop-extension-control.md) repairs
+production desktop-extension admission. Released desktop 0.3.0/0.3.1 retain
+a native helper guard allowing only the beta ID, although registration and
+authenticated WebSocket admission already allow production. The source repair
+and an unpacked production 1.1.4/macOS candidate pass local launch/lifecycle
+qualification. A corrected signed desktop update is still required; retrying
+or reinstalling the unchanged extension cannot repair the released helper.
+
 Tactical [330](../tactical/330-android-1-0-31-production-release.md) submits
 Android 1.0.31/code 31 for production at 100%, automatically publishing after
 approval. Exact tagged signed APK/AAB checks and source Android/SAF integration

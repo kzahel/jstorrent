@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [336 — Production desktop extension control](336-production-desktop-extension-control.md):
+  exact production/beta bootstrap admission and real unpacked macOS lifecycle
+  qualification; signed desktop delivery remains separate.
+
 - [335 — Removal Pieces and disconnect lifetime](335-removal-pieces-and-disconnect-lifetime.md):
   valid empty Pieces snapshots and joined accepted removal through WebSocket close.
 

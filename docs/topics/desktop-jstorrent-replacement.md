@@ -1,5 +1,14 @@
 # Desktop JSTorrent Replacement
 
+Tactical [336](../tactical/336-production-desktop-extension-control.md) fixes
+the beta-only native start/attach guard retained by desktop 0.3.0 and 0.3.1.
+An unpacked production-ID 1.1.4 extension controls an isolated real macOS 0.3.1
+candidate: background cold launch, twelve-start singleton, explicit native
+window, reload/detach, graceful Quit and manual restart pass. The installed
+shipping bundle/library and inherited browser registrations are preserved.
+This is local debug qualification; installed users require a corrected desktop
+release. No store extension change or protocol bump is required for the repair.
+
 Separate071 now qualifies exact signedff632 Linux x64 normal HTTPS updating from
 released0.2.1: ten checks/six refusals, four-record native Quit/reopen, preserved
 payload/source and persisted disclosure opt-out. Scoped restoration, VM-off/

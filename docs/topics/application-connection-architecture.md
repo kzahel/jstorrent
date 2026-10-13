@@ -1,5 +1,15 @@
 # Application Connection Architecture
 
+Tactical [336](../tactical/336-production-desktop-extension-control.md) repairs
+desktop native bootstrap admission for the exact production extension origin.
+The helper previously advertised control but accepted start/attach only from
+the beta ID, producing misleading version guidance for production 1.1.4.
+Both reviewed IDs now reach the existing same-user bootstrap and authenticated
+WebSocket; lookalikes remain refused and attach remains passive. A real macOS
+candidate with the unpacked production extension passes cold/warm launch,
+singleton, native-window, reload/detach and Quit/manual-restart checks through
+Machine Control. Signed delivery to installed desktop releases remains open.
+
 Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
 keeps executing `RemoveTorrent` and `CancelPendingAdd` calls joined through
 browser disconnection. Calls waiting for response reservations or service entry

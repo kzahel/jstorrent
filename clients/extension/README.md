@@ -8,11 +8,11 @@ First-use privacy disclosure remains visible; returning users can expand
 Privacy & feedback. Metrics policy, permissions and connection ownership do
 not change.
 
-The manifest still pins the separate incubation store item below, and desktop
-control still uses `com.jstorrent.rstorrent.native`. The production cutover will
-update the existing JSTorrent Web Store item, with identity/origin and signed
-native update qualification in a separate slice. The archive name retains its
-`jstorrent-beta-` prefix to identify this staging delivery lane.
+The base manifest retains the isolated beta identity for testing.
+`manifest.jstorrent.json` supplies the existing production Web Store identity
+and version for `npm run package:jstorrent`. Desktop control uses the bounded
+`com.jstorrent.rstorrent.native` helper. Retained beta archives are test/legacy
+compatibility, not a second publication lane.
 
 This Manifest V3 extension retains the bounded desktop and Crostini bootstrap
 surfaces from Tactical
@@ -28,8 +28,8 @@ adds an explicit ChromeOS Android connection. The extension packages the
 shared React product application, pairs with the successor Android foreground
 service, and uses only the typed application WebSocket plus the authenticated
 SAF folder-picker capability. The engine, profile, payload IO, hashing, and SAF
-grants stay in Android. The extension does not run remote code or replace the
-current production JSTorrent extension.
+grants stay in Android. The extension packages its own UI and runs no remote
+code. Production packages retain the existing JSTorrent store item.
 
 The popup is platform-aware. Desktop Chrome opens the shared torrent library;
 ChromeOS presents Android connection and the optional separate Linux preview.
@@ -42,11 +42,35 @@ prove that a production successor APK has shipped.
 ```bash
 npm test --prefix clients/extension
 npm run package --prefix clients/extension
+npm run package:jstorrent --prefix clients/extension
 ```
 
 The package command validates the reviewed file allowlist and writes
 `target/extension/jstorrent-beta-<version>.zip`. The ZIP deliberately excludes
 this README, store notes, scripts, dependencies, build output, and secrets.
+The production command writes `target/extension/jstorrent-<version>.zip`.
+Extract the selected ZIP to load it unpacked; loading the source directory
+alone does not include the built companion UI or the production overlay.
+
+## Local Desktop Production-ID Rehearsal
+
+Tactical [336](../../docs/tactical/336-production-desktop-extension-control.md)
+repairs the native helper's beta-only desktop-control guard. Released desktop
+0.3.0/0.3.1 need a corrected desktop build; an extension reload cannot fix that
+installed helper.
+
+`scripts/verify-production-desktop-extension.mjs` runs a headed Chrome for
+Testing with the unpacked production ID. It verifies cold/warm attachment,
+singleton launch, native window opening through Machine Control observation,
+reload/detach and explicit restart after graceful native Quit. Prepare a fresh,
+isolated macOS candidate with identifier `com.jstorrent.check`, its registered
+native helper, and a claimed/approved Machine Control host session first. Keep
+the bootstrap path short enough for macOS Unix sockets. Supply `--extension`,
+`--profile`, `--mc`, `--registry`, `--claim` and `--output`; the runner owns its
+test browser and terminates only that isolated candidate. Back up and restore
+inherited native-host registrations outside the runner, including the Chrome
+for Testing registration used by its separate browser. Never use a personal
+torrent library or replace the signed installed app for this rehearsal.
 
 ## Chrome Web Store Identity
 

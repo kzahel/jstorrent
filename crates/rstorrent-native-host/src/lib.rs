@@ -358,7 +358,7 @@ fn dispatch<L: DesktopLauncher>(
                 },
             },
         ),
-        "start_control" | "attach_control" if caller_origin == control::BETA_ORIGIN => {
+        "start_control" | "attach_control" if control::origin_allowed(caller_origin) => {
             match launcher.control(request.op == "start_control") {
                 Ok(ready) => Response::success(&request.id, ResultBody::Ready { ready }),
                 Err(message) => Response::error(&request.id, "control_unavailable", message),
@@ -514,7 +514,7 @@ mod tests {
     }
 
     #[test]
-    fn control_requires_exact_beta_origin_and_preserves_launch_intent() {
+    fn control_requires_exact_product_origins_and_preserves_launch_intent() {
         #[derive(Default)]
         struct ControlLauncher(Vec<bool>);
         impl DesktopLauncher for ControlLauncher {
@@ -536,15 +536,24 @@ mod tests {
             let request = framed(&format!(
                 r#"{{"id":"control","protocolVersion":1,"op":"{operation}"}}"#
             ));
-            let denied = exchange(&request, Some(ORIGIN), &mut launcher);
-            assert_eq!(denied["ok"], false);
-            assert!(launcher.0.is_empty());
-            let ready = exchange(&request, Some(control::BETA_ORIGIN), &mut launcher);
-            assert_eq!(ready["ok"], true);
-            assert_eq!(ready["result"]["kind"], "ready");
-            assert_eq!(ready["result"]["profileId"], "default");
-            assert_eq!(launcher.0, [starts]);
-            launcher.0.clear();
+            for origin in [
+                "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/",
+                "chrome-extension://dbokmlpefliilbjldladbimlcfgbolhk.attacker/",
+                "chrome-extension://dbokmlpefliilbjldladbimlcfgbolhk",
+                "chrome-extension://gcgoepclopkgijmclmlheafaglmbjlcc/extra",
+            ] {
+                let denied = exchange(&request, Some(origin), &mut launcher);
+                assert_eq!(denied["ok"], false, "{origin}");
+                assert!(launcher.0.is_empty());
+            }
+            for origin in [control::PRODUCTION_ORIGIN, control::BETA_ORIGIN] {
+                let ready = exchange(&request, Some(origin), &mut launcher);
+                assert_eq!(ready["ok"], true, "{origin}");
+                assert_eq!(ready["result"]["kind"], "ready");
+                assert_eq!(ready["result"]["profileId"], "default");
+                assert_eq!(launcher.0, [starts]);
+                launcher.0.clear();
+            }
         }
     }
 

@@ -12,6 +12,11 @@ pub use windows::{BootstrapServer, read_ready};
 pub const BACKGROUND_ARGUMENT: &str = "--extension-background";
 pub const SOCKET_NAME: &str = "desktop-control-v1.sock";
 pub const BETA_ORIGIN: &str = "chrome-extension://gcgoepclopkgijmclmlheafaglmbjlcc/";
+pub const PRODUCTION_ORIGIN: &str = "chrome-extension://dbokmlpefliilbjldladbimlcfgbolhk/";
+
+pub fn origin_allowed(origin: &str) -> bool {
+    matches!(origin, BETA_ORIGIN | PRODUCTION_ORIGIN)
+}
 pub const MAX_READY_BYTES: usize = 4096;
 
 // Deliberately no Debug: credential material must never enter logs.
