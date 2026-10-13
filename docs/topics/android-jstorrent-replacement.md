@@ -54,8 +54,9 @@ durable; selection, cancellation, storage repair and duplicate authority remain
 owned by the existing application. Source/local validation and generated build
 evidence are recorded in the tactical; store delivery is separate.
 Tactical [328](../tactical/328-android-add-before-download-folder.md) lets
-in-app adds made before a usable download folder exists wait in that same
-confirmation, which asks for the folder first instead of rejecting the add.
+in-app adds made before a usable download folder exists wait in the intake
+dialog, which asks for the folder and then continues the add with its
+original choice instead of rejecting it.
 
 Finish-line059 prepares1.0.28/code28 containing Tactical292's paused-intent
 Repair correction. Exact debug/API35 normal paused/running repair, source-offline

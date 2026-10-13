@@ -26,18 +26,28 @@ once the folder became ready.
   is `Select folder` (or `Repair folder` for an unavailable folder), and
   `Cancel` drops the item. It no longer shows a disabled `Download all` or
   `Download folder: Download folder`.
-- After the folder is chosen the dialog becomes the ordinary Add torrent
-  confirmation with Download all and Choose files. The choice made in the Add
-  dialog before the folder existed is not carried over; the user chooses
-  again in the confirmation.
+- After the folder is chosen a held in-app add submits on its own with the
+  choice it was made with (Download all, Choose files, or the file selection
+  setting for test torrents and Browse), so the user sees exactly what the
+  same add shows with a folder ready, such as file selection. A first version
+  returned to the external Add torrent confirmation instead; on the device
+  that read as a different dialog from an ordinary add and was replaced.
+- A held add reports like other in-app adds: no `Torrent added.` snackbar,
+  and a match already in the session uses the Tactical `318` notice.
+- External items keep their explicit confirmation after a folder is chosen.
 - The Add dialog no longer requires a ready folder, only a ready engine.
 
 ## Scope
 
 - `ProductEngineService.holdForStorageRoot` admits magnets and in-app picked
-  `.torrent` URIs. A picked document goes through the existing metadata
-  admission with `pickedInApp` eligibility so its display name is shown; the
-  metainfo parser still decides validity.
+  `.torrent` URIs as `heldInApp` records carrying `awaitFileSelection`.
+  `ExternalIntakeController.takeHeldSubmission` starts the current held
+  record once the root is ready; the service calls it after admission,
+  metadata admission, root changes, cancellation and each submission, so a
+  batch submits in order. A held record being submitted is not presented.
+  A picked document goes through the existing metadata admission with
+  `pickedInApp` eligibility so its display name is shown in the folder
+  dialog; the metainfo parser still decides validity.
 - Adds that cannot be represented by an intake record keep the existing
   rejection: `startContent = false`, explicit `skipFiles`, debug byte adds,
   and sources over the 16 KiB intake limit.
@@ -46,26 +56,26 @@ once the folder became ready.
 - Strings: `intake_folder_required` reworded, `intake_folder_repair_required`
   added, unused `add_folder_required` removed.
 
-Non-goals: carrying the pre-folder Download all/Choose files choice through
-the intake; a magnet display name (Kotlin does not parse BEP fields, per
+Non-goals: a magnet display name (Kotlin does not parse BEP fields, per
 Tactical `197`); persisting held adds across process death; engine, command
 or generated-contract changes; web, desktop and iOS.
 
 ## Validation
 
-- `./gradlew lintDebug testDebugUnitTest assembleDebugAndroidTest` passes.
+- `./gradlew lintDebug testDebugUnitTest assembleDebugAndroidTest` passes,
+  including `heldInAppAddSubmitsWithItsChoiceOnceTheRootIsReady`.
   `ProductNavigationTest.externalTorrentWaitsForRootAndOffersCancel` now
   asserts the call-to-action text and the absence of Download all; it was
   compiled, not run, because no owned emulator was available.
 - `node scripts/check-localization.mjs` passes.
 - Pixel 9 (`org.rstorrent.bootstrap`, empty root registry): the Add dialog
   enabled Browse without a folder; `Add test: Big Buck Bunny` opened the
-  folder dialog; Select folder → system picker → Allow turned it into the Add
-  torrent confirmation with `Download folder: Jstorrent`; Choose files
-  submitted it (`external_intake ... phase=success disposition=added`) and
-  opened Big Buck Bunny file selection.
+  folder dialog (`external_intake ... phase=awaiting_root`); Select folder →
+  system picker → Allow submitted it without another prompt
+  (`phase=success disposition=added`) and opened Big Buck Bunny file
+  selection with `Download folder: Jstorrent`.
 
 ## Stopping condition
 
 Stop when in-app adds without a folder reach the folder dialog, a chosen
-folder turns it into the ordinary confirmation, and the checks above pass.
+folder continues them as an ordinary add, and the checks above pass.

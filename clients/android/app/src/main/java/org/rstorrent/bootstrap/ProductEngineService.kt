@@ -785,12 +785,16 @@ class ProductEngineService : Service() {
         source: ExternalIntakeSource,
         hint: ExternalContentHint?,
         started: Long,
+        heldInApp: Boolean = false,
+        awaitFileSelection: Boolean? = null,
     ) {
         val result =
             externalIntakeController.receive(
                 source,
                 needsMetadataValidation = hint != null,
                 rootReady = currentSafRootForAdd() != null,
+                heldInApp = heldInApp,
+                awaitFileSelection = awaitFileSelection,
             )
         val intakeId = result.intakeId
         when (result.disposition) {
@@ -811,6 +815,7 @@ class ProductEngineService : Service() {
                     } else {
                         logExternalIntake(intakeId, source.kind, "awaiting_root", "no_root")
                     }
+                    submitHeldAddLocked()
                 } else {
                     scheduleExternalAdmissionLocked()
                 }
@@ -840,12 +845,14 @@ class ProductEngineService : Service() {
 
     /**
      * Queues in-app adds made before a usable download folder exists. The
-     * intake dialog asks for the folder, then presents each add as usual.
+     * intake dialog asks for the folder; each add then submits with
+     * [awaitFileSelection] as if it had been made with the folder ready.
      * Returns false when a source cannot be held, leaving the caller to report.
      */
     private fun holdForStorageRoot(
         kind: ExternalIntakeKind,
         values: List<String>,
+        awaitFileSelection: Boolean,
     ): Boolean {
         val sources =
             values.map {
@@ -861,10 +868,27 @@ class ProductEngineService : Service() {
         scope.launch {
             val started = SystemClock.elapsedRealtime()
             externalIntakeMutation.withLock {
-                for (source in sources) admitExternalSource(source, hint, started)
+                for (source in sources) {
+                    admitExternalSource(
+                        source,
+                        hint,
+                        started,
+                        heldInApp = true,
+                        awaitFileSelection = awaitFileSelection,
+                    )
+                }
             }
         }
         return true
+    }
+
+    private fun submitHeldAddLocked() {
+        if (externalSubmissionJob?.isActive == true) return
+        val work =
+            externalIntakeController.takeHeldSubmission(currentSafRootForAdd() != null)
+                ?: return
+        publishExternalSnapshot()
+        scheduleExternalSubmissionLocked(work)
     }
 
     private fun rejectExternalIntent(
@@ -941,6 +965,7 @@ class ProductEngineService : Service() {
                             }
                         }
                         publishExternalSnapshot()
+                        submitHeldAddLocked()
                     }
                 }
             }
@@ -1098,6 +1123,7 @@ class ProductEngineService : Service() {
                     externalSubmissionJob
                 }
             submission?.cancelAndJoin()
+            externalIntakeMutation.withLock { submitHeldAddLocked() }
             logExternalIntake(intakeId, null, "cancelled", "user")
         }
     }
@@ -1198,12 +1224,14 @@ class ProductEngineService : Service() {
                                 currentSafRootForAdd() != null,
                             )
                         ) {
+                            // A held in-app add reports like any other in-app add.
                             if (
                                 notice == ExternalIntakeNoticeKind.ALREADY_PRESENT &&
-                                mutableState.value.torrents[result.torrentId]?.archived == true
+                                (work.heldInApp ||
+                                    mutableState.value.torrents[result.torrentId]?.archived == true)
                             ) {
                                 publishAlreadyPresent(listOf(result.torrentId), work.startContent)
-                            } else {
+                            } else if (!(work.heldInApp && notice == ExternalIntakeNoticeKind.ADDED)) {
                                 publishExternalNotice(notice)
                             }
                             publishExternalSnapshot()
@@ -1276,6 +1304,7 @@ class ProductEngineService : Service() {
                     externalCancellationSignal = null
                     externalIntakeMutation.withLock {
                         externalSubmissionJob = null
+                        submitHeldAddLocked()
                     }
                 }
             }
@@ -1363,7 +1392,11 @@ class ProductEngineService : Service() {
         if (storageRoot == null) {
             val held =
                 startContent && skipFiles.isEmpty() &&
-                    holdForStorageRoot(ExternalIntakeKind.MAGNET, magnets)
+                    holdForStorageRoot(
+                        ExternalIntakeKind.MAGNET,
+                        magnets,
+                        awaitFileSelection = awaitFileSelection && !downloadAll,
+                    )
             if (!held) {
                 mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
             }
@@ -1434,7 +1467,11 @@ class ProductEngineService : Service() {
         if (storageRoot == null) {
             val held =
                 startContent &&
-                    holdForStorageRoot(ExternalIntakeKind.TORRENT_FILE, listOf(uri.toString()))
+                    holdForStorageRoot(
+                        ExternalIntakeKind.TORRENT_FILE,
+                        listOf(uri.toString()),
+                        awaitFileSelection,
+                    )
             if (!held) {
                 mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
             }
@@ -2669,6 +2706,7 @@ class ProductEngineService : Service() {
             externalIntakeMutation.withLock {
                 externalIntakeController.rootAvailabilityChanged(ready)
                 publishExternalSnapshot()
+                submitHeldAddLocked()
             }
         }
     }
