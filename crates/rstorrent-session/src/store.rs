@@ -1019,6 +1019,56 @@ impl SessionStore {
         Ok(revision)
     }
 
+    /// Stops using a platform root. When it is the default, `replacement`
+    /// becomes the default, or none. The catalog row is deleted only when no
+    /// torrent references it; otherwise it stays so those torrents can be
+    /// repaired. Returns whether the row was deleted.
+    pub fn detach_platform_storage_root(
+        &mut self,
+        root_id: &str,
+        replacement: Option<&str>,
+    ) -> Result<bool, StoreError> {
+        let kind = self
+            .connection
+            .query_row(
+                "SELECT kind FROM storage_roots WHERE root_id = ?1",
+                [root_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .ok_or_else(|| {
+                StoreError::Configuration(format!("storage root {root_id} is not configured"))
+            })?;
+        if kind != "platform" {
+            return Err(StoreError::Configuration(format!(
+                "storage root {root_id} is not a platform capability"
+            )));
+        }
+        if replacement == Some(root_id) {
+            return Err(StoreError::Configuration(
+                "a detached storage root cannot replace itself".to_owned(),
+            ));
+        }
+        let transaction = self.connection.transaction()?;
+        increment_revision(&transaction)?;
+        transaction.execute(
+            "UPDATE storage_settings SET default_root = ?2
+             WHERE singleton = 1 AND default_root = ?1",
+            params![root_id, replacement],
+        )?;
+        let references: i64 = transaction.query_row(
+            "SELECT COUNT(*) FROM torrents WHERE storage_root = ?1",
+            [root_id],
+            |row| row.get(0),
+        )?;
+        let removed = references == 0;
+        if removed {
+            transaction.execute("DELETE FROM storage_roots WHERE root_id = ?1", [root_id])?;
+        }
+        transaction.commit()?;
+        Ok(removed)
+    }
+
     pub fn repair_path_storage_root(
         &mut self,
         root_id: &str,

@@ -666,7 +666,10 @@ private fun TorrentCard(
                 ) {
                     Text(
                         torrent.downloadQueuePosition
-                            ?.takeUnless { torrent.archived || torrent.removalState != null }
+                            ?.takeUnless {
+                                torrent.archived || torrent.removalState != null ||
+                                    torrent.waitingForStorage()
+                            }
                             ?.let {
                                 stringResource(
                                     R.string.library_queue_position,

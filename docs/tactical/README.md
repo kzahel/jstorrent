@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [329 — Android remove download folder](329-android-remove-download-folder.md):
+  any folder can be removed; its torrents stop safely and wait for repair,
+  files are kept unless the Delete data option is chosen.
+
 - [328 — Android add before download folder](328-android-add-before-download-folder.md):
   in-app adds without a folder wait in the intake dialog, which asks for the
   folder and then continues the add as if the folder had been ready.

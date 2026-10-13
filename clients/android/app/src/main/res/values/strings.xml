@@ -138,6 +138,18 @@
         <item quantity="one">%1$d selected</item>
         <item quantity="other">%1$d selected</item>
     </plurals>
+    <plurals name="remove_folder_torrents">
+        <item quantity="one">%1$d torrent uses this folder.</item>
+        <item quantity="other">%1$d torrents use this folder.</item>
+    </plurals>
+    <plurals name="remove_folder_torrents_wait">
+        <item quantity="one">It stops until you choose this folder again.</item>
+        <item quantity="other">They stop until you choose this folder again.</item>
+    </plurals>
+    <plurals name="remove_folder_archived">
+        <item quantity="one">Including %1$d archived torrent.</item>
+        <item quantity="other">Including %1$d archived torrents.</item>
+    </plurals>
     <plurals name="add_already_present_count">
         <item quantity="one">Torrent already present.</item>
         <item quantity="other">%1$d torrents already present.</item>
@@ -292,10 +304,14 @@
         <item quantity="other">Remove %1$d torrents?</item>
     </plurals>
     <string name="remove_torrent_detail">Choose whether JSTorrent should keep or delete its managed downloaded data.</string>
-    <string name="remove_folder_title">Forget %1$s?</string>
-    <string name="remove_folder_detail">JSTorrent will release access to this folder. Existing files are not deleted.</string>
-    <string name="forget_folder_action">Forget %1$s</string>
-    <string name="forget_folder_detail">Release Android access without deleting downloaded files.</string>
+    <string name="remove_folder_title">Remove %1$s?</string>
+    <string name="remove_folder_detail">JSTorrent will release access to this folder. Files in it are not deleted.</string>
+    <string name="remove_folder_delete_scope">The downloaded files of these torrents will be deleted. Other files in the folder are kept.</string>
+    <string name="remove_folder_delete_files">Also remove these torrents and delete their downloaded files</string>
+    <string name="remove_folder_next_current">New downloads will go to %1$s.</string>
+    <string name="remove_folder_no_current">You will choose a download folder before your next download.</string>
+    <string name="forget_folder_action">Remove %1$s</string>
+    <string name="forget_folder_detail">Stop using this folder. Files are not deleted.</string>
 
     <!-- Notification channels and notification copy. -->
     <string name="notification_setting_save_failed">Notification setting could not be saved.</string>
@@ -549,6 +565,7 @@
     <string name="state_seeding">Seeding</string>
     <string name="state_paused">Paused</string>
     <string name="state_archived">Archived</string>
+    <string name="state_folder_unavailable">Folder unavailable</string>
     <string name="state_removing">Removing…</string>
     <string name="state_removal_failed">Removal failed</string>
     <string name="state_error">Error</string>

@@ -235,6 +235,16 @@ object ProductSafDocuments {
             it.uri == treeUri && it.isReadPermission && it.isWritePermission
         }
 
+    /** Releases a tree grant whose registry identity is kept for repair. */
+    internal fun releaseGrant(
+        context: Context,
+        treeUri: Uri,
+    ): Boolean {
+        if (!hasGrant(context, treeUri)) return false
+        context.contentResolver.releasePersistableUriPermission(treeUri, GRANT_FLAGS)
+        return true
+    }
+
     internal fun releaseGrantIfUnregistered(
         context: Context,
         treeUri: Uri,

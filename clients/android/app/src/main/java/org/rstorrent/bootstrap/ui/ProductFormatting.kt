@@ -10,6 +10,7 @@ import java.util.Locale
 import kotlin.math.max
 import org.rstorrent.bootstrap.R
 import org.rstorrent.session.uniffi.ClientSettingsApplicationState
+import org.rstorrent.session.uniffi.ProgressReason
 import org.rstorrent.session.uniffi.RemovalState
 import org.rstorrent.session.uniffi.SeedAdmissionView
 import org.rstorrent.session.uniffi.SeedGoalView
@@ -141,12 +142,17 @@ internal fun operationalLabel(state: TorrentOperationalState): String =
  * Removal outranks every other state because the torrent is going away.
  * Archived torrents are paused and inactive; show that instead of the paused state.
  */
+/** Its download folder is missing, removed or lost its Android access. */
+internal fun TorrentView.waitingForStorage(): Boolean =
+    progress.reason == ProgressReason.WAITING_FOR_STORAGE
+
 @Composable
 internal fun torrentStatusLabel(torrent: TorrentView): String =
     when {
         torrent.removalActive -> stringResource(R.string.state_removing)
         torrent.removalState == RemovalState.FAILED -> stringResource(R.string.state_removal_failed)
         torrent.archived -> stringResource(R.string.state_archived)
+        torrent.waitingForStorage() -> stringResource(R.string.state_folder_unavailable)
         else -> operationalLabel(torrent.operationalState)
     }
 

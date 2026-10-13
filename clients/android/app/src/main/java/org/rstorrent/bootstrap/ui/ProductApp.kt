@@ -794,6 +794,7 @@ private fun ProductNavHost(
     val undoLabel = stringResource(R.string.action_undo)
     var removeTargets by remember { mutableStateOf(emptySet<String>()) }
     var removeStorageRoot by remember { mutableStateOf<String?>(null) }
+    var deleteFolderData by remember { mutableStateOf(false) }
     var confirmKeepSeeding by remember { mutableStateOf(false) }
     var confirmResetEngine by remember { mutableStateOf(false) }
     var confirmClearAllData by remember { mutableStateOf(false) }
@@ -1036,7 +1037,6 @@ private fun ProductNavHost(
                 )
                 state.storage?.roots.orEmpty().forEach { root ->
                     val isCurrent = root.rootId == state.storage?.defaultRoot
-                    val isReferenced = state.torrents.values.any { it.storageRoot == root.rootId }
                     val title =
                         if (isCurrent) {
                             stringResource(R.string.storage_current_suffix, root.label)
@@ -1071,14 +1071,12 @@ private fun ProductNavHost(
                     } else {
                         ReadOnlySettingsRow(title, detail)
                     }
-                    if (!isCurrent && !isReferenced) {
-                        SettingAction(
-                            title = stringResource(R.string.forget_folder_action, root.label),
-                            detail = stringResource(R.string.forget_folder_detail),
-                            onClick = { removeStorageRoot = root.rootId },
-                            action = stringResource(R.string.action_remove),
-                        )
-                    }
+                    SettingAction(
+                        title = stringResource(R.string.forget_folder_action, root.label),
+                        detail = stringResource(R.string.forget_folder_detail),
+                        onClick = { removeStorageRoot = root.rootId },
+                        action = stringResource(R.string.action_remove),
+                    )
                 }
             }
         }
@@ -1687,27 +1685,97 @@ private fun ProductNavHost(
         )
     }
     removeStorageRoot?.let { rootId ->
-        val label = state.storage?.roots?.singleOrNull { it.rootId == rootId }?.label ?: rootId
+        val roots = state.storage?.roots.orEmpty()
+        val label = roots.singleOrNull { it.rootId == rootId }?.label ?: rootId
+        val using = state.torrents.values.filter { it.storageRoot == rootId }
+        val archived = using.count { it.archived }
+        // The engine makes the first other available folder current.
+        val replacement =
+            roots
+                .filter { it.rootId != rootId && it.availability == StorageRootAvailability.AVAILABLE }
+                .minByOrNull { it.rootId }
+                ?.takeIf { state.storage?.defaultRoot == rootId }
+        val isCurrent = state.storage?.defaultRoot == rootId
         AlertDialog(
             onDismissRequest = { removeStorageRoot = null },
             title = { Text(stringResource(R.string.remove_folder_title, label)) },
             text = {
-                Text(
-                    stringResource(R.string.remove_folder_detail),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (using.isNotEmpty()) {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.remove_folder_torrents,
+                                using.size,
+                                using.size,
+                            ),
+                        )
+                        if (!deleteFolderData) {
+                            Text(pluralStringResource(R.plurals.remove_folder_torrents_wait, using.size))
+                        }
+                        if (archived > 0) {
+                            Text(
+                                pluralStringResource(
+                                    R.plurals.remove_folder_archived,
+                                    archived,
+                                    archived,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                    if (isCurrent) {
+                        Text(
+                            if (replacement != null) {
+                                stringResource(R.string.remove_folder_next_current, replacement.label)
+                            } else {
+                                stringResource(R.string.remove_folder_no_current)
+                            },
+                        )
+                    }
+                    Text(
+                        stringResource(
+                            if (deleteFolderData) {
+                                R.string.remove_folder_delete_scope
+                            } else {
+                                R.string.remove_folder_detail
+                            },
+                        ),
+                    )
+                    if (using.isNotEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .clickable { deleteFolderData = !deleteFolderData }
+                                    .semantics(mergeDescendants = true) { role = Role.Checkbox },
+                        ) {
+                            Checkbox(
+                                checked = deleteFolderData,
+                                onCheckedChange = { deleteFolderData = it },
+                            )
+                            Text(stringResource(R.string.remove_folder_delete_files))
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        service?.removeSafRoot(rootId)
+                        service?.removeSafRoot(rootId, deleteData = deleteFolderData && using.isNotEmpty())
                         removeStorageRoot = null
+                        deleteFolderData = false
                     },
                 ) {
                     Text(stringResource(R.string.action_remove))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { removeStorageRoot = null }) {
+                TextButton(
+                    onClick = {
+                        removeStorageRoot = null
+                        deleteFolderData = false
+                    },
+                ) {
                     Text(stringResource(R.string.action_cancel))
                 }
             },

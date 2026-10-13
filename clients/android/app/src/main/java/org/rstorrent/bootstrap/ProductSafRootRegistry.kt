@@ -20,6 +20,9 @@ internal enum class ProductSafRootOperationKind {
     REPAIR,
     SET_DEFAULT,
     REMOVE,
+    // Stops using a root. The engine keeps a root torrents still use, so the
+    // registry keeps its identity for repair and only the grant is released.
+    DETACH,
 }
 
 internal data class ProductSafRootOperation(
@@ -333,6 +336,49 @@ internal object ProductSafRootRegistry {
     }
 
     @Synchronized
+    fun beginDetach(
+        context: Context,
+        rootId: String,
+    ): ProductSafRootOperation {
+        val state = load(context)
+        check(state.pending == null) { "another SAF root operation is pending" }
+        val root = requireNotNull(state.roots.singleOrNull { it.rootId == rootId }) {
+            "SAF root is not registered"
+        }
+        val operation =
+            ProductSafRootOperation(
+                kind = ProductSafRootOperationKind.DETACH,
+                rootId = root.rootId,
+                label = root.label,
+                treeUri = root.treeUri,
+                makeDefault = false,
+                previous = root,
+            )
+        persist(context, state.copy(pending = operation))
+        return operation
+    }
+
+    /** Completes a detach, dropping the root's identity only when [removed]. */
+    @Synchronized
+    fun completeDetach(
+        context: Context,
+        removed: Boolean,
+    ) {
+        val state = load(context)
+        val pending = requireNotNull(state.pending) { "no SAF operation is pending" }
+        check(pending.kind == ProductSafRootOperationKind.DETACH) {
+            "pending SAF operation is not a detach"
+        }
+        persist(
+            context,
+            state.copy(
+                roots = if (removed) state.roots.filterNot { it.rootId == pending.rootId } else state.roots,
+                pending = null,
+            ),
+        )
+    }
+
+    @Synchronized
     fun completePending(context: Context) {
         val state = load(context)
         val retainedRoots =
@@ -408,7 +454,10 @@ internal object ProductSafRootRegistry {
     @Synchronized
     fun abandonPendingRemoval(context: Context) {
         val state = load(context)
-        check(state.pending?.kind == ProductSafRootOperationKind.REMOVE) {
+        check(
+            state.pending?.kind == ProductSafRootOperationKind.REMOVE ||
+                state.pending?.kind == ProductSafRootOperationKind.DETACH,
+        ) {
             "pending SAF operation is not a removal"
         }
         persist(context, state.copy(pending = null))

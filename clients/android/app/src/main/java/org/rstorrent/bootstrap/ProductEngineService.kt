@@ -497,9 +497,11 @@ class ProductEngineService : Service() {
                         "default",
                         "",
                         true,
-                        safRegistry.roots.map {
-                            AndroidPlatformStorageRoot(it.rootId, it.label)
-                        },
+                        // A root without a grant stays in the engine catalog;
+                        // configuring it would let the engine make it current.
+                        safRegistry.roots
+                            .filter { ProductSafDocuments.hasGrant(this@ProductEngineService, Uri.parse(it.treeUri)) }
+                            .map { AndroidPlatformStorageRoot(it.rootId, it.label) },
                         AndroidNetworkPolicy.ONLINE,
                         desiredNetworkPrerequisite(initialNetworkState),
                         15UL,
@@ -2473,24 +2475,24 @@ class ProductEngineService : Service() {
         }
     }
 
-    fun removeSafRoot(rootId: String) {
+    /**
+     * Stops using a download folder and releases Android's access to it. Files
+     * are kept unless [deleteData], which first removes the torrents using the
+     * folder with their data. Otherwise those torrents wait for the folder to
+     * be chosen again.
+     */
+    fun removeSafRoot(rootId: String, deleteData: Boolean = false) {
         if (rejectMutationDuringDataReset()) return
         scope.launch {
             try {
                 clientReady.await()
+                if (deleteData) removeRootTorrentsWithData(rootId)
                 safRootMutation.withLock {
-                    val storage = client.safStorageSnapshot()
-                    require(storage.defaultRoot != rootId) {
-                        "The current download folder cannot be removed"
-                    }
-                    require(storage.roots.any { it.rootId == rootId }) {
+                    require(client.safStorageSnapshot().roots.any { it.rootId == rootId }) {
                         "Download folder is not registered"
                     }
-                    require(mutableState.value.torrents.values.none { it.storageRoot == rootId }) {
-                        "Download folder is still used by a retained torrent"
-                    }
                     executeSafRootOperation(
-                        ProductSafRootRegistry.beginRemoval(
+                        ProductSafRootRegistry.beginDetach(
                             this@ProductEngineService,
                             rootId,
                         ),
@@ -2501,6 +2503,30 @@ class ProductEngineService : Service() {
             } catch (error: Throwable) {
                 reportError(error)
             }
+        }
+    }
+
+    private suspend fun removeRootTorrentsWithData(rootId: String) {
+        val torrentIds =
+            mutableState.value.torrents.values
+                .filter { it.storageRoot == rootId }
+                .map { it.torrentId }
+        if (torrentIds.isEmpty()) return
+        torrentCommandBatches.withLock {
+            torrentIds.forEach {
+                dispatchAwait(Command.RemoveTorrent(it, RemovalDataPolicy.DELETE_DATA))
+            }
+        }
+        val settled =
+            withTimeoutOrNull(ROOT_DATA_REMOVAL_TIMEOUT_MILLIS) {
+                mutableState.first { state ->
+                    torrentIds.none { it in state.torrents } ||
+                        torrentIds.any { state.torrents[it]?.removalState == RemovalState.FAILED }
+                }
+            } ?: error("Deleting this folder's downloads is taking too long")
+        // The folder keeps its access so a failed deletion can be retried.
+        check(torrentIds.none { it in settled.torrents }) {
+            "Some downloaded files could not be deleted"
         }
     }
 
@@ -2613,6 +2639,17 @@ class ProductEngineService : Service() {
                         dispatchAwait(Command.RemoveStorageRoot(operation.rootId))
                     }
                 }
+                ProductSafRootOperationKind.DETACH -> {
+                    // A replay after process death finds the root already gone.
+                    val removed =
+                        if (client.safStorageSnapshot().roots.any { it.rootId == operation.rootId }) {
+                            client.detachSafStorageRoot(operation.rootId).removed
+                        } else {
+                            true
+                        }
+                    ProductSafRootRegistry.completeDetach(this, removed)
+                    ProductSafDocuments.releaseGrant(this, Uri.parse(operation.treeUri))
+                }
             }
             nativeMutationComplete = true
             ProductSafRootRegistry.completePending(this)
@@ -2645,8 +2682,9 @@ class ProductEngineService : Service() {
                 }
                 ProductSafRootOperationKind.SET_DEFAULT ->
                     ProductSafRootRegistry.abandonPendingDefault(this)
-                ProductSafRootOperationKind.REMOVE ->
-                    ProductSafRootRegistry.abandonPendingRemoval(this)
+                ProductSafRootOperationKind.REMOVE,
+                ProductSafRootOperationKind.DETACH,
+                -> ProductSafRootRegistry.abandonPendingRemoval(this)
             }
             throw error
         }
@@ -5179,6 +5217,7 @@ class ProductEngineService : Service() {
         private const val EXTERNAL_PROVIDER_TIMEOUT_MILLIS = 30_000L
         private const val DATA_RESET_POLL_MILLIS = 50L
         private const val DATA_RESET_TORRENT_TIMEOUT_MILLIS = 120_000L
+        private const val ROOT_DATA_REMOVAL_TIMEOUT_MILLIS = 300_000L
         private const val SAF_PROVIDER_CONCURRENCY = 4
         private const val ANDROID_RATE_BYTES_PER_SECOND = 24 * 1024
         private const val PRODUCT_QUOTA_RESTART_DELAY_MILLIS = 3_000L

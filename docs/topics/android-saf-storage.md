@@ -443,6 +443,18 @@ locator. It invalidates every pool entry under the old capability before work
 resumes. Grant loss leaves torrents waiting for repair. It never silently
 falls back to application-private storage or another root.
 
+Tactical [`329`](../tactical/329-android-remove-download-folder.md) lets the
+user remove any folder. `ApplicationService::detach_platform_storage_root`
+stops the root's torrents (join active content, invalidate pooled
+descriptors, mark awaiting storage) before Android releases the grant, because
+an open descriptor survives URI permission release. A root torrents still use
+keeps its catalog row and registry identity for repair; an unused root is
+deleted. A removed current root is replaced by the first other available
+root, or none. Android passes only granted roots to the engine at launch, so
+the engine's first-configured-root default rule cannot re-select a removed or
+unavailable folder. File deletion is an explicit option that runs the
+ordinary Delete data removal for those torrents first.
+
 ## Failure And Security Invariants
 
 - All provider paths derive from bounded, validated metainfo components and a

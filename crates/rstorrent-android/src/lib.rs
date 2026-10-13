@@ -665,6 +665,25 @@ impl AndroidApplicationClient {
         })
     }
 
+    pub async fn detach_saf_storage_root(
+        &self,
+        root_id: String,
+    ) -> Result<SafStorageRootDetach, AndroidClientError> {
+        self.ensure_running()?;
+        let detach = self
+            .service
+            .lock()
+            .await
+            .detach_platform_storage_root(&root_id)
+            .await
+            .map_err(|error| AndroidClientError::message(error.to_string()))?;
+        Ok(SafStorageRootDetach {
+            removed: detach.removed,
+            affected_torrent_ids: detach.affected_torrent_ids,
+            default_root: detach.default_root,
+        })
+    }
+
     pub async fn mark_saf_unavailable(
         &self,
         torrent_id: String,
@@ -1338,6 +1357,14 @@ pub struct SafStorageRequest {
 pub struct SafStorageRootMutation {
     pub root: StorageRootSnapshot,
     pub restart_torrent_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct SafStorageRootDetach {
+    /// The root was deleted because no torrent used it.
+    pub removed: bool,
+    pub affected_torrent_ids: Vec<String>,
+    pub default_root: Option<String>,
 }
 
 #[derive(Clone, Debug, uniffi::Record)]

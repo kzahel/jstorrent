@@ -510,6 +510,16 @@ pub struct PlatformRemovalPlan {
     pub directories: Vec<PlatformRemovalPath>,
 }
 
+/// Result of stopping use of a platform storage root.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PlatformStorageDetach {
+    /// The catalog row was deleted because no torrent referenced it.
+    pub removed: bool,
+    /// Torrents bound to the root, now awaiting storage.
+    pub affected_torrent_ids: Vec<String>,
+    pub default_root: Option<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlatformFilePlan {
     pub torrent_id: String,
@@ -3152,6 +3162,82 @@ impl ApplicationService {
                 )
             })?;
         Ok((root, restarts))
+    }
+
+    /// Stops all torrent I/O under a platform root before the platform
+    /// releases its grant. Torrents bound to it keep their binding and verified
+    /// state and wait for the root to be repaired; an unreferenced root is
+    /// deleted. A current root is replaced by the first other available root.
+    pub async fn detach_platform_storage_root(
+        &mut self,
+        root_id: &str,
+    ) -> Result<PlatformStorageDetach, ApplicationError> {
+        self.reap_finished().await?;
+        if !self.configured_platform_root(root_id)? {
+            return Err(ApplicationError::Configuration(format!(
+                "storage root {root_id} is not a platform capability"
+            )));
+        }
+        // Platform deletion of a removed torrent's files needs the grant.
+        if let Some(removal) = self
+            .store_mut()?
+            .load_removals()?
+            .into_iter()
+            .find(|removal| removal.storage_root == root_id)
+        {
+            return Err(ApplicationError::Busy(removal.torrent_id));
+        }
+        // Make the root unavailable first so admission cannot restart its
+        // torrents while they are joined.
+        self.healthy_platform_roots.remove(root_id);
+        self.reload_storage_roots()?;
+        let affected = self
+            .store_mut()?
+            .snapshot()?
+            .torrents
+            .into_iter()
+            .filter(|torrent| torrent.storage_root == root_id)
+            .map(|torrent| torrent.torrent_id)
+            .collect::<Vec<_>>();
+        for torrent_id in &affected {
+            self.media.revoke_torrent(torrent_id);
+            self.unregister_incoming(torrent_id).await?;
+            self.join_active_content(torrent_id).await?;
+            self.storage_file_pool.invalidate_storage(torrent_id);
+            self.store_mut()?
+                .mark_awaiting_storage(torrent_id, Some("download folder was removed"))?;
+        }
+        let replacement = self
+            .storage_roots
+            .keys()
+            .find(|candidate| candidate.as_str() != root_id)
+            .cloned();
+        let removed = self
+            .store_mut()?
+            .detach_platform_storage_root(root_id, replacement.as_deref())?;
+        self.storage_file_pool.clear_platform_root_failure(root_id);
+        self.reload_storage_roots()?;
+        self.views.record_diagnostic(
+            DiagnosticSeverity::Info,
+            category::PLATFORM_ADAPTER,
+            "platform_storage_root_detached",
+            None,
+            "Platform storage root detached",
+            &[
+                ("root", root_id),
+                ("removed", if removed { "true" } else { "false" }),
+                ("torrents", &affected.len().to_string()),
+            ],
+        )?;
+        self.reconcile_admission().await?;
+        self.reconcile_incoming_catalog().await?;
+        self.reconcile_discovery_catalog().await?;
+        self.refresh_views()?;
+        Ok(PlatformStorageDetach {
+            removed,
+            affected_torrent_ids: affected,
+            default_root: self.storage_snapshot()?.default_root,
+        })
     }
 
     async fn probe_platform_storage_root_candidate(
@@ -17706,6 +17792,170 @@ mod tests {
         );
         provider.await.expect("provider task");
         service.shutdown().await.expect("shutdown");
+        drop(service);
+        fs::remove_dir_all(root).expect("remove root");
+    }
+
+    /// Answers every platform probe with a healthy directory.
+    fn healthy_platform_provider(
+        broker: Arc<rstorrent_engine::PlatformStorageBroker>,
+    ) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            while let Some(request) = broker.next_request().await {
+                assert_eq!(request.operation, PlatformStorageOperation::Observe);
+                broker.complete_observation(
+                    request.request_id,
+                    StorageObservation::present(StorageObjectKind::Directory, None, None)
+                        .expect("root observation"),
+                );
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn detaching_platform_root_keeps_bound_torrents_and_replaces_default() {
+        let root = test_root("platform-root-detach");
+        let mut configuration = config(&root);
+        configuration.storage_roots = vec![ConfiguredStorageRoot::platform("downloads")];
+        let (client, broker) = platform_storage_channel();
+        configuration.platform_storage_client = Some(client);
+        let torrent_id = {
+            let mut store = SessionStore::open(
+                configuration
+                    .durable_profile_root()
+                    .expect("durable profile"),
+                &configuration.profile_id,
+                &configuration.storage_roots,
+            )
+            .expect("open fixture store");
+            add_store_torrent(&mut store, "add", &"d".repeat(40))
+        };
+        let mut service = ApplicationService::open(configuration)
+            .await
+            .expect("open service");
+        let provider = healthy_platform_provider(broker);
+        assert!(service.probe_platform_storage_roots().await.expect("probe"));
+        service
+            .install_platform_storage_root("root_b", "Folder B", false)
+            .await
+            .expect("install second root");
+        assert_eq!(
+            service
+                .storage_snapshot()
+                .expect("storage")
+                .default_root
+                .as_deref(),
+            Some("downloads")
+        );
+
+        let detached = service
+            .detach_platform_storage_root("downloads")
+            .await
+            .expect("detach referenced current root");
+        assert!(!detached.removed);
+        assert_eq!(detached.affected_torrent_ids, vec![torrent_id.clone()]);
+        assert_eq!(detached.default_root.as_deref(), Some("root_b"));
+        let storage = service.storage_snapshot().expect("detached storage");
+        assert_eq!(storage.roots.len(), 2);
+        let downloads = storage
+            .roots
+            .iter()
+            .find(|root| root.root_id == "downloads")
+            .expect("retained root");
+        assert_eq!(
+            downloads.availability,
+            crate::StorageRootAvailability::Unavailable
+        );
+        let snapshot = service
+            .store_mut()
+            .expect("store")
+            .snapshot()
+            .expect("snapshot");
+        let torrent = snapshot
+            .torrents
+            .iter()
+            .find(|torrent| torrent.torrent_id == torrent_id)
+            .expect("torrent remains bound");
+        assert_eq!(torrent.storage_root, "downloads");
+        assert!(service.active_download_for(&torrent_id).is_none());
+
+        let removed = service
+            .detach_platform_storage_root("root_b")
+            .await
+            .expect("detach unreferenced current root");
+        assert!(removed.removed);
+        assert!(removed.affected_torrent_ids.is_empty());
+        assert_eq!(removed.default_root, None);
+        let storage = service.storage_snapshot().expect("removed storage");
+        assert_eq!(storage.roots.len(), 1);
+        assert_eq!(storage.default_root, None);
+
+        service.shutdown().await.expect("shutdown");
+        provider.abort();
+        drop(service);
+        fs::remove_dir_all(root).expect("remove root");
+    }
+
+    #[tokio::test]
+    async fn detaching_platform_root_waits_for_pending_platform_removal() {
+        let root = test_root("platform-root-detach-removal");
+        let mut configuration = config(&root);
+        configuration.storage_roots = vec![ConfiguredStorageRoot::platform("downloads")];
+        let (client, broker) = platform_storage_channel();
+        configuration.platform_storage_client = Some(client);
+        let raw_info = single_file_info("seed.bin", b"abcdefg", 4);
+        let info_hash: [u8; 20] = Sha1::digest(&raw_info).into();
+        let torrent_id = {
+            let mut store = SessionStore::open(
+                configuration
+                    .durable_profile_root()
+                    .expect("durable profile"),
+                &configuration.profile_id,
+                &configuration.storage_roots,
+            )
+            .expect("open fixture store");
+            let torrent_id = add_store_torrent(
+                &mut store,
+                "add",
+                &crate::control::encode_info_hash(info_hash),
+            );
+            store
+                .record_metadata(&torrent_id, &raw_info)
+                .expect("record metadata");
+            store
+                .handle_durable(&RequestEnvelope {
+                    version: CONTROL_VERSION,
+                    request_id: "remove".to_owned(),
+                    expected_revision: None,
+                    command: Command::RemoveTorrent {
+                        torrent_id: torrent_id.clone(),
+                        data: RemovalDataPolicy::DeleteData,
+                    },
+                })
+                .expect("begin removal");
+            torrent_id
+        };
+        let mut service = ApplicationService::open(configuration)
+            .await
+            .expect("open service");
+        let provider = healthy_platform_provider(broker);
+        assert!(service.probe_platform_storage_roots().await.expect("probe"));
+        let error = service
+            .detach_platform_storage_root("downloads")
+            .await
+            .expect_err("pending platform removal needs the root");
+        assert!(matches!(error, ApplicationError::Busy(owner) if owner == torrent_id));
+        assert_eq!(
+            service
+                .storage_snapshot()
+                .expect("storage")
+                .default_root
+                .as_deref(),
+            Some("downloads")
+        );
+
+        service.shutdown().await.expect("shutdown");
+        provider.abort();
         drop(service);
         fs::remove_dir_all(root).expect("remove root");
     }
