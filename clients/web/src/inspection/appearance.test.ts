@@ -14,7 +14,7 @@ import {
 } from "./appearance";
 
 describe("appearance preferences", () => {
-  it("defaults to Standard, Auto, and Decimal without a stored preference", () => {
+  it("defaults to Standard, Auto, and Binary without a stored preference", () => {
     expect(loadAppearancePreferences(null)).toEqual({
       interfaceSize: DEFAULT_INTERFACE_SIZE,
       colorTheme: DEFAULT_COLOR_THEME,
@@ -23,7 +23,7 @@ describe("appearance preferences", () => {
     expect(loadAppearancePreferences({ getItem: () => null })).toEqual({
       interfaceSize: "standard",
       colorTheme: "auto",
-      dataUnits: "decimal",
+      dataUnits: "binary",
     });
   });
 
@@ -35,7 +35,7 @@ describe("appearance preferences", () => {
       expect(loadAppearancePreferences(stored(JSON.stringify(value)))).toEqual({
         interfaceSize: "standard",
         colorTheme: "auto",
-        dataUnits: "decimal",
+        dataUnits: "binary",
       });
     }
   });
@@ -43,7 +43,7 @@ describe("appearance preferences", () => {
   it("round trips every accepted appearance combination", () => {
     for (const interfaceSize of ["compact", "standard", "spacious"] as const) {
       for (const colorTheme of ["auto", "light", "dark"] as const) {
-        for (const dataUnits of ["decimal", "binary"] as const) {
+        for (const dataUnits of ["binary", "decimal"] as const) {
           let source: string | null = null;
           const storage = {
             getItem: (key: string) =>
@@ -80,14 +80,14 @@ describe("appearance preferences", () => {
             version: 3,
             interfaceSize: "huge",
             colorTheme: "dark",
-            dataUnits: "binary",
+            dataUnits: "decimal",
           }),
         ),
       ),
     ).toEqual({
       interfaceSize: "standard",
       colorTheme: "dark",
-      dataUnits: "binary",
+      dataUnits: "decimal",
     });
     expect(
       loadAppearancePreferences(
@@ -96,14 +96,14 @@ describe("appearance preferences", () => {
             version: 3,
             interfaceSize: "compact",
             colorTheme: "sepia",
-            dataUnits: "binary",
+            dataUnits: "decimal",
           }),
         ),
       ),
     ).toEqual({
       interfaceSize: "compact",
       colorTheme: "auto",
-      dataUnits: "binary",
+      dataUnits: "decimal",
     });
     expect(
       loadAppearancePreferences(
@@ -119,7 +119,7 @@ describe("appearance preferences", () => {
     ).toEqual({
       interfaceSize: "spacious",
       colorTheme: "light",
-      dataUnits: "decimal",
+      dataUnits: "binary",
     });
   });
 
@@ -127,7 +127,7 @@ describe("appearance preferences", () => {
     expect(loadAppearancePreferences(stored("not json"))).toEqual({
       interfaceSize: "standard",
       colorTheme: "auto",
-      dataUnits: "decimal",
+      dataUnits: "binary",
     });
     expect(
       loadAppearancePreferences(
@@ -142,7 +142,7 @@ describe("appearance preferences", () => {
     ).toEqual({
       interfaceSize: "standard",
       colorTheme: "auto",
-      dataUnits: "decimal",
+      dataUnits: "binary",
     });
   });
 
@@ -166,7 +166,7 @@ describe("appearance preferences", () => {
           version: 3,
           interfaceSize: "spacious",
           colorTheme: "dark",
-          dataUnits: "binary",
+          dataUnits: "decimal",
         }),
       ),
       root,
@@ -174,7 +174,7 @@ describe("appearance preferences", () => {
     expect(preferences).toEqual({
       interfaceSize: "spacious",
       colorTheme: "dark",
-      dataUnits: "binary",
+      dataUnits: "decimal",
     });
     expect(root.dataset.colorTheme).toBe("dark");
     expect(root.dataset.interfaceSize).toBe("spacious");
@@ -190,11 +190,11 @@ describe("appearance preferences", () => {
     expect(loadAppearancePreferences({ getItem: read })).toEqual({
       interfaceSize: "standard",
       colorTheme: "auto",
-      dataUnits: "decimal",
+      dataUnits: "binary",
     });
     expect(() =>
       saveAppearancePreferences(
-        { interfaceSize: "spacious", colorTheme: "dark", dataUnits: "binary" },
+        { interfaceSize: "spacious", colorTheme: "dark", dataUnits: "decimal" },
         { setItem: write },
       ),
     ).not.toThrow();

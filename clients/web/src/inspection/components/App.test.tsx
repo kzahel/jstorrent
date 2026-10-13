@@ -137,7 +137,7 @@ describe("inspection application", () => {
 
     await waitFor(() => {
       expect(document.title).toMatch(
-        /^JSTorrent - ↓[\d.]+ [kMGT]?B\/s ↑[\d.]+ [kMGT]?B\/s$/,
+        /^JSTorrent - ↓[\d.]+ [kKMGT]?B\/s ↑[\d.]+ [kKMGT]?B\/s$/,
       );
     });
 
@@ -262,10 +262,10 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("tab", { name: "General" }));
     const detail = screen.getByRole("region", { name: "Torrent details" });
     expect(within(detail).getByText("Status").parentElement).toHaveTextContent(
-      "Statusqueued",
+      "StatusQueued",
     );
     expect(
-      within(detail).getByText("Lifetime uploaded").parentElement,
+      within(detail).getByText("Uploaded").parentElement,
     ).toHaveTextContent("14 B");
     expect(within(detail).getByText("Share ratio").parentElement).toHaveTextContent(
       "2.00",
@@ -274,11 +274,11 @@ describe("inspection application", () => {
       "30m 1s",
     );
     expect(
-      within(detail).getByText("Seeding priority").parentElement,
-    ).toHaveTextContent("queued seed · goal met");
+      within(detail).getByText("Seeding").parentElement,
+    ).toHaveTextContent("Queued · Goal reached");
     expect(
-      within(detail).getByText(/a goal-met torrent may keep seeding/i),
-    ).toHaveTextContent("Met thresholds: share ratio");
+      within(detail).getByText("Goals reached: share ratio."),
+    ).toBeVisible();
   });
 
   it("saves one atomic per-torrent upload and download limit pair", async () => {
@@ -299,8 +299,8 @@ describe("inspection application", () => {
     );
     await user.click(screen.getByRole("tab", { name: "General" }));
     const detail = screen.getByRole("region", { name: "Torrent details" });
-    expect(within(detail).queryByRole("spinbutton", {
-      name: "Torrent upload limit in KiB per second",
+    expect(within(detail).queryByRole("combobox", {
+      name: "Upload",
     })).not.toBeInTheDocument();
     const grid = screen.getByRole("grid", { name: "Torrents" });
     const torrentRow = within(grid).getByRole("row", { name: /Big Buck Bunny 1080p surround/ });
@@ -309,29 +309,28 @@ describe("inspection application", () => {
     const settings = screen.getByRole("dialog", { name: "Torrent settings" });
     expect(within(settings).getByRole("button", { name: "Cancel" })).toHaveFocus();
 
-    await user.click(
-      within(settings).getByRole("checkbox", {
-        name: "Torrent upload limit unlimited",
-      }),
+    expect(
+      within(settings).getByRole("combobox", { name: "Upload" }),
+    ).toHaveValue("unlimited");
+    await user.selectOptions(
+      within(settings).getByRole("combobox", { name: "Upload" }),
+      "Custom…",
     );
     const upload = within(settings).getByRole("spinbutton", {
-      name: "Torrent upload limit in KiB per second",
+      name: "Upload, custom speed in KB per second",
     });
     await user.clear(upload);
     await user.type(upload, "32");
-    await user.click(
-      within(settings).getByRole("checkbox", {
-        name: "Torrent download limit unlimited",
+    await user.selectOptions(
+      within(settings).getByRole("combobox", { name: "Download" }),
+      "500 KB/s",
+    );
+    expect(
+      within(settings).queryByRole("spinbutton", {
+        name: "Download, custom speed in KB per second",
       }),
-    );
-    const download = within(settings).getByRole("spinbutton", {
-      name: "Torrent download limit in KiB per second",
-    });
-    await user.clear(download);
-    await user.type(download, "96");
-    await user.click(
-      within(settings).getByRole("button", { name: "Save torrent limits" }),
-    );
+    ).not.toBeInTheDocument();
+    await user.click(within(settings).getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
       expect(application.commands.at(-1)).toEqual({
@@ -339,7 +338,7 @@ describe("inspection application", () => {
         torrentId: snapshot.torrentOrder[0],
         patch: {
           upload_rate_limit: { type: "limited", bytes_per_second: 32_768 },
-          download_rate_limit: { type: "limited", bytes_per_second: 98_304 },
+          download_rate_limit: { type: "limited", bytes_per_second: 512_000 },
         },
       }),
     );
@@ -376,12 +375,18 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("button", { name: /^More/ }));
     await user.click(await screen.findByRole("menuitem", { name: "Torrent settings" }));
     const settings = screen.getByRole("dialog", { name: "Torrent settings" });
-    const downloadUnlimited = within(settings).getByRole("checkbox", {
-      name: "Torrent download limit unlimited",
+    const download = within(settings).getByRole("combobox", {
+      name: "Download",
     });
+    expect(download).toHaveValue("custom");
+    expect(
+      within(settings).getByRole("spinbutton", {
+        name: "Download, custom speed in KB per second",
+      }),
+    ).toHaveValue(96);
 
-    await user.click(downloadUnlimited);
-    expect(downloadUnlimited).toBeChecked();
+    await user.selectOptions(download, "Unlimited");
+    expect(download).toHaveValue("unlimited");
     for (let revision = 2; revision <= 25; revision += 1) {
       application.emitUpdate({
         type: "patch",
@@ -398,11 +403,9 @@ describe("inspection application", () => {
         },
       });
     }
-    expect(downloadUnlimited).toBeChecked();
+    expect(download).toHaveValue("unlimited");
 
-    await user.click(
-      within(settings).getByRole("button", { name: "Save torrent limits" }),
-    );
+    await user.click(within(settings).getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(application.commands.at(-1)).toEqual({
         type: "update_torrent_settings",
@@ -410,7 +413,7 @@ describe("inspection application", () => {
         patch: { download_rate_limit: { type: "unlimited" } },
       }),
     );
-    expect(downloadUnlimited).toBeChecked();
+    expect(download).toHaveValue("unlimited");
   });
 
   it("renders the responsive hierarchy and changes detail tabs", async () => {
@@ -606,8 +609,8 @@ describe("inspection application", () => {
     expect(
       within(grid).getByRole("columnheader", { name: "Uploaded" }),
     ).toBeVisible();
-    expect(within(grid).getByText("512 MB")).toBeVisible();
-    expect(within(grid).getByText("32.0 MB")).toBeVisible();
+    expect(within(grid).getByText("488 MB")).toBeVisible();
+    expect(within(grid).getByText("30.5 MB")).toBeVisible();
 
     await user.click(
       within(grid).getByRole("button", { name: "Explain Downloaded" }),
@@ -713,23 +716,25 @@ describe("inspection application", () => {
       within(colorThemeGroup).getByRole("radio", { name: /Auto/ }),
     ).toBeChecked();
     const dataUnitsGroup = within(dialog).getByRole("group", {
-      name: "Data units",
+      name: "Size units",
     });
     expect(
-      within(dataUnitsGroup).getByRole("radio", { name: /Decimal/ }),
+      within(dataUnitsGroup).getByRole("radio", { name: /^KB, MB, GB/ }),
     ).toBeChecked();
-    expect(screen.getAllByText(/(?:kB|MB)(?:\/s)?$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\d KB(?:\/s)?$/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/\d kB(?:\/s)?$/)).toHaveLength(0);
 
     await user.tab({ shift: true });
     expect(
-      within(dataUnitsGroup).getByRole("radio", { name: /Binary/ }),
+      within(dataUnitsGroup).getByRole("radio", { name: /Decimal/ }),
     ).toHaveFocus();
     await user.click(
-      within(dataUnitsGroup).getByRole("radio", { name: /Binary/ }),
+      within(dataUnitsGroup).getByRole("radio", { name: /Decimal/ }),
     );
-    expect(screen.getAllByText(/(?:KiB|MiB)(?:\/s)?$/).length).toBeGreaterThan(
-      0,
-    );
+    expect(screen.getAllByText(/\d kB(?:\/s)?$/).length).toBeGreaterThan(0);
+    expect(
+      screen.queryAllByText(/\d KB(?:\/s)?$/, { ignore: "option, script, style" }),
+    ).toHaveLength(0);
     await user.click(within(dialog).getByRole("radio", { name: /Dark/ }));
     expect(document.documentElement).toHaveAttribute(
       "data-color-theme",
@@ -741,7 +746,7 @@ describe("inspection application", () => {
       version: 3,
       interfaceSize: "spacious",
       colorTheme: "dark",
-      dataUnits: "binary",
+      dataUnits: "decimal",
     });
 
     await user.keyboard("{Escape}");
@@ -766,9 +771,9 @@ describe("inspection application", () => {
     );
     await user.click(screen.getByRole("button", { name: "Settings" }));
     expect(
-      within(screen.getByRole("group", { name: "Data units" })).getByRole(
+      within(screen.getByRole("group", { name: "Size units" })).getByRole(
         "radio",
-        { name: /Binary/ },
+        { name: /Decimal/ },
       ),
     ).toBeChecked();
   });
@@ -876,7 +881,7 @@ describe("inspection application", () => {
     const status = screen.getByRole("status", {
       name: "Network prerequisite status",
     });
-    expect(status).toHaveTextContent("Waiting for an unmetered network.");
+    expect(status).toHaveTextContent("Waiting for Wi-Fi.");
     expect(status).toHaveTextContent("resume automatically");
     expect(within(status).queryByRole("button")).not.toBeInTheDocument();
   });
@@ -959,7 +964,7 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("tab", { name: "Power" }));
     expect(
       screen.getByRole("checkbox", {
-        name: /Prevent sleep during active downloads and checks/,
+        name: /Prevent sleep while downloading/,
       }),
     ).toBeChecked();
   });
@@ -2100,16 +2105,16 @@ describe("inspection application", () => {
     const card = screen.getByRole("button", {
       name: "Open details for North Shore Stories · Seasons 1–2",
     });
-    expect(within(card).getByText("4.4 GB")).toBeVisible();
+    expect(within(card).getByText("4.1 GB")).toBeVisible();
     await user.click(card);
     expect(screen.queryByText("Size pending")).not.toBeInTheDocument();
-    expect(screen.getAllByText("4.4 GB").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("4.1 GB").length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: "Back to Library" }));
     await user.click(screen.getByRole("button", { name: "Torrents" }));
     expect(
       within(screen.getByRole("grid", { name: "Torrents" })).getByText(
-        "4.4 GB",
+        "4.1 GB",
       ),
     ).toBeVisible();
 
@@ -2121,7 +2126,7 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("tab", { name: "General" }));
     expect(
       screen.getByText("Size", { selector: "dt" }).parentElement,
-    ).toHaveTextContent("4.4 GB");
+    ).toHaveTextContent("4.1 GB");
   });
 
   it("bounds the mounted media rows for a 4,096-file catalog", async () => {
@@ -2720,7 +2725,7 @@ describe("inspection application", () => {
         show: false,
       }),
     );
-    expect(within(dialog).getByText(/future torrents only/i)).toBeVisible();
+    expect(within(dialog).getByText(/Existing torrents stay where they are/i)).toBeVisible();
   });
 
   it("uses only the current Android root and retains older roots in Settings", async () => {
@@ -2963,9 +2968,10 @@ describe("inspection application", () => {
     });
     expect(connectionTab).toBeVisible();
     await user.click(connectionTab);
-    expect(
-      within(dialog).getByText(/use IPv4 and, when available, IPv6/i),
-    ).toBeVisible();
+    for (const name of ["Speed limits", "Queue", "Seeding goals", "Connections", "Network"]) {
+      expect(within(dialog).getByRole("heading", { name })).toBeVisible();
+    }
+    expect(within(dialog).queryByText(/Effective/)).toBeNull();
     expect(
       within(dialog).getByRole("radio", { name: /^Automatic port/ }),
     ).toBeChecked();
@@ -2977,17 +2983,13 @@ describe("inspection application", () => {
       }),
     ).toBeNull();
     expect(
-      within(dialog).getByText(
-        /safely limited to 120 by available file descriptors/i,
-      ),
+      within(dialog).getByText("Limited to 120 on this device"),
     ).toBeVisible();
 
     await user.click(
       within(dialog).getByRole("radio", { name: /^Fixed port/ }),
     );
-    const port = within(dialog).getByRole("spinbutton", {
-      name: "Fixed listener port",
-    });
+    const port = within(dialog).getByRole("spinbutton", { name: "Port" });
     expect(port).toHaveValue(null);
     const save = within(dialog).getByRole("button", { name: "Save settings" });
     expect(save).toBeDisabled();
@@ -3000,84 +3002,83 @@ describe("inspection application", () => {
     await user.clear(port);
     await user.type(port, "1024");
     const peers = within(dialog).getByRole("spinbutton", {
-      name: "Peer connection limit",
+      name: "Max peer connections",
     });
     await user.clear(peers);
     await user.type(peers, "2000");
     const slots = within(dialog).getByRole("spinbutton", {
-      name: "Payload upload slots",
+      name: "Upload slots",
     });
     await user.clear(slots);
     await user.type(slots, "0");
     const activeDownloads = within(dialog).getByRole("spinbutton", {
-      name: "Simultaneous downloads",
+      name: "Max active downloads",
     });
     await user.clear(activeDownloads);
     await user.type(activeDownloads, "4");
     expect(
-      within(dialog).getByText(/Meeting a goal does not stop a torrent/i),
+      within(dialog).getByText(/Reaching a goal doesn't stop seeding/i),
     ).toBeVisible();
     const activeSeeds = within(dialog).getByRole("spinbutton", {
-      name: "Active seeds",
+      name: "Max active seeds",
     });
     expect(activeSeeds).toHaveValue(5);
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Unlimited active seeds/,
+        name: /No limit on active seeds/,
       }),
     );
     expect(activeSeeds).toBeDisabled();
     const shareRatio = within(dialog).getByRole("spinbutton", {
-      name: "Share-ratio priority goal (%)",
+      name: "Share ratio",
     });
     await user.clear(shareRatio);
     await user.type(shareRatio, "250");
     const finishedDownloadRatio = within(dialog).getByRole("spinbutton", {
-      name: "Finished/download time priority goal (%)",
+      name: "Seeding time vs. download time",
     });
     await user.clear(finishedDownloadRatio);
     await user.type(finishedDownloadRatio, "800");
     const finishedTime = within(dialog).getByRole("spinbutton", {
-      name: "Finished-time priority goal (seconds)",
+      name: "Seeding time",
     });
     await user.clear(finishedTime);
     await user.type(finishedTime, "90000");
-    await user.click(
-      within(dialog).getByRole("checkbox", {
-        name: "All torrents upload limit unlimited",
-      }),
+    expect(within(dialog).getByText("seconds (1d 1h)")).toBeVisible();
+    await user.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Upload" }),
+      "Custom…",
     );
     const uploadRate = within(dialog).getByRole("spinbutton", {
-      name: "All torrents upload limit in KiB per second",
+      name: "Upload, custom speed in KB per second",
     });
     await user.clear(uploadRate);
     await user.type(uploadRate, "64");
-    await user.click(
-      within(dialog).getByRole("checkbox", {
-        name: "All torrents download limit unlimited",
-      }),
+    await user.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Download" }),
+      "Custom…",
     );
     const downloadRate = within(dialog).getByRole("spinbutton", {
-      name: "All torrents download limit in KiB per second",
+      name: "Download, custom speed in KB per second",
     });
     await user.clear(downloadRate);
     await user.type(downloadRate, "256");
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Map incoming TCP and uTP with UPnP/,
+        name: /UPnP port forwarding/,
       }),
     );
     await user.click(
-      within(dialog).getByRole("checkbox", { name: /Enable IPv6/ }),
+      within(dialog).getByRole("checkbox", { name: /^IPv6/ }),
     );
     await user.click(
-      within(dialog).getByRole("checkbox", { name: /Enable DHT/ }),
+      within(dialog).getByRole("checkbox", { name: /^DHT/ }),
     );
     await user.click(
-      within(dialog).getByRole("checkbox", { name: /Enable peer exchange/ }),
+      within(dialog).getByRole("checkbox", { name: /^Peer exchange \(PEX\)/ }),
     );
     expect(
-      within(dialog).getByText(/keeps interested peers choked/i),
+      within(dialog).getByText("Peers you upload to at the same time"),
     ).toBeVisible();
     expect(save).toBeEnabled();
 
@@ -3112,7 +3113,11 @@ describe("inspection application", () => {
         },
       }),
     );
-    expect(within(dialog).getByText(/Transport: applying/i)).toBeVisible();
+    expect(
+      within(
+        within(dialog).getByRole("group", { name: "Incoming connections" }),
+      ).getByText("Applying…"),
+    ).toBeVisible();
     expect(within(dialog).queryByText(/restart/i)).not.toBeInTheDocument();
 
     await user.clear(peers);
@@ -3291,10 +3296,12 @@ describe("inspection application", () => {
       within(dialog).getByRole("tab", { name: "Connection & seeding" }),
     );
 
-    expect(within(dialog).getByText(/port already in use/i)).toHaveTextContent(
-      "port 51413 is already in use",
-    );
-    expect(within(dialog).getByText(/Transport: degraded/i)).toBeVisible();
+    expect(
+      within(
+        within(dialog).getByRole("group", { name: "Incoming connections" }),
+      ).getByText("Port already in use"),
+    ).toBeVisible();
+    expect(within(dialog).queryByText(/51413/)).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/restart/i)).not.toBeInTheDocument();
     expect(
       within(dialog).getByRole("radio", { name: /^Automatic port/ }),
@@ -3369,21 +3376,26 @@ describe("inspection application", () => {
       within(dialog).getByRole("tab", { name: "Connection & seeding" }),
     );
 
+    const upnp = within(dialog).getByRole("checkbox", {
+      name: /UPnP port forwarding/,
+    });
+    expect(upnp).not.toBeChecked();
+    expect(upnp).toHaveAccessibleName(/The router may keep port 48001 open/);
     expect(
-      within(dialog).getByRole("checkbox", {
-        name: /Map incoming TCP and uTP with UPnP/,
-      }),
-    ).not.toBeChecked();
-    expect(
-      within(dialog).getByText(/Effective gateway mapping policy: UPnP/i),
-    ).toBeVisible();
-    expect(
-      within(dialog).getByText(/may remain for 42 seconds/i),
-    ).toBeVisible();
-    expect(
-      within(dialog).getByText(/does not mean an incoming peer has connected/i),
-    ).toBeVisible();
-    expect(within(dialog).getByText(/Port mapping: degraded/i)).toBeVisible();
+      within(dialog).getByText("Incoming connections").parentElement,
+    ).toHaveTextContent("Port 41234");
+
+    await user.click(within(dialog).getByText("Network details"));
+    for (const line of [
+      "UDP: port 41234",
+      "Router forwarding (TCP): the router may keep port 48001 open for up to 42s",
+      "IPv6 router firewall: port 41234 open, renewed automatically",
+      "Peers are told to use port 41234. It isn't confirmed reachable from the internet.",
+    ]) {
+      expect(within(dialog).getByText(line)).toBeVisible();
+    }
+    expect(within(dialog).queryByText(/delete verification failed/)).toBeNull();
+    expect(within(dialog).queryByText(/Effective/)).toBeNull();
     expect(within(dialog).queryByText(/restart/i)).not.toBeInTheDocument();
   });
 

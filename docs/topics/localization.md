@@ -1,5 +1,14 @@
 # Localization
 
+Tactical [333](../tactical/333-web-settings-plain-copy.md) applies the
+Tactical 331 cleanup to the shared React catalog: 1,357 to 1,336 messages,
+with 184 removed and 163 added. Settings, the Torrent settings dialog and the
+General tab no longer show "Effective" runtime lines, engine detail, enum
+names or JSX-concatenated sentence fragments. The web catalog check now rejects
+maintainer vocabulary and leading-punctuation fragments in those message
+prefixes, and `replaceAll("_", " ")` enum display in their components.
+Diagnostics tabs are not covered. Shipping locales remain English.
+
 Tactical [331](../tactical/331-android-settings-plain-copy.md) rewrites
 Android Settings and torrent Details/Status copy in user vocabulary, removing
 48 resources (540 to 492). Settings rows no longer show engine application

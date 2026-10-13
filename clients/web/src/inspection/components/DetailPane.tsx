@@ -1,4 +1,7 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import {
+  formatList,
+  message as localizedMessage,
+} from "../../localization/runtime";
 import { useEffect, useRef } from "react";
 
 import { useInspectionStore } from "../context";
@@ -164,7 +167,7 @@ export function DetailPane({
         ) : activeTab === "logs" ? (
           <LogConsole />
         ) : (
-          <UnavailableDetail tab={activeTab} />
+          <UnavailableDetail />
         )}
       </div>
     </section>
@@ -266,7 +269,7 @@ function GeneralDetail({
         <Metric
           label={localizedMessage("inspection.components.detail.pane.status")}
           value={
-            torrentRemovalLabel(torrent) ?? torrent.operationalState.replaceAll("_", " ")
+            torrentRemovalLabel(torrent) ?? operationalStateLabel(torrent.operationalState)
           }
         />
         <Metric
@@ -274,11 +277,11 @@ function GeneralDetail({
           value={formatBytes(torrent.sizeBytes, dataUnits)}
         />
         <Metric
-          label={localizedMessage("inspection.components.detail.pane.lifetime.downloaded")}
+          label={localizedMessage("inspection.components.detail.pane.downloaded")}
           value={formatExactBytes(torrent.lifetimeDownloadedBytes, dataUnits)}
         />
         <Metric
-          label={localizedMessage("inspection.components.detail.pane.lifetime.uploaded")}
+          label={localizedMessage("inspection.components.detail.pane.uploaded")}
           value={formatExactBytes(torrent.lifetimeUploadedBytes, dataUnits)}
         />
         <Metric label={localizedMessage("inspection.components.detail.pane.share.ratio")} value={formatShareRatio(torrent.shareRatioHundredths)} />
@@ -303,14 +306,17 @@ function GeneralDetail({
         />
         {torrent.seedGoal === null ? null : (
           <Metric
-            label={localizedMessage("inspection.components.detail.pane.seeding.priority")}
-            value={`${seedAdmissionLabel(torrent.seedAdmission)} · goal ${torrent.seedGoal.status}`}
+            label={localizedMessage("inspection.components.detail.pane.seeding")}
+            value={`${seedAdmissionLabel(torrent.seedAdmission)} · ${
+              torrent.seedGoal.status === "met"
+                ? localizedMessage("inspection.components.detail.pane.goal.reached")
+                : localizedMessage("inspection.components.detail.pane.goal.not.reached")
+            }`}
           />
         )}
       </dl>
       {torrent.seedGoal === null ? null : (
-        <p>{localizedMessage("inspection.components.detail.pane.seeding.goals.affect.automatic.priority.a.goal")}{" "}{seedGoalThresholds(torrent.seedGoal)}.
-        </p>
+        <p>{seedGoalsReached(torrent.seedGoal)}</p>
       )}
       {torrent.protocolIdentities?.v1 != null &&
       torrent.protocolIdentities.v2 != null ? (
@@ -340,32 +346,59 @@ function GeneralDetail({
   );
 }
 
+function operationalStateLabel(
+  state: NonNullable<ReturnType<typeof useCurrentTorrent>>["operationalState"],
+): string {
+  switch (state) {
+    case "queued":
+      return localizedMessage("inspection.components.detail.pane.state.queued");
+    case "starting":
+      return localizedMessage("inspection.components.detail.pane.state.starting");
+    case "downloading":
+      return localizedMessage("inspection.components.detail.pane.state.downloading");
+    case "checking":
+      return localizedMessage("inspection.components.detail.pane.state.checking");
+    case "stopping":
+      return localizedMessage("inspection.components.detail.pane.state.stopping");
+    case "seeding":
+      return localizedMessage("inspection.components.detail.pane.state.seeding");
+    case "paused":
+      return localizedMessage("inspection.components.detail.pane.state.paused");
+    case "error":
+      return localizedMessage("inspection.components.detail.pane.state.error");
+  }
+}
+
 function seedAdmissionLabel(
   admission: NonNullable<ReturnType<typeof useCurrentTorrent>>["seedAdmission"],
 ): string {
   switch (admission) {
     case "active":
-      return localizedMessage("inspection.components.detail.pane.active.seed");
+      return localizedMessage("inspection.components.detail.pane.seed.state.seeding");
     case "queued":
-      return localizedMessage("inspection.components.detail.pane.queued.seed");
+      return localizedMessage("inspection.components.detail.pane.seed.state.queued");
     case "inactive_exempt":
-      return localizedMessage("inspection.components.detail.pane.active.inactive.exempt.seed");
+      return localizedMessage("inspection.components.detail.pane.seed.state.idle");
     case "ineligible":
-      return localizedMessage("inspection.components.detail.pane.not.eligible.to.seed");
+      return localizedMessage("inspection.components.detail.pane.seed.state.not.seeding");
   }
 }
 
-function seedGoalThresholds(
+function seedGoalsReached(
   goal: NonNullable<
     NonNullable<ReturnType<typeof useCurrentTorrent>>["seedGoal"]
   >,
 ): string {
-  const met = [
-    goal.share_ratio_met ? "share ratio" : null,
-    goal.finished_download_ratio_met ? "finished/download time ratio" : null,
-    goal.finished_time_met ? "finished time" : null,
+  const reached = [
+    goal.share_ratio_met ? localizedMessage("inspection.components.detail.pane.goal.share.ratio") : null,
+    goal.finished_download_ratio_met
+      ? localizedMessage("inspection.components.detail.pane.goal.seeding.download.time")
+      : null,
+    goal.finished_time_met ? localizedMessage("inspection.components.detail.pane.goal.seeding.time") : null,
   ].filter((value): value is string => value !== null);
-  return met.length === 0 ? "none yet" : met.join(", ");
+  return reached.length === 0
+    ? localizedMessage("inspection.components.detail.pane.goals.none.reached")
+    : localizedMessage("inspection.components.detail.pane.goals.reached", { goals: formatList(reached) });
 }
 
 function checkerActivity(
@@ -416,18 +449,13 @@ function EmptyDetail() {
   );
 }
 
-function UnavailableDetail({ tab }: { readonly tab: DetailTab }) {
+function UnavailableDetail() {
   return (
     <div className={styles.empty}>
       <span className={styles.emptyMark} aria-hidden="true">
         ◇
       </span>
-      <strong>{titleCase(tab)}{" "}{localizedMessage("inspection.components.detail.pane.view.scaffold")}</strong>
-      <p>{localizedMessage("inspection.components.detail.pane.this.named.projection.is.not.connected.yet")}{" "}{tab}{" "}{localizedMessage("inspection.components.detail.pane.data")}</p>
+      <strong>{localizedMessage("inspection.components.detail.pane.nothing.to.show")}</strong>
     </div>
   );
-}
-
-function titleCase(value: string): string {
-  return value.slice(0, 1).toUpperCase() + value.slice(1);
 }

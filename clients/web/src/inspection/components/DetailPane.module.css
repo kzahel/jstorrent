@@ -180,7 +180,6 @@
   font-size: var(--ui-font-body);
   font-weight: 680;
   font-variant-numeric: tabular-nums;
-  text-transform: capitalize;
 }
 
 .checkingMetrics {

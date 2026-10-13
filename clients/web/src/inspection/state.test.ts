@@ -327,26 +327,26 @@ describe("inspection store", () => {
     const store = createInspectionStore(storage);
     expect(store.getState().presentation.interfaceSize).toBe("standard");
     expect(store.getState().presentation.colorTheme).toBe("auto");
-    expect(store.getState().presentation.dataUnits).toBe("decimal");
+    expect(store.getState().presentation.dataUnits).toBe("binary");
 
     store.getState().setColorTheme("dark");
-    store.getState().setDataUnits("binary");
+    store.getState().setDataUnits("decimal");
     store.getState().setInterfaceSize("spacious");
     expect(store.getState().presentation.interfaceSize).toBe("spacious");
     expect(store.getState().presentation.colorTheme).toBe("dark");
-    expect(store.getState().presentation.dataUnits).toBe("binary");
+    expect(store.getState().presentation.dataUnits).toBe("decimal");
     expect(
       JSON.parse(values.get("rstorrent.presentation.appearance") ?? "null"),
     ).toEqual({
       version: 3,
       interfaceSize: "spacious",
       colorTheme: "dark",
-      dataUnits: "binary",
+      dataUnits: "decimal",
     });
     const restored = createInspectionStore(storage).getState().presentation;
     expect(restored.interfaceSize).toBe("spacious");
     expect(restored.colorTheme).toBe("dark");
-    expect(restored.dataUnits).toBe("binary");
+    expect(restored.dataUnits).toBe("decimal");
   });
 
   it("keeps live data-unit changes when browser storage writes fail", () => {
@@ -357,8 +357,8 @@ describe("inspection store", () => {
       },
     });
 
-    expect(() => store.getState().setDataUnits("binary")).not.toThrow();
-    expect(store.getState().presentation.dataUnits).toBe("binary");
+    expect(() => store.getState().setDataUnits("decimal")).not.toThrow();
+    expect(store.getState().presentation.dataUnits).toBe("decimal");
   });
 });
 

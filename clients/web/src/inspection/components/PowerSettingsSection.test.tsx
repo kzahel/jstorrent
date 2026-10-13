@@ -25,7 +25,7 @@ describe("desktop power settings", () => {
     render(<PowerSettingsSection power={controller(DEFAULTS, save)} />);
 
     const toggle = screen.getByRole("checkbox", {
-      name: /Prevent sleep during active downloads and checks/,
+      name: /Prevent sleep while downloading/,
     });
     expect(toggle).toBeChecked();
     await user.click(toggle);
@@ -46,7 +46,7 @@ describe("desktop power settings", () => {
     render(<PowerSettingsSection power={controller(DEFAULTS, save)} />);
 
     const toggle = screen.getByRole("checkbox", {
-      name: /Prevent sleep during active downloads and checks/,
+      name: /Prevent sleep while downloading/,
     });
     await user.click(toggle);
 

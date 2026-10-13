@@ -8,7 +8,7 @@ import type {
 
 const UNIT_SYSTEMS = {
   decimal: { base: 1000, suffixes: ["B", "kB", "MB", "GB", "TB", "PB"] },
-  binary: { base: 1024, suffixes: ["B", "KiB", "MiB", "GiB", "TiB", "PiB"] },
+  binary: { base: 1024, suffixes: ["B", "KB", "MB", "GB", "TB", "PB"] },
 } as const satisfies Record<
   DataUnits,
   { readonly base: number; readonly suffixes: readonly string[] }

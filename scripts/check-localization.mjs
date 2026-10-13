@@ -139,6 +139,43 @@ async function checkWebCatalog() {
       fail(`web message ${id} has invalid ICU syntax: ${error.message}`);
     }
   }
+  // Tactical 333: settings, torrent settings and General tab copy uses user
+  // vocabulary and whole messages. Diagnostics tabs are not covered.
+  const plainCopyPrefixes = [
+    "inspection.components.appearance.settings.section.",
+    "inspection.components.connection.seeding.settings.section.",
+    "inspection.components.data.reset.",
+    "inspection.components.detail.pane.",
+    "inspection.components.download.settings.section.",
+    "inspection.components.notifications.settings.section.",
+    "inspection.components.power.settings.section.",
+    "inspection.components.rate.limit.picker.",
+    "inspection.components.settings.dialog.",
+    "inspection.components.torrent.settings.dialog.",
+    "inspection.transfer.rate.",
+  ];
+  const webMaintainerVocabulary =
+    /\b(?:effective|applied|genuinely|durable|payload|registrations?|registered|fresh-profile|inactive-exempt|desired-running|root|KiB|MiB|GiB|engine|runtime|snapshot|projection|scaffold|converged|edge-triggered|IGD|MSE\/PE|pinhole|gateway|admitted|choked)\b|Not available yet/i;
+  for (const [id, entry] of Object.entries(catalog)) {
+    if (!plainCopyPrefixes.some((prefix) => id.startsWith(prefix))) continue;
+    const term = entry.defaultMessage.match(webMaintainerVocabulary);
+    if (term) fail(`web message ${id} uses maintainer vocabulary "${term[0]}"`);
+    if (/^[\s:;,.)·-]|\($/.test(entry.defaultMessage)) {
+      fail(`web message ${id} is a sentence fragment: "${entry.defaultMessage}"`);
+    }
+  }
+  for (const relative of [
+    "clients/web/src/inspection/components/ConnectionSeedingSettingsSection.tsx",
+    "clients/web/src/inspection/components/DetailPane.tsx",
+    "clients/web/src/inspection/components/TorrentSettingsDialog.tsx",
+  ]) {
+    for (const line of fs.readFileSync(path.join(repositoryRoot, relative), "utf8").split("\n")) {
+      if (/\.replaceAll\("_", " "\)/.test(line)) {
+        fail(`raw enum name shown as product copy in ${relative}: ${line.trim()}`);
+      }
+    }
+  }
+
   const compiledOrphans = Object.keys(compiled).filter((id) => !(id in catalog));
   if (compiledOrphans.length > 0) fail(`compiled web catalog has orphaned IDs: ${compiledOrphans.join(", ")}`);
 

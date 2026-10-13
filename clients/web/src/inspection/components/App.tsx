@@ -412,7 +412,7 @@ function AppContent({
               role="status"
               aria-label={localizedMessage("inspection.components.app.network.prerequisite.status")}
             >
-              <strong>{localizedMessage("inspection.components.app.waiting.for.an.unmetered.network")}</strong>
+              <strong>{localizedMessage("inspection.components.app.waiting.for.wifi")}</strong>
               <span>{localizedMessage("inspection.components.app.transfers.will.resume.automatically.when.one.is")}</span>
             </aside>
           ) : null}

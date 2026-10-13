@@ -19,7 +19,7 @@ export interface AppearancePreferences {
 
 export const DEFAULT_INTERFACE_SIZE: InterfaceSize = "standard";
 export const DEFAULT_COLOR_THEME: ColorTheme = "auto";
-export const DEFAULT_DATA_UNITS: DataUnits = "decimal";
+export const DEFAULT_DATA_UNITS: DataUnits = "binary";
 
 export const INTERFACE_METRICS: Readonly<
   Record<InterfaceSize, InterfaceMetrics>

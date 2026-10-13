@@ -79,7 +79,7 @@ describe("documentTitleForSession", () => {
         { ...CONNECTED, downloadRate: 0, uploadRate: 1_536 },
         "binary",
       ),
-    ).toBe("JSTorrent - ↓0 B/s ↑1.5 KiB/s");
+    ).toBe("JSTorrent - ↓0 B/s ↑1.5 KB/s");
   });
 
   it("does not present an unavailable direction as zero", () => {

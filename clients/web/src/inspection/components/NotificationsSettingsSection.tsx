@@ -21,18 +21,18 @@ const OPTIONS: readonly {
   {
     setting: "notify_download_complete",
     label: localizedMessage("inspection.components.notifications.settings.section.download.complete"),
-    description: localizedMessage("inspection.components.notifications.settings.section.notify.when.a.torrent.finishes.downloading"),
+    description: localizedMessage("inspection.components.notifications.settings.section.when.a.download.finishes"),
   },
   {
     setting: "notify_needs_attention",
     label: localizedMessage("inspection.components.notifications.settings.section.download.needs.attention"),
-    description: localizedMessage("inspection.components.notifications.settings.section.notify.when.a.torrent.enters.a.fatal"),
+    description: localizedMessage("inspection.components.notifications.settings.section.when.a.torrent.needs.action"),
   },
   {
     setting: "notify_while_focused",
     label: localizedMessage("inspection.components.notifications.settings.section.notify.while.rstorrent.is.focused"),
     description:
-      localizedMessage("inspection.components.notifications.settings.section.keep.showing.notifications.while.the.main.window"),
+      localizedMessage("inspection.components.notifications.settings.section.also.notify.while.using"),
   },
 ];
 
@@ -69,7 +69,6 @@ export function NotificationsSettingsSection({
   return (
     <fieldset className={styles.section} disabled={pending}>
       <legend>{localizedMessage("inspection.components.notifications.settings.section.notifications")}</legend>
-      <p className={styles.sectionIntroduction}>{localizedMessage("inspection.components.notifications.settings.section.native.desktop.notifications.are.edge.triggered.and")}</p>
       {OPTIONS.map((option) => (
         <label className={styles.preference} key={option.setting}>
           <input

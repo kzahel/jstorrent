@@ -70,7 +70,7 @@ test("client settings apply live, persist, and recover bind failure", async ({
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Settings" });
   await dialog.getByRole("tab", { name: "Connection & seeding" }).click();
-  const runtime = dialog.getByLabel("Current runtime state");
+  const incoming = dialog.getByRole("group", { name: "Incoming connections" });
   await expect(dialog).toBeVisible();
 
   if (clientSettingsPhase === "configure") {
@@ -78,54 +78,40 @@ test("client settings apply live, persist, and recover bind failure", async ({
       .getByRole("radio", { name: /^Automatic port/ })
       .check();
     await dialog
-      .getByRole("spinbutton", { name: "Peer connection limit" })
+      .getByRole("spinbutton", { name: "Max peer connections" })
       .fill("37");
     await dialog
-      .getByRole("spinbutton", { name: "Payload upload slots" })
+      .getByRole("spinbutton", { name: "Upload slots" })
       .fill("1");
     await dialog.getByRole("button", { name: "Save settings" }).click();
-    await expect(
-      dialog.getByText("Settings accepted and applying."),
-    ).toBeVisible();
-    await expect(runtime).toContainText(
-      /Effective listener policy: (?:automatic port|development-only loopback mode)\./,
-    );
-    await expect(runtime).toContainText("Effective peer connection limit: 37.");
-    await expect(runtime).toContainText("Effective payload upload slots: 1.");
-    await expect(runtime).not.toContainText("Transport: applying");
+    await expect(dialog.getByText("Saved", { exact: true })).toBeVisible();
+    await expect(incoming).toContainText(/Port \d+/);
+    await expect(dialog.getByText("Applying…")).toHaveCount(0);
+    await expect(dialog.getByText(/Couldn't apply|Limited to/)).toHaveCount(0);
   } else if (clientSettingsPhase === "observe") {
     await expect(
       dialog.getByRole("radio", { name: /^Fixed port/ }),
     ).toBeChecked();
     await expect(
-      dialog.getByRole("spinbutton", { name: "Peer connection limit" }),
+      dialog.getByRole("spinbutton", { name: "Max peer connections" }),
     ).toHaveValue("37");
     await expect(
-      dialog.getByRole("spinbutton", { name: "Payload upload slots" }),
+      dialog.getByRole("spinbutton", { name: "Upload slots" }),
     ).toHaveValue("1");
-    await expect(runtime).toContainText(
-      /Effective listener policy: (?:fixed port|development-only loopback port)/,
-    );
-    await expect(runtime).toContainText("Effective peer connection limit: 37.");
-    await expect(runtime).toContainText("Effective payload upload slots: 1.");
+    await expect(incoming).toContainText(/Port \d+/);
+    await expect(dialog.getByText(/Couldn't apply|Limited to/)).toHaveCount(0);
   } else if (clientSettingsPhase === "recover") {
     await expect(
       dialog.getByRole("radio", { name: /^Fixed port/ }),
     ).toBeChecked();
-    await expect(runtime).toContainText(/port already in use/i);
-    await expect(runtime).toContainText(/Transport: degraded/i);
+    await expect(incoming).toContainText("Port already in use");
     await dialog
       .getByRole("radio", { name: /^Automatic port/ })
       .check();
     await dialog.getByRole("button", { name: "Save settings" }).click();
-    await expect(
-      dialog.getByText("Settings accepted and applying."),
-    ).toBeVisible();
-    await expect(runtime).toContainText(
-      /Effective listener policy: (?:automatic port|development-only loopback mode)\./,
-    );
-    await expect(runtime).not.toContainText(/Transport: degraded/i);
-    await expect(runtime).not.toContainText("Transport: applying");
+    await expect(dialog.getByText("Saved", { exact: true })).toBeVisible();
+    await expect(incoming).toContainText(/Port \d+/);
+    await expect(incoming).not.toContainText(/already in use|Couldn't apply|Applying…/);
   } else {
     throw new Error(`unknown client settings phase ${clientSettingsPhase}`);
   }
@@ -137,11 +123,8 @@ test("client settings apply live, persist, and recover bind failure", async ({
       violation.impact === "serious" || violation.impact === "critical",
   );
   expect(violations).toEqual([]);
-  const runtimeText = (await runtime.textContent()) ?? "";
-  const portMatch =
-    /(?:Listening on 127\.0\.0\.1:|Incoming TCP is using a development-only loopback listener at port |Incoming TCP is listening on all IPv4 interfaces at port )(\d+)/.exec(
-      runtimeText,
-    );
+  const incomingText = (await incoming.textContent()) ?? "";
+  const portMatch = /Port (\d+)/.exec(incomingText);
   console.log(
     `client_settings_live_milestone ${JSON.stringify({ phase: clientSettingsPhase, listenerPort: portMatch === null ? null : Number(portMatch[1]), axeViolations: violations.length })}`,
   );
@@ -837,20 +820,18 @@ test("live Library media detail follows metadata through completion", async ({
   const settings = page.getByRole("dialog", { name: "Settings" });
   await settings.getByRole("tab", { name: "Connection & seeding" }).click();
   await settings
-    .getByRole("checkbox", { name: "All torrents download limit unlimited" })
-    .uncheck();
+    .getByRole("combobox", { name: "Download" })
+    .selectOption({ label: "Custom…" });
   await settings
     .getByRole("spinbutton", {
-      name: "All torrents download limit in KiB per second",
+      name: "Download, custom speed in KB per second",
     })
     .fill("32");
   await settings.getByRole("button", { name: "Save settings" }).click();
+  await expect(settings.getByText("Saved", { exact: true })).toBeVisible();
   await expect(
-    settings.getByText("Settings accepted and applying."),
-  ).toBeVisible();
-  await expect(settings.getByLabel("Current runtime state")).toContainText(
-    "Effective peer download limit: 32 KiB/s.",
-  );
+    settings.getByRole("region", { name: "Speed limits" }),
+  ).not.toContainText(/Applying…|Couldn't apply/);
   await settings.getByRole("button", { name: "Close settings" }).click();
   const addForm = page.getByRole("form", { name: "Add torrent" });
   const input = addForm.getByRole("textbox", {
@@ -958,12 +939,13 @@ test("live Library media detail follows metadata through completion", async ({
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await settings.getByRole("tab", { name: "Connection & seeding" }).click();
   await settings
-    .getByRole("checkbox", { name: "All torrents download limit unlimited" })
-    .check();
+    .getByRole("combobox", { name: "Download" })
+    .selectOption({ label: "Unlimited" });
   await settings.getByRole("button", { name: "Save settings" }).click();
-  await expect(settings.getByLabel("Current runtime state")).toContainText(
-    "Effective peer download limit: unlimited.",
-  );
+  await expect(settings.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(
+    settings.getByRole("region", { name: "Speed limits" }),
+  ).not.toContainText(/Applying…|Couldn't apply/);
   await settings.getByRole("button", { name: "Close settings" }).click();
 
   await page.getByRole("tab", { name: "All files" }).click();

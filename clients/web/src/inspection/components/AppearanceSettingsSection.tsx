@@ -52,14 +52,14 @@ const DATA_UNITS_OPTIONS: readonly {
   readonly description: string;
 }[] = [
   {
-    value: "decimal",
-    label: localizedMessage("inspection.components.appearance.settings.section.decimal"),
-    description: localizedMessage("inspection.components.appearance.settings.section.use.kb.mb.and.gb.in.powers"),
+    value: "binary",
+    label: localizedMessage("inspection.components.appearance.settings.section.units.binary"),
+    description: localizedMessage("inspection.components.appearance.settings.section.units.binary.description"),
   },
   {
-    value: "binary",
-    label: localizedMessage("inspection.components.appearance.settings.section.binary"),
-    description: localizedMessage("inspection.components.appearance.settings.section.use.kib.mib.and.gib.in.powers"),
+    value: "decimal",
+    label: localizedMessage("inspection.components.appearance.settings.section.units.decimal"),
+    description: localizedMessage("inspection.components.appearance.settings.section.units.decimal.description"),
   },
 ];
 
@@ -143,7 +143,7 @@ export function AppearanceSettingsSection({
         aria-labelledby="data-units-heading"
       >
         <div className={styles.settingHeading}>
-          <strong id="data-units-heading">{localizedMessage("inspection.components.appearance.settings.section.data.units")}</strong>
+          <strong id="data-units-heading">{localizedMessage("inspection.components.appearance.settings.section.size.units")}</strong>
           <span>{localizedMessage("inspection.components.appearance.settings.section.changes.apply.immediately")}</span>
         </div>
         <div className={styles.options}>

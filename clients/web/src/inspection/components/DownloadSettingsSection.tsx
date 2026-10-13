@@ -53,15 +53,15 @@ export function DownloadSettingsSection({
     <fieldset className={styles.section}>
       <legend>{localizedMessage("inspection.components.download.settings.section.downloads")}</legend>
       {!manageable ? (
-        <p className={styles.storageNote}>{localizedMessage("inspection.components.download.settings.section.download.folders.are.managed.by.the.live")}</p>
+        <p className={styles.storageNote}>{localizedMessage("inspection.components.download.settings.section.not.manageable")}</p>
       ) : (
         <>
           <div className={styles.settingHeading}>
             <strong>{localizedMessage("inspection.components.download.settings.section.download.folders")}</strong>
             <span>
               {oneCurrentRoot
-                ? localizedMessage("inspection.components.download.settings.section.the.current.folder.applies.to.future.torrents")
-                : localizedMessage("inspection.components.download.settings.section.the.default.applies.to.future.torrents.only")}
+                ? localizedMessage("inspection.components.download.settings.section.new.downloads.current.folder")
+                : localizedMessage("inspection.components.download.settings.section.new.downloads.default.folder")}
             </span>
           </div>
           {showCrostiniStorageHelp ? <CrostiniStorageHelp /> : null}
@@ -198,7 +198,7 @@ export function DownloadSettingsSection({
               />
               <span>
                 <strong>{localizedMessage("inspection.components.download.settings.section.show.options.when.adding.torrents")}</strong>
-                <small>{localizedMessage("inspection.components.download.settings.section.options.are.always.shown.when.no.usable")}</small>
+                <small>{localizedMessage("inspection.components.download.settings.section.options.always.shown.without.default")}</small>
               </span>
             </label>
           )}
@@ -219,7 +219,7 @@ export function DownloadSettingsSection({
             />
             <span>
               <strong>{localizedMessage("inspection.components.download.settings.section.show.file.selection.when.adding.torrents")}</strong>
-              <small>{localizedMessage("inspection.components.download.settings.section.checked.means.normal.unchecked.means.skip")}</small>
+              <small>{localizedMessage("inspection.components.download.settings.section.choose.files.before.starting")}</small>
             </span>
           </label>
           {storageStatus === "" ? null : (

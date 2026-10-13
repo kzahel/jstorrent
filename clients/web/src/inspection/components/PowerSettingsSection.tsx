@@ -43,7 +43,7 @@ export function PowerSettingsSection({ power }: PowerSettingsSectionProps) {
   return (
     <fieldset className={styles.section} disabled={pending}>
       <legend>{localizedMessage("inspection.components.power.settings.section.power")}</legend>
-      <p className={styles.sectionIntroduction}>{localizedMessage("inspection.components.power.settings.section.rstorrent.can.prevent.automatic.system.sleep.during")}</p>
+      <p className={styles.sectionIntroduction}>{localizedMessage("inspection.components.power.settings.section.keeps.computer.awake")}</p>
       <label className={styles.preference}>
         <input
           type="checkbox"
@@ -51,8 +51,7 @@ export function PowerSettingsSection({ power }: PowerSettingsSectionProps) {
           onChange={(event) => void change(event.currentTarget.checked)}
         />
         <span>
-          <strong>{localizedMessage("inspection.components.power.settings.section.prevent.sleep.during.active.downloads.and.checks")}</strong>
-          <small>{localizedMessage("inspection.components.power.settings.section.releases.automatically.for.queued.paused.completed.seeding")}</small>
+          <strong>{localizedMessage("inspection.components.power.settings.section.prevent.sleep.while.downloading")}</strong>
         </span>
       </label>
       {status === null ? null : (

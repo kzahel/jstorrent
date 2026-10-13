@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [333 — Web settings plain copy](333-web-settings-plain-copy.md):
+  shared React settings, torrent settings and General tab use plain copy,
+  speed presets and row-level notes instead of engine runtime state.
+
 - [331 — Android settings plain copy](331-android-settings-plain-copy.md):
   Settings and torrent Details/Status use plain copy with section headers and
   speed presets; engine state, enum names and seeding goals are no longer shown.

@@ -53,7 +53,7 @@ test("primary destinations preserve shared source state", async ({ page }) => {
   await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
   await expect(page.getByText("JSTorrent", { exact: true })).toBeVisible();
   await expect(page).toHaveTitle(
-    /^JSTorrent - ↓[\d.]+ [kMGT]?B\/s ↑[\d.]+ [kMGT]?B\/s$/,
+    /^JSTorrent - ↓[\d.]+ [kKMGT]?B\/s ↑[\d.]+ [kKMGT]?B\/s$/,
   );
 
   const primary = page.getByRole("navigation", { name: "Primary" });
@@ -538,9 +538,10 @@ test("typed torrent ETA stays explicit across responsive surfaces", async ({
   const settings = page.getByRole("dialog", { name: "Settings" });
   await settings.getByRole("tab", { name: "Connection & seeding" }).click();
   await expect(
-    settings.getByRole("spinbutton", { name: "Simultaneous downloads" }),
+    settings.getByRole("spinbutton", { name: "Max active downloads" }),
   ).toHaveValue("3");
-  await expect(settings.getByText("Active downloads: 0 of 3.")).toBeVisible();
+  await settings.getByText("Network details").click();
+  await expect(settings.getByText("Active downloads: 0 of 3")).toBeVisible();
   await settings.getByRole("tab", { name: "Appearance" }).click();
   await settings.getByRole("radio", { name: /Compact/ }).check();
   await page.keyboard.press("Escape");
@@ -778,7 +779,7 @@ test("interface size settings persist and keep geometry coherent", async ({
   const close = dialog.getByRole("button", { name: "Close settings" });
   await expect(close).toBeFocused();
   await page.keyboard.press("Shift+Tab");
-  await expect(dialog.getByRole("radio", { name: /Binary/ })).toBeFocused();
+  await expect(dialog.getByRole("radio", { name: /Decimal/ })).toBeFocused();
   await dialog.getByRole("radio", { name: /Standard/ }).check();
   await expect.poll(() => detailTabWidths(page)).toEqual([100]);
   await expect.poll(() => detailTabIsFullyVisible(page, "DHT")).toBe(true);
@@ -843,37 +844,34 @@ test("seeding priority settings stay truthful across responsive layouts", async 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Settings" });
   await dialog.getByRole("tab", { name: "Connection & seeding" }).click();
-  const priority = dialog.getByRole("group", {
-    name: "Automatic seeding priority",
-  });
+  const queue = dialog.getByRole("region", { name: "Queue" });
+  const priority = dialog.getByRole("region", { name: "Seeding goals" });
   await expect(
-    priority.getByText(/Meeting a goal does not stop a torrent/i),
+    priority.getByText(/Reaching a goal doesn't stop seeding/i),
   ).toBeVisible();
   await expect(
-    priority.getByRole("spinbutton", { name: "Active seeds" }),
+    queue.getByRole("spinbutton", { name: "Max active seeds" }),
   ).toHaveValue("5");
   await expect(
-    priority.getByRole("spinbutton", {
-      name: "Share-ratio priority goal (%)",
-    }),
+    priority.getByRole("spinbutton", { name: "Share ratio" }),
   ).toHaveValue("200");
   await expect(
     priority.getByRole("spinbutton", {
-      name: "Finished/download time priority goal (%)",
+      name: "Seeding time vs. download time",
     }),
   ).toHaveValue("700");
   await expect(
-    priority.getByRole("spinbutton", {
-      name: "Finished-time priority goal (seconds)",
-    }),
+    priority.getByRole("spinbutton", { name: "Seeding time", exact: true }),
   ).toHaveValue("86400");
-  await expect(dialog.getByText("Active seeds: 0 counted of 5.")).toBeVisible();
-  const unlimited = priority.getByRole("checkbox", {
-    name: /Unlimited active seeds/,
+  await expect(priority.getByText("seconds (1d 0h)")).toBeVisible();
+  await dialog.getByText("Network details").click();
+  await expect(dialog.getByText("Active seeds: 0 of 5")).toBeVisible();
+  const unlimited = queue.getByRole("checkbox", {
+    name: /No limit on active seeds/,
   });
   await unlimited.check();
   await expect(
-    priority.getByRole("spinbutton", { name: "Active seeds" }),
+    queue.getByRole("spinbutton", { name: "Max active seeds" }),
   ).toBeDisabled();
   expect(
     (await new AxeBuilder({ page }).analyze()).violations.filter(
@@ -888,12 +886,12 @@ test("seeding priority settings stay truthful across responsive layouts", async 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const phoneDialog = page.getByRole("dialog", { name: "Settings" });
   await phoneDialog.getByRole("tab", { name: "Connection & seeding" }).click();
-  const phonePriority = phoneDialog.getByRole("group", {
-    name: "Automatic seeding priority",
+  const phonePriority = phoneDialog.getByRole("region", {
+    name: "Seeding goals",
   });
   await phonePriority.scrollIntoViewIfNeeded();
   await expect(
-    phonePriority.getByText(/fixed shared 500-torrent safety ceiling/i),
+    phonePriority.getByText(/Reaching a goal doesn't stop seeding/i),
   ).toBeVisible();
   await expect
     .poll(async () => Math.round((await phoneDialog.boundingBox())?.width ?? 0))
@@ -918,55 +916,42 @@ test("torrent settings dialog stays operable across responsive layouts", async (
   await openScenario(page, "healthy-download", 42_000, true);
   await page.getByRole("tab", { name: "General" }).click();
   const details = page.getByRole("region", { name: "Torrent details" });
-  await expect(details.getByRole("spinbutton", {
-    name: "Torrent upload limit in KiB per second",
-  })).toHaveCount(0);
+  await expect(details.getByRole("combobox", { name: "Upload" })).toHaveCount(0);
   const more = page.getByRole("button", { name: /^More/ });
   await more.click();
   await page.getByRole("menuitem", { name: "Torrent settings" }).click();
   const dialog = page.getByRole("dialog", { name: "Torrent settings" });
   await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
-  const uploadUnlimited = dialog.getByRole("checkbox", {
-    name: "Torrent upload limit unlimited",
-  });
+  const uploadChoice = dialog.getByRole("combobox", { name: "Upload" });
   const upload = dialog.getByRole("spinbutton", {
-    name: "Torrent upload limit in KiB per second",
+    name: "Upload, custom speed in KB per second",
   });
-  const downloadUnlimited = dialog.getByRole("checkbox", {
-    name: "Torrent download limit unlimited",
-  });
-  const download = dialog.getByRole("spinbutton", {
-    name: "Torrent download limit in KiB per second",
-  });
+  const downloadChoice = dialog.getByRole("combobox", { name: "Download" });
 
-  await expect(uploadUnlimited).toBeChecked();
-  await uploadUnlimited.focus();
-  await page.keyboard.press("Space");
+  await expect(uploadChoice).toHaveValue("unlimited");
+  await uploadChoice.selectOption({ label: "Custom…" });
   await upload.fill("48");
-  await downloadUnlimited.uncheck();
-  await download.fill("160");
+  await downloadChoice.selectOption({ label: "1 MB/s" });
   await page.waitForTimeout(1_250);
-  await expect(downloadUnlimited).not.toBeChecked();
-  await expect(download).toHaveValue("160");
-  await dialog.getByRole("button", { name: "Save torrent limits" }).click();
-  await expect(
-    dialog.getByText("Torrent peer transfer limits saved."),
-  ).toBeVisible();
+  await expect(downloadChoice).toHaveValue("1024");
+  await expect(upload).toHaveValue("48");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog.getByText("Saved")).toBeVisible();
 
   await page.setViewportSize({ width: 920, height: 720 });
   await expect(dialog).toBeVisible();
   await expect(upload).toHaveValue("48");
-  await expect(download).toHaveValue("160");
+  await expect(downloadChoice).toHaveValue("1024");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(dialog).toBeVisible();
-  await uploadUnlimited.focus();
-  await page.keyboard.press("Space");
-  await expect(upload).toBeDisabled();
-  await page.keyboard.press("Space");
+  await uploadChoice.selectOption({ label: "Unlimited" });
+  await expect(upload).toHaveCount(0);
+  await uploadChoice.selectOption({ label: "Custom…" });
   await expect(upload).toBeEnabled();
   await expect(upload).toHaveValue("48");
 
+  await uploadChoice.focus();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(more).toBeFocused();
@@ -1005,7 +990,7 @@ test("global settings draft survives complete autoplay publications", async ({
   const dialog = page.getByRole("dialog", { name: "Settings" });
   await dialog.getByRole("tab", { name: "Connection & seeding" }).click();
   const limit = dialog.getByRole("spinbutton", {
-    name: "Peer connection limit",
+    name: "Max peer connections",
   });
   const save = dialog.getByRole("button", { name: "Save settings" });
 
@@ -1044,10 +1029,10 @@ test("color themes follow or override system appearance and persist", async ({
       .getByRole("group", { name: "Color theme" })
       .getByRole("radio", { name: /Auto/ }),
   ).toBeChecked();
-  const dataUnits = dialog.getByRole("group", { name: "Data units" });
+  const dataUnits = dialog.getByRole("group", { name: "Size units" });
+  await expect(dataUnits.getByRole("radio", { name: /^KB, MB, GB/ })).toBeChecked();
+  await dataUnits.getByRole("radio", { name: /Decimal/ }).check();
   await expect(dataUnits.getByRole("radio", { name: /Decimal/ })).toBeChecked();
-  await dataUnits.getByRole("radio", { name: /Binary/ }).check();
-  await expect(dataUnits.getByRole("radio", { name: /Binary/ })).toBeChecked();
   await capture(page, "rstorrent-settings-auto-dark.png");
 
   await dialog.getByRole("radio", { name: /Light/ }).check();
@@ -1114,7 +1099,7 @@ test("color themes follow or override system appearance and persist", async ({
     version: 3,
     interfaceSize: "standard",
     colorTheme: "dark",
-    dataUnits: "binary",
+    dataUnits: "decimal",
   });
   await page.addInitScript(() => {
     const observer = new MutationObserver(() => {
@@ -1158,8 +1143,8 @@ test("color themes follow or override system appearance and persist", async ({
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(
     page
-      .getByRole("group", { name: "Data units" })
-      .getByRole("radio", { name: /Binary/ }),
+      .getByRole("group", { name: "Size units" })
+      .getByRole("radio", { name: /Decimal/ }),
   ).toBeChecked();
 });
 
@@ -1173,9 +1158,13 @@ test("data units reformat mounted product surfaces without changing raw state", 
   const transferOrder = await transfers
     .locator("[data-row-id]")
     .evaluateAll((rows) => rows.map((row) => row.getAttribute("data-row-id")));
-  await expectVisibleUnits(page, "decimal");
-  await setDataUnits(page, "Binary");
   await expectVisibleUnits(page, "binary");
+  const binarySize = await transfers.getByText(/\d (?:KB|MB|GB)$/).first().textContent();
+  await setDataUnits(page, "Decimal");
+  await expectVisibleUnits(page, "decimal");
+  expect(
+    await transfers.getByText(/\d (?:kB|MB|GB)$/).first().textContent(),
+  ).not.toBe(binarySize);
   expect(
     await transfers
       .locator("[data-row-id]")
@@ -1186,44 +1175,44 @@ test("data units reformat mounted product surfaces without changing raw state", 
 
   const primary = page.getByRole("navigation", { name: "Primary" });
   await primary.getByRole("button", { name: "Library" }).click();
-  await expectVisibleUnits(page, "binary");
+  await expectVisibleUnits(page, "decimal");
   await page
     .getByRole("button", { name: "Open details for Sintel 4K open movie" })
     .click();
   await page.getByRole("button", { name: "Open in Torrents" }).click();
   await page.getByRole("tab", { name: "General" }).click();
-  await expectVisibleUnits(page, "binary");
-  await page.getByRole("tab", { name: "Files" }).click();
-  await expectVisibleUnits(page, "binary");
-  await setDataUnits(page, "Decimal");
   await expectVisibleUnits(page, "decimal");
+  await page.getByRole("tab", { name: "Files" }).click();
+  await expectVisibleUnits(page, "decimal");
+  await setDataUnits(page, "Binary");
+  await expectVisibleUnits(page, "binary");
 
   await openScenario(page, "slow-disk-pressure", 20_000);
   await page.getByRole("tab", { name: "Disk" }).click();
-  await expectVisibleUnits(page, "decimal");
-  await expect(page.getByText(/16 KiB block jobs/)).toBeVisible();
-  await setDataUnits(page, "Binary");
   await expectVisibleUnits(page, "binary");
+  await expect(page.getByText(/16 KiB block jobs/)).toBeVisible();
+  await setDataUnits(page, "Decimal");
+  await expectVisibleUnits(page, "decimal");
   await expect(page.getByText(/16 KiB block jobs/)).toBeVisible();
 
   await openScenario(page, "dht-observatory", 42_000);
   await page.getByRole("tab", { name: "DHT" }).click();
-  await expectVisibleUnits(page, "binary");
+  await expectVisibleUnits(page, "decimal");
 
   await openScenario(page, "speed-bursty", 42_000);
   await page.getByRole("tab", { name: "Speed" }).click();
-  await expectVisibleUnits(page, "binary");
+  await expectVisibleUnits(page, "decimal");
   const canvas = page.getByRole("img", { name: /Speed history chart/ });
   const canvasSize = await canvas.boundingBox();
-  await setDataUnits(page, "Decimal");
-  await expectVisibleUnits(page, "decimal");
+  await setDataUnits(page, "Binary");
+  await expectVisibleUnits(page, "binary");
   expect(await canvas.boundingBox()).toEqual(canvasSize);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const phoneSettings = page.getByRole("dialog", { name: "Settings" });
   await expect(
-    phoneSettings.getByRole("group", { name: "Data units" }),
+    phoneSettings.getByRole("group", { name: "Size units" }),
   ).toBeVisible();
   const violations = (
     await new AxeBuilder({ page }).analyze()
@@ -2150,8 +2139,8 @@ async function setDataUnits(page: Page, label: "Decimal" | "Binary") {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Settings" });
   await dialog
-    .getByRole("group", { name: "Data units" })
-    .getByRole("radio", { name: new RegExp(label) })
+    .getByRole("group", { name: "Size units" })
+    .getByRole("radio", { name: label === "Binary" ? /^KB, MB, GB/ : /^Decimal/ })
     .check();
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
@@ -2161,7 +2150,7 @@ async function expectVisibleUnits(page: Page, dataUnits: "decimal" | "binary") {
   const pattern =
     dataUnits === "decimal"
       ? /\d+(?:\.\d)? (?:kB|MB|GB|TB|PB)(?:\/s)?/
-      : /\d+(?:\.\d)? (?:KiB|MiB|GiB|TiB|PiB)(?:\/s)?/;
+      : /\d+(?:\.\d)? (?:KB|MB|GB|TB|PB)(?:\/s)?/;
   await expect(page.getByText(pattern).first()).toBeVisible();
 }
 

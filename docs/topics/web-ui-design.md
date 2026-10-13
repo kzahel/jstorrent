@@ -1,5 +1,18 @@
 # Web UI Design
 
+Tactical [333](../tactical/333-web-settings-plain-copy.md) rewrites Settings,
+the Torrent settings dialog and the General tab in user vocabulary.
+Connection & seeding is grouped under Speed limits, Queue, Seeding goals,
+Connections and Network headers. Rows show nothing when a setting applied,
+`Applying…` while pending, and one localized line when it failed or the device
+caps it. The former "Current runtime" block becomes a collapsed **Network
+details** panel in whole sentences without engine detail. Speed limits use a
+shared preset picker (Unlimited, 100 KB/s to 10 MB/s, Custom KB/s), replacing
+the Unlimited-or-KiB/s field noted under Tactical 134; patches keep exact
+bytes per second. 1024-based KB/MB/GB is the default size unit, and Decimal
+remains an opt-in. Diagnostics tabs, Remote access, Web access and About copy
+are unchanged.
+
 Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) makes
 Android setup recoverable after cancel: Open JSTorrent Android is a direct
 production-targeted link, while Connect in Chrome and Retry connection attach

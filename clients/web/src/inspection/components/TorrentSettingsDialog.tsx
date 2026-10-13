@@ -18,12 +18,9 @@ import {
   type SettingsDraftPhase,
   type SettingsDraftState,
 } from "../settings-draft";
-import {
-  RATE_LIMIT_MAXIMUM_BYTES,
-  rateLimitDraftValue,
-  validateRateLimit,
-} from "../transfer-rate";
+import { rateLimitDraftValue, validateRateLimit } from "../transfer-rate";
 import { useSettingsDraft } from "../use-settings-draft";
+import { RateLimitPicker, type RateLimitDraft } from "./RateLimitPicker";
 import styles from "./TorrentSettingsDialog.module.css";
 
 export function TorrentSettingsDialog({
@@ -52,7 +49,7 @@ export function TorrentSettingsDialog({
     if (event.key !== "Tab") return;
     const controls = Array.from(
       dialogRef.current?.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), input:not(:disabled)',
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled)',
       ) ?? [],
     );
     const first = controls[0];
@@ -102,9 +99,9 @@ export function TorrentSettingsDialog({
         patch,
       });
       if (result.resultingRevision === undefined) {
-        throw new Error("Settings response did not include a durable revision.");
+        throw new Error(localizedMessage("inspection.components.torrent.settings.dialog.save.not.confirmed"));
       }
-      setAcceptedMessage(localizedMessage("inspection.components.detail.pane.torrent.peer.transfer.limits.saved"));
+      setAcceptedMessage(localizedMessage("inspection.components.torrent.settings.dialog.saved"));
       dispatchDraft({ type: "accept", revision: result.resultingRevision });
     } catch (error) {
       setAcceptedMessage(null);
@@ -137,53 +134,35 @@ export function TorrentSettingsDialog({
         </h2>
         <p className={styles.torrentName}>{torrent.name}</p>
         <p id="torrent-settings-description">
-          {localizedMessage("inspection.components.detail.pane.these.caps.combine.with.the.all.torrents")}
+          {localizedMessage("inspection.components.torrent.settings.dialog.description")}
         </p>
         <h3>
-          {localizedMessage("inspection.components.detail.pane.peer.transfer.limits")}
+          {localizedMessage("inspection.components.torrent.settings.dialog.speed.limits")}
         </h3>
-        <TorrentRateField
-          direction="upload"
-          unlimited={draft.upload.unlimited}
-          value={draft.upload.valueKiB}
-          error={upload.error}
-          disabled={false}
-          onUnlimited={(unlimited) =>
-            dispatchDraft({
-              type: "edit",
-              field: "upload",
-              value: { ...draft.upload, unlimited },
-            })
-          }
-          onValue={(valueKiB) =>
-            dispatchDraft({
-              type: "edit",
-              field: "upload",
-              value: { ...draft.upload, valueKiB },
-            })
-          }
-        />
-        <TorrentRateField
-          direction="download"
-          unlimited={draft.download.unlimited}
-          value={draft.download.valueKiB}
-          error={download.error}
-          disabled={false}
-          onUnlimited={(unlimited) =>
-            dispatchDraft({
-              type: "edit",
-              field: "download",
-              value: { ...draft.download, unlimited },
-            })
-          }
-          onValue={(valueKiB) =>
-            dispatchDraft({
-              type: "edit",
-              field: "download",
-              value: { ...draft.download, valueKiB },
-            })
-          }
-        />
+        <div className={styles.rateLimitFields}>
+          <RateLimitPicker
+            id="torrent-upload-rate"
+            label={localizedMessage("inspection.components.torrent.settings.dialog.upload")}
+            unlimited={draft.upload.unlimited}
+            valueKiB={draft.upload.valueKiB}
+            error={upload.error}
+            disabled={false}
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "upload", value })
+            }
+          />
+          <RateLimitPicker
+            id="torrent-download-rate"
+            label={localizedMessage("inspection.components.torrent.settings.dialog.download")}
+            unlimited={draft.download.unlimited}
+            valueKiB={draft.download.valueKiB}
+            error={download.error}
+            disabled={false}
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "download", value })
+            }
+          />
+        </div>
         <div className={styles.rateLimitActions}>
           <button
             ref={cancelRef}
@@ -195,8 +174,8 @@ export function TorrentSettingsDialog({
           </button>
           <button type="submit" disabled={patch === null || pending}>
             {pending
-              ? localizedMessage("inspection.components.detail.pane.saving")
-              : localizedMessage("inspection.components.detail.pane.save.torrent.limits")}
+              ? localizedMessage("inspection.components.torrent.settings.dialog.saving")
+              : localizedMessage("inspection.components.torrent.settings.dialog.save")}
           </button>
           {status === null ? null : (
             <output aria-live="polite">{status}</output>
@@ -207,19 +186,14 @@ export function TorrentSettingsDialog({
   );
 }
 
-interface TorrentRateDraftField {
-  readonly unlimited: boolean;
-  readonly valueKiB: string;
-}
-
 interface TorrentRateDraft {
-  readonly upload: TorrentRateDraftField;
-  readonly download: TorrentRateDraftField;
+  readonly upload: RateLimitDraft;
+  readonly download: RateLimitDraft;
 }
 
 const TORRENT_RATE_COMPARATORS: SettingsDraftComparators<TorrentRateDraft> = {
-  upload: sameTorrentRateDraftField,
-  download: sameTorrentRateDraftField,
+  upload: sameRateLimitDraft,
+  download: sameRateLimitDraft,
 };
 
 function torrentRateDraft(limits: {
@@ -238,9 +212,9 @@ function torrentRateDraft(limits: {
   };
 }
 
-function sameTorrentRateDraftField(
-  left: TorrentRateDraftField,
-  right: TorrentRateDraftField,
+function sameRateLimitDraft(
+  left: RateLimitDraft,
+  right: RateLimitDraft,
 ): boolean {
   return left.unlimited === right.unlimited &&
     (left.unlimited || left.valueKiB === right.valueKiB);
@@ -262,60 +236,11 @@ function draftStatus(
   state: SettingsDraftState<TorrentRateDraft>,
   phase: SettingsDraftPhase,
 ): string | null {
-  if (phase === "submitting") return localizedMessage("inspection.components.detail.pane.saving.torrent.limits");
-  if (phase === "awaiting_view") return localizedMessage("inspection.components.detail.pane.saved.waiting.for.the.live.view");
+  if (phase === "submitting" || phase === "awaiting_view") {
+    return localizedMessage("inspection.components.torrent.settings.dialog.saving");
+  }
   if (phase === "conflict") {
-    return localizedMessage("inspection.components.detail.pane.these.limits.changed.elsewhere.your.draft.is");
+    return localizedMessage("inspection.components.torrent.settings.dialog.changed.elsewhere");
   }
   return state.failure;
-}
-
-function TorrentRateField({
-  direction,
-  unlimited,
-  value,
-  error,
-  disabled,
-  onUnlimited,
-  onValue,
-}: {
-  readonly direction: "upload" | "download";
-  readonly unlimited: boolean;
-  readonly value: string;
-  readonly error: string | null;
-  readonly disabled: boolean;
-  readonly onUnlimited: (value: boolean) => void;
-  readonly onValue: (value: string) => void;
-}) {
-  const label = `Torrent ${direction} limit`;
-  const id = `torrent-${direction}-rate`;
-  return (
-    <fieldset className={styles.rateLimitField}>
-      <legend>{label}</legend>
-      <label>
-        <input
-          type="checkbox"
-          aria-label={`${label} unlimited`}
-          checked={unlimited}
-          disabled={disabled}
-          onChange={(event) => onUnlimited(event.currentTarget.checked)}
-        />{localizedMessage("inspection.components.detail.pane.unlimited")}</label>
-      <label htmlFor={id}>{localizedMessage("inspection.components.detail.pane.kib.s")}</label>
-      <input
-        id={id}
-        aria-label={`${label} in KiB per second`}
-        type="number"
-        inputMode="decimal"
-        min={1}
-        max={RATE_LIMIT_MAXIMUM_BYTES / 1_024}
-        step={1 / 1_024}
-        value={value}
-        required={!unlimited}
-        disabled={disabled || unlimited}
-        aria-invalid={error !== null}
-        onChange={(event) => onValue(event.currentTarget.value)}
-      />
-      {error === null ? null : <small role="alert">{error}</small>}
-    </fieldset>
-  );
 }

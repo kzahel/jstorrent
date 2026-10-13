@@ -633,9 +633,60 @@
   color: var(--danger);
 }
 
-.runtimeState {
+.settingSection {
   display: grid;
-  gap: var(--ui-space-xs);
+  gap: var(--ui-space-sm);
+}
+
+.settingSectionHeading {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.settingSectionHeading h3 {
+  margin: 0;
+  color: var(--accent);
+  font-size: var(--ui-font-caption);
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settingSectionHeading > span {
+  color: var(--text-muted);
+  font-size: var(--ui-font-small);
+  line-height: 1.4;
+}
+
+.settingNote,
+.settingNoteWarning {
+  display: block;
+  font-size: var(--ui-font-small);
+  line-height: 1.4;
+}
+
+.settingNote {
+  color: var(--text-secondary);
+}
+
+.settingNoteWarning {
+  color: var(--danger-strong);
+}
+
+.inputWithUnit,
+.numberField > .inputWithUnit {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-sm);
+  color: var(--text-secondary);
+  font-size: var(--ui-font-small);
+}
+
+.numberField .inputWithUnit input {
+  width: min(100%, 12rem);
+}
+
+.networkDetails {
   border: 1px solid var(--border-soft);
   border-radius: 0.55rem;
   padding: var(--ui-space-sm) var(--ui-space-md);
@@ -645,12 +696,19 @@
   line-height: 1.45;
 }
 
-.runtimeState > strong {
+.networkDetails summary {
   color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.runtimeWarning {
-  color: var(--danger-strong);
+.networkDetails ul {
+  display: grid;
+  gap: var(--ui-space-xs);
+  margin: var(--ui-space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
 }
 
 .formActions {

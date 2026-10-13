@@ -1,21 +1,27 @@
-import { message as localizedMessage } from "../../localization/runtime";
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  formatNumber,
+  message as localizedMessage,
+} from "../../localization/runtime";
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import type {
-  ActiveSeedLimit,
   AdvertisedPeerEndpointStatus,
   ClientSettings,
+  ClientSettingsApplicationState,
   ClientSettingsPatch,
   ClientSettingsRuntimeView,
   EncryptionPolicy,
   Ipv6PinholeStatus,
-  ListenerBindFailureReason,
   ListenerPolicy,
+  ListenerStatus,
+  PortMappingFailureStage,
   PortMappingPolicy,
   PortMappingStatus,
   TransferRateLimit,
+  TransportFamilyRuntimeView,
 } from "../../api";
 import { useInspectionStore } from "../context";
+import { formatElapsedSeconds } from "../format";
 import type { CommandResult } from "../model";
 import {
   settingsDraftFields,
@@ -26,13 +32,12 @@ import {
   type SettingsDraftState,
 } from "../settings-draft";
 import {
-  RATE_LIMIT_MAXIMUM_BYTES,
   rateLimitDraftValue,
-  rateLimitLabel,
   validateRateLimit,
   type RateLimitValidation,
 } from "../transfer-rate";
 import { useSettingsDraft } from "../use-settings-draft";
+import { RateLimitPicker, type RateLimitDraft } from "./RateLimitPicker";
 import styles from "./SettingsDialog.module.css";
 
 const FIXED_PORT_MINIMUM = 1_024;
@@ -51,6 +56,12 @@ const DEFAULT_UPLOAD_RATE_KIB = "1024";
 const DEFAULT_DOWNLOAD_RATE_KIB = "4096";
 
 type ListenerMode = "automatic" | "fixed";
+
+/** A short row-level line; warnings use the danger color. */
+interface SettingNote {
+  readonly text: string;
+  readonly warning: boolean;
+}
 
 interface ConnectionSeedingSettingsSectionProps {
   readonly settings: ClientSettingsRuntimeView;
@@ -149,9 +160,9 @@ export function ConnectionSeedingSettingsSection({
     try {
       const result = await onSave(patch);
       if (result.resultingRevision === undefined) {
-        throw new Error("Settings response did not include a durable revision.");
+        throw new Error(localizedMessage("inspection.components.connection.seeding.settings.section.save.not.confirmed"));
       }
-      setAcceptedMessage(localizedMessage("inspection.components.connection.seeding.settings.section.settings.accepted.and.applying"));
+      setAcceptedMessage(localizedMessage("inspection.components.connection.seeding.settings.section.saved"));
       dispatchDraft({ type: "accept", revision: result.resultingRevision });
     } catch (error) {
       setAcceptedMessage(null);
@@ -167,197 +178,83 @@ export function ConnectionSeedingSettingsSection({
     clientDraftStatus(draftState, phase) ??
     (phase === "pristine" ? acceptedMessage : null);
 
+  const peerLimitCapped =
+    settings.effective_peer_connection_limit < configured.peer_connection_limit;
+
   return (
     <fieldset className={styles.section}>
       <legend>{localizedMessage("inspection.components.connection.seeding.settings.section.connection.seeding")}</legend>
       {!manageable ? (
-        <p className={styles.storageNote}>{localizedMessage("inspection.components.connection.seeding.settings.section.connection.and.seeding.settings.are.managed.by")}</p>
+        <p className={styles.storageNote}>{localizedMessage("inspection.components.connection.seeding.settings.section.not.manageable")}</p>
       ) : null}
-      <p className={styles.sectionIntroduction}>{localizedMessage("inspection.components.connection.seeding.settings.section.incoming.peer.connections.use.ipv4.and.when")}</p>
       <form className={styles.settingsForm} onSubmit={(event) => void submit(event)}>
-        <div
-          className={styles.settingGroup}
-          role="group"
-          aria-labelledby="listener-policy-heading"
+        <SettingGroup
+          id="speed-limits-heading"
+          title={localizedMessage("inspection.components.connection.seeding.settings.section.speed.limits.heading")}
+          description={localizedMessage("inspection.components.connection.seeding.settings.section.speed.limits.description")}
+          note={applicationNote(settings.bandwidth_application)}
         >
-          <div className={styles.settingHeading}>
-            <strong id="listener-policy-heading">{localizedMessage("inspection.components.connection.seeding.settings.section.incoming.tcp.listener")}</strong>
-            <span>{localizedMessage("inspection.components.connection.seeding.settings.section.choose.automatic.or.fixed.port.selection")}</span>
-          </div>
-          <div className={styles.options}>
-            <ListenerOption
-              mode="automatic"
-              label={localizedMessage("inspection.components.connection.seeding.settings.section.automatic.port")}
-              description="Choose an available TCP and UDP port automatically."
-              selected={draft.listener.mode === "automatic"}
-              disabled={!manageable}
-              onSelect={() =>
-                dispatchDraft({
-                  type: "edit",
-                  field: "listener",
-                  value: { ...draft.listener, mode: "automatic" },
-                })
-              }
-            />
-            <ListenerOption
-              mode="fixed"
-              label={localizedMessage("inspection.components.connection.seeding.settings.section.fixed.port")}
-              description="Always use the exact port entered below."
-              selected={draft.listener.mode === "fixed"}
-              disabled={!manageable}
-              onSelect={() =>
-                dispatchDraft({
-                  type: "edit",
-                  field: "listener",
-                  value: { ...draft.listener, mode: "fixed" },
-                })
-              }
-            />
-          </div>
-          {draft.listener.mode === "fixed" ? (
-            <NumberField
-              id="fixed-listener-port"
-              label={localizedMessage("inspection.components.connection.seeding.settings.section.fixed.listener.port")}
-              value={draft.listener.fixedPort}
-              minimum={FIXED_PORT_MINIMUM}
-              maximum={FIXED_PORT_MAXIMUM}
-              error={validation.fixedPortError}
-              disabled={!manageable}
-              onChange={(fixedPort) =>
-                dispatchDraft({
-                  type: "edit",
-                  field: "listener",
-                  value: { ...draft.listener, fixedPort },
-                })
-              }
-            />
-          ) : null}
-        </div>
-
-        <label className={styles.option}>
-          <input
-            type="checkbox"
-            checked={draft.ipv6Enabled}
+          <RateLimitPicker
+            id="all-torrents-upload-rate"
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.upload")}
+            unlimited={draft.uploadRate.unlimited}
+            valueKiB={draft.uploadRate.valueKiB}
+            error={validation.uploadRateError}
             disabled={!manageable}
-            onChange={(event) =>
-              dispatchDraft({
-                type: "edit",
-                field: "ipv6Enabled",
-                value: event.currentTarget.checked,
-              })
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "uploadRate", value })
             }
           />
-          <span>
-            <strong>{localizedMessage("inspection.components.connection.seeding.settings.section.enable.ipv6")}</strong>
-            <small>{localizedMessage("inspection.components.connection.seeding.settings.section.use.ipv6.for.dht.trackers.peer.connections")}</small>
-          </span>
-        </label>
-
-        <label className={styles.option}>
-          <input
-            type="checkbox"
-            checked={draft.dhtEnabled}
+          <RateLimitPicker
+            id="all-torrents-download-rate"
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.download")}
+            unlimited={draft.downloadRate.unlimited}
+            valueKiB={draft.downloadRate.valueKiB}
+            error={validation.downloadRateError}
             disabled={!manageable}
-            onChange={(event) =>
-              dispatchDraft({
-                type: "edit",
-                field: "dhtEnabled",
-                value: event.currentTarget.checked,
-              })
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "downloadRate", value })
             }
           />
-          <span>
-            <strong>{localizedMessage("inspection.components.connection.seeding.settings.section.enable.dht")}</strong>
-            <small>{localizedMessage("inspection.components.connection.seeding.settings.section.find.peers.through.the.distributed.hash.table")}</small>
-          </span>
-        </label>
+        </SettingGroup>
 
-        <label className={styles.option}>
-          <input
-            type="checkbox"
-            checked={draft.peerExchangeEnabled}
-            disabled={!manageable}
-            onChange={(event) =>
-              dispatchDraft({
-                type: "edit",
-                field: "peerExchangeEnabled",
-                value: event.currentTarget.checked,
-              })
-            }
-          />
-          <span>
-            <strong>{localizedMessage("inspection.components.connection.seeding.settings.section.enable.peer.exchange")}</strong>
-            <small>{localizedMessage("inspection.components.connection.seeding.settings.section.exchange.peer.addresses.with.connected.public.torrents")}</small>
-          </span>
-        </label>
-
-        <label className={styles.option}>
-          <input
-            type="checkbox"
-            checked={draft.portMapping === "upnp"}
-            disabled={!manageable}
-            onChange={(event) =>
-              dispatchDraft({
-                type: "edit",
-                field: "portMapping",
-                value: event.currentTarget.checked ? "upnp" : "disabled",
-              })
-            }
-          />
-          <span>
-            <strong>{localizedMessage("inspection.components.connection.seeding.settings.section.map.incoming.tcp.and.utp.with.upnp")}</strong>
-            <small>{localizedMessage("inspection.components.connection.seeding.settings.section.request.independent.temporary.tcp.and.udp.igd")}</small>
-          </span>
-        </label>
-
-        <NumberField
-          id="active-downloads"
-          label={localizedMessage("inspection.components.connection.seeding.settings.section.simultaneous.downloads")}
-          description="Incomplete torrents admitted at once. Additional runnable torrents remain queued and start automatically as capacity opens."
-          value={draft.activeDownloads}
-          minimum={ACTIVE_DOWNLOADS_MINIMUM}
-          maximum={ACTIVE_DOWNLOADS_MAXIMUM}
-          error={validation.activeDownloadsError}
-          disabled={!manageable}
-          onChange={(value) =>
-            dispatchDraft({ type: "edit", field: "activeDownloads", value })
-          }
-        />
-
-        <div
-          className={styles.settingGroup}
-          role="group"
-          aria-labelledby="seeding-priority-heading"
+        <SettingGroup
+          id="queue-heading"
+          title={localizedMessage("inspection.components.connection.seeding.settings.section.queue.heading")}
         >
-          <div className={styles.settingHeading}>
-            <strong id="seeding-priority-heading">{localizedMessage("inspection.components.connection.seeding.settings.section.automatic.seeding.priority")}</strong>
-            <span>{localizedMessage("inspection.components.connection.seeding.settings.section.goals.rank.completed.torrents.when.active.seed")}</span>
-          </div>
-          <label className={styles.option}>
-            <input
-              type="checkbox"
-              checked={draft.activeSeeds.unlimited}
-              disabled={!manageable}
-              onChange={(event) =>
-                dispatchDraft({
-                  type: "edit",
-                  field: "activeSeeds",
-                  value: {
-                    ...draft.activeSeeds,
-                    unlimited: event.currentTarget.checked,
-                  },
-                })
-              }
-            />
-            <span>
-              <strong>{localizedMessage("inspection.components.connection.seeding.settings.section.unlimited.active.seeds")}</strong>
-              <small>{localizedMessage("inspection.components.connection.seeding.settings.section.remove.the.seed.only.limit.the.fixed")}</small>
-            </span>
-          </label>
+          <NumberField
+            id="active-downloads"
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.max.active.downloads")}
+            description={localizedMessage("inspection.components.connection.seeding.settings.section.max.active.downloads.description")}
+            value={draft.activeDownloads}
+            minimum={ACTIVE_DOWNLOADS_MINIMUM}
+            maximum={ACTIVE_DOWNLOADS_MAXIMUM}
+            error={validation.activeDownloadsError}
+            disabled={!manageable}
+            note={
+              settings.active_downloads_clamp_reason === "platform_limit"
+                ? limitedNote(settings.effective_active_downloads)
+                : null
+            }
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "activeDownloads", value })
+            }
+          />
+          <ToggleOption
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.no.active.seed.limit")}
+            checked={draft.activeSeeds.unlimited}
+            disabled={!manageable}
+            onChange={(unlimited) =>
+              dispatchDraft({
+                type: "edit",
+                field: "activeSeeds",
+                value: { ...draft.activeSeeds, unlimited },
+              })
+            }
+          />
           <NumberField
             id="active-seeds"
-            label={localizedMessage("inspection.components.connection.seeding.settings.section.active.seeds")}
-            description="Completed torrents counted in the active seed queue. Zero keeps eligible seeds queued."
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.max.active.seeds")}
             value={draft.activeSeeds.torrents}
             minimum={ACTIVE_SEEDS_MINIMUM}
             maximum={ACTIVE_SEEDS_MAXIMUM}
@@ -371,10 +268,18 @@ export function ConnectionSeedingSettingsSection({
               })
             }
           />
+        </SettingGroup>
+
+        <SettingGroup
+          id="seeding-goals-heading"
+          title={localizedMessage("inspection.components.connection.seeding.settings.section.seeding.goals.heading")}
+          description={localizedMessage("inspection.components.connection.seeding.settings.section.seeding.goals.description")}
+        >
           <NumberField
             id="share-ratio-limit"
-            label={localizedMessage("inspection.components.connection.seeding.settings.section.share.ratio.priority.goal")}
-            description="Uploaded payload as a percentage of the larger of downloaded payload or full torrent size."
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.share.ratio.goal")}
+            description={localizedMessage("inspection.components.connection.seeding.settings.section.share.ratio.goal.description")}
+            unit={localizedMessage("inspection.components.connection.seeding.settings.section.unit.percent")}
             value={draft.shareRatioLimit}
             minimum={SEED_GOAL_MINIMUM}
             maximum={SEED_GOAL_MAXIMUM}
@@ -386,8 +291,8 @@ export function ConnectionSeedingSettingsSection({
           />
           <NumberField
             id="finished-download-ratio-limit"
-            label={localizedMessage("inspection.components.connection.seeding.settings.section.finished.download.time.priority.goal")}
-            description="Finished active time as a percentage of active download time."
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.seeding.download.time.goal")}
+            unit={localizedMessage("inspection.components.connection.seeding.settings.section.unit.percent")}
             value={draft.finishedDownloadRatioLimit}
             minimum={SEED_GOAL_MINIMUM}
             maximum={SEED_GOAL_MAXIMUM}
@@ -403,8 +308,8 @@ export function ConnectionSeedingSettingsSection({
           />
           <NumberField
             id="finished-time-limit"
-            label={localizedMessage("inspection.components.connection.seeding.settings.section.finished.time.priority.goal.seconds")}
-            description="Cumulative active finished time. Reaching any one priority goal marks the seeding goal met."
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.seeding.time.goal")}
+            unit={secondsUnit(draft.finishedTimeLimit)}
             value={draft.finishedTimeLimit}
             minimum={SEED_GOAL_MINIMUM}
             maximum={SEED_GOAL_MAXIMUM}
@@ -414,127 +319,198 @@ export function ConnectionSeedingSettingsSection({
               dispatchDraft({ type: "edit", field: "finishedTimeLimit", value })
             }
           />
-        </div>
+        </SettingGroup>
 
-        <div
-          className={styles.settingGroup}
-          role="group"
-          aria-labelledby="peer-transfer-limits-heading"
+        <SettingGroup
+          id="connections-heading"
+          title={localizedMessage("inspection.components.connection.seeding.settings.section.connections.heading")}
         >
-          <div className={styles.settingHeading}>
-            <strong id="peer-transfer-limits-heading">{localizedMessage("inspection.components.connection.seeding.settings.section.all.torrents.peer.transfer.limits")}</strong>
-            <span>{localizedMessage("inspection.components.connection.seeding.settings.section.caps.established.bittorrent.peer.traffic.across.the")}</span>
-          </div>
-          <RateLimitField
-            id="all-torrents-upload-rate"
-            label={localizedMessage("inspection.components.connection.seeding.settings.section.all.torrents.upload.limit")}
-            unlimited={draft.uploadRate.unlimited}
-            valueKiB={draft.uploadRate.valueKiB}
-            error={validation.uploadRateError}
+          <NumberField
+            id="peer-connection-limit"
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.max.peer.connections")}
+            value={draft.peerLimit}
+            minimum={PEER_LIMIT_MINIMUM}
+            maximum={PEER_LIMIT_MAXIMUM}
+            error={validation.peerLimitError}
             disabled={!manageable}
-            onUnlimitedChange={(unlimited) =>
-              dispatchDraft({
-                type: "edit",
-                field: "uploadRate",
-                value: { ...draft.uploadRate, unlimited },
-              })
+            note={
+              applicationNote(settings.peer_connections_application) ??
+              (peerLimitCapped
+                ? limitedNote(settings.effective_peer_connection_limit)
+                : null)
             }
-            onValueChange={(valueKiB) =>
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "peerLimit", value })
+            }
+          />
+          <NumberField
+            id="upload-slots"
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.upload.slots")}
+            description={localizedMessage("inspection.components.connection.seeding.settings.section.upload.slots.description")}
+            value={draft.uploadSlots}
+            minimum={UPLOAD_SLOTS_MINIMUM}
+            maximum={UPLOAD_SLOTS_MAXIMUM}
+            error={validation.uploadSlotsError}
+            disabled={!manageable}
+            note={applicationNote(settings.upload_slots_application)}
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "uploadSlots", value })
+            }
+          />
+        </SettingGroup>
+
+        <SettingGroup
+          id="network-heading"
+          title={localizedMessage("inspection.components.connection.seeding.settings.section.network.heading")}
+        >
+          <div
+            className={styles.settingGroup}
+            role="group"
+            aria-labelledby="listener-policy-heading"
+          >
+            <div className={styles.settingHeading}>
+              <strong id="listener-policy-heading">{localizedMessage("inspection.components.connection.seeding.settings.section.incoming.connections")}</strong>
+              <NoteLine
+                note={statusNote(
+                  settings.transport_application,
+                  listenerNote(settings.listener_status),
+                )}
+              />
+            </div>
+            <div className={styles.options}>
+              <ListenerOption
+                mode="automatic"
+                label={localizedMessage("inspection.components.connection.seeding.settings.section.automatic.port.recommended")}
+                selected={draft.listener.mode === "automatic"}
+                disabled={!manageable}
+                onSelect={() =>
+                  dispatchDraft({
+                    type: "edit",
+                    field: "listener",
+                    value: { ...draft.listener, mode: "automatic" },
+                  })
+                }
+              />
+              <ListenerOption
+                mode="fixed"
+                label={localizedMessage("inspection.components.connection.seeding.settings.section.fixed.port")}
+                selected={draft.listener.mode === "fixed"}
+                disabled={!manageable}
+                onSelect={() =>
+                  dispatchDraft({
+                    type: "edit",
+                    field: "listener",
+                    value: { ...draft.listener, mode: "fixed" },
+                  })
+                }
+              />
+            </div>
+            {draft.listener.mode === "fixed" ? (
+              <NumberField
+                id="fixed-listener-port"
+                label={localizedMessage("inspection.components.connection.seeding.settings.section.port")}
+                value={draft.listener.fixedPort}
+                minimum={FIXED_PORT_MINIMUM}
+                maximum={FIXED_PORT_MAXIMUM}
+                error={validation.fixedPortError}
+                disabled={!manageable}
+                onChange={(fixedPort) =>
+                  dispatchDraft({
+                    type: "edit",
+                    field: "listener",
+                    value: { ...draft.listener, fixedPort },
+                  })
+                }
+              />
+            ) : null}
+          </div>
+
+          <ToggleOption
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.upnp.port.forwarding")}
+            description={localizedMessage("inspection.components.connection.seeding.settings.section.upnp.port.forwarding.description")}
+            note={statusNote(
+              settings.port_mapping_application,
+              portMappingNote(settings.port_mapping_status),
+            )}
+            checked={draft.portMapping === "upnp"}
+            disabled={!manageable}
+            onChange={(checked) =>
               dispatchDraft({
                 type: "edit",
-                field: "uploadRate",
-                value: { ...draft.uploadRate, valueKiB },
+                field: "portMapping",
+                value: checked ? "upnp" : "disabled",
               })
             }
           />
-          <RateLimitField
-            id="all-torrents-download-rate"
-            label={localizedMessage("inspection.components.connection.seeding.settings.section.all.torrents.download.limit")}
-            unlimited={draft.downloadRate.unlimited}
-            valueKiB={draft.downloadRate.valueKiB}
-            error={validation.downloadRateError}
+          <ToggleOption
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.ipv6")}
+            description={localizedMessage("inspection.components.connection.seeding.settings.section.ipv6.description")}
+            note={applicationNote(settings.ipv6_application)}
+            checked={draft.ipv6Enabled}
             disabled={!manageable}
-            onUnlimitedChange={(unlimited) =>
-              dispatchDraft({
-                type: "edit",
-                field: "downloadRate",
-                value: { ...draft.downloadRate, unlimited },
-              })
-            }
-            onValueChange={(valueKiB) =>
-              dispatchDraft({
-                type: "edit",
-                field: "downloadRate",
-                value: { ...draft.downloadRate, valueKiB },
-              })
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "ipv6Enabled", value })
             }
           />
-        </div>
+          <ToggleOption
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.dht")}
+            description={localizedMessage("inspection.components.connection.seeding.settings.section.dht.description")}
+            note={applicationNote(settings.dht_application)}
+            checked={draft.dhtEnabled}
+            disabled={!manageable}
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "dhtEnabled", value })
+            }
+          />
+          <ToggleOption
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.peer.exchange.pex")}
+            description={localizedMessage("inspection.components.connection.seeding.settings.section.peer.exchange.description")}
+            note={applicationNote(settings.peer_exchange_application)}
+            checked={draft.peerExchangeEnabled}
+            disabled={!manageable}
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "peerExchangeEnabled", value })
+            }
+          />
 
-        <NumberField
-          id="peer-connection-limit"
-          label={localizedMessage("inspection.components.connection.seeding.settings.section.peer.connection.limit")}
-          description="Ordinary outgoing, established, and accepted peer connections across the session. The running process may use a lower safe limit."
-          value={draft.peerLimit}
-          minimum={PEER_LIMIT_MINIMUM}
-          maximum={PEER_LIMIT_MAXIMUM}
-          error={validation.peerLimitError}
-          disabled={!manageable}
-          onChange={(value) =>
-            dispatchDraft({ type: "edit", field: "peerLimit", value })
-          }
-        />
-
-        <div
-          className={styles.settingGroup}
-          role="group"
-          aria-labelledby="encryption-policy-heading"
-        >
-          <div className={styles.settingHeading}>
-            <strong id="encryption-policy-heading">{localizedMessage("inspection.components.connection.seeding.settings.section.protocol.obfuscation.mse.pe")}</strong>
-            <span>{localizedMessage("inspection.components.connection.seeding.settings.section.improves.compatibility.with.peers.that.require.mse")}</span>
+          <div
+            className={styles.settingGroup}
+            role="group"
+            aria-labelledby="encryption-policy-heading"
+          >
+            <div className={styles.settingHeading}>
+              <strong id="encryption-policy-heading">{localizedMessage("inspection.components.connection.seeding.settings.section.protocol.encryption")}</strong>
+              <span>{localizedMessage("inspection.components.connection.seeding.settings.section.protocol.encryption.description")}</span>
+              <NoteLine note={applicationNote(settings.encryption_application)} />
+            </div>
+            <div className={styles.options}>
+              {ENCRYPTION_OPTIONS.map((option) => (
+                <label className={styles.option} key={option.value}>
+                  <input
+                    type="radio"
+                    name="encryption-policy"
+                    value={option.value}
+                    checked={draft.encryption === option.value}
+                    disabled={!manageable}
+                    onChange={() =>
+                      dispatchDraft({
+                        type: "edit",
+                        field: "encryption",
+                        value: option.value,
+                      })
+                    }
+                  />
+                  <span>
+                    <strong>{option.label}</strong>
+                    <small>{option.description}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
-          <div className={styles.options}>
-            {ENCRYPTION_OPTIONS.map((option) => (
-              <label className={styles.option} key={option.value}>
-                <input
-                  type="radio"
-                  name="encryption-policy"
-                  value={option.value}
-                  checked={draft.encryption === option.value}
-                  disabled={!manageable}
-                  onChange={() =>
-                    dispatchDraft({
-                      type: "edit",
-                      field: "encryption",
-                      value: option.value,
-                    })
-                  }
-                />
-                <span>
-                  <strong>{option.label}</strong>
-                  <small>{option.description}</small>
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
+        </SettingGroup>
 
-        <NumberField
-          id="upload-slots"
-          label={localizedMessage("inspection.components.connection.seeding.settings.section.payload.upload.slots")}
-          description="Peers allowed to receive piece payload at once. Zero keeps interested peers choked for piece payload; metadata and the listener remain available."
-          value={draft.uploadSlots}
-          minimum={UPLOAD_SLOTS_MINIMUM}
-          maximum={UPLOAD_SLOTS_MAXIMUM}
-          error={validation.uploadSlotsError}
-          disabled={!manageable}
-          onChange={(value) =>
-            dispatchDraft({ type: "edit", field: "uploadSlots", value })
-          }
-        />
-
-        <RuntimeState settings={settings} />
+        <NetworkDetails settings={settings} />
 
         <div className={styles.formActions}>
           <button
@@ -569,10 +545,75 @@ export function ConnectionSeedingSettingsSection({
   );
 }
 
+function SettingGroup({
+  id,
+  title,
+  description,
+  note = null,
+  children,
+}: {
+  readonly id: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly note?: SettingNote | null;
+  readonly children: ReactNode;
+}) {
+  return (
+    <section className={styles.settingSection} aria-labelledby={id}>
+      <div className={styles.settingSectionHeading}>
+        <h3 id={id}>{title}</h3>
+        {description === undefined ? null : <span>{description}</span>}
+        <NoteLine note={note} />
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function NoteLine({ note }: { readonly note: SettingNote | null }) {
+  if (note === null) return null;
+  return (
+    <small className={note.warning ? styles.settingNoteWarning : styles.settingNote}>
+      {note.text}
+    </small>
+  );
+}
+
+function ToggleOption({
+  label,
+  description,
+  note = null,
+  checked,
+  disabled,
+  onChange,
+}: {
+  readonly label: string;
+  readonly description?: string;
+  readonly note?: SettingNote | null;
+  readonly checked: boolean;
+  readonly disabled: boolean;
+  readonly onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className={styles.option}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.currentTarget.checked)}
+      />
+      <span>
+        <strong>{label}</strong>
+        {description === undefined ? null : <small>{description}</small>}
+        <NoteLine note={note} />
+      </span>
+    </label>
+  );
+}
+
 interface ListenerOptionProps {
   readonly mode: ListenerMode;
   readonly label: string;
-  readonly description: string;
   readonly selected: boolean;
   readonly disabled: boolean;
   readonly onSelect: () => void;
@@ -581,7 +622,6 @@ interface ListenerOptionProps {
 function ListenerOption({
   mode,
   label,
-  description,
   selected,
   disabled,
   onSelect,
@@ -598,7 +638,6 @@ function ListenerOption({
       />
       <span>
         <strong>{label}</strong>
-        <small>{description}</small>
       </span>
     </label>
   );
@@ -608,6 +647,8 @@ interface NumberFieldProps {
   readonly id: string;
   readonly label: string;
   readonly description?: string;
+  readonly unit?: string;
+  readonly note?: SettingNote | null;
   readonly value: string;
   readonly minimum: number;
   readonly maximum: number;
@@ -620,6 +661,8 @@ function NumberField({
   id,
   label,
   description,
+  unit,
+  note = null,
   value,
   minimum,
   maximum,
@@ -629,6 +672,27 @@ function NumberField({
 }: NumberFieldProps) {
   const descriptionId = `${id}-description`;
   const errorId = `${id}-error`;
+  const input = (
+    <input
+      id={id}
+      aria-label={label}
+      type="number"
+      inputMode="numeric"
+      step={1}
+      min={minimum}
+      max={maximum}
+      required
+      value={value}
+      disabled={disabled}
+      aria-invalid={error !== null}
+      aria-describedby={
+        [description === undefined ? null : descriptionId, error === null ? null : errorId]
+          .filter((part): part is string => part !== null)
+          .join(" ") || undefined
+      }
+      onChange={(event) => onChange(event.currentTarget.value)}
+    />
+  );
   return (
     <label className={styles.numberField} htmlFor={id}>
       <span>
@@ -637,25 +701,13 @@ function NumberField({
           <small id={descriptionId}>{description}</small>
         )}
       </span>
-      <input
-        id={id}
-        aria-label={label}
-        type="number"
-        inputMode="numeric"
-        step={1}
-        min={minimum}
-        max={maximum}
-        required
-        value={value}
-        disabled={disabled}
-        aria-invalid={error !== null}
-        aria-describedby={
-          [description === undefined ? null : descriptionId, error === null ? null : errorId]
-            .filter((part): part is string => part !== null)
-            .join(" ") || undefined
-        }
-        onChange={(event) => onChange(event.currentTarget.value)}
-      />
+      {unit === undefined ? input : (
+        <span className={styles.inputWithUnit}>
+          {input}
+          <span>{unit}</span>
+        </span>
+      )}
+      <NoteLine note={note} />
       {error === null ? null : (
         <small id={errorId} className={styles.fieldError}>
           {error}
@@ -665,362 +717,292 @@ function NumberField({
   );
 }
 
-interface RateLimitFieldProps {
-  readonly id: string;
-  readonly label: string;
-  readonly unlimited: boolean;
-  readonly valueKiB: string;
-  readonly error: string | null;
-  readonly disabled: boolean;
-  readonly onUnlimitedChange: (unlimited: boolean) => void;
-  readonly onValueChange: (value: string) => void;
+function secondsUnit(value: string): string {
+  return /^\d+$/.test(value) && value !== "0"
+    ? localizedMessage("inspection.components.connection.seeding.settings.section.unit.seconds.with.duration", {
+        duration: formatElapsedSeconds(value),
+      })
+    : localizedMessage("inspection.components.connection.seeding.settings.section.unit.seconds");
 }
 
-function RateLimitField({
-  id,
-  label,
-  unlimited,
-  valueKiB,
-  error,
-  disabled,
-  onUnlimitedChange,
-  onValueChange,
-}: RateLimitFieldProps) {
-  const descriptionId = `${id}-description`;
-  const errorId = `${id}-error`;
-  return (
-    <div className={styles.numberField}>
-      <span>
-        <strong>{label}</strong>
-        <small id={descriptionId}>{localizedMessage("inspection.components.connection.seeding.settings.section.kib.s.of.established.peer.traffic")}</small>
-      </span>
-      <label className={styles.option}>
-        <input
-          type="checkbox"
-          aria-label={`${label} unlimited`}
-          checked={unlimited}
-          disabled={disabled}
-          onChange={(event) => onUnlimitedChange(event.currentTarget.checked)}
-        />
-        <span><strong>{localizedMessage("inspection.components.connection.seeding.settings.section.unlimited")}</strong></span>
-      </label>
-      <input
-        id={id}
-        aria-label={`${label} in KiB per second`}
-        type="number"
-        inputMode="decimal"
-        min={1}
-        max={RATE_LIMIT_MAXIMUM_BYTES / 1_024}
-        step={1 / 1_024}
-        required={!unlimited}
-        value={valueKiB}
-        disabled={disabled || unlimited}
-        aria-invalid={error !== null}
-        aria-describedby={`${descriptionId}${error === null ? "" : ` ${errorId}`}`}
-        onChange={(event) => onValueChange(event.currentTarget.value)}
-      />
-      {error === null ? null : (
-        <small id={errorId} className={styles.fieldError}>{error}</small>
-      )}
-    </div>
-  );
+function applicationNote(state: ClientSettingsApplicationState): SettingNote | null {
+  switch (state.type) {
+    case "applied":
+      return null;
+    case "applying":
+      return {
+        text: localizedMessage("inspection.components.connection.seeding.settings.section.note.applying"),
+        warning: false,
+      };
+    case "degraded":
+      return {
+        text: localizedMessage("inspection.components.connection.seeding.settings.section.note.not.applied"),
+        warning: true,
+      };
+  }
 }
 
-function RuntimeState({ settings }: { readonly settings: ClientSettingsRuntimeView }) {
-  const listener = settings.listener_status;
-  return (
-    <div className={styles.runtimeState} aria-label={localizedMessage("inspection.components.connection.seeding.settings.section.current.runtime.state")}>
-      <strong>{localizedMessage("inspection.components.connection.seeding.settings.section.current.runtime")}</strong>
-      {listener.type === "disabled" ? (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.incoming.tcp.is.not.running.save.settings")}</span>
-      ) : listener.type === "listening" ? (
-        settings.effective_listener != null &&
-        isLoopbackListener(settings.effective_listener.listener) ? (
-          <span>{localizedMessage("inspection.components.connection.seeding.settings.section.incoming.tcp.is.using.a.development.only")}{" "}{listener.port}{localizedMessage("inspection.components.connection.seeding.settings.section.save.settings.to.listen.on.all.ipv4")}</span>
-        ) : (
-          <span>{localizedMessage("inspection.components.connection.seeding.settings.section.incoming.tcp.is.listening.on.all.ipv4")}{" "}{listener.port}.</span>
-        )
-      ) : (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.listener.could.not.start")}{bindFailureLabel(listener.reason)}):{" "}
-          {listener.detail}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.save.settings.to.retry")}</span>
-      )}
-      {settings.session_udp_status.type === "bound" ? (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.session.udp.is.bound.on")}{" "}{settings.session_udp_status.address}:
-          {settings.session_udp_status.port}
-          {settings.session_udp_status.coordinated_with_tcp
-            ? localizedMessage("inspection.components.connection.seeding.settings.section.with.the.tcp.listener")
-            : localizedMessage("inspection.components.connection.seeding.settings.section.independently.from.tcp")}
-        </span>
-      ) : (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.session.udp.is.not.available.in.this")}</span>
-      )}
-      {settings.effective_listener == null ? (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.no.incoming.listener.policy.has.converged.yet")}</span>
-      ) : (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.effective.listener.policy")}{" "}{listenerPolicyLabel(settings.effective_listener.listener)}.
-        </span>
-      )}
-      <span>{localizedMessage("inspection.components.connection.seeding.settings.section.effective.gateway.mapping.policy")}{" "}{settings.effective_port_mapping === "upnp" ? localizedMessage("inspection.components.connection.seeding.settings.section.upnp.igd.v2") : localizedMessage("inspection.components.connection.seeding.settings.section.off")}.
-      </span>
-      <PortMappingRuntime label={localizedMessage("inspection.components.connection.seeding.settings.section.tcp")} status={settings.port_mapping_status} />
-      <PortMappingRuntime
-        label={localizedMessage("inspection.components.connection.seeding.settings.section.udp.utp")}
-        status={settings.udp_port_mapping_status}
-      />
-      <Ipv6PinholeRuntime status={settings.ipv6_pinhole_status} />
-      <AdvertisedEndpointRuntime status={settings.advertised_peer_endpoint} />
-      {settings.transport_families.map((family) => (
-        <span key={family.family}>
-          {family.family === "ipv4" ? localizedMessage("inspection.components.connection.seeding.settings.section.ipv4") : localizedMessage("inspection.components.connection.seeding.settings.section.ipv6")}: {family.configured ? localizedMessage("inspection.components.connection.seeding.settings.section.configured") : localizedMessage("inspection.components.connection.seeding.settings.section.disabled")}
-          {family.tcp_endpoint === null ? "" : ` · TCP ${family.tcp_endpoint}`}
-          {family.udp_endpoint === null ? "" : ` · UDP ${family.udp_endpoint}`}
-          {family.advertised_endpoint === null
-            ? localizedMessage("inspection.components.connection.seeding.settings.section.outbound.only.advertisement")
-            : ` · advertises ${family.advertised_endpoint}`}
-        </span>
-      ))}
-      <ApplicationState label={localizedMessage("inspection.components.connection.seeding.settings.section.transport")} state={settings.transport_application} />
-      <ApplicationState
-        label={localizedMessage("inspection.components.connection.seeding.settings.section.port.mapping")}
-        state={settings.port_mapping_application}
-      />
-      <ApplicationState
-        label={localizedMessage("inspection.components.connection.seeding.settings.section.peer.connections")}
-        state={settings.peer_connections_application}
-      />
-      <ApplicationState
-        label={localizedMessage("inspection.components.connection.seeding.settings.section.upload.slots")}
-        state={settings.upload_slots_application}
-      />
-      <ApplicationState label={localizedMessage("inspection.components.connection.seeding.settings.section.peer.transfer.limits")} state={settings.bandwidth_application} />
-      <ApplicationState
-        label={localizedMessage("inspection.components.connection.seeding.settings.section.protocol.obfuscation")}
-        state={settings.encryption_application}
-      />
-      <ApplicationState
-        label={localizedMessage("inspection.components.connection.seeding.settings.section.dht")}
-        state={settings.dht_application}
-      />
-      <ApplicationState
-        label={localizedMessage("inspection.components.connection.seeding.settings.section.peer.exchange")}
-        state={settings.peer_exchange_application}
-      />
-      {settings.effective_peer_connection_limit <
-      settings.configured.peer_connection_limit ? (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.the.configured")}{" "}{settings.configured.peer_connection_limit}{localizedMessage("inspection.components.connection.seeding.settings.section.peer.setting.is.safely.limited.to")}{" "}{settings.effective_peer_connection_limit}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.by.available.file.descriptors")}</span>
-      ) : (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.effective.peer.connection.limit")}{" "}
-          {settings.effective_peer_connection_limit}.
-        </span>
-      )}
-      <span>{localizedMessage("inspection.components.connection.seeding.settings.section.effective.payload.upload.slots")}{" "}{settings.effective_upload_slots}.</span>
-      <span>{localizedMessage("inspection.components.connection.seeding.settings.section.effective.peer.upload.limit")}{" "}{rateLimitLabel(settings.effective_upload_rate_limit)}.
-      </span>
-      <span>{localizedMessage("inspection.components.connection.seeding.settings.section.effective.peer.download.limit")}{" "}{rateLimitLabel(settings.effective_download_rate_limit)}.
-      </span>
-      <span>{localizedMessage("inspection.components.connection.seeding.settings.section.active.downloads")}{" "}{settings.active_download_count}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.of")}{" "}{settings.effective_active_downloads}
-        {settings.checking_count === 0
-          ? "."
-          : ` · ${settings.checking_count} checking.`}
-      </span>
-      <span>{localizedMessage("inspection.components.connection.seeding.settings.section.active.seeds.604a98b")}{" "}{settings.active_seed_count}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.counted.of")}{" "}{activeSeedLimitLabel(settings.effective_active_seeds)}
-        {settings.inactive_seed_count === 0
-          ? "."
-          : ` · ${settings.inactive_seed_count} active but inactive-exempt.`}
-      </span>
-      {settings.active_downloads_clamp_reason === "platform_limit" ? (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.the.configured")}{" "}{settings.configured.active_downloads}{localizedMessage("inspection.components.connection.seeding.settings.section.download.setting.is.limited.to")}{" "}{settings.effective_active_downloads}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.on.this.platform")}</span>
-      ) : null}
-      <span>{localizedMessage("inspection.components.connection.seeding.settings.section.effective.protocol.obfuscation.policy")}{" "}{settings.effective_encryption}.
-      </span>
-      <span>{localizedMessage("inspection.components.connection.seeding.settings.section.effective.ipv6.policy")}{" "}{settings.effective_ipv6_enabled ? localizedMessage("inspection.components.connection.seeding.settings.section.enabled") : localizedMessage("inspection.components.connection.seeding.settings.section.disabled")}.
-      </span>
-      <span>{localizedMessage("inspection.components.connection.seeding.settings.section.effective.dht.policy")}{" "}{settings.effective_dht_enabled ? localizedMessage("inspection.components.connection.seeding.settings.section.enabled") : localizedMessage("inspection.components.connection.seeding.settings.section.disabled")}.</span>
-      <span>{localizedMessage("inspection.components.connection.seeding.settings.section.effective.peer.exchange.policy")}{" "}{settings.effective_peer_exchange_enabled ? localizedMessage("inspection.components.connection.seeding.settings.section.enabled") : localizedMessage("inspection.components.connection.seeding.settings.section.disabled")}.</span>
-    </div>
-  );
+/** A specific status failure explains more than the generic application note. */
+function statusNote(
+  application: ClientSettingsApplicationState,
+  status: SettingNote | null,
+): SettingNote | null {
+  return status?.warning === true ? status : applicationNote(application) ?? status;
 }
 
-function activeSeedLimitLabel(limit: ActiveSeedLimit): string {
-  return limit.type === "unlimited" ? "Unlimited" : String(limit.torrents);
+function limitedNote(count: number): SettingNote {
+  return {
+    text: localizedMessage("inspection.components.connection.seeding.settings.section.note.limited.on.device", { count }),
+    warning: false,
+  };
 }
 
-function listenerPolicyLabel(listener: ListenerPolicy): string {
-  switch (listener.type) {
+function listenerNote(status: ListenerStatus): SettingNote | null {
+  switch (status.type) {
     case "disabled":
-      return localizedMessage("inspection.components.connection.seeding.settings.section.development.only.disabled.mode");
-    case "automatic_loopback":
-      return localizedMessage("inspection.components.connection.seeding.settings.section.development.only.loopback.mode");
-    case "fixed_loopback":
-      return `development-only loopback port ${listener.port}`;
-    case "automatic_local_network":
-      return localizedMessage("inspection.components.connection.seeding.settings.section.automatic.port.c61a158");
-    case "fixed_local_network":
-      return `fixed port ${listener.port}`;
+      return null;
+    case "listening":
+      return {
+        text: localizedMessage("inspection.components.connection.seeding.settings.section.listener.port", { port: String(status.port) }),
+        warning: false,
+      };
+    case "bind_failed": {
+      const text = {
+        address_in_use: localizedMessage("inspection.components.connection.seeding.settings.section.listener.address.in.use"),
+        permission_denied: localizedMessage("inspection.components.connection.seeding.settings.section.listener.permission.denied"),
+        address_unavailable: localizedMessage("inspection.components.connection.seeding.settings.section.listener.address.unavailable"),
+        other: localizedMessage("inspection.components.connection.seeding.settings.section.listener.failed"),
+      }[status.reason];
+      return { text, warning: true };
+    }
   }
 }
 
-function ApplicationState({
-  label,
-  state,
-}: {
-  readonly label: string;
-  readonly state: ClientSettingsRuntimeView["transport_application"];
-}) {
-  if (state.type === "applied") return null;
-  if (state.type === "applying") {
-    return <span>{label}{localizedMessage("inspection.components.connection.seeding.settings.section.applying")}</span>;
+/** Plain port-forwarding status for the UPnP row; router facts stay in Network details. */
+function portMappingNote(status: PortMappingStatus): SettingNote | null {
+  switch (status.type) {
+    case "disabled":
+      return null;
+    case "ineligible":
+      return { text: localizedMessage("inspection.components.connection.seeding.settings.section.port.mapping.ineligible"), warning: false };
+    case "discovering":
+      return { text: localizedMessage("inspection.components.connection.seeding.settings.section.port.mapping.discovering"), warning: false };
+    case "mapping":
+      return { text: localizedMessage("inspection.components.connection.seeding.settings.section.port.mapping.requesting"), warning: false };
+    case "stopping":
+      return { text: localizedMessage("inspection.components.connection.seeding.settings.section.port.mapping.stopping"), warning: false };
+    case "mapped":
+      return {
+        text: localizedMessage("inspection.components.connection.seeding.settings.section.port.mapping.mapped", { port: String(status.external_port) }),
+        warning: false,
+      };
+    case "failed":
+      return {
+        text: status.stage === "discovery"
+          ? localizedMessage("inspection.components.connection.seeding.settings.section.port.mapping.no.router")
+          : localizedMessage("inspection.components.connection.seeding.settings.section.port.mapping.failed"),
+        warning: true,
+      };
+    case "renewal_failed":
+      return {
+        text: localizedMessage("inspection.components.connection.seeding.settings.section.port.mapping.renewal.failed", { port: String(status.external_port) }),
+        warning: true,
+      };
+    case "cleanup_failed":
+      return {
+        text: localizedMessage("inspection.components.connection.seeding.settings.section.port.mapping.cleanup.failed", { port: String(status.external_port) }),
+        warning: true,
+      };
   }
+}
+
+/**
+ * Collapsed support detail. Values the form already shows are omitted, and
+ * engine-authored detail strings stay in Logs.
+ */
+function NetworkDetails({ settings }: { readonly settings: ClientSettingsRuntimeView }) {
+  const listener = settings.effective_listener?.listener;
+  const udp = settings.session_udp_status;
+  const seedLimit = settings.effective_active_seeds;
   return (
-    <span className={styles.runtimeWarning}>
-      {label}{localizedMessage("inspection.components.connection.seeding.settings.section.degraded")}{state.detail}{localizedMessage("inspection.components.connection.seeding.settings.section.save.settings.to.retry.0312e9f")}</span>
+    <details className={styles.networkDetails}>
+      <summary>{localizedMessage("inspection.components.connection.seeding.settings.section.network.details")}</summary>
+      <ul>
+        {listener !== undefined &&
+        isLoopbackListener(listener) &&
+        settings.listener_status.type === "listening" ? (
+          <li>{localizedMessage("inspection.components.connection.seeding.settings.section.details.development.loopback", { port: String(settings.listener_status.port) })}</li>
+        ) : null}
+        <li>
+          {udp.type === "bound"
+            ? localizedMessage("inspection.components.connection.seeding.settings.section.details.udp.port", { port: String(udp.port) })
+            : localizedMessage("inspection.components.connection.seeding.settings.section.details.udp.unavailable")}
+        </li>
+        {settings.transport_families.map((family) => (
+          <li key={family.family}>{transportFamilyLine(family)}</li>
+        ))}
+        <li>{forwardingLine("TCP", settings.port_mapping_status)}</li>
+        <li>{forwardingLine("UDP", settings.udp_port_mapping_status)}</li>
+        <li>{firewallLine(settings.ipv6_pinhole_status)}</li>
+        <li>{advertisedLine(settings.advertised_peer_endpoint)}</li>
+        <li>
+          {localizedMessage("inspection.components.connection.seeding.settings.section.details.active.downloads", {
+            active: settings.active_download_count,
+            limit: settings.effective_active_downloads,
+            checking: settings.checking_count,
+          })}
+        </li>
+        <li>
+          {seedLimit.type === "unlimited"
+            ? localizedMessage("inspection.components.connection.seeding.settings.section.details.active.seeds.unlimited", {
+                active: settings.active_seed_count,
+                idle: settings.inactive_seed_count,
+              })
+            : localizedMessage("inspection.components.connection.seeding.settings.section.details.active.seeds", {
+                active: settings.active_seed_count,
+                limit: seedLimit.torrents,
+                idle: settings.inactive_seed_count,
+              })}
+        </li>
+      </ul>
+    </details>
   );
 }
 
-function AdvertisedEndpointRuntime({
-  status,
-}: {
-  readonly status: AdvertisedPeerEndpointStatus;
-}) {
+function transportFamilyLine(family: TransportFamilyRuntimeView): string {
+  const name = family.family === "ipv4" ? "IPv4" : "IPv6";
+  if (!family.configured) {
+    return localizedMessage("inspection.components.connection.seeding.settings.section.details.family.off", { family: name });
+  }
+  const parts = [
+    family.tcp_endpoint === null
+      ? null
+      : localizedMessage("inspection.components.connection.seeding.settings.section.details.family.tcp", { endpoint: family.tcp_endpoint }),
+    family.udp_endpoint === null
+      ? null
+      : localizedMessage("inspection.components.connection.seeding.settings.section.details.family.udp", { endpoint: family.udp_endpoint }),
+    family.advertised_endpoint === null
+      ? localizedMessage("inspection.components.connection.seeding.settings.section.details.family.not.shared")
+      : localizedMessage("inspection.components.connection.seeding.settings.section.details.family.shared", { endpoint: family.advertised_endpoint }),
+  ].filter((part): part is string => part !== null);
+  return localizedMessage("inspection.components.connection.seeding.settings.section.details.family", {
+    family: name,
+    details: parts.join(" · "),
+  });
+}
+
+function forwardingLine(protocol: "TCP" | "UDP", status: PortMappingStatus): string {
+  switch (status.type) {
+    case "disabled":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.off", { protocol });
+    case "ineligible":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.ineligible", { protocol });
+    case "discovering":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.discovering", { protocol });
+    case "mapping":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.requesting", { protocol });
+    case "mapped":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.mapped", {
+        protocol,
+        external: `${status.external_address}:${status.external_port}`,
+        local: `${status.local_address}:${status.local_port}`,
+      });
+    case "failed":
+      return forwardingFailureLine(protocol, status.stage);
+    case "renewal_failed":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.renewal.failed", {
+        protocol,
+        port: String(status.external_port),
+      });
+    case "cleanup_failed":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.cleanup.failed", {
+        protocol,
+        port: String(status.external_port),
+        duration: formatElapsedSeconds(String(status.remaining_lease_seconds)),
+      });
+    case "stopping":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.stopping", { protocol });
+  }
+}
+
+function forwardingFailureLine(
+  protocol: "TCP" | "UDP",
+  stage: PortMappingFailureStage,
+): string {
+  switch (stage) {
+    case "discovery":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.failed.discovery", { protocol });
+    case "description":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.failed.description", { protocol });
+    case "external_address":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.failed.external.address", { protocol });
+    case "add":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.failed.add", { protocol });
+    case "verify":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.failed.verify", { protocol });
+    case "renewal":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.failed.renewal", { protocol });
+    case "delete":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.forwarding.failed.delete", { protocol });
+  }
+}
+
+function firewallLine(status: Ipv6PinholeStatus): string {
+  switch (status.type) {
+    case "disabled":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.off");
+    case "ineligible":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.ineligible");
+    case "discovering":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.discovering");
+    case "service_unavailable":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.service.unavailable");
+    case "action_unavailable":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.action.unavailable");
+    case "inbound_pinhole_disallowed":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.disallowed");
+    case "unfiltered":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.unfiltered", { port: String(status.internal_port) });
+    case "creating":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.creating", { port: String(status.internal_port) });
+    case "pinholed":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.open", { port: String(status.internal_port) });
+    case "failed":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.failed");
+    case "renewal_failed":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.renewal.failed", { port: String(status.internal_port) });
+    case "cleanup_failed":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.cleanup.failed", {
+        port: String(status.internal_port),
+        duration: formatElapsedSeconds(String(status.remaining_lease_seconds)),
+      });
+    case "stopping":
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.stopping");
+  }
+}
+
+function advertisedLine(status: AdvertisedPeerEndpointStatus): string {
   switch (status.type) {
     case "unavailable":
-      return <span>{localizedMessage("inspection.components.connection.seeding.settings.section.peer.advertisement.endpoint.is.not.available.yet")}</span>;
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.advertised.unavailable");
     case "outbound_only":
-      return (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.tracker.discovery.is.outbound.only.no.connectable")}</span>
-      );
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.advertised.outbound");
     case "local":
-      return (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.peer.protocols.may.advertise.local.tcp.port")}{" "}{status.port}{localizedMessage("inspection.components.connection.seeding.settings.section.external.reachability.is.unverified")}{status.incoming_observed ? localizedMessage("inspection.components.connection.seeding.settings.section.but.an.incoming.peer.was.observed") : "."}
-        </span>
-      );
+      return status.incoming_observed
+        ? localizedMessage("inspection.components.connection.seeding.settings.section.details.advertised.local.observed", { port: String(status.port) })
+        : localizedMessage("inspection.components.connection.seeding.settings.section.details.advertised.local.unverified", { port: String(status.port) });
     case "mapped":
-      return (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.peer.protocols.may.advertise.mapped.tcp.port")}{" "}{status.external_port}
-          {status.incoming_observed
-            ? localizedMessage("inspection.components.connection.seeding.settings.section.an.incoming.peer.was.observed")
-            : localizedMessage("inspection.components.connection.seeding.settings.section.external.reachability.is.not.yet.observed")}
-        </span>
-      );
+      return status.incoming_observed
+        ? localizedMessage("inspection.components.connection.seeding.settings.section.details.advertised.mapped.observed", { port: String(status.external_port) })
+        : localizedMessage("inspection.components.connection.seeding.settings.section.details.advertised.mapped.unobserved", { port: String(status.external_port) });
     case "renewal_unhealthy":
-      return (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.mapped.tcp.port")}{" "}{status.external_port}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.remains.valid.for.up.to")}{" "}
-          {status.lease_seconds_remaining}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.seconds.but.renewal.is.unhealthy")}{" "}
-          {status.detail}
-        </span>
-      );
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.advertised.renewal.unhealthy", {
+        port: String(status.external_port),
+        duration: formatElapsedSeconds(String(status.lease_seconds_remaining)),
+      });
     case "stopping":
-      return <span>{localizedMessage("inspection.components.connection.seeding.settings.section.peer.advertisement.is.stopping")}</span>;
+      return localizedMessage("inspection.components.connection.seeding.settings.section.details.advertised.stopping");
   }
-}
-
-function PortMappingRuntime({
-  label,
-  status,
-}: {
-  readonly label: string;
-  readonly status: PortMappingStatus;
-}) {
-  switch (status.type) {
-    case "disabled":
-      return <span>{localizedMessage("inspection.components.connection.seeding.settings.section.automatic")}{" "}{label}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.gateway.mapping.is.off")}</span>;
-    case "ineligible":
-      return (
-        <span className={styles.runtimeWarning}>
-          {label}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.gateway.mapping.requires.an.active.listener.and")}</span>
-      );
-    case "discovering":
-      return <span>{localizedMessage("inspection.components.connection.seeding.settings.section.discovering.a.compatible.upnp.igd.v2.gateway")}{" "}{label}…</span>;
-    case "mapping":
-      return <span>{localizedMessage("inspection.components.connection.seeding.settings.section.requesting.and.verifying.the.temporary")}{" "}{label}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.mapping")}</span>;
-    case "mapped":
-      return (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.upnp")}{" "}{label}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.mapped")}{" "}{status.external_address}:{status.external_port}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.to")}{" "}
-          {status.local_address}:{status.local_port}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.for")}{" "}{status.lease_seconds}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.seconds")}</span>
-      );
-    case "failed":
-      return (
-        <span className={styles.runtimeWarning}>
-          {label}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.gateway.mapping.failed.during")}{" "}{status.stage.replaceAll("_", " ")}: {status.detail}
-        </span>
-      );
-    case "renewal_failed":
-      return (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.the")}{" "}{label}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.mapping.at")}{" "}{status.external_address}:{status.external_port}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.could.not.be.renewed")}{" "}{status.detail}
-        </span>
-      );
-    case "cleanup_failed":
-      return (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.the.old")}{" "}{label}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.mapping.at")}{" "}{status.external_address}:{status.external_port}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.could.not.be.confirmed.removed.and.may")}{" "}{status.remaining_lease_seconds}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.seconds.a157a77")}{" "}{status.detail}
-        </span>
-      );
-    case "stopping":
-      return <span>{localizedMessage("inspection.components.connection.seeding.settings.section.removing.the")}{" "}{label}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.gateway.mapping")}</span>;
-  }
-}
-
-function Ipv6PinholeRuntime({ status }: { readonly status: Ipv6PinholeStatus }) {
-  switch (status.type) {
-    case "disabled":
-      return <span>{localizedMessage("inspection.components.connection.seeding.settings.section.automatic.ipv6.firewall.pinhole.control.is.off")}</span>;
-    case "ineligible":
-      return (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.ipv6.pinhole.control.requires.a.global.unicast")}</span>
-      );
-    case "discovering":
-      return <span>{localizedMessage("inspection.components.connection.seeding.settings.section.discovering.ipv6.firewall.control.on.the.upnp")}</span>;
-    case "service_unavailable":
-      return (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.the.gateway.does.not.advertise.ipv6.firewall")}</span>
-      );
-    case "action_unavailable":
-      return (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.the.gateway.ipv6.firewall.service.is.incomplete")}{" "}{status.detail}
-        </span>
-      );
-    case "inbound_pinhole_disallowed":
-      return (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.the.gateway.firewall.is.enabled.but.does")}</span>
-      );
-    case "unfiltered":
-      return (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.the.gateway.reports.ipv6.filtering.disabled.for")}{" "}{status.internal_address}:
-          {status.internal_port}{localizedMessage("inspection.components.connection.seeding.settings.section.this.is.gateway.state.not.an.observed")}</span>
-      );
-    case "creating":
-      return (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.requesting.an.ipv6.firewall.pinhole.for")}{" "}{status.internal_address}:
-          {status.internal_port}…
-        </span>
-      );
-    case "pinholed":
-      return (
-        <span>{localizedMessage("inspection.components.connection.seeding.settings.section.the.gateway.accepted.an.ipv6.pinhole.for")}{" "}{status.internal_address}:
-          {status.internal_port}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.for")}{" "}{status.lease_seconds}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.seconds.this.does.not.mean.an.incoming")}</span>
-      );
-    case "failed":
-      return (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.ipv6.pinhole.control.failed.during")}{" "}{status.stage.replaceAll("_", " ")}: {status.detail}
-        </span>
-      );
-    case "renewal_failed":
-      return (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.the.ipv6.pinhole.for")}{" "}{status.internal_address}:{status.internal_port}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.could.not.be.renewed")}{" "}{status.detail}
-        </span>
-      );
-    case "cleanup_failed":
-      return (
-        <span className={styles.runtimeWarning}>{localizedMessage("inspection.components.connection.seeding.settings.section.the.old.ipv6.pinhole.for")}{" "}{status.internal_address}:{status.internal_port}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.could.not.be.confirmed.removed.and.may")}{" "}{status.remaining_lease_seconds}{" "}{localizedMessage("inspection.components.connection.seeding.settings.section.seconds.a157a77")}{" "}{status.detail}
-        </span>
-      );
-    case "stopping":
-      return <span>{localizedMessage("inspection.components.connection.seeding.settings.section.removing.the.ipv6.firewall.pinhole")}</span>;
-  }
-}
-
-interface RateLimitDraftField {
-  readonly unlimited: boolean;
-  readonly valueKiB: string;
 }
 
 interface ActiveSeedDraftField {
@@ -1044,8 +1026,8 @@ interface ClientSettingsDraft {
   readonly shareRatioLimit: string;
   readonly finishedDownloadRatioLimit: string;
   readonly finishedTimeLimit: string;
-  readonly uploadRate: RateLimitDraftField;
-  readonly downloadRate: RateLimitDraftField;
+  readonly uploadRate: RateLimitDraft;
+  readonly downloadRate: RateLimitDraft;
   readonly encryption: EncryptionPolicy;
   readonly ipv6Enabled: boolean;
   readonly dhtEnabled: boolean;
@@ -1067,8 +1049,8 @@ const CLIENT_SETTINGS_COMPARATORS: SettingsDraftComparators<ClientSettingsDraft>
   shareRatioLimit: Object.is,
   finishedDownloadRatioLimit: Object.is,
   finishedTimeLimit: Object.is,
-  uploadRate: sameRateLimitDraftField,
-  downloadRate: sameRateLimitDraftField,
+  uploadRate: sameRateLimitDraft,
+  downloadRate: sameRateLimitDraft,
   encryption: Object.is,
   ipv6Enabled: Object.is,
   dhtEnabled: Object.is,
@@ -1121,9 +1103,9 @@ function clientSettingsDraft(settings: ClientSettings): ClientSettingsDraft {
   };
 }
 
-function sameRateLimitDraftField(
-  left: RateLimitDraftField,
-  right: RateLimitDraftField,
+function sameRateLimitDraft(
+  left: RateLimitDraft,
+  right: RateLimitDraft,
 ): boolean {
   return left.unlimited === right.unlimited &&
     (left.unlimited || left.valueKiB === right.valueKiB);
@@ -1191,12 +1173,11 @@ function clientDraftStatus(
   state: SettingsDraftState<ClientSettingsDraft>,
   phase: SettingsDraftPhase,
 ): string | null {
-  if (phase === "submitting") return localizedMessage("inspection.components.connection.seeding.settings.section.saving.settings");
-  if (phase === "awaiting_view") {
-    return localizedMessage("inspection.components.connection.seeding.settings.section.settings.accepted.waiting.for.the.live.view");
+  if (phase === "submitting" || phase === "awaiting_view") {
+    return localizedMessage("inspection.components.connection.seeding.settings.section.saving");
   }
   if (phase === "conflict") {
-    return localizedMessage("inspection.components.connection.seeding.settings.section.one.or.more.settings.changed.elsewhere.your");
+    return localizedMessage("inspection.components.connection.seeding.settings.section.changed.elsewhere");
   }
   return state.failure;
 }
@@ -1270,39 +1251,39 @@ function validateDraft(
     !isFixedListenerMode(listenerMode)
       ? null
       : port === null
-        ? `Enter a whole number from ${FIXED_PORT_MINIMUM} to ${FIXED_PORT_MAXIMUM}.`
+        ? wholeNumberError(FIXED_PORT_MINIMUM, FIXED_PORT_MAXIMUM)
         : null;
   const preferredPortError =
     preferred === null
-      ? `Enter a whole number from ${FIXED_PORT_MINIMUM} to ${FIXED_PORT_MAXIMUM}.`
+      ? wholeNumberError(FIXED_PORT_MINIMUM, FIXED_PORT_MAXIMUM)
       : null;
   const peerLimitError =
     peers === null
-      ? `Enter a whole number from ${PEER_LIMIT_MINIMUM} to ${PEER_LIMIT_MAXIMUM}.`
+      ? wholeNumberError(PEER_LIMIT_MINIMUM, PEER_LIMIT_MAXIMUM)
       : null;
   const uploadSlotsError =
     slots === null
-      ? `Enter a whole number from ${UPLOAD_SLOTS_MINIMUM} to ${UPLOAD_SLOTS_MAXIMUM}.`
+      ? wholeNumberError(UPLOAD_SLOTS_MINIMUM, UPLOAD_SLOTS_MAXIMUM)
       : null;
   const activeDownloadsError =
     downloads === null
-      ? `Enter a whole number from ${ACTIVE_DOWNLOADS_MINIMUM} to ${ACTIVE_DOWNLOADS_MAXIMUM}.`
+      ? wholeNumberError(ACTIVE_DOWNLOADS_MINIMUM, ACTIVE_DOWNLOADS_MAXIMUM)
       : null;
   const activeSeedsError =
     activeSeeds.unlimited || seeds !== null
       ? null
-      : `Enter a whole number from ${ACTIVE_SEEDS_MINIMUM} to ${ACTIVE_SEEDS_MAXIMUM}.`;
+      : wholeNumberError(ACTIVE_SEEDS_MINIMUM, ACTIVE_SEEDS_MAXIMUM);
   const shareRatioError =
     shareRatio === null
-      ? `Enter a whole number from ${SEED_GOAL_MINIMUM} to ${SEED_GOAL_MAXIMUM}.`
+      ? wholeNumberError(SEED_GOAL_MINIMUM, SEED_GOAL_MAXIMUM)
       : null;
   const finishedDownloadRatioError =
     finishedDownloadRatio === null
-      ? `Enter a whole number from ${SEED_GOAL_MINIMUM} to ${SEED_GOAL_MAXIMUM}.`
+      ? wholeNumberError(SEED_GOAL_MINIMUM, SEED_GOAL_MAXIMUM)
       : null;
   const finishedTimeError =
     finishedTime === null
-      ? `Enter a whole number from ${SEED_GOAL_MINIMUM} to ${SEED_GOAL_MAXIMUM}.`
+      ? wholeNumberError(SEED_GOAL_MINIMUM, SEED_GOAL_MAXIMUM)
       : null;
   if (
     preferredPortError !== null ||
@@ -1371,6 +1352,15 @@ function validateDraft(
   };
 }
 
+/** Ports read as identifiers, so their range is shown without grouping. */
+function wholeNumberError(minimum: number, maximum: number): string {
+  const options = { useGrouping: minimum !== FIXED_PORT_MINIMUM };
+  return localizedMessage("inspection.components.connection.seeding.settings.section.whole.number.range", {
+    minimum: formatNumber(minimum, options),
+    maximum: formatNumber(maximum, options),
+  });
+}
+
 function parseBoundedInteger(
   value: string,
   minimum: number,
@@ -1391,22 +1381,22 @@ const ENCRYPTION_OPTIONS: ReadonlyArray<{
   {
     value: "disabled",
     label: localizedMessage("inspection.components.connection.seeding.settings.section.disabled.75081b5"),
-    description: localizedMessage("inspection.components.connection.seeding.settings.section.use.ordinary.plaintext.peer.handshakes.only"),
+    description: localizedMessage("inspection.components.connection.seeding.settings.section.encryption.disabled.description"),
   },
   {
     value: "allow",
     label: localizedMessage("inspection.components.connection.seeding.settings.section.allow"),
-    description: localizedMessage("inspection.components.connection.seeding.settings.section.accept.mse.pe.while.initiating.ordinary.connections"),
+    description: localizedMessage("inspection.components.connection.seeding.settings.section.encryption.allow.description"),
   },
   {
     value: "prefer",
     label: localizedMessage("inspection.components.connection.seeding.settings.section.prefer"),
-    description: localizedMessage("inspection.components.connection.seeding.settings.section.try.mse.pe.first.and.use.a"),
+    description: localizedMessage("inspection.components.connection.seeding.settings.section.encryption.prefer.description"),
   },
   {
     value: "required",
     label: localizedMessage("inspection.components.connection.seeding.settings.section.required"),
-    description: localizedMessage("inspection.components.connection.seeding.settings.section.connect.only.when.the.peer.negotiates.mse"),
+    description: localizedMessage("inspection.components.connection.seeding.settings.section.encryption.required.description"),
   },
 ];
 
@@ -1434,17 +1424,4 @@ function isFixedListener(
 function isLoopbackListener(listener: ListenerPolicy): boolean {
   return listener.type === "automatic_loopback" ||
     listener.type === "fixed_loopback";
-}
-
-function bindFailureLabel(reason: ListenerBindFailureReason): string {
-  switch (reason) {
-    case "address_in_use":
-      return localizedMessage("inspection.components.connection.seeding.settings.section.port.already.in.use");
-    case "permission_denied":
-      return localizedMessage("inspection.components.connection.seeding.settings.section.permission.denied");
-    case "address_unavailable":
-      return localizedMessage("inspection.components.connection.seeding.settings.section.address.unavailable");
-    case "other":
-      return localizedMessage("inspection.components.connection.seeding.settings.section.other.system.error");
-  }
 }

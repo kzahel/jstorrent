@@ -24,17 +24,32 @@
   "inspection.components.data.reset.category": { "defaultMessage": "Data & reset", "description": "Settings category for data management" },
   "inspection.components.data.reset.clear.action": { "defaultMessage": "Clear app data", "description": "Confirm clearing app data" },
   "inspection.components.data.reset.clear.confirm": { "defaultMessage": "Clear app data?", "description": "Clear app data confirmation heading" },
-  "inspection.components.data.reset.clear.description": { "defaultMessage": "Remove all torrents and download folder registrations, then restore preferences. Downloaded files are kept unless you explicitly choose to delete them.", "description": "Clear app data action scope" },
+  "inspection.components.data.reset.clear.description": {
+    "defaultMessage": "Removes all torrents and download folders and restores default settings. Downloaded files are kept unless you choose to delete them.",
+    "description": "Explains Clear app data"
+  },
   "inspection.components.data.reset.clear.open": { "defaultMessage": "Clear app data…", "description": "Open clear app data confirmation" },
   "inspection.components.data.reset.clear.title": { "defaultMessage": "Clear app data", "description": "Clear app data setting title" },
-  "inspection.components.data.reset.clear.warning": { "defaultMessage": "All torrents and download folder registrations will be removed. This cannot be undone.", "description": "Clear app data confirmation warning" },
-  "inspection.components.data.reset.delete.files": { "defaultMessage": "Also delete downloaded files registered to these torrents", "description": "Optional exact file deletion" },
-  "inspection.components.data.reset.delete.scope": { "defaultMessage": "Only exact registered files and engine part files are eligible. Download folders and unrelated files are never deleted.", "description": "Bounded deletion scope" },
+  "inspection.components.data.reset.clear.warning": {
+    "defaultMessage": "All torrents and download folders will be removed. This can't be undone.",
+    "description": "Clear app data confirmation warning"
+  },
+  "inspection.components.data.reset.delete.files": {
+    "defaultMessage": "Also delete downloaded files",
+    "description": "Clear app data option"
+  },
+  "inspection.components.data.reset.delete.scope": {
+    "defaultMessage": "Only files downloaded by your torrents are deleted. Other files in your folders are never touched.",
+    "description": "Explains which files Clear app data can delete"
+  },
   "inspection.components.data.reset.delete.unavailable": { "defaultMessage": "File deletion is unavailable for one or more torrents. Downloaded files will be kept.", "description": "Unsupported file deletion note" },
   "inspection.components.data.reset.preferences.restored": { "defaultMessage": "Default preferences restored.", "description": "Preference reset completion" },
   "inspection.components.data.reset.restore.action": { "defaultMessage": "Restore defaults", "description": "Confirm preference reset" },
   "inspection.components.data.reset.restore.confirm": { "defaultMessage": "Restore default preferences?", "description": "Preference reset confirmation heading" },
-  "inspection.components.data.reset.restore.description": { "defaultMessage": "Reset appearance, download prompts, connection and seeding settings, and desktop notification and power preferences. Torrents, download folders, downloaded files, access, and privacy choices stay in place.", "description": "Preference reset action scope" },
+  "inspection.components.data.reset.restore.description": {
+    "defaultMessage": "Settings return to their defaults. Your torrents, folders, files, access, and privacy choices are kept.",
+    "description": "Explains Restore defaults"
+  },
   "inspection.components.data.reset.restore.open": { "defaultMessage": "Restore defaults…", "description": "Open preference reset confirmation" },
   "inspection.components.data.reset.restore.title": { "defaultMessage": "Restore default preferences", "description": "Preference reset setting title" },
   "inspection.components.data.reset.restore.warning": { "defaultMessage": "Your torrents, folders, files, access, and privacy choices will be kept.", "description": "Preference reset preservation" },
@@ -415,9 +430,9 @@
     "defaultMessage": "Transfers will resume automatically when one is usable.",
     "description": "Product copy in inspection/components/App.tsx"
   },
-  "inspection.components.app.waiting.for.an.unmetered.network": {
-    "defaultMessage": "Waiting for an unmetered network.",
-    "description": "Product copy in inspection/components/App.tsx"
+  "inspection.components.app.waiting.for.wifi": {
+    "defaultMessage": "Waiting for Wi-Fi.",
+    "description": "Library status while downloads wait for an unmetered network such as Wi-Fi"
   },
   "inspection.components.app.workbench": {
     "defaultMessage": "Torrents",
@@ -447,10 +462,6 @@
     "defaultMessage": "Balanced text, controls, and table spacing.",
     "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
   },
-  "inspection.components.appearance.settings.section.binary": {
-    "defaultMessage": "Binary",
-    "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
-  },
   "inspection.components.appearance.settings.section.changes.apply.immediately": {
     "defaultMessage": "Changes apply immediately.",
     "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
@@ -469,14 +480,6 @@
   },
   "inspection.components.appearance.settings.section.dark": {
     "defaultMessage": "Dark",
-    "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
-  },
-  "inspection.components.appearance.settings.section.data.units": {
-    "defaultMessage": "Data units",
-    "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
-  },
-  "inspection.components.appearance.settings.section.decimal": {
-    "defaultMessage": "Decimal",
     "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
   },
   "inspection.components.appearance.settings.section.fit.more.information.on.screen": {
@@ -503,477 +506,149 @@
     "defaultMessage": "Standard",
     "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
   },
-  "inspection.components.appearance.settings.section.use.kb.mb.and.gb.in.powers": {
-    "defaultMessage": "Use kB, MB, and GB in powers of 1000.",
-    "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
-  },
-  "inspection.components.appearance.settings.section.use.kib.mib.and.gib.in.powers": {
-    "defaultMessage": "Use KiB, MiB, and GiB in powers of 1024.",
-    "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
-  },
   "inspection.components.appearance.settings.section.use.larger.text.and.more.generous.targets": {
     "defaultMessage": "Use larger text and more generous targets.",
     "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.accept.mse.pe.while.initiating.ordinary.connections": {
-    "defaultMessage": "Accept MSE/PE while initiating ordinary connections.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.appearance.settings.section.size.units": {
+    "defaultMessage": "Size units",
+    "description": "Settings group heading for byte units"
   },
-  "inspection.components.connection.seeding.settings.section.active.downloads": {
-    "defaultMessage": "Active downloads:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.appearance.settings.section.units.binary": {
+    "defaultMessage": "KB, MB, GB",
+    "description": "Size unit option based on 1024"
   },
-  "inspection.components.connection.seeding.settings.section.active.seeds": {
-    "defaultMessage": "Active seeds",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.appearance.settings.section.units.binary.description": {
+    "defaultMessage": "1 KB = 1,024 bytes",
+    "description": "Explains the 1024-based size units"
   },
-  "inspection.components.connection.seeding.settings.section.active.seeds.604a98b": {
-    "defaultMessage": "Active seeds:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.appearance.settings.section.units.decimal": {
+    "defaultMessage": "Decimal kB, MB, GB",
+    "description": "Size unit option based on 1000"
   },
-  "inspection.components.connection.seeding.settings.section.address.unavailable": {
-    "defaultMessage": "address unavailable",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.all.torrents.download.limit": {
-    "defaultMessage": "All torrents download limit",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.all.torrents.peer.transfer.limits": {
-    "defaultMessage": "All torrents peer transfer limits",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.all.torrents.upload.limit": {
-    "defaultMessage": "All torrents upload limit",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.appearance.settings.section.units.decimal.description": {
+    "defaultMessage": "1 kB = 1,000 bytes",
+    "description": "Explains the 1000-based size units"
   },
   "inspection.components.connection.seeding.settings.section.allow": {
     "defaultMessage": "Allow",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.an.incoming.peer.was.observed": {
-    "defaultMessage": "; an incoming peer was observed.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.applying": {
-    "defaultMessage": ": applying…",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.automatic": {
-    "defaultMessage": "Automatic",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.automatic.ipv6.firewall.pinhole.control.is.off": {
-    "defaultMessage": "Automatic IPv6 firewall pinhole control is off.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.automatic.port": {
-    "defaultMessage": "Automatic port",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.automatic.port.c61a158": {
-    "defaultMessage": "automatic port",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.automatic.seeding.priority": {
-    "defaultMessage": "Automatic seeding priority",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.but.an.incoming.peer.was.observed": {
-    "defaultMessage": ", but an incoming peer was observed.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.by.available.file.descriptors": {
-    "defaultMessage": "by available file descriptors.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.automatic.port.recommended": {
+    "defaultMessage": "Automatic port (recommended)",
+    "description": "Incoming port option"
   },
   "inspection.components.connection.seeding.settings.section.cancel.changes": {
     "defaultMessage": "Cancel changes",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.caps.established.bittorrent.peer.traffic.across.the": {
-    "defaultMessage": "Caps established BitTorrent peer traffic across the session. Trackers, DHT, connection handshakes, and network headers are not counted.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.choose.automatic.or.fixed.port.selection": {
-    "defaultMessage": "Choose automatic or fixed port selection.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.configured": {
-    "defaultMessage": "configured",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.connect.only.when.the.peer.negotiates.mse": {
-    "defaultMessage": "Connect only when the peer negotiates MSE/PE.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.connection.and.seeding.settings.are.managed.by": {
-    "defaultMessage": "Connection and seeding settings are managed by the live application.",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
   "inspection.components.connection.seeding.settings.section.connection.seeding": {
     "defaultMessage": "Connection & seeding",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.could.not.be.confirmed.removed.and.may": {
-    "defaultMessage": "could not be confirmed removed and may remain for",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.could.not.be.renewed": {
-    "defaultMessage": "could not be renewed:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.counted.of": {
-    "defaultMessage": "counted of",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.current.runtime": {
-    "defaultMessage": "Current runtime",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.current.runtime.state": {
-    "defaultMessage": "Current runtime state",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.degraded": {
-    "defaultMessage": ": degraded (",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.development.only.disabled.mode": {
-    "defaultMessage": "development-only disabled mode",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.development.only.loopback.mode": {
-    "defaultMessage": "development-only loopback mode",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
   "inspection.components.connection.seeding.settings.section.dht": {
     "defaultMessage": "DHT",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.disabled": {
-    "defaultMessage": "disabled",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
   "inspection.components.connection.seeding.settings.section.disabled.75081b5": {
     "defaultMessage": "Disabled",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.discovering.a.compatible.upnp.igd.v2.gateway": {
-    "defaultMessage": "Discovering a compatible UPnP IGD v2 gateway for",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.discovering.ipv6.firewall.control.on.the.upnp": {
-    "defaultMessage": "Discovering IPv6 firewall control on the UPnP gateway…",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.download.setting.is.limited.to": {
-    "defaultMessage": "-download setting is limited to",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.effective.dht.policy": {
-    "defaultMessage": "Effective DHT policy:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.effective.gateway.mapping.policy": {
-    "defaultMessage": "Effective gateway mapping policy:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.effective.ipv6.policy": {
-    "defaultMessage": "Effective IPv6 policy:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.effective.listener.policy": {
-    "defaultMessage": "Effective listener policy:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.effective.payload.upload.slots": {
-    "defaultMessage": "Effective payload upload slots:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.effective.peer.connection.limit": {
-    "defaultMessage": "Effective peer connection limit:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.effective.peer.download.limit": {
-    "defaultMessage": "Effective peer download limit:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.effective.peer.exchange.policy": {
-    "defaultMessage": "Effective peer exchange policy:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.effective.peer.upload.limit": {
-    "defaultMessage": "Effective peer upload limit:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.effective.protocol.obfuscation.policy": {
-    "defaultMessage": "Effective protocol obfuscation policy:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.enable.dht": {
-    "defaultMessage": "Enable DHT",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.enable.ipv6": {
-    "defaultMessage": "Enable IPv6",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.enable.peer.exchange": {
-    "defaultMessage": "Enable peer exchange",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.enabled": {
-    "defaultMessage": "enabled",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.exchange.peer.addresses.with.connected.public.torrents": {
-    "defaultMessage": "Exchange peer addresses with connected public torrents. Private torrents never use peer exchange.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.external.reachability.is.not.yet.observed": {
-    "defaultMessage": "; external reachability is not yet observed.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.external.reachability.is.unverified": {
-    "defaultMessage": "; external reachability is unverified",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.find.peers.through.the.distributed.hash.table": {
-    "defaultMessage": "Find peers through the distributed hash table. Private torrents never use DHT.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.finished.download.time.priority.goal": {
-    "defaultMessage": "Finished/download time priority goal (%)",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.finished.time.priority.goal.seconds": {
-    "defaultMessage": "Finished-time priority goal (seconds)",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.fixed.listener.port": {
-    "defaultMessage": "Fixed listener port",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
   "inspection.components.connection.seeding.settings.section.fixed.port": {
     "defaultMessage": "Fixed port",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.for": {
-    "defaultMessage": "for",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.gateway.mapping": {
-    "defaultMessage": "gateway mapping…",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.gateway.mapping.failed.during": {
-    "defaultMessage": "gateway mapping failed during",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.gateway.mapping.is.off": {
-    "defaultMessage": "gateway mapping is off.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.gateway.mapping.requires.an.active.listener.and": {
-    "defaultMessage": "gateway mapping requires an active listener and a usable local network.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.goals.rank.completed.torrents.when.active.seed": {
-    "defaultMessage": "Goals rank completed torrents when active seed capacity is scarce. Meeting a goal does not stop a torrent; it may keep seeding while capacity is available.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.improves.compatibility.with.peers.that.require.mse": {
-    "defaultMessage": "Improves compatibility with peers that require MSE/PE. This is protocol obfuscation, not privacy or security.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.incoming.peer.connections.use.ipv4.and.when": {
-    "defaultMessage": "Incoming peer connections use IPv4 and, when available, IPv6. Automatic port selection is recommended; choose a fixed port only when your network requires one.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.incoming.tcp.is.listening.on.all.ipv4": {
-    "defaultMessage": "Incoming TCP is listening on all IPv4 interfaces at port",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.incoming.tcp.is.not.running.save.settings": {
-    "defaultMessage": "Incoming TCP is not running. Save settings to enable the ordinary listener.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.incoming.tcp.is.using.a.development.only": {
-    "defaultMessage": "Incoming TCP is using a development-only loopback listener at port",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.incoming.tcp.listener": {
-    "defaultMessage": "Incoming TCP listener",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.independently.from.tcp": {
-    "defaultMessage": "independently from TCP.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.ipv4": {
-    "defaultMessage": "IPv4",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.incoming.connections": {
+    "defaultMessage": "Incoming connections",
+    "description": "Heading for the incoming port choice"
   },
   "inspection.components.connection.seeding.settings.section.ipv6": {
     "defaultMessage": "IPv6",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.ipv6.pinhole.control.failed.during": {
-    "defaultMessage": "IPv6 pinhole control failed during",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.ipv6.description": {
+    "defaultMessage": "Use IPv6 when this device has an IPv6 address",
+    "description": "Explains the IPv6 setting"
   },
-  "inspection.components.connection.seeding.settings.section.ipv6.pinhole.control.requires.a.global.unicast": {
-    "defaultMessage": "IPv6 pinhole control requires a global-unicast IPv6 listener and UPnP gateway control.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.listener.port": {
+    "defaultMessage": "Port {port}",
+    "description": "Incoming connections status; port is not number-formatted"
   },
-  "inspection.components.connection.seeding.settings.section.kib.s.of.established.peer.traffic": {
-    "defaultMessage": "KiB/s of established peer traffic.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.listener.address.in.use": {
+    "defaultMessage": "Port already in use",
+    "description": "Incoming connections status"
   },
-  "inspection.components.connection.seeding.settings.section.listener.could.not.start": {
-    "defaultMessage": "Listener could not start (",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.listener.address.unavailable": {
+    "defaultMessage": "Network address unavailable",
+    "description": "Incoming connections status"
   },
-  "inspection.components.connection.seeding.settings.section.map.incoming.tcp.and.utp.with.upnp": {
-    "defaultMessage": "Map incoming TCP and uTP with UPnP",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.listener.permission.denied": {
+    "defaultMessage": "Not allowed on this device",
+    "description": "Incoming connections status"
   },
-  "inspection.components.connection.seeding.settings.section.mapped": {
-    "defaultMessage": "mapped",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.listener.failed": {
+    "defaultMessage": "Couldn't accept incoming connections",
+    "description": "Incoming connections status for other failures"
   },
-  "inspection.components.connection.seeding.settings.section.mapped.tcp.port": {
-    "defaultMessage": "Mapped TCP port",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.no.active.seed.limit": {
+    "defaultMessage": "No limit on active seeds",
+    "description": "Checkbox that removes the active seed limit"
   },
-  "inspection.components.connection.seeding.settings.section.mapping": {
-    "defaultMessage": "mapping…",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.peer.exchange.pex": {
+    "defaultMessage": "Peer exchange (PEX)",
+    "description": "Checkbox label"
   },
-  "inspection.components.connection.seeding.settings.section.mapping.at": {
-    "defaultMessage": "mapping at",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.peer.exchange.description": {
+    "defaultMessage": "Share peer lists with other clients",
+    "description": "Explains peer exchange"
   },
-  "inspection.components.connection.seeding.settings.section.no.incoming.listener.policy.has.converged.yet": {
-    "defaultMessage": "No incoming-listener policy has converged yet.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.port.mapping.ineligible": {
+    "defaultMessage": "Needs incoming connections on a local network",
+    "description": "UPnP row status"
   },
-  "inspection.components.connection.seeding.settings.section.of": {
-    "defaultMessage": "of",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.port.mapping.discovering": {
+    "defaultMessage": "Looking for router…",
+    "description": "UPnP row status"
   },
-  "inspection.components.connection.seeding.settings.section.off": {
-    "defaultMessage": "off",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.port.mapping.requesting": {
+    "defaultMessage": "Opening router port…",
+    "description": "UPnP row status"
   },
-  "inspection.components.connection.seeding.settings.section.on.this.platform": {
-    "defaultMessage": "on this platform.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.port.mapping.stopping": {
+    "defaultMessage": "Closing router port…",
+    "description": "UPnP row status"
   },
-  "inspection.components.connection.seeding.settings.section.one.or.more.settings.changed.elsewhere.your": {
-    "defaultMessage": "One or more settings changed elsewhere. Your draft is preserved for review.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.port.mapping.mapped": {
+    "defaultMessage": "Forwarding port {port}",
+    "description": "UPnP row status; port is not number-formatted"
   },
-  "inspection.components.connection.seeding.settings.section.other.system.error": {
-    "defaultMessage": "other system error",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.port.mapping.no.router": {
+    "defaultMessage": "No router found",
+    "description": "UPnP row status"
   },
-  "inspection.components.connection.seeding.settings.section.outbound.only.advertisement": {
-    "defaultMessage": "· outbound-only advertisement",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.port.mapping.failed": {
+    "defaultMessage": "Port forwarding failed",
+    "description": "UPnP row status"
   },
-  "inspection.components.connection.seeding.settings.section.payload.upload.slots": {
-    "defaultMessage": "Payload upload slots",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.port.mapping.renewal.failed": {
+    "defaultMessage": "Couldn't renew forwarding for port {port}",
+    "description": "UPnP row status"
   },
-  "inspection.components.connection.seeding.settings.section.peer.advertisement.endpoint.is.not.available.yet": {
-    "defaultMessage": "Peer advertisement endpoint is not available yet.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.peer.advertisement.is.stopping": {
-    "defaultMessage": "Peer advertisement is stopping.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.peer.connection.limit": {
-    "defaultMessage": "Peer connection limit",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.peer.connections": {
-    "defaultMessage": "Peer connections",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.peer.exchange": {
-    "defaultMessage": "Peer exchange",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.peer.protocols.may.advertise.local.tcp.port": {
-    "defaultMessage": "Peer protocols may advertise local TCP port",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.peer.protocols.may.advertise.mapped.tcp.port": {
-    "defaultMessage": "Peer protocols may advertise mapped TCP port",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.peer.setting.is.safely.limited.to": {
-    "defaultMessage": "-peer setting is safely limited to",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.peer.transfer.limits": {
-    "defaultMessage": "Peer transfer limits",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.permission.denied": {
-    "defaultMessage": "permission denied",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.port.already.in.use": {
-    "defaultMessage": "port already in use",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.port.mapping": {
-    "defaultMessage": "Port mapping",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.port.mapping.cleanup.failed": {
+    "defaultMessage": "The router may keep port {port} open",
+    "description": "UPnP row status when an old forwarding could not be removed"
   },
   "inspection.components.connection.seeding.settings.section.prefer": {
     "defaultMessage": "Prefer",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.protocol.obfuscation": {
-    "defaultMessage": "Protocol obfuscation",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.protocol.encryption": {
+    "defaultMessage": "Protocol encryption",
+    "description": "Heading for the peer encryption choice"
   },
-  "inspection.components.connection.seeding.settings.section.protocol.obfuscation.mse.pe": {
-    "defaultMessage": "Protocol obfuscation (MSE/PE)",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.remains.valid.for.up.to": {
-    "defaultMessage": "remains valid for up to",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.remove.the.seed.only.limit.the.fixed": {
-    "defaultMessage": "Remove the seed-only limit. The fixed shared 500-torrent safety ceiling still applies.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.removing.the": {
-    "defaultMessage": "Removing the",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.removing.the.ipv6.firewall.pinhole": {
-    "defaultMessage": "Removing the IPv6 firewall pinhole…",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.request.independent.temporary.tcp.and.udp.igd": {
-    "defaultMessage": "Request independent temporary TCP and UDP IGD v2 mappings when a compatible gateway is available.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.requesting.an.ipv6.firewall.pinhole.for": {
-    "defaultMessage": "Requesting an IPv6 firewall pinhole for",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.requesting.and.verifying.the.temporary": {
-    "defaultMessage": "Requesting and verifying the temporary",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.protocol.encryption.description": {
+    "defaultMessage": "Helps with some networks and peers. It doesn't make your activity private.",
+    "description": "Explains protocol encryption without claiming privacy"
   },
   "inspection.components.connection.seeding.settings.section.required": {
     "defaultMessage": "Required",
@@ -983,165 +658,357 @@
     "defaultMessage": "Save settings",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.save.settings.to.listen.on.all.ipv4": {
-    "defaultMessage": ". Save settings to listen on all IPv4 interfaces.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.save.settings.to.retry": {
-    "defaultMessage": "Save settings to retry.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.save.settings.to.retry.0312e9f": {
-    "defaultMessage": "). Save settings to retry.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.save.not.confirmed": {
+    "defaultMessage": "Couldn't confirm the save. Try again.",
+    "description": "Status when the save response was incomplete"
   },
   "inspection.components.connection.seeding.settings.section.saving": {
     "defaultMessage": "Saving…",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.saving.settings": {
-    "defaultMessage": "Saving settings…",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.share.ratio.goal": {
+    "defaultMessage": "Share ratio",
+    "description": "Seeding goal number field label"
   },
-  "inspection.components.connection.seeding.settings.section.seconds": {
-    "defaultMessage": "seconds.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.seconds.a157a77": {
-    "defaultMessage": "seconds:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.seconds.but.renewal.is.unhealthy": {
-    "defaultMessage": "seconds, but renewal is unhealthy:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.seconds.this.does.not.mean.an.incoming": {
-    "defaultMessage": "seconds. This does not mean an incoming peer has connected.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.session.udp.is.bound.on": {
-    "defaultMessage": "Session UDP is bound on",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.session.udp.is.not.available.in.this": {
-    "defaultMessage": "Session UDP is not available in this snapshot.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.settings.accepted.and.applying": {
-    "defaultMessage": "Settings accepted and applying.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.settings.accepted.waiting.for.the.live.view": {
-    "defaultMessage": "Settings accepted; waiting for the live view…",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.share.ratio.priority.goal": {
-    "defaultMessage": "Share-ratio priority goal (%)",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.simultaneous.downloads": {
-    "defaultMessage": "Simultaneous downloads",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.tcp": {
-    "defaultMessage": "TCP",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.the": {
-    "defaultMessage": "The",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.the.configured": {
-    "defaultMessage": "The configured",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.the.gateway.accepted.an.ipv6.pinhole.for": {
-    "defaultMessage": "The gateway accepted an IPv6 pinhole for",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.the.gateway.does.not.advertise.ipv6.firewall": {
-    "defaultMessage": "The gateway does not advertise IPv6 firewall control. The IPv6 listener remains advertised as global unicast; gateway filtering is unknown.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.the.gateway.firewall.is.enabled.but.does": {
-    "defaultMessage": "The gateway firewall is enabled but does not allow requested inbound pinholes.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.the.gateway.ipv6.firewall.service.is.incomplete": {
-    "defaultMessage": "The gateway IPv6 firewall service is incomplete:",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.the.gateway.reports.ipv6.filtering.disabled.for": {
-    "defaultMessage": "The gateway reports IPv6 filtering disabled for",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.the.ipv6.pinhole.for": {
-    "defaultMessage": "The IPv6 pinhole for",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.the.old": {
-    "defaultMessage": "The old",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.the.old.ipv6.pinhole.for": {
-    "defaultMessage": "The old IPv6 pinhole for",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.this.is.gateway.state.not.an.observed": {
-    "defaultMessage": ". This is gateway state, not an observed incoming peer.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.to": {
-    "defaultMessage": "to",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.tracker.discovery.is.outbound.only.no.connectable": {
-    "defaultMessage": "Tracker discovery is outbound-only; no connectable peer port is advertised.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.transport": {
-    "defaultMessage": "Transport",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.try.mse.pe.first.and.use.a": {
-    "defaultMessage": "Try MSE/PE first and use a bounded plaintext fallback.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.udp.utp": {
-    "defaultMessage": "UDP/uTP",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.unlimited": {
-    "defaultMessage": "Unlimited",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
-  },
-  "inspection.components.connection.seeding.settings.section.unlimited.active.seeds": {
-    "defaultMessage": "Unlimited active seeds",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.share.ratio.goal.description": {
+    "defaultMessage": "Uploaded compared with the torrent's size",
+    "description": "Explains the share ratio goal"
   },
   "inspection.components.connection.seeding.settings.section.upload.slots": {
     "defaultMessage": "Upload slots",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.upnp": {
-    "defaultMessage": "UPnP",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.upload.slots.description": {
+    "defaultMessage": "Peers you upload to at the same time",
+    "description": "Explains upload slots"
   },
-  "inspection.components.connection.seeding.settings.section.upnp.igd.v2": {
-    "defaultMessage": "UPnP IGD v2",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.upnp.port.forwarding": {
+    "defaultMessage": "UPnP port forwarding",
+    "description": "Checkbox label"
   },
-  "inspection.components.connection.seeding.settings.section.use.ipv6.for.dht.trackers.peer.connections": {
-    "defaultMessage": "Use IPv6 for DHT, trackers, peer connections, and the incoming listener when this device has an eligible address.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.upnp.port.forwarding.description": {
+    "defaultMessage": "Open the incoming port on your router automatically",
+    "description": "Explains UPnP port forwarding"
   },
-  "inspection.components.connection.seeding.settings.section.use.ordinary.plaintext.peer.handshakes.only": {
-    "defaultMessage": "Use ordinary plaintext peer handshakes only.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.not.manageable": {
+    "defaultMessage": "These settings can't be changed here.",
+    "description": "Shown when this client cannot change connection settings"
   },
-  "inspection.components.connection.seeding.settings.section.with.the.tcp.listener": {
-    "defaultMessage": "with the TCP listener.",
-    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  "inspection.components.connection.seeding.settings.section.speed.limits.heading": {
+    "defaultMessage": "Speed limits",
+    "description": "Settings group heading"
+  },
+  "inspection.components.connection.seeding.settings.section.speed.limits.description": {
+    "defaultMessage": "Applies to all torrents.",
+    "description": "Explains the scope of the global speed limits"
+  },
+  "inspection.components.connection.seeding.settings.section.upload": {
+    "defaultMessage": "Upload",
+    "description": "Global upload speed limit label"
+  },
+  "inspection.components.connection.seeding.settings.section.download": {
+    "defaultMessage": "Download",
+    "description": "Global download speed limit label"
+  },
+  "inspection.components.connection.seeding.settings.section.queue.heading": {
+    "defaultMessage": "Queue",
+    "description": "Settings group heading for active download and seed limits"
+  },
+  "inspection.components.connection.seeding.settings.section.max.active.downloads": {
+    "defaultMessage": "Max active downloads",
+    "description": "Number field label"
+  },
+  "inspection.components.connection.seeding.settings.section.max.active.downloads.description": {
+    "defaultMessage": "More torrents wait in the queue and start automatically.",
+    "description": "Explains what happens above the active download limit"
+  },
+  "inspection.components.connection.seeding.settings.section.max.active.seeds": {
+    "defaultMessage": "Max active seeds",
+    "description": "Number field label"
+  },
+  "inspection.components.connection.seeding.settings.section.max.peer.connections": {
+    "defaultMessage": "Max peer connections",
+    "description": "Number field label"
+  },
+  "inspection.components.connection.seeding.settings.section.seeding.goals.heading": {
+    "defaultMessage": "Seeding goals",
+    "description": "Settings group heading"
+  },
+  "inspection.components.connection.seeding.settings.section.seeding.goals.description": {
+    "defaultMessage": "When more torrents are finished than can seed at once, torrents that haven't reached a goal seed first. Reaching a goal doesn't stop seeding.",
+    "description": "Explains how seeding goals affect which finished torrents seed"
+  },
+  "inspection.components.connection.seeding.settings.section.seeding.download.time.goal": {
+    "defaultMessage": "Seeding time vs. download time",
+    "description": "Seeding goal comparing seeding time with download time, as a percentage"
+  },
+  "inspection.components.connection.seeding.settings.section.seeding.time.goal": {
+    "defaultMessage": "Seeding time",
+    "description": "Seeding goal number field label, entered in seconds"
+  },
+  "inspection.components.connection.seeding.settings.section.unit.percent": {
+    "defaultMessage": "%",
+    "description": "Unit after a percentage field"
+  },
+  "inspection.components.connection.seeding.settings.section.unit.seconds": {
+    "defaultMessage": "seconds",
+    "description": "Unit after a seconds field"
+  },
+  "inspection.components.connection.seeding.settings.section.unit.seconds.with.duration": {
+    "defaultMessage": "seconds ({duration})",
+    "description": "Unit after a seconds field with the value as a readable duration, such as 1d 0h"
+  },
+  "inspection.components.connection.seeding.settings.section.connections.heading": {
+    "defaultMessage": "Connections",
+    "description": "Settings group heading"
+  },
+  "inspection.components.connection.seeding.settings.section.network.heading": {
+    "defaultMessage": "Network",
+    "description": "Settings group heading"
+  },
+  "inspection.components.connection.seeding.settings.section.network.details": {
+    "defaultMessage": "Network details",
+    "description": "Collapsed panel with port forwarding and connection details"
+  },
+  "inspection.components.connection.seeding.settings.section.port": {
+    "defaultMessage": "Port",
+    "description": "Fixed incoming port number field label"
+  },
+  "inspection.components.connection.seeding.settings.section.dht.description": {
+    "defaultMessage": "Find peers without trackers",
+    "description": "Explains the DHT setting"
+  },
+  "inspection.components.connection.seeding.settings.section.encryption.disabled.description": {
+    "defaultMessage": "Never encrypt",
+    "description": "Protocol encryption option description"
+  },
+  "inspection.components.connection.seeding.settings.section.encryption.allow.description": {
+    "defaultMessage": "Accept encrypted connections",
+    "description": "Protocol encryption option description"
+  },
+  "inspection.components.connection.seeding.settings.section.encryption.prefer.description": {
+    "defaultMessage": "Try encryption first",
+    "description": "Protocol encryption option description"
+  },
+  "inspection.components.connection.seeding.settings.section.encryption.required.description": {
+    "defaultMessage": "Only use encrypted connections",
+    "description": "Protocol encryption option description"
+  },
+  "inspection.components.connection.seeding.settings.section.note.applying": {
+    "defaultMessage": "Applying…",
+    "description": "Row note while a saved setting is being applied"
+  },
+  "inspection.components.connection.seeding.settings.section.note.not.applied": {
+    "defaultMessage": "Couldn't apply this setting. Save to try again.",
+    "description": "Row note when a saved setting failed to apply"
+  },
+  "inspection.components.connection.seeding.settings.section.note.limited.on.device": {
+    "defaultMessage": "Limited to {count, number} on this device",
+    "description": "Row note when this device caps a configured limit"
+  },
+  "inspection.components.connection.seeding.settings.section.saved": {
+    "defaultMessage": "Saved",
+    "description": "Status after settings are saved"
+  },
+  "inspection.components.connection.seeding.settings.section.changed.elsewhere": {
+    "defaultMessage": "Settings were changed somewhere else. Your edits are still here.",
+    "description": "Status when settings changed in another window while editing"
+  },
+  "inspection.components.connection.seeding.settings.section.whole.number.range": {
+    "defaultMessage": "Enter a whole number from {minimum} to {maximum}.",
+    "description": "Validation error for a number field; minimum and maximum are formatted numbers"
+  },
+  "inspection.components.connection.seeding.settings.section.details.development.loopback": {
+    "defaultMessage": "Development build: accepting connections from this computer only, on port {port}.",
+    "description": "Network details line for development builds"
+  },
+  "inspection.components.connection.seeding.settings.section.details.udp.port": {
+    "defaultMessage": "UDP: port {port}",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.udp.unavailable": {
+    "defaultMessage": "UDP isn't running.",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.family": {
+    "defaultMessage": "{family}: {details}",
+    "description": "Network details line; family is IPv4 or IPv6, details lists endpoints"
+  },
+  "inspection.components.connection.seeding.settings.section.details.family.off": {
+    "defaultMessage": "{family}: off",
+    "description": "Network details line; family is IPv4 or IPv6"
+  },
+  "inspection.components.connection.seeding.settings.section.details.family.tcp": {
+    "defaultMessage": "TCP {endpoint}",
+    "description": "Network details part; endpoint is address:port"
+  },
+  "inspection.components.connection.seeding.settings.section.details.family.udp": {
+    "defaultMessage": "UDP {endpoint}",
+    "description": "Network details part; endpoint is address:port"
+  },
+  "inspection.components.connection.seeding.settings.section.details.family.shared": {
+    "defaultMessage": "Shared with peers as {endpoint}",
+    "description": "Network details part; endpoint is address:port"
+  },
+  "inspection.components.connection.seeding.settings.section.details.family.not.shared": {
+    "defaultMessage": "Not shared with peers",
+    "description": "Network details part"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.off": {
+    "defaultMessage": "Router forwarding ({protocol}): off",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.ineligible": {
+    "defaultMessage": "Router forwarding ({protocol}): needs incoming connections on a local network",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.discovering": {
+    "defaultMessage": "Router forwarding ({protocol}): looking for router…",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.requesting": {
+    "defaultMessage": "Router forwarding ({protocol}): opening router port…",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.mapped": {
+    "defaultMessage": "Router forwarding ({protocol}): {external} → {local}, renewed automatically",
+    "description": "Network details line; external and local are address:port"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.discovery": {
+    "defaultMessage": "Router forwarding ({protocol}): no router found",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.description": {
+    "defaultMessage": "Router forwarding ({protocol}): couldn't read the router's details",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.external.address": {
+    "defaultMessage": "Router forwarding ({protocol}): couldn't get the router's public address",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.add": {
+    "defaultMessage": "Router forwarding ({protocol}): the router refused the port",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.verify": {
+    "defaultMessage": "Router forwarding ({protocol}): couldn't confirm the forwarded port",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.renewal": {
+    "defaultMessage": "Router forwarding ({protocol}): couldn't renew the port",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.delete": {
+    "defaultMessage": "Router forwarding ({protocol}): couldn't remove the old port",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.renewal.failed": {
+    "defaultMessage": "Router forwarding ({protocol}): couldn't renew port {port}",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.cleanup.failed": {
+    "defaultMessage": "Router forwarding ({protocol}): the router may keep port {port} open for up to {duration}",
+    "description": "Network details line; duration is like 15m 0s"
+  },
+  "inspection.components.connection.seeding.settings.section.details.forwarding.stopping": {
+    "defaultMessage": "Router forwarding ({protocol}): closing router port…",
+    "description": "Network details line; protocol is TCP or UDP"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.off": {
+    "defaultMessage": "IPv6 router firewall: not managed",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.ineligible": {
+    "defaultMessage": "IPv6 router firewall: needs an IPv6 address and UPnP port forwarding",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.discovering": {
+    "defaultMessage": "IPv6 router firewall: looking for firewall control…",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.service.unavailable": {
+    "defaultMessage": "IPv6 router firewall: the router doesn't offer firewall control",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.action.unavailable": {
+    "defaultMessage": "IPv6 router firewall: the router's firewall control is incomplete",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.disallowed": {
+    "defaultMessage": "IPv6 router firewall: the router blocks incoming connections",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.unfiltered": {
+    "defaultMessage": "IPv6 router firewall: the router doesn't filter port {port}",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.creating": {
+    "defaultMessage": "IPv6 router firewall: opening port {port}…",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.open": {
+    "defaultMessage": "IPv6 router firewall: port {port} open, renewed automatically",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.failed": {
+    "defaultMessage": "IPv6 router firewall: couldn't open the port",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.renewal.failed": {
+    "defaultMessage": "IPv6 router firewall: couldn't renew port {port}",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.cleanup.failed": {
+    "defaultMessage": "IPv6 router firewall: the router may keep port {port} open for up to {duration}",
+    "description": "Network details line; duration is like 15m 0s"
+  },
+  "inspection.components.connection.seeding.settings.section.details.firewall.stopping": {
+    "defaultMessage": "IPv6 router firewall: closing port…",
+    "description": "Network details line"
+  },
+  "inspection.components.connection.seeding.settings.section.details.advertised.unavailable": {
+    "defaultMessage": "Peers aren't given a port yet.",
+    "description": "Network details line about the port shared with peers"
+  },
+  "inspection.components.connection.seeding.settings.section.details.advertised.outbound": {
+    "defaultMessage": "Outgoing connections only. Peers aren't given a port.",
+    "description": "Network details line about the port shared with peers"
+  },
+  "inspection.components.connection.seeding.settings.section.details.advertised.local.observed": {
+    "defaultMessage": "Peers are told to use port {port}. An incoming peer has connected.",
+    "description": "Network details line about the port shared with peers"
+  },
+  "inspection.components.connection.seeding.settings.section.details.advertised.local.unverified": {
+    "defaultMessage": "Peers are told to use port {port}. It isn't confirmed reachable from the internet.",
+    "description": "Network details line about the port shared with peers"
+  },
+  "inspection.components.connection.seeding.settings.section.details.advertised.mapped.observed": {
+    "defaultMessage": "Peers are told to use forwarded port {port}. An incoming peer has connected.",
+    "description": "Network details line about the port shared with peers"
+  },
+  "inspection.components.connection.seeding.settings.section.details.advertised.mapped.unobserved": {
+    "defaultMessage": "Peers are told to use forwarded port {port}. No incoming peer has connected yet.",
+    "description": "Network details line about the port shared with peers"
+  },
+  "inspection.components.connection.seeding.settings.section.details.advertised.renewal.unhealthy": {
+    "defaultMessage": "Forwarded port {port} expires in {duration}; renewal is failing.",
+    "description": "Network details line; duration is like 15m 0s"
+  },
+  "inspection.components.connection.seeding.settings.section.details.advertised.stopping": {
+    "defaultMessage": "Peers are no longer given a port.",
+    "description": "Network details line about the port shared with peers"
+  },
+  "inspection.components.connection.seeding.settings.section.details.active.downloads": {
+    "defaultMessage": "Active downloads: {active, number} of {limit, number}{checking, plural, =0 {} other { (# checking)}}",
+    "description": "Network details line with active download counts"
+  },
+  "inspection.components.connection.seeding.settings.section.details.active.seeds": {
+    "defaultMessage": "Active seeds: {active, number} of {limit, number}{idle, plural, =0 {} other { (# idle, not counted)}}",
+    "description": "Network details line; idle seeds do not count toward the limit"
+  },
+  "inspection.components.connection.seeding.settings.section.details.active.seeds.unlimited": {
+    "defaultMessage": "Active seeds: {active, number}, no limit{idle, plural, =0 {} other { (# idle)}}",
+    "description": "Network details line when active seeds are unlimited"
   },
   "inspection.components.crostini.storage.help.a.shared.chromeos.folder.is.easier.to": {
     "defaultMessage": "A shared ChromeOS folder is easier to use directly from My files, but torrent writes, verification, reading, and seeding can be much slower than Linux storage.",
@@ -1239,14 +1106,6 @@
     "defaultMessage": "Absent",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
-  "inspection.components.detail.pane.active.inactive.exempt.seed": {
-    "defaultMessage": "active, inactive-exempt seed",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.active.seed": {
-    "defaultMessage": "active seed",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
   "inspection.components.detail.pane.active.time": {
     "defaultMessage": "Active time",
     "description": "Product copy in inspection/components/DetailPane.tsx"
@@ -1269,10 +1128,6 @@
   },
   "inspection.components.detail.pane.current.transfer": {
     "defaultMessage": "Current transfer",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.data": {
-    "defaultMessage": "data.",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.download": {
@@ -1299,20 +1154,8 @@
     "defaultMessage": "Info hash (v2)",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
-  "inspection.components.detail.pane.kib.s": {
-    "defaultMessage": "KiB/s",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
   "inspection.components.detail.pane.known.peers": {
     "defaultMessage": "Known peers",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.lifetime.downloaded": {
-    "defaultMessage": "Lifetime downloaded",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.lifetime.uploaded": {
-    "defaultMessage": "Lifetime uploaded",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.matched": {
@@ -1323,44 +1166,8 @@
     "defaultMessage": "Mismatched",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
-  "inspection.components.detail.pane.not.eligible.to.seed": {
-    "defaultMessage": "not eligible to seed",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.peer.transfer.limits": {
-    "defaultMessage": "Peer transfer limits",
-    "description": "Transfer limit section in inspection/components/TorrentSettingsDialog.tsx"
-  },
   "inspection.components.detail.pane.pieces.checked": {
     "defaultMessage": "Pieces checked",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.queued.seed": {
-    "defaultMessage": "queued seed",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.save.torrent.limits": {
-    "defaultMessage": "Save torrent limits",
-    "description": "Save action in inspection/components/TorrentSettingsDialog.tsx"
-  },
-  "inspection.components.detail.pane.saved.waiting.for.the.live.view": {
-    "defaultMessage": "Saved; waiting for the live view…",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.saving": {
-    "defaultMessage": "Saving…",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.saving.torrent.limits": {
-    "defaultMessage": "Saving torrent limits…",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.seeding.goals.affect.automatic.priority.a.goal": {
-    "defaultMessage": "Seeding goals affect automatic priority; a goal-met torrent may keep seeding while capacity is available. Met thresholds:",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.seeding.priority": {
-    "defaultMessage": "Seeding priority",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.seeding.time": {
@@ -1391,28 +1198,12 @@
     "defaultMessage": "The detail surface preserves its tab and navigation context.",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
-  "inspection.components.detail.pane.these.caps.combine.with.the.all.torrents": {
-    "defaultMessage": "These caps combine with the All torrents limits. Trackers, DHT, connection handshakes, and network headers are not counted.",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.these.limits.changed.elsewhere.your.draft.is": {
-    "defaultMessage": "These limits changed elsewhere. Your draft is preserved for review.",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.this.named.projection.is.not.connected.yet": {
-    "defaultMessage": "This named projection is not connected yet. The empty state is intentional and does not claim that the engine has no",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
   "inspection.components.detail.pane.torrent.detail.views": {
     "defaultMessage": "Torrent detail views",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.torrent.details": {
     "defaultMessage": "Torrent details",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.torrent.peer.transfer.limits.saved": {
-    "defaultMessage": "Torrent peer transfer limits saved.",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.torrents": {
@@ -1427,21 +1218,141 @@
     "defaultMessage": "Torrent settings",
     "description": "Per-torrent settings dialog and action label"
   },
-  "inspection.components.detail.pane.unlimited": {
-    "defaultMessage": "Unlimited",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
+  "inspection.components.torrent.settings.dialog.description": {
+    "defaultMessage": "Limits for this torrent. Limits for all torrents still apply.",
+    "description": "Torrent settings dialog introduction"
+  },
+  "inspection.components.torrent.settings.dialog.speed.limits": {
+    "defaultMessage": "Speed limits",
+    "description": "Torrent settings dialog heading"
+  },
+  "inspection.components.torrent.settings.dialog.upload": {
+    "defaultMessage": "Upload",
+    "description": "Torrent upload speed limit label"
+  },
+  "inspection.components.torrent.settings.dialog.download": {
+    "defaultMessage": "Download",
+    "description": "Torrent download speed limit label"
+  },
+  "inspection.components.torrent.settings.dialog.save": {
+    "defaultMessage": "Save",
+    "description": "Torrent settings dialog submit button"
+  },
+  "inspection.components.torrent.settings.dialog.saving": {
+    "defaultMessage": "Saving…",
+    "description": "Torrent settings dialog status while saving"
+  },
+  "inspection.components.torrent.settings.dialog.saved": {
+    "defaultMessage": "Saved",
+    "description": "Torrent settings dialog status after saving"
+  },
+  "inspection.components.torrent.settings.dialog.changed.elsewhere": {
+    "defaultMessage": "These limits were changed somewhere else. Your edits are still here.",
+    "description": "Status when limits changed in another window while editing"
+  },
+  "inspection.components.torrent.settings.dialog.save.not.confirmed": {
+    "defaultMessage": "Couldn't confirm the save. Try again.",
+    "description": "Status when the save response was incomplete"
   },
   "inspection.components.detail.pane.upload.speed": {
     "defaultMessage": "Upload speed",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
-  "inspection.components.detail.pane.view.scaffold": {
-    "defaultMessage": "view scaffold",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
   "inspection.components.detail.pane.waiting": {
     "defaultMessage": "Waiting",
     "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.downloaded": {
+    "defaultMessage": "Downloaded",
+    "description": "Torrent detail metric for all-time downloaded data"
+  },
+  "inspection.components.detail.pane.uploaded": {
+    "defaultMessage": "Uploaded",
+    "description": "Torrent detail metric for all-time uploaded data"
+  },
+  "inspection.components.detail.pane.seeding": {
+    "defaultMessage": "Seeding",
+    "description": "Torrent detail metric label for seeding state and goal"
+  },
+  "inspection.components.detail.pane.seed.state.seeding": {
+    "defaultMessage": "Seeding",
+    "description": "Seeding state of a finished torrent"
+  },
+  "inspection.components.detail.pane.seed.state.queued": {
+    "defaultMessage": "Queued",
+    "description": "Seeding state of a finished torrent waiting for a seeding slot"
+  },
+  "inspection.components.detail.pane.seed.state.idle": {
+    "defaultMessage": "Seeding (idle)",
+    "description": "Seeding state of an idle torrent that does not count toward the active seed limit"
+  },
+  "inspection.components.detail.pane.seed.state.not.seeding": {
+    "defaultMessage": "Not seeding",
+    "description": "Seeding state of a torrent that cannot seed"
+  },
+  "inspection.components.detail.pane.goal.reached": {
+    "defaultMessage": "Goal reached",
+    "description": "A seeding goal has been reached"
+  },
+  "inspection.components.detail.pane.goal.not.reached": {
+    "defaultMessage": "Goal not reached",
+    "description": "No seeding goal has been reached"
+  },
+  "inspection.components.detail.pane.goal.share.ratio": {
+    "defaultMessage": "share ratio",
+    "description": "Seeding goal name used in a list"
+  },
+  "inspection.components.detail.pane.goal.seeding.download.time": {
+    "defaultMessage": "seeding time vs. download time",
+    "description": "Seeding goal name used in a list"
+  },
+  "inspection.components.detail.pane.goal.seeding.time": {
+    "defaultMessage": "seeding time",
+    "description": "Seeding goal name used in a list"
+  },
+  "inspection.components.detail.pane.goals.reached": {
+    "defaultMessage": "Goals reached: {goals}.",
+    "description": "Lists the seeding goals this torrent has reached"
+  },
+  "inspection.components.detail.pane.goals.none.reached": {
+    "defaultMessage": "No goals reached yet.",
+    "description": "Shown when the torrent has reached no seeding goal"
+  },
+  "inspection.components.detail.pane.nothing.to.show": {
+    "defaultMessage": "Nothing to show yet.",
+    "description": "Empty state for a torrent detail tab without data"
+  },
+  "inspection.components.detail.pane.state.queued": {
+    "defaultMessage": "Queued",
+    "description": "Torrent status in the General tab"
+  },
+  "inspection.components.detail.pane.state.starting": {
+    "defaultMessage": "Starting",
+    "description": "Torrent status in the General tab"
+  },
+  "inspection.components.detail.pane.state.downloading": {
+    "defaultMessage": "Downloading",
+    "description": "Torrent status in the General tab"
+  },
+  "inspection.components.detail.pane.state.checking": {
+    "defaultMessage": "Checking",
+    "description": "Torrent status in the General tab"
+  },
+  "inspection.components.detail.pane.state.stopping": {
+    "defaultMessage": "Stopping",
+    "description": "Torrent status in the General tab"
+  },
+  "inspection.components.detail.pane.state.seeding": {
+    "defaultMessage": "Seeding",
+    "description": "Torrent status in the General tab"
+  },
+  "inspection.components.detail.pane.state.paused": {
+    "defaultMessage": "Paused",
+    "description": "Torrent status in the General tab"
+  },
+  "inspection.components.detail.pane.state.error": {
+    "defaultMessage": "Error",
+    "description": "Torrent status in the General tab"
   },
   "inspection.components.dht.panel.active.lookups": {
     "defaultMessage": "Active lookups",
@@ -1871,10 +1782,6 @@
     "defaultMessage": "Available",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
   },
-  "inspection.components.download.settings.section.checked.means.normal.unchecked.means.skip": {
-    "defaultMessage": "Checked means Normal; unchecked means Skip.",
-    "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
-  },
   "inspection.components.download.settings.section.choosing": {
     "defaultMessage": "Choosing…",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
@@ -1889,10 +1796,6 @@
   },
   "inspection.components.download.settings.section.download.folders": {
     "defaultMessage": "Download folders",
-    "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
-  },
-  "inspection.components.download.settings.section.download.folders.are.managed.by.the.live": {
-    "defaultMessage": "Download folders are managed by the live application.",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
   },
   "inspection.components.download.settings.section.downloads": {
@@ -1919,9 +1822,9 @@
     "defaultMessage": "No download folder has been chosen yet.",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
   },
-  "inspection.components.download.settings.section.options.are.always.shown.when.no.usable": {
-    "defaultMessage": "Options are always shown when no usable default exists.",
-    "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
+  "inspection.components.download.settings.section.options.always.shown.without.default": {
+    "defaultMessage": "Always shown when there's no default folder.",
+    "description": "Explains when add options appear regardless of the setting"
   },
   "inspection.components.download.settings.section.remove": {
     "defaultMessage": "Remove",
@@ -1947,17 +1850,25 @@
     "defaultMessage": "Show options when adding torrents",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
   },
-  "inspection.components.download.settings.section.the.current.folder.applies.to.future.torrents": {
-    "defaultMessage": "The current folder applies to future torrents only. Existing torrents stay attached to their earlier folder.",
-    "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
-  },
-  "inspection.components.download.settings.section.the.default.applies.to.future.torrents.only": {
-    "defaultMessage": "The default applies to future torrents only. Existing torrents stay attached to their selected folder.",
-    "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
-  },
   "inspection.components.download.settings.section.unavailable.repair.required": {
     "defaultMessage": "Unavailable — repair required",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
+  },
+  "inspection.components.download.settings.section.not.manageable": {
+    "defaultMessage": "Download folders can't be changed here.",
+    "description": "Shown when this client cannot change download folders"
+  },
+  "inspection.components.download.settings.section.new.downloads.default.folder": {
+    "defaultMessage": "New downloads go to the default folder. Existing torrents stay where they are.",
+    "description": "Explains the default download folder"
+  },
+  "inspection.components.download.settings.section.new.downloads.current.folder": {
+    "defaultMessage": "New downloads go to the current folder. Existing torrents stay where they are.",
+    "description": "Explains the current download folder"
+  },
+  "inspection.components.download.settings.section.choose.files.before.starting": {
+    "defaultMessage": "Choose which files to download before starting.",
+    "description": "Explains the file selection setting"
   },
   "inspection.components.file.action.menu.items.save.file": {
     "defaultMessage": "Save file…",
@@ -2555,14 +2466,6 @@
     "defaultMessage": "Download needs attention",
     "description": "Product copy in inspection/components/NotificationsSettingsSection.tsx"
   },
-  "inspection.components.notifications.settings.section.keep.showing.notifications.while.the.main.window": {
-    "defaultMessage": "Keep showing notifications while the main window is the active window.",
-    "description": "Product copy in inspection/components/NotificationsSettingsSection.tsx"
-  },
-  "inspection.components.notifications.settings.section.native.desktop.notifications.are.edge.triggered.and": {
-    "defaultMessage": "Native desktop notifications are edge-triggered and are not replayed after startup or a settings change.",
-    "description": "Product copy in inspection/components/NotificationsSettingsSection.tsx"
-  },
   "inspection.components.notifications.settings.section.notification.settings.saved": {
     "defaultMessage": "Notification settings saved.",
     "description": "Product copy in inspection/components/NotificationsSettingsSection.tsx"
@@ -2571,17 +2474,21 @@
     "defaultMessage": "Notifications",
     "description": "Product copy in inspection/components/NotificationsSettingsSection.tsx"
   },
-  "inspection.components.notifications.settings.section.notify.when.a.torrent.enters.a.fatal": {
-    "defaultMessage": "Notify when a torrent enters a fatal or repair-required state.",
-    "description": "Product copy in inspection/components/NotificationsSettingsSection.tsx"
-  },
-  "inspection.components.notifications.settings.section.notify.when.a.torrent.finishes.downloading": {
-    "defaultMessage": "Notify when a torrent finishes downloading.",
-    "description": "Product copy in inspection/components/NotificationsSettingsSection.tsx"
-  },
   "inspection.components.notifications.settings.section.notify.while.rstorrent.is.focused": {
     "defaultMessage": "Notify while JSTorrent is focused",
     "description": "Product copy in inspection/components/NotificationsSettingsSection.tsx"
+  },
+  "inspection.components.notifications.settings.section.when.a.download.finishes": {
+    "defaultMessage": "When a download finishes",
+    "description": "Download complete notification description"
+  },
+  "inspection.components.notifications.settings.section.when.a.torrent.needs.action": {
+    "defaultMessage": "When a torrent or folder needs action",
+    "description": "Needs attention notification description"
+  },
+  "inspection.components.notifications.settings.section.also.notify.while.using": {
+    "defaultMessage": "Also notify while you're using JSTorrent.",
+    "description": "Description of notifying while the app window is active"
   },
   "inspection.components.peer.table.active.peer.connections": {
     "defaultMessage": "Active peer connections",
@@ -2747,17 +2654,13 @@
     "defaultMessage": "Power setting saved.",
     "description": "Product copy in inspection/components/PowerSettingsSection.tsx"
   },
-  "inspection.components.power.settings.section.prevent.sleep.during.active.downloads.and.checks": {
-    "defaultMessage": "Prevent sleep during active downloads and checks",
-    "description": "Product copy in inspection/components/PowerSettingsSection.tsx"
+  "inspection.components.power.settings.section.prevent.sleep.while.downloading": {
+    "defaultMessage": "Prevent sleep while downloading",
+    "description": "Power setting checkbox label"
   },
-  "inspection.components.power.settings.section.releases.automatically.for.queued.paused.completed.seeding": {
-    "defaultMessage": "Releases automatically for queued, paused, completed, seeding, or failed torrents.",
-    "description": "Product copy in inspection/components/PowerSettingsSection.tsx"
-  },
-  "inspection.components.power.settings.section.rstorrent.can.prevent.automatic.system.sleep.during": {
-    "defaultMessage": "JSTorrent can prevent automatic system sleep during active download and verification work. Your display may still turn off normally.",
-    "description": "Product copy in inspection/components/PowerSettingsSection.tsx"
+  "inspection.components.power.settings.section.keeps.computer.awake": {
+    "defaultMessage": "Keeps your computer awake while downloading or checking files. The display can still turn off.",
+    "description": "Power settings introduction"
   },
   "inspection.components.preparation.progress.16.kib.per.block": {
     "defaultMessage": "16 KiB per block",
@@ -5203,6 +5106,22 @@
     "description": "Shown when the desktop cannot open an external link in the browser"
   },
   "inspection.components.file.table.saving.directly": {"defaultMessage": "Saving directly…", "description": "Status and accessible progress label for a remote file save"},
+  "inspection.components.rate.limit.picker.unlimited": {
+    "defaultMessage": "Unlimited",
+    "description": "Speed limit choice with no limit"
+  },
+  "inspection.components.rate.limit.picker.custom": {
+    "defaultMessage": "Custom…",
+    "description": "Speed limit choice that reveals a number field"
+  },
+  "inspection.components.rate.limit.picker.unit": {
+    "defaultMessage": "KB/s",
+    "description": "Unit shown after the custom speed field"
+  },
+  "inspection.components.rate.limit.picker.custom.label": {
+    "defaultMessage": "{label}, custom speed in KB per second",
+    "description": "Accessible name of the custom speed field; label is Upload or Download"
+  },
   "remote.video.play": {
     "defaultMessage": "Play",
     "description": "Remote completed-file video player: play."
@@ -5249,5 +5168,17 @@
   },
   "android.companion.open-android": {"defaultMessage": "Open JSTorrent Android", "description": "Direct package-targeted launch link; cancellation leaves the link usable."},
   "android.companion.grant-access": {"defaultMessage": "Allow Android connection", "description": "Explicit optional ARC host permission, requested only by a user click."},
-  "android.companion.retry-connection": {"defaultMessage": "Retry connection", "description": "Attach-only retry; opening Android is a separate action."}
+  "android.companion.retry-connection": {"defaultMessage": "Retry connection", "description": "Attach-only retry; opening Android is a separate action."},
+  "inspection.transfer.rate.range.error": {
+    "defaultMessage": "Enter a speed from 1 to {maximum, number} KB/s.",
+    "description": "Validation error for a speed limit; KB is 1024 bytes"
+  },
+  "inspection.transfer.rate.kilobytes.per.second": {
+    "defaultMessage": "{value, number} KB/s",
+    "description": "Speed in kilobytes per second; KB is 1024 bytes"
+  },
+  "inspection.transfer.rate.megabytes.per.second": {
+    "defaultMessage": "{value, number} MB/s",
+    "description": "Speed in megabytes per second; MB is 1024 KB"
+  }
 }

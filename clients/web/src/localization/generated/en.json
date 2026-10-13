@@ -948,10 +948,10 @@
       "value": "Transfers will resume automatically when one is usable."
     }
   ],
-  "inspection.components.app.waiting.for.an.unmetered.network": [
+  "inspection.components.app.waiting.for.wifi": [
     {
       "type": 0,
-      "value": "Waiting for an unmetered network."
+      "value": "Waiting for Wi-Fi."
     }
   ],
   "inspection.components.app.workbench": [
@@ -996,12 +996,6 @@
       "value": "Balanced text, controls, and table spacing."
     }
   ],
-  "inspection.components.appearance.settings.section.binary": [
-    {
-      "type": 0,
-      "value": "Binary"
-    }
-  ],
   "inspection.components.appearance.settings.section.changes.apply.immediately": [
     {
       "type": 0,
@@ -1032,18 +1026,6 @@
       "value": "Dark"
     }
   ],
-  "inspection.components.appearance.settings.section.data.units": [
-    {
-      "type": 0,
-      "value": "Data units"
-    }
-  ],
-  "inspection.components.appearance.settings.section.decimal": [
-    {
-      "type": 0,
-      "value": "Decimal"
-    }
-  ],
   "inspection.components.appearance.settings.section.fit.more.information.on.screen": [
     {
       "type": 0,
@@ -1068,6 +1050,12 @@
       "value": "Light"
     }
   ],
+  "inspection.components.appearance.settings.section.size.units": [
+    {
+      "type": 0,
+      "value": "Size units"
+    }
+  ],
   "inspection.components.appearance.settings.section.spacious": [
     {
       "type": 0,
@@ -1080,16 +1068,28 @@
       "value": "Standard"
     }
   ],
-  "inspection.components.appearance.settings.section.use.kb.mb.and.gb.in.powers": [
+  "inspection.components.appearance.settings.section.units.binary": [
     {
       "type": 0,
-      "value": "Use kB, MB, and GB in powers of 1000."
+      "value": "KB, MB, GB"
     }
   ],
-  "inspection.components.appearance.settings.section.use.kib.mib.and.gib.in.powers": [
+  "inspection.components.appearance.settings.section.units.binary.description": [
     {
       "type": 0,
-      "value": "Use KiB, MiB, and GiB in powers of 1024."
+      "value": "1 KB = 1,024 bytes"
+    }
+  ],
+  "inspection.components.appearance.settings.section.units.decimal": [
+    {
+      "type": 0,
+      "value": "Decimal kB, MB, GB"
+    }
+  ],
+  "inspection.components.appearance.settings.section.units.decimal.description": [
+    {
+      "type": 0,
+      "value": "1 kB = 1,000 bytes"
     }
   ],
   "inspection.components.appearance.settings.section.use.larger.text.and.more.generous.targets": [
@@ -1098,112 +1098,16 @@
       "value": "Use larger text and more generous targets."
     }
   ],
-  "inspection.components.connection.seeding.settings.section.accept.mse.pe.while.initiating.ordinary.connections": [
-    {
-      "type": 0,
-      "value": "Accept MSE/PE while initiating ordinary connections."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.active.downloads": [
-    {
-      "type": 0,
-      "value": "Active downloads:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.active.seeds": [
-    {
-      "type": 0,
-      "value": "Active seeds"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.active.seeds.604a98b": [
-    {
-      "type": 0,
-      "value": "Active seeds:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.address.unavailable": [
-    {
-      "type": 0,
-      "value": "address unavailable"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.all.torrents.download.limit": [
-    {
-      "type": 0,
-      "value": "All torrents download limit"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.all.torrents.peer.transfer.limits": [
-    {
-      "type": 0,
-      "value": "All torrents peer transfer limits"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.all.torrents.upload.limit": [
-    {
-      "type": 0,
-      "value": "All torrents upload limit"
-    }
-  ],
   "inspection.components.connection.seeding.settings.section.allow": [
     {
       "type": 0,
       "value": "Allow"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.an.incoming.peer.was.observed": [
+  "inspection.components.connection.seeding.settings.section.automatic.port.recommended": [
     {
       "type": 0,
-      "value": "; an incoming peer was observed."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.applying": [
-    {
-      "type": 0,
-      "value": ": applying…"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.automatic": [
-    {
-      "type": 0,
-      "value": "Automatic"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.automatic.ipv6.firewall.pinhole.control.is.off": [
-    {
-      "type": 0,
-      "value": "Automatic IPv6 firewall pinhole control is off."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.automatic.port": [
-    {
-      "type": 0,
-      "value": "Automatic port"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.automatic.port.c61a158": [
-    {
-      "type": 0,
-      "value": "automatic port"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.automatic.seeding.priority": [
-    {
-      "type": 0,
-      "value": "Automatic seeding priority"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.but.an.incoming.peer.was.observed": [
-    {
-      "type": 0,
-      "value": ", but an incoming peer was observed."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.by.available.file.descriptors": [
-    {
-      "type": 0,
-      "value": "by available file descriptors."
+      "value": "Automatic port (recommended)"
     }
   ],
   "inspection.components.connection.seeding.settings.section.cancel.changes": [
@@ -1212,34 +1116,10 @@
       "value": "Cancel changes"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.caps.established.bittorrent.peer.traffic.across.the": [
+  "inspection.components.connection.seeding.settings.section.changed.elsewhere": [
     {
       "type": 0,
-      "value": "Caps established BitTorrent peer traffic across the session. Trackers, DHT, connection handshakes, and network headers are not counted."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.choose.automatic.or.fixed.port.selection": [
-    {
-      "type": 0,
-      "value": "Choose automatic or fixed port selection."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.configured": [
-    {
-      "type": 0,
-      "value": "configured"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.connect.only.when.the.peer.negotiates.mse": [
-    {
-      "type": 0,
-      "value": "Connect only when the peer negotiates MSE/PE."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.connection.and.seeding.settings.are.managed.by": [
-    {
-      "type": 0,
-      "value": "Connection and seeding settings are managed by the live application."
+      "value": "Settings were changed somewhere else. Your edits are still here."
     }
   ],
   "inspection.components.connection.seeding.settings.section.connection.seeding": [
@@ -1248,52 +1128,685 @@
       "value": "Connection & seeding"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.could.not.be.confirmed.removed.and.may": [
+  "inspection.components.connection.seeding.settings.section.connections.heading": [
     {
       "type": 0,
-      "value": "could not be confirmed removed and may remain for"
+      "value": "Connections"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.could.not.be.renewed": [
+  "inspection.components.connection.seeding.settings.section.details.active.downloads": [
     {
       "type": 0,
-      "value": "could not be renewed:"
+      "value": "Active downloads: "
+    },
+    {
+      "type": 2,
+      "value": "active",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " of "
+    },
+    {
+      "type": 2,
+      "value": "limit",
+      "style": null
+    },
+    {
+      "type": 6,
+      "value": "checking",
+      "options": {
+        "=0": {
+          "value": []
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": " ("
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " checking)"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.counted.of": [
+  "inspection.components.connection.seeding.settings.section.details.active.seeds": [
     {
       "type": 0,
-      "value": "counted of"
+      "value": "Active seeds: "
+    },
+    {
+      "type": 2,
+      "value": "active",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " of "
+    },
+    {
+      "type": 2,
+      "value": "limit",
+      "style": null
+    },
+    {
+      "type": 6,
+      "value": "idle",
+      "options": {
+        "=0": {
+          "value": []
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": " ("
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " idle, not counted)"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.current.runtime": [
+  "inspection.components.connection.seeding.settings.section.details.active.seeds.unlimited": [
     {
       "type": 0,
-      "value": "Current runtime"
+      "value": "Active seeds: "
+    },
+    {
+      "type": 2,
+      "value": "active",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": ", no limit"
+    },
+    {
+      "type": 6,
+      "value": "idle",
+      "options": {
+        "=0": {
+          "value": []
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": " ("
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " idle)"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.current.runtime.state": [
+  "inspection.components.connection.seeding.settings.section.details.advertised.local.observed": [
     {
       "type": 0,
-      "value": "Current runtime state"
+      "value": "Peers are told to use port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    },
+    {
+      "type": 0,
+      "value": ". An incoming peer has connected."
     }
   ],
-  "inspection.components.connection.seeding.settings.section.degraded": [
+  "inspection.components.connection.seeding.settings.section.details.advertised.local.unverified": [
     {
       "type": 0,
-      "value": ": degraded ("
+      "value": "Peers are told to use port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    },
+    {
+      "type": 0,
+      "value": ". It isn't confirmed reachable from the internet."
     }
   ],
-  "inspection.components.connection.seeding.settings.section.development.only.disabled.mode": [
+  "inspection.components.connection.seeding.settings.section.details.advertised.mapped.observed": [
     {
       "type": 0,
-      "value": "development-only disabled mode"
+      "value": "Peers are told to use forwarded port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    },
+    {
+      "type": 0,
+      "value": ". An incoming peer has connected."
     }
   ],
-  "inspection.components.connection.seeding.settings.section.development.only.loopback.mode": [
+  "inspection.components.connection.seeding.settings.section.details.advertised.mapped.unobserved": [
     {
       "type": 0,
-      "value": "development-only loopback mode"
+      "value": "Peers are told to use forwarded port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    },
+    {
+      "type": 0,
+      "value": ". No incoming peer has connected yet."
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.advertised.outbound": [
+    {
+      "type": 0,
+      "value": "Outgoing connections only. Peers aren't given a port."
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.advertised.renewal.unhealthy": [
+    {
+      "type": 0,
+      "value": "Forwarded port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    },
+    {
+      "type": 0,
+      "value": " expires in "
+    },
+    {
+      "type": 1,
+      "value": "duration"
+    },
+    {
+      "type": 0,
+      "value": "; renewal is failing."
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.advertised.stopping": [
+    {
+      "type": 0,
+      "value": "Peers are no longer given a port."
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.advertised.unavailable": [
+    {
+      "type": 0,
+      "value": "Peers aren't given a port yet."
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.development.loopback": [
+    {
+      "type": 0,
+      "value": "Development build: accepting connections from this computer only, on port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    },
+    {
+      "type": 0,
+      "value": "."
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.family": [
+    {
+      "type": 1,
+      "value": "family"
+    },
+    {
+      "type": 0,
+      "value": ": "
+    },
+    {
+      "type": 1,
+      "value": "details"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.family.not.shared": [
+    {
+      "type": 0,
+      "value": "Not shared with peers"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.family.off": [
+    {
+      "type": 1,
+      "value": "family"
+    },
+    {
+      "type": 0,
+      "value": ": off"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.family.shared": [
+    {
+      "type": 0,
+      "value": "Shared with peers as "
+    },
+    {
+      "type": 1,
+      "value": "endpoint"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.family.tcp": [
+    {
+      "type": 0,
+      "value": "TCP "
+    },
+    {
+      "type": 1,
+      "value": "endpoint"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.family.udp": [
+    {
+      "type": 0,
+      "value": "UDP "
+    },
+    {
+      "type": 1,
+      "value": "endpoint"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.action.unavailable": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: the router's firewall control is incomplete"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.cleanup.failed": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: the router may keep port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    },
+    {
+      "type": 0,
+      "value": " open for up to "
+    },
+    {
+      "type": 1,
+      "value": "duration"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.creating": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: opening port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    },
+    {
+      "type": 0,
+      "value": "…"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.disallowed": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: the router blocks incoming connections"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.discovering": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: looking for firewall control…"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.failed": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: couldn't open the port"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.ineligible": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: needs an IPv6 address and UPnP port forwarding"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.off": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: not managed"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.open": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    },
+    {
+      "type": 0,
+      "value": " open, renewed automatically"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.renewal.failed": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: couldn't renew port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.service.unavailable": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: the router doesn't offer firewall control"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.stopping": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: closing port…"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.unfiltered": [
+    {
+      "type": 0,
+      "value": "IPv6 router firewall: the router doesn't filter port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.cleanup.failed": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): the router may keep port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    },
+    {
+      "type": 0,
+      "value": " open for up to "
+    },
+    {
+      "type": 1,
+      "value": "duration"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.discovering": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): looking for router…"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.add": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): the router refused the port"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.delete": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): couldn't remove the old port"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.description": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): couldn't read the router's details"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.discovery": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): no router found"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.external.address": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): couldn't get the router's public address"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.renewal": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): couldn't renew the port"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.failed.verify": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): couldn't confirm the forwarded port"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.ineligible": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): needs incoming connections on a local network"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.mapped": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): "
+    },
+    {
+      "type": 1,
+      "value": "external"
+    },
+    {
+      "type": 0,
+      "value": " → "
+    },
+    {
+      "type": 1,
+      "value": "local"
+    },
+    {
+      "type": 0,
+      "value": ", renewed automatically"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.off": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): off"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.renewal.failed": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): couldn't renew port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.requesting": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): opening router port…"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.forwarding.stopping": [
+    {
+      "type": 0,
+      "value": "Router forwarding ("
+    },
+    {
+      "type": 1,
+      "value": "protocol"
+    },
+    {
+      "type": 0,
+      "value": "): closing router port…"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.udp.port": [
+    {
+      "type": 0,
+      "value": "UDP: port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.details.udp.unavailable": [
+    {
+      "type": 0,
+      "value": "UDP isn't running."
     }
   ],
   "inspection.components.connection.seeding.settings.section.dht": [
@@ -1302,10 +1815,10 @@
       "value": "DHT"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.disabled": [
+  "inspection.components.connection.seeding.settings.section.dht.description": [
     {
       "type": 0,
-      "value": "disabled"
+      "value": "Find peers without trackers"
     }
   ],
   "inspection.components.connection.seeding.settings.section.disabled.75081b5": [
@@ -1314,148 +1827,34 @@
       "value": "Disabled"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.discovering.a.compatible.upnp.igd.v2.gateway": [
+  "inspection.components.connection.seeding.settings.section.download": [
     {
       "type": 0,
-      "value": "Discovering a compatible UPnP IGD v2 gateway for"
+      "value": "Download"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.discovering.ipv6.firewall.control.on.the.upnp": [
+  "inspection.components.connection.seeding.settings.section.encryption.allow.description": [
     {
       "type": 0,
-      "value": "Discovering IPv6 firewall control on the UPnP gateway…"
+      "value": "Accept encrypted connections"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.download.setting.is.limited.to": [
+  "inspection.components.connection.seeding.settings.section.encryption.disabled.description": [
     {
       "type": 0,
-      "value": "-download setting is limited to"
+      "value": "Never encrypt"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.effective.dht.policy": [
+  "inspection.components.connection.seeding.settings.section.encryption.prefer.description": [
     {
       "type": 0,
-      "value": "Effective DHT policy:"
+      "value": "Try encryption first"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.effective.gateway.mapping.policy": [
+  "inspection.components.connection.seeding.settings.section.encryption.required.description": [
     {
       "type": 0,
-      "value": "Effective gateway mapping policy:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.effective.ipv6.policy": [
-    {
-      "type": 0,
-      "value": "Effective IPv6 policy:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.effective.listener.policy": [
-    {
-      "type": 0,
-      "value": "Effective listener policy:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.effective.payload.upload.slots": [
-    {
-      "type": 0,
-      "value": "Effective payload upload slots:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.effective.peer.connection.limit": [
-    {
-      "type": 0,
-      "value": "Effective peer connection limit:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.effective.peer.download.limit": [
-    {
-      "type": 0,
-      "value": "Effective peer download limit:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.effective.peer.exchange.policy": [
-    {
-      "type": 0,
-      "value": "Effective peer exchange policy:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.effective.peer.upload.limit": [
-    {
-      "type": 0,
-      "value": "Effective peer upload limit:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.effective.protocol.obfuscation.policy": [
-    {
-      "type": 0,
-      "value": "Effective protocol obfuscation policy:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.enable.dht": [
-    {
-      "type": 0,
-      "value": "Enable DHT"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.enable.ipv6": [
-    {
-      "type": 0,
-      "value": "Enable IPv6"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.enable.peer.exchange": [
-    {
-      "type": 0,
-      "value": "Enable peer exchange"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.enabled": [
-    {
-      "type": 0,
-      "value": "enabled"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.exchange.peer.addresses.with.connected.public.torrents": [
-    {
-      "type": 0,
-      "value": "Exchange peer addresses with connected public torrents. Private torrents never use peer exchange."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.external.reachability.is.not.yet.observed": [
-    {
-      "type": 0,
-      "value": "; external reachability is not yet observed."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.external.reachability.is.unverified": [
-    {
-      "type": 0,
-      "value": "; external reachability is unverified"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.find.peers.through.the.distributed.hash.table": [
-    {
-      "type": 0,
-      "value": "Find peers through the distributed hash table. Private torrents never use DHT."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.finished.download.time.priority.goal": [
-    {
-      "type": 0,
-      "value": "Finished/download time priority goal (%)"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.finished.time.priority.goal.seconds": [
-    {
-      "type": 0,
-      "value": "Finished-time priority goal (seconds)"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.fixed.listener.port": [
-    {
-      "type": 0,
-      "value": "Fixed listener port"
+      "value": "Only use encrypted connections"
     }
   ],
   "inspection.components.connection.seeding.settings.section.fixed.port": [
@@ -1464,88 +1863,10 @@
       "value": "Fixed port"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.for": [
+  "inspection.components.connection.seeding.settings.section.incoming.connections": [
     {
       "type": 0,
-      "value": "for"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.gateway.mapping": [
-    {
-      "type": 0,
-      "value": "gateway mapping…"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.gateway.mapping.failed.during": [
-    {
-      "type": 0,
-      "value": "gateway mapping failed during"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.gateway.mapping.is.off": [
-    {
-      "type": 0,
-      "value": "gateway mapping is off."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.gateway.mapping.requires.an.active.listener.and": [
-    {
-      "type": 0,
-      "value": "gateway mapping requires an active listener and a usable local network."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.goals.rank.completed.torrents.when.active.seed": [
-    {
-      "type": 0,
-      "value": "Goals rank completed torrents when active seed capacity is scarce. Meeting a goal does not stop a torrent; it may keep seeding while capacity is available."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.improves.compatibility.with.peers.that.require.mse": [
-    {
-      "type": 0,
-      "value": "Improves compatibility with peers that require MSE/PE. This is protocol obfuscation, not privacy or security."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.incoming.peer.connections.use.ipv4.and.when": [
-    {
-      "type": 0,
-      "value": "Incoming peer connections use IPv4 and, when available, IPv6. Automatic port selection is recommended; choose a fixed port only when your network requires one."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.incoming.tcp.is.listening.on.all.ipv4": [
-    {
-      "type": 0,
-      "value": "Incoming TCP is listening on all IPv4 interfaces at port"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.incoming.tcp.is.not.running.save.settings": [
-    {
-      "type": 0,
-      "value": "Incoming TCP is not running. Save settings to enable the ordinary listener."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.incoming.tcp.is.using.a.development.only": [
-    {
-      "type": 0,
-      "value": "Incoming TCP is using a development-only loopback listener at port"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.incoming.tcp.listener": [
-    {
-      "type": 0,
-      "value": "Incoming TCP listener"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.independently.from.tcp": [
-    {
-      "type": 0,
-      "value": "independently from TCP."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.ipv4": [
-    {
-      "type": 0,
-      "value": "IPv4"
+      "value": "Incoming connections"
     }
   ],
   "inspection.components.connection.seeding.settings.section.ipv6": [
@@ -1554,178 +1875,207 @@
       "value": "IPv6"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.ipv6.pinhole.control.failed.during": [
+  "inspection.components.connection.seeding.settings.section.ipv6.description": [
     {
       "type": 0,
-      "value": "IPv6 pinhole control failed during"
+      "value": "Use IPv6 when this device has an IPv6 address"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.ipv6.pinhole.control.requires.a.global.unicast": [
+  "inspection.components.connection.seeding.settings.section.listener.address.in.use": [
     {
       "type": 0,
-      "value": "IPv6 pinhole control requires a global-unicast IPv6 listener and UPnP gateway control."
+      "value": "Port already in use"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.kib.s.of.established.peer.traffic": [
+  "inspection.components.connection.seeding.settings.section.listener.address.unavailable": [
     {
       "type": 0,
-      "value": "KiB/s of established peer traffic."
+      "value": "Network address unavailable"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.listener.could.not.start": [
+  "inspection.components.connection.seeding.settings.section.listener.failed": [
     {
       "type": 0,
-      "value": "Listener could not start ("
+      "value": "Couldn't accept incoming connections"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.map.incoming.tcp.and.utp.with.upnp": [
+  "inspection.components.connection.seeding.settings.section.listener.permission.denied": [
     {
       "type": 0,
-      "value": "Map incoming TCP and uTP with UPnP"
+      "value": "Not allowed on this device"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.mapped": [
+  "inspection.components.connection.seeding.settings.section.listener.port": [
     {
       "type": 0,
-      "value": "mapped"
+      "value": "Port "
+    },
+    {
+      "type": 1,
+      "value": "port"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.mapped.tcp.port": [
+  "inspection.components.connection.seeding.settings.section.max.active.downloads": [
     {
       "type": 0,
-      "value": "Mapped TCP port"
+      "value": "Max active downloads"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.mapping": [
+  "inspection.components.connection.seeding.settings.section.max.active.downloads.description": [
     {
       "type": 0,
-      "value": "mapping…"
+      "value": "More torrents wait in the queue and start automatically."
     }
   ],
-  "inspection.components.connection.seeding.settings.section.mapping.at": [
+  "inspection.components.connection.seeding.settings.section.max.active.seeds": [
     {
       "type": 0,
-      "value": "mapping at"
+      "value": "Max active seeds"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.no.incoming.listener.policy.has.converged.yet": [
+  "inspection.components.connection.seeding.settings.section.max.peer.connections": [
     {
       "type": 0,
-      "value": "No incoming-listener policy has converged yet."
+      "value": "Max peer connections"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.of": [
+  "inspection.components.connection.seeding.settings.section.network.details": [
     {
       "type": 0,
-      "value": "of"
+      "value": "Network details"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.off": [
+  "inspection.components.connection.seeding.settings.section.network.heading": [
     {
       "type": 0,
-      "value": "off"
+      "value": "Network"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.on.this.platform": [
+  "inspection.components.connection.seeding.settings.section.no.active.seed.limit": [
     {
       "type": 0,
-      "value": "on this platform."
+      "value": "No limit on active seeds"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.one.or.more.settings.changed.elsewhere.your": [
+  "inspection.components.connection.seeding.settings.section.not.manageable": [
     {
       "type": 0,
-      "value": "One or more settings changed elsewhere. Your draft is preserved for review."
+      "value": "These settings can't be changed here."
     }
   ],
-  "inspection.components.connection.seeding.settings.section.other.system.error": [
+  "inspection.components.connection.seeding.settings.section.note.applying": [
     {
       "type": 0,
-      "value": "other system error"
+      "value": "Applying…"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.outbound.only.advertisement": [
+  "inspection.components.connection.seeding.settings.section.note.limited.on.device": [
     {
       "type": 0,
-      "value": "· outbound-only advertisement"
+      "value": "Limited to "
+    },
+    {
+      "type": 2,
+      "value": "count",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " on this device"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.payload.upload.slots": [
+  "inspection.components.connection.seeding.settings.section.note.not.applied": [
     {
       "type": 0,
-      "value": "Payload upload slots"
+      "value": "Couldn't apply this setting. Save to try again."
     }
   ],
-  "inspection.components.connection.seeding.settings.section.peer.advertisement.endpoint.is.not.available.yet": [
+  "inspection.components.connection.seeding.settings.section.peer.exchange.description": [
     {
       "type": 0,
-      "value": "Peer advertisement endpoint is not available yet."
+      "value": "Share peer lists with other clients"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.peer.advertisement.is.stopping": [
+  "inspection.components.connection.seeding.settings.section.peer.exchange.pex": [
     {
       "type": 0,
-      "value": "Peer advertisement is stopping."
+      "value": "Peer exchange (PEX)"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.peer.connection.limit": [
+  "inspection.components.connection.seeding.settings.section.port": [
     {
       "type": 0,
-      "value": "Peer connection limit"
+      "value": "Port"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.peer.connections": [
+  "inspection.components.connection.seeding.settings.section.port.mapping.cleanup.failed": [
     {
       "type": 0,
-      "value": "Peer connections"
+      "value": "The router may keep port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    },
+    {
+      "type": 0,
+      "value": " open"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.peer.exchange": [
+  "inspection.components.connection.seeding.settings.section.port.mapping.discovering": [
     {
       "type": 0,
-      "value": "Peer exchange"
+      "value": "Looking for router…"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.peer.protocols.may.advertise.local.tcp.port": [
+  "inspection.components.connection.seeding.settings.section.port.mapping.failed": [
     {
       "type": 0,
-      "value": "Peer protocols may advertise local TCP port"
+      "value": "Port forwarding failed"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.peer.protocols.may.advertise.mapped.tcp.port": [
+  "inspection.components.connection.seeding.settings.section.port.mapping.ineligible": [
     {
       "type": 0,
-      "value": "Peer protocols may advertise mapped TCP port"
+      "value": "Needs incoming connections on a local network"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.peer.setting.is.safely.limited.to": [
+  "inspection.components.connection.seeding.settings.section.port.mapping.mapped": [
     {
       "type": 0,
-      "value": "-peer setting is safely limited to"
+      "value": "Forwarding port "
+    },
+    {
+      "type": 1,
+      "value": "port"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.peer.transfer.limits": [
+  "inspection.components.connection.seeding.settings.section.port.mapping.no.router": [
     {
       "type": 0,
-      "value": "Peer transfer limits"
+      "value": "No router found"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.permission.denied": [
+  "inspection.components.connection.seeding.settings.section.port.mapping.renewal.failed": [
     {
       "type": 0,
-      "value": "permission denied"
+      "value": "Couldn't renew forwarding for port "
+    },
+    {
+      "type": 1,
+      "value": "port"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.port.already.in.use": [
+  "inspection.components.connection.seeding.settings.section.port.mapping.requesting": [
     {
       "type": 0,
-      "value": "port already in use"
+      "value": "Opening router port…"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.port.mapping": [
+  "inspection.components.connection.seeding.settings.section.port.mapping.stopping": [
     {
       "type": 0,
-      "value": "Port mapping"
+      "value": "Closing router port…"
     }
   ],
   "inspection.components.connection.seeding.settings.section.prefer": [
@@ -1734,58 +2084,22 @@
       "value": "Prefer"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.protocol.obfuscation": [
+  "inspection.components.connection.seeding.settings.section.protocol.encryption": [
     {
       "type": 0,
-      "value": "Protocol obfuscation"
+      "value": "Protocol encryption"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.protocol.obfuscation.mse.pe": [
+  "inspection.components.connection.seeding.settings.section.protocol.encryption.description": [
     {
       "type": 0,
-      "value": "Protocol obfuscation (MSE/PE)"
+      "value": "Helps with some networks and peers. It doesn't make your activity private."
     }
   ],
-  "inspection.components.connection.seeding.settings.section.remains.valid.for.up.to": [
+  "inspection.components.connection.seeding.settings.section.queue.heading": [
     {
       "type": 0,
-      "value": "remains valid for up to"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.remove.the.seed.only.limit.the.fixed": [
-    {
-      "type": 0,
-      "value": "Remove the seed-only limit. The fixed shared 500-torrent safety ceiling still applies."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.removing.the": [
-    {
-      "type": 0,
-      "value": "Removing the"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.removing.the.ipv6.firewall.pinhole": [
-    {
-      "type": 0,
-      "value": "Removing the IPv6 firewall pinhole…"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.request.independent.temporary.tcp.and.udp.igd": [
-    {
-      "type": 0,
-      "value": "Request independent temporary TCP and UDP IGD v2 mappings when a compatible gateway is available."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.requesting.an.ipv6.firewall.pinhole.for": [
-    {
-      "type": 0,
-      "value": "Requesting an IPv6 firewall pinhole for"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.requesting.and.verifying.the.temporary": [
-    {
-      "type": 0,
-      "value": "Requesting and verifying the temporary"
+      "value": "Queue"
     }
   ],
   "inspection.components.connection.seeding.settings.section.required": [
@@ -1794,28 +2108,22 @@
       "value": "Required"
     }
   ],
+  "inspection.components.connection.seeding.settings.section.save.not.confirmed": [
+    {
+      "type": 0,
+      "value": "Couldn't confirm the save. Try again."
+    }
+  ],
   "inspection.components.connection.seeding.settings.section.save.settings": [
     {
       "type": 0,
       "value": "Save settings"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.save.settings.to.listen.on.all.ipv4": [
+  "inspection.components.connection.seeding.settings.section.saved": [
     {
       "type": 0,
-      "value": ". Save settings to listen on all IPv4 interfaces."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.save.settings.to.retry": [
-    {
-      "type": 0,
-      "value": "Save settings to retry."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.save.settings.to.retry.0312e9f": [
-    {
-      "type": 0,
-      "value": "). Save settings to retry."
+      "value": "Saved"
     }
   ],
   "inspection.components.connection.seeding.settings.section.saving": [
@@ -1824,184 +2132,84 @@
       "value": "Saving…"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.saving.settings": [
+  "inspection.components.connection.seeding.settings.section.seeding.download.time.goal": [
     {
       "type": 0,
-      "value": "Saving settings…"
+      "value": "Seeding time vs. download time"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.seconds": [
+  "inspection.components.connection.seeding.settings.section.seeding.goals.description": [
     {
       "type": 0,
-      "value": "seconds."
+      "value": "When more torrents are finished than can seed at once, torrents that haven't reached a goal seed first. Reaching a goal doesn't stop seeding."
     }
   ],
-  "inspection.components.connection.seeding.settings.section.seconds.a157a77": [
+  "inspection.components.connection.seeding.settings.section.seeding.goals.heading": [
     {
       "type": 0,
-      "value": "seconds:"
+      "value": "Seeding goals"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.seconds.but.renewal.is.unhealthy": [
+  "inspection.components.connection.seeding.settings.section.seeding.time.goal": [
     {
       "type": 0,
-      "value": "seconds, but renewal is unhealthy:"
+      "value": "Seeding time"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.seconds.this.does.not.mean.an.incoming": [
+  "inspection.components.connection.seeding.settings.section.share.ratio.goal": [
     {
       "type": 0,
-      "value": "seconds. This does not mean an incoming peer has connected."
+      "value": "Share ratio"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.session.udp.is.bound.on": [
+  "inspection.components.connection.seeding.settings.section.share.ratio.goal.description": [
     {
       "type": 0,
-      "value": "Session UDP is bound on"
+      "value": "Uploaded compared with the torrent's size"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.session.udp.is.not.available.in.this": [
+  "inspection.components.connection.seeding.settings.section.speed.limits.description": [
     {
       "type": 0,
-      "value": "Session UDP is not available in this snapshot."
+      "value": "Applies to all torrents."
     }
   ],
-  "inspection.components.connection.seeding.settings.section.settings.accepted.and.applying": [
+  "inspection.components.connection.seeding.settings.section.speed.limits.heading": [
     {
       "type": 0,
-      "value": "Settings accepted and applying."
+      "value": "Speed limits"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.settings.accepted.waiting.for.the.live.view": [
+  "inspection.components.connection.seeding.settings.section.unit.percent": [
     {
       "type": 0,
-      "value": "Settings accepted; waiting for the live view…"
+      "value": "%"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.share.ratio.priority.goal": [
+  "inspection.components.connection.seeding.settings.section.unit.seconds": [
     {
       "type": 0,
-      "value": "Share-ratio priority goal (%)"
+      "value": "seconds"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.simultaneous.downloads": [
+  "inspection.components.connection.seeding.settings.section.unit.seconds.with.duration": [
     {
       "type": 0,
-      "value": "Simultaneous downloads"
+      "value": "seconds ("
+    },
+    {
+      "type": 1,
+      "value": "duration"
+    },
+    {
+      "type": 0,
+      "value": ")"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.tcp": [
+  "inspection.components.connection.seeding.settings.section.upload": [
     {
       "type": 0,
-      "value": "TCP"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.the": [
-    {
-      "type": 0,
-      "value": "The"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.the.configured": [
-    {
-      "type": 0,
-      "value": "The configured"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.the.gateway.accepted.an.ipv6.pinhole.for": [
-    {
-      "type": 0,
-      "value": "The gateway accepted an IPv6 pinhole for"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.the.gateway.does.not.advertise.ipv6.firewall": [
-    {
-      "type": 0,
-      "value": "The gateway does not advertise IPv6 firewall control. The IPv6 listener remains advertised as global unicast; gateway filtering is unknown."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.the.gateway.firewall.is.enabled.but.does": [
-    {
-      "type": 0,
-      "value": "The gateway firewall is enabled but does not allow requested inbound pinholes."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.the.gateway.ipv6.firewall.service.is.incomplete": [
-    {
-      "type": 0,
-      "value": "The gateway IPv6 firewall service is incomplete:"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.the.gateway.reports.ipv6.filtering.disabled.for": [
-    {
-      "type": 0,
-      "value": "The gateway reports IPv6 filtering disabled for"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.the.ipv6.pinhole.for": [
-    {
-      "type": 0,
-      "value": "The IPv6 pinhole for"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.the.old": [
-    {
-      "type": 0,
-      "value": "The old"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.the.old.ipv6.pinhole.for": [
-    {
-      "type": 0,
-      "value": "The old IPv6 pinhole for"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.this.is.gateway.state.not.an.observed": [
-    {
-      "type": 0,
-      "value": ". This is gateway state, not an observed incoming peer."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.to": [
-    {
-      "type": 0,
-      "value": "to"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.tracker.discovery.is.outbound.only.no.connectable": [
-    {
-      "type": 0,
-      "value": "Tracker discovery is outbound-only; no connectable peer port is advertised."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.transport": [
-    {
-      "type": 0,
-      "value": "Transport"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.try.mse.pe.first.and.use.a": [
-    {
-      "type": 0,
-      "value": "Try MSE/PE first and use a bounded plaintext fallback."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.udp.utp": [
-    {
-      "type": 0,
-      "value": "UDP/uTP"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.unlimited": [
-    {
-      "type": 0,
-      "value": "Unlimited"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.unlimited.active.seeds": [
-    {
-      "type": 0,
-      "value": "Unlimited active seeds"
+      "value": "Upload"
     }
   ],
   "inspection.components.connection.seeding.settings.section.upload.slots": [
@@ -2010,34 +2218,44 @@
       "value": "Upload slots"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.upnp": [
+  "inspection.components.connection.seeding.settings.section.upload.slots.description": [
     {
       "type": 0,
-      "value": "UPnP"
+      "value": "Peers you upload to at the same time"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.upnp.igd.v2": [
+  "inspection.components.connection.seeding.settings.section.upnp.port.forwarding": [
     {
       "type": 0,
-      "value": "UPnP IGD v2"
+      "value": "UPnP port forwarding"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.use.ipv6.for.dht.trackers.peer.connections": [
+  "inspection.components.connection.seeding.settings.section.upnp.port.forwarding.description": [
     {
       "type": 0,
-      "value": "Use IPv6 for DHT, trackers, peer connections, and the incoming listener when this device has an eligible address."
+      "value": "Open the incoming port on your router automatically"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.use.ordinary.plaintext.peer.handshakes.only": [
+  "inspection.components.connection.seeding.settings.section.whole.number.range": [
     {
       "type": 0,
-      "value": "Use ordinary plaintext peer handshakes only."
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.with.the.tcp.listener": [
+      "value": "Enter a whole number from "
+    },
+    {
+      "type": 1,
+      "value": "minimum"
+    },
     {
       "type": 0,
-      "value": "with the TCP listener."
+      "value": " to "
+    },
+    {
+      "type": 1,
+      "value": "maximum"
+    },
+    {
+      "type": 0,
+      "value": "."
     }
   ],
   "inspection.components.crostini.storage.help.a.shared.chromeos.folder.is.easier.to": [
@@ -2211,7 +2429,7 @@
   "inspection.components.data.reset.clear.description": [
     {
       "type": 0,
-      "value": "Remove all torrents and download folder registrations, then restore preferences. Downloaded files are kept unless you explicitly choose to delete them."
+      "value": "Removes all torrents and download folders and restores default settings. Downloaded files are kept unless you choose to delete them."
     }
   ],
   "inspection.components.data.reset.clear.open": [
@@ -2229,19 +2447,19 @@
   "inspection.components.data.reset.clear.warning": [
     {
       "type": 0,
-      "value": "All torrents and download folder registrations will be removed. This cannot be undone."
+      "value": "All torrents and download folders will be removed. This can't be undone."
     }
   ],
   "inspection.components.data.reset.delete.files": [
     {
       "type": 0,
-      "value": "Also delete downloaded files registered to these torrents"
+      "value": "Also delete downloaded files"
     }
   ],
   "inspection.components.data.reset.delete.scope": [
     {
       "type": 0,
-      "value": "Only exact registered files and engine part files are eligible. Download folders and unrelated files are never deleted."
+      "value": "Only files downloaded by your torrents are deleted. Other files in your folders are never touched."
     }
   ],
   "inspection.components.data.reset.delete.unavailable": [
@@ -2271,7 +2489,7 @@
   "inspection.components.data.reset.restore.description": [
     {
       "type": 0,
-      "value": "Reset appearance, download prompts, connection and seeding settings, and desktop notification and power preferences. Torrents, download folders, downloaded files, access, and privacy choices stay in place."
+      "value": "Settings return to their defaults. Your torrents, folders, files, access, and privacy choices are kept."
     }
   ],
   "inspection.components.data.reset.restore.open": [
@@ -2302,18 +2520,6 @@
     {
       "type": 0,
       "value": "Absent"
-    }
-  ],
-  "inspection.components.detail.pane.active.inactive.exempt.seed": [
-    {
-      "type": 0,
-      "value": "active, inactive-exempt seed"
-    }
-  ],
-  "inspection.components.detail.pane.active.seed": [
-    {
-      "type": 0,
-      "value": "active seed"
     }
   ],
   "inspection.components.detail.pane.active.time": [
@@ -2352,12 +2558,6 @@
       "value": "Current transfer"
     }
   ],
-  "inspection.components.detail.pane.data": [
-    {
-      "type": 0,
-      "value": "data."
-    }
-  ],
   "inspection.components.detail.pane.download": [
     {
       "type": 0,
@@ -2370,10 +2570,66 @@
       "value": "Download speed"
     }
   ],
+  "inspection.components.detail.pane.downloaded": [
+    {
+      "type": 0,
+      "value": "Downloaded"
+    }
+  ],
   "inspection.components.detail.pane.finished.time": [
     {
       "type": 0,
       "value": "Finished time"
+    }
+  ],
+  "inspection.components.detail.pane.goal.not.reached": [
+    {
+      "type": 0,
+      "value": "Goal not reached"
+    }
+  ],
+  "inspection.components.detail.pane.goal.reached": [
+    {
+      "type": 0,
+      "value": "Goal reached"
+    }
+  ],
+  "inspection.components.detail.pane.goal.seeding.download.time": [
+    {
+      "type": 0,
+      "value": "seeding time vs. download time"
+    }
+  ],
+  "inspection.components.detail.pane.goal.seeding.time": [
+    {
+      "type": 0,
+      "value": "seeding time"
+    }
+  ],
+  "inspection.components.detail.pane.goal.share.ratio": [
+    {
+      "type": 0,
+      "value": "share ratio"
+    }
+  ],
+  "inspection.components.detail.pane.goals.none.reached": [
+    {
+      "type": 0,
+      "value": "No goals reached yet."
+    }
+  ],
+  "inspection.components.detail.pane.goals.reached": [
+    {
+      "type": 0,
+      "value": "Goals reached: "
+    },
+    {
+      "type": 1,
+      "value": "goals"
+    },
+    {
+      "type": 0,
+      "value": "."
     }
   ],
   "inspection.components.detail.pane.info.hash": [
@@ -2394,28 +2650,10 @@
       "value": "Info hash (v2)"
     }
   ],
-  "inspection.components.detail.pane.kib.s": [
-    {
-      "type": 0,
-      "value": "KiB/s"
-    }
-  ],
   "inspection.components.detail.pane.known.peers": [
     {
       "type": 0,
       "value": "Known peers"
-    }
-  ],
-  "inspection.components.detail.pane.lifetime.downloaded": [
-    {
-      "type": 0,
-      "value": "Lifetime downloaded"
-    }
-  ],
-  "inspection.components.detail.pane.lifetime.uploaded": [
-    {
-      "type": 0,
-      "value": "Lifetime uploaded"
     }
   ],
   "inspection.components.detail.pane.matched": [
@@ -2430,16 +2668,10 @@
       "value": "Mismatched"
     }
   ],
-  "inspection.components.detail.pane.not.eligible.to.seed": [
+  "inspection.components.detail.pane.nothing.to.show": [
     {
       "type": 0,
-      "value": "not eligible to seed"
-    }
-  ],
-  "inspection.components.detail.pane.peer.transfer.limits": [
-    {
-      "type": 0,
-      "value": "Peer transfer limits"
+      "value": "Nothing to show yet."
     }
   ],
   "inspection.components.detail.pane.pieces.checked": [
@@ -2448,46 +2680,34 @@
       "value": "Pieces checked"
     }
   ],
-  "inspection.components.detail.pane.queued.seed": [
+  "inspection.components.detail.pane.seed.state.idle": [
     {
       "type": 0,
-      "value": "queued seed"
+      "value": "Seeding (idle)"
     }
   ],
-  "inspection.components.detail.pane.save.torrent.limits": [
+  "inspection.components.detail.pane.seed.state.not.seeding": [
     {
       "type": 0,
-      "value": "Save torrent limits"
+      "value": "Not seeding"
     }
   ],
-  "inspection.components.detail.pane.saved.waiting.for.the.live.view": [
+  "inspection.components.detail.pane.seed.state.queued": [
     {
       "type": 0,
-      "value": "Saved; waiting for the live view…"
+      "value": "Queued"
     }
   ],
-  "inspection.components.detail.pane.saving": [
+  "inspection.components.detail.pane.seed.state.seeding": [
     {
       "type": 0,
-      "value": "Saving…"
+      "value": "Seeding"
     }
   ],
-  "inspection.components.detail.pane.saving.torrent.limits": [
+  "inspection.components.detail.pane.seeding": [
     {
       "type": 0,
-      "value": "Saving torrent limits…"
-    }
-  ],
-  "inspection.components.detail.pane.seeding.goals.affect.automatic.priority.a.goal": [
-    {
-      "type": 0,
-      "value": "Seeding goals affect automatic priority; a goal-met torrent may keep seeding while capacity is available. Met thresholds:"
-    }
-  ],
-  "inspection.components.detail.pane.seeding.priority": [
-    {
-      "type": 0,
-      "value": "Seeding priority"
+      "value": "Seeding"
     }
   ],
   "inspection.components.detail.pane.seeding.time": [
@@ -2514,6 +2734,54 @@
       "value": "Size"
     }
   ],
+  "inspection.components.detail.pane.state.checking": [
+    {
+      "type": 0,
+      "value": "Checking"
+    }
+  ],
+  "inspection.components.detail.pane.state.downloading": [
+    {
+      "type": 0,
+      "value": "Downloading"
+    }
+  ],
+  "inspection.components.detail.pane.state.error": [
+    {
+      "type": 0,
+      "value": "Error"
+    }
+  ],
+  "inspection.components.detail.pane.state.paused": [
+    {
+      "type": 0,
+      "value": "Paused"
+    }
+  ],
+  "inspection.components.detail.pane.state.queued": [
+    {
+      "type": 0,
+      "value": "Queued"
+    }
+  ],
+  "inspection.components.detail.pane.state.seeding": [
+    {
+      "type": 0,
+      "value": "Seeding"
+    }
+  ],
+  "inspection.components.detail.pane.state.starting": [
+    {
+      "type": 0,
+      "value": "Starting"
+    }
+  ],
+  "inspection.components.detail.pane.state.stopping": [
+    {
+      "type": 0,
+      "value": "Stopping"
+    }
+  ],
   "inspection.components.detail.pane.status": [
     {
       "type": 0,
@@ -2532,24 +2800,6 @@
       "value": "The detail surface preserves its tab and navigation context."
     }
   ],
-  "inspection.components.detail.pane.these.caps.combine.with.the.all.torrents": [
-    {
-      "type": 0,
-      "value": "These caps combine with the All torrents limits. Trackers, DHT, connection handshakes, and network headers are not counted."
-    }
-  ],
-  "inspection.components.detail.pane.these.limits.changed.elsewhere.your.draft.is": [
-    {
-      "type": 0,
-      "value": "These limits changed elsewhere. Your draft is preserved for review."
-    }
-  ],
-  "inspection.components.detail.pane.this.named.projection.is.not.connected.yet": [
-    {
-      "type": 0,
-      "value": "This named projection is not connected yet. The empty state is intentional and does not claim that the engine has no"
-    }
-  ],
   "inspection.components.detail.pane.torrent.detail.views": [
     {
       "type": 0,
@@ -2562,22 +2812,10 @@
       "value": "Torrent details"
     }
   ],
-  "inspection.components.detail.pane.torrent.peer.transfer.limits.saved": [
-    {
-      "type": 0,
-      "value": "Torrent peer transfer limits saved."
-    }
-  ],
   "inspection.components.detail.pane.torrents": [
     {
       "type": 0,
       "value": "Torrents"
-    }
-  ],
-  "inspection.components.detail.pane.unlimited": [
-    {
-      "type": 0,
-      "value": "Unlimited"
     }
   ],
   "inspection.components.detail.pane.upload.speed": [
@@ -2586,10 +2824,10 @@
       "value": "Upload speed"
     }
   ],
-  "inspection.components.detail.pane.view.scaffold": [
+  "inspection.components.detail.pane.uploaded": [
     {
       "type": 0,
-      "value": "view scaffold"
+      "value": "Uploaded"
     }
   ],
   "inspection.components.detail.pane.waiting": [
@@ -3240,10 +3478,10 @@
       "value": "Available"
     }
   ],
-  "inspection.components.download.settings.section.checked.means.normal.unchecked.means.skip": [
+  "inspection.components.download.settings.section.choose.files.before.starting": [
     {
       "type": 0,
-      "value": "Checked means Normal; unchecked means Skip."
+      "value": "Choose which files to download before starting."
     }
   ],
   "inspection.components.download.settings.section.choosing": [
@@ -3268,12 +3506,6 @@
     {
       "type": 0,
       "value": "Download folders"
-    }
-  ],
-  "inspection.components.download.settings.section.download.folders.are.managed.by.the.live": [
-    {
-      "type": 0,
-      "value": "Download folders are managed by the live application."
     }
   ],
   "inspection.components.download.settings.section.downloads": [
@@ -3306,16 +3538,34 @@
       "value": "Managed by Android"
     }
   ],
+  "inspection.components.download.settings.section.new.downloads.current.folder": [
+    {
+      "type": 0,
+      "value": "New downloads go to the current folder. Existing torrents stay where they are."
+    }
+  ],
+  "inspection.components.download.settings.section.new.downloads.default.folder": [
+    {
+      "type": 0,
+      "value": "New downloads go to the default folder. Existing torrents stay where they are."
+    }
+  ],
   "inspection.components.download.settings.section.no.download.folder.has.been.chosen.yet": [
     {
       "type": 0,
       "value": "No download folder has been chosen yet."
     }
   ],
-  "inspection.components.download.settings.section.options.are.always.shown.when.no.usable": [
+  "inspection.components.download.settings.section.not.manageable": [
     {
       "type": 0,
-      "value": "Options are always shown when no usable default exists."
+      "value": "Download folders can't be changed here."
+    }
+  ],
+  "inspection.components.download.settings.section.options.always.shown.without.default": [
+    {
+      "type": 0,
+      "value": "Always shown when there's no default folder."
     }
   ],
   "inspection.components.download.settings.section.remove": [
@@ -3352,18 +3602,6 @@
     {
       "type": 0,
       "value": "Show options when adding torrents"
-    }
-  ],
-  "inspection.components.download.settings.section.the.current.folder.applies.to.future.torrents": [
-    {
-      "type": 0,
-      "value": "The current folder applies to future torrents only. Existing torrents stay attached to their earlier folder."
-    }
-  ],
-  "inspection.components.download.settings.section.the.default.applies.to.future.torrents.only": [
-    {
-      "type": 0,
-      "value": "The default applies to future torrents only. Existing torrents stay attached to their selected folder."
     }
   ],
   "inspection.components.download.settings.section.unavailable.repair.required": [
@@ -4260,6 +4498,12 @@
       "value": "More"
     }
   ],
+  "inspection.components.notifications.settings.section.also.notify.while.using": [
+    {
+      "type": 0,
+      "value": "Also notify while you're using JSTorrent."
+    }
+  ],
   "inspection.components.notifications.settings.section.download.complete": [
     {
       "type": 0,
@@ -4270,18 +4514,6 @@
     {
       "type": 0,
       "value": "Download needs attention"
-    }
-  ],
-  "inspection.components.notifications.settings.section.keep.showing.notifications.while.the.main.window": [
-    {
-      "type": 0,
-      "value": "Keep showing notifications while the main window is the active window."
-    }
-  ],
-  "inspection.components.notifications.settings.section.native.desktop.notifications.are.edge.triggered.and": [
-    {
-      "type": 0,
-      "value": "Native desktop notifications are edge-triggered and are not replayed after startup or a settings change."
     }
   ],
   "inspection.components.notifications.settings.section.notification.settings.saved": [
@@ -4296,22 +4528,22 @@
       "value": "Notifications"
     }
   ],
-  "inspection.components.notifications.settings.section.notify.when.a.torrent.enters.a.fatal": [
-    {
-      "type": 0,
-      "value": "Notify when a torrent enters a fatal or repair-required state."
-    }
-  ],
-  "inspection.components.notifications.settings.section.notify.when.a.torrent.finishes.downloading": [
-    {
-      "type": 0,
-      "value": "Notify when a torrent finishes downloading."
-    }
-  ],
   "inspection.components.notifications.settings.section.notify.while.rstorrent.is.focused": [
     {
       "type": 0,
       "value": "Notify while JSTorrent is focused"
+    }
+  ],
+  "inspection.components.notifications.settings.section.when.a.download.finishes": [
+    {
+      "type": 0,
+      "value": "When a download finishes"
+    }
+  ],
+  "inspection.components.notifications.settings.section.when.a.torrent.needs.action": [
+    {
+      "type": 0,
+      "value": "When a torrent or folder needs action"
     }
   ],
   "inspection.components.peer.table.active.peer.connections": [
@@ -4548,6 +4780,12 @@
       "value": "verified"
     }
   ],
+  "inspection.components.power.settings.section.keeps.computer.awake": [
+    {
+      "type": 0,
+      "value": "Keeps your computer awake while downloading or checking files. The display can still turn off."
+    }
+  ],
   "inspection.components.power.settings.section.power": [
     {
       "type": 0,
@@ -4560,22 +4798,10 @@
       "value": "Power setting saved."
     }
   ],
-  "inspection.components.power.settings.section.prevent.sleep.during.active.downloads.and.checks": [
+  "inspection.components.power.settings.section.prevent.sleep.while.downloading": [
     {
       "type": 0,
-      "value": "Prevent sleep during active downloads and checks"
-    }
-  ],
-  "inspection.components.power.settings.section.releases.automatically.for.queued.paused.completed.seeding": [
-    {
-      "type": 0,
-      "value": "Releases automatically for queued, paused, completed, seeding, or failed torrents."
-    }
-  ],
-  "inspection.components.power.settings.section.rstorrent.can.prevent.automatic.system.sleep.during": [
-    {
-      "type": 0,
-      "value": "JSTorrent can prevent automatic system sleep during active download and verification work. Your display may still turn off normally."
+      "value": "Prevent sleep while downloading"
     }
   ],
   "inspection.components.preparation.progress.16.kib.per.block": [
@@ -4732,6 +4958,34 @@
     {
       "type": 0,
       "value": "Waiting for a metadata-capable peer to advertise the info dictionary."
+    }
+  ],
+  "inspection.components.rate.limit.picker.custom": [
+    {
+      "type": 0,
+      "value": "Custom…"
+    }
+  ],
+  "inspection.components.rate.limit.picker.custom.label": [
+    {
+      "type": 1,
+      "value": "label"
+    },
+    {
+      "type": 0,
+      "value": ", custom speed in KB per second"
+    }
+  ],
+  "inspection.components.rate.limit.picker.unit": [
+    {
+      "type": 0,
+      "value": "KB/s"
+    }
+  ],
+  "inspection.components.rate.limit.picker.unlimited": [
+    {
+      "type": 0,
+      "value": "Unlimited"
     }
   ],
   "inspection.components.remote.access.settings.section.absolute.expiry": [
@@ -6208,10 +6462,64 @@
       "value": "Cancel"
     }
   ],
+  "inspection.components.torrent.settings.dialog.changed.elsewhere": [
+    {
+      "type": 0,
+      "value": "These limits were changed somewhere else. Your edits are still here."
+    }
+  ],
+  "inspection.components.torrent.settings.dialog.description": [
+    {
+      "type": 0,
+      "value": "Limits for this torrent. Limits for all torrents still apply."
+    }
+  ],
+  "inspection.components.torrent.settings.dialog.download": [
+    {
+      "type": 0,
+      "value": "Download"
+    }
+  ],
+  "inspection.components.torrent.settings.dialog.save": [
+    {
+      "type": 0,
+      "value": "Save"
+    }
+  ],
+  "inspection.components.torrent.settings.dialog.save.not.confirmed": [
+    {
+      "type": 0,
+      "value": "Couldn't confirm the save. Try again."
+    }
+  ],
+  "inspection.components.torrent.settings.dialog.saved": [
+    {
+      "type": 0,
+      "value": "Saved"
+    }
+  ],
+  "inspection.components.torrent.settings.dialog.saving": [
+    {
+      "type": 0,
+      "value": "Saving…"
+    }
+  ],
+  "inspection.components.torrent.settings.dialog.speed.limits": [
+    {
+      "type": 0,
+      "value": "Speed limits"
+    }
+  ],
   "inspection.components.torrent.settings.dialog.title": [
     {
       "type": 0,
       "value": "Torrent settings"
+    }
+  ],
+  "inspection.components.torrent.settings.dialog.upload": [
+    {
+      "type": 0,
+      "value": "Upload"
     }
   ],
   "inspection.components.torrent.status.archived": [
@@ -7836,6 +8144,43 @@
     {
       "type": 0,
       "value": ".torrent file selection is not available yet. Paste a magnet link instead."
+    }
+  ],
+  "inspection.transfer.rate.kilobytes.per.second": [
+    {
+      "type": 2,
+      "value": "value",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " KB/s"
+    }
+  ],
+  "inspection.transfer.rate.megabytes.per.second": [
+    {
+      "type": 2,
+      "value": "value",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " MB/s"
+    }
+  ],
+  "inspection.transfer.rate.range.error": [
+    {
+      "type": 0,
+      "value": "Enter a speed from 1 to "
+    },
+    {
+      "type": 2,
+      "value": "maximum",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " KB/s."
     }
   ],
   "product.feedback.description": [
