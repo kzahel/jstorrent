@@ -1,5 +1,17 @@
 # Incoming Reachability And Seeding
 
+Tactical [332](../tactical/332-windows-listener-test-port-isolation.md) isolates
+the automatic repair preference in the fixed-listener application test. Source
+CI 38409973610 fails on Windows when the occupied preferred port's successor
+returns error 10013. An independent TCP/UDP-probed preference preserves the
+fixed-conflict, retained-listener and same-value retry assertions without
+changing production allocation policy. Local formatting, workspace Clippy,
+1,598 Rust tests (18 ignored), the 394-case session suite (two ignored), and
+40 focused runs across four concurrent processes pass. Native Windows ARM64
+with Rust 1.99 also passes 40 focused runs and its full 392-case session suite
+(two ignored). Hosted x86_64/Rust 1.97 CI has not been rerun; the original
+hosted failure remains failed.
+
 Tactical [277](../tactical/277-android-observer-listener-readiness.md) repairs
 qualification of269's asynchronous listener startup. Source8c CI and a focused
 local reproduction fail the immediate optional snapshot. The unchanged

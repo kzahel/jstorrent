@@ -18887,9 +18887,15 @@ mod tests {
         assert!(diagnostics.contains("incoming_listener_bind_failed"));
         assert!(diagnostics.contains("address_in_use"));
 
+        // A blocked ephemeral port's successor may be excluded by Windows.
+        // Probe an independent TCP/UDP port for repair instead of relying on
+        // adjacent-port allocation; retain the blocker for the fixed retry.
+        let repair_port = available_port_on(Ipv4Addr::LOCALHOST)
+            .await
+            .expect("find automatic listener repair port");
         let repaired = ClientSettings {
             listener: ListenerPolicy::AutomaticLoopback,
-            preferred_listen_port: port,
+            preferred_listen_port: repair_port,
             port_mapping: crate::PortMappingPolicy::Disabled,
             peer_connection_limit: 321,
             upload_slots: 0,
@@ -18941,6 +18947,7 @@ mod tests {
         assert_eq!(incoming.peer_budget.effective_limit, 5);
         assert_eq!(incoming.peer_budget.incoming_slack, 10);
         let automatic_port = incoming.listen_address.port();
+        assert_ne!(automatic_port, port, "fixed port remains blocked");
         let fixed = ClientSettings {
             listener: ListenerPolicy::FixedLoopback { port },
             ..repaired.clone()
