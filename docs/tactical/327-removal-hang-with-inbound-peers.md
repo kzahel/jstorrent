@@ -170,3 +170,14 @@ Pixel 9 (fixed QA APK installed over 1.0.29 with its data):
 - The soak stopped there because the phone was then in use. Before the
   fix the hang had taken about ten rounds to appear, so these two rounds
   are a smoke result, not a soak.
+
+Pixel 7a (Android 17, fixed QA APK built at `6d7f7408`, fresh install on
+the device's own SAF folder, file selection turned off):
+- 20 of 20 rounds of add all test torrents, wait 25–45 s, select all and
+  Remove with Delete data completed in 3–6 s, with no hang and no
+  `Removal failed`.
+- At each removal, two downloads were running at about 3–20 MiB/s.
+  Typically both were registered for inbound peers
+  (`registrations=2`), with 1–13 inbound peers established. That is the
+  condition that hung the Pixel 9 before the fix.
+- No unfixed baseline was run on this phone.
