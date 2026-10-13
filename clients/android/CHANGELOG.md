@@ -1,5 +1,15 @@
 # Android Changelog
 
+## [1.0.31]
+
+- Fix torrent removal hanging during active downloads with incoming peers.
+- Report duplicate adds and offer to restore archived torrents.
+- Ask for a download folder when adding without one, then continue the add
+  automatically once the folder is chosen.
+- Allow removing any download folder while keeping files and torrent progress,
+  with an explicit option to remove its torrents and delete their downloads.
+- Show when torrents are waiting for an unavailable download folder.
+
 ## [1.0.30]
 
 - Improve Android file rows, file priorities and multiple-file selection.
