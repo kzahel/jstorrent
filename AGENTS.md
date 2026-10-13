@@ -239,11 +239,13 @@ patterns, Android/ChromeOS lessons, and known failure cases.
 
 ## Toolchain And Validation
 
-On configured development machines, source the shell profile before commands
-that require Rust, Java, Android, or other locally installed tools:
+Source the repository environment script before commands that require Rust,
+Java, Android, or other locally installed tools. It locates toolchains such as
+JDK 17 and the Android SDK without overriding settings already present; the
+Android and iOS build scripts source it themselves:
 
 ```bash
-source ~/.profile
+source scripts/dev-env.sh
 ```
 
 Use this default Rust baseline in proportion to the change:

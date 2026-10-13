@@ -22,16 +22,17 @@ retain their original titles while current commands use this directory.
 Build both locked Android ABIs and the debug APK:
 
 ```bash
-source ~/.profile
 clients/android/build.sh
 ```
 
 The build uses a Java `17` toolchain, Android Gradle Plugin `8.10.1`, Gradle
 `8.11.1`, Kotlin `2.0.21`, JNA Android AAR `5.17.0`, UniFFI `0.31.0`, NDK
 `28.2.13676358`, and API 28 Rust targets. Gradle requires an installed JDK 17
-and does not substitute a newer JDK; when it is not auto-detected, set
-`JAVA_HOME` to it for the build. It generates Kotlin from the host
-native library and packages independently cross-built `x86_64` and
+and does not substitute a newer JDK. `scripts/dev-env.sh` finds it and exports
+`JDK17_HOME`, which `gradle.properties` registers as a toolchain, so
+`JAVA_HOME` may select a newer JDK. `build.sh` sources that script; source it
+yourself before running `./gradlew` directly. The build generates Kotlin from
+the host native library and packages independently cross-built `x86_64` and
 `arm64-v8a` libraries. Generated bindings, native libraries, reports, and APKs
 remain under ignored build directories.
 

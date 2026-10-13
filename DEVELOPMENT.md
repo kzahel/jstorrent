@@ -25,10 +25,12 @@ accepted contract; agent working instructions remain in [AGENTS.md](AGENTS.md).
 
 ## Toolchain
 
-Commands below run from the repository root. On configured machines:
+Commands below run from the repository root. Source the environment script
+before running toolchain commands directly; it locates Rust, JDK 17 and the
+Android SDK, and the Android and iOS build scripts source it themselves:
 
 ```bash
-source ~/.profile
+source scripts/dev-env.sh
 ```
 
 Rust is pinned by [rust-toolchain.toml](rust-toolchain.toml). Web clients need

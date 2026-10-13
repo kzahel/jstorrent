@@ -7,7 +7,6 @@ bookmarks, file coordination, and presentation.
 Generate bindings and the Xcode project before building:
 
 ```bash
-source ~/.profile
 clients/ios/scripts/generate-project.sh
 ```
 

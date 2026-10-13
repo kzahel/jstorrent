@@ -17,9 +17,7 @@ output=$1
   exit 2
 }
 
-if [[ -f "${HOME}/.profile" ]]; then
-  source "${HOME}/.profile"
-fi
+source "${client_root}/../../scripts/dev-env.sh"
 "${script_root}/generate-project.sh"
 
 simulator_id=$(

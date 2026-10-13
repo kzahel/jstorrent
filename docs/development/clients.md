@@ -7,7 +7,7 @@ Commands run from the repository root unless a block changes directory.
 ## Desktop
 
 ```bash
-source ~/.profile
+source scripts/dev-env.sh
 ./scripts/desktop
 ```
 

@@ -13,6 +13,7 @@ fi
 
 android_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd "$android_root/../.." && pwd)"
+source "$repository_root/scripts/dev-env.sh"
 android_sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
 ndk_root="$android_sdk/ndk/28.2.13676358"
 generated_root="$android_root/app/build/generated"
@@ -23,6 +24,10 @@ if [[ ! -d "$android_sdk/platforms/android-36" ]]; then
 fi
 if [[ ! -d "$ndk_root" ]]; then
     echo "Android NDK 28.2.13676358 is unavailable under $android_sdk" >&2
+    exit 1
+fi
+if [[ -z "${JDK17_HOME:-}" ]]; then
+    echo "JDK 17 is unavailable; install it (brew install openjdk@17) or set JDK17_HOME" >&2
     exit 1
 fi
 for rust_target in x86_64-linux-android aarch64-linux-android; do
