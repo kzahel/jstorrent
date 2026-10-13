@@ -123,7 +123,7 @@
 
 .columnMenu > button {
   border: 1px solid var(--border-soft);
-  border-radius: 0.32rem;
+  border-radius: var(--radius-sm);
   padding: 0.2rem 0.48rem;
   color: var(--text-secondary);
   background: var(--surface-secondary);
@@ -134,7 +134,7 @@
 .toolbar > button,
 .toolbar > [data-rac] {
   border: 1px solid var(--border-soft);
-  border-radius: 0.32rem;
+  border-radius: var(--radius-sm);
   padding: 0.2rem 0.48rem;
   color: var(--text-secondary);
   background: var(--surface-secondary);
@@ -149,9 +149,9 @@
 }
 
 .selectionStatus {
-  color: var(--accent-strong);
+  color: var(--accent);
   font-size: var(--ui-font-caption);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
 }
 
 .columnMenu {
@@ -226,7 +226,7 @@
   background: transparent;
   font: inherit;
   font-size: var(--ui-font-small);
-  font-weight: 650;
+  font-weight: var(--weight-medium);
   text-align: inherit;
   cursor: pointer;
 }
@@ -262,7 +262,7 @@
   background: var(--surface-primary);
   font: inherit;
   font-size: var(--ui-font-caption);
-  font-weight: 750;
+  font-weight: var(--weight-medium);
   line-height: 1;
   cursor: help;
 }

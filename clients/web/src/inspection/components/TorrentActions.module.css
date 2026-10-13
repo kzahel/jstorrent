@@ -14,13 +14,13 @@
   gap: var(--ui-space-xs);
   height: var(--ui-control-height);
   border: 1px solid transparent;
-  border-radius: 0.38rem;
+  border-radius: var(--radius-md);
   padding: 0 var(--ui-space-sm);
   color: var(--text-secondary);
   background: transparent;
   font: inherit;
   font-size: var(--ui-font-small);
-  font-weight: 650;
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 
@@ -57,7 +57,7 @@
   min-width: 7rem;
   height: var(--ui-control-height);
   border: 1px solid var(--border-strong);
-  border-radius: 0.38rem;
+  border-radius: var(--radius-md);
   padding: 0 var(--ui-space-sm);
   flex: 1 1 auto;
   color: var(--text-primary);
@@ -87,12 +87,12 @@
 }
 
 .toolbar .primaryAction {
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent-action);
 }
 
 .toolbar .primaryAction:hover:not(:disabled) {
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent-action-hover);
 }
 

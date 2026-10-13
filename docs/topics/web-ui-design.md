@@ -1,5 +1,14 @@
 # Web UI Design
 
+Tactical [334](../tactical/334-web-water-and-clay-visual-system.md) gives the
+UI one visual system taken from the icon, "water and clay": warm neutrals,
+one blue accent for selection and anything filling, clay for upload and
+settled data, light and dark palettes in `global.css`. Component CSS may use
+only those tokens, four radii and three weights; `src/style-guard.test.ts`
+enforces this. Settings are grouped rows with switches and segmented
+controls, and Library tiles are the icon's box filling with water to their
+progress. Decorative gradients and uppercase eyebrow labels are gone.
+
 Tactical [333](../tactical/333-web-settings-plain-copy.md) rewrites Settings,
 the Torrent settings dialog and the General tab in user vocabulary.
 Connection & seeding is grouped under Speed limits, Queue, Seeding goals,

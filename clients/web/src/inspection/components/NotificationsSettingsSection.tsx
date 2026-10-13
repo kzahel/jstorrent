@@ -69,21 +69,23 @@ export function NotificationsSettingsSection({
   return (
     <fieldset className={styles.section} disabled={pending}>
       <legend>{localizedMessage("inspection.components.notifications.settings.section.notifications")}</legend>
-      {OPTIONS.map((option) => (
-        <label className={styles.preference} key={option.setting}>
-          <input
-            type="checkbox"
-            checked={settings[option.setting]}
-            onChange={(event) =>
-              void change(option.setting, event.currentTarget.checked)
-            }
-          />
-          <span>
-            <strong>{option.label}</strong>
-            <small>{option.description}</small>
-          </span>
-        </label>
-      ))}
+      <div className={styles.rows}>
+        {OPTIONS.map((option) => (
+          <label className={styles.preference} key={option.setting}>
+            <input
+              type="checkbox"
+              checked={settings[option.setting]}
+              onChange={(event) =>
+                void change(option.setting, event.currentTarget.checked)
+              }
+            />
+            <span>
+              <strong>{option.label}</strong>
+              <small>{option.description}</small>
+            </span>
+          </label>
+        ))}
+      </div>
       {status === null ? null : (
         <p
           className={

@@ -4,19 +4,17 @@
   place-items: center;
   padding: var(--ui-space-lg);
   color: var(--text-primary);
-  background:
-    radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 32rem),
-    var(--surface-secondary);
+  background: var(--surface-secondary);
 }
 
 .card {
   width: min(34rem, 100%);
   box-sizing: border-box;
-  border: 1px solid var(--border-strong);
-  border-radius: 1rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
   padding: clamp(1.4rem, 5vw, 2.4rem);
-  background: var(--surface-primary);
-  box-shadow: 0 1.25rem 4rem rgb(8 20 34 / 24%);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-dialog);
 }
 
 .brand {
@@ -30,14 +28,14 @@
   margin: var(--ui-space-lg) 0 0;
   color: var(--text-muted);
   font-size: var(--ui-font-caption);
-  font-weight: 750;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: var(--weight-medium);
 }
 
 .card h1 {
   margin: var(--ui-space-xs) 0 var(--ui-space-sm);
-  font-size: clamp(1.55rem, 5vw, 2rem);
+  font-size: calc(var(--ui-font-display) * 1.4);
+  font-weight: var(--weight-strong);
+  line-height: 1.2;
 }
 
 .card p {
@@ -55,7 +53,7 @@
   display: grid;
   gap: var(--ui-space-xs);
   border: 1px solid var(--border-strong);
-  border-radius: 0.7rem;
+  border-radius: var(--radius-md);
   padding: var(--ui-space-md);
   color: var(--text-primary);
   background: var(--surface-primary);
@@ -63,9 +61,12 @@
   cursor: pointer;
 }
 
-.choices button:hover {
-  border-color: var(--accent);
+.choices button:hover:not(:disabled) {
   background: var(--surface-hover);
+}
+
+.choices strong {
+  font-weight: var(--weight-medium);
 }
 
 .choices span,
@@ -82,31 +83,36 @@
 
 .codeForm label {
   font-size: var(--ui-font-small);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
 }
 
 .codeForm input {
   min-height: 3.2rem;
   border: 1px solid var(--border-strong);
-  border-radius: 0.6rem;
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   background: var(--surface-primary);
   font: inherit;
-  font-size: 1.6rem;
+  font-size: calc(var(--ui-font-display) * 1.2);
   letter-spacing: 0.35em;
   text-align: center;
 }
 
 .primary {
   min-height: var(--ui-control-height);
-  border: 0;
-  border-radius: 0.55rem;
+  border: 1px solid var(--accent-action);
+  border-radius: var(--radius-md);
   padding: 0 var(--ui-space-md);
-  color: white;
-  background: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent-action);
   font: inherit;
-  font-weight: 750;
+  font-weight: var(--weight-medium);
   cursor: pointer;
+}
+
+.primary:hover:not(:disabled) {
+  border-color: var(--accent-action-hover);
+  background: var(--accent-action-hover);
 }
 
 .primary:disabled,
@@ -116,7 +122,7 @@
 }
 
 .error {
-  color: var(--danger) !important;
+  color: var(--danger-strong) !important;
   font-size: var(--ui-font-small);
 }
 

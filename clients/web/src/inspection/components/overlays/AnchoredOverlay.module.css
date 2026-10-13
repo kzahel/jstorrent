@@ -4,11 +4,11 @@
   z-index: var(--layer-anchored-overlay) !important;
   max-width: calc(100vw - 1rem);
   max-height: calc(100dvh - 1rem);
-  border: 1px solid var(--border-strong);
-  border-radius: 0.48rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
-  background: var(--surface-primary);
-  box-shadow: 0 10px 28px rgb(15 30 46 / 20%);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-overlay);
   overflow: auto;
 }
 
@@ -38,7 +38,7 @@
   color: var(--text-primary);
   background: transparent;
   font-size: var(--ui-font-small);
-  font-weight: 520;
+  font-weight: var(--weight-regular);
   line-height: 1.2;
   text-align: left;
   white-space: nowrap;
@@ -48,6 +48,9 @@
 
 .menuItem[data-focused] {
   background: var(--surface-hover);
+}
+
+.menuItem[data-focus-visible] {
   box-shadow: inset 0 0 0 2px var(--focus);
 }
 
@@ -71,7 +74,7 @@
   padding: 0.32rem 0.72rem 0.18rem;
   color: var(--text-muted);
   font-size: var(--ui-font-caption);
-  font-weight: 720;
+  font-weight: var(--weight-medium);
 }
 
 .menuSeparator {
@@ -84,7 +87,7 @@
 .menuItem[data-has-submenu]::after {
   margin-left: auto;
   content: "›";
-  font-size: 1rem;
+  font-size: var(--ui-font-body);
 }
 
 .menuDescription {

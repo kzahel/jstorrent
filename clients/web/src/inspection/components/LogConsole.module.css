@@ -39,7 +39,7 @@
 .filterBar button {
   min-height: var(--ui-control-height);
   border: 1px solid var(--border-soft);
-  border-radius: 0.35rem;
+  border-radius: var(--radius-md);
   padding: 0.15rem 0.42rem;
   color: var(--text-primary);
   background: var(--surface-primary);
@@ -57,9 +57,7 @@
 
 .toolbarLabel {
   color: var(--text-secondary);
-  font-weight: 750;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  font-weight: var(--weight-medium);
 }
 
 .searchLabel {
@@ -83,11 +81,11 @@
 }
 
 .traceNotice {
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   padding: 0.18rem 0.45rem;
-  color: color-mix(in srgb, var(--warning-strong) 78%, var(--text-primary));
-  background: color-mix(in srgb, var(--warning-strong) 10%, transparent);
-  font-weight: 650;
+  color: var(--warning-strong);
+  background: var(--warning-soft);
+  font-weight: var(--weight-medium);
 }
 
 .viewport {
@@ -168,8 +166,7 @@
 
 .severity {
   color: var(--text-secondary);
-  font-weight: 720;
-  text-transform: uppercase;
+  font-weight: var(--weight-medium);
 }
 
 .severity[data-severity="trace"],
@@ -178,7 +175,7 @@
 }
 
 .severity[data-severity="warning"] {
-  color: color-mix(in srgb, var(--warning-strong) 78%, var(--text-primary));
+  color: var(--warning-strong);
 }
 
 .severity[data-severity="error"] {
@@ -186,13 +183,13 @@
 }
 
 .category {
-  color: var(--accent-strong);
+  color: var(--text-secondary);
   font-family: var(--font-mono);
 }
 
 .subjectChip {
   margin: 0 0.35rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   padding: 0.14rem 0.48rem !important;
   color: var(--text-secondary);
   background: var(--surface-tertiary);
@@ -210,7 +207,7 @@
   overflow: auto;
   padding: 0.45rem 0.7rem 0.55rem 2.1rem;
   color: var(--text-secondary);
-  background: color-mix(in srgb, var(--surface-secondary) 72%, transparent);
+  background: var(--surface-secondary);
 }
 
 .details dl {
@@ -247,7 +244,7 @@
 .entryActions button,
 .newEvents {
   border: 1px solid var(--border-soft);
-  border-radius: 0.36rem;
+  border-radius: var(--radius-md);
   padding: 0.2rem 0.5rem;
   color: var(--text-secondary);
   background: var(--surface-primary);
@@ -264,8 +261,8 @@
   gap: 0.7rem;
   border-bottom: 1px solid var(--warning-strong);
   padding: 0 0.75rem;
-  color: color-mix(in srgb, var(--warning-strong) 78%, var(--text-primary));
-  background: color-mix(in srgb, var(--warning-strong) 8%, var(--surface-primary));
+  color: var(--warning-strong);
+  background: var(--warning-soft);
   font-size: var(--ui-font-caption);
 }
 
@@ -285,8 +282,10 @@
   bottom: 0.8rem;
   z-index: 5;
   border-color: var(--accent);
-  color: var(--accent-strong);
-  box-shadow: 0 0.4rem 1rem rgb(0 0 0 / 18%);
+  color: var(--accent);
+  background: var(--surface-raised);
+  font-weight: var(--weight-medium);
+  box-shadow: var(--shadow-overlay);
 }
 
 .srOnly {

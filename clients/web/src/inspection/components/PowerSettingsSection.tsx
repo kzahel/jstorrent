@@ -44,16 +44,18 @@ export function PowerSettingsSection({ power }: PowerSettingsSectionProps) {
     <fieldset className={styles.section} disabled={pending}>
       <legend>{localizedMessage("inspection.components.power.settings.section.power")}</legend>
       <p className={styles.sectionIntroduction}>{localizedMessage("inspection.components.power.settings.section.keeps.computer.awake")}</p>
-      <label className={styles.preference}>
-        <input
-          type="checkbox"
-          checked={settings.prevent_sleep_during_active_downloads}
-          onChange={(event) => void change(event.currentTarget.checked)}
-        />
-        <span>
-          <strong>{localizedMessage("inspection.components.power.settings.section.prevent.sleep.while.downloading")}</strong>
-        </span>
-      </label>
+      <div className={styles.rows}>
+        <label className={styles.preference}>
+          <input
+            type="checkbox"
+            checked={settings.prevent_sleep_during_active_downloads}
+            onChange={(event) => void change(event.currentTarget.checked)}
+          />
+          <span>
+            <strong>{localizedMessage("inspection.components.power.settings.section.prevent.sleep.while.downloading")}</strong>
+          </span>
+        </label>
+      </div>
       {status === null ? null : (
         <p
           className={

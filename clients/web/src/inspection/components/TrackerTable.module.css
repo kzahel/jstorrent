@@ -54,7 +54,7 @@
 }
 
 .status[data-status="announcing"] > span {
-  background: var(--accent-strong);
+  background: var(--water);
 }
 
 .status[data-status="retry_wait"] {
@@ -66,7 +66,7 @@
 }
 
 .status[data-status="reannounce_wait"] > span {
-  background: var(--success, #35a46f);
+  background: var(--success);
 }
 
 @media (max-width: 520px) {

@@ -251,11 +251,11 @@ function drawRouting(
   const colors = {
     text: tokens.getPropertyValue("--text-muted").trim() || "#718096",
     grid: tokens.getPropertyValue("--border-soft").trim() || "#334155",
-    good: "#35b982",
-    questionable: "#e49a3a",
-    replacement: "#718096",
-    fresh: "#3aa884",
-    aging: "#e49a3a",
+    good: tokens.getPropertyValue("--dht-good").trim() || "#1f8eee",
+    questionable: tokens.getPropertyValue("--dht-questionable").trim() || "#d39a3a",
+    replacement: tokens.getPropertyValue("--dht-replacement").trim() || "#9a9187",
+    fresh: tokens.getPropertyValue("--dht-fresh").trim() || "#1f8eee",
+    aging: tokens.getPropertyValue("--dht-aging").trim() || "#d39a3a",
     surface: tokens.getPropertyValue("--surface-secondary").trim() || "#111827",
   };
   const left = 42;

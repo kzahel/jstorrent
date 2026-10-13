@@ -40,6 +40,16 @@
 .mapSection {
   min-height: 0;
   padding: 0.8rem;
+  /* Piece palette shared by the canvas (read in PieceMapPanel.tsx) and legend. */
+  --piece-missing: var(--surface-tertiary);
+  --piece-mixed: var(--water);
+  --piece-verified: var(--water);
+  --piece-requested: var(--viz-requested);
+  --piece-received: var(--water-light);
+  --piece-stored: var(--viz-metadata);
+  --piece-hashing: var(--viz-hash);
+  --piece-failed: var(--danger);
+  --piece-pattern: color-mix(in srgb, var(--surface-primary) 60%, transparent);
 }
 
 .canvasWrap {
@@ -51,15 +61,6 @@
   display: block;
   max-width: 100%;
   border: 0;
-  --piece-missing: var(--surface-tertiary);
-  --piece-mixed: var(--success);
-  --piece-verified: var(--success);
-  --piece-requested: var(--warning);
-  --piece-received: var(--accent);
-  --piece-stored: #6c77cf;
-  --piece-hashing: #9b58b5;
-  --piece-failed: var(--danger);
-  --piece-pattern: color-mix(in srgb, var(--surface-primary) 60%, transparent);
 }
 
 .legend {
@@ -81,14 +82,14 @@
   inline-size: 0.62rem;
   block-size: 0.62rem;
   border: 1px solid color-mix(in srgb, currentcolor 24%, transparent);
-  border-radius: 1px;
+  border-radius: 0;
   background: var(--swatch);
 }
 
 .swatch[data-pattern="mixed"] {
   background: repeating-linear-gradient(
     135deg,
-    var(--success) 0 2px,
+    var(--piece-mixed) 0 2px,
     var(--surface-primary) 2px 4px
   );
 }

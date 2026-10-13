@@ -2,17 +2,15 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border-right: 1px solid var(--border-strong);
+  border-right: 1px solid var(--border-soft);
   background: var(--surface-secondary);
 }
 
 .heading {
-  margin: 1rem 0.85rem 0.45rem;
+  margin: 1rem 0.85rem 0.4rem;
   color: var(--text-muted);
-  font-size: var(--ui-font-caption);
-  font-weight: 750;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-size: var(--ui-font-small);
+  font-weight: var(--weight-medium);
 }
 
 .sidebar ul {
@@ -30,7 +28,7 @@
   gap: var(--ui-space-xs);
   width: 100%;
   border: 0;
-  border-radius: 0.42rem;
+  border-radius: var(--radius-md);
   padding: var(--ui-space-sm);
   color: var(--text-secondary);
   background: transparent;
@@ -48,12 +46,17 @@
 .sidebar button[aria-current="page"] {
   color: var(--accent-strong);
   background: var(--selection);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
 }
 
 .sidebar button:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
+}
+
+.sidebar button[aria-current="page"] .symbol,
+.sidebar button[aria-current="page"] .count {
+  color: inherit;
 }
 
 .symbol {

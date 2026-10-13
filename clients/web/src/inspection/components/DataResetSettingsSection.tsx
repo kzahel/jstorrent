@@ -55,16 +55,18 @@ export function DataResetSettingsSection({
   return (
     <div className={styles.dataReset}>
       <h3>{localizedMessage("inspection.components.data.reset.category")}</h3>
-      <section>
-        <h4>{localizedMessage("inspection.components.data.reset.restore.title")}</h4>
-        <p>{localizedMessage("inspection.components.data.reset.restore.description")}</p>
-        <button type="button" disabled={!manageable || pending} onClick={() => { setConfirmation("restore"); setStatus(null); }}>{localizedMessage("inspection.components.data.reset.restore.open")}</button>
-      </section>
-      <section>
-        <h4>{localizedMessage("inspection.components.data.reset.clear.title")}</h4>
-        <p>{localizedMessage("inspection.components.data.reset.clear.description")}</p>
-        <button type="button" disabled={!manageable || pending} onClick={() => { setConfirmation("clear"); setDeleteData(false); setStatus(null); }}>{localizedMessage("inspection.components.data.reset.clear.open")}</button>
-      </section>
+      <div className={styles.rows}>
+        <section>
+          <h4>{localizedMessage("inspection.components.data.reset.restore.title")}</h4>
+          <p>{localizedMessage("inspection.components.data.reset.restore.description")}</p>
+          <button type="button" disabled={!manageable || pending} onClick={() => { setConfirmation("restore"); setStatus(null); }}>{localizedMessage("inspection.components.data.reset.restore.open")}</button>
+        </section>
+        <section>
+          <h4>{localizedMessage("inspection.components.data.reset.clear.title")}</h4>
+          <p>{localizedMessage("inspection.components.data.reset.clear.description")}</p>
+          <button type="button" disabled={!manageable || pending} onClick={() => { setConfirmation("clear"); setDeleteData(false); setStatus(null); }}>{localizedMessage("inspection.components.data.reset.clear.open")}</button>
+        </section>
+      </div>
       {confirmation === null ? null : (
         <div className={styles.resetConfirmation} role="group" aria-label={confirmation === "restore" ? localizedMessage("inspection.components.data.reset.restore.confirm") : localizedMessage("inspection.components.data.reset.clear.confirm")}>
           <strong>{confirmation === "restore" ? localizedMessage("inspection.components.data.reset.restore.confirm") : localizedMessage("inspection.components.data.reset.clear.confirm")}</strong>

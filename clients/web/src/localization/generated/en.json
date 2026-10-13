@@ -996,18 +996,6 @@
       "value": "Balanced text, controls, and table spacing."
     }
   ],
-  "inspection.components.appearance.settings.section.changes.apply.immediately": [
-    {
-      "type": 0,
-      "value": "Changes apply immediately."
-    }
-  ],
-  "inspection.components.appearance.settings.section.choose.a.palette.or.follow.your.system": [
-    {
-      "type": 0,
-      "value": "Choose a palette or follow your system."
-    }
-  ],
   "inspection.components.appearance.settings.section.color.theme": [
     {
       "type": 0,
@@ -3898,12 +3886,6 @@
       "value": "Checking downloaded data"
     }
   ],
-  "inspection.components.library.detail.view.content.details": [
-    {
-      "type": 0,
-      "value": "Content details"
-    }
-  ],
   "inspection.components.library.detail.view.content.details.are.not.requested": [
     {
       "type": 0,
@@ -4142,12 +4124,6 @@
     {
       "type": 0,
       "value": "Finding content details"
-    }
-  ],
-  "inspection.components.library.view.library": [
-    {
-      "type": 0,
-      "value": "Library"
     }
   ],
   "inspection.components.library.view.library.collection.is.not.requested.in.this": [
@@ -5748,12 +5724,6 @@
     {
       "type": 0,
       "value": "Appearance"
-    }
-  ],
-  "inspection.components.settings.dialog.application": [
-    {
-      "type": 0,
-      "value": "Application"
     }
   ],
   "inspection.components.settings.dialog.close.settings": [

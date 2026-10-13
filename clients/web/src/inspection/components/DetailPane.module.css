@@ -29,7 +29,7 @@
   background: transparent;
   font: inherit;
   font-size: var(--ui-font-small);
-  font-weight: 600;
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 
@@ -85,7 +85,7 @@
   justify-content: space-between;
   gap: calc(var(--ui-space-lg) * 1.5);
   border: 1px solid var(--border-soft);
-  border-radius: 0.72rem;
+  border-radius: var(--radius-lg);
   padding: var(--ui-space-md) var(--ui-space-lg);
   background: var(--surface-secondary);
 }
@@ -93,6 +93,7 @@
 .summaryCard h2 {
   margin: 0 0 0.38rem;
   font-size: var(--ui-font-heading);
+  font-weight: var(--weight-strong);
 }
 
 .summaryCard p {
@@ -101,13 +102,11 @@
   font-size: var(--ui-font-small);
 }
 
-.eyebrow {
-  margin: 0 0 0.25rem !important;
-  color: var(--accent-strong) !important;
-  font-size: var(--ui-font-caption) !important;
-  font-weight: 750;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+.summaryCard .eyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--text-muted);
+  font-size: var(--ui-font-caption);
+  font-weight: var(--weight-medium);
 }
 
 .largeProgress {
@@ -118,6 +117,7 @@
 
 .largeProgress strong {
   font-size: var(--ui-font-display);
+  font-weight: var(--weight-strong);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -125,7 +125,7 @@
 .largeProgress > span {
   overflow: hidden;
   height: 0.45rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--progress-track);
 }
 
@@ -133,13 +133,13 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--water);
 }
 
 .largeProgress > span[data-indeterminate="true"] {
   background: repeating-linear-gradient(
     135deg,
-    color-mix(in srgb, var(--accent) 55%, var(--progress-track)) 0 0.5rem,
+    color-mix(in srgb, var(--water) 55%, var(--progress-track)) 0 0.5rem,
     var(--progress-track) 0.5rem 1rem
   );
 }
@@ -150,7 +150,7 @@
   gap: 0;
   margin: 1rem 0;
   border: 1px solid var(--border-soft);
-  border-radius: 0.72rem;
+  border-radius: var(--radius-lg);
   background: var(--surface-primary);
 }
 
@@ -178,7 +178,7 @@
 .metrics dd {
   margin: 0;
   font-size: var(--ui-font-body);
-  font-weight: 680;
+  font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
 }
 
@@ -214,7 +214,7 @@
   gap: 0.2rem;
   margin-top: 1rem;
   border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border-soft));
-  border-radius: 0.6rem;
+  border-radius: var(--radius-md);
   padding: 0.75rem;
   color: var(--danger-strong);
   background: var(--danger-soft);
@@ -256,7 +256,7 @@
   height: 2.5rem;
   margin-bottom: 0.7rem;
   place-items: center;
-  border-radius: 0.72rem;
+  border-radius: var(--radius-lg);
   color: var(--accent-strong);
   background: var(--selection);
   font-size: var(--ui-font-heading);
@@ -297,13 +297,13 @@
     height: var(--ui-control-height);
     gap: var(--ui-space-xs);
     border: 1px solid var(--border-strong);
-    border-radius: 0.45rem;
+    border-radius: var(--radius-md);
     padding: 0 var(--ui-space-md);
     color: var(--text-primary);
     background: var(--surface-secondary);
     font: inherit;
     font-size: var(--ui-font-small);
-    font-weight: 700;
+    font-weight: var(--weight-medium);
     cursor: pointer;
   }
 

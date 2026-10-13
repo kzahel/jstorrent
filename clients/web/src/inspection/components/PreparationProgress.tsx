@@ -230,9 +230,9 @@ function drawBlockMap(
   context.clearRect(0, 0, geometry.width, geometry.height);
   const computed = getComputedStyle(canvas);
   const colors = [
-    computed.getPropertyValue("--metadata-missing").trim() || "#edf1f5",
-    computed.getPropertyValue("--metadata-requested").trim() || "#d3982e",
-    computed.getPropertyValue("--metadata-received").trim() || "#2477d1",
+    computed.getPropertyValue("--metadata-missing").trim() || "#efebe6",
+    computed.getPropertyValue("--metadata-requested").trim() || "#d39a3a",
+    computed.getPropertyValue("--metadata-received").trim() || "#1f8eee",
   ];
   const stride = geometry.cellSize + geometry.gap;
   for (let index = 0; index < metadata.blockCount; index += 1) {

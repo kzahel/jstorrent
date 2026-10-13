@@ -45,26 +45,10 @@ const METRIC_LABELS: Readonly<Record<SpeedMetric, string>> = {
   payload_uploaded: "Uploaded",
 };
 
-const COLORS: Readonly<Record<string, string>> = {
-  payload_received: "#42d392",
-  staged_write: "#6ea8fe",
-  payload_verified: "#d6a7ff",
-  peer_wire_received: "#36c5f0",
-  peer_wire_sent: "#fb7185",
-  peer_protocol_received: "#22d3ee",
-  peer_protocol_sent: "#f59e0b",
-  metadata_payload_received: "#2dd4bf",
-  metadata_payload_sent: "#fbbf24",
-  peer_unclassified_received: "#60a5fa",
-  peer_unclassified_sent: "#f97316",
-  dht_received: "#a3e635",
-  dht_sent: "#eab308",
-  tracker_received: "#34d399",
-  tracker_sent: "#f472b6",
-  logical_hash_read: "#c084fc",
-  payload_redundant: "#94a3b8",
-  payload_hash_failed: "#ef4444",
-};
+// Series colors are `--speed-<metric>` tokens in SpeedPanel.module.css.
+function seriesColor(metric: string): string {
+  return `var(--speed-${metric}, var(--viz-neutral))`;
+}
 
 export function SpeedPanel() {
   const history = useInspectionStore((state) => state.speed);
@@ -117,7 +101,7 @@ export function SpeedPanel() {
           <div key={metric}>
             <span
               style={
-                { "--series-color": COLORS[metric] } as React.CSSProperties
+                { "--series-color": seriesColor(metric) } as React.CSSProperties
               }
             >
               {METRIC_LABELS[metric]}
@@ -164,7 +148,7 @@ export function SpeedPanel() {
                 title={entry.reason ?? undefined}
                 onClick={() => toggleMetric(entry.metric)}
               >
-                <i style={{ background: COLORS[entry.metric] ?? "#64748b" }} />
+                <i style={{ background: seriesColor(entry.metric) }} />
                 {METRIC_LABELS[entry.metric]}
               </button>
             );
@@ -389,7 +373,10 @@ function drawChart(
   context.clip();
   history.series.forEach((series, seriesIndex) => {
     const values = rates[seriesIndex] ?? [];
-    const color = COLORS[series.metric] ?? "#94a3b8";
+    const color =
+      css.getPropertyValue(`--speed-${series.metric}`).trim() ||
+      css.getPropertyValue("--viz-neutral").trim() ||
+      "#9a9187";
     context.strokeStyle = color;
     context.lineWidth = series.metric === "payload_received" ? 2.4 : 1.8;
     context.setLineDash(series.metric === "staged_write" ? [7, 5] : []);
@@ -492,7 +479,7 @@ function ExactSample({
       </strong>
       {history.series.map((series) => (
         <span key={series.metric}>
-          <i style={{ background: COLORS[series.metric] ?? "#94a3b8" }} />
+          <i style={{ background: seriesColor(series.metric) }} />
           {METRIC_LABELS[series.metric]}
           <b>{sampleLabel(series.values[index], bucketMillis, dataUnits)}</b>
         </span>
@@ -537,7 +524,7 @@ function WindowSummaries({
         return (
           <div className={styles.summaryRow} key={series.metric}>
             <strong>
-              <i style={{ background: COLORS[series.metric] ?? "#94a3b8" }} />
+              <i style={{ background: seriesColor(series.metric) }} />
               {METRIC_LABELS[series.metric]}
               {covered.length === series.values.length ? null : (
                 <small>

@@ -565,7 +565,7 @@ function SettingGroup({
         {description === undefined ? null : <span>{description}</span>}
         <NoteLine note={note} />
       </div>
-      {children}
+      <div className={styles.rows}>{children}</div>
     </section>
   );
 }

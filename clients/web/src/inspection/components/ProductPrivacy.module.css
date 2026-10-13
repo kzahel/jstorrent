@@ -5,18 +5,19 @@
   inset: 0;
   place-items: center;
   padding: var(--ui-space-md);
-  background: rgb(9 20 33 / 65%);
+  background: var(--overlay-scrim);
 }
 
 .dialog {
   width: min(36rem, 100%);
   max-height: calc(100vh - 2rem);
   overflow: auto;
-  border: 1px solid var(--border-strong);
-  border-radius: 0.75rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
   padding: var(--ui-space-lg);
-  background: var(--surface-primary);
-  box-shadow: 0 1rem 3rem rgb(8 20 34 / 35%);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-dialog);
 }
 
 .dialog h2,
@@ -37,7 +38,7 @@
   align-items: flex-start;
   gap: var(--ui-space-sm);
   margin: var(--ui-space-md) 0;
-  font-weight: 650;
+  font-weight: var(--weight-medium);
 }
 
 .checkbox input {
@@ -56,14 +57,19 @@
 .settings > fieldset > button {
   min-height: var(--ui-control-height);
   border: 1px solid var(--border-strong);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   padding: 0 var(--ui-space-md);
   color: var(--text-primary);
-  background: var(--surface-secondary);
+  background: var(--surface-primary);
   font: inherit;
   font-size: var(--ui-font-small);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   cursor: pointer;
+}
+
+.actions button:hover:not(:disabled),
+.settings > fieldset > button:hover:not(:disabled) {
+  background: var(--surface-hover);
 }
 
 .actions button:disabled {
@@ -73,13 +79,24 @@
 
 .actions .primary {
   border-color: var(--accent-action);
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent-action);
 }
 
+.actions .primary:hover:not(:disabled) {
+  border-color: var(--accent-action-hover);
+  background: var(--accent-action-hover);
+}
+
 .actions .danger {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border-strong));
+  color: var(--danger-strong);
+  background: var(--danger-soft);
+}
+
+.actions .danger:hover:not(:disabled) {
   border-color: var(--danger);
-  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 18%, var(--danger-soft));
 }
 
 .settings {
@@ -98,7 +115,7 @@
   width: 100%;
   margin-bottom: var(--ui-space-sm);
   font-size: var(--ui-font-heading);
-  font-weight: 760;
+  font-weight: var(--weight-strong);
 }
 
 .summary,
@@ -121,13 +138,13 @@
   min-width: 0;
   margin: 0;
   overflow-wrap: anywhere;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
 }
 
 .confirm {
   margin-top: var(--ui-space-md);
-  border: 1px solid var(--border-strong);
-  border-radius: 0.5rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
   padding: var(--ui-space-md);
   background: var(--surface-secondary);
 }
@@ -137,6 +154,6 @@
 }
 
 .error {
-  color: var(--danger);
+  color: var(--danger-strong);
   overflow-wrap: anywhere;
 }

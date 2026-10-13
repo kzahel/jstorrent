@@ -25,15 +25,14 @@
 .tableHeading h2 {
   margin: 0;
   font-size: var(--ui-font-heading);
+  font-weight: var(--weight-strong);
 }
 
 .eyebrow {
   margin: 0 0 0.15rem;
-  color: var(--accent-strong);
+  color: var(--text-muted);
   font-size: var(--ui-font-caption);
-  font-weight: 760;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: var(--weight-medium);
 }
 
 .pressure,
@@ -43,7 +42,7 @@
   gap: 0.4rem;
   color: var(--text-secondary);
   font-size: var(--ui-font-small);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
 }
 
 .pressure > span,
@@ -68,8 +67,8 @@
 }
 
 .stage[data-stage="hashing"] > span {
-  border-radius: 1px;
-  background: var(--accent);
+  border-radius: 0;
+  background: var(--viz-hash);
 }
 
 .pipeline {
@@ -83,7 +82,7 @@
   gap: 0.25rem;
   min-width: 0;
   border: 1px solid var(--border-soft);
-  border-radius: 0.55rem;
+  border-radius: var(--radius-md);
   padding: 0.55rem 0.65rem;
   background: var(--surface-secondary);
 }
@@ -106,7 +105,7 @@
   display: block;
   overflow: hidden;
   height: 0.28rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--progress-track);
 }
 
@@ -115,7 +114,7 @@
   width: var(--disk-fill);
   height: 100%;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--water);
 }
 
 .metrics {
@@ -123,7 +122,7 @@
   grid-template-columns: repeat(4, minmax(9rem, 1fr));
   margin: 0;
   border: 1px solid var(--border-soft);
-  border-radius: 0.6rem;
+  border-radius: var(--radius-md);
 }
 
 .metrics > div {
@@ -145,7 +144,7 @@
 .metrics dd {
   margin: 0;
   font-size: var(--ui-font-small);
-  font-weight: 680;
+  font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
 }
 
@@ -158,7 +157,7 @@
   display: flex;
   gap: 0.7rem;
   border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border-soft));
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   padding: 0.55rem 0.7rem;
   color: var(--danger-strong);
   background: var(--danger-soft);

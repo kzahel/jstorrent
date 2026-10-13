@@ -1,10 +1,10 @@
 .callout {
   margin: var(--ui-space-md) 0 0;
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border-soft));
-  border-radius: 0.55rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
   padding: var(--ui-space-sm) var(--ui-space-md);
   color: var(--text-secondary);
-  background: color-mix(in srgb, var(--selection) 52%, var(--surface-secondary));
+  background: var(--surface-secondary);
   font-size: var(--ui-font-small);
   line-height: 1.45;
 }
@@ -24,12 +24,12 @@
 .callout summary {
   width: fit-content;
   color: var(--accent-strong);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 
 .callout summary:focus-visible {
-  border-radius: 0.2rem;
+  border-radius: var(--radius-sm);
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -50,11 +50,11 @@
 .instructions code,
 .instructions kbd {
   border: 1px solid var(--border-soft);
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
   padding: 0.05rem 0.24rem;
   color: var(--text-primary);
   background: var(--surface-primary);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.92em;
 }
 

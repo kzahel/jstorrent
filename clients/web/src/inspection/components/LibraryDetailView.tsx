@@ -10,7 +10,7 @@ import {
 } from "react";
 
 import { useInspectionCommand, useInspectionStore } from "../context";
-import { formatDecimalProgress, formatExactBytes } from "../format";
+import { formatDecimalProgress, formatExactBytes, torrentVisibleProgress } from "../format";
 import { episodeLabel, sortFileRows, sortMediaRows } from "../library-media";
 import type { FileRow, MediaRow, TorrentRow, ViewMaterialization } from "../model";
 import { Icon } from "./Icon";
@@ -26,6 +26,7 @@ export function LibraryDetailView({
   readonly onBack: () => void;
 }) {
   const playback = useRemotePlayback();
+  const visibleProgress = torrentVisibleProgress(torrent);
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
   const layout = useInspectionStore((state) => state.presentation.layout);
   const mode = useInspectionStore(
@@ -142,7 +143,6 @@ export function LibraryDetailView({
           <span>{localizedMessage("inspection.components.library.detail.view.library")}</span>
         </button>
         <div>
-          <p>{localizedMessage("inspection.components.library.detail.view.content.details")}</p>
           <h1 id="library-detail-heading">{torrent.name}</h1>
         </div>
         <button
@@ -157,7 +157,12 @@ export function LibraryDetailView({
       </header>
       <div className={styles.body}>
         <aside className={styles.summary} aria-label={localizedMessage("inspection.components.library.detail.view.torrent.content.summary")}>
-          <div className={styles.placeholder} aria-hidden="true">
+          <div
+            className={styles.placeholder}
+            data-full={visibleProgress !== null && visibleProgress >= 1 ? true : undefined}
+            style={waterLevel(visibleProgress)}
+            aria-hidden="true"
+          >
             <span>{initials(torrent.name)}</span>
           </div>
           <div className={styles.summaryText}>
@@ -562,4 +567,9 @@ function initials(name: string): string {
     .map((part) => part.slice(0, 1).toUpperCase())
     .join("");
   return value || "RS";
+}
+
+/** The tile is the icon's box: water rises with verified download progress. */
+export function waterLevel(progress: number | null): CSSProperties {
+  return { "--water-level": `${Math.round(Math.min(1, Math.max(0, progress ?? 0)) * 100)}%` } as CSSProperties;
 }

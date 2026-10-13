@@ -1019,7 +1019,7 @@ test("color themes follow or override system appearance and persist", async ({
     .poll(() => themeMetrics(page))
     .toEqual({
       colorScheme: "dark",
-      background: "rgb(21, 27, 34)",
+      background: "rgb(24, 22, 20)",
     });
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -1059,7 +1059,7 @@ test("color themes follow or override system appearance and persist", async ({
     .poll(() => themeMetrics(page))
     .toEqual({
       colorScheme: "dark",
-      background: "rgb(21, 27, 34)",
+      background: "rgb(24, 22, 20)",
     });
   const darkViolations = (
     await new AxeBuilder({ page }).analyze()
@@ -1085,7 +1085,7 @@ test("color themes follow or override system appearance and persist", async ({
     .poll(() => themeMetrics(page))
     .toEqual({
       colorScheme: "dark",
-      background: "rgb(21, 27, 34)",
+      background: "rgb(24, 22, 20)",
     });
 
   await dialog.getByRole("radio", { name: /Dark/ }).check();
@@ -1133,7 +1133,7 @@ test("color themes follow or override system appearance and persist", async ({
     .poll(() => themeMetrics(page))
     .toEqual({
       colorScheme: "dark",
-      background: "rgb(21, 27, 34)",
+      background: "rgb(24, 22, 20)",
     });
   expect(
     await page.evaluate(() =>

@@ -25,14 +25,15 @@
 
 .heading h1 {
   font-size: var(--ui-font-heading);
+  font-weight: var(--weight-strong);
   line-height: 1.2;
 }
 
 .heading p {
   margin-bottom: 0.1rem;
-  color: var(--accent-strong);
+  color: var(--text-muted);
   font-size: var(--ui-font-caption);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
 }
 
 .heading > span {

@@ -83,87 +83,79 @@ export function AppearanceSettingsSection({
   return (
     <fieldset className={styles.section}>
       <legend>{localizedMessage("inspection.components.appearance.settings.section.appearance")}</legend>
-      <div
-        className={styles.settingGroup}
-        role="group"
-        aria-labelledby="color-theme-heading"
-      >
-        <div className={styles.settingHeading}>
-          <strong id="color-theme-heading">{localizedMessage("inspection.components.appearance.settings.section.color.theme")}</strong>
-          <span>{localizedMessage("inspection.components.appearance.settings.section.choose.a.palette.or.follow.your.system")}</span>
-        </div>
-        <div className={styles.options}>
-          {COLOR_THEME_OPTIONS.map((option) => (
-            <label key={option.value} className={styles.option}>
-              <input
-                type="radio"
-                name="color-theme"
-                value={option.value}
-                checked={colorTheme === option.value}
-                onChange={() => onColorThemeChange(option.value)}
-              />
-              <span>
-                <strong>{option.label}</strong>
-                <small>{option.description}</small>
-              </span>
-            </label>
-          ))}
-        </div>
-      </div>
-      <div
-        className={styles.settingGroup}
-        role="group"
-        aria-labelledby="interface-size-heading"
-      >
-        <div className={styles.settingHeading}>
-          <strong id="interface-size-heading">{localizedMessage("inspection.components.appearance.settings.section.interface.size")}</strong>
-          <span>{localizedMessage("inspection.components.appearance.settings.section.changes.apply.immediately")}</span>
-        </div>
-        <div className={styles.options}>
-          {INTERFACE_SIZE_OPTIONS.map((option) => (
-            <label key={option.value} className={styles.option}>
-              <input
-                type="radio"
-                name="interface-size"
-                value={option.value}
-                checked={interfaceSize === option.value}
-                onChange={() => onInterfaceSizeChange(option.value)}
-              />
-              <span>
-                <strong>{option.label}</strong>
-                <small>{option.description}</small>
-              </span>
-            </label>
-          ))}
-        </div>
-      </div>
-      <div
-        className={styles.settingGroup}
-        role="group"
-        aria-labelledby="data-units-heading"
-      >
-        <div className={styles.settingHeading}>
-          <strong id="data-units-heading">{localizedMessage("inspection.components.appearance.settings.section.size.units")}</strong>
-          <span>{localizedMessage("inspection.components.appearance.settings.section.changes.apply.immediately")}</span>
-        </div>
-        <div className={styles.options}>
-          {DATA_UNITS_OPTIONS.map((option) => (
-            <label key={option.value} className={styles.option}>
-              <input
-                type="radio"
-                name="data-units"
-                value={option.value}
-                checked={dataUnits === option.value}
-                onChange={() => onDataUnitsChange(option.value)}
-              />
-              <span>
-                <strong>{option.label}</strong>
-                <small>{option.description}</small>
-              </span>
-            </label>
-          ))}
-        </div>
+      <div className={styles.rows}>
+        <SegmentedSetting
+          name="color-theme"
+          title={localizedMessage("inspection.components.appearance.settings.section.color.theme")}
+          options={COLOR_THEME_OPTIONS}
+          value={colorTheme}
+          onChange={onColorThemeChange}
+        />
+        <SegmentedSetting
+          name="interface-size"
+          title={localizedMessage("inspection.components.appearance.settings.section.interface.size")}
+          options={INTERFACE_SIZE_OPTIONS}
+          value={interfaceSize}
+          onChange={onInterfaceSizeChange}
+        />
+        <SegmentedSetting
+          name="data-units"
+          title={localizedMessage("inspection.components.appearance.settings.section.size.units")}
+          options={DATA_UNITS_OPTIONS}
+          value={dataUnits}
+          onChange={onDataUnitsChange}
+        />
       </div>
     </fieldset>
+  );
+}
+
+/** One row: title and the chosen option's description, then native radios drawn as segments. */
+function SegmentedSetting<Value extends string>({
+  name,
+  title,
+  options,
+  value,
+  onChange,
+}: {
+  readonly name: string;
+  readonly title: string;
+  readonly options: readonly {
+    readonly value: Value;
+    readonly label: string;
+    readonly description: string;
+  }[];
+  readonly value: Value;
+  readonly onChange: (value: Value) => void;
+}) {
+  const headingId = `${name}-heading`;
+  const descriptionId = `${name}-description`;
+  const selected = options.find((option) => option.value === value);
+  return (
+    <div
+      className={styles.choiceRow}
+      role="group"
+      aria-labelledby={headingId}
+      aria-describedby={descriptionId}
+    >
+      <div className={styles.settingHeading}>
+        <strong id={headingId}>{title}</strong>
+        <span id={descriptionId}>{selected?.description}</span>
+      </div>
+      <div className={styles.segmented}>
+        {options.map((option) => (
+          <label key={option.value} className={styles.segment} title={option.description}>
+            <input
+              type="radio"
+              name={name}
+              value={option.value}
+              checked={value === option.value}
+              onChange={() => onChange(option.value)}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
   );
 }

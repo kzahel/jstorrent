@@ -13,7 +13,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--ui-space-lg);
-  border-bottom: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-soft);
   padding: var(--ui-space-md) var(--ui-space-lg);
   background: var(--surface-primary);
 }
@@ -32,20 +32,12 @@
   line-height: 1.2;
 }
 
-.heading p:not(.eyebrow) {
+.heading p {
   margin-top: 0.2rem;
   color: var(--text-muted);
   font-size: var(--ui-font-small);
 }
 
-.eyebrow {
-  margin-bottom: 0.15rem !important;
-  color: var(--accent-strong);
-  font-size: var(--ui-font-caption);
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
 
 .heading button {
   display: inline-flex;
@@ -54,13 +46,13 @@
   align-items: center;
   gap: var(--ui-space-xs);
   border: 1px solid var(--border-strong);
-  border-radius: 0.45rem;
+  border-radius: var(--radius-md);
   padding: 0 var(--ui-space-md);
   color: var(--text-primary);
-  background: var(--surface-secondary);
+  background: var(--surface-primary);
   font: inherit;
   font-size: var(--ui-font-small);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 
@@ -116,51 +108,82 @@
   min-width: 0;
   overflow: hidden;
   grid-template-rows: minmax(0, 1fr) auto auto;
-  border: 1px solid var(--border-strong);
-  border-radius: 0.72rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
   padding: 0;
   color: var(--text-primary);
   background: var(--surface-primary);
-  box-shadow: 0 0.18rem 0.6rem rgb(15 34 54 / 7%);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
 .card > button:hover {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
-  box-shadow: 0 0.38rem 1rem rgb(15 34 54 / 13%);
+  border-color: var(--border-strong);
 }
 
 .card[data-current="true"] > button {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 26%, transparent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .card > button:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: -3px;
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
+/*
+ * The icon's box. Empty space is clay; water rises to --water-level with a
+ * crisp waterline, and a complete torrent is a full box of water.
+ */
 .art {
+  position: relative;
   display: grid;
   min-height: 0;
-  place-items: center;
-  color: rgb(255 255 255 / 88%);
-  background:
-    radial-gradient(circle at 72% 24%, rgb(255 255 255 / 24%), transparent 32%),
-    linear-gradient(145deg, #234c78, #142840);
-  font-size: clamp(1.4rem, 3vw, 2.4rem);
-  font-weight: 820;
-  letter-spacing: -0.05em;
-  text-shadow: 0 1px 8px rgb(0 0 0 / 30%);
+  overflow: hidden;
+  place-items: start;
+  border-bottom: 1px solid var(--border-soft);
+  padding: var(--ui-space-sm) var(--ui-space-md);
+  color: var(--clay-strong);
+  background: var(--clay-soft);
+  font-size: var(--ui-font-small);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.04em;
 }
 
-.art[data-tone="1"] { background-color: #554075; background-image: linear-gradient(145deg, #72579b, #2b2340); }
-.art[data-tone="2"] { background-color: #795037; background-image: linear-gradient(145deg, #a76d43, #3d271d); }
-.art[data-tone="3"] { background-color: #2f6858; background-image: linear-gradient(145deg, #438d78, #18382f); }
-.art[data-tone="4"] { background-color: #7c3d4a; background-image: linear-gradient(145deg, #a84e61, #3f2027); }
-.art[data-tone="5"] { background-color: #355d75; background-image: linear-gradient(145deg, #4c839e, #1b3140); }
+.art::before {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--water-level, 0%);
+  border-top: 2px solid var(--water);
+  background: var(--water-soft);
+  content: "";
+  transition: height 400ms ease;
+}
+
+.art[data-full="true"]::before {
+  border-top-color: transparent;
+}
+
+.art[data-indeterminate="true"]::before {
+  height: 100%;
+  border-top-color: transparent;
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--water) 22%, transparent) 0 0.4rem,
+    transparent 0.4rem 0.8rem
+  );
+}
+
+.art > span {
+  position: relative;
+}
+
+.art[data-full="true"] {
+  color: var(--accent-strong);
+}
 
 .cardBody {
   display: grid;
@@ -185,25 +208,14 @@
   font-size: var(--ui-font-caption);
 }
 
+/* The art shows the level; this stays for assistive technology. */
 .progress {
-  display: block;
-  height: 4px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
   overflow: hidden;
-  background: var(--progress-track);
-}
-
-.progress > span {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-}
-
-.progress[data-indeterminate="true"] {
-  background: repeating-linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--accent) 55%, var(--progress-track)) 0 0.4rem,
-    var(--progress-track) 0.4rem 0.8rem
-  );
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .empty {
@@ -218,7 +230,7 @@
 }
 
 .empty > span {
-  font-size: 2.4rem;
+  font-size: calc(var(--ui-font-display) * 1.6);
 }
 
 .empty strong {
@@ -239,7 +251,7 @@
     padding: var(--ui-space-sm) var(--ui-space-md);
   }
 
-  .heading p:not(.eyebrow) span:last-child {
+  .heading p span:last-child {
     display: none;
   }
 
@@ -268,7 +280,8 @@
 
   .viewport[data-layout="phone"] .art {
     grid-row: 1 / 3;
-    font-size: 1.35rem;
+    border-right: 1px solid var(--border-soft);
+    border-bottom: 0;
   }
 
   .viewport[data-layout="phone"] .cardBody {
@@ -276,7 +289,11 @@
     padding: var(--ui-space-sm);
   }
 
-  .viewport[data-layout="phone"] .progress {
-    grid-column: 2;
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .art::before {
+    transition: none;
   }
 }

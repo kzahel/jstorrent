@@ -5,10 +5,10 @@
 }
 
 .card {
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border-soft));
-  border-radius: 0.72rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
   padding: var(--ui-space-lg);
-  background: color-mix(in srgb, var(--accent) 3%, var(--surface-secondary));
+  background: var(--surface-secondary);
 }
 
 .header {
@@ -25,6 +25,7 @@
 
 .header h3 {
   font-size: var(--ui-font-heading);
+  font-weight: var(--weight-strong);
 }
 
 .header h3 + p {
@@ -37,11 +38,9 @@
 
 .eyebrow {
   margin-bottom: var(--ui-space-xs) !important;
-  color: var(--accent-strong);
+  color: var(--text-muted);
   font-size: var(--ui-font-caption);
-  font-weight: 750;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: var(--weight-medium);
 }
 
 .progressText {
@@ -53,12 +52,12 @@
 
 .phase {
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   padding: 0.2rem 0.55rem;
   color: var(--accent-strong);
   background: var(--selection);
   font-size: var(--ui-font-caption);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
 }
 
 .progressRow {
@@ -74,8 +73,8 @@
   width: 100%;
   height: 0.48rem;
   border: 0;
-  border-radius: 999px;
-  color: var(--accent);
+  border-radius: var(--radius-full);
+  color: var(--water);
   background: var(--progress-track);
   appearance: none;
 }
@@ -87,18 +86,18 @@
 
 .progressRow progress::-webkit-progress-value {
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--water);
 }
 
 .progressRow progress::-moz-progress-bar {
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--water);
 }
 
 .progressRow progress:indeterminate {
   background: repeating-linear-gradient(
     135deg,
-    color-mix(in srgb, var(--accent) 55%, var(--progress-track)) 0 0.5rem,
+    color-mix(in srgb, var(--water) 55%, var(--progress-track)) 0 0.5rem,
     var(--progress-track) 0.5rem 1rem
   );
 }
@@ -111,6 +110,10 @@
 
 .mapSection {
   margin-top: var(--ui-space-md);
+  /* Metadata palette shared by the canvas (read in PreparationProgress.tsx) and legend. */
+  --metadata-missing: var(--surface-tertiary);
+  --metadata-requested: var(--viz-requested);
+  --metadata-received: var(--water);
 }
 
 .canvasWrap {
@@ -121,9 +124,6 @@
 .canvas {
   display: block;
   max-width: 100%;
-  --metadata-missing: var(--surface-tertiary);
-  --metadata-requested: var(--warning);
-  --metadata-received: var(--accent);
 }
 
 .legend {
@@ -145,19 +145,19 @@
   inline-size: 0.62rem;
   block-size: 0.62rem;
   border: 1px solid color-mix(in srgb, currentcolor 24%, transparent);
-  border-radius: 1px;
+  border-radius: 0;
 }
 
 .swatch[data-state="missing"] {
-  background: var(--surface-tertiary);
+  background: var(--metadata-missing);
 }
 
 .swatch[data-state="requested"] {
-  background: var(--warning);
+  background: var(--metadata-requested);
 }
 
 .swatch[data-state="received"] {
-  background: var(--accent);
+  background: var(--metadata-received);
 }
 
 .metrics {
@@ -181,7 +181,7 @@
   margin: 0;
   color: var(--text-primary);
   font-size: var(--ui-font-small);
-  font-weight: 680;
+  font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
 }
 

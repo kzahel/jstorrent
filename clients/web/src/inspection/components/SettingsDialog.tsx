@@ -216,7 +216,6 @@ export function SettingsDialog({
       >
         <header className={styles.header}>
           <div>
-            <p>{localizedMessage("inspection.components.settings.dialog.application")}</p>
             <h2 id="settings-title">{localizedMessage("inspection.components.settings.dialog.settings")}</h2>
           </div>
           <button

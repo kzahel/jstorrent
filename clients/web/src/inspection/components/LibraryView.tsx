@@ -23,7 +23,7 @@ import type {
   ViewMaterialization,
 } from "../model";
 import { torrentMatchesLibraryCategory } from "../state";
-import { LibraryDetailView } from "./LibraryDetailView";
+import { LibraryDetailView, waterLevel } from "./LibraryDetailView";
 import styles from "./LibraryView.module.css";
 
 const GRID_METRICS: Readonly<
@@ -198,7 +198,6 @@ export function LibraryView() {
     <section className={styles.library} aria-labelledby="library-heading">
       <div className={styles.heading}>
         <div>
-          <p className={styles.eyebrow}>{localizedMessage("inspection.components.library.view.library")}</p>
           <h1 id="library-heading">{categoryLabel(category)}</h1>
           <p>
             {rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.library.view.torrent.backed.content")}{" "}
@@ -354,7 +353,9 @@ function VirtualLibraryGrid({
                       >
                         <span
                           className={styles.art}
-                          data-tone={toneFor(row.infoHash)}
+                          data-indeterminate={checkingIndeterminate || undefined}
+                          data-full={visibleProgress !== null && visibleProgress >= 1 ? true : undefined}
+                          style={waterLevel(visibleProgress)}
                           aria-hidden="true"
                         >
                           <span>{initials(row.name)}</span>
@@ -525,8 +526,3 @@ function initials(name: string): string {
   return value === "" ? "RS" : value;
 }
 
-function toneFor(infoHash: string): string {
-  let sum = 0;
-  for (const character of infoHash.slice(0, 12)) sum += character.charCodeAt(0);
-  return String(sum % 6);
-}

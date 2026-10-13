@@ -462,14 +462,6 @@
     "defaultMessage": "Balanced text, controls, and table spacing.",
     "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
   },
-  "inspection.components.appearance.settings.section.changes.apply.immediately": {
-    "defaultMessage": "Changes apply immediately.",
-    "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
-  },
-  "inspection.components.appearance.settings.section.choose.a.palette.or.follow.your.system": {
-    "defaultMessage": "Choose a palette or follow your system.",
-    "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
-  },
   "inspection.components.appearance.settings.section.color.theme": {
     "defaultMessage": "Color theme",
     "description": "Product copy in inspection/components/AppearanceSettingsSection.tsx"
@@ -2058,10 +2050,6 @@
     "defaultMessage": "Checking downloaded data",
     "description": "Product copy in inspection/components/LibraryDetailView.tsx"
   },
-  "inspection.components.library.detail.view.content.details": {
-    "defaultMessage": "Content details",
-    "description": "Product copy in inspection/components/LibraryDetailView.tsx"
-  },
   "inspection.components.library.detail.view.content.details.are.not.requested": {
     "defaultMessage": "Content details are not requested",
     "description": "Product copy in inspection/components/LibraryDetailView.tsx"
@@ -2220,10 +2208,6 @@
   },
   "inspection.components.library.view.finding.content.details": {
     "defaultMessage": "Finding content details",
-    "description": "Product copy in inspection/components/LibraryView.tsx"
-  },
-  "inspection.components.library.view.library": {
-    "defaultMessage": "Library",
     "description": "Product copy in inspection/components/LibraryView.tsx"
   },
   "inspection.components.library.view.library.collection.is.not.requested.in.this": {
@@ -3272,10 +3256,6 @@
   },
   "inspection.components.settings.dialog.appearance": {
     "defaultMessage": "Appearance",
-    "description": "Product copy in inspection/components/SettingsDialog.tsx"
-  },
-  "inspection.components.settings.dialog.application": {
-    "defaultMessage": "Application",
     "description": "Product copy in inspection/components/SettingsDialog.tsx"
   },
   "inspection.components.settings.dialog.close.settings": {

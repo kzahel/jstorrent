@@ -5,7 +5,7 @@
   inset: 0;
   place-items: center;
   padding: 1rem;
-  background: rgb(9 20 33 / 52%);
+  background: var(--overlay-scrim);
 }
 
 .dialog {
@@ -14,12 +14,12 @@
   width: min(32rem, 100%);
   max-height: min(42rem, calc(100vh - 2rem));
   overflow: auto;
-  border: 1px solid var(--border-strong);
-  border-radius: 0.65rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
   padding: var(--ui-space-lg);
   color: var(--text-primary);
-  background: var(--surface-primary);
-  box-shadow: 0 1.2rem 3rem rgb(8 20 34 / 35%);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-dialog);
 }
 
 .dialog h2,
@@ -30,10 +30,12 @@
 
 .dialog h2 {
   font-size: var(--ui-font-heading);
+  font-weight: var(--weight-strong);
 }
 
 .dialog h3 {
   font-size: var(--ui-font-body);
+  font-weight: var(--weight-strong);
 }
 
 .dialog p {
@@ -44,7 +46,7 @@
 
 .dialog .torrentName {
   color: var(--text-primary);
-  font-weight: 650;
+  font-weight: var(--weight-strong);
 }
 
 .rateLimitFields {
@@ -68,19 +70,28 @@
 .rateLimitActions button {
   min-height: var(--ui-control-height);
   border: 1px solid var(--border-strong);
-  border-radius: 0.4rem;
+  border-radius: var(--radius-md);
   padding: 0 0.75rem;
   color: var(--text-primary);
-  background: var(--surface-secondary);
+  background: var(--surface-primary);
   font: inherit;
   font-size: var(--ui-font-small);
-  font-weight: 650;
+  font-weight: var(--weight-medium);
+}
+
+.rateLimitActions button:hover:not(:disabled) {
+  background: var(--surface-hover);
 }
 
 .rateLimitActions button[type="submit"] {
-  border-color: var(--accent);
-  color: #fff;
-  background: var(--accent);
+  border-color: var(--accent-action);
+  color: var(--on-accent);
+  background: var(--accent-action);
+}
+
+.rateLimitActions button[type="submit"]:hover:not(:disabled) {
+  border-color: var(--accent-action-hover);
+  background: var(--accent-action-hover);
 }
 
 .rateLimitActions button:disabled {

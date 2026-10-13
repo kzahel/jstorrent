@@ -1,4 +1,5 @@
-/* Local packaged connection UI shares the product's appearance variables. */
+/* Local packaged connection UI shares the product's appearance variables;
+   companion-main imports global.css through companion-bootstrap. */
 body:has(#companion-bootstrap) {
   margin: 0;
   color: var(--text-primary);
@@ -9,13 +10,14 @@ body:has(#companion-bootstrap) {
   width: min(28rem, calc(100% - 2rem));
   margin: clamp(2rem, 12vh, 7rem) auto;
   padding: 2rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 0.75rem;
-  background: var(--surface-primary);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-dialog);
 }
 
 #companion-bootstrap .companion-logo { object-fit: contain; }
-#companion-bootstrap h1 { margin: 1rem 0 0.75rem; font-size: 1.5rem; }
+#companion-bootstrap h1 { margin: 1rem 0 0.75rem; font-size: var(--ui-font-display); font-weight: var(--weight-strong); }
 #companion-status { color: var(--text-secondary); line-height: 1.6; overflow-wrap: anywhere; }
 #companion-bootstrap button,
 #companion-update-android,
@@ -25,17 +27,25 @@ body:has(#companion-bootstrap) {
   margin-top: 1rem;
   padding: 0.65rem 1rem;
   border: 1px solid var(--border-strong);
-  border-radius: 0.35rem;
-  background: var(--surface-secondary);
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
   color: var(--text-primary);
   font: inherit;
+  font-weight: var(--weight-medium);
   text-align: center;
 }
+#companion-bootstrap button:hover:not(:disabled) { background: var(--surface-hover); }
 #companion-bootstrap #companion-update-android,
 #companion-bootstrap .companion-action-link {
+  border-color: var(--accent-action);
   background: var(--accent-action);
-  color: #fff;
+  color: var(--on-accent);
   text-decoration: none;
+}
+#companion-bootstrap #companion-update-android:hover,
+#companion-bootstrap .companion-action-link:hover {
+  border-color: var(--accent-action-hover);
+  background: var(--accent-action-hover);
 }
 #companion-bootstrap button:not(:disabled) { cursor: pointer; }
 #companion-bootstrap a, #companion-identity a { color: var(--accent-strong); }
@@ -56,11 +66,13 @@ body:has(#companion-bootstrap) {
 #companion-identity button {
   padding: 0.3rem 0.65rem;
   border: 1px solid var(--border-strong);
-  border-radius: 0.3rem;
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   background: var(--surface-primary);
   font: inherit;
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
+#companion-identity button:hover { background: var(--surface-hover); }
 #companion-bootstrap [hidden], #companion-identity[hidden] { display: none; }
 body:has(#companion-identity:not([hidden])) #app > div { height: calc(100dvh - 40px); }

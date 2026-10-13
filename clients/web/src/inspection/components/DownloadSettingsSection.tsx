@@ -180,48 +180,50 @@ export function DownloadSettingsSection({
           >
             {pendingAction === "add" ? localizedMessage("inspection.components.download.settings.section.choosing") : localizedMessage("inspection.components.download.settings.section.add.folder")}
           </button>
-          {oneCurrentRoot ? null : (
+          <div className={styles.rows}>
+            {oneCurrentRoot ? null : (
+              <label className={styles.preference}>
+                <input
+                  type="checkbox"
+                  checked={storage.showAddOptions}
+                  disabled={pendingAction !== null}
+                  onChange={(event) => {
+                    const show = event.currentTarget.checked;
+                    void runStorageAction("preference", async () => {
+                      await onShowAddOptionsChange(show);
+                      return show
+                        ? "Add options will be shown"
+                        : "The usable default will be used automatically";
+                    });
+                  }}
+                />
+                <span>
+                  <strong>{localizedMessage("inspection.components.download.settings.section.show.options.when.adding.torrents")}</strong>
+                  <small>{localizedMessage("inspection.components.download.settings.section.options.always.shown.without.default")}</small>
+                </span>
+              </label>
+            )}
             <label className={styles.preference}>
               <input
                 type="checkbox"
-                checked={storage.showAddOptions}
+                checked={storage.showFileSelection ?? true}
                 disabled={pendingAction !== null}
                 onChange={(event) => {
                   const show = event.currentTarget.checked;
-                  void runStorageAction("preference", async () => {
-                    await onShowAddOptionsChange(show);
+                  void runStorageAction("file-selection-preference", async () => {
+                    await onShowFileSelectionChange(show);
                     return show
-                      ? "Add options will be shown"
-                      : "The usable default will be used automatically";
+                      ? "File selection will be shown for new torrents"
+                      : "New torrents will start with all files";
                   });
                 }}
               />
               <span>
-                <strong>{localizedMessage("inspection.components.download.settings.section.show.options.when.adding.torrents")}</strong>
-                <small>{localizedMessage("inspection.components.download.settings.section.options.always.shown.without.default")}</small>
+                <strong>{localizedMessage("inspection.components.download.settings.section.show.file.selection.when.adding.torrents")}</strong>
+                <small>{localizedMessage("inspection.components.download.settings.section.choose.files.before.starting")}</small>
               </span>
             </label>
-          )}
-          <label className={styles.preference}>
-            <input
-              type="checkbox"
-              checked={storage.showFileSelection ?? true}
-              disabled={pendingAction !== null}
-              onChange={(event) => {
-                const show = event.currentTarget.checked;
-                void runStorageAction("file-selection-preference", async () => {
-                  await onShowFileSelectionChange(show);
-                  return show
-                    ? "File selection will be shown for new torrents"
-                    : "New torrents will start with all files";
-                });
-              }}
-            />
-            <span>
-              <strong>{localizedMessage("inspection.components.download.settings.section.show.file.selection.when.adding.torrents")}</strong>
-              <small>{localizedMessage("inspection.components.download.settings.section.choose.files.before.starting")}</small>
-            </span>
-          </label>
+          </div>
           {storageStatus === "" ? null : (
             <output className={styles.storageStatus} aria-live="polite">
               {storageStatus}
