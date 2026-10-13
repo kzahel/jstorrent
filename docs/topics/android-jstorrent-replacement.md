@@ -5,9 +5,10 @@ Android 1.0.30/code 30, now available on Google Play at 100% in all 178
 targeted countries. Exact
 tagged APK/AAB, dual-ABI/JVM/lint and owned API 35 SAF lifecycle checks pass.
 Play confirms publication at October 13 01:24 local time; version 29 is
-deactivated and no bundles are retained. No cancellation is needed. Extension 1.1.4 is packaged
-but Google owner verification blocks confirming upload/submission. Installed
-production acceptance and stability remain separate.
+deactivated and no bundles are retained. No cancellation is needed. Extension
+1.1.4 is pending review with automatic publication after approval, preserving
+public visibility, all regions and existing permissions. Installed production
+acceptance and stability remain separate.
 
 
 Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) adds

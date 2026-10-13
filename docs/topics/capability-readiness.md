@@ -6,7 +6,8 @@ qualification. All 17 public assets, the live website and 11 production updater
 selectors verify; frozen incubation offers remain unchanged. Original-key Android
 1.0.30/code 30 is available on Google Play at 100% in all 178 targeted countries.
 Exact tagged artifacts and source Android/SAF checks pass. Extension 1.1.4 is
-packaged but Google owner verification blocks confirming upload/submission.
+pending review with automatic publication after approval, preserving public
+visibility, all regions and existing permissions.
 Extension approval, installed acceptance and stability remain separate.
 
 

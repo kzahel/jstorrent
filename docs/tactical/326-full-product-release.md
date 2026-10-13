@@ -1,7 +1,8 @@
 # Tactical 326: Full Product Release
 
-Status: Desktop 0.3.1 published; Android 1.0.30 published at 100%;
-extension 1.1.4 needs Google verification, 2026-10-13.
+Status: Complete delivery, 2026-10-13. Desktop 0.3.1 published; Android
+1.0.30 published at 100%; extension 1.1.4 pending review with automatic
+publication after approval.
 
 Topics: `beta-release-readiness`, `product-surfaces-and-migration`,
 `android-jstorrent-replacement`.
@@ -237,20 +238,34 @@ no bundles are retained. Publishing overview has no unpublished changes.
 The saved private screenshot records the published full-rollout state. Actual
 installed acceptance and production stability remain separate evidence.
 
-## Remaining extension action and cleanup
+## Extension review submission confirmation
 
-Desktop publication and Android publication at 100% are complete.
-Installed delivery and stability remain separate evidence. Extension publication
-is incomplete:
-Google owner verification is still required before its accepted draft version
-and submission can be confirmed. The exact 1.1.4 archive remains ready at the
-recorded hash. After the owner completes the Google passkey check on the existing verification
-page, inspect Package first; upload only if the draft is still 1.1.3, verify
-1.1.4 and unchanged permissions/listing, then submit with automatic publication
-after approval. The initial request already authorizes that continuation.
+The maintainer completes Google verification and requests continuation. At
+05:16 UTC on October 13, the native Chrome dashboard confirms the existing
+production item has draft 1.1.4 and published 1.1.3. The originally uploaded
+archive was accepted after verification, so no duplicate upload is necessary.
+The retained ZIP still matches the recorded SHA-256. Draft and published
+permissions both show nativeMessaging, storage and host permission. The existing
+listing is preserved; Distribution remains Free of charge, Public and All regions.
+
+Submit for review presents **Publish JSTorrent automatically after it has passed
+review** checked. Submit For Review succeeds with **Your extension was submitted
+for review**. A fresh reload confirms **Pending review** and **This draft is pending
+review**; Package binds submitted revision 00016 to 1.1.4, while published remains
+1.1.3. Private status and package screenshots record the accepted submission.
+Actual approval/public availability and installed extension acceptance are not
+inferred. No further operator publication step is required after approval.
+
+## Completion and cleanup
+
+Desktop publication, Android publication at 100%, and extension review submission
+with automatic publication meet this tactical's stopping condition. Extension
+approval/public availability and installed delivery/stability remain asynchronous
+or separate evidence. There is no remaining owner-verification blocker.
 
 No new monitor, device session, product-profile mutation, key rotation or
 incubation publication is created. Temporary logs, staging/extractions and
 redundant downloads are removed after receipt collection; ignored release
 receipts and the extension delivery archive are retained. Tactical 318's
-unfinished source/documentation remains uncommitted and excluded.
+unfinished source/documentation remains uncommitted and excluded. Tactical 327's
+concurrent engine/removal investigation is also preserved and excluded.

@@ -1,8 +1,8 @@
 # Implementation Tactical Docs
 
 - [326 — Full product release](326-full-product-release.md): desktop 0.3.1
-  published, Android 1.0.30 published at 100%, and extension 1.1.4 awaiting
-  Google verification; exact packages, sources, website and updater offers.
+  published, Android 1.0.30 published at 100%, and extension 1.1.4 pending
+  review with automatic publication; exact packages, sources, website and updater.
 
 - [325 — Android CI library readiness](325-android-ci-library-readiness.md):
   owned first-use smoke observes the current All tab after statistics opt-out;
