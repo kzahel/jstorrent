@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [335 — Removal Pieces and disconnect lifetime](335-removal-pieces-and-disconnect-lifetime.md):
+  valid empty Pieces snapshots and joined accepted removal through WebSocket close.
+
 - [333 — Web settings plain copy](333-web-settings-plain-copy.md):
   shared React settings, torrent settings and General tab use plain copy,
   speed presets and row-level notes instead of engine runtime state.

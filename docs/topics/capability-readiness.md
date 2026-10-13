@@ -1,5 +1,11 @@
 # Capability Readiness
 
+Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
+repairs removal with a subscribed Pieces view and accepted WebSocket removal
+ownership across disconnect. Projection/decode and real disconnect regressions,
+Rust/web checks and the dual-ABI Android debug/boundary build pass locally.
+No protocol support or shipping claim changes.
+
 Tactical [330](../tactical/330-android-1-0-31-production-release.md) submits
 Android 1.0.31/code 31 for production at 100%, automatically publishing after
 approval. Exact tagged signed APK/AAB checks and source Android/SAF integration

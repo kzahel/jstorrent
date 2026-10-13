@@ -13,6 +13,7 @@ import {
   decodeUpdateBatch,
 } from "./validation";
 import { clientSettingsRuntimeFixture } from "./test-support/client-settings";
+import { reduceUpdateBatch } from "./view-set-reducer";
 
 const TEST_TORRENT_ID = "t1-00000000000000000000000000000000";
 const OTHER_TORRENT_ID = "t1-11111111111111111111111111111111";
@@ -700,6 +701,42 @@ describe("speed view validation", () => {
 });
 
 describe("piece activity validation", () => {
+  it("decodes removal snapshots and clears verified pieces and active attempts", () => {
+    const initial = pieceBatch();
+    const state = reduceUpdateBatch(undefined, decodeUpdateBatch(JSON.stringify(initial)));
+    const removed = {
+      ...initial,
+      base_cursor: "1",
+      cursor: "2",
+      durable_revision: "2",
+      updates: [{
+        type: "snapshot",
+        view_id: "pieces",
+        snapshot: {
+          type: "piece_activity",
+          torrent_id: TEST_TORRENT_ID,
+          piece_count: 0,
+          verified: [],
+          active: [],
+        },
+      }],
+    };
+    const next = reduceUpdateBatch(state, decodeUpdateBatch(JSON.stringify(removed)));
+    expect(next.views.pieces).toEqual(removed.updates[0]!.snapshot);
+    // The old invalid removal patch must continue to be rejected.
+    const invalid = {
+      ...removed,
+      updates: [{ type: "patch", view_id: "pieces", patch: {
+        type: "piece_activity", torrent_id: TEST_TORRENT_ID, piece_count: 0,
+        verified: [], cleared: [{ start: 2, end_exclusive: 3 }],
+        active_upsert: [], active_updates: [], active_removed: ["0:1"],
+      }}],
+    };
+    expect(() => decodeUpdateBatch(JSON.stringify(invalid))).toThrow(
+      "cleared pieces are not canonical and bounded",
+    );
+  });
+
   it("accepts keyed attempts and rejects overlapping lifecycle ranges", () => {
     const batch = pieceBatch();
     expect(decodeUpdateBatch(JSON.stringify(batch)).updates).toHaveLength(1);

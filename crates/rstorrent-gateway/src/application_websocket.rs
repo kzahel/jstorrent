@@ -865,6 +865,7 @@ async fn serve_application_connection(
     let reservations = Arc::new(Semaphore::new(DATA_RESERVATIONS));
     let pending_ids = Arc::new(StdMutex::new(BTreeSet::<String>::new()));
     let mut calls = JoinSet::new();
+    let mut removal_calls = JoinSet::new();
     let mut uploads = JoinSet::new();
     let mut attachments = BTreeMap::<String, ConnectionAttachment>::new();
     let (pump_stopped, mut stopped_pumps) =
@@ -952,6 +953,11 @@ async fn serve_application_connection(
                 }
             }
             joined = calls.join_next(), if !calls.is_empty() => {
+                if joined.is_some_and(|result| result.is_err()) {
+                    break;
+                }
+            }
+            joined = removal_calls.join_next(), if !removal_calls.is_empty() => {
                 if joined.is_some_and(|result| result.is_err()) {
                     break;
                 }
@@ -1142,6 +1148,7 @@ async fn serve_application_connection(
                             &reservations,
                             &pending_ids,
                             &mut calls,
+                            &mut removal_calls,
                             &mut attachments,
                             &pump_stopped,
                             &connection_cancel,
@@ -1238,6 +1245,10 @@ async fn serve_application_connection(
     }
     calls.abort_all();
     while calls.join_next().await.is_some() {}
+    // An executing removal has persisted intent and may already have deleted
+    // payload. Retain its owner through finalization even without a response
+    // consumer. The connection permit bounds this work until it is joined.
+    while removal_calls.join_next().await.is_some() {}
     while uploads.join_next().await.is_some() {}
     // Desktop companion pages rebuild their views on attachment. A departed
     // page cannot resume them, including sets whose open response was lost.
@@ -1311,6 +1322,7 @@ async fn handle_client_frame(
     reservations: &Arc<Semaphore>,
     pending_ids: &Arc<StdMutex<BTreeSet<String>>>,
     calls: &mut JoinSet<()>,
+    removal_calls: &mut JoinSet<()>,
     attachments: &mut BTreeMap<String, ConnectionAttachment>,
     pump_stopped: &mpsc::Sender<PumpStopped>,
     connection_cancel: &CancellationToken,
@@ -1469,9 +1481,23 @@ async fn handle_client_frame(
                         }
                         _ => None,
                     });
-            calls.spawn(async move {
+            let removal = matches!(
+                &operation,
+                ApplicationCall::Dispatch { request }
+                    if matches!(request.command,
+                        Command::RemoveTorrent { .. } | Command::CancelPendingAdd { .. })
+            );
+            let cancellation = connection_cancel.clone();
+            let call = async move {
                 let reservation_started = Instant::now();
-                let reservation = reservations.acquire_owned().await.ok();
+                let reservation = tokio::select! {
+                    biased;
+                    () = cancellation.cancelled() => {
+                        remove_pending(&pending_ids, &call_id);
+                        return;
+                    }
+                    reservation = reservations.acquire_owned() => reservation.ok(),
+                };
                 metrics.reservation_wait(reservation_started.elapsed());
                 let result = if let Some((platform, request, cancellation)) = joined_removal {
                     platform
@@ -1482,9 +1508,15 @@ async fn handle_client_frame(
                         })
                         .map_err(companion_platform_call_error)
                 } else {
+                    let mut service = tokio::select! {
+                        biased;
+                        () = cancellation.cancelled() => {
+                            remove_pending(&pending_ids, &call_id);
+                            return;
+                        }
+                        service = service.lock() => service,
+                    };
                     service
-                        .lock()
-                        .await
                         .application_call(&owner, operation)
                         .await
                         .map_err(application_call_error)
@@ -1525,9 +1557,18 @@ async fn handle_client_frame(
                         error,
                     },
                 };
-                let _ = send_control(&control, frame, reservation).await;
+                tokio::select! {
+                    biased;
+                    () = cancellation.cancelled() => {}
+                    _ = send_control(&control, frame, reservation) => {}
+                }
                 remove_pending(&pending_ids, &call_id);
-            });
+            };
+            if removal {
+                removal_calls.spawn(call);
+            } else {
+                calls.spawn(call);
+            }
         }
         ApplicationClientFrame::Attach {
             call_id,

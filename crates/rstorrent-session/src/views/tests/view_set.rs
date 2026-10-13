@@ -20,6 +20,67 @@ use rstorrent_engine::{
 const TORRENT_ID: &str = "t1-000102030405060708090a0b0c0d0e0f";
 const V1_INFO_HASH: &str = "000102030405060708090a0b0c0d0e0f10111213";
 
+#[tokio::test]
+async fn removed_torrent_piece_view_replays_empty_snapshot_and_reappears() {
+    let hub = ViewHub::new(&service_snapshot(0, 0)).expect("hub");
+    let owner = ViewSetOwner::trusted("owner");
+    let opened = hub
+        .open_view_set(
+            owner.clone(),
+            open_request(vec![ViewSpec::PieceActivity {
+                view_id: "pieces".into(),
+                torrent_id: TORRENT_ID.into(),
+                delivery: ViewDeliveryPolicy::default(),
+            }]),
+        )
+        .expect("open pieces");
+    let set = hub.view_set(&owner, &opened.view_set_id).expect("set");
+    hub.record_pieces_durable(TORRENT_ID, &[0, 2], 1)
+        .expect("durable pieces");
+    hub.record_activity(
+        TORRENT_ID,
+        TorrentActivity::PieceStarted {
+            piece_index: 1,
+            piece_length: 16384,
+            attempt: 1,
+        },
+    )
+    .expect("active attempt");
+    let mut removed = service_snapshot(2, 0);
+    removed.torrents.clear();
+    hub.replace_durable(&removed, &BTreeMap::new())
+        .expect("remove torrent");
+    let batch = set
+        .next_updates(&opened.initial.cursor, 0)
+        .await
+        .expect("removed");
+    assert_eq!(batch.durable_revision, "2");
+    assert!(
+        matches!(batch.updates.as_slice(), [ViewSetUpdate::Snapshot {
+        view_id, snapshot: ViewSnapshot::PieceActivity {
+            piece_count: 0, verified, active, ..
+        }
+    }] if view_id == "pieces" && verified.is_empty() && active.is_empty())
+    );
+    assert_eq!(
+        set.next_updates(&opened.initial.cursor, 0)
+            .await
+            .expect("replay"),
+        batch
+    );
+    hub.replace_durable(&service_snapshot(3, 0), &BTreeMap::new())
+        .expect("reappear");
+    let reappeared = set
+        .next_updates(&batch.cursor, 0)
+        .await
+        .expect("new geometry");
+    assert!(
+        matches!(reappeared.updates.as_slice(), [ViewSetUpdate::Snapshot {
+        snapshot: ViewSnapshot::PieceActivity { piece_count: 3, verified, active, .. }, ..
+    }] if verified.is_empty() && active.is_empty())
+    );
+}
+
 fn protocol_identities() -> crate::TorrentProtocolIdentities {
     crate::TorrentProtocolIdentities {
         v1: Some(V1_INFO_HASH.to_owned()),

@@ -1,5 +1,13 @@
 # Application Control
 
+Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
+preserves the durable removal contract through WebSocket disconnection: an
+executing removal retains its caller until finalization or recorded failure,
+while a queued call cancels before service entry. Payload deletion can no longer
+leave a pending job solely because its browser response consumer closed.
+Process interruption still resumes pending jobs on startup; Android SAF retains
+its existing service-owned matching-generation confirmation.
+
 Tactical [308](../tactical/308-android-optional-add-selection.md) adds explicit
 `DownloadAllPendingAdd` consent without a catalog. One transaction clears pending
 selection and source-derived ranges, installs Normal for all ordinary files,

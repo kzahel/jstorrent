@@ -1,5 +1,13 @@
 # Application Connection Architecture
 
+Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
+keeps executing `RemoveTorrent` and `CancelPendingAdd` calls joined through
+browser disconnection. Calls waiting for response reservations or service entry
+cancel before applying intent; after entry, the service finishes durable removal
+or records failure even without a response consumer. The connection retains its
+permit until removal calls finish, preserving existing admission bounds.
+Transient calls and native folder requests retain disconnect cancellation.
+
 Tactical [320](../tactical/320-chromeos-android-owned-extension-setup.md) adds
 only setup/navigation around the existing same-device connection. An exact
 HTTPS, top-frame, closed-message website request can focus/open the packaged
@@ -658,7 +666,7 @@ traveled directly or through a relay.
 | Remote authorization registry | Bounded client proofs, resume generations, expiry/revocation and security ledger | Disable/reset removes authority; expiry or revocation fences proofs and closes every owned connection generation |
 | Logical client owner | Authenticated principal plus verified bounded client identity and authentication method | Explicit client close, authorization revocation or application shutdown |
 | Connection generation | Negotiation, call registry, attachment map, fresh record keys and global bounds | Socket/channel close, replacement generation, authorization revocation or application shutdown |
-| Call owner | Unique call ID, validated operation, result/error completion and timeout | Result, cancellation, disconnect or bounded timeout |
+| Call owner | Unique call ID, validated operation, result/error completion and timeout | Result, cancellation, disconnect or bounded timeout; executing torrent removals join through disconnect |
 | View attachment | Stream ID, view-set handle, applied cursor, pump, expected acknowledgement and queue accounting | Detach, takeover, view-set close, disconnect or shutdown |
 | Outbound scheduler | Fair per-stream queues, control lane and writer backpressure | Connection-generation cancellation and awaited writer join |
 | TypeScript connection adapter | Pending calls, attachments, validation, ack and reconnect | Client close aborts and joins all consumption before transport close |

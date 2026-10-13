@@ -1,5 +1,11 @@
 # Application View API
 
+Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
+replaces Pieces with an empty snapshot when its torrent disappears and with a
+fresh snapshot when piece geometry changes. This discards pending patches for
+the old geometry before publishing new bounds. Sparse verified ranges and active
+attempts clear together; strict client range validation remains unchanged.
+
 Tactical [314](../tactical/314-android-presentation-shutdown-race.md) makes the
 Android presentation adapter terminal after close and retains ownership during
 partial subscription setup failures. Acquisition and closure share the existing

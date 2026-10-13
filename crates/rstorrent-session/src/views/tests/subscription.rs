@@ -3,6 +3,35 @@
 use super::support::*;
 
 #[tokio::test]
+async fn removed_torrent_replaces_queued_piece_changes_with_empty_snapshot() {
+    let id = "t1-000102030405060708090a0b0c0d0e0f";
+    let hub = ViewHub::new(&snapshot(0, 4)).expect("hub");
+    let subscription = hub.subscribe(piece_spec(4096)).expect("subscribe");
+    subscription.next_update().await.expect("initial snapshot");
+    hub.record_pieces_durable(id, &[1, 3], 1)
+        .expect("durable pieces");
+    hub.record_activity(
+        id,
+        TorrentActivity::PieceStarted {
+            piece_index: 0,
+            piece_length: 16384,
+            attempt: 1,
+        },
+    )
+    .expect("active attempt");
+    let mut removed = snapshot(2, 4);
+    removed.torrents.clear();
+    hub.replace_durable(&removed, &BTreeMap::new())
+        .expect("remove torrent");
+    let update = subscription.next_update().await.expect("removal snapshot");
+    assert_eq!(update.revision, "2");
+    assert!(matches!(update.payload,
+        ViewUpdatePayload::Snapshot { snapshot: ViewSnapshot::PieceActivity {
+            piece_count: 0, verified, active, ..
+        }} if verified.is_empty() && active.is_empty()));
+}
+
+#[tokio::test]
 async fn starts_with_snapshot_and_keeps_large_indices() {
     let hub = ViewHub::new(&snapshot(7, 1_000_000)).expect("hub");
     let subscription = hub.subscribe(piece_spec(4096)).expect("subscribe");

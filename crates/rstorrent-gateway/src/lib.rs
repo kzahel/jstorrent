@@ -2180,6 +2180,196 @@ mod tests {
             .expect("send application frame");
     }
 
+    #[test]
+    fn accepted_removal_finishes_after_websocket_disconnect() {
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .max_blocking_threads(1)
+            .enable_all()
+            .build()
+            .expect("runtime")
+            .block_on(removal_disconnect_scenario(true));
+    }
+
+    #[tokio::test]
+    async fn queued_removal_is_cancelled_before_entering_service() {
+        removal_disconnect_scenario(false).await;
+    }
+
+    async fn removal_disconnect_scenario(accepted: bool) {
+        let root = test_root(if accepted {
+            "accepted-removal-close"
+        } else {
+            "queued-removal-close"
+        });
+        let (service, torrent_id, payload) = verified_media_service(&root).await;
+        std::fs::write(root.join("payload/sentinel"), b"keep sibling").expect("sentinel");
+        let origin = "http://127.0.0.1:5173";
+        let server = bind(
+            GatewayConfig {
+                bind: "127.0.0.1:0".parse().expect("address"),
+                authentication: GatewayAuthentication::Bearer {
+                    token: "correct-token".into(),
+                },
+                allowed_origin: origin.into(),
+                max_connections: 2,
+            },
+            service.clone(),
+        )
+        .await
+        .expect("bind");
+        let address = server.local_addr();
+        let metrics = server.connection_metrics();
+        let shutdown = CancellationToken::new();
+        let server_task = tokio::spawn(server.serve(shutdown.clone()));
+        let mut request = format!("ws://{address}/api/v1/connect")
+            .into_client_request()
+            .expect("request");
+        request
+            .headers_mut()
+            .insert("Origin", origin.parse().expect("origin"));
+        let (mut socket, _) = connect_async(request).await.expect("connect");
+        send_application_message(
+            &mut socket,
+            &ApplicationClientFrame::Connect {
+                api_version: rstorrent_session::API_VERSION,
+                encoding: rstorrent_session::ApiEncoding::Json,
+                client_instance_id: "00000000000000000000000000000001".into(),
+                token: Some("correct-token".into()),
+            },
+        )
+        .await;
+        assert!(matches!(
+            read_application_message(&mut socket).await,
+            ApplicationServerFrame::Connected { .. }
+        ));
+
+        let service_guard = if accepted {
+            None
+        } else {
+            Some(service.lock().await)
+        };
+        let (release, blocked) = std::sync::mpsc::channel();
+        let blocker = if accepted {
+            // Hold the only blocking worker so deletion cannot finish until
+            // the server has acknowledged the client's WebSocket Close.
+            let (started, ready) = tokio::sync::oneshot::channel();
+            let blocker = tokio::task::spawn_blocking(move || {
+                started.send(()).expect("worker started");
+                blocked
+                    .recv_timeout(Duration::from_secs(10))
+                    .expect("release worker");
+            });
+            ready.await.expect("blocking worker ready");
+            Some(blocker)
+        } else {
+            None
+        };
+        let database = rusqlite::Connection::open_with_flags(
+            root.join("profile/session.db"),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .expect("read-only database");
+        send_application_message(
+            &mut socket,
+            &ApplicationClientFrame::Call {
+                call_id: "remove".into(),
+                operation: ApplicationCall::Dispatch {
+                    request: Box::new(RequestEnvelope {
+                        version: rstorrent_session::CONTROL_VERSION,
+                        request_id: "remove-disconnect".into(),
+                        expected_revision: None,
+                        command: Command::RemoveTorrent {
+                            torrent_id,
+                            data: rstorrent_session::RemovalDataPolicy::DeleteData,
+                        },
+                    }),
+                },
+            },
+        )
+        .await;
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let ready = if accepted {
+                    database
+                        .query_row(
+                            "SELECT count(*) FROM removal_jobs WHERE state = 'pending'",
+                            [],
+                            |row| row.get::<_, u32>(0),
+                        )
+                        .expect("pending job")
+                        == 1
+                } else {
+                    metrics.snapshot().pending_calls_high_water == 1
+                };
+                if ready {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .expect("removal reached fence");
+        assert_eq!(
+            std::fs::read(root.join("payload/gateway.mp4")).expect("payload"),
+            payload
+        );
+        socket.close(None).await.expect("client close");
+        let response = tokio::time::timeout(Duration::from_secs(2), socket.next())
+            .await
+            .expect("close timed out")
+            .expect("close frame")
+            .expect("close response");
+        assert!(matches!(response, Message::Close(_)));
+        if let Some(blocker) = blocker {
+            release.send(()).expect("release deletion");
+            blocker.await.expect("blocking worker joined");
+        }
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while metrics.snapshot().active_connections != 0 {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .expect("connection joined");
+        assert_eq!(
+            database
+                .query_row("SELECT count(*) FROM removal_jobs", [], |row| row
+                    .get::<_, u32>(0))
+                .expect("terminal jobs"),
+            0
+        );
+        assert_eq!(
+            database
+                .query_row("SELECT count(*) FROM torrents", [], |row| row
+                    .get::<_, u32>(0))
+                .expect("catalog"),
+            u32::from(!accepted)
+        );
+        assert_eq!(root.join("payload/gateway.mp4").exists(), !accepted);
+        assert_eq!(
+            std::fs::read(root.join("payload/sentinel")).expect("sibling"),
+            b"keep sibling"
+        );
+        assert_eq!(metrics.snapshot().pending_calls_high_water, 1);
+        assert_eq!(metrics.snapshot().active_connections_high_water, 1);
+        drop(service_guard);
+        drop(database);
+        shutdown.cancel();
+        server_task
+            .await
+            .expect("server join")
+            .expect("server termination");
+        service
+            .lock()
+            .await
+            .shutdown()
+            .await
+            .expect("service shutdown");
+        drop(service);
+        std::fs::remove_dir_all(root).expect("remove test root");
+    }
+
     async fn http_request(
         address: SocketAddr,
         method: &str,

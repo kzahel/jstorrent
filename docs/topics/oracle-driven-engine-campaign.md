@@ -1,5 +1,13 @@
 # Oracle-Driven Engine Campaign
 
+Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
+repairs invalid Pieces removal patches and interrupted WebSocket deletion.
+Pinned removal source/tests, product failure history and the bounded owner map
+are recorded. Restart checkpoint: complete with projection/decode and real
+WebSocket regressions, workspace/web gates and the dual-ABI Android build.
+No next action remains in this slice; shipping and broader command lifetime
+changes remain separately owned. Other active work is independent.
+
 Tactical [313](../tactical/313-completed-remote-video-playback.md) completes
 local completed remote MP4/M4V playback through authenticated v2 ranges and
 playsvideo. Source/segment/HLS buffers and parent-circuit teardown are bounded.

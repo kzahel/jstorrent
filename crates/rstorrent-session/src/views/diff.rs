@@ -236,6 +236,15 @@ pub(super) fn projection_requires_snapshot(
     previous: &BTreeMap<String, TorrentModel>,
     current: &BTreeMap<String, TorrentModel>,
 ) -> bool {
+    if let (ViewSelector::Torrent { torrent_id }, ViewProjection::PieceActivity) =
+        (&spec.selector, spec.projection)
+    {
+        // Clear ranges refer to the previous geometry. A replacement snapshot
+        // also discards any queued patches before a torrent disappears or its
+        // metadata changes the number of pieces.
+        return previous.get(torrent_id).map(|model| model.view.piece_count)
+            != current.get(torrent_id).map(|model| model.view.piece_count);
+    }
     if let (ViewSelector::Torrent { torrent_id }, ViewProjection::Swarm) =
         (&spec.selector, spec.projection)
     {
