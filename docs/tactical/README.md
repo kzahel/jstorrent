@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [327 — Removal hang with inbound peers](327-removal-hang-with-inbound-peers.md):
+  removing a fast download with attached inbound peers no longer freezes the
+  Android engine; teardown closes the inbound event queue before joining.
+
 - [326 — Full product release](326-full-product-release.md): desktop 0.3.1
   published, Android 1.0.30 published at 100%, and extension 1.1.4 pending
   review with automatic publication; exact packages, sources, website and updater.

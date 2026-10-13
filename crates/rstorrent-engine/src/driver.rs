@@ -8583,6 +8583,10 @@ async fn download_content_swarm<'a>(
     };
     let failure = result.as_ref().err().and_then(content_peer_failure);
     peers.peers.remove_incoming_content_route(incoming_route);
+    // Nothing reads inbound content events after the loop. Closing the queue
+    // fails sends parked on it, so the inbound peer tasks that the
+    // unregistration joins can observe their cancellation.
+    incoming_events.close();
     let registration_cleanup = download.unregister_active_route().await;
     let discovery_cleanup = discovery.shutdown().await.map(|trackers| {
         peers.trackers = trackers;

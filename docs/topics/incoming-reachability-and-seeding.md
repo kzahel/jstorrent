@@ -538,6 +538,12 @@ connections, and torrents without readable verified content are ordinary
 bounded rejection paths. Listener state must not retain a torrent after its
 application owner has completed removal or shutdown.
 
+Unregistration joins accepted peer tasks, so teardown must never wait on an
+accepted peer that is blocked on a queue the teardown has stopped draining.
+An active download closes its inbound content-event queue before it
+unregisters its route; Tactical 327 records the Android removal hang this
+prevented.
+
 ### Completion does not terminate seeding ownership accidentally
 
 Verified download completion and task termination are not synonymous once
