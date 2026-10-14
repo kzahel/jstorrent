@@ -1,5 +1,6 @@
 ---
 import { sourceRepositoryUrl } from '../lib/production-site'
+import { CHROME_WEB_STORE_URL, GOOGLE_PLAY_URL } from '../lib/store-links'
 ---
 
 <section class="section">
@@ -10,12 +11,12 @@ import { sourceRepositoryUrl } from '../lib/production-site'
         <h3>Resources</h3>
         <ul>
           <li>
-            <a href="https://chromewebstore.google.com/detail/jstorrent/dbokmlpefliilbjldladbimlcfgbolhk">
+            <a href={CHROME_WEB_STORE_URL}>
               Chrome Web Store
             </a>
           </li>
           <li>
-            <a href="https://play.google.com/store/apps/details?id=com.jstorrent.app">
+            <a href={GOOGLE_PLAY_URL}>
               Google Play Store
             </a>
           </li>

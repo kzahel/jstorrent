@@ -8,7 +8,7 @@
     "check": "astro check",
     "build": "astro build && node ../scripts/website-security.mjs dist",
     "preview": "astro preview",
-    "test": "node --test ../scripts/production-website-release.test.mjs ../scripts/hosted-context.test.mjs ../scripts/website-security.test.mjs ../scripts/promote-website-release.test.mjs ../scripts/commit-website-promotion.test.mjs ../scripts/chrome-extension-handoff.test.mjs"
+    "test": "node --test src/lib/share-link.test.mjs ../scripts/production-website-release.test.mjs ../scripts/hosted-context.test.mjs ../scripts/website-security.test.mjs ../scripts/promote-website-release.test.mjs ../scripts/commit-website-promotion.test.mjs ../scripts/chrome-extension-handoff.test.mjs"
   },
   "dependencies": {
     "astro": "7.3.6",

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import type { DesktopDownloadLinks } from '../lib/production-release'
+import {
+  CHROME_EXTENSION_ID as EXTENSION_ID,
+  CHROME_WEB_STORE_URL as WEBSTORE_URL,
+  GOOGLE_PLAY_URL as PLAY_STORE_URL,
+} from '../lib/store-links'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const chromeApi = (globalThis as any).chrome as any
-
-const EXTENSION_ID = 'dbokmlpefliilbjldladbimlcfgbolhk'
-const WEBSTORE_URL = `https://chromewebstore.google.com/detail/jstorrent/${EXTENSION_ID}`
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.jstorrent.app'
 function parseVersion(tag: string): number[] {
   return tag
     .replace(/^v/, '')

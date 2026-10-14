@@ -1,0 +1,316 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Header from '../components/Header.astro'
+import Footer from '../components/Footer.astro'
+import { productionSiteRelease as release } from '../lib/production-site'
+import { CHROME_WEB_STORE_URL, GOOGLE_PLAY_URL } from '../lib/store-links'
+---
+
+<BaseLayout
+  title="Share · JSTorrent"
+  description="Open a torrent someone shared with you in JSTorrent, or get JSTorrent for desktop, Android and Chromebook."
+>
+  <meta slot="head" name="robots" content="noindex" />
+  <Header />
+  <main>
+    <section class="section share-hero" aria-labelledby="share-title">
+      <div class="container">
+        <div class="share-card">
+          <p class="share-eyebrow">Shared torrent</p>
+          <h1 id="share-title" class="share-title">Shared torrent</h1>
+
+          <noscript>
+            <p>This page needs JavaScript to read the shared link. You can still get JSTorrent below.</p>
+          </noscript>
+
+          <div id="share-ready" hidden>
+            <dl class="share-facts">
+              <div id="share-hash-v1" hidden>
+                <dt>Info hash (v1)</dt>
+                <dd><code></code></dd>
+              </div>
+              <div id="share-hash-v2" hidden>
+                <dt>Info hash (v2)</dt>
+                <dd><code></code></dd>
+              </div>
+              <div id="share-trackers" hidden>
+                <dt>Trackers</dt>
+                <dd></dd>
+              </div>
+            </dl>
+
+            <div class="btn-group share-actions">
+              <a id="share-open" class="btn btn-primary btn-large">Open in JSTorrent</a>
+              <button id="share-copy" type="button" class="btn btn-secondary btn-large">
+                Copy magnet link
+              </button>
+            </div>
+            <p id="share-copy-status" class="share-copy-status" role="status" aria-live="polite"></p>
+            <p class="text-muted share-hint">
+              Opening hands the magnet link to the torrent app installed on this device. If
+              nothing happens, get JSTorrent below and open this page again.
+            </p>
+
+            <label class="share-label" for="share-magnet">Magnet link</label>
+            <input id="share-magnet" class="share-magnet" type="text" readonly spellcheck="false" />
+          </div>
+
+          <div id="share-invalid" hidden>
+            <p>
+              This page could not find a complete torrent in the link. Ask the sender to copy the
+              share link again, or paste a magnet link into JSTorrent directly.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" aria-labelledby="get-title">
+      <div class="container">
+        <h2 id="get-title">Get JSTorrent</h2>
+        <p>
+          JSTorrent is a free, open source torrent client for Windows, Mac, Android and supported
+          Chromebooks, with best-effort Linux support.
+        </p>
+        <div class="share-downloads">
+          <div class="download-subsection">
+            <h3>Desktop app</h3>
+            <p>Windows, Mac and Linux. Runs on its own without a browser.</p>
+            <ul class="share-download-list">
+              <li><a class="btn btn-primary" href={release.windowsUrl}>Windows ({release.tag})</a></li>
+              <li><a class="btn btn-secondary" href={release.macosPrimaryArmUrl}>Mac — Apple Silicon</a></li>
+              <li><a class="btn btn-secondary" href={release.macosPrimaryIntelUrl}>Mac — Intel</a></li>
+              <li><a class="btn btn-secondary" href={release.linuxAppImageUrl}>Linux AppImage — x86_64</a></li>
+              <li><a class="btn btn-secondary" href={release.linuxArm64AppImageUrl}>Linux AppImage — ARM64</a></li>
+            </ul>
+          </div>
+          <div class="download-subsection">
+            <h3>Android &amp; ChromeOS</h3>
+            <p>For Android and supported Chromebooks.</p>
+            <a class="btn btn-primary" href={GOOGLE_PLAY_URL} rel="noopener noreferrer">
+              Get it on Google Play
+            </a>
+          </div>
+          <div class="download-subsection">
+            <h3>Chrome extension</h3>
+            <p>
+              Connects your browser to the JSTorrent app with magnet links, torrent files and
+              right-click actions.
+            </p>
+            <a class="btn btn-secondary" href={CHROME_WEB_STORE_URL} rel="noopener noreferrer">
+              Chrome Web Store
+            </a>
+          </div>
+        </div>
+        <p><a href="/#download">All download options</a></p>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<script>
+  import { parseShareFragment } from '../lib/share-link.js'
+
+  const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
+
+  const title = element<HTMLHeadingElement>('share-title')
+  const ready = element<HTMLDivElement>('share-ready')
+  const invalid = element<HTMLDivElement>('share-invalid')
+  const open = element<HTMLAnchorElement>('share-open')
+  const copy = element<HTMLButtonElement>('share-copy')
+  const copyStatus = element<HTMLParagraphElement>('share-copy-status')
+  const magnetInput = element<HTMLInputElement>('share-magnet')
+  const trackers = element<HTMLDivElement>('share-trackers')
+
+  function showHash(id: string, value: string | undefined) {
+    const row = element<HTMLDivElement>(id)
+    row.hidden = !value
+    row.querySelector('code')!.textContent = value ?? ''
+  }
+
+  function render() {
+    const share = parseShareFragment(location.hash)
+    copyStatus.textContent = ''
+    if (!share.ok) {
+      ready.hidden = true
+      invalid.hidden = false
+      open.removeAttribute('href')
+      magnetInput.value = ''
+      title.textContent = 'This share link is incomplete'
+      document.title = 'Share · JSTorrent'
+      return
+    }
+    // Only a magnet accepted by parseShareFragment reaches the link target;
+    // every other value is rendered as text.
+    const name = share.name ?? 'Shared torrent'
+    title.textContent = name
+    document.title = share.name ? `${share.name} · Share · JSTorrent` : 'Share · JSTorrent'
+    showHash('share-hash-v1', share.infoHashes.find((hash) => hash.version === 1)?.value)
+    showHash('share-hash-v2', share.infoHashes.find((hash) => hash.version === 2)?.value)
+    trackers.hidden = share.trackerCount === 0
+    trackers.querySelector('dd')!.textContent = String(share.trackerCount)
+    open.href = share.magnet
+    magnetInput.value = share.magnet
+    invalid.hidden = true
+    ready.hidden = false
+  }
+
+  copy.addEventListener('click', async () => {
+    const magnet = magnetInput.value
+    if (!magnet) return
+    try {
+      await navigator.clipboard.writeText(magnet)
+      copyStatus.textContent = 'Magnet link copied.'
+      return
+    } catch {
+      // Clipboard access can be unavailable or denied; fall back to selection.
+    }
+    magnetInput.focus()
+    magnetInput.select()
+    copyStatus.textContent = 'Press Ctrl+C (or ⌘C) to copy the selected magnet link.'
+  })
+
+  magnetInput.addEventListener('focus', () => magnetInput.select())
+  window.addEventListener('hashchange', render)
+  render()
+</script>
+
+<style>
+  .share-hero {
+    background: linear-gradient(to bottom, var(--color-bg-alt) 0%, var(--color-bg) 100%);
+  }
+
+  .share-card {
+    max-width: 46rem;
+    padding: 1.5rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+  }
+
+  .share-eyebrow {
+    color: var(--color-text-light);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .share-title {
+    font-size: clamp(1.5rem, 5vw, 2.25rem);
+    line-height: 1.2;
+    margin: 0.25rem 0 1.25rem;
+    overflow-wrap: anywhere;
+  }
+
+  .share-facts {
+    display: grid;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .share-facts > div {
+    display: grid;
+    grid-template-columns: minmax(7.5rem, auto) 1fr;
+    gap: 0.75rem;
+  }
+
+  .share-facts > div[hidden] {
+    display: none;
+  }
+
+  .share-facts dt {
+    color: var(--color-text-light);
+  }
+
+  .share-facts code,
+  .share-magnet {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+  }
+
+  .share-actions {
+    margin-bottom: 0.5rem;
+  }
+
+  .share-actions .btn {
+    font: inherit;
+    font-weight: 600;
+  }
+
+  .section .share-copy-status {
+    min-height: 1.6em;
+    margin-bottom: 0.25rem;
+    color: var(--color-success);
+  }
+
+  .section .share-hint {
+    font-size: 0.9rem;
+  }
+
+  .share-label {
+    display: block;
+    color: var(--color-text-light);
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .share-magnet {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    color: var(--color-text);
+    background: var(--color-code-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+  }
+
+  .share-downloads {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .share-downloads .download-subsection {
+    margin-bottom: 0;
+  }
+
+  .share-download-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  main :focus-visible {
+    outline: 3px solid var(--color-link);
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 639px) {
+    .share-card {
+      padding: 1rem;
+    }
+
+    .share-facts > div {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .share-download-list {
+      flex-direction: column;
+    }
+
+    .share-actions .btn,
+    .share-download-list .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  @media (min-width: 900px) {
+    .share-downloads {
+      grid-template-columns: 2fr 1fr 1fr;
+    }
+  }
+</style>

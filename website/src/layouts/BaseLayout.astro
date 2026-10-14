@@ -41,6 +41,7 @@ const ogImageURL = ogImage
     <meta name="twitter:image" content={ogImageURL} />
     <!-- RSS -->
     <link rel="alternate" type="application/rss+xml" title="JSTorrent Dev Blog" href="/blog/rss.xml" />
+    <slot name="head" />
     <!-- Theme: set before first paint to prevent flash -->
     <script is:inline>
       (function() {
