@@ -118,7 +118,6 @@ struct DesktopState {
     media_server: Mutex<Option<LoopbackMediaServer>>,
     desktop_control: Mutex<Option<desktop_control::DesktopControlOwner>>,
     window_generation: AtomicU64,
-    shell_settings_path: PathBuf,
     shell_settings: StdMutex<DesktopShellSettings>,
     notification_owner: Mutex<Option<DesktopNotificationOwner>>,
     power_owner: Mutex<Option<DesktopPowerOwner>>,
@@ -600,8 +599,7 @@ fn desktop_set_notification_settings(
         .shell_settings
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let next =
-        persist_notification_settings(&state.shell_settings_path, *shell_settings, settings)?;
+    let next = persist_notification_settings(&state.product_state, *shell_settings, settings)?;
     *shell_settings = next;
     Ok(next.notifications)
 }
@@ -624,7 +622,7 @@ fn desktop_set_power_settings(
         .shell_settings
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let next = persist_power_settings(&state.shell_settings_path, *shell_settings, settings)?;
+    let next = persist_power_settings(&state.product_state, *shell_settings, settings)?;
     *shell_settings = next;
     state
         .power_preference
@@ -634,7 +632,7 @@ fn desktop_set_power_settings(
 
 #[tauri::command]
 fn desktop_reset_shell_settings(state: State<'_, DesktopState>) -> Result<(), String> {
-    let defaults = reset_desktop_shell_settings(&state.shell_settings_path)?;
+    let defaults = reset_desktop_shell_settings(&state.product_state)?;
     *state
         .shell_settings
         .lock()
@@ -2018,7 +2016,7 @@ fn toggle_run_in_background(app: &AppHandle) {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let current = *settings;
     let requested = !current.run_in_background;
-    match persist_run_in_background(&state.shell_settings_path, current, requested) {
+    match persist_run_in_background(&state.product_state, current, requested) {
         Ok(next) => {
             *settings = next;
             drop(settings);
@@ -2288,13 +2286,15 @@ pub fn run() {
                 }
                 Err(error) => eprintln!("RSTorrent native host registration could not be repaired: {error}"),
             }
-            let mut shell_settings = load_desktop_shell_settings(&config_dir);
+            // Shell switches live in the product database (Tactical 358), so
+            // it opens before the tray is built.
+            let product_state = open_desktop_product_state(&config_dir, env!("CARGO_PKG_VERSION"))?;
+            let shell_settings = load_desktop_shell_settings(&config_dir, &product_state)?;
             if let Some(diagnostic) = &shell_settings.diagnostic {
                 eprintln!("{diagnostic}");
             }
             let (tray_menu, background_menu_item) =
                 build_desktop_tray_menu(app, shell_settings.settings.run_in_background)?;
-            let product_state = open_desktop_product_state(&config_dir, env!("CARGO_PKG_VERSION"))?;
             let updater = tauri_plugin_updater::Builder::new().build();
             app.handle().plugin(updater)?;
             app.manage(StdMutex::new(ChannelUpdates::open(&config_dir)));
@@ -2327,7 +2327,7 @@ pub fn run() {
                 );
             }
             let service = tauri::async_runtime::block_on(open_desktop_application(
-                application_config, &mut shell_settings,
+                application_config, &shell_settings,
             ))?;
             if let Some(report) = migration.filter(|report| !report.already_completed) {
                 eprintln!("JSTorrent migration: imported={}, already_present={}, skipped={}, skipped_profiles={}",
@@ -2401,7 +2401,6 @@ pub fn run() {
                 torrent_uploads: Arc::new(Semaphore::new(1)),
                 media_server: Mutex::new(Some(media_server)),
                 window_generation: AtomicU64::new(1),
-                shell_settings_path: shell_settings.path,
                 shell_settings: StdMutex::new(shell_settings.settings),
                 notification_owner: Mutex::new(None),
                 power_owner: Mutex::new(None),
@@ -2547,32 +2546,20 @@ pub fn run() {
     });
 }
 
-// Keep migration and marker persistence in the same startup path for the GUI
-// and deterministic tests. No control surface sees an unpersisted opt-in hold.
+// macOS and Windows apply the quiet network defaults once per profile. The
+// session catalog records that in the same transaction (Tactical 358), so no
+// control surface sees an unrecorded hold and a lost file cannot repeat it.
 async fn open_desktop_application(
     mut config: ApplicationConfig,
-    shell: &mut desktop_lifecycle::LoadedDesktopShellSettings,
+    shell: &desktop_lifecycle::LoadedDesktopShellSettings,
 ) -> Result<ApplicationService, String> {
-    let needs_hold = cfg!(any(target_os = "macos", target_os = "windows"))
-        && shell.settings.network_defaults_version < 1;
-    if needs_hold {
+    if cfg!(any(target_os = "macos", target_os = "windows")) {
         config.reset_unconfirmed_network_features = true;
+        config.legacy_network_defaults_applied = shell.legacy_network_defaults_applied;
     }
-    let mut service = ApplicationService::open(config)
+    ApplicationService::open(config)
         .await
-        .map_err(|error| error.to_string())?;
-    if needs_hold {
-        match desktop_lifecycle::persist_network_defaults_version(&shell.path, shell.settings) {
-            Ok(settings) => shell.settings = settings,
-            Err(error) => {
-                return match service.shutdown().await {
-                    Ok(()) => Err(error),
-                    Err(shutdown) => Err(format!("{error}; shutdown failed: {shutdown}")),
-                };
-            }
-        }
-    }
-    Ok(service)
+        .map_err(|error| error.to_string())
 }
 
 fn desktop_product_identity(identifier: &str) -> rstorrent_session::ProductIdentity {
@@ -2707,11 +2694,11 @@ mod tests {
             ResponseOutcome::Success { .. }
         ));
         drop(store);
-        let mut shell = super::load_desktop_shell_settings(temporary.path());
-        let mut service = super::open_desktop_application(config.clone(), &mut shell)
+        let product = rstorrent_session::ProductStateOwner::open_ephemeral("1.0.0").unwrap();
+        let shell = super::load_desktop_shell_settings(temporary.path(), &product).unwrap();
+        let mut service = super::open_desktop_application(config.clone(), &shell)
             .await
             .unwrap();
-        assert_eq!(shell.settings.network_defaults_version, 1);
         service.shutdown().await.unwrap();
         drop(service);
         let mut store = SessionStore::open(&profile, "default", &[]).unwrap();
@@ -2735,8 +2722,11 @@ mod tests {
             ResponseOutcome::Success { .. }
         ));
         drop(store);
-        let mut shell = super::load_desktop_shell_settings(temporary.path());
-        let mut service = super::open_desktop_application(config, &mut shell)
+        // The catalog remembers the hold, so explicit choices survive restarts
+        // even when the old shell file is gone or unreadable.
+        std::fs::write(temporary.path().join("desktop-shell.json"), "corrupt").unwrap();
+        let shell = super::load_desktop_shell_settings(temporary.path(), &product).unwrap();
+        let mut service = super::open_desktop_application(config, &shell)
             .await
             .unwrap();
         service.shutdown().await.unwrap();
@@ -2747,25 +2737,45 @@ mod tests {
 
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     #[tokio::test]
-    async fn desktop_network_marker_failure_joins_startup_and_allows_retry() {
+    async fn legacy_shell_marker_records_the_hold_without_changing_network_choices() {
+        use rstorrent_session::{Command, RequestEnvelope, SessionStore};
+
         let temporary = tempfile::tempdir().unwrap();
-        let mut config = desktop_application_config(&temporary.path().join("data"));
+        let app_data = temporary.path().join("data");
+        let profile = app_data.join("profile");
+        let mut config = desktop_application_config(&app_data);
         config.network.policy = NetworkPolicy::LoopbackOnly;
-        let mut shell = super::load_desktop_shell_settings(temporary.path());
-        std::fs::remove_file(&shell.path).unwrap();
-        std::fs::create_dir(&shell.path).unwrap();
-        assert!(
-            super::open_desktop_application(config.clone(), &mut shell)
-                .await
-                .is_err()
-        );
-        assert_eq!(shell.settings.network_defaults_version, 0);
-        std::fs::remove_dir(&shell.path).unwrap();
-        let mut service = super::open_desktop_application(config, &mut shell)
+        let chosen = ClientSettings {
+            listener: ListenerPolicy::AutomaticLoopback,
+            ..ClientSettings::fresh_profile_default()
+        };
+        let mut store = SessionStore::open(&profile, "default", &[]).unwrap();
+        store
+            .handle_durable(&RequestEnvelope {
+                version: rstorrent_session::CONTROL_VERSION,
+                request_id: "chosen".to_owned(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: chosen.clone().into(),
+                },
+            })
+            .unwrap();
+        drop(store);
+        std::fs::write(
+            temporary.path().join("desktop-shell.json"),
+            r#"{"version":4,"run_in_background":true,"network_defaults_version":1}"#,
+        )
+        .unwrap();
+        let product = rstorrent_session::ProductStateOwner::open_ephemeral("1.0.0").unwrap();
+        let shell = super::load_desktop_shell_settings(temporary.path(), &product).unwrap();
+        assert!(shell.legacy_network_defaults_applied);
+        let mut service = super::open_desktop_application(config, &shell)
             .await
             .unwrap();
-        assert_eq!(shell.settings.network_defaults_version, 1);
         service.shutdown().await.unwrap();
+        drop(service);
+        let store = SessionStore::open(&profile, "default", &[]).unwrap();
+        assert_eq!(store.client_settings().unwrap(), chosen);
     }
 
     #[cfg(unix)]

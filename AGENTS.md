@@ -143,15 +143,22 @@ deferral only when a material known problem is deliberately left in place.
 ## Durable User Data
 
 Shipped user data is never wiped, reset, or replaced on upgrade. Only an
-explicit user action such as Clear app data may discard it. The session
-catalog's supported baseline is schema 26: every later schema change appends
-a hand-written forward migration step in
-`crates/rstorrent-session/src/store_migration.rs`, never edits the baseline
-definitions, and passes the released-catalog fixture tests; each release that
-ships a new schema version adds its fixture. Other durable formats (product
-and metrics databases, platform preferences, desktop and remote settings)
-follow the same rule. See
-[`docs/topics/client-persistence.md`](docs/topics/client-persistence.md).
+explicit user action such as Clear app data may discard it.
+
+- Durable application state lives in SQLite (`session.db`, `product.db`)
+  with a frozen baseline and hand-written, append-only forward migration
+  steps that pass released-store fixture tests; each release that ships a new
+  schema version adds its fixture. Never edit a baseline or a shipped step.
+- Platform preference stores (browser local storage, Android
+  SharedPreferences, `chrome.storage`) hold only UI preferences that tolerate
+  per-field defaults, and never overwrite or wipe themselves. Consent is not
+  a UI preference.
+- Every migration step, legacy reader and one-time import is listed in
+  [`docs/topics/durable-data-migrations.md`](docs/topics/durable-data-migrations.md)
+  with its retirement condition, added in the same commit and removed only
+  through that ledger.
+
+See also [`docs/topics/client-persistence.md`](docs/topics/client-persistence.md).
 
 ## Feature Campaign Execution
 

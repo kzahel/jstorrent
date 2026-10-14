@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [358 — One durable store and a migration ledger](358-one-durable-store-and-migration-ledger.md):
+  desktop shell switches and the network-defaults marker move into SQLite,
+  the extension keeps statistics consent, and every migration is ledgered
+  with a retirement condition.
 - [357 — Rich share links](357-rich-share-links.md): share exports add size,
   selected files and an opt-in peer hint; web and Android gain file shares,
   a Share panel, QR codes and the system share sheet; the share page shows

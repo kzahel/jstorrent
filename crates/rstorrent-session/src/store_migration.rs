@@ -22,7 +22,7 @@ pub(crate) type MigrationStep = fn(&Transaction<'_>) -> Result<(), StoreError>;
 
 /// `MIGRATION_STEPS[i]` migrates `BASELINE_SCHEMA_VERSION + i` to the next
 /// version. Append only; a step that has shipped is never edited.
-const MIGRATION_STEPS: &[MigrationStep] = &[migrate_26_to_27];
+const MIGRATION_STEPS: &[MigrationStep] = &[migrate_26_to_27, migrate_27_to_28];
 
 const _: () = assert!(
     BASELINE_SCHEMA_VERSION + MIGRATION_STEPS.len() as i64 == SCHEMA_VERSION,
@@ -52,6 +52,17 @@ fn migrate_26_to_27(transaction: &Transaction<'_>) -> Result<(), StoreError> {
     Ok(())
 }
 
+/// Schema 28 (Tactical 358): the quiet network defaults marker moves into the
+/// catalog so applying the defaults and recording them share a transaction.
+fn migrate_27_to_28(transaction: &Transaction<'_>) -> Result<(), StoreError> {
+    transaction.execute_batch(NETWORK_DEFAULTS_COLUMN_28)?;
+    Ok(())
+}
+
+const NETWORK_DEFAULTS_COLUMN_28: &str = "ALTER TABLE client_settings
+     ADD COLUMN network_defaults_version INTEGER NOT NULL DEFAULT 0
+     CHECK (network_defaults_version >= 0);";
+
 const SEED_STOP_SETTINGS_COLUMNS_27: &str =
     "ALTER TABLE client_settings ADD COLUMN seed_stop_ratio_percent INTEGER CHECK (
         seed_stop_ratio_percent IS NULL OR
@@ -68,7 +79,10 @@ const SEED_STOP_SETTINGS_COLUMNS_27: &str =
 pub(crate) fn upgrade_client_settings_for_test(transaction: &Transaction<'_>) {
     transaction
         .execute_batch(SEED_STOP_SETTINGS_COLUMNS_27)
-        .expect("current client settings columns");
+        .expect("schema 27 client settings columns");
+    transaction
+        .execute_batch(NETWORK_DEFAULTS_COLUMN_28)
+        .expect("schema 28 client settings column");
 }
 
 /// Brings a freshly created baseline catalog to the current version within
@@ -313,6 +327,17 @@ mod tests {
             assert_eq!(torrent.seed_stop_limits, Default::default());
             assert!(!torrent.seed_limit_stopped);
         }
+        // Schema 28: released profiles have not had the quiet network
+        // defaults applied, so the desktop applies them once on upgrade.
+        let marker: i64 = store
+            .connection()
+            .query_row(
+                "SELECT network_defaults_version FROM client_settings",
+                [],
+                |row| row.get(0),
+            )
+            .expect("network defaults marker");
+        assert_eq!(marker, 0);
     }
 
     #[test]

@@ -317,8 +317,12 @@ pub struct ApplicationConfig {
     pub network: NetworkConfig,
     pub initial_network_prerequisite: ApplicationNetworkPrerequisite,
     pub initial_client_settings: crate::ClientSettings,
-    /// Desktop upgrade holds legacy network defaults before starting sockets.
+    /// Desktop applies the quiet network defaults (incoming listener and port
+    /// mapping off) once per profile before starting sockets.
     pub reset_unconfirmed_network_features: bool,
+    /// An older desktop build already applied the quiet network defaults and
+    /// recorded that outside the catalog; record it without changing settings.
+    pub legacy_network_defaults_applied: bool,
     /// Keep DHT dormant for an idle desktop library, independently of preference.
     pub defer_idle_dht: bool,
     pub peer_transport_policy: PeerTransportPolicy,
@@ -476,6 +480,7 @@ impl ApplicationConfig {
             initial_network_prerequisite: ApplicationNetworkPrerequisite::Allowed,
             initial_client_settings: crate::ClientSettings::default(),
             reset_unconfirmed_network_features: false,
+            legacy_network_defaults_applied: false,
             defer_idle_dht: false,
             peer_transport_policy: PeerTransportPolicy::PreferUtp,
             download_resource_limits: DownloadResourceLimits::DESKTOP,
@@ -916,7 +921,7 @@ impl ApplicationService {
             }
         };
         if config.reset_unconfirmed_network_features {
-            store.hold_unconfirmed_network_features()?;
+            store.apply_quiet_network_defaults_once(config.legacy_network_defaults_applied)?;
         }
         let profile_reset_report = store.pending_profile_reset_report()?;
         let mut snapshot = store.snapshot()?;

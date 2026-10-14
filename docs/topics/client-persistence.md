@@ -51,8 +51,16 @@ first step: nullable session stop limits on `client_settings`, per-torrent
 overrides (NULL for the session limit, -1 for no limit) and a
 `seed_limit_stopped` flag on `torrents`, constrained to paused intent.
 
+Schema 28 (Tactical [358](../tactical/358-one-durable-store-and-migration-ledger.md))
+moves the desktop's quiet-network-defaults marker into
+`client_settings.network_defaults_version`, so applying those defaults and
+recording them share one transaction. Tactical 358 also moves `product.db` to
+the same baseline-plus-steps pattern (baseline 2, released fixture) and adds
+the desktop shell switches as product schema 3.
+
 The same rule covers every other durable format. Tactical 345 records the
-audit and its follow-ups.
+audit; [`durable-data-migrations`](durable-data-migrations.md) is the ledger
+of every migration and compatibility reader and when each may be retired.
 
 Tactical [348](../tactical/348-torrent-list-export-import.md) adds a
 portable torrent list bundle: a zip with a versioned `manifest.json` and one

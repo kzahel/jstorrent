@@ -58,13 +58,46 @@ test("serialized events saturate state and reset rotates only extension metrics"
   assert.equal(reset.everConnected, false);
 });
 
-test("malformed future state resets locally and first registers the bare survey", async () => {
+test("a newer extension's state is read only and registers the bare survey", async () => {
   const { owner, local, urls } = fixture();
-  local.productMetricsV1 = { schemaVersion: 99, secret: "must not survive" };
+  const newer = {
+    schemaVersion: 99,
+    installationId: "87e66203-9849-44c5-a557-8e77c29e7587",
+    statisticsEnabled: false,
+    future: "kept",
+  };
+  local.productMetricsV1 = structuredClone(newer);
   const state = await owner.refresh();
-  assert.equal(state.schemaVersion, 1);
-  assert.equal(local.productMetricsV1.secret, undefined);
+  assert.equal(state.statisticsEnabled, false);
+  assert.equal(state.installationId, newer.installationId);
+  assert.deepEqual(local.productMetricsV1, newer);
   assert.equal(urls.at(-1), UNINSTALL_BASE_URL);
+  await assert.rejects(owner.recordSession(), /newer extension/u);
+  assert.deepEqual(local.productMetricsV1, newer);
+});
+
+test("a damaged state keeps the opt-out and identity; unreadable consent is off", async () => {
+  const { owner, local } = fixture();
+  local.productMetricsV1 = {
+    schemaVersion: 1,
+    installationId: "87e66203-9849-44c5-a557-8e77c29e7587",
+    createdAtMillis: "not a number",
+    disclosureVersion: 1,
+    statisticsEnabled: false,
+    extra: true,
+  };
+  const recovered = await owner.refresh();
+  assert.equal(recovered.statisticsEnabled, false);
+  assert.equal(recovered.disclosureVersion, 1);
+  assert.equal(recovered.installationId, "87e66203-9849-44c5-a557-8e77c29e7587");
+  assert.equal(local.productMetricsV1.statisticsEnabled, false);
+  assert.equal((await owner.recordSession()).statisticsEnabled, false);
+
+  const unreadable = fixture();
+  unreadable.local.productMetricsV1 = { schemaVersion: 1, statisticsEnabled: "yes" };
+  assert.equal((await unreadable.owner.refresh()).statisticsEnabled, false);
+  unreadable.local.productMetricsV1 = "garbage";
+  assert.equal((await unreadable.owner.refresh()).statisticsEnabled, false);
 });
 
 test("URL construction rejects state shape drift and never admits arbitrary fields", () => {

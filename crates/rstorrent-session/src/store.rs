@@ -53,6 +53,8 @@ use crate::store_schema::{
 };
 
 const MAX_RECEIPTS: i64 = 1024;
+/// Tactical 339/340 quiet network defaults; see `apply_quiet_network_defaults_once`.
+const QUIET_NETWORK_DEFAULTS_VERSION: i64 = 1;
 const MAX_PENDING_PRODUCT_MILESTONES: i64 = 1024;
 pub(crate) const EPHEMERAL_SESSION_MAX_BYTES: u64 = 256 * 1024 * 1024;
 pub const MAX_STORAGE_ROOTS: usize = 32;
@@ -1900,8 +1902,31 @@ impl SessionStore {
 
     /// One-time desktop migration, before runtime construction. Retain data,
     /// running intent and port preference; legacy defaults are not consent.
-    pub(crate) fn hold_unconfirmed_network_features(&mut self) -> Result<(), StoreError> {
+    /// Applies the quiet network defaults (incoming listener and port mapping
+    /// off) once per profile and records that in the same transaction. When
+    /// `already_applied` says an older build applied them, only the marker is
+    /// set. Returns whether the defaults were applied now.
+    pub(crate) fn apply_quiet_network_defaults_once(
+        &mut self,
+        already_applied: bool,
+    ) -> Result<bool, StoreError> {
         let transaction = self.connection.transaction()?;
+        let marker: i64 = transaction.query_row(
+            "SELECT network_defaults_version FROM client_settings WHERE singleton = 1",
+            [],
+            |row| row.get(0),
+        )?;
+        if marker >= QUIET_NETWORK_DEFAULTS_VERSION {
+            return Ok(false);
+        }
+        transaction.execute(
+            "UPDATE client_settings SET network_defaults_version = ?1 WHERE singleton = 1",
+            [QUIET_NETWORK_DEFAULTS_VERSION],
+        )?;
+        if already_applied {
+            transaction.commit()?;
+            return Ok(false);
+        }
         let mut settings = read_client_settings(&transaction)?;
         if let crate::ListenerPolicy::FixedLoopback { port }
         | crate::ListenerPolicy::FixedLocalNetwork { port } = settings.listener
@@ -1915,7 +1940,7 @@ impl SessionStore {
             next_revision_strict(&transaction, revision)?;
         }
         transaction.commit()?;
-        Ok(())
+        Ok(true)
     }
 
     pub fn record_metadata(
@@ -11880,7 +11905,7 @@ mod tests {
                 .iter()
                 .any(|t| t.torrent_id == paused_id && !t.desired_running)
         );
-        store.hold_unconfirmed_network_features().unwrap();
+        assert!(store.apply_quiet_network_defaults_once(false).unwrap());
         let after = store.snapshot().unwrap();
         assert_eq!(after.torrents, before.torrents);
         assert_eq!(after.torrents.len(), 2);
@@ -11891,8 +11916,61 @@ mod tests {
         );
         assert_eq!(after.client_settings.preferred_listen_port, 42123);
         assert_eq!(after.client_settings.upload_slots, 7);
+        // The marker is durable: re-enabled networking is never held again,
+        // and Restore defaults keeps the marker.
+        let enabled = ClientSettings {
+            listener: ListenerPolicy::AutomaticLocalNetwork,
+            port_mapping: PortMappingPolicy::Upnp,
+            ..after.client_settings.clone()
+        };
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "user-enables-network".into(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: enabled.clone().into(),
+                },
+            })
+            .unwrap();
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "restore-defaults".into(),
+                expected_revision: None,
+                command: Command::ResetClientSettings,
+            })
+            .unwrap();
+        drop(store);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).unwrap();
         let revision = store.revision().unwrap();
-        store.hold_unconfirmed_network_features().unwrap();
+        assert!(!store.apply_quiet_network_defaults_once(false).unwrap());
+        assert_eq!(store.revision().unwrap(), revision);
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn legacy_network_defaults_marker_is_recorded_without_changing_settings() {
+        let root = test_root("legacy-network-defaults");
+        let configured = configured_root(&root);
+        let enabled = ClientSettings {
+            listener: ListenerPolicy::AutomaticLocalNetwork,
+            port_mapping: PortMappingPolicy::Upnp,
+            ..ClientSettings::default()
+        };
+        let mut store = SessionStore::open_with_initial_client_settings(
+            &root,
+            "default",
+            std::slice::from_ref(&configured),
+            &enabled,
+        )
+        .unwrap();
+        let revision = store.revision().unwrap();
+        assert!(!store.apply_quiet_network_defaults_once(true).unwrap());
+        assert!(!store.apply_quiet_network_defaults_once(false).unwrap());
+        assert_eq!(store.client_settings().unwrap(), enabled);
         assert_eq!(store.revision().unwrap(), revision);
         drop(store);
         fs::remove_dir_all(root).unwrap();

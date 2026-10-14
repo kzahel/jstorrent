@@ -9,7 +9,87 @@ use url::Url;
 use uuid::Uuid;
 
 const PRODUCT_DATABASE_FILENAME: &str = "product.db";
-const PRODUCT_SCHEMA_VERSION: i64 = 2;
+/// Schema 2 is the frozen baseline every public release ships; later
+/// versions append a step to `PRODUCT_MIGRATION_STEPS` (Tactical 358), as the
+/// session catalog does. The ledger in `durable-data-migrations` lists them.
+const PRODUCT_BASELINE_SCHEMA_VERSION: i64 = 2;
+const PRODUCT_SCHEMA_VERSION: i64 = 3;
+
+type ProductMigrationStep = fn(&rusqlite::Transaction<'_>) -> Result<(), ProductStateError>;
+
+/// `PRODUCT_MIGRATION_STEPS[i]` migrates baseline + i to the next version.
+/// Append only; a shipped step is never edited.
+const PRODUCT_MIGRATION_STEPS: &[ProductMigrationStep] = &[migrate_product_2_to_3];
+
+const _: () = assert!(
+    PRODUCT_BASELINE_SCHEMA_VERSION + PRODUCT_MIGRATION_STEPS.len() as i64
+        == PRODUCT_SCHEMA_VERSION,
+    "PRODUCT_SCHEMA_VERSION must equal the baseline plus one step per version"
+);
+
+/// The frozen schema-2 tables. Never edit; append a migration step instead.
+const PRODUCT_BASELINE_TABLES_SQL: &str = "CREATE TABLE product_state (
+            singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+            installation_id TEXT NOT NULL UNIQUE CHECK (
+                length(installation_id) = 36
+            ),
+            created_at_millis TEXT NOT NULL CHECK (
+                length(created_at_millis) BETWEEN 1 AND 20
+            ),
+            first_version TEXT NOT NULL CHECK (
+                length(first_version) BETWEEN 1 AND 128
+            ),
+            current_version TEXT NOT NULL CHECK (
+                length(current_version) BETWEEN 1 AND 128
+            ),
+            disclosure_version INTEGER NOT NULL DEFAULT 0 CHECK (
+                disclosure_version BETWEEN 0 AND 1
+            ),
+            statistics_enabled INTEGER NOT NULL DEFAULT 1 CHECK (
+                statistics_enabled IN (0, 1)
+            ),
+            torrents_added TEXT NOT NULL DEFAULT '0' CHECK (
+                length(torrents_added) BETWEEN 1 AND 20
+            ),
+            downloads_completed TEXT NOT NULL DEFAULT '0' CHECK (
+                length(downloads_completed) BETWEEN 1 AND 20
+            ),
+            foreground_sessions TEXT NOT NULL DEFAULT '0' CHECK (
+                length(foreground_sessions) BETWEEN 1 AND 20
+            ),
+            reset_generation TEXT NOT NULL CHECK (
+                length(reset_generation) = 36
+            ),
+            last_start_millis TEXT NOT NULL CHECK (
+                length(last_start_millis) BETWEEN 1 AND 20
+            ),
+            last_clean_shutdown_millis TEXT CHECK (
+                last_clean_shutdown_millis IS NULL OR
+                length(last_clean_shutdown_millis) BETWEEN 1 AND 20
+            ),
+            legacy_updater_id_permitted INTEGER NOT NULL DEFAULT 0 CHECK (
+                legacy_updater_id_permitted IN (0, 1)
+            )
+         );
+         CREATE TABLE product_source_watermarks (
+            source_epoch BLOB PRIMARY KEY CHECK (
+                length(source_epoch) = 16 AND source_epoch <> zeroblob(16)
+            ),
+            last_sequence TEXT NOT NULL CHECK (
+                length(last_sequence) BETWEEN 1 AND 20
+            )
+         ) WITHOUT ROWID;";
+
+/// Desktop shell switches (Tactical 358). Other platforms keep their shell
+/// preferences in platform stores and never write this row.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DesktopShellPreferences {
+    pub run_in_background: bool,
+    pub notify_download_complete: bool,
+    pub notify_needs_attention: bool,
+    pub notify_while_focused: bool,
+    pub prevent_sleep_during_active_downloads: bool,
+}
 const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 const MAX_PRODUCT_VERSION_BYTES: usize = 128;
 const MAX_U64_TEXT_BYTES: usize = 20;
@@ -413,6 +493,19 @@ impl ProductStateOwner {
     pub fn updater_installation_id(&self) -> Result<Option<String>, ProductStateError> {
         self.store()?.updater_installation_id()
     }
+
+    pub fn desktop_shell_preferences(
+        &self,
+    ) -> Result<Option<DesktopShellPreferences>, ProductStateError> {
+        self.store()?.desktop_shell_preferences()
+    }
+
+    pub fn replace_desktop_shell_preferences(
+        &self,
+        preferences: DesktopShellPreferences,
+    ) -> Result<(), ProductStateError> {
+        self.store()?.replace_desktop_shell_preferences(preferences)
+    }
 }
 
 impl fmt::Debug for ProductStateStore {
@@ -583,6 +676,60 @@ impl ProductStateStore {
         self.summary_at(now_millis)
     }
 
+    /// The stored desktop shell switches, or `None` before the desktop first
+    /// writes them.
+    pub fn desktop_shell_preferences(
+        &self,
+    ) -> Result<Option<DesktopShellPreferences>, ProductStateError> {
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT run_in_background, notify_download_complete,
+                        notify_needs_attention, notify_while_focused,
+                        prevent_sleep_during_active_downloads
+                 FROM desktop_shell_settings WHERE singleton = 1",
+                [],
+                |row| {
+                    Ok(DesktopShellPreferences {
+                        run_in_background: row.get(0)?,
+                        notify_download_complete: row.get(1)?,
+                        notify_needs_attention: row.get(2)?,
+                        notify_while_focused: row.get(3)?,
+                        prevent_sleep_during_active_downloads: row.get(4)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    pub fn replace_desktop_shell_preferences(
+        &mut self,
+        preferences: DesktopShellPreferences,
+    ) -> Result<(), ProductStateError> {
+        self.connection.execute(
+            "INSERT INTO desktop_shell_settings(
+                singleton, run_in_background, notify_download_complete,
+                notify_needs_attention, notify_while_focused,
+                prevent_sleep_during_active_downloads
+             ) VALUES (1, ?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(singleton) DO UPDATE SET
+                run_in_background = excluded.run_in_background,
+                notify_download_complete = excluded.notify_download_complete,
+                notify_needs_attention = excluded.notify_needs_attention,
+                notify_while_focused = excluded.notify_while_focused,
+                prevent_sleep_during_active_downloads =
+                    excluded.prevent_sleep_during_active_downloads",
+            params![
+                preferences.run_in_background,
+                preferences.notify_download_complete,
+                preferences.notify_needs_attention,
+                preferences.notify_while_focused,
+                preferences.prevent_sleep_during_active_downloads,
+            ],
+        )?;
+        Ok(())
+    }
+
     pub fn record_foreground_session(&mut self) -> Result<ProductSummary, ProductStateError> {
         let transaction = self.connection.transaction()?;
         increment_counter(&transaction, "foreground_sessions")?;
@@ -729,8 +876,14 @@ fn initialize(
             legacy_installation_id,
             now_millis,
         )?,
-        1 => migrate_schema_1(&mut connection, legacy_installation_id)?,
+        1 => {
+            migrate_schema_1(&mut connection, legacy_installation_id)?;
+            migrate_product_schema(&mut connection, PRODUCT_BASELINE_SCHEMA_VERSION)?;
+        }
         PRODUCT_SCHEMA_VERSION => validate_schema(&connection)?,
+        from if (PRODUCT_BASELINE_SCHEMA_VERSION..PRODUCT_SCHEMA_VERSION).contains(&from) => {
+            migrate_product_schema(&mut connection, from)?;
+        }
         actual => {
             return Err(ProductStateError::UnsupportedSchema {
                 actual,
@@ -789,9 +942,61 @@ fn migrate_schema_1(
         "UPDATE product_state SET legacy_updater_id_permitted = ?1 WHERE singleton = 1",
         [legacy_updater_id_permitted],
     )?;
-    transaction.pragma_update(None, "user_version", PRODUCT_SCHEMA_VERSION)?;
+    transaction.pragma_update(None, "user_version", PRODUCT_BASELINE_SCHEMA_VERSION)?;
+    transaction.commit()?;
+    Ok(())
+}
+
+/// Runs every step from `from` in one transaction; a failure leaves the
+/// database at `from` for the next open.
+fn migrate_product_schema(connection: &mut Connection, from: i64) -> Result<(), ProductStateError> {
+    let transaction = connection.transaction()?;
+    apply_product_steps(&transaction, from)?;
     transaction.commit()?;
     validate_schema(connection)
+}
+
+fn apply_product_steps(
+    transaction: &rusqlite::Transaction<'_>,
+    from: i64,
+) -> Result<(), ProductStateError> {
+    let first = usize::try_from(from - PRODUCT_BASELINE_SCHEMA_VERSION)
+        .ok()
+        .filter(|first| *first <= PRODUCT_MIGRATION_STEPS.len())
+        .ok_or_else(|| {
+            ProductStateError::InvalidState(format!("no migration path from product schema {from}"))
+        })?;
+    for (offset, step) in PRODUCT_MIGRATION_STEPS.iter().enumerate().skip(first) {
+        step(transaction)?;
+        transaction.pragma_update(
+            None,
+            "user_version",
+            PRODUCT_BASELINE_SCHEMA_VERSION + offset as i64 + 1,
+        )?;
+    }
+    Ok(())
+}
+
+/// Product schema 3 (Tactical 358): desktop shell switches move here from
+/// `desktop-shell.json`. The row is absent until the desktop writes it.
+fn migrate_product_2_to_3(
+    transaction: &rusqlite::Transaction<'_>,
+) -> Result<(), ProductStateError> {
+    transaction.execute_batch(
+        "CREATE TABLE desktop_shell_settings (
+            singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+            run_in_background INTEGER NOT NULL CHECK (run_in_background IN (0, 1)),
+            notify_download_complete INTEGER NOT NULL
+                CHECK (notify_download_complete IN (0, 1)),
+            notify_needs_attention INTEGER NOT NULL
+                CHECK (notify_needs_attention IN (0, 1)),
+            notify_while_focused INTEGER NOT NULL
+                CHECK (notify_while_focused IN (0, 1)),
+            prevent_sleep_during_active_downloads INTEGER NOT NULL
+                CHECK (prevent_sleep_during_active_downloads IN (0, 1))
+         );",
+    )?;
+    Ok(())
 }
 
 fn create_schema(
@@ -806,59 +1011,7 @@ fn create_schema(
         .map(str::to_owned)
         .unwrap_or_else(|| Uuid::new_v4().to_string());
     let transaction = connection.transaction()?;
-    transaction.execute_batch(
-        "CREATE TABLE product_state (
-            singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-            installation_id TEXT NOT NULL UNIQUE CHECK (
-                length(installation_id) = 36
-            ),
-            created_at_millis TEXT NOT NULL CHECK (
-                length(created_at_millis) BETWEEN 1 AND 20
-            ),
-            first_version TEXT NOT NULL CHECK (
-                length(first_version) BETWEEN 1 AND 128
-            ),
-            current_version TEXT NOT NULL CHECK (
-                length(current_version) BETWEEN 1 AND 128
-            ),
-            disclosure_version INTEGER NOT NULL DEFAULT 0 CHECK (
-                disclosure_version BETWEEN 0 AND 1
-            ),
-            statistics_enabled INTEGER NOT NULL DEFAULT 1 CHECK (
-                statistics_enabled IN (0, 1)
-            ),
-            torrents_added TEXT NOT NULL DEFAULT '0' CHECK (
-                length(torrents_added) BETWEEN 1 AND 20
-            ),
-            downloads_completed TEXT NOT NULL DEFAULT '0' CHECK (
-                length(downloads_completed) BETWEEN 1 AND 20
-            ),
-            foreground_sessions TEXT NOT NULL DEFAULT '0' CHECK (
-                length(foreground_sessions) BETWEEN 1 AND 20
-            ),
-            reset_generation TEXT NOT NULL CHECK (
-                length(reset_generation) = 36
-            ),
-            last_start_millis TEXT NOT NULL CHECK (
-                length(last_start_millis) BETWEEN 1 AND 20
-            ),
-            last_clean_shutdown_millis TEXT CHECK (
-                last_clean_shutdown_millis IS NULL OR
-                length(last_clean_shutdown_millis) BETWEEN 1 AND 20
-            ),
-            legacy_updater_id_permitted INTEGER NOT NULL DEFAULT 0 CHECK (
-                legacy_updater_id_permitted IN (0, 1)
-            )
-         );
-         CREATE TABLE product_source_watermarks (
-            source_epoch BLOB PRIMARY KEY CHECK (
-                length(source_epoch) = 16 AND source_epoch <> zeroblob(16)
-            ),
-            last_sequence TEXT NOT NULL CHECK (
-                length(last_sequence) BETWEEN 1 AND 20
-            )
-         ) WITHOUT ROWID;",
-    )?;
+    transaction.execute_batch(PRODUCT_BASELINE_TABLES_SQL)?;
     let now = encode_u64(now_millis);
     transaction.execute(
         "INSERT INTO product_state(
@@ -874,9 +1027,28 @@ fn create_schema(
             legacy_updater_id_permitted,
         ],
     )?;
-    transaction.pragma_update(None, "user_version", PRODUCT_SCHEMA_VERSION)?;
+    transaction.pragma_update(None, "user_version", PRODUCT_BASELINE_SCHEMA_VERSION)?;
+    apply_product_steps(&transaction, PRODUCT_BASELINE_SCHEMA_VERSION)?;
     transaction.commit()?;
     Ok(())
+}
+
+#[cfg(test)]
+fn baseline_schema_sql(connection: &mut Connection) -> Vec<(String, Option<String>)> {
+    // The frozen baseline is everything `create_schema` writes before steps.
+    let transaction = connection.transaction().expect("baseline transaction");
+    transaction
+        .execute_batch(PRODUCT_BASELINE_TABLES_SQL)
+        .expect("baseline tables");
+    transaction.commit().expect("commit baseline");
+    let mut statement = connection
+        .prepare("SELECT name, sql FROM sqlite_master ORDER BY name")
+        .expect("schema query");
+    statement
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+        .expect("schema rows")
+        .collect::<Result<_, _>>()
+        .expect("schema")
 }
 
 fn validate_schema(connection: &Connection) -> Result<(), ProductStateError> {
@@ -1141,6 +1313,131 @@ mod tests {
 
     const START: u64 = 1_800_000_000_000;
 
+    const RELEASED_PRODUCT_DATABASES: &[(i64, &[u8])] =
+        &[(2, include_bytes!("../tests/fixtures/product/v2.sqlite"))];
+
+    fn schema(connection: &rusqlite::Connection) -> Vec<(String, Option<String>)> {
+        let mut statement = connection
+            .prepare("SELECT name, sql FROM sqlite_master ORDER BY name")
+            .expect("schema query");
+        statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .expect("schema rows")
+            .collect::<Result<_, _>>()
+            .expect("schema")
+    }
+
+    /// Every product value an open does not deliberately update.
+    fn durable_values(connection: &rusqlite::Connection) -> Vec<String> {
+        let mut values: Vec<String> = connection
+            .query_row(
+                "SELECT installation_id, created_at_millis, first_version,
+                        disclosure_version, statistics_enabled, torrents_added,
+                        downloads_completed, foreground_sessions, reset_generation,
+                        last_clean_shutdown_millis, legacy_updater_id_permitted
+                 FROM product_state",
+                [],
+                |row| {
+                    (0..11)
+                        .map(|index| {
+                            let value: rusqlite::types::Value = row.get(index)?;
+                            Ok(format!("{value:?}"))
+                        })
+                        .collect()
+                },
+            )
+            .expect("product row");
+        let mut statement = connection
+            .prepare("SELECT source_epoch, last_sequence FROM product_source_watermarks")
+            .expect("watermarks");
+        let rows = statement
+            .query_map([], |row| {
+                Ok(format!(
+                    "{:?}|{}",
+                    row.get::<_, Vec<u8>>(0)?,
+                    row.get::<_, String>(1)?
+                ))
+            })
+            .expect("watermark rows");
+        for row in rows {
+            values.push(row.expect("watermark"));
+        }
+        values
+    }
+
+    #[test]
+    fn released_product_databases_migrate_keeping_every_value_and_consent() {
+        let fresh_root = tempfile::tempdir().expect("fresh root");
+        let fresh = ProductStateStore::open_at(fresh_root.path(), "9.9.9", None, START).unwrap();
+        let fresh_schema = schema(&fresh.connection);
+        drop(fresh);
+        for (version, bytes) in RELEASED_PRODUCT_DATABASES {
+            let root = tempfile::tempdir().expect("product root");
+            let path = root.path().join(PRODUCT_DATABASE_FILENAME);
+            std::fs::write(&path, bytes).expect("install fixture");
+            let original = rusqlite::Connection::open(&path).expect("raw fixture");
+            let before = durable_values(&original);
+            drop(original);
+
+            let migrated = ProductStateStore::open_at(root.path(), "9.9.9", None, START).unwrap();
+            assert_eq!(
+                migrated
+                    .connection
+                    .pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+                    .unwrap(),
+                PRODUCT_SCHEMA_VERSION
+            );
+            assert_eq!(
+                schema(&migrated.connection),
+                fresh_schema,
+                "product {version}"
+            );
+            assert_eq!(
+                durable_values(&migrated.connection),
+                before,
+                "product {version}"
+            );
+            assert!(!migrated.summary().unwrap().statistics_enabled);
+            assert_eq!(migrated.desktop_shell_preferences().unwrap(), None);
+        }
+    }
+
+    #[test]
+    fn product_baseline_definitions_stay_frozen() {
+        let (version, bytes) = RELEASED_PRODUCT_DATABASES[0];
+        assert_eq!(version, super::PRODUCT_BASELINE_SCHEMA_VERSION);
+        let root = tempfile::tempdir().expect("product root");
+        let path = root.path().join(PRODUCT_DATABASE_FILENAME);
+        std::fs::write(&path, bytes).expect("install fixture");
+        let released = rusqlite::Connection::open(&path).expect("released");
+        let mut fresh = rusqlite::Connection::open_in_memory().expect("fresh");
+        assert_eq!(super::baseline_schema_sql(&mut fresh), schema(&released));
+    }
+
+    #[test]
+    fn desktop_shell_preferences_round_trip_and_survive_clear_and_reopen() {
+        let root = tempfile::tempdir().expect("product root");
+        let mut store = ProductStateStore::open_at(root.path(), "1", None, START).unwrap();
+        assert_eq!(store.desktop_shell_preferences().unwrap(), None);
+        let preferences = super::DesktopShellPreferences {
+            run_in_background: false,
+            notify_download_complete: true,
+            notify_needs_attention: false,
+            notify_while_focused: true,
+            prevent_sleep_during_active_downloads: false,
+        };
+        store
+            .replace_desktop_shell_preferences(preferences)
+            .unwrap();
+        store.clear_app_data().unwrap();
+        drop(store);
+        let reopened = ProductStateStore::open_at(root.path(), "2", None, START + 1).unwrap();
+        assert_eq!(
+            reopened.desktop_shell_preferences().unwrap(),
+            Some(preferences)
+        );
+    }
+
     #[test]
     fn fresh_state_is_stable_private_and_not_transmitted_before_disclosure() {
         let root = tempfile::tempdir().expect("temporary product root");
@@ -1307,7 +1604,8 @@ mod tests {
         store
             .connection
             .execute_batch(
-                "ALTER TABLE product_state DROP COLUMN legacy_updater_id_permitted;
+                "DROP TABLE desktop_shell_settings;
+                 ALTER TABLE product_state DROP COLUMN legacy_updater_id_permitted;
                  PRAGMA user_version = 1;",
             )
             .expect("downgrade fixture to original schema one");
