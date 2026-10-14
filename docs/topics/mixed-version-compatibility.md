@@ -3,11 +3,13 @@
 Topic: `mixed-version-compatibility`
 
 Status: Active, started 2026-10-14 by Tactical
-[354](../tactical/354-mixed-version-compatibility.md). Slice 1 has landed: the
-web client fills fields older hosts omit, hides stop limits on hosts that
-lack them and never sends their settings there, and CI checks the contract
-against the released `desktop-v0.3.1` host. Tolerant clients, version
-observability and automatic updates (Tactical
+[354](../tactical/354-mixed-version-compatibility.md). Slices 1 and 2 have
+landed. The web client fills fields older hosts omit, hides stop limits on
+hosts that lack them and never sends their settings there, and accepts the
+object fields and row field kinds a newer host adds. CI checks the contract
+against the released `desktop-v0.3.1` host. Extension 1.1.5, the first
+tolerant extension, is packaged but not yet submitted. Host tolerance,
+version observability and automatic updates (Tactical
 [355](../tactical/355-automatic-updates.md)) remain.
 
 This topic owns how clients and hosts of different versions work together:
@@ -53,8 +55,9 @@ Ask one question: **does this add something the client sends?**
 | --- | --- |
 | New field a host sends | Give it a serde default or make it `Option`. Generation fails if a field a host may omit is typed as always present. |
 | New command, settings patch key or torrent settings patch key | Add a capability in `crates/rstorrent-session/src/host_capabilities.rs` that owns it, gate the control with `hostSupports`, and let the live dispatch filter drop it for hosts without it. CI fails on an unowned key. |
-| New enum value, tagged variant or row delta a host sends | Record it in `REVIEWED_STRICT_CLIENT_EXPOSURE` with how it is made safe; until tolerant clients are out, follow the release order below. |
-| New field inside a type released clients validate strictly (`additionalProperties: false`) | Same as a new variant. |
+| New row field kind a host sends (a `*FieldUpdate` variant) | Tolerant clients drop unknown kinds. Record it in `REVIEWED_STRICT_CLIENT_EXPOSURE` while strict clients (extension 1.1.4 and older) are still supported. |
+| New field inside a type released clients validate strictly (`additionalProperties: false`) | Same as a new row field kind. |
+| New enum value or other tagged variant a host sends | Every client still rejects it, tolerant ones included. Treat it as breaking: add a new optional field instead, or make clients tolerate that type first. Record any that ships in `REVIEWED_STRICT_CLIENT_EXPOSURE`. |
 | Remove, rename, retype or newly require anything released | Not allowed in v1. Add a new field or capability instead. |
 | Change the meaning of a released field or capability | Not allowed. New semantics take a new name. |
 
@@ -83,6 +86,16 @@ never deleted.
   default outside its reviewed list, and on any omittable field TypeScript
   types as present. `ServiceSnapshot.client_settings` keeps its hand-written
   fresh-profile default in `validation.ts`.
+- **Tolerance for newer hosts.** The generated host validators drop
+  `additionalProperties: false` and give each row field union
+  (`TorrentFieldUpdate`, `PeerFieldUpdate`, `FileFieldUpdate`,
+  `ActivePieceFieldUpdate`) a branch for string kinds this client does not
+  know. `validation.ts` then drops those fields, bounding the raw update at
+  256 fields first; an update left with only unknown kinds changes nothing.
+  Hand-written records require their known keys and ignore extras.
+  `validateCommand`, for what the client builds, is generated separately
+  from the exact schema (`v1.client-validators.js`) and stays strict, as do
+  enum values and other variants.
 - Android Compose and iOS run the engine in process and need no gates; the
   Kotlin and Swift exports of the registry are deferred until a native client
   controls another host.
@@ -99,20 +112,25 @@ never deleted.
   schema against each released schema: nothing removed or newly required,
   every new client-sent key owned by a capability, and every addition
   released strict clients would reject recorded and reviewed.
+- `clients/web/src/newer-host.test.ts` adds an unknown field to every object
+  of the current and released traces and of a released hello, and unknown
+  row field kinds to a row update, and requires the same result as without
+  them.
 - Rust tests keep registry names and IDs unique, every owned patch key real,
   and every entry advertised in the hello.
 
 ## Current Release Hold
 
-As of 2026-10-14, `main` carries five reviewed strict-client exposures (see
+As of 2026-10-15, `main` carries five reviewed strict-client exposures (see
 `REVIEWED_STRICT_CLIENT_EXPOSURE`). Extensions 1.1.3 (published) and 1.1.4
 (in review, built from `5fa018ff`) validate strictly. A torrent list
 snapshot from a host built from current `main` includes the new
 `ClientSettings.seed_stop_*` fields, so the companion fails on its first
 library view and asks for a reload. **Do not release desktop, headless or
-Android from `main`** until a tolerant extension is published and has had a
-few days to auto-update, or the maintainer accepts the companion break for
-that release.
+Android from `main`** until extension 1.1.5 (tolerant; packaged locally from
+this source, submission pending) is published and has had a few days to
+auto-update, or the maintainer accepts the companion break for that
+release. All five exposures are kinds 1.1.5 accepts.
 
 ## Release Runbook
 
@@ -121,11 +139,12 @@ Before any host release (desktop, headless, Android):
 1. `npm run test --prefix clients/web` passes, including the compatibility
    tests above.
 2. Check `REVIEWED_STRICT_CLIENT_EXPOSURE`. Each entry is something released
-   strict clients reject. Until a tolerant extension (Tactical 354 Slice 3)
-   is published and has had time to auto-update, a host release that ships
-   any entry breaks the extension companion for users who update the host
-   first. Either ship the tolerant extension first, or accept and record that
-   break for the release.
+   strict clients reject. Until the oldest extension still in use is tolerant
+   (1.1.5 or later), a host release that ships any entry breaks the extension
+   companion for users who update the host first. Either wait for the
+   tolerant extension, or accept and record that break for the release. An
+   enum value or non-row variant breaks even tolerant clients; do not ship one
+   without a gate.
 3. After the release, add its fixtures: copy `v1.schema.json`, an API hello
    built from that release's source and the generated
    `view-set-trace.json` and default settings view from the release tag into
@@ -165,10 +184,10 @@ A periodic version-population record belongs here once these are read.
 
 ## Gaps And Next Work
 
-- **Tolerant clients (354 Slice 3).** Released strict clients reject new
-  fields in closed types, new enum values and new variants. Make output
-  objects open, map unknown enum values and row deltas to an explicit
-  unknown, ignore unknown frames, and publish a tolerant extension.
+- **Publish extension 1.1.5** through the Web Store dashboard, then lift the
+  release hold once it has had a few days to auto-update.
+- **Unknown enum values and frame types.** Still rejected by every client.
+  Mapping them to an explicit unknown needs per-type handling in the UI.
 - **Per-call `unsupported`.** A released host closes the connection on an
   unknown key; current hosts should answer per call instead.
 - **Relay authentication leniency** for unknown fields.

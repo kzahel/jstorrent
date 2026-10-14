@@ -431,9 +431,9 @@ function requireUniqueFields(
   fields: ReadonlyArray<{ readonly field: string }>,
   row: string,
 ): void {
-  if (fields.length === 0) {
-    throw new ViewSetContinuityError(`${row} update has no fields`);
-  }
+  // Validation rejects an empty update from the host; one is empty here only
+  // when every field was of a kind this client does not know, which changes
+  // nothing it shows.
   const kinds = new Set(fields.map((field) => field.field));
   if (kinds.size !== fields.length) {
     throw new ViewSetContinuityError(`${row} update repeats a field`);

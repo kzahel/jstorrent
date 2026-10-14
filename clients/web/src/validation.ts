@@ -21,6 +21,7 @@ import {
   DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW,
 } from "./api/generated/v1";
 import { assertApiSchema, SchemaError } from "./api/schema";
+import { ROW_FIELD_KINDS } from "./api/generated/v1.validators.js";
 
 const MAX_FRAME_BYTES = 512 * 1024;
 const MAX_HTTP_RESPONSE_BYTES = 16 * 1024 * 1024;
@@ -350,7 +351,7 @@ export function decodeTorrentListImportReport(
 export function validateTorrentListImportReport(
   value: unknown,
 ): TorrentListImportReport {
-  const report = exactRecord(
+  const report = recordWithKeys(
     value,
     "torrent list import report",
     ["added", "already_present", "failed"],
@@ -368,7 +369,7 @@ export function validateTorrentListImportReport(
       MAX_U32,
     ),
     failed: failed.map((entry) => {
-      const failure = exactRecord(entry, "torrent list import failure", ["name", "reason"]);
+      const failure = recordWithKeys(entry, "torrent list import failure", ["name", "reason"]);
       return {
         name: boundedUtf8String(
           failure.name,
@@ -385,15 +386,13 @@ export function validateTorrentListImportReport(
   };
 }
 
-function exactRecord(
+/** A record with every listed key. A newer host may add others; they are ignored. */
+function recordWithKeys(
   value: unknown,
   label: string,
   keys: readonly string[],
 ): Record<string, unknown> {
   const record = asRecord(value, label);
-  for (const key of Object.keys(record)) {
-    if (!keys.includes(key)) throw new ContractError(`${label} has unknown field ${key}`);
-  }
   for (const key of keys) {
     if (!(key in record)) throw new ContractError(`${label} is missing ${key}`);
   }
@@ -1397,7 +1396,7 @@ function validateViewPatch(value: unknown): void {
 
 function validateRowUpdates(
   value: unknown,
-  label: string,
+  label: RowLabel,
   idField: string,
   validateId: (value: unknown) => unknown,
   maximumFields: number,
@@ -1420,7 +1419,7 @@ function validateRowUpdates(
 
 function validateRowUpdate(
   value: unknown,
-  label: string,
+  label: RowLabel,
   idField: string,
   validateId: (value: unknown) => unknown,
   maximumFields: number,
@@ -1428,7 +1427,7 @@ function validateRowUpdate(
   const update = asRecord(value, `${label} update`);
   validateId(update[idField]);
   const fields = array(update.fields, `${label} update fields`);
-  if (fields.length === 0 || fields.length > maximumFields) {
+  if (fields.length === 0 || fields.length > MAX_ROW_UPDATE_FIELDS) {
     throw new ContractError(`${label} update field count is invalid`);
   }
   const kinds = new Set<string>();
@@ -1440,8 +1439,31 @@ function validateRowUpdate(
     }
     kinds.add(kind);
   }
+  // A newer host may update fields this client does not know. They passed
+  // the generated schema as unknown kinds; drop them so the reducer and the
+  // types see only known fields.
+  const known = ROW_FIELD_KINDS[ROW_FIELD_UNIONS[label]];
+  const knownFields = fields.filter((field) =>
+    known.includes((field as { field: string }).field),
+  );
+  if (knownFields.length > maximumFields) {
+    throw new ContractError(`${label} update field count is invalid`);
+  }
+  update.fields = knownFields;
   return update;
 }
+
+/** Bounds a row update before unknown field kinds are dropped. */
+const MAX_ROW_UPDATE_FIELDS = 256;
+
+type RowLabel = "active piece" | "file" | "peer" | "torrent";
+
+const ROW_FIELD_UNIONS: Readonly<Record<RowLabel, keyof typeof ROW_FIELD_KINDS>> = {
+  "active piece": "ActivePieceFieldUpdate",
+  file: "FileFieldUpdate",
+  peer: "PeerFieldUpdate",
+  torrent: "TorrentFieldUpdate",
+};
 
 function validateDisjointRowOperations(
   upsertValue: unknown,

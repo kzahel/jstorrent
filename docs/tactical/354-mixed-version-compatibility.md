@@ -1,6 +1,7 @@
 # Tactical 354: Mixed-Version Compatibility And Capabilities
 
-Status: Slice 1 complete, 2026-10-14; Slices 2–5 open. Maintainer selected
+Status: Slices 1 and 2 complete, 2026-10-15 (extension 1.1.5 packaged, not
+yet submitted); Slices 3–5 open. Maintainer selected
 the flexible capability model and a 30-day starting horizon, then authorized
 implementation with commits. The living rules and runbooks moved to
 [`mixed-version-compatibility`](../topics/mixed-version-compatibility.md).
@@ -182,11 +183,12 @@ UI fixes. It remains a possible safety net below the support horizon.
    `seed_stop_limits` and its TypeScript export, client gating and the
    outgoing patch filter, `desktop-v0.3.1` fixtures with decode and render
    tests, and the contract-compatibility test.
-2. **Tolerant clients and extension release.** Open output objects; unknown
-   enum values and row deltas become an explicit unknown; unknown frames are
-   ignored; publish the extension. Required before a host release ships any
-   reviewed strict-client exposure, or that release records the companion
-   break.
+2. **Tolerant clients and extension release.** Complete except Web Store
+   submission; see **Evidence**. Open output objects; unknown row field
+   kinds dropped; hand-written records ignore extra keys; extension 1.1.5
+   packaged. Unknown enum values and frame types were narrowed out: they
+   need per-type UI handling and stay strict (topic rules treat them as
+   breaking).
 3. **Host tolerance.** Per-call `unsupported` for unknown commands and patch
    keys; relay authentication leniency.
 4. **Released-client fixtures and lint.** The released extension's
@@ -262,6 +264,35 @@ Slice 1, 2026-10-14:
   rstorrent-session --lib host_capabilities`.
 - **Not done here.** The hosted controller is repaired only when this is
   pushed and deployed, which needs maintainer approval.
+
+Slice 2, 2026-10-15:
+
+- **Generator.** Host validators are compiled from a schema with
+  `additionalProperties: false` removed and a fallback branch on each row
+  field union for unknown string kinds, and export `ROW_FIELD_KINDS`. A
+  known kind with an invalid value still fails. `validateCommand` moved to
+  `v1.client-validators.js`, compiled from the exact schema without defaults.
+- **Validation and reducer.** `validateRowUpdate` bounds raw updates at 256
+  fields, rejects repeats, drops unknown kinds and applies the old per-row
+  bound to known ones; the reducer accepts an update left empty. Hand-written
+  `exactRecord` became `recordWithKeys` (required keys, extras ignored).
+  Relay authentication `hasExactKeys` is unchanged and stays with Slice 3's
+  security review; only the always-newest hosted controller uses it.
+- **Tests.** `newer-host.test.ts` (unknown field on every object of the
+  current and `desktop-v0.3.1` traces and the released hello; unknown row
+  kinds alone and beside known ones). Two tests that asserted rejection of
+  extra fields now assert acceptance. The generated-command tests still
+  reject unknown patch keys.
+- **Extension.** The companion build had drifted into 32 code-split files
+  after on-demand panels landed, failing the extension's reviewed file
+  allowlist. Companion mode now sets `codeSplitting: false` and
+  `cssCodeSplit: false`, restoring one script and one stylesheet.
+  `manifest.jstorrent.json` is 1.1.5; `npm test` (61 passed) and
+  `npm run package:jstorrent` pass. `target/extension/jstorrent-1.1.5.zip`
+  SHA-256 `0a642038f69be233b03304bf4a1514e67d3ed4022c5c9023d81b6e2938efd0b6`
+  contains the fallback-branch validator and the capability gate.
+- **Runs.** `npm run typecheck` and `npm run test` for `clients/web` (696
+  passed, 2 skipped).
 
 ## Stopping Condition
 

@@ -266,14 +266,12 @@ describe("client settings validation", () => {
     }
   });
 
-  it("rejects additional, malformed, and inconsistent runtime settings", () => {
+  it("accepts settings a newer host adds and rejects malformed or inconsistent ones", () => {
     const additional = torrentBatch("Additional");
     const additionalSettings = additional.updates[0]!.snapshot
       .client_settings.configured as unknown as Record<string, unknown>;
     additionalSettings.invented = true;
-    expect(() => decodeUpdateBatch(JSON.stringify(additional))).toThrow(
-      ContractError,
-    );
+    expect(() => decodeUpdateBatch(JSON.stringify(additional))).not.toThrow();
 
     const fractional = torrentBatch("Fractional");
     fractional.updates[0]!.snapshot.client_settings.configured.upload_slots = 1.5;
