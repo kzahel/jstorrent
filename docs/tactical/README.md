@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [342 — Deliver DHT peers as replies arrive](342-stream-dht-peers-during-lookup.md):
+  per-reply DHT peer delivery to the torrent, bounded and non-blocking, with
+  the final lookup result still authoritative.
 - [341 — Peer sources in the Trackers tab](341-trackers-tab-peer-sources.md):
   DHT, peer exchange and incoming rows beside a torrent's trackers, from the
   existing swarm and DHT views.

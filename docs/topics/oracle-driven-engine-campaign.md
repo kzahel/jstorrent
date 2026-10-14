@@ -589,6 +589,14 @@ reason to stop.
 
 ## Current Checkpoint
 
+Completed Tactical
+[`342`](../tactical/342-stream-dht-peers-during-lookup.md) delivers DHT peers
+to torrents per `get_peers` reply, following pinned libtorrent
+`get_peers::got_peers` and `test_get_peers`, instead of after the full lookup
+and announce. Delivery is bounded and non-blocking; the final result stays
+authoritative. Rust fmt/clippy/workspace and the Android dual-ABI/JVM build
+pass. Lookup scheduling, limits and protocol claims are unchanged.
+
 Completed application Tactical
 [`300`](../tactical/300-monotonic-tracker-view-deadlines.md) repairs tracker
 inspection timing only. Pinned announce-entry source/tests and BEP 15 review

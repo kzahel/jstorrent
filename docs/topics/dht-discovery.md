@@ -120,6 +120,14 @@ sends the selected family/transport peer port explicitly with
 selects TCP. The query source port remains transport state rather than implied
 peer-port authority.
 
+Tactical [342](../tactical/342-stream-dht-peers-during-lookup.md) delivers
+peers as `get_peers` replies arrive, matching libtorrent's per-reply data
+callback, instead of only when the lookup and its announce phase finish. The
+lookup group forwards each reply's new peers once over a bounded progress
+channel with non-blocking `try_send`; the advertisement owner applies them
+when the registration generation and DHT epoch still match. The final result
+remains the complete set, so a dropped early batch only delays those peers.
+
 Verified private metadata disables DHT and purges DHT-only peers before content
 scheduling. Verified private metadata restored from durable state prevents DHT
 from starting for that torrent at all. This deliberately permits premetadata
