@@ -192,6 +192,7 @@ export function TransferTable() {
           />
         ),
       }}
+      loading={materialization.status === "loading"}
       emptyMessage={
         materialization.status !== "ready"
           ? materializationMessage(materialization)

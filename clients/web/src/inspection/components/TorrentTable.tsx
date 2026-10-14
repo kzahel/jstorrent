@@ -199,6 +199,7 @@ export function TorrentTable() {
         ),
       }}
       onActivate={(row) => openTorrentDetail(row.id)}
+      loading={materialization.status === "loading"}
       emptyMessage={
         materialization.status !== "ready"
           ? materializationMessage(materialization)

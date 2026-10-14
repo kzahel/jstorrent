@@ -100,7 +100,8 @@
   min-height: 0;
 }
 
-.card > button {
+.card > button,
+.placeholderCard {
   position: relative;
   display: grid;
   width: 100%;
@@ -273,7 +274,8 @@
     padding: var(--ui-space-sm);
   }
 
-  .viewport[data-layout="phone"] .card > button {
+  .viewport[data-layout="phone"] .card > button,
+  .viewport[data-layout="phone"] .placeholderCard {
     grid-template-columns: 6.5rem minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
   }
@@ -292,8 +294,49 @@
 
 }
 
+/* Tactical 352: cards that have not arrived yet. */
+.placeholderCard {
+  cursor: default;
+}
+
+.placeholderCard .art {
+  background: var(--surface-secondary);
+}
+
+/* No water level: nothing is known about this content yet. */
+.placeholderCard .art::before {
+  content: none;
+}
+
+.placeholderCard .cardBody {
+  gap: var(--ui-space-sm);
+}
+
+.placeholderBar {
+  display: block;
+  height: 0.65em;
+  border-radius: var(--radius-sm);
+  background: var(--surface-tertiary);
+  animation: placeholder-pulse 1.6s ease-in-out 0.4s infinite;
+}
+
+.cardBody .placeholderBar[data-secondary="true"] {
+  width: 40%;
+  height: 0.5em;
+}
+
+@keyframes placeholder-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .art::before {
     transition: none;
+  }
+
+  .placeholderBar {
+    animation: none;
   }
 }

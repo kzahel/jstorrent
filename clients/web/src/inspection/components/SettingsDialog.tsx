@@ -59,6 +59,7 @@ export interface SettingsDialogProps {
   readonly showCrostiniStorageHelp: boolean;
   readonly oneCurrentRoot?: boolean;
   readonly clientSettingsManageable: boolean;
+  readonly clientSettingsLoading?: boolean;
   readonly notifications?: DesktopNotifications | undefined;
   readonly power?: DesktopPower | undefined;
   readonly remoteAccess?: DesktopRemoteAccess | undefined;
@@ -104,6 +105,7 @@ export function SettingsDialog({
   showCrostiniStorageHelp,
   oneCurrentRoot = false,
   clientSettingsManageable,
+  clientSettingsLoading = false,
   notifications,
   power,
   remoteAccess,
@@ -302,6 +304,7 @@ export function SettingsDialog({
               <DownloadSettingsSection
                 storage={storage}
                 manageable={downloadsManageable}
+                loading={clientSettingsLoading}
                 showCrostiniStorageHelp={showCrostiniStorageHelp}
                 oneCurrentRoot={oneCurrentRoot}
                 onChooseFolder={onChooseFolder}
@@ -320,6 +323,7 @@ export function SettingsDialog({
               <ConnectionSeedingSettingsSection
                 settings={clientSettings}
                 manageable={clientSettingsManageable}
+                loading={clientSettingsLoading}
                 onSave={onClientSettingsSave}
               />
             </div>

@@ -11,6 +11,8 @@ import styles from "./SettingsDialog.module.css";
 interface DownloadSettingsSectionProps {
   readonly storage: DownloadStorageSettings;
   readonly manageable: boolean;
+  /** The folders have not arrived; an empty list would be misleading. */
+  readonly loading?: boolean;
   readonly showCrostiniStorageHelp: boolean;
   readonly oneCurrentRoot?: boolean;
   readonly onChooseFolder: (repairRoot?: string) => Promise<DownloadRoot | null>;
@@ -23,6 +25,7 @@ interface DownloadSettingsSectionProps {
 export function DownloadSettingsSection({
   storage,
   manageable,
+  loading = false,
   showCrostiniStorageHelp,
   oneCurrentRoot = false,
   onChooseFolder,
@@ -55,6 +58,8 @@ export function DownloadSettingsSection({
       <legend>{localizedMessage("inspection.components.download.settings.section.downloads")}</legend>
       {!manageable ? (
         <p className={styles.storageNote}>{localizedMessage("inspection.components.download.settings.section.not.manageable")}</p>
+      ) : loading ? (
+        <p className={styles.storageNote} role="status">{localizedMessage("inspection.components.download.settings.section.loading")}</p>
       ) : (
         <>
           <div className={styles.settingHeading}>

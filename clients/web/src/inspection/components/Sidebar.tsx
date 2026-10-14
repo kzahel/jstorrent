@@ -136,6 +136,10 @@ function Categories() {
   const selectTorrentCategory = useInspectionStore(
     (state) => state.selectTorrentCategory,
   );
+  // Counts appear with the first library view rather than as zeros.
+  const countsLoading = useInspectionStore(
+    (state) => state.viewStatus.library.status === "loading",
+  );
   const rows = useMemo(
     () =>
       order
@@ -164,13 +168,15 @@ function Categories() {
               key={category.id}
               active={libraryCategory === category.id}
               count={
-                rows.filter((row) =>
-                  torrentMatchesLibraryCategory(
-                    row,
-                    category.id,
-                    newestAddedAtMs,
-                  ),
-                ).length
+                countsLoading
+                  ? undefined
+                  : rows.filter((row) =>
+                      torrentMatchesLibraryCategory(
+                        row,
+                        category.id,
+                        newestAddedAtMs,
+                      ),
+                    ).length
               }
               label={category.label}
               symbol={category.symbol}
@@ -198,8 +204,10 @@ function Categories() {
             key={category.id}
             active={activeCategory === category.id}
             count={
-              rows.filter((row) => torrentMatchesCategory(row, category.id))
-                .length
+              countsLoading
+                ? undefined
+                : rows.filter((row) => torrentMatchesCategory(row, category.id))
+                    .length
             }
             label={category.label}
             symbol={category.symbol}
@@ -219,7 +227,7 @@ function NavigationButton({
   onSelect,
 }: {
   readonly active: boolean;
-  readonly count?: number;
+  readonly count?: number | undefined;
   readonly label: string;
   readonly symbol?: ReactNode;
   readonly onSelect: () => void;

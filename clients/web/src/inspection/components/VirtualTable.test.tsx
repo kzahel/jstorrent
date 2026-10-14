@@ -83,6 +83,37 @@ afterEach(() => {
 });
 
 describe("VirtualTable", () => {
+  it("shows hidden placeholder rows only while loading with no rows", () => {
+    const table = (rows: readonly Row[], loading: boolean) => (
+      <VirtualTable
+        tableId="placeholder-test"
+        label="Loading rows"
+        rows={rows}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="Loading rows…"
+        loading={loading}
+      />
+    );
+    const rendered = render(table([], true));
+    const grid = screen.getByRole("grid", { name: "Loading rows" });
+    const placeholders = screen.getByTestId("table-placeholders");
+    expect(grid).toHaveAttribute("aria-busy", "true");
+    expect(placeholders.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThanOrEqual(3);
+    expect(screen.queryAllByRole("row")).toHaveLength(1);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading rows…");
+
+    rendered.rerender(table([{ id: "a", value: "1" }], true));
+    expect(screen.queryByTestId("table-placeholders")).not.toBeInTheDocument();
+    expect(grid).not.toHaveAttribute("aria-busy");
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+
+    rendered.rerender(table([], false));
+    expect(screen.queryByTestId("table-placeholders")).not.toBeInTheDocument();
+    expect(screen.getByText("Loading rows…")).toBeVisible();
+  });
+
   it("preserves manual scrolling across refreshed and reordered rows", () => {
     const rows = Array.from({ length: 100 }, (_, index) => ({
       id: `row-${index}`,

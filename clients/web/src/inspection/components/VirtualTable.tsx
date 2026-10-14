@@ -76,6 +76,12 @@ export interface VirtualTableProps<Row> {
   readonly onActivate?: (row: Row) => void;
   readonly onClearCurrent?: () => void;
   readonly emptyMessage: string;
+  /**
+   * The rows have not arrived yet (Tactical 352): placeholder rows stand in
+   * for them, and the empty message is announced only to assistive
+   * technology. Ignored once there are rows.
+   */
+  readonly loading?: boolean;
   /** Optional control under the empty message, such as clearing a filter. */
   readonly emptyAction?: ReactNode;
   /** Names the row count, such as "3 torrents"; defaults to rows. */
@@ -135,6 +141,7 @@ export function VirtualTable<Row>({
   onActivate,
   onClearCurrent,
   emptyMessage,
+  loading = false,
   emptyAction,
   formatCount,
   initialSort,
@@ -720,12 +727,15 @@ export function VirtualTable<Row>({
     selection.onChange([...next], nextCurrentId);
   };
 
+  const placeholders = loading && sortedRows.length === 0;
   const toolbar = (
     <div className={styles.toolbar} data-slotted={toolbarSlot !== null}>
       <span>
-        {formatCount === undefined
-          ? localizedMessage("common.rows.total", { count: sortedRows.length })
-          : formatCount(sortedRows.length)}</span>
+        {placeholders
+          ? null
+          : formatCount === undefined
+            ? localizedMessage("common.rows.total", { count: sortedRows.length })
+            : formatCount(sortedRows.length)}</span>
       {!showSelectionSummary || selection === undefined ? null : (
         <>
           <strong className={styles.selectionStatus} aria-live="polite">
@@ -814,6 +824,7 @@ export function VirtualTable<Row>({
         role="grid"
         tabIndex={-1}
         aria-label={label}
+        aria-busy={placeholders || undefined}
         aria-rowcount={sortedRows.length + (list ? 0 : 1)}
         aria-colcount={
           (list ? 1 : visibleColumns.length) + (showSelectionColumn ? 1 : 0)
@@ -1010,7 +1021,19 @@ export function VirtualTable<Row>({
           })}
         </div>
       )}
-      {sortedRows.length === 0 ? (
+      {placeholders ? (
+        <PlaceholderRows
+          count={Math.max(
+            3,
+            Math.min(12, Math.ceil(viewportSize.height / tableRowHeight)),
+          )}
+          list={list}
+          gridStyle={gridStyle}
+          columns={visibleColumns}
+          selectionColumn={selection !== undefined && showSelectionColumn}
+          status={emptyMessage}
+        />
+      ) : sortedRows.length === 0 ? (
         <div className={styles.empty} onClick={activateBackground}>
           <div className={styles.emptyContent}>
             <span>{emptyMessage}</span>
@@ -1198,6 +1221,68 @@ export function VirtualTable<Row>({
           )}
         </ActionMenuTrigger>
       )}
+    </div>
+  );
+}
+
+// Varied, fixed bar widths so placeholder rows read as rows of text.
+const PLACEHOLDER_WIDTHS = [72, 54, 86, 61, 78, 47, 68, 58];
+
+function PlaceholderRows<Row>({
+  count,
+  list,
+  gridStyle,
+  columns,
+  selectionColumn,
+  status,
+}: {
+  readonly count: number;
+  readonly list: boolean;
+  readonly gridStyle: CSSProperties;
+  readonly columns: readonly VirtualColumn<Row>[];
+  readonly selectionColumn: boolean;
+  readonly status: string;
+}) {
+  const width = (row: number, column: number) =>
+    `${PLACEHOLDER_WIDTHS[(row * 3 + column) % PLACEHOLDER_WIDTHS.length]}%`;
+  return (
+    <div className={styles.placeholders} data-testid="table-placeholders">
+      <span className={styles.srOnly} role="status">{status}</span>
+      {Array.from({ length: count }, (_, row) => (
+        <div
+          key={row}
+          className={styles.placeholderRow}
+          style={list ? undefined : gridStyle}
+          aria-hidden="true"
+        >
+          {list ? (
+            <div className={styles.listCell}>
+              <span className={styles.placeholderBar} style={{ width: width(row, 0) }} />
+              <span
+                className={styles.placeholderBar}
+                data-secondary="true"
+                style={{ width: width(row, 5) }}
+              />
+            </div>
+          ) : (
+            <>
+              {selectionColumn ? <div className={styles.cell} /> : null}
+              {columns.map((column, index) => (
+                <div
+                  key={column.id}
+                  className={styles.cell}
+                  data-align={column.align ?? "left"}
+                >
+                  <span
+                    className={styles.placeholderBar}
+                    style={{ width: width(row, index) }}
+                  />
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

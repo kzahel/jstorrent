@@ -163,6 +163,65 @@ describe("inspection application", () => {
     ).toHaveTextContent("∞");
   });
 
+  it("shows placeholders, not an empty library, until the first library view", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...base,
+        demo: null,
+        session: { ...base.session, connection: { type: "connecting" } },
+        torrentOrder: [],
+        torrents: {},
+        viewStatus: { ...base.viewStatus, library: { status: "loading" } },
+      },
+    });
+    const { container } = renderApplication(application);
+
+    expect(container.firstElementChild).toHaveAttribute("data-connection", "connecting");
+    const grid = screen.getByRole("grid", { name: "Torrents" });
+    expect(grid).toHaveAttribute("aria-busy", "true");
+    expect(within(grid).getByTestId("table-placeholders")).toBeInTheDocument();
+    expect(within(grid).getByRole("status")).toHaveTextContent("Loading torrent library…");
+    expect(within(grid).queryByText(/No torrents yet/)).not.toBeInTheDocument();
+    expect(within(grid).queryAllByRole("row", { selected: true })).toHaveLength(0);
+    expect(screen.queryByText("0 torrents")).not.toBeInTheDocument();
+    const filters = screen.getByRole("navigation", { name: "Torrent filters" });
+    expect(within(filters).getByRole("button", { name: /^All torrents$/ })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    expect(within(dialog).getByText("Loading current settings…")).toBeVisible();
+    expect(within(dialog).getByRole("button", { name: "Save settings" })).toBeDisabled();
+    await user.click(within(dialog).getByRole("tab", { name: "Downloads" }));
+    expect(within(dialog).getByText("Loading download folders…")).toBeVisible();
+    expect(
+      within(dialog).queryByText(/No download folder has been chosen yet/),
+    ).not.toBeInTheDocument();
+
+    act(() => {
+      application.emitUpdate({
+        type: "snapshot",
+        snapshot: {
+          ...base,
+          demo: null,
+          session: { ...base.session, connection: { type: "connected" } },
+          torrentOrder: [],
+          torrents: {},
+        },
+      });
+    });
+    expect(within(dialog).queryByText("Loading download folders…")).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(grid).not.toHaveAttribute("aria-busy");
+    expect(within(grid).queryByTestId("table-placeholders")).not.toBeInTheDocument();
+    expect(within(grid).getByText(/No torrents yet/)).toBeVisible();
+    expect(screen.getByText("0 torrents")).toBeInTheDocument();
+    expect(within(filters).getByRole("button", { name: /^All torrents\s*0$/ })).toBeVisible();
+  });
+
   it("shows header rates only while something transfers and no connection pill", () => {
     const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
     const application = new RecordingLiveApplication({

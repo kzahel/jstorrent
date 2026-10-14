@@ -3235,6 +3235,12 @@
       "value": "port"
     }
   ],
+  "inspection.components.connection.seeding.settings.section.loading": [
+    {
+      "type": 0,
+      "value": "Loading current settings…"
+    }
+  ],
   "inspection.components.connection.seeding.settings.section.max.active.downloads": [
     {
       "type": 0,
@@ -4920,6 +4926,12 @@
     {
       "type": 0,
       "value": "Downloads"
+    }
+  ],
+  "inspection.components.download.settings.section.loading": [
+    {
+      "type": 0,
+      "value": "Loading download folders…"
     }
   ],
   "inspection.components.download.settings.section.location.is.unavailable": [

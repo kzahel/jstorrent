@@ -792,6 +792,10 @@
     "defaultMessage": "Open the incoming port on your router.",
     "description": "Connection settings and explicit network feature enable"
   },
+  "inspection.components.connection.seeding.settings.section.loading": {
+    "defaultMessage": "Loading current settings…",
+    "description": "Shown until the library's current connection settings arrive at startup"
+  },
   "inspection.components.connection.seeding.settings.section.not.manageable": {
     "defaultMessage": "These settings can't be changed here.",
     "description": "Shown when this client cannot change connection settings"
@@ -2019,6 +2023,10 @@
   "inspection.components.download.settings.section.unavailable.repair.required": {
     "defaultMessage": "Unavailable — repair required",
     "description": "Product copy in inspection/components/DownloadSettingsSection.tsx"
+  },
+  "inspection.components.download.settings.section.loading": {
+    "defaultMessage": "Loading download folders…",
+    "description": "Shown until the library's download folders arrive at startup"
   },
   "inspection.components.download.settings.section.not.manageable": {
     "defaultMessage": "Download folders can't be changed here.",

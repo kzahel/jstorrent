@@ -85,6 +85,8 @@ interface SettingNote {
 interface ConnectionSeedingSettingsSectionProps {
   readonly settings: ClientSettingsRuntimeView;
   readonly manageable: boolean;
+  /** The current settings have not arrived; the values shown are defaults. */
+  readonly loading?: boolean;
   readonly onSave: (patch: ClientSettingsPatch) => Promise<CommandAccepted>;
 }
 
@@ -107,9 +109,11 @@ interface DraftValidation {
 
 export function ConnectionSeedingSettingsSection({
   settings,
-  manageable,
+  manageable: manageableWhenLoaded,
+  loading = false,
   onSave,
 }: ConnectionSeedingSettingsSectionProps) {
+  const manageable = manageableWhenLoaded && !loading;
   const configured = settings.configured;
   const durableRevision = useInspectionStore((state) => state.durableRevision);
   const authority = clientSettingsDraft(configured);
@@ -210,7 +214,9 @@ export function ConnectionSeedingSettingsSection({
   return (
     <fieldset className={styles.section}>
       <legend>{localizedMessage("inspection.components.connection.seeding.settings.section.connection.seeding")}</legend>
-      {!manageable ? (
+      {loading ? (
+        <p className={styles.storageNote} role="status">{localizedMessage("inspection.components.connection.seeding.settings.section.loading")}</p>
+      ) : !manageable ? (
         <p className={styles.storageNote}>{localizedMessage("inspection.components.connection.seeding.settings.section.not.manageable")}</p>
       ) : null}
       <form className={styles.settingsForm} onSubmit={(event) => void submit(event)}>

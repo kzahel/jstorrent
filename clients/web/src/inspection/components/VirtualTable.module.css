@@ -492,3 +492,60 @@
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
+
+/* Tactical 352: rows that have not arrived yet. */
+.placeholders {
+  min-width: max-content;
+}
+
+.viewport[data-list="true"] .placeholders {
+  min-width: 0;
+}
+
+.placeholderRow {
+  display: grid;
+  height: var(--ui-table-row-height);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-primary);
+}
+
+.viewport[data-list="true"] .placeholderRow {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.viewport[data-list="true"] .placeholderRow .listCell {
+  gap: var(--ui-space-sm);
+}
+
+.placeholderBar {
+  display: block;
+  height: 0.6em;
+  border-radius: var(--radius-sm);
+  background: var(--surface-tertiary);
+  animation: placeholder-pulse 1.6s ease-in-out 0.4s infinite;
+}
+
+.placeholderBar[data-secondary="true"] {
+  height: 0.5em;
+}
+
+@keyframes placeholder-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .placeholderBar {
+    animation: none;
+  }
+}

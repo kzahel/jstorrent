@@ -28,6 +28,9 @@ import { torrentMatchesLibraryCategory } from "../state";
 import { LibraryDetailView, waterLevel } from "./LibraryDetailView";
 import styles from "./LibraryView.module.css";
 
+// Varied, fixed title widths so placeholder cards read as content.
+const PLACEHOLDER_WIDTHS = [78, 56, 88, 64, 72, 50];
+
 const GRID_METRICS: Readonly<
   Record<
     InterfaceSize,
@@ -202,12 +205,31 @@ export function LibraryView() {
         <div>
           <h1 id="library-heading">{categoryLabel(category)}</h1>
           <p>
-            {rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.library.view.torrent.backed.content")}{" "}
-            {rows.length === 1 ? localizedMessage("inspection.components.library.view.source") : localizedMessage("inspection.components.library.view.sources")}
+            {materialization.status === "loading" ? (
+              materializationMessage(materialization)
+            ) : (
+              <>
+                {rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.library.view.torrent.backed.content")}{" "}
+                {rows.length === 1 ? localizedMessage("inspection.components.library.view.source") : localizedMessage("inspection.components.library.view.sources")}
+              </>
+            )}
           </p>
         </div>
       </div>
-      {materialization.status !== "ready" ? (
+      {materialization.status === "loading" ? (
+        <VirtualLibraryGrid
+          placeholders
+          rows={[]}
+          currentId={null}
+          interfaceSize={interfaceSize}
+          layout={layout}
+          dataUnits={dataUnits}
+          initialScrollTop={0}
+          returnFocusId={null}
+          onScrollTop={() => {}}
+          onActivate={() => {}}
+        />
+      ) : materialization.status !== "ready" ? (
         <LibraryEmpty message={materializationMessage(materialization)} />
       ) : rows.length === 0 ? (
         <LibraryEmpty message={emptyMessage(category)} />
@@ -229,6 +251,7 @@ export function LibraryView() {
 }
 
 function VirtualLibraryGrid({
+  placeholders = false,
   rows,
   currentId,
   interfaceSize,
@@ -239,6 +262,8 @@ function VirtualLibraryGrid({
   onScrollTop,
   onActivate,
 }: {
+  /** Fill the viewport with placeholder cards until rows arrive (Tactical 352). */
+  readonly placeholders?: boolean;
   readonly rows: readonly TorrentRow[];
   readonly currentId: string | null;
   readonly interfaceSize: InterfaceSize;
@@ -285,7 +310,10 @@ function VirtualLibraryGrid({
         (metrics.minimumCardWidth + metrics.gap),
     ),
   );
-  const logicalRowCount = Math.ceil(rows.length / columnCount);
+  const visibleGridRows = Math.max(1, Math.ceil(viewportSize.height / metrics.rowHeight));
+  const logicalRowCount = placeholders
+    ? visibleGridRows
+    : Math.ceil(rows.length / columnCount);
   const firstRow = Math.max(
     0,
     Math.floor(scrollTop / metrics.rowHeight) - OVERSCAN_ROWS,
@@ -311,7 +339,9 @@ function VirtualLibraryGrid({
       data-layout={layout}
       role="list"
       aria-label={localizedMessage("inspection.components.library.view.torrent.backed.content.b57b1e1")}
+      aria-busy={placeholders || undefined}
       onScroll={onScroll}
+      data-testid={placeholders ? "library-placeholders" : undefined}
     >
       <div
         className={styles.canvas}
@@ -329,75 +359,97 @@ function VirtualLibraryGrid({
                 transform: `translateY(${logicalRow * metrics.rowHeight}px)`,
               }}
             >
-              {rows
-                .slice(firstItem, firstItem + columnCount)
-                .map((row, column) => {
-                  const position = firstItem + column;
-                  const visibleProgress = torrentVisibleProgress(row);
-                  const checkingIndeterminate =
-                    row.status === "checking" && visibleProgress === null;
-                  return (
-                    <article
-                      key={row.id}
+              {placeholders
+                ? Array.from({ length: columnCount }, (_, column) => (
+                    <div
+                      key={column}
                       className={styles.card}
-                      role="listitem"
-                      aria-posinset={position + 1}
-                      aria-setsize={rows.length}
-                      data-current={row.id === currentId}
+                      aria-hidden="true"
                     >
-                      <button
-                        type="button"
-                        aria-label={`Open details for ${row.name}`}
-                        aria-pressed={row.id === currentId}
-                        onClick={() => onActivate(row.id)}
-                        data-library-torrent-id={row.id}
-                        ref={row.id === returnFocusId ? focusButtonRef : undefined}
-                      >
-                        <span
-                          className={styles.art}
-                          data-indeterminate={checkingIndeterminate || undefined}
-                          data-full={visibleProgress !== null && visibleProgress >= 1 ? true : undefined}
-                          style={waterLevel(visibleProgress)}
-                          aria-hidden="true"
-                        >
-                          <span>{initials(row.name)}</span>
-                        </span>
+                      <div className={styles.placeholderCard}>
+                        <span className={styles.art} />
                         <span className={styles.cardBody}>
-                          <strong title={row.name}>{row.name}</strong>
-                          <span>{availabilityLabel(row)}</span>
-                          <span>{formatBytes(row.sizeBytes, dataUnits)}</span>
-                        </span>
-                        {row.progress === null && row.status !== "checking" ? null : (
                           <span
-                            className={styles.progress}
-                            data-indeterminate={checkingIndeterminate || undefined}
-                            role="progressbar"
-                            aria-label={
-                              row.status === "checking"
-                                ? `${row.name} checking progress: ${checkingStatusLabel(row)}`
-                                : `${row.name} download progress`
-                            }
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-valuenow={
-                              visibleProgress === null
-                                ? undefined
-                                : Math.round(visibleProgress * 100)
-                            }
+                            className={styles.placeholderBar}
+                            style={{ width: `${PLACEHOLDER_WIDTHS[(firstItem + column) % PLACEHOLDER_WIDTHS.length]}%` }}
+                          />
+                          <span
+                            className={styles.placeholderBar}
+                            data-secondary="true"
+                          />
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                : rows
+                    .slice(firstItem, firstItem + columnCount)
+                    .map((row, column) => {
+                      const position = firstItem + column;
+                      const visibleProgress = torrentVisibleProgress(row);
+                      const checkingIndeterminate =
+                        row.status === "checking" && visibleProgress === null;
+                      return (
+                        <article
+                          key={row.id}
+                          className={styles.card}
+                          role="listitem"
+                          aria-posinset={position + 1}
+                          aria-setsize={rows.length}
+                          data-current={row.id === currentId}
+                        >
+                          <button
+                            type="button"
+                            aria-label={`Open details for ${row.name}`}
+                            aria-pressed={row.id === currentId}
+                            onClick={() => onActivate(row.id)}
+                            data-library-torrent-id={row.id}
+                            ref={row.id === returnFocusId ? focusButtonRef : undefined}
                           >
-                            {visibleProgress === null ? null : (
+                            <span
+                              className={styles.art}
+                              data-indeterminate={checkingIndeterminate || undefined}
+                              data-full={visibleProgress !== null && visibleProgress >= 1 ? true : undefined}
+                              style={waterLevel(visibleProgress)}
+                              aria-hidden="true"
+                            >
+                              <span>{initials(row.name)}</span>
+                            </span>
+                            <span className={styles.cardBody}>
+                              <strong title={row.name}>{row.name}</strong>
+                              <span>{availabilityLabel(row)}</span>
+                              <span>{formatBytes(row.sizeBytes, dataUnits)}</span>
+                            </span>
+                            {row.progress === null && row.status !== "checking" ? null : (
                               <span
-                                style={{
-                                  width: `${Math.round(visibleProgress * 100)}%`,
-                                }}
-                              />
+                                className={styles.progress}
+                                data-indeterminate={checkingIndeterminate || undefined}
+                                role="progressbar"
+                                aria-label={
+                                  row.status === "checking"
+                                    ? `${row.name} checking progress: ${checkingStatusLabel(row)}`
+                                    : `${row.name} download progress`
+                                }
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-valuenow={
+                                  visibleProgress === null
+                                    ? undefined
+                                    : Math.round(visibleProgress * 100)
+                                }
+                              >
+                                {visibleProgress === null ? null : (
+                                  <span
+                                    style={{
+                                      width: `${Math.round(visibleProgress * 100)}%`,
+                                    }}
+                                  />
+                                )}
+                              </span>
                             )}
-                          </span>
-                        )}
-                      </button>
-                    </article>
-                  );
-                })}
+                          </button>
+                        </article>
+                      );
+                    })}
             </div>
           );
         })}

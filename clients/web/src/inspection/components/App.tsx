@@ -181,6 +181,10 @@ function AppContent({
   const demo = useInspectionStore((state) => state.demo);
   const storage = useInspectionStore((state) => state.storage);
   const clientSettings = useInspectionStore((state) => state.clientSettings);
+  // Storage and client settings arrive with the library view.
+  const libraryLoading = useInspectionStore(
+    (state) => state.viewStatus.library.status === "loading",
+  );
   const execute = useInspectionCommand();
   const controller = useInspectionController();
   const destination = useInspectionStore(
@@ -566,6 +570,7 @@ function AppContent({
           showCrostiniStorageHelp={hostedProduct === "crostini"}
           oneCurrentRoot={oneCurrentRoot === true}
           clientSettingsManageable
+          clientSettingsLoading={libraryLoading}
           notifications={notifications}
           power={power}
           remoteAccess={remoteAccess}
