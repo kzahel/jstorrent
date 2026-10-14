@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DesktopUpdaterSnapshot } from "../updater/types";
 import type { AboutFacts } from "./about";
-import { productFlavor } from "./about";
+import { productFlavor, withHostProduct } from "./about";
 import { buildDiagnostics } from "./diagnostics";
 
 describe("local diagnostics allowlist", () => {
@@ -36,6 +36,24 @@ describe("local diagnostics allowlist", () => {
 
     const crostini = JSON.parse(buildDiagnostics({ about: { connection: "server", hostBuild: "local-webui" } }));
     expect(crostini.build).toBe("local-webui");
+  });
+
+  it("reports host hello facts but never the profile location", () => {
+    const about = withHostProduct({ connection: "remote" }, {
+      kind: "android",
+      version: "1.0.31",
+      build_id: "0123456789abcdef0123456789abcdef01234567",
+      target: "aarch64-linux-android",
+      identifier: "com.jstorrent.app",
+      profile_id: "default",
+      profile_location: "/data/user/0/com.jstorrent.app/files/product-profile",
+    });
+    const text = buildDiagnostics({ about });
+    expect(JSON.parse(text)).toMatchObject({ connection: "remote", version: "1.0.31",
+      build: "0123456789abcdef0123456789abcdef01234567", target: "aarch64-linux-android",
+      identity: "com.jstorrent.app", flavor: "production" });
+    expect(text).not.toContain("product-profile");
+    expect(text).not.toContain("/data/user");
   });
 
   it("accepts the version-shaped build ID that headless reports", () => {

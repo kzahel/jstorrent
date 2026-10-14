@@ -276,6 +276,10 @@
     "defaultMessage": "Review signed release",
     "description": "Product copy in inspection/components/AboutUpdatesSettingsSection.tsx"
   },
+  "inspection.components.about.updates.settings.section.profile.location": {
+    "defaultMessage": "Library folder",
+    "description": "About settings: label for the folder holding this profile's library"
+  },
   "inspection.components.about.updates.settings.section.rstorrent.checks.automatically.after.startup.and.about": {
     "defaultMessage": "JSTorrent checks automatically after startup and about once per day.",
     "description": "Product copy in inspection/components/AboutUpdatesSettingsSection.tsx"

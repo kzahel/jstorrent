@@ -128,6 +128,8 @@ export class LiveApplication implements InspectionApplication {
   } | null = null;
   private mappedPieces: MappedPieceActivity | null = null;
   private hello: ApiHello | null = null;
+  // False after the connection drops, until hello is read again.
+  private helloCurrent = false;
   private client: ApplicationViewClient | null;
   private readonly loadClient: () => Promise<ApplicationViewClient>;
   private closed = false;
@@ -252,8 +254,10 @@ export class LiveApplication implements InspectionApplication {
     markStartup("client_loaded");
     this.ensureOpen();
     this.hello = await client.hello(this.lifetime.signal);
+    this.helloCurrent = true;
     markStartup("hello");
     this.ensureOpen();
+    this.snapshot = withHost(this.snapshot, this.hello);
     const opened = { ...this.desired };
     const controller = await ViewController.open(
       client,
@@ -744,6 +748,7 @@ export class LiveApplication implements InspectionApplication {
       this.snapshot.clientSettings,
       this.trackerClock.offsetMs,
     );
+    this.snapshot = withHost(this.snapshot, this.hello);
     this.emit({ type: "snapshot", snapshot: this.snapshot });
   }
 
@@ -797,6 +802,13 @@ export class LiveApplication implements InspectionApplication {
 
   private acceptStatus(status: ViewConnectionStatus): void {
     if (this.closed) return;
+    if (status.type === "retrying") this.helloCurrent = false;
+    // A host can restart with another version or capabilities while the
+    // view set reconnects, so read its hello again.
+    if (status.type === "connected" && !this.helloCurrent && this.controller !== null) {
+      this.helloCurrent = true;
+      void this.refreshHello();
+    }
     this.connection =
       status.type === "retrying"
         ? {
@@ -810,6 +822,26 @@ export class LiveApplication implements InspectionApplication {
       session: { ...this.snapshot.session, connection: this.connection },
     };
     this.emit({ type: "snapshot", snapshot: this.snapshot });
+  }
+
+  private async refreshHello(): Promise<void> {
+    const client = this.client;
+    if (client === null) return;
+    let hello: ApiHello;
+    try {
+      hello = await client.hello(this.lifetime.signal);
+    } catch (error) {
+      if (this.closed) return;
+      this.helloCurrent = false;
+      console.warn("JSTorrent could not refresh its host facts:", asError(error));
+      return;
+    }
+    if (this.closed) return;
+    const capabilitiesChanged = !sameStrings(this.hello?.capabilities ?? [], hello.capabilities);
+    this.hello = hello;
+    this.snapshot = withHost(this.snapshot, hello);
+    this.emit({ type: "snapshot", snapshot: this.snapshot });
+    if (capabilitiesChanged) await this.syncViews().catch(() => {});
   }
 
   private markStale(error: Error): void {
@@ -1093,6 +1125,16 @@ function magnetCommandResult(response: ResponseEnvelope): CommandResult {
       omittedTrackerCount: result.result.omitted_tracker_count,
     },
   };
+}
+
+function withHost(snapshot: InspectionSnapshot, hello: ApiHello | null): InspectionSnapshot {
+  const host = hello?.product ?? null;
+  if ((snapshot.session.host ?? null) === host) return snapshot;
+  return { ...snapshot, session: { ...snapshot.session, host } };
+}
+
+function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function mapViewState(

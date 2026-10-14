@@ -1213,6 +1213,32 @@ describe("LiveApplication", () => {
     await application.close();
   });
 
+  it("reports host product facts and reads them again after a reconnect", async () => {
+    const client = new ProductHelloClient();
+    const application = await LiveApplication.open(client, {
+      retryBaseMillis: 1,
+      retryMaximumMillis: 2,
+    });
+    const snapshots: InspectionSnapshot[] = [];
+    application.subscribe((update) => {
+      if (update.type === "snapshot") snapshots.push(update.snapshot);
+    });
+    expect(snapshots.at(-1)?.session.host?.version).toBe("0.3.0");
+    expect(client.helloCount).toBe(1);
+
+    client.version = "0.3.1";
+    client.expireViewSet();
+    await waitUntil(() => snapshots.at(-1)?.session.host?.version === "0.3.1");
+    expect(client.helloCount).toBe(2);
+    expect(snapshots.at(-1)?.session.connection.type).toBe("connected");
+    expect(snapshots.at(-1)?.session.host).toMatchObject({
+      kind: "desktop",
+      identifier: "com.jstorrent.desktop",
+      profile_location: "/profiles/default",
+    });
+    await application.close();
+  });
+
   it("reopens a leased swarm view from a complete fresh snapshot", async () => {
     const client = new FakeLiveClient();
     const application = await LiveApplication.open(client, {
@@ -1252,6 +1278,27 @@ describe("LiveApplication", () => {
     await application.close();
   });
 });
+
+class ProductHelloClient extends FakeLiveClient {
+  version = "0.3.0";
+  helloCount = 0;
+
+  override async hello(): Promise<ApiHello> {
+    this.helloCount += 1;
+    return {
+      ...(await super.hello()),
+      product: {
+        kind: "desktop",
+        version: this.version,
+        build_id: "development",
+        target: "aarch64-apple-darwin",
+        identifier: "com.jstorrent.desktop",
+        profile_id: "default",
+        profile_location: "/profiles/default",
+      },
+    };
+  }
+}
 
 class GatedHelloClient extends FakeLiveClient {
   helloCalls = 0;

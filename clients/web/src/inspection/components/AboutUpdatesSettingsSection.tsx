@@ -29,6 +29,7 @@ export function AboutUpdatesSettingsSection({
   const info = snapshot?.info;
   const version = info?.version ?? about.hostVersion;
   const build = info?.buildId ?? about.hostBuild;
+  const target = info?.target ?? about.hostTarget;
   const flavor = about.identifier === undefined ? undefined : productFlavor(about.identifier);
   return (
     <div className={styles.aboutUpdates}>
@@ -53,17 +54,17 @@ export function AboutUpdatesSettingsSection({
               <dd title={build}>{shortBuildId(build)}</dd>
             </div>
           )}
+          {target === undefined ? null : (
+            <div>
+              <dt>{localizedMessage("inspection.components.about.updates.settings.section.target")}</dt>
+              <dd>{target}</dd>
+            </div>
+          )}
           {info === undefined ? null : (
-            <>
-              <div>
-                <dt>{localizedMessage("inspection.components.about.updates.settings.section.target")}</dt>
-                <dd>{info.target}</dd>
-              </div>
-              <div>
-                <dt>{localizedMessage("inspection.components.about.updates.settings.section.package")}</dt>
-                <dd>{packageLabel(info.bundleType)}</dd>
-              </div>
-            </>
+            <div>
+              <dt>{localizedMessage("inspection.components.about.updates.settings.section.package")}</dt>
+              <dd>{packageLabel(info.bundleType)}</dd>
+            </div>
           )}
           {about.pageBuild === undefined ? null : (
             <div>
@@ -74,20 +75,30 @@ export function AboutUpdatesSettingsSection({
         </dl>
       </fieldset>
 
-      {about.identifier === undefined || flavor === undefined ? null : (
+      {about.identifier === undefined && about.profileLocation === undefined ? null : (
         <fieldset className={styles.section}>
           <legend>{localizedMessage("inspection.components.about.updates.settings.section.profile")}</legend>
           <dl className={styles.releaseFacts}>
-            <div>
-              <dt>{localizedMessage("inspection.components.about.updates.settings.section.build.type")}</dt>
-              <dd className={styles.plainFact}>{flavorLabel(flavor)}</dd>
-            </div>
-            <div>
-              <dt>{localizedMessage("inspection.components.about.updates.settings.section.app.id")}</dt>
-              <dd>{about.identifier}</dd>
-            </div>
+            {about.identifier === undefined || flavor === undefined ? null : (
+              <>
+                <div>
+                  <dt>{localizedMessage("inspection.components.about.updates.settings.section.build.type")}</dt>
+                  <dd className={styles.plainFact}>{flavorLabel(flavor)}</dd>
+                </div>
+                <div>
+                  <dt>{localizedMessage("inspection.components.about.updates.settings.section.app.id")}</dt>
+                  <dd>{about.identifier}</dd>
+                </div>
+              </>
+            )}
+            {about.profileLocation === undefined ? null : (
+              <div>
+                <dt>{localizedMessage("inspection.components.about.updates.settings.section.profile.location")}</dt>
+                <dd>{about.profileLocation}</dd>
+              </div>
+            )}
           </dl>
-          {flavor === "production" ? null : (
+          {flavor === undefined || flavor === "production" ? null : (
             <p className={styles.updatePrivacy}>{localizedMessage("inspection.components.about.updates.settings.section.separate.library")}</p>
           )}
         </fieldset>

@@ -2,14 +2,15 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { render as renderUnwrapped, screen, within } from "@testing-library/react";
+import { cleanup, render as renderUnwrapped, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
   DesktopUpdater,
   DesktopUpdaterSnapshot,
 } from "../updater/types";
+import { withHostProduct } from "../support/about";
 import { AboutUpdatesSettingsSection } from "./AboutUpdatesSettingsSection";
 import { DesktopUpdaterController } from "../updater/controller";
 import { ToastProvider } from "./Toast";
@@ -18,6 +19,8 @@ const render = (ui: Parameters<typeof renderUnwrapped>[0]) =>
   renderUnwrapped(ui, { wrapper: ToastProvider });
 
 describe("About and updates settings", () => {
+  afterEach(cleanup);
+
   it("shows version and support without update controls on a remote session", () => {
     render(
       <AboutUpdatesSettingsSection
@@ -35,6 +38,30 @@ describe("About and updates settings", () => {
     expect(screen.getByRole("link", { name: "Report a problem" })).toBeVisible();
   });
 
+  it("shows what a remote host reports about itself and its profile", () => {
+    render(
+      <AboutUpdatesSettingsSection
+        about={withHostProduct({ connection: "remote", pageBuild: "0123456789abcdef0123456789abcdef01234567" }, {
+          kind: "desktop",
+          version: "0.3.1",
+          build_id: "fedcba9876543210fedcba9876543210fedcba98",
+          target: "x86_64-pc-windows-msvc",
+          identifier: "com.jstorrent.rstorrent",
+          profile_id: "default",
+          profile_location: "C:\\Users\\test\\AppData\\Roaming\\com.jstorrent.rstorrent\\profile",
+        })}
+      />,
+    );
+    expect(screen.getByText("0.3.1")).toBeVisible();
+    expect(screen.getByText("fedcba987654")).toBeVisible();
+    expect(screen.getByText("x86_64-pc-windows-msvc")).toBeVisible();
+    expect(screen.getByText("Preview")).toBeVisible();
+    expect(screen.getByText("Library folder")).toBeVisible();
+    expect(screen.getByText(/AppData.+profile$/)).toBeVisible();
+    expect(screen.getByText("0123456789ab")).toBeVisible();
+    expect(screen.queryByText("Not reported")).not.toBeInTheDocument();
+  });
+
   it("shows the companion host version", () => {
     render(<AboutUpdatesSettingsSection about={{ connection: "android-companion", hostVersion: "1.0.31" }} />);
     expect(screen.getByText("JSTorrent on Android")).toBeVisible();
@@ -42,14 +69,12 @@ describe("About and updates settings", () => {
   });
 
   it("marks a development profile as a separate library", () => {
-    const { unmount } = render(
-      <AboutUpdatesSettingsSection about={{ connection: "desktop", identifier: "com.jstorrent.check" }} />,
-    );
+    render(<AboutUpdatesSettingsSection about={{ connection: "desktop", identifier: "com.jstorrent.check" }} />);
     expect(screen.getByText("Profile")).toBeVisible();
     expect(screen.getByText("Development")).toBeVisible();
     expect(screen.getByText("com.jstorrent.check")).toBeVisible();
     expect(screen.getByText(/keeps its own library/)).toBeVisible();
-    unmount();
+    cleanup();
     render(<AboutUpdatesSettingsSection about={{ connection: "desktop", identifier: "com.jstorrent.desktop" }} />);
     expect(screen.getByText("Production")).toBeVisible();
     expect(screen.queryByText(/keeps its own library/)).not.toBeInTheDocument();

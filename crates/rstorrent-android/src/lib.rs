@@ -29,9 +29,10 @@ use rstorrent_session::{
     AddTorrentBytesRequest, ApplicationConfig, ApplicationNetworkPrerequisite, ApplicationService,
     ConfiguredStorageRoot, LegacyAndroidRootBinding, MAX_STORAGE_ROOTS, MediaUrlResponse,
     NetworkPrerequisiteHandle, PathRootStartupPolicy, PlatformRemovalPlan,
-    ProductFeedbackEnvironment, ProductFeedbackPreview, ProductStateOwner, ProductSummary,
-    RequestEnvelope, ResponseEnvelope, SessionStore, StorageRootSnapshot, StorageSettingsSnapshot,
-    SubscriptionSpec, ViewSubscription, ViewUpdate, build_product_feedback_preview,
+    ProductFeedbackEnvironment, ProductFeedbackPreview, ProductIdentity, ProductStateOwner,
+    ProductSummary, RequestEnvelope, ResponseEnvelope, SessionStore, StorageRootSnapshot,
+    StorageSettingsSnapshot, SubscriptionSpec, ViewSubscription, ViewUpdate,
+    build_product_feedback_preview,
 };
 use sha1::{Digest, Sha1};
 use tokio::sync::{Mutex as AsyncMutex, watch};
@@ -108,6 +109,8 @@ pub struct AndroidApplicationConfig {
     pub initial_network_prerequisite: AndroidApplicationNetworkPrerequisite,
     pub peer_connect_timeout_seconds: u64,
     pub peer_io_timeout_seconds: u64,
+    /// Android application ID, reported with the version in the API hello.
+    pub application_id: String,
 }
 
 #[derive(Clone, Debug, uniffi::Record)]
@@ -1244,6 +1247,15 @@ fn validate_application_config(
             android_path(config.storage_root, "storage root")?,
         )]
     };
+    if !valid_application_id(&config.application_id) {
+        return Err(AndroidClientError::message(
+            "application ID must be 1..=128 bytes of letters, digits, '.' and '_'",
+        ));
+    }
+    let product = ProductIdentity {
+        identifier: Some(config.application_id),
+        ..ProductIdentity::for_this_build("android", &config.product_version)
+    };
     let network_policy = match config.network_policy {
         AndroidNetworkPolicy::Offline => NetworkPolicy::Offline,
         AndroidNetworkPolicy::LoopbackOnly => NetworkPolicy::LoopbackOnly,
@@ -1258,7 +1270,8 @@ fn validate_application_config(
             Duration::from_secs(config.peer_connect_timeout_seconds),
             Duration::from_secs(config.peer_io_timeout_seconds),
         ),
-    );
+    )
+    .with_product(product);
     application =
         application.with_initial_network_prerequisite(match config.initial_network_prerequisite {
             AndroidApplicationNetworkPrerequisite::Allowed => {
@@ -1278,6 +1291,14 @@ fn validate_application_config(
     application.download_resource_limits = DownloadResourceLimits::ANDROID;
     application.active_download_cap = Some(2);
     Ok(application)
+}
+
+fn valid_application_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.' || byte == b'_')
 }
 
 fn android_path(value: String, label: &str) -> Result<PathBuf, AndroidClientError> {
@@ -2438,6 +2459,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .expect("valid Android application config");
 
@@ -2481,6 +2503,7 @@ mod tests {
                 AndroidApplicationNetworkPrerequisite::WaitingForUnmeteredNetwork,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open initially blocked product application");
@@ -2537,6 +2560,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open loopback application");
@@ -2687,6 +2711,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open product application");
@@ -2798,6 +2823,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open product application");
@@ -2876,6 +2902,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open product application");
@@ -2931,6 +2958,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open platform product application");
@@ -2969,6 +2997,7 @@ mod tests {
             initial_network_prerequisite: AndroidApplicationNetworkPrerequisite::Allowed,
             peer_connect_timeout_seconds: 15,
             peer_io_timeout_seconds: 60,
+            application_id: "org.rstorrent.test".to_owned(),
         })
         .await
         .expect("open product application");

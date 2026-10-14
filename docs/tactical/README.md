@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [353 — Host product facts in the API hello](353-host-product-in-hello.md):
+  hosts report version, build, target, app ID and profile in the hello;
+  About shows them everywhere and the client re-reads them after reconnects.
 - [352 — Render-first web startup](352-render-first-web-startup.md): the
   real shell renders before the engine connects, with placeholder rows until
   the first library view; transports, adapters, demo and settings load off

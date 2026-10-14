@@ -146,6 +146,16 @@ function validateApiHello(value: ApiHello): void {
   ) {
     throw new ContractError("API queue limits are inconsistent");
   }
+  const product = value.product;
+  if (product !== undefined && product !== null) {
+    boundedString(product.kind, "product kind", 16);
+    boundedString(product.version, "product version", 64);
+    boundedString(product.build_id, "product build ID", 160);
+    boundedString(product.target, "product target", 64);
+    optionalString(product.identifier, "product identifier", 128);
+    boundedString(product.profile_id, "profile ID", 128);
+    optionalString(product.profile_location, "profile location", 4_096);
+  }
 }
 
 export function decodeApplicationServerFrame(

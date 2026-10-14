@@ -16,7 +16,7 @@ mod view_set;
 
 pub use contract::{
     API_VERSION, ActivePiece, ActivePieceStageView, ApiBackendIdentity, ApiEncoding, ApiHello,
-    ApiLimits, ApiVersion, CapabilityStatus, CatalogPageRequest, CatalogPageView,
+    ApiLimits, ApiProductInfo, ApiVersion, CapabilityStatus, CatalogPageRequest, CatalogPageView,
     CheckingPhaseView, CheckingProgressView, DeliveryMode, DeliveryPolicy, DhtAddressFamilyView,
     DhtBucketView, DhtFamilyInspectionView, DhtInspectionView, DhtLifecycleView, DhtLookupView,
     DhtNetworkPolicyView, DiskCheckpointStageView, DiskPieceStageView, DiskPieceView,

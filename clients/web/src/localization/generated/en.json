@@ -1808,6 +1808,12 @@
       "value": "Profile"
     }
   ],
+  "inspection.components.about.updates.settings.section.profile.location": [
+    {
+      "type": 0,
+      "value": "Library folder"
+    }
+  ],
   "inspection.components.about.updates.settings.section.release.notes": [
     {
       "type": 0,

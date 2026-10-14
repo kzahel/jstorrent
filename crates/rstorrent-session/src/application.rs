@@ -357,6 +357,50 @@ pub struct ApplicationConfig {
     /// Optional platform-owned installation product state. Headless and
     /// stateless configurations omit this owner.
     pub product_state: Option<ProductStateOwner>,
+    /// What the host reports about itself in the API hello.
+    pub product: Option<ProductIdentity>,
+}
+
+/// Host product facts that do not depend on the profile. The service adds
+/// the profile ID and location when it reports them.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProductIdentity {
+    /// `desktop`, `headless`, `android`, `crostini` or `gateway`.
+    pub kind: String,
+    pub version: String,
+    pub build_id: String,
+    pub target: String,
+    pub identifier: Option<String>,
+}
+
+impl ProductIdentity {
+    /// Identity with the source build ID and target this binary was built with.
+    pub fn for_this_build(kind: &str, version: &str) -> Self {
+        Self {
+            kind: kind.to_owned(),
+            version: version.to_owned(),
+            build_id: source_build_id().to_owned(),
+            target: build_target(),
+            identifier: None,
+        }
+    }
+}
+
+/// Target triple of the supported release toolchains for this OS.
+fn build_target() -> String {
+    let arch = std::env::consts::ARCH;
+    match std::env::consts::OS {
+        "macos" => format!("{arch}-apple-darwin"),
+        "windows" => format!("{arch}-pc-windows-msvc"),
+        "android" => format!("{arch}-linux-android"),
+        "linux" => format!("{arch}-unknown-linux-gnu"),
+        os => format!("{arch}-{os}"),
+    }
+}
+
+/// Source commit set by release pipelines, or `development` for local builds.
+pub fn source_build_id() -> &'static str {
+    option_env!("RSTORRENT_BUILD_ID").unwrap_or("development")
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -456,7 +500,13 @@ impl ApplicationConfig {
             checkpoint_stage_trace_for_testing: false,
             platform_storage_client: None,
             product_state: None,
+            product: None,
         }
+    }
+
+    pub fn with_product(mut self, product: ProductIdentity) -> Self {
+        self.product = Some(product);
+        self
     }
 
     pub fn durable_profile_root(&self) -> Option<&Path> {
@@ -3374,6 +3424,22 @@ impl ApplicationService {
     pub fn api_hello(&self) -> crate::ApiHello {
         let mut hello = crate::ApiHello::default();
         hello.limits.lease_millis = self.views.view_set_lease().as_millis().to_string();
+        hello.product = self
+            .reset_config
+            .product
+            .as_ref()
+            .map(|product| crate::ApiProductInfo {
+                kind: product.kind.clone(),
+                version: product.version.clone(),
+                build_id: product.build_id.clone(),
+                target: product.target.clone(),
+                identifier: product.identifier.clone(),
+                profile_id: self.reset_config.profile_id.clone(),
+                profile_location: self
+                    .reset_config
+                    .durable_profile_root()
+                    .map(|root| root.display().to_string()),
+            });
         hello
     }
 
@@ -7919,6 +7985,37 @@ mod tests {
             offline.initial_client_settings.port_mapping,
             crate::PortMappingPolicy::Disabled
         );
+    }
+
+    #[tokio::test]
+    async fn hello_reports_the_host_product_and_its_profile() {
+        let root = test_root("hello-product");
+        let mut application = ApplicationService::open(default_config(&root))
+            .await
+            .expect("open application without product");
+        assert_eq!(application.api_hello().product, None);
+        application.shutdown().await.expect("join application");
+
+        let product = super::ProductIdentity {
+            identifier: Some("com.jstorrent.check".to_owned()),
+            ..super::ProductIdentity::for_this_build("desktop", "0.3.1")
+        };
+        let mut application = ApplicationService::open(default_config(&root).with_product(product))
+            .await
+            .expect("open application with product");
+        let reported = application.api_hello().product.expect("hello product");
+        assert_eq!(reported.kind, "desktop");
+        assert_eq!(reported.version, "0.3.1");
+        assert_eq!(reported.build_id, super::source_build_id());
+        assert!(!reported.target.is_empty());
+        assert_eq!(reported.identifier.as_deref(), Some("com.jstorrent.check"));
+        assert_eq!(reported.profile_id, "test");
+        assert_eq!(
+            reported.profile_location,
+            Some(root.join("profile").display().to_string())
+        );
+        application.shutdown().await.expect("join application");
+        fs::remove_dir_all(root).expect("remove test root");
     }
 
     #[test]

@@ -12,7 +12,7 @@ use rstorrent_gateway::{
 };
 use rstorrent_session::{
     ApplicationConfig, ApplicationService, ConfiguredStorageRoot, DownloadResourceLimits,
-    NetworkConfig, NetworkPolicy, PeerTransportPolicy,
+    NetworkConfig, NetworkPolicy, PeerTransportPolicy, ProductIdentity,
 };
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
@@ -196,6 +196,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .build_id
         .clone()
         .or_else(|| env::var("RSTORRENT_BUILD_ID").ok());
+    let mut product = ProductIdentity::for_this_build(
+        if cli.chromeos_crostini {
+            "crostini"
+        } else {
+            "gateway"
+        },
+        env!("CARGO_PKG_VERSION"),
+    );
+    if let Some(build_id) = &build_id {
+        product.build_id = build_id.clone();
+    }
     let hosted_assets = match (web_root, build_id) {
         (Some(web_root), Some(build_id)) => {
             let assets = HostedAssets::new(web_root, build_id)?;
@@ -226,7 +237,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Duration::from_secs(60),
         ),
     )
-    .with_fresh_profile_defaults();
+    .with_fresh_profile_defaults()
+    .with_product(product);
     if let Some(lease_millis) = test_view_set_lease {
         application_config.view_set_lease = Duration::from_millis(lease_millis);
         application_config.view_set_reaper_interval =

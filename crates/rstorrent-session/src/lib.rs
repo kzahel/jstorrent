@@ -41,7 +41,8 @@ mod views;
 pub use application::{
     ApplicationConfig, ApplicationError, ApplicationPersistence, ApplicationService,
     CompletedMediaCapability, PathRootStartupPolicy, PlatformFilePlan, PlatformRemovalPath,
-    PlatformRemovalPlan, PlatformStorageDetach, application_error_response,
+    PlatformRemovalPlan, PlatformStorageDetach, ProductIdentity, application_error_response,
+    source_build_id,
 };
 pub use application_connection::{
     AcknowledgedViewStream, AcknowledgedViewStreamError, ApplicationCall, ApplicationCallError,
@@ -121,9 +122,9 @@ pub use tracker_views::{
 };
 pub use views::{
     API_VERSION, ActivePiece, ActivePieceFieldUpdate, ActivePieceStageView, ActivePieceUpdate,
-    ApiBackendIdentity, ApiEncoding, ApiHello, ApiLimits, ApiVersion, CapabilityStatus,
-    CatalogPageRequest, CatalogPageView, CheckingPhaseView, CheckingProgressView, DeliveryMode,
-    DeliveryPolicy, DhtAddressFamilyView, DhtBucketView, DhtFamilyInspectionView,
+    ApiBackendIdentity, ApiEncoding, ApiHello, ApiLimits, ApiProductInfo, ApiVersion,
+    CapabilityStatus, CatalogPageRequest, CatalogPageView, CheckingPhaseView, CheckingProgressView,
+    DeliveryMode, DeliveryPolicy, DhtAddressFamilyView, DhtBucketView, DhtFamilyInspectionView,
     DhtInspectionView, DhtLifecycleView, DhtLookupView, DhtNetworkPolicyView,
     DiskCheckpointStageView, DiskPieceStageView, DiskPieceView, DiskPipelineView, DiskPressureView,
     FileFieldUpdate, FileRowUpdate, IndexRange, IntegrityPreparationPhaseView,

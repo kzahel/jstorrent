@@ -6,6 +6,7 @@ import {
 } from "./api";
 import {
   ContractError,
+  decodeApiHello,
   decodeApplicationServerFrame,
   decodeChooseDownloadRootResponse,
   decodeMediaUrlResponse,
@@ -17,6 +18,49 @@ import { reduceUpdateBatch } from "./view-set-reducer";
 
 const TEST_TORRENT_ID = "t1-00000000000000000000000000000000";
 const OTHER_TORRENT_ID = "t1-11111111111111111111111111111111";
+
+describe("API hello product validation", () => {
+  const base = {
+    api: { current: 1, minimum: 1 },
+    encodings: ["json"],
+    deliveries: ["stream"],
+    capabilities: ["torrent_list"],
+    limits: {
+      max_view_sets_per_owner: 8,
+      max_views_per_set: 16,
+      max_view_id_bytes: 64,
+      min_queue_bytes: 16_384,
+      default_queue_bytes: 262_144,
+      max_queue_bytes: 524_288,
+      max_snapshot_bytes: 16_777_216,
+      max_wait_millis: 20_000,
+      lease_millis: "300000",
+    },
+  };
+  const product = {
+    kind: "desktop",
+    version: "0.3.1",
+    build_id: "0123456789abcdef0123456789abcdef01234567",
+    target: "aarch64-apple-darwin",
+    identifier: "com.jstorrent.desktop",
+    profile_id: "default",
+    profile_location: "/Users/test/Library/Application Support/com.jstorrent.desktop/profile",
+  };
+
+  it("accepts a hello with or without host product facts", () => {
+    expect(decodeApiHello(JSON.stringify(base)).product).toBeUndefined();
+    expect(decodeApiHello(JSON.stringify({ ...base, product })).product).toEqual(product);
+    const { identifier: _identifier, profile_location: _location, ...minimal } = product;
+    expect(decodeApiHello(JSON.stringify({ ...base, product: minimal })).product).toEqual(minimal);
+  });
+
+  it("rejects oversized or missing product facts", () => {
+    expect(() => decodeApiHello(JSON.stringify({ ...base, product: { ...product, version: "1".repeat(65) } })))
+      .toThrow(ContractError);
+    const { profile_id: _profile, ...missing } = product;
+    expect(() => decodeApiHello(JSON.stringify({ ...base, product: missing }))).toThrow(ContractError);
+  });
+});
 
 describe("download folder response validation", () => {
   it("accepts selection or cancellation and rejects an oversized label", () => {

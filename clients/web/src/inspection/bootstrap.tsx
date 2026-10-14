@@ -166,7 +166,6 @@ export async function startTauriInspection(): Promise<void> {
     remoteAccess,
     productPrivacy,
     externalIntake,
-    identifier,
   ] = await Promise.all([
     adapter("external links", () =>
       import("../tauri-external-links").then(
@@ -203,9 +202,6 @@ export async function startTauriInspection(): Promise<void> {
         TauriDesktopExternalIntake.open(),
       ),
     ),
-    adapter("identifier lookup", () =>
-      import("@tauri-apps/api/app").then(({ getIdentifier }) => getIdentifier()),
-    ),
   ]);
   markStartup("adapters_ready");
   update({
@@ -216,10 +212,7 @@ export async function startTauriInspection(): Promise<void> {
     remoteAccess,
     productPrivacy,
     openExternalUrl,
-    about: {
-      connection: "desktop",
-      ...(identifier === undefined ? {} : { identifier }),
-    },
+    about: { connection: "desktop" },
   });
 }
 

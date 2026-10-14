@@ -1,4 +1,5 @@
 import type {
+  ApiProductInfo,
   ClientSettings,
   ClientSettingsPatch,
   ClientSettingsRuntimeView,
@@ -92,6 +93,8 @@ export type SessionConnection =
 
 export interface SessionSummary {
   readonly connection: SessionConnection;
+  /** What the connected host reports about itself, when it does. */
+  readonly host?: ApiProductInfo | null;
   readonly downloadRate: number;
   readonly uploadRate: number | null;
   readonly dhtNodes: number | null;

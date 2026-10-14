@@ -143,7 +143,28 @@ pub struct ApiHello {
     pub capabilities: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub backend: Option<ApiBackendIdentity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub product: Option<ApiProductInfo>,
     pub limits: ApiLimits,
+}
+
+/// Facts the host product reports about itself and the profile it serves.
+/// They are fixed for the lifetime of the host process.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+pub struct ApiProductInfo {
+    /// `desktop`, `headless`, `android`, `crostini` or `gateway`.
+    pub kind: String,
+    pub version: String,
+    /// Source commit, or a local marker such as `development`.
+    pub build_id: String,
+    pub target: String,
+    /// Desktop or Android application identifier, when the host has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identifier: Option<String>,
+    pub profile_id: String,
+    /// Durable profile directory; absent for an ephemeral profile.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_location: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
@@ -181,6 +202,7 @@ impl Default for ApiHello {
                 "diagnostics".to_owned(),
             ],
             backend: None,
+            product: None,
             limits: ApiLimits {
                 max_view_sets_per_owner: MAX_VIEW_SETS_PER_OWNER as u16,
                 max_views_per_set: MAX_VIEWS_PER_SET as u16,

@@ -420,7 +420,25 @@ export type ApiLimits = { max_view_sets_per_owner: number, max_views_per_set: nu
 
 export type ApiBackendIdentity = { kind: string, instance_id: string, profile_id: string, product_version: string, capability_profile: Array<string>, };
 
-export type ApiHello = { api: ApiVersion, encodings: Array<ApiEncoding>, deliveries: Array<DeliveryMode>, capabilities: Array<string>, backend?: ApiBackendIdentity | null, limits: ApiLimits, };
+export type ApiProductInfo = {
+/**
+ * `desktop`, `headless`, `android`, `crostini` or `gateway`.
+ */
+kind: string, version: string,
+/**
+ * Source commit, or a local marker such as `development`.
+ */
+build_id: string, target: string,
+/**
+ * Desktop or Android application identifier, when the host has one.
+ */
+identifier?: string | null, profile_id: string,
+/**
+ * Durable profile directory; absent for an ephemeral profile.
+ */
+profile_location?: string | null, };
+
+export type ApiHello = { api: ApiVersion, encodings: Array<ApiEncoding>, deliveries: Array<DeliveryMode>, capabilities: Array<string>, backend?: ApiBackendIdentity | null, product?: ApiProductInfo | null, limits: ApiLimits, };
 
 export type ViewDeliveryPolicy = { min_interval_millis: number, };
 

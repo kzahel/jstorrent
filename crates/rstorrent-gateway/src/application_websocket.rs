@@ -421,7 +421,7 @@ pub enum ApplicationServerFrame {
     Connected {
         api_version: u16,
         encoding: ApiEncoding,
-        hello: ApiHello,
+        hello: Box<ApiHello>,
         connection_limits: ApplicationConnectionLimits,
     },
     Result {
@@ -851,7 +851,7 @@ async fn serve_application_connection(
         ApplicationServerFrame::Connected {
             api_version: API_VERSION,
             encoding: ApiEncoding::Json,
-            hello,
+            hello: Box::new(hello),
             connection_limits: ApplicationConnectionLimits::default(),
         },
         None,

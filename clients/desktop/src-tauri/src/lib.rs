@@ -2315,7 +2315,8 @@ pub fn run() {
                     }
                 }
             } else { None };
-            let mut application_config = desktop_application_config_with_product_state(&app_data, product_state.clone());
+            let mut application_config = desktop_application_config_with_product_state(&app_data, product_state.clone())
+                .with_product(desktop_product_identity(&app.config().identifier));
             if production_replacement && let Err(error) = legacy_migration::ensure_legacy_quiet() {
                 show_legacy_startup_failure(app.handle(), error);
                 return Ok(());
@@ -2572,6 +2573,14 @@ async fn open_desktop_application(
         }
     }
     Ok(service)
+}
+
+fn desktop_product_identity(identifier: &str) -> rstorrent_session::ProductIdentity {
+    rstorrent_session::ProductIdentity {
+        identifier: Some(identifier.to_owned()),
+        target: env!("TAURI_ENV_TARGET_TRIPLE").to_owned(),
+        ..rstorrent_session::ProductIdentity::for_this_build("desktop", env!("CARGO_PKG_VERSION"))
+    }
 }
 
 fn desktop_application_config_with_product_state(

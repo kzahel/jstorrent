@@ -1,5 +1,12 @@
 # Web UI Design
 
+Tactical [353](../tactical/353-host-product-in-hello.md) shows what the host
+reports in its hello on About, so remote access and Crostini show the
+host's version, build, target, profile and **Library folder**. The client
+reads the hello again after each reconnect, so a host that restarted on a
+new version is shown correctly without a page reload. The desktop
+`getIdentifier()` lookup is gone; the hello carries the identifier.
+
 Tactical [352](../tactical/352-render-first-web-startup.md) renders the real
 shell before the engine connects, in the browser and in Tauri.
 `LiveApplication.connect()` starts in `connecting` and attaches in the

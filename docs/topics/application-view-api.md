@@ -1,5 +1,15 @@
 # Application View API
 
+Tactical [353](../tactical/353-host-product-in-hello.md) adds an optional
+`ApiHello.product` (`ApiProductInfo`): host kind, version, source build ID,
+target, application identifier, profile ID and durable profile location.
+Desktop, headless, the gateway (including Crostini) and Android report it
+from `ApplicationConfig.product`; the service adds the profile fields. These
+facts are fixed for the process lifetime, so they live in the hello rather
+than a separate call. Web clients bound each string and read the hello again
+after every reconnect. Android's `AndroidApplicationConfig` gains
+`application_id`.
+
 Tactical [350](../tactical/350-share-links-and-private-hint.md) adds
 `TorrentView.private_torrent` and `TorrentFieldUpdate::PrivateTorrent`. The
 flag is true only when parsed, stored metainfo carries BEP 27 `private=1`,

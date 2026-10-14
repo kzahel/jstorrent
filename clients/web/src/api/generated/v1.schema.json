@@ -703,6 +703,16 @@
         },
         "limits": {
           "$ref": "#/$defs/ApiLimits"
+        },
+        "product": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApiProductInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -773,6 +783,50 @@
         "max_snapshot_bytes",
         "max_wait_millis",
         "lease_millis"
+      ],
+      "type": "object"
+    },
+    "ApiProductInfo": {
+      "description": "Facts the host product reports about itself and the profile it serves.\nThey are fixed for the lifetime of the host process.",
+      "properties": {
+        "build_id": {
+          "description": "Source commit, or a local marker such as `development`.",
+          "type": "string"
+        },
+        "identifier": {
+          "description": "Desktop or Android application identifier, when the host has one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "description": "`desktop`, `headless`, `android`, `crostini` or `gateway`.",
+          "type": "string"
+        },
+        "profile_id": {
+          "type": "string"
+        },
+        "profile_location": {
+          "description": "Durable profile directory; absent for an ephemeral profile.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "build_id",
+        "target",
+        "profile_id"
       ],
       "type": "object"
     },

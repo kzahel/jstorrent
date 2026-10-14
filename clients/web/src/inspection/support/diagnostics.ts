@@ -4,6 +4,7 @@ import { productFlavor, type SupportFacts } from "./about";
 const TARGETS = new Set([
   "aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc",
   "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu", "linux-gnu",
+  "aarch64-linux-android", "x86_64-linux-android",
 ]);
 const PACKAGES = new Set(["app", "nsis", "appimage", "msi", "deb", "rpm", "headless"]);
 const PHASES = new Set(["idle", "checking", "up-to-date", "waiting-for-stable", "available",
@@ -34,7 +35,7 @@ export function buildDiagnostics({ about, updater, startup }: SupportFacts): str
     connection: member(about.connection, CONNECTIONS),
     version: bounded(updater?.info.version ?? about.hostVersion, VERSION),
     build: bounded(updater?.info.buildId ?? about.hostBuild, BUILD),
-    target: member(updater?.info.target, TARGETS),
+    target: member(updater?.info.target ?? about.hostTarget, TARGETS),
     package: member(updater?.info.bundleType, PACKAGES),
     identity,
     flavor: identity === "unknown" ? "unknown" : productFlavor(identity),

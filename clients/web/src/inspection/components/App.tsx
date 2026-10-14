@@ -35,7 +35,7 @@ import {
 } from "../lan-none-notice";
 import { layoutForWidth } from "../layout";
 import { MAX_DETAIL_PANE_PERCENT, MIN_DETAIL_PANE_PERCENT } from "../state";
-import type { AboutFacts } from "../support/about";
+import { withHostProduct, type AboutFacts } from "../support/about";
 import type { DesktopUpdater, UpdaterState } from "../updater/types";
 import { useDesktopUpdater } from "../updater/useDesktopUpdater";
 import {
@@ -592,7 +592,7 @@ function AppContent({
           webAuth={webAuth}
           updater={updater}
           updaterSnapshot={updaterSnapshot}
-          about={about ?? (demo === null ? undefined : { connection: "demo" })}
+          about={withHostProduct(about ?? (demo === null ? {} : { connection: "demo" }), session.host)}
           productPrivacy={productPrivacy}
           initialCategory={settingsCategory}
           returnFocus={settingsButtonRef}

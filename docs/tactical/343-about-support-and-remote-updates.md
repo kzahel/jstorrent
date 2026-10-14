@@ -237,6 +237,10 @@ with a confirmation. It stops the whole host product, not only the engine.
 
 ### Slice 2: Product info contract and build identity
 
+Complete in Tactical [353](353-host-product-in-hello.md) as `ApiHello.product`,
+with a hello refresh after each reconnect. Android and Crostini release
+build IDs remain deferred.
+
 - **One product-info type.** Add a `ProductInfo` struct to
   `rstorrent-session`. Each host supplies it when constructing the
   application service:
