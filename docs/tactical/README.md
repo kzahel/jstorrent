@@ -1,5 +1,12 @@
 # Implementation Tactical Docs
 
+- [355 — Automatic updates](355-automatic-updates.md): proposed; unattended
+  desktop install, opt-in headless apply and Play In-App Updates so old hosts
+  age out and 354's horizon can tighten.
+- [354 — Mixed-version compatibility and capabilities](354-mixed-version-compatibility.md):
+  proposed; a 30-day support horizon, two-way capability advertisement,
+  tolerant contract, CI audits and dated capability removal, starting with a
+  repair of the hosted controller against released hosts.
 - [353 — Host product facts in the API hello](353-host-product-in-hello.md):
   hosts report version, build, target, app ID and profile in the hello;
   About shows them everywhere and the client re-reads them after reconnects.
