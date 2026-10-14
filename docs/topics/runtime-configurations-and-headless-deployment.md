@@ -301,6 +301,47 @@ both implicitly. Service-account identity, filesystem permissions, removable
 storage, mounts, and boot ordering are deployment correctness, not incidental
 systemd details.
 
+### Self-updating Linux CLI (direction accepted 2026-10-14, not scheduled)
+
+Maintainer direction: the eventual Linux headless product should be a simple
+JSTorrent CLI that updates itself, alongside the desktop apps. The model is
+how developer CLIs such as Codex CLI or Claude Code ship next to their desktop
+apps: install with one command, run without a GUI, and keep itself current
+without the operator running an update by hand.
+
+- **Self-update.**
+  - It checks the signed manifest on its own schedule.
+  - It applies an update in place with the existing health-checked install
+    and rollback.
+  - It can also be told to apply from the web UI or remote access (Tactical
+    343, Slice 6).
+  - Whether it applies automatically or only notifies by default is still to
+    be decided.
+- **One Linux package instead of two.** Headless (Tacticals 170/171) and the
+  legacy Crostini package (Tactical 169) duplicate much of the same work:
+  - the signed manifest and minisign verification;
+  - the `curl | bash` bootstrap;
+  - the versioned install layout;
+  - the systemd user unit;
+  - the gateway and the React assets.
+
+  The successor should be one package and one updater. Crostini's launcher
+  and on-demand start become a launch mode of the same binary, not a separate
+  product with no updater.
+- **Release identity.**
+  - This is a JSTorrent release, not a revival of the frozen RSTorrent
+    incubation track.
+  - The release identity, signing key and update endpoint need an explicit
+    decision under `product-surfaces-and-migration`.
+  - Existing RSTorrent headless and Crostini installations must not be
+    redirected across signing roots.
+- **Not yet decided:** the default update mode, whether the ChromeOS
+  launcher mode is kept, ARM64 support, and whether it runs per-user only or
+  also system-wide.
+
+Until a tactical takes this on, the current headless package, its
+explicit-apply CLI and the frozen Crostini preview stay as described above.
+
 ## Listener And Origin Contract
 
 Every network listener is an authority boundary and must be explicit. The
@@ -584,6 +625,9 @@ update, storage, transfer, and cleanup. A separately authorized tactical may
 instead add a system-wide dedicated-service-account mode. Every later slice
 must retain strict configuration, bind-before-application, one-process
 ownership, data-preserving removal, and explicit startup policy.
+A later tactical should turn the headless and Crostini packages into the
+single self-updating JSTorrent Linux CLI described in
+[Self-updating Linux CLI](#self-updating-linux-cli-direction-accepted-2026-10-14-not-scheduled).
 
 The desktop windowless/extension-attachment tactical can proceed independently
 because it uses the same application-service and presentation-lifecycle
