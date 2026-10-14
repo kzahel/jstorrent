@@ -1,5 +1,13 @@
 # Runtime Configurations And Headless Deployment
 
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) extends desktop
+outbound-only fresh defaults and the first-upgrade network hold to Windows.
+Its defaults marker records migration, not firewall permission. Later explicit
+choices survive restart; Cancel-created OS block rules also persist, independently
+of settings and listener binding. Controlled native Windows TCP/uTP downloads
+work while incoming is Off and denied. Windows DHT demand, Linux/headless,
+Android and iOS defaults and all desktop lifetime rules remain unchanged.
+
 Tactical [339](../tactical/339-macos-quiet-network-startup.md) gives Mac desktop fresh profiles and the first
 upgrade outbound-only listener/UPnP defaults. Wanted torrents still resume;
 paused intent and unrelated shell settings survive. Empty/paused Mac libraries
@@ -7,7 +15,8 @@ defer DHT. Explicit launch, background preference, window closure and Quit keep
 their existing owners. Ordinary loopback extension control remains available.
 Mac route selection uses a documentation-unicast UDP connect without sending,
 removing incidental SSDP access. Explicit forwarding and intentionally supplied
-LAN peers/trackers may request access. Windows/Linux defaults remain unchanged.
+LAN peers/trackers may request access. Windows defaults follow 340; Linux
+defaults remain unchanged.
 
 Linux first-release scope is narrowed by maintainer direction on 2026-10-09:
 best-effort AppImage desktop support, maintained bundled libraries, no older-

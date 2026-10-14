@@ -1,5 +1,12 @@
 # Application Control
 
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) applies the same
+one-time hold to Windows. The desktop startup helper keeps catalog mutation,
+marker persistence and shutdown-on-failure in one testable path. A persisted
+marker is not rewritten on ordinary launches. Running and paused intent are
+preserved independently; native Windows retains completed verified bytes and
+unrelated v3 shell choices. No command, DTO or Android behavior changes.
+
 Tactical [339](../tactical/339-macos-quiet-network-startup.md) applies the one-time Mac network-default hold
 transaction before networking, preserving torrent intent, verified state and
 port preference. Desktop persists its defaults-version marker before exposing

@@ -1507,6 +1507,12 @@
       "value": " open, renewed automatically"
     }
   ],
+  "inspection.components.connection.seeding.settings.section.details.firewall.recovery": [
+    {
+      "type": 0,
+      "value": "If you declined firewall access, review your operating system's firewall settings. Downloads still work with incoming connections off."
+    }
+  ],
   "inspection.components.connection.seeding.settings.section.details.firewall.renewal.failed": [
     {
       "type": 0,
@@ -1860,7 +1866,7 @@
   "inspection.components.connection.seeding.settings.section.forwarding.confirm.description": [
     {
       "type": 0,
-      "value": "Find your router and open a port. macOS may ask for local network access."
+      "value": "Find your router and open a port. Your operating system may ask for network access."
     }
   ],
   "inspection.components.connection.seeding.settings.section.forwarding.confirm.title": [

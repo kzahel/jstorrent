@@ -1,7 +1,8 @@
 # Windows Firewall Research Fixtures
 
 These independently authored fixtures support the authorized Windows round of
-[Tactical 338](../../docs/tactical/338-macos-network-consent-research.md).
+[Tactical 338](../../docs/tactical/338-macos-network-consent-research.md) and
+[Tactical 340](../../docs/tactical/340-windows-quiet-network-startup.md).
 They do not change product policy or add firewall exceptions.
 
 Use the sibling Machine Control common CLI, read its Windows platform/provider
@@ -49,10 +50,12 @@ Run `Run-matrix.ps1 -Root OWNED_ROOT` inside the guest through claimed
 `testbed -- ps`. `-ExcludedPorts` accepts previous observed ports, including
 failed attempts. The runner reserves a numeric port ledger before each client,
 guards earlier ports in later servers, and uses fresh processes/profiles for
-`off / on / tcp / off`. It asserts SYN positives and unused/TCP-only negatives,
-client results, independent SHA-256, and absent terminal owners. The original
-`client` diagnostic is an expected failure in the first cohort, pending its
-separately scoped Fast Extension repair. A failed validation must stay failed;
+`off / on / tcp / off`. It asserts On SYN positives and Off/unused/TCP-only
+negatives, Off TCP refusal and zero incoming allocation, client results,
+independent SHA-256, and absent terminal owners. The repaired `client`
+diagnostic must complete against On. Tactical 338's expected diagnostic failure
+and TCP-Off uTP admission describe the old source. A failed validation must
+stay failed;
 inspect logs, correct the harness, and run a new cohort rather than weakening
 assertions. Generated logs/profile/payload files belong only in the owned root.
 
@@ -75,6 +78,18 @@ joined shutdown, or a four-minute deadline does; `stopped.json` records terminal
 owners. Observe socket inventory and the OS independently: successful commands
 or a bound listener do not establish firewall permission. This trigger-file
 interface exists only in the example, not any product client.
+
+For actual desktop restore checks, `prepare-client OWNED_APP_DATA FIXTURE_ROOT
+SERVER_PORT [PEER_IPV4]` accepts an explicitly owned loopback/private peer. Use
+a host loopback seed reached through the guest's declared NAT host-alias route
+to exercise cross-VM outgoing traffic. Stop the owned desktop before
+`inspect-profile OWNED_APP_DATA` (at most eight torrents) or `prepare-legacy`.
+Inspection reports saved settings, wanted intent and verified piece counts
+without creating a network owner. `prepare-legacy` retains the existing data and
+sets old fixed-port/UPnP intent; an owned v3 shell record then exercises the real
+Windows migration. Independently hash downloaded/retained bytes and join both
+desktop and seed. Stage verified runtime DLLs beside versioned native helpers
+too when the runtime-only guest lacks the MSVC runtime.
 
 Finish by joining research processes, deleting only this round's exact-path
 OS-created rules and artifacts, verifying inherited rules remain unchanged,

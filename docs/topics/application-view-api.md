@@ -1,5 +1,12 @@
 # Application View API
 
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) keeps the same
+contract while qualifying Windows settings and runtime observations. Configured
+incoming, socket binding, forwarding result and observed reachability remain
+separate from unknown OS permission. Native Cancel leaves settings intent intact;
+Off still removes intake without disabling outbound UDP. No generated type or
+permission-state field is added.
+
 Tactical [339](../tactical/339-macos-quiet-network-startup.md) keeps the existing generated contract: saved
 incoming/UPnP preferences, effective listener/UDP state and DHT state remain
 separate. Mac idle discovery demand changes effective DHT participation without

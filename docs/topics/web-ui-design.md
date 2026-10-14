@@ -1,5 +1,13 @@
 # Web UI Design
 
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) qualifies the
+existing incoming/forwarding UI in the native Windows renderer. Forwarding's
+short disclosure now refers to the operating system rather than macOS alone.
+Collapsed Network details explains conditional firewall recovery after refusal
+and that downloads work with incoming Off; it never reports an inferred denial
+or grant. Full web tests/typecheck/localization/build pass. The CSS guard now
+converts file URLs with `fileURLToPath` so its checks also run on Windows.
+
 Tactical [339](../tactical/339-macos-quiet-network-startup.md) presents **Accept incoming connections** and
 **Automatic port forwarding** in Connection & seeding. Ports appear only with
 incoming enabled. Turning incoming off also disables forwarding in one patch;

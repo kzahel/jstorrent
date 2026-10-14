@@ -2961,7 +2961,7 @@ describe("inspection application", () => {
     expect(incoming).not.toBeChecked(); expect(forwarding).toBeDisabled();
     expect(within(dialog).queryByRole("radio", { name: /^Fixed port/ })).toBeNull();
     await user.click(incoming); await user.click(forwarding);
-    expect(within(dialog).getByText(/macOS may ask for local network access/)).toBeVisible();
+    expect(within(dialog).getByText(/Your operating system may ask for network access/)).toBeVisible();
     expect(forwarding).not.toBeChecked();
     await user.click(within(dialog).getByRole("button", { name: "Not now" }));
     expect(forwarding).not.toBeChecked();
@@ -3438,6 +3438,7 @@ describe("inspection application", () => {
     await user.click(within(dialog).getByText("Network details"));
     for (const line of [
       "UDP: port 41234",
+      "If you declined firewall access, review your operating system's firewall settings. Downloads still work with incoming connections off.",
       "Router forwarding (TCP): the router may keep port 48001 open for up to 42s",
       "IPv6 router firewall: port 41234 open, renewed automatically",
       "Peers are told to use port 41234. It isn't confirmed reachable from the internet.",

@@ -1,11 +1,12 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 // Tactical 334: component CSS draws only from the global.css tokens so the
 // light and dark themes stay coherent. Pre-bundle shells cannot see those
 // tokens and are not checked here.
-const SOURCE_ROOT = new URL(".", import.meta.url).pathname;
+const SOURCE_ROOT = fileURLToPath(new URL(".", import.meta.url));
 
 function moduleStylesheets(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

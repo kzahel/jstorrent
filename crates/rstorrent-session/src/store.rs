@@ -11219,6 +11219,20 @@ mod tests {
             .handle_durable(&add_hash_request("network-upgrade-torrent", 8))
             .unwrap();
         let torrent_id = added_torrent_id(&added);
+        let paused = store
+            .handle_durable(&add_hash_request("network-upgrade-paused-torrent", 9))
+            .unwrap();
+        let paused_id = added_torrent_id(&paused);
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "pause-network-upgrade-torrent".into(),
+                expected_revision: None,
+                command: Command::Pause {
+                    torrent_id: paused_id.clone(),
+                },
+            })
+            .unwrap();
         let prior = ClientSettings {
             listener: ListenerPolicy::FixedLocalNetwork { port: 42123 },
             upload_slots: 7,
@@ -11235,10 +11249,22 @@ mod tests {
             })
             .unwrap();
         let before = store.snapshot().unwrap();
+        assert!(
+            before
+                .torrents
+                .iter()
+                .any(|t| t.torrent_id == torrent_id && t.desired_running)
+        );
+        assert!(
+            before
+                .torrents
+                .iter()
+                .any(|t| t.torrent_id == paused_id && !t.desired_running)
+        );
         store.hold_unconfirmed_network_features().unwrap();
         let after = store.snapshot().unwrap();
         assert_eq!(after.torrents, before.torrents);
-        assert_eq!(after.torrents[0].torrent_id, torrent_id);
+        assert_eq!(after.torrents.len(), 2);
         assert_eq!(after.client_settings.listener, ListenerPolicy::Disabled);
         assert_eq!(
             after.client_settings.port_mapping,

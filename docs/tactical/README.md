@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [340 — Quiet Windows network startup and firewall qualification](340-windows-quiet-network-startup.md):
+  Windows fresh/upgrade defaults, preserved opt-in choices, native denial,
+  controlled cross-VM transfers and retained-data migration.
 - [339 — Quiet Mac network startup and explicit incoming settings](339-macos-quiet-network-startup.md):
   Mac fresh/upgrade defaults, complete TCP/uTP Off, forwarding disclosure,
   idle DHT, shared/Android gates and isolated native transfer/migration evidence.

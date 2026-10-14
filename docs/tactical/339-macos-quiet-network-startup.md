@@ -252,5 +252,6 @@ Decide Windows fresh/upgrade defaults there; preserve inherited rules and do
 not auto-approve access. Signed Mac qualification remains its own follow-up.
 
 Restart checkpoint: no implementation work remains in 339. Proceed with the
-explicitly requested commit/push after final cleanup and checks; Windows product
-qualification is the next maintainer discussion, with no release authorization.
+Windows follow-up in [340](340-windows-quiet-network-startup.md). The Mac slice
+is committed as `9d3a1e48`; its former commit/push checkpoint is superseded.
+Signed Mac qualification remains separate, with no release authorization.

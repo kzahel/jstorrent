@@ -903,6 +903,7 @@ function NetworkDetails({ settings }: { readonly settings: ClientSettingsRuntime
         <li>{forwardingLine("UDP", settings.udp_port_mapping_status)}</li>
         <li>{firewallLine(settings.ipv6_pinhole_status)}</li>
         <li>{advertisedLine(settings.advertised_peer_endpoint)}</li>
+        <li>{localizedMessage("inspection.components.connection.seeding.settings.section.details.firewall.recovery")}</li>
         <li>
           {localizedMessage("inspection.components.connection.seeding.settings.section.details.active.downloads", {
             active: settings.active_download_count,

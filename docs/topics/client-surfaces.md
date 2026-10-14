@@ -1,5 +1,15 @@
 # Client Surfaces
 
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) extends quiet
+fresh/first-upgrade incoming and UPnP defaults to Windows. Explicit later choices,
+ports, torrent intent/data and shell preferences survive. An isolated native
+Windows VM qualifies fresh/upgrade/relaunch, shared disclosure/atomic Off,
+persistent firewall Cancel, production-origin native attach and independently
+hashed cross-VM uTP/TCP downloads while Off and denied. The shared disclosure
+is platform-neutral; Network details offers conditional OS firewall recovery
+without inferring a grant. Signed shipping, regrant and external inbound/WAN
+reachability remain unqualified. Linux/Android/iOS defaults are unchanged.
+
 Tactical [339](../tactical/339-macos-quiet-network-startup.md) implements quiet Mac defaults and first-upgrade
 network holds, complete common incoming-Off semantics, and two concise shared
 settings controls. Explicit forwarding gets an explanation before discovery.
@@ -7,7 +17,7 @@ Native fresh/upgrade/relaunch, production-origin control and independently
 hashed outbound uTP/TCP fallback pass on the isolated Mac VM. Ad-hoc builds still
 show the executable name and repeat local-network requests after denial/relaunch;
 Developer ID denial persistence, regrant and branding remain shipping gates.
-Windows product defaults/migration and firewall verification follow separately.
+Windows product defaults/migration and bounded firewall evidence follow in 340.
 Tactical 338 retains the earlier Mac/Windows research; its TCP-Off uTP admission
 and diagnostic payload failures describe the old source, corrected by 339.
 

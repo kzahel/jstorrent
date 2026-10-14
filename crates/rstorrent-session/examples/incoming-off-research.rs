@@ -30,9 +30,11 @@ type Result<T> = std::result::Result<T, Box<dyn Error>>;
 async fn main() -> Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
+        Some("inspect-profile") if args.len() == 2 => inspect_profile(Path::new(&args[1])),
         Some("prepare-legacy") if args.len() == 2 => prepare_legacy(Path::new(&args[1])),
-        Some("prepare-client") if args.len() == 4 => {
-            prepare_client(Path::new(&args[1]), Path::new(&args[2]), args[3].parse()?)
+        Some("prepare-client") if args.len() == 4 || args.len() == 5 => {
+            prepare_client(Path::new(&args[1]), Path::new(&args[2]), args[3].parse()?,
+                args.get(4).map(|s| s.parse()).transpose()?.unwrap_or(Ipv4Addr::LOCALHOST))
         }
         Some("server") if args.len() == 5 => {
             server(Path::new(&args[1]), Path::new(&args[2]), &args[3], &args[4]).await
@@ -217,6 +219,24 @@ async fn wire_frame<S: tokio::io::AsyncRead + Unpin>(
     Ok(frame)
 }
 
+// Caller must stop its owned desktop before opening the catalog. This bounded
+// diagnostic uses the ordinary store, without creating a networking runtime.
+fn inspect_profile(root: &Path) -> Result<()> {
+    if !root.join("profile").exists() {
+        return Err("existing owned profile required".into());
+    }
+    let store = SessionStore::open(&root.join("profile"), "default", &[])?;
+    let snapshot = store.snapshot()?;
+    if snapshot.torrents.len() > 8 {
+        return Err("bounded research profile required".into());
+    }
+    let torrents = snapshot.torrents.iter().map(|torrent| json!({
+        "state":torrent.state, "desired_running":torrent.desired_running,
+        "piece_count":torrent.piece_count, "verified_piece_count":torrent.verified_piece_count,
+    })).collect::<Vec<_>>();
+    emit(json!({"event":"profile", "settings":snapshot.client_settings,"torrents":torrents}))
+}
+
 fn prepare_legacy(root: &Path) -> Result<()> {
     if !root.join("profile").exists() {
         return Err("existing owned profile required".into());
@@ -240,9 +260,12 @@ fn prepare_legacy(root: &Path) -> Result<()> {
     emit(json!({"event":"legacy_prepared","port":45432}))
 }
 
-fn prepare_client(root: &Path, fixture: &Path, server_port: u16) -> Result<()> {
-    if root.join("profile").exists() || server_port < 1024 {
-        return Err("fresh profile and unprivileged seed port required".into());
+fn prepare_client(root: &Path, fixture: &Path, server_port: u16, peer_ip: Ipv4Addr) -> Result<()> {
+    if root.join("profile").exists()
+        || server_port < 1024
+        || (!peer_ip.is_loopback() && !peer_ip.is_private())
+    {
+        return Err("fresh profile, unprivileged seed port and owned local peer required".into());
     }
     let source = read_bounded(&fixture.join("fixture.torrent"), 65_536)?;
     let projection =
@@ -287,7 +310,7 @@ fn prepare_client(root: &Path, fixture: &Path, server_port: u16) -> Result<()> {
         request_id: "prepare-outbound-peer".into(),
         expected_revision: None,
         command: Command::AddMagnet {
-            magnet: format!("magnet:?xt=urn:btih:{info_hash}&x.pe=127.0.0.1:{server_port}"),
+            magnet: format!("magnet:?xt=urn:btih:{info_hash}&x.pe={peer_ip}:{server_port}"),
             storage_root: "downloads".into(),
             start_content: true,
             await_file_selection: false,

@@ -1,13 +1,22 @@
 # Capability Readiness
 
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) completes bounded
+Windows quiet-default implementation and unsigned native VM qualification:
+fresh/upgrade/restart, explicit disclosure/atomic Off, persistent firewall Cancel,
+native control and verified cross-VM uTP/TCP downloads while Off. Desktop/session/
+Android host and focused uTP/web checks pass. Broad native Windows engine tests
+and strict workspace validation retain the explicit failures recorded in 340;
+this is not full engine or signed shipping acceptance. Regrant, external inbound/
+WAN and production package evidence remain separate gates.
+
 Tactical [339](../tactical/339-macos-quiet-network-startup.md) completes the bounded Mac implementation: fresh
 and first-upgrade listener/UPnP Off, short explicit-forwarding disclosure,
 incidental multicast-probe removal, incoming TCP/uTP enforcement and idle Mac
 DHT deferral. Rust/web gates, Android host boundary/dual-ABI packaging/JVM gates
 and isolated native Mac controlled transfer/migration evidence pass. Complete
 incoming-Off support is now a common runtime claim. Signed shipping Mac
-branding/denial/regrant and Windows defaults/migration/firewall acceptance remain
-unqualified; Tactical 338 owns the historical research inputs.
+branding/denial/regrant remain unqualified. Windows defaults/migration and bounded
+unsigned firewall evidence follow in 340; 338 owns the historical research inputs.
 
 Tactical [337](../tactical/337-lightweight-macos-development-bundle.md) adds
 locally qualified macOS `scripts/desktop-bundle` tooling: matching debug app

@@ -2178,7 +2178,6 @@ pub fn run() {
                 }
                 Err(error) => eprintln!("RSTorrent native host registration could not be repaired: {error}"),
             }
-            #[allow(unused_mut)]
             let mut shell_settings = load_desktop_shell_settings(&config_dir);
             if let Some(diagnostic) = &shell_settings.diagnostic {
                 eprintln!("{diagnostic}");
@@ -2216,27 +2215,9 @@ pub fn run() {
                     rstorrent_session::PathRootStartupPolicy::PreserveUnavailable,
                 );
             }
-            #[cfg(target_os = "macos")]
-            {
-                application_config.reset_unconfirmed_network_features =
-                    shell_settings.settings.network_defaults_version < 1;
-            }
-            #[allow(unused_mut)]
-            let mut service = tauri::async_runtime::block_on(ApplicationService::open(application_config))
-                .map_err(|error| error.to_string())?;
-            #[cfg(target_os = "macos")]
-            {
-                shell_settings.settings = match desktop_lifecycle::persist_network_defaults_version(
-                    &shell_settings.path,
-                    shell_settings.settings,
-                ) {
-                    Ok(settings) => settings,
-                    Err(error) => {
-                        let _ = tauri::async_runtime::block_on(service.shutdown());
-                        return Err(error.into());
-                    }
-                };
-            }
+            let service = tauri::async_runtime::block_on(open_desktop_application(
+                application_config, &mut shell_settings,
+            ))?;
             if let Some(report) = migration.filter(|report| !report.already_completed) {
                 eprintln!("JSTorrent migration: imported={}, already_present={}, skipped={}, skipped_profiles={}",
                     report.imported, report.already_present, report.skipped, report.skipped_profiles.len());
@@ -2453,6 +2434,34 @@ pub fn run() {
     });
 }
 
+// Keep migration and marker persistence in the same startup path for the GUI
+// and deterministic tests. No control surface sees an unpersisted opt-in hold.
+async fn open_desktop_application(
+    mut config: ApplicationConfig,
+    shell: &mut desktop_lifecycle::LoadedDesktopShellSettings,
+) -> Result<ApplicationService, String> {
+    let needs_hold = cfg!(any(target_os = "macos", target_os = "windows"))
+        && shell.settings.network_defaults_version < 1;
+    if needs_hold {
+        config.reset_unconfirmed_network_features = true;
+    }
+    let mut service = ApplicationService::open(config)
+        .await
+        .map_err(|error| error.to_string())?;
+    if needs_hold {
+        match desktop_lifecycle::persist_network_defaults_version(&shell.path, shell.settings) {
+            Ok(settings) => shell.settings = settings,
+            Err(error) => {
+                return match service.shutdown().await {
+                    Ok(()) => Err(error),
+                    Err(shutdown) => Err(format!("{error}; shutdown failed: {shutdown}")),
+                };
+            }
+        }
+    }
+    Ok(service)
+}
+
 fn desktop_application_config_with_product_state(
     app_data: &std::path::Path,
     product_state: ProductStateOwner,
@@ -2464,9 +2473,12 @@ fn desktop_application_config_with_product_state(
         NetworkConfig::new(NetworkPolicy::Online, PEER_CONNECT_TIMEOUT, PEER_IO_TIMEOUT),
     )
     .with_fresh_profile_defaults();
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
         config.initial_client_settings = rstorrent_session::ClientSettings::default();
+    }
+    #[cfg(target_os = "macos")]
+    {
         config.defer_idle_dht = true;
     }
     config.product_state = Some(product_state);
@@ -2511,7 +2523,7 @@ mod tests {
         assert_eq!(config.peer_transport_policy, PeerTransportPolicy::PreferUtp);
         assert_eq!(
             config.initial_client_settings,
-            if cfg!(target_os = "macos") {
+            if cfg!(any(target_os = "macos", target_os = "windows")) {
                 ClientSettings::default()
             } else {
                 ClientSettings::fresh_profile_default()
@@ -2519,7 +2531,7 @@ mod tests {
         );
         assert_eq!(
             config.initial_client_settings.listener,
-            if cfg!(target_os = "macos") {
+            if cfg!(any(target_os = "macos", target_os = "windows")) {
                 ListenerPolicy::Disabled
             } else {
                 ListenerPolicy::AutomaticLocalNetwork
@@ -2527,17 +2539,112 @@ mod tests {
         );
         assert_eq!(
             config.initial_client_settings.port_mapping,
-            if cfg!(target_os = "macos") {
+            if cfg!(any(target_os = "macos", target_os = "windows")) {
                 PortMappingPolicy::Disabled
             } else {
                 PortMappingPolicy::Upnp
             }
         );
         assert!(config.storage_roots.is_empty());
+        assert_eq!(config.defer_idle_dht, cfg!(target_os = "macos"));
         assert_eq!(
             config.download_resource_limits,
             DownloadResourceLimits::DESKTOP
         );
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[tokio::test]
+    async fn desktop_network_upgrade_holds_once_then_preserves_explicit_choices() {
+        use rstorrent_session::{Command, RequestEnvelope, ResponseOutcome, SessionStore};
+
+        let temporary = tempfile::tempdir().unwrap();
+        let app_data = temporary.path().join("data");
+        let profile = app_data.join("profile");
+        let mut config = desktop_application_config(&app_data);
+        config.network.policy = NetworkPolicy::LoopbackOnly;
+        let prior = ClientSettings {
+            listener: ListenerPolicy::FixedLoopback { port: 45432 },
+            upload_slots: 7,
+            dht_enabled: false,
+            ..ClientSettings::fresh_profile_default()
+        };
+        let mut store = SessionStore::open(&profile, "default", &[]).unwrap();
+        let update = |id: &str, settings: &ClientSettings| RequestEnvelope {
+            version: rstorrent_session::CONTROL_VERSION,
+            request_id: id.to_owned(),
+            expected_revision: None,
+            command: Command::UpdateClientSettings {
+                patch: settings.clone().into(),
+            },
+        };
+        assert!(matches!(
+            store
+                .handle_durable(&update("legacy-settings", &prior))
+                .unwrap()
+                .outcome,
+            ResponseOutcome::Success { .. }
+        ));
+        drop(store);
+        let mut shell = super::load_desktop_shell_settings(temporary.path());
+        let mut service = super::open_desktop_application(config.clone(), &mut shell)
+            .await
+            .unwrap();
+        assert_eq!(shell.settings.network_defaults_version, 1);
+        service.shutdown().await.unwrap();
+        drop(service);
+        let mut store = SessionStore::open(&profile, "default", &[]).unwrap();
+        let held = store.client_settings().unwrap();
+        assert_eq!(held.listener, ListenerPolicy::Disabled);
+        assert_eq!(held.port_mapping, PortMappingPolicy::Disabled);
+        assert_eq!(held.preferred_listen_port, 45432);
+        assert_eq!(held.upload_slots, 7);
+        assert!(!held.dht_enabled);
+        // Automatic loopback uses an ephemeral port and no LAN or firewall grant.
+        let explicit = ClientSettings {
+            listener: ListenerPolicy::AutomaticLoopback,
+            port_mapping: PortMappingPolicy::Disabled,
+            ..held
+        };
+        assert!(matches!(
+            store
+                .handle_durable(&update("explicit-settings", &explicit))
+                .unwrap()
+                .outcome,
+            ResponseOutcome::Success { .. }
+        ));
+        drop(store);
+        let mut shell = super::load_desktop_shell_settings(temporary.path());
+        let mut service = super::open_desktop_application(config, &mut shell)
+            .await
+            .unwrap();
+        service.shutdown().await.unwrap();
+        drop(service);
+        let store = SessionStore::open(&profile, "default", &[]).unwrap();
+        assert_eq!(store.client_settings().unwrap(), explicit);
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[tokio::test]
+    async fn desktop_network_marker_failure_joins_startup_and_allows_retry() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut config = desktop_application_config(&temporary.path().join("data"));
+        config.network.policy = NetworkPolicy::LoopbackOnly;
+        let mut shell = super::load_desktop_shell_settings(temporary.path());
+        std::fs::remove_file(&shell.path).unwrap();
+        std::fs::create_dir(&shell.path).unwrap();
+        assert!(
+            super::open_desktop_application(config.clone(), &mut shell)
+                .await
+                .is_err()
+        );
+        assert_eq!(shell.settings.network_defaults_version, 0);
+        std::fs::remove_dir(&shell.path).unwrap();
+        let mut service = super::open_desktop_application(config, &mut shell)
+            .await
+            .unwrap();
+        assert_eq!(shell.settings.network_defaults_version, 1);
+        service.shutdown().await.unwrap();
     }
 
     #[cfg(unix)]

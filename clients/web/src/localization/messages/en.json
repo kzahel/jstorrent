@@ -906,6 +906,10 @@
     "defaultMessage": "Router forwarding ({protocol}): closing router port…",
     "description": "Network details line; protocol is TCP or UDP"
   },
+  "inspection.components.connection.seeding.settings.section.details.firewall.recovery": {
+    "defaultMessage": "If you declined firewall access, review your operating system's firewall settings. Downloads still work with incoming connections off.",
+    "description": "Network details help; no claim about the current OS permission state"
+  },
   "inspection.components.connection.seeding.settings.section.details.firewall.off": {
     "defaultMessage": "IPv6 router firewall: not managed",
     "description": "Network details line"
@@ -5170,7 +5174,7 @@
     "description": "Connection settings and explicit network feature enable"
   },
   "inspection.components.connection.seeding.settings.section.forwarding.confirm.description": {
-    "defaultMessage": "Find your router and open a port. macOS may ask for local network access.",
+    "defaultMessage": "Find your router and open a port. Your operating system may ask for network access.",
     "description": "Connection settings and explicit network feature enable"
   },
   "inspection.components.connection.seeding.settings.section.not.now": {

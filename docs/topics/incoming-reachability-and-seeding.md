@@ -1,13 +1,22 @@
 # Incoming Reachability And Seeding
 
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) selects incoming
+and UPnP Off for fresh and first-upgrade Windows desktop profiles. Native VM
+Off/On/TCP-only controls, zero Off uTP allocation, atomic Off with preserved UDP,
+independently hashed cross-VM outgoing uTP/TCP under persistent firewall denial,
+and retained-data migration pass. A listening port after Cancel is not firewall
+permission or external reachability. Signed shipping/regrant and unsolicited
+external inbound/WAN acceptance remain separate gates; no OS rule automation
+or common engine policy change is added.
+
 Tactical [339](../tactical/339-macos-quiet-network-startup.md) makes incoming Off apply to TCP and unsolicited
 uTP SYNs, including retirement of existing inbound peers. An Off-only change
 retains the shared UDP generation and outgoing peers; explicit port/family
 changes retain their existing replacement rules. No listening endpoint is
 advertised while Off. Mac native outbound uTP and TCP fallback both complete
 with independent payload hashes; Android boundary rejection and builds pass.
-Fresh Mac defaults and first upgrade disable listener/UPnP. Other platform
-fresh-default policy and signed firewall/reachability qualification remain open.
+Fresh Mac defaults and first upgrade disable listener/UPnP. Windows follows
+340; Linux defaults and signed firewall/reachability qualification remain open.
 
 Tactical [332](../tactical/332-windows-listener-test-port-isolation.md) isolates
 the automatic repair preference in the fixed-listener application test. Source

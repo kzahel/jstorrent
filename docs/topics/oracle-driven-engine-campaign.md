@@ -1,13 +1,21 @@
 # Oracle-Driven Engine Campaign
 
+Tactical [340](../tactical/340-windows-quiet-network-startup.md) extends the
+desktop quiet-default/upgrade contract to Windows without changing shared engine
+policy. Restart checkpoint: implementation and bounded unsigned Windows VM
+evidence pass; owned app/rule/artifact cleanup is complete and commit/push is
+authorized. VM clean power-off remains an operational gap. Full
+native Windows engine/workspace validation retains recorded failures independent
+of this defaults slice. Signed shipping/regrant and external inbound/WAN remain
+separate work; Android runtime/defaults and generated contracts are unchanged.
+
 Tactical [339](../tactical/339-macos-quiet-network-startup.md) completes quiet Mac startup and explicit incoming/
 forwarding settings, with pinned BEP/libtorrent source/tests, bounded ownership,
 shared TCP/uTP Off enforcement, repaired Fast availability, idle Mac DHT demand,
 Android common-engine boundary/build evidence and independently hashed native
 Mac outgoing transfers. Restart checkpoint: implementation and local Mac
-qualification are complete. Next executable action is Windows product testing
-of these incoming controls, defaults/migration decision and native Cancel/retry/
-restart against existing firewall rules. Signed Mac denial/regrant and branding
+qualification are complete. Windows product testing, defaults/migration and
+native Cancel/retry/restart follow in 340. Signed Mac denial/regrant and branding
 remain separate shipping gates; no public swarm or release is implied.
 
 Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)

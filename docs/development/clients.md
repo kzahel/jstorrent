@@ -45,7 +45,8 @@ association registration. It is development tooling rather than a release
 candidate. A JSON `TAURI_CONFIG` override can select another isolated test
 identity; the launcher refuses the production identifier.
 
-Mac desktop starts with incoming connections and automatic port forwarding off,
+Mac and Windows desktop start with incoming connections and automatic port
+forwarding off,
 including a one-time hold of old defaults on upgrade. Torrents still resume;
 ports and unrelated settings are retained. In **Settings → Connection &
 seeding**, enable **Accept incoming connections** to listen, then optionally
@@ -53,7 +54,10 @@ seeding**, enable **Accept incoming connections** to listen, then optionally
 explanation before you enable and save it. Empty or paused Mac libraries keep
 DHT dormant. These choices do not report or grant OS access; deliberately
 configured LAN peers/trackers may also cause a local-network request. Windows
-and Linux defaults are unchanged pending their platform qualification.
+firewall Cancel can persist block rules; retry/restart does not promise another
+prompt. Review OS firewall settings after declining access. Windows idle DHT
+and Linux defaults are unchanged. Native qualification and remaining signed
+shipping gates are recorded in Tactical 340.
 
 ## Live web UI
 

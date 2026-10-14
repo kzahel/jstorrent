@@ -13484,6 +13484,7 @@ mod tests {
         remote_utp.shutdown().await.unwrap();
         drop(remote_dht);
         remote_udp.shutdown().await.unwrap();
+        drop(application);
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -13532,6 +13533,7 @@ mod tests {
         })
         .await;
         application.shutdown().await.unwrap();
+        drop(application);
         fs::remove_dir_all(root).unwrap();
     }
 

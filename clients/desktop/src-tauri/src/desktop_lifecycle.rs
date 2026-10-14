@@ -92,7 +92,6 @@ pub(crate) fn load_desktop_shell_settings(config_dir: &Path) -> LoadedDesktopShe
     }
 }
 
-#[cfg(target_os = "macos")]
 pub(crate) fn persist_network_defaults_version(
     path: &Path,
     current: DesktopShellSettings,
@@ -297,7 +296,6 @@ mod tests {
         reset_desktop_shell_settings,
     };
 
-    #[cfg(target_os = "macos")]
     #[test]
     fn network_defaults_marker_preserves_version_three_shell_choices_and_reset() {
         let temporary = tempfile::tempdir().unwrap();
@@ -317,6 +315,16 @@ mod tests {
                 .network_defaults_version,
             1
         );
+    }
+
+    #[test]
+    fn failed_network_defaults_marker_does_not_commit_live_state() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("desktop-shell.json");
+        std::fs::create_dir(&path).unwrap();
+        let current = DesktopShellSettings::default();
+        assert!(super::persist_network_defaults_version(&path, current).is_err());
+        assert_eq!(current.network_defaults_version, 0);
     }
 
     #[test]

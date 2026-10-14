@@ -2878,6 +2878,7 @@ mod tests {
             .shutdown()
             .await
             .expect("shutdown product application");
+        drop(client);
         fs::remove_dir_all(root).expect("remove product fixture");
     }
 
@@ -2916,6 +2917,7 @@ mod tests {
                 .expect("join platform probe")
                 .expect("cancelled probe result")
         );
+        drop(client);
         fs::remove_dir_all(root).expect("remove platform product fixture");
     }
 
@@ -3037,6 +3039,7 @@ mod tests {
             .shutdown()
             .await
             .expect("shutdown product application");
+        drop(client);
         fs::remove_dir_all(root).expect("remove companion product fixture");
     }
 
