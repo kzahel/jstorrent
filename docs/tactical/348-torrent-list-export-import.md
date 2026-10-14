@@ -1,7 +1,7 @@
 # Tactical 348: Torrent List Export And Import
 
-Status: In progress, 2026-10-14. Maintainer-requested; implementation and
-commits authorized.
+Status: Implemented, 2026-10-14. Maintainer-requested; implementation and
+commits authorized. Open items are listed under **Evidence**.
 Topics: `client-persistence`, `application-control`, `web-ui-design`,
 `android-jstorrent-replacement`, `product-surfaces-and-migration`.
 
@@ -72,7 +72,6 @@ jstorrent-torrents.zip
 {
   "format": "jstorrent-torrent-list",
   "version": 1,
-  "exported_at": "2026-10-14T12:00:00Z",
   "torrents": [{
     "info_hash_v1": "…", "info_hash_v2": "…", "name": "…",
     "source": {"type": "metainfo", "file": "torrents/t1-….torrent",
@@ -117,7 +116,7 @@ jstorrent-torrents.zip
     writes the file itself, so no bundle bytes cross IPC;
   - Android: UniFFI methods take and return bytes that Kotlin reads from or
     writes to a SAF document;
-  - browser on the gateway: `GET /api/v1/torrent-list/export` and
+  - browser on the gateway: `POST /api/v1/torrent-list/export` (POST because browsers omit `Origin` on same-origin GETs) and
     `POST /api/v1/torrent-list/import`, authenticated like other API calls.
   The Android companion, desktop companion and remote WebRTC clients do not
   offer bundle export or import in this slice; the section shows only where
@@ -172,3 +171,37 @@ jstorrent-torrents.zip
 Complete when export and all three import forms work on web, desktop and
 Android with the tests above, the format is documented here and in
 `client-persistence`, and the owning topics record the result.
+
+## Evidence
+
+Commits `c329b00f` (format, store exporter, application import, gateway,
+Tauri and UniFFI), `6d9990bd` (Android) and the web commit that follows.
+
+- `cargo test -p rstorrent-session`: bundle round trip, unknown fields
+  ignored, newer version and foreign format refused, unsafe names, missing
+  files, garbage input and a deflate bomb stopped at the entry bound; the
+  released v26 catalog exports six of seven torrents (one being removed) with
+  verbatim `.torrent` files whose info hash matches, one magnet, archived,
+  paused and High-priority shapes; a magnet add with metadata exports a
+  synthesized `.torrent` with the same info hash and its tracker;
+  `torrent_list_round_trips_into_a_fresh_profile_and_reimport_adds_nothing`
+  reproduces run/archive state, selection, High files, rate and stop limits
+  in a new profile, verifies payload already on disk to Complete, and a second
+  import reports four already present.
+- `cargo test -p rstorrent-gateway`: export over `POST`, import with the zip
+  content type, wrong content type 400, wrong token 401.
+- Web: `npm run typecheck`, `npm run test` (617 passed, 2 skipped),
+  `scripts/check-localization.mjs`. A live browser run against a real
+  gateway imported a crafted bundle (1 added, 2 already present, 1 failed with
+  its reason) and added two pasted magnets with one summary; it also found
+  that browsers omit `Origin` on same-origin GETs, so export moved to `POST`.
+  Export in a browser after that change is covered by the gateway test, not
+  by a second live run.
+- Android: `clients/android/build.sh debug` (172 JVM tests),
+  `compileDebugAndroidTestKotlin`, `lintDebug`.
+- Open: no emulator, desktop app or iOS run; the Android companion, desktop
+  companion and remote WebRTC clients do not offer bundle export or import;
+  the recovery screen that reuses the exporter on an unmigrated catalog is the
+  next tactical (the exporter currently reads the schema-27 stop-limit
+  columns, so it will need a column check there).
+

@@ -151,6 +151,7 @@ async function checkWebCatalog() {
     "inspection.components.power.settings.section.",
     "inspection.components.rate.limit.picker.",
     "inspection.components.settings.dialog.",
+    "inspection.components.torrent.list.",
     "inspection.components.torrent.settings.dialog.",
     "inspection.seed.stop.",
     "inspection.transfer.rate.",

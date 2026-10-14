@@ -8,7 +8,12 @@ import {
   type RefObject,
 } from "react";
 
-import type { ClientSettingsPatch, ClientSettingsRuntimeView } from "../../api";
+import type {
+  ClientSettingsPatch,
+  ClientSettingsRuntimeView,
+  TorrentListImportReport,
+  TorrentListImportTarget,
+} from "../../api";
 import type { ColorTheme, DataUnits, InterfaceSize } from "../appearance";
 import type { CommandAccepted, DownloadRoot, DownloadStorageSettings } from "../model";
 import { AppearanceSettingsSection } from "./AppearanceSettingsSection";
@@ -20,6 +25,7 @@ import { Icon } from "./Icon";
 import { NotificationsSettingsSection } from "./NotificationsSettingsSection";
 import { PowerSettingsSection } from "./PowerSettingsSection";
 import { RemoteAccessSettingsSection } from "./RemoteAccessSettingsSection";
+import { TorrentListSettingsSection } from "./TorrentListSettingsSection";
 import { WebAccessSettingsSection } from "./WebAccessSettingsSection";
 import styles from "./SettingsDialog.module.css";
 import type { WebAuthClient } from "../../web-auth-client";
@@ -77,6 +83,13 @@ export interface SettingsDialogProps {
   readonly onRestoreDefaults?: () => Promise<void>;
   readonly onClearAppData?: (deleteData: boolean) => Promise<void>;
   readonly deleteDataSupported?: boolean;
+  readonly onExportTorrentList?: (() => Promise<boolean>) | undefined;
+  readonly onImportTorrentBundle?:
+    | ((
+        target: TorrentListImportTarget,
+        chooseFile: () => Promise<ArrayBuffer | null>,
+      ) => Promise<TorrentListImportReport | null>)
+    | undefined;
   readonly onWebAuthSignedOut: () => void;
   readonly onClose: () => void;
 }
@@ -113,6 +126,8 @@ export function SettingsDialog({
   onRestoreDefaults,
   onClearAppData,
   deleteDataSupported = false,
+  onExportTorrentList,
+  onImportTorrentBundle,
   onWebAuthSignedOut,
   onClose,
 }: SettingsDialogProps) {
@@ -120,6 +135,9 @@ export function SettingsDialog({
   const closeRef = useRef<HTMLButtonElement>(null);
   const [category, setCategory] = useState<SettingsCategory>(initialCategory);
   const [resetBusy, setResetBusy] = useState(false);
+  const [torrentListBusy, setTorrentListBusy] = useState(false);
+  // Settings stays open while a reset or an import runs.
+  const busy = resetBusy || torrentListBusy;
   const categories: readonly {
     readonly id: SettingsCategory;
     readonly label: string;
@@ -157,7 +175,7 @@ export function SettingsDialog({
   }, [returnFocus]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === "Escape" && !resetBusy) {
+    if (event.key === "Escape" && !busy) {
       event.preventDefault();
       onClose();
       return;
@@ -181,7 +199,7 @@ export function SettingsDialog({
   };
 
   const closeFromBackdrop = (event: MouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget && !resetBusy) onClose();
+    if (event.target === event.currentTarget && !busy) onClose();
   };
 
   const moveCategory = (
@@ -228,7 +246,7 @@ export function SettingsDialog({
             ref={closeRef}
             className={styles.close}
             type="button"
-            disabled={resetBusy}
+            disabled={busy}
             aria-label={localizedMessage("inspection.components.settings.dialog.close.settings")}
             onClick={onClose}
           >
@@ -247,7 +265,7 @@ export function SettingsDialog({
                 id={`settings-tab-${item.id}`}
                 key={item.id}
                 type="button"
-                disabled={resetBusy}
+                disabled={busy}
                 role="tab"
                 aria-selected={category === item.id}
                 aria-controls={`settings-panel-${item.id}`}
@@ -371,7 +389,15 @@ export function SettingsDialog({
                   onRestoreDefaults={onRestoreDefaults}
                   onClearAppData={onClearAppData}
                   onBusyChange={setResetBusy}
-                />
+                >
+                  <TorrentListSettingsSection
+                    roots={storage.roots}
+                    defaultRoot={storage.defaultRoot}
+                    onExport={onExportTorrentList}
+                    onImport={onImportTorrentBundle}
+                    onBusyChange={setTorrentListBusy}
+                  />
+                </DataResetSettingsSection>
               </div>
             )}
             <div

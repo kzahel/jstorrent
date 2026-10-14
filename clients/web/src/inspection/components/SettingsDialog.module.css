@@ -643,6 +643,25 @@
   gap: var(--ui-space-sm);
 }
 
+/* Torrent list import result: a summary, then each torrent not added. */
+.importReport {
+  display: grid;
+  gap: var(--ui-space-xs);
+  font-size: var(--ui-font-small);
+  line-height: 1.45;
+}
+
+.importReport ul {
+  display: grid;
+  max-height: 12rem;
+  overflow: auto;
+  gap: var(--ui-space-xs);
+  margin: 0;
+  padding: 0 0 0 var(--ui-space-lg);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
 .resetActions button:last-child {
   border-color: var(--danger-strong);
   color: var(--danger-strong);

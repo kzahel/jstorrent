@@ -1,3 +1,4 @@
+import { prepareBrowserFileSink, type BrowserFileSink } from "./browser-file-save";
 import { openDirectFileConnection } from "./direct-file-connection";
 import { negotiateRangeStream, type RangeStreamOptions } from "./direct-file-range-stream";
 import type {
@@ -42,20 +43,9 @@ export interface DirectFileSaveRequest {
   readonly onProgress?: (progress: DirectFileSaveProgress) => void;
 }
 
-interface DirectFileSink {
-  write(bytes: Uint8Array<ArrayBuffer>): Promise<void>;
-  close(): Promise<void>;
-  abort(): Promise<void>;
-}
-
-interface SavePickerWindow extends Window {
-  showSaveFilePicker?: (options?: {
-    suggestedName?: string;
-  }) => Promise<FileSystemFileHandle>;
-}
+type DirectFileSink = BrowserFileSink;
 
 class SinkWriteFailed extends Error {}
-
 
 /**
  * Starts destination selection immediately. Call this directly from a user
@@ -65,51 +55,11 @@ export function prepareDirectFileSink(
   fileName: string,
   fileLength: bigint,
 ): Promise<DirectFileSink> {
-  const picker = (window as SavePickerWindow).showSaveFilePicker;
-  if (picker !== undefined) {
-    const handle = picker.call(window, { suggestedName: safeFileName(fileName) });
-    return handle.then(async (file) => {
-      const writable = await file.createWritable();
-      return {
-        write: async (bytes) => writable.write(bytes),
-        close: async () => writable.close(),
-        abort: async () => writable.abort().catch(() => undefined),
-      };
-    });
-  }
-  if (fileLength > BigInt(BLOB_FALLBACK_LIMIT)) {
-    return Promise.reject(
-      new Error("This browser can save remote files up to 32 MiB. Use a browser with streaming file saves for larger files."),
-    );
-  }
-  const chunks: ArrayBuffer[] = [];
-  let bytesWritten = 0;
-  return Promise.resolve({
-    write: async (bytes) => {
-      if (bytesWritten + bytes.byteLength > BLOB_FALLBACK_LIMIT) {
-        throw new Error("remote file exceeded the browser save limit");
-      }
-      chunks.push(bytes.slice().buffer);
-      bytesWritten += bytes.byteLength;
-    },
-    close: async () => {
-      const url = URL.createObjectURL(new Blob(chunks));
-      try {
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = safeFileName(fileName);
-        anchor.style.display = "none";
-        document.body.append(anchor);
-        anchor.click();
-        anchor.remove();
-      } finally {
-        setTimeout(() => URL.revokeObjectURL(url), 0);
-      }
-    },
-    abort: async () => {
-      chunks.length = 0;
-      bytesWritten = 0;
-    },
+  return prepareBrowserFileSink(fileName, fileLength, {
+    blobLimit: BLOB_FALLBACK_LIMIT,
+    tooLarge: () => fileLength > BigInt(BLOB_FALLBACK_LIMIT)
+      ? new Error("This browser can save remote files up to 32 MiB. Use a browser with streaming file saves for larger files.")
+      : new Error("remote file exceeded the browser save limit"),
   });
 }
 
@@ -360,10 +310,6 @@ function abortIfRequested(signal?: AbortSignal): void {
   if (signal?.aborted === true) throw new DOMException("The remote file save was cancelled.", "AbortError");
 }
 
-function safeFileName(value: string): string {
-  const leaf = value.split(/[\\/]/).at(-1)?.trim() ?? "";
-  return leaf.length > 0 ? leaf.slice(0, 255) : "download";
-}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

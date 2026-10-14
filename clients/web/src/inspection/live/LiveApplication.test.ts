@@ -12,6 +12,7 @@ import type {
   RequestEnvelope,
   ResponseEnvelope,
   SpeedHistoryView,
+  TorrentListImportTarget,
   TorrentView,
   UpdateBatch,
   UpdateViewSetRequest,
@@ -704,6 +705,35 @@ describe("LiveApplication", () => {
       source,
     });
     await application.close();
+  });
+
+  it("offers torrent list export and import only when the client has them", async () => {
+    const plain = await LiveApplication.open(new FakeLiveClient());
+    expect(plain.exportTorrentList).toBeUndefined();
+    expect(plain.importTorrentBundle).toBeUndefined();
+    await plain.close();
+
+    const client = new FakeLiveClient();
+    const exportTorrentList = vi.fn(async (_signal?: AbortSignal) => true);
+    const report = { added: 1, already_present: 0, failed: [] };
+    const importTorrentBundle = vi.fn(
+      async (
+        _target: TorrentListImportTarget,
+        chooseFile: () => Promise<ArrayBuffer | null>,
+        _signal?: AbortSignal,
+      ) => ((await chooseFile()) === null ? null : report),
+    );
+    Object.assign(client, { exportTorrentList, importTorrentBundle });
+    const application = await LiveApplication.open(client);
+    const target = { storage_root: "root_a", keep_matching_locations: true };
+    const chooseFile = async () => new Uint8Array([1]).buffer;
+
+    await expect(application.exportTorrentList!()).resolves.toBe(true);
+    await expect(application.importTorrentBundle!(target, chooseFile)).resolves.toEqual(report);
+    expect(exportTorrentList).toHaveBeenCalledWith(expect.any(AbortSignal));
+    expect(importTorrentBundle).toHaveBeenCalledWith(target, chooseFile, expect.any(AbortSignal));
+    await application.close();
+    await expect(application.exportTorrentList!()).rejects.toThrow("closed");
   });
 
   it("maps opaque desktop activation IDs through the native-only add lane", async () => {

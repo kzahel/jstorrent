@@ -7,7 +7,7 @@ import type {
   UpdateBatch,
   ViewSpec,
 } from "./api";
-import { ApplicationViewError } from "./api/client";
+import { ApplicationViewError, type ApplicationViewClient } from "./api/client";
 import { ContractError } from "./validation";
 import {
   TauriApplicationViewClient,
@@ -431,6 +431,74 @@ function opened(): OpenViewSetResponse {
     },
   };
 }
+
+describe("Tauri torrent list export and import", () => {
+  it("lets Rust own both file dialogs", async () => {
+    const bridge = new FakeBridge();
+    const results = new Map<string, unknown>([
+      ["desktop_export_torrent_list", true],
+      [
+        "desktop_import_torrent_bundle",
+        { added: 3, already_present: 1, failed: [{ name: "Old", reason: "unknown folder" }] },
+      ],
+    ]);
+    bridge.handler = (command) => results.get(command);
+    const client = new TauriApplicationViewClient(bridge);
+    let chooserCalls = 0;
+
+    await expect(client.exportTorrentList()).resolves.toBe(true);
+    await expect(
+      client.importTorrentBundle({ storage_root: "root_a", keep_matching_locations: false }),
+    ).resolves.toEqual({
+      added: 3,
+      already_present: 1,
+      failed: [{ name: "Old", reason: "unknown folder" }],
+    });
+    // The ApplicationViewClient signature passes a chooser; Tauri ignores it.
+    await (client as ApplicationViewClient).importTorrentBundle!(
+      { storage_root: "root_a", keep_matching_locations: true },
+      async () => {
+        chooserCalls += 1;
+        return null;
+      },
+    );
+
+    expect(chooserCalls).toBe(0);
+    expect(bridge.calls).toEqual([
+      { command: "desktop_export_torrent_list", arguments_: undefined },
+      {
+        command: "desktop_import_torrent_bundle",
+        arguments_: { target: { storage_root: "root_a", keep_matching_locations: false } },
+      },
+      {
+        command: "desktop_import_torrent_bundle",
+        arguments_: { target: { storage_root: "root_a", keep_matching_locations: true } },
+      },
+    ]);
+  });
+
+  it("maps Cancel to false or null and rejects malformed results", async () => {
+    const bridge = new FakeBridge();
+    const client = new TauriApplicationViewClient(bridge);
+    const target = { storage_root: "root_a", keep_matching_locations: true };
+
+    bridge.handler = (command) => (command === "desktop_export_torrent_list" ? false : null);
+    await expect(client.exportTorrentList()).resolves.toBe(false);
+    await expect(client.importTorrentBundle(target)).resolves.toBeNull();
+
+    bridge.handler = (command) =>
+      command === "desktop_export_torrent_list" ? "saved" : { added: 1 };
+    await expect(client.exportTorrentList()).rejects.toBeInstanceOf(ContractError);
+    await expect(client.importTorrentBundle(target)).rejects.toBeInstanceOf(ContractError);
+
+    bridge.handler = () => {
+      throw { code: "invalid_request", message: "bundle has no manifest" };
+    };
+    await expect(client.importTorrentBundle(target)).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+  });
+});
 
 function batch(baseCursor: string, cursor: string): UpdateBatch {
   return {

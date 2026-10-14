@@ -1,5 +1,11 @@
 # Capability Readiness
 
+Tactical [348](../tactical/348-torrent-list-export-import.md) adds torrent
+list export and import: a portable bundle on web (gateway), desktop and
+Android, plus adding several `.torrent` files or magnets at once on every
+client. Companion and remote clients do not offer bundles yet; the
+failed-migration recovery screen is next.
+
 Tactical [344](../tactical/344-seeding-stop-limits.md) implements seeding
 stop limits: session share-ratio and seeding-time limits with per-torrent
 overrides durably stop finished torrents, Resume means keep seeding, schema 27

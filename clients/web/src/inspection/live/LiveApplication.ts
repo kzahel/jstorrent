@@ -18,6 +18,8 @@ import {
   type StorageRootSnapshot,
   type StorageSettingsSnapshot,
   type SwarmPeerView,
+  type TorrentListImportReport,
+  type TorrentListImportTarget,
   type TorrentState,
   type TorrentPreparationView,
   type TorrentView,
@@ -116,6 +118,13 @@ export class LiveApplication implements InspectionApplication {
   private readonly requestInstanceId = generateRequestInstanceId();
   private requestSequence = 1;
   private removeWakeHints: (() => void) | null = null;
+  readonly exportTorrentList: (() => Promise<boolean>) | undefined;
+  readonly importTorrentBundle:
+    | ((
+        target: TorrentListImportTarget,
+        chooseFile: () => Promise<ArrayBuffer | null>,
+      ) => Promise<TorrentListImportReport | null>)
+    | undefined;
 
   private constructor(
     private readonly client: ApplicationViewClient,
@@ -124,6 +133,31 @@ export class LiveApplication implements InspectionApplication {
   ) {
     this.desired = initialViews;
     this.snapshot = emptyLiveSnapshot(initialViews, this.connection);
+    const exportTorrentList = client.exportTorrentList;
+    this.exportTorrentList =
+      exportTorrentList === undefined
+        ? undefined
+        : async () => {
+            this.ensureOpen();
+            return exportTorrentList.call(client, this.lifetime.signal);
+          };
+    const importTorrentBundle = client.importTorrentBundle;
+    this.importTorrentBundle =
+      importTorrentBundle === undefined
+        ? undefined
+        : async (target, chooseFile) => {
+            this.ensureOpen();
+            try {
+              return await importTorrentBundle.call(
+                client,
+                target,
+                chooseFile,
+                this.lifetime.signal,
+              );
+            } finally {
+              this.controller?.requestImmediatePoll();
+            }
+          };
   }
 
   static async open(

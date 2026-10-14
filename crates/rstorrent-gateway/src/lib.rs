@@ -975,7 +975,9 @@ impl GatewayServer {
                 admit_torrent_list_import,
             ));
         let mut router = Router::new()
-            .route("/api/v1/torrent-list/export", get(api_torrent_list_export))
+            // POST, not GET: browsers omit Origin on same-origin GETs, and
+            // every authenticated route requires it.
+            .route("/api/v1/torrent-list/export", post(api_torrent_list_export))
             .route("/api/v1/torrent-list/import", torrent_list_import)
             .route(
                 "/api/v1/connect",
@@ -3020,7 +3022,7 @@ mod tests {
             stream
                 .write_all(
                     format!(
-                        "GET /api/v1/torrent-list/export HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\nAuthorization: Bearer correct-token\r\nOrigin: {origin}\r\nX-RSTorrent-Owner: 00000000000000000000000000000001\r\n\r\n"
+                        "POST /api/v1/torrent-list/export HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\nContent-Length: 0\r\nAuthorization: Bearer correct-token\r\nOrigin: {origin}\r\nX-RSTorrent-Owner: 00000000000000000000000000000001\r\n\r\n"
                     )
                     .as_bytes(),
                 )

@@ -552,6 +552,73 @@
       "value": "Torrent already present."
     }
   ],
+  "feedback.add.batch.failed": [
+    {
+      "type": 0,
+      "value": "Couldn't add "
+    },
+    {
+      "type": 2,
+      "value": "failed",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": ": "
+    },
+    {
+      "type": 1,
+      "value": "details"
+    }
+  ],
+  "feedback.add.batch.progress": [
+    {
+      "type": 0,
+      "value": "Adding torrents ("
+    },
+    {
+      "type": 2,
+      "value": "current",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": "/"
+    },
+    {
+      "type": 2,
+      "value": "total",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": ")…"
+    }
+  ],
+  "feedback.add.batch.result": [
+    {
+      "type": 0,
+      "value": "Added "
+    },
+    {
+      "type": 2,
+      "value": "added",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": ". Already in your list: "
+    },
+    {
+      "type": 2,
+      "value": "alreadyPresent",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": "."
+    }
+  ],
   "feedback.add.files.selected": [
     {
       "type": 6,
@@ -7429,6 +7496,127 @@
     {
       "type": 0,
       "value": "Torrent actions"
+    }
+  ],
+  "inspection.components.torrent.list.description": [
+    {
+      "type": 0,
+      "value": "Save every torrent to one file to keep as a backup or to open on another device."
+    }
+  ],
+  "inspection.components.torrent.list.export": [
+    {
+      "type": 0,
+      "value": "Export torrent list"
+    }
+  ],
+  "inspection.components.torrent.list.export.failed": [
+    {
+      "type": 0,
+      "value": "Couldn't export the torrent list. "
+    },
+    {
+      "type": 1,
+      "value": "error"
+    }
+  ],
+  "inspection.components.torrent.list.exported": [
+    {
+      "type": 0,
+      "value": "Torrent list saved."
+    }
+  ],
+  "inspection.components.torrent.list.exporting": [
+    {
+      "type": 0,
+      "value": "Exporting…"
+    }
+  ],
+  "inspection.components.torrent.list.failed": [
+    {
+      "type": 0,
+      "value": "Couldn't add "
+    },
+    {
+      "type": 2,
+      "value": "count",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": ":"
+    }
+  ],
+  "inspection.components.torrent.list.failure": [
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": " — "
+    },
+    {
+      "type": 1,
+      "value": "reason"
+    }
+  ],
+  "inspection.components.torrent.list.file.size": [
+    {
+      "type": 0,
+      "value": "This file is too large or empty to be a torrent list."
+    }
+  ],
+  "inspection.components.torrent.list.import": [
+    {
+      "type": 0,
+      "value": "Import torrent list…"
+    }
+  ],
+  "inspection.components.torrent.list.import.description": [
+    {
+      "type": 0,
+      "value": "Add the torrents from an exported file. Torrents already in your list are skipped, and files already downloaded are checked instead of downloaded again."
+    }
+  ],
+  "inspection.components.torrent.list.import.failed": [
+    {
+      "type": 0,
+      "value": "Couldn't import the torrent list. "
+    },
+    {
+      "type": 1,
+      "value": "error"
+    }
+  ],
+  "inspection.components.torrent.list.importing": [
+    {
+      "type": 0,
+      "value": "Importing…"
+    }
+  ],
+  "inspection.components.torrent.list.keep.locations": [
+    {
+      "type": 0,
+      "value": "Use a download folder with the same name when there is one"
+    }
+  ],
+  "inspection.components.torrent.list.no.folders": [
+    {
+      "type": 0,
+      "value": "Add a download folder first."
+    }
+  ],
+  "inspection.components.torrent.list.save.to": [
+    {
+      "type": 0,
+      "value": "Save to"
+    }
+  ],
+  "inspection.components.torrent.list.title": [
+    {
+      "type": 0,
+      "value": "Torrent list"
     }
   ],
   "inspection.components.torrent.settings.dialog.cancel": [

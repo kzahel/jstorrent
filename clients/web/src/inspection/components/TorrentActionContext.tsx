@@ -17,6 +17,7 @@ import {
 } from "../context";
 import type { InspectionCommand, TorrentRow } from "../model";
 import { WEBTORRENT_TEST_TORRENTS } from "../testTorrents";
+import { readTorrentFile, type TorrentFileSource } from "../torrentFile";
 import {
   TORRENT_ACTIONS,
   orderedSelectedTorrentRows,
@@ -30,6 +31,24 @@ import { useToast } from "./Toast";
 
 const MAX_FAILURE_DETAILS = 5;
 const SAMPLE_BATCH_TOAST = "sample-batch";
+const ADD_BATCH_TOAST = "add-batch";
+
+/** One torrent of a several-at-once add. */
+export interface AddBatchEntry {
+  /** Names the torrent in the failure list. */
+  readonly label: string;
+  readonly source:
+    | { readonly type: "magnet"; readonly magnet: string }
+    | { readonly type: "torrent_file"; readonly file: TorrentFileSource }
+    /** Input that could not be added at all, such as a malformed link. */
+    | { readonly type: "invalid"; readonly message: string };
+}
+
+export interface AddBatchSummary {
+  readonly added: number;
+  readonly alreadyPresent: number;
+  readonly failed: number;
+}
 
 export interface ResolvedTorrentAction extends TorrentActionDefinition {
   readonly resolvedLabel: string;
@@ -56,7 +75,8 @@ interface SettingsRequest {
 
 interface TorrentActionContextValue {
   readonly pendingAction: TorrentActionId | null;
-  readonly sampleBatchRunning: boolean;
+  /** A sample or several-torrent add is in progress. */
+  readonly batchRunning: boolean;
   readonly selectedTargetIds: readonly string[];
   readonly actionsFor: (targetIds?: readonly string[]) => readonly ResolvedTorrentAction[];
   readonly runSampleBatch: (
@@ -64,6 +84,12 @@ interface TorrentActionContextValue {
     startContent: boolean,
     awaitFileSelection: boolean,
   ) => Promise<void>;
+  /** Adds each entry in turn and reports them in one notification. */
+  readonly runAddBatch: (
+    entries: readonly AddBatchEntry[],
+    storageRoot: string,
+    startContent: boolean,
+  ) => Promise<AddBatchSummary>;
   readonly runAction: (
     actionId: TorrentActionId,
     targetIds?: readonly string[],
@@ -93,8 +119,8 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
   const execute = useInspectionCommand();
   const revealTorrent = useInspectionStore((state) => state.revealTorrent);
   const toast = useToast();
-  const [sampleBatchRunning, setSampleBatchRunning] = useState(false);
-  const sampleBatchRef = useRef(false);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const batchRef = useRef(false);
   const [pendingAction, setPendingActionState] = useState<TorrentActionId | null>(
     null,
   );
@@ -140,7 +166,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
       const targets = targetRows(requestedIds);
       return TORRENT_ACTIONS.map((action): ResolvedTorrentAction => {
         const availability = torrentActionAvailability(action.id, targets);
-        const busy = pendingAction !== null || sampleBatchRunning;
+        const busy = pendingAction !== null || batchRunning;
         return {
           ...action,
           resolvedLabel: action.label(targets),
@@ -153,69 +179,143 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         };
       });
     },
-    [pendingAction, sampleBatchRunning, selectedTargetIds, targetRows],
+    [pendingAction, batchRunning, selectedTargetIds, targetRows],
   );
 
-  const runSampleBatch = useCallback(async (
+  /**
+   * Adds entries one after another through the ordinary add commands, with
+   * one progress notification replaced by one summary.
+   */
+  const runBatch = useCallback(async (
+    entries: readonly AddBatchEntry[],
     storageRoot: string,
     startContent: boolean,
     awaitFileSelection: boolean,
-  ) => {
-    if (sampleBatchRef.current || pendingRef.current !== null) {
+    copy: {
+      readonly toastKey: string;
+      readonly progress: (current: number, total: number) => string;
+      readonly summary: (summary: AddBatchSummary, failures: readonly string[]) => string;
+    },
+  ): Promise<AddBatchSummary> => {
+    if (batchRef.current || pendingRef.current !== null) {
       throw new Error(localizedMessage("inspection.components.torrent.action.context.another.torrent.action.is.still.in.progress"));
     }
-    sampleBatchRef.current = true;
-    setSampleBatchRunning(true);
+    batchRef.current = true;
+    setBatchRunning(true);
     let added = 0;
     let alreadyPresent = 0;
     const failures: string[] = [];
     try {
-      for (const [index, torrent] of WEBTORRENT_TEST_TORRENTS.entries()) {
+      for (const [index, entry] of entries.entries()) {
         if (!mountedRef.current) break;
         toast.show({
-          key: SAMPLE_BATCH_TOAST,
-          message: localizedMessage("inspection.components.torrent.actions.adding.sample.torrents", {
-            current: index + 1,
-            total: WEBTORRENT_TEST_TORRENTS.length,
-          }),
-          progress: (index / WEBTORRENT_TEST_TORRENTS.length) * 100,
+          key: copy.toastKey,
+          message: copy.progress(index + 1, entries.length),
+          progress: (index / entries.length) * 100,
         });
         try {
-          const result = await execute({
-            type: "add_magnet",
-            magnet: torrent.magnet,
-            storageRoot,
-            startContent,
-            ...(awaitFileSelection ? { awaitFileSelection: true } : {}),
-          });
+          const source = entry.source;
+          if (source.type === "invalid") throw new Error(source.message);
+          const result = await execute(
+            source.type === "magnet"
+              ? {
+                  type: "add_magnet",
+                  magnet: source.magnet,
+                  storageRoot,
+                  startContent,
+                  ...(awaitFileSelection ? { awaitFileSelection: true } : {}),
+                }
+              : {
+                  type: "add_torrent_bytes",
+                  source: await readTorrentFile(source.file),
+                  storageRoot,
+                  startContent,
+                  ...(awaitFileSelection ? { awaitFileSelection: true } : {}),
+                },
+          );
           if (mountedRef.current && result.torrentId !== undefined) {
             revealTorrent(result.torrentId);
           }
           if (result.addDisposition?.type === "already_present") alreadyPresent += 1;
           else added += 1;
         } catch (error) {
-          const detail = errorText(error);
-          failures.push(failureDetail(torrent.menuLabel, detail.slice(0, 160)));
+          failures.push(failureDetail(entry.label, errorText(error).slice(0, 160)));
         }
       }
-      const summary = localizedMessage("inspection.components.torrent.actions.sample.torrents.result", {
-        added,
-        alreadyPresent,
-        failed: failures.length,
-      });
+      const summary = { added, alreadyPresent, failed: failures.length };
       if (mountedRef.current) {
         toast.show({
-          key: SAMPLE_BATCH_TOAST,
-          ...(failures.length === 0
-            ? { message: summary }
-            : { message: `${summary} ${formatList(failures, { type: "unit" })}`, tone: "error" }),
+          key: copy.toastKey,
+          message: copy.summary(summary, failures),
+          ...(failures.length === 0 ? {} : { tone: "error" as const }),
         });
       }
+      return summary;
     } finally {
-      sampleBatchRef.current = false;
-      if (mountedRef.current) setSampleBatchRunning(false);
+      batchRef.current = false;
+      if (mountedRef.current) setBatchRunning(false);
     }
   }, [execute, revealTorrent, toast]);
+
+  const runSampleBatch = useCallback(async (
+    storageRoot: string,
+    startContent: boolean,
+    awaitFileSelection: boolean,
+  ) => {
+    await runBatch(
+      WEBTORRENT_TEST_TORRENTS.map((torrent) => ({
+        label: torrent.menuLabel,
+        source: { type: "magnet", magnet: torrent.magnet },
+      })),
+      storageRoot,
+      startContent,
+      awaitFileSelection,
+      {
+        toastKey: SAMPLE_BATCH_TOAST,
+        progress: (current, total) =>
+          localizedMessage("inspection.components.torrent.actions.adding.sample.torrents", {
+            current,
+            total,
+          }),
+        summary: ({ added, alreadyPresent, failed }, failures) => {
+          const summary = localizedMessage("inspection.components.torrent.actions.sample.torrents.result", {
+            added,
+            alreadyPresent,
+            failed,
+          });
+          return failures.length === 0
+            ? summary
+            : `${summary} ${formatList(failures, { type: "unit" })}`;
+        },
+      },
+    );
+  }, [runBatch]);
+
+  const runAddBatch = useCallback(
+    (entries: readonly AddBatchEntry[], storageRoot: string, startContent: boolean) =>
+      runBatch(entries, storageRoot, startContent, false, {
+        toastKey: ADD_BATCH_TOAST,
+        progress: (current, total) =>
+          localizedMessage("feedback.add.batch.progress", { current, total }),
+        summary: ({ added, alreadyPresent, failed }, failures) => {
+          const summary = localizedMessage("feedback.add.batch.result", {
+            added,
+            alreadyPresent,
+          });
+          if (failed === 0) return summary;
+          const listed = failures.slice(0, MAX_FAILURE_DETAILS);
+          const remaining = failed - listed.length;
+          const details = formatList(
+            remaining === 0
+              ? listed
+              : [...listed, localizedMessage("feedback.list.more", { count: remaining })],
+            { type: "unit" },
+          );
+          return `${summary} ${localizedMessage("feedback.add.batch.failed", { failed, details })}`;
+        },
+      }),
+    [runBatch],
+  );
 
   /** Undo runs from a toast; it never offers another Undo. */
   const undoRef = useRef<(
@@ -302,7 +402,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
   );
 
   undoRef.current = (actionId, targets, options) => {
-    if (pendingRef.current !== null || sampleBatchRef.current) {
+    if (pendingRef.current !== null || batchRef.current) {
       toast.show({
         message: localizedMessage("inspection.components.torrent.action.context.another.torrent.action.is.still.in.progress"),
       });
@@ -390,7 +490,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         return;
       }
       const availability = torrentActionAvailability(actionId, targets);
-      if (pendingRef.current !== null || sampleBatchRef.current) {
+      if (pendingRef.current !== null || batchRef.current) {
         toast.show({ message: localizedMessage("inspection.components.torrent.action.context.another.torrent.action.is.still.in.progress") });
         return;
       }
@@ -470,13 +570,14 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
   const value = useMemo<TorrentActionContextValue>(
     () => ({
       pendingAction,
-      sampleBatchRunning,
+      batchRunning,
       selectedTargetIds,
       actionsFor,
       runSampleBatch,
+      runAddBatch,
       runAction,
     }),
-    [actionsFor, pendingAction, runAction, runSampleBatch, sampleBatchRunning, selectedTargetIds],
+    [actionsFor, pendingAction, runAction, runAddBatch, runSampleBatch, batchRunning, selectedTargetIds],
   );
 
   const returnRemoveFocus = useCallback(

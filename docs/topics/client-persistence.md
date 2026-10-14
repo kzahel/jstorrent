@@ -45,6 +45,12 @@ overrides (NULL for the session limit, -1 for no limit) and a
 The same rule covers every other durable format. Tactical 345 records the
 audit and its follow-ups.
 
+Tactical [348](../tactical/348-torrent-list-export-import.md) adds a
+portable torrent list bundle: a zip with a versioned `manifest.json` and one
+`.torrent` per torrent (original, synthesized from verified metadata, or a
+magnet). Readers ignore unknown fields and refuse newer versions. Import adds
+torrents through the ordinary add path and never trusts saved progress.
+
 Tactical [308](../tactical/308-android-optional-add-selection.md) reuses the
 current schema for explicit Download all on pending adds. Normal default,
 cleared source/selection exceptions, running intent and queue admission commit

@@ -23,7 +23,7 @@ import {
 } from "vitest";
 import { createRef } from "react";
 
-import type { ClientSettingsRuntimeView } from "../../api";
+import type { ClientSettingsRuntimeView, TorrentListImportTarget } from "../../api";
 import type {
   HostedAccessMode,
   HostedProduct,
@@ -2748,7 +2748,7 @@ describe("inspection application", () => {
       "accept",
       ".torrent,application/x-bittorrent",
     );
-    expect(fileInput).not.toHaveAttribute("multiple");
+    expect(fileInput).toHaveAttribute("multiple");
     await user.click(add);
     expect(openChooser).toHaveBeenCalledOnce();
     draft.focus();
@@ -2802,6 +2802,173 @@ describe("inspection application", () => {
     expect(JSON.stringify(application.commands)).not.toContain("private-name");
     // A new torrent appears in the list; no toast repeats that.
     expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
+  });
+
+  it("adds several selected files in turn with one summary", async () => {
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [downloadRoot("root_a", "Downloads")],
+        defaultRoot: "root_a",
+        showAddOptions: false,
+        showFileSelection: true,
+      }),
+    });
+    const dispatch = application.dispatch.bind(application);
+    const first = new Uint8Array([1, 2, 3]).buffer;
+    const second = new Uint8Array([4, 5, 6]).buffer;
+    vi.spyOn(application, "dispatch").mockImplementation(async (command) => {
+      const result = await dispatch(command);
+      if (command.type === "add_torrent_bytes" && command.source === second) {
+        return {
+          accepted: true,
+          torrentId: "t1-00000000000000000000000000000002",
+          addDisposition: { type: "already_present" },
+        };
+      }
+      return result;
+    });
+    renderApplication(application);
+    const fileA = new File([new Uint8Array(first)], "a.torrent");
+    Object.defineProperty(fileA, "arrayBuffer", { value: async () => first });
+    const fileB = new File([new Uint8Array(second)], "b.torrent");
+    Object.defineProperty(fileB, "arrayBuffer", { value: async () => second });
+    const empty = new File([], "empty.torrent");
+
+    fireEvent.change(torrentFileInput(), {
+      target: { files: [fileA, fileB, empty] },
+    });
+
+    await waitFor(() =>
+      expect(within(toast()).getByRole("alert")).toHaveTextContent(
+        "Added 1. Already in your list: 1. Couldn't add 1: empty.torrent: Torrent files must contain at least one byte.",
+      ),
+    );
+    // Several files share the default folder and never wait for selection.
+    expect(application.commands).toEqual([
+      { type: "add_torrent_bytes", source: first, storageRoot: "root_a", startContent: true },
+      { type: "add_torrent_bytes", source: second, storageRoot: "root_a", startContent: true },
+    ]);
+    expect(screen.queryByRole("dialog", { name: "Add torrent" })).not.toBeInTheDocument();
+  });
+
+  it("asks once for the folder of several files when add options are shown", async () => {
+    const user = userEvent.setup();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [
+          downloadRoot("root_a", "Downloads"),
+          downloadRoot("root_b", "Other folder"),
+        ],
+        defaultRoot: "root_a",
+        showAddOptions: true,
+      }),
+    });
+    renderApplication(application);
+    const sources = [new Uint8Array([1]).buffer, new Uint8Array([2]).buffer];
+    const files = sources.map((source, index) => {
+      const file = new File([new Uint8Array(source)], `file-${index}.torrent`);
+      Object.defineProperty(file, "arrayBuffer", { value: async () => source });
+      return file;
+    });
+
+    fireEvent.change(torrentFileInput(), { target: { files } });
+    const dialog = screen.getByRole("dialog", { name: "Add torrent" });
+    await user.click(within(dialog).getByRole("radio", { name: /Other folder/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Add torrent" }));
+
+    await waitFor(() =>
+      expect(application.commands).toEqual(
+        sources.map((source) => ({
+          type: "add_torrent_bytes",
+          source,
+          storageRoot: "root_b",
+          startContent: true,
+        })),
+      ),
+    );
+    expect(await findToast("Added 2. Already in your list: 0.")).toBeVisible();
+  });
+
+  it("adds each pasted magnet link with one summary", async () => {
+    const user = userEvent.setup();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [downloadRoot("root_a", "Downloads")],
+        defaultRoot: "root_a",
+        showAddOptions: false,
+      }),
+    });
+    renderApplication(application);
+    const first = `magnet:?xt=urn:btih:${"a".repeat(40)}&dn=First`;
+    const second = `magnet:?xt=urn:btih:${"b".repeat(40)}&dn=Second`;
+    const draft = screen.getByRole("textbox", { name: "Magnet link or torrent URL" });
+
+    await user.click(draft);
+    await user.paste(`${first}\n\n${second}\nnot-a-link\n`);
+    expect(draft).toHaveValue(`${first} ${second} not-a-link`);
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() =>
+      expect(within(toast()).getByRole("alert")).toHaveTextContent(
+        "Added 2. Already in your list: 0. Couldn't add 1: not-a-link: Enter a magnet link beginning with magnet:?",
+      ),
+    );
+    expect(application.commands).toEqual([
+      { type: "add_magnet", magnet: first, storageRoot: "root_a", startContent: true },
+      { type: "add_magnet", magnet: second, storageRoot: "root_a", startContent: true },
+    ]);
+    // A failed link stays in the box so it can be fixed.
+    expect(draft).not.toHaveValue("");
+
+    fireEvent.change(draft, { target: { value: `${first} ${second}` } });
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(draft).toHaveValue(""));
+    expect(await findToast("Added 2. Already in your list: 0.")).toBeVisible();
+  });
+
+  it("shows torrent list export and import only where the client supports them", async () => {
+    const user = userEvent.setup();
+    const unsupported = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [downloadRoot("root_a", "Downloads")],
+        defaultRoot: "root_a",
+        showAddOptions: false,
+      }),
+    });
+    const first = renderApplication(unsupported);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("tab", { name: "Data & reset" }));
+    expect(screen.getByRole("button", { name: "Restore defaults…" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Export torrent list" })).not.toBeInTheDocument();
+    first.unmount();
+
+    const supported = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: liveSnapshot({
+        roots: [downloadRoot("root_a", "Downloads"), downloadRoot("root_b", "Other folder")],
+        defaultRoot: "root_b",
+        showAddOptions: false,
+      }),
+    });
+    const exportTorrentList = vi.fn(async () => true);
+    const importTorrentBundle = vi.fn(
+      async (_target: TorrentListImportTarget, chooseFile: () => Promise<ArrayBuffer | null>) => {
+        await chooseFile();
+        return { added: 1, already_present: 0, failed: [] };
+      },
+    );
+    Object.assign(supported, { exportTorrentList, importTorrentBundle });
+    renderApplication(supported);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("tab", { name: "Data & reset" }));
+    await user.click(screen.getByRole("button", { name: "Export torrent list" }));
+    expect(exportTorrentList).toHaveBeenCalledOnce();
+    expect(await findToast("Torrent list saved.")).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Save to" })).toHaveValue("root_b");
   });
 
   it("retains only the File while options are chosen and applies them after read", async () => {

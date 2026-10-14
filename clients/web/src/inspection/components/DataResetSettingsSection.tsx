@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { message as localizedMessage } from "../../localization/runtime";
 
 import { useToast } from "./Toast";
@@ -10,6 +10,8 @@ interface DataResetSettingsSectionProps {
   readonly onRestoreDefaults: () => Promise<void>;
   readonly onClearAppData: (deleteData: boolean) => Promise<void>;
   readonly onBusyChange: (busy: boolean) => void;
+  /** Shown above the reset actions, such as the torrent list section. */
+  readonly children?: ReactNode;
 }
 
 export function DataResetSettingsSection({
@@ -18,6 +20,7 @@ export function DataResetSettingsSection({
   onRestoreDefaults,
   onClearAppData,
   onBusyChange,
+  children,
 }: DataResetSettingsSectionProps) {
   const [confirmation, setConfirmation] = useState<"restore" | "clear" | null>(null);
   const [deleteData, setDeleteData] = useState(false);
@@ -51,6 +54,7 @@ export function DataResetSettingsSection({
   return (
     <div className={styles.dataReset}>
       <h3>{localizedMessage("inspection.components.data.reset.category")}</h3>
+      {children}
       <div className={styles.rows}>
         <section>
           <h4>{localizedMessage("inspection.components.data.reset.restore.title")}</h4>

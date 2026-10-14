@@ -14,6 +14,8 @@ import type {
   RequestEnvelope,
   ResponseEnvelope,
   StorageRootSnapshot,
+  TorrentListImportReport,
+  TorrentListImportTarget,
   UpdateBatch,
   UpdateViewSetRequest,
 } from "./api";
@@ -58,6 +60,12 @@ export interface ApplicationWebSocketPlatformClient {
     signal?: AbortSignal,
   ): Promise<StorageRootSnapshot | null>;
   prepareMediaOpen?(): MediaOpenTarget;
+  exportTorrentList?(signal?: AbortSignal): Promise<boolean>;
+  importTorrentBundle?(
+    target: TorrentListImportTarget,
+    chooseFile: () => Promise<ArrayBuffer | null>,
+    signal?: AbortSignal,
+  ): Promise<TorrentListImportReport | null>;
   close(): Promise<void>;
 }
 
@@ -102,6 +110,13 @@ export class WebSocketApplicationViewClient
   private nextCallId = 1;
   private nextUploadId = 1;
   private nextStreamId = 1;
+  /** Present only when the platform client carries the bundle over HTTP. */
+  public readonly exportTorrentList?: (signal?: AbortSignal) => Promise<boolean>;
+  public readonly importTorrentBundle?: (
+    target: TorrentListImportTarget,
+    chooseFile: () => Promise<ArrayBuffer | null>,
+    signal?: AbortSignal,
+  ) => Promise<TorrentListImportReport | null>;
 
   public constructor(
     baseUrl: string,
@@ -137,6 +152,21 @@ export class WebSocketApplicationViewClient
         undefined,
         clientInstanceId,
       );
+    const platform = this.platformClient;
+    const exportTorrentList = platform.exportTorrentList;
+    if (exportTorrentList !== undefined) {
+      this.exportTorrentList = async (signal) => {
+        this.ensureOpen();
+        return exportTorrentList.call(platform, signal);
+      };
+    }
+    const importTorrentBundle = platform.importTorrentBundle;
+    if (importTorrentBundle !== undefined) {
+      this.importTorrentBundle = async (target, chooseFile, signal) => {
+        this.ensureOpen();
+        return importTorrentBundle.call(platform, target, chooseFile, signal);
+      };
+    }
   }
 
   public async hello(signal?: AbortSignal): Promise<ApiHello> {

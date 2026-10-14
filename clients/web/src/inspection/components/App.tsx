@@ -609,6 +609,16 @@ function AppContent({
           onClientSettingsSave={(patch) =>
             execute({ type: "update_client_settings", patch })
           }
+          onExportTorrentList={
+            remoteAccess?.scope === "remote"
+              ? undefined
+              : controller.application.exportTorrentList
+          }
+          onImportTorrentBundle={
+            remoteAccess?.scope === "remote"
+              ? undefined
+              : controller.application.importTorrentBundle
+          }
           deleteDataSupported={Object.values(controller.store.getState().torrents).every(
             (torrent) => torrent.deleteDataSupported,
           )}

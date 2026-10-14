@@ -1,5 +1,11 @@
 # Web UI Design
 
+Tactical [348](../tactical/348-torrent-list-export-import.md) adds a
+**Torrent list** card to Settings → Data & reset (export, Save to, keep
+matching folders, import with an inline summary) where the client supports
+bundles, and lets the toolbar add several `.torrent` files or pasted magnets
+with one progress and one summary toast.
+
 Tactical [344](../tactical/344-seeding-stop-limits.md) adds **Stop seeding**
 to Settings → Connection & seeding and to Torrent settings, renames the goal
 group **Seeding priority**, and replaces raw-seconds and free-number fields

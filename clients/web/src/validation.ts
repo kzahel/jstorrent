@@ -9,6 +9,7 @@ import type {
   OpenViewSetResponse,
   ResponseEnvelope,
   ServiceSnapshot,
+  TorrentListImportReport,
   TorrentView,
   UpdateBatch,
   ViewPatch,
@@ -25,6 +26,9 @@ const MAX_FRAME_BYTES = 512 * 1024;
 const MAX_HTTP_RESPONSE_BYTES = 16 * 1024 * 1024;
 const MAX_APPLICATION_FRAME_BYTES = MAX_HTTP_RESPONSE_BYTES + 4 * 1024;
 const MAX_MAGNET_BYTES = 16 * 1024;
+const MAX_IMPORT_FAILURES = 4_096;
+const MAX_IMPORT_FAILURE_NAME_BYTES = 64 * 1024;
+const MAX_IMPORT_FAILURE_REASON_BYTES = 16 * 1024;
 const MAX_COLLECTION = 100_000;
 const MAX_ACTIVE_PEERS = 256;
 const MAX_SWARM_PEERS = 1_000;
@@ -317,6 +321,71 @@ function validateMediaUrlResponse(value: MediaUrlResponse): void {
     decimal(value.outcome.idle_timeout_millis, "media URL idle timeout");
     decimal(value.outcome.absolute_timeout_millis, "media URL absolute timeout");
   }
+}
+
+/**
+ * Tactical 348 bundle import report. The type is not in the generated
+ * schema, so this checks it by hand with the engine's own bounds.
+ */
+export function decodeTorrentListImportReport(
+  source: string,
+): TorrentListImportReport {
+  return validateTorrentListImportReport(
+    parseBoundedJson(source, MAX_HTTP_RESPONSE_BYTES, "torrent list import report"),
+  );
+}
+
+export function validateTorrentListImportReport(
+  value: unknown,
+): TorrentListImportReport {
+  const report = exactRecord(
+    value,
+    "torrent list import report",
+    ["added", "already_present", "failed"],
+  );
+  const failed = report.failed;
+  if (!Array.isArray(failed) || failed.length > MAX_IMPORT_FAILURES) {
+    throw new ContractError("torrent list import failures must be a bounded array");
+  }
+  return {
+    added: boundedInteger(report.added, "torrent list import added", 0, MAX_U32),
+    already_present: boundedInteger(
+      report.already_present,
+      "torrent list import already present",
+      0,
+      MAX_U32,
+    ),
+    failed: failed.map((entry) => {
+      const failure = exactRecord(entry, "torrent list import failure", ["name", "reason"]);
+      return {
+        name: boundedUtf8String(
+          failure.name,
+          "torrent list import failure name",
+          MAX_IMPORT_FAILURE_NAME_BYTES,
+        ),
+        reason: boundedUtf8String(
+          failure.reason,
+          "torrent list import failure reason",
+          MAX_IMPORT_FAILURE_REASON_BYTES,
+        ),
+      };
+    }),
+  };
+}
+
+function exactRecord(
+  value: unknown,
+  label: string,
+  keys: readonly string[],
+): Record<string, unknown> {
+  const record = asRecord(value, label);
+  for (const key of Object.keys(record)) {
+    if (!keys.includes(key)) throw new ContractError(`${label} has unknown field ${key}`);
+  }
+  for (const key of keys) {
+    if (!(key in record)) throw new ContractError(`${label} is missing ${key}`);
+  }
+  return record;
 }
 
 export function decodeOpenViewSetResponse(source: string): OpenViewSetResponse {
