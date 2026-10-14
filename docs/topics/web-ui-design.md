@@ -935,6 +935,22 @@ product or create automatic UI parity with it. Phone usability applies to the
 shared web surface itself, including small desktop windows and future browser
 access.
 
+## Action Feedback
+
+Tactical [`346`](../tactical/346-action-feedback-toasts.md) sets one rule
+for action results. A result already visible on screen (a priority column, a
+paused row, a ticked setting, a folder in the list) gets no words. A result
+that is off screen or otherwise unconfirmed uses one bottom-centre toast
+modelled on the Android snackbar: one slot, a new toast replaces the current
+one, info toasts close after 4 s (10 s with an action), and hovering or
+focusing pauses them. Errors stay until dismissed or replaced; form and field
+validation stays beside its control. Easy reversals offer an action on the
+toast: archive and restore offer Undo, and adding a torrent that is already
+archived offers Restore. Inline rows that appear only to report a result are
+not used, because they move surrounding content. Ongoing state such as
+waiting for Wi-Fi, an available update, or buffering is status, not a result,
+and stays where it is.
+
 ## Accessibility
 
 Accessibility is an initial correctness requirement. The new implementation

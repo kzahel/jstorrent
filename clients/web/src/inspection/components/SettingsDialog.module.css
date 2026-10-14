@@ -166,14 +166,6 @@
 .settingSectionHeading > span,
 .sectionIntroduction,
 .storageNote,
-.storageStatus {
-  display: block;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--ui-font-small);
-  line-height: 1.45;
-}
-
 .sectionIntroduction {
   padding: 0 var(--ui-space-xs);
 }

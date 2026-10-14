@@ -10,7 +10,7 @@ import {
 
 import type { ClientSettingsPatch, ClientSettingsRuntimeView } from "../../api";
 import type { ColorTheme, DataUnits, InterfaceSize } from "../appearance";
-import type { CommandResult, DownloadRoot, DownloadStorageSettings } from "../model";
+import type { CommandAccepted, DownloadRoot, DownloadStorageSettings } from "../model";
 import { AppearanceSettingsSection } from "./AppearanceSettingsSection";
 import { AboutUpdatesSettingsSection } from "./AboutUpdatesSettingsSection";
 import { ConnectionSeedingSettingsSection } from "./ConnectionSeedingSettingsSection";
@@ -71,7 +71,7 @@ export interface SettingsDialogProps {
   readonly onShowAddOptionsChange: (show: boolean) => Promise<void>;
   readonly onShowFileSelectionChange: (show: boolean) => Promise<void>;
   readonly onRemoveRoot: (rootId: string) => Promise<void>;
-  readonly onClientSettingsSave: (patch: ClientSettingsPatch) => Promise<CommandResult>;
+  readonly onClientSettingsSave: (patch: ClientSettingsPatch) => Promise<CommandAccepted>;
   readonly onRestoreDefaults?: () => Promise<void>;
   readonly onClearAppData?: (deleteData: boolean) => Promise<void>;
   readonly deleteDataSupported?: boolean;

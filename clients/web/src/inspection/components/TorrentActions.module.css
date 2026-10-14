@@ -103,15 +103,6 @@
   background: var(--border-strong);
 }
 
-.commandStatus {
-  overflow: hidden;
-  margin-left: auto;
-  color: var(--text-muted);
-  font-size: var(--ui-font-caption);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 @media (max-width: 760px) {
   .toolbar {
     flex-wrap: wrap;
@@ -120,12 +111,6 @@
 
   .addForm {
     max-width: none;
-    flex-basis: 100%;
-  }
-
-  .commandStatus {
-    min-height: 1rem;
-    margin-left: 0;
     flex-basis: 100%;
   }
 }

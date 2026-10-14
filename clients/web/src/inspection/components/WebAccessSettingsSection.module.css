@@ -141,12 +141,6 @@
   background: var(--danger-soft);
 }
 
-.success {
-  margin: 0;
-  color: var(--success-strong);
-  font-size: var(--ui-font-small);
-}
-
 .error {
   margin: 0;
   color: var(--danger-strong);

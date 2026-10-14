@@ -4,11 +4,13 @@ import { message } from "../../localization/runtime";
 import { buildDiagnostics, DIAGNOSTICS_FILENAME } from "../support/diagnostics";
 import type { DesktopUpdaterSnapshot } from "../updater/types";
 import { ExternalLink } from "./ExternalLink";
+import { useToast } from "./Toast";
 import styles from "./SettingsDialog.module.css";
 
 export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpdaterSnapshot }) {
   const [preview, setPreview] = useState<string>();
-  const [copyStatus, setCopyStatus] = useState<"copied" | "manual">();
+  const [manualCopy, setManualCopy] = useState(false);
+  const toast = useToast();
   const previewRef = useRef<HTMLTextAreaElement>(null);
   const previewGeneration = useRef(0);
 
@@ -17,12 +19,15 @@ export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpd
     const generation = previewGeneration.current;
     try {
       await navigator.clipboard.writeText(preview);
-      if (generation === previewGeneration.current) setCopyStatus("copied");
+      if (generation === previewGeneration.current) {
+        setManualCopy(false);
+        toast.show({ message: message("support.diagnostics.copied") });
+      }
     } catch {
       if (generation !== previewGeneration.current) return;
       previewRef.current?.focus();
       previewRef.current?.select();
-      setCopyStatus("manual");
+      setManualCopy(true);
     }
   }
 
@@ -48,7 +53,7 @@ export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpd
       <legend>{message("support.diagnostics.title")}</legend>
       <p className={styles.updatePrivacy}>{message("support.diagnostics.description")}</p>
       <div className={styles.updateActions}>
-        <button type="button" onClick={() => { previewGeneration.current += 1; setPreview(buildDiagnostics(snapshot)); setCopyStatus(undefined); }}>
+        <button type="button" onClick={() => { previewGeneration.current += 1; setPreview(buildDiagnostics(snapshot)); setManualCopy(false); }}>
           {preview === undefined ? message("support.diagnostics.prepare") : message("support.diagnostics.refresh")}
         </button>
       </div>
@@ -60,9 +65,9 @@ export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpd
             <button type="button" onClick={() => void copy()}>{message("support.diagnostics.copy")}</button>
             <button type="button" onClick={download}>{message("support.diagnostics.download")}</button>
           </div>
-          <p role="status" className={styles.updatePrivacy}>
-            {copyStatus === undefined ? null : copyStatus === "copied" ? message("support.diagnostics.copied") : message("support.diagnostics.manual")}
-          </p>
+          {manualCopy ? (
+            <p role="status" className={styles.updatePrivacy}>{message("support.diagnostics.manual")}</p>
+          ) : null}
         </div>
       )}
       <p className={styles.updatePrivacy}>{message("support.diagnostics.public.report")}</p>

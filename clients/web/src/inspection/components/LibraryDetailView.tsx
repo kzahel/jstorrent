@@ -14,6 +14,7 @@ import { formatDecimalProgress, formatExactBytes, torrentVisibleProgress } from 
 import { episodeLabel, sortFileRows, sortMediaRows } from "../library-media";
 import type { FileRow, MediaRow, TorrentRow, ViewMaterialization } from "../model";
 import { Icon } from "./Icon";
+import { useToast } from "./Toast";
 import styles from "./LibraryDetailView.module.css";
 
 const OVERSCAN = 5;
@@ -53,13 +54,12 @@ export function LibraryDetailView({
   const [playbackPendingFile, setPlaybackPendingFile] = useState<number | null>(
     null,
   );
-  const [playbackStatus, setPlaybackStatus] = useState("");
+  const toast = useToast();
 
   useEffect(() => {
     autoFallback.current = torrent.id;
     playbackRequest.current += 1;
     setPlaybackPendingFile(null);
-    setPlaybackStatus("");
   }, [torrent.id]);
 
   useEffect(
@@ -102,25 +102,19 @@ export function LibraryDetailView({
     const request = playbackRequest.current + 1;
     playbackRequest.current = request;
     setPlaybackPendingFile(row.fileIndex);
-    setPlaybackStatus("");
     try {
-      const result = await execute({
+      // The player opening is the confirmation; only failures need words.
+      await execute({
         type: "open_file",
         torrentId: torrent.id,
         fileIndex: row.fileIndex,
       });
-      if (playbackRequest.current === request) {
-        setPlaybackStatus(
-          result.accepted
-            ? `Opening ${row.name} for playback`
-            : result.message,
-        );
-      }
     } catch (error) {
       if (playbackRequest.current === request) {
-        setPlaybackStatus(
-          error instanceof Error ? error.message : String(error),
-        );
+        toast.show({
+          tone: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
       }
     } finally {
       if (playbackRequest.current === request) {
@@ -195,11 +189,6 @@ export function LibraryDetailView({
               onClick={() => chooseMode("files")}
             >{localizedMessage("inspection.components.library.detail.view.all.files")}</button>
           </div>
-          {playbackStatus === "" ? null : (
-            <output className={styles.commandStatus} aria-live="polite">
-              {playbackStatus}
-            </output>
-          )}
           {mode === "media" ? (
             <MediaCatalog
               rows={media === undefined ? [] : media.order

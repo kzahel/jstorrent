@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { message as localizedMessage } from "../../localization/runtime";
 import { progressPercent } from "../updater/controller";
 import { installPolicy } from "../updater/policy";
@@ -10,6 +9,7 @@ import type {
 import styles from "./SettingsDialog.module.css";
 import { ExternalLink } from "./ExternalLink";
 import { SupportDiagnostics } from "./SupportDiagnostics";
+import { useToast } from "./Toast";
 
 const RELEASES_URL = "https://github.com/kzahel/jstorrent/releases/latest";
 
@@ -24,7 +24,7 @@ export function AboutUpdatesSettingsSection({
 }: AboutUpdatesSettingsSectionProps) {
   const { info, state } = snapshot;
   const policy = installPolicy(info.bundleType);
-  const [commandCopyStatus, setCommandCopyStatus] = useState<"copied" | "failed">();
+  const toast = useToast();
   return (
     <div className={styles.aboutUpdates}>
       <fieldset className={styles.section}>
@@ -96,15 +96,12 @@ export function AboutUpdatesSettingsSection({
                 if (command === undefined) return;
                 try {
                   await navigator.clipboard.writeText(command);
-                  setCommandCopyStatus("copied");
+                  toast.show({ message: localizedMessage("updates.command-copied") });
                 } catch {
-                  setCommandCopyStatus("failed");
+                  toast.show({ tone: "error", message: localizedMessage("updates.command-copy-failed") });
                 }
               }}>{localizedMessage("updates.copy-command")}</button>
             </div>
-            <p role="status">{commandCopyStatus === undefined ? null : commandCopyStatus === "copied"
-              ? localizedMessage("updates.command-copied")
-              : localizedMessage("updates.command-copy-failed")}</p>
             <ExternalLink href={state.manualApply.releaseUrl}>{localizedMessage("inspection.components.about.updates.settings.section.review.signed.release")}</ExternalLink>
           </div>
         ) : null}

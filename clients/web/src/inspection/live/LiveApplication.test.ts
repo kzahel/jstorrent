@@ -381,7 +381,7 @@ describe("LiveApplication", () => {
         torrentId: TORRENT_ID,
         fileIndex: 3,
       }),
-    ).resolves.toEqual({ accepted: true, message: "Opening file" });
+    ).resolves.toEqual({ accepted: true });
     expect(client.mediaRequests).toEqual([
       { torrent_id: TORRENT_ID, file_index: 3 },
     ]);
@@ -574,7 +574,6 @@ describe("LiveApplication", () => {
       }),
     ).resolves.toEqual({
       accepted: true,
-      message: "Added",
       torrentId: TORRENT_ID,
       addDisposition: { type: "added" },
     });
@@ -601,7 +600,6 @@ describe("LiveApplication", () => {
       }),
     ).resolves.toEqual({
       accepted: true,
-      message: "Magnet link ready",
       magnetExport: {
         magnet:
           `magnet:?xt=urn:btih:${TORRENT_ID}` +
@@ -637,7 +635,6 @@ describe("LiveApplication", () => {
       application.dispatch({ type: "update_client_settings", patch }),
     ).resolves.toMatchObject({
       accepted: true,
-      message: "Connection and seeding settings saved",
       resultingRevision: "4",
     });
     expect(client.requests).toHaveLength(1);
@@ -666,7 +663,6 @@ describe("LiveApplication", () => {
       }),
     ).resolves.toMatchObject({
       accepted: true,
-      message: "Torrent transfer limits saved",
       resultingRevision: "4",
     });
     expect(client.requests[0]?.command).toEqual({
@@ -691,7 +687,6 @@ describe("LiveApplication", () => {
       }),
     ).resolves.toEqual({
       accepted: true,
-      message: "Already in your session",
       torrentId: TORRENT_ID,
       addDisposition: { type: "already_present" },
     });
@@ -725,7 +720,6 @@ describe("LiveApplication", () => {
       }),
     ).resolves.toEqual({
       accepted: true,
-      message: "Already in your session",
       torrentId: TORRENT_ID,
       addDisposition: { type: "already_present" },
     });
@@ -753,7 +747,7 @@ describe("LiveApplication", () => {
         fileIndices: [9, 2, 4],
         priority: "skip",
       }),
-    ).resolves.toEqual({ accepted: true, message: "Selected files skipped" });
+    ).resolves.toEqual({ accepted: true });
     expect(client.requests[0]?.command).toEqual({
       type: "set_file_priority",
       torrent_id: TORRENT_ID,
@@ -775,7 +769,6 @@ describe("LiveApplication", () => {
       }),
     ).resolves.toEqual({
       accepted: true,
-      message: "Selected files requested for download",
     });
     expect(client.requests[0]?.command).toEqual({
       type: "download_files",
@@ -791,7 +784,7 @@ describe("LiveApplication", () => {
 
     await expect(
       application.dispatch({ type: "force_recheck", torrentId: TORRENT_ID }),
-    ).resolves.toEqual({ accepted: true, message: "Torrent recheck started" });
+    ).resolves.toEqual({ accepted: true });
     expect(client.requests[0]?.command).toEqual({
       type: "force_recheck",
       torrent_id: TORRENT_ID,
@@ -810,7 +803,6 @@ describe("LiveApplication", () => {
       }),
     ).resolves.toEqual({
       accepted: true,
-      message: "Torrent moved to the top of the download queue",
     });
     await expect(
       application.dispatch({
@@ -819,7 +811,6 @@ describe("LiveApplication", () => {
       }),
     ).resolves.toEqual({
       accepted: true,
-      message: "Torrent moved to the bottom of the download queue",
     });
     expect(client.requests.map((request) => request.command)).toEqual([
       { type: "move_download_to_top", torrent_id: TORRENT_ID },

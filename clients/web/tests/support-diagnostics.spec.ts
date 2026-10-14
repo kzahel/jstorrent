@@ -71,7 +71,7 @@ for (const width of [320, 1440]) {
       expect(JSON.parse(bytes).version).toBe("0.1.3");
       expect(Buffer.byteLength(bytes)).toBeLessThan(2048);
       await page.getByRole("button", { name: "Copy diagnostics" }).click();
-      await expect(page.getByRole("status")).toHaveText("Diagnostics copied.");
+      await expect(page.getByRole("region", { name: "Notification" })).toContainText("Diagnostics copied.");
       expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(bytes);
       const pending = page.waitForEvent("download");
       await page.getByRole("button", { name: "Download diagnostics" }).click();

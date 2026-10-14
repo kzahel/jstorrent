@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [346 — Action feedback toasts](346-action-feedback-toasts.md): one
+  bottom-centre toast replaces inline result rows; visible results show
+  nothing, errors persist, archive/restore offer Undo, copy is localized.
 - [345 — Never reset shipped catalogs; migrate forward](345-supported-catalog-migrations.md):
   schema 26 is the supported baseline, automatic reset is removed, and later
   schemas migrate through checked steps proven against a released catalog.

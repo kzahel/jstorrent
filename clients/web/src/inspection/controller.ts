@@ -1,7 +1,7 @@
 import type { InspectionApplication } from "./application";
 import type { AppearanceStorage } from "./appearance";
 import type {
-  CommandResult,
+  CommandAccepted,
   DesiredInspectionViews,
   InspectionCommand,
 } from "./model";
@@ -53,11 +53,11 @@ export class InspectionController {
     this.queueViews(desiredViewsFor(this.store.getState()));
   }
 
-  async dispatch(command: InspectionCommand): Promise<string> {
+  async dispatch(command: InspectionCommand): Promise<string | undefined> {
     return (await this.execute(command)).message;
   }
 
-  async execute(command: InspectionCommand): Promise<CommandResult> {
+  async execute(command: InspectionCommand): Promise<CommandAccepted> {
     if (this.closed) throw new Error("inspection controller is closed");
     const result = await this.application.dispatch(command);
     if (!result.accepted) throw new Error(result.message);

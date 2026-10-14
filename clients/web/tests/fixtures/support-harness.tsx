@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import "../../src/inspection/global.css";
 import { AboutUpdatesSettingsSection } from "../../src/inspection/components/AboutUpdatesSettingsSection";
+import { ToastProvider } from "../../src/inspection/components/Toast";
 import type { DesktopUpdaterSnapshot } from "../../src/inspection/updater/types";
 import { DesktopUpdaterController } from "../../src/inspection/updater/controller";
 import { ExternalUrlProvider, type OpenExternalUrl } from "../../src/inspection/external-links";
@@ -52,8 +53,10 @@ if (managedController) {
 createRoot(document.getElementById("support-harness")!).render(
   <main style={{ maxWidth: "42rem", margin: "0 auto", padding: "1rem" }}>
     <h1>About &amp; updates</h1>
-    <ExternalUrlProvider openUrl={openUrl}>
-      <AboutUpdatesSettingsSection updater={managedController ?? updater} snapshot={snapshot} />
-    </ExternalUrlProvider>
+    <ToastProvider>
+      <ExternalUrlProvider openUrl={openUrl}>
+        <AboutUpdatesSettingsSection updater={managedController ?? updater} snapshot={snapshot} />
+      </ExternalUrlProvider>
+    </ToastProvider>
   </main>,
 );

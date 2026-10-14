@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render as renderUnwrapped, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +11,10 @@ import type {
   DesktopNotificationSettings,
 } from "../desktop-notifications/types";
 import { NotificationsSettingsSection } from "./NotificationsSettingsSection";
+import { ToastProvider } from "./Toast";
+
+const render = (ui: Parameters<typeof renderUnwrapped>[0]) =>
+  renderUnwrapped(ui, { wrapper: ToastProvider });
 
 const DEFAULTS: DesktopNotificationSettings = {
   notify_download_complete: true,
@@ -42,9 +46,9 @@ describe("notification settings", () => {
       notify_download_complete: false,
     });
     expect(completion).not.toBeChecked();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Notification settings saved",
-    );
+    // The switch shows the result; success adds no text.
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText(/saved/i)).not.toBeInTheDocument();
   });
 
   it("rolls back a failed save and presents the failure", async () => {

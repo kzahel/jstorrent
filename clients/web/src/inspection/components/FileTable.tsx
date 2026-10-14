@@ -1,6 +1,6 @@
 import { useRemotePlayback, canPlayRemoteFile } from "./RemoteVideoPlayer";
-import { formatNumber, message as localizedMessage } from "../../localization/runtime";
-import { useEffect, useMemo, useState } from "react";
+import { message as localizedMessage } from "../../localization/runtime";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useInspectionCommand, useInspectionStore } from "../context";
 import type { DataUnits } from "../appearance";
@@ -12,7 +12,10 @@ import { FileActionsMenu } from "./FileActionsMenu";
 import { FileActionMenuItems } from "./FileActionMenuItems";
 import { VirtualTable, type VirtualColumn } from "./VirtualTable";
 import { ActionMenuPopover } from "./overlays/AnchoredOverlay";
+import { useToast } from "./Toast";
 import styles from "./FileTable.module.css";
+
+const DIRECT_SAVE_TOAST = "direct-save";
 
 const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
   {
@@ -173,11 +176,10 @@ export function FileTable({
     new Set(),
   );
   const [fileActionPending, setFileActionPending] = useState(false);
-  const [fileActionStatus, setFileActionStatus] = useState("");
-  const [directSaveProgress, setDirectSaveProgress] = useState<number | null>(null);
   const [directFileEnabled, setDirectFileEnabled] = useState<boolean | null>(null);
-  const [directSaveAbort, setDirectSaveAbort] = useState<AbortController | null>(null);
+  const directSaveAbort = useRef<AbortController | null>(null);
   const execute = useInspectionCommand();
+  const toast = useToast();
   const demo = useInspectionStore((state) => state.demo);
   const torrentArchived = useInspectionStore(
     (state) => state.torrents[torrentId]?.archived === true,
@@ -211,12 +213,8 @@ export function FileTable({
     setCurrentFileId(null);
     setSelectedFileIds(new Set());
     setFileActionPending(false);
-    setFileActionStatus("");
-    setDirectSaveProgress(null);
-    setDirectSaveAbort((current) => {
-      current?.abort();
-      return null;
-    });
+    directSaveAbort.current?.abort();
+    directSaveAbort.current = null;
   }, [torrentId]);
 
   useEffect(() => {
@@ -332,7 +330,7 @@ export function FileTable({
       .filter((row) => requested.has(row.id))
       .sort((left, right) => left.index - right.index);
     if (targetRows.length !== requested.size) {
-      setFileActionStatus(localizedMessage("inspection.components.file.table.a.selected.file.is.no.longer.available"));
+      toast.show({ message: localizedMessage("inspection.components.file.table.a.selected.file.is.no.longer.available") });
       return;
     }
     const action = playbackActions(resolveFileActions(
@@ -345,7 +343,7 @@ export function FileTable({
     ), targetRows).find((candidate) => candidate.id === actionId);
     if (action === undefined || action.disabled) {
       if (action?.disabledReason !== undefined) {
-        setFileActionStatus(action.disabledReason);
+        toast.show({ message: action.disabledReason });
       }
       return;
     }
@@ -355,11 +353,10 @@ export function FileTable({
       return;
     }
     setFileActionPending(true);
-    setFileActionStatus("");
-    setDirectSaveProgress(null);
     try {
       const fileIndices = targetRows.map((row) => row.index);
-      const result = await execute(
+      // The Priority column shows the result; only failures need words.
+      await execute(
         action.id === "open"
           ? {
               type: "open_file",
@@ -379,11 +376,11 @@ export function FileTable({
               priority: action.priority,
             },
       );
-      setFileActionStatus(result.message);
     } catch (error) {
-      setFileActionStatus(
-        error instanceof Error ? error.message : String(error),
-      );
+      toast.show({
+        tone: "error",
+        message: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setFileActionPending(false);
     }
@@ -402,17 +399,22 @@ export function FileTable({
       unavailableReason,
     );
     if (action === undefined || action.disabled || targetRows.length !== 1) {
-      if (action?.disabledReason !== undefined) setFileActionStatus(action.disabledReason);
+      if (action?.disabledReason !== undefined) toast.show({ message: action.disabledReason });
       return;
     }
     const save = remoteAccess?.saveCompletedFile;
     if (save === undefined) return;
     const row = targetRows[0]!;
     const cancellation = new AbortController();
-    setDirectSaveAbort(cancellation);
+    directSaveAbort.current = cancellation;
+    const cancel = {
+      label: localizedMessage("inspection.components.file.table.cancel.save"),
+      onAction: () => cancellation.abort(),
+    };
+    const progressToast = (message: string, progress: number) =>
+      toast.show({ key: DIRECT_SAVE_TOAST, message, progress, action: cancel });
     setFileActionPending(true);
-    setDirectSaveProgress(0);
-    setFileActionStatus(localizedMessage("inspection.components.file.table.choose.where.to.save.this.remote.file"));
+    progressToast(localizedMessage("inspection.components.file.table.choose.where.to.save.this.remote.file"), 0);
     let lastProgressUpdate = -Infinity;
     try {
       await save({
@@ -423,30 +425,35 @@ export function FileTable({
         signal: cancellation.signal,
         onProgress: (progress) => {
           if (progress.state === "connecting") {
-            setFileActionStatus(localizedMessage("inspection.components.file.table.connecting.directly.to.the.remote.device"));
+            progressToast(localizedMessage("inspection.components.file.table.connecting.directly.to.the.remote.device"), 0);
           } else if (progress.state === "transferring") {
             const now = performance.now();
             if (now - lastProgressUpdate < 200) return;
             lastProgressUpdate = now;
-            setFileActionStatus(localizedMessage("inspection.components.file.table.saving.directly"));
-            setDirectSaveProgress(directProgress(progress.bytesWritten, progress.fileLength));
+            progressToast(
+              localizedMessage("inspection.components.file.table.saving.directly"),
+              directProgress(progress.bytesWritten, progress.fileLength),
+            );
           } else if (progress.state === "complete") {
-            setDirectSaveProgress(100);
-            setFileActionStatus(localizedMessage("inspection.components.file.table.remote.file.saved"));
+            toast.show({
+              key: DIRECT_SAVE_TOAST,
+              message: localizedMessage("inspection.components.file.table.remote.file.saved"),
+            });
           }
         },
       });
     } catch (error) {
-      setDirectSaveProgress(null);
-      setFileActionStatus(
+      toast.show(
         error instanceof DOMException && error.name === "AbortError"
-          ? "Remote file save cancelled."
-          : error instanceof Error
-            ? error.message
-            : String(error),
+          ? { key: DIRECT_SAVE_TOAST, message: localizedMessage("feedback.direct.save.cancelled") }
+          : {
+              key: DIRECT_SAVE_TOAST,
+              tone: "error",
+              message: error instanceof Error ? error.message : String(error),
+            },
       );
     } finally {
-      setDirectSaveAbort(null);
+      if (directSaveAbort.current === cancellation) directSaveAbort.current = null;
       setFileActionPending(false);
     }
   };
@@ -473,33 +480,6 @@ export function FileTable({
             onDirectSave={() => void runDirectSave()}
           />
         </div>
-        {fileActionStatus === "" ? null : (
-          <div className={styles.commandFeedback}>
-            <output className={styles.commandStatus} aria-live="polite" title={fileActionStatus}>
-              {fileActionStatus}
-            </output>
-            {directSaveProgress === null ? null : (
-              <>
-                <progress
-                  className={styles.saveProgress}
-                  aria-label={localizedMessage("inspection.components.file.table.saving.directly")}
-                  max={100}
-                  value={directSaveProgress}
-                />
-                <span className={styles.savePercent}>
-                  {formatNumber(directSaveProgress / 100, { style: "percent", maximumFractionDigits: 1 })}
-                </span>
-              </>
-            )}
-            {directSaveAbort === null ? null : (
-              <button
-                type="button"
-                className={styles.cancelSave}
-                onClick={() => directSaveAbort.abort()}
-              >{localizedMessage("inspection.components.file.table.cancel.save")}</button>
-            )}
-          </div>
-        )}
       </div>
       <VirtualTable
         formatCount={(count) => localizedMessage("common.count.files", { count })}

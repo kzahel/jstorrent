@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { render, screen, within } from "@testing-library/react";
+import { render as renderUnwrapped, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,10 @@ import type {
 } from "../updater/types";
 import { AboutUpdatesSettingsSection } from "./AboutUpdatesSettingsSection";
 import { DesktopUpdaterController } from "../updater/controller";
+import { ToastProvider } from "./Toast";
+
+const render = (ui: Parameters<typeof renderUnwrapped>[0]) =>
+  renderUnwrapped(ui, { wrapper: ToastProvider });
 
 describe("About and updates settings", () => {
   it("shows build identity and routes manual check and install", async () => {

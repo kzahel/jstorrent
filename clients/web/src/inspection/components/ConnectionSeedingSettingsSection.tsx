@@ -22,7 +22,7 @@ import type {
 } from "../../api";
 import { useInspectionStore } from "../context";
 import { formatElapsedSeconds } from "../format";
-import type { CommandResult } from "../model";
+import type { CommandAccepted } from "../model";
 import {
   settingsDraftFields,
   settingsDraftPhase,
@@ -67,7 +67,7 @@ interface SettingNote {
 interface ConnectionSeedingSettingsSectionProps {
   readonly settings: ClientSettingsRuntimeView;
   readonly manageable: boolean;
-  readonly onSave: (patch: ClientSettingsPatch) => Promise<CommandResult>;
+  readonly onSave: (patch: ClientSettingsPatch) => Promise<CommandAccepted>;
 }
 
 interface DraftValidation {

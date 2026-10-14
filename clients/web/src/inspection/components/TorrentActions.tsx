@@ -1,7 +1,6 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatList, message as localizedMessage } from "../../localization/runtime";
 import {
   useEffect,
-  useId,
   useRef,
   useState,
   type FormEvent,
@@ -15,7 +14,7 @@ import {
   useInspectionStore,
 } from "../context";
 import { useDesktopExternalIntake } from "../desktop-external-intake-context";
-import type { DownloadRoot } from "../model";
+import type { CommandResult, DownloadRoot } from "../model";
 import {
   WEBTORRENT_TEST_TORRENTS,
   type TestTorrentShortcut,
@@ -30,7 +29,10 @@ import { AddTorrentDialog } from "./AddTorrentDialog";
 import { PendingFileSelectionDialog } from "./PendingFileSelectionDialog";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 import { useTorrentActions } from "./TorrentActionContext";
+import { useToast } from "./Toast";
 import styles from "./TorrentActions.module.css";
+
+const ADD_INPUT_TOAST = "add-input";
 
 interface PendingMagnetAdd {
   readonly type: "magnet";
@@ -94,15 +96,19 @@ export function TorrentActions({
   const { intake: externalIntake, snapshot: externalSnapshot } =
     useDesktopExternalIntake();
   const {
-    status,
     pendingAction,
     sampleBatchRunning,
     selectedTargetIds,
     actionsFor,
-    setStatus,
     runSampleBatch,
     runAction,
   } = useTorrentActions();
+  const toast = useToast();
+  const showError = (error: unknown) =>
+    toast.show({
+      tone: "error",
+      message: error instanceof Error ? error.message : String(error),
+    });
   const [torrentInput, setTorrentInput] = useState("");
   const [inputInvalid, setInputInvalid] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -111,7 +117,6 @@ export function TorrentActions({
   const addInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const removeButtonRef = useRef<HTMLButtonElement>(null);
-  const statusId = useId();
   const resolvedActions = actionsFor();
   const directActions = resolvedActions.filter(
     (action) => action.placement === "direct",
@@ -125,7 +130,7 @@ export function TorrentActions({
     const validated = validateTorrentInput(source);
     if (!validated.accepted) {
       setInputInvalid(true);
-      setStatus(validated.message);
+      toast.show({ key: ADD_INPUT_TOAST, tone: "error", message: validated.message });
       return false;
     }
     setInputInvalid(false);
@@ -173,13 +178,13 @@ export function TorrentActions({
         awaitFileSelection,
       );
       if (result.torrentId !== undefined) revealTorrent(result.torrentId);
-      setStatus(result.message);
+      showAddResult(result);
       if (source.type === "magnet" && source.clearInputOnSuccess) {
         setTorrentInput("");
       }
       return true;
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
+      showError(error);
       return false;
     } finally {
       addingRef.current = false;
@@ -239,7 +244,7 @@ export function TorrentActions({
     if (addingRef.current || sampleBatchRunning) return;
     const sizeError = torrentFileSizeError(file.size);
     if (sizeError !== null) {
-      setStatus(sizeError);
+      toast.show({ tone: "error", message: sizeError });
       return;
     }
     setInputInvalid(false);
@@ -286,11 +291,40 @@ export function TorrentActions({
         storage.showFileSelection === true,
       );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
+      showError(error);
     } finally {
       addingRef.current = false;
       setAdding(false);
     }
+  };
+
+  /** A new torrent is revealed in the list, so only other outcomes speak. */
+  const showAddResult = (result: CommandResult) => {
+    if (!result.accepted || result.torrentId === undefined) return;
+    const disposition = result.addDisposition;
+    if (disposition?.type === "selection_expanded") {
+      const count = disposition.newlyWantedCount;
+      toast.show({
+        message:
+          count === undefined || count === null
+            ? localizedMessage("feedback.add.selection.expanded")
+            : localizedMessage("feedback.add.files.selected", { count }),
+      });
+      return;
+    }
+    if (disposition?.type !== "already_present") return;
+    const torrentId = result.torrentId;
+    if (controller.store.getState().torrents[torrentId]?.archived !== true) {
+      toast.show({ message: localizedMessage("feedback.add.already.present") });
+      return;
+    }
+    toast.show({
+      message: localizedMessage("feedback.add.already.archived"),
+      action: {
+        label: localizedMessage("feedback.restore"),
+        onAction: () => void runAction("restore", [torrentId]),
+      },
+    });
   };
 
   const chooseFolder = async (
@@ -300,23 +334,18 @@ export function TorrentActions({
       type: "choose_download_root",
       ...(repairRoot === undefined ? {} : { repairRoot }),
     });
-    setStatus(result.message);
     return result.storageRoot ?? null;
   };
 
   /** Makes the chosen folder the default and stops showing add options. */
-  const alwaysUseFolder = async (rootId: string): Promise<string> => {
+  const alwaysUseFolder = async (rootId: string): Promise<void> => {
     try {
       if (rootId !== storage.defaultRoot) {
         await execute({ type: "set_default_download_root", rootId });
       }
-      const preference = await execute({
-        type: "set_show_add_options",
-        show: false,
-      });
-      return preference.message;
+      await execute({ type: "set_show_add_options", show: false });
     } catch (error) {
-      return error instanceof Error ? error.message : String(error);
+      showError(error);
     }
   };
 
@@ -331,16 +360,13 @@ export function TorrentActions({
     try {
       const fileSelectionEnabled = storage.showFileSelection === true;
       if (pendingAdd.type === "test_torrent_batch") {
-        let message = await runSampleBatch(
+        await runSampleBatch(
           rootId,
           fileSelectionEnabled ? true : startContent,
           fileSelectionEnabled,
         );
-        if (alwaysUseThisFolder) {
-          message = `${message} ${await alwaysUseFolder(rootId)}`;
-        }
+        if (alwaysUseThisFolder) await alwaysUseFolder(rootId);
         setPendingAdd(null);
-        setStatus(message);
         return;
       }
       const result = await executePendingAdd(
@@ -350,10 +376,7 @@ export function TorrentActions({
         fileSelectionEnabled,
       );
       if (result.torrentId !== undefined) revealTorrent(result.torrentId);
-      let message = result.message;
-      if (alwaysUseThisFolder) {
-        message = `${result.message}. ${await alwaysUseFolder(rootId)}.`;
-      }
+      if (alwaysUseThisFolder) await alwaysUseFolder(rootId);
       if (
         pendingAdd.type === "magnet" &&
         pendingAdd.clearInputOnSuccess
@@ -361,11 +384,9 @@ export function TorrentActions({
         setTorrentInput("");
       }
       setPendingAdd(null);
-      setStatus(message);
+      showAddResult(result);
     } catch (error) {
-      if (pendingAdd.type === "external") {
-        setStatus(error instanceof Error ? error.message : String(error));
-      }
+      if (pendingAdd.type === "external") showError(error);
       throw error;
     } finally {
       addingRef.current = false;
@@ -387,7 +408,7 @@ export function TorrentActions({
       .cancel(source.activation.id)
       .then(() => setPendingAdd(null))
       .catch((error: unknown) => {
-        setStatus(error instanceof Error ? error.message : String(error));
+        showError(error);
         if (
           !externalIntake
             .getSnapshot()
@@ -407,9 +428,9 @@ export function TorrentActions({
     const rejected = externalSnapshot.rejectedCount;
     const overflow = externalSnapshot.overflowCount;
     if (rejected === 0 && overflow === 0) return;
-    setStatus(externalIntakeNotice(rejected, overflow));
+    toast.show({ message: externalIntakeNotice(rejected, overflow) });
     externalIntake.consumeNotices();
-  }, [externalIntake, externalSnapshot, setStatus]);
+  }, [externalIntake, externalSnapshot, toast]);
 
   useEffect(() => {
     if (externalIntake === null || demo !== null || sampleBatchRunning) return;
@@ -487,7 +508,6 @@ export function TorrentActions({
               type="text"
               value={torrentInput}
               aria-label={localizedMessage("inspection.components.torrent.actions.magnet.link.or.torrent.url")}
-              aria-describedby={statusId}
               aria-invalid={inputInvalid}
               autoComplete="off"
               spellCheck={false}
@@ -495,6 +515,7 @@ export function TorrentActions({
               onChange={(event) => {
                 setTorrentInput(event.currentTarget.value);
                 setInputInvalid(false);
+                toast.dismiss(ADD_INPUT_TOAST);
               }}
             />
             <input
@@ -523,11 +544,7 @@ export function TorrentActions({
               type="button"
               className={styles.primaryAction}
               onClick={() =>
-                void dispatch({ type: "add_demo_torrent" })
-                  .then(setStatus)
-                  .catch((error: unknown) =>
-                    setStatus(error instanceof Error ? error.message : String(error)),
-                  )
+                void dispatch({ type: "add_demo_torrent" }).catch(showError)
               }
             >
               <Icon name="plus" />{" "}{localizedMessage("inspection.components.torrent.actions.add.demo")}</button>
@@ -580,9 +597,6 @@ export function TorrentActions({
               <Icon name={action.icon} /> {action.resolvedLabel}
             </button>
           ))}
-        <output id={statusId} className={styles.commandStatus} aria-live="polite">
-          {status}
-        </output>
       </div>
       {pendingAdd === null ? null : (
         <AddTorrentDialog
@@ -622,9 +636,9 @@ export function TorrentActions({
           onConfirm={async (base, overrides, disableFuture) => {
             const catalogId = pendingSelectionTorrent.fileCatalogId;
             if (catalogId === null || catalogId === undefined) {
-              throw new Error("File metadata is not ready yet");
+              throw new Error(localizedMessage("feedback.file.selection.not.ready"));
             }
-            const result = await execute({
+            await execute({
               type: "confirm_pending_file_selection",
               torrentId: pendingSelectionTorrent.id,
               catalogId,
@@ -632,22 +646,19 @@ export function TorrentActions({
               overrides,
               disableFuture,
             });
-            setStatus(result.message);
           }}
           onDownloadAll={async (disableFuture) => {
-            const result = await execute({
+            await execute({
               type: "download_all_pending_add",
               torrentId: pendingSelectionTorrent.id,
               disableFuture,
             });
-            setStatus(result.message);
           }}
           onCancel={async () => {
-            const result = await execute({
+            await execute({
               type: "cancel_pending_add",
               torrentId: pendingSelectionTorrent.id,
             });
-            setStatus(result.message);
           }}
         />
       )}
@@ -658,18 +669,10 @@ export function TorrentActions({
 function externalIntakeNotice(rejected: number, overflow: number): string {
   const messages: string[] = [];
   if (rejected > 0) {
-    messages.push(
-      `${rejected.toLocaleString()} external torrent ${
-        rejected === 1 ? "request was" : "requests were"
-      } rejected by safety limits`,
-    );
+    messages.push(localizedMessage("feedback.external.rejected", { count: rejected }));
   }
   if (overflow > 0) {
-    messages.push(
-      `${overflow.toLocaleString()} external torrent ${
-        overflow === 1 ? "request was" : "requests were"
-      } dropped because the intake queue was full`,
-    );
+    messages.push(localizedMessage("feedback.external.dropped", { count: overflow }));
   }
-  return messages.join("; ");
+  return formatList(messages, { type: "unit" });
 }

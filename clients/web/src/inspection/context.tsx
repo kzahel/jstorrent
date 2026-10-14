@@ -7,7 +7,7 @@ import {
 import { useStore } from "zustand";
 
 import { InspectionController } from "./controller";
-import type { CommandResult, InspectionCommand } from "./model";
+import type { CommandAccepted, InspectionCommand } from "./model";
 import type { InspectionStore } from "./state";
 
 const InspectionContext = createContext<InspectionController | null>(null);
@@ -38,14 +38,14 @@ export function useInspectionStore<T>(
 
 export function useInspectionDispatch(): (
   command: InspectionCommand,
-) => Promise<string> {
+) => Promise<string | undefined> {
   const controller = useController();
   return (command) => controller.dispatch(command);
 }
 
 export function useInspectionCommand(): (
   command: InspectionCommand,
-) => Promise<CommandResult> {
+) => Promise<CommandAccepted> {
   const controller = useController();
   return (command) => controller.execute(command);
 }

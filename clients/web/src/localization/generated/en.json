@@ -540,6 +540,775 @@
       "value": "Could not open the link. Please try again."
     }
   ],
+  "feedback.add.already.archived": [
+    {
+      "type": 0,
+      "value": "Torrent is already in Archived."
+    }
+  ],
+  "feedback.add.already.present": [
+    {
+      "type": 0,
+      "value": "Torrent already present."
+    }
+  ],
+  "feedback.add.files.selected": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " more file selected"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " more files selected"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.add.selection.expanded": [
+    {
+      "type": 0,
+      "value": "File selection expanded"
+    }
+  ],
+  "feedback.browser.revoked": [
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": " was revoked."
+    }
+  ],
+  "feedback.browsers.revoked": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Revoked "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " other browser."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Revoked "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " other browsers."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.clipboard.unavailable": [
+    {
+      "type": 0,
+      "value": "Clipboard access is unavailable"
+    }
+  ],
+  "feedback.direct.save.cancelled": [
+    {
+      "type": 0,
+      "value": "Remote file save cancelled."
+    }
+  ],
+  "feedback.external.dropped": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " external torrent request was dropped because the queue was full"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " external torrent requests were dropped because the queue was full"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.external.rejected": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " external torrent request was rejected by safety limits"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " external torrent requests were rejected by safety limits"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.failure.detail": [
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": ": "
+    },
+    {
+      "type": 1,
+      "value": "error"
+    }
+  ],
+  "feedback.file.selection.not.ready": [
+    {
+      "type": 0,
+      "value": "File metadata is not ready yet"
+    }
+  ],
+  "feedback.list.more": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " more"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " more"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.magnet.copied": [
+    {
+      "type": 6,
+      "value": "links",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Magnet link copied"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " magnet links copied"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.magnet.copied.trackers.omitted": [
+    {
+      "type": 6,
+      "value": "links",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Magnet link copied"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " magnet links copied"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "; "
+    },
+    {
+      "type": 6,
+      "value": "trackers",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " tracker"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " trackers"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " omitted to keep "
+    },
+    {
+      "type": 6,
+      "value": "links",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "it"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "them"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " usable"
+    }
+  ],
+  "feedback.magnet.copy.failed": [
+    {
+      "type": 0,
+      "value": "Could not copy magnet links: "
+    },
+    {
+      "type": 1,
+      "value": "error"
+    }
+  ],
+  "feedback.magnet.export.missing": [
+    {
+      "type": 0,
+      "value": "Magnet export did not return a link"
+    }
+  ],
+  "feedback.notifications.save.failed": [
+    {
+      "type": 0,
+      "value": "Notification settings were not saved: "
+    },
+    {
+      "type": 1,
+      "value": "error"
+    }
+  ],
+  "feedback.power.save.failed": [
+    {
+      "type": 0,
+      "value": "Power setting was not saved: "
+    },
+    {
+      "type": 1,
+      "value": "error"
+    }
+  ],
+  "feedback.remote.authorizations.revoked": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Revoked "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " browser authorization."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Revoked "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " browser authorizations."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.remote.direct.disabled": [
+    {
+      "type": 0,
+      "value": "Direct file transfers disabled."
+    }
+  ],
+  "feedback.remote.direct.enabled": [
+    {
+      "type": 0,
+      "value": "Direct file transfers enabled."
+    }
+  ],
+  "feedback.remote.disabled": [
+    {
+      "type": 0,
+      "value": "Remote access disabled."
+    }
+  ],
+  "feedback.remote.disabled.incomplete": [
+    {
+      "type": 0,
+      "value": "Remote access disabled. Authority removed: "
+    },
+    {
+      "type": 5,
+      "value": "authority",
+      "options": {
+        "true": {
+          "value": [
+            {
+              "type": 0,
+              "value": "yes"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "no"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": "; route released: "
+    },
+    {
+      "type": 5,
+      "value": "route",
+      "options": {
+        "true": {
+          "value": [
+            {
+              "type": 0,
+              "value": "yes"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "no"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": "."
+    }
+  ],
+  "feedback.remote.history.cleared": [
+    {
+      "type": 0,
+      "value": "Security history cleared."
+    }
+  ],
+  "feedback.remote.history.empty": [
+    {
+      "type": 0,
+      "value": "There was no history to clear."
+    }
+  ],
+  "feedback.remote.password.changed": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "=0": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Password changed."
+            }
+          ]
+        },
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Password changed and "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " browser authorization was revoked."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Password changed and "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " browser authorizations were revoked."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.restore": [
+    {
+      "type": 0,
+      "value": "Restore"
+    }
+  ],
+  "feedback.torrent.action.unavailable": [
+    {
+      "type": 0,
+      "value": "This torrent action is unavailable."
+    }
+  ],
+  "feedback.torrents.archived": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "=1": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Archived "
+            },
+            {
+              "type": 1,
+              "value": "name"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Archived "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrents"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.torrents.failed": [
+    {
+      "type": 6,
+      "value": "total",
+      "options": {
+        "=1": {
+          "value": [
+            {
+              "type": 1,
+              "value": "details"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 6,
+              "value": "failed",
+              "options": {
+                "one": {
+                  "value": [
+                    {
+                      "type": 7
+                    },
+                    {
+                      "type": 0,
+                      "value": " of "
+                    },
+                    {
+                      "type": 1,
+                      "value": "total"
+                    },
+                    {
+                      "type": 0,
+                      "value": " torrents failed"
+                    }
+                  ]
+                },
+                "other": {
+                  "value": [
+                    {
+                      "type": 7
+                    },
+                    {
+                      "type": 0,
+                      "value": " of "
+                    },
+                    {
+                      "type": 1,
+                      "value": "total"
+                    },
+                    {
+                      "type": 0,
+                      "value": " torrents failed"
+                    }
+                  ]
+                }
+              },
+              "offset": 0,
+              "pluralType": "cardinal"
+            },
+            {
+              "type": 0,
+              "value": ": "
+            },
+            {
+              "type": 1,
+              "value": "details"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.torrents.removed": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "=1": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Removed "
+            },
+            {
+              "type": 1,
+              "value": "name"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Removed "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrents"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.torrents.restored": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "=1": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Restored "
+            },
+            {
+              "type": 1,
+              "value": "name"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Restored "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrents"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.undo": [
+    {
+      "type": 0,
+      "value": "Undo"
+    }
+  ],
   "inspection.components.about.updates.settings.section.application": [
     {
       "type": 0,
@@ -4700,12 +5469,6 @@
       "value": "Download needs attention"
     }
   ],
-  "inspection.components.notifications.settings.section.notification.settings.saved": [
-    {
-      "type": 0,
-      "value": "Notification settings saved."
-    }
-  ],
   "inspection.components.notifications.settings.section.notifications": [
     {
       "type": 0,
@@ -4950,12 +5713,6 @@
     {
       "type": 0,
       "value": "Power"
-    }
-  ],
-  "inspection.components.power.settings.section.power.setting.saved": [
-    {
-      "type": 0,
-      "value": "Power setting saved."
     }
   ],
   "inspection.components.power.settings.section.prevent.sleep.while.downloading": [
@@ -6408,48 +7165,6 @@
       "value": "Another torrent action is still in progress."
     }
   ],
-  "inspection.components.torrent.action.context.archived": [
-    {
-      "type": 0,
-      "value": "Archived"
-    }
-  ],
-  "inspection.components.torrent.action.context.moved.to.the.bottom.of.the.download": [
-    {
-      "type": 0,
-      "value": "Moved to the bottom of the download queue"
-    }
-  ],
-  "inspection.components.torrent.action.context.moved.to.the.top.of.the.download": [
-    {
-      "type": 0,
-      "value": "Moved to the top of the download queue"
-    }
-  ],
-  "inspection.components.torrent.action.context.paused": [
-    {
-      "type": 0,
-      "value": "Paused"
-    }
-  ],
-  "inspection.components.torrent.action.context.restored": [
-    {
-      "type": 0,
-      "value": "Restored"
-    }
-  ],
-  "inspection.components.torrent.action.context.started": [
-    {
-      "type": 0,
-      "value": "Started"
-    }
-  ],
-  "inspection.components.torrent.action.context.started.recheck.for": [
-    {
-      "type": 0,
-      "value": "Started recheck for"
-    }
-  ],
   "inspection.components.torrent.actions.add": [
     {
       "type": 0,
@@ -7254,12 +7969,6 @@
       "value": "Visible columns"
     }
   ],
-  "inspection.components.web.access.settings.section.a.new.pairing.code.is.ready": [
-    {
-      "type": 0,
-      "value": "A new pairing code is ready."
-    }
-  ],
   "inspection.components.web.access.settings.section.added": [
     {
       "type": 0,
@@ -8016,18 +8725,6 @@
       "value": "Updating file selection"
     }
   ],
-  "inspection.live.live.application.added": [
-    {
-      "type": 0,
-      "value": "Added"
-    }
-  ],
-  "inspection.live.live.application.already.in.your.session": [
-    {
-      "type": 0,
-      "value": "Already in your session"
-    }
-  ],
   "inspection.live.live.application.external.torrent.intake.is.unavailable.on.this": [
     {
       "type": 0,
@@ -8038,12 +8735,6 @@
     {
       "type": 0,
       "value": "The file list isn't available yet"
-    }
-  ],
-  "inspection.live.live.application.folder.selection.canceled": [
-    {
-      "type": 0,
-      "value": "Folder selection canceled"
     }
   ],
   "inspection.live.live.application.http.file.serving.is.unavailable": [
@@ -8062,18 +8753,6 @@
     {
       "type": 0,
       "value": "Magnet export response did not contain a magnet link"
-    }
-  ],
-  "inspection.live.live.application.magnet.link.ready": [
-    {
-      "type": 0,
-      "value": "Magnet link ready"
-    }
-  ],
-  "inspection.live.live.application.opening.file": [
-    {
-      "type": 0,
-      "value": "Opening file"
     }
   ],
   "inspection.live.live.application.opening.files.is.unavailable.on.this.connection": [
@@ -8947,6 +9626,18 @@
     {
       "type": 0,
       "value": "Report a problem"
+    }
+  ],
+  "toast.dismiss": [
+    {
+      "type": 0,
+      "value": "Dismiss"
+    }
+  ],
+  "toast.region": [
+    {
+      "type": 0,
+      "value": "Notification"
     }
   ],
   "updates.command-copied": [

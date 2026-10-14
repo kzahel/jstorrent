@@ -1,4 +1,4 @@
-import { message as localizedMessage } from "../../localization/runtime";
+import { formatList, message as localizedMessage } from "../../localization/runtime";
 import {
   createContext,
   useCallback,
@@ -26,8 +26,10 @@ import {
 } from "../torrent-actions";
 import { RemoveTorrentDialog } from "./RemoveTorrentDialog";
 import { TorrentSettingsDialog } from "./TorrentSettingsDialog";
+import { useToast } from "./Toast";
 
 const MAX_FAILURE_DETAILS = 5;
+const SAMPLE_BATCH_TOAST = "sample-batch";
 
 export interface ResolvedTorrentAction extends TorrentActionDefinition {
   readonly resolvedLabel: string;
@@ -53,22 +55,28 @@ interface SettingsRequest {
 }
 
 interface TorrentActionContextValue {
-  readonly status: string;
   readonly pendingAction: TorrentActionId | null;
   readonly sampleBatchRunning: boolean;
   readonly selectedTargetIds: readonly string[];
   readonly actionsFor: (targetIds?: readonly string[]) => readonly ResolvedTorrentAction[];
-  readonly setStatus: (status: string) => void;
   readonly runSampleBatch: (
     storageRoot: string,
     startContent: boolean,
     awaitFileSelection: boolean,
-  ) => Promise<string>;
+  ) => Promise<void>;
   readonly runAction: (
     actionId: TorrentActionId,
     targetIds?: readonly string[],
     origin?: TorrentActionOrigin,
   ) => Promise<void>;
+}
+
+type SequentialActionId = Exclude<TorrentActionId, "copy_magnet" | "remove" | "settings">;
+
+interface SequentialOptions {
+  /** Torrents to resume after the action, as Undo of an archive does. */
+  readonly resume?: ReadonlySet<string>;
+  readonly offerUndo?: boolean;
 }
 
 const TorrentActionContext = createContext<TorrentActionContextValue | null>(
@@ -84,12 +92,13 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
   const dispatch = useInspectionDispatch();
   const execute = useInspectionCommand();
   const revealTorrent = useInspectionStore((state) => state.revealTorrent);
-  const [status, setStatusState] = useState("");
+  const toast = useToast();
   const [sampleBatchRunning, setSampleBatchRunning] = useState(false);
   const sampleBatchRef = useRef(false);
-  const [pendingAction, setPendingAction] = useState<TorrentActionId | null>(
+  const [pendingAction, setPendingActionState] = useState<TorrentActionId | null>(
     null,
   );
+  const pendingRef = useRef<TorrentActionId | null>(null);
   const [removeRequest, setRemoveRequest] = useState<RemoveRequest | null>(null);
   const [settingsRequest, setSettingsRequest] = useState<SettingsRequest | null>(null);
   const removeOriginRef = useRef<TorrentActionOrigin>({
@@ -115,8 +124,9 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
     [],
   );
 
-  const setStatus = useCallback((nextStatus: string) => {
-    if (mountedRef.current) setStatusState(nextStatus);
+  const setPendingAction = useCallback((actionId: TorrentActionId | null) => {
+    pendingRef.current = actionId;
+    if (mountedRef.current) setPendingActionState(actionId);
   }, []);
 
   const targetRows = useCallback(
@@ -151,8 +161,8 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
     startContent: boolean,
     awaitFileSelection: boolean,
   ) => {
-    if (sampleBatchRef.current || pendingAction !== null) {
-      throw new Error("Another torrent action is still in progress");
+    if (sampleBatchRef.current || pendingRef.current !== null) {
+      throw new Error(localizedMessage("inspection.components.torrent.action.context.another.torrent.action.is.still.in.progress"));
     }
     sampleBatchRef.current = true;
     setSampleBatchRunning(true);
@@ -162,10 +172,14 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
     try {
       for (const [index, torrent] of WEBTORRENT_TEST_TORRENTS.entries()) {
         if (!mountedRef.current) break;
-        setStatusState(localizedMessage("inspection.components.torrent.actions.adding.sample.torrents", {
-          current: index + 1,
-          total: WEBTORRENT_TEST_TORRENTS.length,
-        }));
+        toast.show({
+          key: SAMPLE_BATCH_TOAST,
+          message: localizedMessage("inspection.components.torrent.actions.adding.sample.torrents", {
+            current: index + 1,
+            total: WEBTORRENT_TEST_TORRENTS.length,
+          }),
+          progress: (index / WEBTORRENT_TEST_TORRENTS.length) * 100,
+        });
         try {
           const result = await execute({
             type: "add_magnet",
@@ -181,7 +195,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
           else added += 1;
         } catch (error) {
           const detail = errorText(error);
-          failures.push(`${torrent.menuLabel}: ${detail.slice(0, 160)}`);
+          failures.push(failureDetail(torrent.menuLabel, detail.slice(0, 160)));
         }
       }
       const summary = localizedMessage("inspection.components.torrent.actions.sample.torrents.result", {
@@ -189,63 +203,121 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         alreadyPresent,
         failed: failures.length,
       });
-      const message = failures.length === 0
-        ? summary
-        : `${summary} ${failures.join("; ")}`;
-      if (mountedRef.current) setStatusState(message);
-      return message;
+      if (mountedRef.current) {
+        toast.show({
+          key: SAMPLE_BATCH_TOAST,
+          ...(failures.length === 0
+            ? { message: summary }
+            : { message: `${summary} ${formatList(failures, { type: "unit" })}`, tone: "error" }),
+        });
+      }
     } finally {
       sampleBatchRef.current = false;
       if (mountedRef.current) setSampleBatchRunning(false);
     }
-  }, [execute, pendingAction, revealTorrent]);
+  }, [execute, revealTorrent, toast]);
+
+  /** Undo runs from a toast; it never offers another Undo. */
+  const undoRef = useRef<(
+    actionId: SequentialActionId,
+    targets: readonly TorrentRow[],
+    options: SequentialOptions,
+  ) => void>(() => undefined);
 
   const runSequential = useCallback(
     async (
-      actionId: Exclude<TorrentActionId, "copy_magnet" | "remove" | "settings">,
+      actionId: SequentialActionId,
       targets: readonly TorrentRow[],
-    ) => {
+      options: SequentialOptions = {},
+    ): Promise<void> => {
       setPendingAction(actionId);
-      setStatusState("");
-      let completed = 0;
       let failureCount = 0;
       const failures: string[] = [];
-      const action = TORRENT_ACTIONS.find((candidate) => candidate.id === actionId)!;
+      const succeeded: TorrentRow[] = [];
+      const fail = (target: TorrentRow, error: unknown) => {
+        failureCount += 1;
+        if (failures.length < MAX_FAILURE_DETAILS) {
+          failures.push(failureDetail(target.name, errorText(error)));
+        }
+      };
       try {
         for (const target of targets) {
           if (!mountedRef.current) break;
-          setStatusState(
-            `${action.pendingLabel} ${completed + failureCount + 1} of ${targets.length}…`,
-          );
           try {
             await dispatch(commandFor(actionId, target.id));
-            completed += 1;
+            succeeded.push(target);
           } catch (error) {
-            failureCount += 1;
-            if (failures.length < MAX_FAILURE_DETAILS) {
-              failures.push(`${target.name}: ${errorText(error)}`);
-            }
+            fail(target, error);
+          }
+        }
+        for (const target of succeeded) {
+          if (!mountedRef.current) break;
+          if (options.resume?.has(target.id) !== true) continue;
+          try {
+            await dispatch({ type: "resume", torrentId: target.id });
+          } catch (error) {
+            fail(target, error);
           }
         }
         if (!mountedRef.current) return;
-        setStatusState(
-          resultMessage(actionId, targets, completed, failureCount, failures),
-        );
+        if (failureCount > 0) {
+          toast.show({
+            tone: "error",
+            message: failureMessage(targets.length, failureCount, failures),
+          });
+          return;
+        }
+        if (options.offerUndo !== true || succeeded.length === 0) return;
+        if (actionId === "archive") {
+          const resume = new Set(
+            succeeded.filter(runningBeforeArchive).map((target) => target.id),
+          );
+          toast.show({
+            message: localizedMessage("feedback.torrents.archived", {
+              count: succeeded.length,
+              name: succeeded[0]!.name,
+            }),
+            action: {
+              label: localizedMessage("feedback.undo"),
+              onAction: () => undoRef.current("restore", succeeded, { resume }),
+            },
+          });
+        } else if (actionId === "restore") {
+          toast.show({
+            message: localizedMessage("feedback.torrents.restored", {
+              count: succeeded.length,
+              name: succeeded[0]!.name,
+            }),
+            action: {
+              label: localizedMessage("feedback.undo"),
+              onAction: () => undoRef.current("archive", succeeded, {}),
+            },
+          });
+        }
       } finally {
-        if (mountedRef.current) setPendingAction(null);
+        setPendingAction(null);
       }
     },
-    [dispatch],
+    [dispatch, setPendingAction, toast],
   );
+
+  undoRef.current = (actionId, targets, options) => {
+    if (pendingRef.current !== null || sampleBatchRef.current) {
+      toast.show({
+        message: localizedMessage("inspection.components.torrent.action.context.another.torrent.action.is.still.in.progress"),
+      });
+      return;
+    }
+    void runSequential(actionId, targets, options);
+  };
 
   const copyMagnets = useCallback(
     async (targets: readonly TorrentRow[]) => {
       setPendingAction("copy_magnet");
-      setStatusState("");
       try {
         const clipboard = navigator.clipboard;
         if (clipboard === undefined) {
-          throw new Error("Clipboard access is unavailable");
+          throw new Error(localizedMessage("feedback.clipboard.unavailable"));
         }
         const exported = (async () => {
           const magnets: string[] = [];
@@ -256,7 +328,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
               torrentId: target.id,
             });
             if (result.magnetExport === undefined) {
-              throw new Error("Magnet export did not return a link");
+              throw new Error(localizedMessage("feedback.magnet.export.missing"));
             }
             magnets.push(result.magnetExport.magnet);
             omittedTrackerCount += result.magnetExport.omittedTrackerCount;
@@ -281,27 +353,28 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
           await clipboard.writeText(exportResult.text);
         }
         if (mountedRef.current) {
-          const copied =
-            targets.length === 1
-              ? "Magnet link copied"
-              : `${targets.length.toLocaleString()} magnet links copied`;
-          const omitted =
-            exportResult.omittedTrackerCount === 0
-              ? ""
-              : `; ${exportResult.omittedTrackerCount.toLocaleString()} ${
-                  exportResult.omittedTrackerCount === 1 ? "tracker" : "trackers"
-                } omitted to keep ${targets.length === 1 ? "it" : "them"} usable`;
-          setStatusState(`${copied}${omitted}`);
+          toast.show({
+            message:
+              exportResult.omittedTrackerCount === 0
+                ? localizedMessage("feedback.magnet.copied", { links: targets.length })
+                : localizedMessage("feedback.magnet.copied.trackers.omitted", {
+                    links: targets.length,
+                    trackers: exportResult.omittedTrackerCount,
+                  }),
+          });
         }
       } catch (error) {
         if (mountedRef.current) {
-          setStatusState(`Could not copy magnet links: ${errorText(error)}`);
+          toast.show({
+            tone: "error",
+            message: localizedMessage("feedback.magnet.copy.failed", { error: errorText(error) }),
+          });
         }
       } finally {
-        if (mountedRef.current) setPendingAction(null);
+        setPendingAction(null);
       }
     },
-    [execute],
+    [execute, setPendingAction, toast],
   );
 
   const runAction = useCallback(
@@ -313,16 +386,16 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
       const uniqueTargetIds = new Set(requestedIds);
       const targets = targetRows(requestedIds);
       if (targets.length !== uniqueTargetIds.size) {
-        setStatus(localizedMessage("inspection.components.torrent.action.context.a.selected.torrent.is.no.longer.available"));
+        toast.show({ message: localizedMessage("inspection.components.torrent.action.context.a.selected.torrent.is.no.longer.available") });
         return;
       }
       const availability = torrentActionAvailability(actionId, targets);
-      if (pendingAction !== null || sampleBatchRef.current) {
-        setStatus(localizedMessage("inspection.components.torrent.action.context.another.torrent.action.is.still.in.progress"));
+      if (pendingRef.current !== null || sampleBatchRef.current) {
+        toast.show({ message: localizedMessage("inspection.components.torrent.action.context.another.torrent.action.is.still.in.progress") });
         return;
       }
       if (availability.disabled) {
-        setStatus(availability.reason ?? "This torrent action is unavailable.");
+        toast.show({ message: availability.reason ?? localizedMessage("feedback.torrent.action.unavailable") });
         return;
       }
       if (actionId === "copy_magnet") {
@@ -334,10 +407,10 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         removeOriginRef.current = origin;
         setRemoveRequest({ targets, origin });
       } else {
-        await runSequential(actionId, targets);
+        await runSequential(actionId, targets, { offerUndo: true });
       }
     },
-    [copyMagnets, pendingAction, runSequential, selectedTargetIds, setStatus, targetRows],
+    [copyMagnets, runSequential, selectedTargetIds, targetRows, toast],
   );
 
   const removeTargets = useCallback(
@@ -345,16 +418,12 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
       const request = removeRequest;
       if (request === null) return;
       setPendingAction("remove");
-      setStatusState("");
       let completed = 0;
       let failureCount = 0;
       const failures: { readonly target: TorrentRow; readonly message: string }[] = [];
       try {
         for (const target of request.targets) {
           if (!mountedRef.current) break;
-          setStatusState(
-            `Removing ${completed + failureCount + 1} of ${request.targets.length}…`,
-          );
           try {
             await dispatch({
               type: "remove",
@@ -369,46 +438,45 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         }
         if (!mountedRef.current) return;
         if (failures.length === 0) {
-          setStatusState(
-            request.targets.length === 1
-              ? `Removed ${request.targets[0]?.name ?? "torrent"}`
-              : `Removed ${completed.toLocaleString()} torrents`,
-          );
+          toast.show({
+            message: localizedMessage("feedback.torrents.removed", {
+              count: completed,
+              name: request.targets[0]?.name ?? "",
+            }),
+          });
           setRemoveRequest(null);
           return;
         }
-        const details = failures
-          .slice(0, MAX_FAILURE_DETAILS)
-          .map((failure) => `${failure.target.name}: ${failure.message}`);
-        const remaining = Math.max(0, failures.length - details.length);
-        const message = `Removed ${completed.toLocaleString()} of ${request.targets.length.toLocaleString()}; ${failureCount.toLocaleString()} failed: ${details.join("; ")}${
-          remaining === 0 ? "" : `; ${remaining.toLocaleString()} more failed`
-        }`;
-        setStatusState(message);
+        // The removal dialog stays open on the failed targets and shows this.
+        const message = failureMessage(
+          request.targets.length,
+          failureCount,
+          failures
+            .slice(0, MAX_FAILURE_DETAILS)
+            .map((failure) => failureDetail(failure.target.name, failure.message)),
+        );
         setRemoveRequest({
           targets: failures.map((failure) => failure.target),
           origin: request.origin,
         });
         throw new Error(message);
       } finally {
-        if (mountedRef.current) setPendingAction(null);
+        setPendingAction(null);
       }
     },
-    [dispatch, removeRequest],
+    [dispatch, removeRequest, setPendingAction, toast],
   );
 
   const value = useMemo<TorrentActionContextValue>(
     () => ({
-      status,
       pendingAction,
       sampleBatchRunning,
       selectedTargetIds,
       actionsFor,
-      setStatus,
       runSampleBatch,
       runAction,
     }),
-    [actionsFor, pendingAction, runAction, runSampleBatch, sampleBatchRunning, selectedTargetIds, setStatus, status],
+    [actionsFor, pendingAction, runAction, runSampleBatch, sampleBatchRunning, selectedTargetIds],
   );
 
   const returnRemoveFocus = useCallback(
@@ -453,7 +521,7 @@ export function useTorrentActions(): TorrentActionContextValue {
 }
 
 function commandFor(
-  actionId: Exclude<TorrentActionId, "copy_magnet" | "remove" | "settings">,
+  actionId: SequentialActionId,
   torrentId: string,
 ): InspectionCommand {
   switch (actionId) {
@@ -474,44 +542,37 @@ function commandFor(
   }
 }
 
-function resultMessage(
-  actionId: Exclude<TorrentActionId, "copy_magnet" | "remove" | "settings">,
-  targets: readonly TorrentRow[],
-  completed: number,
-  failureCount: number,
-  failures: readonly string[],
-): string {
-  const verb = resultVerb(actionId);
-  if (failureCount === 0) {
-    return targets.length === 1
-      ? `${verb} ${targets[0]?.name ?? "torrent"}`
-      : `${verb} ${completed.toLocaleString()} torrents`;
-  }
-  const remaining = Math.max(0, failureCount - failures.length);
-  return `${verb} ${completed.toLocaleString()} of ${targets.length.toLocaleString()}; ${failureCount.toLocaleString()} failed: ${failures.join("; ")}${
-    remaining === 0 ? "" : `; ${remaining.toLocaleString()} more failed`
-  }`;
+/** Android's `runningBeforeArchive`: Undo resumes only these. */
+function runningBeforeArchive(target: TorrentRow): boolean {
+  return (
+    target.archived !== true &&
+    target.removalState === null &&
+    (target.operationalState === "queued" ||
+      target.operationalState === "starting" ||
+      target.operationalState === "downloading" ||
+      target.operationalState === "seeding")
+  );
 }
 
-function resultVerb(
-  actionId: Exclude<TorrentActionId, "copy_magnet" | "remove" | "settings">,
+function failureDetail(name: string, error: string): string {
+  return localizedMessage("feedback.failure.detail", { name, error });
+}
+
+function failureMessage(
+  total: number,
+  failureCount: number,
+  details: readonly string[],
 ): string {
-  switch (actionId) {
-    case "start":
-      return localizedMessage("inspection.components.torrent.action.context.started");
-    case "pause":
-      return localizedMessage("inspection.components.torrent.action.context.paused");
-    case "force_recheck":
-      return localizedMessage("inspection.components.torrent.action.context.started.recheck.for");
-    case "move_to_top":
-      return localizedMessage("inspection.components.torrent.action.context.moved.to.the.top.of.the.download");
-    case "move_to_bottom":
-      return localizedMessage("inspection.components.torrent.action.context.moved.to.the.bottom.of.the.download");
-    case "archive":
-      return localizedMessage("inspection.components.torrent.action.context.archived");
-    case "restore":
-      return localizedMessage("inspection.components.torrent.action.context.restored");
-  }
+  const remaining = Math.max(0, failureCount - details.length);
+  const listed =
+    remaining === 0
+      ? details
+      : [...details, localizedMessage("feedback.list.more", { count: remaining })];
+  return localizedMessage("feedback.torrents.failed", {
+    failed: failureCount,
+    total,
+    details: formatList(listed, { type: "unit" }),
+  });
 }
 
 function errorText(error: unknown): string {

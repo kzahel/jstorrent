@@ -7,6 +7,7 @@ import type {
   TorrentTransferLimits,
 } from "../../api";
 import type {
+  CommandAccepted,
   CommandResult,
   DesiredInspectionViews,
   DemoScenarioId,
@@ -130,7 +131,7 @@ export class DemoApplication implements InspectionApplication {
         this.paused.add(command.torrentId);
         this.addCommandLog("lifecycle", "Torrent paused in demo mode", command.torrentId);
         this.advance(0);
-        return accepted("Torrent paused");
+        return accepted();
       case "resume":
         if (this.snapshot.torrents[command.torrentId] === undefined) return rejected("Torrent is not present");
         if (this.archived.has(command.torrentId)) {
@@ -139,7 +140,7 @@ export class DemoApplication implements InspectionApplication {
         this.paused.delete(command.torrentId);
         this.addCommandLog("lifecycle", "Torrent resumed in demo mode", command.torrentId);
         this.advance(0);
-        return accepted("Torrent resumed");
+        return accepted();
       case "move_download_to_top":
       case "move_download_to_bottom":
         return rejected("Queue movement is unavailable in demo scenarios");
@@ -148,12 +149,12 @@ export class DemoApplication implements InspectionApplication {
         this.paused.add(command.torrentId);
         this.addCommandLog("lifecycle", "Torrent archived in demo mode", command.torrentId);
         this.advance(0);
-        return accepted("Torrent archived");
+        return accepted();
       case "unarchive":
         this.archived.delete(command.torrentId);
         this.addCommandLog("lifecycle", "Torrent restored from archive", command.torrentId);
         this.advance(0);
-        return accepted("Torrent restored");
+        return accepted();
       case "remove":
         if (this.snapshot.torrents[command.torrentId] === undefined) {
           return rejected("Torrent is not present");
@@ -167,12 +168,12 @@ export class DemoApplication implements InspectionApplication {
           command.torrentId,
         );
         this.advance(0);
-        return accepted(command.deleteData ? "Torrent and data removed" : "Torrent removed");
+        return accepted();
       case "add_demo_torrent":
         this.extraTorrentCount = Math.min(8, this.extraTorrentCount + 1);
         this.addCommandLog("lifecycle", "Generated demo transfer added", null);
         this.advance(0);
-        return accepted("Generated demo transfer added");
+        return accepted();
       case "add_magnet":
         return rejected("Live magnet add is unavailable in demo scenarios");
       case "add_torrent_bytes":
@@ -219,7 +220,7 @@ export class DemoApplication implements InspectionApplication {
         );
         this.advance(0);
         return {
-          ...accepted("Torrent transfer limits saved"),
+          ...accepted(),
           requestId: `demo-${this.revision}`,
           resultingRevision: String(this.revision),
         };
@@ -245,7 +246,7 @@ export class DemoApplication implements InspectionApplication {
         );
         this.advance(0);
         return {
-          ...accepted("Connection and seeding settings saved"),
+          ...accepted(),
           requestId: `demo-${this.revision}`,
           resultingRevision: String(this.revision),
         };
@@ -1108,8 +1109,9 @@ function arraysEqual(
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-function accepted(message: string): CommandResult {
-  return { accepted: true, message };
+/** Only scenario commands describe themselves, for the scenario bar. */
+function accepted(message?: string): CommandAccepted {
+  return message === undefined ? { accepted: true } : { accepted: true, message };
 }
 
 function rejected(message: string): CommandResult {

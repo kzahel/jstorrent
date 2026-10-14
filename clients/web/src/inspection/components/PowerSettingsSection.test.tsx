@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render as renderUnwrapped, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +11,10 @@ import type {
   DesktopPowerSettings,
 } from "../desktop-power/types";
 import { PowerSettingsSection } from "./PowerSettingsSection";
+import { ToastProvider } from "./Toast";
+
+const render = (ui: Parameters<typeof renderUnwrapped>[0]) =>
+  renderUnwrapped(ui, { wrapper: ToastProvider });
 
 const DEFAULTS: DesktopPowerSettings = {
   prevent_sleep_during_active_downloads: true,
@@ -35,7 +39,9 @@ describe("desktop power settings", () => {
       prevent_sleep_during_active_downloads: false,
     });
     expect(toggle).not.toBeChecked();
-    expect(screen.getByRole("status")).toHaveTextContent("Power setting saved");
+    // The switch shows the result; success adds no text.
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText(/saved/i)).not.toBeInTheDocument();
   });
 
   it("rolls back a failed save and presents the failure", async () => {

@@ -2488,10 +2488,6 @@
     "defaultMessage": "Download needs attention",
     "description": "Product copy in inspection/components/NotificationsSettingsSection.tsx"
   },
-  "inspection.components.notifications.settings.section.notification.settings.saved": {
-    "defaultMessage": "Notification settings saved.",
-    "description": "Product copy in inspection/components/NotificationsSettingsSection.tsx"
-  },
   "inspection.components.notifications.settings.section.notifications": {
     "defaultMessage": "Notifications",
     "description": "Product copy in inspection/components/NotificationsSettingsSection.tsx"
@@ -2654,10 +2650,6 @@
   },
   "inspection.components.power.settings.section.power": {
     "defaultMessage": "Power",
-    "description": "Product copy in inspection/components/PowerSettingsSection.tsx"
-  },
-  "inspection.components.power.settings.section.power.setting.saved": {
-    "defaultMessage": "Power setting saved.",
     "description": "Product copy in inspection/components/PowerSettingsSection.tsx"
   },
   "inspection.components.power.settings.section.prevent.sleep.while.downloading": {
@@ -3612,34 +3604,6 @@
     "defaultMessage": "Another torrent action is still in progress.",
     "description": "Product copy in inspection/components/TorrentActionContext.tsx"
   },
-  "inspection.components.torrent.action.context.archived": {
-    "defaultMessage": "Archived",
-    "description": "Product copy in inspection/components/TorrentActionContext.tsx"
-  },
-  "inspection.components.torrent.action.context.moved.to.the.bottom.of.the.download": {
-    "defaultMessage": "Moved to the bottom of the download queue",
-    "description": "Product copy in inspection/components/TorrentActionContext.tsx"
-  },
-  "inspection.components.torrent.action.context.moved.to.the.top.of.the.download": {
-    "defaultMessage": "Moved to the top of the download queue",
-    "description": "Product copy in inspection/components/TorrentActionContext.tsx"
-  },
-  "inspection.components.torrent.action.context.paused": {
-    "defaultMessage": "Paused",
-    "description": "Product copy in inspection/components/TorrentActionContext.tsx"
-  },
-  "inspection.components.torrent.action.context.restored": {
-    "defaultMessage": "Restored",
-    "description": "Product copy in inspection/components/TorrentActionContext.tsx"
-  },
-  "inspection.components.torrent.action.context.started": {
-    "defaultMessage": "Started",
-    "description": "Product copy in inspection/components/TorrentActionContext.tsx"
-  },
-  "inspection.components.torrent.action.context.started.recheck.for": {
-    "defaultMessage": "Started recheck for",
-    "description": "Product copy in inspection/components/TorrentActionContext.tsx"
-  },
   "inspection.components.torrent.actions.add": {
     "defaultMessage": "Add",
     "description": "Product copy in inspection/components/TorrentActions.tsx"
@@ -4047,10 +4011,6 @@
   "inspection.components.virtual.table.visible.columns": {
     "defaultMessage": "Visible columns",
     "description": "Product copy in inspection/components/VirtualTable.tsx"
-  },
-  "inspection.components.web.access.settings.section.a.new.pairing.code.is.ready": {
-    "defaultMessage": "A new pairing code is ready.",
-    "description": "Product copy in inspection/components/WebAccessSettingsSection.tsx"
   },
   "inspection.components.web.access.settings.section.added": {
     "defaultMessage": "Added",
@@ -4552,24 +4512,12 @@
     "defaultMessage": "Updating file selection",
     "description": "Product copy in inspection/format.ts"
   },
-  "inspection.live.live.application.added": {
-    "defaultMessage": "Added",
-    "description": "Product copy in inspection/live/LiveApplication.ts"
-  },
-  "inspection.live.live.application.already.in.your.session": {
-    "defaultMessage": "Already in your session",
-    "description": "Product copy in inspection/live/LiveApplication.ts"
-  },
   "inspection.live.live.application.external.torrent.intake.is.unavailable.on.this": {
     "defaultMessage": "External torrent intake is unavailable on this connection",
     "description": "Product copy in inspection/live/LiveApplication.ts"
   },
   "inspection.live.live.application.file.list.not.available.yet": {
     "defaultMessage": "The file list isn't available yet",
-    "description": "Product copy in inspection/live/LiveApplication.ts"
-  },
-  "inspection.live.live.application.folder.selection.canceled": {
-    "defaultMessage": "Folder selection canceled",
     "description": "Product copy in inspection/live/LiveApplication.ts"
   },
   "inspection.live.live.application.http.file.serving.is.unavailable": {
@@ -4582,14 +4530,6 @@
   },
   "inspection.live.live.application.magnet.export.response.did.not.contain.a": {
     "defaultMessage": "Magnet export response did not contain a magnet link",
-    "description": "Product copy in inspection/live/LiveApplication.ts"
-  },
-  "inspection.live.live.application.magnet.link.ready": {
-    "defaultMessage": "Magnet link ready",
-    "description": "Product copy in inspection/live/LiveApplication.ts"
-  },
-  "inspection.live.live.application.opening.file": {
-    "defaultMessage": "Opening file",
     "description": "Product copy in inspection/live/LiveApplication.ts"
   },
   "inspection.live.live.application.opening.files.is.unavailable.on.this.connection": {
@@ -5226,5 +5166,149 @@
   "inspection.components.connection.seeding.settings.section.enable": {
     "defaultMessage": "Enable",
     "description": "Connection settings and explicit network feature enable"
+  },
+  "toast.region": {
+    "defaultMessage": "Notification",
+    "description": "Accessible name of the transient notification (toast) at the bottom of the window"
+  },
+  "toast.dismiss": {
+    "defaultMessage": "Dismiss",
+    "description": "Button that closes the transient notification"
+  },
+  "feedback.undo": {
+    "defaultMessage": "Undo",
+    "description": "Notification action that reverses the action just taken"
+  },
+  "feedback.restore": {
+    "defaultMessage": "Restore",
+    "description": "Notification action that restores an archived torrent"
+  },
+  "feedback.torrents.archived": {
+    "defaultMessage": "{count, plural, =1 {Archived {name}} other {Archived # torrents}}",
+    "description": "Notification after archiving torrents; name is the torrent when there is one"
+  },
+  "feedback.torrents.restored": {
+    "defaultMessage": "{count, plural, =1 {Restored {name}} other {Restored # torrents}}",
+    "description": "Notification after restoring archived torrents; name is the torrent when there is one"
+  },
+  "feedback.torrents.removed": {
+    "defaultMessage": "{count, plural, =1 {Removed {name}} other {Removed # torrents}}",
+    "description": "Notification after removing torrents; name is the torrent when there is one"
+  },
+  "feedback.torrents.failed": {
+    "defaultMessage": "{total, plural, =1 {{details}} other {{failed, plural, one {# of {total} torrents failed} other {# of {total} torrents failed}}: {details}}}",
+    "description": "Error after a torrent action failed for some targets; details lists each torrent and its error"
+  },
+  "feedback.failure.detail": {
+    "defaultMessage": "{name}: {error}",
+    "description": "One item in a failure list: the torrent or file name and its error"
+  },
+  "feedback.list.more": {
+    "defaultMessage": "{count, plural, one {# more} other {# more}}",
+    "description": "Last item of a truncated failure list"
+  },
+  "feedback.torrent.action.unavailable": {
+    "defaultMessage": "This torrent action is unavailable.",
+    "description": "Notification when a torrent action cannot run on the selection"
+  },
+  "feedback.clipboard.unavailable": {
+    "defaultMessage": "Clipboard access is unavailable",
+    "description": "Error when the browser does not allow clipboard writes"
+  },
+  "feedback.magnet.export.missing": {
+    "defaultMessage": "Magnet export did not return a link",
+    "description": "Error when exporting a magnet link returned nothing"
+  },
+  "feedback.magnet.copied": {
+    "defaultMessage": "{links, plural, one {Magnet link copied} other {# magnet links copied}}",
+    "description": "Notification after copying magnet links"
+  },
+  "feedback.magnet.copied.trackers.omitted": {
+    "defaultMessage": "{links, plural, one {Magnet link copied} other {# magnet links copied}}; {trackers, plural, one {# tracker} other {# trackers}} omitted to keep {links, plural, one {it} other {them}} usable",
+    "description": "Notification after copying magnet links that were too long to include every tracker"
+  },
+  "feedback.magnet.copy.failed": {
+    "defaultMessage": "Could not copy magnet links: {error}",
+    "description": "Error after copying magnet links failed"
+  },
+  "feedback.add.selection.expanded": {
+    "defaultMessage": "File selection expanded",
+    "description": "Notification when adding a torrent that already exists selects more of its files"
+  },
+  "feedback.add.files.selected": {
+    "defaultMessage": "{count, plural, one {# more file selected} other {# more files selected}}",
+    "description": "Notification when adding a torrent that already exists selects more of its files"
+  },
+  "feedback.add.already.present": {
+    "defaultMessage": "Torrent already present.",
+    "description": "Notification when the added torrent is already in the session"
+  },
+  "feedback.add.already.archived": {
+    "defaultMessage": "Torrent is already in Archived.",
+    "description": "Notification when the added torrent is already archived; offers Restore"
+  },
+  "feedback.file.selection.not.ready": {
+    "defaultMessage": "File metadata is not ready yet",
+    "description": "Error when confirming file selection before metadata arrives"
+  },
+  "feedback.external.rejected": {
+    "defaultMessage": "{count, plural, one {# external torrent request was rejected by safety limits} other {# external torrent requests were rejected by safety limits}}",
+    "description": "Notification when torrents opened from outside the app were refused"
+  },
+  "feedback.external.dropped": {
+    "defaultMessage": "{count, plural, one {# external torrent request was dropped because the queue was full} other {# external torrent requests were dropped because the queue was full}}",
+    "description": "Notification when torrents opened from outside the app were dropped"
+  },
+  "feedback.browser.revoked": {
+    "defaultMessage": "{name} was revoked.",
+    "description": "Notification after revoking one browser's access; name is the browser label"
+  },
+  "feedback.browsers.revoked": {
+    "defaultMessage": "{count, plural, one {Revoked # other browser.} other {Revoked # other browsers.}}",
+    "description": "Notification after revoking every other browser's access"
+  },
+  "feedback.direct.save.cancelled": {
+    "defaultMessage": "Remote file save cancelled.",
+    "description": "Notification after the user cancels saving a remote file directly"
+  },
+  "feedback.notifications.save.failed": {
+    "defaultMessage": "Notification settings were not saved: {error}",
+    "description": "Error when saving notification settings fails"
+  },
+  "feedback.power.save.failed": {
+    "defaultMessage": "Power setting was not saved: {error}",
+    "description": "Error when saving the power setting fails"
+  },
+  "feedback.remote.authorizations.revoked": {
+    "defaultMessage": "{count, plural, one {Revoked # browser authorization.} other {Revoked # browser authorizations.}}",
+    "description": "Notification after requiring the remote access password on every browser"
+  },
+  "feedback.remote.direct.enabled": {
+    "defaultMessage": "Direct file transfers enabled.",
+    "description": "Notification after enabling remote direct file transfers"
+  },
+  "feedback.remote.direct.disabled": {
+    "defaultMessage": "Direct file transfers disabled.",
+    "description": "Notification after disabling remote direct file transfers"
+  },
+  "feedback.remote.disabled": {
+    "defaultMessage": "Remote access disabled.",
+    "description": "Notification after turning off remote access"
+  },
+  "feedback.remote.disabled.incomplete": {
+    "defaultMessage": "Remote access disabled. Authority removed: {authority, select, true {yes} other {no}}; route released: {route, select, true {yes} other {no}}.",
+    "description": "Notification after turning off remote access when cleanup was partial"
+  },
+  "feedback.remote.history.cleared": {
+    "defaultMessage": "Security history cleared.",
+    "description": "Notification after clearing the remote access security history"
+  },
+  "feedback.remote.history.empty": {
+    "defaultMessage": "There was no history to clear.",
+    "description": "Notification when the remote access security history was already empty"
+  },
+  "feedback.remote.password.changed": {
+    "defaultMessage": "{count, plural, =0 {Password changed.} one {Password changed and # browser authorization was revoked.} other {Password changed and # browser authorizations were revoked.}}",
+    "description": "Notification after changing the remote access password"
   }
 }

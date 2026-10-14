@@ -46,6 +46,7 @@ import { SettingsDialog, type SettingsCategory } from "./SettingsDialog";
 import { Sidebar } from "./Sidebar";
 import { TorrentActions } from "./TorrentActions";
 import { TorrentActionProvider } from "./TorrentActionContext";
+import { ToastProvider } from "./Toast";
 import { TorrentTable } from "./TorrentTable";
 import { TransfersView } from "./TransfersView";
 import styles from "./App.module.css";
@@ -133,32 +134,34 @@ export function App({
   const connectionNowMs = useConnectionClock(connection.type === "reconnecting");
   const interrupted = connectionInterrupted(connection, connectionNowMs);
   return (
-    <DesktopExternalIntakeProvider intake={externalIntake}>
-      <RemotePlaybackProvider remoteAccess={remoteAccess}>
-        <TorrentActionProvider>
-          <AppContent
-            interrupted={interrupted}
-            webAuth={webAuth}
-            updater={updater}
-            notifications={notifications}
-            power={power}
-            remoteAccess={remoteAccess}
-            accessMode={accessMode}
-            hostedProduct={hostedProduct}
-            productPrivacy={productPrivacy}
-            oneCurrentRoot={oneCurrentRoot}
-          />
-          {interrupted ? (
-            <ConnectionOverlay
-              connection={connection}
-              nowMs={connectionNowMs}
-              onRetry={() => controller.reconnectNow()}
-              onReload={() => window.location.reload()}
+    <ToastProvider>
+      <DesktopExternalIntakeProvider intake={externalIntake}>
+        <RemotePlaybackProvider remoteAccess={remoteAccess}>
+          <TorrentActionProvider>
+            <AppContent
+              interrupted={interrupted}
+              webAuth={webAuth}
+              updater={updater}
+              notifications={notifications}
+              power={power}
+              remoteAccess={remoteAccess}
+              accessMode={accessMode}
+              hostedProduct={hostedProduct}
+              productPrivacy={productPrivacy}
+              oneCurrentRoot={oneCurrentRoot}
             />
-          ) : null}
-        </TorrentActionProvider>
-      </RemotePlaybackProvider>
-    </DesktopExternalIntakeProvider>
+            {interrupted ? (
+              <ConnectionOverlay
+                connection={connection}
+                nowMs={connectionNowMs}
+                onRetry={() => controller.reconnectNow()}
+                onReload={() => window.location.reload()}
+              />
+            ) : null}
+          </TorrentActionProvider>
+        </RemotePlaybackProvider>
+      </DesktopExternalIntakeProvider>
+    </ToastProvider>
   );
 }
 

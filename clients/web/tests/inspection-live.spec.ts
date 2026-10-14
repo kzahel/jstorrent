@@ -217,7 +217,6 @@ test("live torrent file picker uses one WebSocket binary attachment", async ({
   });
   await startContent.uncheck();
   await dialog.getByRole("button", { name: "Add torrent" }).click();
-  await expect(page.getByRole("status")).toHaveText("Added");
   const row = transfers.getByRole("row").filter({ hasText: torrentName! });
   await expect(row).toContainText(torrentName!, { timeout: 10_000 });
   await expect.poll(() => binaryFrames).toBe(1);
@@ -267,9 +266,8 @@ test("live torrent file picker uses one WebSocket binary attachment", async ({
       .getByRole("menu")
       .getByRole("menuitem", { name: "Force recheck", exact: true })
       .click();
-    await expect(
-      page.getByText(`Started recheck for ${torrentName!}`, { exact: true }),
-    ).toBeVisible();
+    // A started recheck shows in the row; only a failure raises a toast.
+    await expect(notification(page).getByRole("alert")).toHaveCount(0);
     await expect(torrentRow).toContainText("complete", { timeout: 30_000 });
   }
 
@@ -336,13 +334,15 @@ test("live v2 magnet lifecycle uses the production application", async ({
     await input.fill(magnet!);
     await input.press("Enter");
     await confirmDefaultAddOptions(page);
-    await expect(page.getByRole("status")).toHaveText(/Added|Torrent added/);
+    // A successful add clears the input; a failure raises an error toast.
+    await expect(input).toHaveValue("");
     if (v2MagnetSecond !== undefined) {
       await input.fill(v2MagnetSecond);
       await input.press("Enter");
       await confirmDefaultAddOptions(page);
-      await expect(page.getByRole("status")).toHaveText(/Added|Torrent added/);
+      await expect(input).toHaveValue("");
     }
+    await expect(notification(page).getByRole("alert")).toHaveCount(0);
   }
 
   const transferRow = transfers
@@ -395,7 +395,7 @@ test("live v2 magnet lifecycle uses the production application", async ({
     .getByRole("menu")
     .getByRole("menuitem", { name: "Copy magnet link" })
     .click();
-  await expect(page.getByText("Magnet link copied", { exact: true })).toBeVisible();
+  await expect(notification(page)).toContainText("Magnet link copied");
   if (v2MagnetV1Hash !== undefined && v2MagnetV2Hash !== undefined) {
     const copied = await page.evaluate(() => navigator.clipboard.readText());
     expect(copied).toMatch(
@@ -426,7 +426,7 @@ test("live v2 magnet lifecycle uses the production application", async ({
     await removal
       .getByRole("button", { name: "Remove and delete data" })
       .click();
-    await expect(page.getByText(`Removed ${torrentName!}`, { exact: true })).toBeVisible();
+    await expect(notification(page)).toContainText(`Removed ${torrentName!}`);
   }
 
   expect(binaryFrames).toBe(0);
@@ -935,7 +935,6 @@ test("live Library media detail follows metadata through completion", async ({
   const popup = await popupPromise;
   await expect.poll(() => popup.url()).toContain("/media/");
   await popup.close();
-  await expect(page.getByRole("status")).toContainText("Opening ");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await settings.getByRole("tab", { name: "Connection & seeding" }).click();
   await settings
@@ -1010,7 +1009,7 @@ test("live Library media detail follows metadata through completion", async ({
   await removal
     .getByRole("button", { name: "Remove and delete data" })
     .click();
-  await expect(page.getByText(`Removed ${torrentName!}`, { exact: true })).toBeVisible();
+  await expect(notification(page)).toContainText(`Removed ${torrentName!}`);
   await expect.poll(() => pathExists(directRoot)).toBe(false);
   expect(await fs.readFile(unrelated, "utf8")).toBe("preserve");
   expect(applicationUpgrades).toBe(1);
@@ -1214,6 +1213,11 @@ async function scrollToEnd(grid: Locator) {
     element.scrollTop = element.scrollHeight;
     element.dispatchEvent(new Event("scroll"));
   });
+}
+
+/** The transient toast that replaced inline action results (Tactical 346). */
+function notification(page: Page): Locator {
+  return page.getByRole("region", { name: "Notification" });
 }
 
 async function confirmDefaultAddOptions(page: Page) {

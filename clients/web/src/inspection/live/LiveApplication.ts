@@ -215,7 +215,7 @@ export class LiveApplication implements InspectionApplication {
           };
         }
         await target.open(response.outcome.url);
-        return { accepted: true, message: localizedMessage("inspection.live.live.application.opening.file") };
+        return { accepted: true };
       } catch (error) {
         target.cancel();
         return { accepted: false, message: asError(error).message };
@@ -231,7 +231,6 @@ export class LiveApplication implements InspectionApplication {
         if (root === null) {
           return {
             accepted: true,
-            message: localizedMessage("inspection.live.live.application.folder.selection.canceled"),
             storageRoot: null,
           };
         }
@@ -253,7 +252,6 @@ export class LiveApplication implements InspectionApplication {
         this.emit({ type: "snapshot", snapshot: this.snapshot });
         return {
           accepted: true,
-          message: `Download folder ${mapped.label} is ready`,
           storageRoot: mapped,
         };
       } catch (error) {
@@ -494,56 +492,6 @@ export class LiveApplication implements InspectionApplication {
             resultingRevision: response.revision,
           }
         : {}),
-      message:
-        command.type === "set_file_priority"
-          ? command.priority === "skip"
-            ? "Selected files skipped"
-            : "Selected files set to normal"
-          : command.type === "download_files"
-            ? command.fileIndices.length === 1
-              ? "File requested for download"
-              : "Selected files requested for download"
-          : command.type === "set_default_download_root"
-            ? "Default download folder changed"
-            : command.type === "set_show_add_options"
-              ? command.show
-                ? "Add options will be shown"
-                : "Add options will be skipped when a default is available"
-              : command.type === "set_show_file_selection"
-                ? command.show
-                  ? "File selection will be shown for new torrents"
-                  : "New torrents will start with all files"
-                : command.type === "confirm_pending_file_selection"
-                  ? "File selection confirmed"
-                  : command.type === "download_all_pending_add"
-                    ? "All files will download"
-                  : command.type === "cancel_pending_add"
-                    ? "Pending torrent cancelled"
-              : command.type === "update_client_settings"
-                ? "Connection and seeding settings saved"
-              : command.type === "reset_client_settings"
-                ? "Connection and seeding settings restored"
-              : command.type === "update_torrent_settings"
-                ? "Torrent transfer limits saved"
-              : command.type === "remove_download_root"
-                ? "Download folder removed"
-              : command.type === "clear_app_data"
-                ? "Application profile cleared"
-                : command.type === "pause"
-                  ? "Torrent paused"
-                  : command.type === "resume"
-                    ? "Torrent resumed"
-                    : command.type === "move_download_to_top"
-                      ? "Torrent moved to the top of the download queue"
-                      : command.type === "move_download_to_bottom"
-                        ? "Torrent moved to the bottom of the download queue"
-                    : command.type === "force_recheck"
-                      ? "Torrent recheck started"
-                    : command.type === "archive"
-                      ? "Torrent archived"
-                      : command.type === "unarchive"
-                        ? "Torrent restored"
-                        : "Torrent removal started",
     };
   }
 
@@ -910,13 +858,12 @@ export class LiveApplication implements InspectionApplication {
 function addCommandResult(response: ResponseEnvelope): CommandResult {
   const result = response.result;
   if (result?.type !== "add_torrent") {
-    return { accepted: true, message: localizedMessage("inspection.live.live.application.added") };
+    return { accepted: true };
   }
   const disposition = result.result.disposition;
   if (disposition.type === "already_present") {
     return {
       accepted: true,
-      message: localizedMessage("inspection.live.live.application.already.in.your.session"),
       torrentId: result.result.torrent_id,
       addDisposition: { type: "already_present" },
     };
@@ -925,10 +872,6 @@ function addCommandResult(response: ResponseEnvelope): CommandResult {
     const count = disposition.newly_wanted_count;
     return {
       accepted: true,
-      message:
-        count === undefined || count === null
-          ? "File selection expanded"
-          : `${count} additional ${count === 1 ? "file" : "files"} selected`,
       torrentId: result.result.torrent_id,
       addDisposition: {
         type: "selection_expanded",
@@ -938,7 +881,6 @@ function addCommandResult(response: ResponseEnvelope): CommandResult {
   }
   return {
     accepted: true,
-    message: localizedMessage("inspection.live.live.application.added"),
     torrentId: result.result.torrent_id,
     addDisposition: { type: "added" },
   };
@@ -954,7 +896,6 @@ function magnetCommandResult(response: ResponseEnvelope): CommandResult {
   }
   return {
     accepted: true,
-    message: localizedMessage("inspection.live.live.application.magnet.link.ready"),
     magnetExport: {
       magnet: result.result.magnet,
       source: result.result.source,

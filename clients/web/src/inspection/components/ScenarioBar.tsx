@@ -19,7 +19,7 @@ export function ScenarioBar() {
 
   const send = async (command: Parameters<typeof dispatch>[0]) => {
     try {
-      setMessage(await dispatch(command));
+      setMessage((await dispatch(command)) ?? "");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     }

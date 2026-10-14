@@ -109,12 +109,6 @@
   border-bottom: 1px solid var(--border-soft);
   padding: var(--ui-space-sm) var(--ui-space-md);
 }
-.commandStatus {
-  align-self: center;
-  margin-left: auto;
-  color: var(--text-muted);
-  font-size: var(--ui-font-caption);
-}
 .tabs button[aria-selected="true"] {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border-strong));
   color: var(--accent-strong);
@@ -239,11 +233,6 @@
   .summaryText > span:nth-of-type(3) { display: none; }
   .tabs { padding: var(--ui-space-xs) var(--ui-space-sm); }
   .tabs button { flex: 1; }
-  .commandStatus {
-    width: 100%;
-    margin-left: 0;
-    text-align: center;
-  }
   .row {
     height: 104px;
     grid-template-columns: 2rem minmax(0, 1fr);

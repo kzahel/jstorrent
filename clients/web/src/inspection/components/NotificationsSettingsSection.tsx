@@ -41,9 +41,7 @@ export function NotificationsSettingsSection({
 }: NotificationsSettingsSectionProps) {
   const [settings, setSettings] = useState(notifications.getSnapshot);
   const [pending, setPending] = useState(false);
-  const [status, setStatus] = useState<
-    { readonly type: "success" | "error"; readonly message: string } | null
-  >(null);
+  const [error, setError] = useState<string | null>(null);
 
   const change = async (setting: SettingName, checked: boolean) => {
     if (pending) return;
@@ -51,16 +49,12 @@ export function NotificationsSettingsSection({
     const next = { ...settings, [setting]: checked };
     setSettings(next);
     setPending(true);
-    setStatus(null);
+    setError(null);
     try {
       setSettings(await notifications.save(next));
-      setStatus({ type: "success", message: localizedMessage("inspection.components.notifications.settings.section.notification.settings.saved") });
-    } catch (error) {
+    } catch (cause) {
       setSettings(previous);
-      setStatus({
-        type: "error",
-        message: `Notification settings were not saved: ${errorMessage(error)}`,
-      });
+      setError(localizedMessage("feedback.notifications.save.failed", { error: errorMessage(cause) }));
     } finally {
       setPending(false);
     }
@@ -86,14 +80,9 @@ export function NotificationsSettingsSection({
           </label>
         ))}
       </div>
-      {status === null ? null : (
-        <p
-          className={
-            status.type === "error" ? styles.errorStatus : styles.successStatus
-          }
-          role={status.type === "error" ? "alert" : "status"}
-        >
-          {status.message}
+      {error === null ? null : (
+        <p className={styles.errorStatus} role="alert">
+          {error}
         </p>
       )}
     </fieldset>

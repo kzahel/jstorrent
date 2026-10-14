@@ -25,74 +25,6 @@
   white-space: nowrap;
 }
 
-.commandStatus {
-  overflow: hidden;
-  flex: 1;
-  min-width: 0;
-  color: var(--text-secondary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.commandFeedback {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  gap: 0.5rem;
-  min-height: var(--ui-control-height);
-  border-bottom: 1px solid var(--border-soft);
-  padding: 0.42rem 0.72rem;
-  background: var(--surface-primary);
-  font-size: var(--ui-font-caption);
-}
-
-.saveProgress {
-  flex: 0 1 8rem;
-  min-width: 3rem;
-  height: 0.4rem;
-  border: 0;
-  border-radius: var(--radius-full);
-  overflow: hidden;
-  appearance: none;
-  background: var(--progress-track);
-  accent-color: var(--water);
-}
-
-.saveProgress::-webkit-progress-bar {
-  background: var(--progress-track);
-}
-
-.saveProgress::-webkit-progress-value {
-  background: var(--water);
-}
-
-.saveProgress::-moz-progress-bar {
-  background: var(--water);
-}
-
-.savePercent {
-  flex: 0 0 6ch;
-  color: var(--text-secondary);
-  text-align: end;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.cancelSave {
-  flex-shrink: 0;
-  min-height: var(--ui-control-height);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 0 var(--ui-space-sm);
-  color: var(--text-primary);
-  background: var(--surface-secondary);
-  font: inherit;
-  font-size: var(--ui-font-small);
-  font-weight: var(--weight-medium);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
 .name {
   overflow: hidden;
   font-weight: var(--weight-medium);
@@ -145,17 +77,5 @@
 @media (max-width: 700px) {
   .storagePath {
     display: none;
-  }
-
-  .commandFeedback {
-    flex-wrap: wrap;
-  }
-
-  .commandStatus {
-    flex-basis: 100%;
-  }
-
-  .saveProgress {
-    flex-grow: 1;
   }
 }

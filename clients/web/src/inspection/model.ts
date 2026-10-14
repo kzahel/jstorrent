@@ -795,9 +795,21 @@ export interface DemoScenarioSummary {
   readonly autoplay: boolean;
 }
 
-export interface CommandResult {
-  readonly accepted: boolean;
+/**
+ * Accepted commands carry typed facts, not prose: each caller decides whether
+ * the outcome needs words (Tactical 346).
+ */
+export type CommandResult = CommandAccepted | CommandRejected;
+
+export interface CommandRejected {
+  readonly accepted: false;
   readonly message: string;
+}
+
+export interface CommandAccepted {
+  readonly accepted: true;
+  /** Demo scenario commands describe themselves for the scenario bar. */
+  readonly message?: string;
   readonly requestId?: string;
   readonly resultingRevision?: string;
   readonly storageRoot?: DownloadRoot | null;

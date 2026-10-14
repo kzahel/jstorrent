@@ -277,6 +277,15 @@ React tests/typecheck, Android lint/unit/instrumentation assembly, and dual-ABI
 generated build pass. It selects no production locale; physical ChromeOS and
 Apple compile qualification remain open.
 
+Tactical [`346`](../tactical/346-action-feedback-toasts.md) removes success
+prose from React command results: accepted commands return typed facts and
+each caller chooses catalog copy. Its toast, Undo, failure-list, magnet,
+remote-access and settings-failure copy moves into the catalog under
+`feedback.*` with ICU plurals, and 15 orphaned result strings are removed;
+the checker reports 1,373 React messages. Remaining assembled English outside
+those feedback paths, such as torrent-action disabled reasons and
+confirmation prompts, is not yet extracted.
+
 A separate tactical is required to choose and ship the first real
 non-English cohort. Android replacement localization remains open until that
 cohort passes provenance, native review, lifecycle, layout, accessibility,

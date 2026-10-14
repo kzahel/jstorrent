@@ -1296,6 +1296,9 @@ describe("inspection application", () => {
         priority: "normal",
       }),
     );
+    // The Priority column shows the change; nothing is added above the table.
+    expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/set to normal/i)).not.toBeInTheDocument();
   });
 
   it("shows Open only for a single verified available file", async () => {
@@ -1432,15 +1435,17 @@ describe("inspection application", () => {
       clock.mockReturnValue(200);
       act(() => report("transferring", 732n));
       expect(progress).toHaveAttribute("value", "73.2");
-      expect(screen.getByText("73.2%")).toBeInTheDocument();
-      expect(screen.getByText("Saving directly…")).not.toHaveTextContent("73.2%");
+      expect(within(toast()).getByText("73.2%")).toBeInTheDocument();
+      expect(within(toast()).getByText("Saving directly…")).not.toHaveTextContent("73.2%");
+      // Progress lives in the toast, not in a row above the file table.
+      expect(screen.getByRole("grid", { name: "Torrent files" })).not.toContainElement(progress);
       clock.mockReturnValue(201);
       await act(async () => {
         report("complete", 1000n);
         finishSave();
       });
-      expect(progress).toHaveAttribute("value", "100");
-      expect(screen.getByText("Remote file saved.")).toBeInTheDocument();
+      expect(toast()).toHaveTextContent("Remote file saved.");
+      expect(screen.queryByRole("progressbar", { name: "Saving directly…" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Cancel save" })).not.toBeInTheDocument();
     } finally {
       clock.mockRestore();
@@ -1448,7 +1453,7 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("button", { name: "More file actions" }));
     await user.click(await screen.findByRole("menuitem", { name: "Save file…" }));
     await user.click(screen.getByRole("button", { name: "Cancel save" }));
-    await waitFor(() => expect(screen.getByText("Remote file save cancelled.")).toBeInTheDocument());
+    await findToast("Remote file save cancelled.");
     expect(saveRequest!.signal?.aborted).toBe(true);
     expect(screen.queryByRole("progressbar", { name: "Saving directly…" })).not.toBeInTheDocument();
   });
@@ -1718,9 +1723,7 @@ describe("inspection application", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(
-      screen.getByText(/Removed Big Buck Bunny/, { exact: true }),
-    ).toBeVisible();
+    expect(toast()).toHaveTextContent(/Removed Big Buck Bunny/);
   });
 
   it("keeps a failed removal dialog actionable", async () => {
@@ -2043,11 +2046,58 @@ describe("inspection application", () => {
         { type: "archive", torrentId: sintel.id },
       ]),
     );
+    expect(within(toast()).getByRole("alert")).toHaveTextContent(
+      "1 of 2 torrents failed: Sintel 4K open movie: rejected for test",
+    );
+    // A partial failure offers no Undo.
     expect(
-      screen.getByText(
-        /Archived 1 of 2; 1 failed: Sintel 4K open movie: rejected for test/,
-      ),
-    ).toBeVisible();
+      within(toast()).queryByRole("button", { name: "Undo" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers Undo after archiving and resumes only torrents that were running", async () => {
+    const user = userEvent.setup();
+    const snapshot = {
+      ...buildScenarioSnapshot("healthy-download", 42_000, false, 1),
+      demo: null,
+    };
+    const sintel = Object.values(snapshot.torrents).find(
+      (torrent) => torrent.name === "Sintel 4K open movie",
+    )!;
+    const primary = snapshot.torrents[DEMO_PRIMARY_TORRENT_ID]!;
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...snapshot,
+        torrents: {
+          ...snapshot.torrents,
+          [DEMO_PRIMARY_TORRENT_ID]: { ...primary, operationalState: "downloading" },
+          [sintel.id]: { ...sintel, operationalState: "paused", status: "paused" },
+        },
+      },
+    });
+    renderApplication(application);
+    await user.click(
+      screen.getByRole("checkbox", { name: "Select Sintel 4K open movie" }),
+    );
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("menuitem", { name: "Archive" }));
+
+    await findToast("Archived 2 torrents");
+    expect(within(toast()).queryByRole("alert")).not.toBeInTheDocument();
+    await user.click(within(toast()).getByRole("button", { name: "Undo" }));
+
+    await waitFor(() =>
+      expect(application.commands).toEqual([
+        { type: "archive", torrentId: DEMO_PRIMARY_TORRENT_ID },
+        { type: "archive", torrentId: sintel.id },
+        { type: "unarchive", torrentId: DEMO_PRIMARY_TORRENT_ID },
+        { type: "unarchive", torrentId: sintel.id },
+        { type: "resume", torrentId: DEMO_PRIMARY_TORRENT_ID },
+      ]),
+    );
+    // Undo itself is not undoable.
+    expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
   });
 
   it("removes multiple torrents and retries only failed targets", async () => {
@@ -2081,7 +2131,7 @@ describe("inspection application", () => {
 
     dialog = await screen.findByRole("dialog", { name: "Remove torrent?" });
     expect(within(dialog).getAllByRole("alert").at(-1)).toHaveTextContent(
-      /Removed 1 of 2; 1 failed: Sintel 4K open movie: rejected for test/,
+      "1 of 2 torrents failed: Sintel 4K open movie: rejected for test",
     );
     expect(
       within(dialog).getByRole("button", { name: "Retry failed" }),
@@ -2228,15 +2278,12 @@ describe("inspection application", () => {
         fileIndex: 2,
       }),
     );
-    expect(
-      screen.getByText(
-        "Opening North.Shore.Stories.S01E02.1080p.WEB-DL.mp4 for playback",
-      ),
-    ).toBeVisible();
+    // The player opening is the confirmation.
+    expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
 
     application.rejectNextTorrentId = snapshot.torrentOrder[0];
     await user.click(playable);
-    expect(await screen.findByText("rejected for test")).toBeVisible();
+    expect(within(await findToast("rejected for test")).getByRole("alert")).toBeVisible();
     expect(playable).toBeEnabled();
   });
 
@@ -2340,6 +2387,50 @@ describe("inspection application", () => {
         detail: null,
         logCapture: null,
         speed: null,
+      }),
+    );
+  });
+
+  it("offers Restore when an added torrent is already archived", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const archived = { ...base.torrents[DEMO_PRIMARY_TORRENT_ID]!, archived: true };
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...base,
+        demo: null,
+        storage: {
+          roots: [downloadRoot("root_a", "Downloads")],
+          defaultRoot: "root_a",
+          showAddOptions: false,
+        },
+        torrents: { ...base.torrents, [archived.id]: archived },
+      },
+    });
+    const dispatch = application.dispatch.bind(application);
+    vi.spyOn(application, "dispatch").mockImplementation(async (command) =>
+      command.type === "add_magnet"
+        ? {
+            accepted: true,
+            torrentId: archived.id,
+            addDisposition: { type: "already_present" },
+          }
+        : dispatch(command),
+    );
+    renderApplication(application);
+    await user.type(
+      screen.getByRole("textbox", { name: "Magnet link or torrent URL" }),
+      "magnet:?xt=urn:btih:000102030405060708090a0b0c0d0e0f10111213",
+    );
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    await findToast("Torrent is already in Archived.");
+    await user.click(within(toast()).getByRole("button", { name: "Restore" }));
+    await waitFor(() =>
+      expect(application.commands.at(-1)).toEqual({
+        type: "unarchive",
+        torrentId: archived.id,
       }),
     );
   });
@@ -2494,7 +2585,8 @@ describe("inspection application", () => {
     expect(read).toHaveBeenCalledOnce();
     expect(fileInput).toHaveValue("");
     expect(JSON.stringify(application.commands)).not.toContain("private-name");
-    expect(screen.getByText("Torrent added", { exact: true })).toBeVisible();
+    // A new torrent appears in the list; no toast repeats that.
+    expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
   });
 
   it("retains only the File while options are chosen and applies them after read", async () => {
@@ -2794,7 +2886,6 @@ describe("inspection application", () => {
     });
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-      expect(screen.getByRole("status")).toHaveTextContent("Torrent added");
       expect(external.getSnapshot().pending).toEqual([]);
     });
   });
@@ -2819,7 +2910,7 @@ describe("inspection application", () => {
     const dialog = await screen.findByRole("dialog", {
       name: "Add torrent",
     });
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(within(toast()).getByRole("alert")).toHaveTextContent(
       "external add rejected",
     );
     expect(external.getSnapshot()).toMatchObject({
@@ -3634,9 +3725,7 @@ describe("inspection application", () => {
     await user.click(copy);
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(exactMagnet));
-    expect(
-      screen.getByText("Magnet link copied", { exact: true }),
-    ).toBeVisible();
+    expect(toast()).toHaveTextContent("Magnet link copied");
     expect(
       screen.queryByRole("menu", { name: "More" }),
     ).not.toBeInTheDocument();
@@ -3648,12 +3737,7 @@ describe("inspection application", () => {
       screen.getByRole("menuitem", { name: "Copy magnet link" }),
     );
     expect(
-      await screen.findByText(
-        "Could not copy magnet links: rejected for test",
-        {
-          exact: true,
-        },
-      ),
+      within(await findToast("Could not copy magnet links: rejected for test")).getByRole("alert"),
     ).toBeVisible();
     expect(writeText).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(more).toHaveFocus());
@@ -3664,10 +3748,7 @@ describe("inspection application", () => {
       screen.getByRole("menuitem", { name: "Copy magnet link" }),
     );
     expect(
-      await screen.findByText(
-        "Could not copy magnet links: permission denied",
-        { exact: true },
-      ),
+      within(await findToast("Could not copy magnet links: permission denied")).getByRole("alert"),
     ).toBeVisible();
     await waitFor(() => expect(more).toHaveFocus());
 
@@ -3696,12 +3777,9 @@ describe("inspection application", () => {
     await waitFor(() =>
       expect(writeText).toHaveBeenLastCalledWith(selectedMagnets),
     );
-    expect(
-      screen.getByText(
-        "2 magnet links copied; 1 tracker omitted to keep them usable",
-        { exact: true },
-      ),
-    ).toBeVisible();
+    expect(toast()).toHaveTextContent(
+      "2 magnet links copied; 1 tracker omitted to keep them usable",
+    );
 
     fireEvent.click(screen.getByRole("grid", { name: "Torrents" }));
     await user.click(more);
@@ -3761,7 +3839,7 @@ describe("inspection application", () => {
       ]);
     });
     expect(draft).toHaveValue("unfinished draft");
-    expect(screen.getByText("Torrent added", { exact: true })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Notification" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menu", { name: "More" }),
     ).not.toBeInTheDocument();
@@ -3863,7 +3941,7 @@ describe("inspection application", () => {
         startContent: true,
       })),
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(within(toast()).getByRole("alert")).toHaveTextContent(
       "Sample torrents: 3 added, 1 already present, 1 failed. Sintel: tracker unavailable",
     );
   });
@@ -3926,6 +4004,19 @@ describe("inspection application", () => {
     );
   });
 });
+
+/** The visible toast; its text is also mirrored in a hidden live region. */
+function toast(): HTMLElement {
+  return screen.getByRole("region", { name: "Notification" });
+}
+
+async function findToast(text: string | RegExp): Promise<HTMLElement> {
+  return waitFor(() => {
+    const region = toast();
+    expect(region).toHaveTextContent(text);
+    return region;
+  });
+}
 
 function renderScenario(
   scenarioId: ConstructorParameters<typeof DemoApplication>[0]["scenarioId"],

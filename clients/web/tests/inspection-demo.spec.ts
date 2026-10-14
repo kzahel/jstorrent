@@ -243,8 +243,8 @@ test("More copies selected torrents' source-aware magnets", async ({
   await copy.click();
 
   await expect(
-    page.getByText("2 magnet links copied", { exact: true }),
-  ).toBeVisible();
+    page.getByRole("region", { name: "Notification" }),
+  ).toContainText("2 magnet links copied");
   await expect(menu).toHaveCount(0);
   await expect(more).toBeFocused();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
@@ -1646,8 +1646,8 @@ test("removal keeps data by default and exposes destructive intent", async ({
   await retained.getByRole("button", { name: "Remove", exact: true }).click();
   await expect(retained).not.toBeVisible();
   await expect(
-    page.getByText("Removed Big Buck Bunny 1080p surround", { exact: true }),
-  ).toBeVisible();
+    page.getByRole("region", { name: "Notification" }),
+  ).toContainText("Removed Big Buck Bunny 1080p surround");
 });
 
 test("diagnostic console stays ordered, filtered, and virtualized", async ({

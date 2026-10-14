@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render as renderUnwrapped, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DesktopUpdaterSnapshot } from "../updater/types";
 import { SupportDiagnostics } from "./SupportDiagnostics";
+import { ToastProvider } from "./Toast";
+
+const render = (ui: Parameters<typeof renderUnwrapped>[0]) =>
+  renderUnwrapped(ui, { wrapper: ToastProvider });
 
 const source: DesktopUpdaterSnapshot = {
   info: { version: "0.1.3", buildId: "abcdef1234567", arch: "aarch64",
@@ -28,9 +32,9 @@ describe("support report preview", () => {
     await user.click(screen.getByRole("button", { name: "Copy diagnostics" }));
     expect(write).toHaveBeenCalledWith(original);
     expect(original).not.toContain("private token");
+    expect(screen.getByRole("region", { name: "Notification" })).toHaveTextContent("Diagnostics copied.");
     await user.click(screen.getByRole("button", { name: "Refresh diagnostics" }));
     expect(preview.value).not.toBe(original);
-    expect(screen.queryByText("Diagnostics copied.")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Report a problem" })).toHaveAttribute("href", "https://github.com/kzahel/jstorrent/issues/new");
   });
 
@@ -44,7 +48,7 @@ describe("support report preview", () => {
     expect(preview).toHaveFocus();
     expect(preview.selectionStart).toBe(0);
     expect(preview.selectionEnd).toBe(preview.value.length);
-    expect(screen.getByRole("status")).toHaveTextContent("copy it manually");
+    expect(screen.getByText(/copy it manually/)).toHaveAttribute("role", "status");
     expect(screen.queryByText("private clipboard detail")).not.toBeInTheDocument();
   });
 
