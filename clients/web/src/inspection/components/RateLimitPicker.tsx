@@ -7,7 +7,8 @@ import {
   rateLabel,
   rateLimitPreset,
 } from "../transfer-rate";
-import styles from "./RateLimitPicker.module.css";
+import { NumberInput } from "./NumberInput";
+import styles from "./PresetPicker.module.css";
 
 export interface RateLimitDraft {
   readonly unlimited: boolean;
@@ -81,28 +82,20 @@ export function RateLimitPicker({
           </option>
         </select>
         {choice === "custom" ? (
-          <span className={styles.custom}>
-            <input
-              id={id}
-              aria-label={localizedMessage("inspection.components.rate.limit.picker.custom.label", { label })}
-              type="number"
-              inputMode="decimal"
-              min={1}
-              max={RATE_LIMIT_MAXIMUM_BYTES / 1_024}
-              step={1 / 1_024}
-              required
-              value={valueKiB}
-              disabled={disabled}
-              aria-invalid={error !== null}
-              aria-describedby={error === null ? undefined : errorId}
-              onChange={(event) =>
-                onChange({ unlimited: false, valueKiB: event.currentTarget.value })
-              }
-            />
-            <span aria-hidden="true">
-              {localizedMessage("inspection.components.rate.limit.picker.unit")}
-            </span>
-          </span>
+          <NumberInput
+            id={id}
+            label={localizedMessage("inspection.components.rate.limit.picker.custom.label", { label })}
+            unit={localizedMessage("inspection.components.rate.limit.picker.unit")}
+            minimum={1}
+            maximum={RATE_LIMIT_MAXIMUM_BYTES / 1_024}
+            step={1 / 1_024}
+            decimal
+            value={valueKiB}
+            disabled={disabled}
+            invalid={error !== null}
+            describedBy={error === null ? undefined : errorId}
+            onChange={(next) => onChange({ unlimited: false, valueKiB: next })}
+          />
         ) : null}
       </div>
       {note}

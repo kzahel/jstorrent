@@ -3018,6 +3018,12 @@
       "value": "No limit on active seeds"
     }
   ],
+  "inspection.components.connection.seeding.settings.section.no.time.goal": [
+    {
+      "type": 0,
+      "value": "No time goal"
+    }
+  ],
   "inspection.components.connection.seeding.settings.section.not.manageable": [
     {
       "type": 0,
@@ -3211,16 +3217,16 @@
       "value": "Seeding time vs. download time"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.seeding.goals.description": [
+  "inspection.components.connection.seeding.settings.section.seeding.priority.description": [
     {
       "type": 0,
       "value": "When more torrents are finished than can seed at once, torrents that haven't reached a goal seed first. Reaching a goal doesn't stop seeding."
     }
   ],
-  "inspection.components.connection.seeding.settings.section.seeding.goals.heading": [
+  "inspection.components.connection.seeding.settings.section.seeding.priority.heading": [
     {
       "type": 0,
-      "value": "Seeding goals"
+      "value": "Seeding priority"
     }
   ],
   "inspection.components.connection.seeding.settings.section.seeding.time.goal": [
@@ -3253,30 +3259,40 @@
       "value": "Speed limits"
     }
   ],
+  "inspection.components.connection.seeding.settings.section.stop.off": [
+    {
+      "type": 0,
+      "value": "Off"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.stop.seeding.description": [
+    {
+      "type": 0,
+      "value": "Stop a finished torrent when it reaches either limit. Resume a stopped torrent to keep seeding it."
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.stop.seeding.heading": [
+    {
+      "type": 0,
+      "value": "Stop seeding"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.stop.seeding.time": [
+    {
+      "type": 0,
+      "value": "Seeding time"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.stop.share.ratio": [
+    {
+      "type": 0,
+      "value": "Share ratio"
+    }
+  ],
   "inspection.components.connection.seeding.settings.section.unit.percent": [
     {
       "type": 0,
       "value": "%"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.unit.seconds": [
-    {
-      "type": 0,
-      "value": "seconds"
-    }
-  ],
-  "inspection.components.connection.seeding.settings.section.unit.seconds.with.duration": [
-    {
-      "type": 0,
-      "value": "seconds ("
-    },
-    {
-      "type": 1,
-      "value": "duration"
-    },
-    {
-      "type": 0,
-      "value": ")"
     }
   ],
   "inspection.components.connection.seeding.settings.section.upload": [
@@ -3837,6 +3853,12 @@
       "value": "Queued"
     }
   ],
+  "inspection.components.detail.pane.state.seed.limit.reached": [
+    {
+      "type": 0,
+      "value": "Seeding limit reached"
+    }
+  ],
   "inspection.components.detail.pane.state.seeding": [
     {
       "type": 0,
@@ -3859,6 +3881,12 @@
     {
       "type": 0,
       "value": "Status"
+    }
+  ],
+  "inspection.components.detail.pane.stop.seeding": [
+    {
+      "type": 0,
+      "value": "Stop seeding"
     }
   ],
   "inspection.components.detail.pane.storage.needs.attention": [
@@ -5109,6 +5137,12 @@
       "value": "Removing"
     }
   ],
+  "inspection.components.library.detail.view.seed.limit.reached": [
+    {
+      "type": 0,
+      "value": "Seeding limit reached"
+    }
+  ],
   "inspection.components.library.detail.view.server.unavailable": [
     {
       "type": 0,
@@ -5179,6 +5213,12 @@
     {
       "type": 0,
       "value": "Available offline"
+    }
+  ],
+  "inspection.components.library.view.available.seed.limit.reached": [
+    {
+      "type": 0,
+      "value": "Available offline · Seeding limit reached"
     }
   ],
   "inspection.components.library.view.content.needs.attention": [
@@ -7415,6 +7455,12 @@
       "value": "Download"
     }
   ],
+  "inspection.components.torrent.settings.dialog.no.limit": [
+    {
+      "type": 0,
+      "value": "No limit"
+    }
+  ],
   "inspection.components.torrent.settings.dialog.save": [
     {
       "type": 0,
@@ -7439,10 +7485,28 @@
       "value": "Saving…"
     }
   ],
+  "inspection.components.torrent.settings.dialog.seeding.time": [
+    {
+      "type": 0,
+      "value": "Seeding time"
+    }
+  ],
+  "inspection.components.torrent.settings.dialog.share.ratio": [
+    {
+      "type": 0,
+      "value": "Share ratio"
+    }
+  ],
   "inspection.components.torrent.settings.dialog.speed.limits": [
     {
       "type": 0,
       "value": "Speed limits"
+    }
+  ],
+  "inspection.components.torrent.settings.dialog.stop.seeding": [
+    {
+      "type": 0,
+      "value": "Stop seeding"
     }
   ],
   "inspection.components.torrent.settings.dialog.title": [
@@ -7455,6 +7519,20 @@
     {
       "type": 0,
       "value": "Upload"
+    }
+  ],
+  "inspection.components.torrent.settings.dialog.use.global": [
+    {
+      "type": 0,
+      "value": "Use global ("
+    },
+    {
+      "type": 1,
+      "value": "limit"
+    },
+    {
+      "type": 0,
+      "value": ")"
     }
   ],
   "inspection.components.torrent.status.archived": [
@@ -7497,6 +7575,12 @@
     {
       "type": 0,
       "value": "Paused"
+    }
+  ],
+  "inspection.components.torrent.status.seed.limit.reached": [
+    {
+      "type": 0,
+      "value": "Seeding limit reached"
     }
   ],
   "inspection.components.torrent.status.storage.unavailable": [
@@ -8629,6 +8713,18 @@
       "value": "Routing depth, freshness, replacements, and lookup convergence."
     }
   ],
+  "inspection.demo.catalog.seeding.limits": [
+    {
+      "type": 0,
+      "value": "Seeding limits"
+    }
+  ],
+  "inspection.demo.catalog.seeding.limits.description": [
+    {
+      "type": 0,
+      "value": "A torrent stopped at its share ratio limit and one that stops after a day"
+    }
+  ],
   "inspection.demo.catalog.seeding.to.6.peers": [
     {
       "type": 0,
@@ -9079,6 +9175,260 @@
       "value": "uTP"
     }
   ],
+  "inspection.seed.stop.custom": [
+    {
+      "type": 0,
+      "value": "Custom…"
+    }
+  ],
+  "inspection.seed.stop.duration.custom.label": [
+    {
+      "type": 1,
+      "value": "label"
+    },
+    {
+      "type": 0,
+      "value": ", custom time"
+    }
+  ],
+  "inspection.seed.stop.duration.days": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " day"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " days"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.seed.stop.duration.hours": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " hour"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " hours"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.seed.stop.duration.minutes": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " minute"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " minutes"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.seed.stop.duration.range.error": [
+    {
+      "type": 0,
+      "value": "Enter a whole number from 0 to "
+    },
+    {
+      "type": 1,
+      "value": "maximum"
+    }
+  ],
+  "inspection.seed.stop.duration.unit.label": [
+    {
+      "type": 1,
+      "value": "label"
+    },
+    {
+      "type": 0,
+      "value": ", unit"
+    }
+  ],
+  "inspection.seed.stop.duration.weeks": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " week"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " weeks"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.seed.stop.ratio.custom.label": [
+    {
+      "type": 1,
+      "value": "label"
+    },
+    {
+      "type": 0,
+      "value": ", custom ratio"
+    }
+  ],
+  "inspection.seed.stop.ratio.range.error": [
+    {
+      "type": 0,
+      "value": "Enter a ratio from 0 to "
+    },
+    {
+      "type": 1,
+      "value": "maximum"
+    },
+    {
+      "type": 0,
+      "value": " with up to two decimals"
+    }
+  ],
+  "inspection.seed.stop.summary.none": [
+    {
+      "type": 0,
+      "value": "No stop limit"
+    }
+  ],
+  "inspection.seed.stop.summary.ratio": [
+    {
+      "type": 0,
+      "value": "Stops at ratio "
+    },
+    {
+      "type": 1,
+      "value": "limit"
+    },
+    {
+      "type": 0,
+      "value": " · now "
+    },
+    {
+      "type": 1,
+      "value": "current"
+    }
+  ],
+  "inspection.seed.stop.summary.time": [
+    {
+      "type": 0,
+      "value": "Stops after "
+    },
+    {
+      "type": 1,
+      "value": "limit"
+    },
+    {
+      "type": 0,
+      "value": " · seeded "
+    },
+    {
+      "type": 1,
+      "value": "seeded"
+    }
+  ],
+  "inspection.seed.stop.unit.days": [
+    {
+      "type": 0,
+      "value": "days"
+    }
+  ],
+  "inspection.seed.stop.unit.hours": [
+    {
+      "type": 0,
+      "value": "hours"
+    }
+  ],
+  "inspection.seed.stop.unit.minutes": [
+    {
+      "type": 0,
+      "value": "minutes"
+    }
+  ],
+  "inspection.seed.stop.unit.seconds": [
+    {
+      "type": 0,
+      "value": "seconds"
+    }
+  ],
   "inspection.tabs.dht": [
     {
       "type": 0,
@@ -9155,6 +9505,12 @@
     {
       "type": 0,
       "value": "Confirm or cancel the pending file selection before archiving."
+    }
+  ],
+  "inspection.torrent.actions.keep.seeding": [
+    {
+      "type": 0,
+      "value": "Keep seeding"
     }
   ],
   "inspection.torrent.actions.restore.archived.torrent.first": [

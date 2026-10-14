@@ -33,11 +33,13 @@ const BUNNY_ID = "t1-00000000000000000000000000000001";
 const SINTEL_ID = "t1-00000000000000000000000000000002";
 const ARCH_ID = "t1-00000000000000000000000000000003";
 const MEDIA_LIBRARY_ID = "t1-00000000000000000000000000000004";
+const DEBIAN_ID = "t1-00000000000000000000000000000005";
 const DEMO_INFO_HASHES: Readonly<Record<string, string>> = {
   [BUNNY_ID]: "a962f460b83861cfb5faa1d7ad7da9c3f3cc2fc4",
   [SINTEL_ID]: "08ada5a7a6183aae1e09d831df6748d566095a10",
   [ARCH_ID]: "e2d1f50a5d72bfc9c4d6c3f9913b1dfb2cf4f210",
   [MEDIA_LIBRARY_ID]: "c3cc3e6ca44942f80e7b7b318773c18360864027",
+  [DEBIAN_ID]: "6a1c4d7e2b9f80315d2e4c6a8b0f1e3d5c7a9b2e",
 };
 
 export const DEMO_SCENARIOS: readonly DemoScenarioSummary[] = [
@@ -201,6 +203,13 @@ export const DEMO_SCENARIOS: readonly DemoScenarioSummary[] = [
     description: localizedMessage("inspection.demo.catalog.routing.depth.freshness.replacements.and.lookup.convergence"),
     durationMs: 70_000,
     autoplay: true,
+  },
+  {
+    id: "seeding-limits",
+    title: localizedMessage("inspection.demo.catalog.seeding.limits"),
+    description: localizedMessage("inspection.demo.catalog.seeding.limits.description"),
+    durationMs: 60_000,
+    autoplay: false,
   },
   {
     id: "empty-library",
@@ -679,6 +688,8 @@ function buildScenarioContent(
     case "speed-reset":
     case "dht-observatory":
       return healthyDownload(elapsedMs);
+    case "seeding-limits":
+      return seedingLimits();
     case "empty-library":
       return { torrents: [], peers: {}, logs: [] };
     }
@@ -826,6 +837,68 @@ function healthyDownload(elapsedMs: number): ScenarioContent {
       [98, "info", "integrity", "All pieces verified"],
       [99, "info", "storage", "All 3 direct files verified"],
     ], elapsedMs),
+  };
+}
+
+/**
+ * A finished torrent stopped by its own share ratio limit, which offers Keep
+ * seeding, beside one that stops after a day of seeding.
+ */
+function seedingLimits(): ScenarioContent {
+  return {
+    torrents: [
+      torrent({
+        id: DEBIAN_ID,
+        name: "Debian 13.1 amd64 netinst",
+        status: "paused",
+        sizeBytes: 790_626_304,
+        progress: 1,
+        downloadedBytes: 790_626_304,
+        lifetimeUploadedBytes: "1604971397",
+        lifetimeDownloadedBytes: "790626304",
+        activeSeconds: "66120",
+        finishedSeconds: "64800",
+        seedingSeconds: "64800",
+        shareRatioHundredths: "203",
+        seedStop: {
+          limits: {
+            ratio_percent: { type: "limited", value: 200 },
+            time_seconds: { type: "use_global" },
+          },
+          stopped: true,
+        },
+        peersKnown: 38,
+        progressReason: "Stopped at its share ratio limit",
+        addedAtMs: BASE_TIME_MS - 172_800_000,
+      }),
+      torrent({
+        id: ARCH_ID,
+        name: "Arch Linux 2026.08.01 x86_64",
+        status: "complete",
+        sizeBytes: 1_265_348_608,
+        progress: 1,
+        uploadRate: 1_820_000,
+        uploadedBytes: 1_796_794_023,
+        lifetimeDownloadedBytes: "1265348608",
+        activeSeconds: "66900",
+        finishedSeconds: "64800",
+        seedingSeconds: "64800",
+        shareRatioHundredths: "142",
+        seedStop: {
+          limits: {
+            ratio_percent: { type: "use_global" },
+            time_seconds: { type: "limited", value: 86_400 },
+          },
+          stopped: false,
+        },
+        peersConnected: 6,
+        peersKnown: 47,
+        progressReason: localizedMessage("inspection.demo.catalog.seeding.to.6.peers"),
+        addedAtMs: BASE_TIME_MS - 86_400_000,
+      }),
+    ],
+    peers: {},
+    logs: [],
   };
 }
 
@@ -2003,6 +2076,7 @@ function torrent(input: Partial<TorrentRow> & Pick<TorrentRow, "id" | "name" | "
             finished_time_met: false,
           }
         : null),
+    seedStop: input.seedStop ?? null,
     addedAtMs: input.addedAtMs ?? BASE_TIME_MS - 3_600_000,
     archived: input.archived ?? false,
     removalState: input.removalState ?? null,

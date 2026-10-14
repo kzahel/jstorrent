@@ -37,6 +37,11 @@ catalog schema 26, so schema 26 is the supported baseline:
   baseline definitions to equal the released v26 catalog. A release that
   ships a new schema version adds its fixture before the next schema change.
 
+Schema 27 (Tactical [344](../tactical/344-seeding-stop-limits.md)) is the
+first step: nullable session stop limits on `client_settings`, per-torrent
+overrides (NULL for the session limit, -1 for no limit) and a
+`seed_limit_stopped` flag on `torrents`, constrained to paused intent.
+
 The same rule covers every other durable format. Tactical 345 records the
 audit and its follow-ups.
 

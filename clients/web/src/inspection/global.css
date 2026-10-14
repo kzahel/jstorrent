@@ -103,6 +103,9 @@
   --ui-font-display: 1.375rem;
   --ui-icon-size: 1.125rem;
   --ui-control-height: 2.25rem;
+  /* One width for every select and number field in a settings row, so all
+     controls share one right edge; it follows the density's body text. */
+  --ui-setting-control-width: calc(var(--ui-font-body) * 12.5);
   --ui-check-size: 1.125rem;
   --ui-header-height: 52px;
   /* Top header row; Settings' close button sits where the gear does. */

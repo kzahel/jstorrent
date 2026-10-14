@@ -838,7 +838,10 @@ test("seeding priority settings stay truthful across responsive layouts", async 
   const dialog = page.getByRole("dialog", { name: "Settings" });
   await dialog.getByRole("tab", { name: "Connection & seeding" }).click();
   const queue = dialog.getByRole("region", { name: "Queue" });
-  const priority = dialog.getByRole("region", { name: "Seeding goals" });
+  const stop = dialog.getByRole("region", { name: "Stop seeding" });
+  const priority = dialog.getByRole("region", { name: "Seeding priority" });
+  await expect(stop.getByRole("combobox", { name: "Share ratio" })).toHaveValue("off");
+  await expect(stop.getByRole("combobox", { name: "Seeding time" })).toHaveValue("off");
   await expect(
     priority.getByText(/Reaching a goal doesn't stop seeding/i),
   ).toBeVisible();
@@ -853,10 +856,34 @@ test("seeding priority settings stay truthful across responsive layouts", async 
       name: "Seeding time vs. download time",
     }),
   ).toHaveValue("700");
-  await expect(
-    priority.getByRole("spinbutton", { name: "Seeding time", exact: true }),
-  ).toHaveValue("86400");
-  await expect(priority.getByText("seconds (1d 0h)")).toBeVisible();
+  const goalTime = priority.getByRole("combobox", { name: "Seeding time", exact: true });
+  await expect(goalTime).toHaveValue("86400");
+  await expect(goalTime.locator("option:checked")).toHaveText("1 day");
+  await stop.getByRole("combobox", { name: "Share ratio" }).selectOption({ label: "Custom…" });
+  await stop.getByRole("combobox", { name: "Seeding time" }).selectOption({ label: "Custom…" });
+  // Every select and number field in the form shares one right edge and
+  // width. A custom time splits its row between a number and a unit choice.
+  const boxes = await dialog
+    .locator('form select, form input[type="number"]')
+    .evaluateAll((elements) =>
+      elements.map((element) => {
+        const field = element.closest('[class*="unitInput"]') ?? element;
+        const box = field.getBoundingClientRect();
+        return {
+          right: Math.round(box.right),
+          width: Math.round(box.width),
+          shared: field.parentElement?.className.includes("custom") === true,
+          last: field.nextElementSibling === null,
+        };
+      }),
+    );
+  expect(boxes.filter((box) => !box.shared).length).toBeGreaterThan(8);
+  expect(
+    new Set(boxes.filter((box) => !box.shared || box.last).map((box) => box.right)).size,
+  ).toBe(1);
+  expect(
+    new Set(boxes.filter((box) => !box.shared).map((box) => box.width)).size,
+  ).toBe(1);
   await dialog.getByText("Network details").click();
   await expect(dialog.getByText("Active seeds: 0 of 5")).toBeVisible();
   const unlimited = queue.getByRole("checkbox", {
@@ -880,7 +907,7 @@ test("seeding priority settings stay truthful across responsive layouts", async 
   const phoneDialog = page.getByRole("dialog", { name: "Settings" });
   await phoneDialog.getByRole("tab", { name: "Connection & seeding" }).click();
   const phonePriority = phoneDialog.getByRole("region", {
-    name: "Seeding goals",
+    name: "Seeding priority",
   });
   await phonePriority.scrollIntoViewIfNeeded();
   await expect(
@@ -900,6 +927,30 @@ test("seeding priority settings stay truthful across responsive layouts", async 
     ),
   ).toEqual([]);
   await capture(page, "rstorrent-seeding-settings-phone.png");
+});
+
+test("a torrent stopped by a seeding limit offers Keep seeding", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openScenario(page, "seeding-limits", 0);
+  const grid = page.getByRole("grid", { name: "Torrents" });
+  const debian = grid.getByRole("row").filter({ hasText: "Debian 13.1 amd64 netinst" });
+  await expect(debian.getByText("Seeding limit reached")).toBeVisible();
+  await debian.getByText("Debian 13.1 amd64 netinst").click();
+  await page.getByRole("tab", { name: "General" }).click();
+  const details = page.getByRole("region", { name: "Torrent details" });
+  await expect(details.getByRole("region", { name: "Stop seeding" })).toHaveText(
+    "Stops at ratio 2.00 · now 2.03",
+  );
+  await capture(page, "rstorrent-seeding-limit-reached.png");
+
+  await page.getByRole("button", { name: "Keep seeding" }).click();
+  await expect(debian.getByText("Seeding limit reached")).toHaveCount(0);
+  await expect(details.getByRole("region", { name: "Stop seeding" })).toHaveText(
+    "No stop limit",
+  );
+  await expect(page.getByRole("button", { name: "Keep seeding" })).toHaveCount(0);
 });
 
 test("torrent settings dialog stays operable across responsive layouts", async ({

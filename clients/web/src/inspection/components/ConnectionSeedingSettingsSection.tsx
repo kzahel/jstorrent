@@ -24,6 +24,19 @@ import { useInspectionStore } from "../context";
 import { formatElapsedSeconds } from "../format";
 import type { CommandAccepted } from "../model";
 import {
+  SEED_STOP_VALUE_MAXIMUM,
+  durationLimitDraft,
+  ratioLimitDraft,
+  sameDurationLimitDraft,
+  sameRatioLimitDraft,
+  sessionSeedStopLimit,
+  validateDurationLimit,
+  validateRatioLimit,
+  type DurationLimitDraft,
+  type RatioLimitDraft,
+  type SeedStopValidation,
+} from "../seed-stop";
+import {
   settingsDraftFields,
   settingsDraftPhase,
   settingsDraftValue,
@@ -37,7 +50,10 @@ import {
   type RateLimitValidation,
 } from "../transfer-rate";
 import { useSettingsDraft } from "../use-settings-draft";
+import { DurationPicker, type DurationPreset } from "./DurationPicker";
+import { NumberInput } from "./NumberInput";
 import { RateLimitPicker, type RateLimitDraft } from "./RateLimitPicker";
+import { RatioPicker } from "./RatioPicker";
 import { SegmentedSetting, type SegmentedOption } from "./SegmentedSetting";
 import styles from "./SettingsDialog.module.css";
 
@@ -52,7 +68,9 @@ const ACTIVE_DOWNLOADS_MAXIMUM = 20;
 const ACTIVE_SEEDS_MINIMUM = 0;
 const ACTIVE_SEEDS_MAXIMUM = 500;
 const SEED_GOAL_MINIMUM = 0;
-const SEED_GOAL_MAXIMUM = 2_147_483_647;
+const SEED_GOAL_MAXIMUM = SEED_STOP_VALUE_MAXIMUM;
+/** The largest time goal is stored for "No time goal". */
+const NO_TIME_GOAL_SECONDS = SEED_GOAL_MAXIMUM;
 const DEFAULT_UPLOAD_RATE_KIB = "1024";
 const DEFAULT_DOWNLOAD_RATE_KIB = "4096";
 
@@ -81,6 +99,8 @@ interface DraftValidation {
   readonly shareRatioError: string | null;
   readonly finishedDownloadRatioError: string | null;
   readonly finishedTimeError: string | null;
+  readonly seedStopRatioError: string | null;
+  readonly seedStopTimeError: string | null;
   readonly uploadRateError: string | null;
   readonly downloadRateError: string | null;
 }
@@ -127,7 +147,9 @@ export function ConnectionSeedingSettingsSection({
         draft.activeSeeds,
         draft.shareRatioLimit,
         draft.finishedDownloadRatioLimit,
-        draft.finishedTimeLimit,
+        validateDurationLimit(draft.finishedTimeLimit),
+        validateRatioLimit(draft.seedStopRatio),
+        validateDurationLimit(draft.seedStopTime),
         uploadRate,
         downloadRate,
         draft.encryption,
@@ -135,16 +157,9 @@ export function ConnectionSeedingSettingsSection({
         draft.dhtEnabled,
         draft.peerExchangeEnabled,
         configured.tracker_https_server_authentication,
-        configured.seed_stop_ratio_percent,
-        configured.seed_stop_time_seconds,
       );
     },
-    [
-      configured.tracker_https_server_authentication,
-      configured.seed_stop_ratio_percent,
-      configured.seed_stop_time_seconds,
-      draft,
-    ],
+    [configured.tracker_https_server_authentication, draft],
   );
   const dirtyFields = settingsDraftFields(draftState);
   const patch = clientSettingsPatch(dirtyFields, validation.settings);
@@ -282,9 +297,42 @@ export function ConnectionSeedingSettingsSection({
         </SettingGroup>
 
         <SettingGroup
-          id="seeding-goals-heading"
-          title={localizedMessage("inspection.components.connection.seeding.settings.section.seeding.goals.heading")}
-          description={localizedMessage("inspection.components.connection.seeding.settings.section.seeding.goals.description")}
+          id="stop-seeding-heading"
+          title={localizedMessage("inspection.components.connection.seeding.settings.section.stop.seeding.heading")}
+          description={localizedMessage("inspection.components.connection.seeding.settings.section.stop.seeding.description")}
+        >
+          <RatioPicker
+            id="seed-stop-ratio"
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.stop.share.ratio")}
+            offLabel={localizedMessage("inspection.components.connection.seeding.settings.section.stop.off")}
+            draft={draft.seedStopRatio}
+            error={validation.seedStopRatioError}
+            disabled={!manageable}
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "seedStopRatio", value })
+            }
+          />
+          <DurationPicker
+            id="seed-stop-time"
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.stop.seeding.time")}
+            offLabel={localizedMessage("inspection.components.connection.seeding.settings.section.stop.off")}
+            draft={draft.seedStopTime}
+            secondsUnit={
+              configured.seed_stop_time_seconds.type === "limited" &&
+              configured.seed_stop_time_seconds.value % 60 !== 0
+            }
+            error={validation.seedStopTimeError}
+            disabled={!manageable}
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "seedStopTime", value })
+            }
+          />
+        </SettingGroup>
+
+        <SettingGroup
+          id="seeding-priority-heading"
+          title={localizedMessage("inspection.components.connection.seeding.settings.section.seeding.priority.heading")}
+          description={localizedMessage("inspection.components.connection.seeding.settings.section.seeding.priority.description")}
         >
           <NumberField
             id="share-ratio-limit"
@@ -317,13 +365,15 @@ export function ConnectionSeedingSettingsSection({
               })
             }
           />
-          <NumberField
+          <DurationPicker
             id="finished-time-limit"
             label={localizedMessage("inspection.components.connection.seeding.settings.section.seeding.time.goal")}
-            unit={secondsUnit(draft.finishedTimeLimit)}
-            value={draft.finishedTimeLimit}
-            minimum={SEED_GOAL_MINIMUM}
-            maximum={SEED_GOAL_MAXIMUM}
+            leadingPresets={noTimeGoalPreset()}
+            draft={draft.finishedTimeLimit}
+            secondsUnit={
+              configured.finished_time_limit_seconds % 60 !== 0 &&
+              configured.finished_time_limit_seconds !== NO_TIME_GOAL_SECONDS
+            }
             error={validation.finishedTimeError}
             disabled={!manageable}
             onChange={(value) =>
@@ -653,27 +703,6 @@ function NumberField({
 }: NumberFieldProps) {
   const descriptionId = `${id}-description`;
   const errorId = `${id}-error`;
-  const input = (
-    <input
-      id={id}
-      aria-label={label}
-      type="number"
-      inputMode="numeric"
-      step={1}
-      min={minimum}
-      max={maximum}
-      required
-      value={value}
-      disabled={disabled}
-      aria-invalid={error !== null}
-      aria-describedby={
-        [description === undefined ? null : descriptionId, error === null ? null : errorId]
-          .filter((part): part is string => part !== null)
-          .join(" ") || undefined
-      }
-      onChange={(event) => onChange(event.currentTarget.value)}
-    />
-  );
   return (
     <label className={styles.numberField} htmlFor={id}>
       <span>
@@ -682,12 +711,23 @@ function NumberField({
           <small id={descriptionId}>{description}</small>
         )}
       </span>
-      {unit === undefined ? input : (
-        <span className={styles.inputWithUnit}>
-          {input}
-          <span>{unit}</span>
-        </span>
-      )}
+      <NumberInput
+        id={id}
+        label={label}
+        unit={unit}
+        value={value}
+        minimum={minimum}
+        maximum={maximum}
+        step={1}
+        disabled={disabled}
+        invalid={error !== null}
+        describedBy={
+          [description === undefined ? null : descriptionId, error === null ? null : errorId]
+            .filter((part): part is string => part !== null)
+            .join(" ") || undefined
+        }
+        onChange={onChange}
+      />
       <NoteLine note={note} />
       {error === null ? null : (
         <small id={errorId} className={styles.fieldError}>
@@ -698,12 +738,13 @@ function NumberField({
   );
 }
 
-function secondsUnit(value: string): string {
-  return /^\d+$/.test(value) && value !== "0"
-    ? localizedMessage("inspection.components.connection.seeding.settings.section.unit.seconds.with.duration", {
-        duration: formatElapsedSeconds(value),
-      })
-    : localizedMessage("inspection.components.connection.seeding.settings.section.unit.seconds");
+function noTimeGoalPreset(): readonly DurationPreset[] {
+  return [
+    {
+      seconds: NO_TIME_GOAL_SECONDS,
+      label: localizedMessage("inspection.components.connection.seeding.settings.section.no.time.goal"),
+    },
+  ];
 }
 
 function applicationNote(state: ClientSettingsApplicationState): SettingNote | null {
@@ -1015,7 +1056,9 @@ interface ClientSettingsDraft {
   readonly activeSeeds: ActiveSeedDraftField;
   readonly shareRatioLimit: string;
   readonly finishedDownloadRatioLimit: string;
-  readonly finishedTimeLimit: string;
+  readonly finishedTimeLimit: DurationLimitDraft;
+  readonly seedStopRatio: RatioLimitDraft;
+  readonly seedStopTime: DurationLimitDraft;
   readonly uploadRate: RateLimitDraft;
   readonly downloadRate: RateLimitDraft;
   readonly encryption: EncryptionPolicy;
@@ -1038,7 +1081,9 @@ const CLIENT_SETTINGS_COMPARATORS: SettingsDraftComparators<ClientSettingsDraft>
     (left.unlimited || left.torrents === right.torrents),
   shareRatioLimit: Object.is,
   finishedDownloadRatioLimit: Object.is,
-  finishedTimeLimit: Object.is,
+  finishedTimeLimit: sameDurationLimitDraft,
+  seedStopRatio: sameRatioLimitDraft,
+  seedStopTime: sameDurationLimitDraft,
   uploadRate: sameRateLimitDraft,
   downloadRate: sameRateLimitDraft,
   encryption: Object.is,
@@ -1071,7 +1116,12 @@ function clientSettingsDraft(settings: ClientSettings): ClientSettingsDraft {
     finishedDownloadRatioLimit: String(
       settings.finished_download_ratio_limit_percent,
     ),
-    finishedTimeLimit: String(settings.finished_time_limit_seconds),
+    finishedTimeLimit: durationLimitDraft({
+      type: "limited",
+      value: settings.finished_time_limit_seconds,
+    }),
+    seedStopRatio: ratioLimitDraft(settings.seed_stop_ratio_percent),
+    seedStopTime: durationLimitDraft(settings.seed_stop_time_seconds),
     uploadRate: {
       unlimited: settings.upload_rate_limit.type === "unlimited",
       valueKiB: rateLimitDraftValue(
@@ -1138,6 +1188,12 @@ function clientSettingsPatch(
     ...(fields.includes("finishedTimeLimit")
       ? { finished_time_limit_seconds: settings.finished_time_limit_seconds }
       : {}),
+    ...(fields.includes("seedStopRatio")
+      ? { seed_stop_ratio_percent: settings.seed_stop_ratio_percent }
+      : {}),
+    ...(fields.includes("seedStopTime")
+      ? { seed_stop_time_seconds: settings.seed_stop_time_seconds }
+      : {}),
     ...(fields.includes("uploadRate")
       ? { upload_rate_limit: settings.upload_rate_limit }
       : {}),
@@ -1183,7 +1239,9 @@ function validateDraft(
   activeSeeds: ActiveSeedDraftField,
   shareRatioLimit: string,
   finishedDownloadRatioLimit: string,
-  finishedTimeLimit: string,
+  finishedTime: SeedStopValidation,
+  seedStopRatio: SeedStopValidation,
+  seedStopTime: SeedStopValidation,
   uploadRate: RateLimitValidation,
   downloadRate: RateLimitValidation,
   encryption: EncryptionPolicy,
@@ -1191,8 +1249,6 @@ function validateDraft(
   dhtEnabled: boolean,
   peerExchangeEnabled: boolean,
   trackerHttpsServerAuthentication: ClientSettings["tracker_https_server_authentication"],
-  seedStopRatioPercent: ClientSettings["seed_stop_ratio_percent"],
-  seedStopTimeSeconds: ClientSettings["seed_stop_time_seconds"],
 ): DraftValidation {
   const preferred = parseBoundedInteger(
     preferredPort,
@@ -1234,11 +1290,6 @@ function validateDraft(
     SEED_GOAL_MINIMUM,
     SEED_GOAL_MAXIMUM,
   );
-  const finishedTime = parseBoundedInteger(
-    finishedTimeLimit,
-    SEED_GOAL_MINIMUM,
-    SEED_GOAL_MAXIMUM,
-  );
   const fixedPortError =
     !isFixedListenerMode(listenerMode)
       ? null
@@ -1273,10 +1324,7 @@ function validateDraft(
     finishedDownloadRatio === null
       ? wholeNumberError(SEED_GOAL_MINIMUM, SEED_GOAL_MAXIMUM)
       : null;
-  const finishedTimeError =
-    finishedTime === null
-      ? wholeNumberError(SEED_GOAL_MINIMUM, SEED_GOAL_MAXIMUM)
-      : null;
+  const finishedTimeError = finishedTime.error;
   if (
     preferredPortError !== null ||
     fixedPortError !== null ||
@@ -1287,6 +1335,8 @@ function validateDraft(
     shareRatioError !== null ||
     finishedDownloadRatioError !== null ||
     finishedTimeError !== null ||
+    seedStopRatio.error !== null ||
+    seedStopTime.error !== null ||
     uploadRate.error !== null ||
     downloadRate.error !== null
   ) {
@@ -1301,6 +1351,8 @@ function validateDraft(
       shareRatioError,
       finishedDownloadRatioError,
       finishedTimeError,
+      seedStopRatioError: seedStopRatio.error,
+      seedStopTimeError: seedStopTime.error,
       uploadRateError: uploadRate.error,
       downloadRateError: downloadRate.error,
     };
@@ -1323,7 +1375,8 @@ function validateDraft(
         : { type: "limited", torrents: seeds as number },
       share_ratio_limit_percent: shareRatio as number,
       finished_download_ratio_limit_percent: finishedDownloadRatio as number,
-      finished_time_limit_seconds: finishedTime as number,
+      finished_time_limit_seconds:
+        finishedTime.limit?.type === "limited" ? finishedTime.limit.value : NO_TIME_GOAL_SECONDS,
       upload_rate_limit: uploadRate.limit as TransferRateLimit,
       download_rate_limit: downloadRate.limit as TransferRateLimit,
       encryption,
@@ -1331,8 +1384,12 @@ function validateDraft(
       dht_enabled: dhtEnabled,
       peer_exchange_enabled: peerExchangeEnabled,
       tracker_https_server_authentication: trackerHttpsServerAuthentication,
-      seed_stop_ratio_percent: seedStopRatioPercent,
-      seed_stop_time_seconds: seedStopTimeSeconds,
+      seed_stop_ratio_percent: sessionSeedStopLimit(
+        seedStopRatio.limit as NonNullable<SeedStopValidation["limit"]>,
+      ),
+      seed_stop_time_seconds: sessionSeedStopLimit(
+        seedStopTime.limit as NonNullable<SeedStopValidation["limit"]>,
+      ),
     },
     preferredPortError: null,
     fixedPortError: null,
@@ -1343,6 +1400,8 @@ function validateDraft(
     shareRatioError: null,
     finishedDownloadRatioError: null,
     finishedTimeError: null,
+    seedStopRatioError: null,
+    seedStopTimeError: null,
     uploadRateError: null,
     downloadRateError: null,
   };

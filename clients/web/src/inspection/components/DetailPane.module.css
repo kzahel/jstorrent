@@ -79,6 +79,17 @@
   padding: var(--ui-space-lg);
 }
 
+/* Stop-limit lines sit together, one per limit. */
+.seedStop {
+  display: grid;
+  gap: var(--ui-space-xs);
+  margin: 1em 0;
+}
+
+.seedStop p {
+  margin: 0;
+}
+
 .summaryCard {
   display: flex;
   align-items: center;

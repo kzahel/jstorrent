@@ -18,6 +18,7 @@ import {
   torrentVisibleProgress,
 } from "../format";
 import type { DetailTab } from "../model";
+import { seedLimitReached, seedStopSummary } from "../seed-stop";
 import type { DesktopRemoteAccess } from "../remote-access/types";
 import { DETAIL_TABS } from "../tabs";
 import { PeerTable } from "./PeerTable";
@@ -186,6 +187,12 @@ function GeneralDetail({
     (state) => state.clearDetailTarget,
   );
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
+  const seedStopRatio = useInspectionStore(
+    (state) => state.clientSettings.configured.seed_stop_ratio_percent,
+  );
+  const seedStopTime = useInspectionStore(
+    (state) => state.clientSettings.configured.seed_stop_time_seconds,
+  );
   const errorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -269,7 +276,10 @@ function GeneralDetail({
         <Metric
           label={localizedMessage("inspection.components.detail.pane.status")}
           value={
-            torrentRemovalLabel(torrent) ?? operationalStateLabel(torrent.operationalState)
+            torrentRemovalLabel(torrent) ??
+            (seedLimitReached(torrent)
+              ? localizedMessage("inspection.components.detail.pane.state.seed.limit.reached")
+              : operationalStateLabel(torrent.operationalState))
           }
         />
         <Metric
@@ -317,6 +327,19 @@ function GeneralDetail({
       </dl>
       {torrent.seedGoal === null ? null : (
         <p>{seedGoalsReached(torrent.seedGoal)}</p>
+      )}
+      {torrent.seedGoal === null && torrent.seedStop?.stopped !== true ? null : (
+        <section
+          className={styles.seedStop}
+          aria-label={localizedMessage("inspection.components.detail.pane.stop.seeding")}
+        >
+          {seedStopSummary(torrent, {
+            seed_stop_ratio_percent: seedStopRatio,
+            seed_stop_time_seconds: seedStopTime,
+          }).map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </section>
       )}
       {torrent.protocolIdentities?.v1 != null &&
       torrent.protocolIdentities.v2 != null ? (

@@ -17,6 +17,7 @@ import type {
   SpeedSeriesView,
   SeedAdmissionView,
   SeedGoalView,
+  SeedStopView,
   SwarmCatalogState,
   SwarmCountsView,
   SwarmPeerState,
@@ -251,6 +252,8 @@ export interface TorrentRow {
   readonly shareRatioHundredths: string | null;
   readonly seedAdmission: SeedAdmissionView;
   readonly seedGoal: SeedGoalView | null;
+  /** Absent or null while the torrent uses the session stop limits and is not stopped. */
+  readonly seedStop?: SeedStopView | null;
   readonly addedAtMs: number | null;
   readonly archived: boolean | null;
   readonly removalState: "pending" | "awaiting_platform" | "failed" | null;
@@ -785,6 +788,7 @@ export type DemoScenarioId =
   | "speed-stale"
   | "speed-reset"
   | "dht-observatory"
+  | "seeding-limits"
   | "empty-library";
 
 export interface DemoScenarioSummary {

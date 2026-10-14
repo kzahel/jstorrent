@@ -13,6 +13,7 @@ import { useInspectionCommand, useInspectionStore } from "../context";
 import { formatDecimalProgress, formatExactBytes, torrentVisibleProgress } from "../format";
 import { episodeLabel, sortFileRows, sortMediaRows } from "../library-media";
 import type { FileRow, MediaRow, TorrentRow, ViewMaterialization } from "../model";
+import { seedLimitReached } from "../seed-stop";
 import { Icon } from "./Icon";
 import { useToast } from "./Toast";
 import styles from "./LibraryDetailView.module.css";
@@ -517,7 +518,10 @@ function torrentSummary(torrent: TorrentRow): string {
     case "metadata": return localizedMessage("inspection.components.library.detail.view.finding.content.details");
     case "downloading": return localizedMessage("inspection.components.library.detail.view.downloading");
     case "complete": return localizedMessage("inspection.components.library.detail.view.available.offline");
-    case "paused": return localizedMessage("inspection.components.library.detail.view.paused");
+    case "paused":
+      return seedLimitReached(torrent)
+        ? localizedMessage("inspection.components.library.detail.view.seed.limit.reached")
+        : localizedMessage("inspection.components.library.detail.view.paused");
     case "checking": return localizedMessage("inspection.components.library.detail.view.checking.downloaded.data");
     case "error": return localizedMessage("inspection.components.library.detail.view.needs.attention");
   }

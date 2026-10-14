@@ -143,7 +143,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         const busy = pendingAction !== null || sampleBatchRunning;
         return {
           ...action,
-          resolvedLabel: action.label(targets.length),
+          resolvedLabel: action.label(targets),
           disabled: busy || availability.disabled,
           ...(busy
             ? { disabledReason: localizedMessage("inspection.components.torrent.action.context.another.torrent.action.is.still.in.progress") }

@@ -1,5 +1,16 @@
 # Incoming Reachability And Seeding
 
+Tactical [344](../tactical/344-seeding-stop-limits.md) adds seeding stop
+limits beside the priority-only seed goals of Tactical 201. A finished torrent
+stops when its share ratio (`max(downloaded, size)` base) or seeding (finished)
+time reaches the session limit or its own override; both default to off. The
+admission pass checks running and queued seeds with in-memory accounting and
+stops through the ordinary pause path with a durable `seed_limit_stopped`
+flag. Resume of a limit-stopped torrent means keep seeding and sets its own
+limits to No limit; a user pause is never a limit stop, and raising a limit
+restarts nothing. Seed goals still only rank the queue. Inactive/idle limits,
+remove-on-limit actions and force start remain deferred.
+
 Tactical [340](../tactical/340-windows-quiet-network-startup.md) selects incoming
 and UPnP Off for fresh and first-upgrade Windows desktop profiles. Native VM
 Off/On/TCP-only controls, zero Off uTP allocation, atomic Off with preserved UDP,
@@ -682,7 +693,8 @@ The campaign should use explicit settings rather than one ambiguous
 | Incoming-connection limit | Maximum established inbound peers, coordinated with total connection budgets. |
 | Upload-slot limit | Maximum peers currently allowed to receive requested payload. |
 | Upload bandwidth limit | Aggregate and, if evidence requires it, per-torrent payload rate. |
-| Seeding goal | Deliberate lifecycle policy such as until stopped, ratio target, or elapsed-time target. |
+| Seeding goal | Priority-only libtorrent-shaped thresholds (Tactical 201): meeting one lowers seed-queue rank and never stops the torrent. |
+| Seeding stop limit | Share ratio or seeding time at which a finished torrent is durably stopped (Tactical 344), session-wide with a per-torrent override. |
 | Automatic mapping policy | Whether supported gateway mapping mechanisms may expose real bound endpoints. |
 
 The first local slice may use conservative immutable configuration supplied
@@ -1023,7 +1035,8 @@ After completed Tactical `084`, the campaign direction does not yet settle:
 - whether automatic port fallback is ever allowed after a fixed bind fails;
 - whether the temporary rule that a desired-running complete torrent seeds
   automatically should become a distinct durable seeding intent;
-- when ratio and elapsed-time goals become product settings;
+- whether inactive/idle stop limits or remove-on-limit actions are wanted
+  beyond Tactical 344's ratio and seeding-time stop limits;
 - how to choose among multiple interfaces or successful external mappings;
 - how VPN, metered networks, Android background lifecycle, and local-network
   permission affect listening and mapping;

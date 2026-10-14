@@ -19,6 +19,10 @@
   "inspection.components.torrent.status.getting.info": { "defaultMessage": "Getting info", "description": "Torrent status label" },
   "inspection.components.torrent.status.downloading": { "defaultMessage": "Downloading", "description": "Torrent status label" },
   "inspection.components.torrent.status.paused": { "defaultMessage": "Paused", "description": "Torrent status label" },
+  "inspection.components.torrent.status.seed.limit.reached": {
+    "defaultMessage": "Seeding limit reached",
+    "description": "Torrent status when it stopped because it reached a seeding ratio or time limit"
+  },
   "inspection.components.torrent.status.complete": { "defaultMessage": "Complete", "description": "Torrent status label" },
   "inspection.components.torrent.status.checking": { "defaultMessage": "Checking", "description": "Torrent status label" },
   "inspection.components.torrent.status.error": { "defaultMessage": "Error", "description": "Torrent status label" },
@@ -828,33 +832,49 @@
     "defaultMessage": "Max peer connections",
     "description": "Number field label"
   },
-  "inspection.components.connection.seeding.settings.section.seeding.goals.heading": {
-    "defaultMessage": "Seeding goals",
-    "description": "Settings group heading"
+  "inspection.components.connection.seeding.settings.section.seeding.priority.heading": {
+    "defaultMessage": "Seeding priority",
+    "description": "Settings group heading for seeding goals, which only decide which finished torrents seed first"
   },
-  "inspection.components.connection.seeding.settings.section.seeding.goals.description": {
+  "inspection.components.connection.seeding.settings.section.stop.seeding.heading": {
+    "defaultMessage": "Stop seeding",
+    "description": "Settings group heading for the ratio and time limits that stop finished torrents"
+  },
+  "inspection.components.connection.seeding.settings.section.stop.seeding.description": {
+    "defaultMessage": "Stop a finished torrent when it reaches either limit. Resume a stopped torrent to keep seeding it.",
+    "description": "Explains the seeding stop limits and how to keep seeding a stopped torrent"
+  },
+  "inspection.components.connection.seeding.settings.section.stop.share.ratio": {
+    "defaultMessage": "Share ratio",
+    "description": "Stop seeding limit: uploaded compared with the torrent's size"
+  },
+  "inspection.components.connection.seeding.settings.section.stop.seeding.time": {
+    "defaultMessage": "Seeding time",
+    "description": "Stop seeding limit: how long a finished torrent seeds"
+  },
+  "inspection.components.connection.seeding.settings.section.stop.off": {
+    "defaultMessage": "Off",
+    "description": "Stop seeding limit choice with no limit"
+  },
+  "inspection.components.connection.seeding.settings.section.seeding.priority.description": {
     "defaultMessage": "When more torrents are finished than can seed at once, torrents that haven't reached a goal seed first. Reaching a goal doesn't stop seeding.",
-    "description": "Explains how seeding goals affect which finished torrents seed"
+    "description": "Explains that seeding goals decide which finished torrents seed first and never stop seeding"
   },
   "inspection.components.connection.seeding.settings.section.seeding.download.time.goal": {
     "defaultMessage": "Seeding time vs. download time",
     "description": "Seeding goal comparing seeding time with download time, as a percentage"
   },
+  "inspection.components.connection.seeding.settings.section.no.time.goal": {
+    "defaultMessage": "No time goal",
+    "description": "Seeding time goal choice that never counts the goal as reached"
+  },
   "inspection.components.connection.seeding.settings.section.seeding.time.goal": {
     "defaultMessage": "Seeding time",
-    "description": "Seeding goal number field label, entered in seconds"
+    "description": "Seeding goal duration choice label"
   },
   "inspection.components.connection.seeding.settings.section.unit.percent": {
     "defaultMessage": "%",
     "description": "Unit after a percentage field"
-  },
-  "inspection.components.connection.seeding.settings.section.unit.seconds": {
-    "defaultMessage": "seconds",
-    "description": "Unit after a seconds field"
-  },
-  "inspection.components.connection.seeding.settings.section.unit.seconds.with.duration": {
-    "defaultMessage": "seconds ({duration})",
-    "description": "Unit after a seconds field with the value as a readable duration, such as 1d 0h"
   },
   "inspection.components.connection.seeding.settings.section.connections.heading": {
     "defaultMessage": "Connections",
@@ -1332,6 +1352,26 @@
     "defaultMessage": "Download",
     "description": "Torrent download speed limit label"
   },
+  "inspection.components.torrent.settings.dialog.stop.seeding": {
+    "defaultMessage": "Stop seeding",
+    "description": "Torrent settings heading for this torrent's seeding stop limits"
+  },
+  "inspection.components.torrent.settings.dialog.share.ratio": {
+    "defaultMessage": "Share ratio",
+    "description": "Torrent stop seeding limit: uploaded compared with the torrent's size"
+  },
+  "inspection.components.torrent.settings.dialog.seeding.time": {
+    "defaultMessage": "Seeding time",
+    "description": "Torrent stop seeding limit: how long this finished torrent seeds"
+  },
+  "inspection.components.torrent.settings.dialog.use.global": {
+    "defaultMessage": "Use global ({limit})",
+    "description": "Choice that follows the limit in Settings; limit is that setting, such as 2.0, 1 day or No limit"
+  },
+  "inspection.components.torrent.settings.dialog.no.limit": {
+    "defaultMessage": "No limit",
+    "description": "Choice that never stops this torrent for this limit"
+  },
   "inspection.components.torrent.settings.dialog.save": {
     "defaultMessage": "Save",
     "description": "Torrent settings dialog submit button"
@@ -1447,6 +1487,14 @@
   "inspection.components.detail.pane.state.paused": {
     "defaultMessage": "Paused",
     "description": "Torrent status in the General tab"
+  },
+  "inspection.components.detail.pane.state.seed.limit.reached": {
+    "defaultMessage": "Seeding limit reached",
+    "description": "Torrent status when it stopped because it reached a seeding ratio or time limit"
+  },
+  "inspection.components.detail.pane.stop.seeding": {
+    "defaultMessage": "Stop seeding",
+    "description": "Torrent details label for the limits that stop seeding"
   },
   "inspection.components.detail.pane.state.error": {
     "defaultMessage": "Error",
@@ -2240,6 +2288,10 @@
     "defaultMessage": "Paused",
     "description": "Product copy in inspection/components/LibraryDetailView.tsx"
   },
+  "inspection.components.library.detail.view.seed.limit.reached": {
+    "defaultMessage": "Seeding limit reached",
+    "description": "Library summary when the torrent stopped because it reached a seeding limit"
+  },
   "inspection.components.library.detail.view.recognized.video": {
     "defaultMessage": "recognized video",
     "description": "Product copy in inspection/components/LibraryDetailView.tsx"
@@ -2299,6 +2351,10 @@
   "inspection.components.library.view.available.offline": {
     "defaultMessage": "Available offline",
     "description": "Product copy in inspection/components/LibraryView.tsx"
+  },
+  "inspection.components.library.view.available.seed.limit.reached": {
+    "defaultMessage": "Available offline · Seeding limit reached",
+    "description": "Library availability when the content is complete and seeding stopped at a limit"
   },
   "inspection.components.library.view.content.needs.attention": {
     "defaultMessage": "Content needs attention",
@@ -4364,6 +4420,14 @@
     "defaultMessage": "Empty library",
     "description": "Product copy in inspection/demo/catalog.ts"
   },
+  "inspection.demo.catalog.seeding.limits": {
+    "defaultMessage": "Seeding limits",
+    "description": "Demo scenario title"
+  },
+  "inspection.demo.catalog.seeding.limits.description": {
+    "defaultMessage": "A torrent stopped at its share ratio limit and one that stops after a day",
+    "description": "Demo scenario description"
+  },
   "inspection.demo.catalog.endgame": {
     "defaultMessage": "Endgame",
     "description": "Product copy in inspection/demo/catalog.ts"
@@ -4796,6 +4860,10 @@
     "defaultMessage": "Select a torrent to use this action.",
     "description": "Product copy in inspection/torrent-actions.ts"
   },
+  "inspection.torrent.actions.keep.seeding": {
+    "defaultMessage": "Keep seeding",
+    "description": "Action that resumes a torrent stopped by a seeding limit and removes its limits"
+  },
   "inspection.torrent.actions.select.one.torrent.to.edit.settings": {
     "defaultMessage": "Select one torrent to edit its settings.",
     "description": "Reason torrent settings is unavailable for multiple selected torrents"
@@ -5163,6 +5231,74 @@
   "inspection.components.rate.limit.picker.custom.label": {
     "defaultMessage": "{label}, custom speed in KB per second",
     "description": "Accessible name of the custom speed field; label is Upload or Download"
+  },
+  "inspection.seed.stop.custom": {
+    "defaultMessage": "Custom…",
+    "description": "Ratio or duration choice that reveals a number field"
+  },
+  "inspection.seed.stop.ratio.custom.label": {
+    "defaultMessage": "{label}, custom ratio",
+    "description": "Accessible name of the custom ratio field; label is the row title, such as Share ratio"
+  },
+  "inspection.seed.stop.duration.custom.label": {
+    "defaultMessage": "{label}, custom time",
+    "description": "Accessible name of the custom duration number field; label is the row title, such as Seeding time"
+  },
+  "inspection.seed.stop.duration.unit.label": {
+    "defaultMessage": "{label}, unit",
+    "description": "Accessible name of the custom duration unit choice; label is the row title"
+  },
+  "inspection.seed.stop.unit.seconds": {
+    "defaultMessage": "seconds",
+    "description": "Custom duration unit"
+  },
+  "inspection.seed.stop.unit.minutes": {
+    "defaultMessage": "minutes",
+    "description": "Custom duration unit"
+  },
+  "inspection.seed.stop.unit.hours": {
+    "defaultMessage": "hours",
+    "description": "Custom duration unit"
+  },
+  "inspection.seed.stop.unit.days": {
+    "defaultMessage": "days",
+    "description": "Custom duration unit"
+  },
+  "inspection.seed.stop.duration.minutes": {
+    "defaultMessage": "{count, plural, one {# minute} other {# minutes}}",
+    "description": "A whole number of minutes"
+  },
+  "inspection.seed.stop.duration.hours": {
+    "defaultMessage": "{count, plural, one {# hour} other {# hours}}",
+    "description": "A whole number of hours"
+  },
+  "inspection.seed.stop.duration.days": {
+    "defaultMessage": "{count, plural, one {# day} other {# days}}",
+    "description": "A whole number of days"
+  },
+  "inspection.seed.stop.duration.weeks": {
+    "defaultMessage": "{count, plural, one {# week} other {# weeks}}",
+    "description": "A whole number of weeks"
+  },
+  "inspection.seed.stop.ratio.range.error": {
+    "defaultMessage": "Enter a ratio from 0 to {maximum} with up to two decimals",
+    "description": "Validation error for a custom share ratio"
+  },
+  "inspection.seed.stop.duration.range.error": {
+    "defaultMessage": "Enter a whole number from 0 to {maximum}",
+    "description": "Validation error for a custom duration in the chosen unit"
+  },
+  "inspection.seed.stop.summary.ratio": {
+    "defaultMessage": "Stops at ratio {limit} · now {current}",
+    "description": "Torrent details line: the share ratio that stops seeding and the current ratio"
+  },
+  "inspection.seed.stop.summary.time": {
+    "defaultMessage": "Stops after {limit} · seeded {seeded}",
+    "description": "Torrent details line: the seeding time that stops seeding and the time seeded so far"
+  },
+  "inspection.seed.stop.summary.none": {
+    "defaultMessage": "No stop limit",
+    "description": "Torrent details line when no limit stops this torrent's seeding"
   },
   "remote.video.play": {
     "defaultMessage": "Play",

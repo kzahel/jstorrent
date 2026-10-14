@@ -2,6 +2,7 @@ import { message as localizedMessage } from "../../localization/runtime";
 import { useInspectionStore } from "../context";
 import { torrentRemovalActive, torrentRemovalLabel } from "../format";
 import type { TorrentRow, TorrentStatus as Status } from "../model";
+import { seedLimitReached } from "../seed-stop";
 import styles from "./TorrentTable.module.css";
 
 const STATUS_LABELS: Record<Status, () => string> = {
@@ -30,7 +31,9 @@ export function TorrentStatus({
       ? localizedMessage("inspection.components.torrent.status.archived")
       : row.progressReason === "waiting for storage"
         ? localizedMessage("inspection.components.torrent.status.storage.unavailable")
-        : label);
+        : seedLimitReached(row)
+          ? localizedMessage("inspection.components.torrent.status.seed.limit.reached")
+          : label);
   const status = torrentRemovalActive(row)
     ? "removing"
     : row.removalState === "failed"
@@ -39,7 +42,7 @@ export function TorrentStatus({
 
   if (row.error === null) {
     return (
-      <span className={styles.status} data-status={status}>
+      <span className={styles.status} data-status={status} title={statusLabel}>
         {statusLabel}
       </span>
     );

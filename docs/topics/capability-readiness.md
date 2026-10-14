@@ -1,5 +1,12 @@
 # Capability Readiness
 
+Tactical [344](../tactical/344-seeding-stop-limits.md) implements seeding
+stop limits: session share-ratio and seeding-time limits with per-torrent
+overrides durably stop finished torrents, Resume means keep seeding, schema 27
+is the first in-place migration, and React and Compose present them. The
+pinned-libtorrent loopback interop run and a stop-at-completion test remain
+open; inactive limits, remove actions and force start stay deferred.
+
 Tactical [345](../tactical/345-supported-catalog-migrations.md) makes shipped
 user data durable across upgrades: session catalog schema 26 is the supported
 baseline, the automatic reset of older catalogs is gone, and later schemas

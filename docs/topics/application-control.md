@@ -1,5 +1,11 @@
 # Application Control
 
+Tactical [344](../tactical/344-seeding-stop-limits.md) adds the first
+application-initiated durable pause: a reached seeding stop limit commits
+paused intent with `seed_limit_stopped`, which only Resume (meaning keep
+seeding, with the torrent's own limits set to No limit) or another
+running-intent command clears. User Pause never sets it.
+
 Tactical [340](../tactical/340-windows-quiet-network-startup.md) applies the same
 one-time hold to Windows. The desktop startup helper keeps catalog mutation,
 marker persistence and shutdown-on-failure in one testable path. A persisted

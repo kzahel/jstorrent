@@ -539,6 +539,214 @@ describe("inspection application", () => {
     expect(download).toHaveValue("unlimited");
   });
 
+  it("saves per-torrent seeding stop limits against the global ones", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const fixture = clientSettingsRuntimeFixture();
+    const snapshot = {
+      ...base,
+      demo: null,
+      clientSettings: {
+        ...fixture,
+        configured: {
+          ...fixture.configured,
+          seed_stop_ratio_percent: { type: "limited" as const, value: 200 },
+        },
+      },
+    };
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot,
+    });
+    renderApplication(application);
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    const grid = screen.getByRole("grid", { name: "Torrents" });
+    fireEvent.contextMenu(
+      within(grid).getByRole("row", { name: /Big Buck Bunny 1080p surround/ }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Torrent settings" }));
+    const settings = screen.getByRole("dialog", { name: "Torrent settings" });
+    expect(
+      within(settings).getByRole("heading", { name: "Stop seeding" }),
+    ).toBeVisible();
+    const ratio = within(settings).getByRole("combobox", { name: "Share ratio" });
+    const time = within(settings).getByRole("combobox", { name: "Seeding time" });
+    expect(ratio).toHaveValue("use_global");
+    expect(
+      within(ratio).getByRole("option", { name: "Use global (2.0)" }),
+    ).toBeInTheDocument();
+    expect(time).toHaveValue("use_global");
+    expect(
+      within(time).getByRole("option", { name: "Use global (No limit)" }),
+    ).toBeInTheDocument();
+    const save = within(settings).getByRole("button", { name: "Save" });
+    expect(save).toBeDisabled();
+
+    await user.selectOptions(ratio, "No limit");
+    await user.selectOptions(time, "6 hours");
+    await user.click(save);
+    await waitFor(() =>
+      expect(application.commands.at(-1)).toEqual({
+        type: "update_torrent_settings",
+        torrentId: snapshot.torrentOrder[0],
+        patch: {
+          seed_stop_ratio_percent: { type: "off" },
+          seed_stop_time_seconds: { type: "limited", value: 21_600 },
+        },
+      }),
+    );
+
+    // Back to the global ratio; the unchanged time limit is not resent.
+    await user.selectOptions(ratio, "Use global (2.0)");
+    await user.click(save);
+    await waitFor(() =>
+      expect(application.commands.at(-1)).toEqual({
+        type: "update_torrent_settings",
+        torrentId: snapshot.torrentOrder[0],
+        patch: { seed_stop_ratio_percent: { type: "use_global" } },
+      }),
+    );
+  });
+
+  it("labels a limit-stopped torrent and offers Keep seeding", async () => {
+    const user = userEvent.setup();
+    const snapshot = {
+      ...buildScenarioSnapshot("seeding-limits", 0, false, 1),
+      demo: null,
+    };
+    const debian = Object.values(snapshot.torrents).find(
+      (torrent) => torrent.name === "Debian 13.1 amd64 netinst",
+    )!;
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot,
+    });
+    renderApplication(application);
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    const grid = screen.getByRole("grid", { name: "Torrents" });
+    const row = within(grid).getByRole("row", { name: /Debian 13\.1 amd64 netinst/ });
+    expect(within(row).getByText("Seeding limit reached")).toBeVisible();
+    expect(within(row).queryByText("Paused")).not.toBeInTheDocument();
+
+    await user.click(within(row).getByText("Debian 13.1 amd64 netinst"));
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    const detail = screen.getByRole("region", { name: "Torrent details" });
+    expect(within(detail).getByText("Status").parentElement).toHaveTextContent(
+      "StatusSeeding limit reached",
+    );
+    expect(
+      within(detail).getByRole("region", { name: "Stop seeding" }),
+    ).toHaveTextContent("Stops at ratio 2.00 · now 2.03");
+
+    expect(screen.queryByRole("button", { name: "Start" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Keep seeding" }));
+    await waitFor(() =>
+      expect(application.commands).toContainEqual({
+        type: "resume",
+        torrentId: debian.id,
+      }),
+    );
+
+    // The seeding torrent shows its time limit and progress.
+    await user.click(
+      within(
+        within(grid).getByRole("row", { name: /Arch Linux 2026\.08\.01 x86_64/ }),
+      ).getByText("Arch Linux 2026.08.01 x86_64"),
+    );
+    expect(
+      within(detail).getByRole("region", { name: "Stop seeding" }),
+    ).toHaveTextContent("Stops after 1 day · seeded 18h 0m");
+    expect(screen.getByRole("button", { name: "Start" })).toBeVisible();
+  });
+
+  it("saves only the changed seeding stop limits in Settings", async () => {
+    const user = userEvent.setup();
+    const fixture = clientSettingsRuntimeFixture();
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...liveSnapshot({ roots: [], defaultRoot: null, showAddOptions: true }),
+        clientSettings: {
+          ...fixture,
+          configured: {
+            ...fixture.configured,
+            seed_stop_time_seconds: { type: "limited", value: 5_400 },
+          },
+        },
+      },
+    });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    const stop = within(dialog).getByRole("region", { name: "Stop seeding" });
+    expect(
+      within(stop).getByText(/Resume a stopped torrent to keep seeding it/),
+    ).toBeVisible();
+    const ratio = within(stop).getByRole("combobox", { name: "Share ratio" });
+    const time = within(stop).getByRole("combobox", { name: "Seeding time" });
+    expect(ratio).toHaveValue("off");
+    // 90 minutes is not a preset, so it opens as a custom number of minutes.
+    expect(time).toHaveValue("custom");
+    expect(
+      within(stop).getByRole("spinbutton", { name: "Seeding time, custom time" }),
+    ).toHaveValue(90);
+    expect(
+      within(stop).getByRole("combobox", { name: "Seeding time, unit" }),
+    ).toHaveValue("minutes");
+    const save = within(dialog).getByRole("button", { name: "Save settings" });
+    expect(save).toBeDisabled();
+
+    await user.selectOptions(ratio, "Custom…");
+    const customRatio = within(stop).getByRole("spinbutton", {
+      name: "Share ratio, custom ratio",
+    });
+    fireEvent.change(customRatio, { target: { value: "2.555" } });
+    expect(
+      within(stop).getByText(/Enter a ratio from 0 to .* with up to two decimals/),
+    ).toBeVisible();
+    expect(save).toBeDisabled();
+    fireEvent.change(customRatio, { target: { value: "2.5" } });
+    expect(save).toBeEnabled();
+    await user.click(save);
+    await waitFor(() =>
+      expect(application.commands.at(-1)).toEqual({
+        type: "update_client_settings",
+        patch: { seed_stop_ratio_percent: { type: "limited", value: 250 } },
+      }),
+    );
+    await waitFor(() => expect(save).toBeDisabled());
+    expect(customRatio).toHaveValue(2.5);
+
+    await user.selectOptions(time, "Off");
+    const priority = within(dialog).getByRole("region", { name: "Seeding priority" });
+    expect(
+      within(priority).getByText(/Reaching a goal doesn't stop seeding/),
+    ).toBeVisible();
+    await user.selectOptions(
+      within(priority).getByRole("combobox", { name: "Seeding time" }),
+      "No time goal",
+    );
+    await user.click(save);
+    await waitFor(() =>
+      expect(application.commands.at(-1)).toEqual({
+        type: "update_client_settings",
+        patch: {
+          finished_time_limit_seconds: 2_147_483_647,
+          seed_stop_time_seconds: { type: "off" },
+        },
+      }),
+    );
+  });
+
   it("renders the responsive hierarchy and changes detail tabs", async () => {
     const user = userEvent.setup();
     renderScenario("healthy-download", 42_000);
@@ -3267,7 +3475,14 @@ describe("inspection application", () => {
     });
     expect(connectionTab).toBeVisible();
     await user.click(connectionTab);
-    for (const name of ["Speed limits", "Queue", "Seeding goals", "Connections", "Network"]) {
+    for (const name of [
+      "Speed limits",
+      "Queue",
+      "Stop seeding",
+      "Seeding priority",
+      "Connections",
+      "Network",
+    ]) {
       expect(within(dialog).getByRole("heading", { name })).toBeVisible();
     }
     expect(within(dialog).queryByText(/Effective/)).toBeNull();
@@ -3340,12 +3555,22 @@ describe("inspection application", () => {
     });
     await user.clear(finishedDownloadRatio);
     await user.type(finishedDownloadRatio, "800");
-    const finishedTime = within(dialog).getByRole("spinbutton", {
+    const priority = within(dialog).getByRole("region", { name: "Seeding priority" });
+    const finishedTime = within(priority).getByRole("combobox", {
       name: "Seeding time",
     });
-    await user.clear(finishedTime);
-    await user.type(finishedTime, "90000");
-    expect(within(dialog).getByText("seconds (1d 1h)")).toBeVisible();
+    expect(finishedTime).toHaveValue("86400");
+    await user.selectOptions(finishedTime, "Custom…");
+    const finishedTimeValue = within(priority).getByRole("spinbutton", {
+      name: "Seeding time, custom time",
+    });
+    expect(finishedTimeValue).toHaveValue(1);
+    await user.selectOptions(
+      within(priority).getByRole("combobox", { name: "Seeding time, unit" }),
+      "hours",
+    );
+    await user.clear(finishedTimeValue);
+    await user.type(finishedTimeValue, "25");
     await user.selectOptions(
       within(dialog).getByRole("combobox", { name: "Upload" }),
       "Custom…",
@@ -4355,6 +4580,13 @@ class RecordingLiveApplication implements InspectionApplication {
         return { accepted: false, message: "Torrent is not present" };
       }
       const revision = this.nextDurableRevision();
+      const stop = torrent.seedStop ?? {
+        limits: {
+          ratio_percent: { type: "use_global" as const },
+          time_seconds: { type: "use_global" as const },
+        },
+        stopped: false,
+      };
       const updated = {
         ...torrent,
         transferLimits: {
@@ -4362,6 +4594,15 @@ class RecordingLiveApplication implements InspectionApplication {
             command.patch.upload_rate_limit ?? torrent.transferLimits.upload,
           download:
             command.patch.download_rate_limit ?? torrent.transferLimits.download,
+        },
+        seedStop: {
+          ...stop,
+          limits: {
+            ratio_percent:
+              command.patch.seed_stop_ratio_percent ?? stop.limits.ratio_percent,
+            time_seconds:
+              command.patch.seed_stop_time_seconds ?? stop.limits.time_seconds,
+          },
         },
       };
       this.torrents = { ...this.torrents, [command.torrentId]: updated };

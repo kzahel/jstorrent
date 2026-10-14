@@ -2,6 +2,7 @@ import { message as localizedMessage } from "../localization/runtime";
 import type { IconName } from "./components/Icon";
 import { torrentRemovalActive } from "./format";
 import type { TorrentRow } from "./model";
+import { seedLimitReached } from "./seed-stop";
 
 export type TorrentActionId =
   | "start"
@@ -25,7 +26,7 @@ export type TorrentActionPlacement = "direct" | "overflow";
 
 export interface TorrentActionDefinition {
   readonly id: TorrentActionId;
-  readonly label: (targetCount: number) => string;
+  readonly label: (targets: readonly TorrentRow[]) => string;
   readonly pendingLabel: string;
   readonly icon: IconName;
   readonly group: TorrentActionGroup;
@@ -43,7 +44,11 @@ const label = (value: string) => () => value;
 export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   {
     id: "start",
-    label: label("Start"),
+    // Starting one torrent stopped by a seeding limit keeps it seeding.
+    label: (targets) =>
+      targets.length === 1 && seedLimitReached(targets[0]!)
+        ? localizedMessage("inspection.torrent.actions.keep.seeding")
+        : "Start",
     pendingLabel: "Starting",
     icon: "play",
     group: "transfer",
@@ -88,8 +93,8 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
   },
   {
     id: "copy_magnet",
-    label: (targetCount) =>
-      targetCount === 1 ? "Copy magnet link" : "Copy magnet links",
+    label: (targets) =>
+      targets.length === 1 ? "Copy magnet link" : "Copy magnet links",
     pendingLabel: "Copying magnet links",
     icon: "copy",
     group: "sharing",

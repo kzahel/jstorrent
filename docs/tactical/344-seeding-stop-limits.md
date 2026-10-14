@@ -1,8 +1,8 @@
 # Tactical 344: Seeding Stop Limits
 
-Status: In progress, 2026-10-14. Maintainer-authorized end to end with commits;
-the decisions below were accepted as recommended. Engine, catalog and contract
-landed first; React and Compose presentation follow.
+Status: Implemented, 2026-10-14; two validation items remain open (see
+**Evidence**). Maintainer-authorized end to end with commits; the decisions
+below were accepted as recommended.
 Topics: `incoming-reachability-and-seeding`, `client-persistence`,
 `application-control`, `web-ui-design`, `android-jstorrent-replacement`,
 `capability-readiness`.
@@ -281,3 +281,40 @@ migrates schema-26 profiles in place, React and the agreed Android surface
 present them, the validation above passes, and `incoming-reachability-and-seeding`,
 `client-persistence`, `application-control`, `capability-readiness` and
 `android-jstorrent-replacement` record the result.
+
+## Evidence
+
+Commits `1c4391e7` (engine, catalog, contract), `8f3f20be` (Android) and the
+web presentation commit that follows.
+
+- `cargo test -p rstorrent-session`: 414 library tests pass (2 ignored).
+  New coverage: the pure predicate at, just below and above each limit, zero
+  limits, the `max(downloaded, size)` base, overflow at maximum values; store
+  persistence of overrides, invalid values refused, stop eligibility, Keep
+  seeding across reopen, user pause unaffected, and the catalog `CHECK`; the
+  released v26 fixture migrating with every original value and no limits;
+  application `seed_stop_limit_stops_durably_and_keep_seeding_survives_restart`
+  (a scripted peer's one-byte request crosses exactly 200%, the peer is
+  closed, the torrent pauses as limit-stopped, Pause keeps the reason, Keep
+  seeding resumes with No limit and survives restart) and
+  `lowered_seed_time_limit_stops_active_and_queued_seeds` (a live session
+  limit stops the active and queued seed past it, keeps the other running,
+  and clearing the limit restarts nothing).
+- `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt`.
+- Web: `npm run typecheck`, `npm run test` (592 tests, 2 skipped),
+  `scripts/check-localization.mjs` (now covering `inspection.seed.stop.`),
+  and Playwright `inspection-demo`, `localization` and `overlay-primitives`
+  (42 passed), including a check that every Settings control shares one right
+  edge and width. A **Seeding limits** demo scenario shows a limit-stopped
+  torrent.
+- Android: `clients/android/build.sh debug` (both ABIs, 161 JVM tests, 8 new),
+  `compileDebugAndroidTestKotlin`, `lintDebug` (no new warnings).
+- Open: the controlled pinned-libtorrent loopback upload across a limit was
+  replaced by the in-process scripted peer, and a stop-at-completion test
+  (limit 0, completion milestone still recorded) was not written. iOS tests
+  did not run because `xcodegen` is not installed on this machine; the Swift
+  round-trip test was updated against the generated initializer.
+- Presentation choices: "Use global (No limit)" when the session limit is
+  off, matching a torrent's own No limit; the list Status column truncates
+  "Seeding limit reached" and shows it in full as a tooltip.
+

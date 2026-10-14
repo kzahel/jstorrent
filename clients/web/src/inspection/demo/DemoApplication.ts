@@ -4,6 +4,7 @@ import type {
   ClientSettings,
   SpeedMetric,
   SpeedRange,
+  SeedStopView,
   TorrentTransferLimits,
 } from "../../api";
 import type {
@@ -58,6 +59,7 @@ export class DemoApplication implements InspectionApplication {
   private archived = new Set<string>();
   private removed = new Set<string>();
   private transferLimits = new Map<string, TorrentTransferLimits>();
+  private seedStops = new Map<string, SeedStopView>();
   private clientSettings: ClientSettings | null = null;
   private extraTorrentCount = 0;
   private commandLogs: LogRow[] = [];
@@ -138,6 +140,19 @@ export class DemoApplication implements InspectionApplication {
           return rejected("Archived torrent must be restored before starting");
         }
         this.paused.delete(command.torrentId);
+        {
+          // Resuming a torrent stopped by a seeding limit keeps it seeding:
+          // its own limits become No limit, as the engine does.
+          const stop =
+            this.seedStops.get(command.torrentId) ??
+            this.snapshot.torrents[command.torrentId]?.seedStop;
+          if (stop?.stopped === true) {
+            this.seedStops.set(command.torrentId, {
+              limits: { ratio_percent: { type: "off" }, time_seconds: { type: "off" } },
+              stopped: false,
+            });
+          }
+        }
         this.addCommandLog("lifecycle", "Torrent resumed in demo mode", command.torrentId);
         this.advance(0);
         return accepted();
@@ -211,6 +226,21 @@ export class DemoApplication implements InspectionApplication {
           this.transferLimits.set(command.torrentId, {
             upload: command.patch.upload_rate_limit ?? current.upload,
             download: command.patch.download_rate_limit ?? current.download,
+          });
+          const stop = this.seedStops.get(command.torrentId) ??
+            torrent.seedStop ?? {
+              limits: {
+                ratio_percent: { type: "use_global" },
+                time_seconds: { type: "use_global" },
+              },
+              stopped: false,
+            };
+          this.seedStops.set(command.torrentId, {
+            ...stop,
+            limits: {
+              ratio_percent: command.patch.seed_stop_ratio_percent ?? stop.limits.ratio_percent,
+              time_seconds: command.patch.seed_stop_time_seconds ?? stop.limits.time_seconds,
+            },
           });
         }
         this.addCommandLog(
@@ -298,6 +328,7 @@ export class DemoApplication implements InspectionApplication {
         this.extraTorrentCount,
         this.commandLogs,
         this.transferLimits,
+        this.seedStops,
         this.clientSettings,
       ),
       this.desiredViews,
@@ -327,6 +358,7 @@ export class DemoApplication implements InspectionApplication {
     this.archived = new Set();
     this.removed = new Set();
     this.transferLimits = new Map();
+    this.seedStops = new Map();
     this.clientSettings = null;
     this.extraTorrentCount = 0;
     this.commandLogs = [];
@@ -652,6 +684,7 @@ function applyOverlays(
   extraTorrentCount: number,
   commandLogs: readonly LogRow[],
   transferLimits: ReadonlyMap<string, TorrentTransferLimits>,
+  seedStops: ReadonlyMap<string, SeedStopView>,
   clientSettings: ClientSettings | null,
 ): InspectionSnapshot {
   const torrents: Record<string, TorrentRow> = {};
@@ -659,17 +692,37 @@ function applyOverlays(
     if (removed.has(id)) continue;
     const row = source.torrents[id];
     if (row === undefined) continue;
+    const seedStop = seedStops.get(id) ?? row.seedStop ?? null;
+    // A limit-stopped scenario torrent that was resumed seeds again.
+    const keptSeeding =
+      row.seedStop?.stopped === true && seedStop?.stopped === false && !paused.has(id);
+    const base: TorrentRow = keptSeeding
+      ? {
+          ...row,
+          status: "complete",
+          operationalState: "seeding",
+          seedAdmission: "active",
+          seedGoal: row.seedGoal ?? {
+            status: "met",
+            share_ratio_met: true,
+            finished_download_ratio_met: false,
+            finished_time_met: false,
+          },
+          progressReason: "Seeding in demo mode",
+        }
+      : row;
     torrents[id] = {
-      ...row,
-      transferLimits: transferLimits.get(id) ?? row.transferLimits,
-      status: paused.has(id) ? "paused" : row.status,
-      operationalState: paused.has(id) ? "paused" : row.operationalState,
+      ...base,
+      seedStop,
+      transferLimits: transferLimits.get(id) ?? base.transferLimits,
+      status: paused.has(id) ? "paused" : base.status,
+      operationalState: paused.has(id) ? "paused" : base.operationalState,
       archived: archived.has(id),
-      downloadRate: paused.has(id) ? 0 : row.downloadRate,
-      uploadRate: paused.has(id) ? 0 : row.uploadRate,
-      etaDownloadRateBytes: paused.has(id) ? "0" : row.etaDownloadRateBytes,
-      eta: paused.has(id) ? { state: "unavailable" } : row.eta,
-      progressReason: paused.has(id) ? "Paused in demo mode" : row.progressReason,
+      downloadRate: paused.has(id) ? 0 : base.downloadRate,
+      uploadRate: paused.has(id) ? 0 : base.uploadRate,
+      etaDownloadRateBytes: paused.has(id) ? "0" : base.etaDownloadRateBytes,
+      eta: paused.has(id) ? { state: "unavailable" } : base.eta,
+      progressReason: paused.has(id) ? "Paused in demo mode" : base.progressReason,
     };
   }
 

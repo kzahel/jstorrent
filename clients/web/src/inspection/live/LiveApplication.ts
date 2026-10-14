@@ -1325,6 +1325,7 @@ function mapTorrent(torrent: TorrentView): TorrentRow {
     shareRatioHundredths: torrent.lifetime.share_ratio_hundredths,
     seedAdmission: torrent.seeding.admission,
     seedGoal: torrent.seeding.goal ?? null,
+    seedStop: torrent.seeding.stop ?? null,
     addedAtMs: null,
     archived: torrent.archived,
     removalState: torrent.removal_state ?? null,

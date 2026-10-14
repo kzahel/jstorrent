@@ -1,5 +1,14 @@
 # Web UI Design
 
+Tactical [344](../tactical/344-seeding-stop-limits.md) adds **Stop seeding**
+to Settings → Connection & seeding and to Torrent settings, renames the goal
+group **Seeding priority**, and replaces raw-seconds and free-number fields
+with preset pickers (`RatioPicker`, `DurationPicker`, `RateLimitPicker`) that
+share `PresetPicker.module.css` and a `NumberInput` that draws units inside
+the field. Every Settings control now ends on one right edge at one width.
+A limit-stopped torrent reads **Seeding limit reached** and its single-torrent
+start action reads **Keep seeding**.
+
 Tactical [347](../tactical/347-about-on-every-web-host.md) makes Settings →
 **About** universal. Every host shows how the page is connected, the version
 (or "Not reported"), the build, and support links with diagnostics. Desktop

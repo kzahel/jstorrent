@@ -381,10 +381,14 @@
   grid-column: 1;
 }
 
-/* Number rows: text on the left, the field on the right. */
+/*
+ * Number rows: text on the left, the field in the shared control column on
+ * the right. Picker rows use the same column, so every select and number
+ * field in a form ends at one edge with one width; units sit inside fields.
+ */
 .numberField {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) var(--ui-setting-control-width);
   align-items: center;
   gap: var(--ui-space-xs) var(--ui-space-lg);
 }
@@ -399,33 +403,9 @@
   grid-column: 1 / -1;
 }
 
-.numberField input {
-  width: 7.5rem;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.numberField input[aria-invalid="true"] {
-  border-color: var(--danger);
-}
-
 .numberField .fieldError,
 .errorStatus {
   color: var(--danger);
-}
-
-.inputWithUnit,
-.numberField > .inputWithUnit {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--ui-space-sm);
-  color: var(--text-secondary);
-  font-size: var(--ui-font-small);
-}
-
-.numberField .inputWithUnit input {
-  width: 7.5rem;
 }
 
 .settingNote,
@@ -845,14 +825,9 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .numberField input,
-  .numberField .inputWithUnit input {
-    width: 100%;
-  }
-
-  .inputWithUnit,
-  .numberField > .inputWithUnit {
-    justify-content: flex-start;
+  /* Stacked rows keep the same control width as the picker rows. */
+  .numberField > :nth-child(2) {
+    max-width: var(--ui-setting-control-width);
   }
 
   .dataReset section button {

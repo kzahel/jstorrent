@@ -152,6 +152,7 @@ async function checkWebCatalog() {
     "inspection.components.rate.limit.picker.",
     "inspection.components.settings.dialog.",
     "inspection.components.torrent.settings.dialog.",
+    "inspection.seed.stop.",
     "inspection.transfer.rate.",
   ];
   const webMaintainerVocabulary =

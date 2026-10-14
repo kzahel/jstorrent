@@ -22,6 +22,7 @@ import type {
   TorrentRow,
   ViewMaterialization,
 } from "../model";
+import { seedLimitReached } from "../seed-stop";
 import { torrentMatchesLibraryCategory } from "../state";
 import { LibraryDetailView, waterLevel } from "./LibraryDetailView";
 import styles from "./LibraryView.module.css";
@@ -478,7 +479,9 @@ function availabilityLabel(row: TorrentRow): string {
     case "complete":
       return localizedMessage("inspection.components.library.view.available.offline");
     case "paused":
-      return `${formatProgress(row.progress)} downloaded · Paused`;
+      return seedLimitReached(row)
+        ? localizedMessage("inspection.components.library.view.available.seed.limit.reached")
+        : `${formatProgress(row.progress)} downloaded · Paused`;
     case "checking":
       return checkingStatusLabel(row);
     case "error":
