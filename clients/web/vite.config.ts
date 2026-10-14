@@ -67,9 +67,13 @@ export default defineConfig(({ mode }) => {
             assetsInlineLimit: 0,
             outDir: "dist/companion",
             emptyOutDir: true,
+            // The extension packages and reviews exactly one script and one
+            // stylesheet, so on-demand panels are bundled in rather than split.
+            cssCodeSplit: false,
             rollupOptions: {
               input: resolve(process.cwd(), "companion.html"),
               output: {
+                codeSplitting: false,
                 entryFileNames: "assets/companion.js",
                 chunkFileNames: "assets/[name].js",
                 assetFileNames: "assets/companion.[ext]",
