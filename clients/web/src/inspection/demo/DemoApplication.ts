@@ -18,6 +18,8 @@ import type {
   InspectionUpdate,
   KeyedPatch,
   FileRow,
+  FileSet,
+  MagnetShareOptions,
   MediaRow,
   LogRow,
   PeerRow,
@@ -198,17 +200,11 @@ export class DemoApplication implements InspectionApplication {
       case "export_magnet": {
         const torrent = this.snapshot.torrents[command.torrentId];
         if (torrent === undefined) return rejected("Torrent is not present");
-        return {
-          accepted: true,
-          message: localizedMessage("inspection.demo.demo.application.magnet.link.ready"),
-          magnetExport: {
-            magnet:
-              `magnet:?xt=urn:btih:${torrent.infoHash}` +
-              `&dn=${encodeMagnetValue(torrent.name)}`,
-            source: "synthesized",
-            omittedTrackerCount: 0,
-          },
-        };
+        return demoMagnetExport(
+          torrent,
+          this.snapshot.filesByTorrent[command.torrentId],
+          command.options,
+        );
       }
       case "set_file_priority":
       case "download_files":
@@ -1170,6 +1166,92 @@ function accepted(message?: string): CommandAccepted {
 
 function rejected(message: string): CommandResult {
   return { accepted: false, message };
+}
+
+/**
+ * The demo's `export_magnet`, with Tactical 357 share options: `xl` from the
+ * size, `so` ranges checked against a published file list, and a fake
+ * local-network peer hint unless the torrent is private or has no metadata.
+ */
+function demoMagnetExport(
+  torrent: TorrentRow,
+  files: FileSet | undefined,
+  options: MagnetShareOptions | undefined,
+): CommandResult {
+  let magnet =
+    `magnet:?xt=urn:btih:${torrent.infoHash}` +
+    `&dn=${encodeMagnetValue(torrent.name)}`;
+  const result = {
+    accepted: true as const,
+    message: localizedMessage("inspection.demo.demo.application.magnet.link.ready"),
+  };
+  if (options === undefined) {
+    return {
+      ...result,
+      magnetExport: { magnet, source: "synthesized", omittedTrackerCount: 0 },
+    };
+  }
+  const metadata = torrent.sizeBytes !== null;
+  const indices = options.fileIndices ?? [];
+  if (indices.length > 0) {
+    if (!metadata) return rejected("Torrent metadata is not available yet");
+    if (indices.length > 4096) return rejected("Too many files selected");
+    const known =
+      files === undefined || files.state !== "available"
+        ? null
+        : new Set(
+            Object.values(files.rows)
+              .filter((row) => !row.padding)
+              .map((row) => row.index),
+          );
+    if (known !== null && indices.some((index) => !known.has(index))) {
+      return rejected("File index is not in this torrent");
+    }
+  }
+  if (options.includeSize === true && metadata) {
+    magnet += `&xl=${torrent.sizeBytes}`;
+  }
+  if (indices.length > 0) magnet += `&so=${selectOnlyRanges(indices)}`;
+  const hint = { endpoint: "192.168.1.20:6881", scope: "local_network" as const };
+  const peerHint =
+    options.peerHint !== true
+      ? {}
+      : torrent.privateTorrent === true
+        ? { peerHints: [], peerHintOmission: "private_torrent" as const }
+        : !metadata
+          ? { peerHints: [], peerHintOmission: "metadata_pending" as const }
+          : { peerHints: [hint] };
+  if ("peerHints" in peerHint && peerHint.peerHints.length > 0) {
+    magnet += `&x.pe=${hint.endpoint}`;
+  }
+  return {
+    ...result,
+    magnetExport: {
+      magnet,
+      source: "synthesized",
+      omittedTrackerCount: 0,
+      ...peerHint,
+    },
+  };
+}
+
+/** BEP 53 `so`: sorted indices as `0,2-4`. */
+function selectOnlyRanges(indices: readonly number[]): string {
+  const sorted = [...new Set(indices)].sort((left, right) => left - right);
+  const ranges: string[] = [];
+  let start = sorted[0]!;
+  let end = start;
+  for (const index of sorted.slice(1)) {
+    if (index === end + 1) {
+      end = index;
+      continue;
+    }
+    ranges.push(start === end ? `${start}` : `${start}-${end}`);
+    start = index;
+    end = index;
+  }
+  ranges.push(start === end ? `${start}` : `${start}-${end}`);
+  return ranges.join(",");
 }
 
 function encodeMagnetValue(value: string): string {

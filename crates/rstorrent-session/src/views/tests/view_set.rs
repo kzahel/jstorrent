@@ -96,6 +96,7 @@ fn torrent_view(id: &str, verified: u32) -> TorrentView {
         protocol_identities: protocol_identities(),
         display_name: Some("Fixture torrent".to_owned()),
         source_display_name: None,
+        source_size_bytes: None,
         state: TorrentState::Downloading,
         operational_state: TorrentOperationalState::Downloading,
         download_queue_position: None,

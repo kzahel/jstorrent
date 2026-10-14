@@ -1,5 +1,10 @@
 # Localization
 
+Tactical [357](../tactical/357-rich-share-links.md) adds 37 web messages
+(1,499 total) and 27 Android strings (580 total) for share panels, the
+address prompt, peer-hint results, file shares and sizes from the link.
+Shipping locales remain English.
+
 Tactical [350](../tactical/350-share-links-and-private-hint.md) adds the web
 share-link action, toast and private-hint messages and six Android strings
 for Copy share link and the private-torrent row and snackbars. Shipping

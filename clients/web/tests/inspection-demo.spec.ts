@@ -363,7 +363,11 @@ test("torrent and file rows expose exact accessible context actions", async ({
     fileMenu.getByRole("menuitem", { name: "Normal" }),
   ).toBeDisabled();
   await expect(fileMenu.getByRole("menuitem", { name: "Skip" })).toBeDisabled();
-  await expect(fileMenu.getByRole("separator")).toHaveCount(1);
+  // Sharing only exports a link, so demo scenarios allow it.
+  await expect(
+    fileMenu.getByRole("menuitem", { name: "Share file" }),
+  ).toBeEnabled();
+  await expect(fileMenu.getByRole("separator")).toHaveCount(2);
   await expect(fileMenu.getByText("Priority", { exact: true })).toHaveCount(0);
   await capture(page, "rstorrent-file-context-dividers.png");
   expect(await files.getByRole("row").count()).toBeLessThanOrEqual(100);
@@ -374,6 +378,100 @@ test("torrent and file rows expose exact accessible context actions", async ({
       violation.impact === "serious" || violation.impact === "critical",
   );
   expect(fileViolations).toEqual([]);
+});
+
+test("share panel, address question and file share stay accessible", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await page.goto("/?demo=healthy-download&at=42000&autoplay=0");
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("button", { name: "Torrents" })
+    .click();
+  await page.getByRole("tab", { name: "General" }).click();
+  const shareButton = page.getByRole("button", { name: "Share", exact: true });
+  await shareButton.click();
+  const panel = page.getByRole("dialog", { name: "Share torrent" });
+  const link = panel.getByRole("textbox", { name: "Share link" });
+  await expect(link).toHaveValue(/^https:\/\/jstorrent\.com\/share\/#xt=urn:btih:[0-9a-f]{40}&dn=[^&]+&xl=\d+$/);
+  await expect(
+    panel.getByRole("img", { name: "QR code for the share link" }),
+  ).toBeVisible();
+  await panel.getByRole("checkbox", { name: "Include my address" }).check();
+  await expect(link).toHaveValue(/&x\.pe=192\.168\.1\.20:6881$/);
+  await expect(panel.getByRole("status")).toHaveText(
+    "Includes your local network address 192.168.1.20:6881. Only people on your network can use it.",
+  );
+  await capture(page, "rstorrent-share-panel.png");
+  const panelViolations = (
+    await new AxeBuilder({ page }).include('[role="dialog"]').analyze()
+  ).violations.filter(
+    (violation) =>
+      violation.impact === "serious" || violation.impact === "critical",
+  );
+  expect(panelViolations).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+  await expect(shareButton).toBeFocused();
+
+  const grid = page.getByRole("grid", { name: "Torrents" });
+  await grid
+    .getByRole("row")
+    .filter({ hasText: "Big Buck Bunny 1080p surround" })
+    .click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Torrent actions" })
+    .getByRole("menuitem", { name: "Copy share link" })
+    .click();
+  const question = page.getByRole("dialog", {
+    name: "Let them connect to you directly?",
+  });
+  await expect(question).toBeVisible();
+  await capture(page, "rstorrent-share-address-question.png");
+  const questionViolations = (
+    await new AxeBuilder({ page }).include('[role="dialog"]').analyze()
+  ).violations.filter(
+    (violation) =>
+      violation.impact === "serious" || violation.impact === "critical",
+  );
+  expect(questionViolations).toEqual([]);
+  await question.getByRole("button", { name: "Don't include" }).click();
+  await expect(page.getByRole("region", { name: "Notification" })).toContainText(
+    "Share link copied",
+  );
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
+    /^https:\/\/jstorrent\.com\/share\/#xt=urn:btih:[0-9a-f]{40}&dn=[^&]+&xl=\d+$/,
+  );
+
+  await page.goto("/?demo=file-progress&at=24000&autoplay=0");
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("button", { name: "Torrents" })
+    .click();
+  await page.getByRole("tab", { name: "Files" }).click();
+  const files = page.getByRole("grid", { name: "Torrent files" });
+  await files
+    .getByRole("row")
+    .filter({ hasText: "asset-001.mkv" })
+    .click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "File actions" })
+    .getByRole("menuitem", { name: "Share file" })
+    .click();
+  await question.getByRole("checkbox", { name: "Remember my choice" }).check();
+  await question.getByRole("button", { name: "Include my address" }).click();
+  await expect(page.getByRole("region", { name: "Notification" })).toContainText(
+    "Share link copied with your local network address.",
+  );
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(
+    /&so=\d+&x\.pe=192\.168\.1\.20:6881&jst\.file=asset-001\.mkv&jst\.size=\d+$/,
+  );
+  expect(
+    await page.evaluate(() => localStorage.getItem("rstorrent.presentation.share")),
+  ).toBe(JSON.stringify({ version: 1, peerHint: "include" }));
 });
 
 test("phone destinations and contextual filters remain reachable", async ({

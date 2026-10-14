@@ -824,6 +824,7 @@ class ProductStateReducerTest {
                                             TorrentFieldUpdate.SelectedFileBytes("1200"),
                                             TorrentFieldUpdate.PayloadDownloadRateBytes("4096"),
                                             TorrentFieldUpdate.PrivateTorrent(true),
+                                            TorrentFieldUpdate.SourceSizeBytes("1048576"),
                                             TorrentFieldUpdate.Lifetime(
                                                 TorrentLifetimeView(
                                                     "14",
@@ -869,6 +870,8 @@ class ProductStateReducerTest {
         assertEquals("4096", patched.torrents.getValue("first").payloadDownloadRateBytes)
         assertFalse(initial.torrents.getValue("first").privateTorrent)
         assertTrue(patched.torrents.getValue("first").privateTorrent)
+        assertEquals(null, initial.torrents.getValue("first").sourceSizeBytes)
+        assertEquals("1048576", patched.torrents.getValue("first").sourceSizeBytes)
         assertEquals("14", patched.torrents.getValue("first").lifetime.uploadedPayloadBytes)
         assertEquals(SeedAdmissionView.QUEUED, patched.torrents.getValue("first").seeding.admission)
 
@@ -1293,6 +1296,7 @@ class ProductStateReducerTest {
                 ),
             displayName = "Verified torrent",
             sourceDisplayName = null,
+            sourceSizeBytes = null,
             state = state,
             operationalState = TorrentOperationalState.DOWNLOADING,
             downloadQueuePosition = null,

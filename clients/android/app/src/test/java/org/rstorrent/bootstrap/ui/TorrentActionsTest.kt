@@ -109,6 +109,28 @@ class TorrentActionsTest {
         assertFalse(failed.allows(TorrentAction.START))
     }
 
+    @Test
+    fun linkSizeIsShownOnlyWhileTheVerifiedSizeIsUnknown() {
+        val magnet = torrent("magnet").copy(totalSizeBytes = null, sourceSizeBytes = "1048576")
+        assertEquals("1048576", linkClaimedSizeBytes(magnet))
+        assertEquals(null, linkClaimedSizeBytes(magnet.copy(totalSizeBytes = "1048000")))
+        assertEquals(null, linkClaimedSizeBytes(magnet.copy(sourceSizeBytes = null)))
+    }
+
+    @Test
+    fun torrentShareRequestCarriesPrivacyAndMetadataState() {
+        val request =
+            torrentShareRequest(
+                torrent("t").copy(privateTorrent = true, metadataAvailable = false, displayName = "Name"),
+            )
+        assertEquals("t", request.torrentId)
+        assertEquals("Name", request.title)
+        assertTrue(request.privateTorrent)
+        assertFalse(request.metadataAvailable)
+        assertTrue(request.fileIndices.isEmpty())
+        assertEquals(null, request.file)
+    }
+
     private fun torrent(
         id: String,
         state: TorrentState = TorrentState.DOWNLOADING,
@@ -123,6 +145,7 @@ class TorrentActionsTest {
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = id,
             sourceDisplayName = null,
+            sourceSizeBytes = null,
             state = state,
             operationalState = operational,
             downloadQueuePosition = queue,

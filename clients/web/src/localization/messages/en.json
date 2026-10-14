@@ -1436,10 +1436,6 @@
     "defaultMessage": "Copy magnet link",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
-  "inspection.components.detail.pane.copy.share.link": {
-    "defaultMessage": "Copy share link",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
   "inspection.components.detail.pane.copy.info.hash": {
     "defaultMessage": "Copy info hash",
     "description": "Product copy in inspection/components/DetailPane.tsx"
@@ -5670,5 +5666,153 @@
   "feedback.add.batch.failed": {
     "defaultMessage": "Couldn't add {failed, number}: {details}",
     "description": "Error part of the result after adding several torrents; details lists each torrent and its error"
+  },
+  "feedback.share.link.copied.with.address": {
+    "defaultMessage": "{scope, select, local_network {{links, plural, one {Share link copied with your local network address. Only people on your network can use it to reach you.} other {# share links copied with your local network address. Only people on your network can use them to reach you.}}} other {{links, plural, one {Share link copied with your address.} other {# share links copied with your address.}}}}",
+    "description": "Notification after copying share links that include this device's address (BEP 9 x.pe); scope is internet or local_network"
+  },
+  "feedback.share.link.copied.without.address": {
+    "defaultMessage": "{reason, select, incoming_disabled {{links, plural, one {Share link copied without your address because incoming connections are off.} other {# share links copied without your address because incoming connections are off.}}} not_reachable {{links, plural, one {Share link copied without your address because it couldn't be confirmed reachable.} other {# share links copied without your address because it couldn't be confirmed reachable.}}} no_address {{links, plural, one {Share link copied without your address because no usable address was found.} other {# share links copied without your address because no usable address was found.}}} metadata_pending {{links, plural, one {Share link copied without your address because the torrent's details haven't arrived yet.} other {# share links copied without your address because a torrent's details haven't arrived yet.}}} other {{links, plural, one {Share link copied without your address.} other {# share links copied without your address.}}}}",
+    "description": "Notification after copying share links when the user asked to include their address but it was left out; reason says why"
+  },
+  "feedback.share.files.unsupported": {
+    "defaultMessage": "The JSTorrent you're connected to needs an update to share single files.",
+    "description": "Error when the connected host returned a whole-torrent link for a file share"
+  },
+  "share.peer.hint.dialog.title": {
+    "defaultMessage": "Let them connect to you directly?",
+    "description": "Title of the dialog asking whether a share link includes this device's address"
+  },
+  "share.peer.hint.dialog.body": {
+    "defaultMessage": "Adding your address to the link lets the people you share it with reach you sooner. Anyone who has the link can see your IP address.",
+    "description": "Explains what including your address in a share link does and its privacy cost"
+  },
+  "share.peer.hint.dialog.remember": {
+    "defaultMessage": "Remember my choice",
+    "description": "Checkbox in the share address dialog; the choice can be changed in Settings"
+  },
+  "share.peer.hint.dialog.include": {
+    "defaultMessage": "Include my address",
+    "description": "Button: copy the share link with this device's address"
+  },
+  "share.peer.hint.dialog.omit": {
+    "defaultMessage": "Don't include",
+    "description": "Button: copy the share link without this device's address"
+  },
+  "share.panel.title": {
+    "defaultMessage": "Share torrent",
+    "description": "Title of the Share panel opened from the General tab"
+  },
+  "share.panel.link.label": {
+    "defaultMessage": "Share link",
+    "description": "Label of the read-only share link field"
+  },
+  "share.panel.loading": {
+    "defaultMessage": "Preparing link…",
+    "description": "Shown while the share link is being prepared"
+  },
+  "share.panel.copy": {
+    "defaultMessage": "Copy",
+    "description": "Button that copies the share link"
+  },
+  "share.panel.share": {
+    "defaultMessage": "Share…",
+    "description": "Button that opens the system share sheet with the share link"
+  },
+  "share.panel.close": {
+    "defaultMessage": "Close",
+    "description": "Button that closes the Share panel"
+  },
+  "share.panel.qr.label": {
+    "defaultMessage": "QR code for the share link",
+    "description": "Accessible name of the share link QR code"
+  },
+  "share.panel.qr.too.long": {
+    "defaultMessage": "This link is too long for a QR code.",
+    "description": "Shown instead of a QR code when the share link does not fit"
+  },
+  "share.panel.include.address": {
+    "defaultMessage": "Include my address",
+    "description": "Checkbox in the Share panel that adds this device's address to the link"
+  },
+  "share.panel.include.address.description": {
+    "defaultMessage": "Helps people reach you sooner. Anyone with the link can see your IP address.",
+    "description": "Help under the Include my address checkbox"
+  },
+  "share.panel.address.included": {
+    "defaultMessage": "{scope, select, local_network {Includes your local network address {addresses}. Only people on your network can use it.} other {Includes your address {addresses}.}}",
+    "description": "Share panel status when the link includes this device's address; addresses are ip:port values"
+  },
+  "share.panel.address.omitted": {
+    "defaultMessage": "{reason, select, incoming_disabled {Your address isn't included because incoming connections are off.} not_reachable {Your address isn't included because it couldn't be confirmed reachable.} no_address {Your address isn't included because no usable address was found.} metadata_pending {Your address isn't included until the torrent's details arrive.} private_torrent {Your address isn't included because this torrent is private.} other {Your address isn't included.}}",
+    "description": "Share panel status when the address was asked for but left out; reason says why"
+  },
+  "share.panel.failed": {
+    "defaultMessage": "Couldn't prepare the share link: {error}",
+    "description": "Share panel error when exporting the link failed"
+  },
+  "share.panel.share.failed": {
+    "defaultMessage": "Couldn't open sharing: {error}",
+    "description": "Error when the system share sheet failed"
+  },
+  "inspection.components.detail.pane.share": {
+    "defaultMessage": "Share",
+    "description": "General tab button that opens the Share panel"
+  },
+  "inspection.components.detail.pane.size.from.link": {
+    "defaultMessage": "{size} (from the link)",
+    "description": "General tab size before the torrent's details arrive, as claimed by the magnet link; never verified"
+  },
+  "inspection.components.torrent.table.size.from.link": {
+    "defaultMessage": "{size} (link)",
+    "description": "Torrent list size cell before the torrent's details arrive, as claimed by the magnet link"
+  },
+  "inspection.components.torrent.table.size.from.link.title": {
+    "defaultMessage": "Size from the link. It's confirmed once the torrent's details arrive.",
+    "description": "Tooltip on a torrent list size taken from the magnet link"
+  },
+  "inspection.file.actions.share.file": {
+    "defaultMessage": "Share file",
+    "description": "File action that shares a link to one file"
+  },
+  "inspection.file.actions.share.files": {
+    "defaultMessage": "Share files",
+    "description": "File action that shares a link to the selected files"
+  },
+  "inspection.components.file.table.share.needs.details": {
+    "defaultMessage": "Files can be shared once the torrent's details arrive.",
+    "description": "Why Share file is unavailable before metadata"
+  },
+  "inspection.components.share.settings.section.sharing": {
+    "defaultMessage": "Sharing",
+    "description": "Settings section heading for share links"
+  },
+  "inspection.components.share.settings.section.address.title": {
+    "defaultMessage": "Your address in share links",
+    "description": "Settings row: whether share links include this device's address"
+  },
+  "inspection.components.share.settings.section.ask": {
+    "defaultMessage": "Ask each time",
+    "description": "Share address choice"
+  },
+  "inspection.components.share.settings.section.ask.description": {
+    "defaultMessage": "You're asked when you copy a share link.",
+    "description": "Explains the Ask each time choice"
+  },
+  "inspection.components.share.settings.section.include": {
+    "defaultMessage": "Always include",
+    "description": "Share address choice"
+  },
+  "inspection.components.share.settings.section.include.description": {
+    "defaultMessage": "People can reach you sooner. Anyone with the link can see your IP address.",
+    "description": "Explains the Always include choice"
+  },
+  "inspection.components.share.settings.section.omit": {
+    "defaultMessage": "Never include",
+    "description": "Share address choice"
+  },
+  "inspection.components.share.settings.section.omit.description": {
+    "defaultMessage": "Share links never include your address.",
+    "description": "Explains the Never include choice"
   }
 }

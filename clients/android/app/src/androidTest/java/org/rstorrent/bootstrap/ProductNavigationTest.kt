@@ -670,6 +670,7 @@ class ProductNavigationTest {
         var archived by mutableStateOf(false)
         val priorities = mutableListOf<Pair<List<FileView>, FilePriority>>()
         val downloads = mutableListOf<List<FileView>>()
+        val shares = mutableListOf<List<FileView>>()
         compose.setContent {
             RstorrentTheme(ProductThemeMode.LIGHT, dynamicColor = false) {
                 FileSelectionBottomBar(
@@ -677,6 +678,7 @@ class ProductNavigationTest {
                     archived = archived,
                     onSetPriority = { files, priority -> priorities += files to priority },
                     onDownloadNow = { downloads += it },
+                    onShare = { shares += it },
                 )
             }
         }
@@ -693,6 +695,9 @@ class ProductNavigationTest {
         // Download now targets only wanted, incomplete files.
         compose.onNodeWithText("Download now").performSemanticsAction(SemanticsActions.OnClick)
         assertEquals(listOf(listOf(first)), downloads)
+        // Share links name every selected file.
+        compose.onNodeWithText("Share files").performSemanticsAction(SemanticsActions.OnClick)
+        assertEquals(listOf(listOf(first, second, third)), shares)
 
         // An archived torrent cannot start, but its priorities stay editable.
         archived = true
@@ -1666,6 +1671,7 @@ class ProductNavigationTest {
                 ),
             displayName = "Fixture torrent",
             sourceDisplayName = null,
+            sourceSizeBytes = null,
             state = TorrentState.DOWNLOADING,
             operationalState = TorrentOperationalState.DOWNLOADING,
             downloadQueuePosition = 1U,

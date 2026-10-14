@@ -37,6 +37,20 @@ internal fun formatRate(decimal: String?): String =
 internal fun torrentPresentationName(torrent: TorrentView): String =
     torrent.displayName ?: torrent.sourceDisplayName ?: torrent.torrentId
 
+/**
+ * The size a magnet link claimed (`xl`), only while the verified size is
+ * unknown. A claim from the link, never a verified size.
+ */
+internal fun linkClaimedSizeBytes(torrent: TorrentView): String? =
+    torrent.sourceSizeBytes?.takeIf { torrent.totalSizeBytes == null }
+
+/** The verified size, or before metadata the link's size labelled as such. */
+@Composable
+internal fun torrentSizeText(torrent: TorrentView): String {
+    val claimed = linkClaimedSizeBytes(torrent) ?: return formatBytes(torrent.totalSizeBytes)
+    return stringResource(R.string.detail_size_from_link, formatBytes(claimed))
+}
+
 @Composable
 internal fun formatDuration(seconds: ULong): String {
     val days = seconds / 86_400UL

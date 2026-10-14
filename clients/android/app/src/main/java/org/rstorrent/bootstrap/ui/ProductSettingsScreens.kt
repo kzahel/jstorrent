@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import org.rstorrent.bootstrap.ProductNetworkState
 import org.rstorrent.bootstrap.R
+import org.rstorrent.bootstrap.SharePeerHintChoice
 import org.rstorrent.session.uniffi.ActiveSeedLimit
 import org.rstorrent.session.uniffi.ClientSettingsApplicationState
 import org.rstorrent.session.uniffi.ClientSettingsRuntimeView
@@ -633,6 +634,40 @@ internal fun NetworkSettings(
         onSelected = onEncryption,
     )
 }
+
+/** Whether share links carry this device's address (Tactical 357). */
+@Composable
+internal fun ShareLinkSettings(
+    choice: SharePeerHintChoice,
+    saveFailed: Boolean,
+    onChoice: (SharePeerHintChoice) -> Unit,
+) {
+    SettingsSection(stringResource(R.string.settings_section_share_links))
+    ChoiceSetting(
+        title = stringResource(R.string.setting_share_address),
+        selected = choice,
+        values = SharePeerHintChoice.entries,
+        label = { sharePeerHintChoiceLabel(it) },
+        detail = stringResource(R.string.setting_share_address_detail),
+        onSelected = onChoice,
+    )
+    if (saveFailed) {
+        ReadOnlySettingsRow(
+            stringResource(R.string.setting_not_saved),
+            stringResource(R.string.error_share_setting_save_failed),
+        )
+    }
+}
+
+@Composable
+private fun sharePeerHintChoiceLabel(choice: SharePeerHintChoice): String =
+    stringResource(
+        when (choice) {
+            SharePeerHintChoice.ASK -> R.string.share_address_ask
+            SharePeerHintChoice.INCLUDE -> R.string.share_address_always
+            SharePeerHintChoice.OMIT -> R.string.share_address_never
+        },
+    )
 
 @Composable
 private fun encryptionLabel(policy: EncryptionPolicy): String =

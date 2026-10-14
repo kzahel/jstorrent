@@ -405,6 +405,8 @@ impl ViewHub {
             if let Some(state) = durable.get(&torrent.torrent_id) {
                 model.view.display_name = state.display_name.clone();
                 model.view.source_display_name = state.source_display_name.clone();
+                model.view.source_size_bytes =
+                    state.source_size_bytes.map(|bytes| bytes.to_string());
                 model.view.private_torrent = state.private_torrent;
                 model.view.lifetime = state.lifetime.clone();
                 model.view.seeding = state.seeding.clone();
@@ -415,6 +417,7 @@ impl ViewHub {
             } else if let Some(old) = previous.get(&torrent.torrent_id) {
                 model.view.display_name = old.view.display_name.clone();
                 model.view.source_display_name = old.view.source_display_name.clone();
+                model.view.source_size_bytes = old.view.source_size_bytes.clone();
                 model.view.private_torrent = old.view.private_torrent;
                 model.view.lifetime = old.view.lifetime.clone();
                 model.view.seeding = old.view.seeding.clone();

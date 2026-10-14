@@ -240,6 +240,7 @@ class ProductOngoingNotificationTest {
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = "Secret name",
             sourceDisplayName = null,
+            sourceSizeBytes = null,
             state = TorrentState.DOWNLOADING,
             operationalState = TorrentOperationalState.DOWNLOADING,
             downloadQueuePosition = null,

@@ -59,7 +59,20 @@ const columns = (
     align: "right",
     sortable: true,
     sortValue: (row) => row.sizeBytes,
-    render: (row) => formatBytes(row.sizeBytes, dataUnits),
+    render: (row) =>
+      row.sizeBytes === null && row.sourceSizeBytes != null ? (
+        // The magnet's claim until the torrent's details arrive.
+        <span
+          className={styles.sizeFromLink}
+          title={localizedMessage("inspection.components.torrent.table.size.from.link.title")}
+        >
+          {localizedMessage("inspection.components.torrent.table.size.from.link", {
+            size: formatBytes(row.sourceSizeBytes, dataUnits),
+          })}
+        </span>
+      ) : (
+        formatBytes(row.sizeBytes, dataUnits)
+      ),
   },
   {
     id: "progress",

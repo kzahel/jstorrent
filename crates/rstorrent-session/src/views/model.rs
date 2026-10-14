@@ -737,6 +737,8 @@ pub(super) struct DiskSessionView {
 pub(crate) struct DurableTorrentViewState {
     pub(crate) display_name: Option<String>,
     pub(crate) source_display_name: Option<String>,
+    /// The source magnet's `xl` claim; only set before metadata exists.
+    pub(crate) source_size_bytes: Option<u64>,
     /// BEP 27 flag from parsed, stored metainfo only.
     pub(crate) private_torrent: bool,
     pub(crate) checking_generation: Option<u64>,
@@ -758,6 +760,7 @@ impl TorrentModel {
                 protocol_identities: snapshot.protocol_identities.clone(),
                 display_name: None,
                 source_display_name: None,
+                source_size_bytes: None,
                 state: snapshot.state,
                 operational_state: operational_state(snapshot, progress_inputs),
                 download_queue_position: snapshot.download_queue_position,

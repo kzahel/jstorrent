@@ -17,6 +17,7 @@ import {
 } from "./VirtualTable";
 import { ActionMenuPopover } from "./overlays/AnchoredOverlay";
 import { useToast } from "./Toast";
+import { useTorrentActions } from "./TorrentActionContext";
 import styles from "./FileTable.module.css";
 
 const DIRECT_SAVE_TOAST = "direct-save";
@@ -192,6 +193,7 @@ export function FileTable({
   const directSaveAbort = useRef<AbortController | null>(null);
   const execute = useInspectionCommand();
   const toast = useToast();
+  const { shareFiles } = useTorrentActions();
   const demo = useInspectionStore((state) => state.demo);
   const torrentArchived = useInspectionStore(
     (state) => state.torrents[torrentId]?.archived === true,
@@ -286,6 +288,10 @@ export function FileTable({
     demo === null
       ? undefined
       : "File actions are unavailable in demo scenarios.";
+  const shareUnavailableReason =
+    fileSet?.state === "available"
+      ? undefined
+      : localizedMessage("inspection.components.file.table.share.needs.details");
   const selectedSkippedCount = rows.filter(
     (row) => selectedFileIds.has(row.id) && row.selection === "skipped",
   ).length;
@@ -300,6 +306,7 @@ export function FileTable({
     unavailableReason,
     selectedOpenAvailability,
     torrentArchived,
+    shareUnavailableReason,
   ), rows.filter(row => selectedFileIds.has(row.id)));
   const selectedRows = rows.filter((row) => selectedFileIds.has(row.id));
   const toolbarDirectSave = resolveDirectSave(
@@ -352,11 +359,21 @@ export function FileTable({
       unavailableReason,
       targetRows.length === 1 ? targetRows[0]?.mediaAvailability : undefined,
       torrentArchived,
+      shareUnavailableReason,
     ), targetRows).find((candidate) => candidate.id === actionId);
     if (action === undefined || action.disabled) {
       if (action?.disabledReason !== undefined) {
         toast.show({ message: action.disabledReason });
       }
+      return;
+    }
+    if (action.id === "share") {
+      // Synchronous, so the clipboard write keeps the menu click's activation.
+      shareFiles(torrentId, targetRows, {
+        type: "row",
+        tableId: "files",
+        rowId: currentFileId ?? targetRows[0]!.id,
+      });
       return;
     }
     if (action.id === "open" && playback.remote) {
@@ -524,6 +541,7 @@ export function FileTable({
                   ? rows.find((row) => row.id === targetIds[0])?.mediaAvailability
                   : undefined,
                 torrentArchived,
+                shareUnavailableReason,
               ), rows.filter(row => targetIdSet.has(row.id)));
               const directSave = resolveDirectSave(
                 remoteAccess,

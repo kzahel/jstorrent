@@ -111,6 +111,7 @@ class ProductDataResetInstrumentationTest {
             assertEquals(ProductLifecyclePreferences(), ProductLifecyclePreferenceStore(context).read())
             assertFalse(ProductNetworkPreference.read(context))
             assertTrue(ProductPowerPreference.read(context))
+            assertEquals(SharePeerHintChoice.ASK, SharePeerHintPreference.read(context))
             assertFalse(ProductCompanionPreference.read(context))
             assertFalse(ProductDataSyncQuotaFence.isExhausted(context))
             assertEquals(ProductNotificationPreferences(), ProductNotificationPreferenceStore(context).read())
@@ -169,6 +170,7 @@ class ProductDataResetInstrumentationTest {
             assertEquals(ProductLifecyclePreferences(), ProductLifecyclePreferenceStore(context).read())
             assertFalse(ProductNetworkPreference.read(context))
             assertTrue(ProductPowerPreference.read(context))
+            assertEquals(SharePeerHintChoice.ASK, SharePeerHintPreference.read(context))
             assertFalse(ProductCompanionPreference.read(context))
             assertFalse(ProductDataSyncQuotaFence.isExhausted(context))
             assertEquals(ProductNotificationPreferences(), ProductNotificationPreferenceStore(context).read())
@@ -202,6 +204,7 @@ class ProductDataResetInstrumentationTest {
         ProductLifecyclePreferenceStore(context).reset()
         ProductNetworkPreference.reset(context)
         ProductPowerPreference.reset(context)
+        SharePeerHintPreference.reset(context)
         ProductCompanionPreference.reset(context)
         ProductNotificationPreferenceStore(context).reset()
         ProductDataSyncQuotaFence.clearForUserVisibleStart(context)
@@ -220,6 +223,7 @@ class ProductDataResetInstrumentationTest {
         )
         assertTrue(ProductNetworkPreference.persist(context, true))
         assertTrue(ProductPowerPreference.persist(context, false))
+        assertTrue(SharePeerHintPreference.persist(context, SharePeerHintChoice.INCLUDE))
         ProductCompanionPreference.enable(context)
         assertTrue(
             ProductNotificationPreferenceStore(context).write(

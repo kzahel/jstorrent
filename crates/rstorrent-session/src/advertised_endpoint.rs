@@ -8,12 +8,14 @@ use tokio::sync::watch;
 
 use rstorrent_engine::{
     PeerAdvertisementEndpoint, PeerAdvertisementEndpointScope, PeerAdvertisementFamilyEndpoint,
+    PeerTransport, eligible_global_ipv6,
 };
 
 use crate::settings::{
     AdvertisedPeerEndpointScope, AdvertisedPeerEndpointStatus,
     AdvertisedPeerEndpointUnavailableReason, ListenerStatus,
 };
+use crate::share_peer_hints::{ShareEndpointFacts, internet_ipv4};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum EndpointScope {
@@ -85,6 +87,12 @@ struct SelectorState {
     ipv6_local_endpoint: Option<SocketAddrV6>,
     ipv6_scope: Option<PeerAdvertisementEndpointScope>,
     incoming_observed: bool,
+    /// The public IPv4 wire endpoint current when a peer from a public IPv4
+    /// address arrived. It confirms reachability only while it still equals
+    /// the current wire endpoint.
+    ipv4_internet_confirmed: Option<SocketAddrV4>,
+    /// The IPv6 listener endpoint a peer from a public IPv6 address reached.
+    ipv6_internet_confirmed: Option<SocketAddrV6>,
     latest_mapping_generation: u64,
 }
 
@@ -109,6 +117,8 @@ impl AdvertisedPeerEndpointSelector {
             ipv6_local_endpoint: None,
             ipv6_scope: None,
             incoming_observed: false,
+            ipv4_internet_confirmed: None,
+            ipv6_internet_confirmed: None,
             latest_mapping_generation: 0,
         };
         let (sender, _) = watch::channel(state.endpoint.clone());
@@ -390,6 +400,101 @@ impl AdvertisedPeerEndpointSelector {
         true
     }
 
+    /// Record an accepted peer as reachability evidence. Only a peer from a
+    /// public address counts, and only for the endpoint it could have used:
+    /// the public IPv4 wire endpoint (a uTP peer only when the UDP endpoint
+    /// is the same address and port) or the global IPv6 listener.
+    pub(crate) fn observe_incoming_peer(
+        &self,
+        transport: PeerTransport,
+        remote: SocketAddr,
+        local: Option<SocketAddr>,
+        now: Instant,
+    ) {
+        match remote {
+            SocketAddr::V4(remote) if internet_ipv4(*remote.ip()) => {
+                let mut state = self.selector_state();
+                let Some(wire) = state.endpoint.wire_endpoint(now) else {
+                    return;
+                };
+                let local_port = match transport {
+                    PeerTransport::Tcp => state.local_endpoint.map(|(endpoint, _)| endpoint.port()),
+                    PeerTransport::Utp => {
+                        if state.udp_endpoint.wire_endpoint(now) != Some(wire) {
+                            return;
+                        }
+                        state
+                            .udp_local_endpoint
+                            .map(|(endpoint, _)| endpoint.port())
+                    }
+                };
+                if internet_ipv4(*wire.ip())
+                    && local
+                        .is_some_and(|local| local.is_ipv4() && Some(local.port()) == local_port)
+                {
+                    state.ipv4_internet_confirmed = Some(wire);
+                }
+            }
+            SocketAddr::V6(remote) if eligible_global_ipv6(*remote.ip()) => {
+                let mut state = self.selector_state();
+                let Some(listener) = state.ipv6_local_endpoint else {
+                    return;
+                };
+                if matches!(state.endpoint, AdvertisedPeerEndpointState::Stopping { .. })
+                    || !eligible_global_ipv6(*listener.ip())
+                {
+                    return;
+                }
+                if local.is_some_and(|local| {
+                    local.ip() == std::net::IpAddr::V6(*listener.ip())
+                        && local.port() == listener.port()
+                }) {
+                    state.ipv6_internet_confirmed = Some(listener);
+                }
+            }
+            SocketAddr::V4(_) | SocketAddr::V6(_) => {}
+        }
+    }
+
+    /// Snapshot the reachability facts a share link's peer hint may use.
+    pub(crate) fn share_endpoint_facts(&self, now: Instant) -> ShareEndpointFacts {
+        let state = self.selector_state();
+        if matches!(state.endpoint, AdvertisedPeerEndpointState::Stopping { .. }) {
+            return ShareEndpointFacts::default();
+        }
+        let ipv4_mapped = match &state.endpoint {
+            AdvertisedPeerEndpointState::Mapped {
+                external_endpoint,
+                valid_until,
+                renewal_health: RenewalHealth::Healthy,
+                ..
+            } if now < *valid_until => Some(*external_endpoint),
+            _ => None,
+        };
+        let ipv4_listener = match &state.endpoint {
+            AdvertisedPeerEndpointState::Local { local_endpoint, .. }
+            | AdvertisedPeerEndpointState::Mapped { local_endpoint, .. } => Some(*local_endpoint),
+            AdvertisedPeerEndpointState::OutboundOnly { .. }
+            | AdvertisedPeerEndpointState::Stopping { .. } => None,
+        };
+        // An unhealthy or expired mapping is not current evidence; a public
+        // listener without a mapping is confirmed on its own endpoint.
+        let current_public = ipv4_mapped.or_else(|| match &state.endpoint {
+            AdvertisedPeerEndpointState::Local { local_endpoint, .. } => Some(*local_endpoint),
+            _ => None,
+        });
+        ShareEndpointFacts {
+            ipv4_listener,
+            ipv4_mapped,
+            ipv4_confirmed: state
+                .ipv4_internet_confirmed
+                .filter(|confirmed| Some(*confirmed) == current_public),
+            ipv6_listener: state.ipv6_local_endpoint,
+            ipv6_confirmed: state.ipv6_local_endpoint.is_some()
+                && state.ipv6_internet_confirmed == state.ipv6_local_endpoint,
+        }
+    }
+
     pub(crate) fn observe_incoming(&self) -> bool {
         let mut state = self.selector_state();
         if state.incoming_observed {
@@ -405,6 +510,7 @@ impl AdvertisedPeerEndpointSelector {
         let generation = next_generation(state.endpoint.generation());
         state.local_endpoint = local_endpoint;
         state.incoming_observed = false;
+        state.ipv4_internet_confirmed = None;
         state.latest_mapping_generation = next_generation(state.latest_mapping_generation);
         if state.ipv6_local_endpoint.is_some() {
             state.ipv6_scope = Some(PeerAdvertisementEndpointScope::GlobalUnicast);
@@ -461,6 +567,7 @@ impl AdvertisedPeerEndpointSelector {
             return false;
         }
         state.ipv6_local_endpoint = endpoint;
+        state.ipv6_internet_confirmed = None;
         state.ipv6_scope = endpoint.map(|endpoint| {
             if endpoint.ip().is_loopback() {
                 PeerAdvertisementEndpointScope::Loopback
@@ -1116,5 +1223,106 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn share_facts_confirm_internet_reachability_only_from_public_peers() {
+        let selector = local_selector();
+        let now = Instant::now();
+        let lan = SocketAddrV4::new(Ipv4Addr::new(192, 168, 50, 12), 41_234);
+        let external = SocketAddrV4::new(Ipv4Addr::new(93, 184, 216, 34), 48_001);
+        let public_peer: SocketAddr = "1.1.1.1:50000".parse().unwrap();
+        let lan_peer: SocketAddr = "192.168.50.99:50000".parse().unwrap();
+        let local = Some(SocketAddr::V4(lan));
+
+        let facts = selector.share_endpoint_facts(now);
+        assert_eq!(facts.ipv4_listener, Some(lan));
+        assert_eq!(facts.ipv4_mapped, None);
+        assert_eq!(facts.ipv4_confirmed, None);
+
+        assert!(selector.mapping_verified(1, external, Duration::from_secs(60), now));
+        selector.observe_incoming_peer(PeerTransport::Tcp, lan_peer, local, now);
+        let facts = selector.share_endpoint_facts(now);
+        assert_eq!(facts.ipv4_mapped, Some(external));
+        assert_eq!(facts.ipv4_confirmed, None, "a LAN peer proves nothing");
+
+        // A uTP peer only counts when UDP shares the mapped endpoint.
+        selector.observe_incoming_peer(PeerTransport::Utp, public_peer, local, now);
+        assert_eq!(selector.share_endpoint_facts(now).ipv4_confirmed, None);
+
+        selector.observe_incoming_peer(
+            PeerTransport::Tcp,
+            public_peer,
+            Some("192.168.50.12:1".parse().unwrap()),
+            now,
+        );
+        assert_eq!(selector.share_endpoint_facts(now).ipv4_confirmed, None);
+
+        selector.observe_incoming_peer(PeerTransport::Tcp, public_peer, local, now);
+        assert_eq!(
+            selector.share_endpoint_facts(now).ipv4_confirmed,
+            Some(external)
+        );
+
+        // Unhealthy renewal, expiry and a new mapping all withdraw it.
+        assert!(selector.renewal_failed(1, "renewal".to_owned(), now));
+        let facts = selector.share_endpoint_facts(now);
+        assert_eq!(facts.ipv4_mapped, None);
+        assert_eq!(facts.ipv4_confirmed, None);
+        let moved = SocketAddrV4::new(Ipv4Addr::new(93, 184, 216, 35), 48_001);
+        assert!(selector.mapping_verified(2, moved, Duration::from_secs(60), now));
+        assert_eq!(selector.share_endpoint_facts(now).ipv4_confirmed, None);
+        selector.observe_incoming_peer(PeerTransport::Tcp, public_peer, local, now);
+        assert_eq!(
+            selector.share_endpoint_facts(now).ipv4_confirmed,
+            Some(moved)
+        );
+        let later = now + Duration::from_secs(61);
+        assert!(selector.expire(later));
+        assert_eq!(selector.share_endpoint_facts(later).ipv4_confirmed, None);
+
+        assert!(selector.replace_listener(&ListenerStatus::Listening {
+            address: "192.168.50.12".to_owned(),
+            port: 41_234,
+        }));
+        assert!(selector.mapping_verified(3, moved, Duration::from_secs(60), later));
+        assert_eq!(
+            selector.share_endpoint_facts(later).ipv4_confirmed,
+            None,
+            "listener replacement clears evidence"
+        );
+        assert!(selector.stop());
+        assert_eq!(
+            selector.share_endpoint_facts(later),
+            crate::share_peer_hints::ShareEndpointFacts::default()
+        );
+    }
+
+    #[test]
+    fn share_facts_confirm_ipv6_listener_from_a_global_peer() {
+        let selector = local_selector();
+        let now = Instant::now();
+        let listener: SocketAddrV6 = "[2a00:1450::20]:42006".parse().unwrap();
+        assert!(selector.replace_ipv6_listener(Some(listener)));
+        let local = Some(SocketAddr::V6(listener));
+        selector.observe_incoming_peer(
+            PeerTransport::Utp,
+            "[fd00::5]:50000".parse().unwrap(),
+            local,
+            now,
+        );
+        let facts = selector.share_endpoint_facts(now);
+        assert_eq!(facts.ipv6_listener, Some(listener));
+        assert!(!facts.ipv6_confirmed, "a ULA peer proves nothing");
+        selector.observe_incoming_peer(
+            PeerTransport::Utp,
+            "[2a03:2880::1]:50000".parse().unwrap(),
+            local,
+            now,
+        );
+        assert!(selector.share_endpoint_facts(now).ipv6_confirmed);
+        let replacement: SocketAddrV6 = "[2a00:1450::21]:42006".parse().unwrap();
+        assert!(selector.replace_ipv6_listener(Some(replacement)));
+        assert!(!selector.share_endpoint_facts(now).ipv6_confirmed);
     }
 }

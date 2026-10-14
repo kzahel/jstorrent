@@ -1,5 +1,14 @@
 # Client Persistence And Session Boundary
 
+## Share-Link Address Preference
+
+Tactical [357](../tactical/357-rich-share-links.md) stores the remembered
+share-link address choice (`ask`, `include`, `omit`; default `ask`) per
+client: web local storage `rstorrent.presentation.share` (`version: 1`) and
+Android SharedPreferences `product_share`/`peer_hint_choice`. Unreadable or
+newer values read as `ask` without being rewritten. Only Clear app data
+(web) or Clear all data (Android) removes it.
+
 ## Supported Catalog Contract
 
 Tactical [345](../tactical/345-supported-catalog-migrations.md) ends the

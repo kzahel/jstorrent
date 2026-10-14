@@ -1,5 +1,13 @@
 # Incoming Reachability And Seeding
 
+Tactical [357](../tactical/357-rich-share-links.md) reuses reachability for
+share-link peer hints. An internet address is offered only after an incoming
+connection from a public address reached the current advertised endpoint
+(UPnP mapping, public IPv4 listener or global IPv6 listener); otherwise the
+RFC 1918 listener address is offered as a local-network hint. Without
+NAT-PMP/PCP or BEP 10 `yourip`, a manually forwarded host behind NAT cannot
+learn its external address, so it gets no internet hint.
+
 Tactical [344](../tactical/344-seeding-stop-limits.md) adds seeding stop
 limits beside the priority-only seed goals of Tactical 201. A finished torrent
 stops when its share ratio (`max(downloaded, size)` base) or seeding (finished)

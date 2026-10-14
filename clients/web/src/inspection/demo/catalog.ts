@@ -1351,6 +1351,8 @@ function stalledMetadata(elapsedMs: number): ScenarioContent {
         name: "Big Buck Bunny (magnet metadata)",
         status: "metadata",
         sizeBytes: null,
+        // The magnet's `xl`, shown as from the link until metadata arrives.
+        sourceSizeBytes: 276_445_467,
         progress: null,
         peersConnected: peers.length,
         peersKnown: 127,
@@ -2042,6 +2044,9 @@ function torrent(input: Partial<TorrentRow> & Pick<TorrentRow, "id" | "name" | "
       download: { type: "unlimited" },
     },
     sizeBytes: size,
+    ...(size === null && input.sourceSizeBytes != null
+      ? { sourceSizeBytes: input.sourceSizeBytes }
+      : {}),
     progress,
     checking: input.checking ?? null,
     downloadRate: input.downloadRate ?? 0,

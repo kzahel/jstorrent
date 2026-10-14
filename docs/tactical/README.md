@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [357 — Rich share links](357-rich-share-links.md): share exports add size,
+  selected files and an opt-in peer hint; web and Android gain file shares,
+  a Share panel, QR codes and the system share sheet; the share page shows
+  file names and sizes.
 - [356 — Precompressed hosted web assets](356-precompressed-hosted-web-assets.md):
   `npm run build:hosted` writes brotli and gzip copies that the gateway's
   static fallback serves by `Accept-Encoding`; a throttled first load drops

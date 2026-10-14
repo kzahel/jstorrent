@@ -2604,6 +2604,17 @@
         },
         {
           "properties": {
+            "options": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MagnetExportOptions"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Share parameters. Absent, the export is the Tactical 107 magnet,\nbyte for byte; present, the engine owns every `xl`, `so` and\n`x.pe` in the result."
+            },
             "torrent_id": {
               "pattern": "^t1-[0-9a-f]{32}$",
               "type": "string"
@@ -4651,6 +4662,30 @@
         }
       ]
     },
+    "MagnetExportOptions": {
+      "description": "Share parameters for [`Command::ExportMagnet`].",
+      "properties": {
+        "file_indices": {
+          "description": "Add BEP 53 `so` for these file indices, in the same index space as\n`FileView::file_index`. Sorted, unique, at most 4096 entries; every\nindex must name a non-padding file of the verified file list.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "include_size": {
+          "description": "Add `xl` with the verified total size. Omitted until metadata is\nverified; never copied from a source magnet.",
+          "type": "boolean"
+        },
+        "peer_hint": {
+          "description": "Add BEP 9 `x.pe` for at most two of the sharer's endpoints; see\n[`MagnetExportResult::peer_hints`].",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "MagnetExportResult": {
       "properties": {
         "magnet": {
@@ -4661,8 +4696,28 @@
           "minimum": 0,
           "type": "integer"
         },
+        "peer_hint_omission": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MagnetPeerHintOmission"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when `peer_hint` was requested and no hint was included."
+        },
+        "peer_hints": {
+          "description": "The `x.pe` values included in `magnet`, in order. Empty unless\n`peer_hint` was requested.",
+          "items": {
+            "$ref": "#/$defs/MagnetPeerHint"
+          },
+          "maxItems": 2,
+          "type": "array"
+        },
         "source": {
-          "$ref": "#/$defs/MagnetExportSource"
+          "$ref": "#/$defs/MagnetExportSource",
+          "description": "Where the magnet came from before any share parameters were applied."
         }
       },
       "required": [
@@ -4679,6 +4734,67 @@
         "synthesized"
       ],
       "type": "string"
+    },
+    "MagnetPeerHint": {
+      "properties": {
+        "endpoint": {
+          "description": "The exported `x.pe` value: `ipv4:port` or `[ipv6]:port`.",
+          "maxLength": 64,
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/MagnetPeerHintScope"
+        }
+      },
+      "required": [
+        "endpoint",
+        "scope"
+      ],
+      "type": "object"
+    },
+    "MagnetPeerHintOmission": {
+      "description": "Why a requested peer hint was left out of the export.",
+      "oneOf": [
+        {
+          "const": "private_torrent",
+          "description": "Verified metainfo sets BEP 27 `private`.",
+          "type": "string"
+        },
+        {
+          "const": "metadata_pending",
+          "description": "Metadata is not verified: the private flag is unknown and this\nsession has nothing to serve yet.",
+          "type": "string"
+        },
+        {
+          "const": "incoming_disabled",
+          "description": "Incoming connections are off or no listener is bound.",
+          "type": "string"
+        },
+        {
+          "const": "not_reachable",
+          "description": "The listener has a public address that no outside peer has reached\nyet, and no private local-network address.",
+          "type": "string"
+        },
+        {
+          "const": "no_address",
+          "description": "The listener has no shareable address (loopback only).",
+          "type": "string"
+        }
+      ]
+    },
+    "MagnetPeerHintScope": {
+      "oneOf": [
+        {
+          "const": "internet",
+          "description": "A public address on which an outside peer has reached this session.",
+          "type": "string"
+        },
+        {
+          "const": "local_network",
+          "description": "A private (RFC 1918) address of the listening port.",
+          "type": "string"
+        }
+      ]
     },
     "MediaCatalogState": {
       "enum": [
@@ -7354,6 +7470,24 @@
         {
           "properties": {
             "field": {
+              "const": "source_size_bytes",
+              "type": "string"
+            },
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "field": {
               "const": "state",
               "type": "string"
             },
@@ -8583,6 +8717,14 @@
           "type": "integer"
         },
         "source_display_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_size_bytes": {
+          "description": "Total size in bytes claimed by the source magnet's `xl`, as a\ndecimal string, while metadata is not verified. Absent once\nmetadata is verified or when the magnet carries no acceptable `xl`.\nA claim from the link, never a verified size.",
+          "pattern": "^[1-9][0-9]{0,18}$",
           "type": [
             "string",
             "null"

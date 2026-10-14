@@ -70,6 +70,8 @@ import org.rstorrent.bootstrap.uniffi.SafStorageFailureKind
 import org.rstorrent.bootstrap.uniffi.SafStorageOperation
 import org.rstorrent.session.uniffi.Command
 import org.rstorrent.session.uniffi.CommandResult
+import org.rstorrent.session.uniffi.MagnetExportOptions
+import org.rstorrent.session.uniffi.MagnetExportResult
 import org.rstorrent.session.uniffi.AddTorrentDisposition
 import org.rstorrent.session.uniffi.AddTorrentResult
 import org.rstorrent.session.uniffi.AddTorrentBytesRequest
@@ -377,6 +379,7 @@ class ProductEngineService : Service() {
                         storageRootReady = false,
                         storageRootLabel = safRegistry.roots.singleOrNull()?.label,
                         preventSleepDuringActiveDownloads = ProductPowerPreference.read(this@ProductEngineService),
+                        sharePeerHintChoice = SharePeerHintPreference.read(this@ProductEngineService),
                         network =
                             ProductNetworkState(
                                 unmeteredNetworksOnly = unmeteredNetworksOnly,
@@ -4029,6 +4032,7 @@ class ProductEngineService : Service() {
         check(lifecyclePreferenceStore.reset()) { "could not reset lifecycle preferences" }
         check(ProductNetworkPreference.reset(this)) { "could not reset network preferences" }
         check(ProductPowerPreference.reset(this)) { "could not reset power preferences" }
+        check(SharePeerHintPreference.reset(this)) { "could not reset share preference" }
         check(ProductCompanionPreference.reset(this)) { "could not reset companion preference" }
         check(ProductDataSyncQuotaFence.clearForUserVisibleStart(this)) {
             "could not reset data-sync quota state"
@@ -4042,6 +4046,7 @@ class ProductEngineService : Service() {
         mutableState.update {
             it.copy(
                 preventSleepDuringActiveDownloads = true,
+                sharePeerHintChoice = SharePeerHintChoice.ASK,
                 lifecycle =
                     it.lifecycle.copy(
                         backgroundDownloadsEnabled = false,
@@ -4069,6 +4074,7 @@ class ProductEngineService : Service() {
                 dataReset = current.dataReset,
                 lifecycle = current.lifecycle,
                 preventSleepDuringActiveDownloads = current.preventSleepDuringActiveDownloads,
+                sharePeerHintChoice = current.sharePeerHintChoice,
                 network = current.network,
                 notifications = current.notifications,
             )
@@ -4361,19 +4367,35 @@ class ProductEngineService : Service() {
     }
 
     /**
-     * Copies a jstorrent.com share link built from the engine's magnet export.
-     * [onCopied] runs after the clipboard holds the link.
+     * Exports a jstorrent.com share link for [request] (Tactical 357): the
+     * engine's magnet with its verified size, the requested files' `so`, a peer
+     * hint when [peerHint] is true, plus the client's `jst.*` display keys.
+     * [onExported] runs on the main thread.
      */
-    fun copyShareLink(
-        torrentId: String,
-        onCopied: (() -> Unit)? = null,
+    internal fun exportShareLink(
+        request: ShareLinkRequest,
+        peerHint: Boolean,
+        onExported: (ShareLinkExport) -> Unit,
     ) {
         scope.launch {
             try {
                 clientReady.await()
-                val link = shareLinkFromMagnet(exportMagnet(torrentId))
-                copyToClipboard(getString(R.string.share_link_clip_label), link)
-                onCopied?.invoke()
+                val options =
+                    MagnetExportOptions(
+                        includeSize = true,
+                        fileIndices = request.fileIndices,
+                        peerHint = peerHint,
+                    )
+                val result = exportMagnetResult(request.torrentId, options)
+                val export =
+                    ShareLinkExport(
+                        request = request,
+                        link = shareLinkFromMagnet(result.magnet, request.file),
+                        peerHintRequested = peerHint,
+                        peerHints = result.peerHints,
+                        peerHintOmission = result.peerHintOmission,
+                    )
+                withContext(Dispatchers.Main) { onExported(export) }
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
                 reportTorrentCommandFailure(error)
@@ -4381,11 +4403,25 @@ class ProductEngineService : Service() {
         }
     }
 
-    private suspend fun exportMagnet(torrentId: String): String {
-        val response = dispatchForResponse(Command.ExportMagnet(torrentId))
+    fun setSharePeerHintChoice(choice: SharePeerHintChoice) {
+        if (rejectMutationDuringDataReset()) return
+        if (!SharePeerHintPreference.persist(this, choice)) {
+            mutableState.update { it.copy(error = ProductError.Code.SHARE_SETTING_SAVE_FAILED) }
+            return
+        }
+        mutableState.update { it.copy(sharePeerHintChoice = choice, error = null) }
+    }
+
+    private suspend fun exportMagnet(torrentId: String): String = exportMagnetResult(torrentId, options = null).magnet
+
+    private suspend fun exportMagnetResult(
+        torrentId: String,
+        options: MagnetExportOptions?,
+    ): MagnetExportResult {
+        val response = dispatchForResponse(Command.ExportMagnet(torrentId, options))
         val result = response.result as? CommandResult.ExportMagnet
             ?: error("Magnet export returned no value")
-        return result.result.magnet
+        return result.result
     }
 
     private fun copyToClipboard(

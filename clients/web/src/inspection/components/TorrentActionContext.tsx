@@ -16,8 +16,18 @@ import {
   useInspectionStore,
 } from "../context";
 import { copyText } from "../clipboard";
-import type { InspectionCommand, TorrentRow } from "../model";
-import { shareLinkFromMagnet } from "../share-link";
+import type { FileRow, InspectionCommand, TorrentRow } from "../model";
+import {
+  exportShareLink,
+  peerHintDecision,
+  sharedLinksMessage,
+  type ShareExport,
+  type ShareFiles,
+} from "../share-export";
+import {
+  loadPeerHintPreference,
+  savePeerHintPreference,
+} from "../share-preferences";
 import { WEBTORRENT_TEST_TORRENTS } from "../testTorrents";
 import { readTorrentFile, type TorrentFileSource } from "../torrentFile";
 import {
@@ -27,6 +37,7 @@ import {
   type TorrentActionDefinition,
   type TorrentActionId,
 } from "../torrent-actions";
+import { PeerHintDialog } from "./PeerHintDialog";
 import { RemoveTorrentDialog } from "./RemoveTorrentDialog";
 import { TorrentSettingsDialog } from "./TorrentSettingsDialog";
 import { useToast } from "./Toast";
@@ -75,6 +86,13 @@ interface SettingsRequest {
   readonly torrentId: string;
 }
 
+/** A share-link copy waiting for the address choice. */
+interface PeerHintRequest {
+  readonly targets: readonly TorrentRow[];
+  readonly files?: ShareFiles;
+  readonly origin: TorrentActionOrigin;
+}
+
 interface TorrentActionContextValue {
   readonly pendingAction: TorrentActionId | null;
   /** A sample or several-torrent add is in progress. */
@@ -97,6 +115,15 @@ interface TorrentActionContextValue {
     targetIds?: readonly string[],
     origin?: TorrentActionOrigin,
   ) => Promise<void>;
+  /**
+   * Copies a share link that selects these files of one torrent. Call it
+   * inside the user's click: the clipboard write starts synchronously.
+   */
+  readonly shareFiles: (
+    torrentId: string,
+    files: readonly FileRow[],
+    origin?: TorrentActionOrigin,
+  ) => void;
 }
 
 type SequentialActionId = Exclude<
@@ -132,6 +159,11 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
   const pendingRef = useRef<TorrentActionId | null>(null);
   const [removeRequest, setRemoveRequest] = useState<RemoveRequest | null>(null);
   const [settingsRequest, setSettingsRequest] = useState<SettingsRequest | null>(null);
+  const [peerHintRequest, setPeerHintRequest] = useState<PeerHintRequest | null>(null);
+  const peerHintOriginRef = useRef<TorrentActionOrigin>({
+    type: "toolbar",
+    element: null,
+  });
   const removeOriginRef = useRef<TorrentActionOrigin>({
     type: "toolbar",
     element: null,
@@ -428,14 +460,10 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
     void runSequential(actionId, targets, options);
   };
 
-  /** Copies magnet or share links, one per line, in selection order. */
-  const copyLinks = useCallback(
-    async (
-      actionId: "copy_magnet" | "copy_share_link",
-      targets: readonly TorrentRow[],
-    ) => {
-      setPendingAction(actionId);
-      const share = actionId === "copy_share_link";
+  /** Copies magnet links, one per line, in selection order. */
+  const copyMagnets = useCallback(
+    async (targets: readonly TorrentRow[]) => {
+      setPendingAction("copy_magnet");
       try {
         // Start the clipboard write before the exports resolve so WebKit
         // keeps the click's user activation.
@@ -450,8 +478,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
             if (result.magnetExport === undefined) {
               throw new Error(localizedMessage("feedback.magnet.export.missing"));
             }
-            const magnet = result.magnetExport.magnet;
-            links.push(share ? shareLinkFromMagnet(magnet) : magnet);
+            links.push(result.magnetExport.magnet);
             omittedTrackerCount += result.magnetExport.omittedTrackerCount;
           }
           return { text: links.join("\n"), omittedTrackerCount };
@@ -460,16 +487,14 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         const { omittedTrackerCount } = await exported;
         if (mountedRef.current) {
           toast.show({
-            message: copiedLinksMessage(share, targets, omittedTrackerCount),
+            message: copiedMagnetsMessage(targets, omittedTrackerCount),
           });
         }
       } catch (error) {
         if (mountedRef.current) {
           toast.show({
             tone: "error",
-            message: share
-              ? localizedMessage("feedback.share.link.copy.failed", { error: errorText(error) })
-              : localizedMessage("feedback.magnet.copy.failed", { error: errorText(error) }),
+            message: localizedMessage("feedback.magnet.copy.failed", { error: errorText(error) }),
           });
         }
       } finally {
@@ -477,6 +502,117 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
       }
     },
     [execute, setPendingAction, toast],
+  );
+
+  /**
+   * Copies share links (Tactical 357), one per line, in selection order.
+   * The clipboard write starts before any await so the caller's click keeps
+   * its user activation.
+   */
+  const copyShareLinks = useCallback(
+    async (
+      targets: readonly TorrentRow[],
+      files: ShareFiles | undefined,
+      peerHint: boolean,
+    ) => {
+      setPendingAction("copy_share_link");
+      try {
+        const exported = (async () => {
+          const results: ShareExport[] = [];
+          for (const target of targets) {
+            results.push(
+              await exportShareLink(execute, {
+                torrentId: target.id,
+                peerHint: peerHint && target.privateTorrent !== true,
+                ...(files === undefined ? {} : { files }),
+              }),
+            );
+          }
+          return results;
+        })();
+        await copyText(
+          exported.then((results) => results.map((result) => result.link).join("\n")),
+        );
+        const results = await exported;
+        if (mountedRef.current) {
+          toast.show({ message: sharedLinksMessage(targets, results, peerHint) });
+        }
+      } catch (error) {
+        if (mountedRef.current) {
+          toast.show({
+            tone: "error",
+            message: localizedMessage("feedback.share.link.copy.failed", { error: errorText(error) }),
+          });
+        }
+      } finally {
+        setPendingAction(null);
+      }
+    },
+    [execute, setPendingAction, toast],
+  );
+
+  /** Copies share links now, or asks about the address first. */
+  const startShare = useCallback(
+    (
+      targets: readonly TorrentRow[],
+      files: ShareFiles | undefined,
+      origin: TorrentActionOrigin,
+    ): Promise<void> => {
+      const decision = peerHintDecision(targets, loadPeerHintPreference());
+      if (decision === "ask") {
+        peerHintOriginRef.current = origin;
+        setPeerHintRequest({
+          targets,
+          ...(files === undefined ? {} : { files }),
+          origin,
+        });
+        return Promise.resolve();
+      }
+      return copyShareLinks(targets, files, decision);
+    },
+    [copyShareLinks],
+  );
+
+  const choosePeerHint = useCallback(
+    (include: boolean, remember: boolean) => {
+      const request = peerHintRequest;
+      if (request === null) return;
+      if (remember) savePeerHintPreference(include ? "include" : "omit");
+      setPeerHintRequest(null);
+      // The dialog button's click is the user activation for this copy.
+      void copyShareLinks(request.targets, request.files, include);
+    },
+    [copyShareLinks, peerHintRequest],
+  );
+
+  const shareFiles = useCallback(
+    (
+      torrentId: string,
+      files: readonly FileRow[],
+      origin: TorrentActionOrigin = { type: "toolbar", element: null },
+    ) => {
+      const target = targetRows([torrentId])[0];
+      if (target === undefined || files.length === 0) {
+        toast.show({ message: localizedMessage("inspection.components.torrent.action.context.a.selected.torrent.is.no.longer.available") });
+        return;
+      }
+      if (pendingRef.current !== null || batchRef.current) {
+        toast.show({ message: localizedMessage("inspection.components.torrent.action.context.another.torrent.action.is.still.in.progress") });
+        return;
+      }
+      const single = files.length === 1 ? files[0]! : null;
+      void startShare(
+        [target],
+        {
+          fileIndices: files.map((file) => file.index),
+          ...(single === null
+            ? {}
+            : { display: { fileName: single.name, fileSize: single.lengthBytes } }),
+        },
+        origin,
+      );
+    },
+    [startShare, targetRows, toast],
   );
 
   const runAction = useCallback(
@@ -500,8 +636,10 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         toast.show({ message: availability.reason ?? localizedMessage("feedback.torrent.action.unavailable") });
         return;
       }
-      if (actionId === "copy_magnet" || actionId === "copy_share_link") {
-        await copyLinks(actionId, targets);
+      if (actionId === "copy_magnet") {
+        await copyMagnets(targets);
+      } else if (actionId === "copy_share_link") {
+        await startShare(targets, undefined, origin);
       } else if (actionId === "settings") {
         settingsOriginRef.current = origin;
         setSettingsRequest({ torrentId: targets[0]!.id });
@@ -512,7 +650,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         await runSequential(actionId, targets, { offerUndo: true });
       }
     },
-    [copyLinks, runSequential, selectedTargetIds, targetRows, toast],
+    [copyMagnets, runSequential, selectedTargetIds, startShare, targetRows, toast],
   );
 
   const removeTargets = useCallback(
@@ -578,8 +716,9 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
       runSampleBatch,
       runAddBatch,
       runAction,
+      shareFiles,
     }),
-    [actionsFor, pendingAction, runAction, runAddBatch, runSampleBatch, batchRunning, selectedTargetIds],
+    [actionsFor, pendingAction, runAction, runAddBatch, runSampleBatch, batchRunning, selectedTargetIds, shareFiles],
   );
 
   const returnRemoveFocus = useCallback(
@@ -589,6 +728,11 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
 
   const returnSettingsFocus = useCallback(
     () => focusOrigin(settingsOriginRef.current),
+    [],
+  );
+
+  const returnPeerHintFocus = useCallback(
+    () => focusOrigin(peerHintOriginRef.current),
     [],
   );
 
@@ -611,6 +755,13 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
           torrent={torrents[settingsRequest.torrentId]!}
           returnFocus={returnSettingsFocus}
           onClose={() => setSettingsRequest(null)}
+        />
+      )}
+      {peerHintRequest === null ? null : (
+        <PeerHintDialog
+          returnFocus={returnPeerHintFocus}
+          onChoose={choosePeerHint}
+          onCancel={() => setPeerHintRequest(null)}
         />
       )}
     </TorrentActionContext.Provider>
@@ -678,32 +829,22 @@ function failureMessage(
   });
 }
 
-function copiedLinksMessage(
-  share: boolean,
+function copiedMagnetsMessage(
   targets: readonly TorrentRow[],
   omittedTrackerCount: number,
 ): string {
   const links = targets.length;
   if (omittedTrackerCount > 0) {
-    return share
-      ? localizedMessage("feedback.share.link.copied.trackers.omitted", {
-          links,
-          trackers: omittedTrackerCount,
-        })
-      : localizedMessage("feedback.magnet.copied.trackers.omitted", {
-          links,
-          trackers: omittedTrackerCount,
-        });
+    return localizedMessage("feedback.magnet.copied.trackers.omitted", {
+      links,
+      trackers: omittedTrackerCount,
+    });
   }
   // A private torrent's links only work inside its tracker's community.
   if (targets.some((target) => target.privateTorrent)) {
-    return share
-      ? localizedMessage("feedback.share.link.copied.private", { links })
-      : localizedMessage("feedback.magnet.copied.private", { links });
+    return localizedMessage("feedback.magnet.copied.private", { links });
   }
-  return share
-    ? localizedMessage("feedback.share.link.copied", { links })
-    : localizedMessage("feedback.magnet.copied", { links });
+  return localizedMessage("feedback.magnet.copied", { links });
 }
 
 function errorText(error: unknown): string {

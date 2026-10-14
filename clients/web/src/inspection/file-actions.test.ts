@@ -3,14 +3,38 @@ import { describe, expect, it } from "vitest";
 import { FILE_ACTIONS, resolveFileActions } from "./file-actions";
 
 describe("file selection actions", () => {
-  it("defines one stable Open, Download now, High, Normal, and Skip inventory", () => {
+  it("defines one stable Open, Download now, High, Normal, Skip, and Share inventory", () => {
     expect(FILE_ACTIONS.map((action) => [action.group, action.id])).toEqual([
       ["open", "open"],
       ["download", "download_now"],
       ["priority", "high"],
       ["priority", "normal"],
       ["priority", "skip"],
+      ["share", "share"],
     ]);
+  });
+
+  it("names Share for one or several files and keeps it out of file-change limits", () => {
+    const share = (actions: ReturnType<typeof resolveFileActions>) =>
+      actions.find((action) => action.id === "share");
+    expect(share(resolveFileActions(1, 0, false))).toMatchObject({
+      label: "Share file",
+      disabled: false,
+    });
+    expect(share(resolveFileActions(3, 0, false))).toMatchObject({
+      label: "Share files",
+      disabled: false,
+    });
+    expect(
+      share(resolveFileActions(2, 1, false, "File actions are unavailable.", undefined, true)),
+    ).toMatchObject({ disabled: false });
+    expect(share(resolveFileActions(0, 0, false))).toMatchObject({
+      disabled: true,
+      disabledReason: "Select a file to use these actions.",
+    });
+    expect(
+      share(resolveFileActions(1, 0, false, undefined, undefined, false, "No metadata yet.")),
+    ).toMatchObject({ disabled: true, disabledReason: "No metadata yet." });
   });
 
   it("offers Open only for one typed eligible file", () => {

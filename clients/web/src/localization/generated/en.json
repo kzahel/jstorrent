@@ -1206,6 +1206,12 @@
       "value": "Restore"
     }
   ],
+  "feedback.share.files.unsupported": [
+    {
+      "type": 0,
+      "value": "The JSTorrent you're connected to needs an update to share single files."
+    }
+  ],
   "feedback.share.link.copied": [
     {
       "type": 6,
@@ -1357,6 +1363,239 @@
     {
       "type": 0,
       "value": " usable"
+    }
+  ],
+  "feedback.share.link.copied.with.address": [
+    {
+      "type": 5,
+      "value": "scope",
+      "options": {
+        "local_network": {
+          "value": [
+            {
+              "type": 6,
+              "value": "links",
+              "options": {
+                "one": {
+                  "value": [
+                    {
+                      "type": 0,
+                      "value": "Share link copied with your local network address. Only people on your network can use it to reach you."
+                    }
+                  ]
+                },
+                "other": {
+                  "value": [
+                    {
+                      "type": 7
+                    },
+                    {
+                      "type": 0,
+                      "value": " share links copied with your local network address. Only people on your network can use them to reach you."
+                    }
+                  ]
+                }
+              },
+              "offset": 0,
+              "pluralType": "cardinal"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 6,
+              "value": "links",
+              "options": {
+                "one": {
+                  "value": [
+                    {
+                      "type": 0,
+                      "value": "Share link copied with your address."
+                    }
+                  ]
+                },
+                "other": {
+                  "value": [
+                    {
+                      "type": 7
+                    },
+                    {
+                      "type": 0,
+                      "value": " share links copied with your address."
+                    }
+                  ]
+                }
+              },
+              "offset": 0,
+              "pluralType": "cardinal"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "feedback.share.link.copied.without.address": [
+    {
+      "type": 5,
+      "value": "reason",
+      "options": {
+        "incoming_disabled": {
+          "value": [
+            {
+              "type": 6,
+              "value": "links",
+              "options": {
+                "one": {
+                  "value": [
+                    {
+                      "type": 0,
+                      "value": "Share link copied without your address because incoming connections are off."
+                    }
+                  ]
+                },
+                "other": {
+                  "value": [
+                    {
+                      "type": 7
+                    },
+                    {
+                      "type": 0,
+                      "value": " share links copied without your address because incoming connections are off."
+                    }
+                  ]
+                }
+              },
+              "offset": 0,
+              "pluralType": "cardinal"
+            }
+          ]
+        },
+        "not_reachable": {
+          "value": [
+            {
+              "type": 6,
+              "value": "links",
+              "options": {
+                "one": {
+                  "value": [
+                    {
+                      "type": 0,
+                      "value": "Share link copied without your address because it couldn't be confirmed reachable."
+                    }
+                  ]
+                },
+                "other": {
+                  "value": [
+                    {
+                      "type": 7
+                    },
+                    {
+                      "type": 0,
+                      "value": " share links copied without your address because it couldn't be confirmed reachable."
+                    }
+                  ]
+                }
+              },
+              "offset": 0,
+              "pluralType": "cardinal"
+            }
+          ]
+        },
+        "no_address": {
+          "value": [
+            {
+              "type": 6,
+              "value": "links",
+              "options": {
+                "one": {
+                  "value": [
+                    {
+                      "type": 0,
+                      "value": "Share link copied without your address because no usable address was found."
+                    }
+                  ]
+                },
+                "other": {
+                  "value": [
+                    {
+                      "type": 7
+                    },
+                    {
+                      "type": 0,
+                      "value": " share links copied without your address because no usable address was found."
+                    }
+                  ]
+                }
+              },
+              "offset": 0,
+              "pluralType": "cardinal"
+            }
+          ]
+        },
+        "metadata_pending": {
+          "value": [
+            {
+              "type": 6,
+              "value": "links",
+              "options": {
+                "one": {
+                  "value": [
+                    {
+                      "type": 0,
+                      "value": "Share link copied without your address because the torrent's details haven't arrived yet."
+                    }
+                  ]
+                },
+                "other": {
+                  "value": [
+                    {
+                      "type": 7
+                    },
+                    {
+                      "type": 0,
+                      "value": " share links copied without your address because a torrent's details haven't arrived yet."
+                    }
+                  ]
+                }
+              },
+              "offset": 0,
+              "pluralType": "cardinal"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 6,
+              "value": "links",
+              "options": {
+                "one": {
+                  "value": [
+                    {
+                      "type": 0,
+                      "value": "Share link copied without your address."
+                    }
+                  ]
+                },
+                "other": {
+                  "value": [
+                    {
+                      "type": 7
+                    },
+                    {
+                      "type": 0,
+                      "value": " share links copied without your address."
+                    }
+                  ]
+                }
+              },
+              "offset": 0,
+              "pluralType": "cardinal"
+            }
+          ]
+        }
+      }
     }
   ],
   "feedback.share.link.copy.failed": [
@@ -3936,12 +4175,6 @@
       "value": "Copy magnet link"
     }
   ],
-  "inspection.components.detail.pane.copy.share.link": [
-    {
-      "type": 0,
-      "value": "Copy share link"
-    }
-  ],
   "inspection.components.detail.pane.download": [
     {
       "type": 0,
@@ -4116,6 +4349,12 @@
       "value": "Select a torrent to see its details"
     }
   ],
+  "inspection.components.detail.pane.share": [
+    {
+      "type": 0,
+      "value": "Share"
+    }
+  ],
   "inspection.components.detail.pane.share.ratio": [
     {
       "type": 0,
@@ -4126,6 +4365,16 @@
     {
       "type": 0,
       "value": "Size"
+    }
+  ],
+  "inspection.components.detail.pane.size.from.link": [
+    {
+      "type": 1,
+      "value": "size"
+    },
+    {
+      "type": 0,
+      "value": " (from the link)"
     }
   ],
   "inspection.components.detail.pane.speed": [
@@ -5196,6 +5445,12 @@
     {
       "type": 0,
       "value": "Select one completed file to save."
+    }
+  ],
+  "inspection.components.file.table.share.needs.details": [
+    {
+      "type": 0,
+      "value": "Files can be shared once the torrent's details arrive."
     }
   ],
   "inspection.components.file.table.size": [
@@ -7122,6 +7377,54 @@
       "value": "Web access"
     }
   ],
+  "inspection.components.share.settings.section.address.title": [
+    {
+      "type": 0,
+      "value": "Your address in share links"
+    }
+  ],
+  "inspection.components.share.settings.section.ask": [
+    {
+      "type": 0,
+      "value": "Ask each time"
+    }
+  ],
+  "inspection.components.share.settings.section.ask.description": [
+    {
+      "type": 0,
+      "value": "You're asked when you copy a share link."
+    }
+  ],
+  "inspection.components.share.settings.section.include": [
+    {
+      "type": 0,
+      "value": "Always include"
+    }
+  ],
+  "inspection.components.share.settings.section.include.description": [
+    {
+      "type": 0,
+      "value": "People can reach you sooner. Anyone with the link can see your IP address."
+    }
+  ],
+  "inspection.components.share.settings.section.omit": [
+    {
+      "type": 0,
+      "value": "Never include"
+    }
+  ],
+  "inspection.components.share.settings.section.omit.description": [
+    {
+      "type": 0,
+      "value": "Share links never include your address."
+    }
+  ],
+  "inspection.components.share.settings.section.sharing": [
+    {
+      "type": 0,
+      "value": "Sharing"
+    }
+  ],
   "inspection.components.sidebar.active": [
     {
       "type": 0,
@@ -8099,6 +8402,22 @@
     {
       "type": 0,
       "value": "Size"
+    }
+  ],
+  "inspection.components.torrent.table.size.from.link": [
+    {
+      "type": 1,
+      "value": "size"
+    },
+    {
+      "type": 0,
+      "value": " (link)"
+    }
+  ],
+  "inspection.components.torrent.table.size.from.link.title": [
+    {
+      "type": 0,
+      "value": "Size from the link. It's confirmed once the torrent's details arrive."
     }
   ],
   "inspection.components.torrent.table.status": [
@@ -9351,6 +9670,18 @@
       "value": "Restore this archived torrent before downloading files."
     }
   ],
+  "inspection.file.actions.share.file": [
+    {
+      "type": 0,
+      "value": "Share file"
+    }
+  ],
+  "inspection.file.actions.share.files": [
+    {
+      "type": 0,
+      "value": "Share files"
+    }
+  ],
   "inspection.file.actions.skip": [
     {
       "type": 0,
@@ -10446,6 +10777,212 @@
     {
       "type": 0,
       "value": "This remote host does not support video playback."
+    }
+  ],
+  "share.panel.address.included": [
+    {
+      "type": 5,
+      "value": "scope",
+      "options": {
+        "local_network": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Includes your local network address "
+            },
+            {
+              "type": 1,
+              "value": "addresses"
+            },
+            {
+              "type": 0,
+              "value": ". Only people on your network can use it."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Includes your address "
+            },
+            {
+              "type": 1,
+              "value": "addresses"
+            },
+            {
+              "type": 0,
+              "value": "."
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "share.panel.address.omitted": [
+    {
+      "type": 5,
+      "value": "reason",
+      "options": {
+        "incoming_disabled": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Your address isn't included because incoming connections are off."
+            }
+          ]
+        },
+        "not_reachable": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Your address isn't included because it couldn't be confirmed reachable."
+            }
+          ]
+        },
+        "no_address": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Your address isn't included because no usable address was found."
+            }
+          ]
+        },
+        "metadata_pending": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Your address isn't included until the torrent's details arrive."
+            }
+          ]
+        },
+        "private_torrent": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Your address isn't included because this torrent is private."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Your address isn't included."
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "share.panel.close": [
+    {
+      "type": 0,
+      "value": "Close"
+    }
+  ],
+  "share.panel.copy": [
+    {
+      "type": 0,
+      "value": "Copy"
+    }
+  ],
+  "share.panel.failed": [
+    {
+      "type": 0,
+      "value": "Couldn't prepare the share link: "
+    },
+    {
+      "type": 1,
+      "value": "error"
+    }
+  ],
+  "share.panel.include.address": [
+    {
+      "type": 0,
+      "value": "Include my address"
+    }
+  ],
+  "share.panel.include.address.description": [
+    {
+      "type": 0,
+      "value": "Helps people reach you sooner. Anyone with the link can see your IP address."
+    }
+  ],
+  "share.panel.link.label": [
+    {
+      "type": 0,
+      "value": "Share link"
+    }
+  ],
+  "share.panel.loading": [
+    {
+      "type": 0,
+      "value": "Preparing link…"
+    }
+  ],
+  "share.panel.qr.label": [
+    {
+      "type": 0,
+      "value": "QR code for the share link"
+    }
+  ],
+  "share.panel.qr.too.long": [
+    {
+      "type": 0,
+      "value": "This link is too long for a QR code."
+    }
+  ],
+  "share.panel.share": [
+    {
+      "type": 0,
+      "value": "Share…"
+    }
+  ],
+  "share.panel.share.failed": [
+    {
+      "type": 0,
+      "value": "Couldn't open sharing: "
+    },
+    {
+      "type": 1,
+      "value": "error"
+    }
+  ],
+  "share.panel.title": [
+    {
+      "type": 0,
+      "value": "Share torrent"
+    }
+  ],
+  "share.peer.hint.dialog.body": [
+    {
+      "type": 0,
+      "value": "Adding your address to the link lets the people you share it with reach you sooner. Anyone who has the link can see your IP address."
+    }
+  ],
+  "share.peer.hint.dialog.include": [
+    {
+      "type": 0,
+      "value": "Include my address"
+    }
+  ],
+  "share.peer.hint.dialog.omit": [
+    {
+      "type": 0,
+      "value": "Don't include"
+    }
+  ],
+  "share.peer.hint.dialog.remember": [
+    {
+      "type": 0,
+      "value": "Remember my choice"
+    }
+  ],
+  "share.peer.hint.dialog.title": [
+    {
+      "type": 0,
+      "value": "Let them connect to you directly?"
     }
   ],
   "shell.app.load-failed": [

@@ -209,6 +209,7 @@ describe("view-set reducer", () => {
                   { field: "display_name", value: "Verified" },
                   { field: "total_size_bytes", value: "65536" },
                   { field: "private_torrent", value: true },
+                  { field: "source_size_bytes", value: null },
                 ],
               },
             },
@@ -228,6 +229,7 @@ describe("view-set reducer", () => {
         display_name: "Verified",
         total_size_bytes: "65536",
         private_torrent: true,
+        source_size_bytes: null,
       },
     });
     expect(

@@ -124,6 +124,8 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.9.2")
     implementation("androidx.media3:media3-ui:1.9.2")
     implementation("androidx.navigation:navigation-compose:2.8.0")
+    // QR codes for share links (Tactical 357). Apache-2.0; no runtime dependencies.
+    implementation("com.google.zxing:core:3.5.4")
     implementation(platform("androidx.compose:compose-bom:2024.09.00"))
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material:material-icons-extended")

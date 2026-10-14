@@ -54,7 +54,29 @@
     <string name="action_copy_share_link">Copy share link</string>
     <string name="share_link_clip_label">Share link</string>
     <string name="copied_private_magnet">Magnet link copied. Private torrent: it only works for members of its tracker.</string>
-    <string name="copied_private_share_link">Share link copied. Private torrent: it only works for members of its tracker.</string>
+    <!-- Tactical 357: opens the system share sheet with the torrent's share link. -->
+    <string name="action_share_link">Share…</string>
+    <string name="action_show_qr_code">Show QR code</string>
+    <string name="action_share_file">Share file</string>
+    <string name="action_share_files">Share files</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_close">Close</string>
+    <!-- %1$s is one of the share_private_notice or share_hint_* sentences. -->
+    <string name="share_link_copied_notice">Share link copied. %1$s</string>
+    <string name="share_private_notice">Private torrent: this link only works for members of its tracker.</string>
+    <string name="share_hint_included">Your address is included, so they can connect to you directly.</string>
+    <string name="share_hint_included_local">Your local network address is included. It only helps people on the same network.</string>
+    <string name="share_hint_omitted_incoming_off">Your address isn’t included because incoming connections are off.</string>
+    <string name="share_hint_omitted_not_reachable">Your address isn’t included because it couldn’t be confirmed reachable.</string>
+    <string name="share_hint_omitted_no_address">Your address isn’t included because no address is available.</string>
+    <string name="share_hint_omitted_metadata_pending">Your address isn’t included because the torrent’s details aren’t ready yet.</string>
+    <string name="share_hint_prompt_title">Let them connect to you directly?</string>
+    <string name="share_hint_prompt_body">Adding your address to the link can help them reach you sooner. Anyone with the link can see your IP address.</string>
+    <string name="share_hint_prompt_include">Include my address</string>
+    <string name="share_hint_prompt_omit">Don’t include</string>
+    <string name="share_hint_prompt_remember">Remember my choice</string>
+    <string name="share_qr_description">QR code for the share link</string>
+    <string name="share_qr_too_long">This link is too long for a QR code. Copy or share it instead.</string>
     <string name="action_more">More</string>
     <string name="action_select_all">Select all</string>
     <string name="action_deselect_all">Deselect all</string>
@@ -305,6 +327,8 @@
     <string name="detail_private_torrent">Private torrent</string>
     <string name="detail_private_torrent_hint">Magnet and share links only work for members of its tracker.</string>
     <string name="detail_size">Size</string>
+    <!-- %1$s is a size the magnet link claims before the torrent's details arrive. -->
+    <string name="detail_size_from_link">%1$s (from the link, not verified)</string>
     <string name="detail_save_location">Save location</string>
     <string name="detail_downloaded">Downloaded</string>
     <string name="detail_uploaded">Uploaded</string>
@@ -409,6 +433,7 @@
     <string name="error_settings_update_empty">Settings update is empty.</string>
     <string name="error_settings_loading">Settings are still loading.</string>
     <string name="error_power_save_failed">Power setting could not be saved.</string>
+    <string name="error_share_setting_save_failed">Share setting could not be saved.</string>
     <string name="error_torrent_settings_update_empty">Torrent settings update is empty.</string>
     <string name="error_torrent_missing">Torrent is no longer present.</string>
     <string name="error_network_preference_save_failed">The network preference could not be saved.</string>
@@ -440,6 +465,12 @@
     <string name="settings_section_connections">Connections</string>
     <string name="settings_section_connection">Connection</string>
     <string name="settings_section_peers">Peers</string>
+    <string name="settings_section_share_links">Share links</string>
+    <string name="setting_share_address">Include your address</string>
+    <string name="setting_share_address_detail">Lets people with a share link connect to you directly. Anyone with the link can see your IP address.</string>
+    <string name="share_address_ask">Ask each time</string>
+    <string name="share_address_always">Always include</string>
+    <string name="share_address_never">Never include</string>
     <string name="settings_section_permission">Permission</string>
     <string name="settings_section_alerts">Alerts</string>
     <string name="settings_section_background">Background</string>

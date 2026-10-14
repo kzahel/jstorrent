@@ -28,6 +28,7 @@ mod seed_policy;
 mod session_network;
 mod session_utp;
 mod settings;
+mod share_peer_hints;
 mod speed;
 mod store;
 mod store_migration;
@@ -51,11 +52,12 @@ pub use application_connection::{
 pub use control::{
     AddTorrentBytesRequest, AddTorrentDisposition, AddTorrentResult, CONTROL_VERSION, Command,
     CommandResult, ErrorCode, ErrorResponse, FileIndexRange, FilePriority, FileSelectionIntent,
-    FileSelectionOverride, MAX_ROOT_ID_LENGTH, MAX_ROOT_LABEL_LENGTH, MagnetExportResult,
-    MagnetExportSource, PendingFileSelectionBase, RemovalDataPolicy, RemovalState, RequestEnvelope,
-    ResponseEnvelope, ResponseOutcome, ServiceSnapshot, StorageState, TorrentListImportFailure,
-    TorrentListImportReport, TorrentListImportTarget, TorrentProtocolIdentities, TorrentSnapshot,
-    TorrentState, validate_add_torrent_bytes_request,
+    FileSelectionOverride, MAX_ROOT_ID_LENGTH, MAX_ROOT_LABEL_LENGTH, MagnetExportOptions,
+    MagnetExportResult, MagnetExportSource, MagnetPeerHint, MagnetPeerHintOmission,
+    MagnetPeerHintScope, PendingFileSelectionBase, RemovalDataPolicy, RemovalState,
+    RequestEnvelope, ResponseEnvelope, ResponseOutcome, ServiceSnapshot, StorageState,
+    TorrentListImportFailure, TorrentListImportReport, TorrentListImportTarget,
+    TorrentProtocolIdentities, TorrentSnapshot, TorrentState, validate_add_torrent_bytes_request,
 };
 pub use diagnostics::{
     DiagnosticCategory, DiagnosticEvent, DiagnosticField, DiagnosticFilter, DiagnosticProfile,

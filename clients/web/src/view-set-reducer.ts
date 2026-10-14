@@ -454,6 +454,7 @@ function applyTorrentUpdate(
       case "protocol_identities": next.protocol_identities = field.value; break;
       case "display_name": next.display_name = field.value; break;
       case "source_display_name": next.source_display_name = field.value; break;
+      case "source_size_bytes": next.source_size_bytes = field.value; break;
       case "state": next.state = field.value; break;
       case "operational_state": next.operational_state = field.value; break;
       case "download_queue_position": next.download_queue_position = field.value; break;

@@ -352,6 +352,7 @@ class AndroidNotificationInstrumentationTest {
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = "Fixture torrent",
             sourceDisplayName = null,
+            sourceSizeBytes = null,
             state = state,
             operationalState = TorrentOperationalState.DOWNLOADING,
             downloadQueuePosition = null,

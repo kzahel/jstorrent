@@ -33,12 +33,14 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Deselect
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Share
@@ -125,6 +127,8 @@ internal fun LibraryScreen(
     onForceRecheck: (String) -> Unit,
     onCopyMagnets: (List<String>) -> Unit,
     onCopyShareLink: (String) -> Unit,
+    onShareLink: (String) -> Unit,
+    onShowQrCode: (String) -> Unit,
     onArchive: (List<String>) -> Unit,
     onRestore: (List<String>) -> Unit,
     onRemove: (Set<String>) -> Unit,
@@ -284,6 +288,8 @@ internal fun LibraryScreen(
                     onForceRecheck = { it.forEach(onForceRecheck) },
                     onCopyMagnets = onCopyMagnets,
                     onCopyShareLink = onCopyShareLink,
+                    onShareLink = onShareLink,
+                    onShowQrCode = onShowQrCode,
                 )
             }
         },
@@ -817,6 +823,8 @@ private fun SelectionBottomBar(
     onForceRecheck: (List<String>) -> Unit,
     onCopyMagnets: (List<String>) -> Unit,
     onCopyShareLink: (String) -> Unit,
+    onShareLink: (String) -> Unit,
+    onShowQrCode: (String) -> Unit,
 ) {
     var moreOpen by remember { mutableStateOf(false) }
     @Composable
@@ -873,10 +881,20 @@ private fun SelectionBottomBar(
             // A share link opens one torrent, so it is offered for one only.
             if (selected.size == 1) {
                 SheetAction(
-                    Icons.Outlined.Share,
+                    Icons.Outlined.ContentCopy,
                     stringResource(R.string.action_copy_share_link),
                     TorrentAction.COPY_SHARE_LINK,
                 ) { targets -> targets.singleOrNull()?.let(onCopyShareLink) }
+                SheetAction(
+                    Icons.Outlined.Share,
+                    stringResource(R.string.action_share_link),
+                    TorrentAction.COPY_SHARE_LINK,
+                ) { targets -> targets.singleOrNull()?.let(onShareLink) }
+                SheetAction(
+                    Icons.Outlined.QrCode2,
+                    stringResource(R.string.action_show_qr_code),
+                    TorrentAction.COPY_SHARE_LINK,
+                ) { targets -> targets.singleOrNull()?.let(onShowQrCode) }
             }
             Spacer(Modifier.height(16.dp))
         }

@@ -25,6 +25,7 @@ import { Icon } from "./Icon";
 import { NotificationsSettingsSection } from "./NotificationsSettingsSection";
 import { PowerSettingsSection } from "./PowerSettingsSection";
 import { RemoteAccessSettingsSection } from "./RemoteAccessSettingsSection";
+import { ShareSettingsSection } from "./ShareSettingsSection";
 import { TorrentListSettingsSection } from "./TorrentListSettingsSection";
 import { WebAccessSettingsSection } from "./WebAccessSettingsSection";
 import styles from "./SettingsDialog.module.css";
@@ -326,6 +327,7 @@ export function SettingsDialog({
                 loading={clientSettingsLoading}
                 onSave={onClientSettingsSave}
               />
+              <ShareSettingsSection />
             </div>
             {notifications === undefined ? null : (
               <div

@@ -406,6 +406,7 @@ fn eta_durable(
         DurableTorrentViewState {
             display_name: Some("ETA fixture".to_owned()),
             source_display_name: None,
+            source_size_bytes: None,
             private_torrent: false,
             checking_generation: None,
             verified: Vec::new(),
@@ -1331,6 +1332,7 @@ fn durable_replacement_preserves_exact_have_ranges() {
             DurableTorrentViewState {
                 display_name: Some("Verified fixture".to_owned()),
                 source_display_name: None,
+                source_size_bytes: None,
                 private_torrent: false,
                 checking_generation: None,
                 verified: vec![IndexRange {
@@ -1389,6 +1391,7 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
             DurableTorrentViewState {
                 display_name: None,
                 source_display_name: Some("Magnet fixture".to_owned()),
+                source_size_bytes: Some(1_048_576),
                 private_torrent: false,
                 checking_generation: None,
                 verified: Vec::new(),
@@ -1414,6 +1417,10 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
         field,
         TorrentFieldUpdate::SourceDisplayName { value: Some(value) }
             if value == "Magnet fixture"
+    )));
+    assert!(updates[0].fields.iter().any(|field| matches!(
+        field,
+        TorrentFieldUpdate::SourceSizeBytes { value: Some(value) } if value == "1048576"
     )));
     // A magnet awaiting metadata never claims the private flag.
     assert!(
@@ -1446,6 +1453,7 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
             DurableTorrentViewState {
                 display_name: Some("Verified fixture".to_owned()),
                 source_display_name: Some("Magnet fixture".to_owned()),
+                source_size_bytes: None,
                 private_torrent: true,
                 checking_generation: None,
                 verified: Vec::new(),
@@ -1477,6 +1485,13 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
             .fields
             .iter()
             .any(|field| matches!(field, TorrentFieldUpdate::PrivateTorrent { value: true }))
+    );
+    // Verified metadata withdraws the link's size claim.
+    assert!(
+        updates[0]
+            .fields
+            .iter()
+            .any(|field| matches!(field, TorrentFieldUpdate::SourceSizeBytes { value: None }))
     );
 
     let summary_update = summary.next_update().await.expect("verified summary patch");

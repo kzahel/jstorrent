@@ -1997,9 +1997,21 @@ impl ApplicationService {
             self.join_active_content(torrent_id).await?;
         }
         let revision_before = self.store_mut()?.revision()?;
+        // Only a peer-hint export reads the session's reachability facts.
+        let share_endpoints = match &command {
+            Command::ExportMagnet {
+                options: Some(options),
+                ..
+            } if options.peer_hint => self.session_network.as_ref().map(|network| {
+                network
+                    .advertised_endpoint()
+                    .share_endpoint_facts(Instant::now())
+            }),
+            _ => None,
+        };
         let durable_result = {
             let mut store = self.store_mut()?;
-            store.handle_durable(&request)
+            store.handle_durable_with_share_endpoints(&request, share_endpoints.as_ref())
         };
         if durable_result.is_ok()
             && let Some(drain) = &self.product_milestone_drain
@@ -7375,6 +7387,7 @@ fn durable_view_state(
                 DurableTorrentViewState {
                     display_name: None,
                     source_display_name: None,
+                    source_size_bytes: None,
                     private_torrent: false,
                     checking_generation: None,
                     verified: Vec::new(),
@@ -7407,9 +7420,13 @@ fn durable_view_state(
         // Only parsed, stored metainfo carries a trustworthy BEP 27 flag;
         // a magnet awaiting metadata or corrupt metadata reports public.
         let private_torrent = content.as_ref().is_some_and(|content| content.private());
-        let source_display_name = Magnet::parse(&resume.magnet)
-            .ok()
-            .and_then(|magnet| magnet.display_name);
+        let source_magnet = Magnet::parse(&resume.magnet).ok();
+        // The magnet's size claim only stands in until metadata exists.
+        let source_size_bytes = source_magnet
+            .as_ref()
+            .filter(|_| resume.raw_info.is_none())
+            .and_then(|magnet| magnet.exact_length);
+        let source_display_name = source_magnet.and_then(|magnet| magnet.display_name);
         let files = if let Some(content) = content.as_ref() {
             let filesystem_content_base = filesystem_content_base(
                 storage_roots.get(&resume.storage_root),
@@ -7474,6 +7491,7 @@ fn durable_view_state(
             DurableTorrentViewState {
                 display_name,
                 source_display_name,
+                source_size_bytes,
                 private_torrent,
                 checking_generation: resume
                     .verification
@@ -18177,6 +18195,91 @@ mod tests {
         service.shutdown().await.expect("shutdown");
         drop(service);
         fs::remove_dir_all(root).expect("remove magnet-name test root");
+    }
+
+    #[tokio::test]
+    async fn startup_projects_magnet_size_claim_until_metadata() {
+        async fn summary_row(configuration: &ApplicationConfig) -> crate::TorrentView {
+            let mut service = ApplicationService::open(configuration.clone())
+                .await
+                .expect("open service");
+            let summary = service
+                .subscribe(SubscriptionSpec {
+                    selector: ViewSelector::TorrentList,
+                    projection: ViewProjection::Summary,
+                    delivery: DeliveryPolicy {
+                        min_interval_millis: 0,
+                        max_queue_bytes: 256 * 1024,
+                    },
+                    diagnostics: None,
+                    catalog_page: None,
+                })
+                .expect("summary");
+            let update = summary.next_update().await.expect("summary snapshot");
+            let ViewUpdatePayload::Snapshot {
+                snapshot: ViewSnapshot::TorrentList { mut torrents, .. },
+            } = update.payload
+            else {
+                panic!("expected torrent-list snapshot");
+            };
+            drop(summary);
+            service.shutdown().await.expect("shutdown");
+            torrents.remove(0)
+        }
+
+        let root = test_root("magnet-size-claim");
+        let configuration = config(&root);
+        let raw_info = b"d5:filesld6:lengthi4e4:pathl8:file.bineee4:name5:sized12:piece lengthi4e6:pieces20:aaaaaaaaaaaaaaaaaaaae";
+        let info_hash = super::encode_info_hash(Sha1::digest(raw_info).into());
+        let open_store = || {
+            SessionStore::open(
+                configuration
+                    .durable_profile_root()
+                    .expect("durable profile root"),
+                &configuration.profile_id,
+                &configuration.storage_roots,
+            )
+            .expect("open store")
+        };
+        let mut store = open_store();
+        let response = store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "add-sized-magnet".to_owned(),
+                expected_revision: None,
+                command: Command::AddMagnet {
+                    magnet: format!("magnet:?xt=urn:btih:{info_hash}&xl=1048576"),
+                    storage_root: "downloads".to_owned(),
+                    start_content: false,
+                    await_file_selection: false,
+                    skip_files: Vec::new(),
+                },
+            })
+            .expect("add sized magnet");
+        let torrent_id = match response.result {
+            Some(CommandResult::AddTorrent { result }) => result.torrent_id,
+            _ => panic!("sized magnet add omitted its torrent owner"),
+        };
+        drop(store);
+
+        let claimed = summary_row(&configuration).await;
+        assert_eq!(claimed.source_size_bytes.as_deref(), Some("1048576"));
+        assert_eq!(claimed.total_size_bytes, None);
+        let wire = serde_json::to_value(&claimed).expect("serialize claimed row");
+        assert_eq!(wire["source_size_bytes"], "1048576");
+
+        let mut store = open_store();
+        store
+            .record_metadata(&torrent_id, raw_info)
+            .expect("record metadata");
+        drop(store);
+        let verified = summary_row(&configuration).await;
+        assert_eq!(verified.source_size_bytes, None);
+        assert_eq!(verified.total_size_bytes.as_deref(), Some("4"));
+        let wire = serde_json::to_value(&verified).expect("serialize verified row");
+        assert!(wire.get("source_size_bytes").is_none());
+
+        fs::remove_dir_all(root).expect("remove magnet-size test root");
     }
 
     #[tokio::test]

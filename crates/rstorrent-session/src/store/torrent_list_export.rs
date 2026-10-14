@@ -114,7 +114,7 @@ impl SessionStore {
                 Some(synthesized_metainfo(raw_info, &trackers)),
             ));
         }
-        let magnet = self.export_magnet(&torrent_id.to_string())?;
+        let (magnet, _) = self.export_base_magnet(&torrent_id.to_string())?;
         Ok((
             ManifestSource::Magnet {
                 magnet: magnet.magnet,

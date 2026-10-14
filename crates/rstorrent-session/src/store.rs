@@ -12,7 +12,8 @@ use rstorrent_protocol::dht::{DhtEndpoint, DhtIp, NodeContact, NodeId};
 use rstorrent_protocol::identity::{FullInfoHash, InfoHashes, V1InfoHash, V2InfoHash};
 use rstorrent_protocol::magnet::{
     FileIndexRange as MagnetFileIndexRange, MAX_MAGNET_LENGTH, MAX_PEER_HINTS, MAX_TRACKERS,
-    Magnet, TrackerUrl, TrackerUrlTransport,
+    Magnet, MagnetShareParameters, PeerHint, SelectOnly, TrackerUrl, TrackerUrlTransport,
+    replace_share_parameters,
 };
 use rstorrent_protocol::metainfo::{
     DURABLE_METAINFO_LIMITS, EXPLICIT_IMPORT_METAINFO_LIMITS, Metainfo, MetainfoError,
@@ -25,9 +26,10 @@ use sha2::{Digest as Sha256Digest, Sha256};
 use crate::control::{
     AddTorrentBytesRequest, AddTorrentDisposition, AddTorrentResult, Command, CommandResult,
     ErrorCode, FilePriority, FileSelectionIntent, FileSelectionOverride,
-    MAX_FILE_SELECTION_ENTRIES, MagnetExportResult, MagnetExportSource, PendingFileSelectionBase,
-    RemovalDataPolicy, RemovalState, RequestEnvelope, ResponseEnvelope, ServiceSnapshot,
-    StorageState, TorrentSnapshot, TorrentState, encode_info_hash, parse_revision,
+    MAX_FILE_SELECTION_ENTRIES, MagnetExportOptions, MagnetExportResult, MagnetExportSource,
+    MagnetPeerHint, MagnetPeerHintOmission, PendingFileSelectionBase, RemovalDataPolicy,
+    RemovalState, RequestEnvelope, ResponseEnvelope, ServiceSnapshot, StorageState,
+    TorrentSnapshot, TorrentState, encode_info_hash, parse_revision,
     validate_add_torrent_bytes_request, validate_identifier, validate_request,
 };
 use crate::download_queue::{self, QueueEdge};
@@ -44,6 +46,7 @@ use crate::settings::{
     TorrentTransferLimits, TransferRateLimit, create_client_settings, read_client_settings,
     replace_client_settings,
 };
+use crate::share_peer_hints::{ShareEndpointFacts, select_peer_hints};
 use crate::store_schema::{
     BASELINE_SCHEMA_VERSION, DHT_TABLES_SQL, DOWNLOAD_QUEUE_INDEX_SQL, FILE_PRIORITIES_TABLE_SQL,
     REMOVAL_TABLE_SQL, SCHEMA_VERSION, SOURCE_TABLES_SQL,
@@ -1298,6 +1301,17 @@ impl SessionStore {
         &mut self,
         request: &RequestEnvelope,
     ) -> Result<ResponseEnvelope, StoreError> {
+        self.handle_durable_with_share_endpoints(request, None)
+    }
+
+    /// [`handle_durable`](Self::handle_durable) with the runtime's
+    /// reachability facts for a magnet export's peer hint. `None` means the
+    /// caller has no network runtime.
+    pub(crate) fn handle_durable_with_share_endpoints(
+        &mut self,
+        request: &RequestEnvelope,
+        share_endpoints: Option<&ShareEndpointFacts>,
+    ) -> Result<ResponseEnvelope, StoreError> {
         if let Err((code, message)) = validate_request(request) {
             return Ok(ResponseEnvelope::error(
                 request.request_id.clone(),
@@ -1312,9 +1326,19 @@ impl SessionStore {
                 self.revision()?,
                 self.snapshot()?,
             );
-            if let Command::ExportMagnet { torrent_id } = &request.command {
-                response = match self.export_magnet(torrent_id) {
-                    Ok(result) => response.with_result(CommandResult::ExportMagnet { result }),
+            if let Command::ExportMagnet {
+                torrent_id,
+                options,
+            } = &request.command
+            {
+                response = match self.export_magnet(torrent_id, options.as_ref(), share_endpoints) {
+                    Ok(Ok(result)) => response.with_result(CommandResult::ExportMagnet { result }),
+                    Ok(Err((code, message))) => ResponseEnvelope::error(
+                        request.request_id.clone(),
+                        self.revision()?,
+                        code,
+                        message,
+                    ),
                     Err(StoreError::UnknownTorrent(_)) => ResponseEnvelope::error(
                         request.request_id.clone(),
                         self.revision()?,
@@ -1584,13 +1608,17 @@ impl SessionStore {
             (None, None, Some(v2)) => format!("magnet:?xt=urn:btmh:1220{v2}"),
             (None, _, _) => String::new(),
         };
+        // Operational magnets written before a presentation claim (`dn`,
+        // later `xl`) was retained recover it from the verified source.
         if let Ok(mut parsed) = Magnet::parse(&operational_magnet)
-            && parsed.display_name.is_none()
+            && (parsed.display_name.is_none() || parsed.exact_length.is_none())
             && let Some(source) =
                 read_verified_retained_magnet(&self.connection, &torrent_id, info_hashes)?
-            && source.parsed.display_name.is_some()
+            && (parsed.display_name.is_none() && source.parsed.display_name.is_some()
+                || parsed.exact_length.is_none() && source.parsed.exact_length.is_some())
         {
-            parsed.display_name = source.parsed.display_name;
+            parsed.display_name = parsed.display_name.or(source.parsed.display_name);
+            parsed.exact_length = parsed.exact_length.or(source.parsed.exact_length);
             operational_magnet = canonical_magnet(&parsed);
         }
         let desired_running = match row.6.as_str() {
@@ -1650,7 +1678,29 @@ impl SessionStore {
         })
     }
 
-    fn export_magnet(&self, torrent_id: &str) -> Result<MagnetExportResult, StoreError> {
+    fn export_magnet(
+        &self,
+        torrent_id: &str,
+        options: Option<&MagnetExportOptions>,
+        share_endpoints: Option<&ShareEndpointFacts>,
+    ) -> Result<Result<MagnetExportResult, (ErrorCode, String)>, StoreError> {
+        let (base, raw_info) = self.export_base_magnet(torrent_id)?;
+        let Some(options) = options else {
+            return Ok(Ok(base));
+        };
+        let content = raw_info.as_deref().map(share_content_facts).transpose()?;
+        Ok(apply_share_options(
+            base,
+            content.as_ref(),
+            options,
+            share_endpoints,
+        ))
+    }
+
+    fn export_base_magnet(
+        &self,
+        torrent_id: &str,
+    ) -> Result<(MagnetExportResult, Option<Vec<u8>>), StoreError> {
         let torrent_id = decode_torrent_id(torrent_id)
             .ok_or_else(|| StoreError::DurableState("invalid torrent identity".to_owned()))?;
         let raw_info = self
@@ -1668,17 +1718,25 @@ impl SessionStore {
         if let Some(retained) =
             read_verified_retained_magnet(&self.connection, &torrent_id, info_hashes)?
         {
-            return Ok(MagnetExportResult {
-                magnet: retained.magnet,
-                source: retained.source,
-                omitted_tracker_count: 0,
-            });
+            return Ok((
+                MagnetExportResult {
+                    magnet: retained.magnet,
+                    source: retained.source,
+                    omitted_tracker_count: 0,
+                    peer_hints: Vec::new(),
+                    peer_hint_omission: None,
+                },
+                raw_info,
+            ));
         }
 
-        Ok(synthesize_magnet_export(
-            info_hashes,
-            content_name.as_deref(),
-            &read_trackers(&self.connection, &torrent_id)?,
+        Ok((
+            synthesize_magnet_export(
+                info_hashes,
+                content_name.as_deref(),
+                &read_trackers(&self.connection, &torrent_id)?,
+            ),
+            raw_info,
         ))
     }
 
@@ -6737,17 +6795,13 @@ fn canonical_magnet(magnet: &Magnet) -> String {
         output.push_str("&dn=");
         percent_encode_query_value(&mut output, display_name.as_bytes());
     }
+    if let Some(exact_length) = magnet.exact_length {
+        output.push_str("&xl=");
+        output.push_str(&exact_length.to_string());
+    }
     for hint in &magnet.peer_hints {
         output.push_str("&x.pe=");
-        if hint.host.contains(':') {
-            output.push('[');
-            output.push_str(&hint.host);
-            output.push(']');
-        } else {
-            output.push_str(&hint.host);
-        }
-        output.push(':');
-        output.push_str(&hint.port.to_string());
+        output.push_str(&hint.magnet_value());
     }
     for tracker in &magnet.trackers {
         output.push_str("&tr=");
@@ -6798,7 +6852,165 @@ fn synthesize_magnet_export(
         magnet,
         source: MagnetExportSource::Synthesized,
         omitted_tracker_count: u32::try_from(omitted_trackers).unwrap_or(u32::MAX),
+        peer_hints: Vec::new(),
+        peer_hint_omission: None,
     }
+}
+
+/// Verified metainfo facts a share export may publish.
+struct ShareContentFacts {
+    total_length: u64,
+    private: bool,
+    /// One entry per file in the `FileView::file_index` space; true for a
+    /// BEP 47 padding file.
+    padding: Vec<bool>,
+}
+
+fn share_content_facts(raw_info: &[u8]) -> Result<ShareContentFacts, StoreError> {
+    validate_raw_info_length(raw_info)?;
+    let parsed = ParsedInfo::from_bytes_with_limits(raw_info, DURABLE_METAINFO_LIMITS)
+        .map_err(map_durable_metainfo_error)?;
+    Ok(match parsed.kind() {
+        ParsedInfoKind::V1(metainfo) => ShareContentFacts {
+            total_length: metainfo.total_length,
+            private: metainfo.private,
+            padding: metainfo.files.iter().map(|file| file.padding).collect(),
+        },
+        ParsedInfoKind::V2(metainfo) => ShareContentFacts {
+            total_length: metainfo.total_length,
+            private: metainfo.private,
+            padding: vec![false; metainfo.files.len()],
+        },
+        ParsedInfoKind::Hybrid(metainfo) => ShareContentFacts {
+            total_length: metainfo.v2.total_length,
+            private: metainfo.v2.private,
+            padding: vec![false; metainfo.v2.files.len()],
+        },
+    })
+}
+
+/// Apply [`MagnetExportOptions`] to a base export. Existing `xl`, `so` and
+/// `x.pe` parameters are replaced, never passed through: every published
+/// value comes from verified metadata or the session's own endpoints.
+fn apply_share_options(
+    base: MagnetExportResult,
+    content: Option<&ShareContentFacts>,
+    options: &MagnetExportOptions,
+    share_endpoints: Option<&ShareEndpointFacts>,
+) -> Result<MagnetExportResult, (ErrorCode, String)> {
+    let exact_length = content
+        .filter(|_| options.include_size)
+        .map(|content| content.total_length)
+        .filter(|length| *length > 0);
+    let select_only = if options.file_indices.is_empty() {
+        None
+    } else {
+        let content = content.ok_or_else(|| {
+            (
+                ErrorCode::InvalidTorrentState,
+                "sharing files requires verified metadata".to_owned(),
+            )
+        })?;
+        Some(share_select_only(&options.file_indices, &content.padding)?)
+    };
+    let (hints, peer_hint_omission) = if !options.peer_hint {
+        (Vec::new(), None)
+    } else {
+        match content {
+            None => (Vec::new(), Some(MagnetPeerHintOmission::MetadataPending)),
+            Some(content) if content.private => {
+                (Vec::new(), Some(MagnetPeerHintOmission::PrivateTorrent))
+            }
+            Some(_) => match select_peer_hints(share_endpoints) {
+                Ok(hints) => (hints, None),
+                Err(omission) => (Vec::new(), Some(omission)),
+            },
+        }
+    };
+    let magnet_hints = hints
+        .iter()
+        .map(|hint| PeerHint {
+            host: hint.endpoint.ip().to_string(),
+            port: hint.endpoint.port(),
+        })
+        .collect::<Vec<_>>();
+    let magnet = replace_share_parameters(
+        &base.magnet,
+        MagnetShareParameters {
+            exact_length,
+            select_only: select_only.as_ref(),
+            peer_hints: &magnet_hints,
+        },
+    );
+    if magnet.len() > MAX_MAGNET_LENGTH {
+        return Err((
+            ErrorCode::ResourceLimit,
+            format!("shared magnet exceeds {MAX_MAGNET_LENGTH} bytes"),
+        ));
+    }
+    Ok(MagnetExportResult {
+        magnet,
+        source: base.source,
+        omitted_tracker_count: base.omitted_tracker_count,
+        peer_hints: hints
+            .into_iter()
+            .zip(&magnet_hints)
+            .map(|(hint, magnet_hint)| MagnetPeerHint {
+                endpoint: magnet_hint.magnet_value(),
+                scope: hint.scope,
+            })
+            .collect(),
+        peer_hint_omission,
+    })
+}
+
+/// Encode sorted, unique file indices as BEP 53 ranges after checking each
+/// against the verified file list. A gap made only of padding files joins
+/// its neighbours, since no client downloads a padding file.
+fn share_select_only(
+    file_indices: &[u32],
+    padding: &[bool],
+) -> Result<SelectOnly, (ErrorCode, String)> {
+    let mut ranges: Vec<MagnetFileIndexRange> = Vec::new();
+    for &index in file_indices {
+        match usize::try_from(index)
+            .ok()
+            .and_then(|position| padding.get(position))
+        {
+            None => {
+                return Err((
+                    ErrorCode::InvalidRequest,
+                    format!("file index {index} is outside the torrent file list"),
+                ));
+            }
+            Some(true) => {
+                return Err((
+                    ErrorCode::InvalidRequest,
+                    format!("file index {index} is a padding file"),
+                ));
+            }
+            Some(false) => {}
+        }
+        if let Some(last) = ranges.last_mut()
+            && index > last.end
+            && padding[last.end as usize + 1..index as usize]
+                .iter()
+                .all(|padding| *padding)
+        {
+            last.end = index;
+        } else {
+            ranges.push(MagnetFileIndexRange {
+                start: index,
+                end: index,
+            });
+        }
+    }
+    SelectOnly::from_ranges(ranges).ok_or_else(|| {
+        (
+            ErrorCode::InvalidRequest,
+            "shared file selection cannot be encoded".to_owned(),
+        )
+    })
 }
 
 fn append_magnet_identities(output: &mut String, identities: InfoHashes) {
@@ -6886,7 +7098,7 @@ pub(crate) fn create_baseline_for_test(transaction: &Transaction<'_>) {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddrV4};
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -6901,13 +7113,14 @@ mod tests {
     use sha2::Sha256;
 
     use super::{
-        ConfiguredStorageRoot, MAX_ACCOUNTING_BATCH, MAX_PENDING_PRODUCT_MILESTONES,
-        PendingReconciliation, SCHEMA_VERSION, SessionStore, StoreError, StoredTracker,
-        StoredTrackerSource, StoredTrackerTransport, TorrentAccounting, TorrentAccountingUpdate,
-        append_product_milestone, synthesize_magnet_export,
+        ConfiguredStorageRoot, MAX_ACCOUNTING_BATCH, MAX_FILE_SELECTION_ENTRIES,
+        MAX_PENDING_PRODUCT_MILESTONES, PendingReconciliation, SCHEMA_VERSION, SessionStore,
+        StoreError, StoredTracker, StoredTrackerSource, StoredTrackerTransport, TorrentAccounting,
+        TorrentAccountingUpdate, append_product_milestone, synthesize_magnet_export,
     };
     use crate::ClientSettings;
     use crate::have::{HaveState, MAX_DURABLE_HAVE_STATE_BYTES, MAX_DURABLE_PIECES};
+    use crate::share_peer_hints::ShareEndpointFacts;
     use crate::{
         ActiveSeedLimit, AddTorrentBytesRequest, CONTROL_VERSION, Command, EncryptionPolicy,
         ErrorCode, FileIndexRange, FilePriority, FileSelectionIntent,
@@ -6915,6 +7128,7 @@ mod tests {
         ProductMilestoneKind, RemovalDataPolicy, RemovalState, RequestEnvelope, ResponseOutcome,
         StorageState, TorrentState, TorrentTransferLimits, TransferRateLimit,
     };
+    use crate::{MagnetExportOptions, MagnetPeerHint, MagnetPeerHintOmission, MagnetPeerHintScope};
 
     static NEXT_TEST: AtomicU64 = AtomicU64::new(0);
 
@@ -7073,7 +7287,9 @@ mod tests {
         let hashes = super::read_info_hashes(&store.connection, &owner).expect("aliases");
         assert!(hashes.is_hybrid());
         assert_eq!(hashes.v2_hash(), Some(V2InfoHash::new([0xaa; 32])));
-        let export = store.export_magnet(&torrent_id).expect("hybrid export");
+        let (export, _) = store
+            .export_base_magnet(&torrent_id)
+            .expect("hybrid export");
         assert_eq!(export.magnet, source);
     }
 
@@ -7287,7 +7503,7 @@ mod tests {
         let configured = configured_root(&root);
         let source = "magnet:?dn=Original%20Name&ws=https%3A%2F%2Fseed.example%2Ffile\
              &tr=udp%3A%2F%2Ftracker.example%3A6969%2Fannounce\
-             &xt=urn:btih:000102030405060708090A0B0C0D0E0F10111213";
+             &xt=urn:btih:000102030405060708090A0B0C0D0E0F10111213&xl=4096";
         let mut store = SessionStore::open(&root, "default", &[configured]).expect("open");
         let added = store
             .handle_durable(&RequestEnvelope {
@@ -7306,13 +7522,9 @@ mod tests {
         assert_eq!(added.revision, "1");
         let torrent_id = added_torrent_id(&added);
         let resume = store.load_resume(&torrent_id).expect("load named source");
-        assert_eq!(
-            Magnet::parse(&resume.magnet)
-                .expect("parse operational magnet")
-                .display_name
-                .as_deref(),
-            Some("Original Name")
-        );
+        let operational = Magnet::parse(&resume.magnet).expect("parse operational magnet");
+        assert_eq!(operational.display_name.as_deref(), Some("Original Name"));
+        assert_eq!(operational.exact_length, Some(4096));
 
         let owner = super::decode_torrent_id(&torrent_id).expect("owner");
         store
@@ -7329,13 +7541,9 @@ mod tests {
         let recovered = store
             .load_resume(&torrent_id)
             .expect("recover retained source name");
-        assert_eq!(
-            Magnet::parse(&recovered.magnet)
-                .expect("parse recovered operational magnet")
-                .display_name
-                .as_deref(),
-            Some("Original Name")
-        );
+        let recovered = Magnet::parse(&recovered.magnet).expect("parse recovered magnet");
+        assert_eq!(recovered.display_name.as_deref(), Some("Original Name"));
+        assert_eq!(recovered.exact_length, Some(4096));
 
         let export = store
             .handle_durable(&export_request("export-verbatim", &torrent_id))
@@ -8245,8 +8453,292 @@ mod tests {
             expected_revision: None,
             command: Command::ExportMagnet {
                 torrent_id: torrent_id.to_owned(),
+                options: None,
             },
         }
+    }
+
+    fn share_request(
+        request_id: &str,
+        torrent_id: &str,
+        options: MagnetExportOptions,
+    ) -> RequestEnvelope {
+        RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            command: Command::ExportMagnet {
+                torrent_id: torrent_id.to_owned(),
+                options: Some(options),
+            },
+        }
+    }
+
+    fn export_result(response: crate::ResponseEnvelope) -> crate::MagnetExportResult {
+        match response.result.expect("export result") {
+            crate::CommandResult::ExportMagnet { result } => result,
+            crate::CommandResult::AddTorrent { .. } => panic!("unexpected add result"),
+        }
+    }
+
+    fn error_code(response: &crate::ResponseEnvelope) -> ErrorCode {
+        match &response.outcome {
+            ResponseOutcome::Error { error } => error.code,
+            ResponseOutcome::Success { .. } => panic!("expected an error response"),
+        }
+    }
+
+    /// Four files: `a` (2 bytes), a padding file, `b` and `c` (4 bytes each).
+    fn share_raw_info(private: bool) -> Vec<u8> {
+        let files = concat!(
+            "d6:lengthi2e4:pathl1:aee",
+            "d4:attr1:p6:lengthi2ee",
+            "d6:lengthi4e4:pathl1:bee",
+            "d6:lengthi4e4:pathl1:cee",
+        );
+        let mut raw =
+            format!("d5:filesl{files}e4:name5:share12:piece lengthi4e6:pieces60:").into_bytes();
+        raw.extend_from_slice(&[7; 60]);
+        if private {
+            raw.extend_from_slice(b"7:privatei1e");
+        }
+        raw.push(b'e');
+        raw
+    }
+
+    fn add_share_torrent(
+        store: &mut SessionStore,
+        request_id: &str,
+        raw_info: &[u8],
+    ) -> (String, String) {
+        let hash = super::encode_hex(&Sha1::digest(raw_info));
+        let source = format!(
+            "magnet:?xt=urn:btih:{hash}&dn=Shared&xl=999&so=3&x.pe=10.0.0.9:1\
+             &tr=udp%3A%2F%2Ftracker.example%3A6969"
+        );
+        let added = store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: request_id.to_owned(),
+                expected_revision: None,
+                command: Command::AddMagnet {
+                    magnet: source.clone(),
+                    storage_root: "downloads".to_owned(),
+                    start_content: false,
+                    await_file_selection: false,
+                    skip_files: Vec::new(),
+                },
+            })
+            .expect("add share magnet");
+        (added_torrent_id(&added), source)
+    }
+
+    fn lan_facts() -> ShareEndpointFacts {
+        ShareEndpointFacts {
+            ipv4_listener: Some(SocketAddrV4::new(Ipv4Addr::new(192, 168, 1, 20), 6881)),
+            ..ShareEndpointFacts::default()
+        }
+    }
+
+    #[test]
+    fn share_export_replaces_owned_parameters_from_verified_metadata() {
+        let root = test_root("share-export");
+        let configured = configured_root(&root);
+        let mut store = SessionStore::open(&root, "default", &[configured]).expect("open");
+        let raw_info = share_raw_info(false);
+        let (torrent_id, source) = add_share_torrent(&mut store, "add-share", &raw_info);
+
+        // Before metadata: no verified size or file list, and no hint.
+        let pending = export_result(
+            store
+                .handle_durable_with_share_endpoints(
+                    &share_request(
+                        "share-pending",
+                        &torrent_id,
+                        MagnetExportOptions {
+                            include_size: true,
+                            file_indices: Vec::new(),
+                            peer_hint: true,
+                        },
+                    ),
+                    Some(&lan_facts()),
+                )
+                .expect("share before metadata"),
+        );
+        let hash = super::encode_hex(&Sha1::digest(&raw_info));
+        assert_eq!(
+            pending.magnet,
+            format!("magnet:?xt=urn:btih:{hash}&dn=Shared&tr=udp%3A%2F%2Ftracker.example%3A6969")
+        );
+        assert!(pending.peer_hints.is_empty());
+        assert_eq!(
+            pending.peer_hint_omission,
+            Some(MagnetPeerHintOmission::MetadataPending)
+        );
+        let selection_pending = store
+            .handle_durable(&share_request(
+                "share-pending-files",
+                &torrent_id,
+                MagnetExportOptions {
+                    file_indices: vec![0],
+                    ..MagnetExportOptions::default()
+                },
+            ))
+            .expect("typed pending selection error");
+        assert_eq!(
+            error_code(&selection_pending),
+            ErrorCode::InvalidTorrentState
+        );
+
+        store
+            .record_metadata(&torrent_id, &raw_info)
+            .expect("record metadata");
+
+        // Without options the retained source is still exported verbatim,
+        // and the wire result carries no share fields.
+        let plain = store
+            .handle_durable(&export_request("share-plain", &torrent_id))
+            .expect("plain export");
+        let wire = serde_json::to_value(plain.result.as_ref().expect("result")).expect("wire");
+        assert!(wire["result"].get("peer_hints").is_none());
+        assert!(wire["result"].get("peer_hint_omission").is_none());
+        let plain = export_result(plain);
+        assert_eq!(plain.magnet, source);
+        assert_eq!(plain.source, MagnetExportSource::Verbatim);
+
+        let shared = export_result(
+            store
+                .handle_durable_with_share_endpoints(
+                    &share_request(
+                        "share-rich",
+                        &torrent_id,
+                        MagnetExportOptions {
+                            include_size: true,
+                            file_indices: vec![0, 2],
+                            peer_hint: true,
+                        },
+                    ),
+                    Some(&lan_facts()),
+                )
+                .expect("rich share"),
+        );
+        assert_eq!(
+            shared.magnet,
+            format!(
+                "magnet:?xt=urn:btih:{hash}&dn=Shared&tr=udp%3A%2F%2Ftracker.example%3A6969\
+                 &xl=12&so=0-2&x.pe=192.168.1.20:6881"
+            )
+        );
+        assert_eq!(shared.source, MagnetExportSource::Verbatim);
+        assert_eq!(
+            shared.peer_hints,
+            vec![MagnetPeerHint {
+                endpoint: "192.168.1.20:6881".to_owned(),
+                scope: MagnetPeerHintScope::LocalNetwork,
+            }]
+        );
+        assert_eq!(shared.peer_hint_omission, None);
+        let parsed = Magnet::parse(&shared.magnet).expect("shared magnet parses");
+        assert_eq!(parsed.exact_length, Some(12));
+        assert_eq!(parsed.select_only.expect("selection").canonical(), "0-2");
+
+        // A gap holding a real file is kept; options can also drop keys.
+        let split = export_result(
+            store
+                .handle_durable(&share_request(
+                    "share-split",
+                    &torrent_id,
+                    MagnetExportOptions {
+                        file_indices: vec![0, 3],
+                        ..MagnetExportOptions::default()
+                    },
+                ))
+                .expect("split share"),
+        );
+        assert!(split.magnet.ends_with("&so=0,3"), "{}", split.magnet);
+        assert!(!split.magnet.contains("xl="));
+        assert!(!split.magnet.contains("x.pe="));
+
+        // Without a network runtime a requested hint reports why.
+        let offline = export_result(
+            store
+                .handle_durable(&share_request(
+                    "share-offline",
+                    &torrent_id,
+                    MagnetExportOptions {
+                        peer_hint: true,
+                        ..MagnetExportOptions::default()
+                    },
+                ))
+                .expect("offline share"),
+        );
+        assert_eq!(
+            offline.peer_hint_omission,
+            Some(MagnetPeerHintOmission::IncomingDisabled)
+        );
+
+        for (request_id, indices, code) in [
+            ("share-padding", vec![1], ErrorCode::InvalidRequest),
+            ("share-outside", vec![4], ErrorCode::InvalidRequest),
+            ("share-unsorted", vec![2, 0], ErrorCode::InvalidRequest),
+            ("share-duplicate", vec![2, 2], ErrorCode::InvalidRequest),
+            (
+                "share-too-many",
+                (0..=MAX_FILE_SELECTION_ENTRIES as u32).collect(),
+                ErrorCode::InvalidRequest,
+            ),
+        ] {
+            let rejected = store
+                .handle_durable(&share_request(
+                    request_id,
+                    &torrent_id,
+                    MagnetExportOptions {
+                        file_indices: indices,
+                        ..MagnetExportOptions::default()
+                    },
+                ))
+                .expect("typed selection error");
+            assert_eq!(error_code(&rejected), code, "{request_id}");
+        }
+        drop(store);
+        fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
+    fn share_export_never_hints_a_private_torrent() {
+        let root = test_root("share-private");
+        let configured = configured_root(&root);
+        let mut store = SessionStore::open(&root, "default", &[configured]).expect("open");
+        let raw_info = share_raw_info(true);
+        let (torrent_id, _) = add_share_torrent(&mut store, "add-private-share", &raw_info);
+        store
+            .record_metadata(&torrent_id, &raw_info)
+            .expect("record private metadata");
+        let shared = export_result(
+            store
+                .handle_durable_with_share_endpoints(
+                    &share_request(
+                        "share-private",
+                        &torrent_id,
+                        MagnetExportOptions {
+                            include_size: true,
+                            file_indices: Vec::new(),
+                            peer_hint: true,
+                        },
+                    ),
+                    Some(&lan_facts()),
+                )
+                .expect("private share"),
+        );
+        assert!(shared.peer_hints.is_empty());
+        assert_eq!(
+            shared.peer_hint_omission,
+            Some(MagnetPeerHintOmission::PrivateTorrent)
+        );
+        assert!(!shared.magnet.contains("x.pe="), "{}", shared.magnet);
+        assert!(shared.magnet.contains("&xl=12"), "{}", shared.magnet);
+        drop(store);
+        fs::remove_dir_all(root).expect("remove test profile");
     }
 
     fn torrent_bytes_request(request_id: &str, source: &[u8]) -> AddTorrentBytesRequest {

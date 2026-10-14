@@ -20,6 +20,7 @@ internal fun productErrorText(error: ProductError): String =
                     ProductError.Code.SETTINGS_UPDATE_EMPTY -> R.string.error_settings_update_empty
                     ProductError.Code.SETTINGS_LOADING -> R.string.error_settings_loading
                     ProductError.Code.POWER_SETTING_SAVE_FAILED -> R.string.error_power_save_failed
+                    ProductError.Code.SHARE_SETTING_SAVE_FAILED -> R.string.error_share_setting_save_failed
                     ProductError.Code.TORRENT_SETTINGS_UPDATE_EMPTY ->
                         R.string.error_torrent_settings_update_empty
                     ProductError.Code.TORRENT_MISSING -> R.string.error_torrent_missing

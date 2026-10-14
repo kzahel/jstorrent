@@ -51,6 +51,7 @@ import type {
   CommandResult,
   DownloadStorageSettings,
   DesiredInspectionViews,
+  FileRow,
   InspectionCommand,
   InspectionUpdate,
   MagnetExport,
@@ -530,16 +531,22 @@ describe("inspection application", () => {
     await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(magnet));
     await findToast("Magnet link copied");
 
-    await user.click(
-      within(detail).getByRole("button", { name: "Copy share link" }),
-    );
+    // The link button opens the Share panel; its Copy copies the link.
+    const shareButton = within(detail).getByRole("button", { name: "Share" });
+    await user.click(shareButton);
+    const panel = await screen.findByRole("dialog", { name: "Share torrent" });
+    const link =
+      `https://jstorrent.com/share/#xt=urn:btih:${torrent.infoHash}` +
+      "&dn=Original%20Name&tr=udp%3A%2F%2Ftracker.example%3A6969%2Fannounce";
     await waitFor(() =>
-      expect(writeText).toHaveBeenLastCalledWith(
-        `https://jstorrent.com/share/#xt=urn:btih:${torrent.infoHash}` +
-          "&dn=Original%20Name&tr=udp%3A%2F%2Ftracker.example%3A6969%2Fannounce",
-      ),
+      expect(within(panel).getByRole("textbox", { name: "Share link" })).toHaveValue(link),
     );
+    await user.click(within(panel).getByRole("button", { name: "Copy" }));
+    await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(link));
     await findToast("Share link copied");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Share torrent" })).toBeNull();
+    await waitFor(() => expect(shareButton).toHaveFocus());
 
     await user.click(
       within(detail).getByRole("button", { name: "Copy info hash" }),
@@ -594,9 +601,15 @@ describe("inspection application", () => {
       ),
     ).toBeVisible();
 
-    await user.click(
-      within(detail).getByRole("button", { name: "Copy share link" }),
-    );
+    await user.click(within(detail).getByRole("button", { name: "Share" }));
+    const panel = await screen.findByRole("dialog", { name: "Share torrent" });
+    // A private torrent never carries the address, so there is no choice.
+    expect(
+      within(panel).queryByRole("checkbox", { name: "Include my address" }),
+    ).toBeNull();
+    const copy = within(panel).getByRole("button", { name: "Copy" });
+    await waitFor(() => expect(copy).toBeEnabled());
+    await user.click(copy);
     await findToast(
       "Share link copied. This torrent is private, so the link only works for members of its tracker.",
     );
@@ -1899,7 +1912,11 @@ describe("inspection application", () => {
     await user.click(within(files).getByText(skippedFile.name));
     await user.click(screen.getByRole("button", { name: "More file actions" }));
     const fileActions = screen.getByRole("menu", { name: "More file actions" });
-    expect(within(fileActions).getAllByRole("separator")).toHaveLength(1);
+    // Download, priority and share groups.
+    expect(within(fileActions).getAllByRole("separator")).toHaveLength(2);
+    expect(
+      within(fileActions).getByRole("menuitem", { name: "Share file" }),
+    ).toBeEnabled();
     expect(within(fileActions).queryByText("Download", { exact: true })).not.toBeInTheDocument();
     await user.click(screen.getByRole("menuitem", { name: "Download now" }));
 
@@ -1968,7 +1985,7 @@ describe("inspection application", () => {
     fireEvent.contextMenu(firstRow, { clientX: 120, clientY: 160 });
     const contextMenu = await screen.findByRole("menu");
     expect(within(contextMenu).queryByText("Priority", { exact: true })).not.toBeInTheDocument();
-    expect(within(contextMenu).getAllByRole("separator")).toHaveLength(1);
+    expect(within(contextMenu).getAllByRole("separator")).toHaveLength(2);
     await user.click(
       within(contextMenu).getByRole("menuitem", { name: "Skip" }),
     );
@@ -4612,6 +4629,365 @@ describe("inspection application", () => {
   });
 });
 
+describe("rich share links", () => {
+  const LAN_HINT = "192.168.1.20:6881";
+
+  function clipboard() {
+    const writeText = vi.fn<(value: string) => Promise<void>>();
+    writeText.mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    return writeText;
+  }
+
+  function rememberPeerHint(choice: "ask" | "include" | "omit") {
+    globalThis.localStorage.setItem(
+      "rstorrent.presentation.share",
+      JSON.stringify({ version: 1, peerHint: choice }),
+    );
+  }
+
+  function rememberedPeerHint(): unknown {
+    const stored = globalThis.localStorage.getItem("rstorrent.presentation.share");
+    return stored === null ? null : (JSON.parse(stored) as { peerHint: unknown }).peerHint;
+  }
+
+  /** Answers exports like the engine: `xl`, `so` and a LAN hint on request. */
+  function shareExports(
+    application: RecordingLiveApplication,
+    torrents: Readonly<Record<string, TorrentRow>>,
+  ) {
+    application.exportHandler = (command) => {
+      const torrent = torrents[command.torrentId]!;
+      let magnet = `magnet:?xt=urn:btih:${torrent.infoHash}&dn=Name`;
+      const options = command.options;
+      if (options?.includeSize === true && torrent.sizeBytes !== null) {
+        magnet += `&xl=${torrent.sizeBytes}`;
+      }
+      if (options?.fileIndices !== undefined) {
+        magnet += `&so=${options.fileIndices.join(",")}`;
+      }
+      const hinted = options?.peerHint === true && torrent.privateTorrent !== true;
+      if (hinted) magnet += `&x.pe=${LAN_HINT}`;
+      return {
+        accepted: true,
+        magnetExport: {
+          magnet,
+          source: "verbatim",
+          omittedTrackerCount: 0,
+          ...(hinted
+            ? { peerHints: [{ endpoint: LAN_HINT, scope: "local_network" as const }] }
+            : {}),
+        },
+      };
+    };
+  }
+
+  function exports(application: RecordingLiveApplication) {
+    return application.commands.filter(
+      (command) => command.type === "export_magnet",
+    );
+  }
+
+  function seedingSnapshot(overrides: Partial<TorrentRow> = {}) {
+    const snapshot = {
+      ...buildScenarioSnapshot("healthy-download", 42_000, false, 1),
+      demo: null,
+    };
+    const current = snapshot.torrents[snapshot.torrentOrder[0]!]!;
+    return {
+      snapshot: {
+        ...snapshot,
+        torrents: { ...snapshot.torrents, [current.id]: { ...current, ...overrides } },
+      },
+      current: { ...current, ...overrides },
+    };
+  }
+
+  it("asks about the address on the first share-link copy and remembers it", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const { snapshot, current } = seedingSnapshot();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    shareExports(application, snapshot.torrents);
+    renderApplication(application);
+
+    const more = screen.getByRole("button", { name: "More" });
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Let them connect to you directly?",
+    });
+    expect(dialog).toHaveAccessibleDescription(
+      "Adding your address to the link lets the people you share it with reach you sooner. Anyone who has the link can see your IP address.",
+    );
+    expect(writeText).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole("button", { name: "Don't include" })).toHaveFocus();
+    await user.click(within(dialog).getByRole("checkbox", { name: "Remember my choice" }));
+    await user.click(within(dialog).getByRole("button", { name: "Include my address" }));
+
+    const link =
+      `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}&dn=Name` +
+      `&xl=${current.sizeBytes}&x.pe=${LAN_HINT}`;
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(link));
+    expect(exports(application).at(-1)).toEqual({
+      type: "export_magnet",
+      torrentId: current.id,
+      options: { includeSize: true, peerHint: true },
+    });
+    await findToast(
+      "Share link copied with your local network address. Only people on your network can use it to reach you.",
+    );
+    expect(rememberedPeerHint()).toBe("include");
+    await waitFor(() => expect(more).toHaveFocus());
+
+    // The remembered choice copies at once.
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(writeText).toHaveBeenLastCalledWith(link);
+  });
+
+  it("leaves the address out once and asks again next time", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const { snapshot, current } = seedingSnapshot();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    shareExports(application, snapshot.torrents);
+    renderApplication(application);
+
+    const more = screen.getByRole("button", { name: "More" });
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    await user.click(
+      within(
+        await screen.findByRole("dialog", { name: "Let them connect to you directly?" }),
+      ).getByRole("button", { name: "Don't include" }),
+    );
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}&dn=Name&xl=${current.sizeBytes}`,
+      ),
+    );
+    expect(exports(application).at(-1)).toEqual({
+      type: "export_magnet",
+      torrentId: current.id,
+      options: { includeSize: true },
+    });
+    await findToast("Share link copied");
+    expect(rememberedPeerHint()).toBeNull();
+
+    await user.click(more);
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    await screen.findByRole("dialog", { name: "Let them connect to you directly?" });
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(writeText).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(more).toHaveFocus());
+  });
+
+  it("never asks or hints for a private torrent", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const { snapshot, current } = seedingSnapshot({ privateTorrent: true });
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    shareExports(application, snapshot.torrents);
+    rememberPeerHint("include");
+    renderApplication(application);
+
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(exports(application).at(-1)).toEqual({
+      type: "export_magnet",
+      torrentId: current.id,
+      options: { includeSize: true },
+    });
+    await findToast(
+      "Share link copied. This torrent is private, so the link only works for members of its tracker.",
+    );
+  });
+
+  it("copies a plain share link from a host that rejects export options", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const { snapshot, current } = seedingSnapshot();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    application.exportHandler = (command) =>
+      command.options === undefined
+        ? {
+            accepted: true,
+            magnetExport: {
+              magnet: `magnet:?xt=urn:btih:${current.infoHash}`,
+              source: "verbatim",
+              omittedTrackerCount: 0,
+            },
+          }
+        : { accepted: false, message: "unknown field options", code: "invalid_request" };
+    rememberPeerHint("include");
+    renderApplication(application);
+
+    await user.click(screen.getByRole("button", { name: "More" }));
+    await user.click(screen.getByRole("menuitem", { name: "Copy share link" }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}`,
+      ),
+    );
+    expect(exports(application)).toHaveLength(2);
+    await findToast("Share link copied");
+  });
+
+  it("shares one file with its name and size, or several by index", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const snapshot = {
+      ...buildScenarioSnapshot("file-progress", 24_000, false, 1),
+      demo: null,
+    };
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+    shareExports(application, snapshot.torrents);
+    rememberPeerHint("omit");
+    const fileSet = snapshot.filesByTorrent[DEMO_PRIMARY_TORRENT_ID]!;
+    const [first, second] = fileSet.order
+      .map((id) => fileSet.rows[id])
+      .filter((row) => row?.padding === false)
+      .slice(0, 2) as [FileRow, FileRow];
+    const torrent = snapshot.torrents[DEMO_PRIMARY_TORRENT_ID]!;
+    renderApplication(application);
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "Files" }));
+    const files = screen.getByRole("grid", { name: "Torrent files" });
+    await user.click(within(files).getByText(first.name));
+    await user.click(screen.getByRole("button", { name: "More file actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Share file" }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        `https://jstorrent.com/share/#xt=urn:btih:${torrent.infoHash}&dn=Name` +
+          `&xl=${torrent.sizeBytes}&so=${first.index}` +
+          `&jst.file=${encodeURIComponent(first.name)}&jst.size=${first.lengthBytes}`,
+      ),
+    );
+    expect(exports(application).at(-1)).toEqual({
+      type: "export_magnet",
+      torrentId: DEMO_PRIMARY_TORRENT_ID,
+      options: { includeSize: true, fileIndices: [first.index] },
+    });
+    await findToast("Share link copied");
+
+    await user.click(
+      within(files).getByRole("checkbox", { name: `Select ${second.name}` }),
+    );
+    await user.click(screen.getByRole("button", { name: "More file actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Share files" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+    const indices = [first.index, second.index].sort((left, right) => left - right);
+    expect(exports(application).at(-1)).toEqual({
+      type: "export_magnet",
+      torrentId: DEMO_PRIMARY_TORRENT_ID,
+      options: { includeSize: true, fileIndices: indices },
+    });
+    expect(writeText.mock.lastCall?.[0]).not.toContain("jst.");
+  });
+
+  it("shows the Share panel's link, QR code and address choice", async () => {
+    const user = userEvent.setup();
+    const writeText = clipboard();
+    const share = vi.fn<(data: ShareData) => Promise<void>>();
+    share.mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "share", { configurable: true, value: share });
+    try {
+      const { snapshot, current } = seedingSnapshot();
+      const application = new RecordingLiveApplication({ type: "snapshot", snapshot });
+      shareExports(application, snapshot.torrents);
+      rememberPeerHint("include");
+      renderApplication(application);
+      await user.click(
+        within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+          "button", { name: "Torrents" },
+        ),
+      );
+      await user.click(screen.getByRole("tab", { name: "General" }));
+      await user.click(screen.getByRole("button", { name: "Share" }));
+      const panel = await screen.findByRole("dialog", { name: "Share torrent" });
+      const address = within(panel).getByRole("checkbox", { name: "Include my address" });
+      expect(address).toBeChecked();
+      const hinted =
+        `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}&dn=Name` +
+        `&xl=${current.sizeBytes}&x.pe=${LAN_HINT}`;
+      const field = within(panel).getByRole("textbox", { name: "Share link" });
+      await waitFor(() => expect(field).toHaveValue(hinted));
+      expect(within(panel).getByRole("status")).toHaveTextContent(
+        `Includes your local network address ${LAN_HINT}. Only people on your network can use it.`,
+      );
+      const qr = within(panel).getByRole("img", { name: "QR code for the share link" });
+      expect(qr.querySelectorAll("rect").length).toBeGreaterThan(20);
+
+      await user.click(within(panel).getByRole("button", { name: "Share…" }));
+      expect(share).toHaveBeenCalledWith({ title: current.name, url: hinted });
+
+      // Unchecking re-exports without the hint and keeps the remembered choice.
+      await user.click(address);
+      const plainLink =
+        `https://jstorrent.com/share/#xt=urn:btih:${current.infoHash}&dn=Name&xl=${current.sizeBytes}`;
+      await waitFor(() => expect(field).toHaveValue(plainLink));
+      expect(exports(application).at(-1)).toEqual({
+        type: "export_magnet",
+        torrentId: current.id,
+        options: { includeSize: true },
+      });
+      expect(within(panel).getByRole("status")).toHaveTextContent("");
+      expect(rememberedPeerHint()).toBe("include");
+      await user.click(within(panel).getByRole("button", { name: "Copy" }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith(plainLink));
+      await user.click(within(panel).getByRole("button", { name: "Close" }));
+
+      Reflect.deleteProperty(navigator, "share");
+      await user.click(screen.getByRole("button", { name: "Share" }));
+      const reopened = await screen.findByRole("dialog", { name: "Share torrent" });
+      await waitFor(() =>
+        expect(within(reopened).getByRole("button", { name: "Copy" })).toBeEnabled(),
+      );
+      expect(within(reopened).queryByRole("button", { name: "Share…" })).toBeNull();
+    } finally {
+      Reflect.deleteProperty(navigator, "share");
+    }
+  });
+
+  it("labels a size from the link before metadata arrives", async () => {
+    const user = userEvent.setup();
+    const snapshot = {
+      ...buildScenarioSnapshot("stalled-metadata", 4_000, false, 1),
+      demo: null,
+    };
+    renderApplication(new RecordingLiveApplication({ type: "snapshot", snapshot }));
+    expect(
+      within(screen.getByRole("grid", { name: "Torrents" })).getByText("264 MB (link)"),
+    ).toHaveAttribute(
+      "title",
+      "Size from the link. It's confirmed once the torrent's details arrive.",
+    );
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    expect(
+      screen.getByText("Size", { selector: "dt" }).parentElement,
+    ).toHaveTextContent("264 MB (from the link)");
+  });
+});
+
 /** The visible toast; its text is also mirrored in a hidden live region. */
 function toast(): HTMLElement {
   return screen.getByRole("region", { name: "Notification" });
@@ -4772,6 +5148,11 @@ class RecordingLiveApplication implements InspectionApplication {
   readonly commands: InspectionCommand[] = [];
   readonly views: DesiredInspectionViews[] = [];
   readonly magnetExports = new Map<string, MagnetExport>();
+  exportHandler:
+    | ((
+        command: Extract<InspectionCommand, { readonly type: "export_magnet" }>,
+      ) => CommandResult)
+    | undefined;
   rejectNextClientSettings = false;
   rejectNextExternal = false;
   rejectNextTorrentId: string | undefined;
@@ -4869,6 +5250,7 @@ class RecordingLiveApplication implements InspectionApplication {
       };
     }
     if (command.type === "export_magnet") {
+      if (this.exportHandler !== undefined) return this.exportHandler(command);
       const configured = this.magnetExports.get(command.torrentId);
       if (configured !== undefined) {
         return {

@@ -104,6 +104,7 @@ sealed interface ProductError {
         SETTINGS_UPDATE_EMPTY,
         SETTINGS_LOADING,
         POWER_SETTING_SAVE_FAILED,
+        SHARE_SETTING_SAVE_FAILED,
         TORRENT_SETTINGS_UPDATE_EMPTY,
         TORRENT_MISSING,
         NETWORK_PREFERENCE_SAVE_FAILED,
@@ -190,6 +191,7 @@ data class ProductState(
     val mediaLaunchPending: Boolean = false,
     val lifecycle: ProductLifecycleState = ProductLifecycleState(),
     val preventSleepDuringActiveDownloads: Boolean = true,
+    val sharePeerHintChoice: SharePeerHintChoice = SharePeerHintChoice.ASK,
     val network: ProductNetworkState = ProductNetworkState(),
     val notifications: ProductNotificationState = ProductNotificationState(),
     val dataReset: ProductDataResetState? = null,
@@ -742,6 +744,7 @@ internal object ProductStateReducer {
                 is TorrentFieldUpdate.ProtocolIdentities -> next.protocolIdentities = field.value
                 is TorrentFieldUpdate.DisplayName -> next.displayName = field.value
                 is TorrentFieldUpdate.SourceDisplayName -> next.sourceDisplayName = field.value
+                is TorrentFieldUpdate.SourceSizeBytes -> next.sourceSizeBytes = field.value
                 is TorrentFieldUpdate.State -> next.state = field.value
                 is TorrentFieldUpdate.OperationalState -> next.operationalState = field.value
                 is TorrentFieldUpdate.DownloadQueuePosition -> next.downloadQueuePosition = field.value

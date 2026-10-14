@@ -41,6 +41,20 @@ impl TorrentPeerActivitySink for TorrentPeerViewSink {
             let incoming_observed = peers
                 .iter()
                 .any(|peer| peer.direction == PeerConnectionDirection::Incoming);
+            if incoming_observed {
+                let now = Instant::now();
+                for peer in peers
+                    .iter()
+                    .filter(|peer| peer.direction == PeerConnectionDirection::Incoming)
+                {
+                    self.advertised_endpoint.observe_incoming_peer(
+                        peer.transport,
+                        peer.endpoint,
+                        peer.local_endpoint,
+                        now,
+                    );
+                }
+            }
             let mut traffic = self
                 .traffic
                 .lock()

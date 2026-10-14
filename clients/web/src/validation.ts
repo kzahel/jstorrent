@@ -517,6 +517,32 @@ function validateResponse(value: unknown): void {
           0,
           MAX_U32,
         );
+        if (magnet.peer_hints !== undefined) {
+          const hints = array(magnet.peer_hints, "magnet peer hints");
+          if (hints.length > 2) {
+            throw new ContractError("magnet peer hints exceed 2 entries");
+          }
+          for (const value of hints) {
+            const hint = asRecord(value, "magnet peer hint");
+            boundedString(hint.endpoint, "magnet peer hint endpoint", 64);
+            oneOf(hint.scope, "magnet peer hint scope", [
+              "internet",
+              "local_network",
+            ]);
+          }
+        }
+        if (
+          magnet.peer_hint_omission !== undefined &&
+          magnet.peer_hint_omission !== null
+        ) {
+          oneOf(magnet.peer_hint_omission, "magnet peer hint omission", [
+            "private_torrent",
+            "metadata_pending",
+            "incoming_disabled",
+            "not_reachable",
+            "no_address",
+          ]);
+        }
       }
     }
   } else if (status === "error") {
@@ -2155,6 +2181,7 @@ export function validateTorrentView(value: unknown): asserts value is TorrentVie
   validateProtocolIdentities(torrent.protocol_identities);
   optionalString(torrent.display_name, "torrent display name", 255);
   optionalString(torrent.source_display_name, "torrent source display name", 255);
+  optionalDecimal(torrent.source_size_bytes, "torrent source size");
   oneOf(torrent.operational_state, "torrent operational state", [
     "queued",
     "starting",

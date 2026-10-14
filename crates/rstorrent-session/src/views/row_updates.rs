@@ -100,6 +100,7 @@ semantic_fields!(
         ProtocolIdentities => protocol_identities: TorrentProtocolIdentities,
         DisplayName => display_name: Option<String>,
         SourceDisplayName => source_display_name: Option<String>,
+        SourceSizeBytes => source_size_bytes: Option<String>,
         State => state: TorrentState,
         OperationalState => operational_state: TorrentOperationalState,
         DownloadQueuePosition => download_queue_position: Option<u32>,
@@ -164,6 +165,7 @@ impl TorrentRowUpdate {
         changed!(ProtocolIdentities, protocol_identities);
         changed!(DisplayName, display_name);
         changed!(SourceDisplayName, source_display_name);
+        changed!(SourceSizeBytes, source_size_bytes);
         changed!(State, state);
         changed!(OperationalState, operational_state);
         changed!(DownloadQueuePosition, download_queue_position);
@@ -543,6 +545,7 @@ mod tests {
             },
             display_name: None,
             source_display_name: None,
+            source_size_bytes: None,
             state: TorrentState::Downloading,
             operational_state: TorrentOperationalState::Downloading,
             download_queue_position: None,
@@ -595,6 +598,7 @@ mod tests {
         current.protocol_identities.v2 = Some("11".repeat(32));
         current.display_name = Some("verified".to_owned());
         current.source_display_name = Some("source".to_owned());
+        current.source_size_bytes = Some("4096".to_owned());
         current.state = TorrentState::Paused;
         current.operational_state = TorrentOperationalState::Paused;
         current.download_queue_position = Some(3);
@@ -657,7 +661,7 @@ mod tests {
         current.error = Some("failure".to_owned());
 
         let update = TorrentRowUpdate::between(&previous, &current).expect("all fields changed");
-        assert_eq!(update.fields.len(), 31);
+        assert_eq!(update.fields.len(), 32);
         let mut applied = previous;
         update.apply(&mut applied).expect("apply");
         assert_eq!(applied, current);
@@ -665,6 +669,7 @@ mod tests {
         let mut cleared = current.clone();
         cleared.display_name = None;
         cleared.source_display_name = None;
+        cleared.source_size_bytes = None;
         cleared.download_queue_position = None;
         cleared.configured_tracker_count = None;
         cleared.total_size_bytes = None;

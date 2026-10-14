@@ -1,4 +1,5 @@
 import type { InspectionApplication } from "./application";
+import { CommandRejectedError } from "./command-error";
 import type { AppearanceStorage } from "./appearance";
 import type {
   CommandAccepted,
@@ -60,7 +61,7 @@ export class InspectionController {
   async execute(command: InspectionCommand): Promise<CommandAccepted> {
     if (this.closed) throw new Error("inspection controller is closed");
     const result = await this.application.dispatch(command);
-    if (!result.accepted) throw new Error(result.message);
+    if (!result.accepted) throw new CommandRejectedError(result.message, result.code);
     return result;
   }
 

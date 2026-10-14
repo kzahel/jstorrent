@@ -119,6 +119,7 @@ import org.rstorrent.bootstrap.GlobalPresentation
 import org.rstorrent.bootstrap.TorrentListNotice
 import org.rstorrent.bootstrap.TorrentPresentation
 import org.rstorrent.bootstrap.splitMagnetLinks
+import org.rstorrent.bootstrap.fileShareRequest
 import org.rstorrent.bootstrap.clientSettingsPatch
 import org.rstorrent.bootstrap.presentedClientSettings
 import org.rstorrent.bootstrap.presentedTorrent
@@ -838,7 +839,14 @@ private fun ProductNavHost(
     val resources = LocalContext.current.resources
     val undoLabel = stringResource(R.string.action_undo)
     val privateMagnetCopied = stringResource(R.string.copied_private_magnet)
-    val privateShareLinkCopied = stringResource(R.string.copied_private_share_link)
+    val share = rememberShareFlow(state, service, onMessage)
+
+    fun shareTorrent(
+        torrentId: String,
+        mode: ShareMode,
+    ) {
+        state.torrents[torrentId]?.let { share(torrentShareRequest(it), mode) }
+    }
 
     // Android confirms clipboard writes itself; a copy for one private torrent
     // also says the link only works for members of its tracker.
@@ -967,9 +975,9 @@ private fun ProductNavHost(
                 onCopyMagnets = { ids ->
                     service?.copyMagnets(ids, privateCopyNotice(ids, privateMagnetCopied))
                 },
-                onCopyShareLink = { id ->
-                    service?.copyShareLink(id, privateCopyNotice(listOf(id), privateShareLinkCopied))
-                },
+                onCopyShareLink = { shareTorrent(it, ShareMode.COPY) },
+                onShareLink = { shareTorrent(it, ShareMode.SEND) },
+                onShowQrCode = { shareTorrent(it, ShareMode.PANEL) },
                 onArchive = { ids ->
                     // Archiving pauses; undo resumes the torrents that were running.
                     val wasRunning = ids.filter { state.torrents[it]?.runningBeforeArchive() == true }
@@ -1029,11 +1037,18 @@ private fun ProductNavHost(
                         privateCopyNotice(listOf(torrentId), privateMagnetCopied),
                     )
                 },
-                onCopyShareLink = {
-                    service?.copyShareLink(
-                        torrentId,
-                        privateCopyNotice(listOf(torrentId), privateShareLinkCopied),
-                    )
+                onCopyShareLink = { shareTorrent(torrentId, ShareMode.COPY) },
+                onShareLink = { shareTorrent(torrentId, ShareMode.SEND) },
+                onShowQrCode = { shareTorrent(torrentId, ShareMode.PANEL) },
+                onShareFiles = { files ->
+                    torrent?.let {
+                        fileShareRequest(
+                            torrentId,
+                            torrentPresentationName(it),
+                            it.privateTorrent,
+                            files,
+                        )
+                    }?.let { share(it, ShareMode.PANEL) }
                 },
                 onTransferLimits = { onUpdateTorrentSettings(torrentId, it) },
                 onSpeed = { navController.navigate(ProductRoutes.SPEED) },
@@ -1325,6 +1340,11 @@ private fun ProductNavHost(
                         },
                     )
                 } ?: Text(stringResource(R.string.settings_loading), modifier = Modifier.padding(16.dp))
+                ShareLinkSettings(
+                    choice = state.sharePeerHintChoice,
+                    saveFailed = state.error == org.rstorrent.bootstrap.ProductError.Code.SHARE_SETTING_SAVE_FAILED,
+                    onChoice = { service?.setSharePeerHintChoice(it) },
+                )
             }
         }
         composable(ProductRoutes.SETTINGS_POWER) {
@@ -1866,6 +1886,9 @@ private fun TorrentDetailScreen(
     onRemove: () -> Unit,
     onCopyMagnet: () -> Unit,
     onCopyShareLink: () -> Unit,
+    onShareLink: () -> Unit,
+    onShowQrCode: () -> Unit,
+    onShareFiles: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onTransferLimits: (TorrentSettingsPatch) -> Unit,
     onSpeed: () -> Unit,
     onDht: () -> Unit,
@@ -1982,6 +2005,8 @@ private fun TorrentDetailScreen(
                                     dismiss,
                                     onCopyShareLink,
                                 )
+                                TorrentMenuItem(R.string.action_share_link, torrent, TorrentAction.COPY_SHARE_LINK, dismiss, onShareLink)
+                                TorrentMenuItem(R.string.action_show_qr_code, torrent, TorrentAction.COPY_SHARE_LINK, dismiss, onShowQrCode)
                                 TorrentMenuItem(R.string.action_remove, torrent, TorrentAction.REMOVE, dismiss, onRemove)
                                 HorizontalDivider()
                                 DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_speed)) }, onClick = { overflow = false; onSpeed() })
@@ -2001,6 +2026,7 @@ private fun TorrentDetailScreen(
                     archived = torrent?.archived == true,
                     onSetPriority = onSetFilePriority,
                     onDownloadNow = onDownloadFile,
+                    onShare = onShareFiles,
                 )
             }
         },
@@ -2032,6 +2058,7 @@ private fun TorrentDetailScreen(
                     { fileSelection = it },
                     onSetFilePriority,
                     onDownloadFile,
+                    onShareFiles,
                     onPlayFile,
                     onOpenFile,
                     onFilePage,
@@ -2052,6 +2079,7 @@ private fun DetailTabContent(
     onFileSelectionChange: (Set<String>) -> Unit,
     onSetFilePriority: (List<org.rstorrent.session.uniffi.FileView>, FilePriority) -> Unit,
     onDownloadFile: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
+    onShareFiles: (List<org.rstorrent.session.uniffi.FileView>) -> Unit,
     onPlayFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
     onOpenFile: (org.rstorrent.session.uniffi.FileView) -> Unit,
     onFilePage: (UInt) -> Unit,
@@ -2080,7 +2108,7 @@ private fun DetailTabContent(
                     if (torrent.privateTorrent) {
                         add(stringResource(R.string.detail_private_torrent) to stringResource(R.string.detail_private_torrent_hint))
                     }
-                    add(stringResource(R.string.detail_size) to formatBytes(torrent.totalSizeBytes))
+                    add(stringResource(R.string.detail_size) to torrentSizeText(torrent))
                     state.storage?.roots?.firstOrNull { it.rootId == torrent.storageRoot }?.let {
                         add(stringResource(R.string.detail_save_location) to it.label)
                     }
@@ -2133,6 +2161,7 @@ private fun DetailTabContent(
                 onSelectionChange = onFileSelectionChange,
                 onSetPriority = onSetFilePriority,
                 onDownloadNow = onDownloadFile,
+                onShare = onShareFiles,
                 onPlay = onPlayFile,
                 onOpen = onOpenFile,
                 mediaLaunchPending = state.mediaLaunchPending,

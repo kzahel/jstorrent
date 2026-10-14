@@ -408,6 +408,7 @@ final class IOSPresentationRepository: ObservableObject {
             case .protocolIdentities(let value): next.protocolIdentities = value
             case .displayName(let value): next.displayName = value
             case .sourceDisplayName(let value): next.sourceDisplayName = value
+            case .sourceSizeBytes(let value): next.sourceSizeBytes = value
             case .state(let value): next.state = value
             case .operationalState(let value): next.operationalState = value
             case .downloadQueuePosition(let value): next.downloadQueuePosition = value
@@ -462,6 +463,7 @@ final class IOSPresentationRepository: ObservableObject {
         case .storageState: return 7
         case .metadataAvailable: return 8
         case .privateTorrent: return 38
+        case .sourceSizeBytes: return 39
         case .awaitingFileSelection: return 31
         case .pendingFileSelectionPosition: return 32
         case .fileCatalogId: return 33

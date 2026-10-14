@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { shareLinkFromMagnet } from "./share-link";
+import { magnetSelectsFiles, shareLinkFromMagnet } from "./share-link";
 
 describe("shareLinkFromMagnet", () => {
   it("puts the magnet query string in the fragment unchanged", () => {
@@ -33,5 +33,39 @@ describe("shareLinkFromMagnet", () => {
 
   it("rejects anything that is not a magnet", () => {
     expect(() => shareLinkFromMagnet("https://example.com/")).toThrow();
+  });
+
+  it("appends the display keys of one shared file after the magnet", () => {
+    expect(
+      shareLinkFromMagnet(
+        "magnet:?xt=urn:btih:a88fda5954e89178c372716a6a78b8180ed4dad3&dn=Album&xl=900&so=2",
+        { fileName: "02 Track & Field #1 é.flac", fileSize: "263000000" },
+      ),
+    ).toBe(
+      "https://jstorrent.com/share/#xt=urn:btih:a88fda5954e89178c372716a6a78b8180ed4dad3" +
+        "&dn=Album&xl=900&so=2" +
+        "&jst.file=02%20Track%20%26%20Field%20%231%20%C3%A9.flac&jst.size=263000000",
+    );
+  });
+
+  it("omits empty names and sizes that are not decimal digits", () => {
+    expect(
+      shareLinkFromMagnet("magnet:?xt=urn:btih:abcd", {
+        fileName: "",
+        fileSize: "12e3",
+      }),
+    ).toBe("https://jstorrent.com/share/#xt=urn:btih:abcd");
+    expect(
+      shareLinkFromMagnet("magnet:?xt=urn:btih:abcd", { fileSize: "0" }),
+    ).toBe("https://jstorrent.com/share/#xt=urn:btih:abcd&jst.size=0");
+  });
+});
+
+describe("magnetSelectsFiles", () => {
+  it("finds a nonempty BEP 53 selection", () => {
+    expect(magnetSelectsFiles("magnet:?xt=urn:btih:abcd&so=0,2-4")).toBe(true);
+    expect(magnetSelectsFiles("magnet:?so.1=3&xt=urn:btih:abcd")).toBe(true);
+    expect(magnetSelectsFiles("magnet:?xt=urn:btih:abcd&dn=so=1")).toBe(false);
+    expect(magnetSelectsFiles("magnet:?xt=urn:btih:abcd&so=")).toBe(false);
   });
 });

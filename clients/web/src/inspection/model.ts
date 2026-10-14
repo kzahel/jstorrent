@@ -234,6 +234,11 @@ export interface TorrentRow {
   readonly queuePosition: number | null;
   readonly transferLimits: TorrentTransferLimits;
   readonly sizeBytes: number | null;
+  /**
+   * Total size the source magnet's `xl` claims while metadata is not
+   * verified. A claim from the link, never a verified size.
+   */
+  readonly sourceSizeBytes?: number | null;
   readonly progress: number | null;
   readonly checking: TorrentCheckingProgress | null;
   readonly downloadRate: number;
@@ -750,7 +755,12 @@ export type InspectionCommand =
     }
   | { readonly type: "remove_download_root"; readonly rootId: string }
   | { readonly type: "clear_app_data" }
-  | { readonly type: "export_magnet"; readonly torrentId: string }
+  | {
+      readonly type: "export_magnet";
+      readonly torrentId: string;
+      /** Share parameters; absent exports the unchanged magnet. */
+      readonly options?: MagnetShareOptions;
+    }
   | { readonly type: "pause"; readonly torrentId: string }
   | { readonly type: "resume"; readonly torrentId: string }
   | { readonly type: "move_download_to_top"; readonly torrentId: string }
@@ -813,6 +823,8 @@ export type CommandResult = CommandAccepted | CommandRejected;
 export interface CommandRejected {
   readonly accepted: false;
   readonly message: string;
+  /** The application error code, when the host reported one. */
+  readonly code?: string;
 }
 
 export interface CommandAccepted {
@@ -833,8 +845,34 @@ export interface CommandAccepted {
       };
 }
 
+export interface MagnetShareOptions {
+  /** Add `xl` from verified metadata. */
+  readonly includeSize?: boolean;
+  /** Sorted, unique `FileView` indices for BEP 53 `so`. */
+  readonly fileIndices?: readonly number[];
+  /** Add the engine's `x.pe` peer hints. */
+  readonly peerHint?: boolean;
+}
+
+export interface MagnetPeerHint {
+  /** The `x.pe` value, `ipv4:port` or `[ipv6]:port`. */
+  readonly endpoint: string;
+  readonly scope: "internet" | "local_network";
+}
+
+export type MagnetPeerHintOmission =
+  | "private_torrent"
+  | "metadata_pending"
+  | "incoming_disabled"
+  | "not_reachable"
+  | "no_address";
+
 export interface MagnetExport {
   readonly magnet: string;
   readonly source: "verbatim" | "canonicalized" | "synthesized";
   readonly omittedTrackerCount: number;
+  /** Peer hints included in `magnet`; empty unless requested. */
+  readonly peerHints?: readonly MagnetPeerHint[];
+  /** Why a requested peer hint was left out. */
+  readonly peerHintOmission?: MagnetPeerHintOmission | null;
 }

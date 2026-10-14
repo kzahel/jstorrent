@@ -16,6 +16,7 @@ export function FileActionMenuItems({
   const open = actions.filter((action) => action.group === "open");
   const download = actions.filter((action) => action.group === "download");
   const priority = actions.filter((action) => action.group === "priority");
+  const share = actions.filter((action) => action.group === "share");
   return (
     <>
       {open.map((action) => (
@@ -52,6 +53,19 @@ export function FileActionMenuItems({
         ? <ActionMenuSeparator />
         : null}
       {priority.map((action) => (
+        <ActionMenuItem
+          key={action.id}
+          isDisabled={action.disabled}
+          aria-description={action.disabledReason}
+          onAction={() => onAction(action.id)}
+        >
+          {action.label}
+        </ActionMenuItem>
+      ))}
+      {share.length > 0 && open.length + download.length + priority.length > 0
+        ? <ActionMenuSeparator />
+        : null}
+      {share.map((action) => (
         <ActionMenuItem
           key={action.id}
           isDisabled={action.disabled}

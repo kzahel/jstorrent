@@ -123,3 +123,7 @@
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
+
+.sizeFromLink {
+  color: var(--text-muted);
+}

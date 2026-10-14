@@ -1,5 +1,11 @@
 # Application View API
 
+Tactical [357](../tactical/357-rich-share-links.md) gives `export_magnet`
+optional `options` (`include_size`, `file_indices`, `peer_hint`) and adds
+`peer_hints` and `peer_hint_omission` to its result. Without options the
+export is unchanged. `TorrentView.source_size_bytes` carries a magnet's `xl`
+until metadata is recorded. Hosts older than this contract ignore `options`.
+
 Tactical [353](../tactical/353-host-product-in-hello.md) adds an optional
 `ApiHello.product` (`ApiProductInfo`): host kind, version, source build ID,
 target, application identifier, profile ID and durable profile location.

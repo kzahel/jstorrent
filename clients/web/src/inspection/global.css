@@ -72,6 +72,9 @@
   --viz-requested: #d39a3a;
 
   --media-stage: #11100e;
+  /* QR codes stay dark on light in both themes so every scanner reads them. */
+  --qr-dark: #1d1b18;
+  --qr-light: #ffffff;
   --overlay-scrim: rgb(29 27 24 / 36%);
   --shadow-overlay: 0 1px 2px rgb(29 27 24 / 8%), 0 6px 20px rgb(29 27 24 / 12%);
   --shadow-dialog: 0 2px 6px rgb(29 27 24 / 8%), 0 18px 48px rgb(29 27 24 / 18%);

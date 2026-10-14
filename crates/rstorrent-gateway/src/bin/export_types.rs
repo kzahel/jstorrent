@@ -28,7 +28,8 @@ use rstorrent_session::{
     FileSelectionOverride, FileSelectionView, FileView, HttpsServerAuthenticationPolicy,
     IndexRange, IntegrityPreparationPhaseView, IntegrityPreparationView, Ipv6PinholeFailureStage,
     Ipv6PinholeStatus, ListenerBindFailureReason, ListenerPolicy, ListenerStatus,
-    MagnetExportResult, MagnetExportSource, MediaCatalogState, MediaFileAvailability,
+    MagnetExportOptions, MagnetExportResult, MagnetExportSource, MagnetPeerHint,
+    MagnetPeerHintOmission, MagnetPeerHintScope, MediaCatalogState, MediaFileAvailability,
     MediaItemView, MediaRoleView, MediaUrlOutcome, MediaUrlResponse, MetadataAcquisitionPhaseView,
     MetadataAcquisitionView, OpenViewSetOptions, OpenViewSetRequest, OpenViewSetResponse,
     PeerDirection, PeerDisconnectReason, PeerFieldCapabilities, PeerFieldUpdate, PeerFlagView,
@@ -104,6 +105,7 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<ClientSettingsPatch>(&mut declarations)?;
     append::<PendingFileSelectionBase>(&mut declarations)?;
     append::<FileSelectionOverride>(&mut declarations)?;
+    append::<MagnetExportOptions>(&mut declarations)?;
     append::<Command>(&mut declarations)?;
     append::<ListenerPolicy>(&mut declarations)?;
     append::<PortMappingPolicy>(&mut declarations)?;
@@ -157,6 +159,9 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<AddTorrentDisposition>(&mut declarations)?;
     append::<AddTorrentResult>(&mut declarations)?;
     append::<MagnetExportSource>(&mut declarations)?;
+    append::<MagnetPeerHintScope>(&mut declarations)?;
+    append::<MagnetPeerHint>(&mut declarations)?;
+    append::<MagnetPeerHintOmission>(&mut declarations)?;
     append::<MagnetExportResult>(&mut declarations)?;
     append::<CommandResult>(&mut declarations)?;
     append::<ResponseOutcome>(&mut declarations)?;
@@ -564,6 +569,7 @@ fn fixture_torrent(torrent_id: &str, verified: u32) -> TorrentView {
         },
         display_name: Some("Fixture torrent".to_owned()),
         source_display_name: None,
+        source_size_bytes: None,
         state: if verified == 3 {
             TorrentState::Complete
         } else {

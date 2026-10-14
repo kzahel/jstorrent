@@ -1,5 +1,13 @@
 # Web UI Design
 
+Tactical [357](../tactical/357-rich-share-links.md) turns the General link
+icon into a **Share** panel (link, Copy, Share… where `navigator.share`
+exists, QR code, Include my address). Files gains **Share file(s)**, menu
+share copies ask once about including your address, and Settings →
+Connection & seeding → Sharing changes that choice. A size known only from
+the link reads "(from the link)" in General and "(link)" in the list. QR
+colors use `--qr-dark`/`--qr-light`, dark on white in both themes.
+
 Tactical [353](../tactical/353-host-product-in-hello.md) shows what the host
 reports in its hello on About, so remote access and Crostini show the
 host's version, build, target, profile and **Library folder**. The client

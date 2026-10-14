@@ -12,6 +12,11 @@ pub const MAX_HOST_LENGTH: usize = 253;
 pub const MAX_TRACKER_URL_LENGTH: usize = 2 * 1024;
 pub const MAX_FILE_INDEX: u32 = 374_998;
 pub const MAX_SELECT_ONLY_RANGES: usize = 4_096;
+/// Largest accepted `xl` claim. Bencoded lengths are signed 64-bit integers,
+/// so no verifiable torrent can be larger.
+pub const MAX_MAGNET_EXACT_LENGTH: u64 = i64::MAX as u64;
+/// Decimal digits in [`MAX_MAGNET_EXACT_LENGTH`].
+const MAX_EXACT_LENGTH_DIGITS: usize = 19;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FileIndexRange {
@@ -25,6 +30,22 @@ pub struct SelectOnly {
 }
 
 impl SelectOnly {
+    /// Build a canonical selection from inclusive ranges. Returns `None` when
+    /// the input is empty, inverted, beyond [`MAX_FILE_INDEX`], or needs more
+    /// than [`MAX_SELECT_ONLY_RANGES`] canonical ranges, so every value this
+    /// returns parses back from its [`canonical`](Self::canonical) form.
+    pub fn from_ranges(ranges: Vec<FileIndexRange>) -> Option<Self> {
+        if ranges.is_empty()
+            || ranges
+                .iter()
+                .any(|range| range.start > range.end || range.end >= MAX_FILE_INDEX)
+        {
+            return None;
+        }
+        let ranges = canonicalize_ranges(ranges);
+        (ranges.len() <= MAX_SELECT_ONLY_RANGES).then_some(Self { ranges })
+    }
+
     pub fn ranges(&self) -> &[FileIndexRange] {
         &self.ranges
     }
@@ -52,6 +73,9 @@ pub struct Magnet {
     pub identities: InfoHashes,
     /// Unauthenticated presentation text from the first acceptable `dn`.
     pub display_name: Option<String>,
+    /// Unauthenticated total-size claim from the first acceptable `xl`.
+    /// It is never evidence about the content; verified metadata replaces it.
+    pub exact_length: Option<u64>,
     pub peer_hints: Vec<PeerHint>,
     pub trackers: Vec<TrackerUrl>,
     pub select_only: Option<SelectOnly>,
@@ -131,6 +155,18 @@ impl TrackerUrl {
 pub struct PeerHint {
     pub host: String,
     pub port: u16,
+}
+
+impl PeerHint {
+    /// The `x.pe` value: `host:port`, with an IPv6 literal in brackets as in
+    /// BEP 9 and libtorrent's `print_endpoint`.
+    pub fn magnet_value(&self) -> String {
+        if self.host.contains(':') {
+            format!("[{}]:{}", self.host, self.port)
+        } else {
+            format!("{}:{}", self.host, self.port)
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -246,6 +282,7 @@ impl Magnet {
         let mut v1_info_hash = None;
         let mut v2_info_hash = None;
         let mut display_name = None;
+        let mut exact_length = None;
         let mut peer_hints = Vec::new();
         let mut trackers = Vec::new();
         let mut select_only_ranges = Vec::new();
@@ -273,6 +310,8 @@ impl Magnet {
                 }
             } else if name.eq_ignore_ascii_case("dn") && display_name.is_none() {
                 display_name = valid_display_name(value);
+            } else if name.eq_ignore_ascii_case("xl") && exact_length.is_none() {
+                exact_length = valid_exact_length(&value);
             } else if name.eq_ignore_ascii_case("x.pe")
                 && let Some(hint) = parse_peer_hint(&value)
                 && !peer_hints.contains(&hint)
@@ -321,6 +360,7 @@ impl Magnet {
             identity,
             identities,
             display_name,
+            exact_length,
             peer_hints,
             trackers,
             select_only: has_select_only.then(|| SelectOnly {
@@ -335,6 +375,84 @@ fn valid_display_name(value: String) -> Option<String> {
         && value.len() <= MAX_MAGNET_DISPLAY_NAME_LENGTH
         && !value.chars().any(char::is_control))
     .then_some(value)
+}
+
+/// A size claim is optional presentation input: a malformed value is ignored
+/// rather than rejecting the magnet's identity.
+fn valid_exact_length(value: &str) -> Option<u64> {
+    if value.is_empty()
+        || value.len() > MAX_EXACT_LENGTH_DIGITS
+        || !value.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    let length = value.parse::<u64>().ok()?;
+    (1..=MAX_MAGNET_EXACT_LENGTH)
+        .contains(&length)
+        .then_some(length)
+}
+
+/// Share parameters the engine owns when it exports a magnet with options.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct MagnetShareParameters<'a> {
+    pub exact_length: Option<u64>,
+    pub select_only: Option<&'a SelectOnly>,
+    pub peer_hints: &'a [PeerHint],
+}
+
+/// Remove every `xl`, `so` and `x.pe` parameter from `magnet` and append the
+/// given replacements. All other parameters keep their exact bytes and order.
+///
+/// Names compare after percent-decoding and ignoring ASCII case. A numeric
+/// suffix (`so.1`, `xl.2`) also matches, because libtorrent strips one before
+/// interpreting a name; `x.pe` is matched exactly for the same reason.
+pub fn replace_share_parameters(magnet: &str, parameters: MagnetShareParameters<'_>) -> String {
+    let (prefix, query) = magnet.split_once('?').unwrap_or((magnet, ""));
+    let mut output = String::with_capacity(magnet.len() + 64);
+    output.push_str(prefix);
+    output.push('?');
+    let mut first = true;
+    let mut push = |output: &mut String, parameter: &str| {
+        if !first {
+            output.push('&');
+        }
+        first = false;
+        output.push_str(parameter);
+    };
+    if !query.is_empty() {
+        for parameter in query.split('&') {
+            let encoded_name = parameter
+                .split_once('=')
+                .map_or(parameter, |(name, _)| name);
+            let is_share =
+                percent_decode(encoded_name).is_ok_and(|name| is_share_parameter_name(&name));
+            if !is_share {
+                push(&mut output, parameter);
+            }
+        }
+    }
+    if let Some(length) = parameters.exact_length {
+        push(&mut output, &format!("xl={length}"));
+    }
+    if let Some(selection) = parameters.select_only {
+        push(&mut output, &format!("so={}", selection.canonical()));
+    }
+    for hint in parameters.peer_hints {
+        push(&mut output, &format!("x.pe={}", hint.magnet_value()));
+    }
+    output
+}
+
+fn is_share_parameter_name(name: &str) -> bool {
+    if name.eq_ignore_ascii_case("x.pe") {
+        return true;
+    }
+    let base = match name.split_once('.') {
+        Some((base, suffix)) if suffix.bytes().all(|byte| byte.is_ascii_digit()) => base,
+        Some(_) => return false,
+        None => name,
+    };
+    base.eq_ignore_ascii_case("xl") || base.eq_ignore_ascii_case("so")
 }
 
 fn parse_select_only(value: &str, ranges: &mut Vec<FileIndexRange>) -> Result<(), MagnetError> {
@@ -749,9 +867,10 @@ mod tests {
     use crate::identity::{FullInfoHash, V1InfoHash, V2InfoHash};
 
     use super::{
-        MAX_FILE_INDEX, MAX_HOST_LENGTH, MAX_MAGNET_DISPLAY_NAME_LENGTH, MAX_MAGNET_LENGTH,
-        MAX_MAGNET_PARAMETERS, MAX_PEER_HINTS, MAX_SELECT_ONLY_RANGES, MAX_TRACKER_URL_LENGTH,
-        MAX_TRACKERS, Magnet, MagnetError, PeerHint, TrackerUrlTransport,
+        FileIndexRange, MAX_FILE_INDEX, MAX_HOST_LENGTH, MAX_MAGNET_DISPLAY_NAME_LENGTH,
+        MAX_MAGNET_EXACT_LENGTH, MAX_MAGNET_LENGTH, MAX_MAGNET_PARAMETERS, MAX_PEER_HINTS,
+        MAX_SELECT_ONLY_RANGES, MAX_TRACKER_URL_LENGTH, MAX_TRACKERS, Magnet, MagnetError,
+        MagnetShareParameters, PeerHint, SelectOnly, TrackerUrlTransport, replace_share_parameters,
     };
 
     const HEX_HASH: &str = "0123456789abcdef0123456789abcdef01234567";
@@ -783,6 +902,138 @@ mod tests {
         let fallback = Magnet::parse(&format!("magnet:?xt=urn:btih:{HEX_HASH}&dn=&dn=usable"))
             .expect("later acceptable display name");
         assert_eq!(fallback.display_name.as_deref(), Some("usable"));
+    }
+
+    #[test]
+    fn exact_length_is_bounded_decimal_and_uses_first_acceptable_value() {
+        let magnet = Magnet::parse(&format!("magnet:?xt=urn:btih:{HEX_HASH}&XL=1048576&xl=7"))
+            .expect("sized magnet");
+        assert_eq!(magnet.exact_length, Some(1_048_576));
+
+        let maximum = Magnet::parse(&format!(
+            "magnet:?xt=urn:btih:{HEX_HASH}&xl={MAX_MAGNET_EXACT_LENGTH}"
+        ))
+        .expect("maximum size");
+        assert_eq!(maximum.exact_length, Some(MAX_MAGNET_EXACT_LENGTH));
+
+        for value in [
+            "",
+            "0",
+            "-1",
+            "+1",
+            "%201",
+            "1%20",
+            "1.5",
+            "0x10",
+            "1e9",
+            "%D9%A1",
+            "9223372036854775808",
+            "18446744073709551615",
+            "18446744073709551616",
+            "00000000000000000001",
+        ] {
+            let magnet = Magnet::parse(&format!("magnet:?xt=urn:btih:{HEX_HASH}&xl={value}"))
+                .expect("invalid optional size does not reject identity");
+            assert!(magnet.exact_length.is_none(), "{value:?}");
+        }
+
+        let fallback = Magnet::parse(&format!("magnet:?xt=urn:btih:{HEX_HASH}&xl=0&xl=%34%32"))
+            .expect("later acceptable size");
+        assert_eq!(fallback.exact_length, Some(42));
+        assert!(
+            Magnet::parse(&format!("magnet:?xt=urn:btih:{HEX_HASH}"))
+                .expect("unsized")
+                .exact_length
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn share_parameters_replace_only_owned_keys_and_round_trip() {
+        let source = format!(
+            "magnet:?xt=urn:btih:{HEX_HASH}&dn=a%20b&XL=9&tr=udp%3A%2F%2Ft.example%3A80\
+             &so=4&x.pe=198.51.100.7:1&x%2Epe=198.51.100.8:2&so.1=5&xl.2=3&x.pe.1=keep\
+             &sox=keep&ws=http%3A%2F%2Fw.example%2F"
+        );
+        let selection = SelectOnly::from_ranges(vec![
+            FileIndexRange { start: 5, end: 7 },
+            FileIndexRange { start: 0, end: 0 },
+            FileIndexRange { start: 2, end: 2 },
+            FileIndexRange { start: 3, end: 3 },
+        ])
+        .expect("selection");
+        let hints = [
+            PeerHint {
+                host: "203.0.113.4".to_owned(),
+                port: 6881,
+            },
+            PeerHint {
+                host: "2001:db8::1".to_owned(),
+                port: 51413,
+            },
+        ];
+        let shared = replace_share_parameters(
+            &source,
+            MagnetShareParameters {
+                exact_length: Some(1_048_576),
+                select_only: Some(&selection),
+                peer_hints: &hints,
+            },
+        );
+        assert_eq!(
+            shared,
+            format!(
+                "magnet:?xt=urn:btih:{HEX_HASH}&dn=a%20b&tr=udp%3A%2F%2Ft.example%3A80\
+                 &x.pe.1=keep&sox=keep&ws=http%3A%2F%2Fw.example%2F&xl=1048576&so=0,2-3,5-7\
+                 &x.pe=203.0.113.4:6881&x.pe=[2001:db8::1]:51413"
+            )
+        );
+        let parsed = Magnet::parse(&shared).expect("shared magnet parses");
+        assert_eq!(parsed.exact_length, Some(1_048_576));
+        assert_eq!(
+            parsed.select_only.expect("selection").canonical(),
+            "0,2-3,5-7"
+        );
+        assert_eq!(parsed.peer_hints, hints);
+        assert_eq!(parsed.display_name.as_deref(), Some("a b"));
+
+        let cleared = replace_share_parameters(&source, MagnetShareParameters::default());
+        let parsed = Magnet::parse(&cleared).expect("cleared magnet parses");
+        assert!(parsed.exact_length.is_none());
+        assert!(parsed.select_only.is_none());
+        assert!(parsed.peer_hints.is_empty());
+
+        let bare = format!("magnet:?xt=urn:btih:{HEX_HASH}");
+        assert_eq!(
+            replace_share_parameters(&bare, MagnetShareParameters::default()),
+            bare
+        );
+    }
+
+    #[test]
+    fn select_only_construction_is_canonical_and_bounded() {
+        assert!(SelectOnly::from_ranges(Vec::new()).is_none());
+        assert!(SelectOnly::from_ranges(vec![FileIndexRange { start: 2, end: 1 }]).is_none());
+        assert!(
+            SelectOnly::from_ranges(vec![FileIndexRange {
+                start: 0,
+                end: MAX_FILE_INDEX,
+            }])
+            .is_none()
+        );
+        let too_many = (0..=MAX_SELECT_ONLY_RANGES as u32)
+            .map(|index| FileIndexRange {
+                start: index * 2,
+                end: index * 2,
+            })
+            .collect();
+        assert!(SelectOnly::from_ranges(too_many).is_none());
+        let merged = SelectOnly::from_ranges(vec![
+            FileIndexRange { start: 4, end: 9 },
+            FileIndexRange { start: 0, end: 3 },
+        ])
+        .expect("adjacent ranges");
+        assert_eq!(merged.canonical(), "0-9");
     }
 
     #[test]

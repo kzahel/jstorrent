@@ -7,6 +7,7 @@ import type {
   CheckingProgressView,
   DiagnosticEvent,
   FileView,
+  MagnetExportOptions,
   MediaItemView,
   PeerSourceView,
   PeerView,
@@ -55,6 +56,7 @@ import type {
   MediaRow,
   MediaSet,
   LogRow,
+  MagnetShareOptions,
   PeerFlag,
   PeerRow,
   PeerSet,
@@ -619,6 +621,9 @@ export class LiveApplication implements InspectionApplication {
                   ? {
                       type: "export_magnet",
                       torrent_id: command.torrentId,
+                      ...(command.options === undefined
+                        ? {}
+                        : { options: magnetExportOptions(command.options) }),
                     }
                 : command.type === "move_download_to_top" ||
                     command.type === "move_download_to_bottom"
@@ -645,7 +650,11 @@ export class LiveApplication implements InspectionApplication {
       return { accepted: false, message: localizedMessage("inspection.live.live.application.live.controller.is.unavailable") };
     }
     if (response.status === "error") {
-      return { accepted: false, message: response.error.message };
+      return {
+        accepted: false,
+        message: response.error.message,
+        code: response.error.code,
+      };
     }
     if (command.type === "export_magnet") {
       return magnetCommandResult(response);
@@ -1123,7 +1132,23 @@ function magnetCommandResult(response: ResponseEnvelope): CommandResult {
       magnet: result.result.magnet,
       source: result.result.source,
       omittedTrackerCount: result.result.omitted_tracker_count,
+      ...(result.result.peer_hints === undefined
+        ? {}
+        : { peerHints: result.result.peer_hints }),
+      ...(result.result.peer_hint_omission == null
+        ? {}
+        : { peerHintOmission: result.result.peer_hint_omission }),
     },
+  };
+}
+
+function magnetExportOptions(options: MagnetShareOptions): MagnetExportOptions {
+  return {
+    ...(options.includeSize === true ? { include_size: true } : {}),
+    ...(options.fileIndices === undefined || options.fileIndices.length === 0
+      ? {}
+      : { file_indices: [...options.fileIndices] }),
+    ...(options.peerHint === true ? { peer_hint: true } : {}),
   };
 }
 
@@ -1533,6 +1558,11 @@ function mapTorrent(torrent: TorrentView): TorrentRow {
       torrent.total_size_bytes === null
         ? null
         : safeNumber(torrent.total_size_bytes),
+    sourceSizeBytes:
+      torrent.source_size_bytes === undefined ||
+      torrent.source_size_bytes === null
+        ? null
+        : safeNumber(torrent.source_size_bytes),
     progress:
       pieceCount === 0 ? null : torrent.verified_piece_count / pieceCount,
     checking:

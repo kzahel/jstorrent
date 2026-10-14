@@ -1,5 +1,11 @@
 # Android JSTorrent Replacement Readiness
 
+Tactical [357](../tactical/357-rich-share-links.md) adds **Share…** (system
+chooser) and **Show QR code** beside Copy share link, Files **Share file(s)**,
+the include-my-address prompt with Remember my choice, a Settings → Network &
+privacy → Share links row, and "(from the link, not verified)" sizes. ZXing
+core 3.5.4 renders QR codes. Not yet exercised on a device.
+
 Tactical [350](../tactical/350-share-links-and-private-hint.md) adds Copy
 share link beside Copy magnet link (detail menu and single-selection More),
 building `https://jstorrent.com/share/#<magnet query>` like the web client.

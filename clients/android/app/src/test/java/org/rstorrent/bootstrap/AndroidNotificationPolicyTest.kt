@@ -290,6 +290,7 @@ class AndroidNotificationPolicyTest {
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = displayName,
             sourceDisplayName = sourceDisplayName,
+            sourceSizeBytes = null,
             state = state,
             operationalState = TorrentOperationalState.DOWNLOADING,
             downloadQueuePosition = null,

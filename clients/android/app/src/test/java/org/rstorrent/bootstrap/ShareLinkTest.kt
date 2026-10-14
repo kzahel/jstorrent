@@ -45,6 +45,49 @@ class ShareLinkTest {
     }
 
     @Test
+    fun appendsSingleFileDisplayKeysAfterTheMagnetParameters() {
+        assertEquals(
+            "https://jstorrent.com/share/#xt=urn:btih:a88fda5954e89178c372716a6a78b8180ed4dad3" +
+                "&dn=The%20WIRED%20CD&xl=1048576&so=2" +
+                "&jst.file=Track%2003%20(live).flac&jst.size=31337",
+            shareLinkFromMagnet(
+                "magnet:?xt=urn:btih:a88fda5954e89178c372716a6a78b8180ed4dad3" +
+                    "&dn=The%20WIRED%20CD&xl=1048576&so=2",
+                ShareLinkFile("Track 03 (live).flac", "31337"),
+            ),
+        )
+    }
+
+    @Test
+    fun encodesTheFileNameLikeEncodeUriComponent() {
+        assertEquals(
+            "https://jstorrent.com/share/#xt=urn:btih:abcd" +
+                "&jst.file=a%26b%3Dc%23d%2Fe%3F%25%2B%C3%A9%20%F0%9F%8E%AC~*'()!-_.txt&jst.size=0",
+            shareLinkFromMagnet(
+                "magnet:?xt=urn:btih:abcd",
+                ShareLinkFile("a&b=c#d/e?%+é 🎬~*'()!-_.txt", "0"),
+            ),
+        )
+        assertEquals("%3A%40%24%2C%3B", encodeUriComponent(":@$,;"))
+    }
+
+    @Test
+    fun rejectsAFileSizeThatIsNotAByteCount() {
+        for (size in listOf("", "-1", "1.5", "12a", " 1")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                shareLinkFromMagnet("magnet:?xt=urn:btih:abcd", ShareLinkFile("a", size))
+            }
+        }
+    }
+
+    @Test
+    fun rejectsAnUnpairedSurrogateInTheFileName() {
+        assertThrows(IllegalArgumentException::class.java) {
+            shareLinkFromMagnet("magnet:?xt=urn:btih:abcd", ShareLinkFile("a\uD83C", "1"))
+        }
+    }
+
+    @Test
     fun rejectsAnythingThatIsNotAMagnet() {
         assertThrows(IllegalArgumentException::class.java) {
             shareLinkFromMagnet("https://example.com/")

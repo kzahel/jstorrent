@@ -1284,6 +1284,13 @@ pub struct TorrentView {
     pub display_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_display_name: Option<String>,
+    /// Total size in bytes claimed by the source magnet's `xl`, as a
+    /// decimal string, while metadata is not verified. Absent once
+    /// metadata is verified or when the magnet carries no acceptable `xl`.
+    /// A claim from the link, never a verified size.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(regex(pattern = "^[1-9][0-9]{0,18}$"))]
+    pub source_size_bytes: Option<String>,
     pub state: TorrentState,
     pub operational_state: TorrentOperationalState,
     #[serde(default, skip_serializing_if = "Option::is_none")]

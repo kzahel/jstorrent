@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.KeyboardDoubleArrowUp
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -67,6 +68,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.rstorrent.bootstrap.AndroidMediaPlaybackPolicy
 import org.rstorrent.bootstrap.FileCatalogViewState
+import org.rstorrent.bootstrap.MAX_SHARED_FILES
 import org.rstorrent.bootstrap.R
 import org.rstorrent.session.uniffi.FileCatalogState
 import org.rstorrent.session.uniffi.FilePriority
@@ -101,6 +103,7 @@ internal fun FilesScreen(
     onSelectionChange: (Set<String>) -> Unit = {},
     onSetPriority: (List<FileView>, FilePriority) -> Unit,
     onDownloadNow: (List<FileView>) -> Unit,
+    onShare: (List<FileView>) -> Unit = {},
     onPlay: (FileView) -> Unit,
     onOpen: (FileView) -> Unit,
     mediaLaunchPending: Boolean,
@@ -163,6 +166,11 @@ internal fun FilesScreen(
             onDownloadNow = {
                 sheetFileId = null
                 onDownloadNow(listOf(file))
+            },
+            shareEnabled = catalog.state == FileCatalogState.AVAILABLE,
+            onShare = {
+                sheetFileId = null
+                onShare(listOf(file))
             },
             onPlay = {
                 sheetFileId = null
@@ -364,6 +372,8 @@ private fun FileActionsSheet(
     onDismiss: () -> Unit,
     onSetPriority: (FilePriority) -> Unit,
     onDownloadNow: () -> Unit,
+    shareEnabled: Boolean,
+    onShare: () -> Unit,
     onPlay: () -> Unit,
     onOpen: () -> Unit,
 ) {
@@ -437,6 +447,13 @@ private fun FileActionsSheet(
                 tag = "sheet-download-${file.fileId}",
                 onClick = onDownloadNow,
             )
+            FileSheetAction(
+                icon = Icons.Outlined.Share,
+                label = stringResource(R.string.action_share_file),
+                enabled = shareEnabled && !file.padding,
+                tag = "sheet-share-${file.fileId}",
+                onClick = onShare,
+            )
         }
     }
 }
@@ -475,6 +492,7 @@ internal fun FileSelectionBottomBar(
     archived: Boolean,
     onSetPriority: (List<FileView>, FilePriority) -> Unit,
     onDownloadNow: (List<FileView>) -> Unit,
+    onShare: (List<FileView>) -> Unit,
 ) {
     val prioritizable = selected.filter { it.selection != null }
     // An archived torrent cannot start until it is restored.
@@ -496,6 +514,15 @@ internal fun FileSelectionBottomBar(
                 enabled = downloadable.isNotEmpty(),
             ) {
                 onDownloadNow(downloadable)
+            }
+            // Share links name verified file indices, so a file list is enough.
+            val shareable = selected.filterNot(FileView::padding)
+            SelectionBarButton(
+                Icons.Outlined.Share,
+                stringResource(if (shareable.size == 1) R.string.action_share_file else R.string.action_share_files),
+                enabled = shareable.isNotEmpty() && shareable.size <= MAX_SHARED_FILES,
+            ) {
+                onShare(shareable)
             }
         }
     }

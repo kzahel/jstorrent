@@ -109,6 +109,16 @@ class FakeLiveClient implements ApplicationViewClient {
                     "&dn=Exact%20source&tr=udp%3A%2F%2Ftracker.example%3A80",
                   source: "verbatim" as const,
                   omitted_tracker_count: 0,
+                  ...(request.command.options?.peer_hint === true
+                    ? {
+                        peer_hints: [
+                          {
+                            endpoint: "192.168.1.20:6881",
+                            scope: "local_network" as const,
+                          },
+                        ],
+                      }
+                    : {}),
                 },
               },
             }
@@ -635,6 +645,67 @@ describe("LiveApplication", () => {
     expect(client.requests[0]?.command).toEqual({
       type: "export_magnet",
       torrent_id: TORRENT_ID,
+    });
+    await application.close();
+  });
+
+  it("maps share options and reported peer hints", async () => {
+    const client = new FakeLiveClient();
+    const application = await LiveApplication.open(client);
+
+    const result = await application.dispatch({
+      type: "export_magnet",
+      torrentId: TORRENT_ID,
+      options: { includeSize: true, fileIndices: [0, 2], peerHint: true },
+    });
+    expect(result).toMatchObject({
+      accepted: true,
+      magnetExport: {
+        peerHints: [{ endpoint: "192.168.1.20:6881", scope: "local_network" }],
+      },
+    });
+    expect(
+      result.accepted ? result.magnetExport?.peerHintOmission : null,
+    ).toBeUndefined();
+    expect(client.requests[0]?.command).toEqual({
+      type: "export_magnet",
+      torrent_id: TORRENT_ID,
+      options: { include_size: true, file_indices: [0, 2], peer_hint: true },
+    });
+
+    await application.dispatch({
+      type: "export_magnet",
+      torrentId: TORRENT_ID,
+      options: { fileIndices: [] },
+    });
+    expect(client.requests[1]?.command).toEqual({
+      type: "export_magnet",
+      torrent_id: TORRENT_ID,
+      options: {},
+    });
+    await application.close();
+  });
+
+  it("keeps the host's error code on a rejected export", async () => {
+    const client = new FakeLiveClient();
+    const application = await LiveApplication.open(client);
+    client.dispatch = async (request) => ({
+      version: 1,
+      request_id: request.request_id,
+      revision: "4",
+      status: "error",
+      error: { code: "invalid_request", message: "file index is out of range" },
+    });
+    await expect(
+      application.dispatch({
+        type: "export_magnet",
+        torrentId: TORRENT_ID,
+        options: { fileIndices: [99] },
+      }),
+    ).resolves.toEqual({
+      accepted: false,
+      message: "file index is out of range",
+      code: "invalid_request",
     });
     await application.close();
   });

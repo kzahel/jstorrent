@@ -352,6 +352,7 @@ class SeedStopLimitsTest {
             protocolIdentities = TorrentProtocolIdentities(v1 = null, v2 = null),
             displayName = id,
             sourceDisplayName = null,
+            sourceSizeBytes = null,
             state = TorrentState.COMPLETE,
             operationalState = operational,
             downloadQueuePosition = null,

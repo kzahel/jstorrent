@@ -3,8 +3,10 @@ import {
   message as localizedMessage,
 } from "../../localization/runtime";
 import {
+  forwardRef,
   lazy,
   Suspense,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -65,6 +67,10 @@ const SpeedPanel = lazy(() =>
 );
 const DhtPanel = lazy(() =>
   import("./DhtPanel").then(({ DhtPanel }) => ({ default: DhtPanel })),
+);
+// The Share panel carries the QR encoder; it loads when first opened.
+const SharePanel = lazy(() =>
+  import("./SharePanel").then(({ SharePanel }) => ({ default: SharePanel })),
 );
 
 export function DetailPane({
@@ -306,6 +312,9 @@ function GeneralDetail({
   const { runAction } = useTorrentActions();
   const toast = useToast();
   const errorRef = useRef<HTMLDivElement>(null);
+  const shareButtonRef = useRef<HTMLButtonElement>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const returnShareFocus = useCallback(() => shareButtonRef.current?.focus(), []);
 
   useEffect(() => {
     if (
@@ -322,11 +331,8 @@ function GeneralDetail({
     clearDetailTarget();
   }, [clearDetailTarget, detailTarget, torrent.id]);
 
-  const copyLink = (
-    actionId: "copy_magnet" | "copy_share_link",
-    element: HTMLElement,
-  ) => {
-    void runAction(actionId, [torrent.id], { type: "toolbar", element });
+  const copyMagnet = (element: HTMLElement) => {
+    void runAction("copy_magnet", [torrent.id], { type: "toolbar", element });
   };
 
   const copyInfoHash = (value: string) => {
@@ -360,12 +366,14 @@ function GeneralDetail({
             <CopyButton
               icon="magnet"
               label={localizedMessage("inspection.components.detail.pane.copy.magnet.link")}
-              onClick={(event) => copyLink("copy_magnet", event.currentTarget)}
+              onClick={(event) => copyMagnet(event.currentTarget)}
             />
             <CopyButton
+              ref={shareButtonRef}
               icon="link"
-              label={localizedMessage("inspection.components.detail.pane.copy.share.link")}
-              onClick={(event) => copyLink("copy_share_link", event.currentTarget)}
+              label={localizedMessage("inspection.components.detail.pane.share")}
+              aria-haspopup="dialog"
+              onClick={() => setShareOpen(true)}
             />
           </div>
         </div>
@@ -422,7 +430,13 @@ function GeneralDetail({
       <dl className={styles.metrics}>
         <Metric
           label={localizedMessage("inspection.components.detail.pane.size")}
-          value={formatBytes(torrent.sizeBytes, dataUnits)}
+          value={
+            torrent.sizeBytes === null && torrent.sourceSizeBytes != null
+              ? localizedMessage("inspection.components.detail.pane.size.from.link", {
+                  size: formatBytes(torrent.sourceSizeBytes, dataUnits),
+                })
+              : formatBytes(torrent.sizeBytes, dataUnits)
+          }
         />
         <Metric
           label={localizedMessage("inspection.components.detail.pane.downloaded")}
@@ -494,6 +508,15 @@ function GeneralDetail({
           <span>{torrent.error}</span>
         </div>
       )}
+      {shareOpen ? (
+        <Suspense fallback={null}>
+          <SharePanel
+            torrent={torrent}
+            returnFocus={returnShareFocus}
+            onClose={() => setShareOpen(false)}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }
@@ -560,27 +583,29 @@ function infoHashes(
   ];
 }
 
-function CopyButton({
-  icon,
-  label,
-  onClick,
-}: {
-  readonly icon: IconName;
-  readonly label: string;
-  readonly onClick: (event: MouseEvent<HTMLButtonElement>) => void;
-}) {
+const CopyButton = forwardRef<
+  HTMLButtonElement,
+  {
+    readonly icon: IconName;
+    readonly label: string;
+    readonly "aria-haspopup"?: "dialog";
+    readonly onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+  }
+>(function CopyButton({ icon, label, onClick, ...rest }, ref) {
   return (
     <button
+      ref={ref}
       type="button"
       className={styles.copyButton}
       aria-label={label}
       title={label}
+      aria-haspopup={rest["aria-haspopup"]}
       onClick={onClick}
     >
       <Icon name={icon} />
     </button>
   );
-}
+});
 
 function transferSpeed(
   torrent: NonNullable<ReturnType<typeof useCurrentTorrent>>,

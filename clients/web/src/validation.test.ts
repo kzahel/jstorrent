@@ -163,6 +163,50 @@ describe("magnet export validation", () => {
       /exported magnet exceeds 16384 UTF-8 bytes/,
     );
   });
+
+  it("accepts reported peer hints and rejects unknown or excess values", () => {
+    const response = (result: Record<string, unknown>) =>
+      JSON.stringify({
+        version: 1,
+        request_id: "export-2",
+        revision: "4",
+        result: {
+          type: "export_magnet",
+          result: {
+            magnet:
+              "magnet:?xt=urn:btih:000102030405060708090a0b0c0d0e0f10111213",
+            source: "synthesized",
+            omitted_tracker_count: 0,
+            ...result,
+          },
+        },
+        status: "success",
+        snapshot: {
+          profile_id: "default",
+          revision: "4",
+          storage: { roots: [], show_add_options: true, show_file_selection: true },
+          torrents: [],
+        },
+      });
+    const hint = { endpoint: "192.168.1.20:6881", scope: "local_network" };
+    expect(() =>
+      decodeResponseEnvelope(response({ peer_hints: [hint] })),
+    ).not.toThrow();
+    expect(() =>
+      decodeResponseEnvelope(response({ peer_hint_omission: "not_reachable" })),
+    ).not.toThrow();
+    expect(() =>
+      decodeResponseEnvelope(response({ peer_hints: [hint, hint, hint] })),
+    ).toThrow(ContractError);
+    expect(() =>
+      decodeResponseEnvelope(
+        response({ peer_hints: [{ ...hint, scope: "global" }] }),
+      ),
+    ).toThrow(ContractError);
+    expect(() =>
+      decodeResponseEnvelope(response({ peer_hint_omission: "unknown" })),
+    ).toThrow(ContractError);
+  });
 });
 
 describe("client settings validation", () => {

@@ -35,7 +35,31 @@ export type PendingFileSelectionBase = "current" | "all" | "none";
 
 export type FileSelectionOverride = { range: FileIndexRange, selected: boolean, };
 
-export type Command = { "type": "add_magnet", magnet: string, storage_root: string, start_content: boolean, await_file_selection: boolean, skip_files: Array<number>, } | { "type": "set_file_priority", torrent_id: string, file_indices: Array<number>, priority: FilePriority, } | { "type": "set_file_priority_ranges", torrent_id: string, ranges: Array<FileIndexRange>, priority: FilePriority, } | { "type": "download_files", torrent_id: string, file_indices: Array<number>, } | { "type": "move_download_to_top", torrent_id: string, } | { "type": "move_download_to_bottom", torrent_id: string, } | { "type": "set_default_storage_root", storage_root: string, } | { "type": "set_show_add_options", show: boolean, } | { "type": "set_show_file_selection", show: boolean, } | { "type": "confirm_pending_file_selection", torrent_id: string, catalog_id: string, base: PendingFileSelectionBase, overrides: Array<FileSelectionOverride>, disable_future: boolean, } | { "type": "download_all_pending_add", torrent_id: string, disable_future: boolean, } | { "type": "cancel_pending_add", torrent_id: string, } | { "type": "update_client_settings", patch: ClientSettingsPatch, } | { "type": "reset_client_settings" } | { "type": "update_torrent_settings", torrent_id: string, patch: TorrentSettingsPatch, } | { "type": "remove_storage_root", storage_root: string, } | { "type": "clear_app_data" } | { "type": "export_magnet", torrent_id: string, } | { "type": "snapshot" } | { "type": "pause", torrent_id: string, } | { "type": "resume", torrent_id: string, } | { "type": "force_recheck", torrent_id: string, } | { "type": "archive", torrent_id: string, } | { "type": "restore_archive", torrent_id: string, } | { "type": "remove_torrent", torrent_id: string, data: RemovalDataPolicy, } | { "type": "shutdown" };
+export type MagnetExportOptions = {
+/**
+ * Add `xl` with the verified total size. Omitted until metadata is
+ * verified; never copied from a source magnet.
+ */
+include_size?: boolean,
+/**
+ * Add BEP 53 `so` for these file indices, in the same index space as
+ * `FileView::file_index`. Sorted, unique, at most 4096 entries; every
+ * index must name a non-padding file of the verified file list.
+ */
+file_indices?: Array<number>,
+/**
+ * Add BEP 9 `x.pe` for at most two of the sharer's endpoints; see
+ * [`MagnetExportResult::peer_hints`].
+ */
+peer_hint?: boolean, };
+
+export type Command = { "type": "add_magnet", magnet: string, storage_root: string, start_content: boolean, await_file_selection: boolean, skip_files: Array<number>, } | { "type": "set_file_priority", torrent_id: string, file_indices: Array<number>, priority: FilePriority, } | { "type": "set_file_priority_ranges", torrent_id: string, ranges: Array<FileIndexRange>, priority: FilePriority, } | { "type": "download_files", torrent_id: string, file_indices: Array<number>, } | { "type": "move_download_to_top", torrent_id: string, } | { "type": "move_download_to_bottom", torrent_id: string, } | { "type": "set_default_storage_root", storage_root: string, } | { "type": "set_show_add_options", show: boolean, } | { "type": "set_show_file_selection", show: boolean, } | { "type": "confirm_pending_file_selection", torrent_id: string, catalog_id: string, base: PendingFileSelectionBase, overrides: Array<FileSelectionOverride>, disable_future: boolean, } | { "type": "download_all_pending_add", torrent_id: string, disable_future: boolean, } | { "type": "cancel_pending_add", torrent_id: string, } | { "type": "update_client_settings", patch: ClientSettingsPatch, } | { "type": "reset_client_settings" } | { "type": "update_torrent_settings", torrent_id: string, patch: TorrentSettingsPatch, } | { "type": "remove_storage_root", storage_root: string, } | { "type": "clear_app_data" } | { "type": "export_magnet", torrent_id: string,
+/**
+ * Share parameters. Absent, the export is the Tactical 107 magnet,
+ * byte for byte; present, the engine owns every `xl`, `so` and
+ * `x.pe` in the result.
+ */
+options?: MagnetExportOptions | null, } | { "type": "snapshot" } | { "type": "pause", torrent_id: string, } | { "type": "resume", torrent_id: string, } | { "type": "force_recheck", torrent_id: string, } | { "type": "archive", torrent_id: string, } | { "type": "restore_archive", torrent_id: string, } | { "type": "remove_torrent", torrent_id: string, data: RemovalDataPolicy, } | { "type": "shutdown" };
 
 export type ListenerPolicy = { "type": "disabled" } | { "type": "automatic_loopback" } | { "type": "fixed_loopback", port: number, } | { "type": "automatic_local_network" } | { "type": "fixed_local_network", port: number, };
 
@@ -129,7 +153,30 @@ export type AddTorrentResult = { torrent_id: string, disposition: AddTorrentDisp
 
 export type MagnetExportSource = "verbatim" | "canonicalized" | "synthesized";
 
-export type MagnetExportResult = { magnet: string, source: MagnetExportSource, omitted_tracker_count: number, };
+export type MagnetPeerHintScope = "internet" | "local_network";
+
+export type MagnetPeerHint = {
+/**
+ * The exported `x.pe` value: `ipv4:port` or `[ipv6]:port`.
+ */
+endpoint: string, scope: MagnetPeerHintScope, };
+
+export type MagnetPeerHintOmission = "private_torrent" | "metadata_pending" | "incoming_disabled" | "not_reachable" | "no_address";
+
+export type MagnetExportResult = { magnet: string,
+/**
+ * Where the magnet came from before any share parameters were applied.
+ */
+source: MagnetExportSource, omitted_tracker_count: number,
+/**
+ * The `x.pe` values included in `magnet`, in order. Empty unless
+ * `peer_hint` was requested.
+ */
+peer_hints?: Array<MagnetPeerHint>,
+/**
+ * Set when `peer_hint` was requested and no hint was included.
+ */
+peer_hint_omission?: MagnetPeerHintOmission | null, };
 
 export type CommandResult = { "type": "add_torrent", result: AddTorrentResult, } | { "type": "export_magnet", result: MagnetExportResult, };
 
@@ -285,7 +332,14 @@ export type TorrentSeedingView = { admission: SeedAdmissionView, goal?: SeedGoal
  */
 stop?: SeedStopView | null, };
 
-export type TorrentView = { torrent_id: string, protocol_identities: TorrentProtocolIdentities, display_name?: string | null, source_display_name?: string | null, state: TorrentState, operational_state: TorrentOperationalState, download_queue_position?: number | null, transfer_limits: TorrentTransferLimits, storage_state: StorageState, storage_root: string, metadata_available: boolean,
+export type TorrentView = { torrent_id: string, protocol_identities: TorrentProtocolIdentities, display_name?: string | null, source_display_name?: string | null,
+/**
+ * Total size in bytes claimed by the source magnet's `xl`, as a
+ * decimal string, while metadata is not verified. Absent once
+ * metadata is verified or when the magnet carries no acceptable `xl`.
+ * A claim from the link, never a verified size.
+ */
+source_size_bytes?: string | null, state: TorrentState, operational_state: TorrentOperationalState, download_queue_position?: number | null, transfer_limits: TorrentTransferLimits, storage_state: StorageState, storage_root: string, metadata_available: boolean,
 /**
  * The verified metainfo sets the BEP 27 `private` flag. False for
  * public torrents and for a magnet whose metadata is not verified
@@ -293,7 +347,7 @@ export type TorrentView = { torrent_id: string, protocol_identities: TorrentProt
  */
 private_torrent?: boolean, awaiting_file_selection: boolean, pending_file_selection_position?: number | null, file_catalog_id?: string | null, selectable_file_count: number, selected_file_count: number, selectable_file_bytes: string, selected_file_bytes: string, piece_count: number, total_size_bytes: string | null, verified_piece_count: number, requested_bytes: string, received_bytes: string, stored_bytes: string, active_peer_connections: number, configured_tracker_count?: number | null, payload_download_rate_bytes: string, required_payload_bytes: string | null, remaining_payload_bytes: string | null, eta_payload_download_rate_bytes: string, eta: TorrentEtaView, lifetime: TorrentLifetimeView, seeding: TorrentSeedingView, progress: ProgressAssessment, checking?: CheckingProgressView | null, archived: boolean, removal_state?: RemovalState | null, delete_data_supported: boolean, force_recheck_available: boolean, error?: string | null, };
 
-export type TorrentFieldUpdate = { "field": "protocol_identities", value: TorrentProtocolIdentities, } | { "field": "display_name", value: string | null, } | { "field": "source_display_name", value: string | null, } | { "field": "state", value: TorrentState, } | { "field": "operational_state", value: TorrentOperationalState, } | { "field": "download_queue_position", value: number | null, } | { "field": "transfer_limits", value: TorrentTransferLimits, } | { "field": "storage_state", value: StorageState, } | { "field": "metadata_available", value: boolean, } | { "field": "private_torrent", value: boolean, } | { "field": "awaiting_file_selection", value: boolean, } | { "field": "pending_file_selection_position", value: number | null, } | { "field": "file_catalog_id", value: string | null, } | { "field": "selectable_file_count", value: number, } | { "field": "selected_file_count", value: number, } | { "field": "selectable_file_bytes", value: string, } | { "field": "selected_file_bytes", value: string, } | { "field": "piece_count", value: number, } | { "field": "total_size_bytes", value: string | null, } | { "field": "verified_piece_count", value: number, } | { "field": "requested_bytes", value: string, } | { "field": "received_bytes", value: string, } | { "field": "stored_bytes", value: string, } | { "field": "active_peer_connections", value: number, } | { "field": "configured_tracker_count", value: number | null, } | { "field": "payload_download_rate_bytes", value: string, } | { "field": "required_payload_bytes", value: string | null, } | { "field": "remaining_payload_bytes", value: string | null, } | { "field": "eta_payload_download_rate_bytes", value: string, } | { "field": "eta", value: TorrentEtaView, } | { "field": "lifetime", value: TorrentLifetimeView, } | { "field": "seeding", value: TorrentSeedingView, } | { "field": "progress", value: ProgressAssessment, } | { "field": "checking", value: CheckingProgressView | null, } | { "field": "archived", value: boolean, } | { "field": "removal_state", value: RemovalState | null, } | { "field": "delete_data_supported", value: boolean, } | { "field": "force_recheck_available", value: boolean, } | { "field": "error", value: string | null, };
+export type TorrentFieldUpdate = { "field": "protocol_identities", value: TorrentProtocolIdentities, } | { "field": "display_name", value: string | null, } | { "field": "source_display_name", value: string | null, } | { "field": "source_size_bytes", value: string | null, } | { "field": "state", value: TorrentState, } | { "field": "operational_state", value: TorrentOperationalState, } | { "field": "download_queue_position", value: number | null, } | { "field": "transfer_limits", value: TorrentTransferLimits, } | { "field": "storage_state", value: StorageState, } | { "field": "metadata_available", value: boolean, } | { "field": "private_torrent", value: boolean, } | { "field": "awaiting_file_selection", value: boolean, } | { "field": "pending_file_selection_position", value: number | null, } | { "field": "file_catalog_id", value: string | null, } | { "field": "selectable_file_count", value: number, } | { "field": "selected_file_count", value: number, } | { "field": "selectable_file_bytes", value: string, } | { "field": "selected_file_bytes", value: string, } | { "field": "piece_count", value: number, } | { "field": "total_size_bytes", value: string | null, } | { "field": "verified_piece_count", value: number, } | { "field": "requested_bytes", value: string, } | { "field": "received_bytes", value: string, } | { "field": "stored_bytes", value: string, } | { "field": "active_peer_connections", value: number, } | { "field": "configured_tracker_count", value: number | null, } | { "field": "payload_download_rate_bytes", value: string, } | { "field": "required_payload_bytes", value: string | null, } | { "field": "remaining_payload_bytes", value: string | null, } | { "field": "eta_payload_download_rate_bytes", value: string, } | { "field": "eta", value: TorrentEtaView, } | { "field": "lifetime", value: TorrentLifetimeView, } | { "field": "seeding", value: TorrentSeedingView, } | { "field": "progress", value: ProgressAssessment, } | { "field": "checking", value: CheckingProgressView | null, } | { "field": "archived", value: boolean, } | { "field": "removal_state", value: RemovalState | null, } | { "field": "delete_data_supported", value: boolean, } | { "field": "force_recheck_available", value: boolean, } | { "field": "error", value: string | null, };
 
 export type TorrentRowUpdate = { torrent_id: string, fields: Array<TorrentFieldUpdate>, };
 
