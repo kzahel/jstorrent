@@ -1,5 +1,23 @@
 # Application Connection Architecture
 
+Tactical [338](../tactical/338-macos-network-consent-research.md) researches
+macOS startup consent without changing application/bootstrap contracts. The
+actual incoming-TCP/UPnP/DHT-Off app retains native attach and loopback control
+without a local-network alert. Fresh-port follow-up validates incoming uTP
+BitTorrent handshakes with TCP Off and silent TCP-only/unused-port controls;
+payload probes stall in Off and On. Complete unsolicited uTP rejection and explicit
+local-network feature gating remain planned. Distinguish local-network privacy,
+incoming peer policy and OS firewall approval; Windows is a later session.
+
+Tactical [337](../tactical/337-lightweight-macos-development-bundle.md) provides
+a lightweight macOS debug `.app` through `scripts/desktop-bundle`, so existing
+MacApp native registration and LaunchServices start/open work in development.
+The raw `scripts/desktop` executable remains outside a bundle and cannot repair
+that registration. The application/bootstrap/authentication contract is
+unchanged. Launching the debug bundle selects it on Chrome's shared host route;
+opening the installed app later repairs the route back. Foreground and isolated
+production-ID extension lifecycle checks pass locally.
+
 Tactical [336](../tactical/336-production-desktop-extension-control.md) repairs
 desktop native bootstrap admission for the exact production extension origin.
 The helper previously advertised control but accepted start/attach only from

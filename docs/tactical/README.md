@@ -1,5 +1,13 @@
 # Implementation Tactical Docs
 
+- [338 — macOS network consent research and plan](338-macos-network-consent-research.md):
+  isolated OS experiments confirm multicast startup requests and incomplete
+  incoming-Off uTP semantics; Mac implementation plan, with Windows deferred.
+
+- [337 — Lightweight macOS development bundle](337-lightweight-macos-development-bundle.md):
+  separate foreground debug `.app` launcher with native registration and
+  production-ID extension lifecycle verification.
+
 - [336 — Production desktop extension control](336-production-desktop-extension-control.md):
   exact production/beta bootstrap admission and real unpacked macOS lifecycle
   qualification; signed desktop delivery remains separate.

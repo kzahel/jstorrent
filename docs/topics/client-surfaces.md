@@ -1,5 +1,26 @@
 # Client Surfaces
 
+Tactical [338](../tactical/338-macos-network-consent-research.md) records the
+maintainer's outbound-only desktop direction and macOS consent research.
+Isolated GUI experiments confirm that the current multicast route probe can
+request access before UPnP, while incoming TCP/UPnP/DHT Off starts the real app
+without a local-network alert. Fresh-port follow-up confirms TCP Off completes unsolicited uTP BitTorrent
+handshakes; the TCP-only and unused-port controls stay silent. Payload probes
+stall in both Off and On, so transfer qualification remains unresolved.
+The proposed settings/consent and complete incoming-Off policy are not
+implemented; signed identity, denied/regrant transfer and Windows qualification
+remain separate evidence gaps.
+
+Tactical [337](../tactical/337-lightweight-macos-development-bundle.md) adds
+the separate macOS `scripts/desktop-bundle` development launcher. It assembles
+the ordinary debug client/helper into an ad-hoc signed `.app` with matching
+identity and icon, then execs the inner client in the foreground. The normal
+development library is shared with the unchanged raw `scripts/desktop` path;
+shipping data/identity remain separate. Build-only does not register anything;
+launching repairs Chrome's shared native-host route to the development bundle.
+Foreground/Ctrl+C, rebuild refusal and isolated production-ID extension
+launch/lifecycle qualification pass locally. This is not release packaging.
+
 Tactical [325](../tactical/325-android-ci-library-readiness.md) repairs the
 owned Android CI first-use assertion to observe All after statistics opt-out.
 The unchanged APK fails before and passes the full API 35 ARM64 SAF lifecycle

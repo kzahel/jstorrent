@@ -54,6 +54,13 @@ alone does not include the built companion UI or the production overlay.
 
 ## Local Desktop Production-ID Rehearsal
 
+For ordinary macOS development, launch `./scripts/desktop-bundle` from the
+repository root. Its debug `.app` can register with Chrome and serves the same
+development library as `./scripts/desktop`. The raw launcher is outside a Mac
+app bundle and cannot repair that registration. See the
+[client guide](../../docs/development/clients.md#desktop) for build-only and
+switching back to the installed desktop app.
+
 Tactical [336](../../docs/tactical/336-production-desktop-extension-control.md)
 repairs the native helper's beta-only desktop-control guard. Released desktop
 0.3.0/0.3.1 need a corrected desktop build; an extension reload cannot fix that
@@ -63,8 +70,9 @@ installed helper.
 Testing with the unpacked production ID. It verifies cold/warm attachment,
 singleton launch, native window opening through Machine Control observation,
 reload/detach and explicit restart after graceful native Quit. Prepare a fresh,
-isolated macOS candidate with identifier `com.jstorrent.check`, its registered
-native helper, and a claimed/approved Machine Control host session first. Keep
+isolated macOS candidate with identifier `com.jstorrent.check` (use a JSON
+`TAURI_CONFIG` override with `desktop-bundle`), its registered native helper,
+and a claimed/approved Machine Control host session first. Keep
 the bootstrap path short enough for macOS Unix sockets. Supply `--extension`,
 `--profile`, `--mc`, `--registry`, `--claim` and `--output`; the runner owns its
 test browser and terminates only that isolated candidate. Back up and restore

@@ -1,5 +1,21 @@
 # Capability Readiness
 
+Tactical [338](../tactical/338-macos-network-consent-research.md) completes
+local Mac consent research and prepares a bounded implementation plan. Native
+GUI/Terminal probe comparisons, interface enumeration, real no-incoming-TCP
+startup and fresh-port uTP admission controls are recorded. TCP Off completes
+incoming BitTorrent handshakes; payload probes stall in Off and On; 15 socket tests and
+one application-policy test pass. Product defaults and consent UI are unchanged.
+Complete incoming-Off support and signed denial/regrant/transfer qualification
+are not ready claims; Windows remains explicitly later.
+
+Tactical [337](../tactical/337-lightweight-macos-development-bundle.md) adds
+locally qualified macOS `scripts/desktop-bundle` tooling: matching debug app
+metadata, helper/icon, ad-hoc signing, build-only, foreground/Ctrl+C and running
+rebuild refusal. The generated bundle passes the real production-ID extension
+launch/lifecycle runner. Raw development launch and shipping identities are
+unchanged; this supplies developer integration rather than signed delivery.
+
 Tactical [336](../tactical/336-production-desktop-extension-control.md) repairs
 production-ID desktop native start/attach admission. Exact-origin/process and
 authenticated gateway tests pass, together with an unpacked production 1.1.4

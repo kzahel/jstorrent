@@ -17,6 +17,34 @@ attached to the terminal; `Ctrl+C` stops it. Ordinary debug identities are
 isolated from the shipping JSTorrent identity. For unsigned/signed production
 packages, use [releasing](releasing.md).
 
+For macOS extension testing, use the separate lightweight bundle launcher:
+
+```bash
+./scripts/desktop-bundle
+./scripts/desktop-bundle --build-only
+```
+
+This builds the same debug client and native helper, places them with the icon
+and app metadata in `target/desktop-bundle/JSTorrent Preview.app`, and runs the
+bundle's executable in the foreground. Cargo target-directory overrides are
+honored. It uses the same development library as `desktop`; the installed
+JSTorrent library remains separate. Ctrl+C or the native Quit action stops it.
+`--build-only` prepares the bundle without launching or registering it.
+
+Launching the bundle repairs Chrome's shared JSTorrent native-host registration
+to point at the development app. The extension can then attach or start that
+bundle. Quit the development app and open the installed JSTorrent app to repair
+the registration back to that installation. Quit a running development app
+before rebuilding its bundle.
+
+The raw `desktop` command remains useful for direct UI development. On macOS,
+its executable is outside an `.app`, so native-host registration reports that
+it cannot be repaired; the extension keeps its previous registered backend.
+`desktop-bundle` is locally ad-hoc signed and has no installer or file/magnet
+association registration. It is development tooling rather than a release
+candidate. A JSON `TAURI_CONFIG` override can select another isolated test
+identity; the launcher refuses the production identifier.
+
 ## Live web UI
 
 ```bash
