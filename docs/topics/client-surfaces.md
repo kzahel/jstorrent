@@ -4,12 +4,19 @@ Tactical [338](../tactical/338-macos-network-consent-research.md) records the
 maintainer's outbound-only desktop direction and macOS consent research.
 Isolated GUI experiments confirm that the current multicast route probe can
 request access before UPnP, while incoming TCP/UPnP/DHT Off starts the real app
-without a local-network alert. Fresh-port follow-up confirms TCP Off completes unsolicited uTP BitTorrent
-handshakes; the TCP-only and unused-port controls stay silent. Payload probes
-stall in both Off and On, so transfer qualification remains unresolved.
-The proposed settings/consent and complete incoming-Off policy are not
-implemented; signed identity, denied/regrant transfer and Windows qualification
-remain separate evidence gaps.
+without a local-network alert. Fresh-port follow-up confirms TCP Off completes
+unsolicited uTP BitTorrent handshakes; the TCP-only and unused-port controls stay
+silent. The original Mac payload probes stall in Off and On; corrected Mac
+transfer evidence remains open.
+The authorized Windows research round records native firewall prompting on
+explicit TCP enable, persistent Public TCP/UDP block rules after Cancel, and
+successful outgoing TCP/uTP hashes under those rules. TCP Off also permits
+verified incoming uTP payloads. Independent wire controls diagnose the earlier
+payload stall: the controlled diagnostic advertises Fast Extension without
+initial availability; `HaveNone` restores transfer. Product defaults/UI and
+that diagnostic remain unchanged. The proposed settings/consent and complete
+incoming-Off policy are not implemented; signed identity, denied/regrant transfer
+and shipping Windows qualification remain separate evidence gaps.
 
 Tactical [337](../tactical/337-lightweight-macos-development-bundle.md) adds
 the separate macOS `scripts/desktop-bundle` development launcher. It assembles

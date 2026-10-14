@@ -1,8 +1,31 @@
 # Tactical 338: macOS Network Consent Research And Plan
 
-Status: Research complete locally; tighter uTP follow-up recorded, 2026-10-14.
+Status: Mac research and authorized Windows research recorded, 2026-10-14.
 Maintainer requests experiments and a written plan, not product implementation
-in this slice. Windows remains a separate later session.
+in this slice. On 2026-10-14 the maintainer explicitly authorized the Windows
+handoff through the sibling Machine Control checkout.
+
+## Authorized Windows Research Round
+
+Use the pinned development guest with an exclusive Machine Control claim,
+isolated executable identities/profiles and fresh ports. Record Windows build,
+effective firewall profiles/notification policy, and existing rules before
+launch. Preserve inherited rules, applications, registrations and operator grants.
+Compare quiet startup, outbound UDP/loopback control, explicit wildcard
+TCP/UDP listening and explicit SSDP discovery. Observe native prompts, choose
+Cancel, then test same-identity restart/retry. Never automatically allow access.
+Any cleanup of OS-created rules is restricted to this round's exact executable
+paths, after recording their denial/retry behavior.
+
+Repeat fresh-port uTP SYN/BitTorrent admission and TCP-only/unused-port negative
+controls with the native application-service fixture. Investigate the shared
+payload stall using research-only diagnostics; verify outbound TCP and uTP
+payloads against independently computed SHA-256. Local/loopback evidence must
+not be represented as unsolicited WAN reachability or signed shipping proof.
+Keep processes and sockets bounded, join shutdown, remove owned artifacts and
+return the initially stopped guest to powered off before releasing its claim.
+Stop with recorded evidence and remaining gaps. Product runtime, defaults, UI,
+Android semantics, signing and publication stay unchanged.
 Topics: `client-surfaces`, `application-connection-architecture`,
 `capability-readiness`.
 
@@ -255,6 +278,173 @@ host temporary fixtures/logs/coordinators were removed, and normal native
 shutdown returned the VM to its original powered-off state. The owned claim
 was released; inherited operator grants and registrations were untouched.
 
+## Windows Research Results, 2026-10-14
+
+The maintainer explicitly requested the Windows handoff now. Machine Control's
+common CLI selected and exclusively claimed the pinned, initially powered-off
+Windows development guest. Guest-native administration, protected stored-login,
+UI actions and pixel capture reported no host interference. The guest is native
+x64 Windows 11 Enterprise Evaluation, version 26H2, kernel build `26300.9457`;
+legacy product-name registry fields still say Windows 10. The active network
+profile is Public. All three firewall profiles are enabled with notifications;
+the native firewall policy reports Public default inbound Block and outbound
+Allow. No profile, inherited rule, installed application or registration was
+changed for the experiments. Unsigned owned executables were the tested
+identities, not the installed JSTorrent product.
+
+The independently authored [Windows fixtures](../../tests/windows-network-consent/README.md)
+bound sockets, allocations and deadlines. Results files and socket inventories
+corroborate Machine Control delivery receipts. The new Windows Security dialog
+was visible in pixel captures but absent from the ordinary UIA tree, so Cancel
+used target-native pointer input at the observed button followed by independent
+foreground/rule readback. No Allow action was performed.
+
+| Cohort | Observation |
+| --- | --- |
+| Fresh quiet WinForms identity | No firewall dialog during 88 seconds before the first operation |
+| Outbound UDP bind/connect to TEST-NET-1, no datagram | Succeeds without a dialog |
+| Explicit wildcard TCP listen | Native Windows Security asks whether public/private networks may access the owned app; publisher Unknown |
+| Cancel, same-path restart and explicit TCP retry | Public TCP and UDP Block rules persist; retry binds a listener but does not show another dialog |
+| Loopback control after Cancel | An independent TCP client receives the exact `HTTP/1.1 200 OK`/`OK` fixture response under those block rules |
+| Separate UDP bind, UDP receive, and one SSDP send identities | Operations succeed; no additional firewall dialog observed in bounded cohorts. This does not prove unsolicited external UDP admission or actual router mapping |
+| Actual application service, incoming TCP/UPnP/DHT/PEX/IPv6 Off | Ready with wildcard ephemeral UDP, no TCP listener and zero prior uTP connections; no dialog during the 35-second pre-action interval |
+| Same service, explicit ordinary incoming-listener settings command | Wildcard TCP listener appears and native Windows Security prompts for the exact research executable |
+| Same service, explicit UPnP command and Cancel | Command succeeds; OS denial remains two Public inbound Block rules. Command success is not mapping success or permission evidence |
+| Same executable, joined stop, fresh profile and explicit listener/UPnP retry | Both ordinary settings commands succeed without another firewall dialog; inherited denial remains |
+| Same denied executable, outgoing TCP and uTP through the guest's non-loopback NAT path to an owned host seed | Both download all 131,803 bytes with matching independent SHA-256, without accepting a firewall grant |
+
+The non-loopback transfer used the provider's host alias and an owned
+loopback-bound native seed, not a public swarm, external router or unsolicited
+WAN peer. The guest clients opened no incoming TCP listener; their uTP socket
+received established-connection responses. This corroborates the separation
+between inbound exceptions and outbound transfers. It does not qualify signed
+shipping UI, enterprise policy, every adapter/profile, or complete product
+incoming-Off semantics. The actual product's uTP admission gap remains.
+
+The first successful fresh-process application-service matrix used four new
+profiles and 19 distinct server/client/control ports, including failed attempts.
+Every positive SYN validates the exact endpoint, version, STATE type, random
+connection ID and random SYN ACK, then resets its research connection. An
+unused-port negative and TCP-only negative receive no valid STATE; the TCP-only
+service independently counts one classified datagram with no uTP owner.
+
+| Mode | Server port | Raw SYN source | Handshake source | Independently hashed payload sources |
+| --- | --- | --- | --- | --- |
+| TCP Off A | 54117 | 54118 | 54119 | uTP 54121 |
+| TCP On | 54126 | 54127 | 54128 | uTP 54130; TCP 54132 |
+| TCP-only | 54134 | 54135, silent | Not attempted | TCP 54136 |
+| TCP Off B | 54139 | 54140 | 54141 | uTP 54143 |
+
+**TCP Off admits unsolicited loopback uTP peers through BitTorrent handshake
+and verified payload access.** The earlier Mac admission finding survives on
+native Windows, now with payload evidence. Three uTP and two TCP outputs match
+SHA-256 `8279ab7386010af63a680dcff51eb38294755a74e0abc5395901b2717ceeab63`.
+Every server reports absent uTP/UDP owners after joined shutdown; successful
+uTP clients report zero terminal connections/UDP tasks.
+
+The final assertion-bearing runner repeated all four cohorts with another 19
+fresh ports while excluding 35 prior observed ports (54 in the final ledger).
+Server ports were 57626/57635/57643/57648; raw sources
+57627/57636/57644/57649; handshake sources 57628/57637/57650. Verified uTP
+sources were 57630/57639/57652 and TCP sources 57641/57645. Original-helper
+failure source 57632 was recorded before invocation. Unused 57622 from 57623
+and TCP-only 57643 from 57644 received no packet. All assertions and five
+independent hashes pass again. The non-loopback denied-executable TCP/uTP
+clients used distinct sources 57612/57613 and the same expected hash.
+
+### Payload Stall Diagnosis
+
+The original controlled-uTP helper still times out on Windows in the first
+cohort, from fresh source port 54123. Independently framed plain BEP 3 transfer
+works. A wire client that advertises Fast Extension but omits initial availability
+receives HaveAll, AllowedFast and Unchoke, then stalls after its first Request.
+Adding the required `HaveNone` immediately after the handshake makes the same
+Fast Extension transfer complete with the independent hash, including the
+non-loopback denied-executable check.
+
+Pinned BEP 6 requires exactly one initial Bitfield/HaveAll/HaveNone.
+`peer_socket.rs::advertised_reserved_bits` always advertises Fast Extension,
+including when ordinary extensions are disabled;
+`utp_diagnostic.rs::download_controlled_utp` sends Interested/Request without an
+initial availability message. `incoming.rs::validate_incoming_fast_message`
+rejects that Request before availability. These source facts plus the failing
+and corrected wire controls diagnose the research helper defect. No production
+engine or existing diagnostic helper was repaired in this research slice.
+The original Mac payload failure is consistent with this defect, but corrected
+Mac payload transfer was not rerun and is not retroactively claimed.
+
+The pinned libtorrent `test/test_utp.cpp::test_transfer` was re-read from exact
+upstream revision `7d7fc38fac61177fa5e02148f791b2f65250b09d`: TCP/discovery/mapping
+disabled uTP transfer, small pieces, finished-state assertions and parallel
+session abort. Pinned BEP 3 handshake/message framing and BEP 6 are read from
+the BEP revision in `reference/pins.toml`.
+No upstream implementation or fixture was imported. Microsoft's
+[Windows Firewall rules](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/rules)
+documents Cancel-created block rules, exact-path application identity and
+deleting those rules before a new prompt can appear. The live observation
+matches that contract: application retry alone is insufficient recovery.
+
+Pilot limitations are retained: the runtime-only guest initially lacked MSVC
+runtime DLLs, so the first two seed starts failed at the Windows loader before
+binding; verified Microsoft-signed DLLs were then staged only beside the owned
+binary. One background PowerShell runner returned no usable evidence and is
+not counted. The first same-path service retry ran before prior sockets joined,
+so guard binding correctly refused it; the joined repeat succeeded. A same-peer-ID
+TCP pilot after uTP was also rejected; distinct TCP/uTP identities avoid that
+self-inflicted conflict. These are fixture/control failures, not firewall or
+transfer-policy results.
+
+Validation after sourcing `scripts/dev-env.sh`:
+
+- `cargo build --locked -p rstorrent-session --example incoming-off-research`;
+- `cargo fmt --all -- --check`;
+- `cargo test --locked -p rstorrent-engine --lib session_socket::tests`:
+  15 passed on native Windows;
+- `cargo test --locked -p rstorrent-session --lib
+  application_incoming_bootstrap_is_disabled_or_exactly_fixed`: one passed;
+- both C# fixtures compile with `/warnaserror`; malformed/zero/same-port SYN
+  inputs return 2 before opening a socket; PowerShell parsing has zero errors;
+- two native VM admission/payload matrices, independent failed/corrected Fast
+  Extension wire controls, non-loopback denied-executable transfers, native
+  prompt/Cancel/restart/retry, and separate loopback HTTP control; and
+- local Markdown link checks and `git diff --check`.
+
+Strict native Windows clippy is **not a pass**: the unchanged engine has eight
+`dead_code` diagnostics in `udp_fragmentation.rs` and one Windows-only
+`clippy::needless_return` in `incoming.rs`. The focused example check passes
+with `-- -D warnings -A dead-code -A clippy::needless-return`; no repository
+lint suppression or unrelated production repair was added. Workspace/web/
+Android suites were not run because the changes are research fixtures/docs,
+with no product boundary or runtime change.
+
+Cleanup: all owned application/GUI/server/client processes and joined owners
+are absent. Only four OS-created Public block rules for the two exact owned
+executable paths were removed; all inherited rules retain their prior values.
+One additional WebView2 mDNS rule appeared during the guest session and was
+left untouched because its executable is outside the owned research paths;
+its creation is not attributed to a tested socket operation. Owned guest
+profiles, fixtures, adjacent runtime DLLs, logs, payloads and the three resident
+captures were removed. Native-host registrations and operator grants were never
+changed. The provider's clean shutdown, under its required disruptive lifecycle
+claim and configured scheduling assist, reached the full 15-minute deadline
+without power-off. The guest remains running with its administration route
+unavailable; no force-stop was used. Final power state is recorded and the owned
+lifecycle claim is released. Guest power-off remains an operational cleanup gap.
+Host temporary research artifacts are removed. Initial PowerShell cleanup was
+rejected before execution as `blocked by policy`. On the maintainer's explicit
+cleanup follow-up, native Python validated the exact owned folder beneath the
+resolved TEMP directory, rejected reparse points and paths escaping that root,
+then used `shutil.rmtree` and verified absence. No filesystem permission change
+was needed. The precise command-policy rejection reason remains unavailable.
+Only reusable source fixtures/documentation are added to the worktree.
+
+Restart checkpoint: Windows consent, persistent Cancel/retry and controlled
+outgoing TCP/uTP are researched. Repair the diagnostic's BEP 6 availability
+sequence in a separately bounded slice, then repeat corrected Mac payload
+evidence. Complete unsolicited uTP rejection and explicit local-network gating
+remain separate implementation work. Keep defaults/UI/signing unchanged until
+that work and signed qualification are selected.
+
 ## Proposed Product Contract
 
 The maintainer accepts outbound-only operation as a legitimate mode. For fresh
@@ -386,11 +576,12 @@ payload stall before interpreting a similar Windows failure as firewall policy.
 Record evidence and remaining gaps, preserve inherited apps/registrations,
 and check in before product defaults or UI implementation.
 
-Restart checkpoint: tighter Mac evidence is recorded; check in with the
-maintainer before UI design or Windows qualification. Resolve the controlled
-payload stall before claiming transfer qualification. The proposed next
+Restart checkpoint: the authorized Windows research round above is recorded.
+The controlled payload stall is diagnosed as a Fast Extension diagnostic defect;
+corrected wire transfers pass on Windows, while a corrected Mac rerun remains.
+Check in before product UI or default changes. The proposed next
 implementation action, if selected, is a bounded tactical starting with incidental macOS route
 selection and complete incoming-off semantics, then explicit local-network
 feature gating. Product defaults, consent UI and shipping signing remain
-unimplemented. Do not reopen a public swarm or start Windows qualification as
-part of this checkpoint.
+unimplemented. Do not reopen a public swarm or infer signed shipping Windows
+qualification from the unsigned research identities.

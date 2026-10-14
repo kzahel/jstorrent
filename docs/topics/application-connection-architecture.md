@@ -7,7 +7,13 @@ without a local-network alert. Fresh-port follow-up validates incoming uTP
 BitTorrent handshakes with TCP Off and silent TCP-only/unused-port controls;
 payload probes stall in Off and On. Complete unsolicited uTP rejection and explicit
 local-network feature gating remain planned. Distinguish local-network privacy,
-incoming peer policy and OS firewall approval; Windows is a later session.
+incoming peer policy and OS firewall approval. Authorized Windows research now
+observes explicit TCP enable prompting and Cancel persisting inbound block
+rules across executable restart/retry; loopback control and non-loopback
+outgoing TCP/uTP hashes still pass. TCP Off admits verified incoming uTP payloads.
+The diagnostic's missing initial Fast Extension availability explains its
+stall; corrected independent wire clients pass. Bootstrap/defaults/UI are
+unchanged, and signed shipping qualification remains separate.
 
 Tactical [337](../tactical/337-lightweight-macos-development-bundle.md) provides
 a lightweight macOS debug `.app` through `scripts/desktop-bundle`, so existing

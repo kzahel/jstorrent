@@ -1,4 +1,4 @@
-//! Bounded, loopback-only application-service research, not product policy.
+//! Bounded application-service research on owned local fixtures, not product policy.
 use std::error::Error;
 use std::io::{Read, Write};
 use std::net::{Ipv4Addr, SocketAddr};
@@ -33,11 +33,184 @@ async fn main() -> Result<()> {
         Some("server") if args.len() == 5 => {
             server(Path::new(&args[1]), Path::new(&args[2]), &args[3], &args[4]).await
         }
-        Some("client" | "handshake") if args.len() == 5 => {
+        Some("client" | "handshake" | "wire-utp" | "wire-tcp" | "wire-fast" | "wire-fast-missing") if args.len() == 5 || args.len() == 6 => {
+            if args[0].starts_with("wire-") {
+                let peer_ip = args.get(5).map(|s| s.parse()).transpose()?.unwrap_or(Ipv4Addr::LOCALHOST);
+                return wire_client(Path::new(&args[1]), args[2].parse()?, args[3].parse()?, Path::new(&args[4]), &args[0], peer_ip).await;
+            }
             client(Path::new(&args[1]), args[2].parse()?, args[3].parse()?, Path::new(&args[4]), args[0] == "handshake").await
         }
         _ => Err("server CASE_ROOT FIXTURE_ROOT off|on|tcp EXCLUDED_PORTS; client FIXTURE_ROOT SERVER_PORT CLIENT_PORT OUTPUT".into()),
     }
+}
+
+// Independent wire framing separates a diagnostic helper failure from transport
+// and admission. This bounded research path is deliberately outside PeerIo.
+async fn wire_client(
+    fixture: &Path,
+    server_port: u16,
+    client_port: u16,
+    output: &Path,
+    mode: &str,
+    peer_ip: Ipv4Addr,
+) -> Result<()> {
+    let tcp = mode == "wire-tcp";
+    let fast = mode.starts_with("wire-fast");
+    let source = read_bounded(&fixture.join("fixture.torrent"), 65_536)?;
+    let projection =
+        TorrentContentProjection::from_bytes_with_limits(&source, BEP9_METAINFO_LIMITS)?;
+    let metainfo = &projection
+        .content
+        .v1()
+        .ok_or("v1 fixture required")?
+        .metainfo;
+    if metainfo.total_length > 1_048_576
+        || server_port < 1024
+        || client_port < 1024
+        || server_port == client_port
+        || (!peer_ip.is_loopback() && !peer_ip.is_private())
+    {
+        return Err("bounded fixture and distinct unprivileged ports required".into());
+    }
+    let peer = SocketAddr::from((peer_ip, server_port));
+    let bind_ip = if peer_ip.is_loopback() {
+        Ipv4Addr::LOCALHOST
+    } else {
+        Ipv4Addr::UNSPECIFIED
+    };
+    let payload = if tcp {
+        let socket = tokio::net::TcpSocket::new_v4()?;
+        socket.bind(SocketAddr::from((bind_ip, client_port)))?;
+        let mut stream =
+            tokio::time::timeout(Duration::from_secs(5), socket.connect(peer)).await??;
+        tokio::time::timeout(
+            Duration::from_secs(30),
+            wire_transfer(&mut stream, metainfo, true, false, false),
+        )
+        .await??
+    } else {
+        let socket = UdpSocket::bind((bind_ip, client_port)).await?;
+        let (mut udp, dht) = SessionUdpService::start(socket)?;
+        let utp = UtpService::start(&mut udp)?;
+        let transfer = tokio::time::timeout(Duration::from_secs(30), async {
+            let mut stream = utp.handle().connect(peer).await?;
+            wire_transfer(&mut stream, metainfo, false, fast, mode == "wire-fast").await
+        })
+        .await;
+        let terminal = utp.shutdown().await?;
+        drop(dht);
+        let udp_terminal = udp.shutdown().await?;
+        emit(
+            json!({"event":"wire_terminal","connections":terminal.active_connections,"udp_tasks":udp_terminal.tasks}),
+        )?;
+        transfer??
+    };
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(output)?;
+    file.write_all(&payload)?;
+    emit(json!({"event":"wire_complete","tcp":tcp,"bytes":payload.len()}))
+}
+
+async fn wire_transfer<S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin>(
+    stream: &mut S,
+    metainfo: &rstorrent_protocol::metainfo::Metainfo,
+    tcp: bool,
+    fast: bool,
+    initial_availability: bool,
+) -> Result<Vec<u8>> {
+    let mut handshake = [0_u8; 68];
+    handshake[0] = 19;
+    handshake[1..20].copy_from_slice(b"BitTorrent protocol");
+    handshake[28..48].copy_from_slice(&metainfo.info_hash);
+    if fast {
+        handshake[27] = 4;
+    }
+    handshake[48..68].copy_from_slice(if tcp {
+        b"-RSREWT-000000000001"
+    } else {
+        b"-RSREWI-000000000001"
+    });
+    stream.write_all(&handshake).await?;
+    stream.flush().await?;
+    let mut reply = [0_u8; 68];
+    stream.read_exact(&mut reply).await?;
+    if reply[0..20] != handshake[0..20]
+        || reply[28..48] != metainfo.info_hash
+        || &reply[48..68] != b"-RSRESV-000000000001"
+    {
+        return Err("wire handshake mismatch".into());
+    }
+    emit(json!({"event":"wire_handshake"}))?;
+    if initial_availability {
+        stream.write_all(&[0, 0, 0, 1, 15]).await?;
+    }
+    stream.write_all(&[0, 0, 0, 1, 2]).await?;
+    stream.flush().await?;
+    let mut messages = 0;
+    loop {
+        let frame = wire_frame(stream, &mut messages).await?;
+        if frame.first() == Some(&1) {
+            break;
+        }
+    }
+    let mut payload = Vec::with_capacity(metainfo.total_length as usize);
+    for (index, expected) in metainfo.piece_hashes.iter().enumerate() {
+        let length = metainfo
+            .piece_length_at(index as u32)
+            .ok_or("piece geometry")?;
+        let mut piece = Vec::with_capacity(length as usize);
+        while piece.len() < length as usize {
+            let begin = piece.len() as u32;
+            let block_length = (length - begin).min(16_384);
+            let mut request = vec![0, 0, 0, 13, 6];
+            request.extend_from_slice(&(index as u32).to_be_bytes());
+            request.extend_from_slice(&begin.to_be_bytes());
+            request.extend_from_slice(&block_length.to_be_bytes());
+            stream.write_all(&request).await?;
+            stream.flush().await?;
+            loop {
+                let frame = wire_frame(stream, &mut messages).await?;
+                if frame.first() == Some(&7) {
+                    if frame.len() != 9 + block_length as usize
+                        || frame[1..5] != (index as u32).to_be_bytes()
+                        || frame[5..9] != begin.to_be_bytes()
+                    {
+                        return Err("unexpected wire block".into());
+                    }
+                    piece.extend_from_slice(&frame[9..]);
+                    break;
+                }
+                if frame.first() == Some(&0) {
+                    return Err("wire peer choked".into());
+                }
+            }
+        }
+        if Sha1::digest(&piece).as_slice() != expected {
+            return Err("wire piece hash mismatch".into());
+        }
+        payload.extend(piece);
+    }
+    Ok(payload)
+}
+
+async fn wire_frame<S: tokio::io::AsyncRead + Unpin>(
+    stream: &mut S,
+    messages: &mut usize,
+) -> Result<Vec<u8>> {
+    *messages += 1;
+    if *messages > 128 {
+        return Err("wire message count bound".into());
+    }
+    let length = stream.read_u32().await? as usize;
+    if length > 16_393 {
+        return Err("wire frame length bound".into());
+    }
+    let mut frame = vec![0; length];
+    stream.read_exact(&mut frame).await?;
+    emit(json!({"event":"wire_frame","length":length,"id":frame.first()}))?;
+    Ok(frame)
 }
 
 fn emit(value: serde_json::Value) -> Result<()> {
@@ -58,7 +231,7 @@ fn read_bounded(path: &Path, maximum: u64) -> Result<Vec<u8>> {
 }
 
 async fn server(root: &Path, fixture: &Path, mode: &str, excluded: &str) -> Result<()> {
-    if !matches!(mode, "off" | "on" | "tcp") || root.exists() {
+    if !matches!(mode, "off" | "on" | "tcp" | "interactive") || root.exists() {
         return Err("require valid mode and a fresh case directory".into());
     }
     let mut guards = Vec::new();
@@ -104,7 +277,7 @@ async fn server(root: &Path, fixture: &Path, mode: &str, excluded: &str) -> Resu
     let preferred_listen_port = candidate.local_addr()?.port();
     drop(candidate);
     let settings = ClientSettings {
-        listener: if mode == "off" {
+        listener: if mode == "off" || mode == "interactive" {
             ListenerPolicy::Disabled
         } else {
             ListenerPolicy::AutomaticLoopback
@@ -157,7 +330,11 @@ async fn server(root: &Path, fixture: &Path, mode: &str, excluded: &str) -> Resu
         "default".into(),
         roots,
         NetworkConfig::new(
-            NetworkPolicy::LoopbackOnly,
+            if mode == "interactive" {
+                NetworkPolicy::Online
+            } else {
+                NetworkPolicy::LoopbackOnly
+            },
             Duration::from_secs(3),
             Duration::from_secs(3),
         )
@@ -227,22 +404,65 @@ async fn server(root: &Path, fixture: &Path, mode: &str, excluded: &str) -> Resu
             return Err("UDP not bound".into());
         };
         let utp_snapshot = service.lock().await.utp_snapshot();
-        emit(
-            json!({"event":"ready", "pid":std::process::id(), "mode":mode, "udp_address":address,
+        let ready = json!({"event":"ready", "pid":std::process::id(), "mode":mode, "udp_address":address,
             "udp_port":port, "listener_status":client_settings.listener_status,
             "utp_enabled":utp_snapshot.is_some(), "excluded_ports":excluded,
-            "connections_before_probe":utp_snapshot.map(|s|s.connections_started)}),
-        )
+            "connections_before_probe":utp_snapshot.map(|s|s.connections_started)});
+        std::fs::write(root.join("ready.json"), serde_json::to_vec(&ready)?)?;
+        emit(ready)
     }
     .await;
     if let Err(error) = ready {
         service.lock().await.shutdown().await?;
         return Err(error);
     }
-    let deadline = Instant::now() + Duration::from_secs(90);
+    let deadline =
+        Instant::now() + Duration::from_secs(if mode == "interactive" { 240 } else { 90 });
+    let mut incoming_enabled = false;
+    let mut upnp_enabled = false;
     loop {
         if root.join("stop").exists() || Instant::now() >= deadline {
             break;
+        }
+        if mode == "interactive" {
+            for (trigger, applied) in [
+                ("enable-incoming", &mut incoming_enabled),
+                ("enable-upnp", &mut upnp_enabled),
+            ] {
+                if !*applied && root.join(trigger).exists() {
+                    let mut selected = settings.clone();
+                    selected.listener = ListenerPolicy::AutomaticLocalNetwork;
+                    if trigger == "enable-upnp" {
+                        selected.port_mapping = rstorrent_session::PortMappingPolicy::Upnp;
+                    }
+                    let response = service
+                        .lock()
+                        .await
+                        .dispatch(RequestEnvelope {
+                            version: CONTROL_VERSION,
+                            request_id: trigger.into(),
+                            expected_revision: None,
+                            command: Command::UpdateClientSettings {
+                                patch: selected.into(),
+                            },
+                        })
+                        .await;
+                    let evidence = match response {
+                        Ok(response) => {
+                            json!({"event":trigger,"success":matches!(response.outcome, ResponseOutcome::Success { .. })})
+                        }
+                        Err(error) => {
+                            json!({"event":trigger,"success":false,"error":error.to_string()})
+                        }
+                    };
+                    std::fs::write(
+                        root.join(format!("{trigger}.json")),
+                        serde_json::to_vec(&evidence)?,
+                    )?;
+                    emit(evidence)?;
+                    *applied = true;
+                }
+            }
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
@@ -250,13 +470,13 @@ async fn server(root: &Path, fixture: &Path, mode: &str, excluded: &str) -> Resu
     let before_udp = service.lock().await.session_udp_snapshot();
     service.lock().await.shutdown().await?;
     let service = service.lock().await;
-    emit(
-        json!({"event":"stopped", "utp_started":before.as_ref().map(|s|s.connections_started),
+    let stopped = json!({"event":"stopped", "utp_started":before.as_ref().map(|s|s.connections_started),
         "udp_datagrams_received":before_udp.map(|s|s.datagrams_received),
         "utp_datagrams_classified":before_udp.map(|s|s.utp_datagrams_classified),
         "utp_owner_after_shutdown":service.utp_snapshot().is_some(),
-        "udp_owner_after_shutdown":service.session_udp_snapshot().is_some()}),
-    )?;
+        "udp_owner_after_shutdown":service.session_udp_snapshot().is_some()});
+    std::fs::write(root.join("stopped.json"), serde_json::to_vec(&stopped)?)?;
+    emit(stopped)?;
     drop(guards);
     Ok(())
 }

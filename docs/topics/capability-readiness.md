@@ -7,7 +7,14 @@ startup and fresh-port uTP admission controls are recorded. TCP Off completes
 incoming BitTorrent handshakes; payload probes stall in Off and On; 15 socket tests and
 one application-policy test pass. Product defaults and consent UI are unchanged.
 Complete incoming-Off support and signed denial/regrant/transfer qualification
-are not ready claims; Windows remains explicitly later.
+are not ready claims. The authorized Windows research round records explicit
+TCP enable prompting, persistent Cancel rules/retry without a new prompt,
+loopback control, and independently hashed outgoing TCP/uTP under inbound
+denial. TCP Off also admits verified incoming uTP payloads. The original
+controlled diagnostic omits required initial Fast Extension availability;
+corrected independent wire clients pass without changing that helper or product
+defaults/UI. Signed shipping Windows policy and corrected Mac transfer remain
+unqualified.
 
 Tactical [337](../tactical/337-lightweight-macos-development-bundle.md) adds
 locally qualified macOS `scripts/desktop-bundle` tooling: matching debug app
