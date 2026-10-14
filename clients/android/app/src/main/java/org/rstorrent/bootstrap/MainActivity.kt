@@ -48,6 +48,9 @@ class MainActivity : ComponentActivity() {
     private var productStartRequested = false
     private var pendingProductMagnet: String? = null
     private var pendingProductTorrentUri: String? = null
+    private var pendingProductTorrentUris: ArrayList<String>? = null
+    private var pendingTorrentListExportUri: String? = null
+    private var pendingTorrentListImportUri: String? = null
     private var pendingProductTorrentBase64: String? = null
     private var pendingProductTorrentSelection: FileSelectionIntent = FileSelectionIntent.All
     private var pendingProductTorrentStartContent = true
@@ -113,8 +116,24 @@ class MainActivity : ComponentActivity() {
                 false,
             )
             val data = result.data
-            val torrentUri = data?.data
-            if (result.resultCode != RESULT_OK || torrentUri == null) {
+            val picked = if (result.resultCode == RESULT_OK) pickedDocumentUris(data) else emptyList()
+            if (picked.size > 1) {
+                // No persistable grants: hundreds of them could evict the
+                // download folder grants. The adds read each file right away.
+                val service = productService.value
+                if (service == null) {
+                    pendingProductTorrentUris = ArrayList(picked.map(Uri::toString))
+                } else {
+                    service.addTorrentFiles(
+                        picked,
+                        awaitFileSelection = pendingProductTorrentAwaitFileSelection,
+                    )
+                    pendingProductTorrentAwaitFileSelection = false
+                }
+                return@registerForActivityResult
+            }
+            val torrentUri = picked.singleOrNull()
+            if (data == null || torrentUri == null) {
                 return@registerForActivityResult
             }
             val flags = data.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -130,6 +149,40 @@ class MainActivity : ComponentActivity() {
                 )
                 pendingProductTorrentStartContent = true
                 pendingProductTorrentAwaitFileSelection = false
+            }
+        }
+    private val torrentListExportPicker =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            ProductInteractionRegistry.setLease(
+                ProductEngineService.INTERACTION_TORRENT_LIST_DOCUMENT,
+                false,
+            )
+            val destination = result.data?.data
+            if (result.resultCode != RESULT_OK || destination == null) {
+                return@registerForActivityResult
+            }
+            val service = productService.value
+            if (service == null) {
+                pendingTorrentListExportUri = destination.toString()
+            } else {
+                service.exportTorrentList(destination)
+            }
+        }
+    private val torrentListImportPicker =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            ProductInteractionRegistry.setLease(
+                ProductEngineService.INTERACTION_TORRENT_LIST_DOCUMENT,
+                false,
+            )
+            val source = result.data?.data
+            if (result.resultCode != RESULT_OK || source == null) {
+                return@registerForActivityResult
+            }
+            val service = productService.value
+            if (service == null) {
+                pendingTorrentListImportUri = source.toString()
+            } else {
+                service.importTorrentList(source)
             }
         }
     private val notificationPermissionRequest =
@@ -224,6 +277,22 @@ class MainActivity : ComponentActivity() {
                     )
                     pendingProductTorrentStartContent = true
                     pendingProductTorrentAwaitFileSelection = false
+                }
+                pendingProductTorrentUris?.let { encoded ->
+                    pendingProductTorrentUris = null
+                    service.addTorrentFiles(
+                        encoded.map(Uri::parse),
+                        awaitFileSelection = pendingProductTorrentAwaitFileSelection,
+                    )
+                    pendingProductTorrentAwaitFileSelection = false
+                }
+                pendingTorrentListExportUri?.let { encoded ->
+                    pendingTorrentListExportUri = null
+                    service.exportTorrentList(Uri.parse(encoded))
+                }
+                pendingTorrentListImportUri?.let { encoded ->
+                    pendingTorrentListImportUri = null
+                    service.importTorrentList(Uri.parse(encoded))
                 }
                 pendingProductTorrentBase64?.let { encoded ->
                     pendingProductTorrentBase64 = null
@@ -336,6 +405,12 @@ class MainActivity : ComponentActivity() {
             }.getOrDefault(ProductThemeMode.SYSTEM)
         dynamicColor.value = preferences.getBoolean(PREFERENCE_DYNAMIC_COLOR, true)
         pendingProductTorrentUri = savedInstanceState?.getString(STATE_PENDING_TORRENT_URI)
+        pendingProductTorrentUris =
+            savedInstanceState?.getStringArrayList(STATE_PENDING_TORRENT_URIS)
+        pendingTorrentListExportUri =
+            savedInstanceState?.getString(STATE_PENDING_TORRENT_LIST_EXPORT)
+        pendingTorrentListImportUri =
+            savedInstanceState?.getString(STATE_PENDING_TORRENT_LIST_IMPORT)
         pendingProductCompanionRootRequestId =
             savedInstanceState?.getString(STATE_PENDING_COMPANION_ROOT_REQUEST)
         pendingProductRepairRootId =
@@ -357,6 +432,13 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         pendingProductTorrentUri?.let { outState.putString(STATE_PENDING_TORRENT_URI, it) }
+        pendingProductTorrentUris?.let { outState.putStringArrayList(STATE_PENDING_TORRENT_URIS, it) }
+        pendingTorrentListExportUri?.let {
+            outState.putString(STATE_PENDING_TORRENT_LIST_EXPORT, it)
+        }
+        pendingTorrentListImportUri?.let {
+            outState.putString(STATE_PENDING_TORRENT_LIST_IMPORT, it)
+        }
         pendingProductCompanionRootRequestId?.let {
             outState.putString(STATE_PENDING_COMPANION_ROOT_REQUEST, it)
         }
@@ -629,6 +711,8 @@ class MainActivity : ComponentActivity() {
                     onSelectStorage = { launchProductTreePicker() },
                     onRepairStorage = { launchProductTreePicker(it) },
                     onBrowseTorrent = ::launchProductTorrentPicker,
+                    onExportTorrentList = ::launchTorrentListExport,
+                    onImportTorrentList = ::launchTorrentListImport,
                     notificationsGranted = notificationsGranted.value,
                     onRequestNotifications = ::requestNotificationPermission,
                     onOpenNotificationSettings = ::openNotificationSettings,
@@ -1055,6 +1139,7 @@ class MainActivity : ComponentActivity() {
                         Intent.EXTRA_MIME_TYPES,
                         arrayOf("application/x-bittorrent", "application/octet-stream"),
                     )
+                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
                 },
@@ -1065,6 +1150,60 @@ class MainActivity : ComponentActivity() {
                 false,
             )
             throw error
+        }
+    }
+
+    /** Picked documents in order; a multiple-selection result carries them as clip data. */
+    private fun pickedDocumentUris(data: Intent?): List<Uri> {
+        if (data == null) return emptyList()
+        val clip = data.clipData
+        if (clip != null && clip.itemCount > 0) {
+            return (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }.distinct()
+        }
+        return listOfNotNull(data.data)
+    }
+
+    private fun launchTorrentListExport() {
+        launchTorrentListDocument(
+            torrentListExportPicker,
+            Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = TorrentListDocuments.EXPORT_MIME_TYPE
+                putExtra(Intent.EXTRA_TITLE, TorrentListDocuments.EXPORT_FILE_NAME)
+            },
+        )
+    }
+
+    private fun launchTorrentListImport() {
+        launchTorrentListDocument(
+            torrentListImportPicker,
+            Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                putExtra(Intent.EXTRA_MIME_TYPES, TorrentListDocuments.IMPORT_MIME_TYPES)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            },
+        )
+    }
+
+    private fun launchTorrentListDocument(
+        launcher: androidx.activity.result.ActivityResultLauncher<Intent>,
+        picker: Intent,
+    ) {
+        ProductInteractionRegistry.setLease(
+            ProductEngineService.INTERACTION_TORRENT_LIST_DOCUMENT,
+            true,
+        )
+        try {
+            launcher.launch(picker)
+        } catch (error: RuntimeException) {
+            ProductInteractionRegistry.setLease(
+                ProductEngineService.INTERACTION_TORRENT_LIST_DOCUMENT,
+                false,
+            )
+            if (error !is android.content.ActivityNotFoundException) throw error
+            // No document app can handle the request; say so instead of crashing.
+            Toast.makeText(this, R.string.torrent_list_no_document_app, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -1261,6 +1400,9 @@ class MainActivity : ComponentActivity() {
         private const val PREFERENCE_THEME_MODE = "theme_mode"
         private const val PREFERENCE_DYNAMIC_COLOR = "dynamic_color"
         private const val STATE_PENDING_TORRENT_URI = "pending_torrent_uri"
+        private const val STATE_PENDING_TORRENT_URIS = "pending_torrent_uris"
+        private const val STATE_PENDING_TORRENT_LIST_EXPORT = "pending_torrent_list_export"
+        private const val STATE_PENDING_TORRENT_LIST_IMPORT = "pending_torrent_list_import"
         private const val STATE_PENDING_TORRENT_START = "pending_torrent_start"
         private const val STATE_PENDING_TORRENT_FILE_SELECTION =
             "pending_torrent_file_selection"

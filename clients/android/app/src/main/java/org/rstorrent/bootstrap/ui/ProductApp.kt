@@ -116,7 +116,9 @@ import org.rstorrent.bootstrap.ExternalIntakeNoticeKind
 import org.rstorrent.bootstrap.ExternalIntakePhase
 import org.rstorrent.bootstrap.ExternalIntakePresentation
 import org.rstorrent.bootstrap.GlobalPresentation
+import org.rstorrent.bootstrap.TorrentListNotice
 import org.rstorrent.bootstrap.TorrentPresentation
+import org.rstorrent.bootstrap.splitMagnetLinks
 import org.rstorrent.bootstrap.clientSettingsPatch
 import org.rstorrent.bootstrap.presentedClientSettings
 import org.rstorrent.bootstrap.presentedTorrent
@@ -145,6 +147,8 @@ fun ProductApp(
     notificationsGranted: Boolean,
     onRequestNotifications: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
+    onExportTorrentList: (() -> Unit)? = null,
+    onImportTorrentList: (() -> Unit)? = null,
     onOpenFeedback: (Boolean, String) -> Unit = { _, _ -> },
     onPreviewFeedback: (suspend (Boolean) -> ProductFeedbackPreview?)? = null,
     onOpenPrivacy: () -> Unit = {},
@@ -245,6 +249,21 @@ fun ProductApp(
                 }
             }
         }
+        val torrentListNotice = state.torrentListNotice
+        val torrentListMessage = torrentListNotice?.let { torrentListNoticeText(it) }
+        LaunchedEffect(torrentListNotice?.sequence, torrentListMessage) {
+            // Summaries stay until their dialog is dismissed; messages show once.
+            val message = torrentListMessage ?: return@LaunchedEffect
+            torrentListNotice?.sequence?.let { service?.clearTorrentListNotice(it) }
+            notificationScope.launch {
+                snackbar.currentSnackbarData?.dismiss()
+                snackbar.showSnackbar(
+                    message,
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Long,
+                )
+            }
+        }
         LaunchedEffect(state.torrentCommandFailure?.sequence) {
             val failure = state.torrentCommandFailure ?: return@LaunchedEffect
             // Consume the failure so a recreated UI does not show it again.
@@ -271,6 +290,8 @@ fun ProductApp(
                     notificationsGranted = notificationsGranted,
                     onRequestNotifications = onRequestNotifications,
                     onOpenNotificationSettings = onOpenNotificationSettings,
+                    onExportTorrentList = onExportTorrentList,
+                    onImportTorrentList = onImportTorrentList,
                     onOpenFeedback = onOpenFeedback,
                     onPreviewFeedback = onPreviewFeedback,
                     onOpenPrivacy = onOpenPrivacy,
@@ -457,6 +478,16 @@ fun ProductApp(
                 onCancel = { service?.cancelPendingAdd(torrent.torrentId) },
             )
         }
+        // Shown after any file choices the added torrents asked for.
+        (torrentListNotice as? TorrentListNotice.Summary)
+            ?.takeIf {
+                pendingSelection == null && state.dataReset == null && state.externalIntake == null
+            }?.let { notice ->
+                TorrentAddSummaryDialog(
+                    summary = notice.summary,
+                    onDismiss = { service?.clearTorrentListNotice(notice.sequence) },
+                )
+            }
         state.companionPairing?.takeIf { state.dataReset == null }?.let { pairing ->
             AlertDialog(
                 onDismissRequest = {},
@@ -767,6 +798,8 @@ private fun ProductNavHost(
     notificationsGranted: Boolean,
     onRequestNotifications: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
+    onExportTorrentList: (() -> Unit)?,
+    onImportTorrentList: (() -> Unit)?,
     onOpenFeedback: (Boolean, String) -> Unit,
     onPreviewFeedback: (suspend (Boolean) -> ProductFeedbackPreview?)?,
     onOpenPrivacy: () -> Unit,
@@ -865,13 +898,24 @@ private fun ProductNavHost(
                 onSelectStorage = onSelectStorage,
                 onRepairStorage = onRepairStorage,
                 onOpenTorrent = { navController.navigate(ProductRoutes.detail(it)) },
-                onAddMagnet = { magnet, chooseFiles ->
-                    service?.addMagnet(
-                        magnet,
-                        startContent = true,
-                        awaitFileSelection = chooseFiles,
-                        downloadAll = !chooseFiles,
-                    )
+                onAddMagnet = { text, chooseFiles ->
+                    val magnets = splitMagnetLinks(text)
+                    if (magnets.size <= 1) {
+                        service?.addMagnet(
+                            text,
+                            startContent = true,
+                            awaitFileSelection = chooseFiles,
+                            downloadAll = !chooseFiles,
+                        )
+                    } else {
+                        service?.addMagnets(
+                            magnets,
+                            startContent = true,
+                            awaitFileSelection = chooseFiles,
+                            downloadAll = !chooseFiles,
+                            summarize = true,
+                        )
+                    }
                 },
                 onBrowseTorrent = {
                     onBrowseTorrent(state.storage?.showFileSelection ?: true)
@@ -1047,6 +1091,43 @@ private fun ProductNavHost(
                     checked = state.storage?.showFileSelection ?: true,
                     onChecked = { service?.setShowFileSelection(it) },
                 )
+                if (onExportTorrentList != null || onImportTorrentList != null) {
+                    val idle = service != null && state.torrentListActivity == null
+                    SettingsSection(stringResource(R.string.settings_section_torrent_list))
+                    onExportTorrentList?.let { exportList ->
+                        SettingAction(
+                            title = stringResource(R.string.torrent_list_export),
+                            detail = stringResource(R.string.torrent_list_export_detail),
+                            onClick = exportList,
+                            action = stringResource(R.string.action_export),
+                            enabled = idle,
+                        )
+                    }
+                    onImportTorrentList?.let { importList ->
+                        SettingAction(
+                            title = stringResource(R.string.torrent_list_import),
+                            detail =
+                                stringResource(
+                                    if (state.storageRootReady) {
+                                        R.string.torrent_list_import_detail
+                                    } else {
+                                        R.string.torrent_list_import_needs_folder
+                                    },
+                                ),
+                            onClick = importList,
+                            action = stringResource(R.string.action_import),
+                            enabled = idle && state.storageRootReady,
+                        )
+                    }
+                    state.torrentListActivity?.let {
+                        Text(
+                            torrentListActivityText(it),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                }
             }
         }
         composable(ProductRoutes.SETTINGS_SPEED) {

@@ -916,6 +916,7 @@ internal fun AddTorrentDialog(
                     onValueChange = { magnet = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.add_magnet_label)) },
+                    supportingText = { Text(stringResource(R.string.add_magnet_several)) },
                     minLines = 3,
                 )
                 OutlinedButton(

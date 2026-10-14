@@ -105,6 +105,7 @@ import org.rstorrent.session.uniffi.SpeedMetric
 import org.rstorrent.session.uniffi.SpeedRange
 import org.rstorrent.session.uniffi.StorageRootAvailability
 import org.rstorrent.session.uniffi.SubscriptionSpec
+import org.rstorrent.session.uniffi.TorrentListImportTarget
 import org.rstorrent.session.uniffi.TorrentState
 import org.rstorrent.session.uniffi.TorrentSettingsPatch
 import org.rstorrent.session.uniffi.TorrentTransferLimits
@@ -131,6 +132,8 @@ class ProductEngineService : Service() {
     private val requestIds = AtomicLong(1)
     private val torrentCommandFailureSequence = AtomicLong()
     private val alreadyPresentSequence = AtomicLong()
+    private val torrentListNoticeSequence = AtomicLong()
+    private val torrentListBusy = AtomicBoolean(false)
     private val stopped = AtomicBoolean(false)
     private val stopRequested = AtomicBoolean(false)
     private val dataResetActive = AtomicBoolean(false)
@@ -1381,6 +1384,8 @@ class ProductEngineService : Service() {
     /**
      * Adds [magnets] in order. A failed add does not stop later ones, and
      * matches already in the session are reported together once the batch ends.
+     * With [summarize], the batch ends with one added/already present/failed
+     * summary instead of per-add messages.
      */
     fun addMagnets(
         magnets: List<String>,
@@ -1388,6 +1393,7 @@ class ProductEngineService : Service() {
         startContent: Boolean = true,
         awaitFileSelection: Boolean = false,
         downloadAll: Boolean = false,
+        summarize: Boolean = false,
     ) {
         if (magnets.isEmpty() || rejectMutationDuringDataReset()) return
         val storageRoot = currentSafRootForAdd()
@@ -1396,7 +1402,7 @@ class ProductEngineService : Service() {
                 startContent && skipFiles.isEmpty() &&
                     holdForStorageRoot(
                         ExternalIntakeKind.MAGNET,
-                        magnets,
+                        if (summarize) magnets.take(MAX_BATCH_ADD_ITEMS) else magnets,
                         awaitFileSelection = awaitFileSelection && !downloadAll,
                     )
             if (!held) {
@@ -1404,12 +1410,15 @@ class ProductEngineService : Service() {
             }
             return
         }
+        if (summarize && !beginTorrentListActivity(TorrentListActivity.ADDING, export = false)) return
+        val batch = if (summarize) magnets.take(MAX_BATCH_ADD_ITEMS) else magnets
         if (downloadAll) mutableState.update { it.copy(quickAddsInFlight = it.quickAddsInFlight + 1) }
         scope.launch {
             try {
                 clientReady.await()
                 val alreadyPresent = mutableListOf<String>()
-                for (magnet in magnets) {
+                val summary = TorrentAddSummaryBuilder()
+                for (magnet in batch) {
                     try {
                         val result = dispatchAddResult(
                             Command.AddMagnet(
@@ -1426,17 +1435,33 @@ class ProductEngineService : Service() {
                         if (result.disposition == AddTorrentDisposition.AlreadyPresent) {
                             alreadyPresent += result.torrentId
                         }
+                        if (result.disposition == AddTorrentDisposition.Added) {
+                            summary.added()
+                        } else {
+                            summary.alreadyPresent()
+                        }
                         logAddResult(result, magnetV1(magnet), magnetV2(magnet))
                     } catch (error: Throwable) {
                         if (error is CancellationException) throw error
-                        reportError(error)
+                        if (summarize) {
+                            Log.w(TAG, "magnet_batch_add_failed", error)
+                            summary.failed(magnetDisplayName(magnet), torrentAddFailureReason(error))
+                        } else {
+                            reportError(error)
+                        }
                     }
                 }
-                publishAlreadyPresent(alreadyPresent, startContent)
+                if (summarize) {
+                    summary.failedUnlisted(magnets.size - batch.size)
+                    publishTorrentListNotice { TorrentListNotice.Summary(it, summary.build()) }
+                } else {
+                    publishAlreadyPresent(alreadyPresent, startContent)
+                }
             } catch (error: Throwable) {
                 reportError(error)
             } finally {
                 if (downloadAll) mutableState.update { it.copy(quickAddsInFlight = it.quickAddsInFlight - 1) }
+                if (summarize) endTorrentListActivity()
             }
         }
     }
@@ -1493,6 +1518,286 @@ class ProductEngineService : Service() {
                 reportError(error)
             }
         }
+    }
+
+    /**
+     * Adds several picked .torrent files one after another and ends with one
+     * added/already present/failed summary. Without a usable download folder
+     * the files wait in the intake dialog like a single in-app pick.
+     */
+    fun addTorrentFiles(
+        uris: List<Uri>,
+        awaitFileSelection: Boolean = false,
+    ) {
+        if (uris.isEmpty() || rejectMutationDuringDataReset()) return
+        val batch = uris.take(MAX_BATCH_ADD_ITEMS)
+        val storageRoot = currentSafRootForAdd()
+        if (storageRoot == null) {
+            val held =
+                holdForStorageRoot(
+                    ExternalIntakeKind.TORRENT_FILE,
+                    batch.map(Uri::toString),
+                    awaitFileSelection,
+                )
+            if (!held) {
+                mutableState.update { it.copy(error = ProductError.Code.SELECT_DOWNLOAD_FOLDER) }
+            }
+            return
+        }
+        if (!beginTorrentListActivity(TorrentListActivity.ADDING, export = false)) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                clientReady.await()
+                val summary = TorrentAddSummaryBuilder()
+                for (uri in batch) {
+                    try {
+                        val add =
+                            dispatchTorrentSourceResult(
+                                readTorrentSource(uri),
+                                startContent = true,
+                                selection = FileSelectionIntent.All,
+                                storageRoot = storageRoot,
+                                awaitFileSelection = awaitFileSelection,
+                            )
+                        logAddResult(add, null)
+                        if (add.disposition == AddTorrentDisposition.Added) {
+                            summary.added()
+                        } else {
+                            summary.alreadyPresent()
+                        }
+                    } catch (error: Throwable) {
+                        if (error is CancellationException) throw error
+                        Log.w(TAG, "torrent_file_batch_add_failed", error)
+                        summary.failed(
+                            pickedDocumentMetadata(uri).displayLabel
+                                ?: uri.lastPathSegment
+                                ?: getString(R.string.torrent_file),
+                            torrentAddFailureReason(error),
+                        )
+                    }
+                }
+                summary.failedUnlisted(uris.size - batch.size)
+                publishTorrentListNotice { TorrentListNotice.Summary(it, summary.build()) }
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                reportError(error)
+            } finally {
+                endTorrentListActivity()
+            }
+        }
+    }
+
+    /** Writes the engine's torrent list bundle to a document the user created. */
+    fun exportTorrentList(destination: Uri) {
+        if (!beginTorrentListActivity(TorrentListActivity.EXPORTING, export = true)) return
+        scope.launch(Dispatchers.IO) {
+            var written = false
+            try {
+                clientReady.await()
+                val bundle = client.exportTorrentList()
+                try {
+                    runInterruptible {
+                        val output =
+                            contentResolver.openOutputStream(destination, "w")
+                                ?: throw FileNotFoundException()
+                        output.use { it.write(bundle) }
+                    }
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    Log.w(TAG, "torrent_list_export_write_failed", error)
+                    publishTorrentListNotice {
+                        TorrentListNotice.Failed(it, export = true, TorrentListFailure.WRITE_FAILED)
+                    }
+                    return@launch
+                }
+                written = true
+                Log.i(TAG, "torrent_list_exported bytes=${bundle.size}")
+                publishTorrentListNotice { TorrentListNotice.Exported(it) }
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                Log.e(TAG, "torrent_list_export_failed", error)
+                publishTorrentListNotice {
+                    TorrentListNotice.Failed(
+                        it,
+                        export = true,
+                        TorrentListFailure.ENGINE,
+                        productFailureDetail(error, getString(R.string.error_operation_failed)),
+                    )
+                }
+            } finally {
+                // Do not leave an empty or partial bundle behind.
+                if (!written) {
+                    runCatching { DocumentsContract.deleteDocument(contentResolver, destination) }
+                }
+                endTorrentListActivity()
+            }
+        }
+    }
+
+    /**
+     * Imports a torrent list bundle into the current default download folder.
+     * Torrents whose saved folder name matches another folder keep it.
+     */
+    fun importTorrentList(source: Uri) {
+        if (rejectMutationDuringDataReset()) return
+        val storageRoot = currentSafRootForAdd()
+        if (storageRoot == null) {
+            publishTorrentListNotice {
+                TorrentListNotice.Failed(it, export = false, TorrentListFailure.NO_DOWNLOAD_FOLDER)
+            }
+            return
+        }
+        if (!beginTorrentListActivity(TorrentListActivity.IMPORTING, export = false)) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                clientReady.await()
+                val bundle =
+                    try {
+                        readPickedTorrentListBundle(source)
+                    } catch (error: Exception) {
+                        if (error is CancellationException) throw error
+                        Log.w(TAG, "torrent_list_import_read_failed", error)
+                        val failure =
+                            when (error) {
+                                is OversizedTorrentSourceException -> TorrentListFailure.TOO_LARGE
+                                is EmptyTorrentSourceException -> TorrentListFailure.EMPTY
+                                else -> TorrentListFailure.READ_FAILED
+                            }
+                        publishTorrentListNotice {
+                            TorrentListNotice.Failed(it, export = false, failure)
+                        }
+                        return@launch
+                    }
+                val report =
+                    productCommandMutation.withLock {
+                        if (dataResetActive.get()) throw ProductDataResetInProgressException()
+                        client.importTorrentBundle(
+                            bundle,
+                            TorrentListImportTarget(
+                                storageRoot = storageRoot,
+                                keepMatchingLocations = true,
+                            ),
+                        )
+                    }
+                Log.i(
+                    TAG,
+                    "torrent_list_imported bytes=${bundle.size} added=${report.added} " +
+                        "already_present=${report.alreadyPresent} failed=${report.failed.size}",
+                )
+                publishTorrentListNotice {
+                    TorrentListNotice.Summary(it, torrentListImportSummary(report))
+                }
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                Log.e(TAG, "torrent_list_import_failed", error)
+                publishTorrentListNotice {
+                    TorrentListNotice.Failed(
+                        it,
+                        export = false,
+                        TorrentListFailure.ENGINE,
+                        torrentAddFailureReason(error),
+                    )
+                }
+            } finally {
+                endTorrentListActivity()
+            }
+        }
+    }
+
+    fun clearTorrentListNotice(sequence: Long) {
+        mutableState.update {
+            if (it.torrentListNotice?.sequence == sequence) it.copy(torrentListNotice = null) else it
+        }
+    }
+
+    private suspend fun readPickedTorrentListBundle(uri: Uri): ByteArray {
+        val knownLength = pickedDocumentMetadata(uri).knownLength
+        val cancellation = CancellationSignal()
+        return readTorrentListBundle(
+            openInput = {
+                val descriptor =
+                    contentResolver.openFileDescriptor(uri, "r", cancellation)
+                        ?: throw FileNotFoundException()
+                ParcelFileDescriptor.AutoCloseInputStream(descriptor)
+            },
+            knownLength = knownLength,
+            cancelled = { cancellation.isCanceled },
+            onCancel = cancellation::cancel,
+        )
+    }
+
+    /** Name and size of a picked document; empty when the provider does not answer. */
+    private suspend fun pickedDocumentMetadata(uri: Uri): ExternalContentMetadata =
+        supervisorScope {
+            val cancellation = CancellationSignal()
+            val query =
+                async(Dispatchers.IO) {
+                    runCatching {
+                        runInterruptible {
+                            contentResolver
+                                .query(
+                                    uri,
+                                    arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
+                                    null,
+                                    null,
+                                    null,
+                                    cancellation,
+                                ).use(::externalContentMetadataFromCursor)
+                        }
+                    }.getOrNull()
+                }
+            try {
+                withTimeoutOrNull(EXTERNAL_PROVIDER_TIMEOUT_MILLIS) { query.await() }
+                    ?: ExternalContentMetadata(null, null, null)
+            } finally {
+                cancellation.cancel()
+                query.cancelAndJoin()
+            }
+        }
+
+    private fun beginTorrentListActivity(
+        activity: TorrentListActivity,
+        export: Boolean,
+    ): Boolean {
+        if (!torrentListBusy.compareAndSet(false, true)) {
+            publishTorrentListNotice {
+                TorrentListNotice.Failed(it, export, TorrentListFailure.BUSY)
+            }
+            return false
+        }
+        // Keep the service running until the work finishes, even off screen.
+        ProductInteractionRegistry.setLease(INTERACTION_TORRENT_LIST_TRANSFER, true)
+        mutableState.update { it.copy(torrentListActivity = activity) }
+        return true
+    }
+
+    private fun endTorrentListActivity() {
+        mutableState.update { it.copy(torrentListActivity = null) }
+        ProductInteractionRegistry.setLease(INTERACTION_TORRENT_LIST_TRANSFER, false)
+        torrentListBusy.set(false)
+    }
+
+    private fun publishTorrentListNotice(notice: (Long) -> TorrentListNotice) {
+        val sequence = torrentListNoticeSequence.incrementAndGet()
+        mutableState.update { it.copy(torrentListNotice = notice(sequence)) }
+    }
+
+    /** A reason for one failed add: plain copy for local causes, else the engine's message. */
+    private fun torrentAddFailureReason(error: Throwable): String {
+        val reason =
+            when (error) {
+                is EmptyTorrentSourceException -> R.string.add_failure_empty_file
+                is OversizedTorrentSourceException -> R.string.add_failure_file_too_large
+                is TorrentSourceReadTimeoutException -> R.string.add_failure_read_timeout
+                is TorrentSourceReadException,
+                is SecurityException,
+                is FileNotFoundException,
+                -> R.string.add_failure_read_failed
+                is ProductDataResetInProgressException -> R.string.error_data_reset_in_progress
+                else -> null
+            }
+        return reason?.let(::getString)
+            ?: productFailureDetail(error, getString(R.string.error_operation_failed))
     }
 
     fun addTorrentBytes(
@@ -5217,6 +5522,8 @@ class ProductEngineService : Service() {
         const val INTERACTION_PLAYBACK = "playback"
         const val INTERACTION_SAF_PICKER = "saf_picker"
         const val INTERACTION_TORRENT_PICKER = "torrent_picker"
+        const val INTERACTION_TORRENT_LIST_DOCUMENT = "torrent_list_document"
+        const val INTERACTION_TORRENT_LIST_TRANSFER = "torrent_list_transfer"
         private const val COMPANION_PAIRING_POLL_MILLIS = 250L
         private const val EXTERNAL_PROVIDER_TIMEOUT_MILLIS = 30_000L
         private const val DATA_RESET_POLL_MILLIS = 50L

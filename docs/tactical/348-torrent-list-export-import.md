@@ -61,7 +61,7 @@ retrieve them.
 ## Bundle Format, Version 1
 
 ```text
-jstorrent-torrents-<date>.zip
+jstorrent-torrents.zip
   manifest.json
   torrents/<torrent_id>.torrent
 ```

@@ -114,7 +114,7 @@ class ProductNavigationTest {
         compose
             .onNodeWithContentDescription("Add torrent")
             .performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithText("Browse .torrent file").assertIsDisplayed()
+        compose.onNodeWithText("Browse .torrent files").assertIsDisplayed()
         compose.onNodeWithText("Cancel").performSemanticsAction(SemanticsActions.OnClick)
 
         compose

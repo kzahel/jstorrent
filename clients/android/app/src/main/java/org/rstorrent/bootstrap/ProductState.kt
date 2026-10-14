@@ -182,6 +182,8 @@ data class ProductState(
     val externalIntakeNotice: ExternalIntakeNotice? = null,
     val alreadyPresentNotice: AlreadyPresentNotice? = null,
     val torrentCommandFailure: TorrentCommandFailure? = null,
+    val torrentListActivity: TorrentListActivity? = null,
+    val torrentListNotice: TorrentListNotice? = null,
     val companionPort: UShort? = null,
     val legacyChromeOsMigration: Boolean = false,
     val companionPairing: CompanionPairingState? = null,

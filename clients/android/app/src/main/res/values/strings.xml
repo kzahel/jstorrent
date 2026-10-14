@@ -15,7 +15,7 @@
     <string name="action_approve">Approve</string>
     <string name="action_archive">Archive</string>
     <string name="action_back">Back</string>
-    <string name="action_browse_torrent">Browse .torrent file</string>
+    <string name="action_browse_torrent">Browse .torrent files</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_delete_data">Delete data</string>
     <string name="action_done">Done</string>
@@ -181,9 +181,54 @@
     <string name="storage_repair_existing_folder">Restore access to this folder to resume its downloads. Your library is retained.</string>
     <string name="storage_select_before_download">Select a folder before adding or resuming downloads.</string>
 
+    <!-- Torrent list export and import, and adding several torrents at once. -->
+    <string name="torrent_list_export">Export torrent list</string>
+    <string name="torrent_list_export_detail">Save all your torrents to one file. You can import it here or on another device.</string>
+    <string name="torrent_list_import">Import torrent list</string>
+    <string name="torrent_list_import_detail">Add the torrents from an exported file to the default folder. Torrents already in your list are skipped. Files already downloaded are checked, not downloaded again.</string>
+    <string name="torrent_list_import_needs_folder">Add a download folder before importing.</string>
+    <string name="action_export">Export</string>
+    <string name="action_import">Import</string>
+    <string name="torrent_list_exporting">Exporting torrent list…</string>
+    <string name="torrent_list_importing">Importing torrent list…</string>
+    <string name="torrent_list_adding">Adding torrents…</string>
+    <string name="torrent_list_exported">Torrent list exported.</string>
+    <string name="torrent_list_busy">Wait for the current import, export or add to finish.</string>
+    <string name="torrent_list_import_too_large">This file is too large to import. The limit is 256 MB.</string>
+    <string name="torrent_list_import_empty">This file is empty.</string>
+    <string name="torrent_list_import_read_failed">Couldn’t read this file.</string>
+    <string name="torrent_list_export_write_failed">Couldn’t save the torrent list file.</string>
+    <string name="torrent_list_export_failed">Couldn’t export the torrent list. %1$s</string>
+    <string name="torrent_list_import_failed">Couldn’t import the torrent list. %1$s</string>
+    <string name="torrent_list_no_document_app">No app is available to choose a file.</string>
+    <string name="add_summary_title">Finished adding torrents</string>
+    <plurals name="add_summary_added">
+        <item quantity="one">Added %1$d.</item>
+        <item quantity="other">Added %1$d.</item>
+    </plurals>
+    <plurals name="add_summary_already_present">
+        <item quantity="one">Already in your list: %1$d.</item>
+        <item quantity="other">Already in your list: %1$d.</item>
+    </plurals>
+    <plurals name="add_summary_failed">
+        <item quantity="one">Couldn’t add %1$d:</item>
+        <item quantity="other">Couldn’t add %1$d:</item>
+    </plurals>
+    <string name="add_summary_failure_line">%1$s — %2$s</string>
+    <plurals name="add_summary_more_failures">
+        <item quantity="one">And %1$d more.</item>
+        <item quantity="other">And %1$d more.</item>
+    </plurals>
+    <string name="add_failure_empty_file">The file is empty.</string>
+    <string name="add_failure_file_too_large">The file is larger than 64 MB.</string>
+    <string name="add_failure_read_timeout">Reading the file took too long.</string>
+    <string name="add_failure_read_failed">Couldn’t read the file.</string>
+    <string name="torrent_file">Torrent file</string>
+
     <!-- Add and add-time file selection. -->
     <string name="add_torrent_title">Add torrent</string>
     <string name="add_magnet_label">Magnet link</string>
+    <string name="add_magnet_several">To add several, put each link on its own line.</string>
     <string name="file_selection_explanation">Choose the files you want to download.</string>
     <string name="file_selection_folder">Download folder: %1$s</string>
     <plurals name="file_selection_folder_pending">
@@ -370,7 +415,7 @@
     <!-- Settings shell and common settings copy. -->
     <string name="settings_title">Settings</string>
     <string name="settings_storage">Storage</string>
-    <string name="settings_storage_detail">Download folders</string>
+    <string name="settings_storage_detail">Download folders, torrent list</string>
     <string name="settings_speed_limits">Speed &amp; Limits</string>
     <string name="settings_speed_limits_detail">Speeds, seeding, peer limits</string>
     <string name="settings_notifications">Notifications</string>
@@ -383,6 +428,7 @@
     <string name="settings_advanced_detail">Theme, feedback, reset</string>
     <string name="settings_section_download_folders">Download folders</string>
     <string name="settings_section_adding">Adding torrents</string>
+    <string name="settings_section_torrent_list">Torrent list</string>
     <string name="settings_section_speed_limits">Speed limits</string>
     <string name="settings_section_queue">Queue</string>
     <string name="settings_section_connections">Connections</string>
