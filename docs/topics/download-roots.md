@@ -299,8 +299,11 @@ new root ID or trust prior verified state without the normal storage checks.
 A root referenced by retained torrents cannot be removed as if it were unused.
 The product must require those torrents to be removed, retained in an explicit
 unavailable state, or deliberately relocated by a later feature. Removing an
-unreferenced default root either requires choosing a replacement or leaves the
-profile with no usable default; it does not silently remap existing torrents.
+unreferenced default root makes the first other registered root (by root ID)
+the default, or leaves the profile with no default when none remains, so the
+next add asks for a folder. An unavailable replacement is not a usable default,
+so adds still show the dialog. This matches the Android detach path, which
+also skips unavailable roots. Removal never remaps existing torrents.
 
 An unavailable root is a missing prerequisite, not evidence that torrent
 metadata, the database, or verified-piece state is corrupt. Preserve user

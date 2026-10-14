@@ -4200,20 +4200,6 @@ fn remove_storage_root(
             format!("storage root {storage_root} is not configured"),
         ));
     }
-    let is_default = transaction
-        .query_row(
-            "SELECT COALESCE(default_root = ?1, 0)
-             FROM storage_settings WHERE singleton = 1",
-            [storage_root],
-            |row| row.get::<_, bool>(0),
-        )
-        .map_err(internal_error)?;
-    if is_default {
-        return Err((
-            ErrorCode::StorageRootInUse,
-            format!("storage root {storage_root} is the current download root"),
-        ));
-    }
     let references: i64 = transaction
         .query_row(
             "SELECT COUNT(*) FROM torrents WHERE storage_root = ?1",
@@ -4228,6 +4214,18 @@ fn remove_storage_root(
         ));
     }
     let revision = next_revision(transaction, current_revision)?;
+    // A removed default is replaced by the first other root, or none, as when
+    // a platform root is detached.
+    transaction
+        .execute(
+            "UPDATE storage_settings SET default_root = (
+                SELECT root_id FROM storage_roots WHERE root_id <> ?1
+                ORDER BY root_id LIMIT 1
+             )
+             WHERE singleton = 1 AND default_root = ?1",
+            [storage_root],
+        )
+        .map_err(internal_error)?;
     transaction
         .execute(
             "DELETE FROM storage_roots WHERE root_id = ?1",
@@ -9706,6 +9704,56 @@ mod tests {
     }
 
     #[test]
+    fn removing_unreferenced_default_root_promotes_next_root_or_none() {
+        let root = test_root("remove-default-root");
+        let mut store = SessionStore::open(&root, "default", &[]).expect("open fresh profile");
+        let mut paths = Vec::new();
+        for name in ["first", "second"] {
+            let path = root.join(name);
+            fs::create_dir_all(&path).expect("create payload root");
+            paths.push(fs::canonicalize(&path).expect("canonical payload root"));
+        }
+        let (_, first) = store
+            .install_path_storage_root("root_00000000000000000000000000000000", "First", &paths[0])
+            .expect("install first root");
+        let (_, second) = store
+            .install_path_storage_root("root_11111111111111111111111111111111", "Second", &paths[1])
+            .expect("install second root");
+        let remove = |request_id: &str, storage_root: &str| RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            command: Command::RemoveStorageRoot {
+                storage_root: storage_root.to_owned(),
+            },
+        };
+
+        let removed = store
+            .handle_durable(&remove("remove-default", &first))
+            .expect("default removal response");
+        assert!(matches!(removed.outcome, ResponseOutcome::Success { .. }));
+        let promoted = store.snapshot().expect("promoted snapshot");
+        assert_eq!(promoted.storage.roots.len(), 1);
+        assert_eq!(
+            promoted.storage.default_root.as_deref(),
+            Some(second.as_str())
+        );
+
+        let removed = store
+            .handle_durable(&remove("remove-last", &second))
+            .expect("last removal response");
+        assert!(matches!(removed.outcome, ResponseOutcome::Success { .. }));
+        drop(store);
+
+        let reopened = SessionStore::open(&root, "default", &[]).expect("reopen profile");
+        let persisted = reopened.snapshot().expect("persisted snapshot");
+        assert!(persisted.storage.roots.is_empty());
+        assert_eq!(persisted.storage.default_root, None);
+        drop(reopened);
+        fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
     fn platform_roots_install_repair_and_change_default_without_rebinding() {
         let root = test_root("platform-root-registry");
         let mut store = SessionStore::open(&root, "default", &[]).expect("open fresh profile");
@@ -9724,26 +9772,6 @@ mod tests {
         let snapshot = store.snapshot().expect("platform root snapshot");
         assert_eq!(snapshot.storage.roots.len(), 2);
         assert_eq!(snapshot.storage.default_root.as_deref(), Some("root_b"));
-
-        let current_removal = store
-            .handle_durable(&RequestEnvelope {
-                version: CONTROL_VERSION,
-                request_id: "remove-current-platform-root".to_owned(),
-                expected_revision: None,
-                command: Command::RemoveStorageRoot {
-                    storage_root: "root_b".to_owned(),
-                },
-            })
-            .expect("current root removal response");
-        assert!(matches!(
-            current_removal.outcome,
-            ResponseOutcome::Error {
-                error: crate::ErrorResponse {
-                    code: ErrorCode::StorageRootInUse,
-                    ..
-                }
-            }
-        ));
 
         let mut add = add_request("add-platform-a");
         let Command::AddMagnet { storage_root, .. } = &mut add.command else {
