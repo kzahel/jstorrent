@@ -141,7 +141,7 @@ else
     printf 'Building production web UI...\n' >&2
     (
         cd "$web_root"
-        VITE_RSTORRENT_DEFAULT_LIVE=same-origin npm run build
+        VITE_RSTORRENT_DEFAULT_LIVE=same-origin npm run build:hosted
     )
     gateway_bind="127.0.0.1:$web_port"
     web_assets_root="$web_root/dist"

@@ -1,5 +1,12 @@
 # Runtime Configurations And Headless Deployment
 
+Tactical [356](../tactical/356-precompressed-hosted-web-assets.md) makes the
+gateway's static fallback serve `.br` and `.gz` copies written by
+`npm run build:hosted`, which the headless and Crostini packages and
+`./scripts/webui` use. Clients that accept neither get the plain file, and
+static responses carry `Vary: Accept-Encoding`. A throttled first load
+transfers about 0.3 MB instead of 1.9 MB.
+
 Tactical [340](../tactical/340-windows-quiet-network-startup.md) extends desktop
 outbound-only fresh defaults and the first-upgrade network hold to Windows.
 Its defaults marker records migration, not firewall permission. Later explicit

@@ -188,8 +188,8 @@ demo (64 kB) and the session panels (~60 kB) load on demand.
 - The development and headless gateway serve static assets uncompressed
   (`transferSize` equals the body size). The validator chunk alone is
   1,043 kB on the wire instead of 88 kB gzip, now the long pole for data on
-  slow LAN and tailnet links. Compressed static serving is a gateway change
-  outside this slice.
+  slow LAN and tailnet links. Tactical
+  [356](356-precompressed-hosted-web-assets.md) adds precompressed serving.
 - The generated validators are 960 kB minified because the generator uses
   `allErrors` and per-entry inlining; shrinking them is a contract-validation
   decision outside this slice.

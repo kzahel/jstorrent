@@ -10,6 +10,7 @@
     "extract:localization": "node scripts/migrate-inline-messages.mjs && npm run generate:localization && npm run check:localization",
     "prebuild": "node scripts/patch-playsvideo.mjs && npm run generate:validators && npm run generate:localization",
     "build": "vite build && npm run check:csp",
+    "build:hosted": "npm run build && node scripts/compress-dist.mjs",
     "build:companion": "node scripts/patch-playsvideo.mjs && npm run generate:validators && npm run generate:localization && vite build --mode companion && npm run check:csp",
     "build:remote": "node scripts/patch-playsvideo.mjs && npm run generate:validators && npm run generate:localization && npm run build:remote-wasm && vite build --mode remote && node scripts/finalize-remote-dist.mjs && npm run check:csp",
     "build:remote-wasm": "node scripts/build-remote-wasm.mjs",

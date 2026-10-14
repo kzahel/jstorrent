@@ -1057,7 +1057,13 @@ impl GatewayServer {
                         .with_state(self.state.clone()),
                 );
             }
-            router = router.fallback_service(ServeDir::new(&assets.root));
+            // Tactical 356: `npm run build:hosted` writes `.br` and `.gz`
+            // copies; clients that accept neither get the plain file.
+            router = router.fallback_service(
+                ServeDir::new(&assets.root)
+                    .precompressed_br()
+                    .precompressed_gzip(),
+            );
             router = router.layer(middleware::from_fn(hosted_asset_cache_policy));
         }
         router = router.layer(middleware::from_fn_with_state(
@@ -1088,13 +1094,18 @@ async fn hosted_asset_cache_policy(request: Request, next: Next) -> Response {
         ),
         _ => None,
     };
+    let static_asset = cache_control.is_some();
     let mut response = next.run(request).await;
-    if response.status().is_success()
-        && let Some(cache_control) = cache_control
-    {
-        response
-            .headers_mut()
-            .insert(header::CACHE_CONTROL, cache_control);
+    if !response.status().is_success() {
+        return response;
+    }
+    let headers = response.headers_mut();
+    if let Some(cache_control) = cache_control {
+        headers.insert(header::CACHE_CONTROL, cache_control);
+    }
+    // Tactical 356: the same URL may be sent as brotli, gzip or plain.
+    if static_asset || headers.contains_key(header::CONTENT_ENCODING) {
+        headers.append(header::VARY, HeaderValue::from_static("accept-encoding"));
     }
     response
 }
@@ -2620,11 +2631,23 @@ mod tests {
         host: &str,
         path: &str,
     ) -> (u16, String, Vec<u8>) {
+        raw_get_with_headers(address, host, path, "").await
+    }
+
+    /// `extra_headers` is zero or more complete `Name: value\r\n` lines.
+    async fn raw_get_with_headers(
+        address: SocketAddr,
+        host: &str,
+        path: &str,
+        extra_headers: &str,
+    ) -> (u16, String, Vec<u8>) {
         let host = host.to_owned();
         let path = path.to_owned();
+        let extra_headers = extra_headers.to_owned();
         tokio::task::spawn_blocking(move || {
-            let request =
-                format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
+            let request = format!(
+                "GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n{extra_headers}\r\n"
+            );
             let mut stream = TcpStream::connect(address).expect("connect HTTP gateway");
             stream
                 .set_read_timeout(Some(Duration::from_secs(3)))
@@ -4678,6 +4701,77 @@ mod tests {
                 .0,
             200
         );
+
+        shutdown.cancel();
+        task.await
+            .expect("server join")
+            .expect("server termination");
+        service.lock().await.shutdown().await.expect("shutdown");
+        drop(service);
+        std::fs::remove_dir_all(root).expect("remove root");
+    }
+
+    #[tokio::test]
+    async fn hosted_assets_serve_precompressed_copies_by_accept_encoding() {
+        let root = test_root("hosted-precompressed");
+        let web_root = root.join("web");
+        std::fs::create_dir_all(web_root.join("assets")).expect("create web root");
+        std::fs::write(web_root.join("index.html"), b"index").expect("write index");
+        std::fs::write(web_root.join("assets/app.js"), b"plain-asset").expect("write asset");
+        std::fs::write(web_root.join("assets/app.js.br"), b"brotli-asset").expect("write br");
+        std::fs::write(web_root.join("assets/app.js.gz"), b"gzip-asset").expect("write gz");
+        let service = test_service(&root).await;
+        let origin = "http://127.0.0.1:4177";
+        let mut config = GatewayConfig::unauthenticated_loopback_development(origin.to_owned());
+        config.bind = "127.0.0.1:0".parse().expect("address");
+        let server = bind_local_hosted(
+            config,
+            service.clone(),
+            HostedAssets::new(web_root, "local-build".to_owned()).expect("hosted assets"),
+        )
+        .await
+        .expect("bind local hosted gateway");
+        let address = server.local_addr();
+        let host = address.to_string();
+        let shutdown = CancellationToken::new();
+        let task = tokio::spawn(server.serve(shutdown.clone()));
+
+        for (accept, encoding, expected) in [
+            (
+                "Accept-Encoding: gzip, deflate, br\r\n",
+                Some("br"),
+                &b"brotli-asset"[..],
+            ),
+            (
+                "Accept-Encoding: gzip\r\n",
+                Some("gzip"),
+                &b"gzip-asset"[..],
+            ),
+            ("Accept-Encoding: identity\r\n", None, &b"plain-asset"[..]),
+            ("", None, &b"plain-asset"[..]),
+        ] {
+            let (status, headers, body) =
+                raw_get_with_headers(address, &host, "/assets/app.js", accept).await;
+            let headers = headers.to_ascii_lowercase();
+            assert_eq!(status, 200, "{accept}");
+            assert_eq!(body, expected, "{accept}");
+            match encoding {
+                Some(encoding) => assert!(
+                    headers.contains(&format!("content-encoding: {encoding}")),
+                    "{headers}"
+                ),
+                None => assert!(!headers.contains("content-encoding:"), "{headers}"),
+            }
+            assert!(
+                headers.contains("content-type: text/javascript"),
+                "{headers}"
+            );
+            assert!(headers.contains("vary: accept-encoding"), "{headers}");
+            assert!(
+                headers.contains("cache-control: public, max-age=31536000, immutable"),
+                "{headers}"
+            );
+        }
 
         shutdown.cancel();
         task.await

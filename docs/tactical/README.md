@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [356 — Precompressed hosted web assets](356-precompressed-hosted-web-assets.md):
+  `npm run build:hosted` writes brotli and gzip copies that the gateway's
+  static fallback serves by `Accept-Encoding`; a throttled first load drops
+  from about 1.9 MB to 0.3 MB.
 - [355 — Automatic updates](355-automatic-updates.md): proposed; unattended
   desktop install, opt-in headless apply and Play In-App Updates so old hosts
   age out and 354's horizon can tighten.
