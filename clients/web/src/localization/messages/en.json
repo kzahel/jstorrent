@@ -100,6 +100,70 @@
     "defaultMessage": "{count, plural, one {# row} other {# rows}}",
     "description": "Total logical rows in a data table"
   },
+  "inspection.components.about.updates.settings.section.app.id": {
+    "defaultMessage": "App ID",
+    "description": "About settings: label for the application identifier, such as com.jstorrent.desktop"
+  },
+  "inspection.components.about.updates.settings.section.build.type": {
+    "defaultMessage": "Build type",
+    "description": "About settings: label for production, preview or development build"
+  },
+  "inspection.components.about.updates.settings.section.build.type.development": {
+    "defaultMessage": "Development",
+    "description": "About settings: build type of a local or test build"
+  },
+  "inspection.components.about.updates.settings.section.build.type.preview": {
+    "defaultMessage": "Preview",
+    "description": "About settings: build type of the JSTorrent Preview app"
+  },
+  "inspection.components.about.updates.settings.section.build.type.production": {
+    "defaultMessage": "Production",
+    "description": "About settings: build type of the released app"
+  },
+  "inspection.components.about.updates.settings.section.connection": {
+    "defaultMessage": "Connected to",
+    "description": "About settings: label for how this page reaches its library"
+  },
+  "inspection.components.about.updates.settings.section.connection.android": {
+    "defaultMessage": "JSTorrent on Android",
+    "description": "About settings: connection kind for the ChromeOS page connected to the Android app"
+  },
+  "inspection.components.about.updates.settings.section.connection.demo": {
+    "defaultMessage": "Demo",
+    "description": "About settings: connection kind for the demo library"
+  },
+  "inspection.components.about.updates.settings.section.connection.desktop": {
+    "defaultMessage": "This computer",
+    "description": "About settings: connection kind for the desktop app's own window"
+  },
+  "inspection.components.about.updates.settings.section.connection.desktop.app": {
+    "defaultMessage": "JSTorrent on this computer",
+    "description": "About settings: connection kind for the extension page connected to the desktop app"
+  },
+  "inspection.components.about.updates.settings.section.connection.remote": {
+    "defaultMessage": "Remote access",
+    "description": "About settings: connection kind for a browser signed in through remote access"
+  },
+  "inspection.components.about.updates.settings.section.connection.server": {
+    "defaultMessage": "Server",
+    "description": "About settings: connection kind for a browser served by a JSTorrent server"
+  },
+  "inspection.components.about.updates.settings.section.not.reported": {
+    "defaultMessage": "Not reported",
+    "description": "About settings: value shown when the connected app does not report its version"
+  },
+  "inspection.components.about.updates.settings.section.page.build": {
+    "defaultMessage": "This page",
+    "description": "About settings: label for the build of a separately deployed page, such as remote access"
+  },
+  "inspection.components.about.updates.settings.section.profile": {
+    "defaultMessage": "Profile",
+    "description": "About settings: group heading for which installation's library is in use"
+  },
+  "inspection.components.about.updates.settings.section.separate.library": {
+    "defaultMessage": "This build keeps its own library, separate from the released JSTorrent app.",
+    "description": "About settings: note under a preview or development profile"
+  },
   "inspection.components.about.updates.settings.section.application": {
     "defaultMessage": "Application",
     "description": "Product copy in inspection/components/AboutUpdatesSettingsSection.tsx"
@@ -3227,6 +3291,10 @@
   "inspection.components.scenario.bar.scenario": {
     "defaultMessage": "Scenario",
     "description": "Product copy in inspection/components/ScenarioBar.tsx"
+  },
+  "inspection.components.settings.dialog.about": {
+    "defaultMessage": "About",
+    "description": "About settings: Settings category for version and support when the app cannot update itself"
   },
   "inspection.components.settings.dialog.about.updates": {
     "defaultMessage": "About & updates",

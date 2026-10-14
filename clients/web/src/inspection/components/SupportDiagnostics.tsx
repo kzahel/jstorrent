@@ -1,13 +1,13 @@
 import { useRef, useState } from "react";
 
 import { message } from "../../localization/runtime";
+import type { SupportFacts } from "../support/about";
 import { buildDiagnostics, DIAGNOSTICS_FILENAME } from "../support/diagnostics";
-import type { DesktopUpdaterSnapshot } from "../updater/types";
 import { ExternalLink } from "./ExternalLink";
 import { useToast } from "./Toast";
 import styles from "./SettingsDialog.module.css";
 
-export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpdaterSnapshot }) {
+export function SupportDiagnostics({ facts }: { readonly facts: SupportFacts }) {
   const [preview, setPreview] = useState<string>();
   const [manualCopy, setManualCopy] = useState(false);
   const toast = useToast();
@@ -53,7 +53,7 @@ export function SupportDiagnostics({ snapshot }: { readonly snapshot: DesktopUpd
       <legend>{message("support.diagnostics.title")}</legend>
       <p className={styles.updatePrivacy}>{message("support.diagnostics.description")}</p>
       <div className={styles.updateActions}>
-        <button type="button" onClick={() => { previewGeneration.current += 1; setPreview(buildDiagnostics(snapshot)); setManualCopy(false); }}>
+        <button type="button" onClick={() => { previewGeneration.current += 1; setPreview(buildDiagnostics(facts)); setManualCopy(false); }}>
           {preview === undefined ? message("support.diagnostics.prepare") : message("support.diagnostics.refresh")}
         </button>
       </div>

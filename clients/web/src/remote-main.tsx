@@ -40,7 +40,7 @@ void loadCrypto()
           crypto={crypto}
           store={new IndexedDbRemoteClientStore()}
           onConnected={(client, remoteAccess) =>
-            startRemoteInspection(client, root, remoteAccess)
+            startRemoteInspection(client, root, remoteAccess, clientBuild)
           }
         />
       </LocalizationProvider>,

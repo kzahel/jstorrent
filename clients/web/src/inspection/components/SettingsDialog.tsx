@@ -23,6 +23,7 @@ import { RemoteAccessSettingsSection } from "./RemoteAccessSettingsSection";
 import { WebAccessSettingsSection } from "./WebAccessSettingsSection";
 import styles from "./SettingsDialog.module.css";
 import type { WebAuthClient } from "../../web-auth-client";
+import type { AboutFacts } from "../support/about";
 import type { DesktopUpdater, DesktopUpdaterSnapshot } from "../updater/types";
 import type { DesktopNotifications } from "../desktop-notifications/types";
 import type { DesktopPower } from "../desktop-power/types";
@@ -40,7 +41,7 @@ export type SettingsCategory =
   | "web-access"
   | "privacy"
   | "data-reset"
-  | "updates";
+  | "about";
 
 export interface SettingsDialogProps {
   readonly colorTheme: ColorTheme;
@@ -58,6 +59,7 @@ export interface SettingsDialogProps {
   readonly webAuth?: WebAuthClient | undefined;
   readonly updater?: DesktopUpdater | undefined;
   readonly updaterSnapshot?: DesktopUpdaterSnapshot | undefined;
+  readonly about?: AboutFacts | undefined;
   readonly productPrivacy?: ProductPrivacyController | undefined;
   readonly initialCategory?: SettingsCategory;
   readonly returnFocus: RefObject<HTMLButtonElement | null>;
@@ -95,6 +97,7 @@ export function SettingsDialog({
   webAuth,
   updater,
   updaterSnapshot,
+  about = {},
   productPrivacy,
   initialCategory = "appearance",
   returnFocus,
@@ -137,12 +140,15 @@ export function SettingsDialog({
     ...(productPrivacy === undefined
       ? []
       : [{ id: "privacy" as const, label: localizedMessage("product.privacy.settings.category") }]),
-    ...(updater === undefined || updaterSnapshot === undefined
-      ? []
-      : [{ id: "updates" as const, label: localizedMessage("inspection.components.settings.dialog.about.updates") }]),
     ...(onRestoreDefaults === undefined || onClearAppData === undefined
       ? []
       : [{ id: "data-reset" as const, label: localizedMessage("inspection.components.data.reset.category") }]),
+    {
+      id: "about",
+      label: updater === undefined || updaterSnapshot === undefined
+        ? localizedMessage("inspection.components.settings.dialog.about")
+        : localizedMessage("inspection.components.settings.dialog.about.updates"),
+    },
   ];
 
   useEffect(() => {
@@ -342,19 +348,6 @@ export function SettingsDialog({
                 />
               </div>
             )}
-            {updater === undefined || updaterSnapshot === undefined ? null : (
-              <div
-                id="settings-panel-updates"
-                role="tabpanel"
-                aria-labelledby="settings-tab-updates"
-                hidden={category !== "updates"}
-              >
-                <AboutUpdatesSettingsSection
-                  updater={updater}
-                  snapshot={updaterSnapshot}
-                />
-              </div>
-            )}
             {productPrivacy === undefined ? null : (
               <div
                 id="settings-panel-privacy"
@@ -381,6 +374,18 @@ export function SettingsDialog({
                 />
               </div>
             )}
+            <div
+              id="settings-panel-about"
+              role="tabpanel"
+              aria-labelledby="settings-tab-about"
+              hidden={category !== "about"}
+            >
+              <AboutUpdatesSettingsSection
+                about={about}
+                updater={updater}
+                snapshot={updaterSnapshot}
+              />
+            </div>
           </div>
         </div>
       </section>

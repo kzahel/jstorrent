@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [347 — About on every web host](347-about-on-every-web-host.md): Settings
+  always has About with connection, version, build, desktop profile and
+  support diagnostics; updates appear only where the app updates itself.
 - [346 — Action feedback toasts](346-action-feedback-toasts.md): one
   bottom-centre toast replaces inline result rows; visible results show
   nothing, errors persist, archive/restore offer Undo, copy is localized.

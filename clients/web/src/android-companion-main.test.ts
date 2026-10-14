@@ -11,12 +11,12 @@ import { startAndroidCompanion } from "./android-companion-main";
 
 const button = (id = "companion-cancel") => document.getElementById(id) as HTMLButtonElement;
 const status = () => document.getElementById("companion-status")!.textContent;
-function connected() {
+function connected(hello: object = {}) {
   let disconnect!: () => void;
   const close = vi.fn().mockResolvedValue(undefined);
   const unmount = vi.fn().mockResolvedValue(undefined);
   mock.mount.mockResolvedValue(unmount);
-  mock.connect.mockResolvedValueOnce({ client: { close }, hello: {}, disconnected: new Promise<void>(resolve => { disconnect = resolve; }) });
+  mock.connect.mockResolvedValueOnce({ client: { close }, hello, disconnected: new Promise<void>(resolve => { disconnect = resolve; }) });
   return { close, unmount, disconnect: () => disconnect() };
 }
 describe("Android pre-connection recovery ownership", () => {
@@ -80,6 +80,20 @@ describe("Android pre-connection recovery ownership", () => {
     window.dispatchEvent(new PageTransitionEvent("pagehide"));
     expect(mock.removeListener).toHaveBeenCalledWith(listener);
   });
+  it("passes only a well-formed Android version to About", async () => {
+    let connection = connected({ backend: { product_version: "1.0.31" } });
+    let running = startAndroidCompanion();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mock.mount).toHaveBeenLastCalledWith(expect.anything(), true,
+      { connection: "android-companion", hostVersion: "1.0.31" });
+    connection.disconnect(); await running;
+    connection = connected({ backend: { product_version: "<script>" } });
+    running = startAndroidCompanion();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mock.mount).toHaveBeenLastCalledWith(expect.anything(), true, { connection: "android-companion" });
+    connection.disconnect(); await running;
+  });
+
   it("handoff focuses a connected owner and retries after its disconnect", async () => {
     const connection = connected();
     const running = startAndroidCompanion();

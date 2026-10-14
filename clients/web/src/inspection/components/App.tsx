@@ -31,6 +31,7 @@ import {
 } from "../lan-none-notice";
 import type { ApplicationDestination } from "../model";
 import { MAX_DETAIL_PANE_PERCENT, MIN_DETAIL_PANE_PERCENT } from "../state";
+import type { AboutFacts } from "../support/about";
 import type { DesktopUpdater, UpdaterState } from "../updater/types";
 import { useDesktopUpdater } from "../updater/useDesktopUpdater";
 import {
@@ -115,6 +116,7 @@ export interface AppProps {
   readonly accessMode?: HostedAccessMode | undefined;
   readonly hostedProduct?: HostedProduct | undefined;
   readonly productPrivacy?: ProductPrivacyController | undefined;
+  readonly about?: AboutFacts | undefined;
 }
 
 export function App({
@@ -128,6 +130,7 @@ export function App({
   accessMode,
   hostedProduct,
   productPrivacy,
+  about,
 }: AppProps) {
   const connection = useInspectionStore((state) => state.session.connection);
   const controller = useInspectionController();
@@ -148,6 +151,7 @@ export function App({
               accessMode={accessMode}
               hostedProduct={hostedProduct}
               productPrivacy={productPrivacy}
+              about={about}
               oneCurrentRoot={oneCurrentRoot}
             />
             {interrupted ? (
@@ -176,6 +180,7 @@ function AppContent({
   accessMode,
   hostedProduct,
   productPrivacy,
+  about,
 }: AppProps & { readonly interrupted: boolean }) {
   const session = useInspectionStore((state) => state.session);
   const demo = useInspectionStore((state) => state.demo);
@@ -250,7 +255,7 @@ function AppContent({
       updaterSnapshot !== undefined &&
       presentsManualUpdateResult(updaterSnapshot.state)
     ) {
-      setSettingsCategory("updates");
+      setSettingsCategory("about");
       setSettingsOpen(true);
     }
   }, [updaterSnapshot]);
@@ -547,7 +552,7 @@ function AppContent({
           <button
             type="button"
             onClick={() => {
-              setSettingsCategory("updates");
+              setSettingsCategory("about");
               setSettingsOpen(true);
             }}
           >{localizedMessage("inspection.components.app.review.update")}</button>
@@ -575,6 +580,7 @@ function AppContent({
           webAuth={webAuth}
           updater={updater}
           updaterSnapshot={updaterSnapshot}
+          about={about ?? (demo === null ? undefined : { connection: "demo" })}
           productPrivacy={productPrivacy}
           initialCategory={settingsCategory}
           returnFocus={settingsButtonRef}

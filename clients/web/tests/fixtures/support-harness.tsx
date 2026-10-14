@@ -55,7 +55,7 @@ createRoot(document.getElementById("support-harness")!).render(
     <h1>About &amp; updates</h1>
     <ToastProvider>
       <ExternalUrlProvider openUrl={openUrl}>
-        <AboutUpdatesSettingsSection updater={managedController ?? updater} snapshot={snapshot} />
+        <AboutUpdatesSettingsSection about={{ connection: manualUpdate ? "server" : "desktop" }} updater={managedController ?? updater} snapshot={snapshot} />
       </ExternalUrlProvider>
     </ToastProvider>
   </main>,

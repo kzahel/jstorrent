@@ -136,7 +136,7 @@ describe("headless browser updater", () => {
       new URL("http://penguin.linux.test:3030"),
       fetcher,
     );
-    expect(integration).toEqual({ product: "crostini" });
+    expect(integration).toEqual({ product: "crostini", buildId: "development" });
     expect(fetcher).toHaveBeenCalledOnce();
   });
 

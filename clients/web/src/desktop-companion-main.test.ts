@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApplicationViewError } from "./api/client";
 const mock = vi.hoisted(() => ({ connect: vi.fn(), mount: vi.fn(), send: vi.fn() }));
+const hello = { backend: { kind: "desktop", product_version: "0.3.1" } };
 vi.mock("./desktop-companion-client", async (importOriginal) => ({
   ...await importOriginal<typeof import("./desktop-companion-client")>(),
   connectDesktopCompanion: mock.connect,
@@ -59,7 +60,7 @@ describe("desktop companion connection ownership", () => {
     let disconnected!: () => void;
     const close = vi.fn(async () => { disconnected(); });
     const unmount = vi.fn().mockResolvedValue(undefined);
-    mock.connect.mockResolvedValueOnce({ client: { close }, disconnected: new Promise<void>(resolve => { disconnected = resolve; }) });
+    mock.connect.mockResolvedValueOnce({ client: { close }, hello, disconnected: new Promise<void>(resolve => { disconnected = resolve; }) });
     mock.connect.mockRejectedValue(new Error("stopped"));
     mock.mount.mockReturnValue(new Promise(resolve => { mounted = resolve; }));
     const running = startDesktopCompanion();
@@ -79,7 +80,7 @@ describe("desktop companion connection ownership", () => {
   it("releases a cached page even when its socket never reports disconnect", async () => {
     const close = vi.fn().mockResolvedValue(undefined);
     const unmount = vi.fn().mockResolvedValue(undefined);
-    mock.connect.mockResolvedValueOnce({ client: { close }, disconnected: new Promise(() => {}) });
+    mock.connect.mockResolvedValueOnce({ client: { close }, hello, disconnected: new Promise(() => {}) });
     mock.connect.mockRejectedValue(new Error("stopped"));
     mock.mount.mockResolvedValue(unmount);
     const running = startDesktopCompanion();
@@ -94,7 +95,7 @@ describe("desktop companion connection ownership", () => {
   });
   it("closes the connection when the shared UI fails to mount", async () => {
     const close = vi.fn().mockResolvedValue(undefined);
-    mock.connect.mockResolvedValue({ client: { close }, disconnected: new Promise(() => {}) });
+    mock.connect.mockResolvedValue({ client: { close }, hello, disconnected: new Promise(() => {}) });
     mock.mount.mockRejectedValue(new Error("mount failed"));
     await startDesktopCompanion();
     expect(close).toHaveBeenCalledOnce();
@@ -167,12 +168,14 @@ describe("desktop companion connection ownership", () => {
     let disconnect!: () => void;
     const close = vi.fn().mockResolvedValue(undefined);
     const unmount = vi.fn().mockResolvedValue(undefined);
-    mock.connect.mockResolvedValueOnce({ client: { close }, disconnected: new Promise<void>(resolve => { disconnect = resolve; }) });
+    mock.connect.mockResolvedValueOnce({ client: { close }, hello, disconnected: new Promise<void>(resolve => { disconnect = resolve; }) });
     mock.connect.mockRejectedValue(new Error("stopped"));
     mock.mount.mockResolvedValue(unmount);
     const running = startDesktopCompanion();
     await vi.advanceTimersByTimeAsync(0);
     expect(document.getElementById("app")!.hidden).toBe(false);
+    expect(mock.mount).toHaveBeenCalledWith(expect.anything(), false,
+      { connection: "desktop-companion", hostVersion: "0.3.1" });
     disconnect();
     await running;
     expect(unmount).toHaveBeenCalledOnce();

@@ -22,12 +22,12 @@ describe("support report preview", () => {
   it("copies the frozen preview and refreshes only on request", async () => {
     const user = userEvent.setup();
     const write = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
-    const view = render(<SupportDiagnostics snapshot={source} />);
+    const view = render(<SupportDiagnostics facts={{ about: { connection: "desktop" }, updater: source }} />);
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Prepare diagnostics" }));
     const preview = screen.getByRole("textbox") as HTMLTextAreaElement;
     const original = preview.value;
-    view.rerender(<SupportDiagnostics snapshot={{ ...source, state: { phase: "checking", reason: "manual" } }} />);
+    view.rerender(<SupportDiagnostics facts={{ about: { connection: "desktop" }, updater: { ...source, state: { phase: "checking", reason: "manual" } } }} />);
     expect(preview.value).toBe(original);
     await user.click(screen.getByRole("button", { name: "Copy diagnostics" }));
     expect(write).toHaveBeenCalledWith(original);
@@ -41,7 +41,7 @@ describe("support report preview", () => {
   it("selects the exact report after clipboard denial without revealing the exception", async () => {
     const user = userEvent.setup();
     vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("private clipboard detail"));
-    render(<SupportDiagnostics snapshot={source} />);
+    render(<SupportDiagnostics facts={{ about: { connection: "desktop" }, updater: source }} />);
     await user.click(screen.getByRole("button", { name: "Prepare diagnostics" }));
     await user.click(screen.getByRole("button", { name: "Copy diagnostics" }));
     const preview = screen.getByRole("textbox") as HTMLTextAreaElement;
@@ -56,7 +56,7 @@ describe("support report preview", () => {
     const user = userEvent.setup();
     let finish!: () => void;
     vi.spyOn(navigator.clipboard, "writeText").mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
-    render(<SupportDiagnostics snapshot={source} />);
+    render(<SupportDiagnostics facts={{ about: { connection: "desktop" }, updater: source }} />);
     await user.click(screen.getByRole("button", { name: "Prepare diagnostics" }));
     await user.click(screen.getByRole("button", { name: "Copy diagnostics" }));
     await user.click(screen.getByRole("button", { name: "Refresh diagnostics" }));

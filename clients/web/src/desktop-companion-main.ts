@@ -93,7 +93,11 @@ export async function startDesktopCompanion(): Promise<void> {
       const connection = await connectDesktopCompanion(abort.signal);
       if (abort.signal.aborted) { await connection.client.close(); return; }
       closeConnection = () => connection.client.close();
-      closeInspection = await startCompanionInspection(connection.client, false);
+      const hostVersion = connection.hello.backend?.product_version;
+      closeInspection = await startCompanionInspection(connection.client, false, {
+        connection: "desktop-companion",
+        ...(hostVersion === undefined || hostVersion.length > 64 ? {} : { hostVersion }),
+      });
       if (abort.signal.aborted) return;
       retryOnly = false;
       start.textContent = message("desktop.companion.start");

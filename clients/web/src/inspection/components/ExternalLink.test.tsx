@@ -25,10 +25,10 @@ describe("external links", () => {
   it("routes support links through the injected desktop opener", async () => {
     const user = userEvent.setup();
     const openUrl = vi.fn(async () => undefined);
-    render(<ToastProvider><ExternalUrlProvider openUrl={openUrl}><SupportDiagnostics snapshot={{
+    render(<ToastProvider><ExternalUrlProvider openUrl={openUrl}><SupportDiagnostics facts={{ about: {}, updater: {
       info: { version: "0.3.0", buildId: "development", arch: "aarch64", target: "aarch64-apple-darwin", bundleType: "app" },
       state: { phase: "idle" },
-    }} /></ExternalUrlProvider></ToastProvider>);
+    } }} /></ExternalUrlProvider></ToastProvider>);
     for (const name of ["Known issues", "Report a problem", "Privacy and recovery guidance"]) {
       const link = screen.getByRole("link", { name });
       await user.click(link);

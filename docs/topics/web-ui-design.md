@@ -1,5 +1,13 @@
 # Web UI Design
 
+Tactical [347](../tactical/347-about-on-every-web-host.md) makes Settings →
+**About** universal. Every host shows how the page is connected, the version
+(or "Not reported"), the build, and support links with diagnostics. Desktop
+also shows its profile (build type and app ID), and the remote client shows
+its own build. The category is titled **About & updates**, with the Updates
+group, only where an updater exists. Diagnostics schema 2 adds connection,
+identity, flavor and page build under the same allowlist and 2 KiB bound.
+
 The header no longer shows a connection pill: the UI is connected unless it
 says otherwise. Download and upload rates appear only while one is nonzero.
 When the view stream to the engine has been down for 3 seconds, a blocking

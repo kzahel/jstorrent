@@ -6,11 +6,13 @@ import { App } from "./components/App";
 import { InspectionProvider } from "./context";
 import { InspectionController } from "./controller";
 import { LiveApplication } from "./live/LiveApplication";
+import type { AboutFacts } from "./support/about";
 import "./global.css";
 
 export async function startCompanionInspection(
   client: ApplicationViewClient,
   oneCurrentRoot = true,
+  about?: AboutFacts,
 ): Promise<() => Promise<void>> {
   const application = await LiveApplication.open(client, {
     storagePolicy: oneCurrentRoot ? "one_current_root" : "portable",
@@ -24,7 +26,7 @@ export async function startCompanionInspection(
   root.render(
     <LocalizationProvider>
       <InspectionProvider controller={controller}>
-        <App oneCurrentRoot={oneCurrentRoot} />
+        <App oneCurrentRoot={oneCurrentRoot} about={about} />
       </InspectionProvider>
     </LocalizationProvider>,
   );

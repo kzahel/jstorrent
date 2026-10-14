@@ -156,11 +156,16 @@ export async function startAndroidCompanion(): Promise<void> {
       }, abort.signal);
       client = connection.client;
       if (abort.signal.aborted) return;
-      unmount = await startCompanionInspection(client);
+      const productVersion = connection.hello.backend?.product_version;
+      const reportedVersion = productVersion && /^\d+(?:\.\d+){0,3}(?:-[a-z0-9.]{1,32})?$/iu.test(productVersion)
+        ? productVersion : undefined;
+      unmount = await startCompanionInspection(client, true, {
+        connection: "android-companion",
+        ...(reportedVersion === undefined ? {} : { hostVersion: reportedVersion }),
+      });
       if (abort.signal.aborted) return;
       clearTimeout(timeout);
-      const productVersion = connection.hello.backend?.product_version;
-      if (productVersion && /^\d+(?:\.\d+){0,3}(?:-[a-z0-9.]{1,32})?$/iu.test(productVersion)) appVersion = productVersion;
+      if (reportedVersion !== undefined) appVersion = reportedVersion;
       versionStatus = "compatible";
       stage = "connected";
       connecting = false;

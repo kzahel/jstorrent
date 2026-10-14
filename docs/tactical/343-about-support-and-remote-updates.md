@@ -269,6 +269,11 @@ with a confirmation. It stops the whole host product, not only the engine.
 
 ### Slice 3: About & support on every web host
 
+Client-side part complete in Tactical
+[347](347-about-on-every-web-host.md): the always-on About tab, connection,
+page build, desktop profile and diagnostics schema 2. Host version for remote
+and Crostini sessions waits for Slice 2.
+
 - **Always-on tab.** Settings always shows an **About** category. Rename it
   to **About & updates** only when an updater is present.
 - **Sections:**

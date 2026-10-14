@@ -27,6 +27,7 @@ import {
   type HostedAccessMode,
   type HostedProduct,
 } from "../headless-updater";
+import type { AboutFacts } from "./support/about";
 import "./global.css";
 
 export function startDemoInspection(parameters: URLSearchParams): void {
@@ -129,12 +130,18 @@ async function openLiveInspection(
     undefined,
     hosted?.accessMode,
     hosted?.product,
+    undefined,
+    undefined,
+    {
+      connection: "server",
+      ...(hosted?.buildId === undefined ? {} : { hostBuild: hosted.buildId }),
+    },
   );
 }
 
 export async function startTauriInspection(): Promise<void> {
   const { openTauriExternalUrl } = await import("../tauri-external-links");
-  const [updater, notifications, power, remoteAccess, productPrivacy, application, externalIntake] =
+  const [updater, notifications, power, remoteAccess, productPrivacy, application, externalIntake, identifier] =
     await Promise.all([
       import("../tauri-updater")
         .then(({ createTauriDesktopUpdater }) => createTauriDesktopUpdater())
@@ -177,6 +184,12 @@ export async function startTauriInspection(): Promise<void> {
       import("../desktop-external-intake").then(
         ({ TauriDesktopExternalIntake }) => TauriDesktopExternalIntake.open(),
       ),
+      import("@tauri-apps/api/app")
+        .then(({ getIdentifier }) => getIdentifier())
+        .catch((error: unknown) => {
+          console.error("Desktop identifier lookup failed:", error);
+          return undefined;
+        }),
     ]);
   application.installBrowserWakeHints(window, document);
   renderInspection(
@@ -192,6 +205,10 @@ export async function startTauriInspection(): Promise<void> {
     undefined,
     productPrivacy,
     openTauriExternalUrl,
+    {
+      connection: "desktop",
+      ...(identifier === undefined ? {} : { identifier }),
+    },
   );
 }
 
@@ -199,6 +216,7 @@ export async function startRemoteInspection(
   client: ApplicationViewClient,
   root: Root,
   remoteAccess: DesktopRemoteAccess,
+  pageBuild?: string,
 ): Promise<void> {
   const application = await LiveApplication.open(
     new RemoteOnlyApplicationClient(client),
@@ -213,6 +231,14 @@ export async function startRemoteInspection(
     undefined,
     undefined,
     remoteAccess,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      connection: "remote",
+      ...(pageBuild === undefined ? {} : { pageBuild }),
+    },
   );
 }
 
@@ -229,6 +255,7 @@ function renderInspection(
   hostedProduct?: HostedProduct,
   productPrivacy?: ProductPrivacyController,
   openExternalUrl?: OpenExternalUrl,
+  about?: AboutFacts,
 ): void {
   controller.start();
   root.render(
@@ -245,6 +272,7 @@ function renderInspection(
             accessMode={accessMode}
             hostedProduct={hostedProduct}
             productPrivacy={productPrivacy}
+            about={about}
           />
         </InspectionProvider>
       </ExternalUrlProvider>

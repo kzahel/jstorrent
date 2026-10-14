@@ -18,11 +18,49 @@ const render = (ui: Parameters<typeof renderUnwrapped>[0]) =>
   renderUnwrapped(ui, { wrapper: ToastProvider });
 
 describe("About and updates settings", () => {
+  it("shows version and support without update controls on a remote session", () => {
+    render(
+      <AboutUpdatesSettingsSection
+        about={{ connection: "remote", pageBuild: "0123456789abcdef0123456789abcdef01234567" }}
+      />,
+    );
+    expect(screen.getByText("Remote access")).toBeVisible();
+    expect(screen.getByText("Not reported")).toBeVisible();
+    expect(screen.getByText("This page")).toBeVisible();
+    expect(screen.getByText("0123456789ab")).toBeVisible();
+    expect(screen.queryByText("Updates")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Check for updates" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Profile")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Prepare diagnostics" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Report a problem" })).toBeVisible();
+  });
+
+  it("shows the companion host version", () => {
+    render(<AboutUpdatesSettingsSection about={{ connection: "android-companion", hostVersion: "1.0.31" }} />);
+    expect(screen.getByText("JSTorrent on Android")).toBeVisible();
+    expect(screen.getByText("1.0.31")).toBeVisible();
+  });
+
+  it("marks a development profile as a separate library", () => {
+    const { unmount } = render(
+      <AboutUpdatesSettingsSection about={{ connection: "desktop", identifier: "com.jstorrent.check" }} />,
+    );
+    expect(screen.getByText("Profile")).toBeVisible();
+    expect(screen.getByText("Development")).toBeVisible();
+    expect(screen.getByText("com.jstorrent.check")).toBeVisible();
+    expect(screen.getByText(/keeps its own library/)).toBeVisible();
+    unmount();
+    render(<AboutUpdatesSettingsSection about={{ connection: "desktop", identifier: "com.jstorrent.desktop" }} />);
+    expect(screen.getByText("Production")).toBeVisible();
+    expect(screen.queryByText(/keeps its own library/)).not.toBeInTheDocument();
+  });
+
   it("shows build identity and routes manual check and install", async () => {
     const user = userEvent.setup();
     const updater = fakeUpdater();
     render(
       <AboutUpdatesSettingsSection
+        about={{ connection: "desktop" }}
         updater={updater}
         snapshot={snapshot({
           phase: "available",
@@ -46,6 +84,7 @@ describe("About and updates settings", () => {
   it("shows a manual release path for a package-manager install", () => {
     render(
       <AboutUpdatesSettingsSection
+        about={{ connection: "desktop" }}
         updater={fakeUpdater()}
         snapshot={snapshot({
           phase: "manual-install",
@@ -65,7 +104,7 @@ describe("About and updates settings", () => {
       ...snapshot({ phase: "idle" }).info, bundleType,
     });
     try {
-      const view = render(<AboutUpdatesSettingsSection updater={controller} snapshot={controller.getSnapshot()} />);
+      const view = render(<AboutUpdatesSettingsSection about={{ connection: "desktop" }} updater={controller} snapshot={controller.getSnapshot()} />);
       expect(within(view.container).getByText("Manual update required")).toBeVisible();
       expect(within(view.container).getByRole("link", { name: "Open release downloads" })).toBeVisible();
       expect(within(view.container).queryByRole("button", { name: "Check for updates" })).not.toBeInTheDocument();
@@ -83,7 +122,7 @@ describe("About and updates settings", () => {
   it("lets desktop users select Latest and explains the Stable catch-up state", async () => {
     const user = userEvent.setup();
     const updater = fakeUpdater();
-    const view = render(<AboutUpdatesSettingsSection updater={updater} snapshot={{ ...snapshot({ phase: "waiting-for-stable" }), channel: "stable" }} />);
+    const view = render(<AboutUpdatesSettingsSection about={{ connection: "desktop" }} updater={updater} snapshot={{ ...snapshot({ phase: "waiting-for-stable" }), channel: "stable" }} />);
     expect(within(view.container).getByText("Waiting for Stable to catch up")).toBeVisible();
     expect(within(view.container).getByText("Update channel")).toBeVisible();
     await user.selectOptions(within(view.container).getByRole("combobox"), "latest");
@@ -95,6 +134,7 @@ describe("About and updates settings", () => {
     const updater = fakeUpdater();
     const view = render(
       <AboutUpdatesSettingsSection
+        about={{ connection: "server" }}
         updater={updater}
         snapshot={{
           info: {

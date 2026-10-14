@@ -844,6 +844,7 @@ describe("inspection application", () => {
     expect(
       within(dialog).queryByRole("tab", { name: "About & updates" }),
     ).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("tab", { name: "About" })).toBeVisible();
     const close = within(dialog).getByRole("button", {
       name: "Close settings",
     });

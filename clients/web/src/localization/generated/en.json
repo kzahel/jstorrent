@@ -1309,6 +1309,12 @@
       "value": "Undo"
     }
   ],
+  "inspection.components.about.updates.settings.section.app.id": [
+    {
+      "type": 0,
+      "value": "App ID"
+    }
+  ],
   "inspection.components.about.updates.settings.section.application": [
     {
       "type": 0,
@@ -1331,6 +1337,30 @@
     {
       "type": 0,
       "value": "Build"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.build.type": [
+    {
+      "type": 0,
+      "value": "Build type"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.build.type.development": [
+    {
+      "type": 0,
+      "value": "Development"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.build.type.preview": [
+    {
+      "type": 0,
+      "value": "Preview"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.build.type.production": [
+    {
+      "type": 0,
+      "value": "Production"
     }
   ],
   "inspection.components.about.updates.settings.section.channel": [
@@ -1373,6 +1403,48 @@
     {
       "type": 0,
       "value": "JSTorrent checks for Latest updates after startup and every 30 minutes."
+    }
+  ],
+  "inspection.components.about.updates.settings.section.connection": [
+    {
+      "type": 0,
+      "value": "Connected to"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.connection.android": [
+    {
+      "type": 0,
+      "value": "JSTorrent on Android"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.connection.demo": [
+    {
+      "type": 0,
+      "value": "Demo"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.connection.desktop": [
+    {
+      "type": 0,
+      "value": "This computer"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.connection.desktop.app": [
+    {
+      "type": 0,
+      "value": "JSTorrent on this computer"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.connection.remote": [
+    {
+      "type": 0,
+      "value": "Remote access"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.connection.server": [
+    {
+      "type": 0,
+      "value": "Server"
     }
   ],
   "inspection.components.about.updates.settings.section.contacting.the.rstorrent.update.service": [
@@ -1447,6 +1519,12 @@
       "value": "Manual update required"
     }
   ],
+  "inspection.components.about.updates.settings.section.not.reported": [
+    {
+      "type": 0,
+      "value": "Not reported"
+    }
+  ],
   "inspection.components.about.updates.settings.section.open.release.downloads": [
     {
       "type": 0,
@@ -1457,6 +1535,18 @@
     {
       "type": 0,
       "value": "Package"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.page.build": [
+    {
+      "type": 0,
+      "value": "This page"
+    }
+  ],
+  "inspection.components.about.updates.settings.section.profile": [
+    {
+      "type": 0,
+      "value": "Profile"
     }
   ],
   "inspection.components.about.updates.settings.section.release.notes": [
@@ -1487,6 +1577,12 @@
     {
       "type": 0,
       "value": "JSTorrent will relaunch after installation succeeds."
+    }
+  ],
+  "inspection.components.about.updates.settings.section.separate.library": [
+    {
+      "type": 0,
+      "value": "This build keeps its own library, separate from the released JSTorrent app."
     }
   ],
   "inspection.components.about.updates.settings.section.stable": [
@@ -6599,6 +6695,12 @@
     {
       "type": 0,
       "value": "Scenario"
+    }
+  ],
+  "inspection.components.settings.dialog.about": [
+    {
+      "type": 0,
+      "value": "About"
     }
   ],
   "inspection.components.settings.dialog.about.updates": [

@@ -1086,7 +1086,7 @@ impl AndroidApplicationClient {
                     self.companion_platform.clone(),
                     self.service.clone(),
                     &self.companion_profile_id,
-                    env!("CARGO_PKG_VERSION"),
+                    &self.product_version,
                 )
                 .await
             }
@@ -1096,7 +1096,7 @@ impl AndroidApplicationClient {
                     self.companion_platform.clone(),
                     self.service.clone(),
                     &self.companion_profile_id,
-                    env!("CARGO_PKG_VERSION"),
+                    &self.product_version,
                 )
                 .await
             }

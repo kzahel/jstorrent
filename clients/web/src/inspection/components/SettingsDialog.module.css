@@ -749,6 +749,11 @@
   font-size: var(--ui-font-small);
 }
 
+/* Words such as a connection kind or build type, not identifiers. */
+.releaseFacts dd.plainFact {
+  font-family: inherit;
+}
+
 .updateStatus {
   display: grid;
   gap: 0.2rem;

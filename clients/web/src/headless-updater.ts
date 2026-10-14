@@ -26,6 +26,8 @@ export interface HostedHostIntegration {
   readonly product: HostedProduct;
   readonly accessMode?: HostedAccessMode;
   readonly updater?: DesktopUpdater;
+  /** Build the host reports in its health identity. */
+  readonly buildId?: string;
 }
 
 type Fetcher = (
@@ -63,7 +65,7 @@ export async function createHostedHostIntegration(
       ) {
         throw new Error("Crostini health identity is invalid");
       }
-      return { product: "crostini" };
+      return { product: "crostini", buildId: health.build_id };
     }
     if (!isRecord(health) || health.product !== "rstorrent-headless") {
       return undefined;

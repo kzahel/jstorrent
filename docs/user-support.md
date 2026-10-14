@@ -18,21 +18,23 @@ These preview-reset instructions do not apply to production migration.
 
 ## Reporting a problem
 
-Open **Settings → About & updates** and note the version, build, target and
-package. In builds with **Support diagnostics**, choose **Prepare diagnostics**
-and review the exact report. Copy it or download `jstorrent-diagnostics.json`,
-then attach it to a [new issue](https://github.com/kzahel/jstorrent/issues/new).
-Include what you did, what you expected and what happened. Existing
-[open issues](https://github.com/kzahel/jstorrent/issues) may already describe
-the problem.
+Open **Settings → About** (named **About & updates** where the app updates
+itself) and note the version, build and, when shown, target, package and
+profile. Choose **Prepare diagnostics** and review the exact report. Copy it or
+download `jstorrent-diagnostics.json`, then attach it to a [new
+issue](https://github.com/kzahel/jstorrent/issues/new). Include what you did,
+what you expected and what happened. Existing [open
+issues](https://github.com/kzahel/jstorrent/issues) may already describe the
+problem.
 
-The report is limited to build/package facts, the update-check privacy model,
-and a closed update status or operation. It is less than 2 KiB. It contains no
-logs, torrent names or hashes, paths, peers, URLs, installation identifier or
-credentials. Preparing, copying and downloading it sends no network request.
-The preview stays unchanged until you choose Refresh; Copy and Download use
-those exact previewed bytes. If clipboard access is denied, copy the selected
-text manually or download it.
+The report is limited to build/package facts, how the page is connected, the
+app identifier and build type, the separately deployed page's build, the
+update-check privacy model, and a closed update status or operation. It is less
+than 2 KiB. It contains no logs, torrent names or hashes, paths, peers, URLs,
+installation identifier or credentials. Preparing, copying and downloading it
+sends no network request. The preview stays unchanged until you choose Refresh;
+Copy and Download use those exact previewed bytes. If clipboard access is
+denied, copy the selected text manually or download it.
 
 GitHub issues and their attachments are public. Opening the report page does
 not attach diagnostics or prefill private context. Review your description,
