@@ -1790,6 +1790,20 @@
           "minimum": 1024,
           "type": "integer"
         },
+        "seed_stop_ratio_percent": {
+          "$ref": "#/$defs/SeedStopLimit",
+          "default": {
+            "type": "off"
+          },
+          "description": "Stop a finished torrent once its share ratio reaches this percent."
+        },
+        "seed_stop_time_seconds": {
+          "$ref": "#/$defs/SeedStopLimit",
+          "default": {
+            "type": "off"
+          },
+          "description": "Stop a finished torrent once it has seeded this many seconds."
+        },
         "share_ratio_limit_percent": {
           "default": 200,
           "format": "uint32",
@@ -1947,6 +1961,12 @@
           "maximum": 65535,
           "minimum": 1024,
           "type": "integer"
+        },
+        "seed_stop_ratio_percent": {
+          "$ref": "#/$defs/SeedStopLimit"
+        },
+        "seed_stop_time_seconds": {
+          "$ref": "#/$defs/SeedStopLimit"
         },
         "share_ratio_limit_percent": {
           "format": "uint32",
@@ -6491,6 +6511,61 @@
       ],
       "type": "object"
     },
+    "SeedStopLimit": {
+      "description": "A session-wide seeding stop limit. `value` is a share ratio in percent\nor a seeding time in seconds, depending on the setting that holds it.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "off",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "limited",
+              "type": "string"
+            },
+            "value": {
+              "format": "uint32",
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "SeedStopView": {
+      "additionalProperties": false,
+      "description": "A torrent's own seeding stop limits and whether a reached limit stopped\nit. Clients resolve `UseGlobal` against the session settings.",
+      "properties": {
+        "limits": {
+          "$ref": "#/$defs/TorrentSeedStopLimits"
+        },
+        "stopped": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "limits",
+        "stopped"
+      ],
+      "type": "object"
+    },
     "ServiceSnapshot": {
       "properties": {
         "client_settings": {
@@ -6516,6 +6591,12 @@
             "peer_exchange_enabled": true,
             "port_mapping": "disabled",
             "preferred_listen_port": 6881,
+            "seed_stop_ratio_percent": {
+              "type": "off"
+            },
+            "seed_stop_time_seconds": {
+              "type": "off"
+            },
             "share_ratio_limit_percent": 200,
             "tracker_https_server_authentication": "system_trust",
             "upload_rate_limit": {
@@ -7933,6 +8014,76 @@
       ],
       "type": "object"
     },
+    "TorrentSeedStopLimit": {
+      "description": "A torrent's own seeding stop limit, overriding the session limit.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "use_global",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "off",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "limited",
+              "type": "string"
+            },
+            "value": {
+              "format": "uint32",
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TorrentSeedStopLimits": {
+      "additionalProperties": false,
+      "description": "A torrent's own seeding stop limits.",
+      "properties": {
+        "ratio_percent": {
+          "$ref": "#/$defs/TorrentSeedStopLimit",
+          "description": "Share ratio in percent."
+        },
+        "time_seconds": {
+          "$ref": "#/$defs/TorrentSeedStopLimit",
+          "description": "Seeding time in seconds."
+        }
+      },
+      "required": [
+        "ratio_percent",
+        "time_seconds"
+      ],
+      "type": "object"
+    },
     "TorrentSeedingView": {
       "additionalProperties": false,
       "properties": {
@@ -7948,6 +8099,17 @@
               "type": "null"
             }
           ]
+        },
+        "stop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeedStopView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Absent while the torrent uses the session limits and is not stopped."
         }
       },
       "required": [
@@ -7961,6 +8123,12 @@
       "properties": {
         "download_rate_limit": {
           "$ref": "#/$defs/TransferRateLimit"
+        },
+        "seed_stop_ratio_percent": {
+          "$ref": "#/$defs/TorrentSeedStopLimit"
+        },
+        "seed_stop_time_seconds": {
+          "$ref": "#/$defs/TorrentSeedStopLimit"
         },
         "upload_rate_limit": {
           "$ref": "#/$defs/TransferRateLimit"
@@ -8047,6 +8215,22 @@
               "type": "null"
             }
           ]
+        },
+        "seed_limit_stopped": {
+          "default": false,
+          "description": "Paused because a seeding stop limit was reached, not by the user.",
+          "type": "boolean"
+        },
+        "seed_stop_limits": {
+          "$ref": "#/$defs/TorrentSeedStopLimits",
+          "default": {
+            "ratio_percent": {
+              "type": "use_global"
+            },
+            "time_seconds": {
+              "type": "use_global"
+            }
+          }
         },
         "selectable_file_bytes": {
           "default": "",
@@ -9386,6 +9570,12 @@
                   "peer_exchange_enabled": true,
                   "port_mapping": "disabled",
                   "preferred_listen_port": 6881,
+                  "seed_stop_ratio_percent": {
+                    "type": "off"
+                  },
+                  "seed_stop_time_seconds": {
+                    "type": "off"
+                  },
                   "share_ratio_limit_percent": 200,
                   "tracker_https_server_authentication": "system_trust",
                   "upload_rate_limit": {

@@ -62,7 +62,8 @@ use crate::media::{
 use crate::product_state::ProductStateOwner;
 use crate::seed_policy::{
     AUTO_MANAGE_INTERVAL_SECONDS, HARD_ACTIVE_TORRENT_LIMIT, InactivityState, SeedGoalInput,
-    SeedGoalLimits, SeedRankInput, assess_seed_goals, rate_is_inactive, seed_rank,
+    SeedGoalLimits, SeedRankInput, SeedStopLimits, SeedStopReason, assess_seed_goals,
+    rate_is_inactive, seed_rank, seed_stop_reached,
 };
 use crate::session_network::{SessionNetworkConfig, SessionNetworkError, SessionNetworkRuntime};
 use crate::settings::{StorageRootSnapshot, TorrentTransferLimits};
@@ -4092,7 +4093,10 @@ impl ApplicationService {
         }
         self.maintain_admission_inactivity()?;
         self.maintain_accounting(false)?;
-        let snapshot = self.store_mut()?.snapshot()?;
+        let mut snapshot = self.store_mut()?.snapshot()?;
+        if self.enforce_seed_stop_limits(&snapshot).await? {
+            snapshot = self.store_mut()?.snapshot()?;
+        }
         let effective_download_limit = snapshot
             .client_settings
             .active_downloads
@@ -4811,6 +4815,78 @@ impl ApplicationService {
             resume.state = TorrentState::AwaitingStorage;
         }
         Ok(resume)
+    }
+
+    /// Stops every running finished torrent that has reached a seeding stop
+    /// limit, durably and through the same path as a user pause. Returns
+    /// whether any torrent stopped.
+    async fn enforce_seed_stop_limits(
+        &mut self,
+        snapshot: &crate::ServiceSnapshot,
+    ) -> Result<bool, ApplicationError> {
+        let mut reached = Vec::new();
+        for torrent in &snapshot.torrents {
+            if torrent.state != TorrentState::Complete
+                || torrent.download_queue_position.is_some()
+                || !torrent.desired_running
+                || torrent.archived
+                || torrent.removal_state.is_some()
+                || torrent.awaiting_file_selection
+            {
+                continue;
+            }
+            let limits = effective_seed_stop_limits(&snapshot.client_settings, torrent);
+            if limits == SeedStopLimits::default() {
+                continue;
+            }
+            let Some(runtime) = self.torrent_runtimes.get(&torrent.torrent_id) else {
+                continue;
+            };
+            let accounting = self
+                .accounting
+                .current(
+                    runtime.handle().identity().torrent_id(),
+                    runtime.generation(),
+                )
+                .map_err(|error| ApplicationError::Persistence(error.to_string()))?;
+            let resume = self.load_resume_conservative(&torrent.torrent_id)?;
+            let total_size = parse_resume_content(&resume)
+                .map(|content| ContentLayout::from_content(&content).total_length())
+                .map_err(|error| ApplicationError::Configuration(error.to_string()))?;
+            let input = SeedGoalInput {
+                total_uploaded: accounting.total_uploaded,
+                total_downloaded: accounting.total_downloaded,
+                total_size,
+                active_seconds: accounting.active_seconds,
+                finished_seconds: accounting.finished_seconds,
+            };
+            if let Some(reason) = seed_stop_reached(input, limits) {
+                reached.push((torrent.torrent_id.clone(), reason));
+            }
+        }
+        let mut stopped = false;
+        for (torrent_id, reason) in reached {
+            if !self.store_mut()?.stop_at_seed_limit(&torrent_id)? {
+                continue;
+            }
+            stopped = true;
+            self.views.record_diagnostic(
+                DiagnosticSeverity::Info,
+                category::LIFECYCLE_TORRENT,
+                "torrent_seed_limit_reached",
+                Some(&torrent_id),
+                "Seeding stop limit reached; torrent stopped",
+                &[(
+                    "limit",
+                    match reason {
+                        SeedStopReason::ShareRatio => "share_ratio",
+                        SeedStopReason::SeedingTime => "seeding_time",
+                    },
+                )],
+            )?;
+            self.pause(&torrent_id).await?;
+        }
+        Ok(stopped)
     }
 
     async fn pause(&mut self, torrent_id: &str) -> Result<(), ApplicationError> {
@@ -7151,6 +7227,32 @@ fn torrent_lifetime_view(
     }
 }
 
+fn effective_seed_stop_limits(
+    settings: &crate::ClientSettings,
+    torrent: &crate::TorrentSnapshot,
+) -> SeedStopLimits {
+    SeedStopLimits {
+        share_ratio_percent: torrent
+            .seed_stop_limits
+            .ratio_percent
+            .resolve(settings.seed_stop_ratio_percent)
+            .value(),
+        seeding_seconds: torrent
+            .seed_stop_limits
+            .time_seconds
+            .resolve(settings.seed_stop_time_seconds)
+            .value(),
+    }
+}
+
+fn seed_stop_view(torrent: &crate::TorrentSnapshot) -> Option<crate::SeedStopView> {
+    let view = crate::SeedStopView {
+        limits: torrent.seed_stop_limits,
+        stopped: torrent.seed_limit_stopped,
+    };
+    (view != crate::SeedStopView::default()).then_some(view)
+}
+
 fn torrent_seed_goal_view(
     accounting: crate::store::TorrentAccounting,
     total_size: u64,
@@ -7214,7 +7316,10 @@ fn durable_view_state(
                     trackers: TrackerViewModel::default(),
                     total_size: 0,
                     lifetime: crate::TorrentLifetimeView::default(),
-                    seeding: crate::TorrentSeedingView::default(),
+                    seeding: crate::TorrentSeedingView {
+                        stop: seed_stop_view(torrent),
+                        ..crate::TorrentSeedingView::default()
+                    },
                 },
             );
             continue;
@@ -7286,9 +7391,13 @@ fn durable_view_state(
                     total_size,
                     goal_limits,
                 )?),
+                stop: seed_stop_view(torrent),
             }
         } else {
-            crate::TorrentSeedingView::default()
+            crate::TorrentSeedingView {
+                stop: seed_stop_view(torrent),
+                ..crate::TorrentSeedingView::default()
+            }
         };
         durable.insert(
             torrent.torrent_id.clone(),
@@ -9590,6 +9699,348 @@ mod tests {
         reopened.shutdown().await.expect("shutdown reopened seeds");
         drop(reopened);
         fs::remove_dir_all(root).expect("remove seed-goal root");
+    }
+
+    #[tokio::test]
+    async fn seed_stop_limit_stops_durably_and_keep_seeding_survives_restart() {
+        let root = test_root("seed-stop-limit");
+        let configuration = config(&root);
+        persist_client_settings(
+            &configuration,
+            ClientSettings {
+                listener: ListenerPolicy::AutomaticLoopback,
+                seed_stop_ratio_percent: crate::SeedStopLimit::Limited { value: 200 },
+                ..ClientSettings::default()
+            },
+        );
+        fs::create_dir_all(root.join("payload")).expect("create seed payload root");
+        let payload = b"abcdefg";
+        let name = "stop-limit-seed.bin";
+        let raw_info = single_file_info(name, payload, payload.len());
+        let info_hash: [u8; 20] = Sha1::digest(&raw_info).into();
+        let mut store = SessionStore::open(
+            configuration
+                .durable_profile_root()
+                .expect("durable profile root"),
+            &configuration.profile_id,
+            &configuration.storage_roots,
+        )
+        .expect("open stop-limit store");
+        let torrent_id = add_store_torrent(
+            &mut store,
+            "add-stop-limit-seed",
+            &super::encode_info_hash(info_hash),
+        );
+        store
+            .record_metadata(&torrent_id, &raw_info)
+            .expect("record seed metadata");
+        store
+            .record_pieces(&torrent_id, &[0])
+            .expect("record seed piece");
+        store.mark_complete(&torrent_id).expect("complete seed");
+        fs::write(root.join("payload").join(name), payload).expect("write seed payload");
+        store
+            .replace_accounting_batch(&[crate::store::TorrentAccountingUpdate {
+                torrent_id: torrent_id.parse().expect("seed owner"),
+                accounting: crate::store::TorrentAccounting {
+                    total_uploaded: 13,
+                    total_downloaded: 7,
+                    active_seconds: 100,
+                    finished_seconds: 100,
+                    seeding_seconds: 100,
+                    tracker_complete: None,
+                    tracker_incomplete: None,
+                },
+            }])
+            .expect("just-below-limit accounting");
+        drop(store);
+
+        let mut service = ApplicationService::open(configuration.clone())
+            .await
+            .expect("open stop-limit service");
+        wait_for_seed_registrations(&service, 1).await;
+        let below = torrent_summary(&service, &torrent_id).await;
+        assert_eq!(
+            below.operational_state,
+            crate::TorrentOperationalState::Seeding
+        );
+        assert_eq!(below.seeding.stop, None);
+
+        // One uploaded byte reaches exactly 200%.
+        let (mut peer, mut decoder, mut pending) =
+            connect_application_seed_with_expected_availability(
+                &service,
+                info_hash,
+                *b"-RS-STOP-LIMIT-00000",
+                false,
+                vec![0b1000_0000],
+            )
+            .await;
+        peer.write_all(&encode_message(&PeerMessage::Interested).expect("encode interest"))
+            .await
+            .expect("send interest");
+        assert_eq!(
+            read_peer_message(&mut peer, &mut decoder, &mut pending).await,
+            PeerMessage::Unchoke
+        );
+        peer.write_all(
+            &encode_message(&PeerMessage::Request(BlockRequest {
+                index: 0,
+                begin: 0,
+                length: 1,
+            }))
+            .expect("encode one-byte request"),
+        )
+        .await
+        .expect("request limit-crossing byte");
+        assert_eq!(
+            read_peer_message(&mut peer, &mut decoder, &mut pending).await,
+            PeerMessage::Piece {
+                index: 0,
+                begin: 0,
+                block: b"a".to_vec(),
+            }
+        );
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "reconcile-stop-limit".to_owned(),
+                expected_revision: None,
+                command: Command::Snapshot,
+            })
+            .await
+            .expect("reconcile reached stop limit");
+        assert_eq!(peer.read(&mut [0; 1]).await.expect("stopped peer close"), 0);
+        wait_for_seed_registrations(&service, 0).await;
+        let stopped = torrent_summary(&service, &torrent_id).await;
+        assert_eq!(
+            stopped.operational_state,
+            crate::TorrentOperationalState::Paused
+        );
+        assert_eq!(
+            stopped.seeding.stop,
+            Some(crate::SeedStopView {
+                limits: crate::TorrentSeedStopLimits::default(),
+                stopped: true,
+            })
+        );
+        let resume = service
+            .store_mut()
+            .unwrap()
+            .load_resume(&torrent_id)
+            .unwrap();
+        assert!(!resume.desired_running);
+
+        // A user Pause of a limit-stopped torrent keeps the limit reason.
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "pause-limit-stopped".to_owned(),
+                expected_revision: None,
+                command: Command::Pause {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .await
+            .expect("pause limit-stopped torrent");
+        assert!(
+            torrent_summary(&service, &torrent_id)
+                .await
+                .seeding
+                .stop
+                .is_some_and(|stop| stop.stopped)
+        );
+
+        // Resume means keep seeding: the torrent's own limits become off.
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "keep-seeding".to_owned(),
+                expected_revision: None,
+                command: Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .await
+            .expect("keep seeding");
+        wait_for_seed_registrations(&service, 1).await;
+        let kept = crate::SeedStopView {
+            limits: crate::TorrentSeedStopLimits {
+                ratio_percent: crate::TorrentSeedStopLimit::Off,
+                time_seconds: crate::TorrentSeedStopLimit::Off,
+            },
+            stopped: false,
+        };
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "reconcile-kept".to_owned(),
+                expected_revision: None,
+                command: Command::Snapshot,
+            })
+            .await
+            .expect("reconcile kept seed");
+        let resumed = torrent_summary(&service, &torrent_id).await;
+        assert_eq!(
+            resumed.operational_state,
+            crate::TorrentOperationalState::Seeding
+        );
+        assert_eq!(resumed.seeding.stop, Some(kept.clone()));
+
+        service
+            .shutdown()
+            .await
+            .expect("shutdown stop-limit service");
+        drop(service);
+        let mut reopened = ApplicationService::open(configuration)
+            .await
+            .expect("reopen stop-limit service");
+        wait_for_seed_registrations(&reopened, 1).await;
+        assert_eq!(
+            torrent_summary(&reopened, &torrent_id).await.seeding.stop,
+            Some(kept)
+        );
+        reopened
+            .shutdown()
+            .await
+            .expect("shutdown reopened service");
+        drop(reopened);
+        fs::remove_dir_all(root).expect("remove stop-limit root");
+    }
+
+    #[tokio::test]
+    async fn lowered_seed_time_limit_stops_active_and_queued_seeds() {
+        let root = test_root("seed-stop-time");
+        let configuration = config(&root);
+        persist_client_settings(
+            &configuration,
+            ClientSettings {
+                listener: ListenerPolicy::AutomaticLoopback,
+                active_seeds: crate::ActiveSeedLimit::Limited { torrents: 1 },
+                ..ClientSettings::default()
+            },
+        );
+        fs::create_dir_all(root.join("payload")).expect("create seed payload root");
+        let payload = b"abcdefg";
+        let mut store = SessionStore::open(
+            configuration
+                .durable_profile_root()
+                .expect("durable profile root"),
+            &configuration.profile_id,
+            &configuration.storage_roots,
+        )
+        .expect("open time-limit store");
+        let mut seeds = Vec::new();
+        for (sequence, finished_seconds) in [(0, 100_u64), (1, 40)] {
+            let name = format!("time-limit-seed-{sequence}.bin");
+            let raw_info = single_file_info(&name, payload, payload.len());
+            let info_hash: [u8; 20] = Sha1::digest(&raw_info).into();
+            let torrent_id = add_store_torrent(
+                &mut store,
+                &format!("add-time-limit-seed-{sequence}"),
+                &super::encode_info_hash(info_hash),
+            );
+            store
+                .record_metadata(&torrent_id, &raw_info)
+                .expect("metadata");
+            store.record_pieces(&torrent_id, &[0]).expect("piece");
+            store.mark_complete(&torrent_id).expect("complete");
+            fs::write(root.join("payload").join(name), payload).expect("payload");
+            store
+                .replace_accounting_batch(&[crate::store::TorrentAccountingUpdate {
+                    torrent_id: torrent_id.parse().expect("owner"),
+                    accounting: crate::store::TorrentAccounting {
+                        total_uploaded: 0,
+                        total_downloaded: 7,
+                        active_seconds: finished_seconds,
+                        finished_seconds,
+                        seeding_seconds: finished_seconds,
+                        tracker_complete: None,
+                        tracker_incomplete: None,
+                    },
+                }])
+                .expect("accounting");
+            seeds.push((torrent_id, finished_seconds));
+        }
+        drop(store);
+
+        let mut service = ApplicationService::open(configuration.clone())
+            .await
+            .expect("open time-limit service");
+        wait_for_seed_registrations(&service, 1).await;
+
+        // 60 seconds stops the 100-second seed, whether active or queued,
+        // and leaves the 40-second seed running.
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "lower-time-limit".to_owned(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: crate::ClientSettingsPatch {
+                        seed_stop_time_seconds: Some(crate::SeedStopLimit::Limited { value: 60 }),
+                        ..crate::ClientSettingsPatch::default()
+                    },
+                },
+            })
+            .await
+            .expect("lower seed time limit");
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "reconcile-time-limit".to_owned(),
+                expected_revision: None,
+                command: Command::Snapshot,
+            })
+            .await
+            .expect("reconcile time limit");
+        wait_for_seed_registrations(&service, 1).await;
+        for (torrent_id, finished_seconds) in &seeds {
+            let resume = service
+                .store_mut()
+                .unwrap()
+                .load_resume(torrent_id)
+                .unwrap();
+            let view = torrent_summary(&service, torrent_id).await;
+            if *finished_seconds >= 60 {
+                assert!(!resume.desired_running, "{torrent_id} must stop");
+                assert!(view.seeding.stop.is_some_and(|stop| stop.stopped));
+            } else {
+                assert!(resume.desired_running, "{torrent_id} must keep running");
+                assert_eq!(view.seeding.stop, None);
+                assert!(service.admitted_seeds.contains(torrent_id));
+            }
+        }
+
+        // Raising the limit does not restart a stopped torrent.
+        service
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "clear-time-limit".to_owned(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: crate::ClientSettingsPatch {
+                        seed_stop_time_seconds: Some(crate::SeedStopLimit::Off),
+                        ..crate::ClientSettingsPatch::default()
+                    },
+                },
+            })
+            .await
+            .expect("clear seed time limit");
+        assert!(
+            !service
+                .store_mut()
+                .unwrap()
+                .load_resume(&seeds[0].0)
+                .unwrap()
+                .desired_running
+        );
+        service
+            .shutdown()
+            .await
+            .expect("shutdown time-limit service");
+        drop(service);
+        fs::remove_dir_all(root).expect("remove time-limit root");
     }
 
     async fn serve_single_piece_peer(
@@ -13046,6 +13497,7 @@ mod tests {
                         download_rate_limit: Some(crate::TransferRateLimit::Limited {
                             bytes_per_second: 128 * 1_024,
                         }),
+                        ..Default::default()
                     },
                 },
             })

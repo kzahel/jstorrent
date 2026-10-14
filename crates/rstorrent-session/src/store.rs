@@ -40,8 +40,9 @@ use crate::profile_reset::{
 };
 use crate::settings::{
     ClientSettings, SettingsPersistenceError, StorageRootAvailability, StorageRootSnapshot,
-    StorageSettingsSnapshot, TorrentSettingsPatch, TorrentTransferLimits, TransferRateLimit,
-    create_client_settings, read_client_settings, replace_client_settings,
+    StorageSettingsSnapshot, TorrentSeedStopLimit, TorrentSeedStopLimits, TorrentSettingsPatch,
+    TorrentTransferLimits, TransferRateLimit, create_client_settings, read_client_settings,
+    replace_client_settings,
 };
 use crate::store_schema::{
     BASELINE_SCHEMA_VERSION, DHT_TABLES_SQL, DOWNLOAD_QUEUE_INDEX_SQL, FILE_PRIORITIES_TABLE_SQL,
@@ -2398,6 +2399,43 @@ impl SessionStore {
         Ok(revision)
     }
 
+    /// Durably stops a running torrent whose seeding stop limit was reached.
+    /// Returns false, changing nothing, unless the torrent is running and not
+    /// archived, being removed or awaiting a file selection.
+    pub(crate) fn stop_at_seed_limit(&mut self, torrent_id: &str) -> Result<bool, StoreError> {
+        let torrent_id = decode_torrent_id(torrent_id)
+            .ok_or_else(|| StoreError::UnknownTorrent(torrent_id.to_owned()))?;
+        let transaction = self.connection.transaction()?;
+        let eligible: bool = transaction
+            .query_row(
+                "SELECT t.desired_state = 'running' AND t.archived = 0
+                        AND t.awaiting_file_selection = 0 AND r.torrent_id IS NULL
+                 FROM torrents t
+                 LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
+                 WHERE t.torrent_id = ?1",
+                [torrent_id.as_bytes()],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or_else(|| StoreError::UnknownTorrent(torrent_id.to_string()))?;
+        if !eligible {
+            return Ok(false);
+        }
+        let revision = next_revision_strict(&transaction, read_revision(&transaction)?)?;
+        transaction.execute(
+            "UPDATE torrents
+             SET desired_state = 'paused', seed_limit_stopped = 1, updated_revision = ?2
+             WHERE torrent_id = ?1",
+            params![
+                torrent_id.as_bytes(),
+                i64::try_from(revision)
+                    .map_err(|_| StoreError::DurableState("revision overflow".to_owned()))?
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(true)
+    }
+
     pub fn mark_complete(&mut self, torrent_id: &str) -> Result<u64, StoreError> {
         let torrent_id = decode_torrent_id(torrent_id)
             .ok_or_else(|| StoreError::DurableState("invalid torrent identity".to_owned()))?;
@@ -3044,6 +3082,8 @@ fn create_or_validate_catalog(
     let transaction = connection.transaction()?;
     create_schema_26(&transaction, profile_id, initial_client_settings)?;
     crate::store_migration::upgrade_fresh_catalog(&transaction)?;
+    // The frozen baseline writes only baseline settings columns.
+    replace_client_settings(&transaction, initial_client_settings)?;
     transaction.commit()?;
     validate_catalog(connection, profile_id)
 }
@@ -4915,7 +4955,8 @@ where
     transaction
         .execute(
             "UPDATE torrents
-             SET desired_state = ?2, error = NULL, updated_revision = ?3
+             SET desired_state = ?2, error = NULL, updated_revision = ?3,
+                 seed_limit_stopped = CASE WHEN ?2 = 'running' THEN 0 ELSE seed_limit_stopped END
              WHERE torrent_id = ?1",
             params![
                 torrent_id.as_bytes(),
@@ -4955,7 +4996,8 @@ fn set_desired_state(
     let row = transaction
         .query_row(
             "SELECT t.desired_state, t.quarantine_reason,
-                    r.torrent_id IS NOT NULL, t.awaiting_file_selection, t.archived
+                    r.torrent_id IS NOT NULL, t.awaiting_file_selection, t.archived,
+                    t.seed_limit_stopped
              FROM torrents t
              LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
              WHERE t.torrent_id = ?1",
@@ -4967,6 +5009,7 @@ fn set_desired_state(
                     row.get::<_, bool>(2)?,
                     row.get::<_, bool>(3)?,
                     row.get::<_, bool>(4)?,
+                    row.get::<_, bool>(5)?,
                 ))
             },
         )
@@ -5026,12 +5069,20 @@ fn set_desired_state(
             [revision_sql],
         )
         .map_err(internal_error)?;
+    // Resuming a torrent that a seeding limit stopped means keep seeding:
+    // its own limits become No limit so the next check does not stop it.
+    let keep_seeding = running && row.5;
     transaction
         .execute(
             "UPDATE torrents
-             SET desired_state = ?2, error = NULL, updated_revision = ?3
+             SET desired_state = ?2, error = NULL, updated_revision = ?3,
+                 seed_limit_stopped = CASE WHEN ?2 = 'running' THEN 0 ELSE seed_limit_stopped END,
+                 seed_stop_ratio_percent =
+                    CASE WHEN ?4 THEN -1 ELSE seed_stop_ratio_percent END,
+                 seed_stop_time_seconds =
+                    CASE WHEN ?4 THEN -1 ELSE seed_stop_time_seconds END
              WHERE torrent_id = ?1",
-            params![torrent_id.as_bytes(), desired, revision_sql],
+            params![torrent_id.as_bytes(), desired, revision_sql, keep_seeding],
         )
         .map_err(internal_error)?;
     if append_missing {
@@ -5306,7 +5357,7 @@ fn confirm_pending_file_selection(
         .execute(
             "UPDATE torrents
              SET selection_default = ?2, awaiting_file_selection = 0,
-                 desired_state = 'running', error = NULL, updated_revision = ?3
+                 desired_state = 'running', seed_limit_stopped = 0, error = NULL, updated_revision = ?3
              WHERE torrent_id = ?1",
             params![
                 torrent_id.as_bytes(),
@@ -5369,7 +5420,7 @@ fn disable_future_file_selection(
         transaction
             .execute(
                 "UPDATE torrents
-                 SET awaiting_file_selection = 0, desired_state = 'running',
+                 SET awaiting_file_selection = 0, desired_state = 'running', seed_limit_stopped = 0,
                      error = NULL, updated_revision = ?2
                  WHERE torrent_id = ?1",
                 params![torrent_id.as_bytes(), revision_sql],
@@ -5447,7 +5498,7 @@ fn download_all_pending_add(
     transaction
         .execute(
             "UPDATE torrents SET selection_default = 'wanted', awaiting_file_selection = 0,
-         desired_state = 'running', error = NULL, updated_revision = ?2 WHERE torrent_id = ?1",
+         desired_state = 'running', seed_limit_stopped = 0, error = NULL, updated_revision = ?2 WHERE torrent_id = ?1",
             params![
                 decoded.as_bytes(),
                 i64::try_from(revision)
@@ -5610,10 +5661,18 @@ fn update_torrent_settings(
     })?;
     let current = transaction
         .query_row(
-            "SELECT upload_rate_limit, download_rate_limit
+            "SELECT upload_rate_limit, download_rate_limit,
+                    seed_stop_ratio_percent, seed_stop_time_seconds
              FROM torrents WHERE torrent_id = ?1",
             [torrent_id.as_bytes()],
-            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Option<i64>>(2)?,
+                    row.get::<_, Option<i64>>(3)?,
+                ))
+            },
         )
         .optional()
         .map_err(internal_error)?
@@ -5630,10 +5689,20 @@ fn update_torrent_settings(
             internal_message(&format!("invalid durable download limit: {error}"))
         })?,
     };
+    let current_stop = read_seed_stop_limits(current.2, current.3)
+        .map_err(|error| internal_message(&error.to_string()))?;
     let limits = patch
         .apply_to(current_limits)
         .map_err(|error| (ErrorCode::InvalidRequest, error.to_string()))?;
-    let desired = (limits.upload.persisted(), limits.download.persisted());
+    let stop = patch
+        .apply_to_seed_stop(current_stop)
+        .map_err(|error| (ErrorCode::InvalidRequest, error.to_string()))?;
+    let desired = (
+        limits.upload.persisted(),
+        limits.download.persisted(),
+        stop.ratio_percent.persisted(),
+        stop.time_seconds.persisted(),
+    );
     if current == desired {
         return Ok(current_revision);
     }
@@ -5642,22 +5711,40 @@ fn update_torrent_settings(
         .execute(
             "UPDATE torrents
              SET upload_rate_limit = ?2, download_rate_limit = ?3,
-                 updated_revision = ?4
+                 seed_stop_ratio_percent = ?4, seed_stop_time_seconds = ?5,
+                 updated_revision = ?6
              WHERE torrent_id = ?1",
             params![
                 torrent_id.as_bytes(),
                 desired.0,
                 desired.1,
+                desired.2,
+                desired.3,
                 i64::try_from(revision).map_err(|_| internal_message("revision overflow"))?,
             ],
         )
         .map_err(internal_error)?;
     if changed != 1 {
         return Err(internal_message(
-            "torrent transfer-limit update changed an unexpected row count",
+            "torrent settings update changed an unexpected row count",
         ));
     }
     Ok(revision)
+}
+
+fn read_seed_stop_limits(
+    ratio_percent: Option<i64>,
+    time_seconds: Option<i64>,
+) -> Result<TorrentSeedStopLimits, StoreError> {
+    let invalid = |error: crate::ClientSettingsError| {
+        StoreError::DurableState(format!("invalid torrent seed stop limit: {error}"))
+    };
+    Ok(TorrentSeedStopLimits {
+        ratio_percent: TorrentSeedStopLimit::from_persisted("seed stop ratio", ratio_percent)
+            .map_err(invalid)?,
+        time_seconds: TorrentSeedStopLimit::from_persisted("seed stop time", time_seconds)
+            .map_err(invalid)?,
+    })
 }
 
 fn next_revision_strict(
@@ -5687,7 +5774,8 @@ fn read_snapshot(connection: &Connection, profile_id: &str) -> Result<ServiceSna
                 t.desired_state, t.verification_requested,
                 t.verification_completed, t.quarantine_reason,
                 t.upload_rate_limit, t.download_rate_limit,
-                t.awaiting_file_selection
+                t.awaiting_file_selection, t.seed_stop_ratio_percent,
+                t.seed_stop_time_seconds, t.seed_limit_stopped
          FROM torrents t
          LEFT JOIN removal_jobs r ON r.torrent_id = t.torrent_id
          ORDER BY t.torrent_id",
@@ -5711,6 +5799,9 @@ fn read_snapshot(connection: &Connection, profile_id: &str) -> Result<ServiceSna
             row.get::<_, i64>(14)?,
             row.get::<_, i64>(15)?,
             row.get::<_, bool>(16)?,
+            row.get::<_, Option<i64>>(17)?,
+            row.get::<_, Option<i64>>(18)?,
+            row.get::<_, bool>(19)?,
         ))
     })?;
     let mut torrents = Vec::new();
@@ -5878,6 +5969,8 @@ fn read_snapshot(connection: &Connection, profile_id: &str) -> Result<ServiceSna
                     StoreError::DurableState(format!("invalid torrent download rate: {error}"))
                 })?,
             },
+            seed_stop_limits: read_seed_stop_limits(row.17, row.18)?,
+            seed_limit_stopped: row.19,
             skip_files: if selection_default == FilePriority::Normal {
                 selection_exceptions.clone()
             } else {
@@ -9426,6 +9519,142 @@ mod tests {
     }
 
     #[test]
+    fn seed_stop_limits_persist_stop_and_keep_seeding_atomically() {
+        let root = test_root("seed-stop-store");
+        let configured = configured_root(&root);
+        let mut store =
+            SessionStore::open(&root, "default", std::slice::from_ref(&configured)).expect("open");
+        let added = store
+            .handle_durable(&add_request("seed-stop-owner"))
+            .expect("add torrent");
+        let torrent_id = added_torrent_id(&added);
+        let update = |request_id: &str, patch: crate::TorrentSettingsPatch| RequestEnvelope {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            command: Command::UpdateTorrentSettings {
+                torrent_id: torrent_id.clone(),
+                patch,
+            },
+        };
+        let own = crate::TorrentSeedStopLimits {
+            ratio_percent: crate::TorrentSeedStopLimit::Limited { value: 150 },
+            time_seconds: crate::TorrentSeedStopLimit::Off,
+        };
+        let response = store
+            .handle_durable(&update(
+                "own-stop-limits",
+                crate::TorrentSettingsPatch {
+                    seed_stop_ratio_percent: Some(own.ratio_percent),
+                    seed_stop_time_seconds: Some(own.time_seconds),
+                    ..Default::default()
+                },
+            ))
+            .expect("set stop limits");
+        assert!(matches!(response.outcome, ResponseOutcome::Success { .. }));
+        assert_eq!(store.snapshot().unwrap().torrents[0].seed_stop_limits, own);
+        let invalid = store
+            .handle_durable(&update(
+                "invalid-stop-limit",
+                crate::TorrentSettingsPatch {
+                    seed_stop_time_seconds: Some(crate::TorrentSeedStopLimit::Limited {
+                        value: u32::MAX,
+                    }),
+                    ..Default::default()
+                },
+            ))
+            .expect("reject invalid limit");
+        assert!(matches!(invalid.outcome, ResponseOutcome::Error { .. }));
+        assert_eq!(store.snapshot().unwrap().torrents[0].seed_stop_limits, own);
+
+        // Running torrents stop once; a paused one is not eligible.
+        assert!(store.stop_at_seed_limit(&torrent_id).expect("stop"));
+        assert!(
+            !store
+                .stop_at_seed_limit(&torrent_id)
+                .expect("already stopped")
+        );
+        let stopped = &store.snapshot().unwrap().torrents[0];
+        assert!(!stopped.desired_running && stopped.seed_limit_stopped);
+        drop(store);
+
+        let mut store = SessionStore::open(&root, "default", std::slice::from_ref(&configured))
+            .expect("reopen");
+        assert!(store.snapshot().unwrap().torrents[0].seed_limit_stopped);
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "keep-seeding".to_owned(),
+                expected_revision: None,
+                command: Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            })
+            .expect("keep seeding");
+        let kept = &store.snapshot().unwrap().torrents[0];
+        assert!(kept.desired_running && !kept.seed_limit_stopped);
+        assert_eq!(
+            kept.seed_stop_limits,
+            crate::TorrentSeedStopLimits {
+                ratio_percent: crate::TorrentSeedStopLimit::Off,
+                time_seconds: crate::TorrentSeedStopLimit::Off,
+            }
+        );
+
+        // A user pause is never marked as a limit stop, and its resume keeps
+        // the torrent's own limits.
+        for (request_id, command) in [
+            (
+                "own-limits-again",
+                Command::UpdateTorrentSettings {
+                    torrent_id: torrent_id.clone(),
+                    patch: crate::TorrentSettingsPatch {
+                        seed_stop_ratio_percent: Some(own.ratio_percent),
+                        ..Default::default()
+                    },
+                },
+            ),
+            (
+                "user-pause",
+                Command::Pause {
+                    torrent_id: torrent_id.clone(),
+                },
+            ),
+            (
+                "user-resume",
+                Command::Resume {
+                    torrent_id: torrent_id.clone(),
+                },
+            ),
+        ] {
+            store
+                .handle_durable(&RequestEnvelope {
+                    version: CONTROL_VERSION,
+                    request_id: request_id.to_owned(),
+                    expected_revision: None,
+                    command,
+                })
+                .expect(request_id);
+        }
+        let resumed = &store.snapshot().unwrap().torrents[0];
+        assert!(resumed.desired_running && !resumed.seed_limit_stopped);
+        assert_eq!(
+            resumed.seed_stop_limits.ratio_percent,
+            crate::TorrentSeedStopLimit::Limited { value: 150 }
+        );
+
+        // The catalog refuses a limit stop on a running torrent.
+        assert!(
+            store
+                .connection
+                .execute("UPDATE torrents SET seed_limit_stopped = 1", [])
+                .is_err()
+        );
+        drop(store);
+        fs::remove_dir_all(root).expect("remove test profile");
+    }
+
+    #[test]
     fn current_schema_enforces_owner_and_full_alias_authority() {
         let mut store = SessionStore::open_ephemeral(
             "identity-schema",
@@ -11204,6 +11433,8 @@ mod tests {
             share_ratio_limit_percent: 101,
             finished_download_ratio_limit_percent: 102,
             finished_time_limit_seconds: 103,
+            seed_stop_ratio_percent: crate::SeedStopLimit::Off,
+            seed_stop_time_seconds: crate::SeedStopLimit::Off,
             upload_rate_limit: TransferRateLimit::Limited {
                 bytes_per_second: 4_096,
             },
@@ -11445,6 +11676,7 @@ mod tests {
                         bytes_per_second: 24 * 1_024,
                     }),
                     download_rate_limit: None,
+                    ..Default::default()
                 },
             },
         };
@@ -11518,6 +11750,7 @@ mod tests {
                         download_rate_limit: Some(TransferRateLimit::Limited {
                             bytes_per_second: 1_023,
                         }),
+                        ..Default::default()
                     },
                 },
             ),

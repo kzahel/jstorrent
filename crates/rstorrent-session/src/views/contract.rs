@@ -15,7 +15,10 @@ use crate::control::{RemovalState, StorageState, TorrentProtocolIdentities, Torr
 use crate::diagnostics::{DiagnosticEvent, DiagnosticFilter, DiagnosticRetention};
 use crate::file_views::{FileCatalogState, FileView};
 use crate::media_catalog_views::{MediaCatalogState, MediaItemView};
-use crate::settings::{ClientSettingsRuntimeView, StorageSettingsSnapshot, TorrentTransferLimits};
+use crate::settings::{
+    ClientSettingsRuntimeView, StorageSettingsSnapshot, TorrentSeedStopLimits,
+    TorrentTransferLimits,
+};
 use crate::speed::{
     SessionCurrentRatesView, SpeedHistoryAppend, SpeedHistoryView, SpeedMetric, SpeedRange,
 };
@@ -982,6 +985,16 @@ impl Default for TorrentLifetimeView {
     }
 }
 
+/// A torrent's own seeding stop limits and whether a reached limit stopped
+/// it. Clients resolve `UseGlobal` against the session settings.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(deny_unknown_fields)]
+pub struct SeedStopView {
+    pub limits: TorrentSeedStopLimits,
+    pub stopped: bool,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(deny_unknown_fields)]
@@ -989,6 +1002,9 @@ pub struct TorrentSeedingView {
     pub admission: SeedAdmissionView,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub goal: Option<SeedGoalView>,
+    /// Absent while the torrent uses the session limits and is not stopped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop: Option<SeedStopView>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]

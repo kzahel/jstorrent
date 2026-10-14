@@ -1,8 +1,8 @@
 # Tactical 344: Seeding Stop Limits
 
-Status: Draft, 2026-10-14. Maintainer-requested; reference survey complete.
-Implementation is not yet authorized; the decisions under **Maintainer
-Decisions** are open.
+Status: In progress, 2026-10-14. Maintainer-authorized end to end with commits;
+the decisions below were accepted as recommended. Engine, catalog and contract
+landed first; React and Compose presentation follow.
 Topics: `incoming-reachability-and-seeding`, `client-persistence`,
 `application-control`, `web-ui-design`, `android-jstorrent-replacement`,
 `capability-readiness`.
@@ -139,27 +139,16 @@ matches the share ratio RSTorrent already displays.
 
 ## Maintainer Decisions
 
-These change accepted contracts or product policy and need explicit answers
-before implementation. Recommendations are marked.
+Accepted 2026-10-14, all as recommended:
 
-1. **First in-place schema migration.** Stop limits need durable columns.
-   Every earlier schema change used the disposable profile reset, but
-   JSTorrent production users now run schema 26, and a reset would discard
-   their torrent lists. *Recommended:* an additive, transactional 26 → 27
-   migration that preserves every existing row, with reset still applying to
-   recognized pre-26 incubation catalogs. This is the first migration reader
-   and should be recorded in `client-persistence` and the release baseline.
-2. **Resume semantics.** *Recommended:* resuming a limit-stopped torrent sets
-   both of its limits to No limit, and the action reads **Keep seeding**. Bulk
-   Resume applies the same rule to each selected limit-stopped torrent.
-   Alternative: clear only the met limit, so the other can still stop it.
-3. **Android presentation.** Engine semantics and generated bindings land
-   here regardless. *Recommended:* Compose gets the global limits, the
-   Seeding-limit-reached state and Keep seeding; the per-torrent override
-   joins the existing Compose torrent settings sheet beside rate limits.
-4. **Queued seeds.** *Recommended:* evaluate every desired-running complete
-   torrent, including queued ones, so lowering a limit drains the queue
-   instead of leaving over-limit torrents to win slots later.
+1. **Additive in-place migration.** Schema 27 is the first step through
+   Tactical [345](345-supported-catalog-migrations.md)'s runner; schema-26
+   profiles keep every row.
+2. **Resume means keep seeding.** Resuming a limit-stopped torrent sets both of
+   its own limits to No limit; bulk Resume applies the same rule per torrent.
+3. **Android parity.** Compose gets the global limits, the limit-stopped state,
+   Keep seeding and the per-torrent override beside rate limits.
+4. **Queued seeds are evaluated,** so lowering a limit drains the queue.
 
 ## Scope
 
@@ -170,29 +159,40 @@ before implementation. Recommendations are marked.
   max(total_downloaded, total_size) * ratio_percent` and `finished_seconds >=
   time_limit_seconds`, and report which limit was reached. No runtime,
   clock or storage dependency.
-- The application evaluates eligible torrents at each accounting checkpoint
-  and immediately at the downloaded-completion transition, using the current
-  in-memory accounting rather than only the last flushed values.
-- Reaching a limit commits `desired_state = 'paused'`, `pause_reason =
-  'seed_limit'` and the accounting snapshot in one transaction, then follows
-  the ordinary pause path. Completion notification and milestone still fire
-  for a torrent that stops at completion.
-- User Pause records `pause_reason = 'user'`. Any Resume clears the reason;
-  resuming a `seed_limit` pause also commits the per-torrent No-limit
-  override in the same transaction.
-- Session settings: `seed_stop_ratio_limit_percent` and
-  `seed_stop_time_limit_seconds`, each `Off` or a bounded value, default
-  `Off`. Torrent settings extend `TorrentSettingsPatch` with
-  `UseGlobal | Off | Value` per limit, following per-torrent rate limits.
-- Views: the operational state stays `Paused`, plus a typed pause reason;
-  `TorrentView` carries effective limits and progress toward each so the UI
-  can show "1.42 / 2.00" and "18 h / 1 day".
+- The application evaluates eligible torrents at the start of every admission
+  pass (each auto-manage interval, every admission wake, and the pass that
+  follows completion), using the current in-memory accounting rather than only
+  the last flushed values. Eligible means complete, not on the download queue,
+  desired running, not archived, not being removed and not awaiting a file
+  selection; queued seeds are included.
+- Reaching a limit commits `desired_state = 'paused'` and
+  `seed_limit_stopped = 1` in one transaction, records a
+  `torrent_seed_limit_reached` diagnostic naming the limit, and then follows
+  the ordinary pause path. Accounting keeps its own checkpoint; a crash before
+  the next flush can leave the stored counters a few seconds behind the stop,
+  which is cosmetic.
+- A user Pause never sets the flag, and pausing a limit-stopped torrent keeps
+  it. Every statement that sets running intent clears it; Resume of a
+  limit-stopped torrent also sets both of its own limits to No limit in the
+  same statement. A catalog `CHECK` rejects the flag on running intent.
+- Session settings: `seed_stop_ratio_percent` and `seed_stop_time_seconds`,
+  each `SeedStopLimit::{Off, Limited { value }}`, default `Off`. Torrent
+  settings extend `TorrentSettingsPatch` with
+  `TorrentSeedStopLimit::{UseGlobal, Off, Limited { value }}` per limit,
+  following per-torrent rate limits; `TorrentSnapshot` carries
+  `seed_stop_limits` and `seed_limit_stopped`.
+- Views: the operational state stays `Paused`. `TorrentSeedingView.stop` is
+  present only when the torrent has its own limits or was stopped by one, so
+  ordinary rows do not grow; clients resolve `UseGlobal` against the session
+  settings and show progress from the existing lifetime ratio and finished
+  time.
 
 ### Persistence
 
-- Schema 27 per decision 1: `client_settings` gains the two global limits;
-  `torrents` gains `pause_reason` and the two override modes and values.
-  Every pre-existing paused torrent migrates as `user`.
+- Schema 27 per decision 1: `client_settings` gains the two global limits
+  (NULL for off); `torrents` gains the two overrides (NULL for the session
+  limit, -1 for no limit) and `seed_limit_stopped` (default 0). Existing rows
+  keep their values and get no limits.
 - Exact-version validation remains; the migration is the only accepted path
   from 26.
 
@@ -234,7 +234,7 @@ before implementation. Recommendations are marked.
   `max(downloaded, size)` base and start from their stored finished time.
 - A limit stop is idempotent across crash and restart: a stop not yet
   committed is re-evaluated after reopen from durable accounting; a committed
-  one is not reapplied.
+  one is not reapplied, because the torrent is no longer running.
 - A limit stop never rewrites a user pause, archive, removal or quarantine,
   and an archived or removing torrent is never eligible.
 - Recheck that finds a limit-stopped torrent incomplete keeps it paused;
@@ -244,6 +244,8 @@ before implementation. Recommendations are marked.
   (u128 arithmetic as in `assess_seed_goals`).
 - Commands from several connected clients keep application revision
   semantics; Keep seeding on an already running torrent is a no-op.
+- A share-ratio base of zero (no size and nothing downloaded) counts as
+  reached, as the seed-goal predicate does.
 
 ## Ownership, Cancellation And Bounds
 

@@ -150,6 +150,8 @@ describe("client settings validation", () => {
         share_ratio_limit_percent: 200,
         finished_download_ratio_limit_percent: 700,
         finished_time_limit_seconds: 86_400,
+        seed_stop_ratio_percent: { type: "off" },
+        seed_stop_time_seconds: { type: "off" },
         upload_rate_limit: { type: "unlimited" },
         download_rate_limit: { type: "unlimited" },
         encryption: "allow",

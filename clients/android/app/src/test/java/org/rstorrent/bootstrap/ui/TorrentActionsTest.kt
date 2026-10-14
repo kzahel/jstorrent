@@ -148,7 +148,7 @@ class TorrentActionsTest {
             etaPayloadDownloadRateBytes = "0",
             eta = TorrentEtaView.Unavailable,
             lifetime = TorrentLifetimeView("0", "0", "0", "0", "0", "0"),
-            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null),
+            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null, null),
             progress =
                 ProgressAssessment(
                     ProgressDisposition.ACTIVE,

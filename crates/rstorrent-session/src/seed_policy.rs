@@ -87,6 +87,42 @@ pub(crate) fn assess_seed_goals(
     })
 }
 
+/// Effective seeding stop limits for one torrent; `None` means no limit.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct SeedStopLimits {
+    pub(crate) share_ratio_percent: Option<u32>,
+    pub(crate) seeding_seconds: Option<u32>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum SeedStopReason {
+    ShareRatio,
+    SeedingTime,
+}
+
+/// Whichever stop limit a finished torrent has reached, ratio first. Unlike
+/// seed goals, which only rank the queue, a reached limit stops the torrent.
+/// The share ratio uses the seed-goal base, `max(downloaded, size)`, so a
+/// torrent added already complete must upload its size times the ratio.
+/// Seeding time is finished time, which accrues only while admitted.
+pub(crate) fn seed_stop_reached(
+    input: SeedGoalInput,
+    limits: SeedStopLimits,
+) -> Option<SeedStopReason> {
+    if let Some(percent) = limits.share_ratio_percent {
+        let base = input.total_downloaded.max(input.total_size);
+        if u128::from(input.total_uploaded) * 100 >= u128::from(base) * u128::from(percent) {
+            return Some(SeedStopReason::ShareRatio);
+        }
+    }
+    if let Some(seconds) = limits.seeding_seconds
+        && input.finished_seconds >= u64::from(seconds)
+    {
+        return Some(SeedStopReason::SeedingTime);
+    }
+    None
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct SeedRankInput {
     pub(crate) selected_finished: bool,
@@ -237,6 +273,100 @@ impl fmt::Display for SeedPolicyError {
 }
 
 impl Error for SeedPolicyError {}
+
+#[cfg(test)]
+mod seed_stop_tests {
+    use super::{SeedGoalInput, SeedStopLimits, SeedStopReason, seed_stop_reached};
+
+    fn input(uploaded: u64, downloaded: u64, size: u64, finished: u64) -> SeedGoalInput {
+        SeedGoalInput {
+            total_uploaded: uploaded,
+            total_downloaded: downloaded,
+            total_size: size,
+            active_seconds: finished,
+            finished_seconds: finished,
+        }
+    }
+
+    fn limits(ratio: Option<u32>, seconds: Option<u32>) -> SeedStopLimits {
+        SeedStopLimits {
+            share_ratio_percent: ratio,
+            seeding_seconds: seconds,
+        }
+    }
+
+    #[test]
+    fn no_limits_never_stop() {
+        assert_eq!(
+            seed_stop_reached(input(u64::MAX, 1, 1, u64::MAX), limits(None, None)),
+            None
+        );
+    }
+
+    #[test]
+    fn ratio_stops_exactly_at_the_limit() {
+        let ratio = limits(Some(200), None);
+        assert_eq!(
+            seed_stop_reached(input(1_999, 1_000, 1_000, 0), ratio),
+            None
+        );
+        assert_eq!(
+            seed_stop_reached(input(2_000, 1_000, 1_000, 0), ratio),
+            Some(SeedStopReason::ShareRatio)
+        );
+    }
+
+    #[test]
+    fn ratio_base_is_the_larger_of_downloaded_and_size() {
+        let ratio = limits(Some(100), None);
+        // Added complete: nothing downloaded, so the size is the base.
+        assert_eq!(seed_stop_reached(input(999, 0, 1_000, 0), ratio), None);
+        assert_eq!(
+            seed_stop_reached(input(1_000, 0, 1_000, 0), ratio),
+            Some(SeedStopReason::ShareRatio)
+        );
+        // Redownloaded bytes raise the base above the size.
+        assert_eq!(
+            seed_stop_reached(input(1_500, 2_000, 1_000, 0), ratio),
+            None
+        );
+    }
+
+    #[test]
+    fn seeding_time_stops_exactly_at_the_limit() {
+        let time = limits(None, Some(3_600));
+        assert_eq!(seed_stop_reached(input(0, 1, 1, 3_599), time), None);
+        assert_eq!(
+            seed_stop_reached(input(0, 1, 1, 3_600), time),
+            Some(SeedStopReason::SeedingTime)
+        );
+    }
+
+    #[test]
+    fn zero_limits_stop_at_completion_and_ratio_is_reported_first() {
+        assert_eq!(
+            seed_stop_reached(input(0, 1, 1, 0), limits(Some(0), Some(0))),
+            Some(SeedStopReason::ShareRatio)
+        );
+        assert_eq!(
+            seed_stop_reached(input(0, 1, 1, 0), limits(None, Some(0))),
+            Some(SeedStopReason::SeedingTime)
+        );
+    }
+
+    #[test]
+    fn maximum_values_do_not_overflow() {
+        let ratio = limits(Some(i32::MAX as u32), Some(i32::MAX as u32));
+        assert_eq!(
+            seed_stop_reached(input(u64::MAX, u64::MAX, u64::MAX, 0), ratio),
+            None
+        );
+        assert_eq!(
+            seed_stop_reached(input(0, 0, 0, 0), limits(Some(1), None)),
+            Some(SeedStopReason::ShareRatio)
+        );
+    }
+}
 
 #[cfg(test)]
 mod tests {

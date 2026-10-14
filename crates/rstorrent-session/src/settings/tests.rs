@@ -447,6 +447,7 @@ fn typed_persistence_round_trips_one_atomic_group() {
     let mut connection = Connection::open_in_memory().unwrap();
     let transaction = connection.transaction().unwrap();
     create_client_settings(&transaction, &ClientSettings::default()).unwrap();
+    crate::store_migration::upgrade_client_settings_for_test(&transaction);
     assert_eq!(
         read_client_settings(&transaction).unwrap(),
         ClientSettings::default()
@@ -462,6 +463,8 @@ fn typed_persistence_round_trips_one_atomic_group() {
         share_ratio_limit_percent: 0,
         finished_download_ratio_limit_percent: i32::MAX as u32,
         finished_time_limit_seconds: 123,
+        seed_stop_ratio_percent: crate::SeedStopLimit::Limited { value: 150 },
+        seed_stop_time_seconds: crate::SeedStopLimit::Limited { value: 3_600 },
         upload_rate_limit: TransferRateLimit::Limited {
             bytes_per_second: 32 * 1_024,
         },
@@ -485,6 +488,7 @@ fn sqlite_constraints_and_decoder_reject_invalid_durable_shapes() {
     let mut connection = Connection::open_in_memory().unwrap();
     let transaction = connection.transaction().unwrap();
     create_client_settings(&transaction, &ClientSettings::default()).unwrap();
+    crate::store_migration::upgrade_client_settings_for_test(&transaction);
     transaction.commit().unwrap();
 
     assert!(

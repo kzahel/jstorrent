@@ -371,6 +371,7 @@ impl SessionStore {
                 && !(plan.report.settings_need_attention && !existing);
             transaction.execute(
                 "UPDATE torrents SET desired_state = ?2, awaiting_file_selection = ?3,
+                 seed_limit_stopped = CASE WHEN ?2 = 'running' THEN 0 ELSE seed_limit_stopped END,
                  verification_requested = CASE WHEN raw_info IS NULL THEN 0 ELSE 1 END,
                  product_completion_eligible = 0 WHERE torrent_id = ?1",
                 params![

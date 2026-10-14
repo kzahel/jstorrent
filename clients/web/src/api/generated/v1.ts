@@ -5,11 +5,25 @@ export type TransferRateLimit = { "type": "unlimited" } | { "type": "limited", b
 
 export type TorrentTransferLimits = { upload: TransferRateLimit, download: TransferRateLimit, };
 
-export type TorrentSettingsPatch = { upload_rate_limit?: TransferRateLimit, download_rate_limit?: TransferRateLimit, };
+export type SeedStopLimit = { "type": "off" } | { "type": "limited", value: number, };
+
+export type TorrentSeedStopLimit = { "type": "use_global" } | { "type": "off" } | { "type": "limited", value: number, };
+
+export type TorrentSeedStopLimits = {
+/**
+ * Share ratio in percent.
+ */
+ratio_percent: TorrentSeedStopLimit,
+/**
+ * Seeding time in seconds.
+ */
+time_seconds: TorrentSeedStopLimit, };
+
+export type TorrentSettingsPatch = { upload_rate_limit?: TransferRateLimit, download_rate_limit?: TransferRateLimit, seed_stop_ratio_percent?: TorrentSeedStopLimit, seed_stop_time_seconds?: TorrentSeedStopLimit, };
 
 export type ActiveSeedLimit = { "type": "unlimited" } | { "type": "limited", torrents: number, };
 
-export type ClientSettingsPatch = { listener?: ListenerPolicy, preferred_listen_port?: number, port_mapping?: PortMappingPolicy, peer_connection_limit?: number, upload_slots?: number, active_downloads?: number, active_seeds?: ActiveSeedLimit, share_ratio_limit_percent?: number, finished_download_ratio_limit_percent?: number, finished_time_limit_seconds?: number, upload_rate_limit?: TransferRateLimit, download_rate_limit?: TransferRateLimit, encryption?: EncryptionPolicy, ipv6_enabled?: boolean, dht_enabled?: boolean, peer_exchange_enabled?: boolean, tracker_https_server_authentication?: HttpsServerAuthenticationPolicy, };
+export type ClientSettingsPatch = { listener?: ListenerPolicy, preferred_listen_port?: number, port_mapping?: PortMappingPolicy, peer_connection_limit?: number, upload_slots?: number, active_downloads?: number, active_seeds?: ActiveSeedLimit, share_ratio_limit_percent?: number, finished_download_ratio_limit_percent?: number, finished_time_limit_seconds?: number, seed_stop_ratio_percent?: SeedStopLimit, seed_stop_time_seconds?: SeedStopLimit, upload_rate_limit?: TransferRateLimit, download_rate_limit?: TransferRateLimit, encryption?: EncryptionPolicy, ipv6_enabled?: boolean, dht_enabled?: boolean, peer_exchange_enabled?: boolean, tracker_https_server_authentication?: HttpsServerAuthenticationPolicy, };
 
 export type PendingFileSelectionBase = "current" | "all" | "none";
 
@@ -25,7 +39,15 @@ export type EncryptionPolicy = "disabled" | "allow" | "prefer" | "required";
 
 export type HttpsServerAuthenticationPolicy = "system_trust" | "disabled";
 
-export type ClientSettings = { listener: ListenerPolicy, preferred_listen_port: number, port_mapping: PortMappingPolicy, peer_connection_limit: number, upload_slots: number, active_downloads: number, active_seeds: ActiveSeedLimit, share_ratio_limit_percent: number, finished_download_ratio_limit_percent: number, finished_time_limit_seconds: number, upload_rate_limit: TransferRateLimit, download_rate_limit: TransferRateLimit, encryption: EncryptionPolicy, ipv6_enabled: boolean, dht_enabled: boolean, peer_exchange_enabled: boolean, tracker_https_server_authentication: HttpsServerAuthenticationPolicy, };
+export type ClientSettings = { listener: ListenerPolicy, preferred_listen_port: number, port_mapping: PortMappingPolicy, peer_connection_limit: number, upload_slots: number, active_downloads: number, active_seeds: ActiveSeedLimit, share_ratio_limit_percent: number, finished_download_ratio_limit_percent: number, finished_time_limit_seconds: number,
+/**
+ * Stop a finished torrent once its share ratio reaches this percent.
+ */
+seed_stop_ratio_percent: SeedStopLimit,
+/**
+ * Stop a finished torrent once it has seeded this many seconds.
+ */
+seed_stop_time_seconds: SeedStopLimit, upload_rate_limit: TransferRateLimit, download_rate_limit: TransferRateLimit, encryption: EncryptionPolicy, ipv6_enabled: boolean, dht_enabled: boolean, peer_exchange_enabled: boolean, tracker_https_server_authentication: HttpsServerAuthenticationPolicy, };
 
 export type EffectiveListenerSettings = { listener: ListenerPolicy, preferred_listen_port: number, };
 
@@ -73,9 +95,9 @@ export type ApplicationNetworkRuntimeView = { requested_generation: string, requ
 
 export type ClientSettingsRuntimeView = { configured: ClientSettings, application_network: ApplicationNetworkRuntimeView, effective_listener?: EffectiveListenerSettings | null, effective_port_mapping: PortMappingPolicy, effective_peer_connection_limit: number, effective_upload_slots: number, effective_active_downloads: number, effective_active_seeds: ActiveSeedLimit, effective_upload_rate_limit: TransferRateLimit, effective_download_rate_limit: TransferRateLimit, active_downloads_clamp_reason?: ActiveDownloadsClampReason | null, active_download_count: number, checking_count: number, active_seed_count: number, inactive_seed_count: number, effective_encryption: EncryptionPolicy, effective_ipv6_enabled: boolean, effective_dht_enabled: boolean, effective_peer_exchange_enabled: boolean, effective_tracker_https_server_authentication?: HttpsServerAuthenticationPolicy | null, transport_application: ClientSettingsApplicationState, port_mapping_application: ClientSettingsApplicationState, peer_connections_application: ClientSettingsApplicationState, upload_slots_application: ClientSettingsApplicationState, bandwidth_application: ClientSettingsApplicationState, bandwidth: BandwidthRuntimeView, encryption_application: ClientSettingsApplicationState, ipv6_application: ClientSettingsApplicationState, dht_application: ClientSettingsApplicationState, peer_exchange_application: ClientSettingsApplicationState, tracker_https_authentication_application: ClientSettingsApplicationState, listener_status: ListenerStatus, session_udp_status: SessionUdpStatus, port_mapping_status: PortMappingStatus, udp_port_mapping_status: PortMappingStatus, ipv6_pinhole_status: Ipv6PinholeStatus, advertised_peer_endpoint: AdvertisedPeerEndpointStatus, transport_families: Array<TransportFamilyRuntimeView>, };
 
-export const DEFAULT_CLIENT_SETTINGS: ClientSettings = {"listener":{"type":"automatic_local_network"},"preferred_listen_port":6881,"port_mapping":"upnp","peer_connection_limit":200,"upload_slots":8,"active_downloads":3,"active_seeds":{"type":"limited","torrents":5},"share_ratio_limit_percent":200,"finished_download_ratio_limit_percent":700,"finished_time_limit_seconds":86400,"upload_rate_limit":{"type":"unlimited"},"download_rate_limit":{"type":"unlimited"},"encryption":"allow","ipv6_enabled":true,"dht_enabled":true,"peer_exchange_enabled":true,"tracker_https_server_authentication":"system_trust"};
+export const DEFAULT_CLIENT_SETTINGS: ClientSettings = {"listener":{"type":"automatic_local_network"},"preferred_listen_port":6881,"port_mapping":"upnp","peer_connection_limit":200,"upload_slots":8,"active_downloads":3,"active_seeds":{"type":"limited","torrents":5},"share_ratio_limit_percent":200,"finished_download_ratio_limit_percent":700,"finished_time_limit_seconds":86400,"seed_stop_ratio_percent":{"type":"off"},"seed_stop_time_seconds":{"type":"off"},"upload_rate_limit":{"type":"unlimited"},"download_rate_limit":{"type":"unlimited"},"encryption":"allow","ipv6_enabled":true,"dht_enabled":true,"peer_exchange_enabled":true,"tracker_https_server_authentication":"system_trust"};
 
-export const DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW: ClientSettingsRuntimeView = {"configured":{"listener":{"type":"automatic_local_network"},"preferred_listen_port":6881,"port_mapping":"upnp","peer_connection_limit":200,"upload_slots":8,"active_downloads":3,"active_seeds":{"type":"limited","torrents":5},"share_ratio_limit_percent":200,"finished_download_ratio_limit_percent":700,"finished_time_limit_seconds":86400,"upload_rate_limit":{"type":"unlimited"},"download_rate_limit":{"type":"unlimited"},"encryption":"allow","ipv6_enabled":true,"dht_enabled":true,"peer_exchange_enabled":true,"tracker_https_server_authentication":"system_trust"},"application_network":{"requested_generation":"1","requested_prerequisite":"allowed","effective_generation":"1","effective_prerequisite":"allowed","state":"allowed"},"effective_listener":{"listener":{"type":"disabled"},"preferred_listen_port":6881},"effective_port_mapping":"disabled","effective_peer_connection_limit":200,"effective_upload_slots":8,"effective_active_downloads":3,"effective_active_seeds":{"type":"limited","torrents":5},"effective_upload_rate_limit":{"type":"unlimited"},"effective_download_rate_limit":{"type":"unlimited"},"active_download_count":0,"checking_count":0,"active_seed_count":0,"inactive_seed_count":0,"effective_encryption":"allow","effective_ipv6_enabled":false,"effective_dht_enabled":true,"effective_peer_exchange_enabled":true,"effective_tracker_https_server_authentication":"system_trust","transport_application":{"type":"applying"},"port_mapping_application":{"type":"applying"},"peer_connections_application":{"type":"applied"},"upload_slots_application":{"type":"applied"},"bandwidth_application":{"type":"applied"},"bandwidth":{"upload":{"registered_torrents":0,"active_waiters":0,"queued_requested_bytes":"0","granted_bytes":"0","returned_bytes":"0","cancelled_requests":"0","throttle_wait_micros":"0","throttle_wait_high_water_micros":"0","current_burst_credit_bytes":"0"},"download":{"registered_torrents":0,"active_waiters":0,"queued_requested_bytes":"0","granted_bytes":"0","returned_bytes":"0","cancelled_requests":"0","throttle_wait_micros":"0","throttle_wait_high_water_micros":"0","current_burst_credit_bytes":"0"}},"encryption_application":{"type":"applied"},"ipv6_application":{"type":"applying"},"dht_application":{"type":"applied"},"peer_exchange_application":{"type":"applied"},"tracker_https_authentication_application":{"type":"applied"},"listener_status":{"type":"disabled"},"session_udp_status":{"type":"unavailable"},"port_mapping_status":{"type":"disabled"},"udp_port_mapping_status":{"type":"disabled"},"ipv6_pinhole_status":{"type":"disabled"},"advertised_peer_endpoint":{"type":"unavailable"},"transport_families":[]};
+export const DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW: ClientSettingsRuntimeView = {"configured":{"listener":{"type":"automatic_local_network"},"preferred_listen_port":6881,"port_mapping":"upnp","peer_connection_limit":200,"upload_slots":8,"active_downloads":3,"active_seeds":{"type":"limited","torrents":5},"share_ratio_limit_percent":200,"finished_download_ratio_limit_percent":700,"finished_time_limit_seconds":86400,"seed_stop_ratio_percent":{"type":"off"},"seed_stop_time_seconds":{"type":"off"},"upload_rate_limit":{"type":"unlimited"},"download_rate_limit":{"type":"unlimited"},"encryption":"allow","ipv6_enabled":true,"dht_enabled":true,"peer_exchange_enabled":true,"tracker_https_server_authentication":"system_trust"},"application_network":{"requested_generation":"1","requested_prerequisite":"allowed","effective_generation":"1","effective_prerequisite":"allowed","state":"allowed"},"effective_listener":{"listener":{"type":"disabled"},"preferred_listen_port":6881},"effective_port_mapping":"disabled","effective_peer_connection_limit":200,"effective_upload_slots":8,"effective_active_downloads":3,"effective_active_seeds":{"type":"limited","torrents":5},"effective_upload_rate_limit":{"type":"unlimited"},"effective_download_rate_limit":{"type":"unlimited"},"active_download_count":0,"checking_count":0,"active_seed_count":0,"inactive_seed_count":0,"effective_encryption":"allow","effective_ipv6_enabled":false,"effective_dht_enabled":true,"effective_peer_exchange_enabled":true,"effective_tracker_https_server_authentication":"system_trust","transport_application":{"type":"applying"},"port_mapping_application":{"type":"applying"},"peer_connections_application":{"type":"applied"},"upload_slots_application":{"type":"applied"},"bandwidth_application":{"type":"applied"},"bandwidth":{"upload":{"registered_torrents":0,"active_waiters":0,"queued_requested_bytes":"0","granted_bytes":"0","returned_bytes":"0","cancelled_requests":"0","throttle_wait_micros":"0","throttle_wait_high_water_micros":"0","current_burst_credit_bytes":"0"},"download":{"registered_torrents":0,"active_waiters":0,"queued_requested_bytes":"0","granted_bytes":"0","returned_bytes":"0","cancelled_requests":"0","throttle_wait_micros":"0","throttle_wait_high_water_micros":"0","current_burst_credit_bytes":"0"}},"encryption_application":{"type":"applied"},"ipv6_application":{"type":"applying"},"dht_application":{"type":"applied"},"peer_exchange_application":{"type":"applied"},"tracker_https_authentication_application":{"type":"applied"},"listener_status":{"type":"disabled"},"session_udp_status":{"type":"unavailable"},"port_mapping_status":{"type":"disabled"},"udp_port_mapping_status":{"type":"disabled"},"ipv6_pinhole_status":{"type":"disabled"},"advertised_peer_endpoint":{"type":"unavailable"},"transport_families":[]};
 
 export type FilePriority = "normal" | "high" | "skip";
 
@@ -115,7 +137,11 @@ export type StorageState = "available" | "unavailable" | "needs_repair";
 
 export type TorrentProtocolIdentities = { v1?: string | null, v2?: string | null, };
 
-export type TorrentSnapshot = { torrent_id: string, protocol_identities: TorrentProtocolIdentities, storage_root: string, state: TorrentState, storage_state: StorageState, metadata_available: boolean, awaiting_file_selection: boolean, pending_file_selection_position?: number | null, file_catalog_id?: string | null, selectable_file_count: number, selected_file_count: number, selectable_file_bytes: string, selected_file_bytes: string, piece_count: number, verified_piece_count: number, desired_running: boolean, download_queue_position?: number | null, transfer_limits: TorrentTransferLimits, skip_files: Array<number>, high_priority_files: Array<number>, selection_default: FilePriority, selection_exceptions: Array<number>, archived: boolean, removal_state?: RemovalState | null, delete_data_supported: boolean, force_recheck_available: boolean, error?: string | null, };
+export type TorrentSnapshot = { torrent_id: string, protocol_identities: TorrentProtocolIdentities, storage_root: string, state: TorrentState, storage_state: StorageState, metadata_available: boolean, awaiting_file_selection: boolean, pending_file_selection_position?: number | null, file_catalog_id?: string | null, selectable_file_count: number, selected_file_count: number, selectable_file_bytes: string, selected_file_bytes: string, piece_count: number, verified_piece_count: number, desired_running: boolean, download_queue_position?: number | null, transfer_limits: TorrentTransferLimits, seed_stop_limits: TorrentSeedStopLimits,
+/**
+ * Paused because a seeding stop limit was reached, not by the user.
+ */
+seed_limit_stopped: boolean, skip_files: Array<number>, high_priority_files: Array<number>, selection_default: FilePriority, selection_exceptions: Array<number>, archived: boolean, removal_state?: RemovalState | null, delete_data_supported: boolean, force_recheck_available: boolean, error?: string | null, };
 
 export type StorageRootAvailability = "available" | "unavailable";
 
@@ -243,9 +269,15 @@ export type SeedGoalStatusView = "unmet" | "met";
 
 export type SeedGoalView = { status: SeedGoalStatusView, share_ratio_met: boolean, finished_download_ratio_met: boolean, finished_time_met: boolean, };
 
+export type SeedStopView = { limits: TorrentSeedStopLimits, stopped: boolean, };
+
 export type TorrentLifetimeView = { uploaded_payload_bytes: string, downloaded_payload_bytes: string, active_seconds: string, finished_seconds: string, seeding_seconds: string, share_ratio_hundredths: string | null, };
 
-export type TorrentSeedingView = { admission: SeedAdmissionView, goal?: SeedGoalView | null, };
+export type TorrentSeedingView = { admission: SeedAdmissionView, goal?: SeedGoalView | null,
+/**
+ * Absent while the torrent uses the session limits and is not stopped.
+ */
+stop?: SeedStopView | null, };
 
 export type TorrentView = { torrent_id: string, protocol_identities: TorrentProtocolIdentities, display_name?: string | null, source_display_name?: string | null, state: TorrentState, operational_state: TorrentOperationalState, download_queue_position?: number | null, transfer_limits: TorrentTransferLimits, storage_state: StorageState, storage_root: string, metadata_available: boolean, awaiting_file_selection: boolean, pending_file_selection_position?: number | null, file_catalog_id?: string | null, selectable_file_count: number, selected_file_count: number, selectable_file_bytes: string, selected_file_bytes: string, piece_count: number, total_size_bytes: string | null, verified_piece_count: number, requested_bytes: string, received_bytes: string, stored_bytes: string, active_peer_connections: number, configured_tracker_count?: number | null, payload_download_rate_bytes: string, required_payload_bytes: string | null, remaining_payload_bytes: string | null, eta_payload_download_rate_bytes: string, eta: TorrentEtaView, lifetime: TorrentLifetimeView, seeding: TorrentSeedingView, progress: ProgressAssessment, checking?: CheckingProgressView | null, archived: boolean, removal_state?: RemovalState | null, delete_data_supported: boolean, force_recheck_available: boolean, error?: string | null, };
 

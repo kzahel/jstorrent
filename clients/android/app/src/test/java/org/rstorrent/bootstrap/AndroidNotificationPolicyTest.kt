@@ -319,7 +319,7 @@ class AndroidNotificationPolicyTest {
             etaPayloadDownloadRateBytes = "1",
             eta = TorrentEtaView.Unavailable,
             lifetime = TorrentLifetimeView("0", received.toString(), "0", "0", "0", "0"),
-            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null),
+            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null, null),
             progress =
                 ProgressAssessment(
                     ProgressDisposition.ACTIVE,

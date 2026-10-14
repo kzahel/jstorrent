@@ -22,12 +22,54 @@ pub(crate) type MigrationStep = fn(&Transaction<'_>) -> Result<(), StoreError>;
 
 /// `MIGRATION_STEPS[i]` migrates `BASELINE_SCHEMA_VERSION + i` to the next
 /// version. Append only; a step that has shipped is never edited.
-const MIGRATION_STEPS: &[MigrationStep] = &[];
+const MIGRATION_STEPS: &[MigrationStep] = &[migrate_26_to_27];
 
 const _: () = assert!(
     BASELINE_SCHEMA_VERSION + MIGRATION_STEPS.len() as i64 == SCHEMA_VERSION,
     "SCHEMA_VERSION must equal the baseline plus one migration step per version"
 );
+
+/// Schema 27 (Tactical 344): seeding stop limits. Session limits are NULL
+/// for off; torrent overrides are NULL for the session limit and -1 for no
+/// limit. `seed_limit_stopped` marks a pause made by a reached limit.
+fn migrate_26_to_27(transaction: &Transaction<'_>) -> Result<(), StoreError> {
+    transaction.execute_batch(SEED_STOP_SETTINGS_COLUMNS_27)?;
+    transaction.execute_batch(
+        "ALTER TABLE torrents ADD COLUMN seed_stop_ratio_percent INTEGER CHECK (
+            seed_stop_ratio_percent IS NULL OR
+            seed_stop_ratio_percent BETWEEN -1 AND 2147483647
+         );
+         ALTER TABLE torrents ADD COLUMN seed_stop_time_seconds INTEGER CHECK (
+            seed_stop_time_seconds IS NULL OR
+            seed_stop_time_seconds BETWEEN -1 AND 2147483647
+         );
+         ALTER TABLE torrents ADD COLUMN seed_limit_stopped INTEGER NOT NULL DEFAULT 0
+            CHECK (
+                seed_limit_stopped IN (0, 1) AND
+                (seed_limit_stopped = 0 OR desired_state = 'paused')
+            );",
+    )?;
+    Ok(())
+}
+
+const SEED_STOP_SETTINGS_COLUMNS_27: &str =
+    "ALTER TABLE client_settings ADD COLUMN seed_stop_ratio_percent INTEGER CHECK (
+        seed_stop_ratio_percent IS NULL OR
+        seed_stop_ratio_percent BETWEEN 0 AND 2147483647
+     );
+     ALTER TABLE client_settings ADD COLUMN seed_stop_time_seconds INTEGER CHECK (
+        seed_stop_time_seconds IS NULL OR
+        seed_stop_time_seconds BETWEEN 0 AND 2147483647
+     );";
+
+/// Brings a standalone baseline `client_settings` table, as settings tests
+/// create it, to the current columns.
+#[cfg(test)]
+pub(crate) fn upgrade_client_settings_for_test(transaction: &Transaction<'_>) {
+    transaction
+        .execute_batch(SEED_STOP_SETTINGS_COLUMNS_27)
+        .expect("current client settings columns");
+}
 
 /// Brings a freshly created baseline catalog to the current version within
 /// the creating transaction.
@@ -109,8 +151,25 @@ mod tests {
         fs::write(root.join(DATABASE_FILENAME), bytes).expect("install fixture");
     }
 
+    fn table_columns(connection: &Connection, table: &str) -> Vec<String> {
+        let mut statement = connection
+            .prepare(&format!(
+                "SELECT name FROM pragma_table_info('{table}') ORDER BY cid"
+            ))
+            .expect("table columns");
+        statement
+            .query_map([], |row| row.get(0))
+            .expect("query columns")
+            .collect::<Result<_, _>>()
+            .expect("column names")
+    }
+
     /// Every row of every table, rendered so equal data compares equal.
-    fn table_rows(connection: &Connection) -> BTreeMap<String, Vec<String>> {
+    /// With `columns`, only those columns of each table are rendered.
+    fn table_rows_with(
+        connection: &Connection,
+        columns: Option<&BTreeMap<String, Vec<String>>>,
+    ) -> BTreeMap<String, Vec<String>> {
         let mut statement = connection
             .prepare(
                 "SELECT name FROM sqlite_master
@@ -125,8 +184,18 @@ mod tests {
         tables
             .into_iter()
             .map(|table| {
+                let selected = columns
+                    .and_then(|columns| columns.get(&table))
+                    .map(|columns| {
+                        columns
+                            .iter()
+                            .map(|column| format!("\"{column}\""))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    })
+                    .unwrap_or_else(|| "*".to_owned());
                 let mut statement = connection
-                    .prepare(&format!("SELECT * FROM \"{table}\""))
+                    .prepare(&format!("SELECT {selected} FROM \"{table}\""))
                     .expect("select rows");
                 let columns = statement.column_count();
                 let mut rows: Vec<String> = statement
@@ -146,6 +215,10 @@ mod tests {
                 (table, rows)
             })
             .collect()
+    }
+
+    fn table_rows(connection: &Connection) -> BTreeMap<String, Vec<String>> {
+        table_rows_with(connection, None)
     }
 
     fn schema(connection: &Connection) -> Vec<(String, String, Option<String>)> {
@@ -181,6 +254,10 @@ mod tests {
             let original = Connection::open(root.path().join(DATABASE_FILENAME)).expect("raw");
             assert_eq!(user_version(&original), *version);
             let original_rows = table_rows(&original);
+            let original_columns: BTreeMap<String, Vec<String>> = original_rows
+                .keys()
+                .map(|table| (table.clone(), table_columns(&original, table)))
+                .collect();
             assert!(
                 original_rows["torrents"].len() >= 7,
                 "fixture {version} must hold populated torrents"
@@ -195,7 +272,8 @@ mod tests {
                 fresh_schema,
                 "catalog {version} must migrate to exactly the fresh schema"
             );
-            let migrated_rows = table_rows(store.connection());
+            // Steps may add columns; every original column keeps its value.
+            let migrated_rows = table_rows_with(store.connection(), Some(&original_columns));
             for (table, rows) in &original_rows {
                 assert_eq!(
                     migrated_rows.get(table),
@@ -213,6 +291,27 @@ mod tests {
                 *version != SCHEMA_VERSION,
                 "a pre-migration copy exists exactly when catalog {version} migrated"
             );
+        }
+    }
+
+    #[test]
+    fn migrated_v26_catalog_starts_without_stop_limits() {
+        let root = tempfile::tempdir().expect("profile");
+        install_fixture(root.path(), RELEASED_CATALOGS[0].1);
+        let store = SessionStore::open(root.path(), "default", &[]).expect("migrate v26");
+        let settings = store.client_settings().expect("settings");
+        assert_eq!(settings.seed_stop_ratio_percent, crate::SeedStopLimit::Off);
+        assert_eq!(settings.seed_stop_time_seconds, crate::SeedStopLimit::Off);
+        let snapshot = store.snapshot().expect("snapshot");
+        assert!(
+            snapshot
+                .torrents
+                .iter()
+                .any(|torrent| !torrent.desired_running)
+        );
+        for torrent in snapshot.torrents {
+            assert_eq!(torrent.seed_stop_limits, Default::default());
+            assert!(!torrent.seed_limit_stopped);
         }
     }
 

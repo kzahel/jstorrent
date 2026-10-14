@@ -135,9 +135,16 @@ export function ConnectionSeedingSettingsSection({
         draft.dhtEnabled,
         draft.peerExchangeEnabled,
         configured.tracker_https_server_authentication,
+        configured.seed_stop_ratio_percent,
+        configured.seed_stop_time_seconds,
       );
     },
-    [configured.tracker_https_server_authentication, draft],
+    [
+      configured.tracker_https_server_authentication,
+      configured.seed_stop_ratio_percent,
+      configured.seed_stop_time_seconds,
+      draft,
+    ],
   );
   const dirtyFields = settingsDraftFields(draftState);
   const patch = clientSettingsPatch(dirtyFields, validation.settings);
@@ -1184,6 +1191,8 @@ function validateDraft(
   dhtEnabled: boolean,
   peerExchangeEnabled: boolean,
   trackerHttpsServerAuthentication: ClientSettings["tracker_https_server_authentication"],
+  seedStopRatioPercent: ClientSettings["seed_stop_ratio_percent"],
+  seedStopTimeSeconds: ClientSettings["seed_stop_time_seconds"],
 ): DraftValidation {
   const preferred = parseBoundedInteger(
     preferredPort,
@@ -1322,6 +1331,8 @@ function validateDraft(
       dht_enabled: dhtEnabled,
       peer_exchange_enabled: peerExchangeEnabled,
       tracker_https_server_authentication: trackerHttpsServerAuthentication,
+      seed_stop_ratio_percent: seedStopRatioPercent,
+      seed_stop_time_seconds: seedStopTimeSeconds,
     },
     preferredPortError: null,
     fixedPortError: null,

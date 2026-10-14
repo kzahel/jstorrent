@@ -1357,7 +1357,7 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
             projection: ViewProjection::Summary,
             delivery: DeliveryPolicy {
                 min_interval_millis: 0,
-                max_queue_bytes: 4096,
+                max_queue_bytes: 8192,
             },
             diagnostics: None,
             catalog_page: None,
@@ -1371,7 +1371,7 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
             projection: ViewProjection::Summary,
             delivery: DeliveryPolicy {
                 min_interval_millis: 0,
-                max_queue_bytes: 4096,
+                max_queue_bytes: 8192,
             },
             diagnostics: None,
             catalog_page: None,

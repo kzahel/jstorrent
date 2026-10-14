@@ -57,6 +57,8 @@ pub(super) fn snapshot(revision: u64, piece_count: u32) -> ServiceSnapshot {
             desired_running: true,
             download_queue_position: None,
             transfer_limits: Default::default(),
+            seed_stop_limits: Default::default(),
+            seed_limit_stopped: false,
             skip_files: Vec::new(),
             high_priority_files: Vec::new(),
             selection_default: Default::default(),

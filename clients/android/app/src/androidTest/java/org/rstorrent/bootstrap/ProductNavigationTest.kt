@@ -1698,7 +1698,7 @@ class ProductNavigationTest {
             etaPayloadDownloadRateBytes = "4096",
             eta = TorrentEtaView.Estimate("12"),
             lifetime = TorrentLifetimeView("0", "8192", "0", "0", "0", "0"),
-            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null),
+            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null, null),
             progress =
                 ProgressAssessment(
                     ProgressDisposition.ACTIVE,
@@ -1777,6 +1777,8 @@ class ProductNavigationTest {
                 shareRatioLimitPercent = 200U,
                 finishedDownloadRatioLimitPercent = 700U,
                 finishedTimeLimitSeconds = 86_400U,
+                seedStopRatioPercent = org.rstorrent.session.uniffi.SeedStopLimit.Off,
+                seedStopTimeSeconds = org.rstorrent.session.uniffi.SeedStopLimit.Off,
                 uploadRateLimit = TransferRateLimit.Limited(128U * 1_024U),
                 downloadRateLimit = TransferRateLimit.Limited(256U * 1_024U),
                 encryption = EncryptionPolicy.ALLOW,

@@ -381,7 +381,7 @@ class AndroidNotificationInstrumentationTest {
             etaPayloadDownloadRateBytes = "0",
             eta = TorrentEtaView.Unavailable,
             lifetime = TorrentLifetimeView("0", received.toString(), "0", "0", "0", "0"),
-            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null),
+            seeding = TorrentSeedingView(SeedAdmissionView.INELIGIBLE, null, null),
             progress =
                 ProgressAssessment(
                     ProgressDisposition.ACTIVE,
@@ -415,6 +415,8 @@ class AndroidNotificationInstrumentationTest {
                 shareRatioLimitPercent = 200U,
                 finishedDownloadRatioLimitPercent = 700U,
                 finishedTimeLimitSeconds = 86_400U,
+                seedStopRatioPercent = org.rstorrent.session.uniffi.SeedStopLimit.Off,
+                seedStopTimeSeconds = org.rstorrent.session.uniffi.SeedStopLimit.Off,
                 uploadRateLimit = TransferRateLimit.Unlimited,
                 downloadRateLimit = TransferRateLimit.Unlimited,
                 encryption = EncryptionPolicy.ALLOW,

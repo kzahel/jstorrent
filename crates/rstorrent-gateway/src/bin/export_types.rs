@@ -36,13 +36,14 @@ use rstorrent_session::{
     PortMappingMechanism, PortMappingPolicy, PortMappingStatus, ProgressAction, ProgressAssessment,
     ProgressDisposition, ProgressPhase, ProgressReason, RemovalDataPolicy, RemovalState,
     RequestEnvelope, ResetReason, ResponseEnvelope, ResponseOutcome, SeedAdmissionView,
-    SeedGoalStatusView, SeedGoalView, ServiceSnapshot, SessionCurrentRatesView, SessionUdpStatus,
-    SpeedCurrentRate, SpeedHistoryAppend, SpeedHistoryView, SpeedMetric, SpeedMetricAvailability,
-    SpeedPersistenceState, SpeedRange, SpeedSeriesAppend, SpeedSeriesView, StorageRootAvailability,
-    StorageRootSnapshot, StorageSettingsSnapshot, StorageState, SubscriptionSpec,
-    SwarmCatalogState, SwarmCountsView, SwarmPeerState, SwarmPeerView, TorrentEtaView,
-    TorrentFieldUpdate, TorrentLifetimeView, TorrentOperationalState, TorrentPreparationView,
-    TorrentProtocolIdentities, TorrentRowUpdate, TorrentSeedingView, TorrentSettingsPatch,
+    SeedGoalStatusView, SeedGoalView, SeedStopLimit, SeedStopView, ServiceSnapshot,
+    SessionCurrentRatesView, SessionUdpStatus, SpeedCurrentRate, SpeedHistoryAppend,
+    SpeedHistoryView, SpeedMetric, SpeedMetricAvailability, SpeedPersistenceState, SpeedRange,
+    SpeedSeriesAppend, SpeedSeriesView, StorageRootAvailability, StorageRootSnapshot,
+    StorageSettingsSnapshot, StorageState, SubscriptionSpec, SwarmCatalogState, SwarmCountsView,
+    SwarmPeerState, SwarmPeerView, TorrentEtaView, TorrentFieldUpdate, TorrentLifetimeView,
+    TorrentOperationalState, TorrentPreparationView, TorrentProtocolIdentities, TorrentRowUpdate,
+    TorrentSeedStopLimit, TorrentSeedStopLimits, TorrentSeedingView, TorrentSettingsPatch,
     TorrentSnapshot, TorrentState, TorrentTransferLimits, TorrentView, TorrentViewChange,
     TrackerAnnounceEventView, TrackerCatalogState, TrackerConnectionFamilyView,
     TrackerNextActionView, TrackerSecurityView, TrackerSourceView, TrackerStatusView,
@@ -90,6 +91,9 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     );
     append::<TransferRateLimit>(&mut declarations)?;
     append::<TorrentTransferLimits>(&mut declarations)?;
+    append::<SeedStopLimit>(&mut declarations)?;
+    append::<TorrentSeedStopLimit>(&mut declarations)?;
+    append::<TorrentSeedStopLimits>(&mut declarations)?;
     append::<TorrentSettingsPatch>(&mut declarations)?;
     append::<ActiveSeedLimit>(&mut declarations)?;
     append::<ClientSettingsPatch>(&mut declarations)?;
@@ -219,6 +223,7 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<SeedAdmissionView>(&mut declarations)?;
     append::<SeedGoalStatusView>(&mut declarations)?;
     append::<SeedGoalView>(&mut declarations)?;
+    append::<SeedStopView>(&mut declarations)?;
     append::<TorrentLifetimeView>(&mut declarations)?;
     append::<TorrentSeedingView>(&mut declarations)?;
     append::<TorrentView>(&mut declarations)?;
@@ -607,6 +612,7 @@ fn fixture_torrent(torrent_id: &str, verified: u32) -> TorrentView {
                     finished_download_ratio_met: false,
                     finished_time_met: false,
                 }),
+                stop: None,
             }
         } else {
             rstorrent_session::TorrentSeedingView::default()

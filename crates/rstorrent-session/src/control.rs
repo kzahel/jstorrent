@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::settings::{
-    ClientSettings, ClientSettingsPatch, StorageSettingsSnapshot, TorrentSettingsPatch,
-    TorrentTransferLimits,
+    ClientSettings, ClientSettingsPatch, StorageSettingsSnapshot, TorrentSeedStopLimits,
+    TorrentSettingsPatch, TorrentTransferLimits,
 };
 
 pub const CONTROL_VERSION: u16 = 1;
@@ -492,6 +492,11 @@ pub struct TorrentSnapshot {
     pub download_queue_position: Option<u32>,
     #[serde(default)]
     pub transfer_limits: TorrentTransferLimits,
+    #[serde(default)]
+    pub seed_stop_limits: TorrentSeedStopLimits,
+    /// Paused because a seeding stop limit was reached, not by the user.
+    #[serde(default)]
+    pub seed_limit_stopped: bool,
     pub skip_files: Vec<u32>,
     #[serde(default)]
     pub high_priority_files: Vec<u32>,
