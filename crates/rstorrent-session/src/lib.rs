@@ -32,6 +32,8 @@ mod speed;
 mod store;
 mod store_migration;
 mod store_schema;
+mod torrent_list;
+pub use torrent_list::MAX_BUNDLE_BYTES as MAX_TORRENT_LIST_BUNDLE_BYTES;
 mod torrent_runtime;
 mod tracker_views;
 mod views;
@@ -50,8 +52,9 @@ pub use control::{
     CommandResult, ErrorCode, ErrorResponse, FileIndexRange, FilePriority, FileSelectionIntent,
     FileSelectionOverride, MAX_ROOT_ID_LENGTH, MAX_ROOT_LABEL_LENGTH, MagnetExportResult,
     MagnetExportSource, PendingFileSelectionBase, RemovalDataPolicy, RemovalState, RequestEnvelope,
-    ResponseEnvelope, ResponseOutcome, ServiceSnapshot, StorageState, TorrentProtocolIdentities,
-    TorrentSnapshot, TorrentState, validate_add_torrent_bytes_request,
+    ResponseEnvelope, ResponseOutcome, ServiceSnapshot, StorageState, TorrentListImportFailure,
+    TorrentListImportReport, TorrentListImportTarget, TorrentProtocolIdentities, TorrentSnapshot,
+    TorrentState, validate_add_torrent_bytes_request,
 };
 pub use diagnostics::{
     DiagnosticCategory, DiagnosticEvent, DiagnosticField, DiagnosticFilter, DiagnosticProfile,

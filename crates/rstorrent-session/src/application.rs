@@ -7624,6 +7624,8 @@ pub fn application_error_response(
     ResponseEnvelope::error(request_id, revision, code, error.to_string())
 }
 
+mod torrent_list;
+
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeMap, BTreeSet};
@@ -10041,6 +10043,215 @@ mod tests {
             .expect("shutdown time-limit service");
         drop(service);
         fs::remove_dir_all(root).expect("remove time-limit root");
+    }
+
+    #[tokio::test]
+    async fn torrent_list_round_trips_into_a_fresh_profile_and_reimport_adds_nothing() {
+        let source_root = test_root("torrent-list-source");
+        let mut source = ApplicationService::open(config(&source_root))
+            .await
+            .expect("open source profile");
+        let payload = (0..32_768)
+            .map(|offset| ((offset * 31 + offset / 13) & 0xff) as u8)
+            .collect::<Vec<_>>();
+        let metainfo = |info: &[u8]| {
+            let mut bytes = b"d4:info".to_vec();
+            bytes.extend_from_slice(info);
+            bytes.push(b'e');
+            bytes
+        };
+        let add = |request_id: &str, bytes: &[u8], start: bool| AddTorrentBytesRequest {
+            version: CONTROL_VERSION,
+            request_id: request_id.to_owned(),
+            expected_revision: None,
+            storage_root: "downloads".to_owned(),
+            start_content: start,
+            await_file_selection: false,
+            selection: crate::FileSelectionIntent::All,
+            source_length: bytes.len() as u32,
+        };
+        let added_id = |response: crate::ResponseEnvelope| match response.result {
+            Some(CommandResult::AddTorrent { result }) => result.torrent_id,
+            _ => panic!("add did not report a torrent: {response:?}"),
+        };
+        let existing = metainfo(&single_file_info("existing.bin", &payload, 16_384));
+        let existing_id = added_id(
+            source
+                .add_torrent_bytes(add("add-existing", &existing, true), existing.clone())
+                .await
+                .expect("add existing"),
+        );
+        let multi = metainfo(&multi_file_info());
+        let multi_id = added_id(
+            source
+                .add_torrent_bytes(add("add-multi", &multi, false), multi.clone())
+                .await
+                .expect("add multi"),
+        );
+        let archived = metainfo(&single_file_info("archived.bin", b"archived", 8));
+        let archived_id = added_id(
+            source
+                .add_torrent_bytes(add("add-archived", &archived, false), archived.clone())
+                .await
+                .expect("add archived"),
+        );
+        let magnet_id = added_id(
+            source
+                .dispatch(add_request("add-magnet", &"ab".repeat(20)))
+                .await
+                .expect("add magnet"),
+        );
+        let own_limits = crate::TorrentSettingsPatch {
+            upload_rate_limit: Some(crate::TransferRateLimit::Limited {
+                bytes_per_second: 64 * 1_024,
+            }),
+            seed_stop_ratio_percent: Some(crate::TorrentSeedStopLimit::Limited { value: 150 }),
+            ..Default::default()
+        };
+        for (request_id, command) in [
+            (
+                "skip-b",
+                Command::SetFilePriority {
+                    torrent_id: multi_id.clone(),
+                    file_indices: vec![1],
+                    priority: FilePriority::Skip,
+                },
+            ),
+            (
+                "high-a",
+                Command::SetFilePriority {
+                    torrent_id: multi_id.clone(),
+                    file_indices: vec![0],
+                    priority: FilePriority::High,
+                },
+            ),
+            (
+                "multi-limits",
+                Command::UpdateTorrentSettings {
+                    torrent_id: multi_id.clone(),
+                    patch: own_limits,
+                },
+            ),
+            (
+                "archive",
+                Command::Archive {
+                    torrent_id: archived_id.clone(),
+                },
+            ),
+        ] {
+            let response = source
+                .dispatch(RequestEnvelope {
+                    version: CONTROL_VERSION,
+                    request_id: request_id.to_owned(),
+                    expected_revision: None,
+                    command,
+                })
+                .await
+                .expect(request_id);
+            assert!(
+                matches!(response.outcome, ResponseOutcome::Success { .. }),
+                "{request_id}: {response:?}"
+            );
+        }
+        let bundle = source.export_torrent_list().await.expect("export");
+        let expected = source.store_mut().unwrap().snapshot().unwrap().torrents;
+        source.shutdown().await.expect("shutdown source");
+        drop(source);
+
+        let target_root = test_root("torrent-list-target");
+        let target_configuration = config(&target_root);
+        let existing_output = target_root.join("payload/existing.bin");
+        fs::create_dir_all(existing_output.parent().unwrap()).expect("target payload root");
+        fs::write(&existing_output, &payload).expect("existing payload on disk");
+        let mut target = ApplicationService::open(target_configuration)
+            .await
+            .expect("open target profile");
+        let destination = crate::TorrentListImportTarget {
+            storage_root: "downloads".to_owned(),
+            keep_matching_locations: true,
+        };
+        let report = target
+            .import_torrent_bundle(bundle.clone(), destination.clone())
+            .await
+            .expect("import bundle");
+        assert_eq!(
+            report,
+            crate::TorrentListImportReport {
+                added: 4,
+                already_present: 0,
+                failed: Vec::new(),
+            }
+        );
+        let imported = target.store_mut().unwrap().snapshot().unwrap().torrents;
+        let by_identity = |torrents: &[crate::TorrentSnapshot]| {
+            torrents
+                .iter()
+                .map(|torrent| (torrent.protocol_identities.clone().v1, torrent.clone()))
+                .collect::<BTreeMap<_, _>>()
+        };
+        let expected = by_identity(&expected);
+        let imported = by_identity(&imported);
+        assert_eq!(
+            expected.keys().collect::<Vec<_>>(),
+            imported.keys().collect::<Vec<_>>()
+        );
+        for (identity, original) in &expected {
+            let copy = &imported[identity];
+            assert_eq!(
+                copy.desired_running, original.desired_running,
+                "{identity:?}"
+            );
+            assert_eq!(copy.archived, original.archived, "{identity:?}");
+            assert_eq!(copy.selection_default, original.selection_default);
+            assert_eq!(copy.selection_exceptions, original.selection_exceptions);
+            assert_eq!(copy.high_priority_files, original.high_priority_files);
+            assert_eq!(copy.transfer_limits, original.transfer_limits);
+            assert_eq!(copy.seed_stop_limits, original.seed_stop_limits);
+            assert_eq!(copy.metadata_available, original.metadata_available);
+        }
+        let ids = [&existing_id, &multi_id, &archived_id, &magnet_id];
+        assert_eq!(ids.len(), 4);
+        let existing_copy = imported
+            .values()
+            .find(|torrent| torrent.desired_running && torrent.metadata_available)
+            .expect("imported running torrent")
+            .torrent_id
+            .clone();
+        wait_for_torrent_state(
+            &mut target,
+            &existing_copy,
+            TorrentState::Complete,
+            "imported-existing-payload",
+        )
+        .await;
+        assert_eq!(fs::read(&existing_output).expect("payload kept"), payload);
+
+        let again = target
+            .import_torrent_bundle(bundle, destination)
+            .await
+            .expect("import again");
+        assert_eq!(
+            again,
+            crate::TorrentListImportReport {
+                added: 0,
+                already_present: 4,
+                failed: Vec::new(),
+            }
+        );
+        let unknown_root = target
+            .import_torrent_bundle(
+                Vec::new(),
+                crate::TorrentListImportTarget {
+                    storage_root: "downloads".to_owned(),
+                    keep_matching_locations: false,
+                },
+            )
+            .await;
+        assert!(unknown_root.is_err(), "an unreadable bundle adds nothing");
+        target.shutdown().await.expect("shutdown target");
+        drop(target);
+        fs::remove_dir_all(source_root).expect("remove source root");
+        fs::remove_dir_all(target_root).expect("remove target root");
     }
 
     async fn serve_single_piece_peer(

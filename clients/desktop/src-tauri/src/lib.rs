@@ -947,6 +947,116 @@ async fn choose_download_root(
     register_download_root_selection(&mut service, repair_root.as_deref(), selected)
 }
 
+/// Tactical 348: saves the torrent list bundle where the user chooses.
+/// Returns false when the user cancels the save dialog.
+#[tauri::command]
+async fn desktop_export_torrent_list(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<bool, String> {
+    let _permit = state
+        .download_picker
+        .acquire()
+        .map_err(|error| error.to_string())?;
+    let bundle = state
+        .service
+        .lock()
+        .await
+        .export_torrent_list()
+        .await
+        .map_err(|error| error.to_string())?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    window
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .set_title(desktop_localization::text(
+            "dialog.torrent-list-export.title",
+        ))
+        .set_file_name("jstorrent-torrents.zip")
+        .add_filter(
+            desktop_localization::text("dialog.torrent-list.filter"),
+            &["zip"],
+        )
+        .save_file(move |selection| {
+            let _ = sender.send(selection);
+        });
+    let selection = tokio::select! {
+        biased;
+        () = state.download_picker.cancelled() => return Err("desktop is shutting down".into()),
+        selection = receiver => selection.map_err(|_| "save dialog closed without a result".to_owned())?,
+    };
+    let Some(selection) = selection else {
+        return Ok(false);
+    };
+    let path = selection
+        .into_path()
+        .map_err(|error| format!("resolve export location: {error}"))?;
+    tauri::async_runtime::spawn_blocking(move || std::fs::write(&path, bundle))
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| format!("save torrent list: {error}"))?;
+    Ok(true)
+}
+
+/// Tactical 348: imports a bundle the user picks. Returns `None` when the
+/// user cancels the open dialog.
+#[tauri::command]
+async fn desktop_import_torrent_bundle(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    target: rstorrent_session::TorrentListImportTarget,
+) -> Result<Option<rstorrent_session::TorrentListImportReport>, String> {
+    let _permit = state
+        .download_picker
+        .acquire()
+        .map_err(|error| error.to_string())?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    window
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .set_title(desktop_localization::text(
+            "dialog.torrent-list-import.title",
+        ))
+        .add_filter(
+            desktop_localization::text("dialog.torrent-list.filter"),
+            &["zip"],
+        )
+        .pick_file(move |selection| {
+            let _ = sender.send(selection);
+        });
+    let selection = tokio::select! {
+        biased;
+        () = state.download_picker.cancelled() => return Err("desktop is shutting down".into()),
+        selection = receiver => selection.map_err(|_| "open dialog closed without a result".to_owned())?,
+    };
+    let Some(selection) = selection else {
+        return Ok(None);
+    };
+    let path = selection
+        .into_path()
+        .map_err(|error| format!("resolve torrent list: {error}"))?;
+    let bundle = tauri::async_runtime::spawn_blocking(move || {
+        let length = std::fs::metadata(&path)?.len();
+        if length > rstorrent_session::MAX_TORRENT_LIST_BUNDLE_BYTES as u64 {
+            return Err(std::io::Error::other("torrent list bundle is too large"));
+        }
+        std::fs::read(&path)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| format!("read torrent list: {error}"))?;
+    state
+        .service
+        .lock()
+        .await
+        .import_torrent_bundle(bundle, target)
+        .await
+        .map(Some)
+        .map_err(|error| error.to_string())
+}
+
 async fn pick_download_directory(
     window: &WebviewWindow,
     starting_directory: &Path,
@@ -2381,6 +2491,8 @@ pub fn run() {
             desktop_set_power_settings,
             desktop_reset_shell_settings,
             choose_download_root,
+            desktop_export_torrent_list,
+            desktop_import_torrent_bundle,
             application_view_hello,
             application_view_open,
             application_view_update,

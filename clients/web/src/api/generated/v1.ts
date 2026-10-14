@@ -21,6 +21,12 @@ time_seconds: TorrentSeedStopLimit, };
 
 export type TorrentSettingsPatch = { upload_rate_limit?: TransferRateLimit, download_rate_limit?: TransferRateLimit, seed_stop_ratio_percent?: TorrentSeedStopLimit, seed_stop_time_seconds?: TorrentSeedStopLimit, };
 
+export type TorrentListImportTarget = { storage_root: string, keep_matching_locations: boolean, };
+
+export type TorrentListImportFailure = { name: string, reason: string, };
+
+export type TorrentListImportReport = { added: number, already_present: number, failed: Array<TorrentListImportFailure>, };
+
 export type ActiveSeedLimit = { "type": "unlimited" } | { "type": "limited", torrents: number, };
 
 export type ClientSettingsPatch = { listener?: ListenerPolicy, preferred_listen_port?: number, port_mapping?: PortMappingPolicy, peer_connection_limit?: number, upload_slots?: number, active_downloads?: number, active_seeds?: ActiveSeedLimit, share_ratio_limit_percent?: number, finished_download_ratio_limit_percent?: number, finished_time_limit_seconds?: number, seed_stop_ratio_percent?: SeedStopLimit, seed_stop_time_seconds?: SeedStopLimit, upload_rate_limit?: TransferRateLimit, download_rate_limit?: TransferRateLimit, encryption?: EncryptionPolicy, ipv6_enabled?: boolean, dht_enabled?: boolean, peer_exchange_enabled?: boolean, tracker_https_server_authentication?: HttpsServerAuthenticationPolicy, };

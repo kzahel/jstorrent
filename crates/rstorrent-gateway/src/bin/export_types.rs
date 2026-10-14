@@ -42,6 +42,7 @@ use rstorrent_session::{
     SpeedSeriesAppend, SpeedSeriesView, StorageRootAvailability, StorageRootSnapshot,
     StorageSettingsSnapshot, StorageState, SubscriptionSpec, SwarmCatalogState, SwarmCountsView,
     SwarmPeerState, SwarmPeerView, TorrentEtaView, TorrentFieldUpdate, TorrentLifetimeView,
+    TorrentListImportFailure, TorrentListImportReport, TorrentListImportTarget,
     TorrentOperationalState, TorrentPreparationView, TorrentProtocolIdentities, TorrentRowUpdate,
     TorrentSeedStopLimit, TorrentSeedStopLimits, TorrentSeedingView, TorrentSettingsPatch,
     TorrentSnapshot, TorrentState, TorrentTransferLimits, TorrentView, TorrentViewChange,
@@ -95,6 +96,9 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
     append::<TorrentSeedStopLimit>(&mut declarations)?;
     append::<TorrentSeedStopLimits>(&mut declarations)?;
     append::<TorrentSettingsPatch>(&mut declarations)?;
+    append::<TorrentListImportTarget>(&mut declarations)?;
+    append::<TorrentListImportFailure>(&mut declarations)?;
+    append::<TorrentListImportReport>(&mut declarations)?;
     append::<ActiveSeedLimit>(&mut declarations)?;
     append::<ClientSettingsPatch>(&mut declarations)?;
     append::<PendingFileSelectionBase>(&mut declarations)?;

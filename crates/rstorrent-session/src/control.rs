@@ -314,6 +314,35 @@ impl RemovalState {
     }
 }
 
+/// Where imported torrents are saved (Tactical 348). With
+/// `keep_matching_locations`, a bundle torrent whose storage root label
+/// matches an existing root is saved there instead.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(deny_unknown_fields)]
+pub struct TorrentListImportTarget {
+    pub storage_root: String,
+    #[serde(default)]
+    pub keep_matching_locations: bool,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(deny_unknown_fields)]
+pub struct TorrentListImportReport {
+    pub added: u32,
+    pub already_present: u32,
+    pub failed: Vec<TorrentListImportFailure>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(deny_unknown_fields)]
+pub struct TorrentListImportFailure {
+    pub name: String,
+    pub reason: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, JsonSchema, TS)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct ResponseEnvelope {

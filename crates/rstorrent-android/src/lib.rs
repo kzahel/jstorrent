@@ -534,6 +534,37 @@ impl AndroidApplicationClient {
             .map_err(|error| AndroidClientError::message(error.to_string()))
     }
 
+    /// Tactical 348: the torrent list as a bundle for a SAF document.
+    pub async fn export_torrent_list(&self) -> Result<Vec<u8>, AndroidClientError> {
+        self.ensure_running()?;
+        self.service
+            .lock()
+            .await
+            .export_torrent_list()
+            .await
+            .map_err(|error| AndroidClientError::message(error.to_string()))
+    }
+
+    /// Tactical 348: imports a bundle read from a SAF document.
+    pub async fn import_torrent_bundle(
+        &self,
+        bundle: Vec<u8>,
+        target: rstorrent_session::TorrentListImportTarget,
+    ) -> Result<rstorrent_session::TorrentListImportReport, AndroidClientError> {
+        self.ensure_running()?;
+        if bundle.len() > rstorrent_session::MAX_TORRENT_LIST_BUNDLE_BYTES {
+            return Err(AndroidClientError::message(
+                "torrent list bundle is too large".to_owned(),
+            ));
+        }
+        self.service
+            .lock()
+            .await
+            .import_torrent_bundle(bundle, target)
+            .await
+            .map_err(|error| AndroidClientError::message(error.to_string()))
+    }
+
     pub async fn subscribe(
         &self,
         spec: SubscriptionSpec,

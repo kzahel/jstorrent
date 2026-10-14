@@ -966,7 +966,17 @@ impl GatewayServer {
                 self.state.clone(),
                 admit_torrent_upload,
             ));
+        let torrent_list_import = post(api_torrent_list_import)
+            .layer(axum::extract::DefaultBodyLimit::max(
+                rstorrent_session::MAX_TORRENT_LIST_BUNDLE_BYTES,
+            ))
+            .layer(middleware::from_fn_with_state(
+                self.state.clone(),
+                admit_torrent_list_import,
+            ));
         let mut router = Router::new()
+            .route("/api/v1/torrent-list/export", get(api_torrent_list_export))
+            .route("/api/v1/torrent-list/import", torrent_list_import)
             .route(
                 "/api/v1/connect",
                 get(application_websocket::upgrade_application_connection),
@@ -1584,6 +1594,100 @@ async fn api_torrent_upload(
         }
     };
     json_response(StatusCode::OK, &response)
+}
+
+/// Tactical 348: the whole torrent list as a portable bundle.
+async fn api_torrent_list_export(
+    State(state): State<GatewayState>,
+    headers: HeaderMap,
+) -> Response {
+    if let Err(error) = authenticate_http(&state, &headers) {
+        return error.into_response();
+    }
+    let mut service = state.service.lock().await;
+    match service.export_torrent_list().await {
+        Ok(bundle) => (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "application/zip"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"jstorrent-torrents.zip\"",
+                ),
+            ],
+            bundle,
+        )
+            .into_response(),
+        Err(error) => api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            ApiErrorCode::Internal,
+            &error.to_string(),
+        ),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TorrentListImportQuery {
+    storage_root: String,
+    #[serde(default)]
+    keep_matching_locations: bool,
+}
+
+async fn admit_torrent_list_import(
+    State(state): State<GatewayState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if let Err(error) = authenticate_http(&state, request.headers()) {
+        return error.into_response();
+    }
+    if request
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        != Some("application/zip")
+    {
+        return invalid_request("torrent list import content type must be application/zip");
+    }
+    let Ok(permit) = state.torrent_uploads.clone().try_acquire_owned() else {
+        return api_error(
+            StatusCode::TOO_MANY_REQUESTS,
+            ApiErrorCode::ResourceLimit,
+            "another torrent upload is already in progress",
+        );
+    };
+    let response = next.run(request).await;
+    drop(permit);
+    response
+}
+
+async fn api_torrent_list_import(
+    State(state): State<GatewayState>,
+    headers: HeaderMap,
+    query: Result<Query<TorrentListImportQuery>, QueryRejection>,
+    body: Result<Bytes, axum::extract::rejection::BytesRejection>,
+) -> Response {
+    if let Err(error) = authenticate_http(&state, &headers) {
+        return error.into_response();
+    }
+    let Query(query) = match query {
+        Ok(query) => query,
+        Err(error) => return invalid_request(error.body_text()),
+    };
+    let body = match body {
+        Ok(body) => body,
+        Err(error) => return invalid_request(error.body_text()),
+    };
+    let target = rstorrent_session::TorrentListImportTarget {
+        storage_root: query.storage_root,
+        keep_matching_locations: query.keep_matching_locations,
+    };
+    let mut service = state.service.lock().await;
+    match service.import_torrent_bundle(body.into(), target).await {
+        Ok(report) => json_response(StatusCode::OK, &report),
+        Err(error) => invalid_request(error.to_string()),
+    }
 }
 
 fn parse_upload_selection(
@@ -2866,6 +2970,112 @@ mod tests {
             .expect("storage snapshot");
         assert_eq!(snapshot.roots.len(), 1);
         assert_eq!(service.lock().await.revision().expect("revision"), 1);
+
+        shutdown.cancel();
+        task.await
+            .expect("server join")
+            .expect("server termination");
+        service.lock().await.shutdown().await.expect("shutdown");
+        drop(service);
+        std::fs::remove_dir_all(root).expect("remove root");
+    }
+
+    #[tokio::test]
+    async fn torrent_list_exports_and_imports_over_http() {
+        let root = test_root("http-torrent-list");
+        let service = test_service(&root).await;
+        let origin = "http://127.0.0.1:5173";
+        let server = bind(
+            GatewayConfig {
+                bind: "127.0.0.1:0".parse().expect("address"),
+                authentication: GatewayAuthentication::Bearer {
+                    token: "correct-token".to_owned(),
+                },
+                allowed_origin: origin.to_owned(),
+                max_connections: 2,
+            },
+            service.clone(),
+        )
+        .await
+        .expect("bind");
+        let address = server.local_addr();
+        let shutdown = CancellationToken::new();
+        let task = tokio::spawn(server.serve(shutdown.clone()));
+        let (status, _) = raw_torrent_request(
+            address,
+            "/api/v1/torrents?request_id=list-source&storage_root=downloads&start_content=false",
+            "correct-token",
+            origin,
+            "application/x-bittorrent",
+            torrent_source(1),
+        )
+        .await;
+        assert_eq!(status, 200);
+
+        let bundle = tokio::task::spawn_blocking(move || {
+            let mut stream = TcpStream::connect(address).expect("connect export route");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("timeout");
+            stream
+                .write_all(
+                    format!(
+                        "GET /api/v1/torrent-list/export HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\nAuthorization: Bearer correct-token\r\nOrigin: {origin}\r\nX-RSTorrent-Owner: 00000000000000000000000000000001\r\n\r\n"
+                    )
+                    .as_bytes(),
+                )
+                .expect("write export request");
+            let mut response = Vec::new();
+            stream.read_to_end(&mut response).expect("read export");
+            let split = response
+                .windows(4)
+                .position(|window| window == b"\r\n\r\n")
+                .expect("header terminator");
+            let headers = String::from_utf8_lossy(&response[..split]).to_ascii_lowercase();
+            assert!(headers.starts_with("http/1.1 200"), "{headers}");
+            assert!(headers.contains("content-type: application/zip"), "{headers}");
+            response[split + 4..].to_vec()
+        })
+        .await
+        .expect("export task");
+        assert_eq!(&bundle[..2], b"PK");
+
+        let import = "/api/v1/torrent-list/import?storage_root=downloads";
+        let (status, body) = raw_torrent_request(
+            address,
+            import,
+            "correct-token",
+            origin,
+            "application/zip",
+            bundle.clone(),
+        )
+        .await;
+        assert_eq!(status, 200, "{}", String::from_utf8_lossy(&body));
+        let report: rstorrent_session::TorrentListImportReport =
+            serde_json::from_slice(&body).expect("import report");
+        assert_eq!(report.already_present, 1);
+        assert_eq!(report.added, 0);
+
+        let (status, _) = raw_torrent_request(
+            address,
+            import,
+            "correct-token",
+            origin,
+            "application/octet-stream",
+            bundle,
+        )
+        .await;
+        assert_eq!(status, 400);
+        let (status, _) = raw_torrent_request(
+            address,
+            import,
+            "wrong-token",
+            origin,
+            "application/zip",
+            b"PK".to_vec(),
+        )
+        .await;
+        assert_eq!(status, 401);
 
         shutdown.cancel();
         task.await

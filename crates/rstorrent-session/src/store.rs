@@ -57,6 +57,7 @@ pub const MAX_STORAGE_ROOT_LOCATOR_LENGTH: usize = 4096;
 const BUSY_TIMEOUT: Duration = Duration::from_secs(2);
 
 mod legacy_desktop;
+mod torrent_list_export;
 pub use legacy_desktop::{
     LegacyAndroidBootstrap, LegacyAndroidRootBinding, LegacyDesktopImportReport,
     LegacyDesktopRecordOutcome,
