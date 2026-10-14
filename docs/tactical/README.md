@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [352 — Render-first web startup](352-render-first-web-startup.md): the
+  real shell renders before the engine connects, with placeholder rows until
+  the first library view; transports, adapters, demo and settings load off
+  the critical path; startup timings join support diagnostics.
 - [351 — Narrow web lists and flat chrome](351-narrow-web-lists-and-flat-chrome.md):
   navigation moves into the sidebar and narrow drawer, narrow details get an
   app bar, tables render as list items at 760 px and below, and desktop
