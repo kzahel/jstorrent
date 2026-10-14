@@ -244,15 +244,16 @@ cache, bundles, fixtures, runtime copies and eight captures are removed. Host
 investigation artifacts and failed-test fixtures are removed. The protected
 base and operator grants are untouched. Normal Preview build identity is restored.
 
-The provider's declared clean shutdown, including its bounded scheduling assist,
-fails to confirm power-off within its fifteen-minute deadline. Do not silently
-substitute suspend or force-stop. Final status remains Running, with guest
-administration/resident unavailable; exact identity still passes. The owned
-claim is released and the private Machine Control handoff journal records it.
-Power-off remains an operational gap, distinct from completed app/rule/artifact
-cleanup and passing bounded product observations.
+The provider's initial clean shutdown, including its bounded scheduling assist
+after the shutdown request, fails to confirm power-off within fifteen minutes.
+With maintainer direction to pause/resume before shutdown and permission to
+force-stop if needed, a new disruptive claim verifies Running, Paused, then
+Running using the existing provider's exact-identity checks and operation lock.
+The public ACPI shutdown command then succeeds: independent claimed status
+confirms Off. No saved state or hard stop is used. The private Machine Control
+journal records the recovery, and the cleanup claim is released.
 
-Restart: no implementation remains in 340. Commit/push is authorized; complete
-the requested repository handoff. VM recovery/power-off, the broader native
-engine/workspace failures above and signed shipping qualification remain explicit
-follow-up work. No release is authorized.
+Restart: implementation, bounded Windows evidence, app/rule/artifact cleanup
+and VM power-off are complete. Implementation commit `a8f96458` is pushed to
+`main`. The broader native engine/workspace failures above and signed shipping
+qualification remain explicit follow-up work. No release is authorized.

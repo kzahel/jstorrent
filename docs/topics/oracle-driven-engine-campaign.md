@@ -3,8 +3,8 @@
 Tactical [340](../tactical/340-windows-quiet-network-startup.md) extends the
 desktop quiet-default/upgrade contract to Windows without changing shared engine
 policy. Restart checkpoint: implementation and bounded unsigned Windows VM
-evidence pass; owned app/rule/artifact cleanup is complete and commit/push is
-authorized. VM clean power-off remains an operational gap. Full
+evidence pass; owned app/rule/artifact cleanup and VM power-off are complete.
+Implementation is committed and pushed. Full
 native Windows engine/workspace validation retains recorded failures independent
 of this defaults slice. Signed shipping/regrant and external inbound/WAN remain
 separate work; Android runtime/defaults and generated contracts are unchanged.
