@@ -742,10 +742,10 @@
       "value": "Repair…"
     }
   ],
-  "inspection.components.add.torrent.dialog.start.downloading.files.when.metadata.is.available": [
+  "inspection.components.add.torrent.dialog.start.downloading.right.away": [
     {
       "type": 0,
-      "value": "Start downloading files when metadata is available"
+      "value": "Start downloading right away"
     }
   ],
   "inspection.components.app.authentication.is.off": [
@@ -2696,10 +2696,10 @@
       "value": "Seeding time"
     }
   ],
-  "inspection.components.detail.pane.select.a.torrent.to.inspect.it": [
+  "inspection.components.detail.pane.select.a.torrent.to.see.its.details": [
     {
       "type": 0,
-      "value": "Select a torrent to inspect it"
+      "value": "Select a torrent to see its details"
     }
   ],
   "inspection.components.detail.pane.share.ratio": [
@@ -2772,12 +2772,6 @@
     {
       "type": 0,
       "value": "Storage needs attention"
-    }
-  ],
-  "inspection.components.detail.pane.the.detail.surface.preserves.its.tab.and": [
-    {
-      "type": 0,
-      "value": "The detail surface preserves its tab and navigation context."
     }
   ],
   "inspection.components.detail.pane.torrent.detail.views": [
@@ -3662,22 +3656,16 @@
       "value": "File actions"
     }
   ],
-  "inspection.components.file.table.file.inspection.is.not.requested": [
-    {
-      "type": 0,
-      "value": "File inspection is not requested."
-    }
-  ],
   "inspection.components.file.table.files": [
     {
       "type": 0,
       "value": "files"
     }
   ],
-  "inspection.components.file.table.files.are.available.after.metadata.is.verified": [
+  "inspection.components.file.table.files.appear.once.torrent.info.arrives": [
     {
       "type": 0,
-      "value": "Files are available after metadata is verified."
+      "value": "Files appear once the torrent info arrives."
     }
   ],
   "inspection.components.file.table.folder": [
@@ -3698,10 +3686,10 @@
       "value": "Index"
     }
   ],
-  "inspection.components.file.table.loading.file.catalog": [
+  "inspection.components.file.table.loading.files": [
     {
       "type": 0,
-      "value": "Loading file catalog…"
+      "value": "Loading files…"
     }
   ],
   "inspection.components.file.table.name": [
@@ -3714,6 +3702,12 @@
     {
       "type": 0,
       "value": "Normal"
+    }
+  ],
+  "inspection.components.file.table.nothing.to.show": [
+    {
+      "type": 0,
+      "value": "Nothing to show yet."
     }
   ],
   "inspection.components.file.table.only.completed.verified.files.can.be.saved": [
@@ -3800,10 +3794,10 @@
       "value": "This remote host does not support direct file saves."
     }
   ],
-  "inspection.components.file.table.this.torrent.has.no.ordinary.files.to": [
+  "inspection.components.file.table.this.torrent.has.no.files.to.show": [
     {
       "type": 0,
-      "value": "This torrent has no ordinary files to display."
+      "value": "This torrent has no files to show."
     }
   ],
   "inspection.components.file.table.torrent.files": [
@@ -3914,6 +3908,12 @@
       "value": "Finding content details"
     }
   ],
+  "inspection.components.library.detail.view.getting.torrent.info": [
+    {
+      "type": 0,
+      "value": "Getting torrent info"
+    }
+  ],
   "inspection.components.library.detail.view.high.priority": [
     {
       "type": 0,
@@ -3948,12 +3948,6 @@
     {
       "type": 0,
       "value": "Media"
-    }
-  ],
-  "inspection.components.library.detail.view.metadata.pending": [
-    {
-      "type": 0,
-      "value": "Metadata pending"
     }
   ],
   "inspection.components.library.detail.view.needs.attention": [
@@ -4574,16 +4568,16 @@
       "value": "No peer connections are currently active."
     }
   ],
+  "inspection.components.peer.table.nothing.to.show": [
+    {
+      "type": 0,
+      "value": "Nothing to show yet."
+    }
+  ],
   "inspection.components.peer.table.oldest": [
     {
       "type": 0,
       "value": "Oldest"
-    }
-  ],
-  "inspection.components.peer.table.peer.inspection.is.not.requested": [
-    {
-      "type": 0,
-      "value": "Peer inspection is not requested."
     }
   ],
   "inspection.components.peer.table.reqs": [
@@ -4766,34 +4760,46 @@
       "value": "Active requests"
     }
   ],
-  "inspection.components.preparation.progress.content.preparation": [
+  "inspection.components.preparation.progress.downloading.data.to.check.files": [
     {
       "type": 0,
-      "value": "Content preparation"
+      "value": "Downloading the data needed to check your files."
     }
   ],
-  "inspection.components.preparation.progress.downloading.merkle.proof.data.needed.to.verify": [
+  "inspection.components.preparation.progress.file.check.data": [
     {
       "type": 0,
-      "value": "Downloading Merkle proof data needed to verify the selected files."
+      "value": "File check data"
     }
   ],
-  "inspection.components.preparation.progress.downloading.metadata": [
+  "inspection.components.preparation.progress.file.list.appears.when.done": [
     {
       "type": 0,
-      "value": "Downloading metadata"
+      "value": "The file list appears when this finishes."
     }
   ],
-  "inspection.components.preparation.progress.fetching.piece.hashes": [
+  "inspection.components.preparation.progress.finding.peers": [
     {
       "type": 0,
-      "value": "Fetching piece hashes"
+      "value": "Finding peers"
     }
   ],
-  "inspection.components.preparation.progress.finding.metadata": [
+  "inspection.components.preparation.progress.getting.check.data": [
     {
       "type": 0,
-      "value": "Finding metadata"
+      "value": "Getting file check data"
+    }
+  ],
+  "inspection.components.preparation.progress.getting.data.to.check.files": [
+    {
+      "type": 0,
+      "value": "Getting the data needed to check your files before downloading."
+    }
+  ],
+  "inspection.components.preparation.progress.getting.torrent.info": [
+    {
+      "type": 0,
+      "value": "Getting torrent info"
     }
   ],
   "inspection.components.preparation.progress.hash.ranges.needed": [
@@ -4808,34 +4814,16 @@
       "value": "Hash retries"
     }
   ],
-  "inspection.components.preparation.progress.metadata.block.state.legend": [
+  "inspection.components.preparation.progress.legend": [
     {
       "type": 0,
-      "value": "Metadata block state legend"
+      "value": "Legend"
     }
   ],
-  "inspection.components.preparation.progress.metadata.bytes.received": [
+  "inspection.components.preparation.progress.looking.for.peers.with.torrent.info": [
     {
       "type": 0,
-      "value": "Metadata bytes received"
-    }
-  ],
-  "inspection.components.preparation.progress.metadata.download.progress": [
-    {
-      "type": 0,
-      "value": "Metadata download progress"
-    }
-  ],
-  "inspection.components.preparation.progress.metadata.peers": [
-    {
-      "type": 0,
-      "value": "Metadata peers"
-    }
-  ],
-  "inspection.components.preparation.progress.metadata.preparation": [
-    {
-      "type": 0,
-      "value": "Metadata preparation"
+      "value": "Looking for peers that can send the torrent info."
     }
   ],
   "inspection.components.preparation.progress.missing": [
@@ -4844,22 +4832,16 @@
       "value": "Missing"
     }
   ],
-  "inspection.components.preparation.progress.piece.hash.preparation": [
+  "inspection.components.preparation.progress.peers": [
     {
       "type": 0,
-      "value": "Piece hash preparation"
+      "value": "Peers"
     }
   ],
   "inspection.components.preparation.progress.received": [
     {
       "type": 0,
       "value": "Received"
-    }
-  ],
-  "inspection.components.preparation.progress.receiving.the.verified.info.dictionary.before.file": [
-    {
-      "type": 0,
-      "value": "Receiving the verified info dictionary before file selection and piece transfer."
     }
   ],
   "inspection.components.preparation.progress.requested": [
@@ -4874,10 +4856,16 @@
       "value": "Requests in flight"
     }
   ],
-  "inspection.components.preparation.progress.the.selected.files.need.merkle.proof.data": [
+  "inspection.components.preparation.progress.torrent.info.progress": [
     {
       "type": 0,
-      "value": "The selected files need Merkle proof data before payload requests can start."
+      "value": "Torrent info progress"
+    }
+  ],
+  "inspection.components.preparation.progress.torrent.info.received": [
+    {
+      "type": 0,
+      "value": "Torrent info received"
     }
   ],
   "inspection.components.preparation.progress.torrent.preparation.activity": [
@@ -4890,18 +4878,6 @@
     {
       "type": 0,
       "value": "Waiting"
-    }
-  ],
-  "inspection.components.preparation.progress.waiting.for.a.hash.capable.peer": [
-    {
-      "type": 0,
-      "value": "Waiting for a hash-capable peer"
-    }
-  ],
-  "inspection.components.preparation.progress.waiting.for.a.metadata.capable.peer.to": [
-    {
-      "type": 0,
-      "value": "Waiting for a metadata-capable peer to advertise the info dictionary."
     }
   ],
   "inspection.components.rate.limit.picker.custom": [
@@ -6180,6 +6156,12 @@
       "value": "not connectable"
     }
   ],
+  "inspection.components.swarm.table.nothing.to.show": [
+    {
+      "type": 0,
+      "value": "Nothing to show yet."
+    }
+  ],
   "inspection.components.swarm.table.parole": [
     {
       "type": 0,
@@ -6214,12 +6196,6 @@
     {
       "type": 0,
       "value": "State"
-    }
-  ],
-  "inspection.components.swarm.table.swarm.inspection.is.not.requested": [
-    {
-      "type": 0,
-      "value": "Swarm inspection is not requested."
     }
   ],
   "inspection.components.swarm.table.swarm.registry.summary": [
@@ -6496,16 +6472,16 @@
       "value": "Name"
     }
   ],
-  "inspection.components.torrent.table.no.torrents.are.present": [
+  "inspection.components.torrent.table.no.torrents.in.this.view": [
     {
       "type": 0,
-      "value": "No torrents are present."
+      "value": "No torrents in this view."
     }
   ],
-  "inspection.components.torrent.table.no.torrents.are.present.in.the.live": [
+  "inspection.components.torrent.table.no.torrents.yet": [
     {
       "type": 0,
-      "value": "No torrents are present in the live engine."
+      "value": "No torrents yet. Add a magnet link or a .torrent file to get started."
     }
   ],
   "inspection.components.torrent.table.no.torrents.yet.add.a.generated.demo": [
@@ -6634,6 +6610,12 @@
       "value": "Next announce"
     }
   ],
+  "inspection.components.tracker.table.nothing.to.show": [
+    {
+      "type": 0,
+      "value": "Nothing to show yet."
+    }
+  ],
   "inspection.components.tracker.table.now": [
     {
       "type": 0,
@@ -6682,12 +6664,6 @@
       "value": "Torrent trackers"
     }
   ],
-  "inspection.components.tracker.table.tracker.inspection.is.not.requested": [
-    {
-      "type": 0,
-      "value": "Tracker inspection is not requested."
-    }
-  ],
   "inspection.components.tracker.table.trackers": [
     {
       "type": 0,
@@ -6730,22 +6706,22 @@
       "value": "Name"
     }
   ],
-  "inspection.components.transfer.table.no.transfers.are.present": [
-    {
-      "type": 0,
-      "value": "No transfers are present."
-    }
-  ],
-  "inspection.components.transfer.table.no.transfers.are.present.in.the.live": [
-    {
-      "type": 0,
-      "value": "No transfers are present in the live engine."
-    }
-  ],
   "inspection.components.transfer.table.no.transfers.yet.add.a.generated.demo": [
     {
       "type": 0,
       "value": "No transfers yet. Add a generated demo transfer or choose another scenario."
+    }
+  ],
+  "inspection.components.transfer.table.nothing.downloading.yet": [
+    {
+      "type": 0,
+      "value": "Nothing is downloading yet."
+    }
+  ],
+  "inspection.components.transfer.table.nothing.in.this.view": [
+    {
+      "type": 0,
+      "value": "Nothing in this view."
     }
   ],
   "inspection.components.transfer.table.progress": [
@@ -7642,10 +7618,10 @@
       "value": "Finalizing check"
     }
   ],
-  "inspection.format.metadata": [
+  "inspection.format.getting.info": [
     {
       "type": 0,
-      "value": "Metadata"
+      "value": "Getting info"
     }
   ],
   "inspection.format.preparing.check": [
@@ -7702,10 +7678,10 @@
       "value": "External torrent intake is unavailable on this connection"
     }
   ],
-  "inspection.live.live.application.file.metadata.is.unavailable": [
+  "inspection.live.live.application.file.list.not.available.yet": [
     {
       "type": 0,
-      "value": "File metadata is unavailable"
+      "value": "The file list isn't available yet"
     }
   ],
   "inspection.live.live.application.folder.selection.canceled": [

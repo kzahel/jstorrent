@@ -190,7 +190,7 @@ export function TorrentTable() {
         materialization.status !== "ready"
           ? materializationMessage(materialization)
           : category === "all" && demo === null
-            ? localizedMessage("inspection.components.torrent.table.no.torrents.are.present.in.the.live")
+            ? localizedMessage("inspection.components.torrent.table.no.torrents.yet")
             : category === "all"
               ? localizedMessage("inspection.components.torrent.table.no.torrents.yet.add.a.generated.demo")
               : `No torrents in ${category}.`
@@ -211,6 +211,6 @@ function materializationMessage(materialization: ViewMaterialization): string {
     case "stale":
       return materialization.reason;
     case "ready":
-      return localizedMessage("inspection.components.torrent.table.no.torrents.are.present");
+      return localizedMessage("inspection.components.torrent.table.no.torrents.in.this.view");
   }
 }

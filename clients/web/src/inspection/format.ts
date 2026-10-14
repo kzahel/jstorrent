@@ -107,7 +107,7 @@ export function formatRate(value: number | null, dataUnits: DataUnits): string {
 }
 
 export function formatProgress(value: number | null): string {
-  if (value === null) return localizedMessage("inspection.format.metadata");
+  if (value === null) return localizedMessage("inspection.format.getting.info");
   return `${(value * 100).toFixed(value >= 0.9995 ? 0 : 1)}%`;
 }
 

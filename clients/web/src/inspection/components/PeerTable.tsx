@@ -271,7 +271,7 @@ export function PeerTable({ torrentId }: { readonly torrentId: string }) {
 function peerEmptyMessage(materialization: ViewMaterialization): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.peer.table.peer.inspection.is.not.requested");
+      return localizedMessage("inspection.components.peer.table.nothing.to.show");
     case "loading":
       return localizedMessage("inspection.components.peer.table.loading.active.peer.connections");
     case "unavailable":

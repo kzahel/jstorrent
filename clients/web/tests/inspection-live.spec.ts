@@ -213,7 +213,7 @@ test("live torrent file picker uses one WebSocket binary attachment", async ({
   });
   await expect(dialog).toBeVisible();
   const startContent = dialog.getByRole("checkbox", {
-    name: /Start downloading files when metadata is available/,
+    name: "Start downloading right away",
   });
   await startContent.uncheck();
   await dialog.getByRole("button", { name: "Add torrent" }).click();
@@ -844,7 +844,7 @@ test("live Library media detail follows metadata through completion", async ({
   });
   await addDialog
     .getByRole("checkbox", {
-      name: /Start downloading files when metadata is available/,
+      name: "Start downloading right away",
     })
     .uncheck();
   await addDialog.getByRole("button", { name: "Add torrent" }).click();
@@ -1051,7 +1051,7 @@ test("live add-time file selection", async ({ page }) => {
   await expect(addDialog).toBeVisible();
   await expect(
     addDialog.getByRole("checkbox", {
-      name: /Start downloading files when metadata is available/,
+      name: "Start downloading right away",
     }),
   ).toHaveCount(0);
   await addDialog.getByRole("button", { name: "Continue" }).click();

@@ -43,19 +43,18 @@ export function PreparationProgress({
         />
       )}
       {preparation.integrity === null ? null : (
-        <section className={styles.card} aria-label={localizedMessage("inspection.components.preparation.progress.piece.hash.preparation")}>
+        <section className={styles.card} aria-label={localizedMessage("inspection.components.preparation.progress.file.check.data")}>
           <header className={styles.header}>
             <div>
-              <p className={styles.eyebrow}>{localizedMessage("inspection.components.preparation.progress.content.preparation")}</p>
               <h3>
                 {preparation.integrity.phase === "waiting_for_peer"
-                  ? localizedMessage("inspection.components.preparation.progress.waiting.for.a.hash.capable.peer")
-                  : localizedMessage("inspection.components.preparation.progress.fetching.piece.hashes")}
+                  ? localizedMessage("inspection.components.preparation.progress.finding.peers")
+                  : localizedMessage("inspection.components.preparation.progress.getting.check.data")}
               </h3>
               <p>
                 {preparation.integrity.phase === "waiting_for_peer"
-                  ? localizedMessage("inspection.components.preparation.progress.the.selected.files.need.merkle.proof.data")
-                  : localizedMessage("inspection.components.preparation.progress.downloading.merkle.proof.data.needed.to.verify")}
+                  ? localizedMessage("inspection.components.preparation.progress.getting.data.to.check.files")
+                  : localizedMessage("inspection.components.preparation.progress.downloading.data.to.check.files")}
               </p>
             </div>
             <span className={styles.phase}>
@@ -92,23 +91,22 @@ function MetadataCard({
     total === null ? null : Math.min(1, metadata.receivedBytes / total);
   const progressText =
     total === null
-      ? "Discovering metadata size"
+      ? "Size not known yet"
       : `${formatBytes(metadata.receivedBytes, dataUnits)} of ${formatBytes(total, dataUnits)}`;
 
   return (
-    <section className={styles.card} aria-label={localizedMessage("inspection.components.preparation.progress.metadata.download.progress")}>
+    <section className={styles.card} aria-label={localizedMessage("inspection.components.preparation.progress.torrent.info.progress")}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>{localizedMessage("inspection.components.preparation.progress.metadata.preparation")}</p>
           <h3>
             {metadata.phase === "discovering"
-              ? localizedMessage("inspection.components.preparation.progress.finding.metadata")
-              : localizedMessage("inspection.components.preparation.progress.downloading.metadata")}
+              ? localizedMessage("inspection.components.preparation.progress.finding.peers")
+              : localizedMessage("inspection.components.preparation.progress.getting.torrent.info")}
           </h3>
           <p>
             {metadata.phase === "discovering"
-              ? localizedMessage("inspection.components.preparation.progress.waiting.for.a.metadata.capable.peer.to")
-              : localizedMessage("inspection.components.preparation.progress.receiving.the.verified.info.dictionary.before.file")}
+              ? localizedMessage("inspection.components.preparation.progress.looking.for.peers.with.torrent.info")
+              : localizedMessage("inspection.components.preparation.progress.file.list.appears.when.done")}
           </p>
         </div>
         <strong className={styles.progressText}>
@@ -117,7 +115,7 @@ function MetadataCard({
       </header>
       <div className={styles.progressRow}>
         <progress
-          aria-label={localizedMessage("inspection.components.preparation.progress.metadata.bytes.received")}
+          aria-label={localizedMessage("inspection.components.preparation.progress.torrent.info.received")}
           max={total ?? undefined}
           value={total === null ? undefined : metadata.receivedBytes}
         />
@@ -126,7 +124,7 @@ function MetadataCard({
       {metadata.blockCount === 0 ? null : <MetadataBlockMap metadata={metadata} />}
       <dl className={styles.metrics}>
         <Metric
-          label={localizedMessage("inspection.components.preparation.progress.metadata.peers")}
+          label={localizedMessage("inspection.components.preparation.progress.peers")}
           value={metadata.activePeers.toLocaleString()}
         />
         <Metric
@@ -187,7 +185,7 @@ function MetadataBlockMap({
           aria-label={label}
         />
       </div>
-      <div className={styles.legend} aria-label={localizedMessage("inspection.components.preparation.progress.metadata.block.state.legend")}>
+      <div className={styles.legend} aria-label={localizedMessage("inspection.components.preparation.progress.legend")}>
         <Legend label={localizedMessage("inspection.components.preparation.progress.missing")} state="missing" />
         <Legend label={localizedMessage("inspection.components.preparation.progress.requested")} state="requested" />
         <Legend label={localizedMessage("inspection.components.preparation.progress.received")} state="received" />

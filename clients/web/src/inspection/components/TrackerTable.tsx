@@ -298,7 +298,7 @@ function trackerEmptyMessage(
 ): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.tracker.table.tracker.inspection.is.not.requested");
+      return localizedMessage("inspection.components.tracker.table.nothing.to.show");
     case "loading":
       return localizedMessage("inspection.components.tracker.table.loading.configured.trackers");
     case "unavailable":

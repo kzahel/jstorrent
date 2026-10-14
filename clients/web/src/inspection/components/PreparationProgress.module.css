@@ -36,13 +36,6 @@
   line-height: 1.45;
 }
 
-.eyebrow {
-  margin-bottom: var(--ui-space-xs) !important;
-  color: var(--text-muted);
-  font-size: var(--ui-font-caption);
-  font-weight: var(--weight-medium);
-}
-
 .progressText {
   flex: 0 0 auto;
   color: var(--text-primary);

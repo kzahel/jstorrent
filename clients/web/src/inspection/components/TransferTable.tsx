@@ -184,7 +184,7 @@ export function TransferTable() {
         materialization.status !== "ready"
           ? materializationMessage(materialization)
           : category === "all" && demo === null
-            ? localizedMessage("inspection.components.transfer.table.no.transfers.are.present.in.the.live")
+            ? localizedMessage("inspection.components.transfer.table.nothing.downloading.yet")
             : category === "all"
               ? localizedMessage("inspection.components.transfer.table.no.transfers.yet.add.a.generated.demo")
               : `No transfers in ${category}.`
@@ -222,6 +222,6 @@ function materializationMessage(materialization: ViewMaterialization): string {
     case "stale":
       return materialization.reason;
     case "ready":
-      return localizedMessage("inspection.components.transfer.table.no.transfers.are.present");
+      return localizedMessage("inspection.components.transfer.table.nothing.in.this.view");
   }
 }

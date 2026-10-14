@@ -1582,7 +1582,7 @@ test("metadata preparation stays compact and accessible across widths", async ({
   await page.getByRole("tab", { name: "General" }).click();
 
   const progress = page.getByRole("progressbar", {
-    name: "Metadata bytes received",
+    name: "Torrent info received",
   });
   await expect(progress).toHaveAttribute("max", "8388608");
   await expect(progress).toHaveAttribute("value", "2097152");

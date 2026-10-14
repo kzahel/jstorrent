@@ -232,7 +232,7 @@ export function AddTorrentDialog({
               checked={startContent}
               disabled={busy}
               onChange={(event) => setStartContent(event.currentTarget.checked)}
-            />{localizedMessage("inspection.components.add.torrent.dialog.start.downloading.files.when.metadata.is.available")}</label>
+            />{localizedMessage("inspection.components.add.torrent.dialog.start.downloading.right.away")}</label>
         )}
 
         {oneCurrentRoot ? null : (

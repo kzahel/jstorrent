@@ -276,7 +276,7 @@ function swarmEmptyMessage(
 ): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.swarm.table.swarm.inspection.is.not.requested");
+      return localizedMessage("inspection.components.swarm.table.nothing.to.show");
     case "loading":
       return localizedMessage("inspection.components.swarm.table.loading.known.swarm.peers");
     case "unavailable":

@@ -443,8 +443,7 @@ function EmptyDetail() {
       <span className={styles.emptyMark} aria-hidden="true">
         ↙
       </span>
-      <strong>{localizedMessage("inspection.components.detail.pane.select.a.torrent.to.inspect.it")}</strong>
-      <p>{localizedMessage("inspection.components.detail.pane.the.detail.surface.preserves.its.tab.and")}</p>
+      <strong>{localizedMessage("inspection.components.detail.pane.select.a.torrent.to.see.its.details")}</strong>
     </div>
   );
 }

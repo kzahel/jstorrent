@@ -546,7 +546,7 @@ function availabilityLabel(
   switch (availability) {
     case "available": return localizedMessage("inspection.components.library.detail.view.available");
     case "streamable": return localizedMessage("inspection.components.library.detail.view.streamable");
-    case "metadata_unavailable": return localizedMessage("inspection.components.library.detail.view.metadata.pending");
+    case "metadata_unavailable": return localizedMessage("inspection.components.library.detail.view.getting.torrent.info");
     case "invalid_file": return localizedMessage("inspection.components.library.detail.view.invalid.file");
     case "padding": return localizedMessage("inspection.components.library.detail.view.padding");
     case "incomplete": return localizedMessage("inspection.components.library.detail.view.incomplete");

@@ -1790,7 +1790,7 @@ function mediaUnavailableMessage(reason: import("../../api").MediaFileAvailabili
     case "streamable":
       return localizedMessage("inspection.live.live.application.the.file.is.ready.to.stream");
     case "metadata_unavailable":
-      return localizedMessage("inspection.live.live.application.file.metadata.is.unavailable");
+      return localizedMessage("inspection.live.live.application.file.list.not.available.yet");
     case "invalid_file":
       return localizedMessage("inspection.live.live.application.the.selected.file.no.longer.exists");
     case "padding":

@@ -1630,7 +1630,7 @@ describe("inspection application", () => {
         "button", { name: "Torrents" },
       ),
     );
-    expect(screen.getByText(/Select a torrent to inspect it/i)).toBeVisible();
+    expect(screen.getByText(/Select a torrent to see its details/i)).toBeVisible();
   });
 
   it("preserves multi-selection across Library and torrent filters", async () => {
@@ -2248,7 +2248,7 @@ describe("inspection application", () => {
     );
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Start downloading files when metadata is available/,
+        name: "Start downloading right away",
       }),
     );
     await user.click(
@@ -2383,7 +2383,7 @@ describe("inspection application", () => {
     );
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Start downloading files when metadata is available/,
+        name: "Start downloading right away",
       }),
     );
     await user.click(
@@ -3754,7 +3754,7 @@ describe("inspection application", () => {
     dialog = await openBatch();
     await user.click(within(dialog).getByRole("radio", { name: /Other folder/ }));
     await user.click(within(dialog).getByRole("checkbox", {
-      name: /Start downloading files when metadata is available/,
+      name: "Start downloading right away",
     }));
     await user.click(within(dialog).getByRole("checkbox", {
       name: "Always use this folder",

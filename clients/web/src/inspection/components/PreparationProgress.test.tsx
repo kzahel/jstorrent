@@ -56,7 +56,7 @@ describe("PreparationProgress", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Downloading metadata" }),
+      screen.getByRole("heading", { name: "Getting torrent info" }),
     ).toBeVisible();
     expect(screen.getByRole("progressbar")).toHaveAttribute("value", "16384");
     expect(screen.getByText("16.0 KB of 32.0 KB")).toBeVisible();
@@ -81,7 +81,7 @@ describe("PreparationProgress", () => {
     render(<PreparationProgress preparation={preparation} dataUnits="binary" />);
 
     expect(
-      screen.getByRole("heading", { name: "Waiting for a hash-capable peer" }),
+      screen.getByRole("heading", { name: "Finding peers" }),
     ).toBeVisible();
     expect(screen.getByText("Hash ranges needed").nextSibling).toHaveTextContent(
       "3",

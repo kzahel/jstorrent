@@ -617,18 +617,18 @@ function fileEmptyMessage(
 ): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.file.table.file.inspection.is.not.requested");
+      return localizedMessage("inspection.components.file.table.nothing.to.show");
     case "loading":
-      return localizedMessage("inspection.components.file.table.loading.file.catalog");
+      return localizedMessage("inspection.components.file.table.loading.files");
     case "unavailable":
     case "unsupported":
     case "stale":
       return materialization.reason;
     case "ready":
       if (catalogState === "metadata_pending")
-        return localizedMessage("inspection.components.file.table.files.are.available.after.metadata.is.verified");
+        return localizedMessage("inspection.components.file.table.files.appear.once.torrent.info.arrives");
       if (catalogState === "torrent_missing")
         return localizedMessage("inspection.components.file.table.the.torrent.is.no.longer.present");
-      return localizedMessage("inspection.components.file.table.this.torrent.has.no.ordinary.files.to");
+      return localizedMessage("inspection.components.file.table.this.torrent.has.no.files.to.show");
   }
 }

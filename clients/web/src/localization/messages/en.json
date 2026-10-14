@@ -298,8 +298,8 @@
     "defaultMessage": "Repair…",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
-  "inspection.components.add.torrent.dialog.start.downloading.files.when.metadata.is.available": {
-    "defaultMessage": "Start downloading files when metadata is available",
+  "inspection.components.add.torrent.dialog.start.downloading.right.away": {
+    "defaultMessage": "Start downloading right away",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
   "inspection.components.app.authentication.is.off": {
@@ -1146,8 +1146,8 @@
     "defaultMessage": "Seeding time",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
-  "inspection.components.detail.pane.select.a.torrent.to.inspect.it": {
-    "defaultMessage": "Select a torrent to inspect it",
+  "inspection.components.detail.pane.select.a.torrent.to.see.its.details": {
+    "defaultMessage": "Select a torrent to see its details",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.share.ratio": {
@@ -1164,10 +1164,6 @@
   },
   "inspection.components.detail.pane.storage.needs.attention": {
     "defaultMessage": "Storage needs attention",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.the.detail.surface.preserves.its.tab.and": {
-    "defaultMessage": "The detail surface preserves its tab and navigation context.",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.torrent.detail.views": {
@@ -1890,16 +1886,16 @@
     "defaultMessage": "File actions",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
-  "inspection.components.file.table.file.inspection.is.not.requested": {
-    "defaultMessage": "File inspection is not requested.",
+  "inspection.components.file.table.nothing.to.show": {
+    "defaultMessage": "Nothing to show yet.",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
   "inspection.components.file.table.files": {
     "defaultMessage": "files",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
-  "inspection.components.file.table.files.are.available.after.metadata.is.verified": {
-    "defaultMessage": "Files are available after metadata is verified.",
+  "inspection.components.file.table.files.appear.once.torrent.info.arrives": {
+    "defaultMessage": "Files appear once the torrent info arrives.",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
   "inspection.components.file.table.folder": {
@@ -1914,8 +1910,8 @@
     "defaultMessage": "Index",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
-  "inspection.components.file.table.loading.file.catalog": {
-    "defaultMessage": "Loading file catalog…",
+  "inspection.components.file.table.loading.files": {
+    "defaultMessage": "Loading files…",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
   "inspection.components.file.table.name": {
@@ -1978,8 +1974,8 @@
     "defaultMessage": "This remote host does not support direct file saves.",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
-  "inspection.components.file.table.this.torrent.has.no.ordinary.files.to": {
-    "defaultMessage": "This torrent has no ordinary files to display.",
+  "inspection.components.file.table.this.torrent.has.no.files.to.show": {
+    "defaultMessage": "This torrent has no files to show.",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
   "inspection.components.file.table.torrent.files": {
@@ -2078,8 +2074,8 @@
     "defaultMessage": "Media",
     "description": "Product copy in inspection/components/LibraryDetailView.tsx"
   },
-  "inspection.components.library.detail.view.metadata.pending": {
-    "defaultMessage": "Metadata pending",
+  "inspection.components.library.detail.view.getting.torrent.info": {
+    "defaultMessage": "Getting torrent info",
     "description": "Product copy in inspection/components/LibraryDetailView.tsx"
   },
   "inspection.components.library.detail.view.needs.attention": {
@@ -2498,8 +2494,8 @@
     "defaultMessage": "Oldest",
     "description": "Product copy in inspection/components/PeerTable.tsx"
   },
-  "inspection.components.peer.table.peer.inspection.is.not.requested": {
-    "defaultMessage": "Peer inspection is not requested.",
+  "inspection.components.peer.table.nothing.to.show": {
+    "defaultMessage": "Nothing to show yet.",
     "description": "Product copy in inspection/components/PeerTable.tsx"
   },
   "inspection.components.peer.table.reqs": {
@@ -2622,24 +2618,20 @@
     "defaultMessage": "Active requests",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.content.preparation": {
-    "defaultMessage": "Content preparation",
+  "inspection.components.preparation.progress.downloading.data.to.check.files": {
+    "defaultMessage": "Downloading the data needed to check your files.",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.downloading.merkle.proof.data.needed.to.verify": {
-    "defaultMessage": "Downloading Merkle proof data needed to verify the selected files.",
+  "inspection.components.preparation.progress.getting.torrent.info": {
+    "defaultMessage": "Getting torrent info",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.downloading.metadata": {
-    "defaultMessage": "Downloading metadata",
+  "inspection.components.preparation.progress.getting.check.data": {
+    "defaultMessage": "Getting file check data",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.fetching.piece.hashes": {
-    "defaultMessage": "Fetching piece hashes",
-    "description": "Product copy in inspection/components/PreparationProgress.tsx"
-  },
-  "inspection.components.preparation.progress.finding.metadata": {
-    "defaultMessage": "Finding metadata",
+  "inspection.components.preparation.progress.finding.peers": {
+    "defaultMessage": "Finding peers",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
   "inspection.components.preparation.progress.hash.ranges.needed": {
@@ -2650,40 +2642,36 @@
     "defaultMessage": "Hash retries",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.metadata.block.state.legend": {
-    "defaultMessage": "Metadata block state legend",
+  "inspection.components.preparation.progress.legend": {
+    "defaultMessage": "Legend",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.metadata.bytes.received": {
-    "defaultMessage": "Metadata bytes received",
+  "inspection.components.preparation.progress.torrent.info.received": {
+    "defaultMessage": "Torrent info received",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.metadata.download.progress": {
-    "defaultMessage": "Metadata download progress",
+  "inspection.components.preparation.progress.torrent.info.progress": {
+    "defaultMessage": "Torrent info progress",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.metadata.peers": {
-    "defaultMessage": "Metadata peers",
-    "description": "Product copy in inspection/components/PreparationProgress.tsx"
-  },
-  "inspection.components.preparation.progress.metadata.preparation": {
-    "defaultMessage": "Metadata preparation",
+  "inspection.components.preparation.progress.peers": {
+    "defaultMessage": "Peers",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
   "inspection.components.preparation.progress.missing": {
     "defaultMessage": "Missing",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.piece.hash.preparation": {
-    "defaultMessage": "Piece hash preparation",
+  "inspection.components.preparation.progress.file.check.data": {
+    "defaultMessage": "File check data",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
   "inspection.components.preparation.progress.received": {
     "defaultMessage": "Received",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.receiving.the.verified.info.dictionary.before.file": {
-    "defaultMessage": "Receiving the verified info dictionary before file selection and piece transfer.",
+  "inspection.components.preparation.progress.file.list.appears.when.done": {
+    "defaultMessage": "The file list appears when this finishes.",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
   "inspection.components.preparation.progress.requested": {
@@ -2694,8 +2682,8 @@
     "defaultMessage": "Requests in flight",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.the.selected.files.need.merkle.proof.data": {
-    "defaultMessage": "The selected files need Merkle proof data before payload requests can start.",
+  "inspection.components.preparation.progress.getting.data.to.check.files": {
+    "defaultMessage": "Getting the data needed to check your files before downloading.",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
   "inspection.components.preparation.progress.torrent.preparation.activity": {
@@ -2706,12 +2694,8 @@
     "defaultMessage": "Waiting",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.waiting.for.a.hash.capable.peer": {
-    "defaultMessage": "Waiting for a hash-capable peer",
-    "description": "Product copy in inspection/components/PreparationProgress.tsx"
-  },
-  "inspection.components.preparation.progress.waiting.for.a.metadata.capable.peer.to": {
-    "defaultMessage": "Waiting for a metadata-capable peer to advertise the info dictionary.",
+  "inspection.components.preparation.progress.looking.for.peers.with.torrent.info": {
+    "defaultMessage": "Looking for peers that can send the torrent info.",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
   "inspection.components.remote.access.settings.section.absolute.expiry": {
@@ -3570,8 +3554,8 @@
     "defaultMessage": "State",
     "description": "Product copy in inspection/components/SwarmTable.tsx"
   },
-  "inspection.components.swarm.table.swarm.inspection.is.not.requested": {
-    "defaultMessage": "Swarm inspection is not requested.",
+  "inspection.components.swarm.table.nothing.to.show": {
+    "defaultMessage": "Nothing to show yet.",
     "description": "Product copy in inspection/components/SwarmTable.tsx"
   },
   "inspection.components.swarm.table.swarm.registry.summary": {
@@ -3678,12 +3662,12 @@
     "defaultMessage": "Name",
     "description": "Product copy in inspection/components/TorrentTable.tsx"
   },
-  "inspection.components.torrent.table.no.torrents.are.present": {
-    "defaultMessage": "No torrents are present.",
+  "inspection.components.torrent.table.no.torrents.in.this.view": {
+    "defaultMessage": "No torrents in this view.",
     "description": "Product copy in inspection/components/TorrentTable.tsx"
   },
-  "inspection.components.torrent.table.no.torrents.are.present.in.the.live": {
-    "defaultMessage": "No torrents are present in the live engine.",
+  "inspection.components.torrent.table.no.torrents.yet": {
+    "defaultMessage": "No torrents yet. Add a magnet link or a .torrent file to get started.",
     "description": "Product copy in inspection/components/TorrentTable.tsx"
   },
   "inspection.components.torrent.table.no.torrents.yet.add.a.generated.demo": {
@@ -3802,8 +3786,8 @@
     "defaultMessage": "Torrent trackers",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
   },
-  "inspection.components.tracker.table.tracker.inspection.is.not.requested": {
-    "defaultMessage": "Tracker inspection is not requested.",
+  "inspection.components.tracker.table.nothing.to.show": {
+    "defaultMessage": "Nothing to show yet.",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
   },
   "inspection.components.tracker.table.trackers": {
@@ -3834,12 +3818,12 @@
     "defaultMessage": "Name",
     "description": "Product copy in inspection/components/TransferTable.tsx"
   },
-  "inspection.components.transfer.table.no.transfers.are.present": {
-    "defaultMessage": "No transfers are present.",
+  "inspection.components.transfer.table.nothing.in.this.view": {
+    "defaultMessage": "Nothing in this view.",
     "description": "Product copy in inspection/components/TransferTable.tsx"
   },
-  "inspection.components.transfer.table.no.transfers.are.present.in.the.live": {
-    "defaultMessage": "No transfers are present in the live engine.",
+  "inspection.components.transfer.table.nothing.downloading.yet": {
+    "defaultMessage": "Nothing is downloading yet.",
     "description": "Product copy in inspection/components/TransferTable.tsx"
   },
   "inspection.components.transfer.table.no.transfers.yet.add.a.generated.demo": {
@@ -4438,8 +4422,8 @@
     "defaultMessage": "Finalizing check",
     "description": "Product copy in inspection/format.ts"
   },
-  "inspection.format.metadata": {
-    "defaultMessage": "Metadata",
+  "inspection.format.getting.info": {
+    "defaultMessage": "Getting info",
     "description": "Product copy in inspection/format.ts"
   },
   "inspection.format.preparing.check": {
@@ -4478,8 +4462,8 @@
     "defaultMessage": "External torrent intake is unavailable on this connection",
     "description": "Product copy in inspection/live/LiveApplication.ts"
   },
-  "inspection.live.live.application.file.metadata.is.unavailable": {
-    "defaultMessage": "File metadata is unavailable",
+  "inspection.live.live.application.file.list.not.available.yet": {
+    "defaultMessage": "The file list isn't available yet",
     "description": "Product copy in inspection/live/LiveApplication.ts"
   },
   "inspection.live.live.application.folder.selection.canceled": {
