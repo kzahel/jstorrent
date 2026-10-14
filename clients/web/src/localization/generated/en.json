@@ -1048,10 +1048,16 @@
       "value": "Allow"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.automatic.port.recommended": [
+  "inspection.components.connection.seeding.settings.section.automatic": [
     {
       "type": 0,
-      "value": "Automatic port (recommended)"
+      "value": "Automatic"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.automatic.port.description": [
+    {
+      "type": 0,
+      "value": "Recommended"
     }
   ],
   "inspection.components.connection.seeding.settings.section.cancel.changes": [
@@ -1813,10 +1819,16 @@
       "value": "Only use encrypted connections"
     }
   ],
-  "inspection.components.connection.seeding.settings.section.fixed.port": [
+  "inspection.components.connection.seeding.settings.section.fixed": [
     {
       "type": 0,
-      "value": "Fixed port"
+      "value": "Fixed"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.fixed.port.description": [
+    {
+      "type": 0,
+      "value": "Always use the same port"
     }
   ],
   "inspection.components.connection.seeding.settings.section.forwarding.confirm.description": [
@@ -2056,6 +2068,12 @@
     {
       "type": 0,
       "value": "Closing router port…"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.port.number": [
+    {
+      "type": 0,
+      "value": "Port number"
     }
   ],
   "inspection.components.connection.seeding.settings.section.prefer": [

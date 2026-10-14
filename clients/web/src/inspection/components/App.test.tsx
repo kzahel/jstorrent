@@ -2959,7 +2959,7 @@ describe("inspection application", () => {
     const incoming = within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ });
     const forwarding = within(dialog).getByRole("checkbox", { name: /Automatic port forwarding/ });
     expect(incoming).not.toBeChecked(); expect(forwarding).toBeDisabled();
-    expect(within(dialog).queryByRole("radio", { name: /^Fixed port/ })).toBeNull();
+    expect(within(dialog).queryByRole("radio", { name: "Fixed" })).toBeNull();
     await user.click(incoming); await user.click(forwarding);
     expect(within(dialog).getByText(/Your operating system may ask for network access/)).toBeVisible();
     expect(forwarding).not.toBeChecked();
@@ -3026,7 +3026,7 @@ describe("inspection application", () => {
     expect(within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ })).not.toBeChecked();
     await user.click(within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ }));
     expect(
-      within(dialog).getByRole("radio", { name: /^Automatic port/ }),
+      within(dialog).getByRole("radio", { name: "Automatic" }),
     ).toBeChecked();
     expect(within(dialog).queryByRole("radio", { name: /Off/ })).toBeNull();
     expect(within(dialog).queryByText(/device-only/i)).toBeNull();
@@ -3040,9 +3040,9 @@ describe("inspection application", () => {
     ).toBeVisible();
 
     await user.click(
-      within(dialog).getByRole("radio", { name: /^Fixed port/ }),
+      within(dialog).getByRole("radio", { name: "Fixed" }),
     );
-    const port = within(dialog).getByRole("spinbutton", { name: "Port" });
+    const port = within(dialog).getByRole("spinbutton", { name: "Port number" });
     expect(port).toHaveValue(null);
     const save = within(dialog).getByRole("button", { name: "Save settings" });
     expect(save).toBeDisabled();
@@ -3354,7 +3354,7 @@ describe("inspection application", () => {
     expect(within(dialog).queryByText(/51413/)).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/restart/i)).not.toBeInTheDocument();
     expect(
-      within(dialog).getByRole("radio", { name: /^Automatic port/ }),
+      within(dialog).getByRole("radio", { name: "Automatic" }),
     ).toBeChecked();
     expect(
       within(dialog).getByRole("button", { name: "Save settings" }),

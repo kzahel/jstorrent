@@ -502,9 +502,13 @@
     "defaultMessage": "Allow",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.automatic.port.recommended": {
-    "defaultMessage": "Automatic port (recommended)",
-    "description": "Incoming port option"
+  "inspection.components.connection.seeding.settings.section.automatic": {
+    "defaultMessage": "Automatic",
+    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  },
+  "inspection.components.connection.seeding.settings.section.automatic.port.description": {
+    "defaultMessage": "Recommended",
+    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
   "inspection.components.connection.seeding.settings.section.cancel.changes": {
     "defaultMessage": "Cancel changes",
@@ -522,8 +526,16 @@
     "defaultMessage": "Disabled",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
-  "inspection.components.connection.seeding.settings.section.fixed.port": {
-    "defaultMessage": "Fixed port",
+  "inspection.components.connection.seeding.settings.section.fixed": {
+    "defaultMessage": "Fixed",
+    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  },
+  "inspection.components.connection.seeding.settings.section.fixed.port.description": {
+    "defaultMessage": "Always use the same port",
+    "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
+  },
+  "inspection.components.connection.seeding.settings.section.port.number": {
+    "defaultMessage": "Port number",
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
   "inspection.components.connection.seeding.settings.section.incoming.connections": {
@@ -740,7 +752,7 @@
   },
   "inspection.components.connection.seeding.settings.section.port": {
     "defaultMessage": "Port",
-    "description": "Fixed incoming port number field label"
+    "description": "Incoming port mode heading"
   },
   "inspection.components.connection.seeding.settings.section.dht.description": {
     "defaultMessage": "Find peers without trackers",

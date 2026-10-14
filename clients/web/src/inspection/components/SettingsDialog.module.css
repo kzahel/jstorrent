@@ -232,6 +232,10 @@
   gap: var(--ui-space-sm) var(--ui-space-lg);
 }
 
+.choiceRow > .settingHeading {
+  flex: 1 1 12rem;
+}
+
 .segmented {
   display: inline-flex;
   flex: 0 0 auto;
@@ -276,24 +280,18 @@
   background: var(--surface-primary);
 }
 
+.segment:has(input:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.segment input:disabled {
+  cursor: default;
+}
+
 .segment:has(input:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
-}
-
-/* A radio list inside one row, such as the listener port mode. */
-.settingGroup {
-  display: grid;
-  gap: var(--ui-space-sm);
-}
-
-.settingGroup + .settingGroup {
-  margin-top: 0;
-}
-
-.options {
-  display: grid;
-  gap: 0;
 }
 
 .option {
@@ -303,10 +301,6 @@
   align-items: center;
   gap: var(--ui-space-sm);
   cursor: pointer;
-}
-
-.options .option {
-  padding: var(--ui-space-xs) 0;
 }
 
 .option > span,

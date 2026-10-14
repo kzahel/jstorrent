@@ -38,6 +38,7 @@ import {
 } from "../transfer-rate";
 import { useSettingsDraft } from "../use-settings-draft";
 import { RateLimitPicker, type RateLimitDraft } from "./RateLimitPicker";
+import { SegmentedSetting, type SegmentedOption } from "./SegmentedSetting";
 import styles from "./SettingsDialog.module.css";
 
 const FIXED_PORT_MINIMUM = 1_024;
@@ -388,62 +389,39 @@ export function ConnectionSeedingSettingsSection({
             }}
           />
           {draft.listener.mode === "off" ? null : (
-            <div
-              className={styles.settingGroup}
-              role="group"
-              aria-labelledby="listener-policy-heading"
-            >
-              <div className={styles.settingHeading}>
-                <strong id="listener-policy-heading">{localizedMessage("inspection.components.connection.seeding.settings.section.port")}</strong>
-              </div>
-              <div className={styles.options}>
-                <ListenerOption
-                  mode="automatic"
-                  label={localizedMessage("inspection.components.connection.seeding.settings.section.automatic.port.recommended")}
-                  selected={draft.listener.mode === "automatic"}
-                  disabled={!manageable}
-                  onSelect={() =>
-                    dispatchDraft({
-                      type: "edit",
-                      field: "listener",
-                      value: { ...draft.listener, mode: "automatic" },
-                    })
-                  }
-                />
-                <ListenerOption
-                  mode="fixed"
-                  label={localizedMessage("inspection.components.connection.seeding.settings.section.fixed.port")}
-                  selected={draft.listener.mode === "fixed"}
-                  disabled={!manageable}
-                  onSelect={() =>
-                    dispatchDraft({
-                      type: "edit",
-                      field: "listener",
-                      value: { ...draft.listener, mode: "fixed" },
-                    })
-                  }
-                />
-              </div>
-              {draft.listener.mode === "fixed" ? (
-                <NumberField
-                  id="fixed-listener-port"
-                  label={localizedMessage("inspection.components.connection.seeding.settings.section.port")}
-                  value={draft.listener.fixedPort}
-                  minimum={FIXED_PORT_MINIMUM}
-                  maximum={FIXED_PORT_MAXIMUM}
-                  error={validation.fixedPortError}
-                  disabled={!manageable}
-                  onChange={(fixedPort) =>
-                    dispatchDraft({
-                      type: "edit",
-                      field: "listener",
-                      value: { ...draft.listener, fixedPort },
-                    })
-                  }
-                />
-              ) : null}
-            </div>
+            <SegmentedSetting
+              name="listener-policy"
+              title={localizedMessage("inspection.components.connection.seeding.settings.section.port")}
+              options={LISTENER_OPTIONS}
+              value={draft.listener.mode}
+              disabled={!manageable}
+              onChange={(mode) =>
+                dispatchDraft({
+                  type: "edit",
+                  field: "listener",
+                  value: { ...draft.listener, mode },
+                })
+              }
+            />
           )}
+          {draft.listener.mode === "fixed" ? (
+            <NumberField
+              id="fixed-listener-port"
+              label={localizedMessage("inspection.components.connection.seeding.settings.section.port.number")}
+              value={draft.listener.fixedPort}
+              minimum={FIXED_PORT_MINIMUM}
+              maximum={FIXED_PORT_MAXIMUM}
+              error={validation.fixedPortError}
+              disabled={!manageable}
+              onChange={(fixedPort) =>
+                dispatchDraft({
+                  type: "edit",
+                  field: "listener",
+                  value: { ...draft.listener, fixedPort },
+                })
+              }
+            />
+          ) : null}
 
           <ToggleOption
             label={localizedMessage("inspection.components.connection.seeding.settings.section.upnp.port.forwarding")}
@@ -523,41 +501,19 @@ export function ConnectionSeedingSettingsSection({
             }
           />
 
-          <div
-            className={styles.settingGroup}
-            role="group"
-            aria-labelledby="encryption-policy-heading"
+          <SegmentedSetting
+            name="encryption-policy"
+            title={localizedMessage("inspection.components.connection.seeding.settings.section.protocol.encryption")}
+            options={ENCRYPTION_OPTIONS}
+            value={draft.encryption}
+            disabled={!manageable}
+            onChange={(value) =>
+              dispatchDraft({ type: "edit", field: "encryption", value })
+            }
           >
-            <div className={styles.settingHeading}>
-              <strong id="encryption-policy-heading">{localizedMessage("inspection.components.connection.seeding.settings.section.protocol.encryption")}</strong>
-              <span>{localizedMessage("inspection.components.connection.seeding.settings.section.protocol.encryption.description")}</span>
-              <NoteLine note={applicationNote(settings.encryption_application)} />
-            </div>
-            <div className={styles.options}>
-              {ENCRYPTION_OPTIONS.map((option) => (
-                <label className={styles.option} key={option.value}>
-                  <input
-                    type="radio"
-                    name="encryption-policy"
-                    value={option.value}
-                    checked={draft.encryption === option.value}
-                    disabled={!manageable}
-                    onChange={() =>
-                      dispatchDraft({
-                        type: "edit",
-                        field: "encryption",
-                        value: option.value,
-                      })
-                    }
-                  />
-                  <span>
-                    <strong>{option.label}</strong>
-                    <small>{option.description}</small>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
+            <span>{localizedMessage("inspection.components.connection.seeding.settings.section.protocol.encryption.description")}</span>
+            <NoteLine note={applicationNote(settings.encryption_application)} />
+          </SegmentedSetting>
         </SettingGroup>
 
         <NetworkDetails settings={settings} />
@@ -656,38 +612,6 @@ function ToggleOption({
         <strong>{label}</strong>
         {description === undefined ? null : <small>{description}</small>}
         <NoteLine note={note} />
-      </span>
-    </label>
-  );
-}
-
-interface ListenerOptionProps {
-  readonly mode: ListenerMode;
-  readonly label: string;
-  readonly selected: boolean;
-  readonly disabled: boolean;
-  readonly onSelect: () => void;
-}
-
-function ListenerOption({
-  mode,
-  label,
-  selected,
-  disabled,
-  onSelect,
-}: ListenerOptionProps) {
-  return (
-    <label className={styles.option}>
-      <input
-        type="radio"
-        name="listener-policy"
-        value={mode}
-        checked={selected}
-        disabled={disabled}
-        onChange={onSelect}
-      />
-      <span>
-        <strong>{label}</strong>
       </span>
     </label>
   );
@@ -1434,11 +1358,20 @@ function parseBoundedInteger(
     : null;
 }
 
-const ENCRYPTION_OPTIONS: ReadonlyArray<{
-  readonly value: EncryptionPolicy;
-  readonly label: string;
-  readonly description: string;
-}> = [
+const LISTENER_OPTIONS: readonly SegmentedOption<"automatic" | "fixed">[] = [
+  {
+    value: "automatic",
+    label: localizedMessage("inspection.components.connection.seeding.settings.section.automatic"),
+    description: localizedMessage("inspection.components.connection.seeding.settings.section.automatic.port.description"),
+  },
+  {
+    value: "fixed",
+    label: localizedMessage("inspection.components.connection.seeding.settings.section.fixed"),
+    description: localizedMessage("inspection.components.connection.seeding.settings.section.fixed.port.description"),
+  },
+];
+
+const ENCRYPTION_OPTIONS: readonly SegmentedOption<EncryptionPolicy>[] = [
   {
     value: "disabled",
     label: localizedMessage("inspection.components.connection.seeding.settings.section.disabled.75081b5"),

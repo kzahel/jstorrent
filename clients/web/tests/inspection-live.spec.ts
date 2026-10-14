@@ -75,7 +75,7 @@ test("client settings apply live, persist, and recover bind failure", async ({
 
   if (clientSettingsPhase === "configure") {
     await dialog
-      .getByRole("radio", { name: /^Automatic port/ })
+      .getByRole("radio", { name: "Automatic" })
       .check();
     await dialog
       .getByRole("spinbutton", { name: "Max peer connections" })
@@ -90,7 +90,7 @@ test("client settings apply live, persist, and recover bind failure", async ({
     await expect(dialog.getByText(/Couldn't apply|Limited to/)).toHaveCount(0);
   } else if (clientSettingsPhase === "observe") {
     await expect(
-      dialog.getByRole("radio", { name: /^Fixed port/ }),
+      dialog.getByRole("radio", { name: "Fixed" }),
     ).toBeChecked();
     await expect(
       dialog.getByRole("spinbutton", { name: "Max peer connections" }),
@@ -102,11 +102,11 @@ test("client settings apply live, persist, and recover bind failure", async ({
     await expect(dialog.getByText(/Couldn't apply|Limited to/)).toHaveCount(0);
   } else if (clientSettingsPhase === "recover") {
     await expect(
-      dialog.getByRole("radio", { name: /^Fixed port/ }),
+      dialog.getByRole("radio", { name: "Fixed" }),
     ).toBeChecked();
     await expect(incoming).toContainText("Port already in use");
     await dialog
-      .getByRole("radio", { name: /^Automatic port/ })
+      .getByRole("radio", { name: "Automatic" })
       .check();
     await dialog.getByRole("button", { name: "Save settings" }).click();
     await expect(dialog.getByText("Saved", { exact: true })).toBeVisible();

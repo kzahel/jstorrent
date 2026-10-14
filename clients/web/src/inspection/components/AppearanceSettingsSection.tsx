@@ -1,12 +1,9 @@
 import { message as localizedMessage } from "../../localization/runtime";
 import type { ColorTheme, DataUnits, InterfaceSize } from "../appearance";
+import { SegmentedSetting, type SegmentedOption } from "./SegmentedSetting";
 import styles from "./SettingsDialog.module.css";
 
-const COLOR_THEME_OPTIONS: readonly {
-  readonly value: ColorTheme;
-  readonly label: string;
-  readonly description: string;
-}[] = [
+const COLOR_THEME_OPTIONS: readonly SegmentedOption<ColorTheme>[] = [
   {
     value: "auto",
     label: localizedMessage("inspection.components.appearance.settings.section.auto"),
@@ -24,11 +21,7 @@ const COLOR_THEME_OPTIONS: readonly {
   },
 ];
 
-const INTERFACE_SIZE_OPTIONS: readonly {
-  readonly value: InterfaceSize;
-  readonly label: string;
-  readonly description: string;
-}[] = [
+const INTERFACE_SIZE_OPTIONS: readonly SegmentedOption<InterfaceSize>[] = [
   {
     value: "compact",
     label: localizedMessage("inspection.components.appearance.settings.section.compact"),
@@ -46,11 +39,7 @@ const INTERFACE_SIZE_OPTIONS: readonly {
   },
 ];
 
-const DATA_UNITS_OPTIONS: readonly {
-  readonly value: DataUnits;
-  readonly label: string;
-  readonly description: string;
-}[] = [
+const DATA_UNITS_OPTIONS: readonly SegmentedOption<DataUnits>[] = [
   {
     value: "binary",
     label: localizedMessage("inspection.components.appearance.settings.section.units.binary"),
@@ -107,55 +96,5 @@ export function AppearanceSettingsSection({
         />
       </div>
     </fieldset>
-  );
-}
-
-/** One row: title and the chosen option's description, then native radios drawn as segments. */
-function SegmentedSetting<Value extends string>({
-  name,
-  title,
-  options,
-  value,
-  onChange,
-}: {
-  readonly name: string;
-  readonly title: string;
-  readonly options: readonly {
-    readonly value: Value;
-    readonly label: string;
-    readonly description: string;
-  }[];
-  readonly value: Value;
-  readonly onChange: (value: Value) => void;
-}) {
-  const headingId = `${name}-heading`;
-  const descriptionId = `${name}-description`;
-  const selected = options.find((option) => option.value === value);
-  return (
-    <div
-      className={styles.choiceRow}
-      role="group"
-      aria-labelledby={headingId}
-      aria-describedby={descriptionId}
-    >
-      <div className={styles.settingHeading}>
-        <strong id={headingId}>{title}</strong>
-        <span id={descriptionId}>{selected?.description}</span>
-      </div>
-      <div className={styles.segmented}>
-        {options.map((option) => (
-          <label key={option.value} className={styles.segment} title={option.description}>
-            <input
-              type="radio"
-              name={name}
-              value={option.value}
-              checked={value === option.value}
-              onChange={() => onChange(option.value)}
-            />
-            <span>{option.label}</span>
-          </label>
-        ))}
-      </div>
-    </div>
   );
 }
