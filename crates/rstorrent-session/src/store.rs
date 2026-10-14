@@ -35,8 +35,8 @@ use crate::durable_state::{DerivedStateInput, VerificationState, derive_torrent_
 use crate::have::{HaveError, HaveState, MAX_DURABLE_HAVE_STATE_BYTES, MAX_DURABLE_PIECES};
 use crate::product_state::{ProductMilestone, ProductMilestoneKind};
 use crate::profile_reset::{
-    CatalogPreparation, DATABASE_FILENAME, ProfileResetReport, finish_catalog_creation,
-    prepare_catalog,
+    CatalogPreparation, DATABASE_FILENAME, ProfileResetReport, prepare_catalog,
+    write_pre_migration_copy,
 };
 use crate::settings::{
     ClientSettings, SettingsPersistenceError, StorageRootAvailability, StorageRootSnapshot,
@@ -44,8 +44,8 @@ use crate::settings::{
     create_client_settings, read_client_settings, replace_client_settings,
 };
 use crate::store_schema::{
-    DHT_TABLES_SQL, DOWNLOAD_QUEUE_INDEX_SQL, FILE_PRIORITIES_TABLE_SQL, REMOVAL_TABLE_SQL,
-    SCHEMA_VERSION, SOURCE_TABLES_SQL,
+    BASELINE_SCHEMA_VERSION, DHT_TABLES_SQL, DOWNLOAD_QUEUE_INDEX_SQL, FILE_PRIORITIES_TABLE_SQL,
+    REMOVAL_TABLE_SQL, SCHEMA_VERSION, SOURCE_TABLES_SQL,
 };
 
 const MAX_RECEIPTS: i64 = 1024;
@@ -539,12 +539,7 @@ impl SessionStore {
 
         if let Some(maximum_bytes) = ephemeral_maximum_bytes {
             configure_ephemeral_connection(&connection, maximum_bytes)?;
-            create_or_validate_schema_26(
-                &mut connection,
-                profile_id,
-                initial_client_settings,
-                None,
-            )?;
+            create_or_validate_catalog(&mut connection, profile_id, initial_client_settings)?;
         } else {
             connection.busy_timeout(BUSY_TIMEOUT)?;
             let (profile_root, preparation) =
@@ -552,23 +547,26 @@ impl SessionStore {
             match preparation {
                 CatalogPreparation::Current => {
                     configure_durable_connection(&connection)?;
-                    create_or_validate_schema_26(
+                    create_or_validate_catalog(
                         &mut connection,
                         profile_id,
                         initial_client_settings,
-                        None,
                     )?;
                 }
-                CatalogPreparation::Create { reset_report } => {
+                CatalogPreparation::Create => {
                     connection.pragma_update(None, "synchronous", "FULL")?;
-                    create_or_validate_schema_26(
+                    create_or_validate_catalog(
                         &mut connection,
                         profile_id,
                         initial_client_settings,
-                        reset_report.as_ref(),
                     )?;
-                    finish_catalog_creation(profile_root)?;
                     configure_durable_connection(&connection)?;
+                }
+                CatalogPreparation::Migrate { from } => {
+                    configure_durable_connection(&connection)?;
+                    write_pre_migration_copy(&connection, profile_root)?;
+                    crate::store_migration::migrate_catalog(&mut connection, from)?;
+                    validate_catalog(&connection, profile_id)?;
                 }
             }
         }
@@ -2617,6 +2615,12 @@ pub enum StoreError {
         actual: i64,
         maximum: i64,
     },
+    /// A catalog from before the supported baseline. It is left unchanged;
+    /// only the user's Clear app data replaces it.
+    RetiredSchema {
+        actual: i64,
+        minimum: i64,
+    },
     ProfileResetBusy,
     UnsafeProfileFile {
         basename: &'static str,
@@ -2648,8 +2652,13 @@ impl fmt::Display for StoreError {
                 formatter,
                 "session schema {actual} is newer than supported version {maximum}"
             ),
+            Self::RetiredSchema { actual, minimum } => write!(
+                formatter,
+                "session schema {actual} predates supported version {minimum}; \
+                 it was left unchanged and can be discarded only by clearing app data"
+            ),
             Self::ProfileResetBusy => {
-                formatter.write_str("session database is busy and cannot be reset safely")
+                formatter.write_str("session database is busy; it was left unchanged")
             }
             Self::UnsafeProfileFile { basename, reason } => {
                 write!(
@@ -3023,32 +3032,29 @@ fn append_product_milestone(
     Ok(true)
 }
 
-fn create_or_validate_schema_26(
+fn create_or_validate_catalog(
     connection: &mut Connection,
     profile_id: &str,
     initial_client_settings: &ClientSettings,
-    reset_report: Option<&ProfileResetReport>,
 ) -> Result<(), StoreError> {
     let version: i64 = connection.pragma_query_value(None, "user_version", |row| row.get(0))?;
     if version != 0 {
-        return validate_schema_26(connection, profile_id);
+        return validate_catalog(connection, profile_id);
     }
     let transaction = connection.transaction()?;
-    create_schema_26(
-        &transaction,
-        profile_id,
-        initial_client_settings,
-        reset_report,
-    )?;
+    create_schema_26(&transaction, profile_id, initial_client_settings)?;
+    crate::store_migration::upgrade_fresh_catalog(&transaction)?;
     transaction.commit()?;
-    validate_schema_26(connection, profile_id)
+    validate_catalog(connection, profile_id)
 }
 
+/// Creates the frozen schema-26 baseline that every public release shipped.
+/// Never edit these definitions: a schema change appends a step in
+/// `store_migration`, and fresh catalogs run every step after this.
 fn create_schema_26(
     transaction: &Transaction<'_>,
     profile_id: &str,
     initial_client_settings: &ClientSettings,
-    reset_report: Option<&ProfileResetReport>,
 ) -> Result<(), StoreError> {
     transaction.execute_batch(
         "CREATE TABLE profile_state (
@@ -3251,30 +3257,17 @@ fn create_schema_26(
          ) VALUES (1, ?1, 1, 0)",
         [source_epoch.as_slice()],
     )?;
-    if let Some(report) = reset_report {
-        transaction.execute(
-            "INSERT INTO profile_reset_report(
-                singleton, previous_schema_version, discarded_categories_json,
-                database_basenames_json, external_payload_modified
-             ) VALUES (1, ?1, ?2, ?3, 0)",
-            params![
-                report.previous_schema_version,
-                serde_json::to_string(&report.discarded_categories)?,
-                serde_json::to_string(&report.database_basenames_considered)?,
-            ],
-        )?;
-    }
     create_client_settings(transaction, initial_client_settings)?;
     transaction.execute_batch(DHT_TABLES_SQL)?;
     transaction.execute_batch(REMOVAL_TABLE_SQL)?;
     transaction.execute_batch(SOURCE_TABLES_SQL)?;
     transaction.execute_batch(DOWNLOAD_QUEUE_INDEX_SQL)?;
     transaction.execute_batch(FILE_PRIORITIES_TABLE_SQL)?;
-    transaction.pragma_update(None, "user_version", SCHEMA_VERSION)?;
+    transaction.pragma_update(None, "user_version", BASELINE_SCHEMA_VERSION)?;
     Ok(())
 }
 
-fn validate_schema_26(connection: &Connection, profile_id: &str) -> Result<(), StoreError> {
+fn validate_catalog(connection: &Connection, profile_id: &str) -> Result<(), StoreError> {
     let version: i64 = connection.pragma_query_value(None, "user_version", |row| row.get(0))?;
     if version != SCHEMA_VERSION {
         return Err(StoreError::UnsupportedSchema {
@@ -6784,6 +6777,19 @@ fn internal_message(message: &str) -> (ErrorCode, String) {
 }
 
 #[cfg(test)]
+impl SessionStore {
+    pub(crate) fn connection(&self) -> &Connection {
+        &self.connection
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn create_baseline_for_test(transaction: &Transaction<'_>) {
+    create_schema_26(transaction, "default", &ClientSettings::default())
+        .expect("create baseline catalog");
+}
+
+#[cfg(test)]
 mod tests {
     use std::fs;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -9416,143 +9422,6 @@ mod tests {
             SessionStore::open(&root, "default", &[configured]),
             Err(StoreError::UnsupportedSchema { .. })
         ));
-        fs::remove_dir_all(root).expect("remove test profile");
-    }
-
-    #[test]
-    fn recognized_recent_schemas_reset_without_retaining_profile_state() {
-        for previous_version in [19_i64, 20_i64, 21_i64, 22_i64] {
-            let root = test_root(&format!("schema-{previous_version}-to-23"));
-            let configured = configured_root(&root);
-            let mut store = SessionStore::open(&root, "default", std::slice::from_ref(&configured))
-                .expect("open current profile");
-            store
-                .handle_durable(&add_request("discarded-owner"))
-                .expect("add disposable owner");
-            assert_eq!(
-                store.snapshot().expect("populated snapshot").torrents.len(),
-                1
-            );
-            let database_path = store.database_path().expect("database path").to_owned();
-            drop(store);
-
-            let connection = Connection::open(&database_path).expect("open prior catalog");
-            if previous_version == 19 {
-                connection
-                    .execute_batch("DROP TABLE file_priorities;")
-                    .expect("reconstruct schema 19 delta");
-            }
-            connection
-                .pragma_update(None, "user_version", previous_version)
-                .expect("set prior schema version");
-            drop(connection);
-
-            let payload = root.join("payload").join("sentinel");
-            fs::create_dir_all(payload.parent().expect("payload parent"))
-                .expect("create payload root");
-            fs::write(&payload, b"untouched").expect("payload sentinel");
-
-            let reopened = SessionStore::open(&root, "default", &[configured])
-                .expect("reset disposable profile");
-            assert_eq!(reopened.revision().expect("fresh revision"), 0);
-            assert!(
-                reopened
-                    .snapshot()
-                    .expect("fresh snapshot")
-                    .torrents
-                    .is_empty()
-            );
-            let report = reopened
-                .pending_profile_reset_report()
-                .expect("read reset report")
-                .expect("reset report");
-            assert_eq!(report.previous_schema_version, previous_version);
-            assert!(!report.external_payload_modified);
-            assert_eq!(fs::read(&payload).expect("payload survives"), b"untouched");
-            assert_eq!(
-                reopened
-                    .connection
-                    .pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
-                    .expect("current schema version"),
-                SCHEMA_VERSION
-            );
-            assert_eq!(
-                reopened
-                    .connection
-                    .query_row("SELECT count(*) FROM file_priorities", [], |row| {
-                        row.get::<_, i64>(0)
-                    })
-                    .expect("fresh priority table"),
-                0
-            );
-            drop(reopened);
-            fs::remove_dir_all(root).expect("remove test profile");
-        }
-    }
-
-    #[test]
-    fn recognized_profile_resets_to_empty_current_schema_with_one_report() {
-        let root = test_root("schema-reset-current");
-        fs::create_dir_all(&root).expect("create profile root");
-        let database = root.join("session.db");
-        let connection = Connection::open(&database).expect("legacy database");
-        connection
-            .execute_batch(
-                "CREATE TABLE request_receipts(request_id TEXT PRIMARY KEY);
-                 INSERT INTO request_receipts VALUES ('old-receipt');
-                 PRAGMA user_version = 18;",
-            )
-            .expect("legacy catalog");
-        drop(connection);
-        let payload = root.join("payload-sentinel");
-        fs::write(&payload, b"untouched").expect("payload sentinel");
-
-        let mut store = SessionStore::open(&root, "default", &[]).expect("reset profile");
-        assert_eq!(store.revision().expect("fresh revision"), 0);
-        assert!(
-            store
-                .snapshot()
-                .expect("fresh snapshot")
-                .torrents
-                .is_empty()
-        );
-        let report = store
-            .pending_profile_reset_report()
-            .expect("read reset report")
-            .expect("reset report");
-        assert_eq!(report.previous_schema_version, 18);
-        assert_eq!(
-            report.database_basenames_considered,
-            ["session.db", "session.db-wal", "session.db-shm"]
-        );
-        assert!(!report.external_payload_modified);
-        assert_eq!(fs::read(&payload).expect("payload survives"), b"untouched");
-        let receipt_count: i64 = store
-            .connection
-            .query_row("SELECT count(*) FROM request_receipts", [], |row| {
-                row.get(0)
-            })
-            .expect("fresh receipt catalog");
-        assert_eq!(receipt_count, 0);
-        store
-            .acknowledge_profile_reset_report()
-            .expect("acknowledge report");
-        assert!(
-            store
-                .pending_profile_reset_report()
-                .expect("read acknowledged report")
-                .is_none()
-        );
-        drop(store);
-
-        let reopened = SessionStore::open(&root, "default", &[]).expect("reopen current schema");
-        assert!(
-            reopened
-                .pending_profile_reset_report()
-                .expect("report remains acknowledged")
-                .is_none()
-        );
-        drop(reopened);
         fs::remove_dir_all(root).expect("remove test profile");
     }
 

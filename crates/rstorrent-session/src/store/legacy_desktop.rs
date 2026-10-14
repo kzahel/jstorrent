@@ -252,8 +252,8 @@ impl SessionStore {
                 &transaction,
                 &self.profile_id,
                 &ClientSettings::fresh_profile_default(),
-                None,
             )?;
+            crate::store_migration::upgrade_fresh_catalog(&transaction)?;
         }
         if let Some(mut report) = completed_report_for(&transaction, kind)? {
             report.already_completed = true;

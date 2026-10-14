@@ -140,6 +140,19 @@ testing justify it; do not create speculative abstractions or
 one-file-per-type layouts merely in anticipation of future features. Record a
 deferral only when a material known problem is deliberately left in place.
 
+## Durable User Data
+
+Shipped user data is never wiped, reset, or replaced on upgrade. Only an
+explicit user action such as Clear app data may discard it. The session
+catalog's supported baseline is schema 26: every later schema change appends
+a hand-written forward migration step in
+`crates/rstorrent-session/src/store_migration.rs`, never edits the baseline
+definitions, and passes the released-catalog fixture tests; each release that
+ships a new schema version adds its fixture. Other durable formats (product
+and metrics databases, platform preferences, desktop and remote settings)
+follow the same rule. See
+[`docs/topics/client-persistence.md`](docs/topics/client-persistence.md).
+
 ## Feature Campaign Execution
 
 [`docs/topics/capability-readiness.md`](docs/topics/capability-readiness.md)

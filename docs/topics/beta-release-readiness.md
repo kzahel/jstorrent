@@ -1207,13 +1207,14 @@ workflow may create a draft release, but only a final validation job may make
 it public. Tags, publication, store submission, and production-route changes
 remain explicit maintainer actions.
 
-Every `0.1.x` package and current platform preview may reset or replace
-application-owned state rather than migrate it. Current application
-identifiers, updater keys, and routes are operational values, not a promise
-that an older incubation installation remains supported. Recognized obsolete
-state may use a bounded documented reset; malformed, ambiguous, busy, or future
-state fails closed. Reset never includes user-selected payload roots or
-published content and never converts old records into verified authority.
+Tactical [345](../tactical/345-supported-catalog-migrations.md) (2026-10-14)
+ends automatic resets: shipped application state is migrated forward, never
+reset or replaced, and only the user's Clear app data discards it. Schema 26,
+shipped by every public release, is the supported session-catalog baseline;
+pre-baseline incubation catalogs and future, malformed, ambiguous or busy state
+fail closed unchanged. Current application identifiers, updater keys, and
+routes remain operational values, not a promise that an older incubation
+installation remains supported.
 
 The first version explicitly declared the supported beta or release freezes
 its fresh application identifiers, updater trust, route, and persistence/API
@@ -1250,14 +1251,13 @@ compatibility and rollback policy declared with that baseline.
 - [x] **REL-004 — Add a changelog and release-note policy.** `CHANGELOG.md` and
   the desktop release runbook require supported behavior, known limitations,
   data reset/migration, and security/privacy changes for each release.
-- [ ] **REL-005 — Declare the first supported persistence baseline.** Choose
-  the first explicitly supported version and freeze only its fresh database
-  and application-owned formats. No `0.1.x` migration is required. Exercise
-  fresh creation, recognized-incubation reset, interrupted reset,
-  corrupt/ambiguous/busy/future state, root loss, payload preservation, and the
-  forward/rollback policy that begins with that release. The concrete
-  [candidate inventory and matrix](../release-baseline.md) are prepared; no
-  version or schema has been selected or frozen.
+- [ ] **REL-005 — Declare the first supported persistence baseline.**
+  Session catalog: done by Tactical 345, which declares schema 26 the
+  supported baseline, removes automatic reset, adds the forward migration
+  runner and released-catalog fixtures, and leaves downgrade unsupported.
+  Remaining: the other application-owned formats in the
+  [candidate inventory](../release-baseline.md) and the audit follow-ups
+  recorded in Tactical 345.
 - [ ] **REL-006 — Define support, privacy, and legal presentation.** Ship
   license/notices, a privacy statement for network behavior and any update
   installation ID, support/report instructions, and a safe diagnostics export

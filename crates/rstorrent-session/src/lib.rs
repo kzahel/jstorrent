@@ -30,6 +30,7 @@ mod session_utp;
 mod settings;
 mod speed;
 mod store;
+mod store_migration;
 mod store_schema;
 mod torrent_runtime;
 mod tracker_views;

@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [345 — Never reset shipped catalogs; migrate forward](345-supported-catalog-migrations.md):
+  schema 26 is the supported baseline, automatic reset is removed, and later
+  schemas migrate through checked steps proven against a released catalog.
 - [344 — Seeding stop limits](344-seeding-stop-limits.md): draft; global and
   per-torrent ratio and seeding-time limits that stop a finished torrent,
   separate from the priority-only seed goals.
