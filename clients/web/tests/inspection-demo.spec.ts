@@ -1449,7 +1449,7 @@ test("speed history stays exact, selectable, and accessible", async ({
 
   const panel = page.getByLabel("Session speed history");
   const chart = page.getByRole("img", { name: /Speed history chart/ });
-  await expect(panel).toContainText("Session · All torrents");
+  await expect(panel).toContainText("All torrents");
   await expect(chart).toBeVisible();
   await expect(
     page.getByLabel("Selected speed window summaries"),

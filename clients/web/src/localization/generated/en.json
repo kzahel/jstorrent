@@ -6048,6 +6048,12 @@
       "value": "30 sec"
     }
   ],
+  "inspection.components.speed.panel.all.torrents": [
+    {
+      "type": 0,
+      "value": "All torrents"
+    }
+  ],
   "inspection.components.speed.panel.average": [
     {
       "type": 0,
@@ -6076,12 +6082,6 @@
     {
       "type": 0,
       "value": "Current traffic breakdown"
-    }
-  ],
-  "inspection.components.speed.panel.current.transfer.rates": [
-    {
-      "type": 0,
-      "value": "Current transfer rates"
     }
   ],
   "inspection.components.speed.panel.frozen.stale": [
@@ -6132,12 +6132,6 @@
       "value": "Out"
     }
   ],
-  "inspection.components.speed.panel.payload.download.and.upload.add.series": [
-    {
-      "type": 0,
-      "value": "Payload download and upload. Add series below to compare staged writes, verification, and protocol traffic."
-    }
-  ],
   "inspection.components.speed.panel.peak": [
     {
       "type": 0,
@@ -6174,12 +6168,6 @@
       "value": "Series"
     }
   ],
-  "inspection.components.speed.panel.session.all.torrents": [
-    {
-      "type": 0,
-      "value": "Session · All torrents"
-    }
-  ],
   "inspection.components.speed.panel.session.speed.history": [
     {
       "type": 0,
@@ -6208,12 +6196,6 @@
     {
       "type": 0,
       "value": "Traffic breakdown"
-    }
-  ],
-  "inspection.components.speed.panel.transfer.velocity": [
-    {
-      "type": 0,
-      "value": "Transfer velocity"
     }
   ],
   "inspection.components.speed.panel.upload.history.unavailable": [

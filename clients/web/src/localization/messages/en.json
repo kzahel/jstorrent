@@ -3372,6 +3372,10 @@
     "defaultMessage": "30 sec",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
   },
+  "inspection.components.speed.panel.all.torrents": {
+    "defaultMessage": "All torrents",
+    "description": "Product copy in inspection/components/SpeedPanel.tsx"
+  },
   "inspection.components.speed.panel.average": {
     "defaultMessage": "Average",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
@@ -3390,10 +3394,6 @@
   },
   "inspection.components.speed.panel.current.traffic.breakdown": {
     "defaultMessage": "Current traffic breakdown",
-    "description": "Product copy in inspection/components/SpeedPanel.tsx"
-  },
-  "inspection.components.speed.panel.current.transfer.rates": {
-    "defaultMessage": "Current transfer rates",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
   },
   "inspection.components.speed.panel.frozen.stale": {
@@ -3440,10 +3440,6 @@
     "defaultMessage": "Preparing speed history…",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
   },
-  "inspection.components.speed.panel.payload.download.and.upload.add.series": {
-    "defaultMessage": "Payload download and upload. Add series below to compare staged writes, verification, and protocol traffic.",
-    "description": "Product copy in inspection/components/SpeedPanel.tsx"
-  },
   "inspection.components.speed.panel.redundant.failed": {
     "defaultMessage": "Redundant / failed",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
@@ -3458,10 +3454,6 @@
   },
   "inspection.components.speed.panel.series": {
     "defaultMessage": "Series",
-    "description": "Product copy in inspection/components/SpeedPanel.tsx"
-  },
-  "inspection.components.speed.panel.session.all.torrents": {
-    "defaultMessage": "Session · All torrents",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
   },
   "inspection.components.speed.panel.session.speed.history": {
@@ -3482,10 +3474,6 @@
   },
   "inspection.components.speed.panel.traffic.breakdown": {
     "defaultMessage": "Traffic breakdown",
-    "description": "Product copy in inspection/components/SpeedPanel.tsx"
-  },
-  "inspection.components.speed.panel.transfer.velocity": {
-    "defaultMessage": "Transfer velocity",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
   },
   "inspection.components.swarm.table.address": {

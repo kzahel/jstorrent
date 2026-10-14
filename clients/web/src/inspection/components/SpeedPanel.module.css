@@ -23,31 +23,23 @@
   overflow: auto;
   height: 100%;
   min-height: 100%;
-  padding: 22px 24px 28px;
+  padding: 14px 24px 28px;
   color: var(--text-primary);
   background: var(--surface-primary);
 }
 
 .header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 18px;
+  gap: 16px;
+  margin-bottom: 10px;
 }
 
-.header h2 { margin: 2px 0 4px; font-size: var(--ui-font-heading); }
-.eyebrow { margin: 0; color: var(--text-muted); font-size: var(--ui-font-caption); font-weight: var(--weight-medium); }
-.subtitle { margin: 0; color: var(--text-muted); font-size: var(--ui-font-small); }
+.scope { color: var(--text-muted); font-size: var(--ui-font-caption); font-weight: var(--weight-medium); }
 
-.range { display: grid; gap: 5px; color: var(--text-muted); font-size: var(--ui-font-caption); }
+.range { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: var(--ui-font-caption); }
 .range select { min-width: 116px; }
-
-.heroRates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-bottom: 12px; overflow: hidden; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); background: var(--border-soft); }
-.heroRates > div { display: grid; gap: 4px; padding: 12px 14px; background: var(--surface-primary); }
-.heroRates span { color: var(--text-muted); font-size: var(--ui-font-caption); }
-.heroRates span::before { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: var(--series-color); content: ""; }
-.heroRates strong { font-size: var(--ui-font-display); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
 
 .chartWrap { position: relative; min-height: 310px; overflow: hidden; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); background: var(--surface-secondary); }
 .chartWrap[data-stale] { filter: saturate(.6); }
@@ -94,9 +86,7 @@
 
 @media (max-width: 700px) {
   .panel { padding: 16px; }
-  .header { align-items: stretch; flex-direction: column; gap: 12px; }
   .range select { width: 100%; }
-  .heroRates { grid-template-columns: 1fr; }
   .breakdownGrid { grid-template-columns: minmax(120px, 1fr) 90px 90px; }
   .summaryHeader { display: none; }
   .summaryRow { grid-template-columns: 1fr 1fr; gap: 7px 16px; padding: 10px 12px; }

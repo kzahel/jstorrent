@@ -81,11 +81,7 @@ export function SpeedPanel() {
   return (
     <div className={styles.panel} aria-label={localizedMessage("inspection.components.speed.panel.session.speed.history")}>
       <header className={styles.header}>
-        <div>
-          <p className={styles.eyebrow}>{localizedMessage("inspection.components.speed.panel.session.all.torrents")}</p>
-          <h2>{localizedMessage("inspection.components.speed.panel.transfer.velocity")}</h2>
-          <p className={styles.subtitle}>{localizedMessage("inspection.components.speed.panel.payload.download.and.upload.add.series")}</p>
-        </div>
+        <span className={styles.scope}>{localizedMessage("inspection.components.speed.panel.all.torrents")}</span>
         <label className={styles.range}>
           <span>{localizedMessage("inspection.components.speed.panel.history")}</span>
           <select
@@ -100,23 +96,6 @@ export function SpeedPanel() {
           </select>
         </label>
       </header>
-
-      <div className={styles.heroRates} aria-label={localizedMessage("inspection.components.speed.panel.current.transfer.rates")}>
-        {(
-          ["payload_received", "payload_uploaded"] as const
-        ).map((metric) => (
-          <div key={metric}>
-            <span
-              style={
-                { "--series-color": seriesColor(metric) } as React.CSSProperties
-              }
-            >
-              {METRIC_LABELS[metric]}
-            </span>
-            <strong>{nullableSpeedRate(current.get(metric), dataUnits)}</strong>
-          </div>
-        ))}
-      </div>
 
       {status.status === "unsupported" || status.status === "unavailable" ? (
         <div className={styles.message}>{status.reason}</div>
