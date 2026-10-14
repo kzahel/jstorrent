@@ -614,7 +614,8 @@ function fileEmptyMessage(
     case "not_requested":
       return localizedMessage("inspection.components.file.table.nothing.to.show");
     case "loading":
-      return localizedMessage("inspection.components.file.table.loading.files");
+      // Blank, like the peer table: a loading label only flickers.
+      return "";
     case "unavailable":
     case "unsupported":
       return materialization.reason;

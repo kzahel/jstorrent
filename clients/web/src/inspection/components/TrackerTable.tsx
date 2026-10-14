@@ -390,7 +390,8 @@ function trackerEmptyMessage(
     case "not_requested":
       return localizedMessage("inspection.components.tracker.table.nothing.to.show");
     case "loading":
-      return localizedMessage("inspection.components.tracker.table.loading.configured.trackers");
+      // Blank, like the peer table: a loading label only flickers.
+      return "";
     case "unavailable":
     case "unsupported":
       return materialization.reason;

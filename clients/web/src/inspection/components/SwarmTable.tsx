@@ -285,7 +285,8 @@ function swarmEmptyMessage(
     case "not_requested":
       return localizedMessage("inspection.components.swarm.table.nothing.to.show");
     case "loading":
-      return localizedMessage("inspection.components.swarm.table.loading.known.swarm.peers");
+      // Blank, like the peer table: a loading label only flickers.
+      return "";
     case "unavailable":
     case "unsupported":
       return materialization.reason;

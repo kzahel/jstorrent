@@ -335,7 +335,8 @@ function diskEmptyMessage(materialization: ViewMaterialization): string {
     case "not_requested":
       return localizedMessage("inspection.components.disk.panel.disk.state.is.not.requested");
     case "loading":
-      return localizedMessage("inspection.components.disk.panel.loading.disk.state");
+      // Blank, like the peer table: a loading label only flickers.
+      return "";
     case "unavailable":
     case "unsupported":
       return materialization.reason;

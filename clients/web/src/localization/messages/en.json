@@ -1868,10 +1868,6 @@
     "defaultMessage": "Hash service",
     "description": "Product copy in inspection/components/DiskPanel.tsx"
   },
-  "inspection.components.disk.panel.loading.disk.state": {
-    "defaultMessage": "Loading disk state…",
-    "description": "Product copy in inspection/components/DiskPanel.tsx"
-  },
   "inspection.components.disk.panel.no.pieces.are.waiting.on.storage": {
     "defaultMessage": "No pieces are waiting on storage.",
     "description": "Product copy in inspection/components/DiskPanel.tsx"
@@ -2110,10 +2106,6 @@
   },
   "inspection.components.file.table.index": {
     "defaultMessage": "Index",
-    "description": "Product copy in inspection/components/FileTable.tsx"
-  },
-  "inspection.components.file.table.loading.files": {
-    "defaultMessage": "Loading files…",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
   "inspection.components.file.table.name": {
@@ -3692,10 +3684,6 @@
     "defaultMessage": "Last seen",
     "description": "Product copy in inspection/components/SwarmTable.tsx"
   },
-  "inspection.components.swarm.table.loading.known.swarm.peers": {
-    "defaultMessage": "Loading known swarm peers…",
-    "description": "Product copy in inspection/components/SwarmTable.tsx"
-  },
   "inspection.components.swarm.table.lsd": {
     "defaultMessage": "LSD",
     "description": "Product copy in inspection/components/SwarmTable.tsx"
@@ -3918,10 +3906,6 @@
   },
   "inspection.components.tracker.table.leeches": {
     "defaultMessage": "Leeches",
-    "description": "Product copy in inspection/components/TrackerTable.tsx"
-  },
-  "inspection.components.tracker.table.loading.configured.trackers": {
-    "defaultMessage": "Loading configured trackers…",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
   },
   "inspection.components.tracker.table.next.announce": {

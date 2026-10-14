@@ -4772,12 +4772,6 @@
       "value": "Hash service"
     }
   ],
-  "inspection.components.disk.panel.loading.disk.state": [
-    {
-      "type": 0,
-      "value": "Loading disk state…"
-    }
-  ],
   "inspection.components.disk.panel.no.pieces.are.waiting.on.storage": [
     {
       "type": 0,
@@ -5124,12 +5118,6 @@
     {
       "type": 0,
       "value": "Index"
-    }
-  ],
-  "inspection.components.file.table.loading.files": [
-    {
-      "type": 0,
-      "value": "Loading files…"
     }
   ],
   "inspection.components.file.table.managed.by.android": [
@@ -7548,12 +7536,6 @@
       "value": "Last seen"
     }
   ],
-  "inspection.components.swarm.table.loading.known.swarm.peers": [
-    {
-      "type": 0,
-      "value": "Loading known swarm peers…"
-    }
-  ],
   "inspection.components.swarm.table.lsd": [
     {
       "type": 0,
@@ -8217,12 +8199,6 @@
     {
       "type": 0,
       "value": "Leeches"
-    }
-  ],
-  "inspection.components.tracker.table.loading.configured.trackers": [
-    {
-      "type": 0,
-      "value": "Loading configured trackers…"
     }
   ],
   "inspection.components.tracker.table.next.announce": [
