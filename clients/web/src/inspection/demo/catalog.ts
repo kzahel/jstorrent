@@ -21,11 +21,8 @@ import type {
   TrackerRow,
   TrackerSet,
 } from "../model";
-import {
-  DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW,
-  type DhtInspectionView,
-  type SpeedHistoryView,
-} from "../../api";
+import type { DhtInspectionView, SpeedHistoryView } from "../../api";
+import { DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW } from "../../api/generated/v1";
 import { emptyDiskSet } from "../state";
 
 const BASE_TIME_MS = Date.UTC(2026, 7, 1, 8, 0, 0);

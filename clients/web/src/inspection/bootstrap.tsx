@@ -2,7 +2,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { LocalizationProvider } from "../localization/runtime";
 
 import { ExternalUrlProvider, type OpenExternalUrl } from "./external-links";
-import { App } from "./components/App";
+import { App, type AppProps } from "./components/App";
 import { WebAuthGate } from "./components/WebAuthGate";
 import { InspectionProvider } from "./context";
 import { InspectionController } from "./controller";
@@ -10,24 +10,11 @@ import { DemoApplication } from "./demo/DemoApplication";
 import { isDemoScenarioId } from "./demo/catalog";
 import { LiveApplication } from "./live/LiveApplication";
 import type { DemoScenarioId } from "./model";
-import type { DesktopUpdater } from "./updater/types";
-import type { DesktopExternalIntake } from "../desktop-external-intake";
-import type { DesktopNotifications } from "./desktop-notifications/types";
-import type { DesktopPower } from "./desktop-power/types";
 import type { DesktopRemoteAccess } from "./remote-access/types";
-import type { ProductPrivacyController } from "./product-privacy/types";
 import type { ApplicationViewClient } from "../api/client";
-import { RemoteOnlyApplicationClient } from "../remote-application-client";
-import { HttpApplicationClient } from "../api/client";
-import { TauriApplicationViewClient } from "../tauri-view-client";
-import { WebSocketApplicationViewClient } from "../websocket-view-client";
 import { WebAuthClient } from "../web-auth-client";
-import {
-  createHostedHostIntegration,
-  type HostedAccessMode,
-  type HostedProduct,
-} from "../headless-updater";
-import type { AboutFacts } from "./support/about";
+import { createHostedHostIntegration } from "../headless-updater";
+import { markStartup } from "../startup-timing";
 import "./global.css";
 
 export function startDemoInspection(parameters: URLSearchParams): void {
@@ -39,7 +26,7 @@ export function startDemoInspection(parameters: URLSearchParams): void {
   const running = parameters.get("autoplay") !== "0";
   const application = new DemoApplication({ scenarioId, elapsedMs, running });
   const controller = new InspectionController(application);
-  renderInspection(controller);
+  renderInspection(controller, createRoot(applicationRoot()), {});
 }
 
 export async function startLiveInspection(
@@ -60,6 +47,7 @@ export async function startLiveInspection(
       : undefined;
   const webAuth = token === null ? new WebAuthClient(baseUrl.href) : undefined;
   const authStatus = await webAuth?.status();
+  markStartup("auth_checked");
   const root = createRoot(applicationRoot());
   if (
     webAuth !== undefined &&
@@ -105,179 +93,188 @@ async function openLiveInspection(
   waitMillis: number | undefined,
   webAuth: WebAuthClient | undefined,
 ): Promise<void> {
-  const client =
-    transport === "http"
-      ? new HttpApplicationClient(baseUrl.href, token, window.location.origin)
-      : new WebSocketApplicationViewClient(baseUrl.href, token);
-  const [application, hosted] = await Promise.all([
-    LiveApplication.open(client, {
-      ...(waitMillis === undefined ? {} : { waitMillis }),
-    }),
-    createHostedHostIntegration(baseUrl).catch((error: unknown) => {
+  const application = LiveApplication.connect(
+    {
+      load: () =>
+        transport === "http"
+          ? import("../api/client").then(
+              ({ HttpApplicationClient }) =>
+                new HttpApplicationClient(
+                  baseUrl.href,
+                  token,
+                  window.location.origin,
+                ),
+            )
+          : import("../websocket-view-client").then(
+              ({ WebSocketApplicationViewClient }) =>
+                new WebSocketApplicationViewClient(baseUrl.href, token),
+            ),
+      torrentListBundles: true,
+    },
+    { ...(waitMillis === undefined ? {} : { waitMillis }) },
+  );
+  application.installBrowserWakeHints(window, document);
+  const update = renderInspection(new InspectionController(application), root, {
+    webAuth,
+    about: { connection: "server" },
+  });
+  const hosted = await createHostedHostIntegration(baseUrl).catch(
+    (error: unknown) => {
       console.error("Hosted product integration initialization failed:", error);
       return undefined;
-    }),
-  ]);
-  application.installBrowserWakeHints(window, document);
-  renderInspection(
-    new InspectionController(application),
-    root,
-    webAuth,
-    hosted?.updater,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    hosted?.accessMode,
-    hosted?.product,
-    undefined,
-    undefined,
-    {
-      connection: "server",
-      ...(hosted?.buildId === undefined ? {} : { hostBuild: hosted.buildId }),
     },
   );
+  if (hosted === undefined) return;
+  update({
+    webAuth,
+    updater: hosted.updater,
+    accessMode: hosted.accessMode,
+    hostedProduct: hosted.product,
+    about: {
+      connection: "server",
+      ...(hosted.buildId === undefined ? {} : { hostBuild: hosted.buildId }),
+    },
+  });
 }
 
+// Renders before any desktop adapter exists; each adapter tolerates absence
+// and arrives in one later render. Nothing here rejects after that render.
 export async function startTauriInspection(): Promise<void> {
-  const { openTauriExternalUrl } = await import("../tauri-external-links");
-  const [updater, notifications, power, remoteAccess, productPrivacy, application, externalIntake, identifier] =
-    await Promise.all([
-      import("../tauri-updater")
-        .then(({ createTauriDesktopUpdater }) => createTauriDesktopUpdater())
-        .catch((error: unknown) => {
-          console.error("Desktop updater initialization failed:", error);
-          return undefined;
-        }),
-      import("../tauri-desktop-notifications")
-        .then(({ createTauriDesktopNotifications }) =>
-          createTauriDesktopNotifications(),
-        )
-        .catch((error: unknown) => {
-          console.error(
-            "Desktop notification settings initialization failed:",
-            error,
-          );
-          return undefined;
-        }),
-      import("../tauri-desktop-power")
-        .then(({ createTauriDesktopPower }) => createTauriDesktopPower())
-        .catch((error: unknown) => {
-          console.error("Desktop power settings initialization failed:", error);
-          return undefined;
-        }),
-      import("../tauri-remote-access")
-        .then(({ createTauriDesktopRemoteAccess }) =>
-          createTauriDesktopRemoteAccess(),
-        )
-        .catch((error: unknown) => {
-          console.error("Desktop remote access initialization failed:", error);
-          return undefined;
-        }),
-      import("../tauri-product-privacy")
-        .then(({ createTauriProductPrivacy }) => createTauriProductPrivacy())
-        .catch((error: unknown) => {
-          console.error("Desktop product privacy initialization failed:", error);
-          return undefined;
-        }),
-      LiveApplication.open(new TauriApplicationViewClient()),
-      import("../desktop-external-intake").then(
-        ({ TauriDesktopExternalIntake }) => TauriDesktopExternalIntake.open(),
+  const application = LiveApplication.connect({
+    load: () =>
+      import("../tauri-view-client").then(
+        ({ TauriApplicationViewClient }) => new TauriApplicationViewClient(),
       ),
-      import("@tauri-apps/api/app")
-        .then(({ getIdentifier }) => getIdentifier())
-        .catch((error: unknown) => {
-          console.error("Desktop identifier lookup failed:", error);
-          return undefined;
-        }),
-    ]);
+    torrentListBundles: true,
+  });
   application.installBrowserWakeHints(window, document);
-  renderInspection(
+  const update = renderInspection(
     new InspectionController(application),
-    undefined,
-    undefined,
+    createRoot(applicationRoot()),
+    { about: { connection: "desktop" } },
+  );
+  const [
+    openExternalUrl,
+    updater,
+    notifications,
+    power,
+    remoteAccess,
+    productPrivacy,
+    externalIntake,
+    identifier,
+  ] = await Promise.all([
+    adapter("external links", () =>
+      import("../tauri-external-links").then(
+        ({ openTauriExternalUrl }) => openTauriExternalUrl,
+      ),
+    ),
+    adapter("updater", () =>
+      import("../tauri-updater").then(({ createTauriDesktopUpdater }) =>
+        createTauriDesktopUpdater(),
+      ),
+    ),
+    adapter("notification settings", () =>
+      import("../tauri-desktop-notifications").then(
+        ({ createTauriDesktopNotifications }) => createTauriDesktopNotifications(),
+      ),
+    ),
+    adapter("power settings", () =>
+      import("../tauri-desktop-power").then(({ createTauriDesktopPower }) =>
+        createTauriDesktopPower(),
+      ),
+    ),
+    adapter("remote access", () =>
+      import("../tauri-remote-access").then(
+        ({ createTauriDesktopRemoteAccess }) => createTauriDesktopRemoteAccess(),
+      ),
+    ),
+    adapter("product privacy", () =>
+      import("../tauri-product-privacy").then(({ createTauriProductPrivacy }) =>
+        createTauriProductPrivacy(),
+      ),
+    ),
+    adapter("external torrent intake", () =>
+      import("../desktop-external-intake").then(({ TauriDesktopExternalIntake }) =>
+        TauriDesktopExternalIntake.open(),
+      ),
+    ),
+    adapter("identifier lookup", () =>
+      import("@tauri-apps/api/app").then(({ getIdentifier }) => getIdentifier()),
+    ),
+  ]);
+  markStartup("adapters_ready");
+  update({
     updater,
     externalIntake,
     notifications,
     power,
     remoteAccess,
-    undefined,
-    undefined,
     productPrivacy,
-    openTauriExternalUrl,
-    {
+    openExternalUrl,
+    about: {
       connection: "desktop",
       ...(identifier === undefined ? {} : { identifier }),
     },
-  );
+  });
 }
 
+function adapter<T>(
+  name: string,
+  create: () => Promise<T>,
+): Promise<T | undefined> {
+  return create().catch((error: unknown) => {
+    console.error(`Desktop ${name} initialization failed:`, error);
+    return undefined;
+  });
+}
+
+// The remote gate relies on a failed first attach to return to sign-in, so
+// this entry still attaches before rendering.
 export async function startRemoteInspection(
   client: ApplicationViewClient,
   root: Root,
   remoteAccess: DesktopRemoteAccess,
   pageBuild?: string,
 ): Promise<void> {
+  const { RemoteOnlyApplicationClient } = await import(
+    "../remote-application-client"
+  );
   const application = await LiveApplication.open(
     new RemoteOnlyApplicationClient(client),
   );
   application.installBrowserWakeHints(window, document);
-  renderInspection(
-    new InspectionController(application),
-    root,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
+  renderInspection(new InspectionController(application), root, {
     remoteAccess,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    {
+    about: {
       connection: "remote",
       ...(pageBuild === undefined ? {} : { pageBuild }),
     },
-  );
+  });
 }
 
+interface InspectionHost extends AppProps {
+  readonly openExternalUrl?: OpenExternalUrl | undefined;
+}
+
+/** Renders the application and returns a re-render for later host facts. */
 function renderInspection(
   controller: InspectionController,
-  root: Root = createRoot(applicationRoot()),
-  webAuth?: WebAuthClient,
-  updater?: DesktopUpdater,
-  externalIntake?: DesktopExternalIntake,
-  notifications?: DesktopNotifications,
-  power?: DesktopPower,
-  remoteAccess?: DesktopRemoteAccess,
-  accessMode?: HostedAccessMode,
-  hostedProduct?: HostedProduct,
-  productPrivacy?: ProductPrivacyController,
-  openExternalUrl?: OpenExternalUrl,
-  about?: AboutFacts,
-): void {
+  root: Root,
+  host: InspectionHost,
+): (host: InspectionHost) => void {
   controller.start();
-  root.render(
-    <LocalizationProvider>
-      <ExternalUrlProvider openUrl={openExternalUrl}>
-        <InspectionProvider controller={controller}>
-          <App
-            webAuth={webAuth}
-            updater={updater}
-            externalIntake={externalIntake}
-            notifications={notifications}
-            power={power}
-            remoteAccess={remoteAccess}
-            accessMode={accessMode}
-            hostedProduct={hostedProduct}
-            productPrivacy={productPrivacy}
-            about={about}
-          />
-        </InspectionProvider>
-      </ExternalUrlProvider>
-    </LocalizationProvider>,
-  );
+  const render = ({ openExternalUrl, ...props }: InspectionHost) =>
+    root.render(
+      <LocalizationProvider>
+        <ExternalUrlProvider openUrl={openExternalUrl}>
+          <InspectionProvider controller={controller}>
+            <App {...props} />
+          </InspectionProvider>
+        </ExternalUrlProvider>
+      </LocalizationProvider>,
+    );
+  render(host);
+  return render;
 }
 
 function applicationRoot(): HTMLElement {

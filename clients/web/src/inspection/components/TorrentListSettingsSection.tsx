@@ -4,7 +4,7 @@ import type {
   TorrentListImportReport,
   TorrentListImportTarget,
 } from "../../api";
-import { MAX_TORRENT_LIST_BUNDLE_BYTES } from "../../api/client";
+import { MAX_TORRENT_LIST_BUNDLE_BYTES } from "../../api/errors";
 import { message as localizedMessage } from "../../localization/runtime";
 import type { DownloadRoot } from "../model";
 import { useToast } from "./Toast";

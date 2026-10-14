@@ -80,4 +80,12 @@ describe("local diagnostics allowlist", () => {
     expect(report.page_build).toBe("unknown");
     expect(report.updater_operation).toBe("unknown");
   });
+
+  it("reports bounded startup phases and drops anything else", () => {
+    const startup = { entry: 40, shell_rendered: 120, hello: -1, first_library: 1.5,
+      view_set_open: 700_000, url: 5 } as unknown as Record<string, number>;
+    const report = JSON.parse(buildDiagnostics({ about: { connection: "desktop" }, startup }));
+    expect(report.startup_ms).toEqual({ entry: 40, shell_rendered: 120 });
+    expect(JSON.parse(buildDiagnostics({ about: {} }))).not.toHaveProperty("startup_ms");
+  });
 });

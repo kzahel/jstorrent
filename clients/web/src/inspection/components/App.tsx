@@ -1,9 +1,11 @@
 import { RemotePlaybackProvider } from "./RemoteVideoPlayer";
 import jstorrentIcon from "../../assets/jstorrent.png";
 import { message as localizedMessage } from "../../localization/runtime";
+import { markStartup } from "../../startup-timing";
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -126,6 +128,7 @@ export function App({
 }: AppProps) {
   const connection = useInspectionStore((state) => state.session.connection);
   const controller = useInspectionController();
+  useEffect(() => markStartup("shell_rendered"), []);
   const connectionNowMs = useConnectionClock(connection.type === "reconnecting");
   const interrupted = connectionInterrupted(connection, connectionNowMs);
   return (
@@ -226,12 +229,17 @@ function AppContent({
     accessMode === "lan_none" || accessMode === "network_none"
       ? accessMode
       : null;
-  const [credentialFreeNoticeDismissed, setCredentialFreeNoticeDismissed] =
-    useState(() =>
-      credentialFreeAccessMode === null
-        ? false
-        : loadCredentialFreeNoticeDismissed(credentialFreeAccessMode),
-    );
+  // The access mode can arrive after the first render (Tactical 352).
+  const [dismissedNoticeMode, setDismissedNoticeMode] = useState<
+    typeof credentialFreeAccessMode
+  >(null);
+  const credentialFreeNoticeDismissed = useMemo(
+    () =>
+      credentialFreeAccessMode !== null &&
+      (dismissedNoticeMode === credentialFreeAccessMode ||
+        loadCredentialFreeNoticeDismissed(credentialFreeAccessMode)),
+    [credentialFreeAccessMode, dismissedNoticeMode],
+  );
   const [settingsCategory, setSettingsCategory] =
     useState<SettingsCategory>("appearance");
   const updaterSnapshot = useDesktopUpdater(updater);
@@ -441,7 +449,7 @@ function AppContent({
               <button
                 type="button"
                 onClick={() => {
-                  setCredentialFreeNoticeDismissed(true);
+                  setDismissedNoticeMode(credentialFreeAccessMode);
                   saveCredentialFreeNoticeDismissed(credentialFreeAccessMode);
                 }}
               >{localizedMessage("inspection.components.app.got.it")}</button>

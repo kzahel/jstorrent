@@ -1,3 +1,4 @@
+import { STARTUP_PHASES, type StartupTimings } from "../../startup-timing";
 import { productFlavor, type SupportFacts } from "./about";
 
 const TARGETS = new Set([
@@ -25,7 +26,7 @@ function bounded(value: unknown, pattern: RegExp): string {
 }
 
 /** Local support format, deliberately independent from raw application/log DTOs. */
-export function buildDiagnostics({ about, updater }: SupportFacts): string {
+export function buildDiagnostics({ about, updater, startup }: SupportFacts): string {
   const identity = bounded(about.identifier, IDENTIFIER);
   const report = {
     schema: 2,
@@ -46,12 +47,24 @@ export function buildDiagnostics({ about, updater }: SupportFacts): string {
           ? updater.state.operation : "unknown",
       } : {}),
     }),
+    ...(startup === undefined ? {} : { startup_ms: boundedStartup(startup) }),
   };
   const text = JSON.stringify(report, null, 2) + "\n";
   if (new TextEncoder().encode(text).length > 2048) {
     throw new Error("support diagnostics exceeded its fixed bound");
   }
   return text;
+}
+
+function boundedStartup(startup: StartupTimings): Record<string, number> {
+  const report: Record<string, number> = {};
+  for (const phase of STARTUP_PHASES) {
+    const value: unknown = startup[phase];
+    if (typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 600_000) {
+      report[phase] = value;
+    }
+  }
+  return report;
 }
 
 export const DIAGNOSTICS_FILENAME = "jstorrent-diagnostics.json";

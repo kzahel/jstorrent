@@ -77,7 +77,9 @@ const SHA1_HEX = /^[A-Fa-f0-9]{40}$/;
 const DIAGNOSTIC_CATEGORY = /^[a-z0-9_-]+(?:\.[a-z0-9_-]+){0,3}$/;
 const DIAGNOSTIC_IDENTIFIER = /^[a-z0-9_.-]{1,48}$/;
 
-export class ContractError extends Error {}
+import { ContractError } from "./api/errors";
+
+export { ContractError };
 
 function parseBoundedJson(source: string, maximum: number, label: string): unknown {
   if (new TextEncoder().encode(source).byteLength > maximum) {

@@ -1,3 +1,4 @@
+import type { StartupTimings } from "../../startup-timing";
 import type { DesktopUpdaterSnapshot } from "../updater/types";
 
 /** How this page reaches the library it shows. */
@@ -28,6 +29,8 @@ export interface AboutFacts {
 export interface SupportFacts {
   readonly about: AboutFacts;
   readonly updater?: DesktopUpdaterSnapshot | undefined;
+  /** This page's startup phases, in milliseconds since navigation. */
+  readonly startup?: StartupTimings | undefined;
 }
 
 const PRODUCTION_IDENTIFIERS = new Set(["com.jstorrent.desktop", "com.jstorrent.app"]);

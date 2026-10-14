@@ -1,6 +1,6 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 
-import { DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW } from "../api";
+import { DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW } from "../api/generated/v1";
 
 import {
   DEFAULT_COLOR_THEME,

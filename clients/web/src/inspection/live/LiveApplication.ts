@@ -1,38 +1,43 @@
 import { message as localizedMessage } from "../../localization/runtime";
-import {
-  DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW,
-  type AddTorrentBytesRequest,
-  type ApiHello,
-  type ClientSettingsRuntimeView,
-  type CheckingProgressView,
-  type DiagnosticEvent,
-  type FileView,
-  type MediaItemView,
-  type PeerSourceView,
-  type PeerView,
-  type RequestEnvelope,
-  type ResponseEnvelope,
-  type SessionCurrentRatesView,
-  type SpeedHistoryView,
-  type SpeedMetric,
-  type StorageRootSnapshot,
-  type StorageSettingsSnapshot,
-  type SwarmPeerView,
-  type TorrentListImportReport,
-  type TorrentListImportTarget,
-  type TorrentState,
-  type TorrentPreparationView,
-  type TorrentView,
-  type TrackerView,
-  type ViewSnapshot,
-  type ViewSpec,
+import { markStartup } from "../../startup-timing";
+import type {
+  AddTorrentBytesRequest,
+  ApiHello,
+  ClientSettingsRuntimeView,
+  CheckingProgressView,
+  DiagnosticEvent,
+  FileView,
+  MediaItemView,
+  PeerSourceView,
+  PeerView,
+  RequestEnvelope,
+  ResponseEnvelope,
+  SessionCurrentRatesView,
+  SpeedHistoryView,
+  SpeedMetric,
+  StorageRootSnapshot,
+  StorageSettingsSnapshot,
+  SwarmPeerView,
+  TorrentListImportReport,
+  TorrentListImportTarget,
+  TorrentState,
+  TorrentPreparationView,
+  TorrentView,
+  TrackerView,
+  ViewSnapshot,
+  ViewSpec,
 } from "../../api";
+import { DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW } from "../../api/generated/v1";
 import type { ApplicationViewClient } from "../../api/client";
-import {
+import type {
   ViewController,
-  type ViewConnectionStatus,
-  type ViewControllerOptions,
+  ViewControllerOptions,
 } from "../../view-controller";
+import {
+  abortableDelay,
+  viewStopReason,
+  type ViewConnectionStatus,
+} from "../../view-connection";
 import type { ViewSetState } from "../../view-set-reducer";
 import type { InspectionApplication } from "../application";
 import type {
@@ -84,6 +89,16 @@ const SPEED_VIEW_ID = "session-speed";
 const SESSION_RATES_VIEW_ID = "session-rates";
 const LOGS_VIEW_ID = "logs";
 
+/**
+ * A client loaded on the first attach, so its transport and the generated
+ * validators stay off the first render (Tactical 352).
+ */
+export interface DeferredApplicationClient {
+  readonly load: () => Promise<ApplicationViewClient>;
+  /** Whether the loaded client exports and imports torrent list bundles. */
+  readonly torrentListBundles: boolean;
+}
+
 export interface LiveApplicationOptions extends ViewControllerOptions {
   readonly initialViews?: DesiredInspectionViews;
   readonly storagePolicy?: "portable" | "one_current_root";
@@ -113,11 +128,18 @@ export class LiveApplication implements InspectionApplication {
   } | null = null;
   private mappedPieces: MappedPieceActivity | null = null;
   private hello: ApiHello | null = null;
+  private client: ApplicationViewClient | null;
+  private readonly loadClient: () => Promise<ApplicationViewClient>;
   private closed = false;
   private readonly lifetime = new AbortController();
   private readonly requestInstanceId = generateRequestInstanceId();
   private requestSequence = 1;
   private removeWakeHints: (() => void) | null = null;
+  // Settles once `hello` and the view set exist; rejects on close or stop.
+  private readonly attached: Promise<void>;
+  private settleAttached!: (error?: Error) => void;
+  private attaching: Promise<void> | null = null;
+  private attachWake: AbortController | null = null;
   readonly exportTorrentList: (() => Promise<boolean>) | undefined;
   readonly importTorrentBundle:
     | ((
@@ -127,67 +149,167 @@ export class LiveApplication implements InspectionApplication {
     | undefined;
 
   private constructor(
-    private readonly client: ApplicationViewClient,
+    source: ApplicationViewClient | DeferredApplicationClient,
     initialViews: DesiredInspectionViews,
     private readonly storagePolicy: "portable" | "one_current_root",
   ) {
     this.desired = initialViews;
     this.snapshot = emptyLiveSnapshot(initialViews, this.connection);
-    const exportTorrentList = client.exportTorrentList;
-    this.exportTorrentList =
-      exportTorrentList === undefined
-        ? undefined
-        : async () => {
-            this.ensureOpen();
-            return exportTorrentList.call(client, this.lifetime.signal);
-          };
-    const importTorrentBundle = client.importTorrentBundle;
-    this.importTorrentBundle =
-      importTorrentBundle === undefined
-        ? undefined
-        : async (target, chooseFile) => {
-            this.ensureOpen();
-            try {
-              return await importTorrentBundle.call(
-                client,
-                target,
-                chooseFile,
-                this.lifetime.signal,
-              );
-            } finally {
-              this.controller?.requestImmediatePoll();
-            }
-          };
+    this.attached = new Promise<void>((resolve, reject) => {
+      this.settleAttached = (error) => (error === undefined ? resolve() : reject(error));
+    });
+    // Commands await this; an unawaited rejection is not a startup failure.
+    this.attached.catch(() => {});
+    let exportSupported: boolean;
+    let importSupported: boolean;
+    if ("load" in source) {
+      this.client = null;
+      this.loadClient = source.load;
+      exportSupported = source.torrentListBundles;
+      importSupported = source.torrentListBundles;
+    } else {
+      this.client = source;
+      this.loadClient = async () => source;
+      exportSupported = source.exportTorrentList !== undefined;
+      importSupported = source.importTorrentBundle !== undefined;
+    }
+    this.exportTorrentList = !exportSupported
+      ? undefined
+      : async () => {
+          const client = await this.attachedClient();
+          if (client.exportTorrentList === undefined) {
+            throw new Error(localizedMessage("inspection.live.live.application.live.controller.is.unavailable"));
+          }
+          return client.exportTorrentList(this.lifetime.signal);
+        };
+    this.importTorrentBundle = !importSupported
+      ? undefined
+      : async (target, chooseFile) => {
+          const client = await this.attachedClient();
+          if (client.importTorrentBundle === undefined) {
+            throw new Error(localizedMessage("inspection.live.live.application.live.controller.is.unavailable"));
+          }
+          try {
+            return await client.importTorrentBundle(
+              target,
+              chooseFile,
+              this.lifetime.signal,
+            );
+          } finally {
+            this.controller?.requestImmediatePoll();
+          }
+        };
   }
 
+  /** Attaches before resolving and rejects if the first attempt fails. */
   static async open(
     client: ApplicationViewClient,
     options: LiveApplicationOptions = {},
   ): Promise<LiveApplication> {
-    const desired = options.initialViews ?? {
-      library: true,
-      torrentId: null,
-      detail: null,
-      logCapture: null,
-      speed: null,
-    };
-    const application = new LiveApplication(
+    const application = LiveApplication.create(client, options);
+    await application.attach(options);
+    return application;
+  }
+
+  /**
+   * Returns at once in `connecting` so a shell can render, then attaches in
+   * the background. Failed attempts retry with backoff as `reconnecting`;
+   * signed-out and contract failures stop.
+   */
+  static connect(
+    client: ApplicationViewClient | DeferredApplicationClient,
+    options: LiveApplicationOptions = {},
+  ): LiveApplication {
+    const application = LiveApplication.create(client, options);
+    application.attaching = application.attachWithRetry(options);
+    return application;
+  }
+
+  private static create(
+    client: ApplicationViewClient | DeferredApplicationClient,
+    options: LiveApplicationOptions,
+  ): LiveApplication {
+    return new LiveApplication(
       client,
-      desired,
+      options.initialViews ?? {
+        library: true,
+        torrentId: null,
+        detail: null,
+        logCapture: null,
+        speed: null,
+      },
       options.storagePolicy ?? "portable",
     );
-    application.hello = await client.hello();
-    const specs = application.viewSpecs(desired);
-    application.controller = await ViewController.open(
+  }
+
+  private async attach(options: ViewControllerOptions): Promise<void> {
+    const [client, { ViewController }] = await Promise.all([
+      this.client ?? this.loadClient(),
+      import("../../view-controller"),
+    ]);
+    // Owned from here, so close() releases it even if this attach fails.
+    this.client = client;
+    markStartup("client_loaded");
+    this.ensureOpen();
+    this.hello = await client.hello(this.lifetime.signal);
+    markStartup("hello");
+    this.ensureOpen();
+    const opened = { ...this.desired };
+    const controller = await ViewController.open(
       client,
-      specs,
-      (state) => application.acceptState(state),
-      (error) => application.markStale(error),
+      this.viewSpecs(opened),
+      (state) => this.acceptState(state),
+      (error) => this.markStale(error),
       options,
-      (status) => application.acceptStatus(status),
+      (status) => this.acceptStatus(status),
     );
-    application.acceptStatus({ type: "connected" });
-    return application;
+    if (this.closed) {
+      await controller.close().catch(() => {});
+      throw new Error("live application closed");
+    }
+    this.controller = controller;
+    markStartup("view_set_open");
+    this.acceptStatus({ type: "connected" });
+    this.settleAttached();
+    if (!sameViews(opened, this.desired)) {
+      await this.syncViews().catch(() => {});
+    }
+  }
+
+  private async attachWithRetry(options: ViewControllerOptions): Promise<void> {
+    const base = options.retryBaseMillis ?? 250;
+    const maximum = options.retryMaximumMillis ?? 30_000;
+    let retryMillis = base;
+    let since: number | null = null;
+    while (!this.closed) {
+      try {
+        await this.attach(options);
+        return;
+      } catch (error) {
+        if (this.closed) return;
+        const failure = asError(error);
+        console.warn("JSTorrent could not connect to its library:", failure);
+        const reason = viewStopReason(failure);
+        if (reason !== null) {
+          this.acceptStatus({ type: "stopped", reason });
+          this.settleAttached(failure);
+          return;
+        }
+        since ??= Date.now();
+        const wake = new AbortController();
+        this.attachWake = wake;
+        this.acceptStatus({
+          type: "retrying",
+          since,
+          nextAttemptAt: Date.now() + retryMillis,
+        });
+        await abortableDelay(retryMillis, this.lifetime.signal, wake.signal);
+        if (this.attachWake === wake) this.attachWake = null;
+        if (this.closed) return;
+        this.acceptStatus({ type: "retrying", since, nextAttemptAt: null });
+        retryMillis = Math.min(retryMillis * 2, maximum);
+      }
+    }
   }
 
   subscribe(listener: (update: InspectionUpdate) => void): () => void {
@@ -201,7 +323,15 @@ export class LiveApplication implements InspectionApplication {
     this.ensureOpen();
     if (sameViews(this.desired, views)) return;
     this.desired = { ...views };
+    // Before attaching, the view set opens with the latest desired views.
     if (this.controller === null) return;
+    await this.syncViews();
+  }
+
+  private async syncViews(): Promise<void> {
+    const controller = this.controller;
+    if (controller === null) return;
+    const views = this.desired;
     this.snapshot = transitionSnapshot(
       this.snapshot,
       this.desired,
@@ -209,7 +339,7 @@ export class LiveApplication implements InspectionApplication {
     );
     this.emit({ type: "snapshot", snapshot: this.snapshot });
     try {
-      await this.controller.setViews(this.viewSpecs(views));
+      await controller.setViews(this.viewSpecs(views));
     } catch (error) {
       this.markStale(asError(error));
       throw error;
@@ -218,9 +348,22 @@ export class LiveApplication implements InspectionApplication {
 
   async dispatch(command: InspectionCommand): Promise<CommandResult> {
     this.ensureOpen();
+    // Commands issued while connecting wait. Once attached nothing awaits
+    // here, so open_file keeps its user activation.
+    if (this.controller === null) {
+      try {
+        await this.attached;
+      } catch (error) {
+        return { accepted: false, message: asError(error).message };
+      }
+    }
+    const client = this.client;
+    if (client === null) {
+      return { accepted: false, message: localizedMessage("inspection.live.live.application.live.controller.is.unavailable") };
+    }
     if (command.type === "open_file") {
-      const createMediaUrl = this.client.createMediaUrl?.bind(this.client);
-      const prepareMediaOpen = this.client.prepareMediaOpen?.bind(this.client);
+      const createMediaUrl = client.createMediaUrl?.bind(client);
+      const prepareMediaOpen = client.prepareMediaOpen?.bind(client);
       if (createMediaUrl === undefined || prepareMediaOpen === undefined) {
         return {
           accepted: false,
@@ -257,7 +400,7 @@ export class LiveApplication implements InspectionApplication {
     }
     if (command.type === "choose_download_root") {
       try {
-        const root = await this.client.chooseDownloadRoot({
+        const root = await client.chooseDownloadRoot({
           ...(command.repairRoot === undefined
             ? {}
             : { repair_root: command.repairRoot }),
@@ -293,7 +436,7 @@ export class LiveApplication implements InspectionApplication {
       }
     }
     if (command.type === "add_torrent_bytes") {
-      if (this.client.addTorrentBytes === undefined) {
+      if (client.addTorrentBytes === undefined) {
         return {
           accepted: false,
           message: localizedMessage("inspection.live.live.application.torrent.file.upload.is.unavailable.on.this"),
@@ -308,7 +451,7 @@ export class LiveApplication implements InspectionApplication {
         selection: { type: "all" },
         source_length: command.source.byteLength,
       };
-      const response = await this.client.addTorrentBytes(
+      const response = await client.addTorrentBytes(
         request,
         command.source,
         this.lifetime.signal,
@@ -325,13 +468,13 @@ export class LiveApplication implements InspectionApplication {
       return addCommandResult(response);
     }
     if (command.type === "add_external_torrent") {
-      if (this.client.addExternalTorrent === undefined) {
+      if (client.addExternalTorrent === undefined) {
         return {
           accepted: false,
           message: localizedMessage("inspection.live.live.application.external.torrent.intake.is.unavailable.on.this"),
         };
       }
-      const response = await this.client.addExternalTorrent(
+      const response = await client.addExternalTorrent(
         {
           activation_id: command.activationId,
           request_id: `desktop-${this.requestInstanceId}-${this.requestSequence++}`,
@@ -531,6 +674,7 @@ export class LiveApplication implements InspectionApplication {
 
   requestImmediatePoll(): void {
     if (this.closed) return;
+    this.attachWake?.abort("immediate attach requested");
     this.controller?.requestImmediatePoll();
   }
 
@@ -562,8 +706,10 @@ export class LiveApplication implements InspectionApplication {
     this.removeWakeHints?.();
     this.removeWakeHints = null;
     this.listeners.clear();
+    this.settleAttached(new Error("live application closed"));
+    await this.attaching?.catch(() => {});
     await this.controller?.close();
-    await this.client.close();
+    await this.client?.close();
   }
 
   private acceptState(state: ViewSetState): void {
@@ -585,6 +731,7 @@ export class LiveApplication implements InspectionApplication {
     const mediaSet = this.mapMedia(media);
     const pieces = projection(state, PIECES_VIEW_ID, "piece_activity");
     const pieceSet = this.mapPieces(pieces, state.epoch);
+    if (state.views[LIBRARY_VIEW_ID] !== undefined) markStartup("first_library");
     this.snapshot = mapViewState(
       state,
       this.desired,
@@ -691,6 +838,16 @@ export class LiveApplication implements InspectionApplication {
       },
     };
     this.emit({ type: "snapshot", snapshot: this.snapshot });
+  }
+
+  private async attachedClient(): Promise<ApplicationViewClient> {
+    this.ensureOpen();
+    await this.attached;
+    const client = this.client;
+    if (client === null) {
+      throw new Error(localizedMessage("inspection.live.live.application.live.controller.is.unavailable"));
+    }
+    return client;
   }
 
   private capabilities(): ReadonlySet<string> {

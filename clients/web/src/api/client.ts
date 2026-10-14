@@ -31,9 +31,15 @@ import {
   decodeUpdateBatch,
 } from "../validation";
 
+import {
+  ApplicationViewError,
+  HttpApiError,
+  MAX_TORRENT_LIST_BUNDLE_BYTES,
+} from "./errors";
+
+export { ApplicationViewError, HttpApiError, MAX_TORRENT_LIST_BUNDLE_BYTES };
+
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
-/** Tactical 348: the engine's bundle bound, in both directions. */
-export const MAX_TORRENT_LIST_BUNDLE_BYTES = 256 * 1024 * 1024;
 export const TORRENT_LIST_FILE_NAME = "jstorrent-torrents.zip";
 
 export interface ApplicationViewClient {
@@ -120,25 +126,6 @@ export type FetchImplementation = (
   input: RequestInfo | URL,
   init?: RequestInit,
 ) => Promise<Response>;
-
-export class ApplicationViewError extends Error {
-  public constructor(
-    public readonly code: string,
-    message: string,
-  ) {
-    super(`${code}: ${message}`);
-  }
-}
-
-export class HttpApiError extends ApplicationViewError {
-  public constructor(
-    public readonly status: number,
-    code: string,
-    message: string,
-  ) {
-    super(code, message);
-  }
-}
 
 export class HttpApplicationClient implements ApplicationViewClient {
   private closed = false;

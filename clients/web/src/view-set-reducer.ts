@@ -34,7 +34,9 @@ export interface ViewSetState {
   lastDeliveryResetReason: string | null;
 }
 
-export class ViewSetContinuityError extends Error {}
+import { ViewSetContinuityError } from "./api/errors";
+
+export { ViewSetContinuityError };
 
 export function reduceOpenViewSet(response: OpenViewSetResponse): ViewSetState {
   if (response.initial.view_set_id !== response.view_set_id) {

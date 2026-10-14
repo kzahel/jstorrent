@@ -1253,6 +1253,167 @@ describe("LiveApplication", () => {
   });
 });
 
+class GatedHelloClient extends FakeLiveClient {
+  helloCalls = 0;
+  private gates: {
+    resolve: () => void;
+    reject: (error: Error) => void;
+  }[] = [];
+
+  override async hello(): Promise<ApiHello> {
+    this.helloCalls += 1;
+    await new Promise<void>((resolve, reject) => {
+      this.gates.push({ resolve, reject });
+    });
+    return super.hello();
+  }
+
+  allowHello(): void {
+    this.gates.shift()?.resolve();
+  }
+
+  failHello(error: Error): void {
+    this.gates.shift()?.reject(error);
+  }
+}
+
+describe("LiveApplication.connect", () => {
+  it("renders connecting state before attaching, then materializes the library", async () => {
+    const client = new GatedHelloClient();
+    const application = LiveApplication.connect(client);
+    const snapshots: InspectionSnapshot[] = [];
+    application.subscribe((update) => {
+      if (update.type === "snapshot") snapshots.push(update.snapshot);
+    });
+
+    expect(snapshots.at(-1)?.session.connection.type).toBe("connecting");
+    expect(snapshots.at(-1)?.viewStatus.library.status).toBe("loading");
+    expect(snapshots.at(-1)?.torrentOrder).toEqual([]);
+
+    await waitUntil(() => client.helloCalls === 1);
+    client.allowHello();
+    await waitUntil(() => snapshots.at(-1)?.session.connection.type === "connected");
+    expect(snapshots.at(-1)?.viewStatus.library.status).toBe("ready");
+    expect(snapshots.at(-1)?.torrentOrder).toEqual([TORRENT_ID]);
+    await application.close();
+  });
+
+  it("opens with views chosen while connecting and holds commands until attached", async () => {
+    const client = new GatedHelloClient();
+    const application = LiveApplication.connect(client);
+    await application.setViews({
+      library: true,
+      torrentId: TORRENT_ID,
+      detail: "peers",
+      logCapture: null,
+      speed: null,
+    });
+    const dispatched = application.dispatch({ type: "pause", torrentId: TORRENT_ID });
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 5));
+    expect(client.requests).toHaveLength(0);
+
+    await waitUntil(() => client.helloCalls === 1);
+    client.allowHello();
+    await expect(dispatched).resolves.toMatchObject({ accepted: true });
+    expect(client.requests.map((request) => request.command.type)).toEqual(["pause"]);
+    expect(client.opens).toHaveLength(1);
+    expect(client.opens[0]?.views.map((view) => view.type)).toEqual(
+      expect.arrayContaining(["torrent_list", "torrent_summary", "torrent_peers"]),
+    );
+    expect(client.updates).toHaveLength(0);
+    await application.close();
+  });
+
+  it("retries a failed attach as reconnecting and retries at once on request", async () => {
+    const client = new GatedHelloClient();
+    const application = LiveApplication.connect(client, {
+      retryBaseMillis: 60_000,
+    });
+    const snapshots: InspectionSnapshot[] = [];
+    application.subscribe((update) => {
+      if (update.type === "snapshot") snapshots.push(update.snapshot);
+    });
+
+    await waitUntil(() => client.helloCalls === 1);
+    client.failHello(new Error("engine is still starting"));
+    await waitUntil(() => {
+      const connection = snapshots.at(-1)?.session.connection;
+      return connection?.type === "reconnecting" && connection.nextAttemptAt !== null;
+    });
+
+    application.reconnectNow();
+    await waitUntil(() => client.helloCalls === 2);
+    client.allowHello();
+    await waitUntil(() => snapshots.at(-1)?.session.connection.type === "connected");
+    await application.close();
+  });
+
+  it("stops on a signed-out attach and fails waiting commands", async () => {
+    const client = new GatedHelloClient();
+    const application = LiveApplication.connect(client);
+    const snapshots: InspectionSnapshot[] = [];
+    application.subscribe((update) => {
+      if (update.type === "snapshot") snapshots.push(update.snapshot);
+    });
+    const dispatched = application.dispatch({ type: "pause", torrentId: TORRENT_ID });
+
+    await waitUntil(() => client.helloCalls === 1);
+    client.failHello(
+      new HttpApiError(401, "authentication_failed", "sign in again"),
+    );
+    await expect(dispatched).resolves.toMatchObject({ accepted: false });
+    expect(snapshots.at(-1)?.session.connection).toEqual({
+      type: "stopped",
+      reason: "signed_out",
+    });
+    expect(client.helloCalls).toBe(1);
+    await application.close();
+  });
+
+  it("loads a deferred client on attach and retries a failed load", async () => {
+    const client = new FakeLiveClient();
+    let loads = 0;
+    const application = LiveApplication.connect(
+      {
+        load: async () => {
+          loads += 1;
+          if (loads === 1) throw new Error("chunk failed to load");
+          return client;
+        },
+        torrentListBundles: true,
+      },
+      { retryBaseMillis: 1 },
+    );
+    expect(application.exportTorrentList).toBeDefined();
+    expect(application.importTorrentBundle).toBeDefined();
+    const snapshots: InspectionSnapshot[] = [];
+    application.subscribe((update) => {
+      if (update.type === "snapshot") snapshots.push(update.snapshot);
+    });
+
+    await waitUntil(() => snapshots.at(-1)?.session.connection.type === "connected");
+    expect(loads).toBe(2);
+    expect(client.opens).toHaveLength(1);
+    await expect(application.dispatch({ type: "pause", torrentId: TORRENT_ID }))
+      .resolves.toMatchObject({ accepted: true });
+    await application.close();
+  });
+
+  it("closes while connecting without leaving a view set open", async () => {
+    const client = new GatedHelloClient();
+    const closeViewSet = vi.spyOn(client, "closeViewSet");
+    const application = LiveApplication.connect(client);
+    const dispatched = application.dispatch({ type: "pause", torrentId: TORRENT_ID });
+    await waitUntil(() => client.helloCalls === 1);
+
+    const closing = application.close();
+    client.allowHello();
+    await closing;
+    await expect(dispatched).resolves.toMatchObject({ accepted: false });
+    expect(client.opens.length).toBe(closeViewSet.mock.calls.length);
+  });
+});
+
 function snapshotFor(
   view: ViewSpec,
   generation: number,

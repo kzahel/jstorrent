@@ -37,7 +37,26 @@ export default defineConfig(({ mode }) => {
     }
   }
   return {
-    build: { assetsInlineLimit: 0 },
+    build: {
+      assetsInlineLimit: 0,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                // Tactical 352: the generated validators load with the
+                // transport after the first render. Without this group the
+                // bundler places small modules the shell shares with them,
+                // such as the API error classes, in the validator chunk.
+                name: "validation",
+                test: /\/src\/(?:validation\.ts|api\/schema\.ts|api\/generated\/v1\.validators\.js)$/,
+                includeDependenciesRecursively: false,
+              },
+            ],
+          },
+        },
+      },
+    },
     server: { proxy },
     preview: { proxy },
     ...(companion

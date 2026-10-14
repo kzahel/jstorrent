@@ -6,18 +6,28 @@ import type {
   UpdateViewSetRequest,
   ViewSpec,
 } from "./api";
-import {
-  ApplicationViewError,
-  type ApplicationUpdateStream,
-  type ApplicationViewClient,
+import type {
+  ApplicationUpdateStream,
+  ApplicationViewClient,
 } from "./api/client";
+import { ApplicationViewError } from "./api/errors";
 import {
   reduceOpenViewSet,
   reduceUpdateBatch,
-  ViewSetContinuityError,
   type ViewSetState,
 } from "./view-set-reducer";
-import { ContractError } from "./validation";
+import {
+  abortableDelay,
+  viewStopReason,
+  type ViewConnectionStatus,
+} from "./view-connection";
+
+export {
+  abortableDelay,
+  viewStopReason,
+  type ViewConnectionStatus,
+  type ViewStopReason,
+} from "./view-connection";
 
 export interface ViewControllerOptions {
   waitMillis?: number;
@@ -28,20 +38,6 @@ export interface ViewControllerOptions {
 export type ViewStateListener = (state: ViewSetState) => void;
 export type ViewErrorListener = (error: Error) => void;
 export type ViewStatusListener = (status: ViewConnectionStatus) => void;
-
-// Why delivery stopped for good: retrying cannot help, only a reload can.
-export type ViewStopReason = "signed_out" | "reload_required";
-
-// Times are wall-clock milliseconds. `nextAttemptAt` is null while an
-// attempt is in progress.
-export type ViewConnectionStatus =
-  | { readonly type: "connected" }
-  | {
-      readonly type: "retrying";
-      readonly since: number;
-      readonly nextAttemptAt: number | null;
-    }
-  | { readonly type: "stopped"; readonly reason: ViewStopReason };
 
 export class ViewController {
   private readonly waitMillis: number;
@@ -333,41 +329,6 @@ function isUnavailableViewSet(error: Error): boolean {
     error instanceof ApplicationViewError &&
     (error.code === "unknown_view_set" || error.code === "view_set_closed")
   );
-}
-
-function viewStopReason(error: Error): ViewStopReason | null {
-  if (
-    error instanceof ContractError ||
-    error instanceof ViewSetContinuityError
-  ) {
-    return "reload_required";
-  }
-  if (error instanceof ApplicationViewError) {
-    if (error.code === "authentication_failed") return "signed_out";
-    if (error.code === "invalid_version") return "reload_required";
-  }
-  return null;
-}
-
-function abortableDelay(
-  millis: number,
-  ...signals: AbortSignal[]
-): Promise<void> {
-  return new Promise((resolve) => {
-    if (signals.some((signal) => signal.aborted)) {
-      resolve();
-      return;
-    }
-    const finish = () => {
-      globalThis.clearTimeout(timer);
-      for (const signal of signals) signal.removeEventListener("abort", finish);
-      resolve();
-    };
-    const timer = globalThis.setTimeout(finish, millis);
-    for (const signal of signals) {
-      signal.addEventListener("abort", finish, { once: true });
-    }
-  });
 }
 
 function asError(error: unknown): Error {

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 
 import { message } from "../../localization/runtime";
+import { startupTimings } from "../../startup-timing";
 import type { SupportFacts } from "../support/about";
 import { buildDiagnostics, DIAGNOSTICS_FILENAME } from "../support/diagnostics";
 import { ExternalLink } from "./ExternalLink";
@@ -53,7 +54,7 @@ export function SupportDiagnostics({ facts }: { readonly facts: SupportFacts }) 
       <legend>{message("support.diagnostics.title")}</legend>
       <p className={styles.updatePrivacy}>{message("support.diagnostics.description")}</p>
       <div className={styles.updateActions}>
-        <button type="button" onClick={() => { previewGeneration.current += 1; setPreview(buildDiagnostics(facts)); setManualCopy(false); }}>
+        <button type="button" onClick={() => { previewGeneration.current += 1; setPreview(buildDiagnostics({ ...facts, startup: startupTimings() })); setManualCopy(false); }}>
           {preview === undefined ? message("support.diagnostics.prepare") : message("support.diagnostics.refresh")}
         </button>
       </div>
