@@ -2604,12 +2604,8 @@
     "defaultMessage": "Last data",
     "description": "Product copy in inspection/components/PeerTable.tsx"
   },
-  "inspection.components.peer.table.loading.active.peer.connections": {
-    "defaultMessage": "Loading active peer connections…",
-    "description": "Product copy in inspection/components/PeerTable.tsx"
-  },
-  "inspection.components.peer.table.no.peer.connections.are.currently.active": {
-    "defaultMessage": "No peer connections are currently active.",
+  "inspection.components.peer.table.no.peers.connected": {
+    "defaultMessage": "No peers connected.",
     "description": "Product copy in inspection/components/PeerTable.tsx"
   },
   "inspection.components.peer.table.oldest": {

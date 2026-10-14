@@ -5637,16 +5637,10 @@
       "value": "Last data"
     }
   ],
-  "inspection.components.peer.table.loading.active.peer.connections": [
+  "inspection.components.peer.table.no.peers.connected": [
     {
       "type": 0,
-      "value": "Loading active peer connections…"
-    }
-  ],
-  "inspection.components.peer.table.no.peer.connections.are.currently.active": [
-    {
-      "type": 0,
-      "value": "No peer connections are currently active."
+      "value": "No peers connected."
     }
   ],
   "inspection.components.peer.table.nothing.to.show": [

@@ -274,12 +274,14 @@ function peerEmptyMessage(materialization: ViewMaterialization): string {
     case "not_requested":
       return localizedMessage("inspection.components.peer.table.nothing.to.show");
     case "loading":
-      return localizedMessage("inspection.components.peer.table.loading.active.peer.connections");
+      // Peer state usually arrives within a frame of switching torrents;
+      // a loading label there only reads as flicker.
+      return "";
     case "unavailable":
     case "unsupported":
       return materialization.reason;
     case "stale":
     case "ready":
-      return localizedMessage("inspection.components.peer.table.no.peer.connections.are.currently.active");
+      return localizedMessage("inspection.components.peer.table.no.peers.connected");
   }
 }
