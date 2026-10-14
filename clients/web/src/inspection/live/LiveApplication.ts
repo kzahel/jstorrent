@@ -64,6 +64,7 @@ import type {
   ViewMaterialization,
 } from "../model";
 import { emptyDiskSet } from "../state";
+import { DEFAULT_SPEED_METRICS } from "../speed-preferences";
 import { mapPieceActivity, type MappedPieceActivity } from "./pieces";
 
 const LIBRARY_VIEW_ID = "library";
@@ -717,11 +718,7 @@ export class LiveApplication implements InspectionApplication {
   private viewSpecs(views: DesiredInspectionViews): ViewSpec[] {
     const capabilities = this.capabilities();
     const specs: ViewSpec[] = [];
-    const selectedSpeedMetrics = views.speed?.metrics ?? [
-      "payload_received",
-      "staged_write",
-      "payload_verified",
-    ];
+    const selectedSpeedMetrics = views.speed?.metrics ?? DEFAULT_SPEED_METRICS;
     if (views.library && capabilities.has("torrent_list")) {
       specs.push({
         type: "torrent_list",
@@ -880,8 +877,6 @@ export class LiveApplication implements InspectionApplication {
         "payload_uploaded",
       ]);
       if (views.detail === "speed") {
-        currentMetrics.add("staged_write");
-        currentMetrics.add("payload_verified");
         selectedSpeedMetrics.forEach((metric) => currentMetrics.add(metric));
       }
       specs.push({

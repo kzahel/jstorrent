@@ -37,6 +37,8 @@ import {
   type NavigationPreferences,
 } from "./navigation";
 import {
+  DEFAULT_SPEED_METRICS,
+  DEFAULT_SPEED_RANGE,
   loadSpeedPreferences,
   saveSpeedPreferences,
 } from "./speed-preferences";
@@ -131,6 +133,7 @@ export interface InspectionActions {
   readonly setLogFollowing: (following: boolean) => void;
   readonly setSpeedRange: (range: SpeedRange) => void;
   readonly toggleSpeedMetric: (metric: SpeedMetric) => void;
+  readonly resetSpeedPreferences: () => void;
   readonly setDhtVisualizationMode: (mode: DhtVisualizationMode) => void;
 }
 
@@ -219,8 +222,8 @@ const DEFAULT_PRESENTATION: PresentationState = {
   logExpandedIds: [],
   logClearThroughSequence: null,
   logFollowing: true,
-  speedRange: "seconds30",
-  speedMetrics: ["payload_received", "staged_write", "payload_verified"],
+  speedRange: DEFAULT_SPEED_RANGE,
+  speedMetrics: DEFAULT_SPEED_METRICS,
   dhtVisualizationMode: "normalized",
 };
 
@@ -543,6 +546,18 @@ export function createInspectionStore(
         else saveSpeedPreferences(speed, appearanceStorage);
         return { presentation: { ...state.presentation, speedMetrics } };
       });
+    },
+    resetSpeedPreferences: () => {
+      const speed = { range: DEFAULT_SPEED_RANGE, metrics: DEFAULT_SPEED_METRICS };
+      if (appearanceStorage === undefined) saveSpeedPreferences(speed);
+      else saveSpeedPreferences(speed, appearanceStorage);
+      set((state) => ({
+        presentation: {
+          ...state.presentation,
+          speedRange: speed.range,
+          speedMetrics: speed.metrics,
+        },
+      }));
     },
     setDhtVisualizationMode: (dhtVisualizationMode) => {
       if (appearanceStorage === undefined) {

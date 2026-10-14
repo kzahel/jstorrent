@@ -7,6 +7,10 @@ import type { DataUnits } from "../appearance";
 import { useInspectionStore } from "../context";
 import { formatBytes, formatExactBytes } from "../format";
 import {
+  DEFAULT_SPEED_METRICS,
+  isDefaultSpeedPreferences,
+} from "../speed-preferences";
+import {
   contiguousRuns,
   decayedScaleMaximum,
   monotoneTangents,
@@ -24,7 +28,7 @@ const RANGES: readonly { value: SpeedRange; label: string }[] = [
 ];
 
 const METRIC_LABELS: Readonly<Record<SpeedMetric, string>> = {
-  payload_received: "Received",
+  payload_received: "Download",
   staged_write: "Staged write",
   payload_verified: "Verified",
   peer_wire_received: "Peer wire in",
@@ -42,7 +46,7 @@ const METRIC_LABELS: Readonly<Record<SpeedMetric, string>> = {
   logical_hash_read: "Hash read",
   payload_redundant: "Redundant payload",
   payload_hash_failed: "Hash-failed payload",
-  payload_uploaded: "Uploaded",
+  payload_uploaded: "Upload",
 };
 
 // Series colors are `--speed-<metric>` tokens in SpeedPanel.module.css.
@@ -59,6 +63,9 @@ export function SpeedPanel() {
   );
   const setRange = useInspectionStore((state) => state.setSpeedRange);
   const toggleMetric = useInspectionStore((state) => state.toggleSpeedMetric);
+  const resetPreferences = useInspectionStore(
+    (state) => state.resetSpeedPreferences,
+  );
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
   const current = useMemo(
     () =>
@@ -77,7 +84,7 @@ export function SpeedPanel() {
         <div>
           <p className={styles.eyebrow}>{localizedMessage("inspection.components.speed.panel.session.all.torrents")}</p>
           <h2>{localizedMessage("inspection.components.speed.panel.transfer.velocity")}</h2>
-          <p className={styles.subtitle}>{localizedMessage("inspection.components.speed.panel.received.staged.and.verified.bytes.stay.visually")}</p>
+          <p className={styles.subtitle}>{localizedMessage("inspection.components.speed.panel.payload.download.and.upload.add.series")}</p>
         </div>
         <label className={styles.range}>
           <span>{localizedMessage("inspection.components.speed.panel.history")}</span>
@@ -96,7 +103,7 @@ export function SpeedPanel() {
 
       <div className={styles.heroRates} aria-label={localizedMessage("inspection.components.speed.panel.current.transfer.rates")}>
         {(
-          ["payload_received", "staged_write", "payload_verified"] as const
+          ["payload_received", "payload_uploaded"] as const
         ).map((metric) => (
           <div key={metric}>
             <span
@@ -135,9 +142,18 @@ export function SpeedPanel() {
           {history?.persistence === "degraded" ? (
             <span className={styles.warning}>{localizedMessage("inspection.components.speed.panel.history.persistence.interrupted")}</span>
           ) : null}
+          {isDefaultSpeedPreferences({ range, metrics: selected }) ? null : (
+            <button
+              type="button"
+              className={styles.reset}
+              onClick={resetPreferences}
+            >
+              {localizedMessage("inspection.components.speed.panel.reset.to.default")}
+            </button>
+          )}
         </div>
         <div className={styles.chips}>
-          {(history?.catalog ?? []).map((entry) => {
+          {defaultsFirst(history?.catalog ?? []).map((entry) => {
             const active = selected.includes(entry.metric);
             return (
               <button
@@ -379,7 +395,6 @@ function drawChart(
       "#9a9187";
     context.strokeStyle = color;
     context.lineWidth = series.metric === "payload_received" ? 2.4 : 1.8;
-    context.setLineDash(series.metric === "staged_write" ? [7, 5] : []);
     context.lineJoin = "round";
     context.lineCap = "round";
     for (const run of contiguousRuns(values)) {
@@ -411,7 +426,6 @@ function drawChart(
     }
   });
   context.restore();
-  context.setLineDash([]);
   if (cursor !== null && count > 1) {
     const x = left + (cursor + 1) * spacing;
     context.strokeStyle = `${text}99`;
@@ -607,6 +621,13 @@ function TrafficBreakdown({
       ) : null}
     </details>
   );
+}
+
+function defaultsFirst<T extends { readonly metric: SpeedMetric }>(
+  catalog: readonly T[],
+): T[] {
+  const isDefault = (entry: T) => DEFAULT_SPEED_METRICS.includes(entry.metric);
+  return [...catalog.filter(isDefault), ...catalog.filter((entry) => !isDefault(entry))];
 }
 
 function timeLabel(history: SpeedInspectionView, index: number): string {

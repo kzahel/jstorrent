@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SPEED_METRICS,
   DEFAULT_SPEED_RANGE,
+  isDefaultSpeedPreferences,
   loadSpeedPreferences,
   saveSpeedPreferences,
 } from "./speed-preferences";
@@ -22,13 +23,37 @@ describe("speed presentation preferences", () => {
   it("round-trips a bounded range and series selection", () => {
     const storage = new MemoryStorage();
     saveSpeedPreferences(
-      { range: "days30", metrics: ["payload_received", "dht_received"] },
+      { range: "days30", metrics: ["payload_uploaded", "dht_received"] },
       storage,
     );
     expect(loadSpeedPreferences(storage)).toEqual({
       range: "days30",
-      metrics: ["payload_received", "dht_received"],
+      metrics: ["payload_uploaded", "dht_received"],
     });
+  });
+
+  it("defaults to download and upload, replacing version 1 selections", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      "rstorrent.presentation.speed",
+      JSON.stringify({
+        version: 1,
+        range: "minutes2",
+        metrics: ["payload_received", "staged_write", "payload_verified"],
+      }),
+    );
+    const loaded = loadSpeedPreferences(storage);
+    expect(loaded).toEqual({
+      range: "seconds30",
+      metrics: ["payload_received", "payload_uploaded"],
+    });
+    expect(isDefaultSpeedPreferences(loaded)).toBe(true);
+    expect(
+      isDefaultSpeedPreferences({ ...loaded, range: "minutes2" }),
+    ).toBe(false);
+    expect(
+      isDefaultSpeedPreferences({ ...loaded, metrics: ["payload_received"] }),
+    ).toBe(false);
   });
 
   it("falls back when stored selections are unavailable or oversized", () => {
@@ -36,7 +61,7 @@ describe("speed presentation preferences", () => {
     storage.setItem(
       "rstorrent.presentation.speed",
       JSON.stringify({
-        version: 1,
+        version: 2,
         range: "forever",
         metrics: [
           "payload_received",

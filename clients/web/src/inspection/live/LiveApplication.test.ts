@@ -465,8 +465,6 @@ describe("LiveApplication", () => {
       metrics: [
         "payload_received",
         "payload_uploaded",
-        "staged_write",
-        "payload_verified",
         "peer_wire_received",
       ],
       delivery: { min_interval_millis: 1_000 },

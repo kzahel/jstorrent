@@ -3440,8 +3440,8 @@
     "defaultMessage": "Preparing speed history…",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
   },
-  "inspection.components.speed.panel.received.staged.and.verified.bytes.stay.visually": {
-    "defaultMessage": "Received, staged, and verified bytes stay visually distinct—including retries.",
+  "inspection.components.speed.panel.payload.download.and.upload.add.series": {
+    "defaultMessage": "Payload download and upload. Add series below to compare staged writes, verification, and protocol traffic.",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
   },
   "inspection.components.speed.panel.redundant.failed": {
@@ -3450,6 +3450,10 @@
   },
   "inspection.components.speed.panel.selected.speed.window.summaries": {
     "defaultMessage": "Selected speed window summaries",
+    "description": "Product copy in inspection/components/SpeedPanel.tsx"
+  },
+  "inspection.components.speed.panel.reset.to.default": {
+    "defaultMessage": "Reset to default",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
   },
   "inspection.components.speed.panel.series": {
@@ -4486,10 +4490,6 @@
   },
   "inspection.demo.catalog.tv.media.library": {
     "defaultMessage": "TV media Library",
-    "description": "Product copy in inspection/demo/catalog.ts"
-  },
-  "inspection.demo.catalog.upload.and.seeding.are.not.implemented": {
-    "defaultMessage": "Upload and seeding are not implemented",
     "description": "Product copy in inspection/demo/catalog.ts"
   },
   "inspection.demo.demo.application.magnet.link.ready": {

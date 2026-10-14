@@ -62,6 +62,7 @@
   --viz-staged: #5fa8e8;
   --viz-verified: var(--clay);
   --viz-sent: #c26b4f;
+  --viz-wire-sent: #a8577a;
   --viz-protocol: #3c8f8a;
   --viz-metadata: #6f7fc4;
   --viz-discovery: #8a7a3a;
@@ -388,6 +389,7 @@ input:focus-visible {
   --danger-soft: #3a2421;
   --viz-staged: #6fb3e8;
   --viz-sent: #e39478;
+  --viz-wire-sent: #d993b3;
   --viz-protocol: #6cc2bb;
   --viz-metadata: #9fadeb;
   --viz-discovery: #cdb86a;
@@ -453,6 +455,7 @@ input:focus-visible {
     --danger-soft: #3a2421;
     --viz-staged: #6fb3e8;
     --viz-sent: #e39478;
+    --viz-wire-sent: #d993b3;
     --viz-protocol: #6cc2bb;
     --viz-metadata: #9fadeb;
     --viz-discovery: #cdb86a;

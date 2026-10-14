@@ -540,16 +540,12 @@ function buildSpeedHistory(
       "logical_hash_read",
       "payload_redundant",
       "payload_hash_failed",
+      "payload_uploaded",
     ].map((metric) => ({
       metric: metric as SpeedHistoryView["catalog"][number]["metric"],
       available: true,
       reason: null,
     })),
-    {
-      metric: "payload_uploaded",
-      available: false,
-      reason: localizedMessage("inspection.demo.catalog.upload.and.seeding.are.not.implemented"),
-    },
   ];
   return {
     captured_millis: completeThrough.toString(),
@@ -573,7 +569,9 @@ function buildSpeedHistory(
               ? scenarioId === "speed-idle" ? "0" : "7340032"
               : entry.metric === "payload_verified"
                 ? scenarioId === "speed-idle" ? "0" : "6815744"
-                : demoTrafficRate(entry.metric, scenarioId),
+                : entry.metric === "payload_uploaded"
+                  ? scenarioId === "speed-idle" ? "0" : "1258291"
+                  : demoTrafficRate(entry.metric, scenarioId),
       })),
     series: [
       {
@@ -590,6 +588,11 @@ function buildSpeedHistory(
         metric: "payload_verified",
         current_rate_bytes: "6815744",
         values: makeValues(6.8 * 1024 * 1024, 7),
+      },
+      {
+        metric: "payload_uploaded",
+        current_rate_bytes: "1258291",
+        values: makeValues(1.2 * 1024 * 1024, 11),
       },
     ],
     catalog,

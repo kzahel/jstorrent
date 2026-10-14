@@ -5,7 +5,7 @@
   --speed-payload_verified: var(--viz-verified);
   --speed-payload_uploaded: var(--viz-sent);
   --speed-peer_wire_received: var(--water-light);
-  --speed-peer_wire_sent: var(--viz-sent);
+  --speed-peer_wire_sent: var(--viz-wire-sent);
   --speed-peer_protocol_received: var(--viz-protocol);
   --speed-peer_protocol_sent: var(--viz-requested);
   --speed-metadata_payload_received: var(--viz-metadata);
@@ -43,7 +43,7 @@
 .range { display: grid; gap: 5px; color: var(--text-muted); font-size: var(--ui-font-caption); }
 .range select { min-width: 116px; }
 
-.heroRates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-bottom: 12px; overflow: hidden; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); background: var(--border-soft); }
+.heroRates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-bottom: 12px; overflow: hidden; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); background: var(--border-soft); }
 .heroRates > div { display: grid; gap: 4px; padding: 12px 14px; background: var(--surface-primary); }
 .heroRates span { color: var(--text-muted); font-size: var(--ui-font-caption); }
 .heroRates span::before { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: var(--series-color); content: ""; }
@@ -73,6 +73,8 @@
 .sectionHeading > div { display: flex; align-items: baseline; gap: 8px; }
 .sectionHeading span { color: var(--text-muted); font-size: var(--ui-font-caption); }
 .sectionHeading .warning { color: var(--warning-strong); }
+.reset { padding: 0; color: var(--text-secondary); font: inherit; font-size: var(--ui-font-caption); background: none; border: 0; cursor: pointer; }
+.reset:hover { color: var(--text-primary); text-decoration: underline; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; color: var(--text-secondary); font: inherit; font-size: var(--ui-font-caption); background: var(--surface-primary); border: 1px solid var(--border-soft); border-radius: var(--radius-full); cursor: pointer; }
 .chips button:hover:not(:disabled) { border-color: var(--border-strong); }

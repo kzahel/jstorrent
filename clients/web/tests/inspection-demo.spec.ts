@@ -1437,7 +1437,7 @@ test("speed controls remain wheel-scrollable in a short desktop viewport", async
   await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   await expect(panel.getByRole("button", { name: "DHT in" })).toBeInViewport();
   await panel.getByRole("button", { name: "DHT in" }).click();
-  await expect(panel.getByText("4 of 8")).toBeVisible();
+  await expect(panel.getByText("3 of 8")).toBeVisible();
 });
 
 test("speed history stays exact, selectable, and accessible", async ({
@@ -1453,14 +1453,14 @@ test("speed history stays exact, selectable, and accessible", async ({
   await expect(chart).toBeVisible();
   await expect(
     page.getByLabel("Selected speed window summaries"),
-  ).toContainText("Received");
+  ).toContainText("Download");
 
   await chart.focus();
   await page.keyboard.press("ArrowLeft");
-  await expect(panel.getByRole("status")).toContainText(/Received.*\/s/);
+  await expect(panel.getByRole("status")).toContainText(/Download.*\/s/);
 
   await panel.getByRole("button", { name: "DHT in" }).click();
-  await expect(panel.getByText("4 of 8")).toBeVisible();
+  await expect(panel.getByText("3 of 8")).toBeVisible();
   const historyRange = panel.getByRole("combobox", { name: "History" });
   await historyRange.selectOption("hours24");
   await expect(historyRange).toHaveValue("hours24");

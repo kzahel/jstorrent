@@ -817,7 +817,9 @@ narrow layout, and light/dark accessibility.
 Completed Tactical [`066`](../tactical/066-smooth-session-speed-history.md)
 makes Speed a session-owned range-selected history rendered by local high-DPI
 Canvas code.
-Exact received, staged-write, and verified payload lead the chart; coarse
+Payload download and upload are the default solid series; staged-write,
+verified, and traffic-class series are opt-in, and a reset restores the
+default range and selection. Coarse
 rollups persist separately from correctness-critical session state, RAF smooths
 and pans only between exact live anchors, and no general chart dependency is
 selected.

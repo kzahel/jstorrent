@@ -6132,6 +6132,12 @@
       "value": "Out"
     }
   ],
+  "inspection.components.speed.panel.payload.download.and.upload.add.series": [
+    {
+      "type": 0,
+      "value": "Payload download and upload. Add series below to compare staged writes, verification, and protocol traffic."
+    }
+  ],
   "inspection.components.speed.panel.peak": [
     {
       "type": 0,
@@ -6144,16 +6150,16 @@
       "value": "Preparing speed history…"
     }
   ],
-  "inspection.components.speed.panel.received.staged.and.verified.bytes.stay.visually": [
-    {
-      "type": 0,
-      "value": "Received, staged, and verified bytes stay visually distinct—including retries."
-    }
-  ],
   "inspection.components.speed.panel.redundant.failed": [
     {
       "type": 0,
       "value": "Redundant / failed"
+    }
+  ],
+  "inspection.components.speed.panel.reset.to.default": [
+    {
+      "type": 0,
+      "value": "Reset to default"
     }
   ],
   "inspection.components.speed.panel.selected.speed.window.summaries": [
@@ -7912,12 +7918,6 @@
     {
       "type": 0,
       "value": "TV media Library"
-    }
-  ],
-  "inspection.demo.catalog.upload.and.seeding.are.not.implemented": [
-    {
-      "type": 0,
-      "value": "Upload and seeding are not implemented"
     }
   ],
   "inspection.demo.demo.application.magnet.link.ready": [
