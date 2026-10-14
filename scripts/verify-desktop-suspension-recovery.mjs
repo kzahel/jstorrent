@@ -16,7 +16,7 @@ try {
   let page = context.pages().find(candidate => candidate.url() === url);
   if (!page) { page = await context.newPage(); await page.goto(url); }
   // Opening/restoring this page attaches only, including after browser restart.
-  await page.locator('div[data-state="connected"]').first().waitFor({ timeout: 25_000 });
+  await page.locator('[data-connection="connected"]').waitFor({ timeout: 25_000 });
   const deadline = Date.now() + 180_000;
   let observed;
   do {

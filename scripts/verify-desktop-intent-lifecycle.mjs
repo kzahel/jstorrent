@@ -24,7 +24,7 @@ async function instance(page) {
   });
 }
 async function connected(page) {
-  await page.getByText('connected', { exact: true }).waitFor({ timeout: 25_000 });
+  await page.locator('[data-connection="connected"]').waitFor({ timeout: 25_000 });
   const id = await instance(page);
   assert(id, 'runtime must be attached');
   return id;

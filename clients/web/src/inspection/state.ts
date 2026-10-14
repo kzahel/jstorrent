@@ -145,7 +145,7 @@ const EMPTY_SNAPSHOT: InspectionSnapshot = {
   revision: 0,
   durableRevision: "0",
   session: {
-    connection: "offline",
+    connection: { type: "connecting" },
     downloadRate: 0,
     uploadRate: 0,
     dhtNodes: null,

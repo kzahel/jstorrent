@@ -15,7 +15,7 @@ import type {
   ApplicationViewClient,
 } from "./api/client";
 import { ApplicationViewError, HttpApiError } from "./api/client";
-import { ViewController } from "./view-controller";
+import { ViewController, type ViewConnectionStatus } from "./view-controller";
 import { ViewSetContinuityError } from "./view-set-reducer";
 import {
   clientSettingsFixture,
@@ -253,6 +253,103 @@ describe("view controller", () => {
     await Promise.resolve();
     expect(client.after).toEqual(["1"]);
     expect(controller.current().cursor).toBe("1");
+    await controller.close();
+  });
+
+  it("reports the reconnect schedule and lets a wake skip the wait", async () => {
+    const client = new FakeClient();
+    client.batches.push(
+      new Error("connection closed"),
+      batch("1", "2", [
+        {
+          type: "patch",
+          view_id: "library",
+          patch: { type: "torrent_list", upsert: [], updates: [], removed: [] },
+        },
+      ]),
+    );
+    const statuses: ViewConnectionStatus[] = [];
+    const waiting = promiseWithResolvers<void>();
+    const connected = promiseWithResolvers<void>();
+    const controller = await ViewController.open(
+      client,
+      [listView],
+      () => {},
+      () => {},
+      { retryBaseMillis: 60_000 },
+      (status) => {
+        statuses.push(status);
+        if (status.type === "retrying" && status.nextAttemptAt !== null) {
+          waiting.resolve();
+        }
+        if (status.type === "connected") connected.resolve();
+      },
+    );
+    await waiting.promise;
+    const scheduled = statuses.at(-1);
+    expect(scheduled?.type).toBe("retrying");
+    if (scheduled?.type !== "retrying" || scheduled.nextAttemptAt === null) {
+      throw new Error("expected a scheduled retry");
+    }
+    expect(scheduled.nextAttemptAt - scheduled.since).toBeGreaterThanOrEqual(
+      59_000,
+    );
+
+    controller.requestImmediatePoll();
+    await connected.promise;
+    expect(statuses.map((status) => status.type)).toEqual([
+      "retrying",
+      "retrying",
+      "retrying",
+      "connected",
+    ]);
+    expect(client.after.slice(0, 2)).toEqual(["1", "1"]);
+    await controller.close();
+  });
+
+  it("stops retrying when authentication fails", async () => {
+    const client = new FakeClient();
+    client.batches.push(
+      new HttpApiError(401, "authentication_failed", "session expired"),
+    );
+    const stopped = promiseWithResolvers<ViewConnectionStatus>();
+    const controller = await ViewController.open(
+      client,
+      [listView],
+      () => {},
+      () => {},
+      { retryBaseMillis: 1 },
+      (status) => {
+        if (status.type === "stopped") stopped.resolve(status);
+      },
+    );
+    expect(await stopped.promise).toEqual({
+      type: "stopped",
+      reason: "signed_out",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(client.after).toEqual(["1"]);
+    await controller.close();
+  });
+
+  it("asks for a reload when continuity cannot be kept", async () => {
+    const client = new FakeClient();
+    client.batches.push(batch("9", "10", []));
+    const stopped = promiseWithResolvers<ViewConnectionStatus>();
+    const controller = await ViewController.open(
+      client,
+      [listView],
+      () => {},
+      () => {},
+      {},
+      (status) => {
+        if (status.type === "stopped") stopped.resolve(status);
+      },
+    );
+    expect(await stopped.promise).toEqual({
+      type: "stopped",
+      reason: "reload_required",
+    });
     await controller.close();
   });
 

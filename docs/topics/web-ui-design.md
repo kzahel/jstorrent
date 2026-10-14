@@ -1,5 +1,19 @@
 # Web UI Design
 
+The header no longer shows a connection pill: the UI is connected unless it
+says otherwise. Download and upload rates appear only while one is nonzero.
+When the view stream to the engine has been down for 3 seconds, a blocking
+**Connection lost** dialog covers the inert app and shows the next attempt
+(**Trying again in N seconds**), **Retry now** and **Reload page**. The view
+controller retries from 250 ms doubling to a 30-second cap; Retry now and
+browser online/pageshow/visible wakes skip the wait. Authentication failure
+stops retrying and asks to sign in again; contract, continuity and API
+version failures stop and ask for a reload. Mounted state underneath is
+kept, so an open form survives reconnection. The app root carries
+`data-connection` (`connected`, `reconnecting`, `stopped`, `connecting`,
+`demo`) for verifier scripts. Companion pages still unmount on their own
+disconnect handling; this dialog covers in-app reconnects.
+
 Tactical [340](../tactical/340-windows-quiet-network-startup.md) qualifies the
 existing incoming/forwarding UI in the native Windows renderer. Forwarding's
 short disclosure now refers to the operating system rather than macOS alone.

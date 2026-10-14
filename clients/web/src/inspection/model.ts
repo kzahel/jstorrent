@@ -73,8 +73,24 @@ export type TorrentCategory =
   | "errors"
   | "archived";
 
+// Link between this UI and the engine, not the BitTorrent network. Times are
+// wall-clock milliseconds; `nextAttemptAt` is null while an attempt runs.
+export type SessionConnection =
+  | { readonly type: "demo" }
+  | { readonly type: "connecting" }
+  | { readonly type: "connected" }
+  | {
+      readonly type: "reconnecting";
+      readonly since: number;
+      readonly nextAttemptAt: number | null;
+    }
+  | {
+      readonly type: "stopped";
+      readonly reason: "signed_out" | "reload_required";
+    };
+
 export interface SessionSummary {
-  readonly connection: "demo" | "connected" | "reconnecting" | "offline";
+  readonly connection: SessionConnection;
   readonly downloadRate: number;
   readonly uploadRate: number | null;
   readonly dhtNodes: number | null;

@@ -1122,12 +1122,12 @@ describe("LiveApplication", () => {
 
     client.expireViewSet();
     await waitUntil(() => client.openCount === 2);
-    await waitUntil(() => snapshots.at(-1)?.session.connection === "connected");
+    await waitUntil(() => snapshots.at(-1)?.session.connection.type === "connected");
 
     expect(
       snapshots.some(
         (snapshot) =>
-          snapshot.session.connection === "reconnecting" &&
+          snapshot.session.connection.type === "reconnecting" &&
           snapshot.viewStatus.peers.status === "stale",
       ),
     ).toBe(true);
@@ -1189,12 +1189,12 @@ describe("LiveApplication", () => {
 
     client.expireViewSet();
     await waitUntil(() => client.openCount === 2);
-    await waitUntil(() => snapshots.at(-1)?.session.connection === "connected");
+    await waitUntil(() => snapshots.at(-1)?.session.connection.type === "connected");
 
     expect(
       snapshots.some(
         (snapshot) =>
-          snapshot.session.connection === "reconnecting" &&
+          snapshot.session.connection.type === "reconnecting" &&
           snapshot.viewStatus.swarm.status === "stale",
       ),
     ).toBe(true);

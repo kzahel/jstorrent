@@ -7,7 +7,7 @@ import {
 } from "./document-title";
 
 const CONNECTED: SessionSummary = {
-  connection: "connected",
+  connection: { type: "connected" },
   downloadRate: 0,
   uploadRate: 0,
   dhtNodes: null,
@@ -58,7 +58,11 @@ describe("documentTitleForSession", () => {
     expect(documentTitleForSession(CONNECTED, "decimal")).toBe("JSTorrent");
     expect(
       documentTitleForSession(
-        { ...CONNECTED, connection: "reconnecting", downloadRate: 1_500_000 },
+        {
+          ...CONNECTED,
+          connection: { type: "reconnecting", since: 0, nextAttemptAt: null },
+          downloadRate: 1_500_000,
+        },
         "decimal",
       ),
     ).toBe("JSTorrent");

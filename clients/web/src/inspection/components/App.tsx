@@ -33,6 +33,11 @@ import type { ApplicationDestination } from "../model";
 import { MAX_DETAIL_PANE_PERCENT, MIN_DETAIL_PANE_PERCENT } from "../state";
 import type { DesktopUpdater, UpdaterState } from "../updater/types";
 import { useDesktopUpdater } from "../updater/useDesktopUpdater";
+import {
+  ConnectionOverlay,
+  connectionInterrupted,
+  useConnectionClock,
+} from "./ConnectionOverlay";
 import { DetailPane } from "./DetailPane";
 import { Icon, type IconName } from "./Icon";
 import { LibraryView } from "./LibraryView";
@@ -123,11 +128,16 @@ export function App({
   hostedProduct,
   productPrivacy,
 }: AppProps) {
+  const connection = useInspectionStore((state) => state.session.connection);
+  const controller = useInspectionController();
+  const connectionNowMs = useConnectionClock(connection.type === "reconnecting");
+  const interrupted = connectionInterrupted(connection, connectionNowMs);
   return (
     <DesktopExternalIntakeProvider intake={externalIntake}>
       <RemotePlaybackProvider remoteAccess={remoteAccess}>
         <TorrentActionProvider>
           <AppContent
+            interrupted={interrupted}
             webAuth={webAuth}
             updater={updater}
             notifications={notifications}
@@ -138,6 +148,14 @@ export function App({
             productPrivacy={productPrivacy}
             oneCurrentRoot={oneCurrentRoot}
           />
+          {interrupted ? (
+            <ConnectionOverlay
+              connection={connection}
+              nowMs={connectionNowMs}
+              onRetry={() => controller.reconnectNow()}
+              onReload={() => window.location.reload()}
+            />
+          ) : null}
         </TorrentActionProvider>
       </RemotePlaybackProvider>
     </DesktopExternalIntakeProvider>
@@ -145,6 +163,7 @@ export function App({
 }
 
 function AppContent({
+  interrupted,
   oneCurrentRoot,
   webAuth,
   updater,
@@ -154,7 +173,7 @@ function AppContent({
   accessMode,
   hostedProduct,
   productPrivacy,
-}: AppProps) {
+}: AppProps & { readonly interrupted: boolean }) {
   const session = useInspectionStore((state) => state.session);
   const demo = useInspectionStore((state) => state.demo);
   const storage = useInspectionStore((state) => state.storage);
@@ -234,6 +253,8 @@ function AppContent({
   }, [updaterSnapshot]);
 
   const desiredDocumentTitle = documentTitleForSession(session, dataUnits);
+  const showRates =
+    session.downloadRate > 0 || (session.uploadRate ?? 0) > 0;
 
   useEffect(() => {
     const throttle =
@@ -330,6 +351,8 @@ function AppContent({
   return (
     <div
       className={styles.app}
+      inert={interrupted}
+      data-connection={session.connection.type}
       data-destination={destination}
       data-detail-open={detailOpen}
       data-interface-size={interfaceSize}
@@ -362,23 +385,21 @@ function AppContent({
             </button>
           ))}
         </nav>
-        <div
-          className={styles.sessionStats}
-          aria-label={localizedMessage("inspection.components.app.session.transfer.rates")}
-        >
-          <span>
-            <b aria-hidden="true">↓</b>{" "}
-            {formatRate(session.downloadRate, dataUnits)}
-          </span>
-          <span>
-            <b aria-hidden="true">↑</b>{" "}
-            {formatRate(session.uploadRate, dataUnits)}
-          </span>
-        </div>
-        <div className={styles.connection} data-state={session.connection}>
-          <span aria-hidden="true" />
-          {session.connection === "demo" ? localizedMessage("inspection.components.app.demo.adapter") : session.connection}
-        </div>
+        {showRates ? (
+          <div
+            className={styles.sessionStats}
+            aria-label={localizedMessage("inspection.components.app.session.transfer.rates")}
+          >
+            <span>
+              <b aria-hidden="true">↓</b>{" "}
+              {formatRate(session.downloadRate, dataUnits)}
+            </span>
+            <span>
+              <b aria-hidden="true">↑</b>{" "}
+              {formatRate(session.uploadRate, dataUnits)}
+            </span>
+          </div>
+        ) : null}
         {credentialFreeAccessMode !== null ? (
           <span
             className={styles.lanAccessStatus}

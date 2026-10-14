@@ -888,12 +888,6 @@
       "value": "Authentication is off; every device that can reach this service has full owner control."
     }
   ],
-  "inspection.components.app.demo.adapter": [
-    {
-      "type": 0,
-      "value": "Demo adapter"
-    }
-  ],
   "inspection.components.app.dismiss.available.update": [
     {
       "type": 0,
@@ -1150,6 +1144,112 @@
     {
       "type": 0,
       "value": "Use larger text and more generous targets."
+    }
+  ],
+  "inspection.components.connection.overlay.interrupted.detail": [
+    {
+      "type": 0,
+      "value": "This page can't reach JSTorrent. It will keep trying to reconnect."
+    }
+  ],
+  "inspection.components.connection.overlay.interrupted.title": [
+    {
+      "type": 0,
+      "value": "Connection lost"
+    }
+  ],
+  "inspection.components.connection.overlay.reconnecting": [
+    {
+      "type": 0,
+      "value": "Reconnecting…"
+    }
+  ],
+  "inspection.components.connection.overlay.reload": [
+    {
+      "type": 0,
+      "value": "Reload"
+    }
+  ],
+  "inspection.components.connection.overlay.reload.detail": [
+    {
+      "type": 0,
+      "value": "JSTorrent changed in a way this page can't follow. Reload to continue."
+    }
+  ],
+  "inspection.components.connection.overlay.reload.page": [
+    {
+      "type": 0,
+      "value": "Reload page"
+    }
+  ],
+  "inspection.components.connection.overlay.reload.title": [
+    {
+      "type": 0,
+      "value": "Reload needed"
+    }
+  ],
+  "inspection.components.connection.overlay.retry.now": [
+    {
+      "type": 0,
+      "value": "Retry now"
+    }
+  ],
+  "inspection.components.connection.overlay.retrying.in": [
+    {
+      "type": 6,
+      "value": "seconds",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Trying again in "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " second"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Trying again in "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " seconds"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "inspection.components.connection.overlay.sign.in": [
+    {
+      "type": 0,
+      "value": "Sign in"
+    }
+  ],
+  "inspection.components.connection.overlay.signed.out.detail": [
+    {
+      "type": 0,
+      "value": "Sign in again to keep using JSTorrent."
+    }
+  ],
+  "inspection.components.connection.overlay.signed.out.title": [
+    {
+      "type": 0,
+      "value": "Signed out"
     }
   ],
   "inspection.components.connection.seeding.settings.section.allow": [

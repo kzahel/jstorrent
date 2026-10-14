@@ -28,7 +28,7 @@ try {
     });
     // The launcher tab is no longer needed after its explicit action.
     await popup.close();
-    await page.getByText('connected', { exact: true }).waitFor({ timeout: 20000 });
+    await page.locator('[data-connection="connected"]').waitFor({ timeout: 20000 });
     console.log(JSON.stringify({ phase, connected: true }));
   }
   assert(page, 'open the packaged desktop companion in the owned test browser first');
@@ -101,7 +101,7 @@ try {
     console.log(JSON.stringify({ phase, attachRefused: true, explicitStartVisible: true, observationSeconds: 35 }));
   } else if (phase === 'start') {
     await page.getByRole('button', { name: 'Start', exact: true }).click();
-    await page.getByText('connected', { exact: true }).waitFor({ timeout: 20_000 });
+    await page.locator('[data-connection="connected"]').waitFor({ timeout: 20_000 });
     console.log(JSON.stringify({ phase, connected: true }));
   } else {
     const report = await page.evaluate(async (phase) => {

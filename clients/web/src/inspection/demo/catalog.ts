@@ -262,7 +262,7 @@ export function buildScenarioSnapshot(
     revision,
     durableRevision: String(revision),
     session: {
-      connection: "demo",
+      connection: { type: "demo" },
       downloadRate: sum(active.map((torrent) => torrent.downloadRate)),
       uploadRate: sum(active.map((torrent) => torrent.uploadRate ?? 0)),
       dhtNodes: scenarioId === "empty-library" ? 0 : 638,

@@ -106,11 +106,15 @@
   background: var(--surface-hover);
 }
 
+/* Rates, notices and Settings sit at the end; the rates are absent when idle. */
+.primaryNavigation + * {
+  margin-left: auto;
+}
+
 .sessionStats {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-left: auto;
   color: var(--text-secondary);
   font-size: var(--ui-font-small);
   font-variant-numeric: tabular-nums;
@@ -122,28 +126,6 @@
 
 .sessionStats span:nth-child(2) b {
   color: var(--clay-strong);
-}
-
-.connection {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  border-left: 1px solid var(--border-strong);
-  padding-left: 0.9rem;
-  color: var(--text-secondary);
-  font-size: var(--ui-font-caption);
-  font-weight: var(--weight-medium);
-}
-
-.connection > span {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: var(--success);
-}
-
-.connection[data-state="demo"] > span {
-  background: var(--clay);
 }
 
 .lanAccessStatus {
@@ -425,8 +407,7 @@
     padding-inline: 0.4rem;
   }
 
-  .sessionStats,
-  .connection {
+  .sessionStats {
     display: none;
   }
 

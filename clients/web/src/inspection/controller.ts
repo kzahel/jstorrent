@@ -64,6 +64,11 @@ export class InspectionController {
     return result;
   }
 
+  reconnectNow(): void {
+    if (this.closed) return;
+    this.application.reconnectNow();
+  }
+
   showPendingFileSelection(torrentId: string, offset = 0): void {
     this.pendingFileSelection = { torrentId, offset };
     this.queueViews(desiredViewsFor(this.store.getState()));

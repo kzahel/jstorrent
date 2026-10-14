@@ -27,6 +27,21 @@ export interface ViewControllerOptions {
 
 export type ViewStateListener = (state: ViewSetState) => void;
 export type ViewErrorListener = (error: Error) => void;
+export type ViewStatusListener = (status: ViewConnectionStatus) => void;
+
+// Why delivery stopped for good: retrying cannot help, only a reload can.
+export type ViewStopReason = "signed_out" | "reload_required";
+
+// Times are wall-clock milliseconds. `nextAttemptAt` is null while an
+// attempt is in progress.
+export type ViewConnectionStatus =
+  | { readonly type: "connected" }
+  | {
+      readonly type: "retrying";
+      readonly since: number;
+      readonly nextAttemptAt: number | null;
+    }
+  | { readonly type: "stopped"; readonly reason: ViewStopReason };
 
 export class ViewController {
   private readonly waitMillis: number;
@@ -37,6 +52,8 @@ export class ViewController {
   private activeStream: ApplicationUpdateStream | undefined;
   private consuming: Promise<void> | undefined;
   private reopening: Promise<void> | undefined;
+  private retryWake: AbortController | undefined;
+  private disconnectedSince: number | null = null;
   private readonly lifetime = new AbortController();
   private closed = false;
   private views: ViewSpec[];
@@ -46,13 +63,16 @@ export class ViewController {
     initial: ViewSetState,
     private readonly onState: ViewStateListener,
     private readonly onError: ViewErrorListener,
+    private readonly onStatus: ViewStatusListener,
     options: ViewControllerOptions,
     views: ViewSpec[],
   ) {
     this.state = initial;
     this.waitMillis = options.waitMillis ?? 20_000;
     this.retryBaseMillis = options.retryBaseMillis ?? 250;
-    this.retryMaximumMillis = options.retryMaximumMillis ?? 2_000;
+    // Fast at first so brief blips recover quietly, then slow enough that a
+    // visible countdown means something.
+    this.retryMaximumMillis = options.retryMaximumMillis ?? 30_000;
     this.views = [...views];
   }
 
@@ -62,6 +82,7 @@ export class ViewController {
     onState: ViewStateListener,
     onError: ViewErrorListener = () => {},
     options: ViewControllerOptions = {},
+    onStatus: ViewStatusListener = () => {},
   ): Promise<ViewController> {
     const request: OpenViewSetRequest = { views, options: {} };
     const response = await client.openViewSet(request);
@@ -71,6 +92,7 @@ export class ViewController {
       initial,
       onState,
       onError,
+      onStatus,
       options,
       views,
     );
@@ -114,6 +136,7 @@ export class ViewController {
     this.wake();
   }
 
+  // Polls now, and skips any pending reconnect delay.
   public requestImmediatePoll(): void {
     this.ensureOpen();
     this.wake();
@@ -150,8 +173,9 @@ export class ViewController {
         retryMillis = this.retryBaseMillis;
       } catch (error) {
         if (this.closed || this.lifetime.signal.aborted) continue;
-        const failure = asError(error);
+        let failure = asError(error);
         this.onError(failure);
+        this.markDisconnected();
         if (isUnavailableViewSet(failure)) {
           try {
             await this.reopen();
@@ -159,19 +183,49 @@ export class ViewController {
             continue;
           } catch (reopenError) {
             if (this.closed || this.lifetime.signal.aborted) continue;
-            this.onError(asError(reopenError));
+            failure = asError(reopenError);
+            this.onError(failure);
           }
         }
-        if (
-          failure instanceof ContractError ||
-          failure instanceof ViewSetContinuityError
-        ) {
+        const stopReason = viewStopReason(failure);
+        if (stopReason !== null) {
+          this.onStatus({ type: "stopped", reason: stopReason });
           break;
         }
-        await abortableDelay(retryMillis, this.lifetime.signal);
+        await this.waitBeforeRetry(retryMillis);
         retryMillis = Math.min(retryMillis * 2, this.retryMaximumMillis);
       }
     }
+  }
+
+  private async waitBeforeRetry(millis: number): Promise<void> {
+    const since = this.disconnectedSince ?? Date.now();
+    const wake = new AbortController();
+    this.retryWake = wake;
+    this.onStatus({ type: "retrying", since, nextAttemptAt: Date.now() + millis });
+    try {
+      await abortableDelay(millis, this.lifetime.signal, wake.signal);
+    } finally {
+      if (this.retryWake === wake) this.retryWake = undefined;
+    }
+    if (this.closed) return;
+    this.onStatus({ type: "retrying", since, nextAttemptAt: null });
+  }
+
+  private markDisconnected(): void {
+    if (this.disconnectedSince !== null) return;
+    this.disconnectedSince = Date.now();
+    this.onStatus({
+      type: "retrying",
+      since: this.disconnectedSince,
+      nextAttemptAt: null,
+    });
+  }
+
+  private markConnected(): void {
+    if (this.disconnectedSince === null) return;
+    this.disconnectedSince = null;
+    this.onStatus({ type: "connected" });
   }
 
   private async pullOnce(): Promise<void> {
@@ -196,6 +250,7 @@ export class ViewController {
         throw error;
       }
       if (request.signal.aborted) return;
+      this.markConnected();
       this.applyBatch(batch);
     } finally {
       if (this.inFlight === request) this.inFlight = undefined;
@@ -214,6 +269,7 @@ export class ViewController {
       this.lifetime.signal,
     );
     this.activeStream = stream;
+    this.markConnected();
     try {
       for await (const batch of stream) {
         if (this.closed) break;
@@ -234,6 +290,7 @@ export class ViewController {
 
   private wake(): void {
     this.inFlight?.abort("immediate poll requested");
+    this.retryWake?.abort("immediate poll requested");
   }
 
   private async reopen(): Promise<void> {
@@ -256,6 +313,7 @@ export class ViewController {
         throw error;
       }
       this.state = next;
+      this.markConnected();
     })();
     this.reopening = reopening;
     try {
@@ -277,21 +335,38 @@ function isUnavailableViewSet(error: Error): boolean {
   );
 }
 
-function abortableDelay(millis: number, signal: AbortSignal): Promise<void> {
+function viewStopReason(error: Error): ViewStopReason | null {
+  if (
+    error instanceof ContractError ||
+    error instanceof ViewSetContinuityError
+  ) {
+    return "reload_required";
+  }
+  if (error instanceof ApplicationViewError) {
+    if (error.code === "authentication_failed") return "signed_out";
+    if (error.code === "invalid_version") return "reload_required";
+  }
+  return null;
+}
+
+function abortableDelay(
+  millis: number,
+  ...signals: AbortSignal[]
+): Promise<void> {
   return new Promise((resolve) => {
-    if (signal.aborted) {
+    if (signals.some((signal) => signal.aborted)) {
       resolve();
       return;
     }
-    const timer = globalThis.setTimeout(resolve, millis);
-    signal.addEventListener(
-      "abort",
-      () => {
-        globalThis.clearTimeout(timer);
-        resolve();
-      },
-      { once: true },
-    );
+    const finish = () => {
+      globalThis.clearTimeout(timer);
+      for (const signal of signals) signal.removeEventListener("abort", finish);
+      resolve();
+    };
+    const timer = globalThis.setTimeout(finish, millis);
+    for (const signal of signals) {
+      signal.addEventListener("abort", finish, { once: true });
+    }
   });
 }
 

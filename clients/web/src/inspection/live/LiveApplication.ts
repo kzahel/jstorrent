@@ -26,7 +26,11 @@ import {
   type ViewSpec,
 } from "../../api";
 import type { ApplicationViewClient } from "../../api/client";
-import { ViewController, type ViewControllerOptions } from "../../view-controller";
+import {
+  ViewController,
+  type ViewConnectionStatus,
+  type ViewControllerOptions,
+} from "../../view-controller";
 import type { ViewSetState } from "../../view-set-reducer";
 import type { InspectionApplication } from "../application";
 import type {
@@ -50,6 +54,7 @@ import type {
   SwarmRow,
   SwarmSet,
   PieceMapSet,
+  SessionConnection,
   SpeedInspectionView,
   TorrentCheckingProgress,
   TorrentPreparation,
@@ -89,6 +94,7 @@ export class LiveApplication implements InspectionApplication {
   private controller: ViewController | null = null;
   private desired: DesiredInspectionViews;
   private snapshot: InspectionSnapshot;
+  private connection: SessionConnection = { type: "connecting" };
   private trackerClock: {
     readonly viewSetId: string;
     readonly epoch: string;
@@ -116,7 +122,7 @@ export class LiveApplication implements InspectionApplication {
     private readonly storagePolicy: "portable" | "one_current_root",
   ) {
     this.desired = initialViews;
-    this.snapshot = emptyLiveSnapshot(initialViews, "offline");
+    this.snapshot = emptyLiveSnapshot(initialViews, this.connection);
   }
 
   static async open(
@@ -141,9 +147,11 @@ export class LiveApplication implements InspectionApplication {
       client,
       specs,
       (state) => application.acceptState(state),
-      (error) => application.markReconnecting(error),
+      (error) => application.markStale(error),
       options,
+      (status) => application.acceptStatus(status),
     );
+    application.acceptStatus({ type: "connected" });
     return application;
   }
 
@@ -168,7 +176,7 @@ export class LiveApplication implements InspectionApplication {
     try {
       await this.controller.setViews(this.viewSpecs(views));
     } catch (error) {
-      this.markReconnecting(asError(error));
+      this.markStale(asError(error));
       throw error;
     }
   }
@@ -543,6 +551,10 @@ export class LiveApplication implements InspectionApplication {
     this.controller?.requestImmediatePoll();
   }
 
+  reconnectNow(): void {
+    this.requestImmediatePoll();
+  }
+
   installBrowserWakeHints(targetWindow: Window, targetDocument: Document): void {
     this.ensureOpen();
     this.removeWakeHints?.();
@@ -594,7 +606,7 @@ export class LiveApplication implements InspectionApplication {
       state,
       this.desired,
       this.capabilities(),
-      "connected",
+      this.connection,
       fileSet,
       mediaSet,
       pieceSet,
@@ -653,11 +665,27 @@ export class LiveApplication implements InspectionApplication {
     return value;
   }
 
-  private markReconnecting(error: Error): void {
+  private acceptStatus(status: ViewConnectionStatus): void {
+    if (this.closed) return;
+    this.connection =
+      status.type === "retrying"
+        ? {
+            type: "reconnecting",
+            since: status.since,
+            nextAttemptAt: status.nextAttemptAt,
+          }
+        : status;
+    this.snapshot = {
+      ...this.snapshot,
+      session: { ...this.snapshot.session, connection: this.connection },
+    };
+    this.emit({ type: "snapshot", snapshot: this.snapshot });
+  }
+
+  private markStale(error: Error): void {
     if (this.closed) return;
     this.snapshot = {
       ...this.snapshot,
-      session: { ...this.snapshot.session, connection: "reconnecting" },
       viewStatus: {
         library: staleIfMaterialized(this.snapshot.viewStatus.library, error),
         torrentSummary: staleIfMaterialized(
@@ -944,7 +972,7 @@ function mapViewState(
   state: ViewSetState,
   desired: DesiredInspectionViews,
   capabilities: ReadonlySet<string>,
-  connection: "connected" | "reconnecting" | "offline",
+  connection: SessionConnection,
   fileSet: FileSet | null,
   mediaSet: MediaSet | null,
   pieceSet: PieceMapSet | null,
@@ -1978,7 +2006,7 @@ function safeNumber(value: string): number {
 
 function emptyLiveSnapshot(
   desired: DesiredInspectionViews,
-  connection: "offline" | "reconnecting",
+  connection: SessionConnection,
 ): InspectionSnapshot {
   return {
     revision: 0,

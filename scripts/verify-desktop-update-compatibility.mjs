@@ -18,7 +18,7 @@ try {
     await new Promise(resolve => setTimeout(resolve, 1000));
     page = context.pages().find(candidate => candidate.url() === url) ?? await context.newPage();
     await page.goto(url);
-    await page.getByText('connected', { exact: true }).waitFor();
+    await page.locator('[data-connection="connected"]').waitFor();
     console.log(JSON.stringify({ phase, reopened: true }));
   } else if (phase === 'refused') {
     await page.reload();
@@ -36,10 +36,10 @@ try {
     console.log(JSON.stringify({ phase, stillRefused: true }));
   } else if (phase === 'retry-repaired') {
     await page.getByRole('button', { name: 'Retry connection', exact: true }).click();
-    await page.getByText('connected', { exact: true }).waitFor();
+    await page.locator('[data-connection="connected"]').waitFor();
     console.log(JSON.stringify({ phase, attached: true }));
   } else {
-    await page.getByText('connected', { exact: true }).waitFor();
+    await page.locator('[data-connection="connected"]').waitFor();
     const observed = await page.evaluate(async () => {
       globalThis.compatibilityDocument ??= crypto.randomUUID();
       const bootstrap = await chrome.runtime.sendMessage({ type: 'nativeBootstrap', op: 'attach_control' });

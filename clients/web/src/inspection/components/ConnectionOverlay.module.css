@@ -1,0 +1,79 @@
+.backdrop {
+  position: fixed;
+  z-index: 400;
+  display: grid;
+  inset: 0;
+  place-items: center;
+  padding: var(--ui-space-md);
+  background: var(--overlay-scrim);
+}
+
+.dialog {
+  width: min(26rem, 100%);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--ui-space-lg);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-dialog);
+}
+
+.dialog h2 {
+  margin: 0 0 var(--ui-space-sm);
+  font-size: var(--ui-font-heading);
+  font-weight: var(--weight-strong);
+}
+
+.dialog p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--ui-font-small);
+  line-height: 1.5;
+}
+
+.dialog .status {
+  margin-top: var(--ui-space-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--ui-space-sm);
+  margin-top: var(--ui-space-md);
+}
+
+.actions button {
+  min-height: var(--ui-control-height);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 0 var(--ui-space-md);
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  font: inherit;
+  font-size: var(--ui-font-small);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.actions button:hover {
+  background: var(--surface-hover);
+}
+
+.actions button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.actions .primary {
+  border-color: var(--accent-action);
+  color: var(--on-accent);
+  background: var(--accent-action);
+}
+
+.actions .primary:hover {
+  border-color: var(--accent-action-hover);
+  background: var(--accent-action-hover);
+}

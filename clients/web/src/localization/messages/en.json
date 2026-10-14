@@ -332,10 +332,6 @@
     "defaultMessage": "Authentication is off; every device that can reach this service has full owner control.",
     "description": "Product copy in inspection/components/App.tsx"
   },
-  "inspection.components.app.demo.adapter": {
-    "defaultMessage": "Demo adapter",
-    "description": "Product copy in inspection/components/App.tsx"
-  },
   "inspection.components.app.dismiss.available.update": {
     "defaultMessage": "Dismiss available update",
     "description": "Product copy in inspection/components/App.tsx"
@@ -507,6 +503,54 @@
   "inspection.components.appearance.settings.section.units.decimal.description": {
     "defaultMessage": "1 kB = 1,000 bytes",
     "description": "Explains the 1000-based size units"
+  },
+  "inspection.components.connection.overlay.interrupted.detail": {
+    "defaultMessage": "This page can't reach JSTorrent. It will keep trying to reconnect.",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
+  },
+  "inspection.components.connection.overlay.interrupted.title": {
+    "defaultMessage": "Connection lost",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
+  },
+  "inspection.components.connection.overlay.reconnecting": {
+    "defaultMessage": "Reconnecting…",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
+  },
+  "inspection.components.connection.overlay.reload": {
+    "defaultMessage": "Reload",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
+  },
+  "inspection.components.connection.overlay.reload.detail": {
+    "defaultMessage": "JSTorrent changed in a way this page can't follow. Reload to continue.",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
+  },
+  "inspection.components.connection.overlay.reload.page": {
+    "defaultMessage": "Reload page",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
+  },
+  "inspection.components.connection.overlay.reload.title": {
+    "defaultMessage": "Reload needed",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
+  },
+  "inspection.components.connection.overlay.retry.now": {
+    "defaultMessage": "Retry now",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
+  },
+  "inspection.components.connection.overlay.retrying.in": {
+    "defaultMessage": "{seconds, plural, one {Trying again in # second} other {Trying again in # seconds}}",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
+  },
+  "inspection.components.connection.overlay.sign.in": {
+    "defaultMessage": "Sign in",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
+  },
+  "inspection.components.connection.overlay.signed.out.detail": {
+    "defaultMessage": "Sign in again to keep using JSTorrent.",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
+  },
+  "inspection.components.connection.overlay.signed.out.title": {
+    "defaultMessage": "Signed out",
+    "description": "Product copy in inspection/components/ConnectionOverlay.tsx"
   },
   "inspection.components.connection.seeding.settings.section.allow": {
     "defaultMessage": "Allow",

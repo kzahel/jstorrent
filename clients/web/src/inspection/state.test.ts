@@ -450,7 +450,7 @@ function snapshot(
     revision: 1,
     durableRevision: "1",
     session: {
-      connection: "demo",
+      connection: { type: "demo" },
       downloadRate: 0,
       uploadRate: 0,
       dhtNodes: 0,

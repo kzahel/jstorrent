@@ -91,7 +91,8 @@ export function documentTitleForSession(
   session: SessionSummary,
   dataUnits: DataUnits,
 ): string {
-  if (session.connection !== "connected" && session.connection !== "demo") {
+  const connection = session.connection.type;
+  if (connection !== "connected" && connection !== "demo") {
     return APPLICATION_TITLE;
   }
   const downloadRate = nonnegativeRate(session.downloadRate);

@@ -163,6 +163,129 @@ describe("inspection application", () => {
     ).toHaveTextContent("∞");
   });
 
+  it("shows header rates only while something transfers and no connection pill", () => {
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...base,
+        demo: null,
+        session: {
+          ...base.session,
+          connection: { type: "connected" },
+          downloadRate: 0,
+          uploadRate: null,
+        },
+      },
+    });
+    const { container } = renderApplication(application);
+    expect(
+      screen.queryByLabelText("Session transfer rates"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("banner")).queryByText("connected"),
+    ).not.toBeInTheDocument();
+    expect(container.firstElementChild).toHaveAttribute(
+      "data-connection",
+      "connected",
+    );
+
+    act(() => {
+      application.emitUpdate({
+        type: "patch",
+        revision: base.revision + 1,
+        session: { ...base.session, downloadRate: 2_500_000, uploadRate: 0 },
+      });
+    });
+    expect(screen.getByLabelText("Session transfer rates")).toHaveTextContent(
+      "↓ 2.4 MB/s↑ —",
+    );
+  });
+
+  it("covers the app while the engine connection stays down", async () => {
+    const user = userEvent.setup();
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...base,
+        demo: null,
+        session: {
+          ...base.session,
+          connection: {
+            type: "reconnecting",
+            since: Date.now() - 5_000,
+            nextAttemptAt: Date.now() + 12_000,
+          },
+        },
+      },
+    });
+    const { container } = renderApplication(application);
+    const overlay = screen.getByRole("alertdialog", { name: "Connection lost" });
+    expect(within(overlay).getByRole("status")).toHaveTextContent(
+      "Trying again in 12 seconds",
+    );
+    expect(container.firstElementChild).toHaveAttribute("inert");
+    expect(within(overlay).getByRole("button", { name: "Retry now" })).toHaveFocus();
+
+    await user.click(within(overlay).getByRole("button", { name: "Retry now" }));
+    expect(application.reconnectRequests).toBe(1);
+
+    act(() => {
+      application.emitUpdate({
+        type: "patch",
+        revision: base.revision + 1,
+        session: { ...base.session, connection: { type: "connected" } },
+      });
+    });
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(container.firstElementChild).not.toHaveAttribute("inert");
+  });
+
+  it("waits out brief connection drops without covering the app", () => {
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    renderApplication(
+      new RecordingLiveApplication({
+        type: "snapshot",
+        snapshot: {
+          ...base,
+          demo: null,
+          session: {
+            ...base.session,
+            connection: {
+              type: "reconnecting",
+              since: Date.now() - 500,
+              nextAttemptAt: null,
+            },
+          },
+        },
+      }),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("asks to sign in again once the engine rejects this session", () => {
+    const base = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    renderApplication(
+      new RecordingLiveApplication({
+        type: "snapshot",
+        snapshot: {
+          ...base,
+          demo: null,
+          session: {
+            ...base.session,
+            connection: { type: "stopped", reason: "signed_out" },
+          },
+        },
+      }),
+    );
+    const overlay = screen.getByRole("alertdialog", { name: "Signed out" });
+    expect(within(overlay).getByRole("button", { name: "Sign in" })).toBeVisible();
+    expect(
+      within(overlay).queryByRole("button", { name: "Retry now" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows determinate checker progress across Torrents, Library and details", async () => {
     const user = userEvent.setup();
     const snapshot = checkingSnapshot("hashing");
@@ -3929,6 +4052,7 @@ class RecordingLiveApplication implements InspectionApplication {
   rejectNextClientSettings = false;
   rejectNextExternal = false;
   rejectNextTorrentId: string | undefined;
+  reconnectRequests = 0;
   private listener: ((update: InspectionUpdate) => void) | null = null;
   private storage: DownloadStorageSettings;
   private clientSettings: ClientSettingsRuntimeView;
@@ -4144,6 +4268,10 @@ class RecordingLiveApplication implements InspectionApplication {
       durableRevision: this.durableRevision.toString(),
       storage: this.storage,
     });
+  }
+
+  reconnectNow(): void {
+    this.reconnectRequests += 1;
   }
 
   async close(): Promise<void> {}
