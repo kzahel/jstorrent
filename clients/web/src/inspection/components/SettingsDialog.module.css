@@ -16,7 +16,9 @@
   display: flex;
   width: min(54rem, calc(100% - 2rem));
   min-width: 0;
-  height: 100%;
+  /* Starts where the app does, below any host bar, so close meets the gear. */
+  height: calc(100% - var(--ui-app-top-offset, 0px));
+  margin-top: var(--ui-app-top-offset, 0px);
   flex-direction: column;
   border-left: 1px solid var(--border-soft);
   color: var(--text-primary);
@@ -71,12 +73,12 @@
 
 .header {
   display: flex;
-  min-height: var(--ui-header-height);
+  min-height: var(--ui-header-row-height);
   align-items: center;
   justify-content: space-between;
   gap: var(--ui-space-md);
   border-bottom: 1px solid var(--border-soft);
-  padding: var(--ui-space-sm) var(--ui-space-sm) var(--ui-space-sm) var(--ui-space-md);
+  padding: 0 var(--ui-header-padding-inline) 0 var(--ui-space-md);
 }
 
 .header h2 {

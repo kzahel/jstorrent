@@ -16,7 +16,7 @@
   gap: 1rem;
   min-width: 0;
   border-bottom: 1px solid var(--border-soft);
-  padding: 0 0.8rem;
+  padding: 0 var(--ui-header-padding-inline);
   color: var(--text-primary);
   background: var(--surface-secondary);
 }
@@ -381,9 +381,8 @@
   .header {
     display: grid;
     grid-template-columns: auto auto minmax(0, 1fr) auto;
-    grid-template-rows: 50px 50px;
+    grid-template-rows: var(--ui-header-row-height) var(--ui-header-row-height);
     gap: 0 0.5rem;
-    padding: 0 0.55rem;
   }
 
   .menuButton {

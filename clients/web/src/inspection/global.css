@@ -104,6 +104,9 @@
   --ui-control-height: 2.25rem;
   --ui-check-size: 1.125rem;
   --ui-header-height: 52px;
+  /* Top header row; Settings' close button sits where the gear does. */
+  --ui-header-row-height: var(--ui-header-height);
+  --ui-header-padding-inline: 0.8rem;
   --ui-actionbar-height: 46px;
   --ui-tab-height: 42px;
   --ui-detail-tab-width: 6.25rem;
@@ -476,6 +479,8 @@ input:focus-visible {
 @media (max-width: 760px) {
   :root[data-interface-size] {
     --ui-header-height: 100px;
+    --ui-header-row-height: 50px;
+    --ui-header-padding-inline: 0.55rem;
   }
 }
 

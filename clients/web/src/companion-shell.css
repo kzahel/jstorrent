@@ -75,4 +75,5 @@ body:has(#companion-bootstrap) {
 }
 #companion-identity button:hover { background: var(--surface-hover); }
 #companion-bootstrap [hidden], #companion-identity[hidden] { display: none; }
+body:has(#companion-identity:not([hidden])) { --ui-app-top-offset: 40px; }
 body:has(#companion-identity:not([hidden])) #app > div { height: calc(100dvh - 40px); }
