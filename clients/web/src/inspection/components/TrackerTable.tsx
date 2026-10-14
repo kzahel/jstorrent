@@ -51,14 +51,15 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
 
   return (
     <div className={styles.trackerPanel}>
-      <div className={styles.summary}>
-        <span>{rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.tracker.table.trackers")}</span>
-        <span>{announcing.toLocaleString()}{" "}{localizedMessage("inspection.components.tracker.table.announcing")}</span>
-        <span>{waiting.toLocaleString()}{" "}{localizedMessage("inspection.components.tracker.table.scheduled")}</span>
-      </div>
       <PeerSourceList torrentId={torrentId} />
       <VirtualTable
-        formatCount={(count) => localizedMessage("common.count.trackers", { count })}
+        formatCount={(count) =>
+          [
+            localizedMessage("common.count.trackers", { count }),
+            `${announcing.toLocaleString()} ${localizedMessage("inspection.components.tracker.table.announcing")}`,
+            `${waiting.toLocaleString()} ${localizedMessage("inspection.components.tracker.table.scheduled")}`,
+          ].join(" · ")
+        }
         tableId="trackers"
         label={localizedMessage("inspection.components.tracker.table.torrent.trackers")}
         rows={rows}

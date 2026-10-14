@@ -1,21 +1,9 @@
 .trackerPanel {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-width: 0;
   min-height: 0;
-}
-
-.summary {
-  display: flex;
-  gap: 1rem;
-  min-width: 0;
-  border-bottom: 1px solid var(--border-soft);
-  padding: 0.42rem 0.72rem;
-  color: var(--text-muted);
-  background: var(--surface-primary);
-  font-size: var(--ui-font-caption);
-  font-variant-numeric: tabular-nums;
 }
 
 .url,
@@ -153,10 +141,3 @@
   background: var(--warning-strong);
 }
 
-@media (max-width: 520px) {
-  .summary {
-    gap: 0.65rem;
-    overflow: hidden;
-    white-space: nowrap;
-  }
-}

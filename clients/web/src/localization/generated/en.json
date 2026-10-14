@@ -7056,12 +7056,6 @@
       "value": "Torrent trackers"
     }
   ],
-  "inspection.components.tracker.table.trackers": [
-    {
-      "type": 0,
-      "value": "trackers"
-    }
-  ],
   "inspection.components.tracker.table.type": [
     {
       "type": 0,

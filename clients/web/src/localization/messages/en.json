@@ -3912,10 +3912,6 @@
     "defaultMessage": "Nothing to show yet.",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
   },
-  "inspection.components.tracker.table.trackers": {
-    "defaultMessage": "trackers",
-    "description": "Product copy in inspection/components/TrackerTable.tsx"
-  },
   "inspection.components.tracker.table.type": {
     "defaultMessage": "Type",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
