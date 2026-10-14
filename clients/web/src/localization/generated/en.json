@@ -6808,6 +6808,12 @@
       "value": "Attempts"
     }
   ],
+  "inspection.components.tracker.table.connected.peers": [
+    {
+      "type": 0,
+      "value": "Connected"
+    }
+  ],
   "inspection.components.tracker.table.encrypted.certificate.and.hostname.not.validated": [
     {
       "type": 0,
@@ -6842,6 +6848,12 @@
     {
       "type": 0,
       "value": "Interval"
+    }
+  ],
+  "inspection.components.tracker.table.known.peers": [
+    {
+      "type": 0,
+      "value": "Known peers"
     }
   ],
   "inspection.components.tracker.table.last.failure": [
@@ -6892,6 +6904,12 @@
       "value": "Now"
     }
   ],
+  "inspection.components.tracker.table.other.sources": [
+    {
+      "type": 0,
+      "value": "Other sources"
+    }
+  ],
   "inspection.components.tracker.table.peers": [
     {
       "type": 0,
@@ -6914,6 +6932,110 @@
     {
       "type": 0,
       "value": "Source"
+    }
+  ],
+  "inspection.components.tracker.table.source.dht": [
+    {
+      "type": 0,
+      "value": "DHT"
+    }
+  ],
+  "inspection.components.tracker.table.source.incoming": [
+    {
+      "type": 0,
+      "value": "Incoming connections"
+    }
+  ],
+  "inspection.components.tracker.table.source.local.network": [
+    {
+      "type": 0,
+      "value": "Local network"
+    }
+  ],
+  "inspection.components.tracker.table.source.peer.exchange": [
+    {
+      "type": 0,
+      "value": "Peer exchange"
+    }
+  ],
+  "inspection.components.tracker.table.source.status.idle": [
+    {
+      "type": 0,
+      "value": "Idle"
+    }
+  ],
+  "inspection.components.tracker.table.source.status.listening": [
+    {
+      "type": 0,
+      "value": "On, port "
+    },
+    {
+      "type": 1,
+      "value": "port"
+    }
+  ],
+  "inspection.components.tracker.table.source.status.not.available": [
+    {
+      "type": 0,
+      "value": "Not available"
+    }
+  ],
+  "inspection.components.tracker.table.source.status.off": [
+    {
+      "type": 0,
+      "value": "Off"
+    }
+  ],
+  "inspection.components.tracker.table.source.status.on": [
+    {
+      "type": 0,
+      "value": "On"
+    }
+  ],
+  "inspection.components.tracker.table.source.status.searching": [
+    {
+      "type": 0,
+      "value": "Searching now, "
+    },
+    {
+      "type": 6,
+      "value": "found",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " peer"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " peers"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " found"
+    }
+  ],
+  "inspection.components.tracker.table.source.status.starting": [
+    {
+      "type": 0,
+      "value": "Starting"
     }
   ],
   "inspection.components.tracker.table.status": [

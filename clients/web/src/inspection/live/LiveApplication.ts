@@ -762,7 +762,7 @@ export class LiveApplication implements InspectionApplication {
       });
     }
     if (
-      views.detail === "swarm" &&
+      wantsSwarm(views.detail) &&
       views.torrentId !== null &&
       capabilities.has("torrent_swarm")
     ) {
@@ -770,7 +770,7 @@ export class LiveApplication implements InspectionApplication {
         type: "torrent_swarm",
         view_id: SWARM_VIEW_ID,
         torrent_id: views.torrentId,
-        delivery: { min_interval_millis: 100 },
+        delivery: { min_interval_millis: views.detail === "swarm" ? 100 : 1_000 },
       });
     }
     if (
@@ -829,11 +829,11 @@ export class LiveApplication implements InspectionApplication {
         delivery: { min_interval_millis: 100 },
       });
     }
-    if (views.detail === "dht" && capabilities.has("session_dht")) {
+    if (wantsDht(views.detail) && capabilities.has("session_dht")) {
       specs.push({
         type: "session_dht",
         view_id: DHT_VIEW_ID,
-        delivery: { min_interval_millis: 500 },
+        delivery: { min_interval_millis: views.detail === "dht" ? 500 : 1_000 },
       });
     }
     if (
@@ -1134,7 +1134,7 @@ function mapViewState(
         "Peer inspection is unavailable",
       ),
       swarm: materialization(
-        desired.detail === "swarm",
+        wantsSwarm(desired.detail),
         capabilities.has("torrent_swarm"),
         swarm?.torrent_id === desired.torrentId,
         "Swarm inspection is unavailable",
@@ -1170,7 +1170,7 @@ function mapViewState(
         "Disk inspection is unavailable",
       ),
       dht: materialization(
-        desired.detail === "dht",
+        wantsDht(desired.detail),
         capabilities.has("session_dht"),
         dht !== null,
         "DHT inspection is unavailable",
@@ -1288,7 +1288,7 @@ function transitionSnapshot(
         capabilities.has("torrent_peers"),
       ),
       swarm: transitionStatus(
-        desired.detail === "swarm",
+        wantsSwarm(desired.detail),
         capabilities.has("torrent_swarm"),
       ),
       files: transitionStatus(
@@ -1313,7 +1313,7 @@ function transitionSnapshot(
         current.viewStatus.disk,
       ),
       dht: transitionStatus(
-        desired.detail === "dht",
+        wantsDht(desired.detail),
         capabilities.has("session_dht"),
         current.viewStatus.dht,
       ),
@@ -2045,7 +2045,7 @@ function emptyLiveSnapshot(
       torrentSummary:
         desired.torrentId === null ? { status: "not_requested" } : { status: "loading" },
       peers: desired.detail === "peers" ? { status: "loading" } : { status: "not_requested" },
-      swarm: desired.detail === "swarm" ? { status: "loading" } : { status: "not_requested" },
+      swarm: wantsSwarm(desired.detail) ? { status: "loading" } : { status: "not_requested" },
       files: desired.detail === "files" ? { status: "loading" } : { status: "not_requested" },
       media: desired.detail === "media" ? { status: "loading" } : { status: "not_requested" },
       trackers:
@@ -2057,7 +2057,7 @@ function emptyLiveSnapshot(
           ? { status: "loading" }
           : { status: "not_requested" },
       disk: desired.detail === "disk" ? { status: "loading" } : { status: "not_requested" },
-      dht: desired.detail === "dht" ? { status: "loading" } : { status: "not_requested" },
+      dht: wantsDht(desired.detail) ? { status: "loading" } : { status: "not_requested" },
       speed:
         desired.detail === "speed"
           ? { status: "loading" }
@@ -2065,6 +2065,15 @@ function emptyLiveSnapshot(
       logs: desired.detail === "logs" ? { status: "loading" } : { status: "not_requested" },
     },
   };
+}
+
+// The Trackers tab also lists peers by source and this torrent's DHT search.
+function wantsSwarm(detail: DesiredInspectionViews["detail"]): boolean {
+  return detail === "swarm" || detail === "trackers";
+}
+
+function wantsDht(detail: DesiredInspectionViews["detail"]): boolean {
+  return detail === "dht" || detail === "trackers";
 }
 
 function sameViews(

@@ -389,8 +389,11 @@ function materializeDemoViews(
           },
         }
       : {};
+  // Trackers also lists peers by source, as the live client does.
+  const wantsSwarm = desired.detail === "swarm" || desired.detail === "trackers";
+  const wantsDht = desired.detail === "dht" || desired.detail === "trackers";
   const swarmByTorrent =
-    desired.detail === "swarm" && desired.torrentId !== null
+    wantsSwarm && desired.torrentId !== null
       ? {
           [desired.torrentId]: source.swarmByTorrent[desired.torrentId] ?? {
             state: "inactive" as const,
@@ -464,7 +467,7 @@ function materializeDemoViews(
     trackersByTorrent,
     piecesByTorrent,
     disk: desired.detail === "disk" ? source.disk : emptyDiskSet(),
-    dht: desired.detail === "dht" ? source.dht : null,
+    dht: wantsDht ? source.dht : null,
     speed:
       desired.detail === "speed"
         ? materializeDemoSpeed(source.speed, desired.speed)
@@ -495,7 +498,7 @@ function materializeDemoViews(
           ? { status: "ready" }
           : { status: "not_requested" },
       swarm:
-        desired.detail === "swarm"
+        wantsSwarm
           ? { status: "ready" }
           : { status: "not_requested" },
       files:
@@ -519,7 +522,7 @@ function materializeDemoViews(
           ? { status: "ready" }
           : { status: "not_requested" },
       dht:
-        desired.detail === "dht"
+        wantsDht
           ? source.viewStatus.dht
           : { status: "not_requested" },
       speed:

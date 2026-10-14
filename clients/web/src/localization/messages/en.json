@@ -3836,6 +3836,62 @@
     "defaultMessage": "Seeds",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
   },
+  "inspection.components.tracker.table.other.sources": {
+    "defaultMessage": "Other sources",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.known.peers": {
+    "defaultMessage": "Known peers",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.connected.peers": {
+    "defaultMessage": "Connected",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.dht": {
+    "defaultMessage": "DHT",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.peer.exchange": {
+    "defaultMessage": "Peer exchange",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.incoming": {
+    "defaultMessage": "Incoming connections",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.local.network": {
+    "defaultMessage": "Local network",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.status.off": {
+    "defaultMessage": "Off",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.status.not.available": {
+    "defaultMessage": "Not available",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.status.starting": {
+    "defaultMessage": "Starting",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.status.idle": {
+    "defaultMessage": "Idle",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.status.on": {
+    "defaultMessage": "On",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.status.listening": {
+    "defaultMessage": "On, port {port}",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.status.searching": {
+    "defaultMessage": "Searching now, {found, plural, one {# peer} other {# peers}} found",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
   "inspection.components.tracker.table.source": {
     "defaultMessage": "Source",
     "description": "Product copy in inspection/components/TrackerTable.tsx"

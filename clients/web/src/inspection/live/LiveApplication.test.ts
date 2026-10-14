@@ -1090,6 +1090,15 @@ describe("LiveApplication", () => {
       client.opens[0]?.views.find((view) => view.type === "torrent_trackers")
         ?.delivery.min_interval_millis,
     ).toBe(250);
+    // Peer sources beside the trackers read the swarm and DHT views slowly.
+    expect(
+      client.opens[0]?.views
+        .filter((view) => view.type === "torrent_swarm" || view.type === "session_dht")
+        .map((view) => [view.type, view.delivery.min_interval_millis]),
+    ).toEqual([
+      ["torrent_swarm", 1_000],
+      ["session_dht", 1_000],
+    ]);
     await application.setViews({
       library: true,
       torrentId: TORRENT_ID,

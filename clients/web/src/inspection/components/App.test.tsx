@@ -707,6 +707,22 @@ describe("inspection application", () => {
     ).toBeVisible();
   });
 
+  it("lists DHT, peer exchange and incoming peers beside the trackers", async () => {
+    const user = userEvent.setup();
+    renderScenario("swarm-lifecycle", 30_000);
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "Trackers" }));
+
+    const sources = await screen.findByRole("table", { name: "Other sources" });
+    expect(
+      within(sources).getAllByRole("row").slice(1).map((row) => row.textContent),
+    ).toEqual(["DHTOn30", "Peer exchangeOn21", "Incoming connectionsOff00"]);
+  });
+
   it("renders the bounded swarm registry independently of active connections", async () => {
     const user = userEvent.setup();
     renderScenario("swarm-lifecycle", 24_000);

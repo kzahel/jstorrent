@@ -452,7 +452,11 @@ all 470 unit tests (two skipped) and typecheck pass locally. Final source
 f5860c99 passes all ten executed CI jobs and Website; application behavior
 is unchanged.
 Tactical `043` adds the responsive live Trackers table, local deadline
-countdowns, and a permanent tracker-recovery scenario. Completed Tactical
+countdowns, and a permanent tracker-recovery scenario. Tactical
+[341](../tactical/341-trackers-tab-peer-sources.md) adds an **Other sources**
+list above it (DHT, Peer exchange, Incoming connections, and Local network
+when it supplied peers) with plain status and known/connected counts from the
+swarm and DHT views, which the Trackers tab now also subscribes at 1 s. Completed Tactical
 [`300`](../tactical/300-monotonic-tracker-view-deadlines.md) fixes countdown
 oscillation by translating stable application-monotonic deadlines once per
 view-set epoch. Component tests cover expiry, outcome ages and calendar-clock

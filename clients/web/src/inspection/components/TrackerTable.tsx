@@ -7,6 +7,11 @@ import type {
   TrackerSet,
   ViewMaterialization,
 } from "../model";
+import {
+  peerSourceSummaries,
+  type PeerSourceKind,
+  type PeerSourceStatus,
+} from "../peer-sources";
 import { VirtualTable, type VirtualColumn } from "./VirtualTable";
 import styles from "./TrackerTable.module.css";
 
@@ -51,6 +56,7 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
         <span>{announcing.toLocaleString()}{" "}{localizedMessage("inspection.components.tracker.table.announcing")}</span>
         <span>{waiting.toLocaleString()}{" "}{localizedMessage("inspection.components.tracker.table.scheduled")}</span>
       </div>
+      <PeerSourceList torrentId={torrentId} />
       <VirtualTable
         formatCount={(count) => localizedMessage("common.count.trackers", { count })}
         tableId="trackers"
@@ -64,6 +70,71 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
       />
     </div>
   );
+}
+
+/** DHT, peer exchange and incoming connections, as qBittorrent lists them beside trackers. */
+function PeerSourceList({ torrentId }: { readonly torrentId: string }) {
+  const torrent = useInspectionStore((state) => state.torrents[torrentId]);
+  const swarm = useInspectionStore((state) => state.swarmByTorrent[torrentId]);
+  const dht = useInspectionStore((state) => state.dht);
+  const settings = useInspectionStore((state) => state.clientSettings);
+  const sources = useMemo(
+    () => peerSourceSummaries(torrent, swarm, dht, settings),
+    [dht, settings, swarm, torrent],
+  );
+  return (
+    <div className={styles.sourcesPanel}>
+      <table className={styles.sources}>
+        <caption>{localizedMessage("inspection.components.tracker.table.other.sources")}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{localizedMessage("inspection.components.tracker.table.source")}</th>
+            <th scope="col">{localizedMessage("inspection.components.tracker.table.status")}</th>
+            <th scope="col">{localizedMessage("inspection.components.tracker.table.known.peers")}</th>
+            <th scope="col">{localizedMessage("inspection.components.tracker.table.connected.peers")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sources.map((source) => (
+            <tr key={source.kind}>
+              <th scope="row">{sourceLabel(source.kind)}</th>
+              <td>
+                <span className={styles.sourceStatus} data-status={source.status.type}>
+                  <span aria-hidden="true" />
+                  {sourceStatusLabel(source.status)}
+                </span>
+              </td>
+              <td>{formatCount(source.known)}</td>
+              <td>{formatCount(source.connected)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function sourceLabel(kind: PeerSourceKind): string {
+  switch (kind) {
+    case "dht": return localizedMessage("inspection.components.tracker.table.source.dht");
+    case "peer_exchange": return localizedMessage("inspection.components.tracker.table.source.peer.exchange");
+    case "incoming": return localizedMessage("inspection.components.tracker.table.source.incoming");
+    case "local_discovery": return localizedMessage("inspection.components.tracker.table.source.local.network");
+  }
+}
+
+function sourceStatusLabel(status: PeerSourceStatus): string {
+  switch (status.type) {
+    case "off": return localizedMessage("inspection.components.tracker.table.source.status.off");
+    case "offline": return localizedMessage("inspection.components.tracker.table.source.status.not.available");
+    case "starting": return localizedMessage("inspection.components.tracker.table.source.status.starting");
+    case "idle": return localizedMessage("inspection.components.tracker.table.source.status.idle");
+    case "on": return localizedMessage("inspection.components.tracker.table.source.status.on");
+    case "listening":
+      return localizedMessage("inspection.components.tracker.table.source.status.listening", { port: String(status.port) });
+    case "searching":
+      return localizedMessage("inspection.components.tracker.table.source.status.searching", { found: status.found });
+  }
 }
 
 function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {

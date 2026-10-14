@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [341 — Peer sources in the Trackers tab](341-trackers-tab-peer-sources.md):
+  DHT, peer exchange and incoming rows beside a torrent's trackers, from the
+  existing swarm and DHT views.
 - [340 — Quiet Windows network startup and firewall qualification](340-windows-quiet-network-startup.md):
   Windows fresh/upgrade defaults, preserved opt-in choices, native denial,
   controlled cross-VM transfers and retained-data migration.

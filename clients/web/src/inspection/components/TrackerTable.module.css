@@ -1,6 +1,6 @@
 .trackerPanel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   height: 100%;
   min-width: 0;
   min-height: 0;
@@ -67,6 +67,90 @@
 
 .status[data-status="reannounce_wait"] > span {
   background: var(--success);
+}
+
+/* Non-tracker peer sources, listed above the tracker table. */
+.sourcesPanel {
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-primary);
+}
+
+.sources {
+  width: 100%;
+  max-width: 44rem;
+  border-collapse: collapse;
+  font-size: var(--ui-font-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.sources thead th:nth-child(2) {
+  width: 45%;
+}
+
+.sources caption {
+  padding: 0.5rem 0.72rem 0.2rem;
+  color: var(--text-muted);
+  font-size: var(--ui-font-caption);
+  font-weight: var(--weight-medium);
+  text-align: left;
+}
+
+.sources th,
+.sources td {
+  padding: 0.28rem 0.72rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sources thead th {
+  color: var(--text-muted);
+  font-size: var(--ui-font-caption);
+  font-weight: var(--weight-medium);
+}
+
+.sources tbody th {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+.sources td:nth-child(3),
+.sources td:nth-child(4),
+.sources thead th:nth-child(3),
+.sources thead th:nth-child(4) {
+  text-align: right;
+}
+
+.sourceStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: var(--text-secondary);
+}
+
+.sourceStatus > span {
+  width: 0.42rem;
+  height: 0.42rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.sourceStatus[data-status="on"] > span,
+.sourceStatus[data-status="listening"] > span {
+  background: var(--success);
+}
+
+.sourceStatus[data-status="searching"] > span {
+  background: var(--water);
+}
+
+.sourceStatus[data-status="offline"] {
+  color: var(--warning-strong);
+}
+
+.sourceStatus[data-status="offline"] > span,
+.sourceStatus[data-status="starting"] > span {
+  background: var(--warning-strong);
 }
 
 @media (max-width: 520px) {
