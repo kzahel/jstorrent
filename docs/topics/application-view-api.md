@@ -1,5 +1,12 @@
 # Application View API
 
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) keeps the existing generated contract: saved
+incoming/UPnP preferences, effective listener/UDP state and DHT state remain
+separate. Mac idle discovery demand changes effective DHT participation without
+rewriting its saved preference. No OS permission grant is inferred from settings
+or a successful bind. Android uses the same incoming-Off semantics and existing
+observer boundary; its defaults and presentation are unchanged.
+
 Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
 replaces Pieces with an empty snapshot when its torrent disappears and with a
 fresh snapshot when piece geometry changes. This discards pending patches for

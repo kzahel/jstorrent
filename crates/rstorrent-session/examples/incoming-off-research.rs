@@ -30,6 +30,10 @@ type Result<T> = std::result::Result<T, Box<dyn Error>>;
 async fn main() -> Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
+        Some("prepare-legacy") if args.len() == 2 => prepare_legacy(Path::new(&args[1])),
+        Some("prepare-client") if args.len() == 4 => {
+            prepare_client(Path::new(&args[1]), Path::new(&args[2]), args[3].parse()?)
+        }
         Some("server") if args.len() == 5 => {
             server(Path::new(&args[1]), Path::new(&args[2]), &args[3], &args[4]).await
         }
@@ -91,7 +95,7 @@ async fn wire_client(
     } else {
         let socket = UdpSocket::bind((bind_ip, client_port)).await?;
         let (mut udp, dht) = SessionUdpService::start(socket)?;
-        let utp = UtpService::start(&mut udp)?;
+        let utp = UtpService::start_with_incoming_enabled(&mut udp, false)?;
         let transfer = tokio::time::timeout(Duration::from_secs(30), async {
             let mut stream = utp.handle().connect(peer).await?;
             wire_transfer(&mut stream, metainfo, false, fast, mode == "wire-fast").await
@@ -211,6 +215,98 @@ async fn wire_frame<S: tokio::io::AsyncRead + Unpin>(
     stream.read_exact(&mut frame).await?;
     emit(json!({"event":"wire_frame","length":length,"id":frame.first()}))?;
     Ok(frame)
+}
+
+fn prepare_legacy(root: &Path) -> Result<()> {
+    if !root.join("profile").exists() {
+        return Err("existing owned profile required".into());
+    }
+    let mut store = SessionStore::open(&root.join("profile"), "default", &[])?;
+    let response = store.handle_durable(&RequestEnvelope {
+        version: CONTROL_VERSION,
+        request_id: "prepare-legacy-network-intent".into(),
+        expected_revision: None,
+        command: Command::UpdateClientSettings {
+            patch: rstorrent_session::ClientSettingsPatch {
+                listener: Some(ListenerPolicy::FixedLocalNetwork { port: 45432 }),
+                port_mapping: Some(rstorrent_session::PortMappingPolicy::Upnp),
+                ..Default::default()
+            },
+        },
+    })?;
+    if !matches!(response.outcome, ResponseOutcome::Success { .. }) {
+        return Err("legacy setup rejected".into());
+    }
+    emit(json!({"event":"legacy_prepared","port":45432}))
+}
+
+fn prepare_client(root: &Path, fixture: &Path, server_port: u16) -> Result<()> {
+    if root.join("profile").exists() || server_port < 1024 {
+        return Err("fresh profile and unprivileged seed port required".into());
+    }
+    let source = read_bounded(&fixture.join("fixture.torrent"), 65_536)?;
+    let projection =
+        TorrentContentProjection::from_bytes_with_limits(&source, BEP9_METAINFO_LIMITS)?;
+    let metainfo = &projection
+        .content
+        .v1()
+        .ok_or("v1 fixture required")?
+        .metainfo;
+    if !metainfo.private || metainfo.name != "fixture.bin" || metainfo.total_length > 1_048_576 {
+        return Err("private bounded fixture required".into());
+    }
+    let storage = root.join("downloads");
+    std::fs::create_dir_all(&storage)?;
+    let roots = vec![ConfiguredStorageRoot::path("downloads", storage)];
+    let mut store = SessionStore::open(&root.join("profile"), "default", &roots)?;
+    let settings = ClientSettings {
+        dht_enabled: false,
+        peer_exchange_enabled: false,
+        ipv6_enabled: false,
+        encryption: EncryptionPolicy::Disabled,
+        ..Default::default()
+    };
+    let response = store.handle_durable(&RequestEnvelope {
+        version: CONTROL_VERSION,
+        request_id: "prepare-outbound-settings".into(),
+        expected_revision: None,
+        command: Command::UpdateClientSettings {
+            patch: settings.into(),
+        },
+    })?;
+    if !matches!(response.outcome, ResponseOutcome::Success { .. }) {
+        return Err("settings rejected".into());
+    }
+    let info_hash = metainfo
+        .info_hash
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    let response = store.handle_durable(&RequestEnvelope {
+        version: CONTROL_VERSION,
+        request_id: "prepare-outbound-peer".into(),
+        expected_revision: None,
+        command: Command::AddMagnet {
+            magnet: format!("magnet:?xt=urn:btih:{info_hash}&x.pe=127.0.0.1:{server_port}"),
+            storage_root: "downloads".into(),
+            start_content: true,
+            await_file_selection: false,
+            skip_files: Vec::new(),
+        },
+    })?;
+    if !matches!(response.outcome, ResponseOutcome::Success { .. }) {
+        return Err("fixture peer rejected".into());
+    }
+    let Some(CommandResult::AddTorrent { result }) = response.result else {
+        return Err("fixture intake result missing".into());
+    };
+    // Duplicate intake deliberately keeps the original source. Add the peer
+    // magnet first, then install independently verified metadata without a
+    // network task so the desktop restore has a real persisted candidate.
+    store.record_metadata(&result.torrent_id, &source[projection.info_span])?;
+    emit(
+        json!({"event":"prepared", "bytes":metainfo.total_length,"listener":"disabled","forwarding":"disabled"}),
+    )
 }
 
 fn emit(value: serde_json::Value) -> Result<()> {
@@ -501,7 +597,7 @@ async fn client(
         .metainfo;
     let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, client_port)).await?;
     let (mut udp, dht) = SessionUdpService::start(socket)?;
-    let utp = UtpService::start(&mut udp)?;
+    let utp = UtpService::start_with_incoming_enabled(&mut udp, false)?;
     let peer = SocketAddr::from((Ipv4Addr::LOCALHOST, server_port));
     emit(json!({"event":"client_ready","client_port":client_port,"server_port":server_port}))?;
     if handshake_only {

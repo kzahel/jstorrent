@@ -576,12 +576,11 @@ payload stall before interpreting a similar Windows failure as firewall policy.
 Record evidence and remaining gaps, preserve inherited apps/registrations,
 and check in before product defaults or UI implementation.
 
-Restart checkpoint: the authorized Windows research round above is recorded.
-The controlled payload stall is diagnosed as a Fast Extension diagnostic defect;
-corrected wire transfers pass on Windows, while a corrected Mac rerun remains.
-Check in before product UI or default changes. The proposed next
-implementation action, if selected, is a bounded tactical starting with incidental macOS route
-selection and complete incoming-off semantics, then explicit local-network
-feature gating. Product defaults, consent UI and shipping signing remain
-unimplemented. Do not reopen a public swarm or infer signed shipping Windows
-qualification from the unsigned research identities.
+Restart checkpoint: the authorized Mac/Windows research is complete. Its old
+TCP-Off uTP admission and missing Fast availability results remain historical
+evidence. Maintainer authorization selected Tactical
+[339](339-macos-quiet-network-startup.md), which implements incoming-Off across
+TCP/uTP, repairs the diagnostic, adds quiet Mac defaults/migration and explicit
+forwarding UI, and records corrected Mac transfer evidence. Windows product
+qualification follows separately. Signed Mac branding/denial/regrant remain
+open; do not infer shipping acceptance from ad-hoc research identities.

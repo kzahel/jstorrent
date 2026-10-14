@@ -1,20 +1,13 @@
 # Capability Readiness
 
-Tactical [338](../tactical/338-macos-network-consent-research.md) completes
-local Mac consent research and prepares a bounded implementation plan. Native
-GUI/Terminal probe comparisons, interface enumeration, real no-incoming-TCP
-startup and fresh-port uTP admission controls are recorded. TCP Off completes
-incoming BitTorrent handshakes; payload probes stall in Off and On; 15 socket tests and
-one application-policy test pass. Product defaults and consent UI are unchanged.
-Complete incoming-Off support and signed denial/regrant/transfer qualification
-are not ready claims. The authorized Windows research round records explicit
-TCP enable prompting, persistent Cancel rules/retry without a new prompt,
-loopback control, and independently hashed outgoing TCP/uTP under inbound
-denial. TCP Off also admits verified incoming uTP payloads. The original
-controlled diagnostic omits required initial Fast Extension availability;
-corrected independent wire clients pass without changing that helper or product
-defaults/UI. Signed shipping Windows policy and corrected Mac transfer remain
-unqualified.
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) completes the bounded Mac implementation: fresh
+and first-upgrade listener/UPnP Off, short explicit-forwarding disclosure,
+incidental multicast-probe removal, incoming TCP/uTP enforcement and idle Mac
+DHT deferral. Rust/web gates, Android host boundary/dual-ABI packaging/JVM gates
+and isolated native Mac controlled transfer/migration evidence pass. Complete
+incoming-Off support is now a common runtime claim. Signed shipping Mac
+branding/denial/regrant and Windows defaults/migration/firewall acceptance remain
+unqualified; Tactical 338 owns the historical research inputs.
 
 Tactical [337](../tactical/337-lightweight-macos-development-bundle.md) adds
 locally qualified macOS `scripts/desktop-bundle` tooling: matching debug app

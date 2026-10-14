@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use serde::{Deserialize, Serialize};
 
 const SETTINGS_FILE_NAME: &str = "desktop-shell.json";
-const SETTINGS_VERSION: u32 = 3;
+const SETTINGS_VERSION: u32 = 4;
 const MAX_SETTINGS_BYTES: usize = 4 * 1024;
 
 const SHUTDOWN_RUNNING: u8 = 0;
@@ -21,6 +21,7 @@ pub(crate) struct DesktopShellSettings {
     pub(crate) run_in_background: bool,
     pub(crate) notifications: DesktopNotificationSettings,
     pub(crate) power: DesktopPowerSettings,
+    pub(crate) network_defaults_version: u32,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -62,6 +63,7 @@ impl Default for DesktopShellSettings {
             run_in_background: true,
             notifications: DesktopNotificationSettings::default(),
             power: DesktopPowerSettings::default(),
+            network_defaults_version: 0,
         }
     }
 }
@@ -88,6 +90,19 @@ pub(crate) fn load_desktop_shell_settings(config_dir: &Path) -> LoadedDesktopShe
         Ok(None) => repair_with_defaults(path, "settings were missing"),
         Err(error) => repair_with_defaults(path, &error),
     }
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn persist_network_defaults_version(
+    path: &Path,
+    current: DesktopShellSettings,
+) -> Result<DesktopShellSettings, String> {
+    let next = DesktopShellSettings {
+        network_defaults_version: 1,
+        ..current
+    };
+    write_desktop_shell_settings(path, next)?;
+    Ok(next)
 }
 
 pub(crate) fn persist_run_in_background(
@@ -127,7 +142,11 @@ pub(crate) fn persist_power_settings(
 }
 
 pub(crate) fn reset_desktop_shell_settings(path: &Path) -> Result<DesktopShellSettings, String> {
-    let defaults = DesktopShellSettings::default();
+    let defaults = DesktopShellSettings {
+        network_defaults_version: read_desktop_shell_settings(path)?
+            .map_or(0, |s| s.network_defaults_version),
+        ..DesktopShellSettings::default()
+    };
     write_desktop_shell_settings(path, defaults)?;
     Ok(defaults)
 }
@@ -162,9 +181,18 @@ fn read_desktop_shell_settings(path: &Path) -> Result<Option<DesktopShellSetting
     }
     let version: SettingsVersion =
         serde_json::from_slice(&bytes).map_err(|_| "settings were malformed".to_owned())?;
-    if version.version != SETTINGS_VERSION {
+    let bytes = if version.version == 3 {
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&bytes).map_err(|_| "settings were malformed".to_owned())?;
+        let fields = value.as_object_mut().ok_or("settings were malformed")?;
+        fields.insert("version".into(), SETTINGS_VERSION.into());
+        fields.insert("network_defaults_version".into(), 0.into());
+        serde_json::to_vec(&value).map_err(|_| "settings were malformed".to_owned())?
+    } else if version.version != SETTINGS_VERSION {
         return Err("settings used an unsupported version".to_owned());
-    }
+    } else {
+        bytes
+    };
     let settings: DesktopShellSettings =
         serde_json::from_slice(&bytes).map_err(|_| "settings were malformed".to_owned())?;
     Ok(Some(settings))
@@ -268,6 +296,28 @@ mod tests {
         persist_notification_settings, persist_power_settings, persist_run_in_background,
         reset_desktop_shell_settings,
     };
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn network_defaults_marker_preserves_version_three_shell_choices_and_reset() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("desktop-shell.json");
+        std::fs::write(&path, br#"{"version":3,"run_in_background":false,"notifications":{"notify_download_complete":false,"notify_needs_attention":true,"notify_while_focused":false},"power":{"prevent_sleep_during_active_downloads":false}}"#).unwrap();
+        let loaded = load_desktop_shell_settings(temporary.path());
+        assert!(!loaded.settings.run_in_background);
+        assert!(!loaded.settings.notifications.notify_download_complete);
+        assert!(!loaded.settings.power.prevent_sleep_during_active_downloads);
+        assert_eq!(loaded.settings.network_defaults_version, 0);
+        let next = super::persist_network_defaults_version(&path, loaded.settings).unwrap();
+        assert_eq!(next.network_defaults_version, 1);
+        assert_eq!(load_desktop_shell_settings(temporary.path()).settings, next);
+        assert_eq!(
+            reset_desktop_shell_settings(&path)
+                .unwrap()
+                .network_defaults_version,
+            1
+        );
+    }
 
     #[test]
     fn shell_settings_default_on_persist_and_reopen() {
@@ -395,7 +445,7 @@ mod tests {
     fn malformed_oversized_and_unknown_settings_repair_to_default() {
         for (index, contents) in [
             b"{".to_vec(),
-            br#"{"version":4,"run_in_background":false}"#.to_vec(),
+            br#"{"version":5,"run_in_background":false}"#.to_vec(),
             br#"{"version":1,"run_in_background":false,"extra":1}"#.to_vec(),
             br#"{"version":2,"run_in_background":false,"notifications":{"notify_download_complete":true,"notify_needs_attention":true}}"#.to_vec(),
             br#"{"version":2,"run_in_background":false,"notifications":{"notify_download_complete":true,"notify_needs_attention":true,"notify_while_focused":true},"extra":1}"#.to_vec(),

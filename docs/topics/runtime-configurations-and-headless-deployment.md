@@ -1,5 +1,14 @@
 # Runtime Configurations And Headless Deployment
 
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) gives Mac desktop fresh profiles and the first
+upgrade outbound-only listener/UPnP defaults. Wanted torrents still resume;
+paused intent and unrelated shell settings survive. Empty/paused Mac libraries
+defer DHT. Explicit launch, background preference, window closure and Quit keep
+their existing owners. Ordinary loopback extension control remains available.
+Mac route selection uses a documentation-unicast UDP connect without sending,
+removing incidental SSDP access. Explicit forwarding and intentionally supplied
+LAN peers/trackers may request access. Windows/Linux defaults remain unchanged.
+
 Linux first-release scope is narrowed by maintainer direction on 2026-10-09:
 best-effort AppImage desktop support, maintained bundled libraries, no older-
 distro WebKit backport campaign, and CLI/headless fallback. Tactical285 locally

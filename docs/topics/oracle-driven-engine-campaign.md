@@ -1,15 +1,14 @@
 # Oracle-Driven Engine Campaign
 
-Tactical [338](../tactical/338-macos-network-consent-research.md) completes the
-authorized Windows consent research round without engine/product policy changes.
-Pinned BEP 6 and libtorrent uTP tests plus independent wire controls diagnose
-the controlled diagnostic's missing initial Fast Extension availability. Two
-fresh-process matrices confirm that TCP Off accepts verified uTP payloads;
-native Cancel persists inbound block rules while outgoing TCP/uTP hashes pass.
-Restart checkpoint: research evidence and bounded fixtures are recorded. Next:
-separately scope the diagnostic repair/corrected Mac rerun, then complete
-incoming-Off/local-network feature gating if selected. Signed shipping, UI,
-defaults and Android implementation are not authorized by this research result.
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) completes quiet Mac startup and explicit incoming/
+forwarding settings, with pinned BEP/libtorrent source/tests, bounded ownership,
+shared TCP/uTP Off enforcement, repaired Fast availability, idle Mac DHT demand,
+Android common-engine boundary/build evidence and independently hashed native
+Mac outgoing transfers. Restart checkpoint: implementation and local Mac
+qualification are complete. Next executable action is Windows product testing
+of these incoming controls, defaults/migration decision and native Cancel/retry/
+restart against existing firewall rules. Signed Mac denial/regrant and branding
+remain separate shipping gates; no public swarm or release is implied.
 
 Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
 repairs invalid Pieces removal patches and interrupted WebSocket deletion.

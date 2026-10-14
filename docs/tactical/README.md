@@ -1,8 +1,11 @@
 # Implementation Tactical Docs
 
+- [339 — Quiet Mac network startup and explicit incoming settings](339-macos-quiet-network-startup.md):
+  Mac fresh/upgrade defaults, complete TCP/uTP Off, forwarding disclosure,
+  idle DHT, shared/Android gates and isolated native transfer/migration evidence.
 - [338 — macOS network consent research and plan](338-macos-network-consent-research.md):
-  isolated OS experiments confirm multicast startup requests and incomplete
-  incoming-Off uTP semantics; Mac implementation plan, with Windows deferred.
+  historical Mac/Windows consent research, fresh-port uTP admission controls
+  and the Fast availability diagnosis; implementation follows in 339.
 
 - [337 — Lightweight macOS development bundle](337-lightweight-macos-development-bundle.md):
   separate foreground debug `.app` launcher with native registration and

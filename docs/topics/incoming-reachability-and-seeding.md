@@ -1,5 +1,14 @@
 # Incoming Reachability And Seeding
 
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) makes incoming Off apply to TCP and unsolicited
+uTP SYNs, including retirement of existing inbound peers. An Off-only change
+retains the shared UDP generation and outgoing peers; explicit port/family
+changes retain their existing replacement rules. No listening endpoint is
+advertised while Off. Mac native outbound uTP and TCP fallback both complete
+with independent payload hashes; Android boundary rejection and builds pass.
+Fresh Mac defaults and first upgrade disable listener/UPnP. Other platform
+fresh-default policy and signed firewall/reachability qualification remain open.
+
 Tactical [332](../tactical/332-windows-listener-test-port-isolation.md) isolates
 the automatic repair preference in the fixed-listener application test. Source
 CI 38409973610 fails on Windows when the occupied preferred port's successor

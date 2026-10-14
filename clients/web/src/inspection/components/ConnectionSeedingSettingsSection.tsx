@@ -55,7 +55,7 @@ const SEED_GOAL_MAXIMUM = 2_147_483_647;
 const DEFAULT_UPLOAD_RATE_KIB = "1024";
 const DEFAULT_DOWNLOAD_RATE_KIB = "4096";
 
-type ListenerMode = "automatic" | "fixed";
+type ListenerMode = "off" | "automatic" | "fixed";
 
 /** A short row-level line; warnings use the danger color. */
 interface SettingNote {
@@ -100,6 +100,7 @@ export function ConnectionSeedingSettingsSection({
   );
   const draft = settingsDraftValue(draftState) ?? authority;
   const transportPending = useRef(false);
+  const [forwardingConfirmation, setForwardingConfirmation] = useState(false);
   const [acceptedMessage, setAcceptedMessage] = useState<string | null>(null);
   const phase = settingsDraftPhase(draftState);
   const pending = phase === "submitting" || phase === "awaiting_view";
@@ -141,6 +142,7 @@ export function ConnectionSeedingSettingsSection({
   const patch = clientSettingsPatch(dirtyFields, validation.settings);
 
   const resetDraft = () => {
+    setForwardingConfirmation(false);
     dispatchDraft({ type: "discard" });
   };
 
@@ -154,6 +156,7 @@ export function ConnectionSeedingSettingsSection({
     ) {
       return;
     }
+    setForwardingConfirmation(false);
     transportPending.current = true;
     setAcceptedMessage(null);
     dispatchDraft({ type: "submit" });
@@ -363,67 +366,84 @@ export function ConnectionSeedingSettingsSection({
           id="network-heading"
           title={localizedMessage("inspection.components.connection.seeding.settings.section.network.heading")}
         >
-          <div
-            className={styles.settingGroup}
-            role="group"
-            aria-labelledby="listener-policy-heading"
-          >
-            <div className={styles.settingHeading}>
-              <strong id="listener-policy-heading">{localizedMessage("inspection.components.connection.seeding.settings.section.incoming.connections")}</strong>
-              <NoteLine
-                note={statusNote(
-                  settings.transport_application,
-                  listenerNote(settings.listener_status),
-                )}
-              />
+          <ToggleOption
+            label={localizedMessage("inspection.components.connection.seeding.settings.section.incoming.connections")}
+            description={localizedMessage("inspection.components.connection.seeding.settings.section.incoming.description")}
+            note={incomingNote(settings)}
+            checked={draft.listener.mode !== "off"}
+            disabled={!manageable}
+            onChange={(enabled) => {
+              dispatchDraft({
+                type: "edit",
+                field: "listener",
+                value: {
+                  ...draft.listener,
+                  mode: enabled ? (draft.listener.fixedPort ? "fixed" : "automatic") : "off",
+                },
+              });
+              if (!enabled || configured.listener.type === "disabled") {
+                setForwardingConfirmation(false);
+                dispatchDraft({ type: "edit", field: "portMapping", value: "disabled" });
+              }
+            }}
+          />
+          {draft.listener.mode === "off" ? null : (
+            <div
+              className={styles.settingGroup}
+              role="group"
+              aria-labelledby="listener-policy-heading"
+            >
+              <div className={styles.settingHeading}>
+                <strong id="listener-policy-heading">{localizedMessage("inspection.components.connection.seeding.settings.section.port")}</strong>
+              </div>
+              <div className={styles.options}>
+                <ListenerOption
+                  mode="automatic"
+                  label={localizedMessage("inspection.components.connection.seeding.settings.section.automatic.port.recommended")}
+                  selected={draft.listener.mode === "automatic"}
+                  disabled={!manageable}
+                  onSelect={() =>
+                    dispatchDraft({
+                      type: "edit",
+                      field: "listener",
+                      value: { ...draft.listener, mode: "automatic" },
+                    })
+                  }
+                />
+                <ListenerOption
+                  mode="fixed"
+                  label={localizedMessage("inspection.components.connection.seeding.settings.section.fixed.port")}
+                  selected={draft.listener.mode === "fixed"}
+                  disabled={!manageable}
+                  onSelect={() =>
+                    dispatchDraft({
+                      type: "edit",
+                      field: "listener",
+                      value: { ...draft.listener, mode: "fixed" },
+                    })
+                  }
+                />
+              </div>
+              {draft.listener.mode === "fixed" ? (
+                <NumberField
+                  id="fixed-listener-port"
+                  label={localizedMessage("inspection.components.connection.seeding.settings.section.port")}
+                  value={draft.listener.fixedPort}
+                  minimum={FIXED_PORT_MINIMUM}
+                  maximum={FIXED_PORT_MAXIMUM}
+                  error={validation.fixedPortError}
+                  disabled={!manageable}
+                  onChange={(fixedPort) =>
+                    dispatchDraft({
+                      type: "edit",
+                      field: "listener",
+                      value: { ...draft.listener, fixedPort },
+                    })
+                  }
+                />
+              ) : null}
             </div>
-            <div className={styles.options}>
-              <ListenerOption
-                mode="automatic"
-                label={localizedMessage("inspection.components.connection.seeding.settings.section.automatic.port.recommended")}
-                selected={draft.listener.mode === "automatic"}
-                disabled={!manageable}
-                onSelect={() =>
-                  dispatchDraft({
-                    type: "edit",
-                    field: "listener",
-                    value: { ...draft.listener, mode: "automatic" },
-                  })
-                }
-              />
-              <ListenerOption
-                mode="fixed"
-                label={localizedMessage("inspection.components.connection.seeding.settings.section.fixed.port")}
-                selected={draft.listener.mode === "fixed"}
-                disabled={!manageable}
-                onSelect={() =>
-                  dispatchDraft({
-                    type: "edit",
-                    field: "listener",
-                    value: { ...draft.listener, mode: "fixed" },
-                  })
-                }
-              />
-            </div>
-            {draft.listener.mode === "fixed" ? (
-              <NumberField
-                id="fixed-listener-port"
-                label={localizedMessage("inspection.components.connection.seeding.settings.section.port")}
-                value={draft.listener.fixedPort}
-                minimum={FIXED_PORT_MINIMUM}
-                maximum={FIXED_PORT_MAXIMUM}
-                error={validation.fixedPortError}
-                disabled={!manageable}
-                onChange={(fixedPort) =>
-                  dispatchDraft({
-                    type: "edit",
-                    field: "listener",
-                    value: { ...draft.listener, fixedPort },
-                  })
-                }
-              />
-            ) : null}
-          </div>
+          )}
 
           <ToggleOption
             label={localizedMessage("inspection.components.connection.seeding.settings.section.upnp.port.forwarding")}
@@ -432,16 +452,46 @@ export function ConnectionSeedingSettingsSection({
               settings.port_mapping_application,
               portMappingNote(settings.port_mapping_status),
             )}
-            checked={draft.portMapping === "upnp"}
-            disabled={!manageable}
-            onChange={(checked) =>
-              dispatchDraft({
-                type: "edit",
-                field: "portMapping",
-                value: checked ? "upnp" : "disabled",
-              })
-            }
+            checked={draft.listener.mode !== "off" && draft.portMapping === "upnp"}
+            disabled={!manageable || draft.listener.mode === "off"}
+            onChange={(checked) => {
+              if (checked) {
+                setForwardingConfirmation(true);
+              } else {
+                dispatchDraft({ type: "edit", field: "portMapping", value: "disabled" });
+              }
+            }}
           />
+          {forwardingConfirmation && draft.listener.mode !== "off" ? (
+            <div
+              className={styles.networkConfirmation}
+              role="group"
+              aria-label={localizedMessage("inspection.components.connection.seeding.settings.section.forwarding.confirm.title")}
+            >
+              <strong>{localizedMessage("inspection.components.connection.seeding.settings.section.forwarding.confirm.title")}</strong>
+              <p>{localizedMessage("inspection.components.connection.seeding.settings.section.forwarding.confirm.description")}</p>
+              <div className={styles.rootActions}>
+                <button
+                  className={styles.secondaryAction}
+                  type="button"
+                  onClick={() => setForwardingConfirmation(false)}
+                >
+                  {localizedMessage("inspection.components.connection.seeding.settings.section.not.now")}
+                </button>
+                <button
+                  className={styles.primaryAction}
+                  type="button"
+                  disabled={!manageable}
+                  onClick={() => {
+                    setForwardingConfirmation(false);
+                    dispatchDraft({ type: "edit", field: "portMapping", value: "upnp" });
+                  }}
+                >
+                  {localizedMessage("inspection.components.connection.seeding.settings.section.enable")}
+                </button>
+              </div>
+            </div>
+          ) : null}
           <ToggleOption
             label={localizedMessage("inspection.components.connection.seeding.settings.section.ipv6")}
             description={localizedMessage("inspection.components.connection.seeding.settings.section.ipv6.description")}
@@ -757,6 +807,14 @@ function limitedNote(count: number): SettingNote {
   };
 }
 
+function incomingNote(settings: ClientSettingsRuntimeView): SettingNote | null {
+  // Transport convergence also covers IPv6. Its failure does not imply that
+  // a disabled or successfully bound TCP/uTP listener failed.
+  return settings.transport_application.type === "applying"
+    ? applicationNote(settings.transport_application)
+    : listenerNote(settings.listener_status);
+}
+
 function listenerNote(status: ListenerStatus): SettingNote | null {
   switch (status.type) {
     case "disabled":
@@ -1037,7 +1095,7 @@ interface ClientSettingsDraft {
 const CLIENT_SETTINGS_COMPARATORS: SettingsDraftComparators<ClientSettingsDraft> = {
   listener: (left, right) =>
     left.mode === right.mode &&
-    (left.mode === "automatic" || left.fixedPort === right.fixedPort),
+    (left.mode !== "fixed" || left.fixedPort === right.fixedPort),
   preferredPort: Object.is,
   portMapping: Object.is,
   peerLimit: Object.is,
@@ -1313,14 +1371,16 @@ function validateDraft(
       downloadRateError: downloadRate.error,
     };
   }
-  const listener: ListenerPolicy = listenerMode === "automatic"
+  const listener: ListenerPolicy = listenerMode === "off"
+    ? { type: "disabled" }
+    : listenerMode === "automatic"
     ? { type: "automatic_local_network" }
     : { type: "fixed_local_network", port: port as number };
   return {
     settings: {
       listener,
       preferred_listen_port: preferred as number,
-      port_mapping: portMapping,
+      port_mapping: listenerMode === "off" ? "disabled" : portMapping,
       peer_connection_limit: peers as number,
       upload_slots: slots as number,
       active_downloads: downloads as number,
@@ -1405,6 +1465,7 @@ function isFixedListenerMode(mode: ListenerMode): boolean {
 }
 
 function productListenerMode(listener: ListenerPolicy): ListenerMode {
+  if (listener.type === "disabled") return "off";
   return listener.type === "fixed_loopback" ||
     listener.type === "fixed_local_network"
     ? "fixed"

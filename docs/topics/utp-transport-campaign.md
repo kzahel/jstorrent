@@ -1,5 +1,13 @@
 # uTP Transport Campaign
 
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) gates unsolicited incoming SYNs before allocation
+or STATE while retaining known outgoing routes and replies. Disabling intake
+cancels an incoming generation; re-enabling cannot revive its old streams.
+Existing transport/half-open/queue limits and joined workers remain. The
+controlled download diagnostic now sends HaveNone when Fast is negotiated,
+repairing the missing initial availability diagnosed in Tactical 338. Native Mac
+outgoing uTP with intake Off passes independently hashed completion.
+
 Topic: `utp-transport-campaign`
 
 Status: Stage 0 Tactical

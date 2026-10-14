@@ -2178,7 +2178,8 @@ pub fn run() {
                 }
                 Err(error) => eprintln!("RSTorrent native host registration could not be repaired: {error}"),
             }
-            let shell_settings = load_desktop_shell_settings(&config_dir);
+            #[allow(unused_mut)]
+            let mut shell_settings = load_desktop_shell_settings(&config_dir);
             if let Some(diagnostic) = &shell_settings.diagnostic {
                 eprintln!("{diagnostic}");
             }
@@ -2215,8 +2216,27 @@ pub fn run() {
                     rstorrent_session::PathRootStartupPolicy::PreserveUnavailable,
                 );
             }
-            let service = tauri::async_runtime::block_on(ApplicationService::open(application_config))
+            #[cfg(target_os = "macos")]
+            {
+                application_config.reset_unconfirmed_network_features =
+                    shell_settings.settings.network_defaults_version < 1;
+            }
+            #[allow(unused_mut)]
+            let mut service = tauri::async_runtime::block_on(ApplicationService::open(application_config))
                 .map_err(|error| error.to_string())?;
+            #[cfg(target_os = "macos")]
+            {
+                shell_settings.settings = match desktop_lifecycle::persist_network_defaults_version(
+                    &shell_settings.path,
+                    shell_settings.settings,
+                ) {
+                    Ok(settings) => settings,
+                    Err(error) => {
+                        let _ = tauri::async_runtime::block_on(service.shutdown());
+                        return Err(error.into());
+                    }
+                };
+            }
             if let Some(report) = migration.filter(|report| !report.already_completed) {
                 eprintln!("JSTorrent migration: imported={}, already_present={}, skipped={}, skipped_profiles={}",
                     report.imported, report.already_present, report.skipped, report.skipped_profiles.len());
@@ -2444,6 +2464,11 @@ fn desktop_application_config_with_product_state(
         NetworkConfig::new(NetworkPolicy::Online, PEER_CONNECT_TIMEOUT, PEER_IO_TIMEOUT),
     )
     .with_fresh_profile_defaults();
+    #[cfg(target_os = "macos")]
+    {
+        config.initial_client_settings = rstorrent_session::ClientSettings::default();
+        config.defer_idle_dht = true;
+    }
     config.product_state = Some(product_state);
     config
 }
@@ -2486,15 +2511,27 @@ mod tests {
         assert_eq!(config.peer_transport_policy, PeerTransportPolicy::PreferUtp);
         assert_eq!(
             config.initial_client_settings,
-            ClientSettings::fresh_profile_default()
+            if cfg!(target_os = "macos") {
+                ClientSettings::default()
+            } else {
+                ClientSettings::fresh_profile_default()
+            }
         );
         assert_eq!(
             config.initial_client_settings.listener,
-            ListenerPolicy::AutomaticLocalNetwork
+            if cfg!(target_os = "macos") {
+                ListenerPolicy::Disabled
+            } else {
+                ListenerPolicy::AutomaticLocalNetwork
+            }
         );
         assert_eq!(
             config.initial_client_settings.port_mapping,
-            PortMappingPolicy::Upnp
+            if cfg!(target_os = "macos") {
+                PortMappingPolicy::Disabled
+            } else {
+                PortMappingPolicy::Upnp
+            }
         );
         assert!(config.storage_roots.is_empty());
         assert_eq!(

@@ -84,6 +84,8 @@ fn classify_session_socket_bind_failure(error: &SessionSocketError) -> Option<Li
 #[derive(Clone, Debug)]
 pub(crate) struct SessionNetworkConfig {
     pub settings: ClientSettings,
+    pub defer_idle_dht: bool,
+    pub discovery_demand: bool,
     pub network: NetworkConfig,
     pub network_cancellation: CancellationToken,
     pub dht: DhtConfig,
@@ -202,6 +204,8 @@ pub(crate) struct SessionNetworkRuntime {
     listener_active: Arc<AtomicBool>,
     pending_owner: Option<SessionNetworkOwner>,
     settings_sender: Option<watch::Sender<Option<SettingsAttempt>>>,
+    discovery_demand_sender: watch::Sender<bool>,
+    discovery_demand_receiver: Option<watch::Receiver<bool>>,
     reconciliation_cancellation: CancellationToken,
     reconciliation_task: Option<JoinHandle<SessionNetworkOwner>>,
     convergence: Arc<Mutex<SettingsConvergenceModel>>,
@@ -304,6 +308,10 @@ impl MseHandshakeSink for SessionMseHandshakeDiagnostics {
 
 #[derive(Debug)]
 struct SessionNetworkOwner {
+    defer_idle_dht: bool,
+    discovery_demand: bool,
+    configured_dht_enabled: bool,
+    dht_generation: SettingsDomainGeneration,
     effective_settings: ClientSettings,
     effective_listener: Option<EffectiveListenerSettings>,
     listener_status: ListenerStatus,
@@ -342,6 +350,8 @@ impl SessionNetworkRuntime {
     pub(crate) async fn start(config: SessionNetworkConfig) -> Result<Self, SessionNetworkError> {
         let SessionNetworkConfig {
             settings,
+            defer_idle_dht,
+            discovery_demand,
             mut network,
             network_cancellation,
             mut dht,
@@ -401,7 +411,7 @@ impl SessionNetworkRuntime {
         incoming_config.mse_handshake_sink = Some(mse_handshake_diagnostics.clone());
 
         dht.network_policy = network.policy;
-        dht.enabled = settings.dht_enabled;
+        dht.enabled = settings.dht_enabled && (!defer_idle_dht || discovery_demand);
         dht.initial_snapshot = initial_dht_snapshot;
         dht.byte_metric_sink = Some(byte_metric_sink);
         let dht_bind_address = dht.bind_address;
@@ -412,7 +422,25 @@ impl SessionNetworkRuntime {
         )
         .with_address_families(requested_address_families);
         let mut listener_failure = None;
-        let socket_set = SessionSocketSet::bind(socket_config).await?;
+        let socket_set = match SessionSocketSet::bind(socket_config).await {
+            Ok(sockets) => sockets,
+            Err(error) if !matches!(settings.listener, ListenerPolicy::Disabled) => {
+                let Some(failure) = classify_session_socket_bind_failure(&error) else {
+                    return Err(error.into());
+                };
+                listener_failure = Some(failure);
+                SessionSocketSet::bind(
+                    SessionSocketConfig::new(
+                        rstorrent_engine::IncomingTcpBootstrap::Disabled,
+                        settings.preferred_listen_port,
+                        dht.bind_address,
+                    )
+                    .with_address_families(requested_address_families),
+                )
+                .await?
+            }
+            Err(error) => return Err(error.into()),
+        };
         if network_cancellation.is_cancelled() {
             return Err(SessionNetworkError::Configuration(
                 "network prerequisite generation closed during socket bind".to_owned(),
@@ -526,6 +554,8 @@ impl SessionNetworkRuntime {
             },
             None => (None, listener_failure.unwrap_or(ListenerStatus::Disabled)),
         };
+        incoming_runtime
+            .set_incoming_enabled(incoming_acceptor.is_some() || incoming_ipv6_acceptor.is_some());
         let session_udp_status = SessionUdpStatus::Bound {
             address: udp_address.ip().to_string(),
             port: udp_address.port(),
@@ -538,10 +568,11 @@ impl SessionNetworkRuntime {
         let mut session_utp = match peer_transport_policy {
             PeerTransportPolicy::TcpOnly => None,
             PeerTransportPolicy::PreferUtp => {
-                let service = match UtpService::start(
+                let service = match UtpService::start_with_incoming_enabled(
                     session_udp
                         .as_mut()
                         .expect("session UDP exists while starting uTP"),
+                    incoming_acceptor.is_some() || incoming_ipv6_acceptor.is_some(),
                 ) {
                     Ok(service) => service,
                     Err(error) => {
@@ -571,6 +602,11 @@ impl SessionNetworkRuntime {
             }
         };
         let utp_handle = session_utp.as_ref().map(SessionUtpPeerService::handle);
+        if let Some(handle) = &utp_handle {
+            handle.set_incoming_enabled(
+                incoming_acceptor.is_some() || incoming_ipv6_acceptor.is_some(),
+            );
+        }
         let dht = match DhtService::start_with_transport_and_cancellation(
             dht,
             dht_transport,
@@ -650,6 +686,8 @@ impl SessionNetworkRuntime {
         };
         let mut effective_settings = settings.clone();
         effective_settings.ipv6_enabled = address_families.ipv6_enabled();
+        effective_settings.dht_enabled =
+            settings.dht_enabled && (!defer_idle_dht || discovery_demand);
         effective_settings.peer_exchange_enabled = peer_exchange.load();
         let initial_transport_application = match &listener_status {
             ListenerStatus::BindFailed { detail, .. } => ClientSettingsApplicationState::Degraded {
@@ -666,7 +704,16 @@ impl SessionNetworkRuntime {
         let reachability_evidence = ReachabilityEvidenceProbe::default();
         let bandwidth = SessionBandwidth::start(settings.transfer_limits().into_engine());
         let bandwidth_handle = bandwidth.handle();
+        let mut convergence = SettingsConvergenceModel::default();
+        let initial_attempt = convergence
+            .begin(settings.clone())
+            .expect("initial client-settings generation is available");
+        let (discovery_demand_sender, discovery_demand_receiver) = watch::channel(discovery_demand);
         let pending_owner = SessionNetworkOwner {
+            defer_idle_dht,
+            discovery_demand,
+            configured_dht_enabled: settings.dht_enabled,
+            dht_generation: initial_attempt.domain(SettingsDomain::Dht),
             effective_settings,
             effective_listener,
             listener_status: listener_status.clone(),
@@ -700,10 +747,6 @@ impl SessionNetworkRuntime {
             effective_tracker_https_authentication: initial_tracker_https_authentication,
             bandwidth: bandwidth_handle,
         };
-        let mut convergence = SettingsConvergenceModel::default();
-        let initial_attempt = convergence
-            .begin(settings.clone())
-            .expect("initial client-settings generation is available");
         assert!(convergence.apply(
             initial_attempt.domain(SettingsDomain::Transport),
             initial_transport_application.clone(),
@@ -747,6 +790,8 @@ impl SessionNetworkRuntime {
             listener_active,
             pending_owner: Some(pending_owner),
             settings_sender: None,
+            discovery_demand_sender,
+            discovery_demand_receiver: Some(discovery_demand_receiver),
             reconciliation_cancellation: network_cancellation.child_token(),
             reconciliation_task: None,
             convergence: Arc::new(Mutex::new(convergence)),
@@ -935,12 +980,26 @@ impl SessionNetworkRuntime {
         self.reconciliation_task = Some(tokio::spawn(run_session_network(
             owner,
             settings_receiver,
+            self.discovery_demand_receiver
+                .take()
+                .expect("discovery receiver attaches once"),
             udp_repairs,
             convergence,
             cancellation,
             views,
         )));
         self.settings_sender = Some(settings_sender);
+    }
+
+    pub(crate) fn set_discovery_demand(&self, demand: bool) {
+        self.discovery_demand_sender.send_if_modified(|current| {
+            if *current == demand {
+                false
+            } else {
+                *current = demand;
+                true
+            }
+        });
     }
 
     pub(crate) fn submit_settings(
@@ -1114,6 +1173,7 @@ impl Drop for SessionNetworkRuntime {
 async fn run_session_network(
     mut owner: SessionNetworkOwner,
     mut settings: watch::Receiver<Option<SettingsAttempt>>,
+    mut discovery_demand: watch::Receiver<bool>,
     mut udp_repairs: watch::Receiver<Option<SessionUdpRepairRequest>>,
     convergence: Arc<Mutex<SettingsConvergenceModel>>,
     cancellation: CancellationToken,
@@ -1141,6 +1201,11 @@ async fn run_session_network(
                         .reconcile(attempt, &convergence, &views, &cancellation)
                         .await;
                 }
+            }
+            changed = discovery_demand.changed() => {
+                if changed.is_err() { break; }
+                owner.discovery_demand = *discovery_demand.borrow_and_update();
+                owner.reconcile_discovery_demand(&convergence, &views).await;
             }
             changed = udp_repairs.changed() => {
                 if changed.is_err() {
@@ -1442,16 +1507,20 @@ impl SessionNetworkOwner {
         }
 
         let dht_generation = attempt.domain(SettingsDomain::Dht);
+        self.dht_generation = dht_generation;
+        self.configured_dht_enabled = attempt.settings.dht_enabled;
+        let effective_dht_enabled =
+            self.configured_dht_enabled && (!self.defer_idle_dht || self.discovery_demand);
         let dht_state = self
             .dht
             .as_ref()
             .expect("DHT exists during reconciliation")
             .handle()
-            .set_enabled(attempt.settings.dht_enabled)
+            .set_enabled(effective_dht_enabled)
             .await;
         match dht_state {
             Ok(()) => {
-                self.effective_settings.dht_enabled = attempt.settings.dht_enabled;
+                self.effective_settings.dht_enabled = effective_dht_enabled;
                 if apply_state(
                     convergence,
                     dht_generation,
@@ -1459,7 +1528,7 @@ impl SessionNetworkOwner {
                 )
                 .is_some()
                 {
-                    let enabled = attempt.settings.dht_enabled;
+                    let enabled = effective_dht_enabled;
                     let _ = views.update_client_settings_runtime_for(dht_generation, |runtime| {
                         runtime.effective_dht_enabled = enabled;
                         runtime.dht_application = ClientSettingsApplicationState::Applied;
@@ -1515,6 +1584,42 @@ impl SessionNetworkOwner {
         (peer_limit, mapping_expiry)
     }
 
+    async fn reconcile_discovery_demand(
+        &mut self,
+        convergence: &Arc<Mutex<SettingsConvergenceModel>>,
+        views: &ViewHub,
+    ) {
+        if !self.defer_idle_dht {
+            return;
+        }
+        let enabled = self.configured_dht_enabled && self.discovery_demand;
+        let outcome = self
+            .dht
+            .as_ref()
+            .expect("DHT owner exists")
+            .handle()
+            .set_enabled(enabled)
+            .await;
+        let state = match outcome {
+            Ok(()) => {
+                self.effective_settings.dht_enabled = enabled;
+                ClientSettingsApplicationState::Applied
+            }
+            Err(error) => ClientSettingsApplicationState::Degraded {
+                reason: ClientSettingsDegradedReason::RuntimeStopped,
+                detail: error.to_string(),
+            },
+        };
+        if apply_state(convergence, self.dht_generation, state.clone()).is_none() {
+            return;
+        }
+        let effective = self.effective_settings.dht_enabled;
+        let _ = views.update_client_settings_runtime_for(self.dht_generation, |runtime| {
+            runtime.effective_dht_enabled = effective;
+            runtime.dht_application = state;
+        });
+    }
+
     async fn reconcile_transport(
         &mut self,
         attempt: &SettingsAttempt,
@@ -1533,6 +1638,97 @@ impl SessionNetworkOwner {
         let _ = views.update_client_settings_runtime_for(generation, |runtime| {
             runtime.transport_families = transport_families;
         });
+        if matches!(desired.listener, ListenerPolicy::Disabled) {
+            let incoming_changed =
+                !matches!(self.effective_settings.listener, ListenerPolicy::Disabled)
+                    || !matches!(self.listener_status, ListenerStatus::Disabled);
+            let runtime = self
+                .incoming_runtime
+                .as_ref()
+                .expect("incoming owner exists");
+            if incoming_changed {
+                runtime.disable_listener();
+            }
+            if let Some(utp) = &self.session_utp {
+                utp.handle().set_incoming_enabled(false);
+            }
+            self.listener_active.store(false, Ordering::Release);
+            self.advertised_endpoint
+                .replace_listener(&ListenerStatus::Disabled);
+            self.advertised_endpoint.replace_udp_listener(None);
+            self.advertised_endpoint.replace_ipv6_listener(None);
+            let _ =
+                views.set_advertised_peer_endpoint(self.advertised_endpoint.status(Instant::now()));
+            let mut failure = None;
+            for acceptor in [
+                self.incoming_acceptor.take(),
+                self.incoming_ipv6_acceptor.take(),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                if let Err(error) = acceptor.shutdown().await {
+                    failure = Some(error.to_string());
+                }
+            }
+            let handle = runtime.handle();
+            if tokio::time::timeout(PEER_RECONFIGURATION_TIMEOUT, async {
+                loop {
+                    let snapshot = handle.snapshot();
+                    if snapshot.pending == 0 && snapshot.established == 0 {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .is_err()
+            {
+                failure = Some("Incoming peers did not stop within five seconds".into());
+            }
+            self.listener_status = ListenerStatus::Disabled;
+            if let SessionUdpStatus::Bound {
+                coordinated_with_tcp,
+                ..
+            } = &mut self.session_udp_status
+            {
+                *coordinated_with_tcp = false;
+            }
+            self.effective_listener = Some(desired.clone());
+            self.effective_settings.listener = desired.listener;
+            self.effective_settings.preferred_listen_port = desired.preferred_listen_port;
+            publish_transport(
+                convergence,
+                generation,
+                Some(desired),
+                self.listener_status.clone(),
+                self.session_udp_status.clone(),
+                self.advertised_endpoint.status(Instant::now()),
+                self.address_families.ipv6_enabled(),
+                failure.map_or(ClientSettingsApplicationState::Applied, |detail| {
+                    ClientSettingsApplicationState::Degraded {
+                        reason: ClientSettingsDegradedReason::TransportBindFailed,
+                        detail,
+                    }
+                }),
+                views,
+            );
+            // Port preference changes while Off do not disrupt outgoing sockets.
+            // A simultaneous family change retains the existing family owner path.
+            if self.address_families != desired_address_families {
+                self.reconcile_address_families_only(
+                    attempt,
+                    generation,
+                    EffectiveListenerSettings::from_settings(&attempt.settings),
+                    desired_address_families,
+                    convergence,
+                    views,
+                    cancellation,
+                )
+                .await;
+            }
+            return incoming_changed;
+        }
         let transport_rebind_required = transport_rebind_required(
             self.effective_listener.as_ref(),
             &desired,
@@ -1836,6 +2032,15 @@ impl SessionNetworkOwner {
                 .as_ref()
                 .expect("incoming runtime exists during listener disable")
                 .disable_listener();
+        }
+        let incoming_enabled =
+            self.incoming_acceptor.is_some() || self.incoming_ipv6_acceptor.is_some();
+        self.incoming_runtime
+            .as_ref()
+            .expect("incoming owner exists")
+            .set_incoming_enabled(incoming_enabled);
+        if let Some(utp) = &self.session_utp {
+            utp.handle().set_incoming_enabled(incoming_enabled);
         }
         self.listener_active.store(
             self.incoming_acceptor.is_some() || self.incoming_ipv6_acceptor.is_some(),

@@ -1,5 +1,12 @@
 # DHT Discovery
 
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) keeps Mac DHT dormant for an empty or entirely
+paused/archived/removing library. Wanted torrent intent drives the existing
+bounded enable/disable owner and registered-discovery wakeup. Saved DHT
+preference is unchanged; effective participation is published through the
+current view generation. Existing per-torrent private-DHT policy remains.
+Other platforms retain their current startup participation policy.
+
 Topic: `dht-discovery`
 
 Status: Partial and product-integrated. Tactical 016 delivered the bounded

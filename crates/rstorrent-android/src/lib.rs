@@ -2585,6 +2585,54 @@ mod tests {
                         == Some("abababababababababababababababababababab"))
         );
         assert!(!format!("{observed:?}").contains("127.0.0.1"));
+        client
+            .dispatch(RequestEnvelope {
+                version: rstorrent_session::CONTROL_VERSION,
+                request_id: "disable-owned-incoming".into(),
+                expected_revision: None,
+                command: rstorrent_session::Command::UpdateClientSettings {
+                    patch: rstorrent_session::ClientSettingsPatch {
+                        listener: Some(rstorrent_session::ListenerPolicy::Disabled),
+                        ..Default::default()
+                    },
+                },
+            })
+            .await
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while client.incoming_peer_snapshot().await.unwrap().is_some() {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        let probe = tokio::net::UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))
+            .await
+            .unwrap();
+        let mut syn = [0_u8; 20];
+        syn[0] = 0x41;
+        syn[3] = 31;
+        syn[13] = 1;
+        syn[17] = 7;
+        probe
+            .send_to(&syn, (Ipv4Addr::LOCALHOST, initial.listen_port))
+            .await
+            .unwrap();
+        assert!(
+            tokio::time::timeout(
+                Duration::from_millis(150),
+                probe.recv_from(&mut [0_u8; 128])
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            std::net::TcpStream::connect_timeout(
+                &std::net::SocketAddr::from(([127, 0, 0, 1], initial.listen_port)),
+                Duration::from_millis(100)
+            )
+            .is_err()
+        );
         client.shutdown().await.expect("join incoming application");
         assert!(client.incoming_peer_snapshot().await.is_err());
         drop(client);

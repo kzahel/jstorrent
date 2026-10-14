@@ -1632,7 +1632,7 @@
     },
     {
       "type": 0,
-      "value": "): no router found"
+      "value": "): discovery failed"
     }
   ],
   "inspection.components.connection.seeding.settings.section.details.forwarding.failed.external.address": [
@@ -1821,6 +1821,12 @@
       "value": "Download"
     }
   ],
+  "inspection.components.connection.seeding.settings.section.enable": [
+    {
+      "type": 0,
+      "value": "Enable"
+    }
+  ],
   "inspection.components.connection.seeding.settings.section.encryption.allow.description": [
     {
       "type": 0,
@@ -1851,10 +1857,28 @@
       "value": "Fixed port"
     }
   ],
+  "inspection.components.connection.seeding.settings.section.forwarding.confirm.description": [
+    {
+      "type": 0,
+      "value": "Find your router and open a port. macOS may ask for local network access."
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.forwarding.confirm.title": [
+    {
+      "type": 0,
+      "value": "Enable automatic forwarding?"
+    }
+  ],
   "inspection.components.connection.seeding.settings.section.incoming.connections": [
     {
       "type": 0,
-      "value": "Incoming connections"
+      "value": "Accept incoming connections"
+    }
+  ],
+  "inspection.components.connection.seeding.settings.section.incoming.description": [
+    {
+      "type": 0,
+      "value": "Downloads work with this off. Your firewall may ask for access."
     }
   ],
   "inspection.components.connection.seeding.settings.section.ipv6": [
@@ -1951,6 +1975,12 @@
       "value": "These settings can't be changed here."
     }
   ],
+  "inspection.components.connection.seeding.settings.section.not.now": [
+    {
+      "type": 0,
+      "value": "Not now"
+    }
+  ],
   "inspection.components.connection.seeding.settings.section.note.applying": [
     {
       "type": 0,
@@ -2041,7 +2071,7 @@
   "inspection.components.connection.seeding.settings.section.port.mapping.no.router": [
     {
       "type": 0,
-      "value": "No router found"
+      "value": "Router discovery failed"
     }
   ],
   "inspection.components.connection.seeding.settings.section.port.mapping.renewal.failed": [
@@ -2215,13 +2245,13 @@
   "inspection.components.connection.seeding.settings.section.upnp.port.forwarding": [
     {
       "type": 0,
-      "value": "UPnP port forwarding"
+      "value": "Automatic port forwarding"
     }
   ],
   "inspection.components.connection.seeding.settings.section.upnp.port.forwarding.description": [
     {
       "type": 0,
-      "value": "Open the incoming port on your router automatically"
+      "value": "Open the incoming port on your router."
     }
   ],
   "inspection.components.connection.seeding.settings.section.whole.number.range": [

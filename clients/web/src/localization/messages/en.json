@@ -551,8 +551,8 @@
     "description": "Product copy in inspection/components/ConnectionSeedingSettingsSection.tsx"
   },
   "inspection.components.connection.seeding.settings.section.incoming.connections": {
-    "defaultMessage": "Incoming connections",
-    "description": "Heading for the incoming port choice"
+    "defaultMessage": "Accept incoming connections",
+    "description": "Connection settings and explicit network feature enable"
   },
   "inspection.components.connection.seeding.settings.section.ipv6": {
     "defaultMessage": "IPv6",
@@ -615,7 +615,7 @@
     "description": "UPnP row status; port is not number-formatted"
   },
   "inspection.components.connection.seeding.settings.section.port.mapping.no.router": {
-    "defaultMessage": "No router found",
+    "defaultMessage": "Router discovery failed",
     "description": "UPnP row status"
   },
   "inspection.components.connection.seeding.settings.section.port.mapping.failed": {
@@ -675,12 +675,12 @@
     "description": "Explains upload slots"
   },
   "inspection.components.connection.seeding.settings.section.upnp.port.forwarding": {
-    "defaultMessage": "UPnP port forwarding",
-    "description": "Checkbox label"
+    "defaultMessage": "Automatic port forwarding",
+    "description": "Connection settings and explicit network feature enable"
   },
   "inspection.components.connection.seeding.settings.section.upnp.port.forwarding.description": {
-    "defaultMessage": "Open the incoming port on your router automatically",
-    "description": "Explains UPnP port forwarding"
+    "defaultMessage": "Open the incoming port on your router.",
+    "description": "Connection settings and explicit network feature enable"
   },
   "inspection.components.connection.seeding.settings.section.not.manageable": {
     "defaultMessage": "These settings can't be changed here.",
@@ -867,7 +867,7 @@
     "description": "Network details line; external and local are address:port"
   },
   "inspection.components.connection.seeding.settings.section.details.forwarding.failed.discovery": {
-    "defaultMessage": "Router forwarding ({protocol}): no router found",
+    "defaultMessage": "Router forwarding ({protocol}): discovery failed",
     "description": "Network details line; protocol is TCP or UDP"
   },
   "inspection.components.connection.seeding.settings.section.details.forwarding.failed.description": {
@@ -5160,5 +5160,25 @@
   "inspection.transfer.rate.megabytes.per.second": {
     "defaultMessage": "{value, number} MB/s",
     "description": "Speed in megabytes per second; MB is 1024 KB"
+  },
+  "inspection.components.connection.seeding.settings.section.incoming.description": {
+    "defaultMessage": "Downloads work with this off. Your firewall may ask for access.",
+    "description": "Connection settings and explicit network feature enable"
+  },
+  "inspection.components.connection.seeding.settings.section.forwarding.confirm.title": {
+    "defaultMessage": "Enable automatic forwarding?",
+    "description": "Connection settings and explicit network feature enable"
+  },
+  "inspection.components.connection.seeding.settings.section.forwarding.confirm.description": {
+    "defaultMessage": "Find your router and open a port. macOS may ask for local network access.",
+    "description": "Connection settings and explicit network feature enable"
+  },
+  "inspection.components.connection.seeding.settings.section.not.now": {
+    "defaultMessage": "Not now",
+    "description": "Connection settings and explicit network feature enable"
+  },
+  "inspection.components.connection.seeding.settings.section.enable": {
+    "defaultMessage": "Enable",
+    "description": "Connection settings and explicit network feature enable"
   }
 }

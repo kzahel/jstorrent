@@ -1,7 +1,8 @@
 # macOS Network Consent Research Fixtures
 
 These independently authored diagnostics support
-[Tactical 338](../../docs/tactical/338-macos-network-consent-research.md).
+[Tactical 338](../../docs/tactical/338-macos-network-consent-research.md) and
+[Tactical 339](../../docs/tactical/339-macos-quiet-network-startup.md).
 They are not product startup code or a permission-state API. Use an isolated,
 claimed macOS testbed through Machine Control; do not reset a person's privacy
 database or accept access for their installed product.
@@ -138,10 +139,32 @@ claim transfer success from an emitted readiness record.
 
 Repeat `off / on / tcp / off` with distinct processes, profiles and all numeric
 server/client ports. Assert initial uTP connection count zero, random IDs differ,
-reply source/header checks pass for uTP modes, and the `tcp` control is silent.
+reply source/header checks pass only for `on`, and `off`/`tcp` are silent.
+Current `off` must allocate no incoming uTP connection and refuse TCP; the
+TCP-Off admission recorded by 338 describes the pre-339 source.
 Also probe a verified unused loopback port from another fresh source; it must
 be silent. Guard every earlier server/client port in later cohorts and retain
 all observed ports in the run record, including failed client attempts.
+
+For a real native desktop outbound restore, stop the owned isolated app and use
+only its disposable support root (never a user's installed profile):
+
+```text
+incoming-off-research prepare-client OWNED_APP_SUPPORT_ROOT FIXTURE_ROOT SERVER_PORT
+incoming-off-research prepare-legacy OWNED_APP_SUPPORT_ROOT
+```
+
+`prepare-client` requires a fresh profile, persists Off/UPnP Off, disabled
+DHT/PEX/IPv6/encryption, a wanted private fixture and its loopback peer hint,
+then installs independently verified metadata without networking. A duplicate
+intake intentionally retains its original source, so the peer magnet is added
+first. Launch the native app normally and independently hash its downloaded
+file. Use `on` and `tcp` seeds separately to distinguish uTP and TCP fallback;
+assert the app still reports Off and the seed's actual transport counters.
+`prepare-legacy` requires an existing owned profile and writes old fixed-port/
+UPnP intent without starting an engine. With an owned version-3 shell fixture,
+normal Mac startup should hold both off, retain port 45432 and all torrent/data/
+unrelated shell choices, and atomically persist its defaults marker.
 
 Finish by gracefully quitting owned apps, closing only owned Terminal windows,
 restoring any inherited native-host registrations, and deleting owned bundles,

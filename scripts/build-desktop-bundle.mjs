@@ -98,7 +98,7 @@ const strings = {
   CFBundleVersion: config.version,
   CFBundleIconFile: "icon.icns",
   LSMinimumSystemVersion: override.bundle?.macOS?.minimumSystemVersion ?? base.bundle.macOS.minimumSystemVersion,
-  NSLocalNetworkUsageDescription: "Find routers and connect to torrent peers on your local network.",
+  NSLocalNetworkUsageDescription: run("/usr/bin/plutil", ["-extract", "NSLocalNetworkUsageDescription", "raw", "-o", "-", path.join(tauriRoot, "Info.plist")], true).trim(),
 };
 const escapeXml = value => String(value).replace(/[&<>"']/gu, character =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[character]);

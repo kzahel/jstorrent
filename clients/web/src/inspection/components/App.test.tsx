@@ -2936,6 +2936,57 @@ describe("inspection application", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("does not label incoming Off as failed when IPv6 is unavailable", async () => {
+    const user = userEvent.setup();
+    const settings = clientSettingsRuntimeFixture();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot: { ...liveSnapshot({ roots: [], defaultRoot: null, showAddOptions: true }), clientSettings: { ...settings, transport_application: { type: "degraded", reason: "transport_bind_failed", detail: "IPv6 route unavailable" } } } });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    const incoming = within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ });
+    expect(incoming).not.toBeChecked();
+    expect(incoming).not.toHaveAccessibleName(/Couldn't apply/);
+  });
+
+  it("keeps incoming off and explains forwarding before saving an enable", async () => {
+    const user = userEvent.setup();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot: { ...liveSnapshot({ roots: [], defaultRoot: null, showAddOptions: true }), clientSettings: clientSettingsRuntimeFixture() } });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    const incoming = within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ });
+    const forwarding = within(dialog).getByRole("checkbox", { name: /Automatic port forwarding/ });
+    expect(incoming).not.toBeChecked(); expect(forwarding).toBeDisabled();
+    expect(within(dialog).queryByRole("radio", { name: /^Fixed port/ })).toBeNull();
+    await user.click(incoming); await user.click(forwarding);
+    expect(within(dialog).getByText(/macOS may ask for local network access/)).toBeVisible();
+    expect(forwarding).not.toBeChecked();
+    await user.click(within(dialog).getByRole("button", { name: "Not now" }));
+    expect(forwarding).not.toBeChecked();
+    await user.click(forwarding);
+    await user.click(within(dialog).getByRole("button", { name: /^Enable$/ }));
+    expect(forwarding).toBeChecked();
+    expect(application.commands.filter(c => c.type === "update_client_settings")).toHaveLength(0);
+    await user.click(within(dialog).getByRole("button", { name: "Save settings" }));
+    await waitFor(() => expect(application.commands).toContainEqual(expect.objectContaining({ type: "update_client_settings", patch: { listener: { type: "automatic_local_network" }, port_mapping: "upnp" } })));
+  });
+
+  it("turns off incoming and forwarding in one settings patch", async () => {
+    const user = userEvent.setup();
+    const fixture = clientSettingsRuntimeFixture();
+    const application = new RecordingLiveApplication({ type: "snapshot", snapshot: { ...liveSnapshot({ roots: [], defaultRoot: null, showAddOptions: true }), clientSettings: { ...fixture, configured: { ...fixture.configured, listener: { type: "automatic_local_network" }, port_mapping: "upnp" } } } });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    await user.click(within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ }));
+    expect(within(dialog).getByRole("checkbox", { name: /Automatic port forwarding/ })).toBeDisabled();
+    await user.click(within(dialog).getByRole("button", { name: "Save settings" }));
+    await waitFor(() => expect(application.commands).toContainEqual(expect.objectContaining({ type: "update_client_settings", patch: { listener: { type: "disabled" }, port_mapping: "disabled" } })));
+  });
+
   it("validates and atomically saves connection and seeding settings", async () => {
     const user = userEvent.setup();
     const application = new RecordingLiveApplication({
@@ -2972,6 +3023,8 @@ describe("inspection application", () => {
       expect(within(dialog).getByRole("heading", { name })).toBeVisible();
     }
     expect(within(dialog).queryByText(/Effective/)).toBeNull();
+    expect(within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ })).not.toBeChecked();
+    await user.click(within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ }));
     expect(
       within(dialog).getByRole("radio", { name: /^Automatic port/ }),
     ).toBeChecked();
@@ -3065,9 +3118,10 @@ describe("inspection application", () => {
     await user.type(downloadRate, "256");
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /UPnP port forwarding/,
+        name: /Automatic port forwarding/,
       }),
     );
+    await user.click(within(dialog).getByRole("button", { name: /^Enable$/ }));
     await user.click(
       within(dialog).getByRole("checkbox", { name: /^IPv6/ }),
     );
@@ -3114,9 +3168,7 @@ describe("inspection application", () => {
       }),
     );
     expect(
-      within(
-        within(dialog).getByRole("group", { name: "Incoming connections" }),
-      ).getByText("Applying…"),
+      within(dialog).getByRole("checkbox", { name: /Accept incoming connections/ }),
     ).toBeVisible();
     expect(within(dialog).queryByText(/restart/i)).not.toBeInTheDocument();
 
@@ -3297,9 +3349,7 @@ describe("inspection application", () => {
     );
 
     expect(
-      within(
-        within(dialog).getByRole("group", { name: "Incoming connections" }),
-      ).getByText("Port already in use"),
+      within(dialog).getByText("Port already in use"),
     ).toBeVisible();
     expect(within(dialog).queryByText(/51413/)).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/restart/i)).not.toBeInTheDocument();
@@ -3377,12 +3427,12 @@ describe("inspection application", () => {
     );
 
     const upnp = within(dialog).getByRole("checkbox", {
-      name: /UPnP port forwarding/,
+      name: /Automatic port forwarding/,
     });
     expect(upnp).not.toBeChecked();
     expect(upnp).toHaveAccessibleName(/The router may keep port 48001 open/);
     expect(
-      within(dialog).getByText("Incoming connections").parentElement,
+      within(dialog).getByText("Accept incoming connections").parentElement,
     ).toHaveTextContent("Port 41234");
 
     await user.click(within(dialog).getByText("Network details"));

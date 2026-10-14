@@ -300,6 +300,10 @@ use crate::{
     ViewSetOwner,
 };
 
+fn torrent_wants_discovery(torrent: &crate::control::TorrentSnapshot) -> bool {
+    torrent.desired_running && !torrent.archived && torrent.removal_state.is_none()
+}
+
 #[derive(Clone, Debug)]
 pub struct ApplicationConfig {
     pub persistence: ApplicationPersistence,
@@ -312,6 +316,10 @@ pub struct ApplicationConfig {
     pub network: NetworkConfig,
     pub initial_network_prerequisite: ApplicationNetworkPrerequisite,
     pub initial_client_settings: crate::ClientSettings,
+    /// Desktop upgrade holds legacy network defaults before starting sockets.
+    pub reset_unconfirmed_network_features: bool,
+    /// Keep DHT dormant for an idle desktop library, independently of preference.
+    pub defer_idle_dht: bool,
     pub peer_transport_policy: PeerTransportPolicy,
     pub download_resource_limits: DownloadResourceLimits,
     /// Maximum number of payload descriptors retained by this platform.
@@ -422,6 +430,8 @@ impl ApplicationConfig {
             network,
             initial_network_prerequisite: ApplicationNetworkPrerequisite::Allowed,
             initial_client_settings: crate::ClientSettings::default(),
+            reset_unconfirmed_network_features: false,
+            defer_idle_dht: false,
             peer_transport_policy: PeerTransportPolicy::PreferUtp,
             download_resource_limits: DownloadResourceLimits::DESKTOP,
             storage_file_limit: DEFAULT_STORAGE_FILE_LIMIT,
@@ -837,7 +847,7 @@ impl ApplicationService {
                 })?;
             }
         }
-        let store = match &config.persistence {
+        let mut store = match &config.persistence {
             ApplicationPersistence::Durable { profile_root } => {
                 SessionStore::open_with_initial_client_settings(
                     profile_root,
@@ -854,6 +864,9 @@ impl ApplicationService {
                 )?
             }
         };
+        if config.reset_unconfirmed_network_features {
+            store.hold_unconfirmed_network_features()?;
+        }
         let profile_reset_report = store.pending_profile_reset_report()?;
         let mut snapshot = store.snapshot()?;
         let active_client_settings = snapshot.client_settings.clone();
@@ -884,6 +897,8 @@ impl ApplicationService {
         let initial_network_prerequisite = network_prerequisite.load();
         let session_network_config = SessionNetworkConfig {
             settings: active_client_settings.clone(),
+            defer_idle_dht: config.defer_idle_dht,
+            discovery_demand: snapshot.torrents.iter().any(torrent_wants_discovery),
             network,
             network_cancellation: network_prerequisite
                 .cancellation_token(initial_network_prerequisite),
@@ -1261,6 +1276,8 @@ impl ApplicationService {
         }
         let snapshot = self.store_mut()?.snapshot()?;
         self.session_network_config.settings = snapshot.client_settings.clone();
+        self.session_network_config.discovery_demand =
+            snapshot.torrents.iter().any(torrent_wants_discovery);
         let mut candidate_config = self.session_network_config.clone();
         candidate_config.network_cancellation =
             self.network_prerequisite.cancellation_token(requested);
@@ -5069,9 +5086,11 @@ impl ApplicationService {
         if self.session_network.is_none() {
             return Ok(());
         }
-        let torrent_ids = self
-            .store_mut()?
-            .snapshot()?
+        let snapshot = self.store_mut()?.snapshot()?;
+        let demand = snapshot.torrents.iter().any(torrent_wants_discovery);
+        self.session_network_config.discovery_demand = demand;
+        self.session_network().set_discovery_demand(demand);
+        let torrent_ids = snapshot
             .torrents
             .into_iter()
             .map(|torrent| torrent.torrent_id)
@@ -13366,6 +13385,154 @@ mod tests {
         assert!(application.session_network.is_none());
         drop(application);
         fs::remove_dir_all(root).expect("remove test root");
+    }
+
+    #[tokio::test]
+    async fn incoming_off_closes_pending_inbound_and_preserves_outgoing_udp_generation() {
+        let root = test_root("incoming-off-preserves-outgoing");
+        let mut config = default_config(&root);
+        config.initial_client_settings.listener = ListenerPolicy::AutomaticLoopback;
+        config.initial_client_settings.ipv6_enabled = false;
+        config.initial_client_settings.dht_enabled = false;
+        let mut application = ApplicationService::open(config).await.unwrap();
+        let generation = application.session_network().session_udp_generation();
+        let handle = application.session_network().utp_handle().unwrap();
+        let address = application
+            .session_network()
+            .session_udp_local_address_for(rstorrent_engine::AddressFamily::Ipv4)
+            .unwrap();
+        let socket = tokio::net::UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))
+            .await
+            .unwrap();
+        let (mut remote_udp, remote_dht) =
+            rstorrent_engine::SessionUdpService::start(socket).unwrap();
+        let mut remote_utp = rstorrent_engine::UtpService::start(&mut remote_udp).unwrap();
+        let (outgoing, received) = tokio::time::timeout(Duration::from_secs(2), async {
+            tokio::join!(
+                handle.connect(remote_udp.local_address()),
+                remote_utp.accept()
+            )
+        })
+        .await
+        .unwrap();
+        let mut outgoing = outgoing.unwrap();
+        let mut received = received.unwrap();
+        let inbound = remote_utp
+            .handle()
+            .connect_with_timeout(address, Duration::from_secs(2))
+            .await
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if application.incoming_peer_snapshot().unwrap().pending == 1 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        application
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "incoming-off".into(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: crate::ClientSettingsPatch {
+                        listener: Some(ListenerPolicy::Disabled),
+                        ..Default::default()
+                    },
+                },
+            })
+            .await
+            .unwrap();
+        wait_for_client_settings(&application, |s| {
+            matches!(s.listener_status, crate::ListenerStatus::Disabled)
+                && s.transport_application == crate::ClientSettingsApplicationState::Applied
+        })
+        .await;
+        assert_eq!(
+            application.session_network().session_udp_generation(),
+            generation
+        );
+        assert_eq!(handle.snapshot().active_connections, 1);
+        assert!(application.incoming_peer_snapshot().is_none());
+        tokio::time::timeout(Duration::from_secs(2), async {
+            outgoing.write_all(b"alive").await.unwrap();
+            outgoing.flush().await.unwrap();
+            let mut bytes = [0; 5];
+            received.read_exact(&mut bytes).await.unwrap();
+            assert_eq!(&bytes, b"alive");
+            received.write_all(b"reply").await.unwrap();
+            received.flush().await.unwrap();
+            outgoing.read_exact(&mut bytes).await.unwrap();
+            assert_eq!(&bytes, b"reply");
+        })
+        .await
+        .unwrap();
+        assert!(
+            remote_utp
+                .handle()
+                .connect_with_timeout(address, Duration::from_millis(150))
+                .await
+                .is_err()
+        );
+        drop(inbound);
+        drop(outgoing);
+        drop(received);
+        application.shutdown().await.unwrap();
+        remote_utp.shutdown().await.unwrap();
+        drop(remote_dht);
+        remote_udp.shutdown().await.unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn idle_dht_follows_running_library_intent_without_changing_preference() {
+        let root = test_root("idle-dht-library-intent");
+        let mut config = default_config(&root);
+        config.defer_idle_dht = true;
+        let mut application = ApplicationService::open(config).await.unwrap();
+        wait_for_client_settings(&application, |s| {
+            s.configured.dht_enabled && !s.effective_dht_enabled
+        })
+        .await;
+        let added = application
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "discovery-work".into(),
+                expected_revision: None,
+                command: Command::AddMagnet {
+                    magnet: format!("magnet:?xt=urn:btih:{}", "ab".repeat(20)),
+                    storage_root: "downloads".into(),
+                    start_content: true,
+                    await_file_selection: false,
+                    skip_files: Vec::new(),
+                },
+            })
+            .await
+            .unwrap();
+        let Some(crate::CommandResult::AddTorrent { result }) = added.result else {
+            panic!("missing added torrent");
+        };
+        wait_for_client_settings(&application, |s| s.effective_dht_enabled).await;
+        application
+            .dispatch(RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "pause-discovery-work".into(),
+                expected_revision: None,
+                command: Command::Pause {
+                    torrent_id: result.torrent_id,
+                },
+            })
+            .await
+            .unwrap();
+        wait_for_client_settings(&application, |s| {
+            s.configured.dht_enabled && !s.effective_dht_enabled
+        })
+        .await;
+        application.shutdown().await.unwrap();
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[tokio::test]

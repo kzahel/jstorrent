@@ -1,5 +1,13 @@
 # Web UI Design
 
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) presents **Accept incoming connections** and
+**Automatic port forwarding** in Connection & seeding. Ports appear only with
+incoming enabled. Turning incoming off also disables forwarding in one patch;
+enabling forwarding first shows a short explanation with **Not now / Enable**,
+then uses the ordinary Save settings action. Listener status owns its row;
+unavailable IPv6 is reported at IPv6 rather than as an incoming-setting failure.
+The actual Mac renderer, draft/cancel/atomic-save cases and full web suite pass.
+
 Tactical [334](../tactical/334-web-water-and-clay-visual-system.md) gives the
 UI one visual system taken from the icon, "water and clay": warm neutrals,
 one blue accent for selection and anything filling, clay for upload and

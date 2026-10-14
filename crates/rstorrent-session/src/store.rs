@@ -1840,6 +1840,26 @@ impl SessionStore {
         Ok(revision)
     }
 
+    /// One-time desktop migration, before runtime construction. Retain data,
+    /// running intent and port preference; legacy defaults are not consent.
+    pub(crate) fn hold_unconfirmed_network_features(&mut self) -> Result<(), StoreError> {
+        let transaction = self.connection.transaction()?;
+        let mut settings = read_client_settings(&transaction)?;
+        if let crate::ListenerPolicy::FixedLoopback { port }
+        | crate::ListenerPolicy::FixedLocalNetwork { port } = settings.listener
+        {
+            settings.preferred_listen_port = port;
+        }
+        settings.listener = crate::ListenerPolicy::Disabled;
+        settings.port_mapping = crate::PortMappingPolicy::Disabled;
+        if replace_client_settings(&transaction, &settings)? {
+            let revision = read_revision(&transaction)?;
+            next_revision_strict(&transaction, revision)?;
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
     pub fn record_metadata(
         &mut self,
         torrent_id: &str,
@@ -11182,6 +11202,55 @@ mod tests {
         );
         drop(reopened);
         fs::remove_dir_all(root).expect("remove profile");
+    }
+
+    #[test]
+    fn network_opt_in_upgrade_preserves_running_intent_data_and_port_preference() {
+        let root = test_root("network-opt-in-upgrade");
+        let configured = configured_root(&root);
+        let mut store = SessionStore::open_with_initial_client_settings(
+            &root,
+            "default",
+            std::slice::from_ref(&configured),
+            &ClientSettings::fresh_profile_default(),
+        )
+        .unwrap();
+        let added = store
+            .handle_durable(&add_hash_request("network-upgrade-torrent", 8))
+            .unwrap();
+        let torrent_id = added_torrent_id(&added);
+        let prior = ClientSettings {
+            listener: ListenerPolicy::FixedLocalNetwork { port: 42123 },
+            upload_slots: 7,
+            ..ClientSettings::fresh_profile_default()
+        };
+        store
+            .handle_durable(&RequestEnvelope {
+                version: CONTROL_VERSION,
+                request_id: "legacy-network-settings".into(),
+                expected_revision: None,
+                command: Command::UpdateClientSettings {
+                    patch: prior.clone().into(),
+                },
+            })
+            .unwrap();
+        let before = store.snapshot().unwrap();
+        store.hold_unconfirmed_network_features().unwrap();
+        let after = store.snapshot().unwrap();
+        assert_eq!(after.torrents, before.torrents);
+        assert_eq!(after.torrents[0].torrent_id, torrent_id);
+        assert_eq!(after.client_settings.listener, ListenerPolicy::Disabled);
+        assert_eq!(
+            after.client_settings.port_mapping,
+            PortMappingPolicy::Disabled
+        );
+        assert_eq!(after.client_settings.preferred_listen_port, 42123);
+        assert_eq!(after.client_settings.upload_slots, 7);
+        let revision = store.revision().unwrap();
+        store.hold_unconfirmed_network_features().unwrap();
+        assert_eq!(store.revision().unwrap(), revision);
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

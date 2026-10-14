@@ -893,3 +893,17 @@
     transition: none;
   }
 }
+
+.networkConfirmation {
+  display: grid;
+  gap: var(--ui-space-sm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--ui-space-md);
+  background: var(--surface-secondary);
+}
+
+.networkConfirmation p {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

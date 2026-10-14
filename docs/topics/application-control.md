@@ -1,5 +1,12 @@
 # Application Control
 
+Tactical [339](../tactical/339-macos-quiet-network-startup.md) applies the one-time Mac network-default hold
+transaction before networking, preserving torrent intent, verified state and
+port preference. Desktop persists its defaults-version marker before exposing
+control. Subsequent explicit choices survive restart; the marker is not an OS
+grant. Common incoming-Off reconciliation cancels inbound work and removes its
+advertisement while retaining outgoing UDP/replies and loopback control.
+
 Tactical [335](../tactical/335-removal-pieces-and-disconnect-lifetime.md)
 preserves the durable removal contract through WebSocket disconnection: an
 executing removal retains its caller until finalization or recorded failure,
