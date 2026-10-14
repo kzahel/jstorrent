@@ -14,6 +14,7 @@ import {
   useInspectionStore,
 } from "../context";
 import { useDesktopExternalIntake } from "../desktop-external-intake-context";
+import { useNarrowViewport } from "../layout";
 import type { CommandResult, DownloadRoot } from "../model";
 import {
   WEBTORRENT_TEST_TORRENTS,
@@ -67,11 +68,14 @@ type PendingAdd = SinglePendingAdd | PendingTestTorrentBatchAdd | PendingBatchAd
 interface TorrentActionsProps {
   readonly showCrostiniStorageHelp: boolean;
   readonly oneCurrentRoot?: boolean;
+  /** Receives the end of the bar, where the torrent table puts its controls. */
+  readonly tableToolbarRef?: (element: HTMLDivElement | null) => void;
 }
 
 export function TorrentActions({
   showCrostiniStorageHelp,
   oneCurrentRoot = false,
+  tableToolbarRef,
 }: TorrentActionsProps) {
   const demo = useInspectionStore((state) => state.demo);
   const storage = useInspectionStore((state) => state.storage);
@@ -126,6 +130,8 @@ export function TorrentActions({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const removeButtonRef = useRef<HTMLButtonElement>(null);
   const resolvedActions = actionsFor();
+  // Narrow bars keep one row: actions show their icons alone.
+  const narrow = useNarrowViewport();
   const directActions = resolvedActions.filter(
     (action) => action.placement === "direct",
   );
@@ -662,10 +668,12 @@ export function TorrentActions({
               key={action.id}
               type="button"
               disabled={adding || batchRunning || action.disabled}
-              title={action.disabledReason}
+              title={action.disabledReason ?? action.resolvedLabel}
+              aria-label={narrow ? action.resolvedLabel : undefined}
               onClick={() => void runAction(action.id)}
             >
-              <Icon name={action.icon} /> {action.resolvedLabel}
+              <Icon name={action.icon} />
+              {narrow ? null : <> {action.resolvedLabel}</>}
             </button>
           ))}
         {demo === null || selectedTargetIds.length > 0 ? (
@@ -690,7 +698,8 @@ export function TorrentActions({
               ref={removeButtonRef}
               type="button"
               disabled={adding || batchRunning || action.disabled}
-              title={action.disabledReason}
+              title={action.disabledReason ?? action.resolvedLabel}
+              aria-label={narrow ? action.resolvedLabel : undefined}
               onClick={() =>
                 void runAction(action.id, undefined, {
                   type: "toolbar",
@@ -698,9 +707,13 @@ export function TorrentActions({
                 })
               }
             >
-              <Icon name={action.icon} /> {action.resolvedLabel}
+              <Icon name={action.icon} />
+              {narrow ? null : <> {action.resolvedLabel}</>}
             </button>
           ))}
+        {tableToolbarRef === undefined ? null : (
+          <div ref={tableToolbarRef} className={styles.tableToolbar} />
+        )}
       </div>
       {pendingAdd === null ? null : (
         <AddTorrentDialog

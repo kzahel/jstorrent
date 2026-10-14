@@ -1,13 +1,22 @@
 .sidebar {
   display: flex;
   flex-direction: column;
+  gap: var(--ui-space-sm);
   min-width: 0;
+  overflow-y: auto;
   border-right: 1px solid var(--border-soft);
+  padding-block: var(--ui-space-sm);
   background: var(--surface-secondary);
 }
 
+/* Destinations, categories and session views are separate groups. */
+.sidebar > nav + nav {
+  border-top: 1px solid var(--border-soft);
+  padding-top: var(--ui-space-sm);
+}
+
 .heading {
-  margin: 1rem 0.85rem 0.4rem;
+  margin: 0.25rem 0.85rem 0.4rem;
   color: var(--text-muted);
   font-size: var(--ui-font-small);
   font-weight: var(--weight-medium);
@@ -60,10 +69,17 @@
 }
 
 .symbol {
+  display: grid;
+  place-items: center;
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--ui-icon-size);
   text-align: center;
+}
+
+.symbol > svg {
+  width: var(--ui-icon-size);
+  height: var(--ui-icon-size);
 }
 
 .count {

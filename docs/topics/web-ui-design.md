@@ -1,5 +1,13 @@
 # Web UI Design
 
+Tactical [351](../tactical/351-narrow-web-lists-and-flat-chrome.md) moves
+Library and Torrents into the sidebar (the drawer at narrow widths, which
+also lists the session views), gives narrow details an app bar with a back
+arrow, Pause or Start and a ⋮ menu, and renders tables as stacked list items
+at 760 px and below through per-column `listRole`s in `VirtualTable`. On
+desktop only the header and sidebar stay tinted, and each table's count and
+Columns join the bar above it through `TableToolbarSlot`.
+
 Tactical [350](../tactical/350-share-links-and-private-hint.md) adds **Copy
 share link** beside Copy magnet link in the More and row menus. The General
 header's copy buttons run those same actions, so feedback is the shared
@@ -922,6 +930,29 @@ Tactical [`224`](../tactical/224-workbench-detail-back-breakpoint.md) aligns
 that back control with the 760 px width where Workbench hides the list, so
 the 701–760 px range retains the return path.
 
+Tactical [`351`](../tactical/351-narrow-web-lists-and-flat-chrome.md) makes
+760 px the single narrow breakpoint (`NARROW_MAX_WIDTH` in `layout.ts`,
+repeated by stylesheets) for the store's `phone` layout, the drawer, the
+detail app bar and list rendering. The sidebar owns navigation at every
+width: Library and Torrents, then the current destination's categories, and
+in the narrow drawer the session views. The narrow header is one row (menu,
+logo, current place, Settings). A narrow torrent or Library detail replaces
+it with an app bar: back arrow, name, Pause or Start, and a ⋮ menu of the
+remaining torrent actions. Narrow torrent details show torrent tabs only;
+session views open from the drawer and stand alone.
+
+At narrow widths tables render as Android-style list items rather than
+sideways-scrolling grids. Each table declares which columns form the title,
+trailing value, subtitle, wide line (such as progress) and labelled details;
+other columns appear only at wider widths. Sorting moves to a Sort field.
+This deliberately narrows Tactical 173's narrow-width column guarantee: the
+complete columns stay available above 760 px.
+
+Content surfaces are one plane. Only the header and sidebar are tinted;
+column headers, the tab bar and the splitter use the content surface with
+soft borders. A table's count, selection status and Columns share the bar
+above it (action bar, tab bar or Files summary) instead of adding a row.
+
 The same torrent and detail components should serve docked and focused modes.
 Navigation state must remain understandable and restorable rather than being
 encoded only in incidental component state. The exact URL and routing scheme,
@@ -965,9 +996,11 @@ same font metrics, the underline is out of layout flow, and every tab has the
 same fixed footprint for the selected interface size. Navigation labels do not
 carry counts; the corresponding detail content owns row totals and summaries.
 The divider before Disk continues to distinguish torrent-scoped from
-session-scoped views. Selecting or evicting a detail view therefore cannot move
-neighboring tabs, while constrained layouts retain one horizontally scrolling
-row rather than shrinking or wrapping the tabs.
+session-scoped views; session tabs follow it rather than being pushed to the
+far end, so the table controls sharing the tab bar never move a tab.
+Selecting or evicting a detail view therefore cannot move neighboring tabs,
+while constrained layouts retain one horizontally scrolling row rather than
+shrinking or wrapping the tabs.
 
 The responsive web application does not replace the native Android Compose
 product or create automatic UI parity with it. Phone usability applies to the

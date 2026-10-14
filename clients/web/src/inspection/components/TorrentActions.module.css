@@ -3,7 +3,7 @@
   align-items: center;
   gap: var(--ui-space-xs);
   min-height: var(--ui-actionbar-height);
-  border-bottom: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-soft);
   padding: 0 var(--ui-space-sm);
   background: var(--surface-primary);
 }
@@ -103,14 +103,26 @@
   background: var(--border-strong);
 }
 
+/* The torrent table's count and Columns sit at the end of the bar. */
+.tableToolbar {
+  display: flex;
+  margin-left: auto;
+  align-items: center;
+}
+
+/* Narrow bars keep one row: the field shrinks to fit icon actions. */
 @media (max-width: 760px) {
-  .toolbar {
-    flex-wrap: wrap;
-    padding-block: 0.3rem;
+  .addForm {
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 8rem;
   }
 
-  .addForm {
-    max-width: none;
-    flex-basis: 100%;
+  .addInput {
+    min-width: 0;
+  }
+
+  .toolbar button {
+    padding-inline: 0.45rem;
   }
 }

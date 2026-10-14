@@ -18,9 +18,17 @@
   font-size: var(--ui-font-caption);
 }
 
+.tableToolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  margin-left: auto;
+}
+
 .storagePath {
   overflow: hidden;
-  margin-left: auto;
+  min-width: 0;
+  flex: 1 1 auto;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

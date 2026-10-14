@@ -29,7 +29,7 @@ import {
   loadCredentialFreeNoticeDismissed,
   saveCredentialFreeNoticeDismissed,
 } from "../lan-none-notice";
-import type { ApplicationDestination } from "../model";
+import { layoutForWidth } from "../layout";
 import { MAX_DETAIL_PANE_PERCENT, MIN_DETAIL_PANE_PERCENT } from "../state";
 import type { AboutFacts } from "../support/about";
 import type { DesktopUpdater, UpdaterState } from "../updater/types";
@@ -40,16 +40,17 @@ import {
   useConnectionClock,
 } from "./ConnectionOverlay";
 import { DetailPane } from "./DetailPane";
-import { Icon, type IconName } from "./Icon";
+import { Icon } from "./Icon";
 import { LibraryView } from "./LibraryView";
 import { ScenarioBar } from "./ScenarioBar";
 import { SettingsDialog, type SettingsCategory } from "./SettingsDialog";
-import { Sidebar } from "./Sidebar";
+import { navigationTitle, Sidebar } from "./Sidebar";
 import { TorrentActions } from "./TorrentActions";
 import { TorrentActionProvider } from "./TorrentActionContext";
 import { ToastProvider } from "./Toast";
 import { TorrentTable } from "./TorrentTable";
 import { TransfersView } from "./TransfersView";
+import { TableToolbarSlot } from "./VirtualTable";
 import styles from "./App.module.css";
 import type { WebAuthClient } from "../../web-auth-client";
 import type { DesktopExternalIntake } from "../../desktop-external-intake";
@@ -63,15 +64,6 @@ import type {
 } from "../../headless-updater";
 import type { ProductPrivacyController } from "../product-privacy/types";
 import { ProductDisclosure } from "./ProductPrivacy";
-
-const DESTINATIONS: readonly {
-  readonly id: ApplicationDestination;
-  readonly label: string;
-  readonly icon: IconName;
-}[] = [
-  { id: "library", label: localizedMessage("inspection.components.app.library"), icon: "library" },
-  { id: "workbench", label: localizedMessage("inspection.components.app.workbench"), icon: "transfers" },
-];
 
 function waitForTorrentRemoval(
   controller: InspectionController,
@@ -194,9 +186,13 @@ function AppContent({
   const detailOpen = useInspectionStore(
     (state) => state.presentation.detailOpen,
   );
+  const libraryDetailOpen = useInspectionStore(
+    (state) => state.presentation.libraryDetailOpen,
+  );
   const sidebarOpen = useInspectionStore(
     (state) => state.presentation.sidebarOpen,
   );
+  const layout = useInspectionStore((state) => state.presentation.layout);
   const detailPanePercent = useInspectionStore(
     (state) => state.presentation.detailPanePercent,
   );
@@ -207,8 +203,8 @@ function AppContent({
     (state) => state.presentation.colorTheme,
   );
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
-  const selectDestination = useInspectionStore(
-    (state) => state.selectDestination,
+  const title = useInspectionStore((state) =>
+    navigationTitle(state.presentation),
   );
   const toggleSidebar = useInspectionStore((state) => state.toggleSidebar);
   const closeSidebar = useInspectionStore((state) => state.closeSidebar);
@@ -240,6 +236,8 @@ function AppContent({
     useState<SettingsCategory>("appearance");
   const updaterSnapshot = useDesktopUpdater(updater);
   const [resizingDetail, setResizingDetail] = useState(false);
+  const [collectionToolbar, setCollectionToolbar] =
+    useState<HTMLDivElement | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const splitterRef = useRef<HTMLDivElement>(null);
@@ -282,15 +280,7 @@ function AppContent({
   }, []);
 
   useEffect(() => {
-    const update = () => {
-      setLayout(
-        window.innerWidth < 680
-          ? "phone"
-          : window.innerWidth < 1_100
-            ? "compact"
-            : "wide",
-      );
-    };
+    const update = () => setLayout(layoutForWidth(window.innerWidth));
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
@@ -363,6 +353,7 @@ function AppContent({
       data-connection={session.connection.type}
       data-destination={destination}
       data-detail-open={detailOpen}
+      data-library-detail-open={libraryDetailOpen}
       data-interface-size={interfaceSize}
       data-sidebar-open={sidebarOpen}
     >
@@ -370,7 +361,7 @@ function AppContent({
         <button
           className={styles.menuButton}
           type="button"
-          aria-label={`Toggle ${destinationLabel(destination)} filters`}
+          aria-label={localizedMessage("inspection.components.app.toggle.navigation")}
           aria-expanded={sidebarOpen}
           onClick={toggleSidebar}
         >
@@ -380,19 +371,7 @@ function AppContent({
           <img src={jstorrentIcon} width="32" height="32" alt="" />
           <strong>{localizedMessage("inspection.components.app.rstorrent")}</strong>
         </div>
-        <nav className={styles.primaryNavigation} aria-label={localizedMessage("inspection.components.app.primary")}>
-          {DESTINATIONS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-current={destination === item.id ? "page" : undefined}
-              onClick={() => selectDestination(item.id)}
-            >
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
+        <strong className={styles.locationTitle}>{title}</strong>
         {showRates ? (
           <div
             className={styles.sessionStats}
@@ -480,7 +459,7 @@ function AppContent({
         <button
           className={styles.scrim}
           type="button"
-          aria-label={`Close ${destinationLabel(destination)} filters`}
+          aria-label={localizedMessage("inspection.components.app.close.navigation")}
           onClick={closeSidebar}
         />
         <main
@@ -506,9 +485,14 @@ function AppContent({
                 <TorrentActions
                   showCrostiniStorageHelp={hostedProduct === "crostini"}
                   oneCurrentRoot={oneCurrentRoot === true}
+                  tableToolbarRef={setCollectionToolbar}
                 />
                 <div className={styles.tableWrap}>
-                  <TorrentTable />
+                  <TableToolbarSlot.Provider
+                    value={layout === "phone" ? null : collectionToolbar}
+                  >
+                    <TorrentTable />
+                  </TableToolbarSlot.Provider>
                 </div>
               </section>
               <div
@@ -721,12 +705,6 @@ function AppContent({
       )}
     </div>
   );
-}
-
-function destinationLabel(destination: ApplicationDestination): string {
-  return destination === "workbench"
-    ? localizedMessage("inspection.components.app.workbench")
-    : destination.slice(0, 1).toUpperCase() + destination.slice(1);
 }
 
 function presentsManualUpdateResult(state: UpdaterState): boolean {

@@ -13,6 +13,7 @@ const diskColumns = (
 ): readonly VirtualColumn<DiskPieceRow>[] => [
   {
     id: "torrent",
+    listRole: "title",
     label: localizedMessage("inspection.components.disk.panel.torrent"),
     width: 210,
     minimumWidth: 130,
@@ -22,6 +23,7 @@ const diskColumns = (
   },
   {
     id: "piece",
+    listRole: "subtitle",
     label: localizedMessage("inspection.components.disk.panel.piece"),
     width: 76,
     align: "right",
@@ -31,6 +33,7 @@ const diskColumns = (
   },
   {
     id: "stage",
+    listRole: "trailing",
     label: localizedMessage("inspection.components.disk.panel.state"),
     width: 112,
     sortValue: (row) => row.stage,
@@ -54,6 +57,7 @@ const diskColumns = (
   },
   {
     id: "requested",
+    listRole: "detail",
     label: localizedMessage("inspection.components.disk.panel.requested"),
     width: 96,
     align: "right",
@@ -63,6 +67,7 @@ const diskColumns = (
   },
   {
     id: "received",
+    listRole: "detail",
     label: localizedMessage("inspection.components.disk.panel.received"),
     width: 92,
     align: "right",
@@ -72,6 +77,7 @@ const diskColumns = (
   },
   {
     id: "stored",
+    listRole: "detail",
     label: localizedMessage("inspection.components.disk.panel.stored"),
     width: 88,
     align: "right",

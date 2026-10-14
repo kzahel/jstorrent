@@ -11,6 +11,7 @@ import {
 
 import { useInspectionCommand, useInspectionStore } from "../context";
 import { formatDecimalProgress, formatExactBytes, torrentVisibleProgress } from "../format";
+import type { LayoutMode } from "../layout";
 import { episodeLabel, sortFileRows, sortMediaRows } from "../library-media";
 import type { FileRow, MediaRow, TorrentRow, ViewMaterialization } from "../model";
 import { seedLimitReached } from "../seed-stop";
@@ -134,7 +135,7 @@ export function LibraryDetailView({
           autoFocus
           onClick={onBack}
         >
-          <span aria-hidden="true">←</span>
+          <Icon name="arrowBack" />
           <span>{localizedMessage("inspection.components.library.detail.view.library")}</span>
         </button>
         <div>
@@ -238,7 +239,7 @@ function MediaCatalog({
   readonly rows: readonly MediaRow[];
   readonly state: "metadata_pending" | "available" | "torrent_missing" | undefined;
   readonly materialization: ViewMaterialization;
-  readonly layout: "wide" | "compact" | "phone";
+  readonly layout: LayoutMode;
   readonly dataUnits: "decimal" | "binary";
   readonly playbackPendingFile: number | null;
   readonly playbackUnavailableReason: string | undefined;
@@ -282,7 +283,7 @@ function FileCatalog({
   readonly state: "metadata_pending" | "available" | "torrent_missing" | undefined;
   readonly total: number;
   readonly materialization: ViewMaterialization;
-  readonly layout: "wide" | "compact" | "phone";
+  readonly layout: LayoutMode;
   readonly dataUnits: "decimal" | "binary";
 }) {
   if (materialization.status !== "ready") {
@@ -325,7 +326,7 @@ function VirtualCatalog({
   onPlay,
 }: {
   readonly rows: readonly CatalogRow[];
-  readonly layout: "wide" | "compact" | "phone";
+  readonly layout: LayoutMode;
   readonly dataUnits: "decimal" | "binary";
   readonly label: string;
   readonly playbackPendingFile?: number | null;

@@ -1,6 +1,6 @@
 .app {
   display: grid;
-  grid-template-rows: var(--ui-header-height) auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   width: 100vw;
   height: 100dvh;
   overflow: hidden;
@@ -14,6 +14,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  height: var(--ui-header-height);
   min-width: 0;
   border-bottom: 1px solid var(--border-soft);
   padding: 0 var(--ui-header-padding-inline);
@@ -21,10 +22,12 @@
   background: var(--surface-secondary);
 }
 
+/* Rates, notices and Settings sit at the end. */
 .brand {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin-right: auto;
 }
 
 .brand > img {
@@ -38,54 +41,6 @@
   font-size: var(--ui-font-body);
   font-weight: var(--weight-strong);
   letter-spacing: -0.01em;
-}
-
-.primaryNavigation {
-  display: flex;
-  height: 100%;
-  align-items: center;
-  gap: 0.25rem;
-  margin-left: 0.6rem;
-}
-
-.primaryNavigation button {
-  position: relative;
-  display: inline-flex;
-  height: calc(100% - 0.9rem);
-  min-width: 0;
-  align-items: center;
-  justify-content: center;
-  gap: 0.42rem;
-  border: 0;
-  border-radius: var(--radius-md);
-  padding: 0 0.72rem;
-  color: var(--text-secondary);
-  background: transparent;
-  font: inherit;
-  font-size: var(--ui-font-small);
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-}
-
-.primaryNavigation button:hover {
-  color: var(--text-primary);
-  background: var(--surface-hover);
-}
-
-.primaryNavigation button[aria-current="page"] {
-  color: var(--accent-strong);
-  background: var(--selection);
-}
-
-.primaryNavigation button:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
-
-.primaryNavigation svg {
-  width: var(--ui-icon-size);
-  height: var(--ui-icon-size);
-  flex: 0 0 auto;
 }
 
 .menuButton {
@@ -106,9 +61,8 @@
   background: var(--surface-hover);
 }
 
-/* Rates, notices and Settings sit at the end; the rates are absent when idle. */
-.primaryNavigation + * {
-  margin-left: auto;
+.locationTitle {
+  display: none;
 }
 
 .sessionStats {
@@ -321,6 +275,7 @@
 
 .collection {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--ui-actionbar-height) minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
@@ -337,7 +292,7 @@
   display: grid;
   place-items: center;
   border-block: 1px solid var(--border-soft);
-  background: var(--surface-secondary);
+  background: var(--surface-primary);
   cursor: row-resize;
   touch-action: none;
 }
@@ -378,11 +333,9 @@
 }
 
 @media (max-width: 760px) {
+  /* One app bar: menu, the current place and Settings. */
   .header {
-    display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr) auto;
-    grid-template-rows: var(--ui-header-row-height) var(--ui-header-row-height);
-    gap: 0 0.5rem;
+    gap: 0.5rem;
   }
 
   .menuButton {
@@ -390,34 +343,32 @@
   }
 
   .brand {
-    grid-column: 2;
+    margin-right: 0;
   }
 
-  .primaryNavigation {
-    width: 100%;
-    height: 50px;
-    grid-row: 2;
-    grid-column: 1 / -1;
-    margin-left: 0;
+  .brand strong {
+    display: none;
   }
 
-  .primaryNavigation button {
-    flex: 1 1 0;
-    padding-inline: 0.4rem;
+  .locationTitle {
+    display: block;
+    overflow: hidden;
+    min-width: 0;
+    flex: 1;
+    font-size: var(--ui-font-body);
+    font-weight: var(--weight-strong);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .sessionStats {
     display: none;
   }
 
-  .lanAccessStatus {
-    grid-row: 1;
-    grid-column: 3;
-    justify-self: end;
-  }
-
-  .settingsButton {
-    grid-column: 4;
+  /* A full-screen detail brings its own app bar with a back arrow. */
+  .app[data-destination="workbench"][data-detail-open="true"] .header,
+  .app[data-destination="library"][data-library-detail-open="true"] .header {
+    display: none;
   }
 
   .workspace {
@@ -496,15 +447,6 @@
   .lanWarningMessage {
     display: grid;
     gap: 0;
-  }
-
-  .primaryNavigation button span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
   }
 }
 

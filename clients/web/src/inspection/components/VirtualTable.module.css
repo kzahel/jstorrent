@@ -36,6 +36,15 @@
   );
 }
 
+.container[data-toolbar-slotted="true"] {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.container[data-toolbar-slotted="true"]::before,
+.container[data-toolbar-slotted="true"]::after {
+  top: 0;
+}
+
 .container[data-overflow-left="true"]::before,
 .container[data-overflow-right="true"]::after {
   opacity: 1;
@@ -72,8 +81,8 @@
   top: 0;
   display: grid;
   height: var(--ui-table-header-height);
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-primary);
 }
 
 .headerCell {
@@ -81,7 +90,6 @@
   display: flex;
   align-items: stretch;
   min-width: 0;
-  border-right: 1px solid var(--border-soft);
 }
 
 .selectionHeaderCell,
@@ -116,6 +124,12 @@
   color: var(--text-muted);
   background: var(--surface-primary);
   font-size: var(--ui-font-caption);
+}
+
+.toolbar[data-slotted="true"] {
+  height: auto;
+  border-bottom: 0;
+  background: transparent;
 }
 
 .columnMenu > button {
@@ -361,4 +375,120 @@
   display: grid;
   justify-items: center;
   gap: 0.35rem;
+}
+
+/* Narrow viewports render each row as a stacked list item. */
+.viewport[data-list="true"] .row {
+  min-width: 0;
+}
+
+.listCell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  align-content: center;
+  gap: 0.1rem;
+  padding: 0 var(--ui-space-md);
+  overflow: hidden;
+}
+
+.listTitleLine {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--ui-space-sm);
+}
+
+.listTitle {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+  font-size: var(--ui-font-body);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listTitle > * {
+  max-width: 100%;
+}
+
+.listTrailing {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: var(--ui-font-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.listLine {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--ui-font-caption);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listLine > span + span::before {
+  color: var(--text-muted);
+  content: " · ";
+}
+
+.listDetailLabel {
+  color: var(--text-muted);
+}
+
+/* The subtitle shares its line with a full-width value such as progress. */
+.listSubtitleLine {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--ui-space-md);
+}
+
+/* A fixed share keeps progress bars aligned from row to row. */
+.listSubtitleLine > .listLine:not(:only-child) {
+  flex: 0 0 36%;
+}
+
+.listWide {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+}
+
+.listWide > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.listSort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.listSort select,
+.listSort button {
+  height: 1.75rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 0 0.4rem;
+  color: var(--text-secondary);
+  background: var(--surface-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.listSort button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.listSort select:focus-visible,
+.listSort button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }

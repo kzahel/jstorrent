@@ -29,3 +29,9 @@ export function desiredDetailForTab(
     ? definition.view
     : null;
 }
+
+export function isSessionTab(tab: DetailTab): boolean {
+  return DETAIL_TABS.some(
+    (candidate) => candidate.id === tab && candidate.scope === "session",
+  );
+}

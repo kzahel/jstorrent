@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [351 — Narrow web lists and flat chrome](351-narrow-web-lists-and-flat-chrome.md):
+  navigation moves into the sidebar and narrow drawer, narrow details get an
+  app bar, tables render as list items at 760 px and below, and desktop
+  content loses its alternating gray bands.
 - [350 — Share links across clients and private hint](350-share-links-and-private-hint.md):
   the view projects BEP 27 private; web and Android copy share links through
   one action with a private hint; the website `/share/` page reads new and

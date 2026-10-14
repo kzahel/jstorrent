@@ -484,8 +484,6 @@ input:focus-visible {
 
 @media (max-width: 760px) {
   :root[data-interface-size] {
-    --ui-header-height: 100px;
-    --ui-header-row-height: 50px;
     --ui-header-padding-inline: 0.55rem;
   }
 }

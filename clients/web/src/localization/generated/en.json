@@ -2012,6 +2012,12 @@
       "value": "Authentication is off; every device that can reach this service has full owner control."
     }
   ],
+  "inspection.components.app.close.navigation": [
+    {
+      "type": 0,
+      "value": "Close navigation"
+    }
+  ],
   "inspection.components.app.dismiss.available.update": [
     {
       "type": 0,
@@ -2052,12 +2058,6 @@
     {
       "type": 0,
       "value": "Later"
-    }
-  ],
-  "inspection.components.app.library": [
-    {
-      "type": 0,
-      "value": "Library"
     }
   ],
   "inspection.components.app.network.access.has.no.authentication": [
@@ -2126,6 +2126,12 @@
       "value": "Settings"
     }
   ],
+  "inspection.components.app.toggle.navigation": [
+    {
+      "type": 0,
+      "value": "Toggle navigation"
+    }
+  ],
   "inspection.components.app.transfers.will.resume.automatically.when.one.is": [
     {
       "type": 0,
@@ -2136,12 +2142,6 @@
     {
       "type": 0,
       "value": "Waiting for Wi-Fi."
-    }
-  ],
-  "inspection.components.app.workbench": [
-    {
-      "type": 0,
-      "value": "Torrents"
     }
   ],
   "inspection.components.app.workbench.torrent.collection": [
@@ -3876,6 +3876,12 @@
       "value": "Active time"
     }
   ],
+  "inspection.components.detail.pane.back": [
+    {
+      "type": 0,
+      "value": "Back"
+    }
+  ],
   "inspection.components.detail.pane.checker.activity": [
     {
       "type": 0,
@@ -4010,6 +4016,12 @@
     {
       "type": 0,
       "value": "Mismatched"
+    }
+  ],
+  "inspection.components.detail.pane.more.actions": [
+    {
+      "type": 0,
+      "value": "More actions"
     }
   ],
   "inspection.components.detail.pane.nothing.to.show": [
@@ -4224,12 +4236,6 @@
     {
       "type": 0,
       "value": "Torrent details"
-    }
-  ],
-  "inspection.components.detail.pane.torrents": [
-    {
-      "type": 0,
-      "value": "Torrents"
     }
   ],
   "inspection.components.detail.pane.uploaded": [
@@ -5082,12 +5088,6 @@
     {
       "type": 0,
       "value": "File actions"
-    }
-  ],
-  "inspection.components.file.table.files": [
-    {
-      "type": 0,
-      "value": "files"
     }
   ],
   "inspection.components.file.table.files.appear.once.torrent.info.arrives": [
@@ -7188,6 +7188,18 @@
       "value": "Recently added"
     }
   ],
+  "inspection.components.sidebar.session": [
+    {
+      "type": 0,
+      "value": "Session"
+    }
+  ],
+  "inspection.components.sidebar.session.views": [
+    {
+      "type": 0,
+      "value": "Session views"
+    }
+  ],
   "inspection.components.sidebar.torrents": [
     {
       "type": 0,
@@ -8613,10 +8625,34 @@
       "value": "Selection"
     }
   ],
+  "inspection.components.virtual.table.sort.by": [
+    {
+      "type": 0,
+      "value": "Sort by"
+    }
+  ],
+  "inspection.components.virtual.table.sorted.ascending": [
+    {
+      "type": 0,
+      "value": "Sorted ascending; switch to descending"
+    }
+  ],
+  "inspection.components.virtual.table.sorted.descending": [
+    {
+      "type": 0,
+      "value": "Sorted descending; switch to ascending"
+    }
+  ],
   "inspection.components.virtual.table.table.column.settings": [
     {
       "type": 0,
       "value": "Table column settings"
+    }
+  ],
+  "inspection.components.virtual.table.unsorted": [
+    {
+      "type": 0,
+      "value": "Unsorted"
     }
   ],
   "inspection.components.virtual.table.visible.columns": [

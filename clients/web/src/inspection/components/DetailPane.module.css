@@ -6,13 +6,31 @@
   background: var(--surface-primary);
 }
 
-.tabs {
+/* Tabs share their row with the open table's count and column controls. */
+.tabBar {
   display: flex;
   flex: 0 0 auto;
+  min-width: 0;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-primary);
+}
+
+.tabs {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
   overflow-x: auto;
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--surface-secondary);
   scrollbar-width: thin;
+}
+
+.tableToolbarSlot {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+.tableToolbarSlot:empty {
+  display: none;
 }
 
 .tabs button {
@@ -33,10 +51,10 @@
   cursor: pointer;
 }
 
-.tabs button[data-tab-scope="session"]:first-of-type,
+/* Session views follow a divider. They are not pushed to the far end, so
+   the table controls beside the tabs never move a tab. */
 .tabs button[data-tab-id="disk"] {
-  margin-left: auto;
-  border-left: 1px solid var(--border-strong);
+  border-left: 1px solid var(--border-soft);
 }
 
 .tabs button::after {
@@ -67,10 +85,6 @@
   min-width: 0;
   min-height: 0;
   flex: 1;
-}
-
-.mobileHeading {
-  display: none;
 }
 
 .general {
@@ -302,42 +316,64 @@
 }
 
 @media (max-width: 760px) {
-  .mobileHeading {
+  /* The full-screen detail's app bar replaces the application header. */
+  .appBar {
     display: flex;
+    height: var(--ui-header-height);
+    flex: none;
     align-items: center;
-    gap: 0.65rem;
-    min-height: calc(var(--ui-control-height) + 2 * var(--ui-space-md));
-    border-bottom: 1px solid var(--border-strong);
-    padding: var(--ui-space-md) var(--ui-space-lg);
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--border-soft);
+    padding: 0 var(--ui-header-padding-inline);
+    background: var(--surface-secondary);
   }
 
-  .mobileHeading button {
-    display: inline-flex;
-    align-items: center;
-    flex: none;
-    height: var(--ui-control-height);
-    gap: var(--ui-space-xs);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-md);
-    padding: 0 var(--ui-space-md);
+  .appBar strong {
+    overflow: hidden;
+    min-width: 0;
+    flex: 1;
+    margin-left: 0.25rem;
     color: var(--text-primary);
-    background: var(--surface-secondary);
-    font: inherit;
-    font-size: var(--ui-font-small);
-    font-weight: var(--weight-medium);
+    font-size: var(--ui-font-body);
+    font-weight: var(--weight-strong);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .appBarButton {
+    display: grid;
+    width: var(--ui-control-height);
+    height: var(--ui-control-height);
+    flex: none;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius-md);
+    padding: 0;
+    color: var(--text-secondary);
+    background: transparent;
+    font-size: var(--ui-icon-size);
     cursor: pointer;
   }
 
-  .mobileHeading button:hover {
+  .appBarButton:hover {
+    color: var(--text-primary);
     background: var(--surface-hover);
   }
 
-  .mobileHeading strong {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--text-primary);
-    font-size: var(--ui-font-body);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .appBarButton:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+  }
+
+  .appBarButton svg {
+    width: calc(var(--ui-icon-size) * 1.15);
+    height: calc(var(--ui-icon-size) * 1.15);
+  }
+
+  /* Session views open from the drawer, so the tabs are torrent views only,
+     and a session view stands alone. */
+  .tabs button[data-tab-scope="session"],
+  .detail[data-session-view="true"] .tabBar {
+    display: none;
   }
 }

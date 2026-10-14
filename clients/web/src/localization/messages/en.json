@@ -428,10 +428,6 @@
     "defaultMessage": "Later",
     "description": "Product copy in inspection/components/App.tsx"
   },
-  "inspection.components.app.library": {
-    "defaultMessage": "Library",
-    "description": "Product copy in inspection/components/App.tsx"
-  },
   "inspection.components.app.network.access.has.no.authentication": {
     "defaultMessage": "Network access has no authentication",
     "description": "Product copy in inspection/components/App.tsx"
@@ -484,9 +480,13 @@
     "defaultMessage": "Waiting for Wi-Fi.",
     "description": "Library status while downloads wait for an unmetered network such as Wi-Fi"
   },
-  "inspection.components.app.workbench": {
-    "defaultMessage": "Torrents",
-    "description": "Product copy in inspection/components/App.tsx"
+  "inspection.components.app.toggle.navigation": {
+    "defaultMessage": "Toggle navigation",
+    "description": "Narrow-layout menu button that opens or closes the navigation drawer"
+  },
+  "inspection.components.app.close.navigation": {
+    "defaultMessage": "Close navigation",
+    "description": "Scrim behind the open navigation drawer"
   },
   "inspection.components.app.workbench.torrent.collection": {
     "defaultMessage": "Torrent collection",
@@ -1300,9 +1300,13 @@
     "defaultMessage": "Torrent details",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
-  "inspection.components.detail.pane.torrents": {
-    "defaultMessage": "Torrents",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
+  "inspection.components.detail.pane.back": {
+    "defaultMessage": "Back",
+    "description": "Narrow detail app bar button that returns to the list"
+  },
+  "inspection.components.detail.pane.more.actions": {
+    "defaultMessage": "More actions",
+    "description": "Narrow detail app bar overflow menu for the open torrent"
   },
   "inspection.components.torrent.settings.dialog.cancel": {
     "defaultMessage": "Cancel",
@@ -2082,10 +2086,6 @@
   },
   "inspection.components.file.table.nothing.to.show": {
     "defaultMessage": "Nothing to show yet.",
-    "description": "Product copy in inspection/components/FileTable.tsx"
-  },
-  "inspection.components.file.table.files": {
-    "defaultMessage": "files",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
   "inspection.components.file.table.files.appear.once.torrent.info.arrives": {
@@ -3460,6 +3460,14 @@
     "defaultMessage": "Recently added",
     "description": "Product copy in inspection/components/Sidebar.tsx"
   },
+  "inspection.components.sidebar.session": {
+    "defaultMessage": "Session",
+    "description": "Heading for session-wide views (speed, DHT, logs, disk) in the narrow navigation drawer"
+  },
+  "inspection.components.sidebar.session.views": {
+    "defaultMessage": "Session views",
+    "description": "Accessible name of the session-wide view list in the narrow navigation drawer"
+  },
   "inspection.components.sidebar.torrents": {
     "defaultMessage": "Torrents",
     "description": "Product copy in inspection/components/Sidebar.tsx"
@@ -4127,6 +4135,22 @@
   "inspection.components.virtual.table.columns": {
     "defaultMessage": "Columns",
     "description": "Product copy in inspection/components/VirtualTable.tsx"
+  },
+  "inspection.components.virtual.table.sort.by": {
+    "defaultMessage": "Sort by",
+    "description": "Sort field selector shown in place of column headers when a table renders as a narrow list"
+  },
+  "inspection.components.virtual.table.unsorted": {
+    "defaultMessage": "Unsorted",
+    "description": "Sort field option that keeps the list's natural order"
+  },
+  "inspection.components.virtual.table.sorted.ascending": {
+    "defaultMessage": "Sorted ascending; switch to descending",
+    "description": "Sort direction toggle in a narrow list"
+  },
+  "inspection.components.virtual.table.sorted.descending": {
+    "defaultMessage": "Sorted descending; switch to ascending",
+    "description": "Sort direction toggle in a narrow list"
   },
   "inspection.components.virtual.table.deselect": {
     "defaultMessage": "Deselect",

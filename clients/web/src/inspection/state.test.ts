@@ -107,6 +107,32 @@ describe("inspection store", () => {
     expect(store.getState().presentation.currentPeerId).toBeNull();
   });
 
+  it("opens session views alone and keeps narrow torrent details on torrent tabs", () => {
+    const store = createInspectionStore(null);
+    store.getState().applyUpdate({
+      type: "snapshot",
+      snapshot: snapshot([row("first", "downloading")]),
+    });
+    store.getState().selectDestination("library");
+    store.getState().setLayout("phone");
+    store.getState().openSessionView("speed");
+    expect(store.getState().presentation).toMatchObject({
+      destination: "workbench",
+      activeTab: "speed",
+      detailOpen: true,
+      sidebarOpen: false,
+    });
+
+    store.getState().closeDetail();
+    store.getState().openTorrentDetail("first");
+    expect(store.getState().presentation.activeTab).toBe("general");
+
+    store.getState().setLayout("wide");
+    store.getState().selectTab("logs");
+    store.getState().openTorrentDetail("first");
+    expect(store.getState().presentation.activeTab).toBe("logs");
+  });
+
   it("clears a removed singleton selection without inventing a fallback", () => {
     const store = createInspectionStore();
     store.getState().applyUpdate({

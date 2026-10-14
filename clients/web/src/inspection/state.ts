@@ -48,6 +48,8 @@ import {
   type DhtVisualizationMode,
 } from "./dht-preferences";
 import type { SpeedMetric, SpeedRange } from "../api";
+import type { LayoutMode } from "./layout";
+import { isSessionTab } from "./tabs";
 
 export interface PresentationState {
   readonly destination: ApplicationDestination;
@@ -69,7 +71,7 @@ export interface PresentationState {
     readonly torrentId: string;
   } | null;
   readonly sidebarOpen: boolean;
-  readonly layout: "wide" | "compact" | "phone";
+  readonly layout: LayoutMode;
   readonly interfaceSize: InterfaceSize;
   readonly colorTheme: ColorTheme;
   readonly dataUnits: DataUnits;
@@ -112,6 +114,8 @@ export interface InspectionActions {
   readonly clearTorrentSelection: () => void;
   readonly setCurrentPeer: (connectionId: string | null) => void;
   readonly selectTab: (tab: DetailTab) => void;
+  /** Opens a session-wide view on its own, as the narrow drawer does. */
+  readonly openSessionView: (tab: DetailTab) => void;
   readonly setDetailPanePercent: (percent: number) => void;
   readonly closeDetail: () => void;
   readonly toggleSidebar: () => void;
@@ -399,6 +403,12 @@ export function createInspectionStore(
               ? state.presentation.selectedTorrentIds
               : [torrentId],
             currentPeerId: null,
+            // A narrow torrent detail shows only torrent tabs.
+            activeTab:
+              state.presentation.layout === "phone" &&
+              isSessionTab(state.presentation.activeTab)
+                ? "general"
+                : state.presentation.activeTab,
             detailOpen: true,
             libraryDetailOpen: false,
             detailTarget: null,
@@ -516,6 +526,21 @@ export function createInspectionStore(
       set((state) => ({
         presentation: { ...state.presentation, activeTab, detailTarget: null },
       }));
+    },
+    openSessionView: (activeTab) => {
+      set((state) => {
+        const presentation = {
+          ...state.presentation,
+          destination: "workbench" as const,
+          activeTab,
+          detailOpen: true,
+          libraryDetailOpen: false,
+          detailTarget: null,
+          sidebarOpen: false,
+        };
+        persistNavigation(navigationPreferencesFor(presentation));
+        return { presentation };
+      });
     },
     setSpeedRange: (speedRange) => {
       set((state) => {

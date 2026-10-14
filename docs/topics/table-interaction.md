@@ -143,9 +143,17 @@ Range and select-all resolve against the complete logical row model after the
 current filter and sort, not source insertion order or the virtual DOM window.
 
 Configured-visible columns likewise remain rendered independently of the
-virtual row window and viewport width. A narrow viewport scrolls horizontally
-through that complete configured set; responsive layout does not silently
-remove a checked column or change row selection, focus, or action scope.
+virtual row window. Above the narrow breakpoint (760 px) a viewport that is
+too narrow scrolls horizontally through the complete configured set.
+
+At and below that breakpoint, Tactical
+[`351`](../tactical/351-narrow-web-lists-and-flat-chrome.md) renders the same
+grid as stacked list items built from each table's declared list roles, with
+a Sort field in place of column headers. Responsive layout still does not
+change row selection, focus, or action scope. A list shows checkboxes only
+while several rows are selected; long press starts that, and a tap then
+toggles a row instead of making it the singleton current row. With one row
+selected, a tap opens it as before.
 
 Stable identity preserves selected and current rows through sorting and live
 updates. Disappearing selected rows are pruned. If current disappears while

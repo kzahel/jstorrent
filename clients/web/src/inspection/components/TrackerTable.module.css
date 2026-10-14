@@ -1,5 +1,6 @@
 .trackerPanel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-width: 0;
@@ -59,6 +60,7 @@
 
 /* Summary of where this torrent's peers come from, above the tracker table. */
 .sourcesPanel {
+  overflow-x: auto;
   border-bottom: 1px solid var(--border-soft);
   background: var(--surface-primary);
 }

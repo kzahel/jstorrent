@@ -2,7 +2,7 @@ import {
   formatList,
   message as localizedMessage,
 } from "../../localization/runtime";
-import { useEffect, useRef, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 import type { DataUnits } from "../appearance";
 import { copyText } from "../clipboard";
@@ -22,7 +22,7 @@ import {
 import type { DetailTab } from "../model";
 import { seedLimitReached, seedStopSummary } from "../seed-stop";
 import type { DesktopRemoteAccess } from "../remote-access/types";
-import { DETAIL_TABS } from "../tabs";
+import { DETAIL_TABS, isSessionTab } from "../tabs";
 import { PeerTable } from "./PeerTable";
 import { SwarmTable } from "./SwarmTable";
 import { FileTable } from "./FileTable";
@@ -36,6 +36,13 @@ import { DhtPanel } from "./DhtPanel";
 import { Icon, type IconName } from "./Icon";
 import { useToast } from "./Toast";
 import { useTorrentActions } from "./TorrentActionContext";
+import { TorrentActionMenuItems } from "./TorrentActionMenuItems";
+import { TableToolbarSlot } from "./VirtualTable";
+import {
+  ActionMenuPopover,
+  ActionMenuTrigger,
+  OverlayButton,
+} from "./overlays/AnchoredOverlay";
 import styles from "./DetailPane.module.css";
 
 export function DetailPane({
@@ -62,6 +69,8 @@ export function DetailPane({
   const selectTab = useInspectionStore((state) => state.selectTab);
   const closeDetail = useInspectionStore((state) => state.closeDetail);
   const tabsRef = useRef<HTMLDivElement>(null);
+  const [toolbarSlot, setToolbarSlot] = useState<HTMLDivElement | null>(null);
+  const sessionView = isSessionTab(activeTab);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -99,84 +108,156 @@ export function DetailPane({
   };
 
   return (
-    <section className={styles.detail} aria-label={localizedMessage("inspection.components.detail.pane.torrent.details")}>
-      <div className={styles.mobileHeading}>
-        <button type="button" onClick={closeDetail}>
-          <span aria-hidden="true">←</span>
-          <span>{localizedMessage("inspection.components.detail.pane.torrents")}</span>
-        </button>
-        <strong>{torrent?.name ?? localizedMessage("inspection.components.detail.pane.torrent.details")}</strong>
-      </div>
-      <div
-        ref={tabsRef}
-        className={styles.tabs}
-        role="tablist"
-        aria-label={localizedMessage("inspection.components.detail.pane.torrent.detail.views")}
-      >
-        {DETAIL_TABS.map((tab) => (
+    <section
+      className={styles.detail}
+      aria-label={localizedMessage("inspection.components.detail.pane.torrent.details")}
+      data-session-view={sessionView}
+    >
+      {layout !== "phone" ? null : (
+        <div className={styles.appBar}>
           <button
-            key={tab.id}
             type="button"
-            role="tab"
-            id={`tab-${tab.id}`}
-            data-tab-id={tab.id}
-            data-tab-scope={tab.scope}
-            aria-label={tab.label}
-            aria-selected={activeTab === tab.id}
-            aria-controls={`panel-${tab.id}`}
-            tabIndex={activeTab === tab.id ? 0 : -1}
-            onClick={() => selectTab(tab.id)}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowLeft") {
-                event.preventDefault();
-                selectAdjacentTab(tab.id, -1);
-              } else if (event.key === "ArrowRight") {
-                event.preventDefault();
-                selectAdjacentTab(tab.id, 1);
-              }
-            }}
+            className={styles.appBarButton}
+            aria-label={localizedMessage("inspection.components.detail.pane.back")}
+            title={localizedMessage("inspection.components.detail.pane.back")}
+            onClick={closeDetail}
           >
-            {tab.label}
+            <Icon name="arrowBack" />
           </button>
-        ))}
+          <strong>
+            {sessionView
+              ? DETAIL_TABS.find((tab) => tab.id === activeTab)?.label
+              : (torrent?.name ??
+                localizedMessage("inspection.components.detail.pane.torrent.details"))}
+          </strong>
+          {sessionView || torrent === undefined ? null : (
+            <DetailAppBarActions torrentId={torrent.id} />
+          )}
+        </div>
+      )}
+      <div className={styles.tabBar}>
+        <div
+          ref={tabsRef}
+          className={styles.tabs}
+          role="tablist"
+          aria-label={localizedMessage("inspection.components.detail.pane.torrent.detail.views")}
+        >
+          {DETAIL_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              id={`tab-${tab.id}`}
+              data-tab-id={tab.id}
+              data-tab-scope={tab.scope}
+              aria-label={tab.label}
+              aria-selected={activeTab === tab.id}
+              aria-controls={`panel-${tab.id}`}
+              tabIndex={activeTab === tab.id ? 0 : -1}
+              onClick={() => selectTab(tab.id)}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowLeft") {
+                  event.preventDefault();
+                  selectAdjacentTab(tab.id, -1);
+                } else if (event.key === "ArrowRight") {
+                  event.preventDefault();
+                  selectAdjacentTab(tab.id, 1);
+                }
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div ref={setToolbarSlot} className={styles.tableToolbarSlot} />
       </div>
-      <div
-        className={styles.panel}
-        id={`panel-${activeTab}`}
-        role="tabpanel"
-        aria-labelledby={`tab-${activeTab}`}
-      >
-        {torrent === undefined &&
-        activeTab !== "logs" &&
-        activeTab !== "disk" &&
-        activeTab !== "speed" &&
-        activeTab !== "dht" ? (
-          <EmptyDetail />
-        ) : activeTab === "peers" && currentTorrentId !== null ? (
-          <PeerTable torrentId={currentTorrentId} />
-        ) : activeTab === "swarm" && currentTorrentId !== null ? (
-          <SwarmTable torrentId={currentTorrentId} />
-        ) : activeTab === "trackers" && currentTorrentId !== null ? (
-          <TrackerTable torrentId={currentTorrentId} />
-        ) : activeTab === "files" && currentTorrentId !== null ? (
-          <FileTable torrentId={currentTorrentId} remoteAccess={remoteAccess} />
-        ) : activeTab === "pieces" && currentTorrentId !== null ? (
-          <PieceMapPanel torrentId={currentTorrentId} />
-        ) : activeTab === "disk" ? (
-          <DiskPanel />
-        ) : activeTab === "speed" ? (
-          <SpeedPanel />
-        ) : activeTab === "dht" ? (
-          <DhtPanel />
-        ) : activeTab === "general" && torrent !== undefined ? (
-          <GeneralDetail key={torrent.id} torrent={torrent} />
-        ) : activeTab === "logs" ? (
-          <LogConsole />
-        ) : (
-          <UnavailableDetail />
-        )}
-      </div>
+      <TableToolbarSlot.Provider value={layout === "phone" ? null : toolbarSlot}>
+        <div
+          className={styles.panel}
+          id={`panel-${activeTab}`}
+          role="tabpanel"
+          aria-labelledby={`tab-${activeTab}`}
+        >
+          {torrent === undefined && !sessionView ? (
+            <EmptyDetail />
+          ) : activeTab === "peers" && currentTorrentId !== null ? (
+            <PeerTable torrentId={currentTorrentId} />
+          ) : activeTab === "swarm" && currentTorrentId !== null ? (
+            <SwarmTable torrentId={currentTorrentId} />
+          ) : activeTab === "trackers" && currentTorrentId !== null ? (
+            <TrackerTable torrentId={currentTorrentId} />
+          ) : activeTab === "files" && currentTorrentId !== null ? (
+            <FileTable torrentId={currentTorrentId} remoteAccess={remoteAccess} />
+          ) : activeTab === "pieces" && currentTorrentId !== null ? (
+            <PieceMapPanel torrentId={currentTorrentId} />
+          ) : activeTab === "disk" ? (
+            <DiskPanel />
+          ) : activeTab === "speed" ? (
+            <SpeedPanel />
+          ) : activeTab === "dht" ? (
+            <DhtPanel />
+          ) : activeTab === "general" && torrent !== undefined ? (
+            <GeneralDetail key={torrent.id} torrent={torrent} />
+          ) : activeTab === "logs" ? (
+            <LogConsole />
+          ) : (
+            <UnavailableDetail />
+          )}
+        </div>
+      </TableToolbarSlot.Provider>
     </section>
+  );
+}
+
+/** The narrow app bar's Start or Pause, with every other action under ⋮. */
+function DetailAppBarActions({ torrentId }: { readonly torrentId: string }) {
+  const { actionsFor, runAction } = useTorrentActions();
+  const actions = actionsFor([torrentId]);
+  const toggle = ["pause", "start"]
+    .map((id) => actions.find((action) => action.id === id))
+    .find((action) => action !== undefined && !action.disabled);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      {toggle === undefined ? null : (
+        <button
+          type="button"
+          className={styles.appBarButton}
+          aria-label={toggle.resolvedLabel}
+          title={toggle.resolvedLabel}
+          onClick={(event) =>
+            void runAction(toggle.id, [torrentId], {
+              type: "toolbar",
+              element: event.currentTarget,
+            })
+          }
+        >
+          <Icon name={toggle.icon} />
+        </button>
+      )}
+      <ActionMenuTrigger>
+        <OverlayButton
+          ref={menuRef}
+          className={styles.appBarButton!}
+          aria-label={localizedMessage("inspection.components.detail.pane.more.actions")}
+        >
+          <Icon name="moreVertical" />
+        </OverlayButton>
+        <ActionMenuPopover
+          label={localizedMessage("inspection.components.detail.pane.more.actions")}
+        >
+          <TorrentActionMenuItems
+            actions={actions.filter((action) => action !== toggle)}
+            onAction={(actionId) =>
+              void runAction(actionId, [torrentId], {
+                type: "toolbar",
+                element: menuRef.current,
+              })
+            }
+          />
+        </ActionMenuPopover>
+      </ActionMenuTrigger>
+    </>
   );
 }
 

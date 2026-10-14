@@ -32,6 +32,7 @@ const columns = (
 ): readonly VirtualColumn<TorrentRow>[] => [
   {
     id: "name",
+    listRole: "title",
     label: localizedMessage("inspection.components.torrent.table.name"),
     width: 330,
     sortable: true,
@@ -62,6 +63,7 @@ const columns = (
   },
   {
     id: "progress",
+    listRole: "wide",
     label: localizedMessage("inspection.components.torrent.table.done"),
     width: 190,
     align: "right",
@@ -71,6 +73,7 @@ const columns = (
   },
   {
     id: "status",
+    listRole: "subtitle",
     label: localizedMessage("inspection.components.torrent.table.status"),
     width: 112,
     sortable: true,
@@ -79,6 +82,7 @@ const columns = (
   },
   {
     id: "down",
+    listRole: "detail",
     label: localizedMessage("inspection.components.torrent.table.down"),
     width: 100,
     align: "right",
@@ -88,6 +92,7 @@ const columns = (
   },
   {
     id: "up",
+    listRole: "detail",
     label: localizedMessage("inspection.components.torrent.table.up"),
     width: 92,
     align: "right",
@@ -97,6 +102,7 @@ const columns = (
   },
   {
     id: "peers",
+    listRole: "detail",
     label: localizedMessage("inspection.components.torrent.table.peers"),
     width: 72,
     align: "right",
@@ -109,6 +115,7 @@ const columns = (
   },
   {
     id: "eta",
+    listRole: "detail",
     label: localizedMessage("inspection.components.torrent.table.eta"),
     width: 84,
     align: "right",

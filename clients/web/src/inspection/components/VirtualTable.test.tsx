@@ -13,7 +13,11 @@ import {
 import { useState } from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { VirtualTable, type VirtualColumn } from "./VirtualTable";
+import {
+  TableToolbarSlot,
+  VirtualTable,
+  type VirtualColumn,
+} from "./VirtualTable";
 
 interface Row {
   readonly id: string;
@@ -772,6 +776,166 @@ describe("VirtualTable", () => {
     act(() => vi.advanceTimersByTime(500));
     expect(change).toHaveBeenCalledWith(["one"], "one");
     vi.useRealTimers();
+  });
+});
+
+interface Item {
+  readonly id: string;
+  readonly name: string;
+  readonly state: string;
+  readonly size: number;
+  readonly note: string | null;
+}
+
+const ITEMS: readonly Item[] = [
+  { id: "a", name: "Alpha", state: "Seeding", size: 3, note: null },
+  { id: "b", name: "Bravo", state: "Paused", size: 9, note: "slow" },
+];
+
+const LIST_COLUMNS: readonly VirtualColumn<Item>[] = [
+  {
+    id: "state",
+    label: "State",
+    width: 100,
+    listRole: "subtitle",
+    sortValue: (item) => item.state,
+    render: (item) => item.state,
+  },
+  {
+    id: "name",
+    label: "Name",
+    width: 200,
+    listRole: "title",
+    sortValue: (item) => item.name,
+    render: (item) => item.name,
+  },
+  {
+    id: "size",
+    label: "Size",
+    width: 80,
+    listRole: "detail",
+    sortValue: (item) => item.size,
+    render: (item) => `${item.size} MB`,
+  },
+  {
+    id: "note",
+    label: "Note",
+    width: 80,
+    listRole: "detail",
+    sortValue: (item) => item.note,
+    render: (item) => item.note ?? "—",
+  },
+  {
+    id: "hidden",
+    label: "Hidden",
+    width: 80,
+    render: () => "table only",
+  },
+];
+
+describe("VirtualTable narrow list", () => {
+  const originalMatchMedia = window.matchMedia;
+
+  beforeAll(() => {
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes("max-width"),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  afterAll(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it("stacks role columns into one item and sorts from the toolbar", () => {
+    const { container } = render(
+      <VirtualTable
+        tableId="list-test"
+        label="Items"
+        rows={ITEMS}
+        getRowId={(item) => item.id}
+        columns={LIST_COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="None"
+      />,
+    );
+
+    expect(screen.queryAllByRole("columnheader")).toEqual([]);
+    expect(screen.queryByRole("button", { name: "Columns" })).toBeNull();
+    const [alpha, bravo] = screen.getAllByRole("gridcell");
+    expect(alpha).toHaveTextContent(/^AlphaSeedingSize 3 MB$/);
+    expect(bravo).toHaveTextContent(/^BravoPausedSize 9 MBNote slow$/);
+    expect(container).not.toHaveTextContent("table only");
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), {
+      target: { value: "size" },
+    });
+    expect(rowIds(container)).toEqual(["a", "b"]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Sorted ascending; switch to descending" }),
+    );
+    expect(rowIds(container)).toEqual(["b", "a"]);
+  });
+
+  it("opens a row, or toggles it while several are selected", () => {
+    const activate = vi.fn();
+    const change = vi.fn();
+    const table = (selected: readonly string[]) => (
+      <VirtualTable
+        tableId="list-selection"
+        label="Items"
+        rows={ITEMS}
+        getRowId={(item) => item.id}
+        columns={LIST_COLUMNS}
+        interfaceSize="standard"
+        currentRowId="a"
+        selection={{
+          selectedIds: new Set(selected),
+          getRowLabel: (item) => item.name,
+          onChange: change,
+        }}
+        onActivate={activate}
+        emptyMessage="None"
+      />
+    );
+    const { rerender } = render(table(["a"]));
+    expect(screen.queryAllByRole("checkbox")).toEqual([]);
+    fireEvent.click(screen.getByRole("row", { name: /Bravo/ }));
+    expect(activate).toHaveBeenCalledTimes(1);
+
+    activate.mockClear();
+    change.mockClear();
+    rerender(table(["a", "b"]));
+    expect(checkedRowNames()).toEqual(["Alpha", "Bravo"]);
+    fireEvent.click(screen.getByRole("row", { name: /Bravo/ }));
+    expect(activate).not.toHaveBeenCalled();
+    expect(change).toHaveBeenCalledWith(["a"], "a");
+  });
+});
+
+describe("VirtualTable toolbar slot", () => {
+  it("moves its count and controls into the provided bar", () => {
+    const slot = document.createElement("div");
+    document.body.append(slot);
+    render(
+      <TableToolbarSlot.Provider value={slot}>
+        <VirtualTable
+          tableId="slot-test"
+          label="Items"
+          rows={ITEMS}
+          getRowId={(item) => item.id}
+          columns={LIST_COLUMNS}
+          interfaceSize="standard"
+          formatCount={(count) => `${count} items`}
+          emptyMessage="None"
+        />
+      </TableToolbarSlot.Provider>,
+    );
+    expect(slot).toHaveTextContent("2 items");
+    expect(slot).toContainElement(screen.getByRole("button", { name: "Columns" }));
+    slot.remove();
   });
 });
 

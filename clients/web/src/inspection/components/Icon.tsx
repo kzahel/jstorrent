@@ -2,6 +2,7 @@ import type { SVGProps } from "react";
 
 export type IconName =
   | "archive"
+  | "arrowBack"
   | "chevronDown"
   | "close"
   | "copy"
@@ -9,6 +10,7 @@ export type IconName =
   | "link"
   | "magnet"
   | "menu"
+  | "moreVertical"
   | "pause"
   | "play"
   | "plus"
@@ -52,6 +54,8 @@ function IconPaths({ name }: { readonly name: IconName }) {
           <path d="M2.5 3.75h15v2.75h-15zM7.5 10h5" />
         </>
       );
+    case "arrowBack":
+      return <path d="M16 10H4.5M9.25 4.75 4 10l5.25 5.25" />;
     case "chevronDown":
       return <path d="m5.5 7.75 4.5 4.5 4.5-4.5" />;
     case "close":
@@ -87,6 +91,14 @@ function IconPaths({ name }: { readonly name: IconName }) {
       );
     case "menu":
       return <path d="M3.5 5.25h13M3.5 10h13M3.5 14.75h13" />;
+    case "moreVertical":
+      return (
+        <>
+          <circle cx="10" cy="4.75" r="0.6" />
+          <circle cx="10" cy="10" r="0.6" />
+          <circle cx="10" cy="15.25" r="0.6" />
+        </>
+      );
     case "pause":
       return <path d="M7 5v10M13 5v10" />;
     case "play":

@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const screenshotDirectory = process.env.RSTORRENT_SCREENSHOT_DIR;
 
@@ -400,21 +400,35 @@ test("phone destinations and contextual filters remain reachable", async ({
       name: "Done selecting rows in Torrents",
     })
     .click();
-  await expect(
-    page.getByRole("checkbox", { name: "Select Sintel 4K open movie" }),
-  ).not.toBeChecked();
+  // A phone list shows checkboxes only while several rows are selected.
+  await expect(transferGrid.getByRole("checkbox")).toHaveCount(0);
+  const toggleNavigation = page.getByRole("button", {
+    name: "Toggle navigation",
+  });
   const primary = page.getByRole("navigation", { name: "Primary" });
+  await toggleNavigation.click();
+  await expect(
+    page.getByRole("navigation", { name: "Torrent filters" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Session views" }),
+  ).toBeVisible();
+  await capture(page, "rstorrent-navigation-phone.png");
   await primary.getByRole("button", { name: "Library" }).click();
   await expect(
     page.getByRole("list", { name: "Torrent-backed content" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Toggle Library filters" }).click();
+  await expect(page.locator("header")).toContainText("Library");
+  await toggleNavigation.click();
   await expect(
     page.getByRole("navigation", { name: "Library filters" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Toggle Library filters" }).click();
+  await page
+    .getByRole("button", { name: "Close navigation" })
+    .click({ position: { x: 370, y: 400 } });
   await capture(page, "rstorrent-library-phone.png");
 
+  await toggleNavigation.click();
   await primary.getByRole("button", { name: "Torrents" }).click();
   await expect(
     page.getByRole("grid", { name: "Torrents" }),
@@ -576,18 +590,18 @@ test("typed torrent ETA stays explicit across responsive surfaces", async ({
     ),
   ).toEqual([]);
 
+  // A phone renders the table as a list that keeps the typed ETA and
+  // never scrolls sideways.
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(
-    transfers.getByRole("columnheader", { name: "ETA" }),
-  ).toHaveCount(1);
-  await expect(transfers.getByRole("columnheader", { name: "Name" })).toBeVisible();
+  await expect(transfers.getByRole("columnheader")).toHaveCount(0);
+  await expect(primary.getByLabel("Transfer stalled")).toHaveText("∞");
   await expect
     .poll(() =>
       transfers.evaluate(
         (element) => element.scrollWidth > element.clientWidth,
       ),
     )
-    .toBe(true);
+    .toBe(false);
   expect(
     (await new AxeBuilder({ page }).analyze()).violations.filter(
       (violation) =>
@@ -637,7 +651,9 @@ test("detail tabs keep equal stable footprints with narrow scrolling", async ({
         .locator("[data-row-id]")
         .first()
         .click();
-      await expect(tabs).toHaveCount(10);
+      // Phone session views live in the navigation drawer.
+      await expect(tabs).toHaveCount(6);
+      tabNames.splice(6);
     }
     const initialGeometry = await tabGeometry(page);
     expect(new Set(initialGeometry.map((tab) => tab.width)).size).toBe(1);
@@ -1303,7 +1319,7 @@ test("compact tracker recovery remains legible", async ({ page }) => {
     .click();
   await expect(trackers).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Torrents", exact: true }),
+    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true }),
   ).toBeVisible();
   await expect
     .poll(async () =>
@@ -1345,84 +1361,23 @@ test("swarm lifecycle remains readable and accessible across layouts", async ({
     .click();
   await expect(swarm).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Torrents", exact: true }),
+    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true }),
   ).toBeVisible();
-  const expectedColumns = [
-    "State",
-    "Address",
-    "Sources",
-    "Last seen",
-    "Retry",
-    "Downloaded",
-    "Uploaded",
-    "Dials",
-    "Fails",
-    "Trust",
-    "Parole",
-  ];
-  const columns = page.getByRole("button", { name: "Columns" }).last();
-  await columns.click();
-  const columnDialog = page.getByRole("dialog", {
-    name: "Table column settings",
-  });
-  for (const name of expectedColumns) {
-    await expect(
-      columnDialog.getByRole("checkbox", { name }),
-    ).toBeChecked();
-  }
-  await page.keyboard.press("Escape");
-  await expect(columnDialog).not.toBeVisible();
-
+  // Phone widths list each peer instead of scrolling a wide table.
   for (const width of [390, 456]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1024 });
     await expect(swarm).toBeVisible();
-    await expect
-      .poll(() =>
-        swarm.getByRole("columnheader").evaluateAll((headers) =>
-          headers.map((header) => header.getAttribute("aria-label")),
-        ),
-      )
-      .toEqual(expectedColumns);
-    await swarm.evaluate((element) => {
-      element.scrollLeft = 0;
-      element.dispatchEvent(new Event("scroll"));
-    });
-    await expect
-      .poll(() =>
-        swarm.evaluate((element) => ({
-          clientWidth: element.clientWidth,
-          scrollWidth: element.scrollWidth,
-        })),
-      )
-      .toMatchObject({ clientWidth: width });
+    await expect(swarm.getByRole("columnheader")).toHaveCount(0);
+    await expect(swarm.getByText("backed off").first()).toBeVisible();
+    await expect(swarm.getByText(/TRACKER · DHT/).first()).toBeVisible();
+    await expect(
+      page.getByRole("combobox", { name: "Sort by" }),
+    ).toBeVisible();
     expect(
       await swarm.evaluate(
         (element) => element.scrollWidth > element.clientWidth,
       ),
-    ).toBe(true);
-    const tableContainer = swarm.locator("..");
-    await expect(tableContainer).toHaveAttribute("data-overflow-left", "false");
-    await expect(tableContainer).toHaveAttribute("data-overflow-right", "true");
-
-    await swipeTableLeft(page, swarm);
-    await expect
-      .poll(() => swarm.evaluate((element) => element.scrollLeft))
-      .toBeGreaterThan(0);
-    await expect(tableContainer).toHaveAttribute("data-overflow-left", "true");
-
-    await swarm.evaluate((element) => {
-      element.scrollLeft = element.scrollWidth;
-      element.dispatchEvent(new Event("scroll"));
-    });
-    await expect(tableContainer).toHaveAttribute("data-overflow-right", "false");
-    const finalColumnBounds = await swarm
-      .getByRole("columnheader", { name: "Parole" })
-      .boundingBox();
-    expect(finalColumnBounds).not.toBeNull();
-    expect(finalColumnBounds!.x).toBeGreaterThanOrEqual(0);
-    expect(finalColumnBounds!.x + finalColumnBounds!.width).toBeLessThanOrEqual(
-      width,
-    );
+    ).toBe(false);
   }
   violations = (await new AxeBuilder({ page }).analyze()).violations.filter(
     (violation) =>
@@ -1458,13 +1413,9 @@ test("global disk pipeline shows pressure and responsive piece work", async ({
   await capture(page, "rstorrent-disk-compact.png");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page
-    .getByRole("grid", { name: "Torrents" })
-    .getByRole("row")
-    .filter({ hasText: "Big Buck Bunny" })
-    .click();
+  await openPhoneSessionView(page, "Disk");
   await expect(
-    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Torrents", exact: true }),
+    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true }),
   ).toBeVisible();
   await expect(pieces).toBeVisible();
   await expect
@@ -1529,12 +1480,9 @@ test("speed history stays exact, selectable, and accessible", async ({
   expect(violations).toEqual([]);
   await capture(page, "rstorrent-speed-wide.png");
 
+  // A phone opens session views from the navigation drawer.
   await page.setViewportSize({ width: 390, height: 844 });
-  await page
-    .getByRole("grid", { name: "Torrents" })
-    .getByRole("row")
-    .filter({ hasText: "Big Buck Bunny" })
-    .click();
+  await openPhoneSessionView(page, "Speed");
   await expect(chart).toBeVisible();
   await capture(page, "rstorrent-speed-phone.png");
 
@@ -1602,10 +1550,10 @@ test("piece canvas shows retry truth and bounds a large torrent", async ({
   await page
     .getByRole("grid", { name: "Torrents" })
     .getByRole("row")
-    .nth(1)
+    .first()
     .click();
   await expect(
-    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Torrents", exact: true }),
+    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true }),
   ).toBeVisible();
   await expect
     .poll(async () =>
@@ -1653,7 +1601,7 @@ test("metadata preparation stays compact and accessible across widths", async ({
   await page
     .getByRole("grid", { name: "Torrents" })
     .getByRole("row")
-    .nth(1)
+    .first()
     .click();
   await expect(map).toBeVisible();
   const phoneOverflow = await page.evaluate(
@@ -1757,9 +1705,10 @@ test("diagnostic console stays ordered, filtered, and virtualized", async ({
   }
   await capture(page, "rstorrent-diagnostic-console-wide.png");
 
+  // A phone opens the Logs view from the navigation drawer.
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("row", { name: /Big Buck Bunny/ }).click();
-  await page.getByRole("tab", { name: "Logs" }).click();
+  await expect(page.getByRole("grid", { name: "Torrents" })).toBeVisible();
+  await openPhoneSessionView(page, "Logs");
   const phoneFeed = page.getByRole("log", {
     name: "Chronological diagnostic events",
   });
@@ -1776,7 +1725,7 @@ test("phone navigation opens a full detail surface", async ({ page }) => {
   await expect(library).toBeVisible();
   await library.getByRole("row").filter({ hasText: "Big Buck Bunny" }).click();
   const backButton = page.getByRole("region", { name: "Torrent details" }).getByRole("button", {
-    name: "Torrents",
+    name: "Back",
     exact: true,
   });
   await expect(backButton).toBeVisible();
@@ -1792,7 +1741,7 @@ test("Workbench detail has a return path at the layout breakpoint", async ({ pag
   await page.setViewportSize({ width: 760, height: 844 });
   await openScenario(page, "healthy-download", 42_000);
   const library = page.getByRole("grid", { name: "Torrents" });
-  const backButton = page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Torrents", exact: true });
+  const backButton = page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true });
 
   for (const width of [700, 701, 730, 760]) {
     await page.setViewportSize({ width, height: 844 });
@@ -2058,7 +2007,7 @@ test("full file catalog stays virtualized across wide compact and phone layouts"
     .click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
-    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Torrents", exact: true }),
+    page.getByRole("region", { name: "Torrent details" }).getByRole("button", { name: "Back", exact: true }),
   ).toBeVisible();
   await expect(files).toBeVisible();
   await expect
@@ -2070,12 +2019,13 @@ test("full file catalog stays virtualized across wide compact and phone layouts"
         ),
     )
     .toBeLessThanOrEqual(0);
-  await columns.click();
-  await expect(
-    page.getByRole("dialog", { name: "Table column settings" }),
-  ).toBeVisible();
-  await capture(page, "rstorrent-columns-phone.png");
-  await page.keyboard.press("Escape");
+  // The phone list sorts from its toolbar instead of column headers.
+  await expect(files.getByRole("columnheader")).toHaveCount(0);
+  const sort = page.getByRole("combobox", { name: "Sort by" });
+  await sort.selectOption({ label: "Size" });
+  await expect(sort).toHaveValue("size");
+  expect(await files.getByRole("row").count()).toBeLessThanOrEqual(100);
+  await capture(page, "rstorrent-files-phone.png");
   await page.getByRole("button", { name: "More file actions" }).click();
   const phoneFileActions = page.getByRole("menu", {
     name: "More file actions",
@@ -2110,74 +2060,17 @@ async function openScenario(
   autoplay = false,
 ) {
   await page.goto(`/?demo=${scenario}&at=${at}&autoplay=${autoplay ? 1 : 0}`);
-  await expect(page.getByText("JSTorrent", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Settings", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Demo data", { exact: true })).toBeVisible();
+  // Narrow layouts keep the destinations in the navigation drawer.
+  const drawer = page.getByRole("button", { name: "Toggle navigation" });
+  if (await drawer.isVisible()) await drawer.click();
   await page
     .getByRole("navigation", { name: "Primary" })
     .getByRole("button", { name: "Torrents" })
     .click();
-}
-
-async function swipeTableLeft(page: Page, table: Locator) {
-  const bounds = await table.boundingBox();
-  expect(bounds).not.toBeNull();
-  const startX = Math.round(bounds!.x + bounds!.width - 36);
-  const endX = Math.round(bounds!.x + 36);
-  const y = Math.round(
-    Math.min(bounds!.y + 100, bounds!.y + bounds!.height - 24),
-  );
-  const session = await page.context().newCDPSession(page);
-  try {
-    const completion = await table.evaluateHandle((element) => {
-      const state = { released: false, finished: false };
-      const onScrollEnd = () => {
-        if (state.released && element.scrollLeft > 0) state.finished = true;
-      };
-      element.addEventListener("scrollend", onScrollEnd);
-      return {
-        state,
-        dispose: () => element.removeEventListener("scrollend", onScrollEnd),
-      };
-    });
-    try {
-      // Native event timestamps model a drag followed by a stationary hold.
-      // Releasing with zero velocity avoids a fling crossing later resets.
-      const startedAt = Date.now() / 1000 - 0.6;
-      await session.send("Input.dispatchTouchEvent", {
-        type: "touchStart",
-        touchPoints: [{ x: startX, y }],
-        timestamp: startedAt,
-      });
-      for (let step = 1; step <= 6; step += 1) {
-        await session.send("Input.dispatchTouchEvent", {
-          type: "touchMove",
-          touchPoints: [
-            { x: Math.round(startX + ((endX - startX) * step) / 6), y },
-          ],
-          timestamp: startedAt + step * 0.05,
-        });
-      }
-      await completion.evaluate(({ state }) => {
-        state.released = true;
-      });
-      await session.send("Input.dispatchTouchEvent", {
-        type: "touchEnd",
-        touchPoints: [],
-        timestamp: Date.now() / 1000,
-      });
-      await expect
-        .poll(() => completion.evaluate(({ state }) => state.finished))
-        .toBe(true);
-    } finally {
-      try {
-        await completion.evaluate(({ dispose }) => dispose());
-      } finally {
-        await completion.dispose();
-      }
-    }
-  } finally {
-    await session.detach();
-  }
 }
 
 async function setDataUnits(page: Page, label: "Decimal" | "Binary") {
@@ -2197,6 +2090,14 @@ async function expectVisibleUnits(page: Page, dataUnits: "decimal" | "binary") {
       ? /\d+(?:\.\d)? (?:kB|MB|GB|TB|PB)(?:\/s)?/
       : /\d+(?:\.\d)? (?:KB|MB|GB|TB|PB)(?:\/s)?/;
   await expect(page.getByText(pattern).first()).toBeVisible();
+}
+
+async function openPhoneSessionView(page: Page, name: string) {
+  await page.getByRole("button", { name: "Toggle navigation" }).click();
+  await page
+    .getByRole("navigation", { name: "Session views" })
+    .getByRole("button", { name })
+    .click();
 }
 
 async function tabGeometry(page: Page) {

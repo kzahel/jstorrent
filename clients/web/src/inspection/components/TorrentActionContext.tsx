@@ -161,8 +161,20 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
   }, []);
 
   const targetRows = useCallback(
-    (targetIds: readonly string[]) =>
-      orderedSelectedTorrentRows(order, torrents, new Set(targetIds)),
+    (targetIds: readonly string[]) => {
+      const ordered = orderedSelectedTorrentRows(
+        order,
+        torrents,
+        new Set(targetIds),
+      );
+      // A narrow detail stops the list subscription, so its torrent can
+      // be known without a place in the order.
+      return ordered.length > 0 || targetIds.length !== 1
+        ? ordered
+        : targetIds
+            .map((id) => torrents[id])
+            .filter((row): row is TorrentRow => row !== undefined);
+    },
     [order, torrents],
   );
 

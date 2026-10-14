@@ -18,6 +18,7 @@ import styles from "./PeerTable.module.css";
 const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   {
     id: "state",
+    listRole: "trailing",
     label: localizedMessage("inspection.components.peer.table.state"),
     width: 104,
     sortable: true,
@@ -39,6 +40,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "endpoint",
+    listRole: "subtitle",
     label: localizedMessage("inspection.components.peer.table.address"),
     width: 188,
     sortable: true,
@@ -47,6 +49,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "client",
+    listRole: "title",
     label: localizedMessage("inspection.components.peer.table.client"),
     width: 154,
     sortable: true,
@@ -65,6 +68,8 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "progress",
+    listRole: "detail",
+    listLabel: null,
     label: "%",
     width: 64,
     align: "right",
@@ -76,6 +81,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "down",
+    listRole: "detail",
     label: localizedMessage("inspection.components.peer.table.down"),
     width: 96,
     align: "right",
@@ -86,6 +92,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "up",
+    listRole: "detail",
     label: localizedMessage("inspection.components.peer.table.up"),
     width: 96,
     align: "right",

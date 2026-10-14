@@ -48,6 +48,7 @@
 .back:hover,
 .workbench:hover,
 .tabs button:hover { background: var(--surface-hover); }
+.back svg,
 .workbench svg { width: var(--ui-icon-size); height: var(--ui-icon-size); }
 
 .body {
@@ -221,13 +222,30 @@
   .summaryText { align-content: center; margin: 0; }
 }
 
-@media (max-width: 680px) {
-  .header { gap: var(--ui-space-sm); padding: var(--ui-space-sm); }
-  .header h1 { font-size: var(--ui-font-heading); }
-  .back { width: var(--ui-control-height); padding: 0; font-size: 0; }
-  .back > span:first-child { font-size: var(--ui-icon-size); }
-  .workbench { width: var(--ui-control-height); padding: 0; }
+/* The narrow detail's header is the app bar, as in the torrent detail. */
+@media (max-width: 760px) {
+  .header {
+    height: var(--ui-header-height);
+    gap: 0.25rem;
+    padding: 0 var(--ui-header-padding-inline);
+    background: var(--surface-secondary);
+  }
+  .header h1 { font-size: var(--ui-font-body); }
+  .back,
+  .workbench {
+    width: var(--ui-control-height);
+    border: 0;
+    padding: 0;
+    color: var(--text-secondary);
+    background: transparent;
+  }
+  .back span,
   .workbench span { display: none; }
+  .back svg,
+  .workbench svg {
+    width: calc(var(--ui-icon-size) * 1.15);
+    height: calc(var(--ui-icon-size) * 1.15);
+  }
   .summary { grid-template-columns: 6.5rem minmax(0, 1fr); padding: var(--ui-space-sm); }
   .summaryText { gap: 0.15rem; }
   .summaryText > span:nth-of-type(3) { display: none; }

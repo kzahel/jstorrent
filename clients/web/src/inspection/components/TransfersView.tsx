@@ -1,11 +1,12 @@
 import { message as localizedMessage } from "../../localization/runtime";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useInspectionStore } from "../context";
 import type { TorrentCategory, TorrentRow } from "../model";
 import { torrentMatchesCategory } from "../state";
 import { TorrentActions } from "./TorrentActions";
 import { TransferTable } from "./TransferTable";
+import { TableToolbarSlot } from "./VirtualTable";
 import styles from "./TransfersView.module.css";
 
 interface TransfersViewProps {
@@ -21,6 +22,10 @@ export function TransfersView({
   const torrents = useInspectionStore((state) => state.torrents);
   const category = useInspectionStore(
     (state) => state.presentation.transfersCategory,
+  );
+  const layout = useInspectionStore((state) => state.presentation.layout);
+  const [tableToolbar, setTableToolbar] = useState<HTMLDivElement | null>(
+    null,
   );
   const rows = useMemo(
     () =>
@@ -52,9 +57,14 @@ export function TransfersView({
       <TorrentActions
         showCrostiniStorageHelp={showCrostiniStorageHelp}
         oneCurrentRoot={oneCurrentRoot}
+        tableToolbarRef={setTableToolbar}
       />
       <div className={styles.table}>
-        <TransferTable />
+        <TableToolbarSlot.Provider
+          value={layout === "phone" ? null : tableToolbar}
+        >
+          <TransferTable />
+        </TableToolbarSlot.Provider>
       </div>
     </section>
   );

@@ -10,7 +10,11 @@ import type { FileRow, ViewMaterialization } from "../model";
 import type { DesktopRemoteAccess } from "../remote-access/types";
 import { FileActionsMenu } from "./FileActionsMenu";
 import { FileActionMenuItems } from "./FileActionMenuItems";
-import { VirtualTable, type VirtualColumn } from "./VirtualTable";
+import {
+  TableToolbarSlot,
+  VirtualTable,
+  type VirtualColumn,
+} from "./VirtualTable";
 import { ActionMenuPopover } from "./overlays/AnchoredOverlay";
 import { useToast } from "./Toast";
 import styles from "./FileTable.module.css";
@@ -20,6 +24,7 @@ const DIRECT_SAVE_TOAST = "direct-save";
 const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
   {
     id: "name",
+    listRole: "title",
     label: localizedMessage("inspection.components.file.table.name"),
     width: 270,
     minimumWidth: 130,
@@ -33,6 +38,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
   },
   {
     id: "folder",
+    listRole: "subtitle",
     label: localizedMessage("inspection.components.file.table.folder"),
     width: 210,
     minimumWidth: 100,
@@ -42,6 +48,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
   },
   {
     id: "priority",
+    listRole: "trailing",
     label: localizedMessage("inspection.components.file.table.priority"),
     width: 76,
     sortValue: (row) => row.selection,
@@ -58,6 +65,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
   },
   {
     id: "size",
+    listRole: "detail",
     label: localizedMessage("inspection.components.file.table.size"),
     width: 92,
     align: "right",
@@ -67,6 +75,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<FileRow>[] => [
   },
   {
     id: "progress",
+    listRole: "wide",
     label: localizedMessage("inspection.components.file.table.progress"),
     width: 108,
     minimumWidth: 88,
@@ -176,6 +185,9 @@ export function FileTable({
     new Set(),
   );
   const [fileActionPending, setFileActionPending] = useState(false);
+  const [tableToolbar, setTableToolbar] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [directFileEnabled, setDirectFileEnabled] = useState<boolean | null>(null);
   const directSaveAbort = useRef<AbortController | null>(null);
   const execute = useInspectionCommand();
@@ -462,7 +474,6 @@ export function FileTable({
     <div className={styles.filePanel}>
       <div>
         <div className={styles.summary}>
-          <span>{rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.file.table.files")}</span>
           {paddingCount > 0 ? (
             <span>{paddingCount.toLocaleString()}{" "}{localizedMessage("inspection.components.file.table.padding.hidden")}</span>
           ) : null}
@@ -479,63 +490,66 @@ export function FileTable({
             directSave={toolbarDirectSave}
             onDirectSave={() => void runDirectSave()}
           />
+          <div ref={setTableToolbar} className={styles.tableToolbar} />
         </div>
       </div>
-      <VirtualTable
-        formatCount={(count) => localizedMessage("common.count.files", { count })}
-        tableId="files"
-        label={localizedMessage("inspection.components.file.table.torrent.files")}
-        rows={rows}
-        getRowId={(row) => row.id}
-        columns={displayColumns}
-        interfaceSize={interfaceSize}
-        currentRowId={currentFileId}
-        selection={{
-          selectedIds: selectedFileIds,
-          getRowLabel: (row) => row.name,
-          onChange: changeSelection,
-        }}
-        contextMenu={{
-          label: localizedMessage("inspection.components.file.table.file.actions"),
-          render: (_row, targetIds) => {
-            const targetIdSet = new Set(targetIds);
-            const actions = playbackActions(resolveFileActions(
-              targetIds.length,
-              rows.filter(
-                (row) =>
-                  targetIdSet.has(row.id) && row.selection === "skipped",
-              ).length,
-              fileActionPending,
-              unavailableReason,
-              targetIds.length === 1
-                ? rows.find((row) => row.id === targetIds[0])?.mediaAvailability
-                : undefined,
-              torrentArchived,
-            ), rows.filter(row => targetIdSet.has(row.id)));
-            const directSave = resolveDirectSave(
-              remoteAccess,
-              rows.filter((row) => targetIdSet.has(row.id)),
-              fileActionPending,
-              directFileEnabled,
-              unavailableReason,
-            );
-            return (
-              <ActionMenuPopover label={localizedMessage("inspection.components.file.table.file.actions")}>
-                <FileActionMenuItems
-                  actions={actions}
-                  onAction={(actionId) =>
-                    void runFileAction(actionId, targetIds)
-                  }
-                  directSave={directSave}
-                  onDirectSave={() => void runDirectSave(targetIds)}
-                />
-              </ActionMenuPopover>
-            );
-          },
-        }}
-        emptyMessage={fileEmptyMessage(materialization, fileSet?.state)}
-        initialSort={{ columnId: "index", direction: "asc" }}
-      />
+      <TableToolbarSlot.Provider value={tableToolbar}>
+        <VirtualTable
+          formatCount={(count) => localizedMessage("common.count.files", { count })}
+          tableId="files"
+          label={localizedMessage("inspection.components.file.table.torrent.files")}
+          rows={rows}
+          getRowId={(row) => row.id}
+          columns={displayColumns}
+          interfaceSize={interfaceSize}
+          currentRowId={currentFileId}
+          selection={{
+            selectedIds: selectedFileIds,
+            getRowLabel: (row) => row.name,
+            onChange: changeSelection,
+          }}
+          contextMenu={{
+            label: localizedMessage("inspection.components.file.table.file.actions"),
+            render: (_row, targetIds) => {
+              const targetIdSet = new Set(targetIds);
+              const actions = playbackActions(resolveFileActions(
+                targetIds.length,
+                rows.filter(
+                  (row) =>
+                    targetIdSet.has(row.id) && row.selection === "skipped",
+                ).length,
+                fileActionPending,
+                unavailableReason,
+                targetIds.length === 1
+                  ? rows.find((row) => row.id === targetIds[0])?.mediaAvailability
+                  : undefined,
+                torrentArchived,
+              ), rows.filter(row => targetIdSet.has(row.id)));
+              const directSave = resolveDirectSave(
+                remoteAccess,
+                rows.filter((row) => targetIdSet.has(row.id)),
+                fileActionPending,
+                directFileEnabled,
+                unavailableReason,
+              );
+              return (
+                <ActionMenuPopover label={localizedMessage("inspection.components.file.table.file.actions")}>
+                  <FileActionMenuItems
+                    actions={actions}
+                    onAction={(actionId) =>
+                      void runFileAction(actionId, targetIds)
+                    }
+                    directSave={directSave}
+                    onDirectSave={() => void runDirectSave(targetIds)}
+                  />
+                </ActionMenuPopover>
+              );
+            },
+          }}
+          emptyMessage={fileEmptyMessage(materialization, fileSet?.state)}
+          initialSort={{ columnId: "index", direction: "asc" }}
+        />
+      </TableToolbarSlot.Provider>
     </div>
   );
 }

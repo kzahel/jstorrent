@@ -153,6 +153,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
   return [
     {
       id: "url",
+      listRole: "title",
       label: localizedMessage("inspection.components.tracker.table.url"),
       width: 220,
       minimumWidth: 170,
@@ -166,6 +167,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
     },
     {
       id: "status",
+      listRole: "subtitle",
       label: localizedMessage("inspection.components.tracker.table.status"),
       width: 170,
       sortValue: (row) => row.status,
@@ -194,6 +196,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
     },
     {
       id: "peers",
+      listRole: "detail",
       label: localizedMessage("inspection.components.tracker.table.peers"),
       width: 70,
       align: "right",
@@ -203,6 +206,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
     },
     {
       id: "seeds",
+      listRole: "detail",
       label: localizedMessage("inspection.components.tracker.table.seeds"),
       width: 70,
       align: "right",
@@ -212,6 +216,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
     },
     {
       id: "leeches",
+      listRole: "detail",
       label: localizedMessage("inspection.components.tracker.table.leeches"),
       width: 76,
       align: "right",
@@ -221,6 +226,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
     },
     {
       id: "next",
+      listRole: "detail",
       label: localizedMessage("inspection.components.tracker.table.next.announce"),
       width: 132,
       sortKind: "number",

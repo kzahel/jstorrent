@@ -56,18 +56,14 @@ test("DHT observatory teaches normalized and literal routing encodings", async (
 test("DHT observatory keeps the complete normalized explanation on a narrow pane", async ({
   page,
 }) => {
+  // Narrow layouts open session views from the navigation drawer.
   await page.setViewportSize({ width: 720, height: 820 });
   await page.goto("/?demo=dht-observatory&at=50000&autoplay=0");
+  await page.getByRole("button", { name: "Toggle navigation" }).click();
   await page
-    .getByRole("navigation", { name: "Primary" })
-    .getByRole("button", { name: "Torrents" })
+    .getByRole("navigation", { name: "Session views" })
+    .getByRole("button", { name: "DHT" })
     .click();
-  await page
-    .getByRole("grid", { name: "Torrents" })
-    .getByRole("row")
-    .filter({ hasText: "Big Buck Bunny" })
-    .click();
-  await page.getByRole("tab", { name: "DHT" }).click();
 
   await expect(page.getByText("172", { exact: true })).toBeVisible();
   await expect(page.getByText("39 bits", { exact: true })).toBeVisible();

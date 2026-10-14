@@ -10,6 +10,7 @@ import {
 
 import type { DataUnits, InterfaceSize } from "../appearance";
 import { useInspectionStore } from "../context";
+import type { LayoutMode } from "../layout";
 import {
   checkingStatusLabel,
   formatBytes,
@@ -241,7 +242,7 @@ function VirtualLibraryGrid({
   readonly rows: readonly TorrentRow[];
   readonly currentId: string | null;
   readonly interfaceSize: InterfaceSize;
-  readonly layout: "wide" | "compact" | "phone";
+  readonly layout: LayoutMode;
   readonly dataUnits: DataUnits;
   readonly initialScrollTop: number;
   readonly returnFocusId: string | null;

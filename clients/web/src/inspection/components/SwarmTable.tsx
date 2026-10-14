@@ -11,6 +11,7 @@ import styles from "./SwarmTable.module.css";
 const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
   {
     id: "state",
+    listRole: "trailing",
     label: localizedMessage("inspection.components.swarm.table.state"),
     width: 132,
     sortable: true,
@@ -33,6 +34,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
   },
   {
     id: "endpoint",
+    listRole: "title",
     label: localizedMessage("inspection.components.swarm.table.address"),
     width: 192,
     minimumWidth: 150,
@@ -47,6 +49,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
   },
   {
     id: "sources",
+    listRole: "subtitle",
     label: localizedMessage("inspection.components.swarm.table.sources"),
     width: 136,
     sortable: true,
@@ -59,6 +62,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
   },
   {
     id: "lastSeen",
+    listRole: "detail",
     label: localizedMessage("inspection.components.swarm.table.last.seen"),
     width: 92,
     align: "right",
@@ -79,6 +83,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
   },
   {
     id: "downloaded",
+    listRole: "detail",
     label: localizedMessage("inspection.components.swarm.table.downloaded"),
     width: 104,
     align: "right",
@@ -92,6 +97,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
   },
   {
     id: "uploaded",
+    listRole: "detail",
     label: localizedMessage("inspection.components.swarm.table.uploaded"),
     width: 104,
     align: "right",
