@@ -15,6 +15,11 @@ import type { TorrentRow, ViewMaterialization } from "../model";
 import { torrentMatchesCategory } from "../state";
 import { VirtualTable, type VirtualColumn } from "./VirtualTable";
 import { TorrentStatus } from "./TorrentStatus";
+import {
+  ShowAllTorrentsButton,
+  categoryHidesTorrents,
+  torrentCategoryEmptyMessage,
+} from "./TorrentCategoryEmpty";
 import { TorrentContextMenu } from "./TorrentContextMenu";
 import {
   TorrentProgress,
@@ -188,7 +193,13 @@ export function TransferTable() {
             ? localizedMessage("inspection.components.transfer.table.nothing.downloading.yet")
             : category === "all"
               ? localizedMessage("inspection.components.transfer.table.no.transfers.yet.add.a.generated.demo")
-              : `No transfers in ${category}.`
+              : torrentCategoryEmptyMessage(category)
+      }
+      emptyAction={
+        materialization.status === "ready" &&
+        categoryHidesTorrents(category, torrents) ? (
+          <ShowAllTorrentsButton />
+        ) : undefined
       }
       initialSort={{ columnId: "name", direction: "asc" }}
     />

@@ -14,6 +14,11 @@ import {
 import type { TorrentRow, ViewMaterialization } from "../model";
 import { torrentMatchesCategory } from "../state";
 import { TorrentStatus } from "./TorrentStatus";
+import {
+  ShowAllTorrentsButton,
+  categoryHidesTorrents,
+  torrentCategoryEmptyMessage,
+} from "./TorrentCategoryEmpty";
 import { TorrentContextMenu } from "./TorrentContextMenu";
 import {
   TorrentProgress,
@@ -194,7 +199,13 @@ export function TorrentTable() {
             ? localizedMessage("inspection.components.torrent.table.no.torrents.yet")
             : category === "all"
               ? localizedMessage("inspection.components.torrent.table.no.torrents.yet.add.a.generated.demo")
-              : `No torrents in ${category}.`
+              : torrentCategoryEmptyMessage(category)
+      }
+      emptyAction={
+        materialization.status === "ready" &&
+        categoryHidesTorrents(category, torrents) ? (
+          <ShowAllTorrentsButton />
+        ) : undefined
       }
       initialSort={{ columnId: "name", direction: "asc" }}
     />

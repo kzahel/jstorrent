@@ -80,20 +80,13 @@ test("primary destinations preserve shared source state", async ({ page }) => {
     .getByRole("navigation", { name: "Torrent filters" })
     .getByRole("button", { name: /Paused/ })
     .click();
-  await expect(
-    page.getByText("2 selected (1 not shown)"),
-  ).toBeVisible();
+  await expect(page.getByText(/not shown/)).toHaveCount(0);
   await primary.getByRole("button", { name: "Library" }).click();
   await primary.getByRole("button", { name: "Torrents" }).click();
   await page.getByRole("navigation", { name: "Torrent filters" }).getByRole("button", { name: /All torrents/ }).click();
   await expect(
-    page.getByRole("checkbox", {
-      name: "Deselect Big Buck Bunny 1080p surround",
-    }),
-  ).toBeChecked();
-  await expect(
-    page.getByRole("checkbox", { name: "Deselect Sintel 4K open movie" }),
-  ).toBeChecked();
+    page.getByRole("checkbox", { name: /^Deselect / }),
+  ).toHaveCount(1);
 
   await primary.getByRole("button", { name: "Library" }).click();
   await expect(

@@ -3700,6 +3700,34 @@
     "defaultMessage": "Name",
     "description": "Product copy in inspection/components/TorrentTable.tsx"
   },
+  "inspection.components.torrent.category.empty.no.active.torrents": {
+    "defaultMessage": "No active torrents.",
+    "description": "Product copy in inspection/components/TorrentCategoryEmpty.tsx"
+  },
+  "inspection.components.torrent.category.empty.nothing.is.downloading": {
+    "defaultMessage": "Nothing is downloading.",
+    "description": "Product copy in inspection/components/TorrentCategoryEmpty.tsx"
+  },
+  "inspection.components.torrent.category.empty.no.completed.torrents": {
+    "defaultMessage": "No completed torrents.",
+    "description": "Product copy in inspection/components/TorrentCategoryEmpty.tsx"
+  },
+  "inspection.components.torrent.category.empty.no.paused.torrents": {
+    "defaultMessage": "No paused torrents.",
+    "description": "Product copy in inspection/components/TorrentCategoryEmpty.tsx"
+  },
+  "inspection.components.torrent.category.empty.no.torrents.need.attention": {
+    "defaultMessage": "No torrents need attention.",
+    "description": "Product copy in inspection/components/TorrentCategoryEmpty.tsx"
+  },
+  "inspection.components.torrent.category.empty.no.archived.torrents": {
+    "defaultMessage": "No archived torrents.",
+    "description": "Product copy in inspection/components/TorrentCategoryEmpty.tsx"
+  },
+  "inspection.components.torrent.category.empty.show.all.torrents": {
+    "defaultMessage": "Show all torrents",
+    "description": "Product copy in inspection/components/TorrentCategoryEmpty.tsx"
+  },
   "inspection.components.torrent.table.no.torrents.in.this.view": {
     "defaultMessage": "No torrents in this view.",
     "description": "Product copy in inspection/components/TorrentTable.tsx"

@@ -153,12 +153,19 @@ other selected rows remain, one of those rows becomes current; if none remain,
 current and detail clear. An explicitly empty selection does not invent a
 fallback on later updates.
 
-Transfers and Workbench share torrent selection across destinations. Targets
-hidden by a later filter remain selected, and status explicitly reports how
-many are outside the current view. Individual checkbox and modifier toggles,
-and the header checkbox, preserve hidden selection. Singleton row activation,
-Shift ranges, and Command/Control+A are exact replacement gestures and discard
-targets outside their new logical selection.
+Transfers and Workbench share torrent selection across destinations. Choosing
+a torrent category drops selected targets the category hides, matching Android
+tab changes, so bulk actions never reach rows the user just filtered away; if
+current is dropped, the first remaining target becomes current, otherwise
+current and detail clear. Targets can still be outside the current view after
+switching destination, and status then explicitly reports how many. Individual
+checkbox and modifier toggles, and the header checkbox, preserve hidden
+selection. Singleton row activation, Shift ranges, and Command/Control+A are
+exact replacement gestures and discard targets outside their new logical
+selection.
+
+When a category hides every torrent, the empty table names that category and
+offers Show all torrents; an empty session keeps its first-run guidance.
 
 Changing sort or filter invalidates a range anchor only when its row is no
 longer in the logical table. The next Shift gesture falls back to current and

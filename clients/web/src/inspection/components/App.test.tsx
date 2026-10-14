@@ -1756,7 +1756,7 @@ describe("inspection application", () => {
     expect(screen.getByText(/Select a torrent to see its details/i)).toBeVisible();
   });
 
-  it("preserves multi-selection across Library and torrent filters", async () => {
+  it("preserves multi-selection across Library and drops it for hidden torrents", async () => {
     const user = userEvent.setup();
     renderScenario("healthy-download", 42_000);
     expect(
@@ -1767,10 +1767,6 @@ describe("inspection application", () => {
     });
     expect(screen.getByText("2 selected")).toBeVisible();
     expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: /Paused/ }));
-    expect(
-      screen.getByText("2 selected (1 not shown)"),
-    ).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Library" }));
     await user.click(
@@ -1778,16 +1774,29 @@ describe("inspection application", () => {
         "button", { name: "Torrents" },
       ),
     );
+    expect(screen.getByText("2 selected")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: /Paused/ }));
+    expect(screen.queryByText(/not shown/)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /All torrents/ }));
     expect(
-      screen.getByRole("checkbox", {
-        name: "Deselect Big Buck Bunny 1080p surround",
-      }),
-    ).toBeChecked();
+      screen.getAllByRole("checkbox", { name: /^Deselect / }),
+    ).toHaveLength(1);
+  });
+
+  it("offers all torrents when a category filter hides every torrent", async () => {
+    const user = userEvent.setup();
+    renderScenario("healthy-download", 42_000);
+    await user.click(screen.getByRole("button", { name: /Needs attention/ }));
+    expect(screen.getByText("No torrents need attention.")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Show all torrents" }));
     expect(
-      screen.getByRole("checkbox", { name: "Deselect Sintel 4K open movie" }),
-    ).toBeChecked();
-    expect(screen.getByText("2 selected")).toBeVisible();
+      screen.getByRole("row", { name: /Sintel 4K open movie/ }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Show all torrents" }),
+    ).not.toBeInTheDocument();
   });
 
   it("uses exact torrent context targets and the shared grouped action set", async () => {

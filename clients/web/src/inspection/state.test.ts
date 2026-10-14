@@ -19,7 +19,7 @@ describe("inspection store", () => {
     store.getState().selectTorrentCategory("paused");
     store.getState().revealTorrent("added");
     expect(store.getState().presentation.pendingRevealTorrentId).toBe("added");
-    expect(store.getState().presentation.currentTorrentId).toBe("first");
+    expect(store.getState().presentation.currentTorrentId).toBeNull();
 
     store.getState().applyUpdate({
       type: "patch",
@@ -190,6 +190,42 @@ describe("inspection store", () => {
     });
     expect(store.getState().presentation.currentTorrentId).toBeNull();
     expect(store.getState().presentation.selectedTorrentIds).toEqual([]);
+  });
+
+  it("drops selected torrents a newly chosen category hides", () => {
+    const store = createInspectionStore(null);
+    store.getState().applyUpdate({
+      type: "snapshot",
+      snapshot: snapshot([
+        row("first", "downloading"),
+        row("second", "paused"),
+        row("third", "complete"),
+      ]),
+    });
+    store.getState().openTorrentDetail("first");
+    store.getState().setTorrentSelection(["first", "second", "third"], "first");
+
+    store.getState().selectTorrentCategory("paused");
+    expect(store.getState().presentation).toMatchObject({
+      workbenchCategory: "paused",
+      currentTorrentId: "second",
+      selectedTorrentIds: ["second"],
+      detailOpen: true,
+    });
+
+    store.getState().selectTorrentCategory("completed");
+    expect(store.getState().presentation).toMatchObject({
+      currentTorrentId: null,
+      selectedTorrentIds: [],
+      detailOpen: false,
+    });
+
+    store.getState().setTorrentSelection(["third"], "third");
+    store.getState().selectTorrentCategory("all");
+    expect(store.getState().presentation).toMatchObject({
+      currentTorrentId: "third",
+      selectedTorrentIds: ["third"],
+    });
   });
 
   it("keeps destination filters independent and persists navigation", () => {

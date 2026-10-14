@@ -6544,6 +6544,48 @@
       "value": " failed."
     }
   ],
+  "inspection.components.torrent.category.empty.no.active.torrents": [
+    {
+      "type": 0,
+      "value": "No active torrents."
+    }
+  ],
+  "inspection.components.torrent.category.empty.no.archived.torrents": [
+    {
+      "type": 0,
+      "value": "No archived torrents."
+    }
+  ],
+  "inspection.components.torrent.category.empty.no.completed.torrents": [
+    {
+      "type": 0,
+      "value": "No completed torrents."
+    }
+  ],
+  "inspection.components.torrent.category.empty.no.paused.torrents": [
+    {
+      "type": 0,
+      "value": "No paused torrents."
+    }
+  ],
+  "inspection.components.torrent.category.empty.no.torrents.need.attention": [
+    {
+      "type": 0,
+      "value": "No torrents need attention."
+    }
+  ],
+  "inspection.components.torrent.category.empty.nothing.is.downloading": [
+    {
+      "type": 0,
+      "value": "Nothing is downloading."
+    }
+  ],
+  "inspection.components.torrent.category.empty.show.all.torrents": [
+    {
+      "type": 0,
+      "value": "Show all torrents"
+    }
+  ],
   "inspection.components.torrent.context.menu.torrent.actions": [
     {
       "type": 0,

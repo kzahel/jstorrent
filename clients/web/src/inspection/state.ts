@@ -296,11 +296,36 @@ export function createInspectionStore(
     selectTorrentCategory: (category) => {
       set((state) => {
         if (state.presentation.destination === "library") return state;
+        // Drop selected torrents the new category hides so bulk actions
+        // only reach rows the user can see.
+        const selection = normalizeTorrentSelection(
+          state.presentation.selectedTorrentIds.filter((torrentId) => {
+            const torrent = state.torrents[torrentId];
+            return (
+              torrent !== undefined && torrentMatchesCategory(torrent, category)
+            );
+          }),
+          state.presentation.currentTorrentId,
+          state.torrents,
+        );
+        const currentChanged =
+          selection.currentTorrentId !== state.presentation.currentTorrentId;
         const presentation = {
           ...state.presentation,
           ...(state.presentation.destination === "transfers"
             ? { transfersCategory: category }
             : { workbenchCategory: category }),
+          ...selection,
+          ...(currentChanged
+            ? {
+                currentPeerId: null,
+                detailTarget: null,
+                detailOpen:
+                  selection.currentTorrentId === null
+                    ? false
+                    : state.presentation.detailOpen,
+              }
+            : {}),
           sidebarOpen: false,
         };
         persistNavigation(navigationPreferencesFor(presentation));

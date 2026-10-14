@@ -57,6 +57,8 @@ export interface VirtualTableProps<Row> {
   readonly onActivate?: (row: Row) => void;
   readonly onClearCurrent?: () => void;
   readonly emptyMessage: string;
+  /** Optional control under the empty message, such as clearing a filter. */
+  readonly emptyAction?: ReactNode;
   /** Names the row count, such as "3 torrents"; defaults to rows. */
   readonly formatCount?: (count: number) => string;
   readonly initialSort?: { readonly columnId: string; readonly direction: "asc" | "desc" };
@@ -107,6 +109,7 @@ export function VirtualTable<Row>({
   onActivate,
   onClearCurrent,
   emptyMessage,
+  emptyAction,
   formatCount,
   initialSort,
 }: VirtualTableProps<Row>) {
@@ -942,7 +945,10 @@ export function VirtualTable<Row>({
       </div>
       {sortedRows.length === 0 ? (
         <div className={styles.empty} onClick={activateBackground}>
-          {emptyMessage}
+          <div className={styles.emptyContent}>
+            <span>{emptyMessage}</span>
+            {emptyAction}
+          </div>
         </div>
       ) : (
         <div
