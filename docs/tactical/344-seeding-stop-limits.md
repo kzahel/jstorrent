@@ -311,9 +311,9 @@ web presentation commit that follows.
   `compileDebugAndroidTestKotlin`, `lintDebug` (no new warnings).
 - Open: the controlled pinned-libtorrent loopback upload across a limit was
   replaced by the in-process scripted peer, and a stop-at-completion test
-  (limit 0, completion milestone still recorded) was not written. iOS tests
-  did not run because `xcodegen` is not installed on this machine; the Swift
-  round-trip test was updated against the generated initializer.
+  (limit 0, completion milestone still recorded) was not written. `clients/ios/scripts/test.sh`
+  passed afterwards on an iPhone simulator (30 unit tests, including the
+  updated Swift seeding-contract round trip, and 5 UI tests).
 - Presentation choices: "Use global (No limit)" when the session limit is
   off, matching a torrent's own No limit; the list Status column truncates
   "Seeding limit reached" and shows it in full as a tooltip.
