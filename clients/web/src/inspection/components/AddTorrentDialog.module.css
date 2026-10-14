@@ -187,9 +187,11 @@
   outline: 2px solid var(--focus);
 }
 
+/* A fixed height keeps the buttons still while the list loads or the queue advances. */
 .selectionDialog {
   display: flex;
   width: min(43rem, 100%);
+  height: min(38rem, calc(100vh - 2rem));
   flex-direction: column;
 }
 
@@ -202,7 +204,8 @@
 }
 
 .metadataWait {
-  min-height: 12rem;
+  flex: 1 1 auto;
+  min-height: 6rem;
   place-content: center;
   text-align: center;
 }
@@ -239,8 +242,8 @@
 .selectionList {
   overflow-y: auto;
   position: relative;
-  min-height: 10rem;
-  max-height: min(25rem, 48vh);
+  flex: 1 1 auto;
+  min-height: 6rem;
   margin-top: 0.6rem;
   border-block: 1px solid var(--border-soft);
 }
