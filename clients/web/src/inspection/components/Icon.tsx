@@ -2,10 +2,13 @@ import type { SVGProps } from "react";
 
 export type IconName =
   | "archive"
+  | "check"
   | "chevronDown"
   | "close"
   | "copy"
   | "library"
+  | "link"
+  | "magnet"
   | "menu"
   | "pause"
   | "play"
@@ -50,6 +53,8 @@ function IconPaths({ name }: { readonly name: IconName }) {
           <path d="M2.5 3.75h15v2.75h-15zM7.5 10h5" />
         </>
       );
+    case "check":
+      return <path d="m4.5 10.5 3.5 3.5 7.5-8" />;
     case "chevronDown":
       return <path d="m5.5 7.75 4.5 4.5 4.5-4.5" />;
     case "close":
@@ -66,6 +71,21 @@ function IconPaths({ name }: { readonly name: IconName }) {
         <>
           <path d="M3.5 4.25h4v11.5h-4zM8.5 4.25h3.25v11.5H8.5z" />
           <path d="m13 5 3.5-.75 1.75 10.75-3.5.75z" />
+        </>
+      );
+    case "link":
+      return (
+        <>
+          <path d="m8.25 11.75 3.5-3.5" />
+          <path d="m9.25 6.25 1.5-1.5a3 3 0 0 1 4.25 4.25l-1.5 1.5" />
+          <path d="m10.75 13.75-1.5 1.5a3 3 0 0 1-4.25-4.25l1.5-1.5" />
+        </>
+      );
+    case "magnet":
+      return (
+        <>
+          <path d="M4 3.5h3.5V10a2.5 2.5 0 0 0 5 0V3.5H16V10a6 6 0 0 1-12 0z" />
+          <path d="M4 6.75h3.5M12.5 6.75H16" />
         </>
       );
     case "menu":

@@ -3696,34 +3696,46 @@
       "value": "checking"
     }
   ],
-  "inspection.components.detail.pane.connected.peers": [
+  "inspection.components.detail.pane.copy.failed": [
     {
       "type": 0,
-      "value": "Connected peers"
+      "value": "Couldn't copy to the clipboard"
     }
   ],
-  "inspection.components.detail.pane.current.check": [
+  "inspection.components.detail.pane.copy.info.hash": [
     {
       "type": 0,
-      "value": "Current check"
+      "value": "Copy info hash"
     }
   ],
-  "inspection.components.detail.pane.current.transfer": [
+  "inspection.components.detail.pane.copy.info.hash.v1": [
     {
       "type": 0,
-      "value": "Current transfer"
+      "value": "Copy v1 info hash"
+    }
+  ],
+  "inspection.components.detail.pane.copy.info.hash.v2": [
+    {
+      "type": 0,
+      "value": "Copy v2 info hash"
+    }
+  ],
+  "inspection.components.detail.pane.copy.magnet.link": [
+    {
+      "type": 0,
+      "value": "Copy magnet link"
+    }
+  ],
+  "inspection.components.detail.pane.copy.share.link": [
+    {
+      "type": 0,
+      "value": "Copy share link"
     }
   ],
   "inspection.components.detail.pane.download": [
     {
       "type": 0,
       "value": "download"
-    }
-  ],
-  "inspection.components.detail.pane.download.speed": [
-    {
-      "type": 0,
-      "value": "Download speed"
     }
   ],
   "inspection.components.detail.pane.downloaded": [
@@ -3736,18 +3748,6 @@
     {
       "type": 0,
       "value": "Finished time"
-    }
-  ],
-  "inspection.components.detail.pane.goal.not.reached": [
-    {
-      "type": 0,
-      "value": "Goal not reached"
-    }
-  ],
-  "inspection.components.detail.pane.goal.reached": [
-    {
-      "type": 0,
-      "value": "Goal reached"
     }
   ],
   "inspection.components.detail.pane.goal.seeding.download.time": [
@@ -3771,27 +3771,29 @@
   "inspection.components.detail.pane.goals.none.reached": [
     {
       "type": 0,
-      "value": "No goals reached yet."
+      "value": "None reached yet"
     }
   ],
   "inspection.components.detail.pane.goals.reached": [
     {
       "type": 0,
-      "value": "Goals reached: "
+      "value": "Reached: "
     },
     {
       "type": 1,
       "value": "goals"
-    },
-    {
-      "type": 0,
-      "value": "."
     }
   ],
   "inspection.components.detail.pane.info.hash": [
     {
       "type": 0,
       "value": "Info hash"
+    }
+  ],
+  "inspection.components.detail.pane.info.hash.copied": [
+    {
+      "type": 0,
+      "value": "Info hash copied"
     }
   ],
   "inspection.components.detail.pane.info.hash.v1": [
@@ -3806,10 +3808,10 @@
       "value": "Info hash (v2)"
     }
   ],
-  "inspection.components.detail.pane.known.peers": [
+  "inspection.components.detail.pane.magnet.link.copied": [
     {
       "type": 0,
-      "value": "Known peers"
+      "value": "Magnet link copied"
     }
   ],
   "inspection.components.detail.pane.matched": [
@@ -3828,6 +3830,26 @@
     {
       "type": 0,
       "value": "Nothing to show yet."
+    }
+  ],
+  "inspection.components.detail.pane.peers": [
+    {
+      "type": 0,
+      "value": "Peers"
+    }
+  ],
+  "inspection.components.detail.pane.peers.value": [
+    {
+      "type": 1,
+      "value": "connected"
+    },
+    {
+      "type": 0,
+      "value": " of "
+    },
+    {
+      "type": 1,
+      "value": "known"
     }
   ],
   "inspection.components.detail.pane.pieces.checked": [
@@ -3860,10 +3882,10 @@
       "value": "Seeding"
     }
   ],
-  "inspection.components.detail.pane.seeding": [
+  "inspection.components.detail.pane.seeding.goals": [
     {
       "type": 0,
-      "value": "Seeding"
+      "value": "Seeding goals"
     }
   ],
   "inspection.components.detail.pane.seeding.time": [
@@ -3878,6 +3900,12 @@
       "value": "Select a torrent to see its details"
     }
   ],
+  "inspection.components.detail.pane.share.link.copied": [
+    {
+      "type": 0,
+      "value": "Share link copied"
+    }
+  ],
   "inspection.components.detail.pane.share.ratio": [
     {
       "type": 0,
@@ -3888,6 +3916,50 @@
     {
       "type": 0,
       "value": "Size"
+    }
+  ],
+  "inspection.components.detail.pane.speed": [
+    {
+      "type": 0,
+      "value": "Speed"
+    }
+  ],
+  "inspection.components.detail.pane.speed.down": [
+    {
+      "type": 1,
+      "value": "download"
+    },
+    {
+      "type": 0,
+      "value": " down"
+    }
+  ],
+  "inspection.components.detail.pane.speed.up": [
+    {
+      "type": 1,
+      "value": "upload"
+    },
+    {
+      "type": 0,
+      "value": " up"
+    }
+  ],
+  "inspection.components.detail.pane.speed.value": [
+    {
+      "type": 1,
+      "value": "download"
+    },
+    {
+      "type": 0,
+      "value": " down · "
+    },
+    {
+      "type": 1,
+      "value": "upload"
+    },
+    {
+      "type": 0,
+      "value": " up"
     }
   ],
   "inspection.components.detail.pane.state.checking": [
@@ -3944,12 +4016,6 @@
       "value": "Stopping"
     }
   ],
-  "inspection.components.detail.pane.status": [
-    {
-      "type": 0,
-      "value": "Status"
-    }
-  ],
   "inspection.components.detail.pane.stop.seeding": [
     {
       "type": 0,
@@ -3978,12 +4044,6 @@
     {
       "type": 0,
       "value": "Torrents"
-    }
-  ],
-  "inspection.components.detail.pane.upload.speed": [
-    {
-      "type": 0,
-      "value": "Upload speed"
     }
   ],
   "inspection.components.detail.pane.uploaded": [

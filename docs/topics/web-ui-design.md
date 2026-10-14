@@ -1,5 +1,15 @@
 # Web UI Design
 
+Tactical [349](../tactical/349-general-tab-compact-header-and-links.md)
+replaces the General tab's summary card with one header line (name, copy
+magnet link, copy share link), one status line and a thin progress bar.
+Status, the Seeding row and the goals sentence collapse into that line and
+a `Seeding goals` metric; speeds and peers become one metric each, and
+Finished time shows only when it differs from Seeding time. Info hashes
+gain a copy button. Share links are
+`https://jstorrent.com/share/#<magnet query string>`, built from the
+engine's magnet export; the website page that reads them is a follow-up.
+
 Tactical [348](../tactical/348-torrent-list-export-import.md) adds a
 **Torrent list** card to Settings → Data & reset (export, Save to, keep
 matching folders, import with an inline summary) where the client supports

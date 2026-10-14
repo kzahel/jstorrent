@@ -1,5 +1,10 @@
 # Localization
 
+Tactical [349](../tactical/349-general-tab-compact-header-and-links.md)
+moves the compact General header, copy actions and merged metrics into the
+catalog under the Tactical 333 plain-copy check: 10 messages removed, 16
+added, 1,352 to 1,358. Shipping locales remain English.
+
 Tactical [333](../tactical/333-web-settings-plain-copy.md) applies the
 Tactical 331 cleanup to the shared React catalog: 1,357 to 1,336 messages,
 with 184 removed and 163 added. Settings, the Torrent settings dialog and the

@@ -193,7 +193,7 @@ test("production WebSocket UI bandwidth baseline", async ({ page }) => {
     () => captureFailure,
     "General",
     "general",
-    () => expect(page.getByText("Current transfer")).toBeVisible(),
+    () => expect(page.getByRole("button", { name: "Copy magnet link" })).toBeVisible(),
     windowMillis!,
   );
   await selectDetail(

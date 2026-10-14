@@ -2,9 +2,11 @@ import {
   formatList,
   message as localizedMessage,
 } from "../../localization/runtime";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { useInspectionStore } from "../context";
+import type { DataUnits } from "../appearance";
+import { copyText } from "../clipboard";
+import { useInspectionCommand, useInspectionStore } from "../context";
 import {
   checkingStatusLabel,
   formatBytes,
@@ -20,6 +22,7 @@ import {
 import type { DetailTab } from "../model";
 import { seedLimitReached, seedStopSummary } from "../seed-stop";
 import type { DesktopRemoteAccess } from "../remote-access/types";
+import { shareLinkFromMagnet } from "../share-link";
 import { DETAIL_TABS } from "../tabs";
 import { PeerTable } from "./PeerTable";
 import { SwarmTable } from "./SwarmTable";
@@ -31,6 +34,7 @@ import { PreparationProgress } from "./PreparationProgress";
 import { LogConsole } from "./LogConsole";
 import { SpeedPanel } from "./SpeedPanel";
 import { DhtPanel } from "./DhtPanel";
+import { Icon, type IconName } from "./Icon";
 import styles from "./DetailPane.module.css";
 
 export function DetailPane({
@@ -164,7 +168,7 @@ export function DetailPane({
         ) : activeTab === "dht" ? (
           <DhtPanel />
         ) : activeTab === "general" && torrent !== undefined ? (
-          <GeneralDetail torrent={torrent} />
+          <GeneralDetail key={torrent.id} torrent={torrent} />
         ) : activeTab === "logs" ? (
           <LogConsole />
         ) : (
@@ -193,7 +197,9 @@ function GeneralDetail({
   const seedStopTime = useInspectionStore(
     (state) => state.clientSettings.configured.seed_stop_time_seconds,
   );
+  const execute = useInspectionCommand();
   const errorRef = useRef<HTMLDivElement>(null);
+  const [copyFeedback, setCopyFeedback] = useState<CopyFeedback | null>(null);
 
   useEffect(() => {
     if (
@@ -210,47 +216,107 @@ function GeneralDetail({
     clearDetailTarget();
   }, [clearDetailTarget, detailTarget, torrent.id]);
 
+  useEffect(() => {
+    if (copyFeedback === null || copyFeedback.failed) return;
+    const timer = window.setTimeout(() => setCopyFeedback(null), 2_500);
+    return () => window.clearTimeout(timer);
+  }, [copyFeedback]);
+
+  const copy = (
+    id: string,
+    text: string | Promise<string>,
+    copiedMessage: string,
+  ) => {
+    copyText(text).then(
+      () => setCopyFeedback({ id, message: copiedMessage, failed: false }),
+      () =>
+        setCopyFeedback({
+          id,
+          message: localizedMessage("inspection.components.detail.pane.copy.failed"),
+          failed: true,
+        }),
+    );
+  };
+
+  const exportMagnet = async (): Promise<string> => {
+    const result = await execute({ type: "export_magnet", torrentId: torrent.id });
+    if (result.magnetExport === undefined) {
+      throw new Error("Magnet export did not return a link");
+    }
+    return result.magnetExport.magnet;
+  };
+
   const checking = torrent.status === "checking" ? torrent.checking : null;
   const visibleProgress = torrentVisibleProgress(torrent);
   const progressLabel =
     torrent.status === "checking"
       ? checkingStatusLabel(torrent)
       : formatProgress(torrent.progress);
+  const showFinished = torrent.finishedSeconds !== torrent.seedingSeconds;
 
   return (
     <div className={styles.general}>
-      <section className={styles.summaryCard}>
-        <div>
-          <p className={styles.eyebrow}>
-            {torrent.status === "checking" ? localizedMessage("inspection.components.detail.pane.current.check") : localizedMessage("inspection.components.detail.pane.current.transfer")}
-          </p>
-          <h2>{torrent.name}</h2>
-          <p>
-            {torrent.status === "checking"
-              ? checkingStatusLabel(torrent)
-              : torrent.progressReason}
-          </p>
+      <header className={styles.generalHeader}>
+        <div className={styles.generalTitle}>
+          <h2 title={torrent.name}>{torrent.name}</h2>
+          <div className={styles.copyActions}>
+            <span
+              className={styles.copyFeedback}
+              data-failed={copyFeedback?.failed || undefined}
+              role="status"
+            >
+              {copyFeedback?.message}
+            </span>
+            <CopyButton
+              icon="magnet"
+              label={localizedMessage("inspection.components.detail.pane.copy.magnet.link")}
+              copied={copyFeedback?.id === "magnet" && !copyFeedback.failed}
+              onClick={() =>
+                copy(
+                  "magnet",
+                  exportMagnet(),
+                  localizedMessage("inspection.components.detail.pane.magnet.link.copied"),
+                )
+              }
+            />
+            <CopyButton
+              icon="link"
+              label={localizedMessage("inspection.components.detail.pane.copy.share.link")}
+              copied={copyFeedback?.id === "share" && !copyFeedback.failed}
+              onClick={() =>
+                copy(
+                  "share",
+                  exportMagnet().then(shareLinkFromMagnet),
+                  localizedMessage("inspection.components.detail.pane.share.link.copied"),
+                )
+              }
+            />
+          </div>
         </div>
-        <div className={styles.largeProgress}>
-          <strong>{progressLabel}</strong>
-          <span
-            data-indeterminate={visibleProgress === null || undefined}
-            role="progressbar"
-            aria-label={`${torrent.name} ${torrent.status === "checking" ? localizedMessage("inspection.components.detail.pane.checking") : localizedMessage("inspection.components.detail.pane.download")} progress: ${progressLabel}`}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={
-              visibleProgress === null
-                ? undefined
-                : Math.round(visibleProgress * 100)
-            }
-          >
-            {visibleProgress === null ? null : (
-              <span style={{ width: `${Math.round(visibleProgress * 100)}%` }} />
-            )}
-          </span>
+        <div className={styles.generalStatus}>
+          <span>{generalStatusLabel(torrent)}</span>
+          {visibleProgress === null ? null : (
+            <strong>{formatProgress(visibleProgress)}</strong>
+          )}
         </div>
-      </section>
+        <span
+          className={styles.generalProgress}
+          data-indeterminate={visibleProgress === null || undefined}
+          role="progressbar"
+          aria-label={`${torrent.name} ${torrent.status === "checking" ? localizedMessage("inspection.components.detail.pane.checking") : localizedMessage("inspection.components.detail.pane.download")} progress: ${progressLabel}`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={
+            visibleProgress === null
+              ? undefined
+              : Math.round(visibleProgress * 100)
+          }
+        >
+          {visibleProgress === null ? null : (
+            <span style={{ width: `${Math.round(visibleProgress * 100)}%` }} />
+          )}
+        </span>
+      </header>
       {torrent.preparation == null ? null : (
         <PreparationProgress
           preparation={torrent.preparation}
@@ -258,7 +324,7 @@ function GeneralDetail({
         />
       )}
       {checking === null ? null : (
-        <dl className={`${styles.metrics} ${styles.checkingMetrics}`}>
+        <dl className={styles.metrics}>
           <Metric
             label={localizedMessage("inspection.components.detail.pane.pieces.checked")}
             value={`${checking.piecesProcessed.toLocaleString()} / ${checking.piecesTotal.toLocaleString()}`}
@@ -274,15 +340,6 @@ function GeneralDetail({
       )}
       <dl className={styles.metrics}>
         <Metric
-          label={localizedMessage("inspection.components.detail.pane.status")}
-          value={
-            torrentRemovalLabel(torrent) ??
-            (seedLimitReached(torrent)
-              ? localizedMessage("inspection.components.detail.pane.state.seed.limit.reached")
-              : operationalStateLabel(torrent.operationalState))
-          }
-        />
-        <Metric
           label={localizedMessage("inspection.components.detail.pane.size")}
           value={formatBytes(torrent.sizeBytes, dataUnits)}
         />
@@ -296,38 +353,32 @@ function GeneralDetail({
         />
         <Metric label={localizedMessage("inspection.components.detail.pane.share.ratio")} value={formatShareRatio(torrent.shareRatioHundredths)} />
         <Metric label={localizedMessage("inspection.components.detail.pane.active.time")} value={formatElapsedSeconds(torrent.activeSeconds)} />
-        <Metric label={localizedMessage("inspection.components.detail.pane.finished.time")} value={formatElapsedSeconds(torrent.finishedSeconds)} />
+        {showFinished ? (
+          <Metric label={localizedMessage("inspection.components.detail.pane.finished.time")} value={formatElapsedSeconds(torrent.finishedSeconds)} />
+        ) : null}
         <Metric label={localizedMessage("inspection.components.detail.pane.seeding.time")} value={formatElapsedSeconds(torrent.seedingSeconds)} />
-        <Metric
-          label={localizedMessage("inspection.components.detail.pane.download.speed")}
-          value={formatRate(torrent.downloadRate, dataUnits)}
-        />
-        <Metric
-          label={localizedMessage("inspection.components.detail.pane.upload.speed")}
-          value={formatRate(torrent.uploadRate, dataUnits)}
-        />
-        <Metric
-          label={localizedMessage("inspection.components.detail.pane.connected.peers")}
-          value={torrent.peersConnected.toLocaleString()}
-        />
-        <Metric
-          label={localizedMessage("inspection.components.detail.pane.known.peers")}
-          value={torrent.peersKnown?.toLocaleString() ?? "—"}
-        />
         {torrent.seedGoal === null ? null : (
           <Metric
-            label={localizedMessage("inspection.components.detail.pane.seeding")}
-            value={`${seedAdmissionLabel(torrent.seedAdmission)} · ${
-              torrent.seedGoal.status === "met"
-                ? localizedMessage("inspection.components.detail.pane.goal.reached")
-                : localizedMessage("inspection.components.detail.pane.goal.not.reached")
-            }`}
+            label={localizedMessage("inspection.components.detail.pane.seeding.goals")}
+            value={seedGoalsReached(torrent.seedGoal)}
           />
         )}
+        <Metric
+          label={localizedMessage("inspection.components.detail.pane.speed")}
+          value={transferSpeed(torrent, dataUnits)}
+        />
+        <Metric
+          label={localizedMessage("inspection.components.detail.pane.peers")}
+          value={
+            torrent.peersKnown === null
+              ? torrent.peersConnected.toLocaleString()
+              : localizedMessage("inspection.components.detail.pane.peers.value", {
+                  connected: torrent.peersConnected.toLocaleString(),
+                  known: torrent.peersKnown.toLocaleString(),
+                })
+          }
+        />
       </dl>
-      {torrent.seedGoal === null ? null : (
-        <p>{seedGoalsReached(torrent.seedGoal)}</p>
-      )}
       {torrent.seedGoal === null && torrent.seedStop?.stopped !== true ? null : (
         <section
           className={styles.seedStop}
@@ -341,24 +392,28 @@ function GeneralDetail({
           ))}
         </section>
       )}
-      {torrent.protocolIdentities?.v1 != null &&
-      torrent.protocolIdentities.v2 != null ? (
-        <>
-          <div className={styles.identity}>
-            <span>{localizedMessage("inspection.components.detail.pane.info.hash.v1")}</span>
-            <code>{torrent.protocolIdentities.v1}</code>
+      <dl className={styles.identities}>
+        {infoHashes(torrent).map(({ id, label, copyLabel, value }) => (
+          <div key={id}>
+            <dt>{label}</dt>
+            <dd>
+              <code>{value}</code>
+              <CopyButton
+                icon="copy"
+                label={copyLabel}
+                copied={copyFeedback?.id === id && !copyFeedback.failed}
+                onClick={() =>
+                  copy(
+                    id,
+                    value,
+                    localizedMessage("inspection.components.detail.pane.info.hash.copied"),
+                  )
+                }
+              />
+            </dd>
           </div>
-          <div className={styles.identity}>
-            <span>{localizedMessage("inspection.components.detail.pane.info.hash.v2")}</span>
-            <code>{torrent.protocolIdentities.v2}</code>
-          </div>
-        </>
-      ) : (
-        <div className={styles.identity}>
-          <span>{localizedMessage("inspection.components.detail.pane.info.hash")}</span>
-          <code>{torrent.infoHash}</code>
-        </div>
-      )}
+        ))}
+      </dl>
       {torrent.error === null ? null : (
         <div ref={errorRef} className={styles.error} role="alert" tabIndex={-1}>
           <strong>{localizedMessage("inspection.components.detail.pane.storage.needs.attention")}</strong>
@@ -367,6 +422,121 @@ function GeneralDetail({
       )}
     </div>
   );
+}
+
+/** One line for the torrent's state; seeding uses the seeding state. */
+function generalStatusLabel(
+  torrent: NonNullable<ReturnType<typeof useCurrentTorrent>>,
+): string {
+  const removal = torrentRemovalLabel(torrent);
+  if (removal !== null) return removal;
+  if (seedLimitReached(torrent)) {
+    return localizedMessage("inspection.components.detail.pane.state.seed.limit.reached");
+  }
+  if (torrent.status === "checking") {
+    return torrent.checking?.phase === "hashing"
+      ? operationalStateLabel("checking")
+      : checkingStatusLabel(torrent);
+  }
+  if (torrent.operationalState === "seeding") {
+    return seedAdmissionLabel(torrent.seedAdmission);
+  }
+  const state = operationalStateLabel(torrent.operationalState);
+  // While working toward completion the reason says what is happening;
+  // otherwise it repeats the state.
+  return (torrent.operationalState === "downloading" ||
+    torrent.operationalState === "starting") &&
+    torrent.progressReason !== ""
+    ? `${state} · ${torrent.progressReason}`
+    : state;
+}
+
+function infoHashes(
+  torrent: NonNullable<ReturnType<typeof useCurrentTorrent>>,
+): readonly {
+  readonly id: string;
+  readonly label: string;
+  readonly copyLabel: string;
+  readonly value: string;
+}[] {
+  const identities = torrent.protocolIdentities;
+  if (identities?.v1 != null && identities.v2 != null) {
+    return [
+      {
+        id: "v1",
+        label: localizedMessage("inspection.components.detail.pane.info.hash.v1"),
+        copyLabel: localizedMessage("inspection.components.detail.pane.copy.info.hash.v1"),
+        value: identities.v1,
+      },
+      {
+        id: "v2",
+        label: localizedMessage("inspection.components.detail.pane.info.hash.v2"),
+        copyLabel: localizedMessage("inspection.components.detail.pane.copy.info.hash.v2"),
+        value: identities.v2,
+      },
+    ];
+  }
+  return [
+    {
+      id: "hash",
+      label: localizedMessage("inspection.components.detail.pane.info.hash"),
+      copyLabel: localizedMessage("inspection.components.detail.pane.copy.info.hash"),
+      value: torrent.infoHash,
+    },
+  ];
+}
+
+interface CopyFeedback {
+  readonly id: string;
+  readonly message: string;
+  readonly failed: boolean;
+}
+
+function CopyButton({
+  icon,
+  label,
+  copied,
+  onClick,
+}: {
+  readonly icon: IconName;
+  readonly label: string;
+  readonly copied: boolean;
+  readonly onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.copyButton}
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+    >
+      <Icon name={copied ? "check" : icon} />
+    </button>
+  );
+}
+
+function transferSpeed(
+  torrent: NonNullable<ReturnType<typeof useCurrentTorrent>>,
+  dataUnits: DataUnits,
+): string {
+  const download = formatRate(torrent.downloadRate, dataUnits);
+  const upload = formatRate(torrent.uploadRate, dataUnits);
+  const downloading = torrent.downloadRate > 0;
+  const uploading = (torrent.uploadRate ?? 0) > 0;
+  if (downloading && uploading) {
+    return localizedMessage("inspection.components.detail.pane.speed.value", {
+      download,
+      upload,
+    });
+  }
+  if (downloading) {
+    return localizedMessage("inspection.components.detail.pane.speed.down", { download });
+  }
+  if (uploading) {
+    return localizedMessage("inspection.components.detail.pane.speed.up", { upload });
+  }
+  return "—";
 }
 
 function operationalStateLabel(

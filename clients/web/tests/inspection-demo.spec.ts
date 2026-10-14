@@ -26,7 +26,8 @@ test("checker progress stays truthful across every shared surface", async ({ pag
   await page.getByRole("button", { name: "Open in Torrents" }).click();
   await page.getByRole("tab", { name: "General" }).click();
   const details = page.getByLabel("Torrent details", { exact: true });
-  await expect(details.getByText("Current check")).toBeVisible();
+  await expect(details.getByText("Checking", { exact: true })).toBeVisible();
+  await expect(details.getByText("40.0%", { exact: true })).toBeVisible();
   await expect(details.getByText("400 / 1,000")).toBeVisible();
   await expect(details.getByText("397", { exact: true })).toBeVisible();
   await expect(details.getByText("2", { exact: true })).toBeVisible();
@@ -102,7 +103,7 @@ test("primary destinations preserve shared source state", async ({ page }) => {
     primary.getByRole("button", { name: "Torrents" }),
   ).toHaveAttribute("aria-current", "page");
   await page.getByRole("tab", { name: "General" }).click();
-  await expect(page.getByText("Current transfer")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy magnet link" })).toBeVisible();
   await expect(page.getByText("Sintel 4K open movie").first()).toBeVisible();
 
   const violations = (

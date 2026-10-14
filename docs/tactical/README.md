@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [349 — General tab compact header and links](349-general-tab-compact-header-and-links.md):
+  one header line and one status line replace the summary card and repeated
+  state; the tab copies the magnet link, a share link and the info hash.
 - [347 — About on every web host](347-about-on-every-web-host.md): Settings
   always has About with connection, version, build, desktop profile and
   support diagnostics; updates appear only where the app updates itself.

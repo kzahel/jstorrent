@@ -1240,24 +1240,8 @@
     "defaultMessage": "checking",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
-  "inspection.components.detail.pane.connected.peers": {
-    "defaultMessage": "Connected peers",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.current.check": {
-    "defaultMessage": "Current check",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.current.transfer": {
-    "defaultMessage": "Current transfer",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
   "inspection.components.detail.pane.download": {
     "defaultMessage": "download",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.download.speed": {
-    "defaultMessage": "Download speed",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.finished.time": {
@@ -1274,10 +1258,6 @@
   },
   "inspection.components.detail.pane.info.hash.v2": {
     "defaultMessage": "Info hash (v2)",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.known.peers": {
-    "defaultMessage": "Known peers",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.matched": {
@@ -1306,10 +1286,6 @@
   },
   "inspection.components.detail.pane.size": {
     "defaultMessage": "Size",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.status": {
-    "defaultMessage": "Status",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.storage.needs.attention": {
@@ -1392,10 +1368,6 @@
     "defaultMessage": "Couldn't confirm the save. Try again.",
     "description": "Status when the save response was incomplete"
   },
-  "inspection.components.detail.pane.upload.speed": {
-    "defaultMessage": "Upload speed",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
   "inspection.components.detail.pane.waiting": {
     "defaultMessage": "Waiting",
     "description": "Product copy in inspection/components/DetailPane.tsx"
@@ -1407,10 +1379,6 @@
   "inspection.components.detail.pane.uploaded": {
     "defaultMessage": "Uploaded",
     "description": "Torrent detail metric for all-time uploaded data"
-  },
-  "inspection.components.detail.pane.seeding": {
-    "defaultMessage": "Seeding",
-    "description": "Torrent detail metric label for seeding state and goal"
   },
   "inspection.components.detail.pane.seed.state.seeding": {
     "defaultMessage": "Seeding",
@@ -1428,14 +1396,6 @@
     "defaultMessage": "Not seeding",
     "description": "Seeding state of a torrent that cannot seed"
   },
-  "inspection.components.detail.pane.goal.reached": {
-    "defaultMessage": "Goal reached",
-    "description": "A seeding goal has been reached"
-  },
-  "inspection.components.detail.pane.goal.not.reached": {
-    "defaultMessage": "Goal not reached",
-    "description": "No seeding goal has been reached"
-  },
   "inspection.components.detail.pane.goal.share.ratio": {
     "defaultMessage": "share ratio",
     "description": "Seeding goal name used in a list"
@@ -1449,16 +1409,80 @@
     "description": "Seeding goal name used in a list"
   },
   "inspection.components.detail.pane.goals.reached": {
-    "defaultMessage": "Goals reached: {goals}.",
+    "defaultMessage": "Reached: {goals}",
     "description": "Lists the seeding goals this torrent has reached"
   },
   "inspection.components.detail.pane.goals.none.reached": {
-    "defaultMessage": "No goals reached yet.",
+    "defaultMessage": "None reached yet",
     "description": "Shown when the torrent has reached no seeding goal"
   },
   "inspection.components.detail.pane.nothing.to.show": {
     "defaultMessage": "Nothing to show yet.",
     "description": "Empty state for a torrent detail tab without data"
+  },
+  "inspection.components.detail.pane.copy.magnet.link": {
+    "defaultMessage": "Copy magnet link",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.copy.share.link": {
+    "defaultMessage": "Copy share link",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.copy.info.hash": {
+    "defaultMessage": "Copy info hash",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.copy.info.hash.v1": {
+    "defaultMessage": "Copy v1 info hash",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.copy.info.hash.v2": {
+    "defaultMessage": "Copy v2 info hash",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.magnet.link.copied": {
+    "defaultMessage": "Magnet link copied",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.share.link.copied": {
+    "defaultMessage": "Share link copied",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.info.hash.copied": {
+    "defaultMessage": "Info hash copied",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.copy.failed": {
+    "defaultMessage": "Couldn't copy to the clipboard",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.seeding.goals": {
+    "defaultMessage": "Seeding goals",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.speed": {
+    "defaultMessage": "Speed",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.speed.value": {
+    "defaultMessage": "{download} down · {upload} up",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.speed.down": {
+    "defaultMessage": "{download} down",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.speed.up": {
+    "defaultMessage": "{upload} up",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.peers": {
+    "defaultMessage": "Peers",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.peers.value": {
+    "defaultMessage": "{connected} of {known}",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.state.queued": {
     "defaultMessage": "Queued",

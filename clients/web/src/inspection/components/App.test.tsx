@@ -316,7 +316,8 @@ describe("inspection application", () => {
     );
     await user.click(screen.getByRole("tab", { name: "General" }));
     const detail = screen.getByRole("region", { name: "Torrent details" });
-    expect(within(detail).getByText("Current check")).toBeVisible();
+    expect(within(detail).getByText("Checking", { exact: true })).toBeVisible();
+    expect(within(detail).getByText("25.0%", { exact: true })).toBeVisible();
     expect(within(detail).getByText("2 / 8")).toBeVisible();
     expect(within(detail).getByText("Matched").parentElement).toHaveTextContent(
       "Matched1",
@@ -384,9 +385,7 @@ describe("inspection application", () => {
     );
     await user.click(screen.getByRole("tab", { name: "General" }));
     const detail = screen.getByRole("region", { name: "Torrent details" });
-    expect(within(detail).getByText("Status").parentElement).toHaveTextContent(
-      "StatusQueued",
-    );
+    expect(within(detail).getByText("Queued", { exact: true })).toBeVisible();
     expect(
       within(detail).getByText("Uploaded").parentElement,
     ).toHaveTextContent("14 B");
@@ -396,12 +395,115 @@ describe("inspection application", () => {
     expect(within(detail).getByText("Active time").parentElement).toHaveTextContent(
       "30m 1s",
     );
+    expect(within(detail).getByText("Finished time")).toBeVisible();
     expect(
-      within(detail).getByText("Seeding").parentElement,
-    ).toHaveTextContent("Queued · Goal reached");
+      within(detail).getByText("Seeding goals").parentElement,
+    ).toHaveTextContent("Reached: share ratio");
+  });
+
+  it("states a seeding torrent once and copies its links from General", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn<(value: string) => Promise<void>>();
+    writeText.mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const source = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const torrent = source.torrents[DEMO_PRIMARY_TORRENT_ID]!;
+    const snapshot = {
+      ...source,
+      demo: null,
+      torrents: {
+        ...source.torrents,
+        [DEMO_PRIMARY_TORRENT_ID]: {
+          ...torrent,
+          status: "complete" as const,
+          operationalState: "seeding" as const,
+          progress: 1,
+          progressReason: "complete",
+          finishedSeconds: "2770",
+          seedingSeconds: "2770",
+          seedAdmission: "inactive_exempt" as const,
+          seedGoal: {
+            status: "met" as const,
+            share_ratio_met: false,
+            finished_download_ratio_met: true,
+            finished_time_met: false,
+          },
+        },
+      },
+    };
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot,
+    });
+    const magnet =
+      `magnet:?xt=urn:btih:${torrent.infoHash}&dn=Original%20Name` +
+      "&tr=udp%3A%2F%2Ftracker.example%3A6969%2Fannounce";
+    application.magnetExports.set(torrent.id, {
+      magnet,
+      source: "verbatim",
+      omittedTrackerCount: 0,
+    });
+    renderApplication(application);
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    const detail = screen.getByRole("region", { name: "Torrent details" });
+
     expect(
-      within(detail).getByText("Goals reached: share ratio."),
+      within(detail).getByText("Seeding (idle)", { exact: true }),
     ).toBeVisible();
+    expect(within(detail).queryByText(/complete/)).not.toBeInTheDocument();
+    expect(within(detail).queryByText("Finished time")).not.toBeInTheDocument();
+    expect(within(detail).getByText("46m 10s")).toBeVisible();
+    expect(
+      within(detail).getByText("Seeding goals").parentElement,
+    ).toHaveTextContent("Reached: seeding time vs. download time");
+
+    await user.click(
+      within(detail).getByRole("button", { name: "Copy magnet link" }),
+    );
+    await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(magnet));
+    expect(within(detail).getByRole("status")).toHaveTextContent(
+      "Magnet link copied",
+    );
+
+    await user.click(
+      within(detail).getByRole("button", { name: "Copy share link" }),
+    );
+    await waitFor(() =>
+      expect(writeText).toHaveBeenLastCalledWith(
+        `https://jstorrent.com/share/#xt=urn:btih:${torrent.infoHash}` +
+          "&dn=Original%20Name&tr=udp%3A%2F%2Ftracker.example%3A6969%2Fannounce",
+      ),
+    );
+    expect(within(detail).getByRole("status")).toHaveTextContent(
+      "Share link copied",
+    );
+
+    await user.click(
+      within(detail).getByRole("button", { name: "Copy info hash" }),
+    );
+    await waitFor(() =>
+      expect(writeText).toHaveBeenLastCalledWith(torrent.infoHash),
+    );
+    expect(within(detail).getByRole("status")).toHaveTextContent(
+      "Info hash copied",
+    );
+
+    application.rejectNextTorrentId = torrent.id;
+    await user.click(
+      within(detail).getByRole("button", { name: "Copy magnet link" }),
+    );
+    expect(
+      await within(detail).findByText("Couldn't copy to the clipboard"),
+    ).toBeVisible();
+    expect(writeText).toHaveBeenCalledTimes(3);
   });
 
   it("saves one atomic per-torrent upload and download limit pair", async () => {
@@ -639,9 +741,9 @@ describe("inspection application", () => {
     await user.click(within(row).getByText("Debian 13.1 amd64 netinst"));
     await user.click(screen.getByRole("tab", { name: "General" }));
     const detail = screen.getByRole("region", { name: "Torrent details" });
-    expect(within(detail).getByText("Status").parentElement).toHaveTextContent(
-      "StatusSeeding limit reached",
-    );
+    expect(
+      within(detail).getByText("Seeding limit reached", { exact: true }),
+    ).toBeVisible();
     expect(
       within(detail).getByRole("region", { name: "Stop seeding" }),
     ).toHaveTextContent("Stops at ratio 2.00 · now 2.03");
@@ -822,7 +924,9 @@ describe("inspection application", () => {
     expect(flagLegend).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "General" }));
-    expect(screen.getByText("Current transfer")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Copy magnet link" }),
+    ).toBeVisible();
     expect(peersTab).toHaveTextContent(/^Peers$/);
     await user.click(screen.getByRole("tab", { name: "Logs" }));
     expect(
@@ -2401,7 +2505,9 @@ describe("inspection application", () => {
       "page",
     );
     await user.click(screen.getByRole("tab", { name: "General" }));
-    expect(screen.getByText("Current transfer")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Copy magnet link" }),
+    ).toBeVisible();
     expect(screen.getAllByText("Sintel 4K open movie").length).toBeGreaterThan(
       0,
     );
