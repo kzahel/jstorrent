@@ -332,8 +332,8 @@ function diskEmptyMessage(materialization: ViewMaterialization): string {
       return localizedMessage("inspection.components.disk.panel.loading.disk.state");
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       return localizedMessage("inspection.components.disk.panel.no.pieces.are.waiting.on.storage");
   }

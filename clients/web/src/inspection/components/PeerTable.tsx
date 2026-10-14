@@ -277,8 +277,8 @@ function peerEmptyMessage(materialization: ViewMaterialization): string {
       return localizedMessage("inspection.components.peer.table.loading.active.peer.connections");
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       return localizedMessage("inspection.components.peer.table.no.peer.connections.are.currently.active");
   }

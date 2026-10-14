@@ -220,8 +220,8 @@ function materializationMessage(materialization: ViewMaterialization): string {
       return localizedMessage("inspection.components.torrent.table.loading.torrent.library");
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       return localizedMessage("inspection.components.torrent.table.no.torrents.in.this.view");
   }

@@ -304,8 +304,8 @@ function trackerEmptyMessage(
       return localizedMessage("inspection.components.tracker.table.loading.configured.trackers");
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       return catalogState === "torrent_missing"
         ? "The torrent is no longer present."

@@ -282,8 +282,8 @@ function swarmEmptyMessage(
       return localizedMessage("inspection.components.swarm.table.loading.known.swarm.peers");
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       return state === "inactive"
         ? "The peer registry is inactive."

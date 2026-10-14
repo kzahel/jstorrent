@@ -516,8 +516,8 @@ function materializationMessage(materialization: ViewMaterialization): string {
       return localizedMessage("inspection.components.library.detail.view.loading.content.details");
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       return localizedMessage("inspection.components.library.detail.view.no.content");
   }

@@ -546,8 +546,8 @@ function emptyMessage(
     case "not_requested": return localizedMessage("inspection.components.log.console.diagnostics.are.not.requested");
     case "loading": return localizedMessage("inspection.components.log.console.loading.diagnostic.history");
     case "unavailable":
-    case "unsupported":
-    case "stale": return materialization.reason;
+    case "unsupported": return materialization.reason;
+    case "stale":
     case "ready":
       return profile === "normal"
         ? "No logs match these filters. Raise the detail level to capture more."

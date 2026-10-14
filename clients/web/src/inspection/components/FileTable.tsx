@@ -623,8 +623,8 @@ function fileEmptyMessage(
       return localizedMessage("inspection.components.file.table.loading.files");
     case "unavailable":
     case "unsupported":
-    case "stale":
       return materialization.reason;
+    case "stale":
     case "ready":
       if (catalogState === "metadata_pending")
         return localizedMessage("inspection.components.file.table.files.appear.once.torrent.info.arrives");

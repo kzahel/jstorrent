@@ -189,8 +189,7 @@ function EmptyPieceMap({
     materialization.status === "loading"
       ? "Loading verified and active piece state…"
       : materialization.status === "unavailable" ||
-          materialization.status === "unsupported" ||
-          materialization.status === "stale"
+          materialization.status === "unsupported"
         ? materialization.reason
         : "Piece geometry will appear after verified metadata is available.";
   return (
