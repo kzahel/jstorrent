@@ -90,6 +90,8 @@ interface HorizontalOverflow {
 }
 
 const TABLE_CONFIG_VERSION = 1;
+/** How long rows keep their order after the user last touched the table. */
+const ORDER_HOLD_MS = 2000;
 
 export function VirtualTable<Row>({
   tableId,
@@ -126,9 +128,12 @@ export function VirtualTable<Row>({
     });
   const [focusIndex, setFocusIndex] = useState(0);
   const [sort, setSort] = useState<SortState | null>(initialSort ?? null);
-  const [liveSort, setLiveSort] = useState(false);
   const [contextOpenRowId, setContextOpenRowId] = useState<string | null>(null);
-  const [frozenOrder, setFrozenOrder] = useState<readonly string[] | null>(null);
+  // Live updates re-sort the rows, except while the user is interacting with
+  // the table, so a row does not move out from under a pending click.
+  const [recentActivity, setRecentActivity] = useState(false);
+  const activityTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  const [heldOrder, setHeldOrder] = useState<readonly string[] | null>(null);
   const [hiddenColumns, setHiddenColumns] = useState<ReadonlySet<string>>(
     () => loadTableConfig(tableId, columns)?.hiddenColumns ?? defaultHiddenColumns(columns),
   );
@@ -159,27 +164,37 @@ export function VirtualTable<Row>({
     () => () => {
       const press = longPressRef.current;
       if (press !== null) globalThis.clearTimeout(press.timer);
+      if (activityTimerRef.current !== null) {
+        globalThis.clearTimeout(activityTimerRef.current);
+      }
     },
     [],
   );
 
+  // Callers pass initialSort inline, so depend on its values rather than its
+  // identity; otherwise every live update would reload the configuration.
+  const initialSortColumnId = initialSort?.columnId;
+  const initialSortDirection = initialSort?.direction;
   useEffect(() => {
     const loaded = loadTableConfig(tableId, columns);
     setHiddenColumns(loaded?.hiddenColumns ?? defaultHiddenColumns(columns));
     setColumnWidths(loaded?.widths ?? {});
-    setSort(loaded?.sort ?? initialSort ?? null);
-    setLiveSort(loaded?.liveSort ?? false);
-    setFrozenOrder(null);
-  }, [columns, initialSort, tableId]);
+    setSort(
+      loaded?.sort ??
+        (initialSortColumnId === undefined || initialSortDirection === undefined
+          ? null
+          : { columnId: initialSortColumnId, direction: initialSortDirection }),
+    );
+    setHeldOrder(null);
+  }, [columns, initialSortColumnId, initialSortDirection, tableId]);
 
   useEffect(() => {
     saveTableConfig(tableId, {
       hiddenColumns,
       widths: columnWidths,
       sort,
-      liveSort,
     });
-  }, [columnWidths, hiddenColumns, liveSort, sort, tableId]);
+  }, [columnWidths, hiddenColumns, sort, tableId]);
 
   useEffect(() => {
     const element = viewportRef.current;
@@ -207,20 +222,53 @@ export function VirtualTable<Row>({
         })),
     [columnWidths, columns, hiddenColumns],
   );
-  const sortedRows = useMemo(() => {
-    if (sort === null) return rows;
+  const { sortedRows, orderHeld } = useMemo(() => {
+    if (sort === null) return { sortedRows: rows, orderHeld: false };
     const column = columns.find((candidate) => candidate.id === sort.columnId);
-    if (column?.sortValue === undefined) return rows;
-    if (liveSort || frozenOrder === null) {
-      return sortRows(rows, getRowId, column, sort.direction);
+    if (column?.sortValue === undefined) {
+      return { sortedRows: rows, orderHeld: false };
     }
+    const liveRows = sortRows(rows, getRowId, column, sort.direction);
+    if (heldOrder === null) return { sortedRows: liveRows, orderHeld: false };
     const byId = new Map(rows.map((row) => [getRowId(row), row]));
-    const retained = frozenOrder
+    const retained = heldOrder
       .map((id) => byId.get(id))
       .filter((row): row is Row => row !== undefined);
     const retainedIds = new Set(retained.map(getRowId));
-    return [...retained, ...rows.filter((row) => !retainedIds.has(getRowId(row)))];
-  }, [columns, frozenOrder, getRowId, liveSort, rows, sort]);
+    const held = [
+      ...retained,
+      ...liveRows.filter((row) => !retainedIds.has(getRowId(row))),
+    ];
+    return {
+      sortedRows: held,
+      orderHeld: held.some((row, index) => row !== liveRows[index]),
+    };
+  }, [columns, getRowId, heldOrder, rows, sort]);
+
+  const holdingOrder = recentActivity || contextOpenRowId !== null;
+  useEffect(() => {
+    if (!holdingOrder) setHeldOrder(null);
+    else if (heldOrder === null) setHeldOrder(sortedRows.map(getRowId));
+  }, [getRowId, heldOrder, holdingOrder, sortedRows]);
+
+  const noteActivity = () => {
+    setRecentActivity(true);
+    if (activityTimerRef.current !== null) {
+      globalThis.clearTimeout(activityTimerRef.current);
+    }
+    activityTimerRef.current = globalThis.setTimeout(() => {
+      activityTimerRef.current = null;
+      setRecentActivity(false);
+    }, ORDER_HOLD_MS);
+  };
+
+  const endActivity = () => {
+    if (activityTimerRef.current !== null) {
+      globalThis.clearTimeout(activityTimerRef.current);
+      activityTimerRef.current = null;
+    }
+    setRecentActivity(false);
+  };
 
   useEffect(() => {
     const currentIndex =
@@ -250,15 +298,6 @@ export function VirtualTable<Row>({
       viewport.scrollTop = top + tableRowHeight - viewport.clientHeight;
     }
   }, [currentRowId, getRowId, sortedRows, tableHeaderHeight, tableRowHeight]);
-
-  useEffect(() => {
-    if (sort === null || liveSort || frozenOrder !== null) return;
-    const column = columns.find((candidate) => candidate.id === sort.columnId);
-    if (column?.sortValue === undefined) return;
-    setFrozenOrder(
-      sortRows(rows, getRowId, column, sort.direction).map(getRowId),
-    );
-  }, [columns, frozenOrder, getRowId, liveSort, rows, sort]);
 
   const bodyScroll = Math.max(0, scrollTop - tableHeaderHeight);
   const firstIndex = Math.max(
@@ -309,6 +348,7 @@ export function VirtualTable<Row>({
   }, [minimumWidth, tableId, viewportSize.width]);
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    noteActivity();
     setScrollTop(event.currentTarget.scrollTop);
     updateHorizontalOverflow(event.currentTarget, setHorizontalOverflow);
     if (longPressRef.current !== null) {
@@ -488,7 +528,8 @@ export function VirtualTable<Row>({
           : "asc",
     };
     setSort(next);
-    setFrozenOrder(sortRows(rows, getRowId, column, next.direction).map(getRowId));
+    // A requested sort applies at once, even while the order is held.
+    setHeldOrder(null);
   };
 
   const moveRowFocus = (nextIndex: number, extendSelection: boolean) => {
@@ -683,23 +724,6 @@ export function VirtualTable<Row>({
                 </label>
               );
             })}
-            <label className={styles.liveSort}>
-              <input
-                type="checkbox"
-                checked={liveSort}
-                onChange={(event) => {
-                  const enabled = event.currentTarget.checked;
-                  if (!enabled && sort !== null) {
-                    const column = columns.find((candidate) => candidate.id === sort.columnId);
-                    if (column?.sortValue !== undefined) {
-                      setFrozenOrder(
-                        sortRows(rows, getRowId, column, sort.direction).map(getRowId),
-                      );
-                    }
-                  }
-                  setLiveSort(enabled);
-                }}
-              />{localizedMessage("inspection.components.virtual.table.re.sort.live.updates")}</label>
             <button
               type="button"
               onClick={() => {
@@ -712,8 +736,7 @@ export function VirtualTable<Row>({
                 );
                 setColumnWidths({});
                 setSort(initialSort ?? null);
-                setLiveSort(false);
-                setFrozenOrder(null);
+                setHeldOrder(null);
               }}
             >{localizedMessage("inspection.components.virtual.table.reset.table")}</button>
           </AnchoredDialog>
@@ -730,10 +753,18 @@ export function VirtualTable<Row>({
         aria-colcount={visibleColumns.length + (selectionAvailable ? 1 : 0)}
         aria-multiselectable={selectionAvailable ? true : undefined}
         onScroll={handleScroll}
+        onPointerMove={noteActivity}
+        onPointerDown={noteActivity}
+        onPointerLeave={(event) => {
+          // A touch leaves before its click lands, so only a mouse that
+          // moves away releases the order immediately.
+          if (event.pointerType === "mouse") endActivity();
+        }}
         onClick={(event) => {
           if (event.target === event.currentTarget) activateBackground();
         }}
         onKeyDown={(event) => {
+          noteActivity();
           if (
             event.key === "Escape" &&
             selection !== undefined &&
@@ -857,7 +888,15 @@ export function VirtualTable<Row>({
                 disabled={column.sortable === false || column.sortValue === undefined}
               >
                 <span>{column.label}</span>
-                {sorted ? <span aria-hidden="true">{sort.direction === "asc" ? "▲" : "▼"}</span> : null}
+                {sorted ? (
+                  <span
+                    className={styles.sortIndicator}
+                    aria-hidden="true"
+                    data-held={orderHeld}
+                  >
+                    {sort.direction === "asc" ? "▲" : "▼"}
+                  </span>
+                ) : null}
               </button>
               {column.headerHelp !== undefined ? (
                 <AnchoredDialogTrigger
@@ -1272,7 +1311,6 @@ interface PersistedTableConfig {
   readonly hiddenColumns: ReadonlySet<string>;
   readonly widths: Readonly<Record<string, number>>;
   readonly sort: SortState | null;
-  readonly liveSort: boolean;
 }
 
 function loadTableConfig<Row>(
@@ -1287,7 +1325,6 @@ function loadTableConfig<Row>(
       hiddenColumns?: unknown;
       widths?: unknown;
       sort?: unknown;
-      liveSort?: unknown;
     };
     if (value.version !== TABLE_CONFIG_VERSION) return null;
     const knownColumns = new Map(columns.map((column) => [column.id, column]));
@@ -1343,12 +1380,7 @@ function loadTableConfig<Row>(
       sortColumn?.sortValue !== undefined && sortColumn.sortable !== false
         ? candidateSort
         : null;
-    return {
-      hiddenColumns,
-      widths,
-      sort,
-      liveSort: value.liveSort === true,
-    };
+    return { hiddenColumns, widths, sort };
   } catch {
     return null;
   }
@@ -1363,7 +1395,6 @@ function saveTableConfig(tableId: string, config: PersistedTableConfig): void {
         hiddenColumns: [...config.hiddenColumns],
         widths: config.widths,
         sort: config.sort,
-        liveSort: config.liveSort,
       }),
     );
   } catch {

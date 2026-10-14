@@ -267,8 +267,12 @@ Tactical `043` makes the Trackers tab a live product and debugging surface
 without scraping tracker log messages. A delayed controlled announce proves
 that an in-flight operation is visible before its response, then shows the
 accepted swarm counts and next deadline while the torrent completes. Table
-columns and widths share the existing versioned preferences, exact sorting,
-and optional live re-sorting behavior. The phone detail keeps the URL and
+columns and widths share the existing versioned preferences and exact sorting.
+Shared tables re-sort on live updates, holding the current row order for two
+seconds after pointer, scroll, or keyboard activity in the table, until a
+mouse leaves it, or while a row menu is open; the sort arrow dims while the
+held order differs from the live sort. This replaced the earlier opt-in
+re-sort checkbox. The phone detail keeps the URL and
 status useful while fully hiding the inactive library pane.
 
 The surface is therefore useful for live peer, retained-swarm, file, tracker,

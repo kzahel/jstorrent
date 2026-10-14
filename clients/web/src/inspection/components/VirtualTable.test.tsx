@@ -72,6 +72,7 @@ afterAll(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   if (typeof globalThis.localStorage?.clear === "function") {
     globalThis.localStorage.clear();
   }
@@ -223,6 +224,57 @@ describe("VirtualTable", () => {
     expect(rowIds(container)).toEqual(["ten", "large", "null"]);
     fireEvent.click(value);
     expect(rowIds(container)).toEqual(["large", "ten", "null"]);
+  });
+
+  it("re-sorts live updates except while the user interacts with the table", () => {
+    vi.useFakeTimers();
+    const table = (values: readonly [string, string, string]) => (
+      <VirtualTable
+        tableId="live-sort-test"
+        label="Live sorting"
+        rows={["a", "b", "c"].map((id, index) => ({ id, value: values[index]! }))}
+        getRowId={(row) => row.id}
+        columns={COLUMNS}
+        interfaceSize="standard"
+        emptyMessage="empty"
+        initialSort={{ columnId: "value", direction: "asc" }}
+      />
+    );
+    const rendered = render(table(["1", "2", "3"]));
+    const grid = screen.getByRole("grid", { name: "Live sorting" });
+    const indicator = () =>
+      rendered.container.querySelector<HTMLElement>("[data-held]")!;
+    expect(rowIds(rendered.container)).toEqual(["a", "b", "c"]);
+
+    rendered.rerender(table(["3", "2", "1"]));
+    expect(rowIds(rendered.container)).toEqual(["c", "b", "a"]);
+    expect(indicator()).toHaveAttribute("data-held", "false");
+
+    fireEvent.pointerMove(grid, { pointerType: "mouse" });
+    rendered.rerender(table(["1", "2", "3"]));
+    expect(rowIds(rendered.container)).toEqual(["c", "b", "a"]);
+    expect(indicator()).toHaveAttribute("data-held", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Value" }));
+    expect(rowIds(rendered.container)).toEqual(["c", "b", "a"]);
+    expect(indicator()).toHaveAttribute("data-held", "false");
+    fireEvent.click(screen.getByRole("button", { name: "Value" }));
+    expect(rowIds(rendered.container)).toEqual(["a", "b", "c"]);
+    rendered.rerender(table(["3", "2", "1"]));
+    expect(rowIds(rendered.container)).toEqual(["a", "b", "c"]);
+    expect(indicator()).toHaveAttribute("data-held", "true");
+
+    fireEvent.pointerLeave(grid, { pointerType: "mouse" });
+    expect(rowIds(rendered.container)).toEqual(["c", "b", "a"]);
+    expect(indicator()).toHaveAttribute("data-held", "false");
+
+    fireEvent.pointerDown(grid, { pointerType: "touch" });
+    fireEvent.pointerLeave(grid, { pointerType: "touch" });
+    rendered.rerender(table(["1", "2", "3"]));
+    expect(rowIds(rendered.container)).toEqual(["c", "b", "a"]);
+    act(() => vi.advanceTimersByTime(2000));
+    expect(rowIds(rendered.container)).toEqual(["a", "b", "c"]);
+    vi.useRealTimers();
   });
 
   it("opens column help without sorting and restores focus on Escape", async () => {

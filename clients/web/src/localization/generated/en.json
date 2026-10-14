@@ -7072,12 +7072,6 @@
       "value": "Done"
     }
   ],
-  "inspection.components.virtual.table.re.sort.live.updates": [
-    {
-      "type": 0,
-      "value": "Re-sort live updates"
-    }
-  ],
   "inspection.components.virtual.table.reset.table": [
     {
       "type": 0,

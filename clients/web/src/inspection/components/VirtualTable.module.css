@@ -119,6 +119,7 @@
 }
 
 .columnMenu > button {
+  margin-top: 0.35rem;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   padding: 0.2rem 0.48rem;
@@ -172,11 +173,6 @@
   padding: 0 0.2rem;
 }
 
-.liveSort {
-  margin-top: 0.35rem;
-  border-top: 1px solid var(--border-soft);
-  padding-top: 0.45rem !important;
-}
 
 .resizeHandle {
   position: absolute;
@@ -238,6 +234,12 @@
 
 .sortButton:disabled {
   cursor: default;
+}
+
+/* Rows keep their order while the user interacts; a dim arrow shows the
+   column's values have moved out of order meanwhile. */
+.sortIndicator[data-held="true"] {
+  opacity: 0.4;
 }
 
 .sortButton:focus-visible,

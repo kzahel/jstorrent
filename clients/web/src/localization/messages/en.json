@@ -3952,10 +3952,6 @@
     "defaultMessage": "Done",
     "description": "Product copy in inspection/components/VirtualTable.tsx"
   },
-  "inspection.components.virtual.table.re.sort.live.updates": {
-    "defaultMessage": "Re-sort live updates",
-    "description": "Product copy in inspection/components/VirtualTable.tsx"
-  },
   "inspection.components.virtual.table.reset.table": {
     "defaultMessage": "Reset table",
     "description": "Product copy in inspection/components/VirtualTable.tsx"
