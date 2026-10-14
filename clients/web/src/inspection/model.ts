@@ -711,6 +711,11 @@ export type InspectionCommand =
       }[];
       readonly disableFuture: boolean;
     }
+  | {
+      readonly type: "download_all_pending_add";
+      readonly torrentId: string;
+      readonly disableFuture: boolean;
+    }
   | { readonly type: "cancel_pending_add"; readonly torrentId: string }
   | { readonly type: "update_client_settings"; readonly patch: ClientSettingsPatch }
   | { readonly type: "reset_client_settings" }

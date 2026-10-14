@@ -2243,7 +2243,7 @@ describe("inspection application", () => {
     dialog = screen.getByRole("dialog", { name: "Add torrent" });
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Don’t ask again/,
+        name: "Always use this folder",
       }),
     );
     await user.click(
@@ -2388,7 +2388,7 @@ describe("inspection application", () => {
     );
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Don’t ask again/,
+        name: "Always use this folder",
       }),
     );
     await user.click(
@@ -2408,6 +2408,7 @@ describe("inspection application", () => {
         storageRoot: "root_b",
         startContent: false,
       },
+      { type: "set_default_download_root", rootId: "root_b" },
       { type: "set_show_add_options", show: false },
     ]);
   });
@@ -2494,7 +2495,8 @@ describe("inspection application", () => {
 
     await user.click(add);
     fireEvent.change(fileInput, { target: { files: [file] } });
-    await waitFor(() => expect(add).toHaveTextContent("Adding…"));
+    await waitFor(() => expect(add).toHaveAttribute("aria-busy", "true"));
+    expect(add).toHaveTextContent("Add");
     expect(fileInput).toHaveValue("");
     fireEvent.submit(add.closest("form")!);
     expect(openChooser).toHaveBeenCalledOnce();
@@ -3695,7 +3697,7 @@ describe("inspection application", () => {
 
     await waitFor(() => expect(application.commands).toHaveLength(1));
     expect(screen.getByRole("button", { name: "More" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Adding…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
     expect(draft).toHaveValue("unfinished draft");
     await user.click(
       within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
@@ -3755,12 +3757,12 @@ describe("inspection application", () => {
       name: /Start downloading files when metadata is available/,
     }));
     await user.click(within(dialog).getByRole("checkbox", {
-      name: /Don’t ask again/,
+      name: "Always use this folder",
     }));
     await user.click(within(dialog).getByRole("button", {
       name: "Add torrent",
     }));
-    await waitFor(() => expect(application.commands).toHaveLength(6));
+    await waitFor(() => expect(application.commands).toHaveLength(7));
     expect(application.commands).toEqual([
       ...WEBTORRENT_TEST_TORRENTS.map((torrent) => ({
         type: "add_magnet",
@@ -3768,6 +3770,7 @@ describe("inspection application", () => {
         storageRoot: "root_b",
         startContent: false,
       })),
+      { type: "set_default_download_root", rootId: "root_b" },
       { type: "set_show_add_options", show: false },
     ]);
     expect(screen.getByRole("status")).toHaveTextContent(

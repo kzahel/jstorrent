@@ -40,6 +40,8 @@ export interface PendingFileSelectionDialogProps {
     }[],
     disableFuture: boolean,
   ) => Promise<void>;
+  /** Downloads every file without waiting for the file list. */
+  readonly onDownloadAll: (disableFuture: boolean) => Promise<void>;
   readonly onCancel: () => Promise<void>;
 }
 
@@ -60,6 +62,7 @@ function PendingFileSelectionDraft({
   dataUnits,
   onPage,
   onConfirm,
+  onDownloadAll,
   onCancel,
 }: PendingFileSelectionDialogProps) {
   const [base, setBase] = useState<"current" | "all" | "none">("current");
@@ -131,6 +134,7 @@ function PendingFileSelectionDraft({
     [base, overrides, torrent],
   );
   const busy = pending !== null;
+  const metadataReady = torrent.fileCatalogId != null && files?.state === "available";
 
   const selectedFor = (row: FileRow) =>
     overrides.get(row.index)?.selected ??
@@ -214,12 +218,14 @@ function PendingFileSelectionDraft({
   };
 
   const confirm = async () => {
-    const catalogId = torrent.fileCatalogId;
-    if (catalogId === null || catalogId === undefined) return;
     setPending("confirm");
     setError("");
     try {
-      await onConfirm(base, compactOverrides(overrides), disableFuture);
+      if (metadataReady) {
+        await onConfirm(base, compactOverrides(overrides), disableFuture);
+      } else {
+        await onDownloadAll(disableFuture);
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
       setPending(null);
@@ -255,7 +261,6 @@ function PendingFileSelectionDraft({
     }
   };
 
-  const metadataReady = torrent.fileCatalogId != null && files?.state === "available";
   return (
     <div className={styles.backdrop}>
       <div
@@ -268,10 +273,9 @@ function PendingFileSelectionDraft({
         onKeyDown={handleKeyDown}
       >
         <header>
-          <p>{localizedMessage("inspection.components.pending.file.selection.dialog.choose.files")}</p>
           <h2 id="pending-selection-title">{torrent.name}</h2>
         </header>
-        <p id="pending-selection-description" className={styles.description}>{localizedMessage("inspection.components.pending.file.selection.dialog.checked.files.use.normal.priority.unchecked.files")}</p>
+        <p id="pending-selection-description" className={styles.description}>{localizedMessage("inspection.components.pending.file.selection.dialog.choose.the.files.you.want.to.download")}</p>
         <div className={styles.selectionMeta}>
           <span>{localizedMessage("inspection.components.pending.file.selection.dialog.download.folder")}{" "}<strong>{rootLabel}</strong></span>
           {queuedCount === 0 ? null : (
@@ -280,8 +284,8 @@ function PendingFileSelectionDraft({
         </div>
         {!metadataReady ? (
           <div className={styles.metadataWait} role="status">
-            <strong>{localizedMessage("inspection.components.pending.file.selection.dialog.fetching.file.information")}</strong>
-            <span>{localizedMessage("inspection.components.pending.file.selection.dialog.no.content.files.will.download.before.you")}</span>
+            <strong>{localizedMessage("inspection.components.pending.file.selection.dialog.loading.file.list")}</strong>
+            <span>{localizedMessage("inspection.components.pending.file.selection.dialog.you.can.download.all.files.without.waiting")}</span>
           </div>
         ) : (
           <>
@@ -339,19 +343,16 @@ function PendingFileSelectionDraft({
         {error === "" ? null : <p className={styles.error} role="alert">{error}</p>}
         <div className={styles.actions}>
           <button ref={cancelRef} type="button" disabled={busy} onClick={() => void cancel()}>
-            {pending === "cancel" ? localizedMessage("inspection.components.pending.file.selection.dialog.cancelling") : localizedMessage("inspection.components.pending.file.selection.dialog.cancel")}
+            {localizedMessage("inspection.components.pending.file.selection.dialog.cancel")}
           </button>
           <button
             className={styles.confirm}
             type="button"
-            disabled={busy || !metadataReady}
+            disabled={busy}
+            aria-busy={pending === "confirm"}
             onClick={() => void confirm()}
           >
-            {pending === "confirm"
-              ? localizedMessage("inspection.components.pending.file.selection.dialog.saving")
-              : summary.count === 0
-                ? localizedMessage("inspection.components.pending.file.selection.dialog.add")
-                : localizedMessage("inspection.components.pending.file.selection.dialog.download")}
+            {localizedMessage("inspection.components.pending.file.selection.dialog.download")}
           </button>
         </div>
       </div>

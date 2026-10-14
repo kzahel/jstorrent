@@ -28,7 +28,7 @@ export interface AddTorrentDialogProps {
   readonly onCancel: () => void;
   readonly onConfirm: (
     rootId: string,
-    dontShowAgain: boolean,
+    alwaysUseFolder: boolean,
     startContent: boolean,
   ) => Promise<void>;
 }
@@ -58,7 +58,7 @@ export function AddTorrentDialog({
     ? defaultRoot
     : availableRoots[0]?.id ?? null;
   const [selectedRoot, setSelectedRoot] = useState<string | null>(preferred);
-  const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [alwaysUseFolder, setAlwaysUseFolder] = useState(false);
   const [startContent, setStartContent] = useState(true);
   const [choosingRoot, setChoosingRoot] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -99,7 +99,7 @@ export function AddTorrentDialog({
     setPending(true);
     setError("");
     try {
-      await onConfirm(selectedRoot, dontShowAgain, startContent);
+      await onConfirm(selectedRoot, alwaysUseFolder, startContent);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
       setPending(false);
@@ -202,7 +202,7 @@ export function AddTorrentDialog({
                         disabled={busy}
                         onClick={() => void chooseFolder(root.id)}
                       >
-                        {choosingRoot === root.id ? localizedMessage("inspection.components.add.torrent.dialog.repairing") : localizedMessage("inspection.components.add.torrent.dialog.repair")}
+                        {localizedMessage("inspection.components.add.torrent.dialog.repair")}
                       </button>
                     ) : root.id === defaultRoot ? (
                       <span className={styles.defaultBadge}>
@@ -219,11 +219,9 @@ export function AddTorrentDialog({
             disabled={busy}
             onClick={() => void chooseFolder()}
           >
-            {choosingRoot === "new"
-              ? localizedMessage("inspection.components.add.torrent.dialog.choosing")
-              : availableRoots.length === 0
-                ? localizedMessage("inspection.components.add.torrent.dialog.choose.folder")
-                : localizedMessage("inspection.components.add.torrent.dialog.choose.another.folder")}
+            {availableRoots.length === 0
+              ? localizedMessage("inspection.components.add.torrent.dialog.choose.folder")
+              : localizedMessage("inspection.components.add.torrent.dialog.choose.another.folder")}
           </button>
         </fieldset>
 
@@ -241,12 +239,12 @@ export function AddTorrentDialog({
           <label className={styles.preference}>
             <input
               type="checkbox"
-              checked={dontShowAgain}
+              checked={alwaysUseFolder}
               disabled={busy}
               onChange={(event) =>
-                setDontShowAgain(event.currentTarget.checked)
+                setAlwaysUseFolder(event.currentTarget.checked)
               }
-            />{localizedMessage("inspection.components.add.torrent.dialog.dont.ask.again")}</label>
+            />{localizedMessage("inspection.components.add.torrent.dialog.always.use.this.folder")}</label>
         )}
 
         {error === "" ? null : (
@@ -265,12 +263,11 @@ export function AddTorrentDialog({
             className={styles.confirm}
             type="submit"
             disabled={busy || selectedRoot === null}
+            aria-busy={pending}
           >
-            {pending
-              ? localizedMessage("inspection.components.add.torrent.dialog.adding")
-              : fileSelectionEnabled
-                ? localizedMessage("inspection.components.add.torrent.dialog.continue")
-                : localizedMessage("inspection.components.add.torrent.dialog.add.torrent")}
+            {fileSelectionEnabled
+              ? localizedMessage("inspection.components.add.torrent.dialog.continue")
+              : localizedMessage("inspection.components.add.torrent.dialog.add.torrent")}
           </button>
         </div>
       </form>

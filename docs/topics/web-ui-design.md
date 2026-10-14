@@ -1193,9 +1193,20 @@ The Add dialog now has one checked-by-default **Start downloading files when
 metadata is available** checkbox. Clearing it acquires metadata without
 creating content artifacts; no file tree or second modal is introduced. The
 dialog carries only its title, the folder list with **Choose another
-folder…**, that checkbox, **Don’t ask again**, and the request source for an
-external add, without explanatory paragraphs. **Add all sample torrents**
-shows this same dialog once and applies its choices to the whole batch.
+folder…**, that checkbox, **Always use this folder**, and the request source
+for an external add, without explanatory paragraphs. **Always use this
+folder** makes the chosen folder the default before hiding add options.
+**Add all sample torrents** shows this same dialog once and applies its
+choices to the whole batch.
+
+The web file-selection dialog matches Android's Tactical
+[308](../tactical/308-android-optional-add-selection.md) consent: before
+magnet metadata arrives its **Download** button sends
+`download_all_pending_add`, honoring **Don’t show file selection again**;
+afterwards the same button confirms the checklist. Dialog buttons keep one
+label while busy and are disabled with `aria-busy`, so a click target never
+changes width or text under the pointer.
+
 Hiding add options continues to use the usable
 default root and starts content normally. Tactical `083` reuses this exact
 dialog for a chosen `.torrent`. Empty or over-64-MiB files fail locally; a

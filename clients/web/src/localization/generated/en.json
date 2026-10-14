@@ -664,10 +664,10 @@
       "value": "Add torrent"
     }
   ],
-  "inspection.components.add.torrent.dialog.adding": [
+  "inspection.components.add.torrent.dialog.always.use.this.folder": [
     {
       "type": 0,
-      "value": "Adding…"
+      "value": "Always use this folder"
     }
   ],
   "inspection.components.add.torrent.dialog.an.external.magnet.link.requested.this.add": [
@@ -706,12 +706,6 @@
       "value": "Choose folder…"
     }
   ],
-  "inspection.components.add.torrent.dialog.choosing": [
-    {
-      "type": 0,
-      "value": "Choosing…"
-    }
-  ],
   "inspection.components.add.torrent.dialog.continue": [
     {
       "type": 0,
@@ -730,12 +724,6 @@
       "value": "Default"
     }
   ],
-  "inspection.components.add.torrent.dialog.dont.ask.again": [
-    {
-      "type": 0,
-      "value": "Don’t ask again"
-    }
-  ],
   "inspection.components.add.torrent.dialog.download.folder": [
     {
       "type": 0,
@@ -752,12 +740,6 @@
     {
       "type": 0,
       "value": "Repair…"
-    }
-  ],
-  "inspection.components.add.torrent.dialog.repairing": [
-    {
-      "type": 0,
-      "value": "Repairing…"
     }
   ],
   "inspection.components.add.torrent.dialog.start.downloading.files.when.metadata.is.available": [
@@ -4634,12 +4616,6 @@
       "value": "Uploaded"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.add": [
-    {
-      "type": 0,
-      "value": "Add"
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.all": [
     {
       "type": 0,
@@ -4652,22 +4628,10 @@
       "value": "Cancel"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.cancelling": [
+  "inspection.components.pending.file.selection.dialog.choose.the.files.you.want.to.download": [
     {
       "type": 0,
-      "value": "Cancelling…"
-    }
-  ],
-  "inspection.components.pending.file.selection.dialog.checked.files.use.normal.priority.unchecked.files": [
-    {
-      "type": 0,
-      "value": "Checked files use Normal priority. Unchecked files are skipped. High priority remains available later in the Files tab."
-    }
-  ],
-  "inspection.components.pending.file.selection.dialog.choose.files": [
-    {
-      "type": 0,
-      "value": "Choose files"
+      "value": "Choose the files you want to download."
     }
   ],
   "inspection.components.pending.file.selection.dialog.don.t.show.file.selection.again": [
@@ -4688,16 +4652,10 @@
       "value": "Download folder:"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.fetching.file.information": [
+  "inspection.components.pending.file.selection.dialog.loading.file.list": [
     {
       "type": 0,
-      "value": "Fetching file information…"
-    }
-  ],
-  "inspection.components.pending.file.selection.dialog.no.content.files.will.download.before.you": [
-    {
-      "type": 0,
-      "value": "No content files will download before you confirm."
+      "value": "Loading file list…"
     }
   ],
   "inspection.components.pending.file.selection.dialog.none": [
@@ -4706,16 +4664,16 @@
       "value": "None"
     }
   ],
-  "inspection.components.pending.file.selection.dialog.saving": [
-    {
-      "type": 0,
-      "value": "Saving…"
-    }
-  ],
   "inspection.components.pending.file.selection.dialog.torrent.files": [
     {
       "type": 0,
       "value": "Torrent files"
+    }
+  ],
+  "inspection.components.pending.file.selection.dialog.you.can.download.all.files.without.waiting": [
+    {
+      "type": 0,
+      "value": "You can download all files without waiting."
     }
   ],
   "inspection.components.piece.map.panel.active": [
@@ -6358,12 +6316,6 @@
     {
       "type": 0,
       "value": "Add torrent"
-    }
-  ],
-  "inspection.components.torrent.actions.adding": [
-    {
-      "type": 0,
-      "value": "Adding…"
     }
   ],
   "inspection.components.torrent.actions.adding.sample.torrents": [

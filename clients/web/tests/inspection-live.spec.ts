@@ -1060,7 +1060,7 @@ test("live add-time file selection", async ({ page }) => {
   ).toHaveText("Added");
 
   const selection = page.getByRole("dialog").filter({
-    has: page.getByText("Choose files", { exact: true }),
+    has: page.getByText("Choose the files you want to download.", { exact: true }),
   });
   await expect(selection).toBeVisible();
   expect(await fs.readdir(storage)).toEqual([]);

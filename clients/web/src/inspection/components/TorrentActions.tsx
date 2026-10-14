@@ -304,9 +304,25 @@ export function TorrentActions({
     return result.storageRoot ?? null;
   };
 
+  /** Makes the chosen folder the default and stops showing add options. */
+  const alwaysUseFolder = async (rootId: string): Promise<string> => {
+    try {
+      if (rootId !== storage.defaultRoot) {
+        await execute({ type: "set_default_download_root", rootId });
+      }
+      const preference = await execute({
+        type: "set_show_add_options",
+        show: false,
+      });
+      return preference.message;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  };
+
   const confirmAdd = async (
     rootId: string,
-    dontShowAgain: boolean,
+    alwaysUseThisFolder: boolean,
     startContent: boolean,
   ) => {
     if (pendingAdd === null || addingRef.current) return;
@@ -320,16 +336,8 @@ export function TorrentActions({
           fileSelectionEnabled ? true : startContent,
           fileSelectionEnabled,
         );
-        if (dontShowAgain) {
-          try {
-            const preference = await execute({
-              type: "set_show_add_options",
-              show: false,
-            });
-            message = `${message} ${preference.message}`;
-          } catch (error) {
-            message = `${message}; ${error instanceof Error ? error.message : String(error)}`;
-          }
+        if (alwaysUseThisFolder) {
+          message = `${message} ${await alwaysUseFolder(rootId)}`;
         }
         setPendingAdd(null);
         setStatus(message);
@@ -343,18 +351,8 @@ export function TorrentActions({
       );
       if (result.torrentId !== undefined) revealTorrent(result.torrentId);
       let message = result.message;
-      if (dontShowAgain) {
-        try {
-          const preference = await execute({
-            type: "set_show_add_options",
-            show: false,
-          });
-          message = `${result.message}. ${preference.message}.`;
-        } catch (error) {
-          message = `${result.message}; ${
-            error instanceof Error ? error.message : String(error)
-          }`;
-        }
+      if (alwaysUseThisFolder) {
+        message = `${result.message}. ${await alwaysUseFolder(rootId)}.`;
       }
       if (
         pendingAdd.type === "magnet" &&
@@ -514,8 +512,9 @@ export function TorrentActions({
               className={styles.addButton}
               type="submit"
               disabled={adding || sampleBatchRunning}
+              aria-busy={adding || sampleBatchRunning}
             >
-              {adding || sampleBatchRunning ? localizedMessage("inspection.components.torrent.actions.adding") : localizedMessage("inspection.components.torrent.actions.add")}
+              {localizedMessage("inspection.components.torrent.actions.add")}
             </button>
           </form>
         ) : (
@@ -631,6 +630,14 @@ export function TorrentActions({
               catalogId,
               base,
               overrides,
+              disableFuture,
+            });
+            setStatus(result.message);
+          }}
+          onDownloadAll={async (disableFuture) => {
+            const result = await execute({
+              type: "download_all_pending_add",
+              torrentId: pendingSelectionTorrent.id,
               disableFuture,
             });
             setStatus(result.message);

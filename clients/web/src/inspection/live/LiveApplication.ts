@@ -319,6 +319,7 @@ export class LiveApplication implements InspectionApplication {
       command.type !== "set_show_add_options" &&
       command.type !== "set_show_file_selection" &&
       command.type !== "confirm_pending_file_selection" &&
+      command.type !== "download_all_pending_add" &&
       command.type !== "cancel_pending_add" &&
       command.type !== "update_client_settings" &&
       command.type !== "reset_client_settings" &&
@@ -396,6 +397,12 @@ export class LiveApplication implements InspectionApplication {
                     },
                     selected: entry.selected,
                   })),
+                  disable_future: command.disableFuture,
+                }
+            : command.type === "download_all_pending_add"
+              ? {
+                  type: "download_all_pending_add",
+                  torrent_id: command.torrentId,
                   disable_future: command.disableFuture,
                 }
             : command.type === "cancel_pending_add"
@@ -499,6 +506,8 @@ export class LiveApplication implements InspectionApplication {
                   : "New torrents will start with all files"
                 : command.type === "confirm_pending_file_selection"
                   ? "File selection confirmed"
+                  : command.type === "download_all_pending_add"
+                    ? "All files will download"
                   : command.type === "cancel_pending_add"
                     ? "Pending torrent cancelled"
               : command.type === "update_client_settings"

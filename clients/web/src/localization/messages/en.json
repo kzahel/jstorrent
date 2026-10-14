@@ -246,10 +246,6 @@
     "defaultMessage": "Add torrent",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
-  "inspection.components.add.torrent.dialog.adding": {
-    "defaultMessage": "Adding…",
-    "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
-  },
   "inspection.components.add.torrent.dialog.an.external.magnet.link.requested.this.add": {
     "defaultMessage": "An external magnet link requested this add.",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
@@ -274,10 +270,6 @@
     "defaultMessage": "Choose folder…",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
-  "inspection.components.add.torrent.dialog.choosing": {
-    "defaultMessage": "Choosing…",
-    "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
-  },
   "inspection.components.add.torrent.dialog.continue": {
     "defaultMessage": "Continue",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
@@ -290,8 +282,8 @@
     "defaultMessage": "Default",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
-  "inspection.components.add.torrent.dialog.dont.ask.again": {
-    "defaultMessage": "Don’t ask again",
+  "inspection.components.add.torrent.dialog.always.use.this.folder": {
+    "defaultMessage": "Always use this folder",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
   "inspection.components.add.torrent.dialog.download.folder": {
@@ -304,10 +296,6 @@
   },
   "inspection.components.add.torrent.dialog.repair": {
     "defaultMessage": "Repair…",
-    "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
-  },
-  "inspection.components.add.torrent.dialog.repairing": {
-    "defaultMessage": "Repairing…",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
   "inspection.components.add.torrent.dialog.start.downloading.files.when.metadata.is.available": {
@@ -2534,10 +2522,6 @@
     "defaultMessage": "Uploaded",
     "description": "Product copy in inspection/components/PeerTable.tsx"
   },
-  "inspection.components.pending.file.selection.dialog.add": {
-    "defaultMessage": "Add",
-    "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
-  },
   "inspection.components.pending.file.selection.dialog.all": {
     "defaultMessage": "All",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
@@ -2546,16 +2530,8 @@
     "defaultMessage": "Cancel",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
-  "inspection.components.pending.file.selection.dialog.cancelling": {
-    "defaultMessage": "Cancelling…",
-    "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
-  },
-  "inspection.components.pending.file.selection.dialog.checked.files.use.normal.priority.unchecked.files": {
-    "defaultMessage": "Checked files use Normal priority. Unchecked files are skipped. High priority remains available later in the Files tab.",
-    "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
-  },
-  "inspection.components.pending.file.selection.dialog.choose.files": {
-    "defaultMessage": "Choose files",
+  "inspection.components.pending.file.selection.dialog.choose.the.files.you.want.to.download": {
+    "defaultMessage": "Choose the files you want to download.",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
   "inspection.components.pending.file.selection.dialog.don.t.show.file.selection.again": {
@@ -2570,20 +2546,16 @@
     "defaultMessage": "Download folder:",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
-  "inspection.components.pending.file.selection.dialog.fetching.file.information": {
-    "defaultMessage": "Fetching file information…",
+  "inspection.components.pending.file.selection.dialog.loading.file.list": {
+    "defaultMessage": "Loading file list…",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
-  "inspection.components.pending.file.selection.dialog.no.content.files.will.download.before.you": {
-    "defaultMessage": "No content files will download before you confirm.",
+  "inspection.components.pending.file.selection.dialog.you.can.download.all.files.without.waiting": {
+    "defaultMessage": "You can download all files without waiting.",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
   "inspection.components.pending.file.selection.dialog.none": {
     "defaultMessage": "None",
-    "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
-  },
-  "inspection.components.pending.file.selection.dialog.saving": {
-    "defaultMessage": "Saving…",
     "description": "Product copy in inspection/components/PendingFileSelectionDialog.tsx"
   },
   "inspection.components.pending.file.selection.dialog.torrent.files": {
@@ -3664,10 +3636,6 @@
   },
   "inspection.components.torrent.actions.add.torrent": {
     "defaultMessage": "Add torrent",
-    "description": "Product copy in inspection/components/TorrentActions.tsx"
-  },
-  "inspection.components.torrent.actions.adding": {
-    "defaultMessage": "Adding…",
     "description": "Product copy in inspection/components/TorrentActions.tsx"
   },
   "inspection.components.torrent.actions.adding.sample.torrents": {

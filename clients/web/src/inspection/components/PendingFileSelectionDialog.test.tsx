@@ -22,7 +22,7 @@ describe("pending file selection", () => {
     await user.click(
       screen.getByRole("checkbox", { name: /Don’t show file selection again/i }),
     );
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(screen.getByRole("button", { name: "Download" }));
 
     await waitFor(() => expect(onConfirm).toHaveBeenCalledOnce());
     expect(onConfirm).toHaveBeenCalledWith(
@@ -61,7 +61,7 @@ describe("pending file selection", () => {
     );
     await user.click(screen.getByRole("button", { name: "Download" }));
     await waitFor(() => expect(onConfirm).toHaveBeenCalledOnce());
-    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Download" })).toBeDisabled();
 
     view.rerender(
       dialogElement({
@@ -79,15 +79,29 @@ describe("pending file selection", () => {
     expect(screen.getByRole("checkbox", { name: /first\.mkv/i })).toBeChecked();
   });
 
-  it("waits for magnet metadata and offers explicit cancellation", async () => {
+  it("downloads every file without waiting for magnet metadata", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn(async () => undefined);
+    const onDownloadAll = vi.fn(async () => undefined);
+    renderDialog({ files: metadataPendingFiles(), onConfirm, onDownloadAll });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "You can download all files without waiting",
+    );
+    await user.click(
+      screen.getByRole("checkbox", { name: /Don’t show file selection again/i }),
+    );
+    await user.click(screen.getByRole("button", { name: "Download" }));
+
+    await waitFor(() => expect(onDownloadAll).toHaveBeenCalledWith(true));
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("offers explicit cancellation while metadata is pending", async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn(async () => undefined);
     renderDialog({ files: metadataPendingFiles(), onCancel });
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "No content files will download before you confirm",
-    );
-    expect(screen.getByRole("button", { name: "Download" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(onCancel).toHaveBeenCalledOnce());
   });
@@ -158,6 +172,7 @@ function dialogElement(
       dataUnits="decimal"
       onPage={() => undefined}
       onConfirm={async () => undefined}
+      onDownloadAll={async () => undefined}
       onCancel={async () => undefined}
       {...overrides}
     />
