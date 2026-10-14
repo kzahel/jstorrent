@@ -74,14 +74,14 @@ test("primary destinations preserve shared source state", async ({ page }) => {
   await bunnyRow.click();
   const normalColumns = await transferRow.getAttribute("style");
   await transferRow.click({ modifiers: ["Shift"] });
-  await expect(page.getByText("2 selected for actions")).toBeVisible();
+  await expect(page.getByText("2 selected")).toBeVisible();
   await expect(transferRow).toHaveAttribute("style", normalColumns ?? "");
   await page
     .getByRole("navigation", { name: "Torrent filters" })
     .getByRole("button", { name: /Paused/ })
     .click();
   await expect(
-    page.getByText("2 selected for actions (1 outside this view)"),
+    page.getByText("2 selected (1 not shown)"),
   ).toBeVisible();
   await primary.getByRole("button", { name: "Library" }).click();
   await primary.getByRole("button", { name: "Torrents" }).click();
@@ -487,7 +487,7 @@ test("wide inspection surface is accessible and drivable", async ({ page }) => {
 
   await page.keyboard.press("Shift+ArrowUp");
   await expect(torrentRows.nth(2)).toHaveAttribute("aria-current", "true");
-  await expect(page.getByText("2 selected for actions")).toBeVisible();
+  await expect(page.getByText("2 selected")).toBeVisible();
   await expect(
     detail.getByRole("heading", {
       name: "Big Buck Bunny 1080p surround",
@@ -495,10 +495,10 @@ test("wide inspection surface is accessible and drivable", async ({ page }) => {
   ).toBeVisible();
 
   await page.keyboard.press("Control+a");
-  await expect(page.getByText("3 selected for actions")).toBeVisible();
+  await expect(page.getByText("3 selected")).toBeVisible();
   await page.keyboard.press("ArrowUp");
   await expect(torrentRows.nth(1)).toHaveAttribute("aria-current", "true");
-  await expect(page.getByText("3 selected for actions")).toHaveCount(0);
+  await expect(page.getByText("3 selected")).toHaveCount(0);
   await expect(
     page.getByRole("checkbox", {
       name: "Deselect Arch Linux 2026.08.01 x86_64",
@@ -513,7 +513,7 @@ test("wide inspection surface is accessible and drivable", async ({ page }) => {
     detail.getByRole("heading", { name: "Arch Linux 2026.08.01 x86_64" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByText("3 selected for actions")).toHaveCount(0);
+  await expect(page.getByText("3 selected")).toHaveCount(0);
   await expect(torrentRows.nth(1)).toHaveAttribute("aria-current", "true");
 });
 
@@ -1190,10 +1190,10 @@ test("data units reformat mounted product surfaces without changing raw state", 
   await openScenario(page, "slow-disk-pressure", 20_000);
   await page.getByRole("tab", { name: "Disk" }).click();
   await expectVisibleUnits(page, "binary");
-  await expect(page.getByText(/16 KiB block jobs/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Active storage pieces" })).toBeVisible();
   await setDataUnits(page, "Decimal");
   await expectVisibleUnits(page, "decimal");
-  await expect(page.getByText(/16 KiB block jobs/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Active storage pieces" })).toBeVisible();
 
   await openScenario(page, "dht-observatory", 42_000);
   await page.getByRole("tab", { name: "DHT" }).click();
@@ -1587,11 +1587,9 @@ test("metadata preparation stays compact and accessible across widths", async ({
   await expect(progress).toHaveAttribute("max", "8388608");
   await expect(progress).toHaveAttribute("value", "2097152");
   const map = page.getByRole("img", {
-    name: "512 metadata blocks: 128 received, 0 requested, 384 missing",
+    name: "Torrent info: 128 received, 0 requested, 384 missing",
   });
   await expect(map).toBeVisible();
-  await expect(page.getByText("16 KiB per block")).toBeVisible();
-  await expect(page.getByText("Hash retries").last()).toBeVisible();
   const wideMetrics = await page.evaluate(() => ({
     domElements: document.getElementsByTagName("*").length,
     canvases: document.querySelectorAll("canvas").length,
@@ -1610,7 +1608,6 @@ test("metadata preparation stays compact and accessible across widths", async ({
     .nth(1)
     .click();
   await expect(map).toBeVisible();
-  await expect(page.getByText("Requests in flight")).toBeVisible();
   const phoneOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
@@ -1670,10 +1667,10 @@ test("diagnostic console stays ordered, filtered, and virtualized", async ({
     name: "Chronological diagnostic events",
   });
   await expect(feed).toBeVisible();
-  await expect(page.getByText("2,048 retained", { exact: true })).toBeVisible();
+  await expect(page.getByText("2,048 kept", { exact: true })).toBeVisible();
   expect(await feed.locator("article").count()).toBeLessThan(60);
 
-  await page.getByLabel("Diagnostic capture profile").selectOption("trace");
+  await page.getByLabel("Log detail level").selectOption("trace");
   await expect(page.getByText("High-volume producer capture")).toBeVisible();
   await page.getByLabel("Minimum displayed severity").selectOption("warning");
   await page.getByLabel("Displayed torrent scope").selectOption("all");
@@ -1940,13 +1937,13 @@ test("full file catalog stays virtualized across wide compact and phone layouts"
   );
   await page.keyboard.press("Shift+ArrowDown");
   await expect(files).toHaveAttribute("aria-multiselectable", "true");
-  await expect(page.getByText("2 selected for actions")).toBeVisible();
+  await expect(page.getByText("2 selected")).toBeVisible();
   await expect(files.getByRole("row").nth(3)).toHaveAttribute(
     "aria-current",
     "true",
   );
   await page.keyboard.press("Control+a");
-  await expect(page.getByText("4,095 selected for actions")).toBeVisible();
+  await expect(page.getByText("4,095 selected")).toBeVisible();
   expect(await files.getByRole("row").count()).toBeLessThanOrEqual(100);
   await page.keyboard.press("Escape");
   await expect(

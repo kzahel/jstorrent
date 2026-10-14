@@ -456,7 +456,7 @@ describe("inspection application", () => {
       within(peerGrid).getByRole("columnheader", { name: "Connected" }),
     ).toBeVisible();
     expect(
-      within(peerGrid).getByRole("columnheader", { name: "Last payload" }),
+      within(peerGrid).getByRole("columnheader", { name: "Last data" }),
     ).toBeVisible();
     await user.click(
       screen.getAllByRole("button", { name: "Columns" }).at(-1)!,
@@ -464,7 +464,7 @@ describe("inspection application", () => {
     const peerColumns = screen.getByRole("dialog", {
       name: "Table column settings",
     });
-    for (const name of ["Up", "Uploaded", "Connected", "Last payload"]) {
+    for (const name of ["Up", "Uploaded", "Connected", "Last data"]) {
       expect(within(peerColumns).getByRole("checkbox", { name })).toBeChecked();
     }
     await user.keyboard("{Escape}");
@@ -538,7 +538,7 @@ describe("inspection application", () => {
 
     const transfers = screen.getByRole("grid", { name: "Torrents" });
     const status = within(transfers).getByRole("button", {
-      name: "error: Write failed: destination has no free space. Open General details",
+      name: "Error: Write failed: destination has no free space. Open General details",
     });
     expect(status).toHaveAttribute(
       "title",
@@ -578,7 +578,7 @@ describe("inspection application", () => {
       within(screen.getByRole("grid", { name: "Torrents" })).getByRole(
         "button",
         {
-          name: "error: Write failed: destination has no free space. Open General details",
+          name: "Error: Write failed: destination has no free space. Open General details",
         },
       ),
     ).toBeVisible();
@@ -618,7 +618,7 @@ describe("inspection application", () => {
     expect(
       screen.getByRole("dialog", { name: "Downloaded column help" }),
     ).toHaveTextContent(
-      "Useful payload received from this peer across every connection retained by this Swarm record",
+      "Total useful file data received from this peer since JSTorrent started.",
     );
   });
 
@@ -639,15 +639,15 @@ describe("inspection application", () => {
     expect(rendered.container.querySelectorAll("article").length).toBeLessThan(
       60,
     );
-    expect(screen.getByText(/retained$/)).toHaveTextContent("2,048 retained");
+    expect(screen.getByText(/kept$/)).toHaveTextContent("2,048 kept");
 
-    const captureScope = screen.getByLabelText("Diagnostic capture scope");
+    const captureScope = screen.getByLabelText("Torrents to log");
     await user.selectOptions(captureScope, DEMO_PRIMARY_TORRENT_ID);
     await user.click(screen.getByRole("row", { name: /Sintel 4K open movie/ }));
     expect(captureScope).toHaveValue(DEMO_PRIMARY_TORRENT_ID);
 
     await user.selectOptions(
-      screen.getByLabelText("Diagnostic capture profile"),
+      screen.getByLabelText("Log detail level"),
       "trace",
     );
     expect(screen.getByText("High-volume producer capture")).toBeVisible();
@@ -1070,13 +1070,13 @@ describe("inspection application", () => {
     expect(secondFile).toHaveAttribute("aria-current", "true");
     await user.keyboard("{Shift>}{ArrowDown}{/Shift}");
     expect(files).toHaveAttribute("aria-multiselectable", "true");
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
     expect(within(files).getAllByRole("row")[3]).toHaveAttribute(
       "aria-current",
       "true",
     );
     await user.keyboard("{Control>}a{/Control}");
-    expect(screen.getByText("4,095 selected for actions")).toBeVisible();
+    expect(screen.getByText("4,095 selected")).toBeVisible();
     expect(within(files).getAllByRole("row").length).toBeLessThanOrEqual(100);
     await user.keyboard("{Escape}");
     expect(
@@ -1642,11 +1642,11 @@ describe("inspection application", () => {
     fireEvent.click(screen.getByRole("row", { name: /Sintel 4K open movie/ }), {
       shiftKey: true,
     });
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
     expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: /Paused/ }));
     expect(
-      screen.getByText("2 selected for actions (1 outside this view)"),
+      screen.getByText("2 selected (1 not shown)"),
     ).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Library" }));
@@ -1664,7 +1664,7 @@ describe("inspection application", () => {
     expect(
       screen.getByRole("checkbox", { name: "Deselect Sintel 4K open movie" }),
     ).toBeChecked();
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
   });
 
   it("uses exact torrent context targets and the shared grouped action set", async () => {
@@ -1793,7 +1793,7 @@ describe("inspection application", () => {
 
     await user.keyboard("{Shift>}{ArrowUp}{/Shift}");
     expect(bunny).toHaveAttribute("aria-current", "true");
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
     expect(
       within(detail).getByRole("heading", {
         name: "Big Buck Bunny 1080p surround",
@@ -1801,14 +1801,14 @@ describe("inspection application", () => {
     ).toBeVisible();
 
     await user.keyboard("{Control>}a{/Control}");
-    expect(screen.getByText("3 selected for actions")).toBeVisible();
+    expect(screen.getByText("3 selected")).toBeVisible();
     await user.keyboard("{ArrowUp}");
     const arch = within(grid).getByRole("row", {
       name: /Arch Linux 2026\.08\.01 x86_64/,
     });
     expect(arch).toHaveAttribute("aria-current", "true");
     expect(
-      screen.queryByText("3 selected for actions"),
+      screen.queryByText("3 selected"),
     ).not.toBeInTheDocument();
     expect(
       within(grid).getByRole("checkbox", {
@@ -1828,7 +1828,7 @@ describe("inspection application", () => {
 
     await user.keyboard("{Escape}");
     expect(
-      screen.queryByText("3 selected for actions"),
+      screen.queryByText("3 selected"),
     ).not.toBeInTheDocument();
     expect(arch).toHaveAttribute("aria-current", "true");
   });

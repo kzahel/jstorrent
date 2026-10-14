@@ -1,12 +1,21 @@
 import { message as localizedMessage } from "../../localization/runtime";
 import { useInspectionStore } from "../context";
 import { torrentRemovalActive, torrentRemovalLabel } from "../format";
-import type { TorrentRow } from "../model";
+import type { TorrentRow, TorrentStatus as Status } from "../model";
 import styles from "./TorrentTable.module.css";
+
+const STATUS_LABELS: Record<Status, () => string> = {
+  metadata: () => localizedMessage("inspection.components.torrent.status.getting.info"),
+  downloading: () => localizedMessage("inspection.components.torrent.status.downloading"),
+  paused: () => localizedMessage("inspection.components.torrent.status.paused"),
+  complete: () => localizedMessage("inspection.components.torrent.status.complete"),
+  checking: () => localizedMessage("inspection.components.torrent.status.checking"),
+  error: () => localizedMessage("inspection.components.torrent.status.error"),
+};
 
 export function TorrentStatus({
   row,
-  label = row.status,
+  label = STATUS_LABELS[row.status](),
 }: {
   readonly row: TorrentRow;
   readonly label?: string;

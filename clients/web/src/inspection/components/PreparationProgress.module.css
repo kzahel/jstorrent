@@ -153,31 +153,6 @@
   background: var(--metadata-received);
 }
 
-.metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ui-space-md) calc(var(--ui-space-lg) * 1.5);
-  margin: var(--ui-space-md) 0 0;
-}
-
-.metrics > div {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.metrics dt {
-  color: var(--text-muted);
-  font-size: var(--ui-font-caption);
-}
-
-.metrics dd {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: var(--ui-font-small);
-  font-weight: var(--weight-medium);
-  font-variant-numeric: tabular-nums;
-}
-
 @media (max-width: 520px) {
   .card {
     padding: var(--ui-space-md);

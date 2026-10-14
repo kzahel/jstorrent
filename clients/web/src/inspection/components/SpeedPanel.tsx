@@ -603,7 +603,7 @@ function TrafficBreakdown({
       </div>
       {history.catalog.find((entry) => entry.metric === "payload_uploaded")
         ?.available === false ? (
-        <p>{localizedMessage("inspection.components.speed.panel.payload.upload.is.unavailable.until.upload.and")}</p>
+        <p>{localizedMessage("inspection.components.speed.panel.upload.history.unavailable")}</p>
       ) : null}
     </details>
   );

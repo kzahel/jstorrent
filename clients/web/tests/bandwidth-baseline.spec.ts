@@ -232,7 +232,7 @@ test("production WebSocket UI bandwidth baseline", async ({ page }) => {
         page.getByRole("log", { name: "Chronological diagnostic events" }),
       ).toBeVisible();
       await expect(
-        page.getByRole("combobox", { name: "Diagnostic capture profile" }),
+        page.getByRole("combobox", { name: "Log detail level" }),
       ).toHaveValue("normal");
     },
     windowMillis!,
@@ -242,8 +242,8 @@ test("production WebSocket UI bandwidth baseline", async ({ page }) => {
     page.getByRole("progressbar").first(),
   );
   const retainedText =
-    (await page.locator("span").filter({ hasText: /retained$/ }).first().textContent()) ??
-    "0 retained";
+    (await page.locator("span").filter({ hasText: /kept$/ }).first().textContent()) ??
+    "0 kept";
   const normalLogsRetained = Number(retainedText.replace(/\D/g, ""));
   const total = capture.summarize();
 

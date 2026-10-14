@@ -139,9 +139,9 @@ export function LogConsole() {
       <div className={styles.captureBar}>
         <span className={styles.toolbarLabel}>{localizedMessage("inspection.components.log.console.capture")}</span>
         <label>
-          <span>{localizedMessage("inspection.components.log.console.profile")}</span>
+          <span>{localizedMessage("inspection.components.log.console.detail")}</span>
           <select
-            aria-label={localizedMessage("inspection.components.log.console.diagnostic.capture.profile")}
+            aria-label={localizedMessage("inspection.components.log.console.log.detail.level")}
             value={presentation.logCaptureProfile}
             onChange={(event) =>
               setCaptureProfile(
@@ -157,7 +157,7 @@ export function LogConsole() {
         <label>
           <span>{localizedMessage("inspection.components.log.console.scope")}</span>
           <select
-            aria-label={localizedMessage("inspection.components.log.console.diagnostic.capture.scope")}
+            aria-label={localizedMessage("inspection.components.log.console.torrents.to.log")}
             value={captureTorrentId ?? ""}
             onChange={(event) =>
               setCaptureTorrent(event.currentTarget.value || null)
@@ -177,7 +177,7 @@ export function LogConsole() {
           <span className={styles.traceNotice}>{localizedMessage("inspection.components.log.console.high.volume.producer.capture")}</span>
         ) : null}
         <span className={styles.captureCount}>
-          {logs.length.toLocaleString()}{" "}{localizedMessage("inspection.components.log.console.retained")}</span>
+          {logs.length.toLocaleString()}{" "}{localizedMessage("inspection.components.log.console.kept")}</span>
       </div>
       <div className={styles.filterBar}>
         <span className={styles.toolbarLabel}>{localizedMessage("inspection.components.log.console.display")}</span>
@@ -186,7 +186,7 @@ export function LogConsole() {
           <input
             type="search"
             value={presentation.logSearch}
-            placeholder={localizedMessage("inspection.components.log.console.search.message.code.or.context")}
+            placeholder={localizedMessage("inspection.components.log.console.search.logs")}
             onChange={(event) => setSearch(event.currentTarget.value)}
           />
         </label>
@@ -550,7 +550,7 @@ function emptyMessage(
     case "stale": return materialization.reason;
     case "ready":
       return profile === "normal"
-        ? "No retained Normal events match the display filters. Detailed records may not be captured."
-        : `No retained ${profile} events match the display filters.`;
+        ? "No logs match these filters. Raise the detail level to capture more."
+        : "No logs match these filters.";
   }
 }

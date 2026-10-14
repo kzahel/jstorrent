@@ -57,6 +57,8 @@ export interface VirtualTableProps<Row> {
   readonly onActivate?: (row: Row) => void;
   readonly onClearCurrent?: () => void;
   readonly emptyMessage: string;
+  /** Names the row count, such as "3 torrents"; defaults to rows. */
+  readonly formatCount?: (count: number) => string;
   readonly initialSort?: { readonly columnId: string; readonly direction: "asc" | "desc" };
 }
 
@@ -103,6 +105,7 @@ export function VirtualTable<Row>({
   onActivate,
   onClearCurrent,
   emptyMessage,
+  formatCount,
   initialSort,
 }: VirtualTableProps<Row>) {
   const { tableHeaderHeight, tableRowHeight } =
@@ -636,7 +639,9 @@ export function VirtualTable<Row>({
     >
       <div className={styles.toolbar}>
         <span>
-          {localizedMessage("common.rows.total", { count: sortedRows.length })}</span>
+          {formatCount === undefined
+            ? localizedMessage("common.rows.total", { count: sortedRows.length })
+            : formatCount(sortedRows.length)}</span>
         {!showSelectionSummary || selection === undefined ? null : (
           <>
             <strong className={styles.selectionStatus} aria-live="polite">

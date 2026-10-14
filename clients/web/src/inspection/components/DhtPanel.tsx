@@ -179,8 +179,8 @@ function RoutingDistribution({
   );
   const description =
     mode === "normalized"
-      ? `Normalized shared-prefix depth zero through 31, followed by a 128-band tail. ${tail.live} live nodes occupy the tail.`
-      : "Literal engine bucket indices zero through 159. Equal pixel widths represent engine slots, not equal keyspace volumes.";
+      ? `Routing table buckets from farthest to closest, with ${tail.live} live nodes in the closest group.`
+      : "All 160 routing table buckets.";
 
   useEffect(() => {
     const element = wrapRef.current;
@@ -224,8 +224,8 @@ function RoutingDistribution({
       </div>
       <p className={styles.encodingNote}>
         {mode === "normalized"
-          ? localizedMessage("inspection.components.dht.panel.depth.159.bucket.index.moving.right.adds")
-          : localizedMessage("inspection.components.dht.panel.all.160.engine.slots.are.shown.in")}
+          ? localizedMessage("inspection.components.dht.panel.bars.further.right.are.closer")
+          : localizedMessage("inspection.components.dht.panel.each.bar.is.one.bucket")}
       </p>
     </section>
   );
@@ -536,7 +536,7 @@ function OperationalFacts({
           value={`${inspection.announces_succeeded} succeeded · ${inspection.announces_failed} failed`}
         />
       </dl>
-      <p>{localizedMessage("inspection.components.dht.panel.traffic.is.complete.udp.datagram.bytes.at")}</p>
+      <p>{localizedMessage("inspection.components.dht.panel.includes.all.dht.traffic")}</p>
     </section>
   );
 }

@@ -150,7 +150,6 @@ export function DiskPanel() {
         <div className={styles.tableHeading}>
           <div>
             <h2 id="active-disk-pieces">{localizedMessage("inspection.components.disk.panel.active.storage.pieces")}</h2>
-            <p>{localizedMessage("inspection.components.disk.panel.piece.level.work.only.16.kib.block")}</p>
           </div>
           <span>{rows.length.toLocaleString()}{" "}{localizedMessage("inspection.components.disk.panel.active")}</span>
         </div>
@@ -276,7 +275,7 @@ function DiskSummary({
           }
         />
         <Metric
-          label={localizedMessage("inspection.components.disk.panel.payload.sync")}
+          label={localizedMessage("inspection.components.disk.panel.disk.sync")}
           value={formatMicros(pipeline.checkpointSyncServiceMaxMicros)}
           detail={`${formatMicros(pipeline.checkpointSyncServiceMicros)} cumulative · ${pipeline.checkpointSyncOperationsCompleted.toLocaleString()} targets`}
         />

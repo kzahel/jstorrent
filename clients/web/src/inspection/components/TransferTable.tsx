@@ -158,6 +158,7 @@ export function TransferTable() {
 
   return (
     <VirtualTable
+      formatCount={(count) => localizedMessage("common.count.torrents", { count })}
       tableId="transfers"
       label={localizedMessage("inspection.components.transfer.table.transfer.queue")}
       rows={rows}
@@ -214,7 +215,7 @@ function statusLabel(row: TorrentRow): string {
 function materializationMessage(materialization: ViewMaterialization): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.transfer.table.transfer.collection.is.not.requested.in.this");
+      return localizedMessage("inspection.components.transfer.table.loading");
     case "loading":
       return localizedMessage("inspection.components.transfer.table.loading.transfers");
     case "unavailable":

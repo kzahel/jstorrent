@@ -98,13 +98,13 @@
   "android.companion.support-preview": [
     {
       "type": 0,
-      "value": "Preview connection support context"
+      "value": "Preview support info"
     }
   ],
   "android.companion.support-privacy": [
     {
       "type": 0,
-      "value": "Review before copying or sharing. This context contains no paths, accounts, credentials or torrent data. Nothing is uploaded."
+      "value": "Review before copying or sharing. This contains no file paths, accounts, passwords or torrent details. Nothing is uploaded."
     }
   ],
   "android.companion.unavailable-guidance": [
@@ -129,6 +129,134 @@
     {
       "type": 0,
       "value": "Update the JSTorrent extension, then retry. You can use the Android app directly while updates arrive."
+    }
+  ],
+  "common.count.files": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " file"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " files"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "common.count.peers": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " peer"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " peers"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "common.count.torrents": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrent"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " torrents"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "common.count.trackers": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " tracker"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " trackers"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
   "common.files.pending": [
@@ -223,7 +351,7 @@
             },
             {
               "type": 0,
-              "value": " selected for actions"
+              "value": " selected"
             }
           ]
         },
@@ -234,7 +362,7 @@
             },
             {
               "type": 0,
-              "value": " selected for actions"
+              "value": " selected"
             }
           ]
         }
@@ -260,7 +388,7 @@
             },
             {
               "type": 0,
-              "value": " outside this view)"
+              "value": " not shown)"
             }
           ]
         },
@@ -275,7 +403,7 @@
             },
             {
               "type": 0,
-              "value": " outside this view)"
+              "value": " not shown)"
             }
           ]
         }
@@ -2816,16 +2944,16 @@
       "value": "Active lookups"
     }
   ],
-  "inspection.components.dht.panel.all.160.engine.slots.are.shown.in": [
-    {
-      "type": 0,
-      "value": "All 160 engine slots are shown in exact index order. Equal widths describe storage slots, not equal keyspace volumes."
-    }
-  ],
   "inspection.components.dht.panel.announcements": [
     {
       "type": 0,
       "value": "Announcements"
+    }
+  ],
+  "inspection.components.dht.panel.bars.further.right.are.closer": [
+    {
+      "type": 0,
+      "value": "Bars further right hold nodes closer to this device's ID."
     }
   ],
   "inspection.components.dht.panel.bootstrap.attempts": [
@@ -2894,12 +3022,6 @@
       "value": "Deepest prefix"
     }
   ],
-  "inspection.components.dht.panel.depth.159.bucket.index.moving.right.adds": [
-    {
-      "type": 0,
-      "value": "Depth = 159 − bucket index. Moving right adds one shared bit and halves the XOR-distance band."
-    }
-  ],
   "inspection.components.dht.panel.depth.normalized": [
     {
       "type": 0,
@@ -2934,6 +3056,12 @@
     {
       "type": 0,
       "value": "Disabled"
+    }
+  ],
+  "inspection.components.dht.panel.each.bar.is.one.bucket": [
+    {
+      "type": 0,
+      "value": "Each bar is one routing table bucket."
     }
   ],
   "inspection.components.dht.panel.elapsed.left": [
@@ -2994,6 +3122,12 @@
     {
       "type": 0,
       "value": "Inactive"
+    }
+  ],
+  "inspection.components.dht.panel.includes.all.dht.traffic": [
+    {
+      "type": 0,
+      "value": "Includes all DHT network traffic, not file data."
     }
   ],
   "inspection.components.dht.panel.left": [
@@ -3236,12 +3370,6 @@
       "value": "Target"
     }
   ],
-  "inspection.components.dht.panel.traffic.is.complete.udp.datagram.bytes.at": [
-    {
-      "type": 0,
-      "value": "Traffic is complete UDP datagram bytes at the socket boundary, not payload throughput."
-    }
-  ],
   "inspection.components.dht.panel.utc": [
     {
       "type": 0,
@@ -3308,6 +3436,12 @@
       "value": "Disk state is not requested."
     }
   ],
+  "inspection.components.disk.panel.disk.sync": [
+    {
+      "type": 0,
+      "value": "Disk sync"
+    }
+  ],
   "inspection.components.disk.panel.error": [
     {
       "type": 0,
@@ -3332,12 +3466,6 @@
       "value": "No pieces are waiting on storage."
     }
   ],
-  "inspection.components.disk.panel.payload.sync": [
-    {
-      "type": 0,
-      "value": "Payload sync"
-    }
-  ],
   "inspection.components.disk.panel.pending.work": [
     {
       "type": 0,
@@ -3348,12 +3476,6 @@
     {
       "type": 0,
       "value": "Piece"
-    }
-  ],
-  "inspection.components.disk.panel.piece.level.work.only.16.kib.block": [
-    {
-      "type": 0,
-      "value": "Piece-level work only; 16 KiB block jobs stay inside the engine."
     }
   ],
   "inspection.components.disk.panel.receive.write": [
@@ -3692,6 +3814,12 @@
       "value": "Loading files…"
     }
   ],
+  "inspection.components.file.table.managed.by.android": [
+    {
+      "type": 0,
+      "value": "Managed by Android"
+    }
+  ],
   "inspection.components.file.table.name": [
     {
       "type": 0,
@@ -3726,12 +3854,6 @@
     {
       "type": 0,
       "value": "Pieces"
-    }
-  ],
-  "inspection.components.file.table.platform.managed.storage": [
-    {
-      "type": 0,
-      "value": "Platform-managed storage"
     }
   ],
   "inspection.components.file.table.priority": [
@@ -4112,10 +4234,10 @@
       "value": "Finding content details"
     }
   ],
-  "inspection.components.library.view.library.collection.is.not.requested.in.this": [
+  "inspection.components.library.view.loading": [
     {
       "type": 0,
-      "value": "Library collection is not requested in this layout"
+      "value": "Loading…"
     }
   ],
   "inspection.components.library.view.loading.library.content": [
@@ -4256,22 +4378,16 @@
       "value": "Debug and above"
     }
   ],
+  "inspection.components.log.console.detail": [
+    {
+      "type": 0,
+      "value": "Detail"
+    }
+  ],
   "inspection.components.log.console.detailed": [
     {
       "type": 0,
       "value": "Detailed"
-    }
-  ],
-  "inspection.components.log.console.diagnostic.capture.profile": [
-    {
-      "type": 0,
-      "value": "Diagnostic capture profile"
-    }
-  ],
-  "inspection.components.log.console.diagnostic.capture.scope": [
-    {
-      "type": 0,
-      "value": "Diagnostic capture scope"
     }
   ],
   "inspection.components.log.console.diagnostic.console": [
@@ -4340,10 +4456,22 @@
       "value": "Info and above"
     }
   ],
+  "inspection.components.log.console.kept": [
+    {
+      "type": 0,
+      "value": "kept"
+    }
+  ],
   "inspection.components.log.console.loading.diagnostic.history": [
     {
       "type": 0,
       "value": "Loading diagnostic history…"
+    }
+  ],
+  "inspection.components.log.console.log.detail.level": [
+    {
+      "type": 0,
+      "value": "Log detail level"
     }
   ],
   "inspection.components.log.console.minimum.displayed.severity": [
@@ -4370,18 +4498,6 @@
       "value": "Normal"
     }
   ],
-  "inspection.components.log.console.profile": [
-    {
-      "type": 0,
-      "value": "Profile"
-    }
-  ],
-  "inspection.components.log.console.retained": [
-    {
-      "type": 0,
-      "value": "retained"
-    }
-  ],
   "inspection.components.log.console.scope": [
     {
       "type": 0,
@@ -4394,10 +4510,10 @@
       "value": "Search diagnostics"
     }
   ],
-  "inspection.components.log.console.search.message.code.or.context": [
+  "inspection.components.log.console.search.logs": [
     {
       "type": 0,
-      "value": "Search message, code, or context"
+      "value": "Search logs"
     }
   ],
   "inspection.components.log.console.sequence": [
@@ -4422,6 +4538,12 @@
     {
       "type": 0,
       "value": "Torrent display scope"
+    }
+  ],
+  "inspection.components.log.console.torrents.to.log": [
+    {
+      "type": 0,
+      "value": "Torrents to log"
     }
   ],
   "inspection.components.log.console.trace.and.above": [
@@ -4550,10 +4672,10 @@
       "value": "Flags"
     }
   ],
-  "inspection.components.peer.table.last.payload": [
+  "inspection.components.peer.table.last.data": [
     {
       "type": 0,
-      "value": "Last payload"
+      "value": "Last data"
     }
   ],
   "inspection.components.peer.table.loading.active.peer.connections": [
@@ -4742,22 +4864,10 @@
       "value": "Prevent sleep while downloading"
     }
   ],
-  "inspection.components.preparation.progress.16.kib.per.block": [
-    {
-      "type": 0,
-      "value": "16 KiB per block"
-    }
-  ],
   "inspection.components.preparation.progress.active": [
     {
       "type": 0,
       "value": "Active"
-    }
-  ],
-  "inspection.components.preparation.progress.active.requests": [
-    {
-      "type": 0,
-      "value": "Active requests"
     }
   ],
   "inspection.components.preparation.progress.downloading.data.to.check.files": [
@@ -4802,18 +4912,6 @@
       "value": "Getting torrent info"
     }
   ],
-  "inspection.components.preparation.progress.hash.ranges.needed": [
-    {
-      "type": 0,
-      "value": "Hash ranges needed"
-    }
-  ],
-  "inspection.components.preparation.progress.hash.retries": [
-    {
-      "type": 0,
-      "value": "Hash retries"
-    }
-  ],
   "inspection.components.preparation.progress.legend": [
     {
       "type": 0,
@@ -4832,12 +4930,6 @@
       "value": "Missing"
     }
   ],
-  "inspection.components.preparation.progress.peers": [
-    {
-      "type": 0,
-      "value": "Peers"
-    }
-  ],
   "inspection.components.preparation.progress.received": [
     {
       "type": 0,
@@ -4848,12 +4940,6 @@
     {
       "type": 0,
       "value": "Requested"
-    }
-  ],
-  "inspection.components.preparation.progress.requests.in.flight": [
-    {
-      "type": 0,
-      "value": "Requests in flight"
     }
   ],
   "inspection.components.preparation.progress.torrent.info.progress": [
@@ -5076,6 +5162,12 @@
       "value": "Current security ledger"
     }
   ],
+  "inspection.components.remote.access.settings.section.data.sent": [
+    {
+      "type": 0,
+      "value": "Data sent"
+    }
+  ],
   "inspection.components.remote.access.settings.section.direct.file.transfers": [
     {
       "type": 0,
@@ -5286,12 +5378,6 @@
       "value": "· password"
     }
   ],
-  "inspection.components.remote.access.settings.section.payload.sent": [
-    {
-      "type": 0,
-      "value": "Payload sent"
-    }
-  ],
   "inspection.components.remote.access.settings.section.queued.bytes": [
     {
       "type": 0,
@@ -5334,6 +5420,12 @@
       "value": "Remote access is enabled."
     }
   ],
+  "inspection.components.remote.access.settings.section.remote.access.is.off.history.only": [
+    {
+      "type": 0,
+      "value": "Remote access is off. The list below is history only."
+    }
+  ],
   "inspection.components.remote.access.settings.section.remote.security.state.is.unavailable": [
     {
       "type": 0,
@@ -5362,12 +5454,6 @@
     {
       "type": 0,
       "value": "· resume"
-    }
-  ],
-  "inspection.components.remote.access.settings.section.retained.security.history": [
-    {
-      "type": 0,
-      "value": "Retained security history"
     }
   ],
   "inspection.components.remote.access.settings.section.revoke": [
@@ -5404,6 +5490,12 @@
     {
       "type": 0,
       "value": "Route username"
+    }
+  ],
+  "inspection.components.remote.access.settings.section.security.history": [
+    {
+      "type": 0,
+      "value": "Security history"
     }
   ],
   "inspection.components.remote.access.settings.section.seen": [
@@ -5452,12 +5544,6 @@
     {
       "type": 0,
       "value": "The circuit was closed."
-    }
-  ],
-  "inspection.components.remote.access.settings.section.the.host.authority.is.absent.retained.entries": [
-    {
-      "type": 0,
-      "value": "The host authority is absent. Retained entries below are audit evidence only and cannot authorize a connection."
     }
   ],
   "inspection.components.remote.access.settings.section.the.new.password.confirmation.does.not.match": [
@@ -5946,12 +6032,6 @@
       "value": "Out"
     }
   ],
-  "inspection.components.speed.panel.payload.upload.is.unavailable.until.upload.and": [
-    {
-      "type": 0,
-      "value": "Payload upload is unavailable until upload and seeding exist."
-    }
-  ],
   "inspection.components.speed.panel.peak": [
     {
       "type": 0,
@@ -6030,6 +6110,12 @@
       "value": "Transfer velocity"
     }
   ],
+  "inspection.components.speed.panel.upload.history.unavailable": [
+    {
+      "type": 0,
+      "value": "Upload history isn't available."
+    }
+  ],
   "inspection.components.swarm.table.address": [
     {
       "type": 0,
@@ -6088,6 +6174,18 @@
     {
       "type": 0,
       "value": "failure limited"
+    }
+  ],
+  "inspection.components.swarm.table.file.data.received.from.this.peer": [
+    {
+      "type": 0,
+      "value": "Total useful file data received from this peer since JSTorrent started."
+    }
+  ],
+  "inspection.components.swarm.table.file.data.sent.to.this.peer": [
+    {
+      "type": 0,
+      "value": "Total file data sent to this peer since JSTorrent started."
     }
   ],
   "inspection.components.swarm.table.integrity": [
@@ -6168,12 +6266,6 @@
       "value": "Parole"
     }
   ],
-  "inspection.components.swarm.table.payload.sent.to.this.peer.across.every": [
-    {
-      "type": 0,
-      "value": "Payload sent to this peer across every connection retained by this Swarm record. It excludes protocol traffic and resets with the engine or record."
-    }
-  ],
   "inspection.components.swarm.table.pex": [
     {
       "type": 0,
@@ -6214,12 +6306,6 @@
     {
       "type": 0,
       "value": "Uploaded"
-    }
-  ],
-  "inspection.components.swarm.table.useful.payload.received.from.this.peer.across": [
-    {
-      "type": 0,
-      "value": "Useful payload received from this peer across every connection retained by this Swarm record. It resets when the engine restarts or the record is evicted."
     }
   ],
   "inspection.components.torrent.action.context.a.selected.torrent.is.no.longer.available": [
@@ -6436,6 +6522,42 @@
       "value": "Archived"
     }
   ],
+  "inspection.components.torrent.status.checking": [
+    {
+      "type": 0,
+      "value": "Checking"
+    }
+  ],
+  "inspection.components.torrent.status.complete": [
+    {
+      "type": 0,
+      "value": "Complete"
+    }
+  ],
+  "inspection.components.torrent.status.downloading": [
+    {
+      "type": 0,
+      "value": "Downloading"
+    }
+  ],
+  "inspection.components.torrent.status.error": [
+    {
+      "type": 0,
+      "value": "Error"
+    }
+  ],
+  "inspection.components.torrent.status.getting.info": [
+    {
+      "type": 0,
+      "value": "Getting info"
+    }
+  ],
+  "inspection.components.torrent.status.paused": [
+    {
+      "type": 0,
+      "value": "Paused"
+    }
+  ],
   "inspection.components.torrent.status.storage.unavailable": [
     {
       "type": 0,
@@ -6458,6 +6580,12 @@
     {
       "type": 0,
       "value": "ETA"
+    }
+  ],
+  "inspection.components.torrent.table.loading": [
+    {
+      "type": 0,
+      "value": "Loading…"
     }
   ],
   "inspection.components.torrent.table.loading.torrent.library": [
@@ -6518,12 +6646,6 @@
     {
       "type": 0,
       "value": "Torrents"
-    }
-  ],
-  "inspection.components.torrent.table.torrent.library.is.not.requested.in.this": [
-    {
-      "type": 0,
-      "value": "Torrent library is not requested in this layout."
     }
   ],
   "inspection.components.torrent.table.up": [
@@ -6610,6 +6732,12 @@
       "value": "Next announce"
     }
   ],
+  "inspection.components.tracker.table.not.encrypted": [
+    {
+      "type": 0,
+      "value": "Not encrypted"
+    }
+  ],
   "inspection.components.tracker.table.nothing.to.show": [
     {
       "type": 0,
@@ -6676,12 +6804,6 @@
       "value": "Type"
     }
   ],
-  "inspection.components.tracker.table.unencrypted.tracker.transport": [
-    {
-      "type": 0,
-      "value": "Unencrypted tracker transport"
-    }
-  ],
   "inspection.components.tracker.table.url": [
     {
       "type": 0,
@@ -6692,6 +6814,12 @@
     {
       "type": 0,
       "value": "ETA"
+    }
+  ],
+  "inspection.components.transfer.table.loading": [
+    {
+      "type": 0,
+      "value": "Loading…"
     }
   ],
   "inspection.components.transfer.table.loading.transfers": [
@@ -6752,12 +6880,6 @@
     {
       "type": 0,
       "value": "Torrent actions"
-    }
-  ],
-  "inspection.components.transfer.table.transfer.collection.is.not.requested.in.this": [
-    {
-      "type": 0,
-      "value": "Transfer collection is not requested in this layout."
     }
   ],
   "inspection.components.transfer.table.transfer.queue": [
@@ -6946,12 +7068,6 @@
       "value": "Generate code"
     }
   ],
-  "inspection.components.web.access.settings.section.if.every.authorized.cookie.or.browser.profile": [
-    {
-      "type": 0,
-      "value": "If every authorized cookie or browser profile is gone, stop the server and restart the same command with"
-    }
-  ],
   "inspection.components.web.access.settings.section.keep.localhost.open": [
     {
       "type": 0,
@@ -6980,6 +7096,12 @@
     {
       "type": 0,
       "value": "Localhost open"
+    }
+  ],
+  "inspection.components.web.access.settings.section.locked.out.restart.with": [
+    {
+      "type": 0,
+      "value": "Locked out of every browser? Restart JSTorrent with"
     }
   ],
   "inspection.components.web.access.settings.section.of.32.remembered.sessions": [
@@ -7024,16 +7146,16 @@
       "value": "Sign out this browser"
     }
   ],
+  "inspection.components.web.access.settings.section.that.gives.you.10.minutes": [
+    {
+      "type": 0,
+      "value": ". That gives you 10 minutes to approve one browser."
+    }
+  ],
   "inspection.components.web.access.settings.section.the.code.works.once.for.10.minutes": [
     {
       "type": 0,
       "value": "The code works once, for 10 minutes, with five attempts."
-    }
-  ],
-  "inspection.components.web.access.settings.section.the.first.explicit.browser.approval.consumes.that": [
-    {
-      "type": 0,
-      "value": ". The first explicit browser approval consumes that 10-minute window."
     }
   ],
   "inspection.components.web.access.settings.section.this.browser": [
@@ -7114,12 +7236,6 @@
       "value": "Four-digit code"
     }
   ],
-  "inspection.components.web.auth.gate.if.every.approved.browser.profile.or.cookie": [
-    {
-      "type": 0,
-      "value": "If every approved browser profile or cookie is gone, stop the server and restart the same command with"
-    }
-  ],
   "inspection.components.web.auth.gate.in.an.approved.browser.open.settings.web": [
     {
       "type": 0,
@@ -7132,16 +7248,16 @@
       "value": "Initial setup is open on this computer for"
     }
   ],
-  "inspection.components.web.auth.gate.initial.setup.was.available.for.10.minutes": [
-    {
-      "type": 0,
-      "value": "Initial setup was available for 10 minutes and has now closed. Restart JSTorrent with the same profile to open a new 10-minute setup window."
-    }
-  ],
   "inspection.components.web.auth.gate.keep.localhost.open": [
     {
       "type": 0,
       "value": "Keep localhost open"
+    }
+  ],
+  "inspection.components.web.auth.gate.locked.out.restart.with": [
+    {
+      "type": 0,
+      "value": "Locked out of every browser? Restart JSTorrent with"
     }
   ],
   "inspection.components.web.auth.gate.new.browser.profiles.will.need.your.approval": [
@@ -7184,6 +7300,12 @@
     {
       "type": 0,
       "value": "Setup closed"
+    }
+  ],
+  "inspection.components.web.auth.gate.setup.is.closed.restart": [
+    {
+      "type": 0,
+      "value": "Setup is closed. Restart JSTorrent to try again for another 10 minutes."
     }
   ],
   "inspection.components.web.auth.gate.this.browser.is.not.approved": [
@@ -7810,6 +7932,12 @@
       "value": "View is unsupported"
     }
   ],
+  "inspection.peer.flags.can.send.torrent.info": [
+    {
+      "type": 0,
+      "value": "Can send torrent info"
+    }
+  ],
   "inspection.peer.flags.download.allowed": [
     {
       "type": 0,
@@ -7850,12 +7978,6 @@
     {
       "type": 0,
       "value": "Incoming"
-    }
-  ],
-  "inspection.peer.flags.metadata.extension": [
-    {
-      "type": 0,
-      "value": "Metadata extension"
     }
   ],
   "inspection.peer.flags.on.parole": [
@@ -8124,7 +8246,7 @@
   "product.feedback.preview.title": [
     {
       "type": 0,
-      "value": "Review feedback context"
+      "value": "Review what will be sent"
     }
   ],
   "product.feedback.review.action": [
@@ -8214,7 +8336,7 @@
   "product.privacy.reset.description": [
     {
       "type": 0,
-      "value": "This creates a new random identifier and clears these coarse counters. It does not remove torrents, payload files, settings, pairing, or records already received by a server."
+      "value": "This creates a new random identifier and resets these counts. Your torrents, files, settings and pairing are not affected. Data a server already received is not removed."
     }
   ],
   "product.privacy.reset.title": [

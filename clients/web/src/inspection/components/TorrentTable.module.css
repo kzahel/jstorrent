@@ -74,7 +74,6 @@
   overflow: hidden;
   color: var(--text-secondary);
   text-overflow: ellipsis;
-  text-transform: capitalize;
 }
 
 .status[data-status="error"] {

@@ -55,7 +55,7 @@ try {
         await page.getByText("JSTorrent Android did not respond.", { exact: false }).waitFor({ timeout: 25_000 });
       }
       await retry.waitFor({ timeout: 5000 });
-      await page.getByRole("button", { name: "Preview connection support context" }).click();
+      await page.getByRole("button", { name: "Preview support info" }).click();
       const report = JSON.parse(await page.locator("#companion-context").inputValue());
       assert.equal(report.app_presence, "unknown"); assert.equal(report.play_availability, "unknown");
       assert.equal(report.category, { denied: "permission_denied", offline: "service_unreachable", legacy: "app_update_required", incompatible: "extension_update_required", rejected: "pairing_rejected", expired: "pairing_expired" }[scenario]);

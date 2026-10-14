@@ -504,7 +504,7 @@ function emptyMessage(category: LibraryCategory): string {
 function materializationMessage(materialization: ViewMaterialization): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.library.view.library.collection.is.not.requested.in.this");
+      return localizedMessage("inspection.components.library.view.loading");
     case "loading":
       return localizedMessage("inspection.components.library.view.loading.library.content");
     case "unavailable":

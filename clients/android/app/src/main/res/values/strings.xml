@@ -492,7 +492,7 @@
     <string name="product_statistics_reset">Reset usage statistics</string>
     <string name="product_statistics_reset_title">Reset usage statistics?</string>
     <string name="product_statistics_reset_warning">This creates a new random ID and clears the counts. Torrents and settings are not affected.</string>
-    <string name="feedback_preview_title">Review feedback context</string>
+    <string name="feedback_preview_title">Review what will be sent</string>
     <string name="feedback_preview_loading">Preparing the exact external URL…</string>
     <string name="feedback_preview_failed">Feedback context could not be prepared</string>
     <string name="feedback_preview_destination">External destination: %1$s</string>

@@ -63,16 +63,6 @@ export function PreparationProgress({
                 : localizedMessage("inspection.components.preparation.progress.active")}
             </span>
           </header>
-          <dl className={styles.metrics}>
-            <Metric
-              label={localizedMessage("inspection.components.preparation.progress.hash.ranges.needed")}
-              value={preparation.integrity.neededHashRanges.toLocaleString()}
-            />
-            <Metric
-              label={localizedMessage("inspection.components.preparation.progress.active.requests")}
-              value={preparation.integrity.activeRequests.toLocaleString()}
-            />
-          </dl>
         </section>
       )}
     </div>
@@ -122,17 +112,6 @@ function MetadataCard({
         <span>{progressText}</span>
       </div>
       {metadata.blockCount === 0 ? null : <MetadataBlockMap metadata={metadata} />}
-      <dl className={styles.metrics}>
-        <Metric
-          label={localizedMessage("inspection.components.preparation.progress.peers")}
-          value={metadata.activePeers.toLocaleString()}
-        />
-        <Metric
-          label={localizedMessage("inspection.components.preparation.progress.requests.in.flight")}
-          value={metadata.requestsInFlight.toLocaleString()}
-        />
-        <Metric label={localizedMessage("inspection.components.preparation.progress.hash.retries")} value={metadata.hashRetries.toLocaleString()} />
-      </dl>
     </section>
   );
 }
@@ -174,7 +153,7 @@ function MetadataBlockMap({
     return () => cancelAnimationFrame(frame);
   }, [geometry, metadata]);
 
-  const label = `${metadata.blockCount.toLocaleString()} metadata blocks: ${counts.received.toLocaleString()} received, ${counts.requested.toLocaleString()} requested, ${counts.missing.toLocaleString()} missing`;
+  const label = `Torrent info: ${counts.received.toLocaleString()} received, ${counts.requested.toLocaleString()} requested, ${counts.missing.toLocaleString()} missing`;
   return (
     <div className={styles.mapSection}>
       <div ref={wrapRef} className={styles.canvasWrap}>
@@ -189,7 +168,6 @@ function MetadataBlockMap({
         <Legend label={localizedMessage("inspection.components.preparation.progress.missing")} state="missing" />
         <Legend label={localizedMessage("inspection.components.preparation.progress.requested")} state="requested" />
         <Legend label={localizedMessage("inspection.components.preparation.progress.received")} state="received" />
-        <span>{localizedMessage("inspection.components.preparation.progress.16.kib.per.block")}</span>
       </div>
     </div>
   );
@@ -261,15 +239,6 @@ function blockStateCounts(metadata: MetadataAcquisitionProgress) {
     }
   }
   return counts;
-}
-
-function Metric({ label, value }: { readonly label: string; readonly value: string }) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
 }
 
 function Legend({

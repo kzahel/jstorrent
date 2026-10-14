@@ -46,7 +46,7 @@ describe("WebAuthGate", () => {
       />,
     );
     expect(screen.getByRole("heading", { name: "Restart to finish setup" })).toBeVisible();
-    expect(screen.getByText(/same profile/i)).toBeVisible();
+    expect(screen.getByText(/Setup is closed/i)).toBeVisible();
 
     first.unmount();
     render(

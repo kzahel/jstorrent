@@ -111,7 +111,7 @@ export function RemoteAccessSettingsSection({
             <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.host.identity")}</dt><dd><code>{security.host_pin}</code></dd></div>
           </dl>
         ) : (
-          <p>{localizedMessage("inspection.components.remote.access.settings.section.the.host.authority.is.absent.retained.entries")}</p>
+          <p>{localizedMessage("inspection.components.remote.access.settings.section.remote.access.is.off.history.only")}</p>
         )}
         <button type="button" disabled={busy} onClick={() => void perform(refresh)}>{localizedMessage("inspection.components.remote.access.settings.section.refresh.audit")}</button>
       </section>
@@ -187,7 +187,7 @@ export function RemoteAccessSettingsSection({
             <p className={styles.note}>{localizedMessage("inspection.components.remote.access.settings.section.the.relay.carries.encrypted.connection.setup.only")}</p>
             <dl className={styles.identity}>
               <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.active.circuit")}</dt><dd><code>{security.direct_file.active_circuit_id ?? localizedMessage("inspection.components.remote.access.settings.section.none")}</code></dd></div>
-              <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.payload.sent")}</dt><dd>{security.direct_file.bytes_sent.toLocaleString()}{" "}{localizedMessage("inspection.components.remote.access.settings.section.bytes")}</dd></div>
+              <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.data.sent")}</dt><dd>{security.direct_file.bytes_sent.toLocaleString()}{" "}{localizedMessage("inspection.components.remote.access.settings.section.bytes")}</dd></div>
               <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.candidate.class")}</dt><dd>{security.direct_file.candidate_class === null ? localizedMessage("inspection.components.remote.access.settings.section.none") : humanize(security.direct_file.candidate_class)}</dd></div>
               <div><dt>{localizedMessage("inspection.components.remote.access.settings.section.resources")}</dt><dd>{security.direct_file.active_tasks}{" "}{localizedMessage("inspection.components.remote.access.settings.section.tasks")}{" "}{security.direct_file.open_sockets}{" "}{localizedMessage("inspection.components.remote.access.settings.section.sockets")}{" "}{security.direct_file.active_requests}{" "}{localizedMessage("inspection.components.remote.access.settings.section.range.requests")}{" "}{security.direct_file.queued_bytes.toLocaleString()}{" "}{localizedMessage("inspection.components.remote.access.settings.section.queued.bytes")}</dd></div>
             </dl>
@@ -225,7 +225,7 @@ export function RemoteAccessSettingsSection({
                 });
               }}>{localizedMessage("inspection.components.remote.access.settings.section.require.password.everywhere")}</button>
               {local ? <button className={styles.danger} type="button" disabled={busy} onClick={() => {
-                if (!window.confirm("Disable remote access, revoke every browser, and remove the host authority?")) return;
+                if (!window.confirm("Turn off remote access? Every browser is signed out and the remote access password is removed.")) return;
                 void perform(async () => {
                   const outcome = await remoteAccess.disable();
                   return `Remote access disabled. Authority removed: ${yesNo(outcome.authority_file_removed)}; route released: ${yesNo(outcome.route_released)}.`;
@@ -261,14 +261,14 @@ export function RemoteAccessSettingsSection({
         busy={busy}
       />
       <AuditHistory
-        title={localizedMessage("inspection.components.remote.access.settings.section.retained.security.history")}
+        title={localizedMessage("inspection.components.remote.access.settings.section.security.history")}
         snapshot={security.retained_history}
         busy={busy}
         clear={() => {
-          if (!window.confirm("Clear retained remote security history? Current authorizations are not removed.")) return;
+          if (!window.confirm("Clear security history? Browsers that are signed in stay signed in.")) return;
           void perform(async () => {
             const cleared = await remoteAccess.clearHistory();
-            return cleared ? "Retained history was cleared." : "There was no retained history to clear.";
+            return cleared ? "Security history cleared." : "There was no history to clear.";
           });
         }}
       />

@@ -163,6 +163,7 @@ export function TorrentTable() {
 
   return (
     <VirtualTable
+      formatCount={(count) => localizedMessage("common.count.torrents", { count })}
       tableId="torrents"
       label={localizedMessage("inspection.components.torrent.table.torrent.library")}
       rows={rows}
@@ -203,7 +204,7 @@ export function TorrentTable() {
 function materializationMessage(materialization: ViewMaterialization): string {
   switch (materialization.status) {
     case "not_requested":
-      return localizedMessage("inspection.components.torrent.table.torrent.library.is.not.requested.in.this");
+      return localizedMessage("inspection.components.torrent.table.loading");
     case "loading":
       return localizedMessage("inspection.components.torrent.table.loading.torrent.library");
     case "unavailable":

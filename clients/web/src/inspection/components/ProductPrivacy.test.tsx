@@ -45,7 +45,7 @@ describe("product privacy presentation", () => {
       screen.getByRole("button", { name: "Review and send feedback" }),
     );
     const dialog = await screen.findByRole("dialog", {
-      name: "Review feedback context",
+      name: "Review what will be sent",
     });
     expect(within(dialog).getByText("platform")).toBeVisible();
     expect(within(dialog).getByText("desktop")).toBeVisible();

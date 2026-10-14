@@ -463,7 +463,7 @@ export function FileTable({
             className={styles.storagePath}
             title={fileSet?.filesystemContentBase ?? undefined}
           >
-            {fileSet?.filesystemContentBase ?? localizedMessage("inspection.components.file.table.platform.managed.storage")}
+            {fileSet?.filesystemContentBase ?? localizedMessage("inspection.components.file.table.managed.by.android")}
           </span>
           <FileActionsMenu
             pending={fileActionPending}
@@ -502,6 +502,7 @@ export function FileTable({
         )}
       </div>
       <VirtualTable
+        formatCount={(count) => localizedMessage("common.count.files", { count })}
         tableId="files"
         label={localizedMessage("inspection.components.file.table.torrent.files")}
         rows={rows}

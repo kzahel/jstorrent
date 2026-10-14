@@ -86,7 +86,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
     sortKind: "decimal",
     sortValue: (row) => row.payloadDownloadedBytes,
     headerHelp: (
-      <p>{localizedMessage("inspection.components.swarm.table.useful.payload.received.from.this.peer.across")}</p>
+      <p>{localizedMessage("inspection.components.swarm.table.file.data.received.from.this.peer")}</p>
     ),
     render: (row) => formatExactBytes(row.payloadDownloadedBytes, dataUnits),
   },
@@ -99,7 +99,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<SwarmRow>[] => [
     sortKind: "decimal",
     sortValue: (row) => row.payloadUploadedBytes,
     headerHelp: (
-      <p>{localizedMessage("inspection.components.swarm.table.payload.sent.to.this.peer.across.every")}</p>
+      <p>{localizedMessage("inspection.components.swarm.table.file.data.sent.to.this.peer")}</p>
     ),
     render: (row) => formatExactBytes(row.payloadUploadedBytes, dataUnits),
   },
@@ -207,6 +207,7 @@ export function SwarmTable({ torrentId }: { readonly torrentId: string }) {
     <div className={styles.panel}>
       <SwarmSummary swarm={swarm} />
       <VirtualTable
+        formatCount={(count) => localizedMessage("common.count.peers", { count })}
         tableId="swarm"
         label={localizedMessage("inspection.components.swarm.table.known.swarm.peers")}
         rows={rows}

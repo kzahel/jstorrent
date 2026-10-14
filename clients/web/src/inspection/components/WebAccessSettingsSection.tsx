@@ -184,7 +184,7 @@ export function WebAccessSettingsSection({
 
           <section className={styles.section}>
             <h3>{localizedMessage("inspection.components.web.access.settings.section.recovery.and.sign.out")}</h3>
-            <p className={styles.note}>{localizedMessage("inspection.components.web.access.settings.section.if.every.authorized.cookie.or.browser.profile")}{" "}<code>{localizedMessage("inspection.components.web.access.settings.section.pairing.window")}</code>{localizedMessage("inspection.components.web.access.settings.section.the.first.explicit.browser.approval.consumes.that")}</p>
+            <p className={styles.note}>{localizedMessage("inspection.components.web.access.settings.section.locked.out.restart.with")}{" "}<code>{localizedMessage("inspection.components.web.access.settings.section.pairing.window")}</code>{localizedMessage("inspection.components.web.access.settings.section.that.gives.you.10.minutes")}</p>
             <button
               className={styles.danger}
               type="button"

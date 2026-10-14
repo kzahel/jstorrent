@@ -52,6 +52,7 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
         <span>{waiting.toLocaleString()}{" "}{localizedMessage("inspection.components.tracker.table.scheduled")}</span>
       </div>
       <VirtualTable
+        formatCount={(count) => localizedMessage("common.count.trackers", { count })}
         tableId="trackers"
         label={localizedMessage("inspection.components.tracker.table.torrent.trackers")}
         rows={rows}
@@ -167,7 +168,7 @@ function trackerColumns(nowMs: number): readonly VirtualColumn<TrackerRow>[] {
           title={
             row.security === "encrypted_unauthenticated"
               ? localizedMessage("inspection.components.tracker.table.encrypted.certificate.and.hostname.not.validated")
-              : localizedMessage("inspection.components.tracker.table.unencrypted.tracker.transport")
+              : localizedMessage("inspection.components.tracker.table.not.encrypted")
           }
         >
           {row.transport.toUpperCase()}

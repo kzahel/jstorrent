@@ -151,7 +151,7 @@ const columns = (dataUnits: DataUnits): readonly VirtualColumn<PeerRow>[] => [
   },
   {
     id: "lastPayload",
-    label: localizedMessage("inspection.components.peer.table.last.payload"),
+    label: localizedMessage("inspection.components.peer.table.last.data"),
     width: 104,
     align: "right",
     sortable: true,
@@ -255,6 +255,7 @@ export function PeerTable({ torrentId }: { readonly torrentId: string }) {
 
   return (
     <VirtualTable
+      formatCount={(count) => localizedMessage("common.count.peers", { count })}
       tableId="peers"
       label={localizedMessage("inspection.components.peer.table.active.peer.connections")}
       rows={rows}

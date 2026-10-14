@@ -193,7 +193,7 @@ describe("VirtualTable", () => {
       metaKey: true,
     })).toBe(false);
     expect(checkedRowNames()).toEqual(["all rows", "one", "two"]);
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
 
     fireEvent.click(grid);
     expect(grid).toHaveFocus();
@@ -403,7 +403,7 @@ describe("VirtualTable", () => {
     );
     expect(screen.getByRole("checkbox", { name: "Deselect two" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Deselect one" })).toBeChecked();
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
     const masterSelection = screen.getByRole("checkbox", {
       name: "Deselect all rows",
     });
@@ -416,12 +416,12 @@ describe("VirtualTable", () => {
       "aria-current",
       "true",
     );
-    expect(screen.queryByText("2 selected for actions")).not.toBeInTheDocument();
+    expect(screen.queryByText("2 selected")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("row", { name: /Select one/ }), {
       ctrlKey: true,
     });
-    expect(screen.getByText("2 selected for actions")).toBeVisible();
+    expect(screen.getByText("2 selected")).toBeVisible();
     expect(screen.getByRole("row", { name: /2/ })).toHaveAttribute(
       "aria-current",
       "true",
@@ -558,11 +558,11 @@ describe("VirtualTable", () => {
     expect(checkedRowNames()).toEqual(["one", "two", "three"]);
 
     fireEvent.keyDown(grid, { key: "a", metaKey: true });
-    expect(screen.getByText("5 selected for actions")).toBeVisible();
+    expect(screen.getByText("5 selected")).toBeVisible();
     fireEvent.keyDown(grid, { key: "ArrowDown" });
     expect(current()).toHaveAttribute("data-row-id", "two");
     expect(checkedRowNames()).toEqual(["two"]);
-    expect(screen.queryByText("5 selected for actions")).not.toBeInTheDocument();
+    expect(screen.queryByText("5 selected")).not.toBeInTheDocument();
     fireEvent.keyDown(grid, { key: "Enter" });
     expect(checkedRowNames()).toEqual(["two"]);
     fireEvent.keyDown(grid, { key: "Escape" });
@@ -578,11 +578,11 @@ describe("VirtualTable", () => {
       "0",
     );
     expect(
-      screen.queryByText("5 selected for actions"),
+      screen.queryByText("5 selected"),
     ).not.toBeInTheDocument();
 
     fireEvent.keyDown(grid, { key: "a", ctrlKey: true });
-    expect(screen.getByText("5 selected for actions")).toBeVisible();
+    expect(screen.getByText("5 selected")).toBeVisible();
   });
 
   it("selects offscreen logical rows and discloses hidden targets", () => {
@@ -619,11 +619,11 @@ describe("VirtualTable", () => {
 
     render(<LargeTable />);
     const grid = screen.getByRole("grid", { name: "Logical rows" });
-    expect(screen.getByText("2 selected for actions (1 outside this view)")).toBeVisible();
+    expect(screen.getByText("2 selected (1 not shown)")).toBeVisible();
     expect(grid.querySelectorAll('[role="row"]').length).toBeLessThan(100);
     grid.querySelector<HTMLElement>('[data-row-id="row-0"]')?.focus();
     fireEvent.keyDown(grid, { key: "a", ctrlKey: true });
-    expect(screen.getByText("200 selected for actions")).toBeVisible();
+    expect(screen.getByText("200 selected")).toBeVisible();
     expect(grid.querySelectorAll('[role="row"]').length).toBeLessThan(100);
   });
 

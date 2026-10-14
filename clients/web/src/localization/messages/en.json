@@ -7,8 +7,8 @@
   "android.companion.authenticating": {"defaultMessage": "Connecting to the approved Android library…", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.help": {"defaultMessage": "Setup and troubleshooting", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.linux": {"defaultMessage": "Use Linux instead", "description": "ChromeOS pre-connection recovery and voluntary support context."},
-  "android.companion.support-preview": {"defaultMessage": "Preview connection support context", "description": "ChromeOS pre-connection recovery and voluntary support context."},
-  "android.companion.support-privacy": {"defaultMessage": "Review before copying or sharing. This context contains no paths, accounts, credentials or torrent data. Nothing is uploaded.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
+  "android.companion.support-preview": {"defaultMessage": "Preview support info", "description": "ChromeOS pre-connection recovery and voluntary support context."},
+  "android.companion.support-privacy": {"defaultMessage": "Review before copying or sharing. This contains no file paths, accounts, passwords or torrent details. Nothing is uploaded.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.failed": {"defaultMessage": "The connection attempt failed. Open setup and troubleshooting for the failed stage, then retry manually.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.permission-denied": {"defaultMessage": "Allow Android connection to let this extension connect to the app. No local service has been contacted.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
   "android.companion.attempt-timeout": {"defaultMessage": "The connection attempt timed out. Open JSTorrent, check pairing approval and retry manually.", "description": "ChromeOS pre-connection recovery and voluntary support context."},
@@ -16,6 +16,12 @@
   "android.companion.update-extension": {"defaultMessage": "Update the JSTorrent extension, then retry. You can use the Android app directly while updates arrive.", "description": "ChromeOS independent extension and Android update recovery guidance."},
   "android.companion.unavailable-guidance": {"defaultMessage": "Looking for the Android service. Open the Android app and enable browser control. If you recently updated JSTorrent, update both the Android app and extension; you can use Android directly meanwhile.", "description": "ChromeOS independent extension and Android update recovery guidance."},
   "android.companion.open-update": {"defaultMessage": "Open JSTorrent in Google Play", "description": "ChromeOS independent extension and Android update recovery guidance."},
+  "inspection.components.torrent.status.getting.info": { "defaultMessage": "Getting info", "description": "Torrent status label" },
+  "inspection.components.torrent.status.downloading": { "defaultMessage": "Downloading", "description": "Torrent status label" },
+  "inspection.components.torrent.status.paused": { "defaultMessage": "Paused", "description": "Torrent status label" },
+  "inspection.components.torrent.status.complete": { "defaultMessage": "Complete", "description": "Torrent status label" },
+  "inspection.components.torrent.status.checking": { "defaultMessage": "Checking", "description": "Torrent status label" },
+  "inspection.components.torrent.status.error": { "defaultMessage": "Error", "description": "Torrent status label" },
   "inspection.components.torrent.status.storage.unavailable": { "defaultMessage": "Storage unavailable", "description": "Torrent status when progress is blocked waiting for its download storage" },
   "inspection.components.torrent.status.archived": { "defaultMessage": "Archived", "description": "Torrent status for an archived torrent, which stays paused until restored" },
   "inspection.file.actions.restore.before.downloading": { "defaultMessage": "Restore this archived torrent before downloading files.", "description": "Reason file Download now is unavailable for an archived torrent" },
@@ -71,8 +77,24 @@
     "description": "Selected file count out of the total selectable files"
   },
   "common.rows.selected": {
-    "defaultMessage": "{count, plural, one {# selected for actions} other {# selected for actions}}{hidden, plural, =0 {} one { (# outside this view)} other { (# outside this view)}}",
+    "defaultMessage": "{count, plural, one {# selected} other {# selected}}{hidden, plural, =0 {} one { (# not shown)} other { (# not shown)}}",
     "description": "Action selection count with any selected rows hidden by the current view"
+  },
+  "common.count.files": {
+    "defaultMessage": "{count, plural, one {# file} other {# files}}",
+    "description": "Number of files in a table"
+  },
+  "common.count.peers": {
+    "defaultMessage": "{count, plural, one {# peer} other {# peers}}",
+    "description": "Number of peers in a table"
+  },
+  "common.count.torrents": {
+    "defaultMessage": "{count, plural, one {# torrent} other {# torrents}}",
+    "description": "Number of torrents in a table"
+  },
+  "common.count.trackers": {
+    "defaultMessage": "{count, plural, one {# tracker} other {# trackers}}",
+    "description": "Number of trackers in a table"
   },
   "common.rows.total": {
     "defaultMessage": "{count, plural, one {# row} other {# rows}}",
@@ -1326,8 +1348,8 @@
     "defaultMessage": "Active lookups",
     "description": "Product copy in inspection/components/DhtPanel.tsx"
   },
-  "inspection.components.dht.panel.all.160.engine.slots.are.shown.in": {
-    "defaultMessage": "All 160 engine slots are shown in exact index order. Equal widths describe storage slots, not equal keyspace volumes.",
+  "inspection.components.dht.panel.each.bar.is.one.bucket": {
+    "defaultMessage": "Each bar is one routing table bucket.",
     "description": "Product copy in inspection/components/DhtPanel.tsx"
   },
   "inspection.components.dht.panel.announcements": {
@@ -1378,8 +1400,8 @@
     "defaultMessage": "Deepest prefix",
     "description": "Product copy in inspection/components/DhtPanel.tsx"
   },
-  "inspection.components.dht.panel.depth.159.bucket.index.moving.right.adds": {
-    "defaultMessage": "Depth = 159 − bucket index. Moving right adds one shared bit and halves the XOR-distance band.",
+  "inspection.components.dht.panel.bars.further.right.are.closer": {
+    "defaultMessage": "Bars further right hold nodes closer to this device's ID.",
     "description": "Product copy in inspection/components/DhtPanel.tsx"
   },
   "inspection.components.dht.panel.depth.normalized": {
@@ -1606,8 +1628,8 @@
     "defaultMessage": "Target",
     "description": "Product copy in inspection/components/DhtPanel.tsx"
   },
-  "inspection.components.dht.panel.traffic.is.complete.udp.datagram.bytes.at": {
-    "defaultMessage": "Traffic is complete UDP datagram bytes at the socket boundary, not payload throughput.",
+  "inspection.components.dht.panel.includes.all.dht.traffic": {
+    "defaultMessage": "Includes all DHT network traffic, not file data.",
     "description": "Product copy in inspection/components/DhtPanel.tsx"
   },
   "inspection.components.dht.panel.utc": {
@@ -1670,8 +1692,8 @@
     "defaultMessage": "No pieces are waiting on storage.",
     "description": "Product copy in inspection/components/DiskPanel.tsx"
   },
-  "inspection.components.disk.panel.payload.sync": {
-    "defaultMessage": "Payload sync",
+  "inspection.components.disk.panel.disk.sync": {
+    "defaultMessage": "Disk sync",
     "description": "Product copy in inspection/components/DiskPanel.tsx"
   },
   "inspection.components.disk.panel.pending.work": {
@@ -1680,10 +1702,6 @@
   },
   "inspection.components.disk.panel.piece": {
     "defaultMessage": "Piece",
-    "description": "Product copy in inspection/components/DiskPanel.tsx"
-  },
-  "inspection.components.disk.panel.piece.level.work.only.16.kib.block": {
-    "defaultMessage": "Piece-level work only; 16 KiB block jobs stay inside the engine.",
     "description": "Product copy in inspection/components/DiskPanel.tsx"
   },
   "inspection.components.disk.panel.receive.write": {
@@ -1934,8 +1952,8 @@
     "defaultMessage": "Pieces",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
-  "inspection.components.file.table.platform.managed.storage": {
-    "defaultMessage": "Platform-managed storage",
+  "inspection.components.file.table.managed.by.android": {
+    "defaultMessage": "Managed by Android",
     "description": "Product copy in inspection/components/FileTable.tsx"
   },
   "inspection.components.file.table.priority": {
@@ -2186,8 +2204,8 @@
     "defaultMessage": "Finding content details",
     "description": "Product copy in inspection/components/LibraryView.tsx"
   },
-  "inspection.components.library.view.library.collection.is.not.requested.in.this": {
-    "defaultMessage": "Library collection is not requested in this layout",
+  "inspection.components.library.view.loading": {
+    "defaultMessage": "Loading…",
     "description": "Product copy in inspection/components/LibraryView.tsx"
   },
   "inspection.components.library.view.loading.library.content": {
@@ -2286,12 +2304,12 @@
     "defaultMessage": "Detailed",
     "description": "Product copy in inspection/components/LogConsole.tsx"
   },
-  "inspection.components.log.console.diagnostic.capture.profile": {
-    "defaultMessage": "Diagnostic capture profile",
+  "inspection.components.log.console.log.detail.level": {
+    "defaultMessage": "Log detail level",
     "description": "Product copy in inspection/components/LogConsole.tsx"
   },
-  "inspection.components.log.console.diagnostic.capture.scope": {
-    "defaultMessage": "Diagnostic capture scope",
+  "inspection.components.log.console.torrents.to.log": {
+    "defaultMessage": "Torrents to log",
     "description": "Product copy in inspection/components/LogConsole.tsx"
   },
   "inspection.components.log.console.diagnostic.console": {
@@ -2358,12 +2376,12 @@
     "defaultMessage": "Normal",
     "description": "Product copy in inspection/components/LogConsole.tsx"
   },
-  "inspection.components.log.console.profile": {
-    "defaultMessage": "Profile",
+  "inspection.components.log.console.detail": {
+    "defaultMessage": "Detail",
     "description": "Product copy in inspection/components/LogConsole.tsx"
   },
-  "inspection.components.log.console.retained": {
-    "defaultMessage": "retained",
+  "inspection.components.log.console.kept": {
+    "defaultMessage": "kept",
     "description": "Product copy in inspection/components/LogConsole.tsx"
   },
   "inspection.components.log.console.scope": {
@@ -2374,8 +2392,8 @@
     "defaultMessage": "Search diagnostics",
     "description": "Product copy in inspection/components/LogConsole.tsx"
   },
-  "inspection.components.log.console.search.message.code.or.context": {
-    "defaultMessage": "Search message, code, or context",
+  "inspection.components.log.console.search.logs": {
+    "defaultMessage": "Search logs",
     "description": "Product copy in inspection/components/LogConsole.tsx"
   },
   "inspection.components.log.console.sequence": {
@@ -2478,8 +2496,8 @@
     "defaultMessage": "Flags",
     "description": "Product copy in inspection/components/PeerTable.tsx"
   },
-  "inspection.components.peer.table.last.payload": {
-    "defaultMessage": "Last payload",
+  "inspection.components.peer.table.last.data": {
+    "defaultMessage": "Last data",
     "description": "Product copy in inspection/components/PeerTable.tsx"
   },
   "inspection.components.peer.table.loading.active.peer.connections": {
@@ -2606,16 +2624,8 @@
     "defaultMessage": "Keeps your computer awake while downloading or checking files. The display can still turn off.",
     "description": "Power settings introduction"
   },
-  "inspection.components.preparation.progress.16.kib.per.block": {
-    "defaultMessage": "16 KiB per block",
-    "description": "Product copy in inspection/components/PreparationProgress.tsx"
-  },
   "inspection.components.preparation.progress.active": {
     "defaultMessage": "Active",
-    "description": "Product copy in inspection/components/PreparationProgress.tsx"
-  },
-  "inspection.components.preparation.progress.active.requests": {
-    "defaultMessage": "Active requests",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
   "inspection.components.preparation.progress.downloading.data.to.check.files": {
@@ -2634,14 +2644,6 @@
     "defaultMessage": "Finding peers",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
-  "inspection.components.preparation.progress.hash.ranges.needed": {
-    "defaultMessage": "Hash ranges needed",
-    "description": "Product copy in inspection/components/PreparationProgress.tsx"
-  },
-  "inspection.components.preparation.progress.hash.retries": {
-    "defaultMessage": "Hash retries",
-    "description": "Product copy in inspection/components/PreparationProgress.tsx"
-  },
   "inspection.components.preparation.progress.legend": {
     "defaultMessage": "Legend",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
@@ -2652,10 +2654,6 @@
   },
   "inspection.components.preparation.progress.torrent.info.progress": {
     "defaultMessage": "Torrent info progress",
-    "description": "Product copy in inspection/components/PreparationProgress.tsx"
-  },
-  "inspection.components.preparation.progress.peers": {
-    "defaultMessage": "Peers",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
   "inspection.components.preparation.progress.missing": {
@@ -2676,10 +2674,6 @@
   },
   "inspection.components.preparation.progress.requested": {
     "defaultMessage": "Requested",
-    "description": "Product copy in inspection/components/PreparationProgress.tsx"
-  },
-  "inspection.components.preparation.progress.requests.in.flight": {
-    "defaultMessage": "Requests in flight",
     "description": "Product copy in inspection/components/PreparationProgress.tsx"
   },
   "inspection.components.preparation.progress.getting.data.to.check.files": {
@@ -2950,8 +2944,8 @@
     "defaultMessage": "· password",
     "description": "Product copy in inspection/components/RemoteAccessSettingsSection.tsx"
   },
-  "inspection.components.remote.access.settings.section.payload.sent": {
-    "defaultMessage": "Payload sent",
+  "inspection.components.remote.access.settings.section.data.sent": {
+    "defaultMessage": "Data sent",
     "description": "Product copy in inspection/components/RemoteAccessSettingsSection.tsx"
   },
   "inspection.components.remote.access.settings.section.queued.bytes": {
@@ -3002,8 +2996,8 @@
     "defaultMessage": "· resume",
     "description": "Product copy in inspection/components/RemoteAccessSettingsSection.tsx"
   },
-  "inspection.components.remote.access.settings.section.retained.security.history": {
-    "defaultMessage": "Retained security history",
+  "inspection.components.remote.access.settings.section.security.history": {
+    "defaultMessage": "Security history",
     "description": "Product copy in inspection/components/RemoteAccessSettingsSection.tsx"
   },
   "inspection.components.remote.access.settings.section.revoke": {
@@ -3062,8 +3056,8 @@
     "defaultMessage": "The circuit was closed.",
     "description": "Product copy in inspection/components/RemoteAccessSettingsSection.tsx"
   },
-  "inspection.components.remote.access.settings.section.the.host.authority.is.absent.retained.entries": {
-    "defaultMessage": "The host authority is absent. Retained entries below are audit evidence only and cannot authorize a connection.",
+  "inspection.components.remote.access.settings.section.remote.access.is.off.history.only": {
+    "defaultMessage": "Remote access is off. The list below is history only.",
     "description": "Product copy in inspection/components/RemoteAccessSettingsSection.tsx"
   },
   "inspection.components.remote.access.settings.section.the.new.password.confirmation.does.not.match": {
@@ -3390,8 +3384,8 @@
     "defaultMessage": "Out",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
   },
-  "inspection.components.speed.panel.payload.upload.is.unavailable.until.upload.and": {
-    "defaultMessage": "Payload upload is unavailable until upload and seeding exist.",
+  "inspection.components.speed.panel.upload.history.unavailable": {
+    "defaultMessage": "Upload history isn't available.",
     "description": "Product copy in inspection/components/SpeedPanel.tsx"
   },
   "inspection.components.speed.panel.peak": {
@@ -3534,8 +3528,8 @@
     "defaultMessage": "Parole",
     "description": "Product copy in inspection/components/SwarmTable.tsx"
   },
-  "inspection.components.swarm.table.payload.sent.to.this.peer.across.every": {
-    "defaultMessage": "Payload sent to this peer across every connection retained by this Swarm record. It excludes protocol traffic and resets with the engine or record.",
+  "inspection.components.swarm.table.file.data.sent.to.this.peer": {
+    "defaultMessage": "Total file data sent to this peer since JSTorrent started.",
     "description": "Product copy in inspection/components/SwarmTable.tsx"
   },
   "inspection.components.swarm.table.pex": {
@@ -3570,8 +3564,8 @@
     "defaultMessage": "Uploaded",
     "description": "Product copy in inspection/components/SwarmTable.tsx"
   },
-  "inspection.components.swarm.table.useful.payload.received.from.this.peer.across": {
-    "defaultMessage": "Useful payload received from this peer across every connection retained by this Swarm record. It resets when the engine restarts or the record is evicted.",
+  "inspection.components.swarm.table.file.data.received.from.this.peer": {
+    "defaultMessage": "Total useful file data received from this peer since JSTorrent started.",
     "description": "Product copy in inspection/components/SwarmTable.tsx"
   },
   "inspection.components.torrent.action.context.a.selected.torrent.is.no.longer.available": {
@@ -3694,8 +3688,8 @@
     "defaultMessage": "Torrents",
     "description": "Product copy in inspection/components/TorrentTable.tsx"
   },
-  "inspection.components.torrent.table.torrent.library.is.not.requested.in.this": {
-    "defaultMessage": "Torrent library is not requested in this layout.",
+  "inspection.components.torrent.table.loading": {
+    "defaultMessage": "Loading…",
     "description": "Product copy in inspection/components/TorrentTable.tsx"
   },
   "inspection.components.torrent.table.up": {
@@ -3798,8 +3792,8 @@
     "defaultMessage": "Type",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
   },
-  "inspection.components.tracker.table.unencrypted.tracker.transport": {
-    "defaultMessage": "Unencrypted tracker transport",
+  "inspection.components.tracker.table.not.encrypted": {
+    "defaultMessage": "Not encrypted",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
   },
   "inspection.components.tracker.table.url": {
@@ -3850,8 +3844,8 @@
     "defaultMessage": "Torrent actions",
     "description": "Product copy in inspection/components/TransferTable.tsx"
   },
-  "inspection.components.transfer.table.transfer.collection.is.not.requested.in.this": {
-    "defaultMessage": "Transfer collection is not requested in this layout.",
+  "inspection.components.transfer.table.loading": {
+    "defaultMessage": "Loading…",
     "description": "Product copy in inspection/components/TransferTable.tsx"
   },
   "inspection.components.transfer.table.transfer.queue": {
@@ -3978,8 +3972,8 @@
     "defaultMessage": "Generate code",
     "description": "Product copy in inspection/components/WebAccessSettingsSection.tsx"
   },
-  "inspection.components.web.access.settings.section.if.every.authorized.cookie.or.browser.profile": {
-    "defaultMessage": "If every authorized cookie or browser profile is gone, stop the server and restart the same command with",
+  "inspection.components.web.access.settings.section.locked.out.restart.with": {
+    "defaultMessage": "Locked out of every browser? Restart JSTorrent with",
     "description": "Product copy in inspection/components/WebAccessSettingsSection.tsx"
   },
   "inspection.components.web.access.settings.section.keep.localhost.open": {
@@ -4034,8 +4028,8 @@
     "defaultMessage": "The code works once, for 10 minutes, with five attempts.",
     "description": "Product copy in inspection/components/WebAccessSettingsSection.tsx"
   },
-  "inspection.components.web.access.settings.section.the.first.explicit.browser.approval.consumes.that": {
-    "defaultMessage": ". The first explicit browser approval consumes that 10-minute window.",
+  "inspection.components.web.access.settings.section.that.gives.you.10.minutes": {
+    "defaultMessage": ". That gives you 10 minutes to approve one browser.",
     "description": "Product copy in inspection/components/WebAccessSettingsSection.tsx"
   },
   "inspection.components.web.access.settings.section.this.browser": {
@@ -4090,8 +4084,8 @@
     "defaultMessage": "Four-digit code",
     "description": "Product copy in inspection/components/WebAuthGate.tsx"
   },
-  "inspection.components.web.auth.gate.if.every.approved.browser.profile.or.cookie": {
-    "defaultMessage": "If every approved browser profile or cookie is gone, stop the server and restart the same command with",
+  "inspection.components.web.auth.gate.locked.out.restart.with": {
+    "defaultMessage": "Locked out of every browser? Restart JSTorrent with",
     "description": "Product copy in inspection/components/WebAuthGate.tsx"
   },
   "inspection.components.web.auth.gate.in.an.approved.browser.open.settings.web": {
@@ -4102,8 +4096,8 @@
     "defaultMessage": "Initial setup is open on this computer for",
     "description": "Product copy in inspection/components/WebAuthGate.tsx"
   },
-  "inspection.components.web.auth.gate.initial.setup.was.available.for.10.minutes": {
-    "defaultMessage": "Initial setup was available for 10 minutes and has now closed. Restart JSTorrent with the same profile to open a new 10-minute setup window.",
+  "inspection.components.web.auth.gate.setup.is.closed.restart": {
+    "defaultMessage": "Setup is closed. Restart JSTorrent to try again for another 10 minutes.",
     "description": "Product copy in inspection/components/WebAuthGate.tsx"
   },
   "inspection.components.web.auth.gate.keep.localhost.open": {
@@ -4578,8 +4572,8 @@
     "defaultMessage": "Incoming",
     "description": "Product copy in inspection/peerFlags.ts"
   },
-  "inspection.peer.flags.metadata.extension": {
-    "defaultMessage": "Metadata extension",
+  "inspection.peer.flags.can.send.torrent.info": {
+    "defaultMessage": "Can send torrent info",
     "description": "Product copy in inspection/peerFlags.ts"
   },
   "inspection.peer.flags.on.parole": {
@@ -4731,7 +4725,7 @@
     "description": "Feedback destination label"
   },
   "product.feedback.preview.title": {
-    "defaultMessage": "Review feedback context",
+    "defaultMessage": "Review what will be sent",
     "description": "Feedback confirmation title"
   },
   "product.feedback.review.action": {
@@ -4791,7 +4785,7 @@
     "description": "Confirm product statistics reset"
   },
   "product.privacy.reset.description": {
-    "defaultMessage": "This creates a new random identifier and clears these coarse counters. It does not remove torrents, payload files, settings, pairing, or records already received by a server.",
+    "defaultMessage": "This creates a new random identifier and resets these counts. Your torrents, files, settings and pairing are not affected. Data a server already received is not removed.",
     "description": "Product statistics reset boundary"
   },
   "product.privacy.reset.title": {

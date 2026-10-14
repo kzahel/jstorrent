@@ -174,7 +174,7 @@ class ProductNavigationTest {
         compose
             .onNodeWithText("Report Bug / Send Feedback")
             .performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithText("Review feedback context").assertIsDisplayed()
+        compose.onNodeWithText("Review what will be sent").assertIsDisplayed()
         compose.onNodeWithText("Open feedback page").performSemanticsAction(SemanticsActions.OnClick)
 
         compose.runOnIdle { assertEquals(1, feedbackCalls) }
