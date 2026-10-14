@@ -209,7 +209,7 @@ test("live torrent file picker uses one WebSocket binary attachment", async ({
   await chooser.setFiles(torrentFile!);
 
   const dialog = page.getByRole("dialog", {
-    name: "Choose download options",
+    name: "Add torrent",
   });
   await expect(dialog).toBeVisible();
   const startContent = dialog.getByRole("checkbox", {
@@ -840,7 +840,7 @@ test("live Library media detail follows metadata through completion", async ({
   await input.fill(magnet!);
   await input.press("Enter");
   const addDialog = page.getByRole("dialog", {
-    name: "Choose download options",
+    name: "Add torrent",
   });
   await addDialog
     .getByRole("checkbox", {
@@ -1046,10 +1046,9 @@ test("live add-time file selection", async ({ page }) => {
   await addForm.getByRole("button", { name: "Add" }).click();
 
   const addDialog = page.getByRole("dialog", {
-    name: "Choose download options",
+    name: "Add torrent",
   });
   await expect(addDialog).toBeVisible();
-  await expect(addDialog.getByText("Choose files next")).toBeVisible();
   await expect(
     addDialog.getByRole("checkbox", {
       name: /Start downloading files when metadata is available/,
@@ -1218,7 +1217,7 @@ async function scrollToEnd(grid: Locator) {
 }
 
 async function confirmDefaultAddOptions(page: Page) {
-  const dialog = page.getByRole("dialog", { name: "Choose download options" });
+  const dialog = page.getByRole("dialog", { name: "Add torrent" });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Add torrent" }).click();
 }

@@ -22,7 +22,6 @@ export interface AddTorrentDialogProps {
   readonly oneCurrentRoot?: boolean;
   readonly returnFocus: RefObject<HTMLInputElement | null>;
   readonly externalKind?: "magnet" | "torrent_file" | undefined;
-  readonly batchCount?: number;
   readonly showCrostiniStorageHelp: boolean;
   readonly fileSelectionEnabled: boolean;
   readonly onChooseFolder: (repairRoot?: string) => Promise<DownloadRoot | null>;
@@ -40,7 +39,6 @@ export function AddTorrentDialog({
   oneCurrentRoot = false,
   returnFocus,
   externalKind,
-  batchCount,
   showCrostiniStorageHelp,
   fileSelectionEnabled,
   onChooseFolder,
@@ -140,36 +138,30 @@ export function AddTorrentDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-torrent-title"
-        aria-describedby="add-torrent-description"
+        {...(externalKind === undefined
+          ? {}
+          : { "aria-describedby": "add-torrent-description" })}
         onKeyDown={handleKeyDown}
         onSubmit={(event) => void submit(event)}
       >
         <header>
-          <p>{batchCount === undefined
-            ? localizedMessage("inspection.components.add.torrent.dialog.add.torrent")
-            : localizedMessage("inspection.components.more.actions.menu.add.all.sample.torrents")}</p>
-          <h2 id="add-torrent-title">{localizedMessage("inspection.components.add.torrent.dialog.choose.download.options")}</h2>
+          <h2 id="add-torrent-title">{localizedMessage("inspection.components.add.torrent.dialog.add.torrent")}</h2>
         </header>
-        <p id="add-torrent-description" className={styles.description}>
-          {batchCount === undefined ? null : localizedMessage("inspection.components.add.torrent.dialog.sample.batch.description", {
-            count: batchCount,
-          })}
-          {externalKind === "magnet"
-            ? localizedMessage("inspection.components.add.torrent.dialog.an.external.magnet.link.requested.this.add")
-            : externalKind === "torrent_file"
-              ? localizedMessage("inspection.components.add.torrent.dialog.an.external.torrent.file.requested.this.add")
-              : null}
-          {batchCount === undefined
-            ? oneCurrentRoot
-              ? localizedMessage("inspection.components.add.torrent.dialog.this.torrent.will.use.android.s.current")
-              : localizedMessage("inspection.components.add.torrent.dialog.choose.where.this.torrent.will.download.this")
-            : null}
-        </p>
+        {externalKind === undefined ? null : (
+          <p id="add-torrent-description" className={styles.description}>
+            {externalKind === "magnet"
+              ? localizedMessage("inspection.components.add.torrent.dialog.an.external.magnet.link.requested.this.add")
+              : localizedMessage("inspection.components.add.torrent.dialog.an.external.torrent.file.requested.this.add")}
+          </p>
+        )}
 
         {showCrostiniStorageHelp ? <CrostiniStorageHelp /> : null}
 
-        <fieldset className={styles.locations} disabled={busy}>
-          <legend>{localizedMessage("inspection.components.add.torrent.dialog.download.location")}</legend>
+        <fieldset
+          className={styles.locations}
+          disabled={busy}
+          aria-label={localizedMessage("inspection.components.add.torrent.dialog.download.folder")}
+        >
           {roots.length === 0 ? (
             <p className={styles.empty}>{localizedMessage("inspection.components.add.torrent.dialog.a.download.folder.is.required.before.rstorrent")}</p>
           ) : (
@@ -227,30 +219,22 @@ export function AddTorrentDialog({
             disabled={busy}
             onClick={() => void chooseFolder()}
           >
-            {choosingRoot === "new" ? localizedMessage("inspection.components.add.torrent.dialog.choosing") : localizedMessage("inspection.components.add.torrent.dialog.choose.folder")}
+            {choosingRoot === "new"
+              ? localizedMessage("inspection.components.add.torrent.dialog.choosing")
+              : availableRoots.length === 0
+                ? localizedMessage("inspection.components.add.torrent.dialog.choose.folder")
+                : localizedMessage("inspection.components.add.torrent.dialog.choose.another.folder")}
           </button>
         </fieldset>
 
-        {fileSelectionEnabled ? (
-          <section className={styles.files}>
-            <strong>{localizedMessage("inspection.components.add.torrent.dialog.choose.files.next")}</strong>
-            <small>{localizedMessage("inspection.components.add.torrent.dialog.rstorrent.will.load.metadata.without.downloading.content")}</small>
-          </section>
-        ) : (
-        <section className={styles.files}>
-          <label>
+        {fileSelectionEnabled ? null : (
+          <label className={styles.preference}>
             <input
               type="checkbox"
               checked={startContent}
               disabled={busy}
               onChange={(event) => setStartContent(event.currentTarget.checked)}
-            />
-            <span>
-              <strong>{localizedMessage("inspection.components.add.torrent.dialog.start.downloading.files.when.metadata.is.available")}</strong>
-              <small>{localizedMessage("inspection.components.add.torrent.dialog.turn.this.off.to.fetch.metadata.first")}</small>
-            </span>
-          </label>
-        </section>
+            />{localizedMessage("inspection.components.add.torrent.dialog.start.downloading.files.when.metadata.is.available")}</label>
         )}
 
         {oneCurrentRoot ? null : (
@@ -262,7 +246,7 @@ export function AddTorrentDialog({
               onChange={(event) =>
                 setDontShowAgain(event.currentTarget.checked)
               }
-            />{localizedMessage("inspection.components.add.torrent.dialog.don.t.show.these.options.again.when")}</label>
+            />{localizedMessage("inspection.components.add.torrent.dialog.dont.ask.again")}</label>
         )}
 
         {error === "" ? null : (
@@ -284,11 +268,9 @@ export function AddTorrentDialog({
           >
             {pending
               ? localizedMessage("inspection.components.add.torrent.dialog.adding")
-              : batchCount !== undefined
-                ? localizedMessage("inspection.components.more.actions.menu.add.all.sample.torrents")
-                : fileSelectionEnabled
-                  ? localizedMessage("inspection.components.add.torrent.dialog.continue")
-                  : localizedMessage("inspection.components.add.torrent.dialog.add.torrent")}
+              : fileSelectionEnabled
+                ? localizedMessage("inspection.components.add.torrent.dialog.continue")
+                : localizedMessage("inspection.components.add.torrent.dialog.add.torrent")}
           </button>
         </div>
       </form>

@@ -46,15 +46,9 @@
 
 .locations {
   min-width: 0;
-  margin: 1.1rem 0 0;
+  margin: 0.9rem 0 0;
   border: 0;
   padding: 0;
-}
-
-.locations legend {
-  margin-bottom: 0.55rem;
-  font-size: var(--ui-font-body);
-  font-weight: var(--weight-strong);
 }
 
 .location {
@@ -143,36 +137,6 @@
   font-weight: var(--weight-medium);
 }
 
-.files {
-  margin-top: 1.15rem;
-  border-block: 1px solid var(--border-soft);
-  padding: 0.8rem 0;
-  font-size: var(--ui-font-small);
-}
-
-.files label {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 0.55rem;
-  cursor: pointer;
-}
-
-.files span {
-  display: grid;
-  gap: 0.18rem;
-}
-
-.files > strong,
-.files > small {
-  display: block;
-}
-
-.files small {
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
 .preference {
   display: flex;
   align-items: flex-start;
@@ -182,6 +146,9 @@
   line-height: 1.4;
 }
 
+.preference + .preference {
+  margin-top: 0.5rem;
+}
 
 .error {
   border-left: 3px solid var(--danger);

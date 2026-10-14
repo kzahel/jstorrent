@@ -2209,7 +2209,7 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("button", { name: "Add" }));
 
     let dialog = screen.getByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     expect(
       within(dialog).getByText(/download folder is required/i),
@@ -2232,7 +2232,7 @@ describe("inspection application", () => {
     );
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(
-      screen.queryByRole("dialog", { name: "Choose download options" }),
+      screen.queryByRole("dialog", { name: "Add torrent" }),
     ).not.toBeInTheDocument();
     expect(draft).toHaveValue(magnet);
     expect(
@@ -2240,10 +2240,10 @@ describe("inspection application", () => {
     ).toEqual([]);
 
     await user.click(screen.getByRole("button", { name: "Add" }));
-    dialog = screen.getByRole("dialog", { name: "Choose download options" });
+    dialog = screen.getByRole("dialog", { name: "Add torrent" });
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Don’t show these options again/,
+        name: /Don’t ask again/,
       }),
     );
     await user.click(
@@ -2256,7 +2256,7 @@ describe("inspection application", () => {
     );
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Choose download options" }),
+        screen.queryByRole("dialog", { name: "Add torrent" }),
       ).not.toBeInTheDocument(),
     );
     expect(draft).toHaveValue("");
@@ -2373,7 +2373,7 @@ describe("inspection application", () => {
     await user.click(screen.getByRole("button", { name: "Add" }));
     fireEvent.change(torrentFileInput(), { target: { files: [file] } });
     const dialog = screen.getByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     expect(read).not.toHaveBeenCalled();
     expect(application.commands).toEqual([]);
@@ -2388,7 +2388,7 @@ describe("inspection application", () => {
     );
     await user.click(
       within(dialog).getByRole("checkbox", {
-        name: /Don’t show these options again/,
+        name: /Don’t ask again/,
       }),
     );
     await user.click(
@@ -2397,7 +2397,7 @@ describe("inspection application", () => {
 
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Choose download options" }),
+        screen.queryByRole("dialog", { name: "Add torrent" }),
       ).not.toBeInTheDocument(),
     );
     expect(read).toHaveBeenCalledOnce();
@@ -2441,7 +2441,7 @@ describe("inspection application", () => {
     Object.defineProperty(file, "arrayBuffer", { value: read });
     fireEvent.change(fileInput, { target: { files: [file] } });
     const dialog = screen.getByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     await user.click(
       within(dialog).getByRole("button", { name: "Add torrent" }),
@@ -2530,7 +2530,7 @@ describe("inspection application", () => {
     );
     await user.click(screen.getByRole("button", { name: "Add" }));
     const dialog = screen.getByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     expect(
       within(dialog).getByRole("radio", { name: /Default Downloads/ }),
@@ -2568,7 +2568,7 @@ describe("inspection application", () => {
     renderApplication(application, undefined, undefined, external);
 
     let dialog = await screen.findByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     expect(
       within(dialog).getByText(/external magnet link requested this add/i),
@@ -2594,7 +2594,7 @@ describe("inspection application", () => {
       }),
     );
     dialog = await screen.findByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     expect(
       within(dialog).getByText(/external \.torrent file requested this add/i),
@@ -2667,7 +2667,7 @@ describe("inspection application", () => {
     renderApplication(application, undefined, undefined, external);
 
     const dialog = await screen.findByRole("dialog", {
-      name: "Choose download options",
+      name: "Add torrent",
     });
     expect(screen.getByRole("status")).toHaveTextContent(
       "external add rejected",
@@ -2770,7 +2770,7 @@ describe("inspection application", () => {
       }),
     );
     expect(
-      screen.queryByRole("dialog", { name: "Choose download options" }),
+      screen.queryByRole("dialog", { name: "Add torrent" }),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Settings" }));
@@ -2884,7 +2884,7 @@ describe("inspection application", () => {
       magnet,
     );
     await user.click(screen.getByRole("button", { name: "Add" }));
-    dialog = screen.getByRole("dialog", { name: "Choose download options" });
+    dialog = screen.getByRole("dialog", { name: "Add torrent" });
     expect(
       within(dialog).getByLabelText("Chromebook storage guidance"),
     ).toBeVisible();
@@ -3738,11 +3738,14 @@ describe("inspection application", () => {
       await user.click(screen.getByRole("menuitem", {
         name: "Add all sample torrents",
       }));
-      return screen.getByRole("dialog", { name: "Choose download options" });
+      return screen.getByRole("dialog", { name: "Add torrent" });
     };
 
     let dialog = await openBatch();
-    expect(dialog).toHaveTextContent("These 5 sample torrents will use the same download options.");
+    expect(dialog).not.toHaveTextContent(/sample torrents/i);
+    expect(
+      within(dialog).getByRole("button", { name: "Choose another folder…" }),
+    ).toBeEnabled();
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(application.commands).toEqual([]);
 
@@ -3752,10 +3755,10 @@ describe("inspection application", () => {
       name: /Start downloading files when metadata is available/,
     }));
     await user.click(within(dialog).getByRole("checkbox", {
-      name: /show these options again/,
+      name: /Don’t ask again/,
     }));
     await user.click(within(dialog).getByRole("button", {
-      name: "Add all sample torrents",
+      name: "Add torrent",
     }));
     await waitFor(() => expect(application.commands).toHaveLength(6));
     expect(application.commands).toEqual([

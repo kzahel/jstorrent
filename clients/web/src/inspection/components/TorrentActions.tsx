@@ -596,9 +596,6 @@ export function TorrentActions({
               ? pendingAdd.activation.kind
               : undefined
           }
-          {...(pendingAdd.type === "test_torrent_batch"
-            ? { batchCount: WEBTORRENT_TEST_TORRENTS.length }
-            : {})}
           showCrostiniStorageHelp={showCrostiniStorageHelp}
           fileSelectionEnabled={storage.showFileSelection === true}
           onChooseFolder={chooseFolder}

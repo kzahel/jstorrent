@@ -47,7 +47,7 @@ test("real tracker countdown survives unrelated updates, tab reopen and reload",
   const form = page.getByRole("form", { name: "Add torrent" });
   await form.getByRole("textbox", { name: "Magnet link or torrent URL" }).fill(magnet!);
   await form.getByRole("textbox", { name: "Magnet link or torrent URL" }).press("Enter");
-  const options = page.getByRole("dialog", { name: "Choose download options" });
+  const options = page.getByRole("dialog", { name: "Add torrent" });
   await expect(options).toBeVisible();
   await options.getByRole("button", { name: "Add torrent" }).click();
   const torrent = page.getByRole("grid", { name: "Torrents" }).getByRole("row").filter({ hasText: "Tracker clock fixture" });

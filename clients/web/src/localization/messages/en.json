@@ -246,10 +246,6 @@
     "defaultMessage": "Add torrent",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
-  "inspection.components.add.torrent.dialog.sample.batch.description": {
-    "defaultMessage": "These {count} sample torrents will use the same download options.",
-    "description": "Shared options for the Add all sample torrents action"
-  },
   "inspection.components.add.torrent.dialog.adding": {
     "defaultMessage": "Adding…",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
@@ -270,20 +266,12 @@
     "defaultMessage": "Choose an available download folder first.",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
-  "inspection.components.add.torrent.dialog.choose.download.options": {
-    "defaultMessage": "Choose download options",
-    "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
-  },
-  "inspection.components.add.torrent.dialog.choose.files.next": {
-    "defaultMessage": "Choose files next",
+  "inspection.components.add.torrent.dialog.choose.another.folder": {
+    "defaultMessage": "Choose another folder…",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
   "inspection.components.add.torrent.dialog.choose.folder": {
     "defaultMessage": "Choose folder…",
-    "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
-  },
-  "inspection.components.add.torrent.dialog.choose.where.this.torrent.will.download.this": {
-    "defaultMessage": "Choose where this torrent will download. This location applies only to this torrent unless you change the default in Settings.",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
   "inspection.components.add.torrent.dialog.choosing": {
@@ -302,12 +290,12 @@
     "defaultMessage": "Default",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
-  "inspection.components.add.torrent.dialog.don.t.show.these.options.again.when": {
-    "defaultMessage": "Don’t show these options again when a usable default is available",
+  "inspection.components.add.torrent.dialog.dont.ask.again": {
+    "defaultMessage": "Don’t ask again",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
-  "inspection.components.add.torrent.dialog.download.location": {
-    "defaultMessage": "Download location",
+  "inspection.components.add.torrent.dialog.download.folder": {
+    "defaultMessage": "Download folder",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
   "inspection.components.add.torrent.dialog.location.is.not.available": {
@@ -322,20 +310,8 @@
     "defaultMessage": "Repairing…",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
-  "inspection.components.add.torrent.dialog.rstorrent.will.load.metadata.without.downloading.content": {
-    "defaultMessage": "JSTorrent will load metadata without downloading content, then show a Normal/Skip checklist.",
-    "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
-  },
   "inspection.components.add.torrent.dialog.start.downloading.files.when.metadata.is.available": {
     "defaultMessage": "Start downloading files when metadata is available",
-    "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
-  },
-  "inspection.components.add.torrent.dialog.this.torrent.will.use.android.s.current": {
-    "defaultMessage": "This torrent will use Android's current download folder.",
-    "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
-  },
-  "inspection.components.add.torrent.dialog.turn.this.off.to.fetch.metadata.first": {
-    "defaultMessage": "Turn this off to fetch metadata first, then choose files in the Files tab.",
     "description": "Product copy in inspection/components/AddTorrentDialog.tsx"
   },
   "inspection.components.app.authentication.is.off": {

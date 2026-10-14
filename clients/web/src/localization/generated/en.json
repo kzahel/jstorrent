@@ -694,28 +694,16 @@
       "value": "Choose an available download folder first."
     }
   ],
-  "inspection.components.add.torrent.dialog.choose.download.options": [
+  "inspection.components.add.torrent.dialog.choose.another.folder": [
     {
       "type": 0,
-      "value": "Choose download options"
-    }
-  ],
-  "inspection.components.add.torrent.dialog.choose.files.next": [
-    {
-      "type": 0,
-      "value": "Choose files next"
+      "value": "Choose another folder…"
     }
   ],
   "inspection.components.add.torrent.dialog.choose.folder": [
     {
       "type": 0,
       "value": "Choose folder…"
-    }
-  ],
-  "inspection.components.add.torrent.dialog.choose.where.this.torrent.will.download.this": [
-    {
-      "type": 0,
-      "value": "Choose where this torrent will download. This location applies only to this torrent unless you change the default in Settings."
     }
   ],
   "inspection.components.add.torrent.dialog.choosing": [
@@ -742,16 +730,16 @@
       "value": "Default"
     }
   ],
-  "inspection.components.add.torrent.dialog.don.t.show.these.options.again.when": [
+  "inspection.components.add.torrent.dialog.dont.ask.again": [
     {
       "type": 0,
-      "value": "Don’t show these options again when a usable default is available"
+      "value": "Don’t ask again"
     }
   ],
-  "inspection.components.add.torrent.dialog.download.location": [
+  "inspection.components.add.torrent.dialog.download.folder": [
     {
       "type": 0,
-      "value": "Download location"
+      "value": "Download folder"
     }
   ],
   "inspection.components.add.torrent.dialog.location.is.not.available": [
@@ -772,42 +760,10 @@
       "value": "Repairing…"
     }
   ],
-  "inspection.components.add.torrent.dialog.rstorrent.will.load.metadata.without.downloading.content": [
-    {
-      "type": 0,
-      "value": "JSTorrent will load metadata without downloading content, then show a Normal/Skip checklist."
-    }
-  ],
-  "inspection.components.add.torrent.dialog.sample.batch.description": [
-    {
-      "type": 0,
-      "value": "These "
-    },
-    {
-      "type": 1,
-      "value": "count"
-    },
-    {
-      "type": 0,
-      "value": " sample torrents will use the same download options."
-    }
-  ],
   "inspection.components.add.torrent.dialog.start.downloading.files.when.metadata.is.available": [
     {
       "type": 0,
       "value": "Start downloading files when metadata is available"
-    }
-  ],
-  "inspection.components.add.torrent.dialog.this.torrent.will.use.android.s.current": [
-    {
-      "type": 0,
-      "value": "This torrent will use Android's current download folder."
-    }
-  ],
-  "inspection.components.add.torrent.dialog.turn.this.off.to.fetch.metadata.first": [
-    {
-      "type": 0,
-      "value": "Turn this off to fetch metadata first, then choose files in the Files tab."
     }
   ],
   "inspection.components.app.authentication.is.off": [

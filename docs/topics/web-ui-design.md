@@ -1191,8 +1191,12 @@ ordinary browser context behavior.
 
 The Add dialog now has one checked-by-default **Start downloading files when
 metadata is available** checkbox. Clearing it acquires metadata without
-creating content artifacts and directs the user to the Files tab; no file tree
-or second modal is introduced. Hiding add options continues to use the usable
+creating content artifacts; no file tree or second modal is introduced. The
+dialog carries only its title, the folder list with **Choose another
+folder…**, that checkbox, **Don’t ask again**, and the request source for an
+external add, without explanatory paragraphs. **Add all sample torrents**
+shows this same dialog once and applies its choices to the whole batch.
+Hiding add options continues to use the usable
 default root and starts content normally. Tactical `083` reuses this exact
 dialog for a chosen `.torrent`. Empty or over-64-MiB files fail locally; a
 read or adapter failure remains visible, and a dialog-owned file can be

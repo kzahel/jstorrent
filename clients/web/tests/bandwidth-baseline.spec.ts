@@ -362,7 +362,7 @@ async function progressValueOrNull(target: Locator): Promise<number | null> {
 }
 
 async function confirmDefaultAddOptions(page: Page): Promise<void> {
-  const dialog = page.getByRole("dialog", { name: "Choose download options" });
+  const dialog = page.getByRole("dialog", { name: "Add torrent" });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Add torrent" }).click();
 }
