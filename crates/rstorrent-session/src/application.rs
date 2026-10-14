@@ -7309,6 +7309,7 @@ fn durable_view_state(
                 DurableTorrentViewState {
                     display_name: None,
                     source_display_name: None,
+                    private_torrent: false,
                     checking_generation: None,
                     verified: Vec::new(),
                     files: None,
@@ -7337,6 +7338,9 @@ fn durable_view_state(
             .as_ref()
             .and_then(|_| parse_resume_content(&resume).ok());
         let display_name = content.as_ref().map(|content| content.name().to_owned());
+        // Only parsed, stored metainfo carries a trustworthy BEP 27 flag;
+        // a magnet awaiting metadata or corrupt metadata reports public.
+        let private_torrent = content.as_ref().is_some_and(|content| content.private());
         let source_display_name = Magnet::parse(&resume.magnet)
             .ok()
             .and_then(|magnet| magnet.display_name);
@@ -7404,6 +7408,7 @@ fn durable_view_state(
             DurableTorrentViewState {
                 display_name,
                 source_display_name,
+                private_torrent,
                 checking_generation: resume
                     .verification
                     .is_pending()
@@ -18070,6 +18075,7 @@ mod tests {
             torrent.source_display_name.as_deref(),
             Some("Waiting for metadata")
         );
+        assert!(!torrent.private_torrent);
 
         service.shutdown().await.expect("shutdown");
         drop(service);
@@ -18121,6 +18127,7 @@ mod tests {
             panic!("expected torrent-list snapshot");
         };
         assert_eq!(torrents[0].display_name.as_deref(), Some("named"));
+        assert!(!torrents[0].private_torrent);
 
         let files = service
             .subscribe(SubscriptionSpec {
@@ -18155,6 +18162,60 @@ mod tests {
         service.shutdown().await.expect("shutdown");
         drop(service);
         fs::remove_dir_all(root).expect("remove metadata-name test root");
+    }
+
+    #[tokio::test]
+    async fn startup_projects_verified_private_flag() {
+        let root = test_root("metadata-private");
+        let configuration = config(&root);
+        let raw_info = b"d5:filesld6:lengthi4e4:pathl8:file.bineee4:name7:private12:piece lengthi4e6:pieces20:aaaaaaaaaaaaaaaaaaaa7:privatei1ee";
+        let info_hash: [u8; 20] = Sha1::digest(raw_info).into();
+        let torrent_id = super::encode_info_hash(info_hash);
+        let configured_root = configuration.storage_roots[0].clone();
+        let mut store = SessionStore::open(
+            configuration
+                .durable_profile_root()
+                .expect("durable profile root"),
+            &configuration.profile_id,
+            &[configured_root],
+        )
+        .expect("open store");
+        let torrent_id = add_store_torrent(&mut store, "add", &torrent_id);
+        store
+            .record_metadata(&torrent_id, raw_info)
+            .expect("record metadata");
+        drop(store);
+
+        let mut service = ApplicationService::open(configuration)
+            .await
+            .expect("open service");
+        let summary = service
+            .subscribe(SubscriptionSpec {
+                selector: ViewSelector::TorrentList,
+                projection: ViewProjection::Summary,
+                delivery: DeliveryPolicy {
+                    min_interval_millis: 0,
+                    max_queue_bytes: 256 * 1024,
+                },
+                diagnostics: None,
+                catalog_page: None,
+            })
+            .expect("summary");
+        let update = summary.next_update().await.expect("summary snapshot");
+        let ViewUpdatePayload::Snapshot {
+            snapshot: ViewSnapshot::TorrentList { torrents, .. },
+        } = update.payload
+        else {
+            panic!("expected torrent-list snapshot");
+        };
+        assert_eq!(torrents[0].display_name.as_deref(), Some("private"));
+        assert!(torrents[0].private_torrent);
+        let wire = serde_json::to_value(&torrents[0]).expect("serialize torrent view");
+        assert_eq!(wire["private_torrent"], serde_json::Value::Bool(true));
+
+        service.shutdown().await.expect("shutdown");
+        drop(service);
+        fs::remove_dir_all(root).expect("remove metadata-private test root");
     }
 
     #[tokio::test]

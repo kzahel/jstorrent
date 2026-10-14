@@ -1,5 +1,10 @@
 # Localization
 
+Tactical [350](../tactical/350-share-links-and-private-hint.md) adds the web
+share-link action, toast and private-hint messages and six Android strings
+for Copy share link and the private-torrent row and snackbars. Shipping
+locales remain English.
+
 Tactical [349](../tactical/349-general-tab-compact-header-and-links.md)
 moves the compact General header, copy actions and merged metrics into the
 catalog under the Tactical 333 plain-copy check: 10 messages removed, 16

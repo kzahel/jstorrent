@@ -514,6 +514,7 @@ describe("LiveApplication", () => {
     expect(snapshots.at(-1)?.torrents[TORRENT_ID]?.name).toBe(
       "Waiting for metadata",
     );
+    expect(snapshots.at(-1)?.torrents[TORRENT_ID]?.privateTorrent).toBe(false);
     expect(snapshots.at(-1)?.torrents[TORRENT_ID]?.preparation).toMatchObject({
       generation: "1",
       metadata: {
@@ -530,6 +531,27 @@ describe("LiveApplication", () => {
     expect(
       snapshots.at(-1)?.torrents[TORRENT_ID]?.preparation?.metadata?.blockStates,
     ).toEqual(Uint8Array.of(0x16));
+    await application.close();
+  });
+
+  it("maps the verified private flag onto the torrent row", async () => {
+    const verified = torrent();
+    verified.private_torrent = true;
+    const application = await LiveApplication.open(new FakeLiveClient(verified), {
+      initialViews: {
+        library: true,
+        torrentId: TORRENT_ID,
+        detail: "general",
+        logCapture: null,
+        speed: null,
+      },
+    });
+    const snapshots: InspectionSnapshot[] = [];
+    application.subscribe((update) => {
+      if (update.type === "snapshot") snapshots.push(update.snapshot);
+    });
+
+    expect(snapshots.at(-1)?.torrents[TORRENT_ID]?.privateTorrent).toBe(true);
     await application.close();
   });
 

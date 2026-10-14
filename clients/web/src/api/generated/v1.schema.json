@@ -7400,6 +7400,22 @@
         {
           "properties": {
             "field": {
+              "const": "private_torrent",
+              "type": "string"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "field",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "field": {
               "const": "awaiting_file_selection",
               "type": "string"
             },
@@ -8447,6 +8463,10 @@
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
+        },
+        "private_torrent": {
+          "description": "The verified metainfo sets the BEP 27 `private` flag. False for\npublic torrents and for a magnet whose metadata is not verified\nyet; it is never inferred from a magnet link.",
+          "type": "boolean"
         },
         "progress": {
           "$ref": "#/$defs/ProgressAssessment"

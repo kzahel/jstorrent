@@ -18,6 +18,9 @@ internal enum class TorrentAction {
     ARCHIVE,
     RESTORE,
     COPY_MAGNET,
+
+    /** One torrent only: a jstorrent.com link wrapping the exported magnet. */
+    COPY_SHARE_LINK,
     REMOVE,
 }
 
@@ -26,7 +29,7 @@ internal val TorrentView.removalActive: Boolean
     get() = removalState == RemovalState.PENDING || removalState == RemovalState.AWAITING_PLATFORM
 
 internal fun TorrentView.allows(action: TorrentAction): Boolean {
-    if (action == TorrentAction.COPY_MAGNET) return true
+    if (action == TorrentAction.COPY_MAGNET || action == TorrentAction.COPY_SHARE_LINK) return true
     // A failed removal can be retried by removing it again.
     if (action == TorrentAction.REMOVE) return !removalActive
     if (removalState != null) return false
@@ -43,6 +46,7 @@ internal fun TorrentView.allows(action: TorrentAction): Boolean {
         TorrentAction.ARCHIVE -> !archived && !awaitingFileSelection
         TorrentAction.RESTORE -> archived
         TorrentAction.COPY_MAGNET,
+        TorrentAction.COPY_SHARE_LINK,
         TorrentAction.REMOVE,
         -> error("handled above")
     }

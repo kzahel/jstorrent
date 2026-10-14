@@ -1677,6 +1677,7 @@ class ProductNavigationTest {
             storageState = StorageState.AVAILABLE,
             storageRoot = "downloads",
             metadataAvailable = true,
+            privateTorrent = false,
             awaitingFileSelection = false,
             pendingFileSelectionPosition = null,
             fileCatalogId = null,

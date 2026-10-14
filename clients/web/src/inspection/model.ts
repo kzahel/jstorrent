@@ -259,6 +259,8 @@ export interface TorrentRow {
   readonly removalState: "pending" | "awaiting_platform" | "failed" | null;
   readonly deleteDataSupported: boolean;
   readonly forceRecheckAvailable: boolean;
+  /** Verified metainfo sets the BEP 27 private flag; false until metadata is verified. */
+  readonly privateTorrent: boolean;
   readonly awaitingFileSelection?: boolean;
   readonly pendingFileSelectionPosition?: number | null;
   readonly fileCatalogId?: string | null;

@@ -1365,6 +1365,7 @@ function mapTorrent(torrent: TorrentView): TorrentRow {
     removalState: torrent.removal_state ?? null,
     deleteDataSupported: torrent.delete_data_supported,
     forceRecheckAvailable: torrent.force_recheck_available,
+    privateTorrent: torrent.private_torrent ?? false,
     awaitingFileSelection: torrent.awaiting_file_selection,
     pendingFileSelectionPosition:
       torrent.pending_file_selection_position ?? null,

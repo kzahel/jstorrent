@@ -577,6 +577,7 @@ fn fixture_torrent(torrent_id: &str, verified: u32) -> TorrentView {
         storage_state: StorageState::Available,
         storage_root: "downloads".to_owned(),
         metadata_available: true,
+        private_torrent: false,
         awaiting_file_selection: false,
         pending_file_selection_position: None,
         file_catalog_id: None,

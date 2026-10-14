@@ -11,6 +11,7 @@ export type TorrentActionId =
   | "move_to_bottom"
   | "force_recheck"
   | "copy_magnet"
+  | "copy_share_link"
   | "settings"
   | "archive"
   | "restore"
@@ -96,7 +97,19 @@ export const TORRENT_ACTIONS: readonly TorrentActionDefinition[] = [
     label: (targets) =>
       targets.length === 1 ? "Copy magnet link" : "Copy magnet links",
     pendingLabel: "Copying magnet links",
-    icon: "copy",
+    icon: "magnet",
+    group: "sharing",
+    placement: "overflow",
+    destructive: false,
+  },
+  {
+    id: "copy_share_link",
+    label: (targets) =>
+      targets.length === 1
+        ? localizedMessage("inspection.torrent.actions.copy.share.link")
+        : localizedMessage("inspection.torrent.actions.copy.share.links"),
+    pendingLabel: localizedMessage("inspection.torrent.actions.copying.share.links"),
+    icon: "link",
     group: "sharing",
     placement: "overflow",
     destructive: false,
@@ -171,7 +184,9 @@ export function torrentActionAvailability(
     return { disabled: true, reason: localizedMessage("inspection.torrent.actions.select.a.torrent.to.use.this.action") };
   }
 
-  if (actionId === "copy_magnet") return { disabled: false };
+  if (actionId === "copy_magnet" || actionId === "copy_share_link") {
+    return { disabled: false };
+  }
 
   if (actionId === "settings" && targets.length !== 1) {
     return { disabled: true, reason: localizedMessage("inspection.torrent.actions.select.one.torrent.to.edit.settings") };

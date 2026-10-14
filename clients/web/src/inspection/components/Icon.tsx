@@ -2,7 +2,6 @@ import type { SVGProps } from "react";
 
 export type IconName =
   | "archive"
-  | "check"
   | "chevronDown"
   | "close"
   | "copy"
@@ -53,8 +52,6 @@ function IconPaths({ name }: { readonly name: IconName }) {
           <path d="M2.5 3.75h15v2.75h-15zM7.5 10h5" />
         </>
       );
-    case "check":
-      return <path d="m4.5 10.5 3.5 3.5 7.5-8" />;
     case "chevronDown":
       return <path d="m5.5 7.75 4.5 4.5 4.5-4.5" />;
     case "close":

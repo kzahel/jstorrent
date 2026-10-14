@@ -414,6 +414,7 @@ final class IOSPresentationRepository: ObservableObject {
             case .transferLimits(let value): next.transferLimits = value
             case .storageState(let value): next.storageState = value
             case .metadataAvailable(let value): next.metadataAvailable = value
+            case .privateTorrent(let value): next.privateTorrent = value
             case .awaitingFileSelection(let value): next.awaitingFileSelection = value
             case .pendingFileSelectionPosition(let value):
                 next.pendingFileSelectionPosition = value
@@ -460,6 +461,7 @@ final class IOSPresentationRepository: ObservableObject {
         case .transferLimits: return 6
         case .storageState: return 7
         case .metadataAvailable: return 8
+        case .privateTorrent: return 38
         case .awaitingFileSelection: return 31
         case .pendingFileSelectionPosition: return 32
         case .fileCatalogId: return 33

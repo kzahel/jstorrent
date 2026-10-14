@@ -208,6 +208,7 @@ describe("view-set reducer", () => {
                 fields: [
                   { field: "display_name", value: "Verified" },
                   { field: "total_size_bytes", value: "65536" },
+                  { field: "private_torrent", value: true },
                 ],
               },
             },
@@ -223,8 +224,17 @@ describe("view-set reducer", () => {
       }],
     });
     expect(state.views.summary).toMatchObject({
-      torrent: { display_name: "Verified", total_size_bytes: "65536" },
+      torrent: {
+        display_name: "Verified",
+        total_size_bytes: "65536",
+        private_torrent: true,
+      },
     });
+    expect(
+      state.views.library!.type === "torrent_list"
+        ? state.views.library!.torrents[0]?.private_torrent
+        : null,
+    ).toBeUndefined();
     expect(
       state.views.summary!.type === "torrent"
         ? state.views.summary!.torrent?.download_queue_position

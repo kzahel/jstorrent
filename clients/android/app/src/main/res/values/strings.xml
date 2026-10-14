@@ -51,6 +51,10 @@
     <string name="action_all">All</string>
     <string name="action_none">None</string>
     <string name="action_copy_magnets">Copy magnet links</string>
+    <string name="action_copy_share_link">Copy share link</string>
+    <string name="share_link_clip_label">Share link</string>
+    <string name="copied_private_magnet">Magnet link copied. Private torrent: it only works for members of its tracker.</string>
+    <string name="copied_private_share_link">Share link copied. Private torrent: it only works for members of its tracker.</string>
     <string name="action_more">More</string>
     <string name="action_select_all">Select all</string>
     <string name="action_deselect_all">Deselect all</string>
@@ -298,6 +302,8 @@
     <string name="detail_info_hash_v1">Info hash (v1)</string>
     <string name="detail_info_hash_v2">Info hash (v2)</string>
     <string name="detail_info_hash">Info hash</string>
+    <string name="detail_private_torrent">Private torrent</string>
+    <string name="detail_private_torrent_hint">Magnet and share links only work for members of its tracker.</string>
     <string name="detail_size">Size</string>
     <string name="detail_save_location">Save location</string>
     <string name="detail_downloaded">Downloaded</string>

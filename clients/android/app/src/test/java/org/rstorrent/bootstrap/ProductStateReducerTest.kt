@@ -2,6 +2,7 @@ package org.rstorrent.bootstrap
 
 import java.math.BigInteger
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -822,6 +823,7 @@ class ProductStateReducerTest {
                                             TorrentFieldUpdate.SelectableFileBytes("1500"),
                                             TorrentFieldUpdate.SelectedFileBytes("1200"),
                                             TorrentFieldUpdate.PayloadDownloadRateBytes("4096"),
+                                            TorrentFieldUpdate.PrivateTorrent(true),
                                             TorrentFieldUpdate.Lifetime(
                                                 TorrentLifetimeView(
                                                     "14",
@@ -865,6 +867,8 @@ class ProductStateReducerTest {
         assertEquals("1500", patched.torrents.getValue("first").selectableFileBytes)
         assertEquals("1200", patched.torrents.getValue("first").selectedFileBytes)
         assertEquals("4096", patched.torrents.getValue("first").payloadDownloadRateBytes)
+        assertFalse(initial.torrents.getValue("first").privateTorrent)
+        assertTrue(patched.torrents.getValue("first").privateTorrent)
         assertEquals("14", patched.torrents.getValue("first").lifetime.uploadedPayloadBytes)
         assertEquals(SeedAdmissionView.QUEUED, patched.torrents.getValue("first").seeding.admission)
 
@@ -1300,6 +1304,7 @@ class ProductStateReducerTest {
             storageState = StorageState.AVAILABLE,
             storageRoot = "downloads",
             metadataAvailable = true,
+            privateTorrent = false,
             awaitingFileSelection = false,
             pendingFileSelectionPosition = null,
             fileCatalogId = null,

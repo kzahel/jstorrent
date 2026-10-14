@@ -2,11 +2,11 @@ import {
   formatList,
   message as localizedMessage,
 } from "../../localization/runtime";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, type MouseEvent } from "react";
 
 import type { DataUnits } from "../appearance";
 import { copyText } from "../clipboard";
-import { useInspectionCommand, useInspectionStore } from "../context";
+import { useInspectionStore } from "../context";
 import {
   checkingStatusLabel,
   formatBytes,
@@ -22,7 +22,6 @@ import {
 import type { DetailTab } from "../model";
 import { seedLimitReached, seedStopSummary } from "../seed-stop";
 import type { DesktopRemoteAccess } from "../remote-access/types";
-import { shareLinkFromMagnet } from "../share-link";
 import { DETAIL_TABS } from "../tabs";
 import { PeerTable } from "./PeerTable";
 import { SwarmTable } from "./SwarmTable";
@@ -35,6 +34,8 @@ import { LogConsole } from "./LogConsole";
 import { SpeedPanel } from "./SpeedPanel";
 import { DhtPanel } from "./DhtPanel";
 import { Icon, type IconName } from "./Icon";
+import { useToast } from "./Toast";
+import { useTorrentActions } from "./TorrentActionContext";
 import styles from "./DetailPane.module.css";
 
 export function DetailPane({
@@ -197,9 +198,9 @@ function GeneralDetail({
   const seedStopTime = useInspectionStore(
     (state) => state.clientSettings.configured.seed_stop_time_seconds,
   );
-  const execute = useInspectionCommand();
+  const { runAction } = useTorrentActions();
+  const toast = useToast();
   const errorRef = useRef<HTMLDivElement>(null);
-  const [copyFeedback, setCopyFeedback] = useState<CopyFeedback | null>(null);
 
   useEffect(() => {
     if (
@@ -216,34 +217,25 @@ function GeneralDetail({
     clearDetailTarget();
   }, [clearDetailTarget, detailTarget, torrent.id]);
 
-  useEffect(() => {
-    if (copyFeedback === null || copyFeedback.failed) return;
-    const timer = window.setTimeout(() => setCopyFeedback(null), 2_500);
-    return () => window.clearTimeout(timer);
-  }, [copyFeedback]);
-
-  const copy = (
-    id: string,
-    text: string | Promise<string>,
-    copiedMessage: string,
+  const copyLink = (
+    actionId: "copy_magnet" | "copy_share_link",
+    element: HTMLElement,
   ) => {
-    copyText(text).then(
-      () => setCopyFeedback({ id, message: copiedMessage, failed: false }),
-      () =>
-        setCopyFeedback({
-          id,
-          message: localizedMessage("inspection.components.detail.pane.copy.failed"),
-          failed: true,
-        }),
-    );
+    void runAction(actionId, [torrent.id], { type: "toolbar", element });
   };
 
-  const exportMagnet = async (): Promise<string> => {
-    const result = await execute({ type: "export_magnet", torrentId: torrent.id });
-    if (result.magnetExport === undefined) {
-      throw new Error("Magnet export did not return a link");
-    }
-    return result.magnetExport.magnet;
+  const copyInfoHash = (value: string) => {
+    copyText(value).then(
+      () =>
+        toast.show({
+          message: localizedMessage("inspection.components.detail.pane.info.hash.copied"),
+        }),
+      () =>
+        toast.show({
+          tone: "error",
+          message: localizedMessage("inspection.components.detail.pane.copy.failed"),
+        }),
+    );
   };
 
   const checking = torrent.status === "checking" ? torrent.checking : null;
@@ -260,36 +252,15 @@ function GeneralDetail({
         <div className={styles.generalTitle}>
           <h2 title={torrent.name}>{torrent.name}</h2>
           <div className={styles.copyActions}>
-            <span
-              className={styles.copyFeedback}
-              data-failed={copyFeedback?.failed || undefined}
-              role="status"
-            >
-              {copyFeedback?.message}
-            </span>
             <CopyButton
               icon="magnet"
               label={localizedMessage("inspection.components.detail.pane.copy.magnet.link")}
-              copied={copyFeedback?.id === "magnet" && !copyFeedback.failed}
-              onClick={() =>
-                copy(
-                  "magnet",
-                  exportMagnet(),
-                  localizedMessage("inspection.components.detail.pane.magnet.link.copied"),
-                )
-              }
+              onClick={(event) => copyLink("copy_magnet", event.currentTarget)}
             />
             <CopyButton
               icon="link"
               label={localizedMessage("inspection.components.detail.pane.copy.share.link")}
-              copied={copyFeedback?.id === "share" && !copyFeedback.failed}
-              onClick={() =>
-                copy(
-                  "share",
-                  exportMagnet().then(shareLinkFromMagnet),
-                  localizedMessage("inspection.components.detail.pane.share.link.copied"),
-                )
-              }
+              onClick={(event) => copyLink("copy_share_link", event.currentTarget)}
             />
           </div>
         </div>
@@ -316,6 +287,11 @@ function GeneralDetail({
             <span style={{ width: `${Math.round(visibleProgress * 100)}%` }} />
           )}
         </span>
+        {torrent.privateTorrent ? (
+          <p className={styles.privateHint}>
+            {localizedMessage("inspection.components.detail.pane.private.hint")}
+          </p>
+        ) : null}
       </header>
       {torrent.preparation == null ? null : (
         <PreparationProgress
@@ -401,14 +377,7 @@ function GeneralDetail({
               <CopyButton
                 icon="copy"
                 label={copyLabel}
-                copied={copyFeedback?.id === id && !copyFeedback.failed}
-                onClick={() =>
-                  copy(
-                    id,
-                    value,
-                    localizedMessage("inspection.components.detail.pane.info.hash.copied"),
-                  )
-                }
+                onClick={() => copyInfoHash(value)}
               />
             </dd>
           </div>
@@ -486,22 +455,14 @@ function infoHashes(
   ];
 }
 
-interface CopyFeedback {
-  readonly id: string;
-  readonly message: string;
-  readonly failed: boolean;
-}
-
 function CopyButton({
   icon,
   label,
-  copied,
   onClick,
 }: {
   readonly icon: IconName;
   readonly label: string;
-  readonly copied: boolean;
-  readonly onClick: () => void;
+  readonly onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
     <button
@@ -511,7 +472,7 @@ function CopyButton({
       title={label}
       onClick={onClick}
     >
-      <Icon name={copied ? "check" : icon} />
+      <Icon name={icon} />
     </button>
   );
 }

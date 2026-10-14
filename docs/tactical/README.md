@@ -1,5 +1,9 @@
 # Implementation Tactical Docs
 
+- [350 — Share links across clients and private hint](350-share-links-and-private-hint.md):
+  the view projects BEP 27 private; web and Android copy share links through
+  one action with a private hint; the website `/share/` page reads new and
+  legacy links.
 - [349 — General tab compact header and links](349-general-tab-compact-header-and-links.md):
   one header line and one status line replace the summary card and repeated
   state; the tab copies the magnet link, a share link and the info hash.

@@ -1440,16 +1440,12 @@
     "defaultMessage": "Copy v2 info hash",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
-  "inspection.components.detail.pane.magnet.link.copied": {
-    "defaultMessage": "Magnet link copied",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
-  "inspection.components.detail.pane.share.link.copied": {
-    "defaultMessage": "Share link copied",
-    "description": "Product copy in inspection/components/DetailPane.tsx"
-  },
   "inspection.components.detail.pane.info.hash.copied": {
     "defaultMessage": "Info hash copied",
+    "description": "Product copy in inspection/components/DetailPane.tsx"
+  },
+  "inspection.components.detail.pane.private.hint": {
+    "defaultMessage": "Private torrent: magnet and share links only work for members of its tracker.",
     "description": "Product copy in inspection/components/DetailPane.tsx"
   },
   "inspection.components.detail.pane.copy.failed": {
@@ -4884,6 +4880,18 @@
     "defaultMessage": "Select a torrent to use this action.",
     "description": "Product copy in inspection/torrent-actions.ts"
   },
+  "inspection.torrent.actions.copy.share.link": {
+    "defaultMessage": "Copy share link",
+    "description": "Action that copies a jstorrent.com share link for one torrent"
+  },
+  "inspection.torrent.actions.copy.share.links": {
+    "defaultMessage": "Copy share links",
+    "description": "Action that copies jstorrent.com share links for several torrents"
+  },
+  "inspection.torrent.actions.copying.share.links": {
+    "defaultMessage": "Copying share links",
+    "description": "Pending label while share links are copied"
+  },
   "inspection.torrent.actions.keep.seeding": {
     "defaultMessage": "Keep seeding",
     "description": "Action that resumes a torrent stopped by a seeding limit and removes its limits"
@@ -5462,6 +5470,26 @@
   "feedback.magnet.copied.trackers.omitted": {
     "defaultMessage": "{links, plural, one {Magnet link copied} other {# magnet links copied}}; {trackers, plural, one {# tracker} other {# trackers}} omitted to keep {links, plural, one {it} other {them}} usable",
     "description": "Notification after copying magnet links that were too long to include every tracker"
+  },
+  "feedback.magnet.copied.private": {
+    "defaultMessage": "{links, plural, one {Magnet link copied. This torrent is private, so the link only works for members of its tracker.} other {# magnet links copied. Links to private torrents only work for members of their tracker.}}",
+    "description": "Notification after copying magnet links when one of the torrents is private (BEP 27)"
+  },
+  "feedback.share.link.copied": {
+    "defaultMessage": "{links, plural, one {Share link copied} other {# share links copied}}",
+    "description": "Notification after copying share links"
+  },
+  "feedback.share.link.copied.trackers.omitted": {
+    "defaultMessage": "{links, plural, one {Share link copied} other {# share links copied}}; {trackers, plural, one {# tracker} other {# trackers}} omitted to keep {links, plural, one {it} other {them}} usable",
+    "description": "Notification after copying share links that were too long to include every tracker"
+  },
+  "feedback.share.link.copied.private": {
+    "defaultMessage": "{links, plural, one {Share link copied. This torrent is private, so the link only works for members of its tracker.} other {# share links copied. Links to private torrents only work for members of their tracker.}}",
+    "description": "Notification after copying share links when one of the torrents is private (BEP 27)"
+  },
+  "feedback.share.link.copy.failed": {
+    "defaultMessage": "Could not copy share links: {error}",
+    "description": "Error after copying share links failed"
   },
   "feedback.magnet.copy.failed": {
     "defaultMessage": "Could not copy magnet links: {error}",

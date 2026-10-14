@@ -737,6 +737,8 @@ pub(super) struct DiskSessionView {
 pub(crate) struct DurableTorrentViewState {
     pub(crate) display_name: Option<String>,
     pub(crate) source_display_name: Option<String>,
+    /// BEP 27 flag from parsed, stored metainfo only.
+    pub(crate) private_torrent: bool,
     pub(crate) checking_generation: Option<u64>,
     pub(crate) verified: Vec<IndexRange>,
     pub(crate) files: Option<FileProgressModel>,
@@ -763,6 +765,7 @@ impl TorrentModel {
                 storage_state: snapshot.storage_state,
                 storage_root: snapshot.storage_root.clone(),
                 metadata_available: snapshot.metadata_available,
+                private_torrent: false,
                 awaiting_file_selection: snapshot.awaiting_file_selection,
                 pending_file_selection_position: snapshot.pending_file_selection_position,
                 file_catalog_id: snapshot.file_catalog_id.clone(),

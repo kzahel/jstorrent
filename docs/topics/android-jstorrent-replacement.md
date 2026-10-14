@@ -1,5 +1,11 @@
 # Android JSTorrent Replacement Readiness
 
+Tactical [350](../tactical/350-share-links-and-private-hint.md) adds Copy
+share link beside Copy magnet link (detail menu and single-selection More),
+building `https://jstorrent.com/share/#<magnet query>` like the web client.
+Details shows a Private torrent row, and copying a private torrent's link
+says it only works for members of its tracker.
+
 Tactical [331](../tactical/331-android-settings-plain-copy.md) brings
 Settings closer to the original app: section headers on every page, speed
 limits first with presets, one row per download folder, plain network status,

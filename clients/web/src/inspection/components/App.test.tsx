@@ -469,9 +469,7 @@ describe("inspection application", () => {
       within(detail).getByRole("button", { name: "Copy magnet link" }),
     );
     await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(magnet));
-    expect(within(detail).getByRole("status")).toHaveTextContent(
-      "Magnet link copied",
-    );
+    await findToast("Magnet link copied");
 
     await user.click(
       within(detail).getByRole("button", { name: "Copy share link" }),
@@ -482,9 +480,7 @@ describe("inspection application", () => {
           "&dn=Original%20Name&tr=udp%3A%2F%2Ftracker.example%3A6969%2Fannounce",
       ),
     );
-    expect(within(detail).getByRole("status")).toHaveTextContent(
-      "Share link copied",
-    );
+    await findToast("Share link copied");
 
     await user.click(
       within(detail).getByRole("button", { name: "Copy info hash" }),
@@ -492,18 +488,62 @@ describe("inspection application", () => {
     await waitFor(() =>
       expect(writeText).toHaveBeenLastCalledWith(torrent.infoHash),
     );
-    expect(within(detail).getByRole("status")).toHaveTextContent(
-      "Info hash copied",
-    );
+    await findToast("Info hash copied");
 
     application.rejectNextTorrentId = torrent.id;
     await user.click(
       within(detail).getByRole("button", { name: "Copy magnet link" }),
     );
-    expect(
-      await within(detail).findByText("Couldn't copy to the clipboard"),
-    ).toBeVisible();
+    await findToast("Could not copy magnet links: rejected for test");
     expect(writeText).toHaveBeenCalledTimes(3);
+    expect(
+      within(detail).queryByText(/Private torrent/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("warns that a private torrent's links stay inside its tracker", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn<(value: string) => Promise<void>>();
+    writeText.mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const source = buildScenarioSnapshot("healthy-download", 42_000, false, 1);
+    const torrent = source.torrents[DEMO_PRIMARY_TORRENT_ID]!;
+    const snapshot = {
+      ...source,
+      demo: null,
+      torrents: {
+        ...source.torrents,
+        [DEMO_PRIMARY_TORRENT_ID]: { ...torrent, privateTorrent: true },
+      },
+    };
+    renderApplication(
+      new RecordingLiveApplication({ type: "snapshot", snapshot }),
+    );
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    const detail = screen.getByRole("region", { name: "Torrent details" });
+    expect(
+      within(detail).getByText(
+        "Private torrent: magnet and share links only work for members of its tracker.",
+      ),
+    ).toBeVisible();
+
+    await user.click(
+      within(detail).getByRole("button", { name: "Copy share link" }),
+    );
+    await findToast(
+      "Share link copied. This torrent is private, so the link only works for members of its tracker.",
+    );
+    expect(writeText).toHaveBeenLastCalledWith(
+      expect.stringMatching(/^https:\/\/jstorrent\.com\/share\/#xt=urn:btih:/),
+    );
   });
 
   it("saves one atomic per-torrent upload and download limit pair", async () => {
@@ -2167,6 +2207,7 @@ describe("inspection application", () => {
       "Move to top",
       "Move to bottom",
       "Copy magnet link",
+      "Copy share link",
       "Torrent settings",
       "Archive",
       "Restore",

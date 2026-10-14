@@ -298,6 +298,7 @@ class AndroidNotificationPolicyTest {
             storageState = storage,
             storageRoot = "downloads",
             metadataAvailable = true,
+            privateTorrent = false,
             awaitingFileSelection = false,
             pendingFileSelectionPosition = null,
             fileCatalogId = null,

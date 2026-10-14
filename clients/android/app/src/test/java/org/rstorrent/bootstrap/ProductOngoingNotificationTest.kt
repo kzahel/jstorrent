@@ -248,6 +248,7 @@ class ProductOngoingNotificationTest {
             storageState = StorageState.AVAILABLE,
             storageRoot = "secret-root",
             metadataAvailable = true,
+            privateTorrent = false,
             awaitingFileSelection = false,
             pendingFileSelectionPosition = null,
             fileCatalogId = null,

@@ -121,14 +121,10 @@
   gap: var(--ui-space-xs);
 }
 
-.copyFeedback {
+.privateHint {
+  margin: var(--ui-space-xs) 0 0;
   color: var(--text-secondary);
   font-size: var(--ui-font-small);
-  white-space: nowrap;
-}
-
-.copyFeedback[data-failed="true"] {
-  color: var(--danger-strong);
 }
 
 .copyButton {

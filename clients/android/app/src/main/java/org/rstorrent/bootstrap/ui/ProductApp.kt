@@ -301,6 +301,16 @@ fun ProductApp(
                     onNotificationNavigationFallback = { message ->
                         notificationScope.launch { snackbar.showSnackbar(message) }
                     },
+                    onMessage = { message ->
+                        notificationScope.launch {
+                            snackbar.currentSnackbarData?.dismiss()
+                            snackbar.showSnackbar(
+                                message,
+                                withDismissAction = true,
+                                duration = SnackbarDuration.Long,
+                            )
+                        }
+                    },
                     onUndoableAction = { message, undoLabel, undo ->
                         notificationScope.launch {
                             snackbar.currentSnackbarData?.dismiss()
@@ -807,6 +817,7 @@ private fun ProductNavHost(
     notificationNavigation: ProductNotificationNavigation?,
     onNotificationNavigationConsumed: (Long) -> Unit,
     onNotificationNavigationFallback: (String) -> Unit,
+    onMessage: (String) -> Unit,
     onUndoableAction: (message: String, undoLabel: String, undo: () -> Unit) -> Unit,
     onUpdateNotificationPreference: (ProductNotificationPreference, Boolean) -> Unit,
     onBackgroundDownloads: (Boolean) -> Unit,
@@ -826,6 +837,19 @@ private fun ProductNavHost(
     val navController = rememberNavController()
     val resources = LocalContext.current.resources
     val undoLabel = stringResource(R.string.action_undo)
+    val privateMagnetCopied = stringResource(R.string.copied_private_magnet)
+    val privateShareLinkCopied = stringResource(R.string.copied_private_share_link)
+
+    // Android confirms clipboard writes itself; a copy for one private torrent
+    // also says the link only works for members of its tracker.
+    fun privateCopyNotice(
+        torrentIds: List<String>,
+        message: String,
+    ): (() -> Unit)? =
+        torrentIds.singleOrNull()
+            ?.let { state.torrents[it] }
+            ?.takeIf(TorrentView::privateTorrent)
+            ?.let { { onMessage(message) } }
     var removeTargets by remember { mutableStateOf(emptySet<String>()) }
     var removeStorageRoot by remember { mutableStateOf<String?>(null) }
     var deleteFolderData by remember { mutableStateOf(false) }
@@ -940,7 +964,12 @@ private fun ProductNavHost(
                 onMoveTop = { service?.moveDownloadsToTop(it) },
                 onMoveBottom = { service?.moveDownloadsToBottom(it) },
                 onForceRecheck = { service?.forceRecheck(it) },
-                onCopyMagnets = { service?.copyMagnets(it) },
+                onCopyMagnets = { ids ->
+                    service?.copyMagnets(ids, privateCopyNotice(ids, privateMagnetCopied))
+                },
+                onCopyShareLink = { id ->
+                    service?.copyShareLink(id, privateCopyNotice(listOf(id), privateShareLinkCopied))
+                },
                 onArchive = { ids ->
                     // Archiving pauses; undo resumes the torrents that were running.
                     val wasRunning = ids.filter { state.torrents[it]?.runningBeforeArchive() == true }
@@ -994,7 +1023,18 @@ private fun ProductNavHost(
                 onArchive = { service?.archive(listOf(torrentId)) },
                 onRestore = { service?.restoreArchive(listOf(torrentId)) },
                 onRemove = { removeTargets = setOf(torrentId) },
-                onCopyMagnet = { service?.copyMagnets(listOf(torrentId)) },
+                onCopyMagnet = {
+                    service?.copyMagnets(
+                        listOf(torrentId),
+                        privateCopyNotice(listOf(torrentId), privateMagnetCopied),
+                    )
+                },
+                onCopyShareLink = {
+                    service?.copyShareLink(
+                        torrentId,
+                        privateCopyNotice(listOf(torrentId), privateShareLinkCopied),
+                    )
+                },
                 onTransferLimits = { onUpdateTorrentSettings(torrentId, it) },
                 onSpeed = { navController.navigate(ProductRoutes.SPEED) },
                 onDht = { navController.navigate(ProductRoutes.DHT) },
@@ -1825,6 +1865,7 @@ private fun TorrentDetailScreen(
     onRestore: () -> Unit,
     onRemove: () -> Unit,
     onCopyMagnet: () -> Unit,
+    onCopyShareLink: () -> Unit,
     onTransferLimits: (TorrentSettingsPatch) -> Unit,
     onSpeed: () -> Unit,
     onDht: () -> Unit,
@@ -1934,6 +1975,13 @@ private fun TorrentDetailScreen(
                                     TorrentMenuItem(R.string.action_archive, torrent, TorrentAction.ARCHIVE, dismiss, onArchive)
                                 }
                                 TorrentMenuItem(R.string.action_copy_magnet, torrent, TorrentAction.COPY_MAGNET, dismiss, onCopyMagnet)
+                                TorrentMenuItem(
+                                    R.string.action_copy_share_link,
+                                    torrent,
+                                    TorrentAction.COPY_SHARE_LINK,
+                                    dismiss,
+                                    onCopyShareLink,
+                                )
                                 TorrentMenuItem(R.string.action_remove, torrent, TorrentAction.REMOVE, dismiss, onRemove)
                                 HorizontalDivider()
                                 DropdownMenuItem(text = { Text(stringResource(R.string.library_menu_speed)) }, onClick = { overflow = false; onSpeed() })
@@ -2028,6 +2076,9 @@ private fun DetailTabContent(
                         add(stringResource(R.string.detail_info_hash_v2) to v2)
                     } else {
                         add(stringResource(R.string.detail_info_hash) to (v1 ?: v2 ?: "—"))
+                    }
+                    if (torrent.privateTorrent) {
+                        add(stringResource(R.string.detail_private_torrent) to stringResource(R.string.detail_private_torrent_hint))
                     }
                     add(stringResource(R.string.detail_size) to formatBytes(torrent.totalSizeBytes))
                     state.storage?.roots?.firstOrNull { it.rootId == torrent.storageRoot }?.let {

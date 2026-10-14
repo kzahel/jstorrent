@@ -1,5 +1,11 @@
 # Web UI Design
 
+Tactical [350](../tactical/350-share-links-and-private-hint.md) adds **Copy
+share link** beside Copy magnet link in the More and row menus. The General
+header's copy buttons run those same actions, so feedback is the shared
+toast, and a private torrent shows "Private torrent: magnet and share links
+only work for members of its tracker." under its status.
+
 Tactical [349](../tactical/349-general-tab-compact-header-and-links.md)
 replaces the General tab's summary card with one header line (name, copy
 magnet link, copy share link), one status line and a thin progress bar.

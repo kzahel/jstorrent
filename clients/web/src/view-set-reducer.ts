@@ -458,6 +458,7 @@ function applyTorrentUpdate(
       case "transfer_limits": next.transfer_limits = field.value; break;
       case "storage_state": next.storage_state = field.value; break;
       case "metadata_available": next.metadata_available = field.value; break;
+      case "private_torrent": next.private_torrent = field.value; break;
       case "awaiting_file_selection": next.awaiting_file_selection = field.value; break;
       case "pending_file_selection_position": next.pending_file_selection_position = field.value; break;
       case "file_catalog_id": next.file_catalog_id = field.value; break;

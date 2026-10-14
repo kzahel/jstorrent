@@ -15,7 +15,9 @@ import {
   useInspectionDispatch,
   useInspectionStore,
 } from "../context";
+import { copyText } from "../clipboard";
 import type { InspectionCommand, TorrentRow } from "../model";
+import { shareLinkFromMagnet } from "../share-link";
 import { WEBTORRENT_TEST_TORRENTS } from "../testTorrents";
 import { readTorrentFile, type TorrentFileSource } from "../torrentFile";
 import {
@@ -97,7 +99,10 @@ interface TorrentActionContextValue {
   ) => Promise<void>;
 }
 
-type SequentialActionId = Exclude<TorrentActionId, "copy_magnet" | "remove" | "settings">;
+type SequentialActionId = Exclude<
+  TorrentActionId,
+  "copy_magnet" | "copy_share_link" | "remove" | "settings"
+>;
 
 interface SequentialOptions {
   /** Torrents to resume after the action, as Undo of an archive does. */
@@ -411,16 +416,19 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
     void runSequential(actionId, targets, options);
   };
 
-  const copyMagnets = useCallback(
-    async (targets: readonly TorrentRow[]) => {
-      setPendingAction("copy_magnet");
+  /** Copies magnet or share links, one per line, in selection order. */
+  const copyLinks = useCallback(
+    async (
+      actionId: "copy_magnet" | "copy_share_link",
+      targets: readonly TorrentRow[],
+    ) => {
+      setPendingAction(actionId);
+      const share = actionId === "copy_share_link";
       try {
-        const clipboard = navigator.clipboard;
-        if (clipboard === undefined) {
-          throw new Error(localizedMessage("feedback.clipboard.unavailable"));
-        }
+        // Start the clipboard write before the exports resolve so WebKit
+        // keeps the click's user activation.
         const exported = (async () => {
-          const magnets: string[] = [];
+          const links: string[] = [];
           let omittedTrackerCount = 0;
           for (const target of targets) {
             const result = await execute({
@@ -430,44 +438,26 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
             if (result.magnetExport === undefined) {
               throw new Error(localizedMessage("feedback.magnet.export.missing"));
             }
-            magnets.push(result.magnetExport.magnet);
+            const magnet = result.magnetExport.magnet;
+            links.push(share ? shareLinkFromMagnet(magnet) : magnet);
             omittedTrackerCount += result.magnetExport.omittedTrackerCount;
           }
-          return { text: magnets.join("\n"), omittedTrackerCount };
+          return { text: links.join("\n"), omittedTrackerCount };
         })();
-        let exportResult: Awaited<typeof exported>;
-        if (
-          typeof clipboard.write === "function" &&
-          typeof ClipboardItem !== "undefined"
-        ) {
-          await clipboard.write([
-            new ClipboardItem({
-              "text/plain": exported.then(
-                ({ text }) => new Blob([text], { type: "text/plain" }),
-              ),
-            }),
-          ]);
-          exportResult = await exported;
-        } else {
-          exportResult = await exported;
-          await clipboard.writeText(exportResult.text);
-        }
+        await copyText(exported.then(({ text }) => text));
+        const { omittedTrackerCount } = await exported;
         if (mountedRef.current) {
           toast.show({
-            message:
-              exportResult.omittedTrackerCount === 0
-                ? localizedMessage("feedback.magnet.copied", { links: targets.length })
-                : localizedMessage("feedback.magnet.copied.trackers.omitted", {
-                    links: targets.length,
-                    trackers: exportResult.omittedTrackerCount,
-                  }),
+            message: copiedLinksMessage(share, targets, omittedTrackerCount),
           });
         }
       } catch (error) {
         if (mountedRef.current) {
           toast.show({
             tone: "error",
-            message: localizedMessage("feedback.magnet.copy.failed", { error: errorText(error) }),
+            message: share
+              ? localizedMessage("feedback.share.link.copy.failed", { error: errorText(error) })
+              : localizedMessage("feedback.magnet.copy.failed", { error: errorText(error) }),
           });
         }
       } finally {
@@ -498,8 +488,8 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         toast.show({ message: availability.reason ?? localizedMessage("feedback.torrent.action.unavailable") });
         return;
       }
-      if (actionId === "copy_magnet") {
-        await copyMagnets(targets);
+      if (actionId === "copy_magnet" || actionId === "copy_share_link") {
+        await copyLinks(actionId, targets);
       } else if (actionId === "settings") {
         settingsOriginRef.current = origin;
         setSettingsRequest({ torrentId: targets[0]!.id });
@@ -510,7 +500,7 @@ export function TorrentActionProvider({ children }: { readonly children: ReactNo
         await runSequential(actionId, targets, { offerUndo: true });
       }
     },
-    [copyMagnets, runSequential, selectedTargetIds, targetRows, toast],
+    [copyLinks, runSequential, selectedTargetIds, targetRows, toast],
   );
 
   const removeTargets = useCallback(
@@ -674,6 +664,34 @@ function failureMessage(
     total,
     details: formatList(listed, { type: "unit" }),
   });
+}
+
+function copiedLinksMessage(
+  share: boolean,
+  targets: readonly TorrentRow[],
+  omittedTrackerCount: number,
+): string {
+  const links = targets.length;
+  if (omittedTrackerCount > 0) {
+    return share
+      ? localizedMessage("feedback.share.link.copied.trackers.omitted", {
+          links,
+          trackers: omittedTrackerCount,
+        })
+      : localizedMessage("feedback.magnet.copied.trackers.omitted", {
+          links,
+          trackers: omittedTrackerCount,
+        });
+  }
+  // A private torrent's links only work inside its tracker's community.
+  if (targets.some((target) => target.privateTorrent)) {
+    return share
+      ? localizedMessage("feedback.share.link.copied.private", { links })
+      : localizedMessage("feedback.magnet.copied.private", { links });
+  }
+  return share
+    ? localizedMessage("feedback.share.link.copied", { links })
+    : localizedMessage("feedback.magnet.copied", { links });
 }
 
 function errorText(error: unknown): string {

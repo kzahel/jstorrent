@@ -106,6 +106,7 @@ semantic_fields!(
         TransferLimits => transfer_limits: TorrentTransferLimits,
         StorageState => storage_state: StorageState,
         MetadataAvailable => metadata_available: bool,
+        PrivateTorrent => private_torrent: bool,
         AwaitingFileSelection => awaiting_file_selection: bool,
         PendingFileSelectionPosition => pending_file_selection_position: Option<u32>,
         FileCatalogId => file_catalog_id: Option<String>,
@@ -169,6 +170,7 @@ impl TorrentRowUpdate {
         changed!(TransferLimits, transfer_limits);
         changed!(StorageState, storage_state);
         changed!(MetadataAvailable, metadata_available);
+        changed!(PrivateTorrent, private_torrent);
         changed!(AwaitingFileSelection, awaiting_file_selection);
         changed!(
             PendingFileSelectionPosition,
@@ -548,6 +550,7 @@ mod tests {
             storage_state: StorageState::Available,
             storage_root: "downloads".to_owned(),
             metadata_available: false,
+            private_torrent: false,
             awaiting_file_selection: false,
             pending_file_selection_position: None,
             file_catalog_id: None,
@@ -603,6 +606,7 @@ mod tests {
         };
         current.storage_state = StorageState::Available;
         current.metadata_available = true;
+        current.private_torrent = true;
         current.piece_count = 4;
         current.total_size_bytes = Some("32771".to_owned());
         current.verified_piece_count = 2;
@@ -653,7 +657,7 @@ mod tests {
         current.error = Some("failure".to_owned());
 
         let update = TorrentRowUpdate::between(&previous, &current).expect("all fields changed");
-        assert_eq!(update.fields.len(), 30);
+        assert_eq!(update.fields.len(), 31);
         let mut applied = previous;
         update.apply(&mut applied).expect("apply");
         assert_eq!(applied, current);
@@ -672,6 +676,25 @@ mod tests {
         let clear = TorrentRowUpdate::between(&current, &cleared).expect("nullable clears");
         clear.apply(&mut current).expect("apply clears");
         assert_eq!(current, cleared);
+    }
+
+    #[test]
+    fn private_flag_is_absent_on_the_wire_for_public_rows() {
+        let public = torrent();
+        let wire = serde_json::to_value(&public).expect("serialize public row");
+        assert!(wire.get("private_torrent").is_none());
+        let decoded: TorrentView = serde_json::from_value(wire).expect("decode public row");
+        assert!(!decoded.private_torrent);
+
+        let mut private = public.clone();
+        private.private_torrent = true;
+        let wire = serde_json::to_value(&private).expect("serialize private row");
+        assert_eq!(wire["private_torrent"], serde_json::Value::Bool(true));
+        let update = TorrentRowUpdate::between(&public, &private).expect("flag changed");
+        assert_eq!(
+            update.fields,
+            vec![TorrentFieldUpdate::PrivateTorrent { value: true }]
+        );
     }
 
     fn peer() -> PeerView {

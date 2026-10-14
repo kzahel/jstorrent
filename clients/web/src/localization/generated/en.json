@@ -864,6 +864,35 @@
       "pluralType": "cardinal"
     }
   ],
+  "feedback.magnet.copied.private": [
+    {
+      "type": 6,
+      "value": "links",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Magnet link copied. This torrent is private, so the link only works for members of its tracker."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " magnet links copied. Links to private torrents only work for members of their tracker."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
   "feedback.magnet.copied.trackers.omitted": [
     {
       "type": 6,
@@ -1175,6 +1204,169 @@
     {
       "type": 0,
       "value": "Restore"
+    }
+  ],
+  "feedback.share.link.copied": [
+    {
+      "type": 6,
+      "value": "links",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Share link copied"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " share links copied"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.share.link.copied.private": [
+    {
+      "type": 6,
+      "value": "links",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Share link copied. This torrent is private, so the link only works for members of its tracker."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " share links copied. Links to private torrents only work for members of their tracker."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "feedback.share.link.copied.trackers.omitted": [
+    {
+      "type": 6,
+      "value": "links",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Share link copied"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " share links copied"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "; "
+    },
+    {
+      "type": 6,
+      "value": "trackers",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " tracker"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " trackers"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " omitted to keep "
+    },
+    {
+      "type": 6,
+      "value": "links",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "it"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "them"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " usable"
+    }
+  ],
+  "feedback.share.link.copy.failed": [
+    {
+      "type": 0,
+      "value": "Could not copy share links: "
+    },
+    {
+      "type": 1,
+      "value": "error"
     }
   ],
   "feedback.torrent.action.unavailable": [
@@ -3808,12 +4000,6 @@
       "value": "Info hash (v2)"
     }
   ],
-  "inspection.components.detail.pane.magnet.link.copied": [
-    {
-      "type": 0,
-      "value": "Magnet link copied"
-    }
-  ],
   "inspection.components.detail.pane.matched": [
     {
       "type": 0,
@@ -3858,6 +4044,12 @@
       "value": "Pieces checked"
     }
   ],
+  "inspection.components.detail.pane.private.hint": [
+    {
+      "type": 0,
+      "value": "Private torrent: magnet and share links only work for members of its tracker."
+    }
+  ],
   "inspection.components.detail.pane.seed.state.idle": [
     {
       "type": 0,
@@ -3898,12 +4090,6 @@
     {
       "type": 0,
       "value": "Select a torrent to see its details"
-    }
-  ],
-  "inspection.components.detail.pane.share.link.copied": [
-    {
-      "type": 0,
-      "value": "Share link copied"
     }
   ],
   "inspection.components.detail.pane.share.ratio": [
@@ -9753,6 +9939,24 @@
     {
       "type": 0,
       "value": "Confirm or cancel the pending file selection before archiving."
+    }
+  ],
+  "inspection.torrent.actions.copy.share.link": [
+    {
+      "type": 0,
+      "value": "Copy share link"
+    }
+  ],
+  "inspection.torrent.actions.copy.share.links": [
+    {
+      "type": 0,
+      "value": "Copy share links"
+    }
+  ],
+  "inspection.torrent.actions.copying.share.links": [
+    {
+      "type": 0,
+      "value": "Copying share links"
     }
   ],
   "inspection.torrent.actions.keep.seeding": [

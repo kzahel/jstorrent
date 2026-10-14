@@ -4337,31 +4337,62 @@ class ProductEngineService : Service() {
         }
     }
 
-    /** Copies one magnet link per torrent, newline-separated, in the given order. */
-    fun copyMagnets(torrentIds: List<String>) {
+    /**
+     * Copies one magnet link per torrent, newline-separated, in the given order.
+     * [onCopied] runs after the clipboard holds the links.
+     */
+    fun copyMagnets(
+        torrentIds: List<String>,
+        onCopied: (() -> Unit)? = null,
+    ) {
         if (torrentIds.isEmpty()) return
         scope.launch {
             try {
                 clientReady.await()
-                val magnets =
-                    torrentIds.map { torrentId ->
-                        val response = dispatchForResponse(Command.ExportMagnet(torrentId))
-                        val result = response.result as? CommandResult.ExportMagnet
-                            ?: error("Magnet export returned no value")
-                        result.result.magnet
-                    }
-                val clipboard = getSystemService(ClipboardManager::class.java)
-                clipboard.setPrimaryClip(
-                    ClipData.newPlainText(
-                        getString(R.string.add_magnet_label),
-                        magnets.joinToString("\n"),
-                    ),
-                )
+                val magnets = torrentIds.map { exportMagnet(it) }
+                copyToClipboard(getString(R.string.add_magnet_label), magnets.joinToString("\n"))
+                onCopied?.invoke()
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
                 reportTorrentCommandFailure(error)
             }
         }
+    }
+
+    /**
+     * Copies a jstorrent.com share link built from the engine's magnet export.
+     * [onCopied] runs after the clipboard holds the link.
+     */
+    fun copyShareLink(
+        torrentId: String,
+        onCopied: (() -> Unit)? = null,
+    ) {
+        scope.launch {
+            try {
+                clientReady.await()
+                val link = shareLinkFromMagnet(exportMagnet(torrentId))
+                copyToClipboard(getString(R.string.share_link_clip_label), link)
+                onCopied?.invoke()
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                reportTorrentCommandFailure(error)
+            }
+        }
+    }
+
+    private suspend fun exportMagnet(torrentId: String): String {
+        val response = dispatchForResponse(Command.ExportMagnet(torrentId))
+        val result = response.result as? CommandResult.ExportMagnet
+            ?: error("Magnet export returned no value")
+        return result.result.magnet
+    }
+
+    private fun copyToClipboard(
+        label: String,
+        text: String,
+    ) {
+        getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(ClipData.newPlainText(label, text))
     }
 
     fun shutdownFromUi() {

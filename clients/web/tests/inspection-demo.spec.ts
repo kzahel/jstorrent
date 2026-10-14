@@ -269,12 +269,15 @@ test("torrent and file rows expose exact accessible context actions", async ({
   await sintelRow.click({ button: "right", position: { x: 300, y: 18 } });
   let menu = page.getByRole("menu", { name: "Torrent actions" });
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole("menuitem")).toHaveCount(10);
+  await expect(menu.getByRole("menuitem")).toHaveCount(11);
   await expect(menu.getByRole("menuitem", { name: "Torrent settings" })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "Move to top" })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "Move to bottom" })).toBeVisible();
   await expect(
     menu.getByRole("menuitem", { name: "Copy magnet link" }),
+  ).toBeVisible();
+  await expect(
+    menu.getByRole("menuitem", { name: "Copy share link" }),
   ).toBeVisible();
   await expect(menu.getByRole("separator")).toHaveCount(3);
   for (const heading of ["Transfer", "Sharing", "Organization", "Destructive"]) {

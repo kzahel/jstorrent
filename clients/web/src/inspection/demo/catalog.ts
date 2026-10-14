@@ -927,6 +927,8 @@ function mediaLibrary(): ScenarioContent {
         id: MEDIA_LIBRARY_ID,
         name: "North Shore Stories · Seasons 1–2",
         status: "downloading",
+        // The one private (BEP 27) demo torrent: a members-only series.
+        privateTorrent: true,
         sizeBytes: Number(totalBytes),
         progress: Number(doneBytes) / Number(totalBytes),
         downloadedBytes: Number(doneBytes),
@@ -2082,6 +2084,7 @@ function torrent(input: Partial<TorrentRow> & Pick<TorrentRow, "id" | "name" | "
     removalState: input.removalState ?? null,
     deleteDataSupported: input.deleteDataSupported ?? true,
     forceRecheckAvailable: input.forceRecheckAvailable ?? false,
+    privateTorrent: input.privateTorrent ?? false,
     infoHash:
       input.infoHash ??
       DEMO_INFO_HASHES[input.id] ??

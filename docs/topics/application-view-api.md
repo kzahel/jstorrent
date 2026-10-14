@@ -1,5 +1,12 @@
 # Application View API
 
+Tactical [350](../tactical/350-share-links-and-private-hint.md) adds
+`TorrentView.private_torrent` and `TorrentFieldUpdate::PrivateTorrent`. The
+flag is true only when parsed, stored metainfo carries BEP 27 `private=1`,
+and is omitted when false, so public torrents, magnets before metadata and
+older readers are unchanged. Generated TypeScript, Kotlin and Swift carry it
+as `privateTorrent`; no schema change.
+
 Tactical [340](../tactical/340-windows-quiet-network-startup.md) keeps the same
 contract while qualifying Windows settings and runtime observations. Configured
 incoming, socket binding, forwarding result and observed reachability remain

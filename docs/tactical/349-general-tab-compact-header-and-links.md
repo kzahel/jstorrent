@@ -113,7 +113,6 @@ otherwise, so links already in circulation keep working.
 
 ## Follow-Ups
 
-- Rebuild `website/public/share/` to read both fragment shapes before a
-  release ships the share button.
-- When Tactical 346 lands, move copy confirmation to its toast and have the
-  toolbar Copy magnet link action share `clipboard.ts`.
+Tactical [350](350-share-links-and-private-hint.md) completes all four
+non-goals: the website share page, toast feedback through one shared copy
+action, Android share links and the private-torrent hint.

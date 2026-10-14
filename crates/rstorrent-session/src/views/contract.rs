@@ -1271,6 +1271,11 @@ pub struct TorrentView {
     pub storage_state: StorageState,
     pub storage_root: String,
     pub metadata_available: bool,
+    /// The verified metainfo sets the BEP 27 `private` flag. False for
+    /// public torrents and for a magnet whose metadata is not verified
+    /// yet; it is never inferred from a magnet link.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub private_torrent: bool,
     #[serde(default)]
     pub awaiting_file_selection: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -67,6 +67,7 @@ class TorrentActionsTest {
                 TorrentAction.FORCE_RECHECK,
                 TorrentAction.RESTORE,
                 TorrentAction.COPY_MAGNET,
+                TorrentAction.COPY_SHARE_LINK,
                 TorrentAction.REMOVE,
             ),
             TorrentAction.entries.filter(archived::allows).toSet(),
@@ -95,7 +96,10 @@ class TorrentActionsTest {
         val failed =
             torrent("failed", operational = TorrentOperationalState.PAUSED, removal = RemovalState.FAILED)
 
-        assertEquals(setOf(TorrentAction.COPY_MAGNET), TorrentAction.entries.filter(removing::allows).toSet())
+        assertEquals(
+            setOf(TorrentAction.COPY_MAGNET, TorrentAction.COPY_SHARE_LINK),
+            TorrentAction.entries.filter(removing::allows).toSet(),
+        )
         assertTrue(failed.allows(TorrentAction.REMOVE))
         assertTrue(removing.removalActive)
         assertTrue(
@@ -127,6 +131,7 @@ class TorrentActionsTest {
             storageState = StorageState.AVAILABLE,
             storageRoot = "downloads",
             metadataAvailable = true,
+            privateTorrent = false,
             awaitingFileSelection = awaitingSelection,
             pendingFileSelectionPosition = null,
             fileCatalogId = null,

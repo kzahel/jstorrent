@@ -406,6 +406,7 @@ fn eta_durable(
         DurableTorrentViewState {
             display_name: Some("ETA fixture".to_owned()),
             source_display_name: None,
+            private_torrent: false,
             checking_generation: None,
             verified: Vec::new(),
             files,
@@ -1330,6 +1331,7 @@ fn durable_replacement_preserves_exact_have_ranges() {
             DurableTorrentViewState {
                 display_name: Some("Verified fixture".to_owned()),
                 source_display_name: None,
+                private_torrent: false,
                 checking_generation: None,
                 verified: vec![IndexRange {
                     start: 1,
@@ -1387,6 +1389,7 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
             DurableTorrentViewState {
                 display_name: None,
                 source_display_name: Some("Magnet fixture".to_owned()),
+                private_torrent: false,
                 checking_generation: None,
                 verified: Vec::new(),
                 files: None,
@@ -1412,6 +1415,13 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
         TorrentFieldUpdate::SourceDisplayName { value: Some(value) }
             if value == "Magnet fixture"
     )));
+    // A magnet awaiting metadata never claims the private flag.
+    assert!(
+        !updates[0]
+            .fields
+            .iter()
+            .any(|field| matches!(field, TorrentFieldUpdate::PrivateTorrent { .. }))
+    );
 
     let summary_update = summary.next_update().await.expect("summary patch");
     let ViewUpdatePayload::Patch {
@@ -1436,6 +1446,7 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
             DurableTorrentViewState {
                 display_name: Some("Verified fixture".to_owned()),
                 source_display_name: Some("Magnet fixture".to_owned()),
+                private_torrent: true,
                 checking_generation: None,
                 verified: Vec::new(),
                 files: None,
@@ -1461,6 +1472,12 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
         TorrentFieldUpdate::DisplayName { value: Some(value) }
             if value == "Verified fixture"
     )));
+    assert!(
+        updates[0]
+            .fields
+            .iter()
+            .any(|field| matches!(field, TorrentFieldUpdate::PrivateTorrent { value: true }))
+    );
 
     let summary_update = summary.next_update().await.expect("verified summary patch");
     let ViewUpdatePayload::Patch {
@@ -1477,6 +1494,12 @@ async fn source_name_is_provisional_until_verified_metadata_patches_both_summari
         TorrentFieldUpdate::DisplayName { value: Some(value) }
             if value == "Verified fixture"
     )));
+    assert!(
+        update
+            .fields
+            .iter()
+            .any(|field| matches!(field, TorrentFieldUpdate::PrivateTorrent { value: true }))
+    );
 }
 
 #[test]

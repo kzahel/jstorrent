@@ -41,6 +41,7 @@ import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.outlined.VerticalAlignBottom
 import androidx.compose.material.icons.outlined.VerticalAlignTop
@@ -123,6 +124,7 @@ internal fun LibraryScreen(
     onMoveBottom: (List<String>) -> Unit,
     onForceRecheck: (String) -> Unit,
     onCopyMagnets: (List<String>) -> Unit,
+    onCopyShareLink: (String) -> Unit,
     onArchive: (List<String>) -> Unit,
     onRestore: (List<String>) -> Unit,
     onRemove: (Set<String>) -> Unit,
@@ -281,6 +283,7 @@ internal fun LibraryScreen(
                     onMoveBottom = onMoveBottom,
                     onForceRecheck = { it.forEach(onForceRecheck) },
                     onCopyMagnets = onCopyMagnets,
+                    onCopyShareLink = onCopyShareLink,
                 )
             }
         },
@@ -813,6 +816,7 @@ private fun SelectionBottomBar(
     onMoveBottom: (List<String>) -> Unit,
     onForceRecheck: (List<String>) -> Unit,
     onCopyMagnets: (List<String>) -> Unit,
+    onCopyShareLink: (String) -> Unit,
 ) {
     var moreOpen by remember { mutableStateOf(false) }
     @Composable
@@ -866,6 +870,14 @@ private fun SelectionBottomBar(
                 TorrentAction.COPY_MAGNET,
                 onCopyMagnets,
             )
+            // A share link opens one torrent, so it is offered for one only.
+            if (selected.size == 1) {
+                SheetAction(
+                    Icons.Outlined.Share,
+                    stringResource(R.string.action_copy_share_link),
+                    TorrentAction.COPY_SHARE_LINK,
+                ) { targets -> targets.singleOrNull()?.let(onCopyShareLink) }
+            }
             Spacer(Modifier.height(16.dp))
         }
     }
