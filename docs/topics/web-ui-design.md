@@ -1,5 +1,20 @@
 # Web UI Design
 
+Tactical [352](../tactical/352-render-first-web-startup.md) renders the real
+shell before the engine connects, in the browser and in Tauri.
+`LiveApplication.connect()` starts in `connecting` and attaches in the
+background (transport, hello, view set), retrying as `reconnecting` behind
+the existing overlay; commands wait for the attach. Until the first library
+view, Torrents, Transfers and Library show placeholder rows or cards at the
+real geometry, sidebar and table counts stay hidden, and connection and
+download-folder settings are not editable. Before the bundle, the page is
+only the stored theme's background; the branded card is kept for failures.
+Transports, the generated validators, demo, Settings and the session panels
+load off the shell's critical path, and startup phases are `performance`
+marks reported as `startup_ms` in support diagnostics. The remote entry
+still attaches before rendering because its gate returns to sign-in on a
+failed first attach.
+
 Tactical [351](../tactical/351-narrow-web-lists-and-flat-chrome.md) moves
 Library and Torrents into the sidebar (the drawer at narrow widths, which
 also lists the session views), gives narrow details an app bar with a back
