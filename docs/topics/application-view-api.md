@@ -981,10 +981,12 @@ fails on drift.
 Generated schema validates structural shape at the untrusted JSON boundary.
 Small handwritten semantic validators retain limits that schemas cannot
 express clearly, such as canonical ranges, safe lengths, cross-field
-relationships, and negotiated capabilities. Unknown object fields are
-accepted for additive forward compatibility. Unknown closed command, patch,
-or control variants fail unless a negotiated capability defines their safe
-handling.
+relationships, and negotiated capabilities. The intended rule is that
+unknown object fields are accepted for additive forward compatibility, but
+released clients do not yet follow it: 57 generated object schemas are
+closed. [`mixed-version-compatibility`](mixed-version-compatibility.md) owns
+the rules that hold today, the capability gating of client-sent commands and
+patch keys, and the plan to make clients tolerant.
 
 The current handwritten TypeScript validator already demonstrates the drift
 risk: its storage-state list omits Rust's `prepared` and `needs_repair`

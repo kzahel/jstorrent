@@ -1,9 +1,10 @@
 # Tactical 354: Mixed-Version Compatibility And Capabilities
 
-Status: Proposed, 2026-10-14. Maintainer selected the flexible capability
-model and a 30-day starting horizon; planning only, implementation not yet
-authorized.
-Topics: `application-view-api`, `client-surfaces`,
+Status: Slice 1 complete, 2026-10-14; Slices 2–5 open. Maintainer selected
+the flexible capability model and a 30-day starting horizon, then authorized
+implementation with commits. The living rules and runbooks moved to
+[`mixed-version-compatibility`](../topics/mixed-version-compatibility.md).
+Topics: `mixed-version-compatibility`, `application-view-api`, `client-surfaces`,
 `remote-access-authentication`, `application-connection-architecture`,
 `web-ui-design`.
 
@@ -61,8 +62,9 @@ Adopt a capability model, modeled on yepanywhere's
    and answer, per call, what they do not understand from clients.
 2. Every behavior a client depends on beyond the frozen baseline is owned by a
    registered capability that the host advertises and the client gates.
-3. Both sides advertise. A host shapes its output for a legacy client that
-   advertised nothing.
+3. Released strict clients are handled by release order, not host-side
+   shaping: a tolerant extension ships before a host release that adds what
+   strict clients reject.
 4. CI enforces the rules against released snapshots, and capabilities retire
    only through an audited, dated review.
 
@@ -103,8 +105,9 @@ UI fixes. It remains a possible safety net below the support horizon.
   It is exported into the generated TypeScript, Kotlin and Swift contracts.
 - The host advertises its set in `ApiHello.capabilities` beside the existing
   view names; host configuration may withhold one (as `direct_file_v1` does).
-- The client advertises its set in `Connect`. A client that sends none is a
-  legacy client.
+- Clients do not advertise. Host-side shaping for legacy clients was
+  considered and dropped: it would only bridge the already-released strict
+  extension, which release order handles (Maintainer decision, 2026-10-14).
 
 ### Tolerance
 
@@ -117,10 +120,11 @@ UI fixes. It remains a possible safety net below the support horizon.
 - **Client to host.** An unknown command variant or patch key is answered with
   a correlated per-call `unsupported` error naming what was refused. It never
   counts toward the invalid-message limit and never closes a relay circuit.
-- **Legacy-client shaping.** For a legacy client the host omits fields,
-  variants and frames owned by capabilities that client did not advertise.
-  This is the only way to keep already-released strict clients, such as
-  extension 1.1.4, working.
+- **Released strict clients.** Extension 1.1.4 and older reject new fields
+  in closed types and new variants. Until a tolerant extension is published
+  and auto-updated, a host release that ships such an addition breaks the
+  companion for users who update the host first; the release runbook makes
+  that an explicit, recorded choice.
 - **Relay authentication.** Both sides accept unknown fields in
   `AuthenticationReady`, `AuthenticationSucceeded` and `AuthorizationChoice`.
   Security-relevant fields stay transcript-bound per
@@ -149,7 +153,7 @@ UI fixes. It remains a possible safety net below the support horizon.
   frames from each released host pass the current validators and render the
   main screens without errors.
 - **Released-client fixtures.** The released extension's and hosted bundle's
-  validators accept current host output in legacy-client mode.
+  validators accept current host output.
 - **Lint.** No raw capability strings outside the registry helpers; outgoing
   patches only through the gated builder.
 
@@ -159,7 +163,10 @@ UI fixes. It remains a possible safety net below the support horizon.
   keeps advertising it, and its registry entry remains forever with
   `required since <date>`.
 - CI produces a report of transitional capabilities whose introducing release
-  is older than the horizon. Being listed only makes a capability eligible;
+  is older than the horizon. Removal also needs the observed version
+  populations (Play Console, Web Store dashboard, desktop update-check
+  requests) to show hosts without the capability below about 2% on every
+  surface that can host the client. Being listed only makes a capability eligible;
   removal is an explicit, reviewed commit that cites the entry. Overdue
   entries stay visible in the report; their review dates are never pushed
   back silently.
@@ -170,23 +177,24 @@ UI fixes. It remains a possible safety net below the support horizon.
 
 ## Slices
 
-1. **Repair the hosted controller.** Fill absent defaulted fields after
-   validation; gate the stop-limit controls, per-torrent overrides and Keep
-   seeding on a new `seed_stop_limits` capability that current hosts
-   advertise; add the first released-host fixture (`desktop-v0.3.1`) with a
-   render test of Settings and torrent detail. Deployable through the hosted
-   site alone.
-2. **Two-way advertisement and legacy shaping.** Client capabilities in
-   `Connect`; host shaping for legacy clients; the registry module and
-   generated exports; the gated command and patch builder. Required before
-   the next desktop or Android release that contains Tactical 344.
-3. **Tolerance.** Open output objects, unknown enum and frame handling,
-   per-call `unsupported`, relay authentication leniency.
-4. **Audits.** Released contract snapshots and diff, registry audit,
-   released-host and released-client fixtures, lint.
+1. **Repair the hosted controller and gate releases.** Complete; see
+   **Evidence**. Generated default-filling, the Rust registry with
+   `seed_stop_limits` and its TypeScript export, client gating and the
+   outgoing patch filter, `desktop-v0.3.1` fixtures with decode and render
+   tests, and the contract-compatibility test.
+2. **Tolerant clients and extension release.** Open output objects; unknown
+   enum values and row deltas become an explicit unknown; unknown frames are
+   ignored; publish the extension. Required before a host release ships any
+   reviewed strict-client exposure, or that release records the companion
+   break.
+3. **Host tolerance.** Per-call `unsupported` for unknown commands and patch
+   keys; relay authentication leniency.
+4. **Released-client fixtures and lint.** The released extension's
+   validators against current host output; no raw capability strings.
 5. **Policy surfaces.** Release-date manifest, out-of-date notice and update
-   screen, removal report. Presentation lives with Tactical
-   [343](343-about-support-and-remote-updates.md)'s remote About work.
+   screen, version-population record, removal report. Presentation lives
+   with Tactical [343](343-about-support-and-remote-updates.md)'s remote
+   About work.
 
 ## Non-Goals
 
@@ -199,7 +207,6 @@ UI fixes. It remains a possible safety net below the support horizon.
 
 - A newer client never sends an older host anything outside that host's
   advertised capabilities and the baseline.
-- A host never sends a legacy client anything outside the baseline.
 - No unknown input closes a connection or relay circuit; only malformed
   framing or authentication failures do.
 - Support is decided from advertised capabilities and recorded release dates,
@@ -209,7 +216,7 @@ UI fixes. It remains a possible safety net below the support horizon.
 
 - Web unit and render tests over released-host fixtures, including the
   `desktop-v0.3.1` repair case.
-- Rust tests: per-call `unsupported`, legacy-client shaping, registry export,
+- Rust tests: per-call `unsupported`, registry export,
   relay leniency.
 - Contract-diff and registry audits in CI, each with a deliberate failing
   fixture.
@@ -217,6 +224,44 @@ UI fixes. It remains a possible safety net below the support horizon.
   host through the relay; the released extension against a current host.
 - `npm run typecheck` and `test` for `clients/web`; generated Kotlin and Swift
   builds; workspace `fmt`, `clippy` and `test`.
+
+## Evidence
+
+Slice 1, 2026-10-14:
+
+- **Reproduction.** Before the change, a render probe giving Connection &
+  seeding settings a `desktop-v0.3.1` settings view threw `TypeError: Cannot
+  read properties of undefined (reading 'type')`.
+- **Defaults.** `generate-validators.mjs` compiles with Ajv `useDefaults`.
+  Ajv ignores seven defaults inside `oneOf` branches; all are client-built
+  request fields or the hand-filled view `client_settings`, and any new one
+  fails generation. `ServiceSnapshot.client_settings` keeps `validation.ts`'s
+  fresh-profile default. Generation also fails when a field a host may omit
+  is typed as always present (negative control: making
+  `TorrentView.private_torrent` required fails generation).
+- **Registry.** `host_capabilities.rs` with `seed_stop_limits` (ID 1, owning
+  both settings patches' `seed_stop_*` keys), advertised by every
+  `ApiHello`, exported as `HOST_CAPABILITY_REGISTRY`. Rust tests: unique
+  names and IDs, owned keys exist, every entry advertised.
+- **Client.** `session.hostCapabilities` from the hello; Settings, torrent
+  settings and torrent detail hide stop limits without the capability;
+  `LiveApplication.dispatch` drops unowned keys and refuses a patch left
+  empty.
+- **Fixtures and tests.** `desktop-v0.3.1` schema, default settings view and
+  view-set trace copied from the tag, and a hello built from its source.
+  `released-hosts.test.ts` (negative control: without `useDefaults` two tests
+  fail), an `App.test.tsx` render (negative control: without gating it
+  fails), a `LiveApplication` dispatch test, and
+  `contract-compatibility.test.ts`, which records five reviewed strict-client
+  exposures: `ClientSettings.seed_stop_*`, `TorrentSeedingView.stop`, and the
+  `private_torrent` and `source_size_bytes` row deltas (negative control:
+  dropping one fails).
+- **Runs.** `npm run typecheck` and `npm run test` (691 passed, 2 skipped)
+  for `clients/web`; `cargo fmt --check`; `cargo clippy -p rstorrent-session
+  -p rstorrent-gateway --all-targets -D warnings`; `cargo test -p
+  rstorrent-session --lib host_capabilities`.
+- **Not done here.** The hosted controller is repaired only when this is
+  pushed and deployed, which needs maintainer approval.
 
 ## Stopping Condition
 

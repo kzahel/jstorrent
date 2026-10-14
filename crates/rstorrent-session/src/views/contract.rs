@@ -200,7 +200,14 @@ impl Default for ApiHello {
                 "session_speed_history".to_owned(),
                 "piece_activity".to_owned(),
                 "diagnostics".to_owned(),
-            ],
+            ]
+            .into_iter()
+            .chain(
+                crate::HOST_CAPABILITIES
+                    .iter()
+                    .map(|capability| capability.name.to_owned()),
+            )
+            .collect(),
             backend: None,
             product: None,
             limits: ApiLimits {

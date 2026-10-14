@@ -68,6 +68,9 @@ import type {
   DesktopPowerSettings,
 } from "../desktop-power/types";
 import type { DesktopRemoteAccess, RemoteCompletedFileSaveRequest } from "../remote-access/types";
+import released031Hello from "../../fixtures/released/desktop-v0.3.1/api-hello.json";
+import released031Trace from "../../fixtures/released/desktop-v0.3.1/view-set-trace.json";
+import { decodeOpenViewSetResponse } from "../../validation";
 import { App } from "./App";
 import { RemoveTorrentDialog } from "./RemoveTorrentDialog";
 
@@ -879,6 +882,52 @@ describe("inspection application", () => {
       within(detail).getByRole("region", { name: "Stop seeding" }),
     ).toHaveTextContent("Stops after 1 day · seeded 18h 0m");
     expect(screen.getByRole("button", { name: "Start" })).toBeVisible();
+  });
+
+  it("hides seeding stop limits on a released host that predates them", async () => {
+    const user = userEvent.setup();
+    const open = decodeOpenViewSetResponse(JSON.stringify(released031Trace.open));
+    const update = open.initial.updates[0];
+    if (update?.type !== "snapshot" || update.snapshot.type !== "torrent_list") {
+      throw new Error("released trace has no library snapshot");
+    }
+    const scenario = buildScenarioSnapshot("seeding-limits", 0, false, 1);
+    const application = new RecordingLiveApplication({
+      type: "snapshot",
+      snapshot: {
+        ...scenario,
+        demo: null,
+        clientSettings: update.snapshot.client_settings,
+        session: {
+          ...scenario.session,
+          hostCapabilities: released031Hello.capabilities,
+        },
+      },
+    });
+    renderApplication(application);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const dialog = await screen.findByRole("dialog", { name: "Settings" });
+    await user.click(within(dialog).getByRole("tab", { name: "Connection & seeding" }));
+    expect(
+      within(dialog).getByRole("region", { name: "Seeding priority" }),
+    ).toBeVisible();
+    expect(
+      within(dialog).queryByRole("region", { name: "Stop seeding" }),
+    ).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Close settings" }));
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "button", { name: "Torrents" },
+      ),
+    );
+    const grid = screen.getByRole("grid", { name: "Torrents" });
+    await user.click(within(grid).getAllByRole("row")[1]!);
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    const detail = screen.getByRole("region", { name: "Torrent details" });
+    expect(
+      within(detail).queryByRole("region", { name: "Stop seeding" }),
+    ).not.toBeInTheDocument();
   });
 
   it("saves only the changed seeding stop limits in Settings", async () => {

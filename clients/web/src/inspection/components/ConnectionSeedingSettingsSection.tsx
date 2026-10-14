@@ -21,6 +21,7 @@ import type {
   TransportFamilyRuntimeView,
 } from "../../api";
 import { useInspectionStore } from "../context";
+import { hostSupports, SEED_STOP_LIMITS } from "../host-capabilities";
 import { formatElapsedSeconds } from "../format";
 import type { CommandAccepted } from "../model";
 import {
@@ -116,6 +117,9 @@ export function ConnectionSeedingSettingsSection({
   const manageable = manageableWhenLoaded && !loading;
   const configured = settings.configured;
   const durableRevision = useInspectionStore((state) => state.durableRevision);
+  const stopLimitsSupported = useInspectionStore((state) =>
+    hostSupports(state.session, SEED_STOP_LIMITS),
+  );
   const authority = clientSettingsDraft(configured);
   const [draftState, dispatchDraft] = useSettingsDraft(
     "client-settings",
@@ -302,38 +306,40 @@ export function ConnectionSeedingSettingsSection({
           />
         </SettingGroup>
 
-        <SettingGroup
-          id="stop-seeding-heading"
-          title={localizedMessage("inspection.components.connection.seeding.settings.section.stop.seeding.heading")}
-          description={localizedMessage("inspection.components.connection.seeding.settings.section.stop.seeding.description")}
-        >
-          <RatioPicker
-            id="seed-stop-ratio"
-            label={localizedMessage("inspection.components.connection.seeding.settings.section.stop.share.ratio")}
-            offLabel={localizedMessage("inspection.components.connection.seeding.settings.section.stop.off")}
-            draft={draft.seedStopRatio}
-            error={validation.seedStopRatioError}
-            disabled={!manageable}
-            onChange={(value) =>
-              dispatchDraft({ type: "edit", field: "seedStopRatio", value })
-            }
-          />
-          <DurationPicker
-            id="seed-stop-time"
-            label={localizedMessage("inspection.components.connection.seeding.settings.section.stop.seeding.time")}
-            offLabel={localizedMessage("inspection.components.connection.seeding.settings.section.stop.off")}
-            draft={draft.seedStopTime}
-            secondsUnit={
-              configured.seed_stop_time_seconds.type === "limited" &&
-              configured.seed_stop_time_seconds.value % 60 !== 0
-            }
-            error={validation.seedStopTimeError}
-            disabled={!manageable}
-            onChange={(value) =>
-              dispatchDraft({ type: "edit", field: "seedStopTime", value })
-            }
-          />
-        </SettingGroup>
+        {stopLimitsSupported ? (
+          <SettingGroup
+            id="stop-seeding-heading"
+            title={localizedMessage("inspection.components.connection.seeding.settings.section.stop.seeding.heading")}
+            description={localizedMessage("inspection.components.connection.seeding.settings.section.stop.seeding.description")}
+          >
+            <RatioPicker
+              id="seed-stop-ratio"
+              label={localizedMessage("inspection.components.connection.seeding.settings.section.stop.share.ratio")}
+              offLabel={localizedMessage("inspection.components.connection.seeding.settings.section.stop.off")}
+              draft={draft.seedStopRatio}
+              error={validation.seedStopRatioError}
+              disabled={!manageable}
+              onChange={(value) =>
+                dispatchDraft({ type: "edit", field: "seedStopRatio", value })
+              }
+            />
+            <DurationPicker
+              id="seed-stop-time"
+              label={localizedMessage("inspection.components.connection.seeding.settings.section.stop.seeding.time")}
+              offLabel={localizedMessage("inspection.components.connection.seeding.settings.section.stop.off")}
+              draft={draft.seedStopTime}
+              secondsUnit={
+                configured.seed_stop_time_seconds.type === "limited" &&
+                configured.seed_stop_time_seconds.value % 60 !== 0
+              }
+              error={validation.seedStopTimeError}
+              disabled={!manageable}
+              onChange={(value) =>
+                dispatchDraft({ type: "edit", field: "seedStopTime", value })
+              }
+            />
+          </SettingGroup>
+        ) : null}
 
         <SettingGroup
           id="seeding-priority-heading"

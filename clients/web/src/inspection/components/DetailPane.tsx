@@ -16,6 +16,7 @@ import {
 import type { DataUnits } from "../appearance";
 import { copyText } from "../clipboard";
 import { useInspectionStore } from "../context";
+import { hostSupports, SEED_STOP_LIMITS } from "../host-capabilities";
 import {
   checkingStatusLabel,
   formatBytes,
@@ -303,6 +304,9 @@ function GeneralDetail({
     (state) => state.clearDetailTarget,
   );
   const dataUnits = useInspectionStore((state) => state.presentation.dataUnits);
+  const stopLimitsSupported = useInspectionStore((state) =>
+    hostSupports(state.session, SEED_STOP_LIMITS),
+  );
   const seedStopRatio = useInspectionStore(
     (state) => state.clientSettings.configured.seed_stop_ratio_percent,
   );
@@ -474,7 +478,8 @@ function GeneralDetail({
           }
         />
       </dl>
-      {torrent.seedGoal === null && torrent.seedStop?.stopped !== true ? null : (
+      {!stopLimitsSupported ||
+      (torrent.seedGoal === null && torrent.seedStop?.stopped !== true) ? null : (
         <section
           className={styles.seedStop}
           aria-label={localizedMessage("inspection.components.detail.pane.stop.seeding")}

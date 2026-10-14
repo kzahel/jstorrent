@@ -94,6 +94,10 @@ Topics own the current truth for a continuing concern. Tactical docs under
 - [`durable-data-migrations.md`](durable-data-migrations.md): the ledger of
   every durable format, its supported floor, and each migration step, legacy
   reader and one-time import with its retirement condition.
+- [`mixed-version-compatibility.md`](mixed-version-compatibility.md): clients
+  and hosts of different versions; the 30-day horizon, host capabilities, the
+  contract rules every feature follows, their CI checks, and the release and
+  fallback-removal runbooks.
 - [`download-roots.md`](download-roots.md): user-selected payload roots,
   first-add and default-root UX, platform capability ownership, desktop/WebUI
   picker behavior, and the deferred JSTorrent-like file-selection flow.

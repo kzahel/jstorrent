@@ -739,6 +739,39 @@ describe("LiveApplication", () => {
     await application.close();
   });
 
+  it("never sends a setting the host does not advertise", async () => {
+    // The fake host's hello predates seed_stop_limits, like a released host.
+    const client = new FakeLiveClient();
+    const application = await LiveApplication.open(client);
+
+    await expect(
+      application.dispatch({
+        type: "update_client_settings",
+        patch: {
+          upload_slots: 4,
+          seed_stop_ratio_percent: { type: "limited", value: 200 },
+        },
+      }),
+    ).resolves.toMatchObject({ accepted: true });
+    expect(client.requests.at(-1)?.command).toEqual({
+      type: "update_client_settings",
+      patch: { upload_slots: 4 },
+    });
+
+    await expect(
+      application.dispatch({
+        type: "update_torrent_settings",
+        torrentId: TORRENT_ID,
+        patch: { seed_stop_time_seconds: { type: "use_global" } },
+      }),
+    ).resolves.toMatchObject({
+      accepted: false,
+      message: expect.stringContaining("newer JSTorrent"),
+    });
+    expect(client.requests).toHaveLength(1);
+    await application.close();
+  });
+
   it("maps one atomic torrent transfer-limit pair through the generic command path", async () => {
     const client = new FakeLiveClient();
     const application = await LiveApplication.open(client);

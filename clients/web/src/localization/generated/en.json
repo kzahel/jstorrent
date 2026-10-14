@@ -9796,6 +9796,12 @@
       "value": "Padding files cannot be opened"
     }
   ],
+  "inspection.live.live.application.setting.needs.newer.host": [
+    {
+      "type": 0,
+      "value": "This setting needs a newer JSTorrent on the computer you are controlling. Update it there to use this setting."
+    }
+  ],
   "inspection.live.live.application.the.file.cannot.be.opened.while.its": [
     {
       "type": 0,

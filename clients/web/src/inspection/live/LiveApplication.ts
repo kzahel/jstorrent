@@ -41,6 +41,7 @@ import {
 } from "../../view-connection";
 import type { ViewSetState } from "../../view-set-reducer";
 import type { InspectionApplication } from "../application";
+import { supportedPatch } from "../host-capabilities";
 import type {
   CommandResult,
   DesiredInspectionViews,
@@ -531,6 +532,25 @@ export class LiveApplication implements InspectionApplication {
         message: localizedMessage("inspection.live.live.application.this.command.is.available.only.in.named"),
       };
     }
+    if (
+      (command.type === "update_client_settings" ||
+        command.type === "update_torrent_settings") &&
+      Object.keys(command.patch).length > 0 &&
+      Object.keys(
+        supportedPatch(
+          command.patch,
+          command.type === "update_client_settings"
+            ? "client_settings"
+            : "torrent_settings",
+          this.capabilities(),
+        ),
+      ).length === 0
+    ) {
+      return {
+        accepted: false,
+        message: localizedMessage("inspection.live.live.application.setting.needs.newer.host"),
+      };
+    }
     const request: RequestEnvelope = {
       version: 1,
       request_id: `web-${this.requestInstanceId}-${this.requestSequence++}`,
@@ -601,14 +621,25 @@ export class LiveApplication implements InspectionApplication {
                   torrent_id: command.torrentId,
                 }
               : command.type === "update_client_settings"
-                ? { type: "update_client_settings", patch: command.patch }
+                ? {
+                    type: "update_client_settings",
+                    patch: supportedPatch(
+                      command.patch,
+                      "client_settings",
+                      this.capabilities(),
+                    ),
+                  }
               : command.type === "reset_client_settings"
                 ? { type: "reset_client_settings" }
               : command.type === "update_torrent_settings"
                 ? {
                     type: "update_torrent_settings",
                     torrent_id: command.torrentId,
-                    patch: command.patch,
+                    patch: supportedPatch(
+                      command.patch,
+                      "torrent_settings",
+                      this.capabilities(),
+                    ),
                   }
               : command.type === "remove_download_root"
                 ? {
@@ -1154,8 +1185,14 @@ function magnetExportOptions(options: MagnetShareOptions): MagnetExportOptions {
 
 function withHost(snapshot: InspectionSnapshot, hello: ApiHello | null): InspectionSnapshot {
   const host = hello?.product ?? null;
-  if ((snapshot.session.host ?? null) === host) return snapshot;
-  return { ...snapshot, session: { ...snapshot.session, host } };
+  const hostCapabilities = hello?.capabilities ?? null;
+  if (
+    (snapshot.session.host ?? null) === host &&
+    (snapshot.session.hostCapabilities ?? null) === hostCapabilities
+  ) {
+    return snapshot;
+  }
+  return { ...snapshot, session: { ...snapshot.session, host, hostCapabilities } };
 }
 
 function sameStrings(left: readonly string[], right: readonly string[]): boolean {

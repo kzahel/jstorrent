@@ -18,6 +18,7 @@ mod durable_state;
 mod file_views;
 pub mod foreground_download;
 mod have;
+mod host_capabilities;
 mod incoming_seeding;
 mod media;
 mod media_catalog_views;
@@ -65,6 +66,10 @@ pub use diagnostics::{
 };
 pub use file_views::{FileCatalogState, FileSelectionView, FileView};
 pub use have::{HaveError, HaveState};
+pub use host_capabilities::{
+    HOST_CAPABILITIES, HostCapability, HostCapabilityDefinition, HostCapabilityLifecycle,
+    SEED_STOP_LIMITS, host_capability_definitions,
+};
 pub use media::{
     MAX_MEDIA_CAPABILITIES, MAX_MEDIA_READ_JOBS, MAX_MEDIA_REQUESTS,
     MAX_MEDIA_REQUESTS_PER_CAPABILITY, MEDIA_CAPABILITY_ABSOLUTE_TIMEOUT,

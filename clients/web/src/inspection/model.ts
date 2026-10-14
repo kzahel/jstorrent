@@ -95,6 +95,11 @@ export interface SessionSummary {
   readonly connection: SessionConnection;
   /** What the connected host reports about itself, when it does. */
   readonly host?: ApiProductInfo | null;
+  /**
+   * Capabilities the connected host advertises in its hello. Undefined when
+   * the application does not report them (the demo); see host-capabilities.
+   */
+  readonly hostCapabilities?: readonly string[] | null;
   readonly downloadRate: number;
   readonly uploadRate: number | null;
   readonly dhtNodes: number | null;

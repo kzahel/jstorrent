@@ -14,6 +14,7 @@ import type {
   TransferRateLimit,
 } from "../../api";
 import { useInspectionCommand, useInspectionStore } from "../context";
+import { hostSupports, SEED_STOP_LIMITS } from "../host-capabilities";
 import type { TorrentRow } from "../model";
 import {
   settingsDraftFields,
@@ -89,6 +90,9 @@ export function TorrentSettingsDialog({
   );
   const sessionTime = useInspectionStore(
     (state) => state.clientSettings.configured.seed_stop_time_seconds,
+  );
+  const stopLimitsSupported = useInspectionStore((state) =>
+    hostSupports(state.session, SEED_STOP_LIMITS),
   );
   const transportPending = useRef(false);
   const [acceptedMessage, setAcceptedMessage] = useState<string | null>(null);
@@ -197,43 +201,47 @@ export function TorrentSettingsDialog({
             }
           />
         </div>
-        <h3>
-          {localizedMessage("inspection.components.torrent.settings.dialog.stop.seeding")}
-        </h3>
-        <div className={styles.rateLimitFields}>
-          <RatioPicker
-            id="torrent-seed-stop-ratio"
-            label={localizedMessage("inspection.components.torrent.settings.dialog.share.ratio")}
-            useGlobalLabel={localizedMessage("inspection.components.torrent.settings.dialog.use.global", {
-              limit: sessionRatioLabel(sessionRatio),
-            })}
-            offLabel={localizedMessage("inspection.components.torrent.settings.dialog.no.limit")}
-            draft={draft.seedStopRatio}
-            error={seedStopRatio.error}
-            disabled={false}
-            onChange={(value) =>
-              dispatchDraft({ type: "edit", field: "seedStopRatio", value })
-            }
-          />
-          <DurationPicker
-            id="torrent-seed-stop-time"
-            label={localizedMessage("inspection.components.torrent.settings.dialog.seeding.time")}
-            useGlobalLabel={localizedMessage("inspection.components.torrent.settings.dialog.use.global", {
-              limit: sessionDurationLabel(sessionTime),
-            })}
-            offLabel={localizedMessage("inspection.components.torrent.settings.dialog.no.limit")}
-            draft={draft.seedStopTime}
-            secondsUnit={
-              seedStopLimits.time_seconds.type === "limited" &&
-              seedStopLimits.time_seconds.value % 60 !== 0
-            }
-            error={seedStopTime.error}
-            disabled={false}
-            onChange={(value) =>
-              dispatchDraft({ type: "edit", field: "seedStopTime", value })
-            }
-          />
-        </div>
+        {stopLimitsSupported ? (
+          <>
+            <h3>
+              {localizedMessage("inspection.components.torrent.settings.dialog.stop.seeding")}
+            </h3>
+            <div className={styles.rateLimitFields}>
+              <RatioPicker
+                id="torrent-seed-stop-ratio"
+                label={localizedMessage("inspection.components.torrent.settings.dialog.share.ratio")}
+                useGlobalLabel={localizedMessage("inspection.components.torrent.settings.dialog.use.global", {
+                  limit: sessionRatioLabel(sessionRatio),
+                })}
+                offLabel={localizedMessage("inspection.components.torrent.settings.dialog.no.limit")}
+                draft={draft.seedStopRatio}
+                error={seedStopRatio.error}
+                disabled={false}
+                onChange={(value) =>
+                  dispatchDraft({ type: "edit", field: "seedStopRatio", value })
+                }
+              />
+              <DurationPicker
+                id="torrent-seed-stop-time"
+                label={localizedMessage("inspection.components.torrent.settings.dialog.seeding.time")}
+                useGlobalLabel={localizedMessage("inspection.components.torrent.settings.dialog.use.global", {
+                  limit: sessionDurationLabel(sessionTime),
+                })}
+                offLabel={localizedMessage("inspection.components.torrent.settings.dialog.no.limit")}
+                draft={draft.seedStopTime}
+                secondsUnit={
+                  seedStopLimits.time_seconds.type === "limited" &&
+                  seedStopLimits.time_seconds.value % 60 !== 0
+                }
+                error={seedStopTime.error}
+                disabled={false}
+                onChange={(value) =>
+                  dispatchDraft({ type: "edit", field: "seedStopTime", value })
+                }
+              />
+            </div>
+          </>
+        ) : null}
         <div className={styles.rateLimitActions}>
           <button
             ref={cancelRef}

@@ -160,6 +160,19 @@ explicit user action such as Clear app data may discard it.
 
 See also [`docs/topics/client-persistence.md`](docs/topics/client-persistence.md).
 
+## Mixed-Version Compatibility
+
+The hosted remote controller, the extension companions and the hosts they
+control update independently, so every feature must work across versions in
+both directions for at least 30 days. A host may omit any field a newer
+client knows: give new fields a serde default or make them optional. Anything
+new a client sends (a command or settings patch key) is owned by a host
+capability in `crates/rstorrent-session/src/host_capabilities.rs` and gated
+in the client. Nothing released is removed, renamed or made required. The
+web contract-compatibility and released-host tests enforce this; follow the
+release and fallback-removal runbooks in
+[`docs/topics/mixed-version-compatibility.md`](docs/topics/mixed-version-compatibility.md).
+
 ## Feature Campaign Execution
 
 [`docs/topics/capability-readiness.md`](docs/topics/capability-readiness.md)

@@ -25,8 +25,9 @@ use rstorrent_session::{
     DiskPieceStageView, DiskPieceView, DiskPipelineView, DiskPressureView,
     EffectiveListenerSettings, EncryptionPolicy, ErrorCode, ErrorResponse, FileCatalogState,
     FileFieldUpdate, FileIndexRange, FilePriority, FileRowUpdate, FileSelectionIntent,
-    FileSelectionOverride, FileSelectionView, FileView, HttpsServerAuthenticationPolicy,
-    IndexRange, IntegrityPreparationPhaseView, IntegrityPreparationView, Ipv6PinholeFailureStage,
+    FileSelectionOverride, FileSelectionView, FileView, HostCapabilityDefinition,
+    HostCapabilityLifecycle, HttpsServerAuthenticationPolicy, IndexRange,
+    IntegrityPreparationPhaseView, IntegrityPreparationView, Ipv6PinholeFailureStage,
     Ipv6PinholeStatus, ListenerBindFailureReason, ListenerPolicy, ListenerStatus,
     MagnetExportOptions, MagnetExportResult, MagnetExportSource, MagnetPeerHint,
     MagnetPeerHintOmission, MagnetPeerHintScope, MediaCatalogState, MediaFileAvailability,
@@ -53,7 +54,7 @@ use rstorrent_session::{
     TrackerTransportView, TrackerView, TransferRateLimit, TransportAddressFamily,
     TransportFamilyRuntimeView, UpdateBatch, UpdateViewSetRequest, ViewDeliveryPolicy, ViewPatch,
     ViewProjection, ViewSelector, ViewSetUpdate, ViewSnapshot, ViewSpec, ViewUpdate,
-    ViewUpdatePayload,
+    ViewUpdatePayload, host_capability_definitions,
 };
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -146,6 +147,14 @@ fn write_declarations(output: &Path) -> Result<(), Box<dyn Error>> {
         "DEFAULT_CLIENT_SETTINGS_RUNTIME_VIEW",
         "ClientSettingsRuntimeView",
         &ClientSettingsRuntimeView::fresh_profile_default(),
+    )?;
+    append::<HostCapabilityLifecycle>(&mut declarations)?;
+    append::<HostCapabilityDefinition>(&mut declarations)?;
+    append_value(
+        &mut declarations,
+        "HOST_CAPABILITY_REGISTRY",
+        "ReadonlyArray<HostCapabilityDefinition>",
+        &host_capability_definitions(),
     )?;
     append::<FilePriority>(&mut declarations)?;
     append::<RemovalDataPolicy>(&mut declarations)?;

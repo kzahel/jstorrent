@@ -4752,6 +4752,10 @@
     "defaultMessage": "The torrent is being removed",
     "description": "Product copy in inspection/live/LiveApplication.ts"
   },
+  "inspection.live.live.application.setting.needs.newer.host": {
+    "defaultMessage": "This setting needs a newer JSTorrent on the computer you are controlling. Update it there to use this setting.",
+    "description": "Error when saving a setting the connected host is too old to support"
+  },
   "inspection.live.live.application.this.command.is.available.only.in.named": {
     "defaultMessage": "This command is available only in named demo scenarios",
     "description": "Product copy in inspection/live/LiveApplication.ts"

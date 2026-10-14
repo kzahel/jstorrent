@@ -30,11 +30,61 @@ const validators = {
   validateUpdateBatch: "UpdateBatch",
 };
 
+// Ajv cannot fill defaults inside oneOf/anyOf branches. These are the only
+// such defaults, and none is on data a host sends: each belongs to a command
+// or view request the client builds, or (`client_settings`) is filled by
+// validation.ts. A new one fails generation until it is handled and listed.
+const IGNORED_DEFAULTS = new Set([
+  "data.await_file_selection",
+  "data.client_settings",
+  "data.delivery",
+  "data.disable_future",
+  "data.filter",
+  "data.skip_files",
+  "data.start_content",
+]);
+
+// validation.ts fills these with the fresh-profile settings a new host would
+// report, not with the serde default the schema carries.
+const HANDWRITTEN_DEFAULTS = [["ServiceSnapshot", "client_settings"]];
+
 const schema = JSON.parse(await readFile(schemaPath, "utf8"));
+const typescript = await readFile(
+  resolve(webRoot, "src/api/generated/v1.ts"),
+  "utf8",
+);
+checkAbsentFieldsAreTyped(schema, typescript);
+for (const [definition, property] of HANDWRITTEN_DEFAULTS) {
+  const field = schema.$defs[definition]?.properties?.[property];
+  if (field?.default === undefined) {
+    throw new Error(`${definition}.${property} no longer has a schema default`);
+  }
+  delete field.default;
+}
+
 const ajv = new Ajv2020({
   allErrors: true,
   strict: true,
   validateFormats: false,
+  // A host built before a field existed omits it. Rust's serde defaults are
+  // in the schema, so validation fills them in and the TypeScript types,
+  // which mark those fields present, stay true for older hosts.
+  useDefaults: true,
+  // Strict schema problems are reported through the logger so ignored
+  // defaults can be checked against IGNORED_DEFAULTS; every other strict
+  // schema warning still fails generation.
+  strictSchema: "log",
+  logger: {
+    log() {},
+    warn(message) {
+      const ignored = /^strict mode: default is ignored for: (\S+)$/.exec(message);
+      if (ignored !== null && IGNORED_DEFAULTS.has(ignored[1])) return;
+      throw new Error(message);
+    },
+    error(message) {
+      throw new Error(message);
+    },
+  },
   // Share larger referenced definitions across the exported entry points.
   inlineRefs: 3,
   code: {
@@ -92,3 +142,55 @@ await Promise.all([
   writeFile(javascriptPath, javascript, "utf8"),
   writeFile(declarationsPath, declarations, "utf8"),
 ]);
+
+/**
+ * A host may omit a property the schema does not require. Unless the schema
+ * gives a default (filled in during validation) or allows null, the
+ * TypeScript declaration must make the property optional; otherwise code
+ * typed against the newest contract reads `undefined` from an older host.
+ */
+function checkAbsentFieldsAreTyped(contract, declarations) {
+  const problems = [];
+  for (const [name, definition] of Object.entries(contract.$defs)) {
+    // Declarations with documented fields span several lines; one ends where
+    // the next top-level export begins.
+    const declaration = new RegExp(
+      `^export type ${name} = ([\\s\\S]*?)(?=^export |(?![\\s\\S]))`,
+      "m",
+    ).exec(declarations)?.[1];
+    for (const [property, field] of absentWithoutDefault(definition)) {
+      if (declaration === undefined) {
+        problems.push(`${name}.${property}: no TypeScript declaration`);
+      } else if (
+        new RegExp(`\\b${property}: `).test(declaration) &&
+        !new RegExp(`\\b${property}\\?: `).test(declaration)
+      ) {
+        problems.push(`${name}.${property}: ${JSON.stringify(field).slice(0, 80)}`);
+      }
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      "Fields a host may omit are typed as always present:\n" +
+        problems.join("\n"),
+    );
+  }
+}
+
+function* absentWithoutDefault(definition) {
+  const required = new Set(definition.required ?? []);
+  for (const [property, field] of Object.entries(definition.properties ?? {})) {
+    if (required.has(property) || "default" in field || nullable(field)) continue;
+    yield [property, field];
+  }
+  for (const key of ["oneOf", "anyOf"]) {
+    for (const branch of definition[key] ?? []) yield* absentWithoutDefault(branch);
+  }
+}
+
+function nullable(field) {
+  if (Array.isArray(field.type) && field.type.includes("null")) return true;
+  return [...(field.anyOf ?? []), ...(field.oneOf ?? [])].some(
+    (branch) => branch.type === "null",
+  );
+}
