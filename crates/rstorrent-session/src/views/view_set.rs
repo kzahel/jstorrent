@@ -156,6 +156,17 @@ impl ViewSetInner {
         })
     }
 
+    /// Returns the last client activity when no consumer is polling and the
+    /// client has been silent for at least `minimum_idle`.
+    pub(super) fn abandoned_since(&self, now: Instant, minimum_idle: Duration) -> Option<Instant> {
+        if self.polling.load(Ordering::Acquire) {
+            return None;
+        }
+        let state = self.state.lock().ok()?;
+        (!state.closed && now.saturating_duration_since(state.last_client_activity) >= minimum_idle)
+            .then_some(state.last_client_activity)
+    }
+
     pub(crate) fn touch(&self, now: Instant) -> Result<(), ViewSetError> {
         let mut state = self.state()?;
         if state.closed {

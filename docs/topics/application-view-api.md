@@ -591,7 +591,7 @@ public shape.
 | --- | --- | --- |
 | Application view hub | Current projection source state and fan-out into view sets | One application-service instance; closes all view sets during joined service shutdown |
 | View-set lease reaper | One timer that removes client-silent view sets independently from later requests | One application-service instance; cancellation and awaited join during service shutdown |
-| View set | Desired view specifications, per-view materialization, epoch, cursor, and bounded accumulated updates | Explicit close, idle-lease expiry, authenticated remote disconnect policy, or application shutdown |
+| View set | Desired view specifications, per-view materialization, epoch, cursor, and bounded accumulated updates | Explicit close, idle-lease expiry, idle eviction at a capacity limit, authenticated remote disconnect policy, or application shutdown |
 | Transport adapter | Authentication context, framing, request bounds, and delivery of semantic calls | Tauri webview, HTTP request, or WebSocket connection lifetime; never owns application truth |
 | TypeScript `ViewController` | Desired view set, current ID/epoch/cursor, one update consumer, reconnect/backoff, validation, and cancellation | One web application instance; closes or abandons its leased Rust view set |
 | Pure client reducer | Atomic snapshot and patch application with continuity checks | No I/O or task lifetime |
@@ -1101,6 +1101,12 @@ proved the packed geometry.
 Tactical `033` establishes these concrete v1 choices:
 
 - 32 live view sets per application and 8 per authenticated adapter owner;
+  at either limit an open evicts the least recently active set that is not
+  being polled and whose client has been silent for at least 60 seconds (three
+  maximum waits), and is refused with `resource_limit` only when no set
+  qualifies. A reloaded browser page has a new owner and cannot resume its
+  previous sets, so without eviction repeated reloads exhausted capacity until
+  the abandoned leases expired;
 - 16 named views per set and 64-byte conservative ASCII view IDs;
 - 16--512 KiB whole-set queues, defaulting to 256 KiB;
 - 512 KiB steady-state queues, a separately retained 16 MiB coherent snapshot

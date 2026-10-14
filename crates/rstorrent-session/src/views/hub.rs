@@ -37,7 +37,10 @@ use crate::settings::{
 use crate::speed::SessionRateHistory;
 use crate::tracker_views::{TrackerCatalogState, TrackerViewModel};
 
-use super::contract::{MAX_VIEW_SET_WAIT_MILLIS, MAX_VIEW_SETS, MAX_VIEW_SETS_PER_OWNER};
+use super::contract::{
+    MAX_VIEW_SET_WAIT_MILLIS, MAX_VIEW_SETS, MAX_VIEW_SETS_PER_OWNER,
+    MIN_VIEW_SET_EVICTION_IDLE_MILLIS,
+};
 use super::diff::{
     disk_patch, patch_for, projection_requires_snapshot, targeted_activity_patch,
     targeted_peer_patch, targeted_swarm_patch, targeted_torrent_view_patch, targeted_tracker_patch,
@@ -2356,14 +2359,7 @@ impl ViewHub {
             .lock()
             .map_err(|_| ViewSetError::Internal("view hub lock is poisoned".to_owned()))?;
         prune_expired(&mut hub, now);
-        if hub.view_sets.len() >= MAX_VIEW_SETS
-            || hub
-                .view_sets
-                .values()
-                .filter(|view_set| view_set.owner_matches(&owner))
-                .count()
-                >= MAX_VIEW_SETS_PER_OWNER
-        {
+        if !reserve_capacity(&mut hub, &owner, now) {
             return Err(ViewSetError::ResourceLimit);
         }
         let snapshots = snapshots_for_specs(&hub, &views, queue_bytes);
@@ -2509,6 +2505,42 @@ fn owned_view_set(
         .filter(|view_set| view_set.owner_matches(owner))
         .cloned()
         .ok_or(ViewSetError::UnknownViewSet)
+}
+
+/// Makes room for one more set of `owner`. A reloaded page cannot resume its
+/// previous sets, which otherwise hold capacity until their lease expires. At
+/// a limit, the least recently active set that is not being polled and has
+/// been silent past the eviction floor is closed early; if none qualifies,
+/// the open is refused.
+fn reserve_capacity(hub: &mut HubState, owner: &ViewSetOwner, now: Instant) -> bool {
+    let minimum_idle = Duration::from_millis(MIN_VIEW_SET_EVICTION_IDLE_MILLIS);
+    loop {
+        let owner_full = hub
+            .view_sets
+            .values()
+            .filter(|view_set| view_set.owner_matches(owner))
+            .count()
+            >= MAX_VIEW_SETS_PER_OWNER;
+        if !owner_full && hub.view_sets.len() < MAX_VIEW_SETS {
+            return true;
+        }
+        let Some((_, id)) = hub
+            .view_sets
+            .iter()
+            .filter(|(_, view_set)| !owner_full || view_set.owner_matches(owner))
+            .filter_map(|(id, view_set)| {
+                view_set
+                    .abandoned_since(now, minimum_idle)
+                    .map(|since| (since, id.clone()))
+            })
+            .min()
+        else {
+            return false;
+        };
+        if let Some(view_set) = hub.view_sets.remove(&id) {
+            view_set.close();
+        }
+    }
 }
 
 fn prune_expired(hub: &mut HubState, now: Instant) {

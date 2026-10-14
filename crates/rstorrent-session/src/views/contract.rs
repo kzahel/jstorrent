@@ -39,6 +39,10 @@ pub const MAX_VIEW_SET_QUEUE_BYTES: u32 = 512 * 1024;
 pub const MAX_VIEW_SET_SNAPSHOT_BYTES: u32 = 16 * 1024 * 1024;
 pub const MAX_VIEW_SET_WAIT_MILLIS: u32 = 20_000;
 pub const VIEW_SET_LEASE_MILLIS: u64 = 5 * 60 * 1_000;
+/// Client silence after which a set that is not being polled may be evicted
+/// early to admit a new set. Three maximum waits keep a live long-poller or
+/// stream safe between deliveries.
+pub const MIN_VIEW_SET_EVICTION_IDLE_MILLIS: u64 = 3 * MAX_VIEW_SET_WAIT_MILLIS as u64;
 pub const VIEW_SET_REAPER_INTERVAL_MILLIS: u64 = 5_000;
 pub const MAX_VIEW_DELIVERY_INTERVAL_MILLIS: u32 = 60_000;
 pub const MAX_CATALOG_PAGE_ROWS: u32 = 1_024;

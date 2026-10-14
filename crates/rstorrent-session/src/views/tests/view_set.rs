@@ -1,7 +1,9 @@
 use super::super::*;
 use super::*;
 use crate::diagnostics::{MAX_DIAGNOSTIC_PATCH_EVENTS, category};
-use crate::views::contract::MAX_VIEW_SETS_PER_OWNER;
+use crate::views::contract::{
+    MAX_VIEW_SETS, MAX_VIEW_SETS_PER_OWNER, MIN_VIEW_SET_EVICTION_IDLE_MILLIS,
+};
 use crate::{
     DiagnosticCategory, DiagnosticEvent, DiagnosticFilter, DiagnosticRetention, DiagnosticSeverity,
     FileCatalogState, FileSelectionView, FileView, MediaCatalogState, MediaFileAvailability,
@@ -1078,6 +1080,117 @@ fn expired_sets_are_pruned_from_owner_capacity() {
     ));
     hub.open_view_set(owner, open_request(vec![spec()]))
         .expect("expired capacity is reclaimed");
+}
+
+#[test]
+fn abandoned_sets_are_evicted_least_recent_first_at_the_application_limit() {
+    let hub = ViewHub::new(&service_snapshot(0, 0)).expect("hub");
+    let start = Instant::now();
+    let opened = (0..MAX_VIEW_SETS)
+        .map(|index| {
+            let owner = ViewSetOwner::trusted(format!("page-{index}"));
+            let at = start + Duration::from_millis(index as u64);
+            let set = hub
+                .open_view_set_at(owner.clone(), open_request(vec![spec()]), at)
+                .expect("view set");
+            (owner, set.view_set_id)
+        })
+        .collect::<Vec<_>>();
+    let newcomer = ViewSetOwner::trusted("reloaded page");
+    let floor = Duration::from_millis(MIN_VIEW_SET_EVICTION_IDLE_MILLIS);
+
+    assert!(matches!(
+        hub.open_view_set_at(
+            newcomer.clone(),
+            open_request(vec![spec()]),
+            start + floor - Duration::from_millis(1),
+        ),
+        Err(ViewSetError::ResourceLimit)
+    ));
+    hub.open_view_set_at(
+        newcomer,
+        open_request(vec![spec()]),
+        start + floor + Duration::from_millis(1),
+    )
+    .expect("oldest abandoned set yields capacity");
+
+    let (oldest_owner, oldest) = &opened[0];
+    assert!(matches!(
+        hub.view_set(oldest_owner, oldest),
+        Err(ViewSetError::UnknownViewSet)
+    ));
+    for (owner, id) in &opened[1..] {
+        assert!(hub.view_set(owner, id).is_ok());
+    }
+}
+
+#[test]
+fn owner_limit_evicts_only_that_owners_abandoned_sets() {
+    let hub = ViewHub::new(&service_snapshot(0, 0)).expect("hub");
+    let start = Instant::now();
+    let bystander = ViewSetOwner::trusted("other page");
+    let retained = hub
+        .open_view_set_at(bystander.clone(), open_request(vec![spec()]), start)
+        .expect("bystander set");
+    let owner = ViewSetOwner::trusted("page");
+    let opened = (1..=MAX_VIEW_SETS_PER_OWNER)
+        .map(|index| {
+            hub.open_view_set_at(
+                owner.clone(),
+                open_request(vec![spec()]),
+                start + Duration::from_millis(index as u64),
+            )
+            .expect("owner set")
+            .view_set_id
+        })
+        .collect::<Vec<_>>();
+
+    let later = start + Duration::from_millis(MIN_VIEW_SET_EVICTION_IDLE_MILLIS + 1_000);
+    hub.open_view_set_at(owner.clone(), open_request(vec![spec()]), later)
+        .expect("owner's oldest set yields capacity");
+
+    assert!(hub.view_set(&bystander, &retained.view_set_id).is_ok());
+    assert!(matches!(
+        hub.view_set(&owner, &opened[0]),
+        Err(ViewSetError::UnknownViewSet)
+    ));
+    for id in &opened[1..] {
+        assert!(hub.view_set(&owner, id).is_ok());
+    }
+}
+
+#[tokio::test]
+async fn polled_and_recently_active_sets_are_never_evicted() {
+    let hub = ViewHub::new(&service_snapshot(0, 0)).expect("hub");
+    let start = Instant::now();
+    let owner = ViewSetOwner::trusted("page");
+    let polled = hub
+        .open_view_set_at(owner.clone(), open_request(vec![spec()]), start)
+        .expect("polled set");
+    let handle = hub.view_set(&owner, &polled.view_set_id).expect("handle");
+    let waiting = handle.clone();
+    let cursor = polled.initial.cursor.clone();
+    let waiter = tokio::spawn(async move { waiting.next_updates(&cursor, 20_000).await });
+    while !handle.inner.polling.load(Ordering::Acquire) {
+        tokio::task::yield_now().await;
+    }
+    let floor = Duration::from_millis(MIN_VIEW_SET_EVICTION_IDLE_MILLIS);
+    let later = start + floor + Duration::from_secs(1);
+    for _ in 1..MAX_VIEW_SETS_PER_OWNER {
+        hub.open_view_set_at(owner.clone(), open_request(vec![spec()]), later)
+            .expect("recent set");
+    }
+
+    // The only silent set is being polled; the rest are recent.
+    assert!(matches!(
+        hub.open_view_set_at(owner.clone(), open_request(vec![spec()]), later),
+        Err(ViewSetError::ResourceLimit)
+    ));
+    assert!(hub.view_set(&owner, &polled.view_set_id).is_ok());
+
+    hub.close_view_set(&owner, &polled.view_set_id)
+        .expect("close polled set");
+    let _ = waiter.await;
 }
 
 #[tokio::test]
