@@ -102,6 +102,18 @@ never deleted.
 - Rust tests keep registry names and IDs unique, every owned patch key real,
   and every entry advertised in the hello.
 
+## Current Release Hold
+
+As of 2026-10-14, `main` carries five reviewed strict-client exposures (see
+`REVIEWED_STRICT_CLIENT_EXPOSURE`). Extensions 1.1.3 (published) and 1.1.4
+(in review, built from `5fa018ff`) validate strictly. A torrent list
+snapshot from a host built from current `main` includes the new
+`ClientSettings.seed_stop_*` fields, so the companion fails on its first
+library view and asks for a reload. **Do not release desktop, headless or
+Android from `main`** until a tolerant extension is published and has had a
+few days to auto-update, or the maintainer accepts the companion break for
+that release.
+
 ## Release Runbook
 
 Before any host release (desktop, headless, Android):
