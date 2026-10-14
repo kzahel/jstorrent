@@ -62,3 +62,26 @@ report. Without swarm or DHT data it shows the setting state and dashes.
   swarm and DHT data for Trackers, matching the live client. No demo scenario
   has a DHT lookup targeting its own torrent, so "Searching now" is covered by
   unit tests only.
+
+## Follow-Up: One Peer-Source Summary
+
+Maintainer review found the captioned **Other sources** table read as an
+afterthought placed above the trackers. The list is now an untitled summary of
+every way the torrent finds peers, with no column headers; each row reads
+like "DHT · On · 57 known · 0 connected".
+
+- A **Trackers** row comes first. Its counts are swarm records with a tracker
+  source, so a peer several trackers returned counts once and the known count
+  can be lower than the sum of the table's per-tracker Peers column.
+- Tracker status is "N of M working", where working means a recorded success
+  and no current error (the engine clears the error on success); otherwise
+  "Announcing", "Not responding" after a failure, "Idle", or "None" without
+  trackers. It shows a dash until the tracker view arrives.
+- The table toolbar keeps only the tracker count; the announcing and
+  scheduled counts it used to repeat are gone.
+
+`peer-sources.test.ts` covers deduplicated tracker counts and each tracker
+status; the App test reads the four rows from the `swarm-lifecycle` demo.
+Web typecheck, localization check and unit suite pass (577 passed,
+2 skipped); demo-mode screenshots of `tracker-recovery` and
+`healthy-download` show the new layout.

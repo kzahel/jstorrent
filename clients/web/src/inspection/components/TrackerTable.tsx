@@ -44,22 +44,15 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
     () => trackerColumns(Math.max(nowMs, performance.now())),
     [nowMs, trackerSet],
   );
-  const announcing = rows.filter((row) => row.status === "announcing").length;
-  const waiting = rows.filter(
-    (row) => row.status === "retry_wait" || row.status === "reannounce_wait",
-  ).length;
 
   return (
     <div className={styles.trackerPanel}>
-      <PeerSourceList torrentId={torrentId} />
+      <PeerSourceList
+        torrentId={torrentId}
+        trackers={trackerSet === undefined ? undefined : rows}
+      />
       <VirtualTable
-        formatCount={(count) =>
-          [
-            localizedMessage("common.count.trackers", { count }),
-            `${announcing.toLocaleString()} ${localizedMessage("inspection.components.tracker.table.announcing")}`,
-            `${waiting.toLocaleString()} ${localizedMessage("inspection.components.tracker.table.scheduled")}`,
-          ].join(" · ")
-        }
+        formatCount={(count) => localizedMessage("common.count.trackers", { count })}
         tableId="trackers"
         label={localizedMessage("inspection.components.tracker.table.torrent.trackers")}
         rows={rows}
@@ -73,28 +66,28 @@ export function TrackerTable({ torrentId }: { readonly torrentId: string }) {
   );
 }
 
-/** DHT, peer exchange and incoming connections, as qBittorrent lists them beside trackers. */
-function PeerSourceList({ torrentId }: { readonly torrentId: string }) {
+/** One line per way this torrent finds peers, trackers first, as qBittorrent lists them. */
+function PeerSourceList({
+  torrentId,
+  trackers,
+}: {
+  readonly torrentId: string;
+  readonly trackers: readonly TrackerRow[] | undefined;
+}) {
   const torrent = useInspectionStore((state) => state.torrents[torrentId]);
   const swarm = useInspectionStore((state) => state.swarmByTorrent[torrentId]);
   const dht = useInspectionStore((state) => state.dht);
   const settings = useInspectionStore((state) => state.clientSettings);
   const sources = useMemo(
-    () => peerSourceSummaries(torrent, swarm, dht, settings),
-    [dht, settings, swarm, torrent],
+    () => peerSourceSummaries(torrent, trackers, swarm, dht, settings),
+    [dht, settings, swarm, torrent, trackers],
   );
   return (
     <div className={styles.sourcesPanel}>
-      <table className={styles.sources}>
-        <caption>{localizedMessage("inspection.components.tracker.table.other.sources")}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{localizedMessage("inspection.components.tracker.table.source")}</th>
-            <th scope="col">{localizedMessage("inspection.components.tracker.table.status")}</th>
-            <th scope="col">{localizedMessage("inspection.components.tracker.table.known.peers")}</th>
-            <th scope="col">{localizedMessage("inspection.components.tracker.table.connected.peers")}</th>
-          </tr>
-        </thead>
+      <table
+        className={styles.sources}
+        aria-label={localizedMessage("inspection.components.tracker.table.peer.sources")}
+      >
         <tbody>
           {sources.map((source) => (
             <tr key={source.kind}>
@@ -105,8 +98,16 @@ function PeerSourceList({ torrentId }: { readonly torrentId: string }) {
                   {sourceStatusLabel(source.status)}
                 </span>
               </td>
-              <td>{formatCount(source.known)}</td>
-              <td>{formatCount(source.connected)}</td>
+              <td>
+                {source.known === null
+                  ? "—"
+                  : localizedMessage("inspection.components.tracker.table.known.count", { count: source.known })}
+              </td>
+              <td>
+                {source.connected === null
+                  ? "—"
+                  : localizedMessage("inspection.components.tracker.table.connected.count", { count: source.connected })}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -117,6 +118,7 @@ function PeerSourceList({ torrentId }: { readonly torrentId: string }) {
 
 function sourceLabel(kind: PeerSourceKind): string {
   switch (kind) {
+    case "tracker": return localizedMessage("inspection.components.tracker.table.source.trackers");
     case "dht": return localizedMessage("inspection.components.tracker.table.source.dht");
     case "peer_exchange": return localizedMessage("inspection.components.tracker.table.source.peer.exchange");
     case "incoming": return localizedMessage("inspection.components.tracker.table.source.incoming");
@@ -126,6 +128,8 @@ function sourceLabel(kind: PeerSourceKind): string {
 
 function sourceStatusLabel(status: PeerSourceStatus): string {
   switch (status.type) {
+    case "unknown": return "—";
+    case "none": return localizedMessage("inspection.components.tracker.table.source.status.none");
     case "off": return localizedMessage("inspection.components.tracker.table.source.status.off");
     case "offline": return localizedMessage("inspection.components.tracker.table.source.status.not.available");
     case "starting": return localizedMessage("inspection.components.tracker.table.source.status.starting");
@@ -135,6 +139,13 @@ function sourceStatusLabel(status: PeerSourceStatus): string {
       return localizedMessage("inspection.components.tracker.table.source.status.listening", { port: String(status.port) });
     case "searching":
       return localizedMessage("inspection.components.tracker.table.source.status.searching", { found: status.found });
+    case "announcing": return localizedMessage("inspection.components.tracker.table.source.status.announcing");
+    case "failing": return localizedMessage("inspection.components.tracker.table.source.status.not.responding");
+    case "working":
+      return localizedMessage("inspection.components.tracker.table.source.status.working", {
+        working: status.working,
+        total: status.total,
+      });
   }
 }
 

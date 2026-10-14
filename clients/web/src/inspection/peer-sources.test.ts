@@ -8,7 +8,7 @@ import {
   type PeerSourceView,
   type SwarmPeerState,
 } from "../api";
-import type { SwarmRow, SwarmSet } from "./model";
+import type { SwarmRow, SwarmSet, TrackerRow } from "./model";
 import { dhtTargets, peerSourceSummaries } from "./peer-sources";
 
 const V1 = "aa".repeat(20);
@@ -21,29 +21,32 @@ describe("peer source summaries", () => {
       ["dht", "dht"],
       ["incoming"],
     ], ["connected", "eligible", "connected"]);
-    const [dht, pex, incoming] = peerSourceSummaries(
+    const [trackers, dht, pex, incoming] = peerSourceSummaries(
       { protocolIdentities: { v1: V1 } },
+      [],
       swarm,
       null,
       settings(),
     );
 
+    expect(trackers).toMatchObject({ kind: "tracker", status: { type: "none" } });
     expect(dht).toMatchObject({ kind: "dht", known: 2, connected: 1 });
     expect(pex).toMatchObject({ kind: "peer_exchange", known: 1, connected: 1 });
     expect(incoming).toMatchObject({ kind: "incoming", known: 1, connected: 1 });
   });
 
-  it("shows dashes before the swarm view arrives", () => {
-    const [dht] = peerSourceSummaries(undefined, undefined, null, settings());
+  it("shows dashes before the tracker and swarm views arrive", () => {
+    const [trackers, dht] = peerSourceSummaries(undefined, undefined, undefined, null, settings());
+    expect(trackers).toMatchObject({ status: { type: "unknown" }, known: null });
     expect(dht).toMatchObject({ known: null, connected: null });
   });
 
   it("adds local network only when it supplied peers", () => {
     expect(
-      peerSourceSummaries(undefined, swarmSet([]), null, settings()).map((source) => source.kind),
-    ).toEqual(["dht", "peer_exchange", "incoming"]);
+      peerSourceSummaries(undefined, [], swarmSet([]), null, settings()).map((source) => source.kind),
+    ).toEqual(["tracker", "dht", "peer_exchange", "incoming"]);
     expect(
-      peerSourceSummaries(undefined, swarmSet([["local_discovery"]]), null, settings()).at(-1),
+      peerSourceSummaries(undefined, [], swarmSet([["local_discovery"]]), null, settings()).at(-1),
     ).toMatchObject({ kind: "local_discovery", known: 1 });
   });
 
@@ -55,18 +58,19 @@ describe("peer source summaries", () => {
     ]);
 
     expect(
-      peerSourceSummaries({ protocolIdentities: { v1: V1 } }, undefined, view, settings())[0]?.status,
+      peerSourceSummaries({ protocolIdentities: { v1: V1 } }, [], undefined, view, settings())[1]?.status,
     ).toEqual({ type: "searching", found: 3 });
     expect(
-      peerSourceSummaries({ protocolIdentities: { v2: V2 } }, undefined, view, settings())[0]?.status,
+      peerSourceSummaries({ protocolIdentities: { v2: V2 } }, [], undefined, view, settings())[1]?.status,
     ).toEqual({ type: "searching", found: 4 });
     expect(
       peerSourceSummaries(
         { protocolIdentities: { v1: "dd".repeat(20) } },
+        [],
         undefined,
         view,
         settings(),
-      )[0]?.status,
+      )[1]?.status,
     ).toEqual({ type: "on" });
     expect(dhtTargets({ protocolIdentities: { v1: V1, v2: V2 } })).toEqual(
       new Set([V1, V2.slice(0, 40)]),
@@ -80,11 +84,12 @@ describe("peer source summaries", () => {
       listener_status: { type: "disabled" },
     });
     expect(
-      peerSourceSummaries(undefined, undefined, dhtView([]), off).map((source) => source.status.type),
-    ).toEqual(["off", "off", "off"]);
+      peerSourceSummaries(undefined, [], undefined, dhtView([]), off).map((source) => source.status.type),
+    ).toEqual(["none", "off", "off", "off"]);
 
-    const [dht, , incoming] = peerSourceSummaries(
+    const [, dht, , incoming] = peerSourceSummaries(
       undefined,
+      [],
       undefined,
       { ...dhtView([]), lifecycle: "bootstrap_empty" },
       settings({
@@ -97,13 +102,60 @@ describe("peer source summaries", () => {
     expect(
       peerSourceSummaries(
         undefined,
+        [],
         undefined,
         null,
         settings({ listener_status: { type: "listening", address: "0.0.0.0", port: 6881 } }),
-      )[2]?.status,
+      )[3]?.status,
     ).toEqual({ type: "listening", port: 6881 });
   });
 });
+
+describe("tracker peer source", () => {
+  it("counts tracker peers once across trackers that returned them", () => {
+    const [trackers] = peerSourceSummaries(
+      undefined,
+      [tracker({ lastSuccessAtMs: 1 }), tracker({ lastSuccessAtMs: 1 })],
+      swarmSet([["tracker"], ["tracker", "dht"], ["dht"]], ["connected"]),
+      null,
+      settings(),
+    );
+    expect(trackers).toMatchObject({
+      kind: "tracker",
+      status: { type: "working", working: 2, total: 2 },
+      known: 2,
+      connected: 1,
+    });
+  });
+
+  it("calls a tracker working only while its last announce succeeded", () => {
+    const status = (rows: readonly TrackerRow[]) =>
+      peerSourceSummaries(undefined, rows, undefined, null, settings())[0]?.status;
+    const failed = { lastFailureAtMs: 2, error: "timeout" };
+
+    expect(status([
+      tracker({ lastSuccessAtMs: 1 }),
+      tracker({ lastSuccessAtMs: 1, ...failed }),
+      tracker({ status: "announcing" }),
+    ])).toEqual({ type: "working", working: 1, total: 3 });
+    expect(status([tracker({ status: "announcing" }), tracker(failed)]))
+      .toEqual({ type: "announcing" });
+    expect(status([tracker(failed)])).toEqual({ type: "failing" });
+    expect(status([tracker({ status: "inactive" })])).toEqual({ type: "idle" });
+  });
+});
+
+function tracker(overrides: Partial<TrackerRow> = {}): TrackerRow {
+  return {
+    id: "0", torrentId: "t1", url: "udp://tracker.example:6969",
+    transport: "udp", security: "unencrypted", source: "metainfo", tier: 0,
+    status: "idle", announceEvent: null, totalAttempts: 0, consecutiveFailures: 0,
+    lastConnectionFamily: null, lastPeerCount: null, seeders: null, leechers: null,
+    intervalSeconds: null, nextAction: null, nextActionAtMs: null,
+    lastSuccessAtMs: null, lastFailureAtMs: null, error: null,
+    ...overrides,
+  };
+}
 
 function settings(
   overrides: Partial<ClientSettingsRuntimeView> = {},

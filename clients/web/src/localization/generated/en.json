@@ -7595,22 +7595,21 @@
       "value": "Up"
     }
   ],
-  "inspection.components.tracker.table.announcing": [
-    {
-      "type": 0,
-      "value": "announcing"
-    }
-  ],
   "inspection.components.tracker.table.attempts": [
     {
       "type": 0,
       "value": "Attempts"
     }
   ],
-  "inspection.components.tracker.table.connected.peers": [
+  "inspection.components.tracker.table.connected.count": [
+    {
+      "type": 2,
+      "value": "count",
+      "style": null
+    },
     {
       "type": 0,
-      "value": "Connected"
+      "value": " connected"
     }
   ],
   "inspection.components.tracker.table.encrypted.certificate.and.hostname.not.validated": [
@@ -7649,10 +7648,15 @@
       "value": "Interval"
     }
   ],
-  "inspection.components.tracker.table.known.peers": [
+  "inspection.components.tracker.table.known.count": [
+    {
+      "type": 2,
+      "value": "count",
+      "style": null
+    },
     {
       "type": 0,
-      "value": "Known peers"
+      "value": " known"
     }
   ],
   "inspection.components.tracker.table.last.failure": [
@@ -7703,22 +7707,16 @@
       "value": "Now"
     }
   ],
-  "inspection.components.tracker.table.other.sources": [
+  "inspection.components.tracker.table.peer.sources": [
     {
       "type": 0,
-      "value": "Other sources"
+      "value": "Peer sources"
     }
   ],
   "inspection.components.tracker.table.peers": [
     {
       "type": 0,
       "value": "Peers"
-    }
-  ],
-  "inspection.components.tracker.table.scheduled": [
-    {
-      "type": 0,
-      "value": "scheduled"
     }
   ],
   "inspection.components.tracker.table.seeds": [
@@ -7757,6 +7755,12 @@
       "value": "Peer exchange"
     }
   ],
+  "inspection.components.tracker.table.source.status.announcing": [
+    {
+      "type": 0,
+      "value": "Announcing"
+    }
+  ],
   "inspection.components.tracker.table.source.status.idle": [
     {
       "type": 0,
@@ -7773,10 +7777,22 @@
       "value": "port"
     }
   ],
+  "inspection.components.tracker.table.source.status.none": [
+    {
+      "type": 0,
+      "value": "None"
+    }
+  ],
   "inspection.components.tracker.table.source.status.not.available": [
     {
       "type": 0,
       "value": "Not available"
+    }
+  ],
+  "inspection.components.tracker.table.source.status.not.responding": [
+    {
+      "type": 0,
+      "value": "Not responding"
     }
   ],
   "inspection.components.tracker.table.source.status.off": [
@@ -7835,6 +7851,32 @@
     {
       "type": 0,
       "value": "Starting"
+    }
+  ],
+  "inspection.components.tracker.table.source.status.working": [
+    {
+      "type": 2,
+      "value": "working",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " of "
+    },
+    {
+      "type": 2,
+      "value": "total",
+      "style": null
+    },
+    {
+      "type": 0,
+      "value": " working"
+    }
+  ],
+  "inspection.components.tracker.table.source.trackers": [
+    {
+      "type": 0,
+      "value": "Trackers"
     }
   ],
   "inspection.components.tracker.table.status": [

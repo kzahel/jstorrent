@@ -16,8 +16,8 @@
   per-reply DHT peer delivery to the torrent, bounded and non-blocking, with
   the final lookup result still authoritative.
 - [341 — Peer sources in the Trackers tab](341-trackers-tab-peer-sources.md):
-  DHT, peer exchange and incoming rows beside a torrent's trackers, from the
-  existing swarm and DHT views.
+  an untitled summary of a torrent's peer sources, trackers first, above its
+  tracker table, from the existing tracker, swarm and DHT views.
 - [340 — Quiet Windows network startup and firewall qualification](340-windows-quiet-network-startup.md):
   Windows fresh/upgrade defaults, preserved opt-in choices, native denial,
   controlled cross-VM transfers and retained-data migration.

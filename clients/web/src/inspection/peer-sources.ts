@@ -3,22 +3,28 @@ import type {
   DhtInspectionView,
   PeerSourceView,
 } from "../api";
-import type { SwarmSet, TorrentRow } from "./model";
+import type { SwarmSet, TorrentRow, TrackerRow } from "./model";
 
 export type PeerSourceKind =
+  | "tracker"
   | "dht"
   | "peer_exchange"
   | "incoming"
   | "local_discovery";
 
 export type PeerSourceStatus =
+  | { readonly type: "unknown" }
+  | { readonly type: "none" }
   | { readonly type: "off" }
   | { readonly type: "offline" }
   | { readonly type: "starting" }
   | { readonly type: "idle" }
   | { readonly type: "on" }
   | { readonly type: "listening"; readonly port: number }
-  | { readonly type: "searching"; readonly found: number };
+  | { readonly type: "searching"; readonly found: number }
+  | { readonly type: "announcing" }
+  | { readonly type: "failing" }
+  | { readonly type: "working"; readonly working: number; readonly total: number };
 
 export interface PeerSourceSummary {
   readonly kind: PeerSourceKind;
@@ -29,11 +35,14 @@ export interface PeerSourceSummary {
 }
 
 /**
- * Summarizes the non-tracker ways one torrent finds peers. Counts come from
- * the bounded swarm view; a record with several sources counts for each.
+ * Summarizes the ways one torrent finds peers, trackers first. Counts come
+ * from the bounded swarm view, so a peer several trackers returned counts
+ * once; a record with several sources counts for each.
  */
 export function peerSourceSummaries(
   torrent: Pick<TorrentRow, "protocolIdentities"> | undefined,
+  /** Undefined while the tracker view has not arrived. */
+  trackers: readonly TrackerRow[] | undefined,
   swarm: SwarmSet | undefined,
   dht: DhtInspectionView | null,
   settings: ClientSettingsRuntimeView,
@@ -56,6 +65,7 @@ export function peerSourceSummaries(
   });
 
   const summaries: PeerSourceSummary[] = [
+    { kind: "tracker", status: trackerStatus(trackers), ...counts("tracker") },
     { kind: "dht", status: dhtStatus(torrent, dht, settings), ...counts("dht") },
     {
       kind: "peer_exchange",
@@ -74,6 +84,23 @@ export function peerSourceSummaries(
     });
   }
   return summaries;
+}
+
+/** Working means the last announce succeeded; an announce in flight keeps that. */
+function trackerStatus(trackers: readonly TrackerRow[] | undefined): PeerSourceStatus {
+  if (trackers === undefined) return { type: "unknown" };
+  if (trackers.length === 0) return { type: "none" };
+  const working = trackers.filter(
+    (tracker) => tracker.lastSuccessAtMs !== null && tracker.error === null,
+  ).length;
+  if (working > 0) return { type: "working", working, total: trackers.length };
+  if (trackers.some((tracker) => tracker.status === "announcing")) {
+    return { type: "announcing" };
+  }
+  if (trackers.some((tracker) => tracker.lastFailureAtMs !== null)) {
+    return { type: "failing" };
+  }
+  return { type: "idle" };
 }
 
 function dhtStatus(

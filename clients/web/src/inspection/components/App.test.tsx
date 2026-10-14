@@ -707,7 +707,7 @@ describe("inspection application", () => {
     ).toBeVisible();
   });
 
-  it("lists DHT, peer exchange and incoming peers beside the trackers", async () => {
+  it("summarizes trackers, DHT, peer exchange and incoming peers above the trackers", async () => {
     const user = userEvent.setup();
     renderScenario("swarm-lifecycle", 30_000);
     await user.click(
@@ -717,10 +717,16 @@ describe("inspection application", () => {
     );
     await user.click(screen.getByRole("tab", { name: "Trackers" }));
 
-    const sources = await screen.findByRole("table", { name: "Other sources" });
+    const sources = await screen.findByRole("table", { name: "Peer sources" });
     expect(
-      within(sources).getAllByRole("row").slice(1).map((row) => row.textContent),
-    ).toEqual(["DHTOn30", "Peer exchangeOn21", "Incoming connectionsOff00"]);
+      within(sources).getAllByRole("row").map((row) => row.textContent),
+    ).toEqual([
+      // The scenario lists no trackers but tags its swarm peers as tracker peers.
+      "TrackersNone3 known0 connected",
+      "DHTOn3 known0 connected",
+      "Peer exchangeOn2 known1 connected",
+      "Incoming connectionsOff0 known0 connected",
+    ]);
   });
 
   it("renders the bounded swarm registry independently of active connections", async () => {

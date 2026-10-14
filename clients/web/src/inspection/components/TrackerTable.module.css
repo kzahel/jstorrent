@@ -57,54 +57,45 @@
   background: var(--success);
 }
 
-/* Non-tracker peer sources, listed above the tracker table. */
+/* Summary of where this torrent's peers come from, above the tracker table. */
 .sourcesPanel {
   border-bottom: 1px solid var(--border-soft);
   background: var(--surface-primary);
 }
 
 .sources {
-  width: 100%;
-  max-width: 44rem;
   border-collapse: collapse;
   font-size: var(--ui-font-small);
   font-variant-numeric: tabular-nums;
 }
 
-.sources thead th:nth-child(2) {
-  width: 45%;
+.sources tr:first-child > * {
+  padding-top: 0.5rem;
 }
 
-.sources caption {
-  padding: 0.5rem 0.72rem 0.2rem;
-  color: var(--text-muted);
-  font-size: var(--ui-font-caption);
-  font-weight: var(--weight-medium);
-  text-align: left;
+.sources tr:last-child > * {
+  padding-bottom: 0.5rem;
 }
 
 .sources th,
 .sources td {
-  padding: 0.28rem 0.72rem;
+  padding: 0.2rem 0.72rem;
   text-align: left;
   white-space: nowrap;
 }
 
-.sources thead th {
-  color: var(--text-muted);
-  font-size: var(--ui-font-caption);
-  font-weight: var(--weight-medium);
-}
-
-.sources tbody th {
+.sources th {
   color: var(--text-primary);
   font-weight: var(--weight-medium);
 }
 
+.sources td:nth-child(2) {
+  padding-right: 1.5rem;
+}
+
 .sources td:nth-child(3),
-.sources td:nth-child(4),
-.sources thead th:nth-child(3),
-.sources thead th:nth-child(4) {
+.sources td:nth-child(4) {
+  color: var(--text-secondary);
   text-align: right;
 }
 
@@ -124,19 +115,23 @@
 }
 
 .sourceStatus[data-status="on"] > span,
-.sourceStatus[data-status="listening"] > span {
+.sourceStatus[data-status="listening"] > span,
+.sourceStatus[data-status="working"] > span {
   background: var(--success);
 }
 
-.sourceStatus[data-status="searching"] > span {
+.sourceStatus[data-status="searching"] > span,
+.sourceStatus[data-status="announcing"] > span {
   background: var(--water);
 }
 
-.sourceStatus[data-status="offline"] {
+.sourceStatus[data-status="offline"],
+.sourceStatus[data-status="failing"] {
   color: var(--warning-strong);
 }
 
 .sourceStatus[data-status="offline"] > span,
+.sourceStatus[data-status="failing"] > span,
 .sourceStatus[data-status="starting"] > span {
   background: var(--warning-strong);
 }

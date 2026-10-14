@@ -3788,10 +3788,6 @@
     "defaultMessage": "Up",
     "description": "Product copy in inspection/components/TorrentTable.tsx"
   },
-  "inspection.components.tracker.table.announcing": {
-    "defaultMessage": "announcing",
-    "description": "Product copy in inspection/components/TrackerTable.tsx"
-  },
   "inspection.components.tracker.table.attempts": {
     "defaultMessage": "Attempts",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
@@ -3848,24 +3844,24 @@
     "defaultMessage": "Peers",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
   },
-  "inspection.components.tracker.table.scheduled": {
-    "defaultMessage": "scheduled",
-    "description": "Product copy in inspection/components/TrackerTable.tsx"
-  },
   "inspection.components.tracker.table.seeds": {
     "defaultMessage": "Seeds",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
   },
-  "inspection.components.tracker.table.other.sources": {
-    "defaultMessage": "Other sources",
-    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  "inspection.components.tracker.table.peer.sources": {
+    "defaultMessage": "Peer sources",
+    "description": "Accessible name of the per-torrent list of ways peers are found"
   },
-  "inspection.components.tracker.table.known.peers": {
-    "defaultMessage": "Known peers",
-    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  "inspection.components.tracker.table.known.count": {
+    "defaultMessage": "{count, number} known",
+    "description": "Distinct swarm peers that came from one peer source"
   },
-  "inspection.components.tracker.table.connected.peers": {
-    "defaultMessage": "Connected",
+  "inspection.components.tracker.table.connected.count": {
+    "defaultMessage": "{count, number} connected",
+    "description": "Connected peers that came from one peer source"
+  },
+  "inspection.components.tracker.table.source.trackers": {
+    "defaultMessage": "Trackers",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
   },
   "inspection.components.tracker.table.source.dht": {
@@ -3887,6 +3883,10 @@
   "inspection.components.tracker.table.source.status.off": {
     "defaultMessage": "Off",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.status.none": {
+    "defaultMessage": "None",
+    "description": "The torrent has no trackers"
   },
   "inspection.components.tracker.table.source.status.not.available": {
     "defaultMessage": "Not available",
@@ -3911,6 +3911,18 @@
   "inspection.components.tracker.table.source.status.searching": {
     "defaultMessage": "Searching now, {found, plural, one {# peer} other {# peers}} found",
     "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.status.announcing": {
+    "defaultMessage": "Announcing",
+    "description": "Product copy in inspection/components/TrackerTable.tsx"
+  },
+  "inspection.components.tracker.table.source.status.not.responding": {
+    "defaultMessage": "Not responding",
+    "description": "No tracker has answered an announce and at least one failed"
+  },
+  "inspection.components.tracker.table.source.status.working": {
+    "defaultMessage": "{working, number} of {total, number} working",
+    "description": "Trackers whose last announce succeeded, out of all trackers"
   },
   "inspection.components.tracker.table.source": {
     "defaultMessage": "Source",
