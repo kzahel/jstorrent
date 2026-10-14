@@ -1,5 +1,8 @@
 # Implementation Tactical Docs
 
+- [344 — Seeding stop limits](344-seeding-stop-limits.md): draft; global and
+  per-torrent ratio and seeding-time limits that stop a finished torrent,
+  separate from the priority-only seed goals.
 - [342 — Deliver DHT peers as replies arrive](342-stream-dht-peers-during-lookup.md):
   per-reply DHT peer delivery to the torrent, bounded and non-blocking, with
   the final lookup result still authoritative.
