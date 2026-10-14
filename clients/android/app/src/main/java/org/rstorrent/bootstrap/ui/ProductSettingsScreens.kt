@@ -1,13 +1,17 @@
 package org.rstorrent.bootstrap.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +47,8 @@ import org.rstorrent.session.uniffi.ListenerStatus
 import org.rstorrent.session.uniffi.PortMappingFailureStage
 import org.rstorrent.session.uniffi.PortMappingPolicy
 import org.rstorrent.session.uniffi.PortMappingStatus
+import org.rstorrent.session.uniffi.SeedStopLimit
+import org.rstorrent.session.uniffi.TorrentSeedStopLimit
 import org.rstorrent.session.uniffi.TransferRateLimit
 
 @Composable
@@ -54,6 +60,8 @@ internal fun ConnectionLimitsSettings(
     onActiveSeeds: (ActiveSeedLimit) -> Unit,
     onUploadRateLimit: (TransferRateLimit) -> Unit,
     onDownloadRateLimit: (TransferRateLimit) -> Unit,
+    onSeedStopRatio: (SeedStopLimit) -> Unit,
+    onSeedStopTime: (SeedStopLimit) -> Unit,
 ) {
     SettingsSection(stringResource(R.string.settings_section_speed_limits))
     RateLimitSetting(
@@ -84,6 +92,25 @@ internal fun ConnectionLimitsSettings(
     ActiveSeedSetting(
         configured = settings.configured.activeSeeds,
         onValue = onActiveSeeds,
+    )
+    SettingsSection(stringResource(R.string.settings_section_stop_seeding))
+    Text(
+        stringResource(R.string.setting_stop_seeding_detail),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+    )
+    SeedStopRatioSetting(
+        configured = settings.configured.seedStopRatioPercent.asTorrentLimit(),
+        global = null,
+        perTorrent = false,
+        onValue = { limit -> limit.asSessionLimit()?.let(onSeedStopRatio) },
+    )
+    SeedStopTimeSetting(
+        configured = settings.configured.seedStopTimeSeconds.asTorrentLimit(),
+        global = null,
+        perTorrent = false,
+        onValue = { limit -> limit.asSessionLimit()?.let(onSeedStopTime) },
     )
     SettingsSection(stringResource(R.string.settings_section_connections))
     NumericSetting(
@@ -297,6 +324,187 @@ private fun RateLimitDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
+
+/**
+ * Share ratio stop limit. In global Settings it offers Off, presets and
+ * Custom; per torrent it adds Use global and reads Off as No limit.
+ */
+@Composable
+internal fun SeedStopRatioSetting(
+    configured: TorrentSeedStopLimit,
+    global: SeedStopLimit?,
+    perTorrent: Boolean,
+    onValue: (TorrentSeedStopLimit) -> Unit,
+) {
+    var dialog by remember { mutableStateOf(false) }
+    val title = stringResource(R.string.setting_seed_stop_ratio)
+    val valueLabel: @Composable (UInt) -> String = { seedStopRatioValueLabel(it) }
+    ValueRow(title, seedStopRowLabel(configured, global, perTorrent, valueLabel), null) { dialog = true }
+    if (!dialog) return
+    var choice by remember(configured) {
+        mutableStateOf(seedStopChoice(configured, SEED_STOP_RATIO_PRESETS))
+    }
+    var text by remember(configured) {
+        mutableStateOf(seedStopRatioText((configured as? TorrentSeedStopLimit.Limited)?.value))
+    }
+    val parsed = choice.toLimit(parseSeedStopRatio(text))
+    SeedStopDialog(
+        title = title,
+        choice = choice,
+        onChoice = { choice = it },
+        global = global,
+        perTorrent = perTorrent,
+        presets = SEED_STOP_RATIO_PRESETS,
+        valueLabel = valueLabel,
+        parsed = parsed,
+        onDismiss = { dialog = false },
+        onApply = { onValue(it); dialog = false },
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = {
+                text = it.filter { character -> character.isDigit() || character == '.' || character == ',' }
+            },
+            singleLine = true,
+            label = { Text(stringResource(R.string.seed_stop_ratio_field)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            isError = parsed == null,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+/**
+ * Seeding time stop limit. Custom takes a whole number of minutes, hours or
+ * days.
+ */
+@Composable
+internal fun SeedStopTimeSetting(
+    configured: TorrentSeedStopLimit,
+    global: SeedStopLimit?,
+    perTorrent: Boolean,
+    onValue: (TorrentSeedStopLimit) -> Unit,
+) {
+    var dialog by remember { mutableStateOf(false) }
+    val title = stringResource(R.string.setting_seed_stop_time)
+    val valueLabel: @Composable (UInt) -> String = { seedStopTimeValueLabel(it) }
+    ValueRow(title, seedStopRowLabel(configured, global, perTorrent, valueLabel), null) { dialog = true }
+    if (!dialog) return
+    val initial = seedStopTimeText((configured as? TorrentSeedStopLimit.Limited)?.value)
+    var choice by remember(configured) {
+        mutableStateOf(seedStopChoice(configured, SEED_STOP_TIME_PRESETS))
+    }
+    var text by remember(configured) { mutableStateOf(initial.first) }
+    var unit by remember(configured) { mutableStateOf(initial.second) }
+    val parsed = choice.toLimit(parseSeedStopTime(text, unit))
+    SeedStopDialog(
+        title = title,
+        choice = choice,
+        onChoice = { choice = it },
+        global = global,
+        perTorrent = perTorrent,
+        presets = SEED_STOP_TIME_PRESETS,
+        valueLabel = valueLabel,
+        parsed = parsed,
+        onDismiss = { dialog = false },
+        onApply = { onValue(it); dialog = false },
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it.filter(Char::isDigit) },
+            singleLine = true,
+            label = { Text(stringResource(R.string.seed_stop_time_field)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            isError = parsed == null,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 8.dp),
+        ) {
+            SeedTimeUnit.entries.forEach { option ->
+                FilterChip(
+                    selected = unit == option,
+                    onClick = { unit = option },
+                    label = { Text(seedTimeUnitLabel(option)) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun seedStopRowLabel(
+    configured: TorrentSeedStopLimit,
+    global: SeedStopLimit?,
+    perTorrent: Boolean,
+    valueLabel: @Composable (UInt) -> String,
+): String =
+    if (perTorrent) {
+        torrentSeedStopLimitLabel(configured, global, valueLabel)
+    } else {
+        seedStopLimitLabel(configured.asSessionLimit() ?: SeedStopLimit.Off, valueLabel)
+    }
+
+@Composable
+private fun SeedStopDialog(
+    title: String,
+    choice: SeedStopChoice,
+    onChoice: (SeedStopChoice) -> Unit,
+    global: SeedStopLimit?,
+    perTorrent: Boolean,
+    presets: List<UInt>,
+    valueLabel: @Composable (UInt) -> String,
+    parsed: TorrentSeedStopLimit?,
+    onDismiss: () -> Unit,
+    onApply: (TorrentSeedStopLimit) -> Unit,
+    customField: @Composable () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                if (perTorrent) {
+                    ChoiceRow(
+                        torrentSeedStopLimitLabel(TorrentSeedStopLimit.UseGlobal, global, valueLabel),
+                        choice == SeedStopChoice.UseGlobal,
+                    ) { onChoice(SeedStopChoice.UseGlobal) }
+                }
+                ChoiceRow(
+                    stringResource(if (perTorrent) R.string.seed_stop_no_limit else R.string.seed_stop_off),
+                    choice == SeedStopChoice.Off,
+                ) { onChoice(SeedStopChoice.Off) }
+                presets.forEach { preset ->
+                    ChoiceRow(valueLabel(preset), choice == SeedStopChoice.Preset(preset)) {
+                        onChoice(SeedStopChoice.Preset(preset))
+                    }
+                }
+                ChoiceRow(stringResource(R.string.setting_custom), choice == SeedStopChoice.Custom) {
+                    onChoice(SeedStopChoice.Custom)
+                }
+                if (choice == SeedStopChoice.Custom) customField()
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onApply(requireNotNull(parsed)) },
+                enabled = parsed != null,
+            ) { Text(stringResource(R.string.action_apply)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+}
+
+@Composable
+private fun seedTimeUnitLabel(unit: SeedTimeUnit): String =
+    stringResource(
+        when (unit) {
+            SeedTimeUnit.MINUTES -> R.string.seed_stop_unit_minutes
+            SeedTimeUnit.HOURS -> R.string.seed_stop_unit_hours
+            SeedTimeUnit.DAYS -> R.string.seed_stop_unit_days
+        },
+    )
 
 @Composable
 private fun ChoiceRow(

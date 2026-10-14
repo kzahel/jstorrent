@@ -894,7 +894,7 @@ internal object ProductStateReducer {
         return draft.authority(
             key,
             revision,
-            torrent.transferLimits.fieldValues(),
+            torrent.settingsFieldValues(),
         )
     }
 

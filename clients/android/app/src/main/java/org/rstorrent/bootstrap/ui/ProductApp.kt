@@ -120,11 +120,13 @@ import org.rstorrent.bootstrap.TorrentPresentation
 import org.rstorrent.bootstrap.clientSettingsPatch
 import org.rstorrent.bootstrap.presentedClientSettings
 import org.rstorrent.bootstrap.presentedTorrent
+import org.rstorrent.bootstrap.seedStopLimits
 import org.rstorrent.bootstrap.torrentSettingsPatch
 import org.rstorrent.session.uniffi.DiagnosticEvent
 import org.rstorrent.session.uniffi.DiagnosticCategory
 import org.rstorrent.session.uniffi.DiagnosticProfile
 import org.rstorrent.session.uniffi.DiagnosticSeverity
+import org.rstorrent.session.uniffi.ClientSettings
 import org.rstorrent.session.uniffi.ClientSettingsPatch
 import org.rstorrent.session.uniffi.FilePriority
 import org.rstorrent.session.uniffi.ProductFeedbackPreview
@@ -1083,6 +1085,16 @@ private fun ProductNavHost(
                                 clientSettingsPatch(downloadRateLimit = value),
                             )
                         },
+                        onSeedStopRatio = { value ->
+                            onUpdateClientSettings(
+                                clientSettingsPatch(seedStopRatioPercent = value),
+                            )
+                        },
+                        onSeedStopTime = { value ->
+                            onUpdateClientSettings(
+                                clientSettingsPatch(seedStopTimeSeconds = value),
+                            )
+                        },
                     )
                 }
             }
@@ -1814,10 +1826,7 @@ private fun TorrentDetailScreen(
                             IconButton(onClick = if (paused) onResume else onPause) {
                                 Icon(
                                     if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                                    contentDescription =
-                                        stringResource(
-                                            if (paused) R.string.action_resume else R.string.action_pause,
-                                        ),
+                                    contentDescription = stringResource(torrent.pauseResumeLabelRes()),
                                 )
                             }
                         }
@@ -1831,7 +1840,7 @@ private fun TorrentDetailScreen(
                             DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
                                 val dismiss = { overflow = false }
                                 if (torrent?.allows(TorrentAction.START) == true) {
-                                    TorrentMenuItem(R.string.action_resume, torrent, TorrentAction.START, dismiss, onResume)
+                                    TorrentMenuItem(torrent.pauseResumeLabelRes(), torrent, TorrentAction.START, dismiss, onResume)
                                 } else if (torrent?.allows(TorrentAction.PAUSE) == true) {
                                     TorrentMenuItem(R.string.action_pause, torrent, TorrentAction.PAUSE, dismiss, onPause)
                                 }
@@ -1928,6 +1937,7 @@ private fun DetailTabContent(
         TorrentDetailTab.DETAILS ->
             TorrentDetails(
                 torrent,
+                state.presentedClientSettings()?.configured,
                 onTransferLimits,
                 *buildList {
                     val v1 = torrent.protocolIdentities.v1
@@ -1946,13 +1956,16 @@ private fun DetailTabContent(
                     add(stringResource(R.string.detail_uploaded) to formatBytes(torrent.lifetime.uploadedPayloadBytes))
                     add(stringResource(R.string.detail_share_ratio) to formatShareRatio(torrent.lifetime.shareRatioHundredths))
                     add(stringResource(R.string.detail_seeding_time) to formatDuration(torrent.lifetime.seedingSeconds))
+                    seedStopProgress(torrent, state.presentedClientSettings()?.configured)?.let {
+                        add(stringResource(R.string.detail_stop_seeding) to seedStopProgressText(it))
+                    }
                 }.toTypedArray(),
             )
         TorrentDetailTab.STATUS ->
             DetailList(
                 *buildList {
                     val state = torrentStatusLabel(torrent)
-                    val activity = progressReasonLabel(torrent.progress.reason)
+                    val activity = torrentActivityLabel(torrent)
                     add(stringResource(R.string.detail_state) to state)
                     if (activity != state) add(stringResource(R.string.detail_activity) to activity)
                     add(stringResource(R.string.detail_download) to formatRate(torrent.payloadDownloadRateBytes))
@@ -2006,6 +2019,7 @@ private fun DetailTabContent(
 @Composable
 private fun TorrentDetails(
     torrent: TorrentView,
+    global: ClientSettings?,
     onTransferLimits: (TorrentSettingsPatch) -> Unit,
     vararg rows: Pair<String, String>,
 ) {
@@ -2030,6 +2044,28 @@ private fun TorrentDetails(
                 configured = torrent.transferLimits.upload,
                 onValue = { limit ->
                     onTransferLimits(torrentSettingsPatch(uploadRateLimit = limit))
+                },
+            )
+        }
+        item("stop-seeding") { SettingsSection(stringResource(R.string.settings_section_stop_seeding)) }
+        val stop = torrent.seedStopLimits()
+        item("seed-stop-ratio") {
+            SeedStopRatioSetting(
+                configured = stop.ratioPercent,
+                global = global?.seedStopRatioPercent,
+                perTorrent = true,
+                onValue = { limit ->
+                    onTransferLimits(torrentSettingsPatch(seedStopRatioPercent = limit))
+                },
+            )
+        }
+        item("seed-stop-time") {
+            SeedStopTimeSetting(
+                configured = stop.timeSeconds,
+                global = global?.seedStopTimeSeconds,
+                perTorrent = true,
+                onValue = { limit ->
+                    onTransferLimits(torrentSettingsPatch(seedStopTimeSeconds = limit))
                 },
             )
         }

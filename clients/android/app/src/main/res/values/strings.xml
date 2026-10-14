@@ -269,6 +269,12 @@
     <string name="activity_needs_repair">Needs repair</string>
     <string name="detail_share_ratio">Share ratio</string>
     <string name="detail_seeding_time">Seeding time</string>
+    <string name="detail_stop_seeding">Stop seeding</string>
+    <!-- %1$s is the share ratio limit, %2$s the current share ratio, e.g. "Stops at ratio 2.00 · now 1.42". -->
+    <string name="seed_stop_ratio_progress">Stops at ratio %1$s · now %2$s</string>
+    <!-- %1$s is the seeding time limit such as "1 day", %2$s how long it has seeded such as "18 h 3 min". -->
+    <string name="seed_stop_time_progress">Stops after %1$s · seeded %2$s</string>
+    <string name="seed_stop_none">No stop limit</string>
     <string name="detail_download">Download</string>
     <string name="detail_peers">Peers</string>
     <string name="detail_eta">ETA</string>
@@ -366,7 +372,7 @@
     <string name="settings_storage">Storage</string>
     <string name="settings_storage_detail">Download folders</string>
     <string name="settings_speed_limits">Speed &amp; Limits</string>
-    <string name="settings_speed_limits_detail">Download/upload speeds, peer limits</string>
+    <string name="settings_speed_limits_detail">Speeds, seeding, peer limits</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notifications_detail">Permission and alerts</string>
     <string name="settings_network_privacy">Network &amp; Privacy</string>
@@ -416,6 +422,39 @@
     <string name="setting_upload_slots">Upload slots</string>
     <string name="setting_active_downloads">Max active downloads</string>
     <string name="setting_active_seeds">Max active seeds</string>
+    <string name="settings_section_stop_seeding">Stop seeding</string>
+    <string name="setting_stop_seeding_detail">Stop a finished torrent at either limit. Resume it to keep seeding.</string>
+    <string name="setting_seed_stop_ratio">Share ratio</string>
+    <string name="setting_seed_stop_time">Seeding time</string>
+    <!-- Global stop limit is turned off. -->
+    <string name="seed_stop_off">Off</string>
+    <!-- This torrent never stops at this limit, whatever the global setting. -->
+    <string name="seed_stop_no_limit">No limit</string>
+    <!-- This torrent follows the global stop limit, shown before Settings load. -->
+    <string name="seed_stop_use_global">Use global</string>
+    <!-- %1$s is the global limit, e.g. "Use global (2.0)" or "Use global (No limit)". -->
+    <string name="seed_stop_use_global_value">Use global (%1$s)</string>
+    <string name="seed_stop_ratio_field">Ratio</string>
+    <string name="seed_stop_time_field">Time</string>
+    <string name="seed_stop_unit_minutes">Minutes</string>
+    <string name="seed_stop_unit_hours">Hours</string>
+    <string name="seed_stop_unit_days">Days</string>
+    <plurals name="seed_stop_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <plurals name="seed_stop_hours">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
+    <plurals name="seed_stop_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <plurals name="seed_stop_weeks">
+        <item quantity="one">%1$d week</item>
+        <item quantity="other">%1$d weeks</item>
+    </plurals>
     <string name="setting_unlimited">Unlimited</string>
     <string name="setting_rate_unit">KB/s</string>
     <string name="setting_network_attention">Network needs attention</string>
@@ -536,6 +575,8 @@
     <string name="state_stopping">Stopping</string>
     <string name="state_seeding">Seeding</string>
     <string name="state_paused">Paused</string>
+    <!-- A finished torrent that stopped because it reached its share ratio or seeding time limit. -->
+    <string name="state_seed_limit_reached">Seeding limit reached</string>
     <string name="state_archived">Archived</string>
     <string name="state_folder_unavailable">Folder unavailable</string>
     <string name="state_removing">Removing…</string>

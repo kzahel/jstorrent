@@ -3912,7 +3912,7 @@ class ProductEngineService : Service() {
                     product.torrentSettingsDraft.authority(
                         torrentId,
                         product.latestDurableRevision(),
-                        torrent.transferLimits.fieldValues(),
+                        torrent.settingsFieldValues(),
                     )
                 } else {
                     product.torrentSettingsDraft

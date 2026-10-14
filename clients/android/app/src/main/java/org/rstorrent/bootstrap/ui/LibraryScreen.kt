@@ -609,8 +609,7 @@ private fun TorrentCard(
     val progress = torrentProgress(torrent)
     val paused = torrent.operationalState == TorrentOperationalState.PAUSED
     val removing = torrent.removalActive
-    val pauseResumeDescription =
-        stringResource(if (paused) R.string.action_resume else R.string.action_pause)
+    val pauseResumeDescription = stringResource(torrent.pauseResumeLabelRes())
     Card(
         modifier =
             Modifier.fillMaxWidth().widthIn(max = 720.dp)

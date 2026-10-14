@@ -8,8 +8,11 @@ import org.rstorrent.session.uniffi.EncryptionPolicy
 import org.rstorrent.session.uniffi.HttpsServerAuthenticationPolicy
 import org.rstorrent.session.uniffi.ListenerPolicy
 import org.rstorrent.session.uniffi.PortMappingPolicy
+import org.rstorrent.session.uniffi.SeedStopLimit
+import org.rstorrent.session.uniffi.SeedStopView
+import org.rstorrent.session.uniffi.TorrentSeedStopLimit
+import org.rstorrent.session.uniffi.TorrentSeedStopLimits
 import org.rstorrent.session.uniffi.TorrentSettingsPatch
-import org.rstorrent.session.uniffi.TorrentTransferLimits
 import org.rstorrent.session.uniffi.TorrentView
 import org.rstorrent.session.uniffi.TransferRateLimit
 
@@ -24,6 +27,8 @@ enum class ClientSettingsField {
     SHARE_RATIO_LIMIT,
     FINISHED_DOWNLOAD_RATIO_LIMIT,
     FINISHED_TIME_LIMIT,
+    SEED_STOP_RATIO,
+    SEED_STOP_TIME,
     UPLOAD_RATE_LIMIT,
     DOWNLOAD_RATE_LIMIT,
     ENCRYPTION,
@@ -36,6 +41,8 @@ enum class ClientSettingsField {
 enum class TorrentSettingsField {
     UPLOAD_RATE_LIMIT,
     DOWNLOAD_RATE_LIMIT,
+    SEED_STOP_RATIO,
+    SEED_STOP_TIME,
 }
 
 data class SettingsDraftSubmission<K : Any>(
@@ -276,6 +283,8 @@ internal fun ClientSettings.fieldValues(): Map<ClientSettingsField, Any> =
         ClientSettingsField.SHARE_RATIO_LIMIT to shareRatioLimitPercent,
         ClientSettingsField.FINISHED_DOWNLOAD_RATIO_LIMIT to finishedDownloadRatioLimitPercent,
         ClientSettingsField.FINISHED_TIME_LIMIT to finishedTimeLimitSeconds,
+        ClientSettingsField.SEED_STOP_RATIO to seedStopRatioPercent,
+        ClientSettingsField.SEED_STOP_TIME to seedStopTimeSeconds,
         ClientSettingsField.UPLOAD_RATE_LIMIT to uploadRateLimit,
         ClientSettingsField.DOWNLOAD_RATE_LIMIT to downloadRateLimit,
         ClientSettingsField.ENCRYPTION to encryption,
@@ -299,6 +308,8 @@ internal fun ClientSettingsPatch.fieldValues(): Map<ClientSettingsField, Any> =
             put(ClientSettingsField.FINISHED_DOWNLOAD_RATIO_LIMIT, it)
         }
         finishedTimeLimitSeconds?.let { put(ClientSettingsField.FINISHED_TIME_LIMIT, it) }
+        seedStopRatioPercent?.let { put(ClientSettingsField.SEED_STOP_RATIO, it) }
+        seedStopTimeSeconds?.let { put(ClientSettingsField.SEED_STOP_TIME, it) }
         uploadRateLimit?.let { put(ClientSettingsField.UPLOAD_RATE_LIMIT, it) }
         downloadRateLimit?.let { put(ClientSettingsField.DOWNLOAD_RATE_LIMIT, it) }
         encryption?.let { put(ClientSettingsField.ENCRYPTION, it) }
@@ -323,6 +334,8 @@ internal fun Map<ClientSettingsField, Any>.toClientSettingsPatch(): ClientSettin
         finishedDownloadRatioLimitPercent =
             get(ClientSettingsField.FINISHED_DOWNLOAD_RATIO_LIMIT) as? UInt,
         finishedTimeLimitSeconds = get(ClientSettingsField.FINISHED_TIME_LIMIT) as? UInt,
+        seedStopRatioPercent = get(ClientSettingsField.SEED_STOP_RATIO) as? SeedStopLimit,
+        seedStopTimeSeconds = get(ClientSettingsField.SEED_STOP_TIME) as? SeedStopLimit,
         uploadRateLimit = get(ClientSettingsField.UPLOAD_RATE_LIMIT) as? TransferRateLimit,
         downloadRateLimit = get(ClientSettingsField.DOWNLOAD_RATE_LIMIT) as? TransferRateLimit,
         encryption = get(ClientSettingsField.ENCRYPTION) as? EncryptionPolicy,
@@ -334,22 +347,35 @@ internal fun Map<ClientSettingsField, Any>.toClientSettingsPatch(): ClientSettin
                 as? HttpsServerAuthenticationPolicy,
     )
 
-internal fun TorrentTransferLimits.fieldValues(): Map<TorrentSettingsField, Any> =
-    mapOf(
-        TorrentSettingsField.UPLOAD_RATE_LIMIT to upload,
-        TorrentSettingsField.DOWNLOAD_RATE_LIMIT to download,
+/** A torrent's own stop limits; an absent stop view means both follow the session. */
+internal fun TorrentView.seedStopLimits(): TorrentSeedStopLimits =
+    seeding.stop?.limits
+        ?: TorrentSeedStopLimits(TorrentSeedStopLimit.UseGlobal, TorrentSeedStopLimit.UseGlobal)
+
+internal fun TorrentView.settingsFieldValues(): Map<TorrentSettingsField, Any> {
+    val stop = seedStopLimits()
+    return mapOf(
+        TorrentSettingsField.UPLOAD_RATE_LIMIT to transferLimits.upload,
+        TorrentSettingsField.DOWNLOAD_RATE_LIMIT to transferLimits.download,
+        TorrentSettingsField.SEED_STOP_RATIO to stop.ratioPercent,
+        TorrentSettingsField.SEED_STOP_TIME to stop.timeSeconds,
     )
+}
 
 internal fun TorrentSettingsPatch.fieldValues(): Map<TorrentSettingsField, Any> =
     buildMap {
         uploadRateLimit?.let { put(TorrentSettingsField.UPLOAD_RATE_LIMIT, it) }
         downloadRateLimit?.let { put(TorrentSettingsField.DOWNLOAD_RATE_LIMIT, it) }
+        seedStopRatioPercent?.let { put(TorrentSettingsField.SEED_STOP_RATIO, it) }
+        seedStopTimeSeconds?.let { put(TorrentSettingsField.SEED_STOP_TIME, it) }
     }
 
 internal fun Map<TorrentSettingsField, Any>.toTorrentSettingsPatch(): TorrentSettingsPatch =
     torrentSettingsPatch(
         uploadRateLimit = get(TorrentSettingsField.UPLOAD_RATE_LIMIT) as? TransferRateLimit,
         downloadRateLimit = get(TorrentSettingsField.DOWNLOAD_RATE_LIMIT) as? TransferRateLimit,
+        seedStopRatioPercent = get(TorrentSettingsField.SEED_STOP_RATIO) as? TorrentSeedStopLimit,
+        seedStopTimeSeconds = get(TorrentSettingsField.SEED_STOP_TIME) as? TorrentSeedStopLimit,
     )
 
 internal fun ProductState.presentedClientSettings(): ClientSettingsRuntimeView? {
@@ -372,6 +398,8 @@ internal fun ProductState.presentedClientSettings(): ClientSettingsRuntimeView? 
                 finishedDownloadRatioLimitPercent =
                     values[ClientSettingsField.FINISHED_DOWNLOAD_RATIO_LIMIT] as UInt,
                 finishedTimeLimitSeconds = values[ClientSettingsField.FINISHED_TIME_LIMIT] as UInt,
+                seedStopRatioPercent = values[ClientSettingsField.SEED_STOP_RATIO] as SeedStopLimit,
+                seedStopTimeSeconds = values[ClientSettingsField.SEED_STOP_TIME] as SeedStopLimit,
                 uploadRateLimit =
                     values[ClientSettingsField.UPLOAD_RATE_LIMIT] as TransferRateLimit,
                 downloadRateLimit =
@@ -392,6 +420,19 @@ internal fun ProductState.presentedTorrent(torrent: TorrentView?): TorrentView? 
     torrent ?: return null
     if (torrentSettingsDraft.resourceKey != torrent.torrentId) return torrent
     val values = torrentSettingsDraft.materialized()
+    val ratio = values[TorrentSettingsField.SEED_STOP_RATIO] as TorrentSeedStopLimit
+    val time = values[TorrentSettingsField.SEED_STOP_TIME] as TorrentSeedStopLimit
+    val stopped = torrent.seeding.stop?.stopped == true
+    val stop =
+        if (
+            ratio == TorrentSeedStopLimit.UseGlobal &&
+                time == TorrentSeedStopLimit.UseGlobal &&
+                !stopped
+        ) {
+            null
+        } else {
+            SeedStopView(TorrentSeedStopLimits(ratio, time), stopped)
+        }
     return torrent.copy(
         transferLimits =
             torrent.transferLimits.copy(
@@ -400,6 +441,7 @@ internal fun ProductState.presentedTorrent(torrent: TorrentView?): TorrentView? 
                 download =
                     values[TorrentSettingsField.DOWNLOAD_RATE_LIMIT] as TransferRateLimit,
             ),
+        seeding = torrent.seeding.copy(stop = stop),
     )
 }
 
